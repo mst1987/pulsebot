@@ -13,7 +13,7 @@ class GDKP {
                 method: "GET",
                 headers: {}
             }
-            const url = 'http://localhost:3001/api/gargul-import/allbuyer';
+            const url = 'https://localhost:3001/api/gargul-import/allbuyer';
             return axios.get(url)
                 .then(response => {
                     console.log(response)
