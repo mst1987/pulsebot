@@ -122,7 +122,7 @@ class Raidhelper {
 
                 resp.on('end', () => {
                     data = JSON.parse(data);
-                    var filteredEvents = data['postedEvents'].sort((eventA, eventB) => eventA.startTime - eventB.startTime).filter(event => !event.signUps.find((signup) => signup.userId === userid));
+                    var filteredEvents = data['postedEvents'].sort((eventA, eventB) => eventA.startTime - eventB.startTime).filter(event => !event.signUps.find((signup) => signup.userId === userid && signup.specName !== 'Absence'));
 
                     resolve(filteredEvents.map(events => events.channelId));
                 });

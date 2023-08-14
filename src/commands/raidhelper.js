@@ -1,5 +1,5 @@
 require('dotenv').config();
-const Raidhelper = require('../raidhelper.js');
+const Raidhelper = require('../classes/raidhelper.js');
 const { REST, Routes, ApplicationCommandOptionType } = require('discord.js');
 const shortClassList = require('../config/variables.js')
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKEN);
@@ -30,6 +30,10 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKE
             {
                 name: 'gdkpraids',
                 description: 'Show the GDKP active on the Server',
+            },
+            {
+                name: 'test',
+                description: 'current',
             },
             /*{
                 name: 'signup',
