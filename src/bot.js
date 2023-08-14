@@ -39,7 +39,7 @@ client.on('interactionCreate', async(interaction) => {
 
             const SignUpsWithSpecs = GDKPSignUps.map(dataObject => {
                 const matchingSignUps = dataObject.signUps.filter(signUp => signUp.userId === interaction.user.id);
-                const matchingSpecs = matchingSignUps.map(signUp => `${guild.emojis.cache.find(emoji => emoji.name === classMap[signUp.specName]?.icon) }`).join('');
+                const matchingSpecs = matchingSignUps.map(signUp => `${guild.emojis.cache.find(emoji => emoji.name === classMap[signUp.specName].icon) }`).join('');
 
                 return {
                     specs: matchingSpecs,
