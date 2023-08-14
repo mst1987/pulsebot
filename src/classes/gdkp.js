@@ -13,8 +13,12 @@ class GDKP {
                 method: "GET",
                 headers: {}
             }
+
+            const agent = new https.Agent({
+                rejectUnauthorized: false, // Temporarily ignore SSL validation (not recommended for production)
+            });
             const url = 'https://localhost:3001/api/gargul-import/allbuyer';
-            return axios.get(url)
+            return axios.get(url, { httpsAgent: agent })
                 .then(response => {
                     console.log(response)
                     return response.data;
