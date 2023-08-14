@@ -17,7 +17,7 @@ class GDKP {
             const agent = new https.Agent({
                 rejectUnauthorized: false, // Temporarily ignore SSL validation (not recommended for production)
             });
-            const url = 'https://localhost:3001/api/gargul-import/currentid/' + userid;
+            const url = 'https://localhost:3001/api/gargul-import/byplayer/currentid/' + userid;
             return axios.get(url, { httpsAgent: agent })
                 .then(response => {
                     console.log(response)
