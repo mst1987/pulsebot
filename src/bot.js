@@ -213,7 +213,7 @@ client.on('interactionCreate', async(interaction) => {
                 })
             }
 
-            response = await raidhelper.signUpToRaid(raidId, signUps, interaction.user.id);
+            response = raidhelper.signUpToRaid(raidId, signUps, interaction.user.id);
 
             const formattedGDKPSignUps = signUps.map(s => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[s.specName].icon)}`).join(``);
             console.log(formattedGDKPSignUps)
