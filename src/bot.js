@@ -10,8 +10,6 @@ const { SlashCommandBuilder, Client, GatewayIntentBits, Intents } = require('dis
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
 
-const PREFIX = "!";
-
 client.on('ready', () => {
     console.log('Pulse Bot is ready');
 })
@@ -190,9 +188,16 @@ client.on('interactionCreate', async(interaction) => {
         const botMessages = channelMessages.filter(msg => msg.author.id === '579155972115660803');
 
         for (const [key, value] of botMessages) {
-            await (await interaction.channel.messages.fetch());
+            await interaction.channel.messages.fetch();
             if (raidhelper.checkIfEvent(key))
                 raidId = key;
+            else interaction.reply({
+                embeds: {
+                    title: 'Anmeldung nicht möglich',
+                    description: 'Keinen passenden Raid gefunden.'
+                },
+                ephemeral: true
+            })
         }
 
         try {
@@ -208,25 +213,26 @@ client.on('interactionCreate', async(interaction) => {
                 })
             }
 
+            let response;
             for (let signUp of signUps) {
                 console.log('Waiting...', signUp.specName)
-                await raidhelper.signUpToRaid(raidId, signUp, interaction.user.id).then(async(responseData) => {
-
+                response = await raidhelper.signUpToRaid(raidId, signUp, interaction.user.id).then(async(responseData) => {
                     console.log(signUp.specName, ' done.')
                 })
             }
 
             const formattedGDKPSignUps = signUps.map(s => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[s.specName].icon)}`).join(``);
-
             console.log(formattedGDKPSignUps)
-            await interaction.reply({
-                embeds: [{
-                    title: 'Sign Up',
-                    description: `You signed up as \n ${formattedGDKPSignUps}`,
-                }],
-                ephemeral: true,
+            response.then(async(res) => {
+                await interaction.reply({
+                    embeds: [{
+                        title: 'Sign Up',
+                        description: `You signed up as \n ${formattedGDKPSignUps}`,
+                    }],
+                    ephemeral: true,
 
-            });
+                });
+            })
         } catch (error) {
             console.log(error)
         }
