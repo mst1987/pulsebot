@@ -220,7 +220,7 @@ client.on('interactionCreate', async(interaction) => {
             await interaction.reply({
                 embeds: [{
                     title: 'Sign Up',
-                    description: `You signed up as`,
+                    description: `You signed up as ${formattedGDKPSignUps}\n Keep in mind, the raidhelper can take a bit until changes are shown.`,
                 }],
                 ephemeral: true,
             });
