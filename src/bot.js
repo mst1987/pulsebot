@@ -129,13 +129,11 @@ client.on('interactionCreate', async(interaction) => {
                 });
         } else {
             console.log('User: ', interaction.user.username)
-            const currentDate = new Date().setHours(9, 0, 0, 0);
+            const currentDate = new Date().setHours(0, 0, 0, 0);
             // Calculate the date of the last Wednesday
             const lastWednesday = new Date(currentDate);
             lastWednesday.setDate(lastWednesday.getDate() - (lastWednesday.getDay() + 4) % 7);
-            console.log('last Wednesday: ', lastWednesday, new Date(lastWednesday))
-            console.log('current: ', currentDate, new Date(currentDate))
-                // Filter the array to include entries from last Wednesday up to now
+            // Filter the array to include entries from last Wednesday up to now
             const filteredItems = currentSpent.filter((entry) => {
                 const entryDate = parseDMYDateString(entry.date);
                 return entryDate >= lastWednesday && entryDate <= currentDate;
