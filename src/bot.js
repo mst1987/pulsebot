@@ -213,16 +213,11 @@ client.on('interactionCreate', async(interaction) => {
                 })
             }
 
-            for (let signUp of signUps) {
-                console.log('Waiting...', signUp.specName)
-                response = await raidhelper.signUpToRaid(raidId, signUp, interaction.user.id).then(async(responseData) => {
-                    console.log(signUp.specName, ' done.')
-                })
-            }
+            response = await raidhelper.signUpToRaid(raidId, signUps, interaction.user.id);
 
             const formattedGDKPSignUps = signUps.map(s => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[s.specName].icon)}`).join(``);
             console.log(formattedGDKPSignUps)
-            interaction.reply({
+            await interaction.reply({
                 embeds: [{
                     title: 'Sign Up',
                     description: `You signed up as`,

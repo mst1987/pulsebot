@@ -134,8 +134,9 @@ class Raidhelper {
         });
     }
 
-    async signUpToRaid(raidid, classes, userid) {
-        return await this.signUp(raidid, classes, userid);
+    async signUpToRaid(raidid, signUps, userid) {
+        const promises = signUps.map(signUp => this.signUp(raidid, signUp, userid));
+        await Promise.all(promises);
     }
 
     async signUp(raidid, classes, userid) {
