@@ -133,7 +133,9 @@ client.on('interactionCreate', async(interaction) => {
             // Calculate the date of the last Wednesday
             const lastWednesday = new Date(currentDate);
             lastWednesday.setDate(lastWednesday.getDate() - (lastWednesday.getDay() + 4) % 7);
-            // Filter the array to include entries from last Wednesday up to now
+            console.log('last Wednesday: ', lastWednesday, new Date(lastWednesday))
+            console.log('current: ', currentDate, new Date(currentDate))
+                // Filter the array to include entries from last Wednesday up to now
             const filteredItems = currentSpent.filter((entry) => {
                 const entryDate = parseDMYDateString(entry.date);
                 return entryDate >= lastWednesday && entryDate <= currentDate;
