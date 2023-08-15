@@ -92,36 +92,44 @@ module.exports = extendedClassList = {
     'ProtPala': { icon: 'protpala', name: 'Protection Pala', clazz: 'Paladin', spec: 'Protection1' },
     'Retribution': { icon: 'retribution', name: 'Retribution Pala', clazz: 'Paladin', spec: 'Retribution' },
     'Retri': { icon: 'retribution', name: 'Retribution Pala', clazz: 'Paladin', spec: 'Retribution' },
+    'PALADIN': { icon: 'paladin', name: 'Paladin', clazz: 'Paladin', spec: 'paladin' },
     //Warrior
     'Fury': { icon: 'fury', name: 'Fury Warrior', clazz: 'Warrior', spec: 'Fury' },
     'Arms': { icon: 'arms', name: 'Arms Warrior', clazz: 'Warrior', spec: 'Arms' },
     'Protection': { icon: 'protection', name: 'Protection Warrior', clazz: 'Warrior', spec: 'Protection' },
     'ProtWarrior': { icon: 'protection', name: 'Protection Warrior', clazz: 'Tank', spec: 'Protection' },
+    'WARRIOR': { icon: 'warrior', name: 'Warrior', clazz: 'Tank', spec: 'Warrior' },
     //Rogue
     'Assassination': { icon: 'assassination', name: 'Assassination Rogue', clazz: 'Rogue', spec: 'Assassination' },
     'Assa': { icon: 'assassination', name: 'Assassination Rogue', clazz: 'Rogue', spec: 'Assassination' },
     'Combat': { icon: 'combat', name: 'Combat Rogue', clazz: 'Rogue', spec: 'Combat' },
+    'ROGUE': { icon: 'rogue', name: 'Rogue', clazz: 'Rogue', spec: 'rogue' },
     //Priest
     'Discipline': { icon: 'discipline', name: 'Discipline Priest', clazz: 'Priest', spec: 'Discipline' },
     'Disc': { icon: 'discipline', name: 'Discipline Priest', clazz: 'Priest', spec: 'Discipline' },
     'Shadow': { icon: 'shadow', name: 'Shadow Priest', clazz: 'Priest', spec: 'Shadow' },
     'HolyPriest': { icon: 'holypriest', name: 'Holy Priest', clazz: 'Priest', spec: 'HolyPriest' },
+    'PRIEST': { icon: 'priest', name: 'Priest', clazz: 'Priest', spec: 'Priest' },
     //Hunter
     'Survival': { icon: 'survival', name: 'Survival Hunter', clazz: 'Hunter', spec: 'Survival' },
+    'HUNTER': { icon: 'survival', name: 'Survival Hunter', clazz: 'Hunter', spec: 'Survival' },
     // Warlock
     'Demonology': { icon: 'demonology', name: 'Demonology Warlock', clazz: 'Warlock', spec: 'Demonology' },
     'Demo': { icon: 'demonology', name: 'Demonology Warlock', clazz: 'Warlock', spec: 'Demonology' },
     'Affliction': { icon: 'affliction', name: 'Affliction Warlock', clazz: 'Warlock', spec: 'Affliction' },
     'Affli': { icon: 'affliction', name: 'Affliction Warlock', clazz: 'Warlock', spec: 'Affliction' },
+    'WARLOCK': { icon: 'warlock', name: 'Warlock', clazz: 'Warlock', spec: 'warlock' },
     //Mage
     'Fire': { icon: 'firemage', name: 'Fire Mage', clazz: 'Mage', spec: 'Fire' },
     'Arcane': { icon: 'arcane', name: 'Arcane Mage', clazz: 'Mage', spec: 'Arcane' },
     'Frost': { icon: 'frostmage', name: 'Frost Mage', clazz: 'Mage', spec: 'Frost' },
+    'MAGE': { icon: 'mage', name: 'Mage', clazz: 'Mage', spec: 'mage' },
     //Druid
     'Feral': { icon: 'feral', name: 'Feral Druid', clazz: 'Druid', spec: 'Feral' },
     'Balance': { icon: 'balance', name: 'Balance Druid', clazz: 'Druid', spec: 'Balance' },
     'Restoration': { icon: 'restoration', name: 'Restoration Druid', clazz: 'Druid', spec: 'Restoration' },
     'RestoDruid': { icon: 'restoration', name: 'Restoration Druid', clazz: 'Druid', spec: 'Restoration' },
+    'DRUID': { icon: 'druid', name: 'Druid', clazz: 'Druid', spec: 'druid' },
     //Death Knight
     'Unholy_DPS': { icon: 'unholy', name: 'Unholy Deathknight', clazz: 'DK', spec: 'Unholy_DPS' },
     'UnholyDK': { icon: 'unholy', name: 'Unholy Deathknight', clazz: 'DK', spec: 'Unholy_DPS' },
@@ -129,6 +137,7 @@ module.exports = extendedClassList = {
     'FrostDK': { icon: 'frostdk', name: 'Frost Deathknight', clazz: 'DK', spec: 'Frost_DPS' },
     'Blood_Tank': { icon: 'blooddk', name: 'Blood Tank', clazz: 'DK', spec: 'Blood_Tank' },
     'BloodDK': { icon: 'blooddk', name: 'Blood Deathknight', clazz: 'DK', spec: 'Blood_DPS' },
+    'DEATHKNIGHT': { icon: 'deathknight', name: 'Deathknight', clazz: 'DK', spec: 'Deathknight' },
     //Shaman
     'Restoration1': { icon: 'restosham', name: 'Restoration Shaman', clazz: 'Shaman', spec: 'Restoration1' },
     'RestoSham': { icon: 'restosham', name: 'Restoration Shaman', clazz: 'Shaman', spec: 'Restoration1' },
@@ -136,4 +145,5 @@ module.exports = extendedClassList = {
     'EleSham': { icon: 'elemental', name: 'Elemental Shaman', clazz: 'Shaman', spec: 'Elemental' },
     'Enhancement': { icon: 'enhancement', name: 'Enhancement Shaman', clazz: 'Shaman', spec: 'Enhancement' },
     'Enhancer': { icon: 'enhancement', name: 'Enhancement Shaman', clazz: 'Shaman', spec: 'Enhancement' },
+    'SHAMAN': { icon: 'shaman', name: 'Shaman', clazz: 'Shaman', spec: 'Shaman' },
 }

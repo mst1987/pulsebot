@@ -32,7 +32,11 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKE
                 description: 'Show the GDKP active on the Server',
             },
             {
-                name: 'test',
+                name: 'lastspent',
+                description: 'current',
+            },
+            {
+                name: 'totalspent',
                 description: 'current',
             },
             /*{

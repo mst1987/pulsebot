@@ -98,10 +98,89 @@ client.on('interactionCreate', async(interaction) => {
         }
     }
 
-    if (interaction.commandName === 'test') {
+    if (interaction.commandName === 'lastspent') {
+        const gdkp = new GDKP();
+
+        let currentSpent = await gdkp.getCurrentIDSpent(interaction.user.id);
+
+        if (!currentSpent) {
+            console.log('User: ', currentSpent[0])
+            await interaction.reply({
+                embeds: [{
+                    title: 'Letzte ID gekauft:',
+                    description: `Keine Items gekauft in der letzten ID. Eventuell ist die Datenbank nicht aktuell!`,
+                }],
+                ephemeral: true
+            });
+        } else {
+            console.log('User: ', interaction.user.username)
+            const currentDate = new Date().setHours(9, 0, 0, 0);
+            // Calculate the date of the last Wednesday
+            const lastWednesday = new Date(currentDate);
+            lastWednesday.setDate(lastWednesday.getDate() - (lastWednesday.getDay() + 4) % 7);
+            // Filter the array to include entries from last Wednesday up to now
+            const filteredItems = currentSpent.filter((entry) => {
+                const entryDate = parseDMYDateString(entry.date);
+                return entryDate >= lastWednesday && entryDate <= currentDate;
+            }).sort((a, b) => a.player.localeCompare(b.player));
+
+            const formattedItems = filteredItems.map(item => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[item.class]?.icon)} ${item.player} - [${item.item}](${item.wowhead}) - ${item.gold}g`).join(`\n`);
+            const sumOfGold = filteredItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
+            await interaction.reply({
+                embeds: [{
+                    title: 'Letzte ID gekauft:',
+                    description: `${formattedItems}\n\n\nGesamtausgaben: **${sumOfGold}g**`,
+                }],
+                ephemeral: true
+            });
+        }
+    }
+
+    if (interaction.commandName === 'totalspent') {
         const gdkp = new GDKP();
         let currentSpent = await gdkp.getCurrentIDSpent(interaction.user.id);
-        console.log('currentSpent: ', currentSpent)
+        if (!currentSpent) {
+            await interaction.reply({
+                embeds: [{
+                    title: 'Gesamte Itemhistorie:',
+                    description: `Keine Items gekauft. Eventuell ist die Datenbank nicht aktuell!`,
+                }],
+                ephemeral: true
+            });
+        } else {
+            currentSpent = currentSpent.sort((a, b) => a.player.localeCompare(b.player))
+
+            let i = 0,
+                j = -1;
+            let formattedItems = [];
+            currentSpent.forEach(current => {
+                if (i % 15 === 0 || i === 0) {
+                    formattedItems[++j] = [];
+                }
+                formattedItems[j].push(`${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[current.class]?.icon)} ${current.player} - [${current.item}](${current.wowhead}) - ${current.gold}g`)
+                i++;
+            })
+            const sumOfGold = currentSpent.reduce((totalGold, entry) => totalGold + entry.gold, 0);
+
+            await interaction.reply({
+                embeds: [{
+                    title: `Gesamte Itemhistorie:`,
+                    description: `Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`,
+                }],
+                ephemeral: true
+            });
+
+            if (formattedItems.length > 1)
+                formattedItems.forEach(async(items, key) => {
+                    if (key > 0)
+                        await interaction.followUp({
+                            embeds: [{
+                                description: `${items.join('\n')}`,
+                            }],
+                            ephemeral: true
+                        });
+                })
+        }
     }
 
     if (interaction.commandName === 'signup') {
@@ -131,19 +210,22 @@ client.on('interactionCreate', async(interaction) => {
 
             for (let signUp of signUps) {
                 console.log('Waiting...', signUp.specName)
-                await raidhelper.signUpToRaid(raidId, signUp, interaction.user.id).then((responseData) => {
+                await raidhelper.signUpToRaid(raidId, signUp, interaction.user.id).then(async(responseData) => {
+
                     console.log(signUp.specName, ' done.')
                 })
             }
 
             const formattedGDKPSignUps = signUps.map(s => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[s.specName].icon)}`).join(``);
 
+            console.log(formattedGDKPSignUps)
             await interaction.reply({
                 embeds: [{
                     title: 'Sign Up',
-                    description: 'You signed up as \n' + formattedGDKPSignUps,
+                    description: `You signed up as \n ${formattedGDKPSignUps}`,
                 }],
-                ephemeral: true
+                ephemeral: true,
+
             });
         } catch (error) {
             console.log(error)
@@ -191,5 +273,14 @@ client.on('interactionCreate', async(interaction) => {
         //interaction.reply('Classes #extra:' + extraClasses)
     }
 })
+
+// Function to parse "D-M-YYYY" format
+function parseDMYDateString(dateString) {
+    const parts = dateString.split('-');
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Months in JavaScript are zero-based
+    const year = parseInt(parts[2], 10);
+    return new Date(year, month, day);
+}
 
 client.login(process.env.DISCORDJS_BOT_TOKEN);
