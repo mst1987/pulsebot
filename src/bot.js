@@ -10,6 +10,8 @@ const { SlashCommandBuilder, Client, GatewayIntentBits, Intents } = require('dis
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
 
+const timeoutTime = 30000;
+
 client.on('ready', () => {
     console.log('Pulse Bot is ready');
 })
@@ -53,7 +55,7 @@ client.on('interactionCreate', async(interaction) => {
                     }],
                     ephemeral: true
                 }).then(msg => {
-                    setTimeout(() => msg.delete(), 30000)
+                    setTimeout(() => msg.delete(), timeoutTime)
                 })
                 .catch(error => {
                     console.log(error);
@@ -94,7 +96,7 @@ client.on('interactionCreate', async(interaction) => {
                         }],
                         ephemeral: true
                     }).then(msg => {
-                        setTimeout(() => msg.delete(), 30000)
+                        setTimeout(() => msg.delete(), timeoutTime)
                     })
                     .catch(error => {
                         console.log(error);
@@ -120,7 +122,7 @@ client.on('interactionCreate', async(interaction) => {
                     }],
                     ephemeral: true
                 }).then(msg => {
-                    setTimeout(() => msg.delete(), 30000)
+                    setTimeout(() => msg.delete(), timeoutTime)
                 })
                 .catch(error => {
                     console.log(error);
@@ -160,7 +162,7 @@ client.on('interactionCreate', async(interaction) => {
                     }],
                     ephemeral: true
                 }).then(msg => {
-                    setTimeout(() => msg.delete(), 30000)
+                    setTimeout(() => msg.delete(), timeoutTime)
                 })
                 .catch(error => {
                     console.log(error);
@@ -244,7 +246,7 @@ client.on('interactionCreate', async(interaction) => {
                     }],
                     ephemeral: true,
                 }).then(msg => {
-                    setTimeout(() => msg.delete(), 30000)
+                    setTimeout(() => msg.delete(), timeoutTime)
                 })
                 .catch(error => {
                     console.log(error);
@@ -288,7 +290,7 @@ client.on('interactionCreate', async(interaction) => {
                     }],
                     ephemeral: true
                 }).then(msg => {
-                    setTimeout(() => msg.delete(), 30000)
+                    setTimeout(() => msg.delete(), timeoutTime)
                 })
                 .catch(error => {
                     console.log(error);
