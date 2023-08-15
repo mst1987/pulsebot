@@ -213,7 +213,6 @@ client.on('interactionCreate', async(interaction) => {
                 })
             }
 
-            let response;
             for (let signUp of signUps) {
                 console.log('Waiting...', signUp.specName)
                 response = await raidhelper.signUpToRaid(raidId, signUp, interaction.user.id).then(async(responseData) => {
@@ -223,16 +222,14 @@ client.on('interactionCreate', async(interaction) => {
 
             const formattedGDKPSignUps = signUps.map(s => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[s.specName].icon)}`).join(``);
             console.log(formattedGDKPSignUps)
-            response.then(async(res) => {
-                await interaction.reply({
-                    embeds: [{
-                        title: 'Sign Up',
-                        description: `You signed up as \n ${formattedGDKPSignUps}`,
-                    }],
-                    ephemeral: true,
+            await interaction.reply({
+                embeds: [{
+                    title: 'Sign Up',
+                    description: `You signed up as \n ${formattedGDKPSignUps}`,
+                }],
+                ephemeral: true,
 
-                });
-            })
+            });
         } catch (error) {
             console.log(error)
         }
