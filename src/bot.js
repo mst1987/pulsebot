@@ -225,10 +225,9 @@ client.on('interactionCreate', async(interaction) => {
             await interaction.reply({
                 embeds: [{
                     title: 'Sign Up',
-                    description: `You signed up as \n ${formattedGDKPSignUps}`,
+                    description: `You signed up as`,
                 }],
                 ephemeral: true,
-
             });
         } catch (error) {
             console.log(error)
