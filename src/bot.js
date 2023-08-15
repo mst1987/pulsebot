@@ -222,7 +222,7 @@ client.on('interactionCreate', async(interaction) => {
 
             const formattedGDKPSignUps = signUps.map(s => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[s.specName].icon)}`).join(``);
             console.log(formattedGDKPSignUps)
-            await interaction.reply({
+            interaction.reply({
                 embeds: [{
                     title: 'Sign Up',
                     description: `You signed up as`,
