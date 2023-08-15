@@ -88,8 +88,8 @@ module.exports = extendedClassList = {
     // Pala
     'Holy1': { icon: 'holypala', name: 'Holy Paladin', clazz: 'Paladin', spec: 'Holy1' },
     'HolyPala': { icon: 'holypala', name: 'Holy Paladin', clazz: 'Paladin', spec: 'Holy1' },
-    'Protection1': { icon: 'protpala', name: 'Protection Pala', clazz: 'Paladin', spec: 'Protection1' },
-    'ProtPala': { icon: 'protpala', name: 'Protection Pala', clazz: 'Paladin', spec: 'Protection1' },
+    'Protection1': { icon: 'protpala', name: 'Protection Pala', clazz: 'Tank', spec: 'Protection1' },
+    'ProtPala': { icon: 'protpala', name: 'Protection Pala', clazz: 'Tank', spec: 'Protection1' },
     'Retribution': { icon: 'retribution', name: 'Retribution Pala', clazz: 'Paladin', spec: 'Retribution' },
     'Retri': { icon: 'retribution', name: 'Retribution Pala', clazz: 'Paladin', spec: 'Retribution' },
     'PALADIN': { icon: 'paladin', name: 'Paladin', clazz: 'Paladin', spec: 'paladin' },
