@@ -47,12 +47,17 @@ client.on('interactionCreate', async(interaction) => {
 
             const formattedGDKPSignUps = SignUpsWithSpecs.map(channelId => `<#${channelId.channelId}>\n ${channelId.specs}\n`).join(`\n`);
             await interaction.reply({
-                embeds: [{
-                    title: 'GDKP Sign Ups',
-                    description: `Missing/Absence SignUps: \n${formattedMissingSignUps}\n\nSigned Up GDKP Events: \n${formattedGDKPSignUps}`,
-                }],
-                ephemeral: true
-            });
+                    embeds: [{
+                        title: 'GDKP Sign Ups',
+                        description: `Missing/Absence SignUps: \n${formattedMissingSignUps}\n\nSigned Up GDKP Events: \n${formattedGDKPSignUps}`,
+                    }],
+                    ephemeral: true
+                }).then(msg => {
+                    setTimeout(() => msg.delete(), 10000)
+                })
+                .catch(error => {
+                    console.log(error);
+                });
         } else {
             interaction.reply('Pulse Bot doesnt have a correct Setup yet.');
         }
@@ -83,12 +88,17 @@ client.on('interactionCreate', async(interaction) => {
                 const formattedGDKPSignUps = setupData.map(channelId => `<#${channelId.channelid}> ${guild.emojis.cache.find(emoji => emoji.name === classMap[channelId.setup[0].spec].icon)} ${classMap[channelId.setup[0].spec].name}`).join(`\n`);
 
                 await interaction.reply({
-                    embeds: [{
-                        title: 'Setups',
-                        description: `\n${formattedGDKPSignUps}`,
-                    }],
-                    ephemeral: true
-                })
+                        embeds: [{
+                            title: 'Setups',
+                            description: `\n${formattedGDKPSignUps}`,
+                        }],
+                        ephemeral: true
+                    }).then(msg => {
+                        setTimeout(() => msg.delete(), 10000)
+                    })
+                    .catch(error => {
+                        console.log(error);
+                    })
             }
 
         } else {
@@ -104,12 +114,17 @@ client.on('interactionCreate', async(interaction) => {
         if (!currentSpent) {
             console.log('User: ', currentSpent[0])
             await interaction.reply({
-                embeds: [{
-                    title: 'Letzte ID gekauft:',
-                    description: `Keine Items gekauft in der letzten ID. Eventuell ist die Datenbank nicht aktuell!`,
-                }],
-                ephemeral: true
-            });
+                    embeds: [{
+                        title: 'Letzte ID gekauft:',
+                        description: `Keine Items gekauft in der letzten ID. Eventuell ist die Datenbank nicht aktuell!`,
+                    }],
+                    ephemeral: true
+                }).then(msg => {
+                    setTimeout(() => msg.delete(), 10000)
+                })
+                .catch(error => {
+                    console.log(error);
+                });
         } else {
             console.log('User: ', interaction.user.username)
             const currentDate = new Date().setHours(9, 0, 0, 0);
@@ -139,12 +154,17 @@ client.on('interactionCreate', async(interaction) => {
         let currentSpent = await gdkp.getCurrentIDSpent(interaction.user.id);
         if (!currentSpent) {
             await interaction.reply({
-                embeds: [{
-                    title: 'Gesamte Itemhistorie:',
-                    description: `Keine Items gekauft. Eventuell ist die Datenbank nicht aktuell!`,
-                }],
-                ephemeral: true
-            });
+                    embeds: [{
+                        title: 'Gesamte Itemhistorie:',
+                        description: `Keine Items gekauft. Eventuell ist die Datenbank nicht aktuell!`,
+                    }],
+                    ephemeral: true
+                }).then(msg => {
+                    setTimeout(() => msg.delete(), 10000)
+                })
+                .catch(error => {
+                    console.log(error);
+                });
         } else {
             currentSpent = currentSpent.sort((a, b) => a.player.localeCompare(b.player))
 
@@ -166,7 +186,7 @@ client.on('interactionCreate', async(interaction) => {
                     description: `Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`,
                 }],
                 ephemeral: true
-            });
+            })
 
             if (formattedItems.length > 1)
                 formattedItems.forEach(async(items, key) => {
@@ -218,12 +238,17 @@ client.on('interactionCreate', async(interaction) => {
             const formattedGDKPSignUps = signUps.map(s => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[s.specName].icon)}`).join(``);
             console.log(formattedGDKPSignUps)
             await interaction.reply({
-                embeds: [{
-                    title: 'Sign Up',
-                    description: `You signed up as ${formattedGDKPSignUps}\n Keep in mind, the raidhelper can take a bit until changes are shown.`,
-                }],
-                ephemeral: true,
-            });
+                    embeds: [{
+                        title: 'Sign Up',
+                        description: `You signed up as ${formattedGDKPSignUps}\n Keep in mind, the raidhelper can take a bit until changes are shown.`,
+                    }],
+                    ephemeral: true,
+                }).then(msg => {
+                    setTimeout(() => msg.delete(), 10000)
+                })
+                .catch(error => {
+                    console.log(error);
+                });
         } catch (error) {
             console.log(error)
         }
@@ -257,12 +282,17 @@ client.on('interactionCreate', async(interaction) => {
             console.log(formattedGDKPSignUps);
 
             await interaction.reply({
-                embeds: [{
-                    title: 'Sign Up',
-                    description: 'You signed up as \n' + formattedGDKPSignUps,
-                }],
-                ephemeral: true
-            })
+                    embeds: [{
+                        title: 'Sign Up',
+                        description: 'You signed up as \n' + formattedGDKPSignUps,
+                    }],
+                    ephemeral: true
+                }).then(msg => {
+                    setTimeout(() => msg.delete(), 10000)
+                })
+                .catch(error => {
+                    console.log(error);
+                })
         } catch (error) {
             console.log(error)
         }

@@ -112,12 +112,15 @@ module.exports = extendedClassList = {
     'PRIEST': { icon: 'priest', name: 'Priest', clazz: 'Priest', spec: 'Priest' },
     //Hunter
     'Survival': { icon: 'survival', name: 'Survival Hunter', clazz: 'Hunter', spec: 'Survival' },
+    'Marksman': { icon: 'marksman', name: 'Marksman Hunter', clazz: 'Hunter', spec: 'Marksman' },
+    'Beastmaster': { icon: 'beastmastery', name: 'Beastmaster Hunter', clazz: 'Hunter', spec: 'Beastmastery' },
     'HUNTER': { icon: 'survival', name: 'Survival Hunter', clazz: 'Hunter', spec: 'Survival' },
     // Warlock
     'Demonology': { icon: 'demonology', name: 'Demonology Warlock', clazz: 'Warlock', spec: 'Demonology' },
     'Demo': { icon: 'demonology', name: 'Demonology Warlock', clazz: 'Warlock', spec: 'Demonology' },
     'Affliction': { icon: 'affliction', name: 'Affliction Warlock', clazz: 'Warlock', spec: 'Affliction' },
     'Affli': { icon: 'affliction', name: 'Affliction Warlock', clazz: 'Warlock', spec: 'Affliction' },
+    'Destro': { icon: 'destruction', name: 'Destruction Warlock', clazz: 'Warlock', spec: 'Destruction' },
     'WARLOCK': { icon: 'warlock', name: 'Warlock', clazz: 'Warlock', spec: 'warlock' },
     //Mage
     'Fire': { icon: 'firemage', name: 'Fire Mage', clazz: 'Mage', spec: 'Fire' },
