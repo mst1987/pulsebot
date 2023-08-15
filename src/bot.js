@@ -53,7 +53,7 @@ client.on('interactionCreate', async(interaction) => {
                     }],
                     ephemeral: true
                 }).then(msg => {
-                    setTimeout(() => msg.delete(), 10000)
+                    setTimeout(() => msg.delete(), 30000)
                 })
                 .catch(error => {
                     console.log(error);
@@ -94,7 +94,7 @@ client.on('interactionCreate', async(interaction) => {
                         }],
                         ephemeral: true
                     }).then(msg => {
-                        setTimeout(() => msg.delete(), 10000)
+                        setTimeout(() => msg.delete(), 30000)
                     })
                     .catch(error => {
                         console.log(error);
@@ -120,7 +120,7 @@ client.on('interactionCreate', async(interaction) => {
                     }],
                     ephemeral: true
                 }).then(msg => {
-                    setTimeout(() => msg.delete(), 10000)
+                    setTimeout(() => msg.delete(), 30000)
                 })
                 .catch(error => {
                     console.log(error);
@@ -160,7 +160,7 @@ client.on('interactionCreate', async(interaction) => {
                     }],
                     ephemeral: true
                 }).then(msg => {
-                    setTimeout(() => msg.delete(), 10000)
+                    setTimeout(() => msg.delete(), 30000)
                 })
                 .catch(error => {
                     console.log(error);
@@ -244,7 +244,7 @@ client.on('interactionCreate', async(interaction) => {
                     }],
                     ephemeral: true,
                 }).then(msg => {
-                    setTimeout(() => msg.delete(), 10000)
+                    setTimeout(() => msg.delete(), 30000)
                 })
                 .catch(error => {
                     console.log(error);
@@ -288,7 +288,7 @@ client.on('interactionCreate', async(interaction) => {
                     }],
                     ephemeral: true
                 }).then(msg => {
-                    setTimeout(() => msg.delete(), 10000)
+                    setTimeout(() => msg.delete(), 30000)
                 })
                 .catch(error => {
                     console.log(error);
