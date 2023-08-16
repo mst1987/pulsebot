@@ -355,8 +355,4 @@ function parseDMYDateString(dateString) {
     return new Date(year, month, day);
 }
 
-function getItemsBought(date) {
-
-}
-
 client.login(process.env.DISCORDJS_BOT_TOKEN);
