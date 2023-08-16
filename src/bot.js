@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: '../.env'});
 
 const classMap = require('./config/variables.js')
 const shortClassList = require('./config/variables.js')
@@ -353,10 +353,6 @@ function parseDMYDateString(dateString) {
     const month = parseInt(parts[1], 10) - 1; // Months in JavaScript are zero-based
     const year = parseInt(parts[2], 10);
     return new Date(year, month, day);
-}
-
-function getItemsBought(date) {
-
 }
 
 client.login(process.env.DISCORDJS_BOT_TOKEN);
