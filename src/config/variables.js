@@ -102,6 +102,7 @@ module.exports = extendedClassList = {
     //Rogue
     'Assassination': { icon: 'assassination', name: 'Assassination Rogue', clazz: 'Rogue', spec: 'Assassination' },
     'Assa': { icon: 'assassination', name: 'Assassination Rogue', clazz: 'Rogue', spec: 'Assassination' },
+    'Sublety': { icon: 'sublety', name: 'Sublety Rogue', clazz: 'Rogue', spec: 'Sublety' },
     'Combat': { icon: 'combat', name: 'Combat Rogue', clazz: 'Rogue', spec: 'Combat' },
     'ROGUE': { icon: 'rogue', name: 'Rogue', clazz: 'Rogue', spec: 'rogue' },
     //Priest
@@ -129,6 +130,7 @@ module.exports = extendedClassList = {
     'MAGE': { icon: 'mage', name: 'Mage', clazz: 'Mage', spec: 'mage' },
     //Druid
     'Feral': { icon: 'feral', name: 'Feral Druid', clazz: 'Druid', spec: 'Feral' },
+    'Guardian': { icon: 'guardian', name: 'Feral Tank', clazz: 'Druid', spec: 'Guardian' },
     'Balance': { icon: 'balance', name: 'Balance Druid', clazz: 'Druid', spec: 'Balance' },
     'Restoration': { icon: 'restoration', name: 'Restoration Druid', clazz: 'Druid', spec: 'Restoration' },
     'RestoDruid': { icon: 'restoration', name: 'Restoration Druid', clazz: 'Druid', spec: 'Restoration' },

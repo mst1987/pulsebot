@@ -1,12 +1,11 @@
 require('dotenv').config({ path: '../.env'});
 
 const classMap = require('./config/variables.js')
-const shortClassList = require('./config/variables.js')
 const extendedClassList = require('./config/variables.js')
 const Raidhelper = require('./classes/raidhelper.js');
 const GDKP = require('./classes/gdkp.js');
 
-const { SlashCommandBuilder, Client, GatewayIntentBits, Intents } = require('discord.js');
+const { Client, GatewayIntentBits } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
 
@@ -19,6 +18,8 @@ client.on('ready', () => {
 client.on('interactionCreate', async(interaction) => {
     if (!interaction.isChatInputCommand()) return;
     if (interaction.user.bot) return;
+
+    console.log('User: ', interaction.user.name, '- Command:', interaction.commandName);
 
     const raidhelper = new Raidhelper();
     const guild = interaction.guild;
@@ -110,11 +111,9 @@ client.on('interactionCreate', async(interaction) => {
 
     if (interaction.commandName === 'lastspent') {
         const gdkp = new GDKP();
-
         let currentSpent = await gdkp.getCurrentIDSpent(interaction.user.id);
 
         if (!currentSpent) {
-            console.log('User: ', currentSpent[0])
             await interaction.reply({
                     embeds: [{
                         title: 'Letzte ID gekauft:',
@@ -128,7 +127,6 @@ client.on('interactionCreate', async(interaction) => {
                     console.log(error);
                 });
         } else {
-            console.log('User: ', interaction.user.username)
             const currentDate = new Date().setHours(0, 0, 0, 0);
             // Calculate the date of the last Wednesday
             const lastWednesday = new Date(currentDate);
@@ -157,7 +155,6 @@ client.on('interactionCreate', async(interaction) => {
         let currentSpent = await gdkp.getCurrentIDSpent(interaction.user.id);
 
         if (!currentSpent) {
-            console.log('User: ', currentSpent[0])
             await interaction.reply({
                     embeds: [{
                         title: 'Diese ID gekauft:',
@@ -171,7 +168,6 @@ client.on('interactionCreate', async(interaction) => {
                     console.log(error);
                 });
         } else {
-            console.log('User: ', interaction.user.username)
             const currentDate = new Date().setHours(0, 0, 0, 0);
             // Calculate the date of the last Wednesday
             const lastWednesday = new Date(currentDate);
@@ -281,7 +277,6 @@ client.on('interactionCreate', async(interaction) => {
             response = raidhelper.signUpToRaid(raidId, signUps, interaction.user.id);
 
             const formattedGDKPSignUps = signUps.map(s => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[s.specName].icon)}`).join(``);
-            console.log(formattedGDKPSignUps)
             await interaction.reply({
                     embeds: [{
                         title: 'Sign Up',
@@ -314,7 +309,6 @@ client.on('interactionCreate', async(interaction) => {
                         signUps.push({ className: extendedClassList[spec].clazz, specName: extendedClassList[spec].spec })
                 })
             }
-            console.log(signUps.length)
 
             for (let signUp of signUps) {
                 console.log('Waiting...', signUp.specName)
@@ -324,7 +318,6 @@ client.on('interactionCreate', async(interaction) => {
             }
 
             const formattedGDKPSignUps = signUps.map(s => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[s.specName].icon)}`).join(``);
-            console.log(formattedGDKPSignUps);
 
             await interaction.reply({
                     embeds: [{

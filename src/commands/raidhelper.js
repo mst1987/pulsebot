@@ -33,15 +33,15 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKE
             },
             {
                 name: 'lastspent',
-                description: 'current',
+                description: 'Gold spent on items in the last ID',
             },
             {
                 name: 'totalspent',
-                description: 'current',
+                description: 'Total gold spent on Items since Phase 3 Start',
             },
             {
                 name: 'currentspent',
-                description: 'current',
+                description: 'Gold spent on items in the current ID',
             },
             /*{
                 name: 'signup',
@@ -63,10 +63,10 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKE
             },*/
             {
                 name: 'signup',
-                description: 'Sign Up to the raid in this channel with classes',
+                description: 'Sign Up to the raid in this channel with the specs/classes you want',
                 options: [{
                     name: 'specs',
-                    description: 'Additional Classes - Seperate with "," (Combat,Assa,Affli,Demo,Fire,RestoDruid)',
+                    description: 'Sign up with these Specs - Seperate with "," (example: Combat,Assa,Affli,Demo,Fire,RestoDruid)',
                     type: 3,
                     required: true
                 }]
