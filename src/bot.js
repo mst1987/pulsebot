@@ -19,7 +19,7 @@ client.on('interactionCreate', async(interaction) => {
     if (!interaction.isChatInputCommand()) return;
     if (interaction.user.bot) return;
 
-    console.log('User: ', interaction.user.name, '- Command:', interaction.commandName);
+    console.log('User: ', interaction.user.username, '- Command:', interaction.commandName);
 
     const raidhelper = new Raidhelper();
     const guild = interaction.guild;
