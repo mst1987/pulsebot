@@ -39,6 +39,10 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKE
                 name: 'totalspent',
                 description: 'current',
             },
+            {
+                name: 'currentspent',
+                description: 'current',
+            },
             /*{
                 name: 'signup',
                 description: 'Sign Up to a raid with classes',

@@ -132,6 +132,49 @@ client.on('interactionCreate', async(interaction) => {
             const currentDate = new Date().setHours(0, 0, 0, 0);
             // Calculate the date of the last Wednesday
             const lastWednesday = new Date(currentDate);
+            lastWednesday.setDate(lastWednesday.getDate() - (lastWednesday.getDay() + 4) % 14);
+            // Filter the array to include entries from last Wednesday up to now
+            const filteredItems = currentSpent.filter((entry) => {
+                const entryDate = parseDMYDateString(entry.date);
+                return entryDate >= lastWednesday && entryDate <= currentDate;
+            }).sort((a, b) => a.player.localeCompare(b.player));
+
+            const formattedItems = filteredItems.map(item => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[item.class]?.icon)} ${item.player} - [${item.item}](${item.wowhead}) - ${item.gold}g`).join(`\n`);
+            const sumOfGold = filteredItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
+            await interaction.reply({
+                embeds: [{
+                    title: 'Letzte ID gekauft:',
+                    description: `${formattedItems}\n\n\nGesamtausgaben: **${sumOfGold}g**`,
+                }],
+                ephemeral: true
+            });
+        }
+    }
+
+    if (interaction.commandName === 'currentspent') {
+        const gdkp = new GDKP();
+
+        let currentSpent = await gdkp.getCurrentIDSpent(interaction.user.id);
+
+        if (!currentSpent) {
+            console.log('User: ', currentSpent[0])
+            await interaction.reply({
+                    embeds: [{
+                        title: 'Letzte ID gekauft:',
+                        description: `Keine Items gekauft in der letzten ID. Eventuell ist die Datenbank nicht aktuell!`,
+                    }],
+                    ephemeral: true
+                }).then(msg => {
+                    setTimeout(() => msg.delete(), timeoutTime)
+                })
+                .catch(error => {
+                    console.log(error);
+                });
+        } else {
+            console.log('User: ', interaction.user.username)
+            const currentDate = new Date().setHours(0, 0, 0, 0);
+            // Calculate the date of the last Wednesday
+            const lastWednesday = new Date(currentDate);
             lastWednesday.setDate(lastWednesday.getDate() - (lastWednesday.getDay() + 4) % 7);
             // Filter the array to include entries from last Wednesday up to now
             const filteredItems = currentSpent.filter((entry) => {
