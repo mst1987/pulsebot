@@ -239,7 +239,6 @@ class Raidhelper {
                         resolve()
                     } else {
                         data = JSON.parse(data);
-                        console.log(data._id)
                         resolve({ raidid: raidid, setup: data.raidDrop });
                     }
                 });
