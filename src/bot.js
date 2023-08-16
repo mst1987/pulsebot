@@ -160,8 +160,8 @@ client.on('interactionCreate', async(interaction) => {
             console.log('User: ', currentSpent[0])
             await interaction.reply({
                     embeds: [{
-                        title: 'Letzte ID gekauft:',
-                        description: `Keine Items gekauft in der letzten ID. Eventuell ist die Datenbank nicht aktuell!`,
+                        title: 'Diese ID gekauft:',
+                        description: `Keine Items gekauft in der momentanen ID. Eventuell ist die Datenbank nicht aktuell!`,
                     }],
                     ephemeral: true
                 }).then(msg => {
@@ -186,7 +186,7 @@ client.on('interactionCreate', async(interaction) => {
             const sumOfGold = filteredItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
             await interaction.reply({
                 embeds: [{
-                    title: 'Letzte ID gekauft:',
+                    title: 'Diese ID gekauft:',
                     description: `${formattedItems}\n\n\nGesamtausgaben: **${sumOfGold}g**`,
                 }],
                 ephemeral: true
@@ -353,6 +353,10 @@ function parseDMYDateString(dateString) {
     const month = parseInt(parts[1], 10) - 1; // Months in JavaScript are zero-based
     const year = parseInt(parts[2], 10);
     return new Date(year, month, day);
+}
+
+function getItemsBought(date) {
+
 }
 
 client.login(process.env.DISCORDJS_BOT_TOKEN);
