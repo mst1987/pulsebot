@@ -20,6 +20,8 @@ client.on('interactionCreate', async(interaction) => {
     if (!interaction.isChatInputCommand()) return;
     if (interaction.user.bot) return;
 
+    console.log('User: ', interaction.user.name, '- Command:', interaction.commandName);
+
     const raidhelper = new Raidhelper();
     const guild = interaction.guild;
     const category = guild.channels.cache.get("1115368280245420042"); // GDKP 25er Category
@@ -110,11 +112,9 @@ client.on('interactionCreate', async(interaction) => {
 
     if (interaction.commandName === 'lastspent') {
         const gdkp = new GDKP();
-
         let currentSpent = await gdkp.getCurrentIDSpent(interaction.user.id);
 
         if (!currentSpent) {
-            console.log('User: ', currentSpent[0])
             await interaction.reply({
                     embeds: [{
                         title: 'Letzte ID gekauft:',
@@ -128,7 +128,6 @@ client.on('interactionCreate', async(interaction) => {
                     console.log(error);
                 });
         } else {
-            console.log('User: ', interaction.user.username)
             const currentDate = new Date().setHours(0, 0, 0, 0);
             // Calculate the date of the last Wednesday
             const lastWednesday = new Date(currentDate);
@@ -157,7 +156,6 @@ client.on('interactionCreate', async(interaction) => {
         let currentSpent = await gdkp.getCurrentIDSpent(interaction.user.id);
 
         if (!currentSpent) {
-            console.log('User: ', currentSpent[0])
             await interaction.reply({
                     embeds: [{
                         title: 'Diese ID gekauft:',
@@ -171,7 +169,6 @@ client.on('interactionCreate', async(interaction) => {
                     console.log(error);
                 });
         } else {
-            console.log('User: ', interaction.user.username)
             const currentDate = new Date().setHours(0, 0, 0, 0);
             // Calculate the date of the last Wednesday
             const lastWednesday = new Date(currentDate);
@@ -281,7 +278,6 @@ client.on('interactionCreate', async(interaction) => {
             response = raidhelper.signUpToRaid(raidId, signUps, interaction.user.id);
 
             const formattedGDKPSignUps = signUps.map(s => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[s.specName].icon)}`).join(``);
-            console.log(formattedGDKPSignUps)
             await interaction.reply({
                     embeds: [{
                         title: 'Sign Up',
@@ -314,7 +310,6 @@ client.on('interactionCreate', async(interaction) => {
                         signUps.push({ className: extendedClassList[spec].clazz, specName: extendedClassList[spec].spec })
                 })
             }
-            console.log(signUps.length)
 
             for (let signUp of signUps) {
                 console.log('Waiting...', signUp.specName)
@@ -324,7 +319,6 @@ client.on('interactionCreate', async(interaction) => {
             }
 
             const formattedGDKPSignUps = signUps.map(s => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[s.specName].icon)}`).join(``);
-            console.log(formattedGDKPSignUps);
 
             await interaction.reply({
                     embeds: [{
