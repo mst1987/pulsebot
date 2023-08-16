@@ -1,12 +1,11 @@
 require('dotenv').config();
 
 const classMap = require('./config/variables.js')
-const shortClassList = require('./config/variables.js')
 const extendedClassList = require('./config/variables.js')
 const Raidhelper = require('./classes/raidhelper.js');
 const GDKP = require('./classes/gdkp.js');
 
-const { SlashCommandBuilder, Client, GatewayIntentBits, Intents } = require('discord.js');
+const { Client, GatewayIntentBits } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
 
