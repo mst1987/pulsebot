@@ -74,6 +74,8 @@ client.on('interactionCreate', async(interaction) => {
                     setups.push({ channelid: signup.channelId, startTime: signup.startTime, ...setup });
                 }
             }));
+
+            console.log(setups.length);
             if (setups.length > 0) {
                 const guild = interaction.guild;
                 // Filter Setups, sort it and only get User data
@@ -92,6 +94,7 @@ client.on('interactionCreate', async(interaction) => {
                     ephemeral: true
                 })
             } else {
+                console.log('no setups')
                 await interaction.reply({
                     embeds: [{
                         title: 'Setups',
