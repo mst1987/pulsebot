@@ -91,6 +91,14 @@ client.on('interactionCreate', async(interaction) => {
                     }],
                     ephemeral: true
                 })
+            } else {
+                await interaction.reply({
+                    embeds: [{
+                        title: 'Setups',
+                        description: `Momentan in keinem Setup gesetzt. Neue Setups kommen bald!`,
+                    }],
+                    ephemeral: true
+                })
             }
 
         } else {
