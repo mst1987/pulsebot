@@ -9,7 +9,7 @@ const { Client, GatewayIntentBits } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
 
-const timeoutTime = 30000;
+const timeoutTime = 60000;
 
 client.on('ready', () => {
     console.log('Pulse Bot is ready');
@@ -102,6 +102,19 @@ client.on('interactionCreate', async(interaction) => {
                     .catch(error => {
                         console.log(error);
                     })
+            } else {
+                await interaction.reply({
+                    embeds: [{
+                        title: 'Setups',
+                        description: `Momentan in keinem Setup gesetzt. Neue Setups kommen bald!`,
+                    }],
+                    ephemeral: true
+                }).then(msg => {
+                    setTimeout(() => msg.delete(), timeoutTime)
+                })
+                .catch(error => {
+                    console.log(error);
+                })
             }
 
         } else {
