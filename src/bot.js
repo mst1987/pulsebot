@@ -75,7 +75,7 @@ client.on('interactionCreate', async(interaction) => {
                 }
             }));
 
-            console.log(setups.length);
+            console.log(setups);
             if (setups.length > 0) {
                 const guild = interaction.guild;
                 // Filter Setups, sort it and only get User data
