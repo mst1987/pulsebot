@@ -63,19 +63,20 @@ client.on('interactionCreate', async(interaction) => {
         let setups = [];
         // get all Events the user signed up for
         let signUpChannelEvents = await raidhelper.getEventData(interaction.user.id);
-
+        console.log(setups);
         if (category) {
             const channelsInCategory = category.children.cache.map(c => c.id);
             const GDKPSignUps = signUpChannelEvents.filter(signUpChannelEvent => channelsInCategory.includes(signUpChannelEvent.channelId));
 
             await Promise.all(GDKPSignUps.map(async(signup) => {
                 const setup = await raidhelper.getSetup(signup.id);
+                console.log('Setup: ',setup)
                 if (setup) {
                     setups.push({ channelid: signup.channelId, startTime: signup.startTime, ...setup });
                 }
             }));
 
-            console.log(setups);
+            console.log('Length: ',setups.length);
             if (setups.length > 0) {
                 const guild = interaction.guild;
                 // Filter Setups, sort it and only get User data
