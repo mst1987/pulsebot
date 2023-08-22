@@ -356,7 +356,7 @@ async function botReply(interaction, title, message, timeout = timeoutTime) {
     });
 }  
 
-async function getItemsToShow(items, dateFrom, dateEnd) {
+function getItemsToShow(items, dateFrom, dateEnd) {
     const filteredItems = items.filter((entry) => {
         const entryDate = parseDMYDateString(entry.date);
         return entryDate >= dateFrom && entryDate <= dateEnd;
