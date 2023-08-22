@@ -8,7 +8,7 @@ const GDKP = require('./classes/gdkp.js');
 const { Client, GatewayIntentBits } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
-
+let guild;
 const timeoutTime = 60000;
 
 client.on('ready', () => {
@@ -18,11 +18,11 @@ client.on('ready', () => {
 client.on('interactionCreate', async(interaction) => {
     if (!interaction.isChatInputCommand()) return;
     if (interaction.user.bot) return;
-
+    guild = interaction.guild;
     console.log('User: ', interaction.user.username, '- Command:', interaction.commandName);
 
     const raidhelper = new Raidhelper();
-    const guild = interaction.guild;
+
     const category = guild.channels.cache.get("1115368280245420042"); // GDKP 25er Category
 
     if (interaction.commandName === 'gdkpraids') {
