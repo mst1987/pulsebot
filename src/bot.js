@@ -130,6 +130,7 @@ client.on('interactionCreate', async(interaction) => {
             botReply(interaction, title, `Keine Items gekauft in der letzten ID. Eventuell ist die Datenbank nicht aktuell!`);
         } else {
             const formattedItems = getItemsToShow(totalItems, getWednesdayWeeksAgo(2), getWednesdayWeeksAgo(1));
+            console.log(formattedItems)
             botReply(interaction, title, formattedItems)
             // Filter the array to include entries from last Wednesday up to now
             
