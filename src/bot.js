@@ -124,27 +124,19 @@ client.on('interactionCreate', async(interaction) => {
 
     if (interaction.commandName === 'lastspent') {
         const gdkp = new GDKP();
-        let currentSpent = await gdkp.getTotalItems(interaction.user.id);
+        let totalItems = await gdkp.getTotalItems(interaction.user.id);
 
         if (!currentSpent) {
-            await interaction.reply({
-                    embeds: [{
-                        title: 'Letzte ID gekauft:',
-                        description: `Keine Items gekauft in der letzten ID. Eventuell ist die Datenbank nicht aktuell!`,
-                    }],
-                    ephemeral: true
-                }).then(msg => {
-                    setTimeout(() => msg.delete(), timeoutTime)
-                })
-                .catch(error => {
-                    console.log(error);
-                });
+            botReply('Letzte ID gekauft:', `Keine Items gekauft in der letzten ID. Eventuell ist die Datenbank nicht aktuell!`);
         } else {
             const currentDate = new Date().setHours(0, 0, 0, 0);
             // Calculate the date of the last Wednesday
             const lastWednesday = getWednesdayWeeksAgo(2);
+
+            getItemsToShow(totalItems, getWednesdayWeeksAgo(2), getWednesdayWeeksAgo(1));
             // Filter the array to include entries from last Wednesday up to now
-            const filteredItems = currentSpent.filter((entry) => {
+            
+            /*const filteredItems = currentSpent.filter((entry) => {
                 const entryDate = parseDMYDateString(entry.date);
                 return entryDate >= lastWednesday && entryDate <= getWednesdayWeeksAgo(1);
             }).sort((a, b) => a.player.localeCompare(b.player));
@@ -157,7 +149,7 @@ client.on('interactionCreate', async(interaction) => {
                     description: `${formattedItems}\n\n\nGesamtausgaben: **${sumOfGold}g**`,
                 }],
                 ephemeral: true
-            });
+            });*/
         }
     }
 
@@ -167,18 +159,7 @@ client.on('interactionCreate', async(interaction) => {
         let currentSpent = await gdkp.getTotalItems(interaction.user.id);
 
         if (!currentSpent) {
-            await interaction.reply({
-                    embeds: [{
-                        title: 'Diese ID gekauft:',
-                        description: `Keine Items gekauft in der momentanen ID. Eventuell ist die Datenbank nicht aktuell!`,
-                    }],
-                    ephemeral: true
-                }).then(msg => {
-                    setTimeout(() => msg.delete(), timeoutTime)
-                })
-                .catch(error => {
-                    console.log(error);
-                });
+            botReply('Diese ID gekauft:', `Keine Items gekauft in der momentanen ID. Eventuell ist die Datenbank nicht aktuell!`);
         } else {
             const currentDate = new Date().setHours(0, 0, 0, 0);
             // Calculate the date of the last Wednesday
@@ -206,18 +187,7 @@ client.on('interactionCreate', async(interaction) => {
         const gdkp = new GDKP();
         let currentSpent = await gdkp.getTotalItems(interaction.user.id);
         if (!currentSpent) {
-            await interaction.reply({
-                    embeds: [{
-                        title: 'Gesamte Itemhistorie:',
-                        description: `Keine Items gekauft. Eventuell ist die Datenbank nicht aktuell!`,
-                    }],
-                    ephemeral: true
-                }).then(msg => {
-                    setTimeout(() => msg.delete(), timeoutTime)
-                })
-                .catch(error => {
-                    console.log(error);
-                });
+            botReply('Gesamte Itemhistorie:', `Keine Items gekauft. Eventuell ist die Datenbank nicht aktuell!`);
         } else {
             currentSpent = currentSpent.sort((a, b) => a.player.localeCompare(b.player))
 
@@ -371,5 +341,36 @@ function getWednesdayWeeksAgo(weeks) {
   
     return weeksAgo;
   }
+
+async function botReply(title, message, timeout = timeoutTime) {
+    await interaction.reply({
+        embeds: [{
+            title: title,//'Diese ID gekauft:',
+            description: message //`Keine Items gekauft in der momentanen ID. Eventuell ist die Datenbank nicht aktuell!`,
+        }],
+        ephemeral: true
+    }).then(msg => {
+        if(timeout > 0)
+            setTimeout(() => msg.delete(), timeout)
+    })
+    .catch(error => {
+        console.log(error);
+    });
+}  
+
+async function getItemsToShow(items, dateFrom, dateEnd) {
+    const filteredItems = items.filter((entry) => {
+        const entryDate = parseDMYDateString(entry.date);
+        return entryDate >= dateFrom && entryDate <= dateEnd;
+    }).sort((a, b) => a.player.localeCompare(b.player));
+
+    const formattedItems = getEmojis(filteredItems);
+    const sumOfGold = filteredItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
+    botReply('Letzte ID gekauft:', `${formattedItems}\n\n\nGesamtausgaben: **${sumOfGold}g**`);
+}
+
+function getEmojis(items) {
+    return items.map(item => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[item.class]?.icon)} ${item.player} - [${item.item}](${item.wowhead}) - ${item.gold}g`).join(`\n`);
+}
 
 client.login(process.env.DISCORDJS_BOT_TOKEN);
