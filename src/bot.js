@@ -142,11 +142,11 @@ client.on('interactionCreate', async(interaction) => {
         } else {
             const currentDate = new Date().setHours(0, 0, 0, 0);
             // Calculate the date of the last Wednesday
-            const lastWednesday = getWednesdayTwoWeeksAgo();
+            const lastWednesday = getWednesdayWeeksAgo(2);
             // Filter the array to include entries from last Wednesday up to now
             const filteredItems = currentSpent.filter((entry) => {
                 const entryDate = parseDMYDateString(entry.date);
-                return entryDate >= lastWednesday && entryDate <= currentDate;
+                return entryDate >= lastWednesday && entryDate <= getWednesdayWeeksAgo(1);
             }).sort((a, b) => a.player.localeCompare(b.player));
 
             const formattedItems = filteredItems.map(item => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[item.class]?.icon)} ${item.player} - [${item.item}](${item.wowhead}) - ${item.gold}g`).join(`\n`);
@@ -182,8 +182,8 @@ client.on('interactionCreate', async(interaction) => {
         } else {
             const currentDate = new Date().setHours(0, 0, 0, 0);
             // Calculate the date of the last Wednesday
-            const lastWednesday = new Date(currentDate);
-            lastWednesday.setDate(lastWednesday.getDate() - (lastWednesday.getDay() + 4) % 7);
+            const lastWednesday = getWednesdayWeeksAgo(1);
+
             // Filter the array to include entries from last Wednesday up to now
             const filteredItems = currentSpent.filter((entry) => {
                 const entryDate = parseDMYDateString(entry.date);
@@ -360,16 +360,16 @@ function parseDMYDateString(dateString) {
     return new Date(year, month, day);
 }
 
-function getWednesdayTwoWeeksAgo() {
+function getWednesdayWeeksAgo(weeks) {
     const today = new Date();
     
     // Calculate the number of days to subtract to get to the previous Wednesday
-    const daysToSubtract = (today.getDay() + 5) % 7;
+    const daysToSubtract = (today.getDay() + 5) % (7 * weeks);
   
     // Subtract two weeks' worth of days and the calculated daysToSubtract
-    const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000 - daysToSubtract * 24 * 60 * 60 * 1000);
+    const weeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000 - daysToSubtract * 24 * 60 * 60 * 1000);
   
-    return twoWeeksAgo;
+    return weeksAgo;
   }
 
 client.login(process.env.DISCORDJS_BOT_TOKEN);
