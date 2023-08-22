@@ -149,8 +149,9 @@ client.on('interactionCreate', async(interaction) => {
     if (interaction.commandName === 'totalspent') {
         const gdkp = new GDKP();
         let totalItems = await gdkp.getTotalItems(interaction.user.id);
+        const title = 'Gesamte Itemhistorie:'
         if (!totalItems) {
-            botReply('Gesamte Itemhistorie:', `Keine Items gekauft. Eventuell ist die Datenbank nicht aktuell!`);
+            botReply(title, `Keine Items gekauft. Eventuell ist die Datenbank nicht aktuell!`);
         } else {
             totalItems = totalItems.sort((a, b) => a.player.localeCompare(b.player))
 
@@ -188,52 +189,23 @@ client.on('interactionCreate', async(interaction) => {
     }
 
     if (interaction.commandName === 'signup') {
-        let signUps = [];
-        let raidId = '';
+        let raidId;
         const channelMessages = await interaction.channel.messages.fetch();
         const botMessages = channelMessages.filter(msg => msg.author.id === '579155972115660803');
 
         for (const [key, value] of botMessages) {
             await interaction.channel.messages.fetch();
-            if (raidhelper.checkIfEvent(key))
-                raidId = key;
-            else interaction.reply({
-                embeds: {
-                    title: 'Anmeldung nicht möglich',
-                    description: 'Keinen passenden Raid gefunden.'
-                },
-                ephemeral: true
-            })
+            if (raidhelper.checkIfEvent(key)) raidId = key;
+            else botReply('Anmeldung nicht möglich', 'Keinen passenden Raid gefunden.');
         }
 
         try {
-            let specs = [];
             const signedUpSpecs = interaction.options.getString('specs');
-
-            if (signedUpSpecs) {
-                specs = signedUpSpecs.split(',')
-                specs = specs.slice(0, 10)
-                specs.forEach(spec => {
-                    if (extendedClassList[spec])
-                        signUps.push({ className: extendedClassList[spec].clazz, specName: extendedClassList[spec].spec })
-                })
-            }
-
-            response = raidhelper.signUpToRaid(raidId, signUps, interaction.user.id);
-
+            const signUps = formatSignUps(signedUpSpecs);
             const formattedGDKPSignUps = signUps.map(s => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[s.specName].icon)}`).join(``);
-            await interaction.reply({
-                    embeds: [{
-                        title: 'Sign Up',
-                        description: `You signed up as ${formattedGDKPSignUps}\n Keep in mind, the raidhelper can take a bit until changes are shown.`,
-                    }],
-                    ephemeral: true,
-                }).then(msg => {
-                    setTimeout(() => msg.delete(), timeoutTime)
-                })
-                .catch(error => {
-                    console.log(error);
-                });
+            raidhelper.signUpToRaid(raidId, signUps, interaction.user.id);
+
+            await botReply('Sign Up', `You signed up as ${formattedGDKPSignUps}\n Keep in mind, the raidhelper can take a bit until changes are shown.`);
         } catch (error) {
             console.log(error)
         }
@@ -286,6 +258,20 @@ function getItemsToShow(items, dateFrom, dateEnd) {
     const formattedItems = getEmojis(filteredItems);
     const sumOfGold = filteredItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
     return `${formattedItems}\n\n\nGesamtausgaben: **${sumOfGold}g**`;
+}
+
+function formatSpecs(specs) {
+    let signUps = [];
+    if (signedUpSpecs) {
+        specs = signedUpSpecs.split(',')
+        specs = specs.slice(0, 10)
+        specs.forEach(spec => {
+            if (extendedClassList[spec])
+                signUps.push({ className: extendedClassList[spec].clazz, specName: extendedClassList[spec].spec })
+        })
+    }
+
+    return signUps;
 }
 
 function getEmojis(items) {
