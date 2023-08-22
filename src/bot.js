@@ -196,7 +196,7 @@ client.on('interactionCreate', async(interaction) => {
         for (const [key, value] of botMessages) {
             await interaction.channel.messages.fetch();
             if (raidhelper.checkIfEvent(key)) raidId = key;
-            else botReply('Anmeldung nicht möglich', 'Keinen passenden Raid gefunden.');
+            else botReply(interaction, 'Anmeldung nicht möglich', 'Keinen passenden Raid gefunden.');
         }
 
         try {
@@ -205,7 +205,7 @@ client.on('interactionCreate', async(interaction) => {
             const formattedGDKPSignUps = signUps.map(s => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[s.specName].icon)}`).join(``);
             raidhelper.signUpToRaid(raidId, signUps, interaction.user.id);
 
-            await botReply('Sign Up', `You signed up as ${formattedGDKPSignUps}\n Keep in mind, the raidhelper can take a bit until changes are shown.`);
+            await botReply(interaction, 'Sign Up', `You signed up as ${formattedGDKPSignUps}\n Keep in mind, the raidhelper can take a bit until changes are shown.`);
         } catch (error) {
             console.log(error)
         }
