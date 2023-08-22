@@ -125,15 +125,12 @@ client.on('interactionCreate', async(interaction) => {
     if (interaction.commandName === 'lastspent') {
         const gdkp = new GDKP();
         let totalItems = await gdkp.getTotalItems(interaction.user.id);
-
+        const title = 'Letzte ID gekauft: '
         if (!totalItems) {
-            botReply('Letzte ID gekauft:', `Keine Items gekauft in der letzten ID. Eventuell ist die Datenbank nicht aktuell!`);
+            botReply(interaction, title, `Keine Items gekauft in der letzten ID. Eventuell ist die Datenbank nicht aktuell!`);
         } else {
-            const currentDate = new Date().setHours(0, 0, 0, 0);
-            // Calculate the date of the last Wednesday
-            const lastWednesday = getWednesdayWeeksAgo(2);
-
-            getItemsToShow(totalItems, getWednesdayWeeksAgo(2), getWednesdayWeeksAgo(1));
+            const formattedItems = getItemsToShow(totalItems, getWednesdayWeeksAgo(2), getWednesdayWeeksAgo(1));
+            botReply(interaction, title, formattedItems)
             // Filter the array to include entries from last Wednesday up to now
             
             /*const filteredItems = currentSpent.filter((entry) => {
@@ -342,7 +339,7 @@ function getWednesdayWeeksAgo(weeks) {
     return weeksAgo;
   }
 
-async function botReply(title, message, timeout = timeoutTime) {
+async function botReply(interaction, title, message, timeout = timeoutTime) {
     await interaction.reply({
         embeds: [{
             title: title,//'Diese ID gekauft:',
@@ -366,7 +363,7 @@ async function getItemsToShow(items, dateFrom, dateEnd) {
 
     const formattedItems = getEmojis(filteredItems);
     const sumOfGold = filteredItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
-    botReply('Letzte ID gekauft:', `${formattedItems}\n\n\nGesamtausgaben: **${sumOfGold}g**`);
+    return `${formattedItems}\n\n\nGesamtausgaben: **${sumOfGold}g**`;
 }
 
 function getEmojis(items) {
