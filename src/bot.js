@@ -262,7 +262,7 @@ function getItemsToShow(items, dateFrom, dateEnd) {
 
 function formatSignUps(specs) {
     let signUps = [];
-    if (signedUpSpecs) {
+    if (specs) {
         specs = signedUpSpecs.split(',')
         specs = specs.slice(0, 10)
         specs.forEach(spec => {
