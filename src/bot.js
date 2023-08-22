@@ -142,7 +142,7 @@ client.on('interactionCreate', async(interaction) => {
         } else {
             const currentDate = new Date().setHours(0, 0, 0, 0);
             // Calculate the date of the last Wednesday
-            const lastWednesday = lastWednesday.getDate();
+            const lastWednesday = getWednesdayTwoWeeksAgo();
             // Filter the array to include entries from last Wednesday up to now
             const filteredItems = currentSpent.filter((entry) => {
                 const entryDate = parseDMYDateString(entry.date);
