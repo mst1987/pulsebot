@@ -157,14 +157,14 @@ client.on('interactionCreate', async(interaction) => {
             let i = 0,
                 j = -1;
             let formattedItems = [];
-            currentSpent.forEach(current => {
+            totalItems.forEach(current => {
                 if (i % 15 === 0 || i === 0) {
                     formattedItems[++j] = [];
                 }
                 formattedItems[j].push(`${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[current.class]?.icon)} ${current.player} - [${current.item}](${current.wowhead}) - ${current.gold}g`)
                 i++;
             })
-            const sumOfGold = currentSpent.reduce((totalGold, entry) => totalGold + entry.gold, 0);
+            const sumOfGold = totalItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
 
             await interaction.reply({
                 embeds: [{
