@@ -130,54 +130,19 @@ client.on('interactionCreate', async(interaction) => {
             botReply(interaction, title, `Keine Items gekauft in der letzten ID. Eventuell ist die Datenbank nicht aktuell!`);
         } else {
             const formattedItems = getItemsToShow(totalItems, getWednesdayWeeksAgo(2), getWednesdayWeeksAgo(1));
-            console.log(formattedItems)
             botReply(interaction, title, formattedItems)
-            // Filter the array to include entries from last Wednesday up to now
-            
-            /*const filteredItems = currentSpent.filter((entry) => {
-                const entryDate = parseDMYDateString(entry.date);
-                return entryDate >= lastWednesday && entryDate <= getWednesdayWeeksAgo(1);
-            }).sort((a, b) => a.player.localeCompare(b.player));
-
-            const formattedItems = filteredItems.map(item => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[item.class]?.icon)} ${item.player} - [${item.item}](${item.wowhead}) - ${item.gold}g`).join(`\n`);
-            const sumOfGold = filteredItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
-            await interaction.reply({
-                embeds: [{
-                    title: 'Letzte ID gekauft:',
-                    description: `${formattedItems}\n\n\nGesamtausgaben: **${sumOfGold}g**`,
-                }],
-                ephemeral: true
-            });*/
         }
     }
 
     if (interaction.commandName === 'currentspent') {
         const gdkp = new GDKP();
-
-        let currentSpent = await gdkp.getTotalItems(interaction.user.id);
-
+        let totalItems = await gdkp.getTotalItems(interaction.user.id);
+        const title = 'Diese ID gekauft: '
         if (!currentSpent) {
             botReply('Diese ID gekauft:', `Keine Items gekauft in der momentanen ID. Eventuell ist die Datenbank nicht aktuell!`);
         } else {
-            const currentDate = new Date().setHours(0, 0, 0, 0);
-            // Calculate the date of the last Wednesday
-            const lastWednesday = getWednesdayWeeksAgo(1);
-
-            // Filter the array to include entries from last Wednesday up to now
-            const filteredItems = currentSpent.filter((entry) => {
-                const entryDate = parseDMYDateString(entry.date);
-                return entryDate >= lastWednesday && entryDate <= currentDate;
-            }).sort((a, b) => a.player.localeCompare(b.player));
-
-            const formattedItems = filteredItems.map(item => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[item.class]?.icon)} ${item.player} - [${item.item}](${item.wowhead}) - ${item.gold}g`).join(`\n`);
-            const sumOfGold = filteredItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
-            await interaction.reply({
-                embeds: [{
-                    title: 'Diese ID gekauft:',
-                    description: `${formattedItems}\n\n\nGesamtausgaben: **${sumOfGold}g**`,
-                }],
-                ephemeral: true
-            });
+            const formattedItems = getItemsToShow(totalItems, getWednesdayWeeksAgo(1), new Date());
+            botReply(interaction, title, formattedItems)
         }
     }
 
