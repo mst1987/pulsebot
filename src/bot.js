@@ -138,7 +138,7 @@ client.on('interactionCreate', async(interaction) => {
         const gdkp = new GDKP();
         let totalItems = await gdkp.getTotalItems(interaction.user.id);
         const title = 'Diese ID gekauft: '
-        if (!currentSpent) {
+        if (!totalItems) {
             botReply('Diese ID gekauft:', `Keine Items gekauft in der momentanen ID. Eventuell ist die Datenbank nicht aktuell!`);
         } else {
             const formattedItems = getItemsToShow(totalItems, getWednesdayWeeksAgo(1), new Date());
@@ -148,11 +148,11 @@ client.on('interactionCreate', async(interaction) => {
 
     if (interaction.commandName === 'totalspent') {
         const gdkp = new GDKP();
-        let currentSpent = await gdkp.getTotalItems(interaction.user.id);
-        if (!currentSpent) {
+        let totalItems = await gdkp.getTotalItems(interaction.user.id);
+        if (!totalItems) {
             botReply('Gesamte Itemhistorie:', `Keine Items gekauft. Eventuell ist die Datenbank nicht aktuell!`);
         } else {
-            currentSpent = currentSpent.sort((a, b) => a.player.localeCompare(b.player))
+            totalItems = totalItems.sort((a, b) => a.player.localeCompare(b.player))
 
             let i = 0,
                 j = -1;
@@ -237,50 +237,6 @@ client.on('interactionCreate', async(interaction) => {
         } catch (error) {
             console.log(error)
         }
-    }
-    if (interaction.commandName === 'signupChoice') {
-        let signUps = []
-
-        try {
-            raidId = interaction.options.getString('raid')
-
-            const extraclasses = interaction.options.getString('specs');
-            specs = [];
-            if (extraclasses) {
-                specs = extraclasses.split(',')
-                specs = specs.slice(0, 10)
-                specs.forEach(spec => {
-                    if (extendedClassList[spec])
-                        signUps.push({ className: extendedClassList[spec].clazz, specName: extendedClassList[spec].spec })
-                })
-            }
-
-            for (let signUp of signUps) {
-                console.log('Waiting...', signUp.specName)
-                const response = await raidhelper.signUpToRaid(raidId, signUp, interaction.user.id).then((responseData) => {
-                    console.log(signUp.specName, ' done.')
-                })
-            }
-
-            const formattedGDKPSignUps = signUps.map(s => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[s.specName].icon)}`).join(``);
-
-            await interaction.reply({
-                    embeds: [{
-                        title: 'Sign Up',
-                        description: 'You signed up as \n' + formattedGDKPSignUps,
-                    }],
-                    ephemeral: true
-                }).then(msg => {
-                    setTimeout(() => msg.delete(), timeoutTime)
-                })
-                .catch(error => {
-                    console.log(error);
-                })
-        } catch (error) {
-            console.log(error)
-        }
-
-        //interaction.reply('Classes #extra:' + extraClasses)
     }
 })
 
