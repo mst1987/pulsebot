@@ -126,7 +126,7 @@ client.on('interactionCreate', async(interaction) => {
         const gdkp = new GDKP();
         let totalItems = await gdkp.getTotalItems(interaction.user.id);
 
-        if (!currentSpent) {
+        if (!totalItems) {
             botReply('Letzte ID gekauft:', `Keine Items gekauft in der letzten ID. Eventuell ist die Datenbank nicht aktuell!`);
         } else {
             const currentDate = new Date().setHours(0, 0, 0, 0);
