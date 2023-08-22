@@ -364,10 +364,10 @@ function getWednesdayWeeksAgo(weeks) {
     const today = new Date();
     
     // Calculate the number of days to subtract to get to the previous Wednesday
-    const daysToSubtract = (today.getDay() + 5) % (7 * weeks);
+    const daysToSubtract = (today.getDay() + 5) % 7;
   
     // Subtract two weeks' worth of days and the calculated daysToSubtract
-    const weeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000 - daysToSubtract * 24 * 60 * 60 * 1000);
+    const weeksAgo = new Date(today.getTime() - (7*weeks) * 24 * 60 * 60 * 1000 - daysToSubtract * 24 * 60 * 60 * 1000);
   
     return weeksAgo;
   }
