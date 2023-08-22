@@ -260,7 +260,7 @@ function getItemsToShow(items, dateFrom, dateEnd) {
     return `${formattedItems}\n\n\nGesamtausgaben: **${sumOfGold}g**`;
 }
 
-function formatSpecs(specs) {
+function formatSignUps(specs) {
     let signUps = [];
     if (signedUpSpecs) {
         specs = signedUpSpecs.split(',')
