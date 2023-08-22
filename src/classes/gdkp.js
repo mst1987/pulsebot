@@ -3,7 +3,7 @@ const https = require('https');
 class GDKP {
     constructor() {}
 
-    async getCurrentIDSpent(userid) {
+    async getTotalItems(userid) {
         const agent = new https.Agent({
             rejectUnauthorized: false, // Temporarily ignore SSL validation (not recommended for production)
         });

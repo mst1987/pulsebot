@@ -124,7 +124,7 @@ client.on('interactionCreate', async(interaction) => {
 
     if (interaction.commandName === 'lastspent') {
         const gdkp = new GDKP();
-        let currentSpent = await gdkp.getCurrentIDSpent(interaction.user.id);
+        let currentSpent = await gdkp.getTotalItems(interaction.user.id);
 
         if (!currentSpent) {
             await interaction.reply({
@@ -142,8 +142,7 @@ client.on('interactionCreate', async(interaction) => {
         } else {
             const currentDate = new Date().setHours(0, 0, 0, 0);
             // Calculate the date of the last Wednesday
-            const lastWednesday = new Date(currentDate);
-            lastWednesday.setDate(lastWednesday.getDate() - (lastWednesday.getDay() + 4) % 14);
+            const lastWednesday = lastWednesday.getDate();
             // Filter the array to include entries from last Wednesday up to now
             const filteredItems = currentSpent.filter((entry) => {
                 const entryDate = parseDMYDateString(entry.date);
@@ -165,7 +164,7 @@ client.on('interactionCreate', async(interaction) => {
     if (interaction.commandName === 'currentspent') {
         const gdkp = new GDKP();
 
-        let currentSpent = await gdkp.getCurrentIDSpent(interaction.user.id);
+        let currentSpent = await gdkp.getTotalItems(interaction.user.id);
 
         if (!currentSpent) {
             await interaction.reply({
@@ -205,7 +204,7 @@ client.on('interactionCreate', async(interaction) => {
 
     if (interaction.commandName === 'totalspent') {
         const gdkp = new GDKP();
-        let currentSpent = await gdkp.getCurrentIDSpent(interaction.user.id);
+        let currentSpent = await gdkp.getTotalItems(interaction.user.id);
         if (!currentSpent) {
             await interaction.reply({
                     embeds: [{
@@ -360,5 +359,17 @@ function parseDMYDateString(dateString) {
     const year = parseInt(parts[2], 10);
     return new Date(year, month, day);
 }
+
+function getWednesdayTwoWeeksAgo() {
+    const today = new Date();
+    
+    // Calculate the number of days to subtract to get to the previous Wednesday
+    const daysToSubtract = (today.getDay() + 5) % 7;
+  
+    // Subtract two weeks' worth of days and the calculated daysToSubtract
+    const twoWeeksAgo = new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000 - daysToSubtract * 24 * 60 * 60 * 1000);
+  
+    return twoWeeksAgo;
+  }
 
 client.login(process.env.DISCORDJS_BOT_TOKEN);
