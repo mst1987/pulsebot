@@ -61,7 +61,6 @@ client.on('interactionCreate', async(interaction) => {
         let signUpChannelEvents = await raidhelper.getUserSignUps(interaction.user.id);
 
         if (categoryIds) {
-            const channelsInCategory = categoryIds.children.cache.map(c => c.id);
             const GDKPSignUps = signUpChannelEvents.filter(signUpChannelEvent => channelsInCategory.includes(signUpChannelEvent.channelId));
 
             await Promise.all(GDKPSignUps.map(async(signup) => {
