@@ -51,9 +51,9 @@ client.on('interactionCreate', async(interaction) => {
             });
 
             const formattedGDKPSignUps = SignUpsWithSpecs.map(channelId => `<#${channelId.channelId}>\n ${channelId.specs}\n`).join(`\n`);
-            botReply(interaction, messages.gdkpraids.successTitle, `Missing/Absence SignUps: \n${formattedMissingSignUps}\n\nSigned Up GDKP Events: \n${formattedGDKPSignUps}`)
+            await botReply(interaction, messages.gdkpraids.successTitle, `Missing/Absence SignUps: \n${formattedMissingSignUps}\n\nSigned Up GDKP Events: \n${formattedGDKPSignUps}`)
         } else {
-            botReply(interaction, messages.gdkpraids.errorTitle,messages.gdkpraids.errorMessage)
+            await botReply(interaction, messages.gdkpraids.errorTitle,messages.gdkpraids.errorMessage)
         }
     }
     if (commandName === 'mysetups') {
@@ -71,7 +71,7 @@ client.on('interactionCreate', async(interaction) => {
                 }
             }));
 
-            if (setups.length < 1) botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage)
+            if (setups.length < 1) await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage)
             else {
                 // Filter Setups, sort it and only get User data
                 const setupData = setups.filter((setup, index) => {
@@ -81,7 +81,7 @@ client.on('interactionCreate', async(interaction) => {
                 // Format Signup and get Discord Emojis for the classes
                 const formattedGDKPSignUps = setupData.map(channelId => `<#${channelId.channelid}> ${getCharacterIcon(channelId.setup[0].spec)} ${extendedClassList[channelId.setup[0].spec].name}`).join(`\n`);
 
-                botReply(interaction, messages.mysetups.errorTitle, `\n${formattedGDKPSignUps}`)
+                await botReply(interaction, messages.mysetups.errorTitle, `\n${formattedGDKPSignUps}`)
             }
         } else {
             interaction.channel.send(messages.common.pulseBotSetupError);
@@ -92,10 +92,10 @@ client.on('interactionCreate', async(interaction) => {
         const gdkp = new GDKP();
         let totalItems = await gdkp.getTotalItems(interaction.user.id);
         if (!totalItems) {
-            botReply(interaction, messages.lastspent.errorTitle, messages.lastspent.errorMessage);
+            await botReply(interaction, messages.lastspent.errorTitle, messages.lastspent.errorMessage);
         } else {
             const formattedItems = getItemsToShow(totalItems, getWednesdayWeeksAgo(2), getWednesdayWeeksAgo(1));
-            botReply(interaction, messages.lastspent.successTitle, formattedItems)
+            await botReply(interaction, messages.lastspent.successTitle, formattedItems)
         }
     }
 
@@ -103,10 +103,10 @@ client.on('interactionCreate', async(interaction) => {
         const gdkp = new GDKP();
         let totalItems = await gdkp.getTotalItems(interaction.user.id);
         if (!totalItems) {
-            botReply(interaction, messages.currentspent.errorTitle, messages.currentspent.errorMessage);
+            await botReply(interaction, messages.currentspent.errorTitle, messages.currentspent.errorMessage);
         } else {
             const formattedItems = getItemsToShow(totalItems, getWednesdayWeeksAgo(1), new Date());
-            botReply(interaction, messages.currentspent.successTitle, formattedItems)
+            await botReply(interaction, messages.currentspent.successTitle, formattedItems)
         }
     }
 
@@ -114,7 +114,7 @@ client.on('interactionCreate', async(interaction) => {
         const gdkp = new GDKP();
         let totalItems = await gdkp.getTotalItems(interaction.user.id);
         if (!totalItems) {
-            botReply(interaction, messages.totalspent.errorTitle, messages.totalspent.errorMessage);
+            await botReply(interaction, messages.totalspent.errorTitle, messages.totalspent.errorMessage);
         } else {
             totalItems = totalItems.sort((a, b) => a.player.localeCompare(b.player))
 
@@ -129,7 +129,7 @@ client.on('interactionCreate', async(interaction) => {
                 i++;
             })
             const sumOfGold = totalItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
-            botReply(interaction, messages.totalspent.successTitle,`Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
+            await botReply(interaction, messages.totalspent.successTitle,`Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
 
             console.log(formattedItems.length, formattedItems)
             if (formattedItems.length > 1)
@@ -153,7 +153,7 @@ client.on('interactionCreate', async(interaction) => {
         for (const [key, value] of botMessages) {
             await interaction.channel.messages.fetch();
             if (raidhelper.checkIfEvent(key)) raidId = key;
-            else botReply(interaction, messages.signup.errorTitle, messages.signup.errorMessage);
+            else await botReply(interaction, messages.signup.errorTitle, messages.signup.errorMessage);
         }
 
         try {
