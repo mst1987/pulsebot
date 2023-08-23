@@ -3,6 +3,7 @@ require('dotenv').config({ path: '../.env'});
 const extendedClassList = require('./config/variables.js');
 const Raidhelper = require('./classes/raidhelper.js');
 const GDKP = require('./classes/gdkp.js');
+const messages = require('./config/messages.js');
 
 const { Client, GatewayIntentBits } = require('discord.js');
 
@@ -11,7 +12,7 @@ let guild;
 const timeoutTime = 60000;
 
 client.on('ready', () => {
-    console.log('Pulse Bot is ready');
+    console.log(messages.common.pulseBotReady);
 })
 
 client.on('interactionCreate', async(interaction) => {
@@ -50,9 +51,9 @@ client.on('interactionCreate', async(interaction) => {
             });
 
             const formattedGDKPSignUps = SignUpsWithSpecs.map(channelId => `<#${channelId.channelId}>\n ${channelId.specs}\n`).join(`\n`);
-            botReply(interaction, 'GDKP Raid SIgn Ups', `Missing/Absence SignUps: \n${formattedMissingSignUps}\n\nSigned Up GDKP Events: \n${formattedGDKPSignUps}`)
+            botReply(interaction, messages.gdkpraids.successTitle, `Missing/Absence SignUps: \n${formattedMissingSignUps}\n\nSigned Up GDKP Events: \n${formattedGDKPSignUps}`)
         } else {
-            botReply(interaction, 'Missing Infos', `Pulse Bot doesnt have a correct Setup yet.`)
+            botReply(interaction, messages.gdkpraids.errorTitle,messages.gdkpraids.errorMessage)
         }
     }
     if (commandName === 'mysetups') {
@@ -70,7 +71,7 @@ client.on('interactionCreate', async(interaction) => {
                 }
             }));
 
-            if (setups.length < 1) botReply(interaction, 'Setups', `Momentan in keinem Setup gesetzt. Neue Setups kommen bald!`)
+            if (setups.length < 1) botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage)
             else {
                 // Filter Setups, sort it and only get User data
                 const setupData = setups.filter((setup, index) => {
@@ -80,43 +81,40 @@ client.on('interactionCreate', async(interaction) => {
                 // Format Signup and get Discord Emojis for the classes
                 const formattedGDKPSignUps = setupData.map(channelId => `<#${channelId.channelid}> ${getCharacterIcon(channelId.setup[0].spec)} ${extendedClassList[channelId.setup[0].spec].name}`).join(`\n`);
 
-                botReply(interaction, 'Setups', `\n${formattedGDKPSignUps}`)
+                botReply(interaction, messages.mysetups.errorTitle, `\n${formattedGDKPSignUps}`)
             }
         } else {
-            interaction.channel.send('Pulse Bot doesnt have a correct Setup yet.');
+            interaction.channel.send(messages.common.pulseBotSetupError);
         }
     }
 
     if (commandName === 'lastspent') {
         const gdkp = new GDKP();
         let totalItems = await gdkp.getTotalItems(interaction.user.id);
-        const title = 'Letzte ID gekauft: '
         if (!totalItems) {
-            botReply(interaction, title, `Keine Items gekauft in der letzten ID. Eventuell ist die Datenbank nicht aktuell!`);
+            botReply(interaction, messages.lastspent.errorTitle, messages.lastspent.errorMessage);
         } else {
             const formattedItems = getItemsToShow(totalItems, getWednesdayWeeksAgo(2), getWednesdayWeeksAgo(1));
-            botReply(interaction, title, formattedItems)
+            botReply(interaction, messages.lastspent.successTitle, formattedItems)
         }
     }
 
     if (commandName === 'currentspent') {
         const gdkp = new GDKP();
         let totalItems = await gdkp.getTotalItems(interaction.user.id);
-        const title = 'Diese ID gekauft: '
         if (!totalItems) {
-            botReply(interaction, 'Diese ID gekauft:', `Keine Items gekauft in der momentanen ID. Eventuell ist die Datenbank nicht aktuell!`);
+            botReply(interaction, messages.currentspent.errorTitle, messages.currentspent.errorMessage);
         } else {
             const formattedItems = getItemsToShow(totalItems, getWednesdayWeeksAgo(1), new Date());
-            botReply(interaction, title, formattedItems)
+            botReply(interaction, messages.currentspent.successTitle, formattedItems)
         }
     }
 
     if (commandName === 'totalspent') {
         const gdkp = new GDKP();
         let totalItems = await gdkp.getTotalItems(interaction.user.id);
-        const title = 'Gesamte Itemhistorie:'
         if (!totalItems) {
-            botReply(interaction, title, `Keine Items gekauft. Eventuell ist die Datenbank nicht aktuell!`);
+            botReply(interaction, messages.totalspent.errorTitle, messages.totalspent.errorMessage);
         } else {
             totalItems = totalItems.sort((a, b) => a.player.localeCompare(b.player))
 
@@ -127,11 +125,11 @@ client.on('interactionCreate', async(interaction) => {
                 if (i % 15 === 0 || i === 0) {
                     formattedItems[++j] = [];
                 }
-                formattedItems[j].push(`${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[current.class]?.icon)} ${current.player} - [${current.item}](${current.wowhead}) - ${current.gold}g`)
+                formattedItems[j].push(`${getCharacterIcon(current.class)} ${current.player} - [${current.item}](${current.wowhead}) - ${current.gold}g`)
                 i++;
             })
             const sumOfGold = totalItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
-            botReply(interaction, title,`Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
+            botReply(interaction, messages.totalspent.successTitle,`Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
 
             if (formattedItems.length > 1)
                 formattedItems.forEach(async(items, key) => {
@@ -154,16 +152,16 @@ client.on('interactionCreate', async(interaction) => {
         for (const [key, value] of botMessages) {
             await interaction.channel.messages.fetch();
             if (raidhelper.checkIfEvent(key)) raidId = key;
-            else botReply(interaction, 'Anmeldung nicht möglich', 'Keinen passenden Raid gefunden.');
+            else botReply(interaction, messages.signup.errorTitle, messages.signup.errorMessage);
         }
 
         try {
             const signedUpSpecs = interaction.options.getString('specs');
             const signUps = formatSignUps(signedUpSpecs);
-            const formattedGDKPSignUps = signUps.map(s => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[s.specName].icon)}`).join(``);
+            const formattedGDKPSignUps = signUps.map(s => `${getCharacterIcon(s.specName)}`).join(``);
             raidhelper.signUpToRaid(raidId, signUps, interaction.user.id);
 
-            await botReply(interaction, 'Sign Up', `You signed up as ${formattedGDKPSignUps}\n Keep in mind, the raidhelper can take a bit until changes are shown.`);
+            await botReply(interaction, messages.signup.successTitle, `You signed up as ${formattedGDKPSignUps}\n Keep in mind, the raidhelper can take a bit until changes are shown.`);
         } catch (error) {
             console.log(error)
         }
@@ -254,7 +252,7 @@ function getCharacterIcon(spec) {
 }
 
 function getItemsFormatted(items) {
-    return items.map(item => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[item.class]?.icon)} ${item.player} - [${item.item}](${item.wowhead}) - ${item.gold}g`).join(`\n`);
+    return items.map(item => `${getCharacterIcon(item.class)} ${item.player} - [${item.item}](${item.wowhead}) - ${item.gold}g`).join(`\n`);
 }
 
 client.login(process.env.DISCORDJS_BOT_TOKEN);
