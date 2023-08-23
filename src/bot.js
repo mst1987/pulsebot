@@ -27,13 +27,14 @@ client.on('interactionCreate', async(interaction) => {
     const commandName = interaction.commandName;
     const category = guild.channels.cache.get("1115368280245420042"); // GDKP 25er Category
 
-    console.log(category);
+    const categoryIds = ['1115368280245420042', '1143858079289577502'];
+    const channelsInCategory = getChannelsFromCategories(categoryIds);
+    console.log(channels);
     if (commandName === 'gdkpraids') {
         let signUpChannelIDs = await raidhelper.getUserSignUps(interaction.user.id);
         let missingSignUps = await raidhelper.getMissingSignUps(interaction.user.id);
 
-        if (category) {
-            const channelsInCategory = category.children.cache.map(c => c.id);
+        if (channelsInCategory) {
             // Filter Signups for GDKP category
             const noSignUps = missingSignUps.filter(signUpChannelId => channelsInCategory.includes(signUpChannelId));
             const formattedMissingSignUps = noSignUps.map(channelId => `<#${channelId}>`).join(`\n`);
@@ -233,6 +234,21 @@ function formatSignUps(specs) {
     }
 
     return signUps;
+}
+
+function getChannelsFromCategories(categoryIds) {
+    const channelsFromCategories = [];
+
+    guild.channels.cache.forEach(channel => {
+        if (channel.type === 'text' || channel.type === 'voice') {
+            const parent = channel.parent;
+            if (parent && categoryIds.includes(parent.id)) {
+                channelsFromCategories.push(channel);
+            }
+        }
+    });
+
+    return channelsFromCategories;
 }
 
 function getItemsFormatted(items) {
