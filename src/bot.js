@@ -51,7 +51,7 @@ client.on('interactionCreate', async(interaction) => {
             });
 
             const formattedGDKPSignUps = SignUpsWithSpecs.map(channelId => `<#${channelId.channelId}>\n ${channelId.specs}\n`).join(`\n`);
-            await botReply(interaction, messages.gdkpraids.successTitle, messages.gdkpraids.missingSignUps.replace('___replace___', formattedMissingSignUps) + messages.gdkpraids.signup.replace('___replace___', formattedGDKPSignUps)
+            await botReply(interaction, messages.gdkpraids.successTitle, messages.gdkpraids.missingSignUps.replace('___replace___', formattedMissingSignUps) + messages.gdkpraids.signup.replace('___replace___', formattedGDKPSignUps));
         } else {
             await botReply(interaction, messages.gdkpraids.errorTitle,messages.gdkpraids.errorMessage)
         }
