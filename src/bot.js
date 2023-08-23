@@ -102,7 +102,7 @@ client.on('interactionCreate', async(interaction) => {
         let totalItems = await gdkp.getTotalItems(interaction.user.id);
         const title = 'Diese ID gekauft: '
         if (!totalItems) {
-            botReply('Diese ID gekauft:', `Keine Items gekauft in der momentanen ID. Eventuell ist die Datenbank nicht aktuell!`);
+            botReply(interaction, 'Diese ID gekauft:', `Keine Items gekauft in der momentanen ID. Eventuell ist die Datenbank nicht aktuell!`);
         } else {
             const formattedItems = getItemsToShow(totalItems, getWednesdayWeeksAgo(1), new Date());
             botReply(interaction, title, formattedItems)
@@ -114,7 +114,7 @@ client.on('interactionCreate', async(interaction) => {
         let totalItems = await gdkp.getTotalItems(interaction.user.id);
         const title = 'Gesamte Itemhistorie:'
         if (!totalItems) {
-            botReply(title, `Keine Items gekauft. Eventuell ist die Datenbank nicht aktuell!`);
+            botReply(interaction, title, `Keine Items gekauft. Eventuell ist die Datenbank nicht aktuell!`);
         } else {
             totalItems = totalItems.sort((a, b) => a.player.localeCompare(b.player))
 
@@ -129,7 +129,7 @@ client.on('interactionCreate', async(interaction) => {
                 i++;
             })
             const sumOfGold = totalItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
-            botReply(title,`Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
+            botReply(interaction, title,`Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
 
             if (formattedItems.length > 1)
                 formattedItems.forEach(async(items, key) => {
