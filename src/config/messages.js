@@ -1,8 +1,8 @@
 module.exports = {
 	gdkpraids: {
 		successTitle: 'GDKP Raid Sign Ups',
-		missingSignup: 'Missing/Absence SignUps: \n___replace___\n\n',
-		signup: 'Signed Up GDKP Events: \n___replace___',
+		missingSignups: 'Missing/Absence SignUps: \n___replace___\n\n',
+		signups: 'Signed Up GDKP Events: \n___replace___',
 		errorTitle: 'Missing Infos',
 		errorMessage: ''
 	},
