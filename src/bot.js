@@ -131,7 +131,6 @@ client.on('interactionCreate', async(interaction) => {
             const sumOfGold = totalItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
             await botReply(interaction, messages.totalspent.successTitle,`Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
 
-            console.log(formattedItems.length, formattedItems)
             if (formattedItems.length > 1)
                 formattedItems.forEach(async(items, key) => {
                     if (key > 0)
@@ -184,13 +183,12 @@ function parseDMYDateString(dateString) {
 function getWednesdayWeeksAgo(weeks) {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    console.log(today)
     // Calculate the number of days to subtract to get to the previous Wednesday
     const daysToSubtract = ((today.getDay() + 4) % 7) + 7 * (weeks-1);
-    console.log(weeks, daysToSubtract)
+
     // Subtract two weeks' worth of days and the calculated daysToSubtract
     const weeksAgo = new Date(today.getTime() - daysToSubtract * 24 * 60 * 60 * 1000);
-    console.log(weeksAgo)
+
     return weeksAgo;
   }
 
@@ -239,7 +237,6 @@ function getChannelsFromCategories(categoryIds) {
     const channelsFromCategories = [];
 
     guild.channels.cache.forEach(channel => {
-        console.log(channel.type)
         if (channel.type === 0) {
             const parent = channel.parent;
             if (parent && categoryIds.includes(parent.id)) {
