@@ -183,13 +183,13 @@ function parseDMYDateString(dateString) {
 function getWednesdayWeeksAgo(weeks) {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
+    console.log(today)
     // Calculate the number of days to subtract to get to the previous Wednesday
     const daysToSubtract = (today.getDay() + 2) % 7;
   
     // Subtract two weeks' worth of days and the calculated daysToSubtract
     const weeksAgo = new Date(today.getTime() - (7*weeks) * 24 * 60 * 60 * 1000 - daysToSubtract * 24 * 60 * 60 * 1000);
-  
+    console.log(weeksAgo)
     return weeksAgo;
   }
 
