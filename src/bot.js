@@ -240,10 +240,10 @@ function getChannelsFromCategories(categoryIds) {
     const channelsFromCategories = [];
 
     guild.channels.cache.forEach(channel => {
-        console.log(channel)
         if (channel.type === 'text' || channel.type === 'voice') {
+            console.log(channel.name)
             const parent = channel.parent;
-            console.log(parent, channel)
+            console.log(parent.id)
             if (parent && categoryIds.includes(parent.id)) {
                 channelsFromCategories.push(channel);
             }
