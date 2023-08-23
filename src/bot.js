@@ -22,7 +22,6 @@ client.on('interactionCreate', async(interaction) => {
     console.log('User: ', interaction.user.username, '- Command:', interaction.commandName);
 
     const raidhelper = new Raidhelper();
-
     const category = guild.channels.cache.get("1115368280245420042"); // GDKP 25er Category
 
     if (interaction.commandName === 'gdkpraids') {
@@ -37,7 +36,6 @@ client.on('interactionCreate', async(interaction) => {
 
             // Filter Signups for GDKP category
             const GDKPSignUps = signUpChannelIDs.filter(signUpChannelId => channelsInCategory.includes(signUpChannelId.channelId));
-
             const SignUpsWithSpecs = GDKPSignUps.map(dataObject => {
                 const matchingSignUps = dataObject.signUps.filter(signUp => signUp.userId === interaction.user.id);
                 const matchingSpecs = matchingSignUps.map(signUp => `${guild.emojis.cache.find(emoji => emoji.name === classMap[signUp.specName].icon) }`).join('');
@@ -49,18 +47,7 @@ client.on('interactionCreate', async(interaction) => {
             });
 
             const formattedGDKPSignUps = SignUpsWithSpecs.map(channelId => `<#${channelId.channelId}>\n ${channelId.specs}\n`).join(`\n`);
-            await interaction.reply({
-                    embeds: [{
-                        title: 'GDKP Sign Ups',
-                        description: `Missing/Absence SignUps: \n${formattedMissingSignUps}\n\nSigned Up GDKP Events: \n${formattedGDKPSignUps}`,
-                    }],
-                    ephemeral: true
-                }).then(msg => {
-                    setTimeout(() => msg.delete(), timeoutTime)
-                })
-                .catch(error => {
-                    console.log(error);
-                });
+            botReply(interaction, 'GDKP Sign Ups', `Missing/Absence SignUps: \n${formattedMissingSignUps}\n\nSigned Up GDKP Events: \n${formattedGDKPSignUps}`)
         } else {
             interaction.reply('Pulse Bot doesnt have a correct Setup yet.');
         }
@@ -80,8 +67,9 @@ client.on('interactionCreate', async(interaction) => {
                     setups.push({ channelid: signup.channelId, startTime: signup.startTime, ...setup });
                 }
             }));
-            if (setups.length > 0) {
-                const guild = interaction.guild;
+
+            if (setups.length < 1) botReply(interaction, 'Setups', `Momentan in keinem Setup gesetzt. Neue Setups kommen bald!`)
+            else {
                 // Filter Setups, sort it and only get User data
                 const setupData = setups.filter((setup, index) => {
                     return setup.setup.some(user => user.userid === interaction.user.id);
@@ -90,33 +78,8 @@ client.on('interactionCreate', async(interaction) => {
                 // Format Signup and get Discord Emojis for the classes
                 const formattedGDKPSignUps = setupData.map(channelId => `<#${channelId.channelid}> ${guild.emojis.cache.find(emoji => emoji.name === classMap[channelId.setup[0].spec].icon)} ${classMap[channelId.setup[0].spec].name}`).join(`\n`);
 
-                await interaction.reply({
-                        embeds: [{
-                            title: 'Setups',
-                            description: `\n${formattedGDKPSignUps}`,
-                        }],
-                        ephemeral: true
-                    }).then(msg => {
-                        setTimeout(() => msg.delete(), timeoutTime)
-                    })
-                    .catch(error => {
-                        console.log(error);
-                    })
-            } else {
-                await interaction.reply({
-                    embeds: [{
-                        title: 'Setups',
-                        description: `Momentan in keinem Setup gesetzt. Neue Setups kommen bald!`,
-                    }],
-                    ephemeral: true
-                }).then(msg => {
-                    setTimeout(() => msg.delete(), timeoutTime)
-                })
-                .catch(error => {
-                    console.log(error);
-                })
+                botReply(interaction, 'Setups', `\n${formattedGDKPSignUps}`)
             }
-
         } else {
             interaction.channel.send('Pulse Bot doesnt have a correct Setup yet.');
         }
@@ -166,14 +129,7 @@ client.on('interactionCreate', async(interaction) => {
                 i++;
             })
             const sumOfGold = totalItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
-
-            await interaction.reply({
-                embeds: [{
-                    title: `Gesamte Itemhistorie:`,
-                    description: `Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`,
-                }],
-                ephemeral: true
-            })
+            botReply(title,`Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
 
             if (formattedItems.length > 1)
                 formattedItems.forEach(async(items, key) => {
@@ -255,7 +211,7 @@ function getItemsToShow(items, dateFrom, dateEnd) {
         return entryDate >= dateFrom && entryDate <= dateEnd;
     }).sort((a, b) => a.player.localeCompare(b.player));
 
-    const formattedItems = getEmojis(filteredItems);
+    const formattedItems = getItemsFormatted(filteredItems);
     const sumOfGold = filteredItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
     return `${formattedItems}\n\n\nGesamtausgaben: **${sumOfGold}g**`;
 }
@@ -274,7 +230,7 @@ function formatSignUps(specs) {
     return signUps;
 }
 
-function getEmojis(items) {
+function getItemsFormatted(items) {
     return items.map(item => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[item.class]?.icon)} ${item.player} - [${item.item}](${item.wowhead}) - ${item.gold}g`).join(`\n`);
 }
 
