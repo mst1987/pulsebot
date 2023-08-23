@@ -131,6 +131,7 @@ client.on('interactionCreate', async(interaction) => {
             const sumOfGold = totalItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
             botReply(interaction, messages.totalspent.successTitle,`Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
 
+            console.log(formattedItems.length, formattedItems)
             if (formattedItems.length > 1)
                 formattedItems.forEach(async(items, key) => {
                     if (key > 0)
