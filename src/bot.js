@@ -140,6 +140,9 @@ client.on('interactionCreate', async(interaction) => {
                                 description: `${items.join('\n')}`,
                             }],
                             ephemeral: true
+                        }).then(msg => {
+                            if(timeout > 0)
+                                setTimeout(() => msg.delete(), timeout)
                         });
                 })
         }
