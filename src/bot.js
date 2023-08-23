@@ -162,7 +162,7 @@ client.on('interactionCreate', async(interaction) => {
             const formattedGDKPSignUps = signUps.map(s => `${getCharacterIcon(s.specName)}`).join(``);
             raidhelper.signUpToRaid(raidId, signUps, interaction.user.id);
 
-            await botReply(interaction, messages.signup.successTitle, `You signed up as ${formattedGDKPSignUps}\n Keep in mind, the raidhelper can take a bit until changes are shown.`);
+            await botReply(interaction, messages.signup.successTitle, messages.signup.successMessage.replace('___replace___', formattedGDKPSignUps));
         } catch (error) {
             console.log(error)
         }

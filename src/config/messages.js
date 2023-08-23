@@ -32,7 +32,7 @@ module.exports = {
 	},
 	signup: {
 		successTitle: 'Sign Up',
-		successMessage: '',
+		successMessage: 'You signed up as ___replace___\n Keep in mind, the raidhelper can take a bit until changes are shown.',
 		errorTitle: 'Anmeldung nicht möglich',
 		errorMessage: 'Keinen passenden Raid gefunden.'
 	},
