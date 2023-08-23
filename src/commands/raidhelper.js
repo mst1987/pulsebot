@@ -1,7 +1,6 @@
 require('dotenv').config();
 const Raidhelper = require('../classes/raidhelper.js');
-const { REST, Routes, ApplicationCommandOptionType } = require('discord.js');
-const shortClassList = require('../config/variables.js')
+const { REST, Routes } = require('discord.js');
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKEN);
 
 (async() => {
@@ -16,12 +15,6 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKE
             formattedDate = `${date.getDate()}.${date.getMonth()}.${date.getFullYear()} - ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`
             eventChoices.push({ name: event.id + ' | ' + formattedDate + ' | ' + event.title, value: event.id })
         })
-        for (const clazz in shortClassList) {
-            if (shortClassList.hasOwnProperty(clazz)) {
-                const name = shortClassList[clazz].name;
-                classChoices.push({ clazz, name, value: clazz });
-            }
-        };
 
         const commands = [{
                 name: 'mysetups',
@@ -43,24 +36,6 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKE
                 name: 'currentspent',
                 description: 'Gold spent on items in the current ID',
             },
-            /*{
-                name: 'signup',
-                description: 'Sign Up to a raid with classes',
-                options: [{
-                        name: 'raid',
-                        description: 'Raid you want to sign up for',
-                        type: 3,
-                        required: true,
-                        choices: eventChoices,
-                    },
-                    {
-                        name: 'specs',
-                        description: 'Additional Classes - Seperate with "," (Combat,Assa,Affli,Demo,Fire,RestoDruid)',
-                        type: 3,
-                        required: true
-                    }
-                ]
-            },*/
             {
                 name: 'signup',
                 description: 'Sign Up to the raid in this channel with the specs/classes you want',
