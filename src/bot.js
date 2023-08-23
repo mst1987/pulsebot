@@ -185,7 +185,7 @@ function getWednesdayWeeksAgo(weeks) {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     console.log(today)
     // Calculate the number of days to subtract to get to the previous Wednesday
-    const daysToSubtract = ((today.getDay() + 4) % 7);
+    const daysToSubtract = ((today.getDay() + 5) % 7);
 
     if(weeks > 1) daysToSubtract + 7 * (weeks-1);
     console.log(daysToSubtract)
