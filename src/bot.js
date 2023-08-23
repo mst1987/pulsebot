@@ -1,7 +1,6 @@
 require('dotenv').config({ path: '../.env'});
 
 const extendedClassList = require('./config/variables.js');
-const messageList = require('./config/messages.js')
 const Raidhelper = require('./classes/raidhelper.js');
 const GDKP = require('./classes/gdkp.js');
 
