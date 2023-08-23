@@ -242,6 +242,7 @@ function getChannelsFromCategories(categoryIds) {
     guild.channels.cache.forEach(channel => {
         if (channel.type === 'text' || channel.type === 'voice') {
             const parent = channel.parent;
+            console.log(parent, channel)
             if (parent && categoryIds.includes(parent.id)) {
                 channelsFromCategories.push(channel);
             }
