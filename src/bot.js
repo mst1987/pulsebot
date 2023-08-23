@@ -27,6 +27,7 @@ client.on('interactionCreate', async(interaction) => {
     const commandName = interaction.commandName;
     const category = guild.channels.cache.get("1115368280245420042"); // GDKP 25er Category
 
+    console.log(category);
     if (commandName === 'gdkpraids') {
         let signUpChannelIDs = await raidhelper.getUserSignUps(interaction.user.id);
         let missingSignUps = await raidhelper.getMissingSignUps(interaction.user.id);
