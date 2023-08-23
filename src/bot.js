@@ -25,10 +25,9 @@ client.on('interactionCreate', async(interaction) => {
 
     const raidhelper = new Raidhelper();
     const commandName = interaction.commandName;
-    const category = guild.channels.cache.get("1115368280245420042"); // GDKP 25er Category
-
     const categoryIds = ['1115368280245420042', '1143858079289577502'];
     const channelsInCategory = getChannelsFromCategories(categoryIds);
+
     if (commandName === 'gdkpraids') {
         let signUpChannelIDs = await raidhelper.getUserSignUps(interaction.user.id);
         let missingSignUps = await raidhelper.getMissingSignUps(interaction.user.id);
@@ -42,7 +41,7 @@ client.on('interactionCreate', async(interaction) => {
             const GDKPSignUps = signUpChannelIDs.filter(signUpChannelId => channelsInCategory.includes(signUpChannelId.channelId));
             const SignUpsWithSpecs = GDKPSignUps.map(dataObject => {
                 const matchingSignUps = dataObject.signUps.filter(signUp => signUp.userId === interaction.user.id);
-                const matchingSpecs = matchingSignUps.map(signUp => `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[signUp.specName].icon) }`).join('');
+                const matchingSpecs = matchingSignUps.map(signUp => `${getCharacterIcon(signUp.specName) }`).join('');
 
                 return {
                     specs: matchingSpecs,
@@ -53,7 +52,7 @@ client.on('interactionCreate', async(interaction) => {
             const formattedGDKPSignUps = SignUpsWithSpecs.map(channelId => `<#${channelId.channelId}>\n ${channelId.specs}\n`).join(`\n`);
             botReply(interaction, 'GDKP Raid SIgn Ups', `Missing/Absence SignUps: \n${formattedMissingSignUps}\n\nSigned Up GDKP Events: \n${formattedGDKPSignUps}`)
         } else {
-            interaction.reply('Pulse Bot doesnt have a correct Setup yet.');
+            botReply(interaction, 'Missing Infos', `Pulse Bot doesnt have a correct Setup yet.`)
         }
     }
     if (commandName === 'mysetups') {
@@ -61,8 +60,8 @@ client.on('interactionCreate', async(interaction) => {
         // get all Events the user signed up for
         let signUpChannelEvents = await raidhelper.getUserSignUps(interaction.user.id);
 
-        if (category) {
-            const channelsInCategory = category.children.cache.map(c => c.id);
+        if (categoryIds) {
+            const channelsInCategory = categoryIds.children.cache.map(c => c.id);
             const GDKPSignUps = signUpChannelEvents.filter(signUpChannelEvent => channelsInCategory.includes(signUpChannelEvent.channelId));
 
             await Promise.all(GDKPSignUps.map(async(signup) => {
@@ -80,7 +79,7 @@ client.on('interactionCreate', async(interaction) => {
                 }).sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(slot => ({...slot, setup: slot.setup.filter(user => user.userid === interaction.user.id) }));
 
                 // Format Signup and get Discord Emojis for the classes
-                const formattedGDKPSignUps = setupData.map(channelId => `<#${channelId.channelid}> ${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[channelId.setup[0].spec].icon)} ${extendedClassList[channelId.setup[0].spec].name}`).join(`\n`);
+                const formattedGDKPSignUps = setupData.map(channelId => `<#${channelId.channelid}> ${getCharacterIcon(channelId.setup[0].spec)} ${extendedClassList[channelId.setup[0].spec].name}`).join(`\n`);
 
                 botReply(interaction, 'Setups', `\n${formattedGDKPSignUps}`)
             }
@@ -249,6 +248,10 @@ function getChannelsFromCategories(categoryIds) {
     });
 
     return channelsFromCategories;
+}
+
+function getCharacterIcon(spec) {
+    return `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[spec]?.icon)}`;
 }
 
 function getItemsFormatted(items) {
