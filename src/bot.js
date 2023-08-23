@@ -29,7 +29,7 @@ client.on('interactionCreate', async(interaction) => {
 
     const categoryIds = ['1115368280245420042', '1143858079289577502'];
     const channelsInCategory = getChannelsFromCategories(categoryIds);
-
+console.log(channelsInCategory)
     if (commandName === 'gdkpraids') {
         let signUpChannelIDs = await raidhelper.getUserSignUps(interaction.user.id);
         let missingSignUps = await raidhelper.getMissingSignUps(interaction.user.id);
