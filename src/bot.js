@@ -191,10 +191,10 @@ client.on('interactionCreate', async(interaction) => {
 
         response = await legendary.bid(bidData);
 
-        if (response) {
+        if (response.type === 'success') {
             botReply(interaction, 'Bid Info', response.message, 0, false);
         } else {
-            botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
+            botReply(interaction, 'Bid Info', response.message);
         }
     }
 
