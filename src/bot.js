@@ -182,7 +182,7 @@ client.on('interactionCreate', async(interaction) => {
         if (!legendary.getAuction(interaction.channel.id)) botReply(interaction, 'Auktion Info', 'Keine Auktion aktiv für diesen Channel');
 
         const bidData = {
-            username: interaction.user.name,
+            username: interaction.user.username,
             userid: interaction.user.id,
             gold: interaction.options.getString('gold'),
             timestamp: new Date().getTime(),
