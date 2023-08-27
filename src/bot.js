@@ -3,6 +3,7 @@ require('dotenv').config({ path: '../.env' });
 const extendedClassList = require('./config/variables.js');
 const Raidhelper = require('./classes/raidhelper.js');
 const GDKP = require('./classes/gdkp.js');
+const Legendary = require('./classes/legendary.js');
 const messages = require('./config/messages.js');
 
 const { Client, GatewayIntentBits } = require('discord.js');
@@ -181,9 +182,20 @@ client.on('interactionCreate', async(interaction) => {
         botReply(interaction, 'Command not usable yet');
     }
 
-    if (commandName === 'startauction') {
+    if (commandName === 'createauction') {
         if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
 
+        const auctionData = {
+            name: interaction.options.getString('name'),
+            raid: interaction.options.getString('raid'),
+            channel: interaction.channel.id,
+            endtime: interaction.options.getString('endtime'),
+            mingold: interaction.options.getString('mingold'),
+            increment: interaction.options.getString('increment'),
+        }
+
+        console.log(auctionData)
+            //Legendary.createAuction(auctionData);
         botReply(interaction, 'Command not usable yet');
     }
 

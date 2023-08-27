@@ -47,8 +47,37 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKE
                 }]
             },
             {
-                name: 'startauction',
-                description: 'Starts an auction for a legendary item',
+                name: 'createauction',
+                description: 'Creates an auction for a legendary item',
+                options: [{
+                        name: 'name',
+                        description: 'Name der Auktion',
+                        type: 3,
+                        required: true
+                    },
+                    {
+                        name: 'raid',
+                        description: 'Raidbeschreibung der Auktion',
+                        type: 3,
+                        required: true
+                    },
+                    {
+                        name: 'endtime',
+                        description: 'Ende der Auktion (DD.MM.YY-hh:mm)',
+                        type: 3,
+                        required: true
+                    }, {
+                        name: 'mingold',
+                        description: 'Startpreis der Auktion',
+                        type: 3,
+                        required: true
+                    }, {
+                        name: 'increment',
+                        description: 'Mindesterhöhung der Auktion',
+                        type: 3,
+                        required: true
+                    }
+                ]
             },
             {
                 name: 'endauction',
