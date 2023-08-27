@@ -182,7 +182,7 @@ client.on('interactionCreate', async(interaction) => {
         if (!legendary.getAuction(interaction.channel.id)) botReply(interaction, 'Auktion Info', 'Keine Auktion aktiv für diesen Channel');
 
         const bidData = {
-            username: interaction.user.username,
+            username: interaction.user.tag,
             userid: interaction.user.id,
             gold: interaction.options.getString('gold'),
             timestamp: new Date().getTime(),
@@ -192,7 +192,7 @@ client.on('interactionCreate', async(interaction) => {
         response = await legendary.bid(bidData);
 
         if (response.type === 'success') {
-            botReply(interaction, 'Bid Info', response.message, 0, false);
+            botReply(interaction, 'Bid Info', `Aktuelles Gebot: ${bidData.gold} von ${bidData.username}`, 0, false);
         } else {
             botReply(interaction, 'Bid Info', response.message);
         }
