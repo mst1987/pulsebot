@@ -196,7 +196,7 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         response = await legendary.createAuction(auctionData);
-
+        console.log(response);
         if (response) {
             botReply(interaction, 'Auktion angelegt', response.message);
         } else {
