@@ -185,8 +185,8 @@ client.on('interactionCreate', async(interaction) => {
 
         const bidData = {
             username: interaction.user.name,
-            userid: interaction.options.getString('raid'),
-            gold: interaction.channel.id,
+            userid: interaction.user.id,
+            gold: interaction.options.getString('gold'),
             timestamp: new Date().getTime(),
             legendary: interaction.channel.id,
         }
