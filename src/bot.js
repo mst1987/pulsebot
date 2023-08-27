@@ -206,15 +206,15 @@ client.on('interactionCreate', async(interaction) => {
             name: interaction.options.getString('name'),
             raid: interaction.options.getString('raid'),
             channel: interaction.channel.id,
-            endtime: interaction.options.getString('endtime'),
+            endtime: toTimestamp(interaction.options.getString('endtime')),
             mingold: interaction.options.getString('mingold'),
             increment: interaction.options.getString('increment'),
         }
 
         response = await legendary.createAuction(auctionData);
 
-        if (response) {
-            botReply(interaction, 'Auktion anlegen', response.message);
+        if (response.type === 'success') {
+            botReply(interaction, 'Auktion gestartet!', `${response.message}\n\n${auctionData.name}\n${auctionData.raid}\nAuktion endet am${formatTimestampToDateString(auctionData.endtime)}\n\nStartpreis ist ${auctionData.mingold} und Mindesterhöhung liegt bei ${auctionData.increment}`);
         } else {
             botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
         }
@@ -317,6 +317,32 @@ function getCharacterIcon(spec) {
 
 function getItemsFormatted(items) {
     return items.map(item => `${getCharacterIcon(item.class)} ${item.player} - [${item.item}](${item.wowhead}) - ${item.gold}g`).join(`\n`);
+}
+
+function toTimestamp(dateString) {
+    const [datePart, timePart] = dateString.split('-');
+    const [day, month, year] = datePart.split('.').map(Number);
+    const [hour, minute] = timePart.split(':').map(Number);
+
+    // Note: In the following line, the year is assumed to be in the 21st century (20xx)
+    const dateObject = new Date(2000 + year, month - 1, day, hour, minute);
+
+    const timestamp = dateObject.getTime() / 1000; // Convert milliseconds to seconds
+
+    return timestamp
+}
+
+function formatTimestampToDateString(timestamp) {
+    const dateObject = new Date(timestamp * 1000); // Convert seconds to milliseconds
+
+    const day = String(dateObject.getDate()).padStart(2, '0');
+    const month = String(dateObject.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+    const year = dateObject.getFullYear();
+    const hour = String(dateObject.getHours()).padStart(2, '0');
+    const minute = String(dateObject.getMinutes()).padStart(2, '0');
+
+    const formattedDateString = `${day}.${month}.${year} um ${hour}:${minute}`;
+    return formattedDateString;
 }
 
 client.login(process.env.DISCORDJS_BOT_TOKEN);
