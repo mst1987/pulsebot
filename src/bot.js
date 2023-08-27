@@ -195,7 +195,6 @@ client.on('interactionCreate', async(interaction) => {
             increment: interaction.options.getString('increment'),
         }
 
-        console.log(auctionData)
         response = await legendary.createAuction(auctionData);
 
         botReply(interaction, 'Command not usable yet');
