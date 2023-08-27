@@ -14,7 +14,7 @@ class Legendary {
                 httpsAgent: agent,
             }).then((response) => {
                 console.log(response.data);
-                console.log(data.message)
+                console.log(response.message)
                 resolve(data.message);
             }).catch((error) => {
                 console.log(error.data)
