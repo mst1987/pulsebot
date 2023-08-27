@@ -5,7 +5,7 @@ class Legendary {
     async createAuction(auctionData) {
         const url = "https://pulse-gdkp.de:3001/api/legendary/createauction";
         return new Promise((resolve, reject) => {
-            axios.post(url, auctionData)
+            axios.post(url, auctionData, { rejectUnauthorized: false })
                 .then(response => {
                     resolve(response.data);
                 })
