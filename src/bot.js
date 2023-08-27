@@ -181,6 +181,8 @@ client.on('interactionCreate', async(interaction) => {
 
         if (!legendary.getAuction(interaction.channel.id)) botReply(interaction, 'Auktion Info', 'Keine Auktion aktiv für diesen Channel');
 
+        botReply(interaction, 'Bid Info', response.message, false);
+
         const bidData = {
             username: interaction.user.name,
             userid: interaction.options.getString('raid'),
