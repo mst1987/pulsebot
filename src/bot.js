@@ -185,6 +185,7 @@ client.on('interactionCreate', async(interaction) => {
     if (commandName === 'createauction') {
         if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
 
+        const legendary = new Legendary();
         const auctionData = {
             name: interaction.options.getString('name'),
             raid: interaction.options.getString('raid'),
@@ -195,7 +196,7 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         console.log(auctionData)
-        response = await Legendary.createAuction(auctionData);
+        response = await legendary.createAuction(auctionData);
 
         console.log(response)
         botReply(interaction, 'Command not usable yet');
