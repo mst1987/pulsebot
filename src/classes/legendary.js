@@ -13,10 +13,10 @@ class Legendary {
             const res = await axios.post(url, auctionData, {
                 httpsAgent: agent,
             }).then((response) => {
-                resolve(response.data);
+                return response.data;
             }).catch((error) => {
-                console.log(error)
-                reject(error.data)
+                console.log(error.data)
+                return error.data;
             })
         });
     }
