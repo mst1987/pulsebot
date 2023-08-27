@@ -16,7 +16,7 @@ class Legendary {
                 console.log(data)
                 resolve(data);
             }).error((error) => {
-                console.log(error)
+                console.log(error.message)
                 reject(error.message)
             })
         });
