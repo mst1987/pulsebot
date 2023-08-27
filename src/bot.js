@@ -194,7 +194,7 @@ client.on('interactionCreate', async(interaction) => {
         if (response.type === 'success') {
             botReply(interaction, 'Bid Info', `Aktuelles Gebot: ${bidData.gold} von ${bidData.username}`, 0, false);
         } else {
-            botReply(interaction, 'Bid Info', response.message);
+            botReply(interaction, 'Gebot nicht akzeptiert!', response.message);
         }
     }
 
