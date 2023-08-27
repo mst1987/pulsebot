@@ -5,7 +5,7 @@ class Legendary {
     async createAuction(auctionData) {
         return new Promise(async(resolve, reject) => {
             const options = {
-                host: "https://pulse-gdkp.de",
+                host: "https://www.pulse-gdkp.de",
                 port: 3001,
                 path: "/api/legendary/createauction",
                 method: "POST",
