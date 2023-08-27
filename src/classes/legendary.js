@@ -1,17 +1,25 @@
 const https = require('https');
+const axios = require('axios');
+
+const agent = new https.Agent({
+    rejectUnauthorized: false
+});
 class Legendary {
     constructor() {}
 
     async createAuction(auctionData) {
         const url = "https://pulse-gdkp.de:3001/api/legendary/createauction";
-        return new Promise((resolve, reject) => {
-            axios.post(url, auctionData, { rejectUnauthorized: false })
-                .then(response => {
-                    resolve(response.data);
-                })
-                .catch(error => {
-                    reject(error);
-                });
+        return new Promise(async(resolve, reject) => {
+            const res = await axios($, {
+                method: "POST",
+                url: url,
+                headers: {},
+                httpsAgent: agent,
+            }).then((data) => {
+                resolve(data);
+            }).error((reject) => {
+                reject(reject)
+            })
         });
     }
 
