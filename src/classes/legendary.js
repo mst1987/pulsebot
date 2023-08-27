@@ -15,7 +15,7 @@ class Legendary {
             }).then((response) => {
                 return response.data;
             }).catch((error) => {
-                console.log('Error: ', error)
+                console.log('Error: ', error.data)
                 return error;
             })
         });
