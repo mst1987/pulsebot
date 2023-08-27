@@ -195,7 +195,9 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         console.log(auctionData)
-            //Legendary.createAuction(auctionData);
+        response = await Legendary.createAuction(auctionData);
+
+        console.log(response)
         botReply(interaction, 'Command not usable yet');
     }
 
