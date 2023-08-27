@@ -197,7 +197,9 @@ client.on('interactionCreate', async(interaction) => {
 
         response = await legendary.createAuction(auctionData);
 
-        botReply(interaction, 'Command not usable yet');
+        console.log(response.message);
+
+        botReply(interaction, title, response.message);
     }
 
     if (commandName === 'endauction') {
