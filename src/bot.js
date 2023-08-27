@@ -176,7 +176,7 @@ client.on('interactionCreate', async(interaction) => {
 
     if (commandName === 'bid') {
         const role = interaction.member.roles.cache.find(role => role.id === legendaryID);
-        if (!role) botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Legendary Rolle diese Befehl auszuführen.');
+        if (!role) botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Legendary Rolle diesen Befehl auszuführen.');
     }
 
     if (commandName === 'startauction') {
