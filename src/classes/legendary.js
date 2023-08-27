@@ -16,8 +16,8 @@ class Legendary {
                 console.log(data)
                 resolve(data);
             }).catch((error) => {
-                console.log(error.message)
-                reject(error.message)
+                console.log(error)
+                reject(error)
             })
         });
     }
