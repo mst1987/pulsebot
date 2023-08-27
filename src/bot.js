@@ -194,7 +194,7 @@ client.on('interactionCreate', async(interaction) => {
             mingold: interaction.options.getString('mingold'),
             increment: interaction.options.getString('increment'),
         }
-
+        console.log('TEST');
         response = await legendary.createAuction(auctionData);
         console.log(response);
         if (response) {
