@@ -19,7 +19,7 @@ client.on('interactionCreate', async(interaction) => {
     if (!interaction.isChatInputCommand()) return;
     if (interaction.user.bot) return;
     guild = interaction.guild;
-
+    const legendaryID = '1144865420386517053';
 
     // Logging User Command
     console.log('User: ', interaction.user.username, '- Command:', interaction.commandName);
@@ -175,15 +175,16 @@ client.on('interactionCreate', async(interaction) => {
     // Legendary Bidding Commands
 
     if (commandName === 'bid') {
-        botReply(interaction, 'Command not usable yet');
+        const role = interaction.member.roles.cache.find(role => role.id === legendaryID);
+        if (!role) botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Legendary Rolle diese Befehl auszuführen.');
     }
 
     if (commandName === 'startauction') {
-        botReply(interaction, 'Command not usable yet');
+        if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
     }
 
     if (commandName === 'endauction') {
-        botReply(interaction, 'Command not usable yet');
+        if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
     }
 
     if (commandName === 'auctionstatus') {
@@ -218,8 +219,8 @@ function getWednesdayWeeksAgo(weeks) {
 async function botReply(interaction, title, message, timeout = timeoutTime) {
     await interaction.reply({
             embeds: [{
-                title: title, //'Diese ID gekauft:',
-                description: message //`Keine Items gekauft in der momentanen ID. Eventuell ist die Datenbank nicht aktuell!`,
+                title: title,
+                description: message
             }],
             ephemeral: true
         }).then(msg => {
