@@ -197,9 +197,11 @@ client.on('interactionCreate', async(interaction) => {
 
         response = await legendary.createAuction(auctionData);
 
-        console.log(response.message);
-
-        botReply(interaction, title, response.message);
+        if (response) {
+            botReply(interaction, 'Auktion angelegt', response.message);
+        } else {
+            botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
+        }
     }
 
     if (commandName === 'endauction') {
