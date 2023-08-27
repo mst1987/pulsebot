@@ -27,7 +27,7 @@ class Legendary {
     async bid(bidData) {
         const url = "https://pulse-gdkp.de:3001/api/legendary/bid";
         return new Promise(async(resolve, reject) => {
-            const res = await axios.post(url, auctionData, {
+            const res = await axios.post(url, bidData, {
                 httpsAgent: agent,
             }).then((response) => {
                 return response.data;
