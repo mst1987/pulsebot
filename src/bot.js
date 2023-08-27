@@ -181,10 +181,14 @@ client.on('interactionCreate', async(interaction) => {
 
     if (commandName === 'startauction') {
         if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+
+        botReply(interaction, 'Command not usable yet');
     }
 
     if (commandName === 'endauction') {
         if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+
+        botReply(interaction, 'Command not usable yet');
     }
 
     if (commandName === 'auctionstatus') {
