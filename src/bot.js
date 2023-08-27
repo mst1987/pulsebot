@@ -257,13 +257,13 @@ function getWednesdayWeeksAgo(weeks) {
     return weeksAgo;
 }
 
-async function botReply(interaction, title, message, timeout = timeoutTime) {
+async function botReply(interaction, title, message, timeout = timeoutTime, ephemeral = true) {
     await interaction.reply({
             embeds: [{
                 title: title,
                 description: message
             }],
-            ephemeral: true
+            ephemeral: ephemeral
         }).then(msg => {
             if (timeout > 0)
                 setTimeout(() => msg.delete(), timeout)
