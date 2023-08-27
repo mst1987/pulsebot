@@ -179,6 +179,8 @@ client.on('interactionCreate', async(interaction) => {
         const role = interaction.member.roles.cache.find(role => role.id === legendaryID);
         if (!role) botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Legendary Rolle diesen Befehl auszuführen.');
 
+        if (!legendary.getAuction(interaction.channel.id)) botReply(interaction, 'Auktion Info', 'Keine Auktion aktiv für diesen Channel');
+
         const bidData = {
             username: interaction.user.name,
             userid: interaction.options.getString('raid'),
@@ -189,7 +191,11 @@ client.on('interactionCreate', async(interaction) => {
 
         response = await legendary.bid(bidData);
 
-        botReply(interaction, 'Command not usable yet');
+        if (response) {
+            botReply(interaction, 'Bid Info', response.message);
+        } else {
+            botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
+        }
     }
 
     if (commandName === 'createauction') {
