@@ -1,4 +1,4 @@
-require('dotenv').config({ path: '../.env'});
+require('dotenv').config({ path: '../.env' });
 
 const extendedClassList = require('./config/variables.js');
 const Raidhelper = require('./classes/raidhelper.js');
@@ -19,7 +19,7 @@ client.on('interactionCreate', async(interaction) => {
     if (!interaction.isChatInputCommand()) return;
     if (interaction.user.bot) return;
     guild = interaction.guild;
-    
+
 
     // Logging User Command
     console.log('User: ', interaction.user.username, '- Command:', interaction.commandName);
@@ -29,6 +29,7 @@ client.on('interactionCreate', async(interaction) => {
     const categoryIds = ['1115368280245420042', '1143858079289577502'];
     const channelsInCategory = getChannelsFromCategories(categoryIds);
 
+    // GDKP Raid commands
     if (commandName === 'gdkpraids') {
         let signUpChannelIDs = await raidhelper.getUserSignUps(interaction.user.id);
         let missingSignUps = await raidhelper.getMissingSignUps(interaction.user.id);
@@ -53,7 +54,7 @@ client.on('interactionCreate', async(interaction) => {
             const formattedGDKPSignUps = SignUpsWithSpecs.map(channelId => `<#${channelId.channelId}>\n ${channelId.specs}\n`).join(`\n`);
             await botReply(interaction, messages.gdkpraids.successTitle, messages.gdkpraids.missingSignups.replace('___replace___', formattedMissingSignUps) + messages.gdkpraids.signups.replace('___replace___', formattedGDKPSignUps));
         } else {
-            await botReply(interaction, messages.gdkpraids.errorTitle,messages.gdkpraids.errorMessage)
+            await botReply(interaction, messages.gdkpraids.errorTitle, messages.gdkpraids.errorMessage)
         }
     }
     if (commandName === 'mysetups') {
@@ -129,7 +130,7 @@ client.on('interactionCreate', async(interaction) => {
                 i++;
             })
             const sumOfGold = totalItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
-            await botReply(interaction, messages.totalspent.successTitle,`Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
+            await botReply(interaction, messages.totalspent.successTitle, `Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
 
             if (formattedItems.length > 1)
                 formattedItems.forEach(async(items, key) => {
@@ -140,7 +141,7 @@ client.on('interactionCreate', async(interaction) => {
                             }],
                             ephemeral: true
                         }).then(msg => {
-                            if(timeout > 0)
+                            if (timeout > 0)
                                 setTimeout(() => msg.delete(), timeout)
                         });
                 })
@@ -169,6 +170,28 @@ client.on('interactionCreate', async(interaction) => {
             console.log(error)
         }
     }
+    // --------------------------------------------------------
+
+    // Legendary Bidding Commands
+
+    if (commandName === 'bid') {
+        botReply(interaction, 'Command not usable yet');
+    }
+
+    if (commandName === 'startauction') {
+        botReply(interaction, 'Command not usable yet');
+    }
+
+    if (commandName === 'endauction') {
+        botReply(interaction, 'Command not usable yet');
+    }
+
+    if (commandName === 'auctionstatus') {
+        botReply(interaction, 'Command not usable yet');
+    }
+
+    // --------------------------------------------------------
+
 })
 
 // Function to parse "D-M-YYYY" format
@@ -184,29 +207,29 @@ function getWednesdayWeeksAgo(weeks) {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     // Calculate the number of days to subtract to get to the previous Wednesday
-    const daysToSubtract = ((today.getDay() + 4) % 7) + 7 * (weeks-1);
+    const daysToSubtract = ((today.getDay() + 4) % 7) + 7 * (weeks - 1);
 
     // Subtract two weeks' worth of days and the calculated daysToSubtract
     const weeksAgo = new Date(today.getTime() - daysToSubtract * 24 * 60 * 60 * 1000);
 
     return weeksAgo;
-  }
+}
 
 async function botReply(interaction, title, message, timeout = timeoutTime) {
     await interaction.reply({
-        embeds: [{
-            title: title,//'Diese ID gekauft:',
-            description: message //`Keine Items gekauft in der momentanen ID. Eventuell ist die Datenbank nicht aktuell!`,
-        }],
-        ephemeral: true
-    }).then(msg => {
-        if(timeout > 0)
-            setTimeout(() => msg.delete(), timeout)
-    })
-    .catch(error => {
-        console.log(error);
-    });
-}  
+            embeds: [{
+                title: title, //'Diese ID gekauft:',
+                description: message //`Keine Items gekauft in der momentanen ID. Eventuell ist die Datenbank nicht aktuell!`,
+            }],
+            ephemeral: true
+        }).then(msg => {
+            if (timeout > 0)
+                setTimeout(() => msg.delete(), timeout)
+        })
+        .catch(error => {
+            console.log(error);
+        });
+}
 
 function getItemsToShow(items, dateFrom, dateEnd) {
     const filteredItems = items.filter((entry) => {

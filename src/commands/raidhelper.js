@@ -46,6 +46,23 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKE
                     required: true
                 }]
             },
+            {
+                name: 'startauction',
+                description: 'Starts an auction for a legendary item',
+            },
+            {
+                name: 'endauction',
+                description: 'Ends an auction for a legendary item',
+            },
+            {
+                name: 'bid',
+                description: 'Bid on a legendary item. Increment has to be high enough',
+            },
+            {
+                name: 'auctionstatus',
+                description: 'Show the current status of the legendary item auction of this channel',
+            },
+
         ];
         await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands })
 
