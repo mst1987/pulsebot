@@ -10,7 +10,6 @@ class Legendary {
                 path: "/api/legendary/createauction",
                 method: "POST",
                 headers: {
-                    'Authorization': 'Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90',
                     'Content-Type': 'application/json',
                     'Content-Length': auctionData.length
                 }
