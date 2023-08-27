@@ -19,6 +19,8 @@ class Legendary {
                 console.log('Error: ', error.message)
                 return error;
             })
+
+            resolve(res);
         });
     }
 
