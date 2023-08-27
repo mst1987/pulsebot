@@ -198,7 +198,6 @@ client.on('interactionCreate', async(interaction) => {
         console.log(auctionData)
         response = await legendary.createAuction(auctionData);
 
-        console.log(response)
         botReply(interaction, 'Command not usable yet');
     }
 
