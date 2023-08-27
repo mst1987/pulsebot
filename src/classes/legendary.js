@@ -24,36 +24,31 @@ class Legendary {
         });
     }
 
-    async bid(auctionData) {
+    async bid(bidData) {
+        const url = "https://pulse-gdkp.de:3001/api/legendary/bid";
         return new Promise(async(resolve, reject) => {
-            const options = {
-                host: "https://pulse-gdkp.de:3001",
-                port: 443,
-                path: "/api/legendary/bid",
-                method: "POST",
-                headers: {
-                    'Content-Length': auctionData.length
-                }
-            };
+            const res = await axios.post(url, auctionData, {
+                httpsAgent: agent,
+            }).then((response) => {
+                return response.data;
+            }).catch((error) => {
+                throw error;
+            })
 
-            const request = await https.request(options, (response) => {
-                let data = '';
-                response.on('data', (chunk) => {
-                    data += chunk;
-                });
-
-                response.on('end', () => {
-                    resolve(data); // Resolve the promise with the response data
-                });
-            });
-
-            request.on('error', (error) => {
-                reject(error); // Reject the promise if there's an error
-            });
-
-            request.write(auctionData);
-            request.end();
+            resolve(res);
         });
+    }
+
+
+    async getAuction(channel) {
+        const url = 'https://pulse-gdkp.de:3001/api/legendary/' + channel;
+        return axios.get(url, { httpsAgent: agent })
+            .then(response => {
+                return response.data;
+            })
+            .catch(error => {
+                throw error;
+            });
     }
 }
 module.exports = Legendary;

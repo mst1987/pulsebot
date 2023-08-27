@@ -179,6 +179,16 @@ client.on('interactionCreate', async(interaction) => {
         const role = interaction.member.roles.cache.find(role => role.id === legendaryID);
         if (!role) botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Legendary Rolle diesen Befehl auszuführen.');
 
+        const bidData = {
+            username: interaction.user.name,
+            userid: interaction.options.getString('raid'),
+            gold: interaction.channel.id,
+            timestamp: new Date().getTime(),
+            legendary: interaction.channel.id,
+        }
+
+        response = await legendary.bid(bidData);
+
         botReply(interaction, 'Command not usable yet');
     }
 
@@ -194,9 +204,9 @@ client.on('interactionCreate', async(interaction) => {
             mingold: interaction.options.getString('mingold'),
             increment: interaction.options.getString('increment'),
         }
-        console.log('TEST');
+
         response = await legendary.createAuction(auctionData);
-        console.log(response);
+
         if (response) {
             botReply(interaction, 'Auktion anlegen', response.message);
         } else {
