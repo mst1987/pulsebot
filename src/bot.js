@@ -181,8 +181,6 @@ client.on('interactionCreate', async(interaction) => {
         const legendary = new Legendary();
         if (!legendary.getAuction(interaction.channel.id)) botReply(interaction, 'Auktion Info', 'Keine Auktion aktiv für diesen Channel');
 
-        botReply(interaction, 'Bid Info', 'Bid starts', timeoutTime, false);
-
         const bidData = {
             username: interaction.user.name,
             userid: interaction.user.id,
@@ -194,7 +192,7 @@ client.on('interactionCreate', async(interaction) => {
         response = await legendary.bid(bidData);
 
         if (response) {
-            botReply(interaction, 'Bid Info', response.message);
+            botReply(interaction, 'Bid Info', 'Bid starts', 0, false);
         } else {
             botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
         }

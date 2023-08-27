@@ -86,6 +86,12 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKE
             {
                 name: 'bid',
                 description: 'Bid on a legendary item. Increment has to be high enough',
+                options: [{
+                    name: 'gold',
+                    description: 'Wieviel Gold möchtest du bieten? Muss über dem momentanen Höchstgebot liegen',
+                    type: 3,
+                    required: true
+                }]
             },
             {
                 name: 'auctionstatus',
