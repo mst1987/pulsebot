@@ -204,7 +204,7 @@ client.on('interactionCreate', async(interaction) => {
             if (channel) {
                 const targetMessage = await channel.messages.fetch('1145660737222619167');
                 if (targetMessage) {
-                    const embed = { title: 'Auktionsübersicht', description: 'Updated Embed', color: '#00ff00' }; // Green color
+                    const embed = { title: 'Auktionsübersicht', description: 'Updated Embed' }; // Green color
                     await targetMessage.edit({ embeds: [embed] });
                 }
             }
