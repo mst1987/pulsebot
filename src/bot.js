@@ -255,11 +255,14 @@ client.on('interactionCreate', async(interaction) => {
             return;
         }
 
+        const replyMessage = botReply(interaction, 'Title', 'Message', 0, false)
+
         const legendary = new Legendary();
         const auctionData = {
             name: interaction.options.getString('name'),
             raid: interaction.options.getString('raid'),
             channel: interaction.channel.id,
+            messageid: replyMessage.id,
             endtime: toTimestamp(interaction.options.getString('endtime')),
             mingold: interaction.options.getString('mingold'),
             increment: interaction.options.getString('increment'),
@@ -268,7 +271,9 @@ client.on('interactionCreate', async(interaction) => {
         response = await legendary.createAuction(auctionData);
 
         if (response.type === 'success') {
-            botReply(interaction, `${findServerEmoji('poggies')} Auktion gestartet ${findServerEmoji('poggies')}`, `${response.message}\n\n${findServerEmoji('shadowmourne')}  **${auctionData.name}**\n\nRaid: **${auctionData.raid}**\nAuktion endet am **${formatTimestampToDateString(auctionData.endtime)}**\n\nStartpreis ist **${auctionData.mingold}g** und Mindesterhöhung liegt bei **${auctionData.increment}g**\n\nBenutze den /bid Befehl um mitzubieten!`, 0, false);
+            const embed = { title: `${findServerEmoji('poggies')} Auktion gestartet ${findServerEmoji('poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary[0])}` };
+            await replyMessage.edit({ embeds: [embed] });
+            botReply(interaction, `Auktion updated`, `Auktion wurde erfolgreich updated`);
         } else {
             botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
         }
@@ -383,7 +388,7 @@ function getWednesdayWeeksAgo(weeks) {
 }
 
 async function botReply(interaction, title, message, timeout = timeoutTime, ephemeral = true) {
-    await interaction.reply({
+    return await interaction.reply({
             embeds: [{
                 title: title,
                 description: message
