@@ -261,7 +261,7 @@ client.on('interactionCreate', async(interaction) => {
             if (channel) {
                 const targetMessage = await channel.messages.fetch(response.legendary[0].messageid);
                 if (targetMessage) {
-                    const embed = { title: `${findServerEmoji('poggies')} Auction gestartet ${findServerEmoji('poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary[0])}` };
+                    const embed = { title: `${findServerEmoji('poggies')} Auction gestartet ${findServerEmoji('poggies')}`, description: `Auktion wurde gestartet\n\ntest` };
                     console.log('Start update')
                     await targetMessage.edit({ embeds: [embed] });
                     console.log('Finished update')
