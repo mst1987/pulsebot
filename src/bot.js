@@ -222,8 +222,15 @@ client.on('interactionCreate', async(interaction) => {
                     }
                 }
 
-                console.log(response.extended);
                 if (response.extended) {
+                    const channel = await client.channels.fetch(response.legendary[0].channel);
+                    if (channel) {
+                        const targetMessage = await channel.messages.fetch(response.legendary[0].messageid);
+                        if (targetMessage) {
+                            const embed = { title: `${findServerEmoji('poggies')} Auktion gestartet ${findServerEmoji('poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary[0])}` };
+                            await targetMessage.edit({ embeds: [embed] });
+                        }
+                    }
                     await interaction.followUp({
                         embeds: [{
                             title: 'Auktion verlängert',
