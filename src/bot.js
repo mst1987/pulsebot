@@ -204,7 +204,11 @@ client.on('interactionCreate', async(interaction) => {
             if (channel) {
                 const targetMessage = await channel.messages.fetch('1145660737222619167');
                 if (targetMessage) {
-                    await targetMessage.edit('This message has been updated from another channel.');
+                    const embed = new MessageEmbed()
+                        .setTitle('Updated Embed')
+                        .setDescription('This message has been updated with an embed.')
+                        .setColor('#00ff00'); // Green color
+                    await targetMessage.edit({ content: 'Updated message with an embed:', embeds: [embed] });
                 }
             }
 
