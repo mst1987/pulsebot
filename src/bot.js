@@ -480,7 +480,7 @@ function formatTimestampToDateString(timestamp) {
     const hour = String(dateObject.getHours()).padStart(2, '0');
     const minute = String(dateObject.getMinutes()).padStart(2, '0');
 
-    const formattedDateString = `${day}.${month}.${year} um ${hour}:${minute}`;
+    const formattedDateString = `${day}.${month}.${year} um ${hour}:${minute} Uhr`;
     return formattedDateString;
 }
 
