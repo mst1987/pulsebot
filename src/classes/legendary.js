@@ -61,5 +61,16 @@ class Legendary {
                 throw error;
             });
     }
+
+    async getHighestBids() {
+        const url = 'https://pulse-gdkp.de:3001/api/legendary/highestbids';
+        return axios.get(url, { httpsAgent: agent })
+            .then(response => {
+                return response.data;
+            })
+            .catch(error => {
+                throw error;
+            });
+    }
 }
 module.exports = Legendary;
