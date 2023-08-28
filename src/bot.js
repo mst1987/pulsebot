@@ -263,8 +263,9 @@ client.on('interactionCreate', async(interaction) => {
                 if (targetMessage) {
                     const embed = { title: `${findServerEmoji('poggies')} Auction gestartet ${findServerEmoji('poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary[0])}` };
                     console.log('Start update')
-                        //await targetMessage.edit({ embeds: [embed] });
+                    await targetMessage.edit({ embeds: [embed] });
                     console.log('Finished update')
+                    botReply(interaction, `Auktion updated`, `Auktion wurde erfolgreich updated`);
                 }
             }
         } else {
