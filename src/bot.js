@@ -440,7 +440,7 @@ function toTimestamp(dateString) {
     // Note: In the following line, the year is assumed to be in the 21st century (20xx)
     const dateObject = new Date(2000 + year, month - 1, day, hour, minute);
 
-    const timestamp = dateObject.getTime() / 1000; // Convert milliseconds to seconds
+    const timestamp = dateObject.getTime(); // Convert milliseconds to seconds
 
     return timestamp
 }
