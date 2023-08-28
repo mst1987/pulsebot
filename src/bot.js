@@ -268,7 +268,7 @@ client.on('interactionCreate', async(interaction) => {
             name: interaction.options.getString('name'),
             raid: interaction.options.getString('raid'),
             channel: interaction.channel.id,
-            messageid: replyMessage.id,
+            messageid: replyMessage.reference.id,
             endtime: toTimestamp(interaction.options.getString('endtime')),
             mingold: interaction.options.getString('mingold'),
             increment: interaction.options.getString('increment'),
