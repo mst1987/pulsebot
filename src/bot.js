@@ -255,7 +255,6 @@ client.on('interactionCreate', async(interaction) => {
             auctionData.increment = interaction.options.getString('increment');
 
         response = await legendary.updateAuction(auctionData);
-        console.log(response)
         if (response.type === 'success') {
 
             const channel = await client.channels.fetch(response.legendary[0].channel);
@@ -263,7 +262,9 @@ client.on('interactionCreate', async(interaction) => {
                 const targetMessage = await channel.messages.fetch(response.legendary[0].messageid);
                 if (targetMessage) {
                     const embed = { title: `${findServerEmoji('poggies')} Auction gestartet ${findServerEmoji('poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary[0])}` };
+                    console.log('Start update')
                     await targetMessage.edit({ embeds: [embed] });
+                    console.log('Finished update')
                 }
             }
         } else {
