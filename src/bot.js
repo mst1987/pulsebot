@@ -231,7 +231,7 @@ client.on('interactionCreate', async(interaction) => {
         response = await legendary.createAuction(auctionData);
 
         if (response.type === 'success') {
-            botReply(interaction, `${findServerEmoji('poggies')} Auction gestartet ${findServerEmoji('poggies')}`, `${response.message}\n\n${findServerEmoji('shadowmourne')}  **${auctionData.name}**\n\nRaid: **${auctionData.raid}**\nAuktion endet am **${formatTimestampToDateString(auctionData.endtime)}**\n\nStartpreis ist **${auctionData.mingold}g** und Mindesterhöhung liegt bei **${auctionData.increment}g**\n\nBenutze den /bid Befehl um mitzubieten!`, 0, false);
+            botReply(interaction, `${findServerEmoji('poggies')} Auktion gestartet ${findServerEmoji('poggies')}`, `${response.message}\n\n${findServerEmoji('shadowmourne')}  **${auctionData.name}**\n\nRaid: **${auctionData.raid}**\nAuktion endet am **${formatTimestampToDateString(auctionData.endtime)}**\n\nStartpreis ist **${auctionData.mingold}g** und Mindesterhöhung liegt bei **${auctionData.increment}g**\n\nBenutze den /bid Befehl um mitzubieten!`, 0, false);
         } else {
             botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
         }
@@ -256,15 +256,12 @@ client.on('interactionCreate', async(interaction) => {
 
         response = await legendary.updateAuction(auctionData);
         if (response.type === 'success') {
-
             const channel = await client.channels.fetch(response.legendary[0].channel);
             if (channel) {
                 const targetMessage = await channel.messages.fetch(response.legendary[0].messageid);
                 if (targetMessage) {
-                    const embed = { title: `${findServerEmoji('poggies')} Auction gestartet ${findServerEmoji('poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary[0])}` };
-                    console.log('Start update')
+                    const embed = { title: `${findServerEmoji('poggies')} Auktion gestartet ${findServerEmoji('poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary[0])}` };
                     await targetMessage.edit({ embeds: [embed] });
-                    console.log('Finished update')
                     botReply(interaction, `Auktion updated`, `Auktion wurde erfolgreich updated`);
                 }
             }
