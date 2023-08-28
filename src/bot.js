@@ -194,7 +194,7 @@ client.on('interactionCreate', async(interaction) => {
         if (response.type === 'success') {
             const nickname = await getUserNickname(interaction);
             console.log(nickname)
-            botReply(interaction, `**${formatNumberWithDots(bidData.gold)}g**`, `geboten von ${nickname}`, 0, false);
+            botReply(interaction, `**${formatNumberWithDots(Number(bidData.gold))}g**`, `geboten von ${nickname}`, 0, false);
         } else {
             botReply(interaction, 'Gebot nicht akzeptiert!', response.message);
         }
