@@ -304,7 +304,7 @@ client.on('interactionCreate', async(interaction) => {
 
         response = await legendary.updateAuction(auctionData);
         if (response.type === 'success') {
-            const channel = await client.channels.fetch(response.legendary[0].channel);
+            const channel = await client.channels.fetch(auctionData.channel);
             if (channel) {
                 const targetMessage = await channel.messages.fetch(response.legendary[0].messageid);
                 if (targetMessage) {
