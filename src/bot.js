@@ -192,7 +192,9 @@ client.on('interactionCreate', async(interaction) => {
         response = await legendary.bid(bidData);
 
         if (response.type === 'success') {
-            botReply(interaction, 'Bid Info', `Aktuelles Gebot: ${bidData.gold} von ${ await getUserNickname(bidData.userid)}`, 0, false);
+            const nickname = await getUserNickname(bidData.userid);
+            console.log(nickname)
+            botReply(interaction, 'Bid Info', `Aktuelles Gebot: ${bidData.gold} von ${nickname}`, 0, false);
         } else {
             botReply(interaction, 'Gebot nicht akzeptiert!', response.message);
         }
