@@ -281,8 +281,8 @@ client.on('interactionCreate', async(interaction) => {
         if (response.type === 'success') {
             const targetMessage = await interaction.channel.messages.fetch(replyMessage.id);
             const embed = { title: `${findServerEmoji('poggies')} Auktion gestartet ${findServerEmoji('poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary)}` };
-            const embed2 = await targetMessage.edit({ embeds: [embed] });
-            console.log('Embed: ', embed2)
+            const newMessage = await targetMessage.edit({ embeds: [embed] });
+            await legendary.updateAuction({ messageid: newMessage.id })
         }
     }
 
