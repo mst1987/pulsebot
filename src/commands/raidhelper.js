@@ -97,6 +97,10 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKE
                 name: 'auctionstatus',
                 description: 'Show the current status of the legendary item auction of this channel',
             },
+            {
+                name: 'deleteauction',
+                description: 'Löscht die Auktion aus diesem Channel',
+            },
 
         ];
         await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID, process.env.GUILD_ID), { body: commands })
