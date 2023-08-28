@@ -201,9 +201,6 @@ client.on('interactionCreate', async(interaction) => {
             botReply(interaction, `**${formatNumberWithDots(Number(bidData.gold))}g**`, `geboten von ${nickname}`, 0, false);
 
             const highestbids = await legendary.getHighestBids();
-
-            console.log(highestbids);
-
             const channel = await client.channels.fetch('1145659881362313248');
             if (channel) {
                 const targetMessage = await channel.messages.fetch('1145663860141981757');
@@ -260,7 +257,15 @@ client.on('interactionCreate', async(interaction) => {
         response = await legendary.updateAuction(auctionData);
         console.log(response)
         if (response.type === 'success') {
-            botReply(interaction, `${findServerEmoji('poggies')} Auction gestartet ${findServerEmoji('poggies')}`, `${response.message}\n\n${findServerEmoji('shadowmourne')}  **${auctionData.name}**\n\nRaid: **${auctionData.raid}**\nAuktion endet am **${formatTimestampToDateString(auctionData.endtime)}**\n\nStartpreis ist **${auctionData.mingold}g** und Mindesterhöhung liegt bei **${auctionData.increment}g**\n\nBenutze den /bid Befehl um mitzubieten!`, 0, false);
+
+            const channel = await client.channels.fetch(response.legendary.channel);
+            if (channel) {
+                const targetMessage = await channel.messages.fetch(response.legendary.channel);
+                if (targetMessage) {
+                    const embed = { title: `${findServerEmoji('poggies')} Auction gestartet ${findServerEmoji('poggies')}`, description: `${response.message}\n\n${getAuctionMessage(response.legendary)}` };
+                    await targetMessage.edit({ embeds: [embed] });
+                }
+            }
         } else {
             botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
         }
@@ -295,6 +300,10 @@ client.on('interactionCreate', async(interaction) => {
     // --------------------------------------------------------
 
 })
+
+function getAuctionMessage(legendary) {
+    return `${findServerEmoji('shadowmourne')}  **${legendary.name}**\n\nRaid: **${legendary.raid}**\nAuktion endet am **${formatTimestampToDateString(legendary.endtime)}**\n\nStartpreis ist **${legendary.mingold}g** und Mindesterhöhung liegt bei **${legendary.increment}g**\n\nBenutze den /bid Befehl um mitzubieten!`
+}
 
 function isNumber(value) {
     return typeof value === 'number' && !isNaN(value);
