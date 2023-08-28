@@ -226,6 +226,22 @@ client.on('interactionCreate', async(interaction) => {
         }
     }
 
+    if (commandName === 'deleteauction') {
+        if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+
+        const legendary = new Legendary();
+
+        const response = await legendary.deleteAuction(interaction.channel.id);
+
+        if (response.type === 'success') {
+            botReply(interaction, 'Auktion gelöscht', response.message);
+        } else {
+            botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
+        }
+
+        botReply(interaction, 'Command not usable yet');
+    }
+
     if (commandName === 'endauction') {
         if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
 
