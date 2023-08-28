@@ -200,7 +200,7 @@ client.on('interactionCreate', async(interaction) => {
 
             botReply(interaction, `**${formatNumberWithDots(Number(bidData.gold))}g**`, `geboten von ${nickname}`, 0, false);
 
-            const highestbids = legendary.getHighestBids();
+            const highestbids = await legendary.getHighestBids();
 
             console.log(highestbids);
 
