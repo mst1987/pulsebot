@@ -238,8 +238,6 @@ client.on('interactionCreate', async(interaction) => {
         } else {
             botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
         }
-
-        botReply(interaction, 'Command not usable yet');
     }
 
     if (commandName === 'endauction') {
