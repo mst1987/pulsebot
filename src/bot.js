@@ -6,7 +6,7 @@ const GDKP = require('./classes/gdkp.js');
 const Legendary = require('./classes/legendary.js');
 const messages = require('./config/messages.js');
 
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, MessageEmbed } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
 let guild;
