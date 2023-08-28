@@ -28,6 +28,7 @@ class Legendary {
             const res = await axios.delete(url).then((response) => {
                 return response.data;
             }).catch((error) => {
+                console.log(error)
                 return error;
             })
 
