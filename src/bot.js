@@ -182,11 +182,21 @@ client.on('interactionCreate', async(interaction) => {
             return;
         } else {
             const legendary = new Legendary();
-            if (!legendary.getAuction(interaction.channel.id)) botReply(interaction, 'Auktion Info', 'Keine Auktion aktiv für diesen Channel');
+            if (!legendary.getAuction(interaction.channel.id)) {
+                botReply(interaction, 'Auktion Info', 'Keine Auktion aktiv für diesen Channel');
+                return;
+            }
 
             const gold = interaction.options.getString('gold');
-            if (!isNumber(Number(gold))) botReply(interaction, 'Bid Info', 'Goldwert muss eine Zahl sein!');
-            if (gold > 5000000) botReply(interaction, 'Vertippt?', `Wolltest du wirklich über ${formatNumberWithDots(gold)} bieten?`);
+            if (!isNumber(Number(gold))) {
+                botReply(interaction, 'Bid Info', 'Goldwert muss eine Zahl sein!');
+                return;
+            }
+            if (gold > 5000000) {
+                botReply(interaction, 'Vertippt?', `Wolltest du wirklich über ${formatNumberWithDots(gold)} bieten?`);
+                return;
+            }
+
             const bidData = {
                 username: interaction.user.tag,
                 userid: interaction.user.id,
