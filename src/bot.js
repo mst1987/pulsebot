@@ -200,9 +200,12 @@ client.on('interactionCreate', async(interaction) => {
             console.log(nickname)
             botReply(interaction, `**${formatNumberWithDots(Number(bidData.gold))}g**`, `geboten von ${nickname}`, 0, false);
 
-            const updatedMessage = await message.channel.messages.fetch('1145660737222619167');
-            if (updatedMessage) {
-                await updatedMessage.edit('This message has been updated.');
+            const channel = await client.channels.fetch('1145659881362313248');
+            if (channel ? .isText()) {
+                const targetMessage = await channel.messages.fetch('1145660737222619167');
+                if (targetMessage) {
+                    await targetMessage.edit('This message has been updated from another channel.');
+                }
             }
 
         } else {
