@@ -277,7 +277,7 @@ client.on('interactionCreate', async(interaction) => {
         response = await legendary.createAuction(auctionData);
         console.log(response)
         if (response.type === 'success') {
-            const embed = { title: `${findServerEmoji('poggies')} Auktion gestartet ${findServerEmoji('poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary[0])}` };
+            const embed = { title: `${findServerEmoji('poggies')} Auktion gestartet ${findServerEmoji('poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary)}` };
             await replyMessage.edit({ embeds: [embed] });
         }
     }
