@@ -177,46 +177,53 @@ client.on('interactionCreate', async(interaction) => {
 
     if (commandName === 'bid') {
         const role = interaction.member.roles.cache.find(role => role.id === legendaryID);
-        if (!role) botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Legendary Rolle diesen Befehl auszuführen.');
+        if (!role) {
+            botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Legendary Rolle diesen Befehl auszuführen.');
+        } else {
 
-        const legendary = new Legendary();
-        if (!legendary.getAuction(interaction.channel.id)) botReply(interaction, 'Auktion Info', 'Keine Auktion aktiv für diesen Channel');
 
-        const gold = interaction.options.getString('gold');
-        if (!isNumber(Number(gold))) botReply(interaction, 'Bid Info', 'Goldwert muss eine Zahl sein!');
-        if (gold > 5000000) botReply(interaction, 'Vertippt?', `Wolltest du wirklich über ${formatNumberWithDots(gold)} bieten?`);
-        const bidData = {
-            username: interaction.user.tag,
-            userid: interaction.user.id,
-            gold: gold,
-            timestamp: new Date().getTime(),
-            legendary: interaction.channel.id,
-        }
+            const legendary = new Legendary();
+            if (!legendary.getAuction(interaction.channel.id)) botReply(interaction, 'Auktion Info', 'Keine Auktion aktiv für diesen Channel');
 
-        response = await legendary.bid(bidData);
-
-        if (response.type === 'success') {
-            const nickname = await getUserNickname(interaction);
-
-            botReply(interaction, `**${formatNumberWithDots(Number(bidData.gold))}g**`, `geboten von ${nickname}`, 0, false);
-
-            const highestbids = await legendary.getHighestBids();
-            const channel = await client.channels.fetch('1145659881362313248');
-            if (channel) {
-                const targetMessage = await channel.messages.fetch('1145663860141981757');
-                if (targetMessage) {
-                    const embed = { title: 'Auktionsübersicht', description: highestbids };
-                    await targetMessage.edit({ embeds: [embed] });
-                }
+            const gold = interaction.options.getString('gold');
+            if (!isNumber(Number(gold))) botReply(interaction, 'Bid Info', 'Goldwert muss eine Zahl sein!');
+            if (gold > 5000000) botReply(interaction, 'Vertippt?', `Wolltest du wirklich über ${formatNumberWithDots(gold)} bieten?`);
+            const bidData = {
+                username: interaction.user.tag,
+                userid: interaction.user.id,
+                gold: gold,
+                timestamp: new Date().getTime(),
+                legendary: interaction.channel.id,
             }
 
-        } else {
-            botReply(interaction, 'Gebot nicht akzeptiert!', response.message);
+            response = await legendary.bid(bidData);
+
+            if (response.type === 'success') {
+                const nickname = await getUserNickname(interaction);
+
+                botReply(interaction, `**${formatNumberWithDots(Number(bidData.gold))}g**`, `geboten von ${nickname}`, 0, false);
+
+                const highestbids = await legendary.getHighestBids();
+                const channel = await client.channels.fetch('1145659881362313248');
+                if (channel) {
+                    const targetMessage = await channel.messages.fetch('1145663860141981757');
+                    if (targetMessage) {
+                        const embed = { title: 'Auktionsübersicht', description: highestbids };
+                        await targetMessage.edit({ embeds: [embed] });
+                    }
+                }
+
+            } else {
+                botReply(interaction, 'Gebot nicht akzeptiert!', response.message);
+            }
         }
     }
 
     if (commandName === 'createauction') {
-        if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+        if (interaction.user.id !== '233598324022837249') {
+            botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+            return;
+        }
 
         const legendary = new Legendary();
         const auctionData = {
@@ -238,7 +245,10 @@ client.on('interactionCreate', async(interaction) => {
     }
 
     if (commandName === 'updateauction') {
-        if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+        if (interaction.user.id !== '233598324022837249') {
+            botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+            return;
+        }
         console.log(commandName)
         const legendary = new Legendary();
         let auctionData = {};
@@ -271,7 +281,10 @@ client.on('interactionCreate', async(interaction) => {
     }
 
     if (commandName === 'deleteauction') {
-        if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+        if (interaction.user.id !== '233598324022837249') {
+            botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+            return;
+        }
 
         const legendary = new Legendary();
 
@@ -285,13 +298,19 @@ client.on('interactionCreate', async(interaction) => {
     }
 
     if (commandName === 'auctionstatus') {
-        if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+        if (interaction.user.id !== '233598324022837249') {
+            botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+            return;
+        }
 
         botReply(interaction, 'Auktionsübersicht', 'Temp', 0, false);
     }
 
     if (commandName === 'endauction') {
-        if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+        if (interaction.user.id !== '233598324022837249') {
+            botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+            return;
+        }
 
         botReply(interaction, 'Command not usable yet');
     }
