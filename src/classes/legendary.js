@@ -23,7 +23,7 @@ class Legendary {
     }
 
     async updateAuction(auctionData) {
-        const url = "https://pulse-gdkp.de:3001/api/legendary/";
+        const url = "https://pulse-gdkp.de:3001/api/legendary/" + auctionData.channel;
         return new Promise(async(resolve, reject) => {
             const res = await axios.put(url, auctionData, {
                 httpsAgent: agent,
