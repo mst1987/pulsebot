@@ -22,6 +22,21 @@ class Legendary {
         });
     }
 
+    async updateAuction(auctionData) {
+        const url = "https://pulse-gdkp.de:3001/api/legendary/";
+        return new Promise(async(resolve, reject) => {
+            const res = await axios.put(url, auctionData, {
+                httpsAgent: agent,
+            }).then((response) => {
+                return response.data;
+            }).catch((error) => {
+                return error;
+            })
+
+            resolve(res);
+        });
+    }
+
     async deleteAuction(channel) {
         const url = "https://pulse-gdkp.de:3001/api/legendary/" + channel;
         return new Promise(async(resolve, reject) => {

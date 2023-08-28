@@ -240,6 +240,32 @@ client.on('interactionCreate', async(interaction) => {
         }
     }
 
+    if (commandName === 'updateauction') {
+        if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+
+        const legendary = new Legendary();
+        let auctionData = {};
+        auctionData.channel = interaction.channel.id;
+        if (interaction.options.getString('name'))
+            auctionData.name = interaction.options.getString('name');
+        if (interaction.options.getString('raid'))
+            auctionData.raid = interaction.options.getString('raid');
+        if (interaction.options.getString('endtime'))
+            auctionData.endtime = toTimestamp(interaction.options.getString('endtime'));
+        if (interaction.options.getString('mingold'))
+            auctionData.mingold = interaction.options.getString('mingold');
+        if (interaction.options.getString('increment'))
+            auctionData.increment = interaction.options.getString('increment');
+
+        response = await legendary.createAuction(auctionData);
+
+        if (response.type === 'success') {
+            botReply(interaction, `${findServerEmoji('poggies')} Auction gestartet ${findServerEmoji('poggies')}`, `${response.message}\n\n${findServerEmoji('shadowmourne')}  **${auctionData.name}**\n\nRaid: **${auctionData.raid}**\nAuktion endet am **${formatTimestampToDateString(auctionData.endtime)}**\n\nStartpreis ist **${auctionData.mingold}g** und Mindesterhöhung liegt bei **${auctionData.increment}g**\n\nBenutze den /bid Befehl um mitzubieten!`, 0, false);
+        } else {
+            botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
+        }
+    }
+
     if (commandName === 'deleteauction') {
         if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
 
