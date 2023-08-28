@@ -258,7 +258,7 @@ client.on('interactionCreate', async(interaction) => {
             auctionData.increment = interaction.options.getString('increment');
 
         response = await legendary.updateAuction(auctionData);
-
+        console.log(response)
         if (response.type === 'success') {
             botReply(interaction, `${findServerEmoji('poggies')} Auction gestartet ${findServerEmoji('poggies')}`, `${response.message}\n\n${findServerEmoji('shadowmourne')}  **${auctionData.name}**\n\nRaid: **${auctionData.raid}**\nAuktion endet am **${formatTimestampToDateString(auctionData.endtime)}**\n\nStartpreis ist **${auctionData.mingold}g** und Mindesterhöhung liegt bei **${auctionData.increment}g**\n\nBenutze den /bid Befehl um mitzubieten!`, 0, false);
         } else {
