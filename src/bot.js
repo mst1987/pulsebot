@@ -179,9 +179,8 @@ client.on('interactionCreate', async(interaction) => {
         const role = interaction.member.roles.cache.find(role => role.id === legendaryID);
         if (!role) {
             botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Legendary Rolle diesen Befehl auszuführen.');
+            return;
         } else {
-
-
             const legendary = new Legendary();
             if (!legendary.getAuction(interaction.channel.id)) botReply(interaction, 'Auktion Info', 'Keine Auktion aktiv für diesen Channel');
 
@@ -249,7 +248,7 @@ client.on('interactionCreate', async(interaction) => {
             botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
             return;
         }
-        console.log(commandName)
+
         const legendary = new Legendary();
         let auctionData = {};
         auctionData.channel = interaction.channel.id;
@@ -287,7 +286,6 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         const legendary = new Legendary();
-
         const response = await legendary.deleteAuction(interaction.channel.id);
 
         if (response.type === 'success') {
