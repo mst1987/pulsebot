@@ -192,7 +192,7 @@ client.on('interactionCreate', async(interaction) => {
         response = await legendary.bid(bidData);
 
         if (response.type === 'success') {
-            const nickname = await getUserNickname(bidData.userid);
+            const nickname = await getUserNickname(interaction);
             console.log(nickname)
             botReply(interaction, 'Bid Info', `Aktuelles Gebot: ${bidData.gold} von ${nickname}`, 0, false);
         } else {
@@ -245,8 +245,8 @@ function parseDMYDateString(dateString) {
     return new Date(year, month, day);
 }
 
-async function getUserNickname(userid) {
-    return await interaction.guild.members.fetch(userid).displayName;
+async function getUserNickname(interaction) {
+    return await interaction.guild.members.fetch(interaction.user.id).displayName;
 }
 
 function getWednesdayWeeksAgo(weeks) {
