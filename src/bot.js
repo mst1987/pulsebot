@@ -184,7 +184,7 @@ client.on('interactionCreate', async(interaction) => {
 
         const gold = interaction.options.getString('gold');
         if (!isNumber(Number(gold))) botReply(interaction, 'Bid Info', 'Goldwert muss eine Zahl sein!');
-
+        if (gold > 5000000) botReply(interaction, 'Vertippt?', `Wolltest du wirklich über ${formatNumberWithDots(gold)} bieten?`);
         const bidData = {
             username: interaction.user.tag,
             userid: interaction.user.id,
