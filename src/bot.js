@@ -224,7 +224,16 @@ client.on('interactionCreate', async(interaction) => {
 
                 console.log(response.extended);
                 if (response.extended) {
-                    botReply(interaction, 'Auktion verlängert', response.extended, 0, false);
+                    await interaction.followUp({
+                        embeds: [{
+                            title: 'Auktion verlängert',
+                            description: `${response.extended}`,
+                        }],
+                        ephemeral: false
+                    }).then(msg => {
+                        if (timeout > 0)
+                            setTimeout(() => msg.delete(), timeout)
+                    });
                 }
             } else {
                 botReply(interaction, 'Gebot nicht akzeptiert!', response.message);
