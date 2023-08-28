@@ -262,13 +262,13 @@ client.on('interactionCreate', async(interaction) => {
             }],
             ephemeral: false
         })
-        console.log(replyMessage.reference.id);
+        console.log(replyMessage.reference.messageId);
         const legendary = new Legendary();
         const auctionData = {
             name: interaction.options.getString('name'),
             raid: interaction.options.getString('raid'),
             channel: interaction.channel.id,
-            messageid: replyMessage.reference.id,
+            messageid: replyMessage.reference.messageId,
             endtime: toTimestamp(interaction.options.getString('endtime')),
             mingold: interaction.options.getString('mingold'),
             increment: interaction.options.getString('increment'),
