@@ -262,7 +262,7 @@ client.on('interactionCreate', async(interaction) => {
             }],
             ephemeral: false
         })
-        console.log(replyMessage);
+        console.log(replyMessage.reference.id);
         const legendary = new Legendary();
         const auctionData = {
             name: interaction.options.getString('name'),
