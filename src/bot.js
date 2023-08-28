@@ -200,6 +200,10 @@ client.on('interactionCreate', async(interaction) => {
 
             botReply(interaction, `**${formatNumberWithDots(Number(bidData.gold))}g**`, `geboten von ${nickname}`, 0, false);
 
+            const highestbids = legendary.getHighestBids();
+
+            console.log(highestbids);
+
             const channel = await client.channels.fetch('1145659881362313248');
             if (channel) {
                 const targetMessage = await channel.messages.fetch('1145663860141981757');
