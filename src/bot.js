@@ -255,13 +255,15 @@ client.on('interactionCreate', async(interaction) => {
             return;
         }
 
-        const replyMessage = await interaction.reply({
+        await interaction.reply({
             embeds: [{
                 title: 'title',
                 description: 'message'
             }],
             ephemeral: false
         })
+
+        const replyMessage = await interaction.fetchReply()
         console.log(replyMessage.id);
         const legendary = new Legendary();
         const auctionData = {
