@@ -199,6 +199,12 @@ client.on('interactionCreate', async(interaction) => {
             const nickname = await getUserNickname(interaction);
             console.log(nickname)
             botReply(interaction, `**${formatNumberWithDots(Number(bidData.gold))}g**`, `geboten von ${nickname}`, 0, false);
+
+            const updatedMessage = await message.channel.messages.fetch('1145660737222619167');
+            if (updatedMessage) {
+                await updatedMessage.edit('This message has been updated.');
+            }
+
         } else {
             botReply(interaction, 'Gebot nicht akzeptiert!', response.message);
         }
