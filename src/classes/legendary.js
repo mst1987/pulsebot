@@ -23,7 +23,7 @@ class Legendary {
     }
 
     async deleteAuction(channel) {
-        const url = "https://pulse-gdkp.de:3001/api/legendary/deleteauction/" + channel;
+        const url = "https://pulse-gdkp.de:3001/api/legendary/" + channel;
         return new Promise(async(resolve, reject) => {
             const res = await axios.delete(url).then((response) => {
                 return response.data;
