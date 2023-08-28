@@ -216,7 +216,7 @@ client.on('interactionCreate', async(interaction) => {
         response = await legendary.createAuction(auctionData);
 
         if (response.type === 'success') {
-            botReply(interaction, 'Auktion gestartet!', `${response.message}\n\n${findServerEmoji('shadowmourne')}  ${auctionData.name}\nRaid: ${auctionData.raid}\nAuktion endet am **${formatTimestampToDateString(auctionData.endtime)}**\n\nStartpreis ist **${auctionData.mingold}g** und Mindesterhöhung liegt bei **${auctionData.increment}g**`, 0, false);
+            botReply(interaction, `${findServerEmoji('poggies')} Auction gestartet ${findServerEmoji('poggies')}`, `${response.message}\n\n${findServerEmoji('shadowmourne')}  **${auctionData.name}**\n\nRaid: **${auctionData.raid}**\nAuktion endet am **${formatTimestampToDateString(auctionData.endtime)}**\n\nStartpreis ist **${auctionData.mingold}g** und Mindesterhöhung liegt bei **${auctionData.increment}g**`, 0, false);
         } else {
             botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
         }
