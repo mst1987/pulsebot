@@ -446,7 +446,7 @@ function toTimestamp(dateString) {
 }
 
 function formatTimestampToDateString(timestamp) {
-    const dateObject = new Date(timestamp * 1000); // Convert seconds to milliseconds
+    const dateObject = new Date(timestamp); // Convert seconds to milliseconds
 
     const day = String(dateObject.getDate()).padStart(2, '0');
     const month = String(dateObject.getMonth() + 1).padStart(2, '0'); // Months are zero-based
