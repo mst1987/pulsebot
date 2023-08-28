@@ -178,13 +178,17 @@ client.on('interactionCreate', async(interaction) => {
     if (commandName === 'bid') {
         const role = interaction.member.roles.cache.find(role => role.id === legendaryID);
         if (!role) botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Legendary Rolle diesen Befehl auszuführen.');
+
         const legendary = new Legendary();
         if (!legendary.getAuction(interaction.channel.id)) botReply(interaction, 'Auktion Info', 'Keine Auktion aktiv für diesen Channel');
+
+        const gold = interaction.options.getString('gold');
+        if (!isNumber(Number(gold))) botReply(interaction, 'Bid Info', 'Goldwert muss eine Zahl sein!');
 
         const bidData = {
             username: interaction.user.tag,
             userid: interaction.user.id,
-            gold: interaction.options.getString('gold'),
+            gold: gold,
             timestamp: new Date().getTime(),
             legendary: interaction.channel.id,
         }
@@ -235,6 +239,10 @@ client.on('interactionCreate', async(interaction) => {
     // --------------------------------------------------------
 
 })
+
+function isNumber(value) {
+    return typeof value === 'number' && !isNaN(value);
+}
 
 // Function to parse "D-M-YYYY" format
 function parseDMYDateString(dateString) {
