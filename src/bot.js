@@ -242,7 +242,7 @@ client.on('interactionCreate', async(interaction) => {
 
     if (commandName === 'updateauction') {
         if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
-
+        console.log(commandName)
         const legendary = new Legendary();
         let auctionData = {};
         auctionData.channel = interaction.channel.id;
