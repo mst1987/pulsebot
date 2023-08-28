@@ -222,6 +222,7 @@ client.on('interactionCreate', async(interaction) => {
                     }
                 }
 
+                console.log(response.extended);
                 if (response.extended) {
                     botReply(interaction, 'Auktion verlängert', response.extended, 0, false);
                 }
