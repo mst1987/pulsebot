@@ -214,7 +214,7 @@ client.on('interactionCreate', async(interaction) => {
         response = await legendary.createAuction(auctionData);
 
         if (response.type === 'success') {
-            botReply(interaction, 'Auktion gestartet!', `${response.message}\n\n${auctionData.name}\n${auctionData.raid}\nAuktion endet am${formatTimestampToDateString(auctionData.endtime)}\n\nStartpreis ist ${auctionData.mingold} und Mindesterhöhung liegt bei ${auctionData.increment}`);
+            botReply(interaction, 'Auktion gestartet!', `${response.message}\n\n${findServerEmoji('shadowmourne') + auctionData.name}\n${auctionData.raid}\nAuktion endet am ${formatTimestampToDateString(auctionData.endtime)}\n\nStartpreis ist ${auctionData.mingold} und Mindesterhöhung liegt bei ${auctionData.increment}`);
         } else {
             botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
         }
@@ -313,6 +313,10 @@ function getChannelsFromCategories(categoryIds) {
 
 function getCharacterIcon(spec) {
     return `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[spec]?.icon)}`;
+}
+
+function findServerEmoji(emojiName) {
+    return `${guild.emojis.cache.find(emoji => emoji.name === emojiName)}`;
 }
 
 function getItemsFormatted(items) {
