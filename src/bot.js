@@ -197,7 +197,7 @@ client.on('interactionCreate', async(interaction) => {
 
         if (response.type === 'success') {
             const nickname = await getUserNickname(interaction);
-            console.log(nickname)
+
             botReply(interaction, `**${formatNumberWithDots(Number(bidData.gold))}g**`, `geboten von ${nickname}`, 0, false);
 
             const channel = await client.channels.fetch('1145659881362313248');
@@ -208,7 +208,7 @@ client.on('interactionCreate', async(interaction) => {
                         .setTitle('Updated Embed')
                         .setDescription('This message has been updated with an embed.')
                         .setColor('#00ff00'); // Green color
-                    await targetMessage.edit({ content: 'Updated message with an embed:', embeds: [embed] });
+                    await targetMessage.edit({ embeds: [embed] });
                 }
             }
 
