@@ -255,7 +255,13 @@ client.on('interactionCreate', async(interaction) => {
             return;
         }
 
-        const replyMessage = await botReply(interaction, 'Title', 'Message', 0, false)
+        const replyMessage = await interaction.reply({
+            embeds: [{
+                title: 'title',
+                description: 'message'
+            }],
+            ephemeral: false
+        })
         console.log(replyMessage);
         const legendary = new Legendary();
         const auctionData = {
@@ -385,7 +391,7 @@ function getWednesdayWeeksAgo(weeks) {
 }
 
 async function botReply(interaction, title, message, timeout = timeoutTime, ephemeral = true) {
-    return await interaction.reply({
+    await interaction.reply({
             embeds: [{
                 title: title,
                 description: message
