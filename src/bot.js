@@ -273,8 +273,6 @@ client.on('interactionCreate', async(interaction) => {
         if (response.type === 'success') {
             const embed = { title: `${findServerEmoji('poggies')} Auktion gestartet ${findServerEmoji('poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary[0])}` };
             await replyMessage.edit({ embeds: [embed] });
-        } else {
-            botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
         }
     }
 
