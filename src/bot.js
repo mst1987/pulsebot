@@ -236,18 +236,19 @@ client.on('interactionCreate', async(interaction) => {
         if (response.type === 'success') {
             botReply(interaction, 'Auktion gelöscht', response.message);
         } else {
-            console.log(response.error)
             botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
         }
+    }
+
+    if (commandName === 'auctionstatus') {
+        if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+
+        botReply(interaction, 'Auktionsübersicht', 'Temp', 0, false);
     }
 
     if (commandName === 'endauction') {
         if (interaction.user.id !== '233598324022837249') botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
 
-        botReply(interaction, 'Command not usable yet');
-    }
-
-    if (commandName === 'auctionstatus') {
         botReply(interaction, 'Command not usable yet');
     }
 

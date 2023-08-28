@@ -95,7 +95,7 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKE
             },
             {
                 name: 'auctionstatus',
-                description: 'Show the current status of the legendary item auction of this channel',
+                description: 'Erstellt eine Auktionsübersicht',
             },
             {
                 name: 'deleteauction',
