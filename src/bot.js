@@ -236,7 +236,7 @@ client.on('interactionCreate', async(interaction) => {
         if (response.type === 'success') {
             botReply(interaction, 'Auktion gelöscht', response.message);
         } else {
-            console.log(response)
+            console.log(response.error)
             botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
         }
     }
