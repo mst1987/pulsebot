@@ -258,11 +258,11 @@ client.on('interactionCreate', async(interaction) => {
         console.log(response)
         if (response.type === 'success') {
 
-            const channel = await client.channels.fetch(response.legendary.channel);
+            const channel = await client.channels.fetch(response.legendary[0].channel);
             if (channel) {
-                const targetMessage = await channel.messages.fetch(response.legendary.channel);
+                const targetMessage = await channel.messages.fetch(response.legendary[0].channel);
                 if (targetMessage) {
-                    const embed = { title: `${findServerEmoji('poggies')} Auction gestartet ${findServerEmoji('poggies')}`, description: `${response.message}\n\n${getAuctionMessage(response.legendary)}` };
+                    const embed = { title: `${findServerEmoji('poggies')} Auction gestartet ${findServerEmoji('poggies')}`, description: `${response.message}\n\n${getAuctionMessage(response.legendary[0])}` };
                     await targetMessage.edit({ embeds: [embed] });
                 }
             }
