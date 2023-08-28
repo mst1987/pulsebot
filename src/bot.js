@@ -306,7 +306,7 @@ client.on('interactionCreate', async(interaction) => {
         if (response.type === 'success') {
             const channel = await client.channels.fetch(auctionData.channel);
             if (channel) {
-                const targetMessage = await channel.messages.fetch(response.legendary[0].messageid);
+                const targetMessage = await channel.messages.fetch(response.legendary.messageid);
                 if (targetMessage) {
                     const embed = { title: `${findServerEmoji('poggies')} Auktion gestartet ${findServerEmoji('poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary[0])}` };
                     await targetMessage.edit({ embeds: [embed] });
