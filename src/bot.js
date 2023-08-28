@@ -194,7 +194,7 @@ client.on('interactionCreate', async(interaction) => {
         if (response.type === 'success') {
             const nickname = await getUserNickname(interaction);
             console.log(nickname)
-            botReply(interaction, `**${bidData.gold}g**`, `geboten von ${nickname}`, 0, false);
+            botReply(interaction, `**${formatNumberWithDots(bidData.gold)}g**`, `geboten von ${nickname}`, 0, false);
         } else {
             botReply(interaction, 'Gebot nicht akzeptiert!', response.message);
         }
@@ -354,6 +354,11 @@ function formatTimestampToDateString(timestamp) {
 
     const formattedDateString = `${day}.${month}.${year} um ${hour}:${minute}`;
     return formattedDateString;
+}
+
+function formatNumberWithDots(number) {
+    const formattedNumber = number.toLocaleString('en-US'); // Use the 'en-US' locale for comma (,) separator
+    return formattedNumber.replace(/,/g, '.');
 }
 
 client.login(process.env.DISCORDJS_BOT_TOKEN);
