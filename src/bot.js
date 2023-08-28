@@ -256,7 +256,7 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         const replyMessage = botReply(interaction, 'Title', 'Message', 0, false)
-
+        console.log(replyMessage);
         const legendary = new Legendary();
         const auctionData = {
             name: interaction.options.getString('name'),
