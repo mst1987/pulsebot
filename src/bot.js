@@ -192,7 +192,7 @@ client.on('interactionCreate', async(interaction) => {
         response = await legendary.bid(bidData);
 
         if (response.type === 'success') {
-            botReply(interaction, 'Bid Info', `Aktuelles Gebot: ${bidData.gold} von ${bidData.username}`, 0, false);
+            botReply(interaction, 'Bid Info', `Aktuelles Gebot: ${bidData.gold} von ${getUserNickname(bidData.userid)}`, 0, false);
         } else {
             botReply(interaction, 'Gebot nicht akzeptiert!', response.message);
         }
@@ -241,6 +241,10 @@ function parseDMYDateString(dateString) {
     const month = parseInt(parts[1], 10) - 1; // Months in JavaScript are zero-based
     const year = parseInt(parts[2], 10);
     return new Date(year, month, day);
+}
+
+async function getUserNickname(userid) {
+    return await interaction.guild.members.fetch(userid).displayName;
 }
 
 function getWednesdayWeeksAgo(weeks) {
