@@ -246,7 +246,8 @@ function parseDMYDateString(dateString) {
 }
 
 async function getUserNickname(interaction) {
-    return await interaction.guild.members.fetch(interaction.user.id).displayName;
+    const displayName = await interaction.guild.members.fetch(interaction.user.id);
+    return displayName;
 }
 
 function getWednesdayWeeksAgo(weeks) {
