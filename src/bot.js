@@ -218,9 +218,7 @@ client.on('interactionCreate', async(interaction) => {
                     }
                 }
 
-                console.log(response.extended);
                 if (response.extended) {
-                    console.log(response.legendary)
                     const channel = await client.channels.fetch(response.legendary.channel);
                     if (channel) {
                         const targetMessage = await channel.messages.fetch(response.legendary.messageid);
@@ -232,7 +230,7 @@ client.on('interactionCreate', async(interaction) => {
                     await interaction.followUp({
                         embeds: [{
                             title: 'Auktion verlängert',
-                            description: `${response.extended}`,
+                            description: `Die Auktion wurde verlängert und endet nun ${formatTimestampToDateString(legendary.timestamp)}`,
                         }],
                         ephemeral: false
                     }).then(msg => {
