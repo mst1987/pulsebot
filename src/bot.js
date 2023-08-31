@@ -6,7 +6,7 @@ const GDKP = require('./classes/gdkp.js');
 const Legendary = require('./classes/legendary.js');
 const messages = require('./config/messages.js');
 
-const { botReply, botFollowup, formatNumberWithDots, formatSignUps, getAuctionMessage, getChannelsFromCategories, getItemsToShow, getUserNickname, getWednesdayWeeksAgo, isNumber, toTimestamp } = require('./functions/helper');
+const { botReply, findServerEmoji, getCharacterIcon, botFollowup, formatNumberWithDots, formatSignUps, getAuctionMessage, getChannelsFromCategories, getItemsToShow, getUserNickname, getWednesdayWeeksAgo, isNumber, toTimestamp } = require('./functions/helper');
 const { Client, GatewayIntentBits, MessageEmbed } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
