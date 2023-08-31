@@ -186,7 +186,7 @@ client.on('interactionCreate', async(interaction) => {
                 return;
             }
             if (gold > 5000000) {
-                botReply(interaction, 'Vertippt?', `Wolltest du wirklich über ${formatNumberWithDots(gold)} bieten?`);
+                botReply(interaction, 'Vertippt?', `Wolltest du wirklich **${formatNumberWithDots(gold)}g** bieten?`);
                 return;
             }
 
@@ -227,11 +227,11 @@ client.on('interactionCreate', async(interaction) => {
                             await targetMessage.edit({ embeds: [embed] });
                         }
                     }
-                    console.log('Verlängerung')
+
                     await interaction.followUp({
                         embeds: [{
                             title: 'Auktion verlängert',
-                            description: `Die Auktion wurde verlängert und endet nun ${formatTimestampToDateString(Number(response.legendary.endtime))}`,
+                            description: `Die Auktion wurde verlängert und endet nun **${formatTimestampToDateString(Number(response.legendary.endtime))}**`,
                         }],
                         ephemeral: false
                     }).then(msg => {
