@@ -362,4 +362,8 @@ exports.findServerEmoji = function(emojiName) {
     return `${guild.emojis.cache.find(emoji => emoji.name === emojiName)}`;
 }
 
+exports.getAuctionMessage = function(legendary) {
+    return `${findServerEmoji('shadowmourne')}  **${legendary.name}**\n\nRaid: **${legendary.raid}**\nAuktion endet am **${formatTimestampToDateString(Number(legendary.endtime))}**\n\nStartpreis ist **${legendary.mingold}g** und Mindesterhöhung liegt bei **${legendary.increment}g**\n\nBenutze den /bid Befehl um mitzubieten!`
+}
+
 client.login(process.env.DISCORDJS_BOT_TOKEN);
