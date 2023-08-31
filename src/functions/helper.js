@@ -1,3 +1,5 @@
+const timeoutTime = 60000;
+
 exports.getAuctionMessage = function(legendary) {
     return `${findServerEmoji('shadowmourne')}  **${legendary.name}**\n\nRaid: **${legendary.raid}**\nAuktion endet am **${formatTimestampToDateString(Number(legendary.endtime))}**\n\nStartpreis ist **${legendary.mingold}g** und Mindesterhöhung liegt bei **${legendary.increment}g**\n\nBenutze den /bid Befehl um mitzubieten!`
 }
@@ -101,14 +103,6 @@ exports.getChannelsFromCategories = function(guild, categoryIds) {
     });
 
     return channelsFromCategories;
-}
-
-exports.getCharacterIcon = function(spec) {
-    return `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[spec]?.icon)}`;
-}
-
-exports.findServerEmoji = function(emojiName) {
-    return `${guild.emojis.cache.find(emoji => emoji.name === emojiName)}`;
 }
 
 exports.getItemsFormatted = function(items) {

@@ -11,7 +11,6 @@ const { Client, GatewayIntentBits, MessageEmbed } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
 let guild;
-const timeoutTime = 60000;
 
 client.on('ready', () => {
     console.log(messages.common.pulseBotReady);
