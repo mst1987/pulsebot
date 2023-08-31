@@ -231,7 +231,7 @@ client.on('interactionCreate', async(interaction) => {
                     await interaction.followUp({
                         embeds: [{
                             title: 'Auktion verlängert',
-                            description: `Die Auktion wurde verlängert und endet nun ${formatTimestampToDateString(legendary.timestamp)}`,
+                            description: `Die Auktion wurde verlängert und endet nun ${formatTimestampToDateString(legendary.endtime)}`,
                         }],
                         ephemeral: false
                     }).then(msg => {
