@@ -227,6 +227,7 @@ client.on('interactionCreate', async(interaction) => {
                             await targetMessage.edit({ embeds: [embed] });
                         }
                     }
+                    console.log('Verlängerung')
                     await interaction.followUp({
                         embeds: [{
                             title: 'Auktion verlängert',
