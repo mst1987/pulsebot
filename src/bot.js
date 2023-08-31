@@ -6,7 +6,7 @@ const GDKP = require('./classes/gdkp.js');
 const Legendary = require('./classes/legendary.js');
 const messages = require('./config/messages.js');
 
-const { botReply, botFollowup, findServerEmoji, formatNumberWithDots, formatSignUps, getAuctionMessage, getChannelsFromCategories, getCharacterIcon, getItemsToShow, getUserNickname, getWednesdayWeeksAgo, isNumber, toTimestamp } = require('./functions/helper');
+const { botReply, botFollowup, formatNumberWithDots, formatSignUps, getAuctionMessage, getChannelsFromCategories, getItemsToShow, getUserNickname, getWednesdayWeeksAgo, isNumber, toTimestamp } = require('./functions/helper');
 const { Client, GatewayIntentBits, MessageEmbed } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
@@ -29,7 +29,7 @@ client.on('interactionCreate', async(interaction) => {
     const raidhelper = new Raidhelper();
     const commandName = interaction.commandName;
     const categoryIds = ['1115368280245420042', '1143858079289577502'];
-    const channelsInCategory = getChannelsFromCategories(categoryIds);
+    const channelsInCategory = getChannelsFromCategories(guild, categoryIds);
 
     // GDKP Raid commands
     if (commandName === 'gdkpraids') {
@@ -354,5 +354,13 @@ client.on('interactionCreate', async(interaction) => {
     // --------------------------------------------------------
 
 })
+
+exports.getCharacterIcon = function(guild, spec) {
+    return `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[spec]?.icon)}`;
+}
+
+exports.findServerEmoji = function(emojiName) {
+    return `${guild.emojis.cache.find(emoji => emoji.name === emojiName)}`;
+}
 
 client.login(process.env.DISCORDJS_BOT_TOKEN);

@@ -88,7 +88,7 @@ exports.formatSignUps = function(specs) {
     return signUps;
 }
 
-exports.getChannelsFromCategories = function(categoryIds) {
+exports.getChannelsFromCategories = function(guild, categoryIds) {
     const channelsFromCategories = [];
 
     guild.channels.cache.forEach(channel => {
