@@ -190,14 +190,14 @@ client.on('interactionCreate', async(interaction) => {
                 return;
             }
 
-            console.log('Timezone: ', DateTime.now().setZone('Europe/Paris'));
+            console.log('Timezone: ', DateTime.now().setZone('Europe/Paris').toMillis());
             console.log('Date: ', new Date().getTime());
 
             const bidData = {
                 username: interaction.user.tag,
                 userid: interaction.user.id,
                 gold: gold,
-                timestamp: new Date().getTime(),
+                timestamp: DateTime.now().setZone('Europe/Paris').toMillis(),
                 legendary: interaction.channel.id,
             }
 
