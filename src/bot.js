@@ -213,7 +213,7 @@ client.on('interactionCreate', async(interaction) => {
                 if (channel) {
                     const targetMessage = await channel.messages.fetch('1145663860141981757');
                     if (targetMessage) {
-                        const embed = { title: 'Auktionsübersicht', description: highestbids };
+                        const embed = { title: 'Auktionsübersicht', description: `Momentan Höchsbietende: \n\n${highestbids}` };
                         await targetMessage.edit({ embeds: [embed] });
                     }
                 }
