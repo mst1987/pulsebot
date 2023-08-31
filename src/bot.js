@@ -220,7 +220,7 @@ client.on('interactionCreate', async(interaction) => {
                     if (channel) {
                         const targetMessage = await channel.messages.fetch(response.legendary.messageid);
                         if (targetMessage) {
-                            const embed = { title: `${findServerEmoji(interaction, 'poggies')} Auktion gestartet ${findServerEmoji(interaction, 'poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary[0])}` };
+                            const embed = { title: `${findServerEmoji(interaction, 'poggies')} Auktion gestartet ${findServerEmoji(interaction, 'poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(interaction,response.legendary[0])}` };
                             await targetMessage.edit({ embeds: [embed] });
                         }
                     }
@@ -270,7 +270,7 @@ client.on('interactionCreate', async(interaction) => {
 
         if (response.type === 'success') {
             const targetMessage = await interaction.channel.messages.fetch(replyMessage.id);
-            const embed = { title: `${findServerEmoji(interaction, 'poggies')} Auktion gestartet ${findServerEmoji(interaction, 'poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary)}` };
+            const embed = { title: `${findServerEmoji(interaction, 'poggies')} Auktion gestartet ${findServerEmoji(interaction, 'poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(interaction,response.legendary)}` };
             const newMessage = await targetMessage.edit({ embeds: [embed] });
             await legendary.updateAuction({ messageid: newMessage.id })
         } else {
@@ -305,7 +305,7 @@ client.on('interactionCreate', async(interaction) => {
                 console.log(response)
                 const targetMessage = await channel.messages.fetch(response.legendary.messageid);
                 if (targetMessage) {
-                    const embed = { title: `${findServerEmoji(interaction, 'poggies')} Auktion gestartet ${findServerEmoji(interaction, 'poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary)}` };
+                    const embed = { title: `${findServerEmoji(interaction, 'poggies')} Auktion gestartet ${findServerEmoji(interaction, 'poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(interaction, response.legendary)}` };
                     await targetMessage.edit({ embeds: [embed] });
                     botReply(interaction, `Auktion updated`, `Auktion wurde erfolgreich updated`);
                 }

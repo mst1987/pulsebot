@@ -12,8 +12,8 @@ var findServerEmoji = exports.findServerEmoji = function(interaction, emojiName)
     return `${interaction.guild.emojis.cache.find(emoji => emoji.name === emojiName)}`;
 }
 
-var getAuctionMessage = exports.getAuctionMessage = function(legendary) {
-    return `${findServerEmoji('shadowmourne')}  **${legendary.name}**\n\nRaid: **${legendary.raid}**\nAuktion endet am **${formatTimestampToDateString(Number(legendary.endtime))}**\n\nStartpreis ist **${legendary.mingold}g** und Mindesterhöhung liegt bei **${legendary.increment}g**\n\nBenutze den /bid Befehl um mitzubieten!`
+var getAuctionMessage = exports.getAuctionMessage = function(interaction, legendary) {
+    return `${findServerEmoji(interaction, 'shadowmourne')}  **${legendary.name}**\n\nRaid: **${legendary.raid}**\nAuktion endet am **${formatTimestampToDateString(Number(legendary.endtime))}**\n\nStartpreis ist **${legendary.mingold}g** und Mindesterhöhung liegt bei **${legendary.increment}g**\n\nBenutze den /bid Befehl um mitzubieten!`
 }
 
 // Function to parse "D-M-YYYY" format
