@@ -4,6 +4,18 @@ exports.isNumber = function(value) {
     return typeof value === 'number' && !isNaN(value);
 }
 
+exports.getCharacterIcon = function(interaction, spec) {
+    return `${interaction.guild.emojis.cache.find(emoji => emoji.name === extendedClassList[spec]?.icon)}`;
+}
+
+exports.findServerEmoji = function(interaction, emojiName) {
+    return `${interaction.guild.emojis.cache.find(emoji => emoji.name === emojiName)}`;
+}
+
+exports.getAuctionMessage = function(legendary) {
+    return `${findServerEmoji('shadowmourne')}  **${legendary.name}**\n\nRaid: **${legendary.raid}**\nAuktion endet am **${formatTimestampToDateString(Number(legendary.endtime))}**\n\nStartpreis ist **${legendary.mingold}g** und Mindesterhöhung liegt bei **${legendary.increment}g**\n\nBenutze den /bid Befehl um mitzubieten!`
+}
+
 // Function to parse "D-M-YYYY" format
 exports.parseDMYDateString = function(dateString) {
     const parts = dateString.split('-');

@@ -10,7 +10,6 @@ const { botReply, botFollowup, formatNumberWithDots, formatSignUps, getAuctionMe
 const { Client, GatewayIntentBits, MessageEmbed } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
-let guild;
 
 client.on('ready', () => {
     console.log(messages.common.pulseBotReady);
@@ -19,7 +18,7 @@ client.on('ready', () => {
 client.on('interactionCreate', async(interaction) => {
     if (!interaction.isChatInputCommand()) return;
     if (interaction.user.bot) return;
-    guild = interaction.guild;
+
     const legendaryID = '1144865420386517053';
 
     // Logging User Command
@@ -28,7 +27,7 @@ client.on('interactionCreate', async(interaction) => {
     const raidhelper = new Raidhelper();
     const commandName = interaction.commandName;
     const categoryIds = ['1115368280245420042', '1143858079289577502'];
-    const channelsInCategory = getChannelsFromCategories(guild, categoryIds);
+    const channelsInCategory = getChannelsFromCategories(interaction.guild, categoryIds);
 
     // GDKP Raid commands
     if (commandName === 'gdkpraids') {
@@ -44,7 +43,7 @@ client.on('interactionCreate', async(interaction) => {
             const GDKPSignUps = signUpChannelIDs.filter(signUpChannelId => channelsInCategory.includes(signUpChannelId.channelId));
             const SignUpsWithSpecs = GDKPSignUps.map(dataObject => {
                 const matchingSignUps = dataObject.signUps.filter(signUp => signUp.userId === interaction.user.id);
-                const matchingSpecs = matchingSignUps.map(signUp => `${getCharacterIcon(signUp.specName) }`).join('');
+                const matchingSpecs = matchingSignUps.map(signUp => `${getCharacterIcon(interaction, signUp.specName) }`).join('');
 
                 return {
                     specs: matchingSpecs,
@@ -81,7 +80,7 @@ client.on('interactionCreate', async(interaction) => {
                 }).sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(slot => ({...slot, setup: slot.setup.filter(user => user.userid === interaction.user.id) }));
 
                 // Format Signup and get Discord Emojis for the classes
-                const formattedGDKPSignUps = setupData.map(channelId => `<#${channelId.channelid}> ${getCharacterIcon(channelId.setup[0].spec)} ${extendedClassList[channelId.setup[0].spec].name}`).join(`\n`);
+                const formattedGDKPSignUps = setupData.map(channelId => `<#${channelId.channelid}> ${getCharacterIcon(interaction, channelId.setup[0].spec)} ${extendedClassList[channelId.setup[0].spec].name}`).join(`\n`);
 
                 await botReply(interaction, messages.mysetups.errorTitle, `\n${formattedGDKPSignUps}`)
             }
@@ -127,7 +126,7 @@ client.on('interactionCreate', async(interaction) => {
                 if (i % 15 === 0 || i === 0) {
                     formattedItems[++j] = [];
                 }
-                formattedItems[j].push(`${getCharacterIcon(current.class)} ${current.player} - [${current.item}](${current.wowhead}) - ${current.gold}g`)
+                formattedItems[j].push(`${getCharacterIcon(interaction, current.class)} ${current.player} - [${current.item}](${current.wowhead}) - ${current.gold}g`)
                 i++;
             })
             const sumOfGold = totalItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
@@ -156,7 +155,7 @@ client.on('interactionCreate', async(interaction) => {
         try {
             const signedUpSpecs = interaction.options.getString('specs');
             const signUps = formatSignUps(signedUpSpecs);
-            const formattedGDKPSignUps = signUps.map(s => `${getCharacterIcon(s.specName)}`).join(``);
+            const formattedGDKPSignUps = signUps.map(s => `${getCharacterIcon(interaction, s.specName)}`).join(``);
             raidhelper.signUpToRaid(raidId, signUps, interaction.user.id);
 
             await botReply(interaction, messages.signup.successTitle, messages.signup.successMessage.replace('___replace___', formattedGDKPSignUps));
@@ -221,7 +220,7 @@ client.on('interactionCreate', async(interaction) => {
                     if (channel) {
                         const targetMessage = await channel.messages.fetch(response.legendary.messageid);
                         if (targetMessage) {
-                            const embed = { title: `${findServerEmoji('poggies')} Auktion gestartet ${findServerEmoji('poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary[0])}` };
+                            const embed = { title: `${findServerEmoji(interaction, 'poggies')} Auktion gestartet ${findServerEmoji(interaction, 'poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary[0])}` };
                             await targetMessage.edit({ embeds: [embed] });
                         }
                     }
@@ -271,7 +270,7 @@ client.on('interactionCreate', async(interaction) => {
 
         if (response.type === 'success') {
             const targetMessage = await interaction.channel.messages.fetch(replyMessage.id);
-            const embed = { title: `${findServerEmoji('poggies')} Auktion gestartet ${findServerEmoji('poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary)}` };
+            const embed = { title: `${findServerEmoji(interaction, 'poggies')} Auktion gestartet ${findServerEmoji(interaction, 'poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary)}` };
             const newMessage = await targetMessage.edit({ embeds: [embed] });
             await legendary.updateAuction({ messageid: newMessage.id })
         } else {
@@ -306,7 +305,7 @@ client.on('interactionCreate', async(interaction) => {
                 console.log(response)
                 const targetMessage = await channel.messages.fetch(response.legendary.messageid);
                 if (targetMessage) {
-                    const embed = { title: `${findServerEmoji('poggies')} Auktion gestartet ${findServerEmoji('poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary)}` };
+                    const embed = { title: `${findServerEmoji(interaction, 'poggies')} Auktion gestartet ${findServerEmoji(interaction, 'poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(response.legendary)}` };
                     await targetMessage.edit({ embeds: [embed] });
                     botReply(interaction, `Auktion updated`, `Auktion wurde erfolgreich updated`);
                 }
@@ -353,17 +352,5 @@ client.on('interactionCreate', async(interaction) => {
     // --------------------------------------------------------
 
 })
-
-exports.getCharacterIcon = function(guild, spec) {
-    return `${guild.emojis.cache.find(emoji => emoji.name === extendedClassList[spec]?.icon)}`;
-}
-
-exports.findServerEmoji = function(emojiName) {
-    return `${guild.emojis.cache.find(emoji => emoji.name === emojiName)}`;
-}
-
-exports.getAuctionMessage = function(legendary) {
-    return `${findServerEmoji('shadowmourne')}  **${legendary.name}**\n\nRaid: **${legendary.raid}**\nAuktion endet am **${formatTimestampToDateString(Number(legendary.endtime))}**\n\nStartpreis ist **${legendary.mingold}g** und Mindesterhöhung liegt bei **${legendary.increment}g**\n\nBenutze den /bid Befehl um mitzubieten!`
-}
 
 client.login(process.env.DISCORDJS_BOT_TOKEN);
