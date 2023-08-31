@@ -218,6 +218,7 @@ client.on('interactionCreate', async(interaction) => {
                     }
                 }
 
+                console.log(response.extended);
                 if (response.extended) {
                     console.log(response.legendary)
                     const channel = await client.channels.fetch(response.legendary.channel);
