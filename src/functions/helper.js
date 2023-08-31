@@ -127,7 +127,7 @@ var toTimestamp = exports.toTimestamp = function(dateString) {
 
 var formatTimestampToDateString = exports.formatTimestampToDateString = function(timestamp) {
     // Convert the timestamp to a Luxon DateTime object in CET
-    const dateTimeCET = DateTime.fromMillis(timestampMillis, { zone: 'Europe/Paris' });
+    const dateTimeCET = DateTime.fromMillis(timestamp, { zone: 'Europe/Paris' });
 
     // Format the DateTime object as the desired string format
     const formattedString = dateTimeCET.toFormat('dd.MM.yyyy') + ' um ' + dateTimeCET.toFormat('HH:mm') + ' Uhr';
