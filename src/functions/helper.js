@@ -1,3 +1,5 @@
+const { DateTime } = require('luxon');
+
 const timeoutTime = 60000;
 
 exports.isNumber = function(value) {
@@ -118,16 +120,9 @@ var getItemsFormatted = exports.getItemsFormatted = function(items) {
 }
 
 var toTimestamp = exports.toTimestamp = function(dateString) {
-    const [datePart, timePart] = dateString.split('-');
-    const [day, month, year] = datePart.split('.').map(Number);
-    const [hour, minute] = timePart.split(':').map(Number);
+    const timestampCET = DateTime.fromFormat(dateString, 'dd.MM.yy-hh:mm', { zone: 'Europe/Paris' }).toMillis();
 
-    // Note: In the following line, the year is assumed to be in the 21st century (20xx)
-    const dateObject = new Date(2000 + year, month - 1, day, hour, minute);
-
-    const timestamp = dateObject.getTime(); // Convert milliseconds to seconds
-
-    return timestamp
+    return timestampCET;
 }
 
 var formatTimestampToDateString = exports.formatTimestampToDateString = function(timestamp) {
