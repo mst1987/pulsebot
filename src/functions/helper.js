@@ -126,16 +126,13 @@ var toTimestamp = exports.toTimestamp = function(dateString) {
 }
 
 var formatTimestampToDateString = exports.formatTimestampToDateString = function(timestamp) {
-    const dateObject = new Date(timestamp); // Convert seconds to milliseconds
+    // Convert the timestamp to a Luxon DateTime object in CET
+    const dateTimeCET = DateTime.fromMillis(timestampMillis, { zone: 'Europe/Paris' });
 
-    const day = String(dateObject.getDate()).padStart(2, '0');
-    const month = String(dateObject.getMonth() + 1).padStart(2, '0'); // Months are zero-based
-    const year = dateObject.getFullYear();
-    const hour = String(dateObject.getHours()).padStart(2, '0');
-    const minute = String(dateObject.getMinutes()).padStart(2, '0');
+    // Format the DateTime object as the desired string format
+    const formattedString = dateTimeCET.toFormat('dd.MM.yyyy') + ' um ' + dateTimeCET.toFormat('HH:mm') + ' Uhr';
 
-    const formattedDateString = `${day}.${month}.${year} um ${hour}:${minute} Uhr`;
-    return formattedDateString;
+    return formattedString;
 }
 
 var formatNumberWithDots = exports.formatNumberWithDots = function(number) {
