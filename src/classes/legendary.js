@@ -37,21 +37,6 @@ class Legendary {
         });
     }
 
-    async endAuction(channel) {
-        const url = "https://pulse-gdkp.de:3001/api/legendary/endauction/" + channel;
-        return new Promise(async(resolve, reject) => {
-            const res = await axios.put(url, {}, {
-                httpsAgent: agent,
-            }).then((response) => {
-                return response.data;
-            }).catch((error) => {
-                return error;
-            })
-
-            resolve(res);
-        });
-    }
-
     async deleteAuction(channel) {
         const url = "https://pulse-gdkp.de:3001/api/legendary/" + channel;
         return new Promise(async(resolve, reject) => {
@@ -94,6 +79,17 @@ class Legendary {
 
     async getHighestBids() {
         const url = 'https://pulse-gdkp.de:3001/api/legendary/highestbids';
+        return axios.get(url, { httpsAgent: agent })
+            .then(response => {
+                return response.data;
+            })
+            .catch(error => {
+                throw error;
+            });
+    }
+
+    async getWinner(channel) {
+        const url = 'https://pulse-gdkp.de:3001/api/legendary/highestbid/' + channel;
         return axios.get(url, { httpsAgent: agent })
             .then(response => {
                 return response.data;
