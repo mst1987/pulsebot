@@ -4,20 +4,20 @@ exports.isNumber = function(value) {
     return typeof value === 'number' && !isNaN(value);
 }
 
-exports.getCharacterIcon = function(interaction, spec) {
+var getCharacterIcon = exports.getCharacterIcon = function(interaction, spec) {
     return `${interaction.guild.emojis.cache.find(emoji => emoji.name === extendedClassList[spec]?.icon)}`;
 }
 
-exports.findServerEmoji = function(interaction, emojiName) {
+var findServerEmoji = exports.findServerEmoji = function(interaction, emojiName) {
     return `${interaction.guild.emojis.cache.find(emoji => emoji.name === emojiName)}`;
 }
 
-exports.getAuctionMessage = function(legendary) {
+var getAuctionMessage = exports.getAuctionMessage = function(legendary) {
     return `${findServerEmoji('shadowmourne')}  **${legendary.name}**\n\nRaid: **${legendary.raid}**\nAuktion endet am **${formatTimestampToDateString(Number(legendary.endtime))}**\n\nStartpreis ist **${legendary.mingold}g** und Mindesterhöhung liegt bei **${legendary.increment}g**\n\nBenutze den /bid Befehl um mitzubieten!`
 }
 
 // Function to parse "D-M-YYYY" format
-exports.parseDMYDateString = function(dateString) {
+var parseDMYDateString = exports.parseDMYDateString = function(dateString) {
     const parts = dateString.split('-');
     const day = parseInt(parts[0], 10);
     const month = parseInt(parts[1], 10) - 1; // Months in JavaScript are zero-based
@@ -25,12 +25,12 @@ exports.parseDMYDateString = function(dateString) {
     return new Date(year, month, day);
 }
 
-exports.getUserNickname = async function(interaction) {
+var getUserNickname = exports.getUserNickname = async function(interaction) {
     const displayName = await interaction.guild.members.fetch(interaction.user.id);
     return displayName;
 }
 
-exports.getWednesdayWeeksAgo = function(weeks) {
+var getWednesdayWeeksAgo = exports.getWednesdayWeeksAgo = function(weeks) {
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     // Calculate the number of days to subtract to get to the previous Wednesday
@@ -42,7 +42,7 @@ exports.getWednesdayWeeksAgo = function(weeks) {
     return weeksAgo;
 }
 
-exports.botReply = async function(interaction, title, message, timeout = timeoutTime, ephemeral = true) {
+var botReply = exports.botReply = async function(interaction, title, message, timeout = timeoutTime, ephemeral = true) {
     await interaction.reply({
             embeds: [{
                 title: title,
@@ -58,7 +58,7 @@ exports.botReply = async function(interaction, title, message, timeout = timeout
         });
 }
 
-exports.botFollowup = async function(interaction, message, timeout = timeoutTime, ephemeral = true) {
+var botFollowup = exports.botFollowup = async function(interaction, message, timeout = timeoutTime, ephemeral = true) {
     await interaction.followUp({
             embeds: [{
                 description: message
@@ -73,7 +73,7 @@ exports.botFollowup = async function(interaction, message, timeout = timeoutTime
         });
 }
 
-exports.getItemsToShow = function(items, dateFrom, dateEnd) {
+var getItemsToShow = exports.getItemsToShow = function(items, dateFrom, dateEnd) {
     const filteredItems = items.filter((entry) => {
         const entryDate = parseDMYDateString(entry.date);
         return entryDate >= dateFrom && entryDate <= dateEnd;
@@ -84,7 +84,7 @@ exports.getItemsToShow = function(items, dateFrom, dateEnd) {
     return `${formattedItems}\n\n\nGesamtausgaben: **${sumOfGold}g**`;
 }
 
-exports.formatSignUps = function(specs) {
+var formatSignUps = exports.formatSignUps = function(specs) {
     let signUps = [];
     if (specs) {
         specs = specs.split(',')
@@ -98,7 +98,7 @@ exports.formatSignUps = function(specs) {
     return signUps;
 }
 
-exports.getChannelsFromCategories = function(guild, categoryIds) {
+var getChannelsFromCategories = exports.getChannelsFromCategories = function(guild, categoryIds) {
     const channelsFromCategories = [];
 
     guild.channels.cache.forEach(channel => {
@@ -113,11 +113,11 @@ exports.getChannelsFromCategories = function(guild, categoryIds) {
     return channelsFromCategories;
 }
 
-exports.getItemsFormatted = function(items) {
+var getItemsFormatted = exports.getItemsFormatted = function(items) {
     return items.map(item => `${getCharacterIcon(item.class)} ${item.player} - [${item.item}](${item.wowhead}) - ${item.gold}g`).join(`\n`);
 }
 
-exports.toTimestamp = function(dateString) {
+var toTimestamp = exports.toTimestamp = function(dateString) {
     const [datePart, timePart] = dateString.split('-');
     const [day, month, year] = datePart.split('.').map(Number);
     const [hour, minute] = timePart.split(':').map(Number);
@@ -130,7 +130,7 @@ exports.toTimestamp = function(dateString) {
     return timestamp
 }
 
-exports.formatTimestampToDateString = function(timestamp) {
+var formatTimestampToDateString = exports.formatTimestampToDateString = function(timestamp) {
     const dateObject = new Date(timestamp); // Convert seconds to milliseconds
 
     const day = String(dateObject.getDate()).padStart(2, '0');
@@ -143,7 +143,7 @@ exports.formatTimestampToDateString = function(timestamp) {
     return formattedDateString;
 }
 
-exports.formatNumberWithDots = function(number) {
+var formatNumberWithDots = exports.formatNumberWithDots = function(number) {
     const formattedNumber = number.toLocaleString('en-US'); // Use the 'en-US' locale for comma (,) separator
     return formattedNumber.replace(/,/g, '.');
 }
