@@ -345,7 +345,7 @@ client.on('interactionCreate', async(interaction) => {
         const response = await legendary.getWinner(interaction.channel.id);
 
         if (response.type === 'success') {
-            botReply(interaction, 'Auktion beendet!', `Die Auktion wurde beendet!\n\nHöchstbietender und damit Gewimmer von ${findServerEmoji(interaction, 'shadowmourne')} **${response.legendary.name}** für den Raid **${response.legendary.raid}** ist <@${response.winner.userid}>!\n\n${findServerEmoji(interaction, 'peepoParty')} Gratulation und viel Spaß damit! ${findServerEmoji(interaction, 'peepoParty')}`, 0, false);
+            botReply(interaction, 'Auktion beendet!', `Die Auktion wurde beendet!\n\nHöchstbietender und damit Gewinner von ${findServerEmoji(interaction, 'shadowmourne')} **${response.legendary.name}** für den Raid **${response.legendary.raid}** ist <@${response.winner.userid}>!\n\n${findServerEmoji(interaction, 'peepoParty')} Gratulation und viel Spaß damit! ${findServerEmoji(interaction, 'peepoParty')}`, 0, false);
         } else {
             botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
         }
