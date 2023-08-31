@@ -120,7 +120,7 @@ var getItemsFormatted = exports.getItemsFormatted = function(items) {
 }
 
 var toTimestamp = exports.toTimestamp = function(dateString) {
-    const timestampCET = DateTime.fromFormat(dateString, 'dd.MM.yy-hh:mm', { zone: 'Europe/Paris' }).toMillis();
+    const timestampCET = DateTime.fromFormat(dateString, 'dd.MM.yy-HH:mm', { zone: 'Europe/Paris' }).toMillis();
 
     return timestampCET;
 }
