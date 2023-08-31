@@ -5,7 +5,7 @@ const Raidhelper = require('./classes/raidhelper.js');
 const GDKP = require('./classes/gdkp.js');
 const Legendary = require('./classes/legendary.js');
 const messages = require('./config/messages.js');
-const moment = require('moment-timezone');
+const { DateTime } = require('luxon');
 
 const { botReply, findServerEmoji, getCharacterIcon, botFollowup, formatNumberWithDots, formatSignUps, getAuctionMessage, getChannelsFromCategories, getItemsToShow, getUserNickname, getWednesdayWeeksAgo, isNumber, toTimestamp } = require('./functions/helper');
 const { Client, GatewayIntentBits, MessageEmbed } = require('discord.js');
@@ -190,7 +190,7 @@ client.on('interactionCreate', async(interaction) => {
                 return;
             }
 
-            console.log('Timezone: ', moment().tz('Europe/Paris'));
+            console.log('Timezone: ', DateTime.now().setZone('Europe/Paris'));
             console.log('Date: ', new Date().getTime());
 
             const bidData = {
