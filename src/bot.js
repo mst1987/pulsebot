@@ -228,16 +228,7 @@ client.on('interactionCreate', async(interaction) => {
                         }
                     }
 
-                    await interaction.followUp({
-                        embeds: [{
-                            title: 'Auktion verlängert',
-                            description: `Die Auktion wurde verlängert und endet nun **${formatTimestampToDateString(Number(response.legendary.endtime))}**`,
-                        }],
-                        ephemeral: false
-                    }).then(msg => {
-                        if (timeout > 0)
-                            setTimeout(() => msg.delete(), timeout)
-                    });
+                    await botFollowup(interaction, 'Auktion verlängert', `Die Auktion wurde verlängert und endet nun **${formatTimestampToDateString(Number(response.legendary.endtime))}**`, 0, false)
                 }
             } else {
                 botReply(interaction, 'Gebot nicht akzeptiert!', response.message);
