@@ -242,7 +242,7 @@ client.on('interactionCreate', async(interaction) => {
             return;
         }
 
-        const replyMessage =await interaction.reply({
+        const replyMessage = await interaction.reply({
             embeds: [{
                 title: 'title',
                 description: 'message'
