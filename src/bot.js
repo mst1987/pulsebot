@@ -242,6 +242,13 @@ client.on('interactionCreate', async(interaction) => {
             return;
         }
 
+        const legendary = new Legendary();
+
+        if (legendary.getAuction(interaction.channel.id)) {
+            botReply(interaction, 'Auktion Info', 'Es gibt schon eine Auktion für den Channel');
+            return;
+        }
+
         await interaction.reply({
             embeds: [{
                 title: 'title',
@@ -251,7 +258,6 @@ client.on('interactionCreate', async(interaction) => {
         })
         const replyMessage = await interaction.fetchReply()
 
-        const legendary = new Legendary();
         const auctionData = {
             name: interaction.options.getString('name'),
             raid: interaction.options.getString('raid'),
