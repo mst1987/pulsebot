@@ -269,7 +269,7 @@ client.on('interactionCreate', async(interaction) => {
             const newMessage = await targetMessage.edit({ embeds: [embed] });
             await legendary.updateAuction({ messageid: newMessage.id })
         } else {
-            botReply(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
+            botFollowup(interaction, 'Fehler', 'Ein Fehler ist vorgefallen...');
         }
     }
 
