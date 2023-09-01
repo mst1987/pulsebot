@@ -242,13 +242,15 @@ client.on('interactionCreate', async(interaction) => {
             return;
         }
 
-        const replyMessage = await interaction.reply({
+        await interaction.reply({
             embeds: [{
                 title: 'title',
                 description: 'message'
             }],
             ephemeral: false
         })
+
+        const replyMessage = interaction.fetchReply();
 
         const legendary = new Legendary();
         const auctionData = {
@@ -269,7 +271,7 @@ client.on('interactionCreate', async(interaction) => {
             const newMessage = await targetMessage.edit({ embeds: [embed] });
             await legendary.updateAuction({ messageid: newMessage.id })
         } else {
-            botFollowup(interaction, 'Ein Fehler ist vorgefallen...');
+            botFollowup(interaction, response.message);
         }
     }
 
