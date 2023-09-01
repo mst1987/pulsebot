@@ -243,8 +243,9 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         const legendary = new Legendary();
-
-        if (legendary.getAuction(interaction.channel.id)) {
+        const auction = legendary.getAuction(interaction.channel.id)
+        console.log(auction);
+        if (auction) {
             botReply(interaction, 'Auktion Info', 'Es gibt schon eine Auktion für den Channel');
             return;
         }
