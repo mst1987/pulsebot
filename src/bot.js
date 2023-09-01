@@ -242,7 +242,7 @@ client.on('interactionCreate', async(interaction) => {
             return;
         }
 
-        await interaction.reply({
+        const replyMessage =await interaction.reply({
             embeds: [{
                 title: 'title',
                 description: 'message'
@@ -250,8 +250,7 @@ client.on('interactionCreate', async(interaction) => {
             ephemeral: false
         })
 
-        const replyMessage = interaction.fetchReply();
-
+        console.log(replyMessage)
         const legendary = new Legendary();
         const auctionData = {
             name: interaction.options.getString('name'),
