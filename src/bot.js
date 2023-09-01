@@ -211,7 +211,7 @@ client.on('interactionCreate', async(interaction) => {
                 const highestbids = await legendary.getHighestBids();
                 const channel = await client.channels.fetch('1145659881362313248');
                 if (channel) {
-                    const targetMessage = await channel.messages.fetch('1145663860141981757');
+                    const targetMessage = await channel.messages.fetch('1147062559036416191');
                     if (targetMessage) {
                         const embed = { title: 'Auktionsübersicht', description: `Momentan Höchsbietende: \n\n${highestbids}` };
                         await targetMessage.edit({ embeds: [embed] });
