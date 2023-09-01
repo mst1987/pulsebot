@@ -242,15 +242,15 @@ client.on('interactionCreate', async(interaction) => {
             return;
         }
 
-        const replyMessage = await interaction.reply({
+        await interaction.reply({
             embeds: [{
                 title: 'title',
                 description: 'message'
             }],
             ephemeral: false
         })
+        const replyMessage = await interaction.fetchReply()
 
-        console.log(replyMessage.interaction.id)
         const legendary = new Legendary();
         const auctionData = {
             name: interaction.options.getString('name'),
@@ -264,7 +264,7 @@ client.on('interactionCreate', async(interaction) => {
 
         response = await legendary.createAuction(auctionData);
         if (response.type === 'success') {
-            const targetMessage = await interaction.channel.messages.fetch(replyMessage.interaction.id);
+            const targetMessage = await interaction.channel.messages.fetch(replyMessage.id);
             const embed = { title: `${findServerEmoji(interaction, 'poggies')} Auktion gestartet ${findServerEmoji(interaction, 'poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(interaction,response.legendary)}` };
             const newMessage = await targetMessage.edit({ embeds: [embed] });
             await legendary.updateAuction({ messageid: newMessage.id })
