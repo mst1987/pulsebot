@@ -96,7 +96,7 @@ client.on('interactionCreate', async(interaction) => {
         if (!totalItems) {
             await botReply(interaction, messages.lastspent.errorTitle, messages.lastspent.errorMessage);
         } else {
-            const formattedItems = getItemsToShow(totalItems, getWednesdayWeeksAgo(2), getWednesdayWeeksAgo(1));
+            const formattedItems = getItemsToShow(interaction, totalItems, getWednesdayWeeksAgo(2), getWednesdayWeeksAgo(1));
             await botReply(interaction, messages.lastspent.successTitle, formattedItems)
         }
     }
