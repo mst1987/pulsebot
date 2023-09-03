@@ -75,13 +75,13 @@ var botFollowup = exports.botFollowup = async function(interaction, message, tim
         });
 }
 
-var getItemsToShow = exports.getItemsToShow = function(items, dateFrom, dateEnd) {
+var getItemsToShow = exports.getItemsToShow = function(interaction, items, dateFrom, dateEnd) {
     const filteredItems = items.filter((entry) => {
         const entryDate = parseDMYDateString(entry.date);
         return entryDate >= dateFrom && entryDate <= dateEnd;
     }).sort((a, b) => a.player.localeCompare(b.player));
 
-    const formattedItems = getItemsFormatted(filteredItems);
+    const formattedItems = getItemsFormatted(interaction, filteredItems);
     const sumOfGold = filteredItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
     return `${formattedItems}\n\n\nGesamtausgaben: **${sumOfGold}g**`;
 }
@@ -115,8 +115,8 @@ var getChannelsFromCategories = exports.getChannelsFromCategories = function(gui
     return channelsFromCategories;
 }
 
-var getItemsFormatted = exports.getItemsFormatted = function(items) {
-    return items.map(item => `${getCharacterIcon(item.class)} ${item.player} - [${item.item}](${item.wowhead}) - ${item.gold}g`).join(`\n`);
+var getItemsFormatted = exports.getItemsFormatted = function(interaction, items) {
+    return items.map(item => `${getCharacterIcon(interaction, item.class)} ${item.player} - [${item.item}](${item.wowhead}) - ${item.gold}g`).join(`\n`);
 }
 
 var toTimestamp = exports.toTimestamp = function(dateString) {
