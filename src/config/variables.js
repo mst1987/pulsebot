@@ -54,7 +54,8 @@ module.exports = extendedClassList = {
     'UnholyDK': { icon: 'unholy', name: 'Unholy Deathknight', clazz: 'DK', spec: 'Unholy_DPS' },
     'Frost_DPS': { icon: 'frostdk', name: 'Frost Deathknight', clazz: 'DK', spec: 'Frost_DPS' },
     'FrostDK': { icon: 'frostdk', name: 'Frost Deathknight', clazz: 'DK', spec: 'Frost_DPS' },
-    'Blood_Tank': { icon: 'blooddk', name: 'Blood Tank', clazz: 'DK', spec: 'Blood_Tank' },
+    'Blood_Tank': { icon: 'blooddk', name: 'Blood Tank', clazz: 'Tank', spec: 'Blood_Tank' },
+    'BloodTank': { icon: 'blooddk', name: 'Blood Tank', clazz: 'Tank', spec: 'Blood_Tank' },
     'BloodDK': { icon: 'blooddk', name: 'Blood Deathknight', clazz: 'DK', spec: 'Blood_DPS' },
     'DEATHKNIGHT': { icon: 'deathknight', name: 'Deathknight', clazz: 'DK', spec: 'Deathknight' },
     //Shaman

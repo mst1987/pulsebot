@@ -190,9 +190,6 @@ client.on('interactionCreate', async(interaction) => {
                 return;
             }
 
-            console.log('Timezone: ', DateTime.now().setZone('Europe/Paris').toMillis());
-            console.log('Date: ', new Date().getTime());
-
             const bidData = {
                 username: interaction.user.tag,
                 userid: interaction.user.id,
@@ -244,7 +241,7 @@ client.on('interactionCreate', async(interaction) => {
 
         const legendary = new Legendary();
         const auction = await legendary.getAuction(interaction.channel.id)
-        console.log(auction);
+
         if (auction) {
             botReply(interaction, 'Auktion Info', 'Es gibt schon eine Auktion für den Channel');
             return;
