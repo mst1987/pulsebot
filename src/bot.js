@@ -209,6 +209,7 @@ client.on('interactionCreate', async(interaction) => {
                 const channel = await client.channels.fetch('1145659881362313248');
                 if (channel) {
                     const targetMessage = await channel.messages.fetch('1147062559036416191');
+                    console.log(getHighestBids.highestBids)
                     const formattedResponse = getHighestBids.highestBids.map(highestBid => {
                         return `<#${highestBid._id}> ${highestBid.highestGold}g von <@${highestBid.userid}>`;
                     }).join('\n');
