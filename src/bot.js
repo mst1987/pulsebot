@@ -205,12 +205,15 @@ client.on('interactionCreate', async(interaction) => {
 
                 botReply(interaction, `**${formatNumberWithDots(Number(bidData.gold))}g**`, `geboten von ${nickname}`, 0, false);
 
-                const highestbids = await legendary.getHighestBids();
+                const getHighestBids = await legendary.getHighestBids();
                 const channel = await client.channels.fetch('1145659881362313248');
                 if (channel) {
                     const targetMessage = await channel.messages.fetch('1147062559036416191');
+                    const formattedResponse = getHighestBids.highestBids.map(highestBid => {
+                        return `<#${highestBid._id}> ${highestBid.highestGold}g von <@${highestBid.userid}>`;
+                    }).join('\n');
                     if (targetMessage) {
-                        const embed = { title: 'Auktionsübersicht', description: `Momentan Höchstbietende: \n\n${highestbids}` };
+                        const embed = { title: 'Auktionsübersicht', description: `Momentan Höchstbietende: \n\n${formattedResponse}` };
                         await targetMessage.edit({ embeds: [embed] });
                     }
                 }
