@@ -136,6 +136,7 @@ client.on('interactionCreate', async(interaction) => {
                 if (key == 0) {
                     await botReply(interaction, messages.totalspent.successTitle, `Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
                 } else {
+                    await interaction.followUp('-');
                     await botFollowup(interaction, items.join('\n'))
                 }
             })
