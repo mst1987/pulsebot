@@ -133,7 +133,7 @@ client.on('interactionCreate', async(interaction) => {
             const sumOfGold = totalItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
 
             formattedItems.forEach(async(items, key) => {
-                if (key > 0) {
+                if (key == 0) {
                     await botReply(interaction, messages.totalspent.successTitle, `Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
                 } else {
                     await botFollowup(interaction, items.join('\n'))
