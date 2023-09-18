@@ -134,7 +134,19 @@ client.on('interactionCreate', async(interaction) => {
 
             formattedItems.forEach(async(items, key) => {
                 if (key == 0) {
-                    await botReply(interaction, messages.totalspent.successTitle, `Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
+                    await interaction.reply({
+                            embeds: [{
+                                title: messages.totalspent.successTitle,
+                                description: `Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`
+                            }],
+                            ephemeral: true
+                        }).then(msg => {
+                            setTimeout(() => msg.delete(), 60000)
+                        })
+                        .catch(error => {
+                            console.log(error);
+                        });
+                    //await botReply(interaction, messages.totalspent.successTitle, `Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
                 } else {
                     await interaction.followUp('-');
                     await botFollowup(interaction, formattedItems[key].join('\n'))
