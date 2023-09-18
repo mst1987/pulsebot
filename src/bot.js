@@ -131,24 +131,9 @@ client.on('interactionCreate', async(interaction) => {
                 i++;
             })
             const sumOfGold = totalItems.reduce((totalGold, entry) => totalGold + entry.gold, 0);
-
+            await botReply(interaction, messages.totalspent.successTitle, `Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
             formattedItems.forEach(async(items, key) => {
-                if (key == 0) {
-                    await interaction.reply({
-                            embeds: [{
-                                title: messages.totalspent.successTitle,
-                                description: `Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`
-                            }],
-                            ephemeral: true
-                        }).then(msg => {
-                            setTimeout(() => msg.delete(), 60000)
-                        })
-                        .catch(error => {
-                            console.log(error);
-                        });
-                    //await botReply(interaction, messages.totalspent.successTitle, `Gesamtausgaben: **${sumOfGold}g**\n\n${formattedItems[0].join('\n')}`);
-                } else {
-                    await interaction.followUp('-');
+                if (key > 0) {
                     await botFollowup(interaction, formattedItems[key].join('\n'))
                 }
             })
