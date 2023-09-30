@@ -207,9 +207,11 @@ client.on('interactionCreate', async(interaction) => {
                 const channel = await client.channels.fetch('1145659881362313248');
                 if (channel) {
                     const targetMessage = await channel.messages.fetch('1147062559036416191');
-                    console.log(getHighestBids.highestBids)
+                    
                     const formattedResponse = getHighestBids.highestBids.map(highestBid => {
-                        return `<#${highestBid._id}> ${formatNumberWithDots(highestBid.highestGold)}g von <@${highestBid.userid}>\nEndet am **${formatTimestampToDateString(Number(highestBid.endtime))}**\n`;
+                        if(highestBid._id !== '1152194523951267931') {
+                            return `<#${highestBid._id}> ${formatNumberWithDots(highestBid.highestGold)}g von <@${highestBid.userid}>\nEndet am **${formatTimestampToDateString(Number(highestBid.endtime))}**\n`;
+                        }
                     }).join('\n');
                     if (targetMessage) {
                         const embed = { title: 'Auktionsübersicht', description: `Momentan Höchstbietende: \n\n${formattedResponse}` };
