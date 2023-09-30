@@ -209,7 +209,7 @@ client.on('interactionCreate', async(interaction) => {
                     const targetMessage = await channel.messages.fetch('1147062559036416191');
                     console.log(getHighestBids.highestBids)
                     const formattedResponse = getHighestBids.highestBids.map(highestBid => {
-                        return `<#${highestBid._id}> ${highestBid.highestGold}g von <@${highestBid.userid}>`;
+                        return `<#${highestBid._id}> ${highestBid.highestGold}g von <@${highestBid.userid}>\nEndet am ${formatTimestampToDateString(highestBid.endtime)}\n`;
                     }).join('\n');
                     if (targetMessage) {
                         const embed = { title: 'Auktionsübersicht', description: `Momentan Höchstbietende: \n\n${formattedResponse}` };
