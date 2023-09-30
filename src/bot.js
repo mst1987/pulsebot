@@ -210,11 +210,11 @@ client.on('interactionCreate', async(interaction) => {
                     
                     const formattedResponse = getHighestBids.highestBids.map(highestBid => {
                         if(highestBid._id !== '1152194523951267931') {
-                            return `<#${highestBid._id}> ${formatNumberWithDots(highestBid.highestGold)}g von <@${highestBid.userid}>\nEndet am **${formatTimestampToDateString(Number(highestBid.endtime))}**\n`;
+                            return `<#${highestBid._id}> **${formatNumberWithDots(highestBid.highestGold)}g** von <@${highestBid.userid}>\nEndet am **${formatTimestampToDateString(Number(highestBid.endtime))}**\n`;
                         }
                     }).join('\n');
                     if (targetMessage) {
-                        const embed = { title: 'Auktionsübersicht', description: `Momentan Höchstbietende: \n\n${formattedResponse}` };
+                        const embed = { title: 'Auktionsübersicht', description: `Momentan Höchstbietende: \n${formattedResponse}` };
                         await targetMessage.edit({ embeds: [embed] });
                     }
                 }
