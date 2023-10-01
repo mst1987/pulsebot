@@ -27,7 +27,7 @@ client.on('interactionCreate', async(interaction) => {
 
     const raidhelper = new Raidhelper();
     const commandName = interaction.commandName;
-    const categoryIds = ['1115368280245420042', '1143858079289577502'];
+    const categoryIds = ['1115368280245420042', '1143858079289577502', '1157813724741128293'];
     const channelsInCategory = getChannelsFromCategories(interaction.guild, categoryIds);
 
     // GDKP Raid commands
