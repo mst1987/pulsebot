@@ -71,40 +71,6 @@ class Raidhelper {
         });
     }
 
-    async getAllRaids(userid) {
-        return new Promise((resolve, reject) => {
-            let data = '';
-            const currentUnixTimestamp = Math.floor(Date.now() / 1000);
-            const options = {
-                host: "raid-helper.dev",
-                port: 443,
-                path: "/api/v3/servers/250382792217591808/events",
-                method: "GET",
-                headers: { 'Authorization': 'Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90', 'StartTimeFilter': currentUnixTimestamp, 'IncludeSignups': true }
-            }
-
-            var request = https.request(options, (resp) => {
-                resp.on('data', (chunk) => {
-                    data += chunk;
-                });
-
-                // The whole response has been received. Print out the result.
-                resp.on('end', () => {
-                    data = JSON.parse(data);
-                    filteredEvents = [];
-                    if (data) {
-                        var filteredEvents = data['postedEvents'].sort((eventA, eventB) => eventA.startTime - eventB.startTime);
-                    }
-                    resolve(filteredEvents);
-                });
-
-            }).on("error", (err) => {
-                console.log("Error: " + err.message);
-            });
-            request.end()
-        });
-    }
-
     async getMissingSignUps(userid) {
         return new Promise((resolve, reject) => {
             let data = '';

@@ -168,14 +168,21 @@ client.on('interactionCreate', async(interaction) => {
             botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
             return;
         }
-
+        const categoryId = interaction.channel.parent.id;
         const row = new ActionRowBuilder();
+
+        const allEvents = raidhelper.getAllEvents();
+        const channelsInCategory = getChannelsFromCategories(interaction.guild, [categoryId]);
+        const categoryEvents = allEvents.filter(eventId => channelsInCategory.includes(eventId));
+
+        const formattedGDKPSignUps = categoryEvents.map(channelId => `<#${channelId.channelId}>\n`).join(`\n`);
 
         row.addComponents(new ButtonBuilder().setCustomId('updateEvents').setLabel('Update Events').setStyle(ButtonStyle.Primary))
       
           // Reply with the button
           await interaction.reply({
-            content: 'Raid Overview',
+            title: 'Raid Overview',
+            content: formattedGDKPSignUps,
             components: [row],
           });
     }
