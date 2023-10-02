@@ -19,7 +19,7 @@ client.on('ready', () => {
 client.on('interactionCreate', async(interaction) => {
     if(interaction.isButton()) {
         console.log(interaction);
-
+        const categoryId = interaction.channel.parent.id;
         if (interaction.customId === 'update-events') {
             console.log('Update Events');
             await interaction.update({ content: showAllEvents(interaction, categoryId) });
