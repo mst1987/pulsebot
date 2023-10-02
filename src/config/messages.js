@@ -1,4 +1,10 @@
 module.exports = {
+	general: {
+		missingSignups: 'Missing/Absence SignUps: \n___replace___\n\n',
+		signups: 'Signed Up: \n___replace___',
+		errorTitle: 'Missing Infos',
+		errorMessage: ''
+	},
 	gdkpraids: {
 		successTitle: 'GDKP Raid Sign Ups',
 		missingSignups: 'Missing/Absence SignUps: \n___replace___\n\n',
@@ -11,7 +17,6 @@ module.exports = {
 		successMessage: '',
 		errorTitle: 'Setups',
 		errorMessage: 'Momentan in keinem Setup gesetzt. Neue Setups kommen bald!',
-
 	},
 	lastspent: {
 		successTitle: 'Letzte ID gekauft: ',

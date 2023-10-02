@@ -28,6 +28,11 @@ client.on('interactionCreate', async(interaction) => {
         if(interaction.customId === 'show-signups') {
             const categoryEvents = await getCategoryEvents(interaction, categoryId);
             
+            let missingSignUps = await raidhelper.getMissingSignUps(interaction.user.id);
+
+            const noSignUps = missingSignUps.filter(signUpChannelId => channelsInCategory.includes(signUpChannelId));
+            const formattedMissingSignUps = noSignUps.map(channelId => `<#${channelId}>`).join(`\n`);
+
             const signUpsWithSpecs = categoryEvents.map(event => {
                 const matchingSignUps = event.signUps.filter(signUp => signUp.userId === interaction.user.id);
                 const matchingSpecs = matchingSignUps.map(signUp => `${getCharacterIcon(interaction, signUp.specName) }`).join('');
@@ -40,7 +45,7 @@ client.on('interactionCreate', async(interaction) => {
 
             const formattedSignUps = signUpsWithSpecs.map(channelId => `<#${channelId.channelId}>\n ${channelId.specs}\n`).join(`\n`);
 
-            await botReply(interaction, messages.gdkpraids.successTitle, messages.gdkpraids.signups.replace('___replace___', formattedSignUps));
+            await botReply(interaction, interaction.channel.parent.name, messages.general.missingSignups.replace('___replace___', formattedMissingSignUps) + messages.general.signups.replace('___replace___', formattedSignUps));
         }
     }
     if (!interaction.isChatInputCommand()) return;
