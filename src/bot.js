@@ -7,7 +7,7 @@ const Legendary = require('./classes/legendary.js');
 const messages = require('./config/messages.js');
 const { DateTime } = require('luxon');
 
-const { botReply, findServerEmoji, getCharacterIcon, botFollowup, formatNumberWithDots, formatSignUps, getAuctionMessage, getChannelsFromCategories, formatTimestampToDateString, getItemsToShow, getUserNickname, getWednesdayWeeksAgo, isNumber, toTimestamp } = require('./functions/helper');
+const { botReply, findServerEmoji, getCharacterIcon, botFollowup, formatNumberWithDots, formatSignUps, getAuctionMessage, getChannelsFromCategories, formatTimestampToDateString, getItemsToShow, getUserNickname, getWednesdayWeeksAgo, isNumber, toTimestamp, showAllEvents } = require('./functions/helper');
 const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
@@ -163,6 +163,10 @@ client.on('interactionCreate', async(interaction) => {
         }
     }
 
+    if (interaction.customId === 'updateEvents') {
+        await interaction.update({ content: showAllEvents(interaction, categoryId) });
+    }
+
     if(commandName === 'createoverview') {
         if (interaction.user.id !== '233598324022837249') {
             botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
@@ -170,17 +174,10 @@ client.on('interactionCreate', async(interaction) => {
         }
         const categoryId = interaction.channel.parent.id;
         const row = new ActionRowBuilder();
-
-        const allEvents = await raidhelper.getAllEvents();
-        const channelsInCategory = getChannelsFromCategories(interaction.guild, [categoryId]);
-        const categoryEvents = allEvents.filter(event => channelsInCategory.includes(event.channelId));
-
-        const formattedGDKPSignUps = categoryEvents.map(channel => `**${channel.title}**\n<#${channel.channelId}> by <@${channel.leaderId}>\n${formatTimestampToDateString(channel.startTime*1000)}`).join(`\n\n`);
-
-        console.log(categoryEvents)
         row.addComponents(new ButtonBuilder().setCustomId('updateEvents').setLabel('Update Events').setStyle(ButtonStyle.Primary))
 
-        botReply(interaction, 'Raid Overview', formattedGDKPSignUps, 0, false, [row]);
+        const formattedRaids = showAllEvents(interaction, categoryId);
+        botReply(interaction, 'Raid Overview', formattedRaids, 0, false, [row]);
     }
     // --------------------------------------------------------
 

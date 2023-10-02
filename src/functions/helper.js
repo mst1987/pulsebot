@@ -140,3 +140,13 @@ var formatNumberWithDots = exports.formatNumberWithDots = function(number) {
     const formattedNumber = number.toLocaleString('en-US'); // Use the 'en-US' locale for comma (,) separator
     return formattedNumber.replace(/,/g, '.');
 }
+
+var showAllEvents = exports.showAllEvents = async function(interaction, categoryId) {
+    const allEvents = await raidhelper.getAllEvents();
+    const channelsInCategory = getChannelsFromCategories(interaction.guild, [categoryId]);
+    const categoryEvents = allEvents.filter(event => channelsInCategory.includes(event.channelId));
+
+    const formattedRaids = categoryEvents.map(channel => `**${channel.title}**\n<#${channel.channelId}> by <@${channel.leaderId}>\n${formatTimestampToDateString(channel.startTime*1000)}`).join(`\n\n`);
+
+    return formattedRaids;
+}
