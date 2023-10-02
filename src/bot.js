@@ -7,7 +7,7 @@ const Legendary = require('./classes/legendary.js');
 const messages = require('./config/messages.js');
 const { DateTime } = require('luxon');
 
-const { botReply, findServerEmoji, getCharacterIcon, botFollowup, formatNumberWithDots, formatSignUps, getAuctionMessage, getChannelsFromCategories, formatTimestampToDateString, getItemsToShow, getUserNickname, getWednesdayWeeksAgo, isNumber, toTimestamp, showAllEvents } = require('./functions/helper');
+const { botReply, findServerEmoji, getCharacterIcon, botFollowup, formatNumberWithDots, formatSignUps, getAuctionMessage, getChannelsFromCategories, formatTimestampToDateString, getItemsToShow, getUserNickname, getWednesdayWeeksAgo, isNumber, toTimestamp, showAllEvents, getCategoryEvents } = require('./functions/helper');
 const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
@@ -23,6 +23,24 @@ client.on('interactionCreate', async(interaction) => {
             await interaction.update({
                 embeds: [{description: await showAllEvents(interaction, categoryId)}],
               });
+        }
+
+        if(interaction.customId === 'show-signups') {
+            const categoryEvents = getCategoryEvents(interaction, categoryId);
+            
+            const signUpsWithSpecs = categoryEvents.map(event => {
+                const matchingSignUps = event.signUps.filter(signUp => signUp.userId === interaction.user.id);
+                const matchingSpecs = matchingSignUps.map(signUp => `${getCharacterIcon(interaction, signUp.specName) }`).join('');
+
+                return {
+                    specs: matchingSpecs,
+                    ...event,
+                };
+            });
+
+            const formattedSignUps = signUpsWithSpecs.map(channelId => `<#${channelId.channelId}>\n ${channelId.specs}\n`).join(`\n`);
+
+            await botReply(interaction, messages.gdkpraids.successTitle, messages.gdkpraids.signups.replace('___replace___', formattedSignUps));
         }
     }
     if (!interaction.isChatInputCommand()) return;
@@ -178,7 +196,7 @@ client.on('interactionCreate', async(interaction) => {
         }
         const categoryId = interaction.channel.parent.id;
         const row = new ActionRowBuilder();
-        row.addComponents(new ButtonBuilder().setCustomId('update-events').setLabel('Update Events').setStyle(ButtonStyle.Primary))
+        row.addComponents(new ButtonBuilder().setCustomId('update-events').setLabel('Update Events').setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId('show-signups').setLabel('Show my Signups').setStyle(ButtonStyle.Secondary))
 
         const formattedRaids = await showAllEvents(interaction, categoryId);
         botReply(interaction, interaction.channel.parent.name, formattedRaids, 0, false, [row]);

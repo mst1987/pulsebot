@@ -143,12 +143,18 @@ var formatNumberWithDots = exports.formatNumberWithDots = function(number) {
 }
 
 var showAllEvents = exports.showAllEvents = async function(interaction, categoryId) {
+    const categoryEvents = getCategoryEvents(interaction, categoryId);
+
+    const formattedRaids = categoryEvents.map(channel => `**${channel.title}**\n<#${channel.channelId}> by <@${channel.leaderId}>\n${formatTimestampToDateString(channel.startTime*1000)}`).join(`\n\n`);
+
+    return formattedRaids;
+}
+
+var getCategoryEvents = exports.getCategoryEvents = async function(interaction, categoryId) {
     const raidhelper = new Raidhelper();
     const allEvents = await raidhelper.getAllEvents();
     const channelsInCategory = getChannelsFromCategories(interaction.guild, [categoryId]);
     const categoryEvents = allEvents.filter(event => channelsInCategory.includes(event.channelId));
 
-    const formattedRaids = categoryEvents.map(channel => `**${channel.title}**\n<#${channel.channelId}> by <@${channel.leaderId}>\n${formatTimestampToDateString(channel.startTime*1000)}`).join(`\n\n`);
-
-    return formattedRaids;
+    return categoryEvents;
 }
