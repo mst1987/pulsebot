@@ -183,7 +183,7 @@ client.on('interactionCreate', async(interaction) => {
         row.addComponents(new ButtonBuilder().setCustomId('update-events').setLabel('Update Events').setStyle(ButtonStyle.Primary))
 
         const formattedRaids = await showAllEvents(interaction, categoryId);
-        botReply(interaction, interaction.channel.parent.title, formattedRaids, 0, false, [row]);
+        botReply(interaction, interaction.channel.parent.name, formattedRaids, 0, false, [row]);
     }
     // --------------------------------------------------------
 
