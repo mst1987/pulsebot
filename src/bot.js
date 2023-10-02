@@ -26,7 +26,7 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         if(interaction.customId === 'show-signups') {
-            const categoryEvents = getCategoryEvents(interaction, categoryId);
+            const categoryEvents = await getCategoryEvents(interaction, categoryId);
             
             const signUpsWithSpecs = categoryEvents.map(event => {
                 const matchingSignUps = event.signUps.filter(signUp => signUp.userId === interaction.user.id);
