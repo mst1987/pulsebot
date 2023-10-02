@@ -163,7 +163,8 @@ client.on('interactionCreate', async(interaction) => {
         }
     }
 
-    console.log(interaction.customId);
+    console.log(interaction);
+
     if (interaction.customId === 'updateEvents') {
         console.log('Update Events');
         await interaction.update({ content: showAllEvents(interaction, categoryId) });
