@@ -181,7 +181,6 @@ client.on('interactionCreate', async(interaction) => {
             content: 'Raid Overview',
             components: [row],
           });
-        }
     }
     // --------------------------------------------------------
 
