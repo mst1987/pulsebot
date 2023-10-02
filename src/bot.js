@@ -257,7 +257,7 @@ client.on('interactionCreate', async(interaction) => {
                     
                     const formattedResponse = getHighestBids.highestBids.map(highestBid => {
                         if(highestBid._id !== '1152194523951267931') {
-                            return `<#${highestBid._id}> **${formatNumberWithDots(highestBid.highestGold)}g** von <@${highestBid.userid}>\nEndet am **${formatTimestampToDateString(Number(highestBid.endtime/1000))}**\n<t:${highestBid.endtime}:R>\n`;
+                            return `<#${highestBid._id}> **${formatNumberWithDots(highestBid.highestGold)}g** von <@${highestBid.userid}>\nEndet am **${formatTimestampToDateString(Number(highestBid.endtime))}**\n<t:${highestBid.endtime/1000}:R>\n`;
                         }
                     }).join('\n');
                     if (targetMessage) {
