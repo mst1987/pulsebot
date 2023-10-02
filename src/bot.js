@@ -28,10 +28,8 @@ client.on('interactionCreate', async(interaction) => {
 
         if(interaction.customId === 'show-signups') {
             const categoryEvents = await getCategoryEvents(interaction, categoryId);
-            
-            let missingSignUps = await raidhelper.getMissingSignUps(interaction.user.id);
 
-            const noSignUps = missingSignUps.filter(signUpChannelId => channelsInCategory.includes(signUpChannelId));
+            const noSignUps = categoryEvents.signUps.filter(signUp => signUp.userId !== interaction.user.id);
             const formattedMissingSignUps = noSignUps.map(channelId => `<#${channelId}>`).join(`\n`);
 
             const signUpsWithSpecs = categoryEvents.map(event => {
