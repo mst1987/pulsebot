@@ -1,5 +1,5 @@
 const { DateTime } = require('luxon');
-const Raidhelper = require('./classes/raidhelper.js');
+const Raidhelper = require('../classes/raidhelper.js');
 
 const timeoutTime = 60000;
 
