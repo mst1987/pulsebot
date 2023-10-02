@@ -29,14 +29,9 @@ client.on('interactionCreate', async(interaction) => {
         if(interaction.customId === 'show-signups') {
             const categoryEvents = await getCategoryEvents(interaction, categoryId);
 
-            const noSignUps = categoryEvents.map(event => {
-                const missingSignUps = event.filter(e => e.signUp.userId !== interaction.user.id);
-                return missingSignUps;
-            });
-            let formattedMissingSignUps = ''
-            if(noSignUps.length > 0) {
-                formattedMissingSignUps = noSignUps.map(channelId => `<#${channelId}>`).join(`\n`);
-            }
+            const noSignUps = categoryEvents.sort((eventA, eventB) => eventA.startTime - eventB.startTime).filter(event => !event.signUps.find((signup) => signup.userId === userid && signup.specName !== 'Absence'));
+            
+            formattedMissingSignUps = noSignUps.map(channelId => `<#${channelId}>`).join(`\n`);
 
             const signUpsWithSpecs = categoryEvents.map(event => {
                 const matchingSignUps = event.signUps.filter(signUp => signUp.userId === interaction.user.id);
