@@ -8,7 +8,7 @@ const messages = require('./config/messages.js');
 const { DateTime } = require('luxon');
 
 const { botReply, findServerEmoji, getCharacterIcon, botFollowup, formatNumberWithDots, formatSignUps, getAuctionMessage, getChannelsFromCategories, formatTimestampToDateString, getItemsToShow, getUserNickname, getWednesdayWeeksAgo, isNumber, toTimestamp } = require('./functions/helper');
-const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton } = require('discord.js');
+const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
 
@@ -169,12 +169,9 @@ client.on('interactionCreate', async(interaction) => {
             return;
         }
 
-        const row = new Discord.MessageActionRow().addComponents(
-            new Discord.MessageButton()
-              .setCustomId('update_button')
-              .setLabel('Update Events')
-              .setStyle('PRIMARY')
-          );
+        const row = new ActionRowBuilder();
+
+        row.addComponents(new ButtonBuilder().setCustomId('updateEvents').setLabel('Update Events').setStyle(ButtonStyle.Primary))
       
           // Reply with the button
           await interaction.reply({
