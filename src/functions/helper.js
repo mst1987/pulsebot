@@ -145,7 +145,7 @@ var formatNumberWithDots = exports.formatNumberWithDots = function(number) {
 var showAllEvents = exports.showAllEvents = async function(interaction, categoryId) {
     const categoryEvents = await getCategoryEvents(interaction, categoryId);
 
-    const formattedRaids = categoryEvents.map(channel => `**${channel.title}**\n<#${channel.channelId}> by <@${channel.leaderId}>\n${formatTimestampToDateString(channel.startTime*1000)}`).join(`\n\n`);
+    const formattedRaids = categoryEvents.map(channel => `**${channel.title}**\n<#${channel.channelId}> by <@${channel.leaderId}>\n${formatTimestampToDateString(channel.startTime*1000)} Uhr`).join(`\n\n`);
 
     return formattedRaids;
 }
