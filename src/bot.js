@@ -171,7 +171,7 @@ client.on('interactionCreate', async(interaction) => {
         const categoryId = interaction.channel.parent.id;
         const row = new ActionRowBuilder();
 
-        const allEvents = raidhelper.getAllEvents();
+        const allEvents = await raidhelper.getAllEvents();
         const channelsInCategory = getChannelsFromCategories(interaction.guild, [categoryId]);
         const categoryEvents = allEvents.filter(eventId => channelsInCategory.includes(eventId));
 
