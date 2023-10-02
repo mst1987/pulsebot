@@ -30,8 +30,8 @@ client.on('interactionCreate', async(interaction) => {
             const categoryEvents = await getCategoryEvents(interaction, categoryId);
 
             const noSignUps = categoryEvents.map(event => {
-                const missingSignUps = event.signUps.filter(signUp => signUp.userId !== interaction.user.id);
-                return missingSignUps
+                const missingSignUps = event.filter(e => e.signUp.userId !== interaction.user.id);
+                return missingSignUps;
             });
             let formattedMissingSignUps = ''
             if(noSignUps.length > 0) {
