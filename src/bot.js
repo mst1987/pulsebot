@@ -179,13 +179,8 @@ client.on('interactionCreate', async(interaction) => {
 
         console.log(categoryEvents)
         row.addComponents(new ButtonBuilder().setCustomId('updateEvents').setLabel('Update Events').setStyle(ButtonStyle.Primary))
-      
-          // Reply with the button
-          await interaction.reply({
-            title: 'Raid Overview',
-            content: formattedGDKPSignUps,
-            components: [row],
-          });
+
+        botReply(interaction, 'Raid Overview', formattedGDKPSignUps, 0, false, [row]);
     }
     // --------------------------------------------------------
 

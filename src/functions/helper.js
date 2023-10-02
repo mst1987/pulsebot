@@ -44,11 +44,12 @@ var getWednesdayWeeksAgo = exports.getWednesdayWeeksAgo = function(weeks) {
     return weeksAgo;
 }
 
-var botReply = exports.botReply = async function(interaction, title, message, timeout = timeoutTime, ephemeral = true) {
+var botReply = exports.botReply = async function(interaction, title, message, timeout = timeoutTime, ephemeral = true, components = []) {
     await interaction.reply({
             embeds: [{
                 title: title,
-                description: message
+                description: message,
+                components
             }],
             ephemeral: ephemeral
         }).then(msg => {
