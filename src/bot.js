@@ -17,6 +17,7 @@ client.on('ready', () => {
 })
 
 client.on('interactionCreate', async(interaction) => {
+    const raidhelper = new Raidhelper();
     if(interaction.isButton()) {
         const categoryId = interaction.channel.parent.id;
         if (interaction.customId === 'update-events') {
@@ -56,7 +57,6 @@ client.on('interactionCreate', async(interaction) => {
     // Logging User Command
     console.log('User: ', interaction.user.username, '- Command:', interaction.commandName);
 
-    const raidhelper = new Raidhelper();
     const commandName = interaction.commandName;
     const categoryIds = ['1115368280245420042', '1143858079289577502', '1157813724741128293'];
     const channelsInCategory = getChannelsFromCategories(interaction.guild, categoryIds);
