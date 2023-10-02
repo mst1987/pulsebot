@@ -27,7 +27,9 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         if(interaction.customId === 'show-signups') {
-            const categoryEvents = await getCategoryEvents(interaction, categoryId).sort((eventA, eventB) => eventA.startTime - eventB.startTime);
+            var categoryEvents = await getCategoryEvents(interaction, categoryId);
+
+            categoryEvents = categoryEvents.sort((eventA, eventB) => eventA.startTime - eventB.startTime);
 
             const noSignUps = categoryEvents.filter(event => !event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
             formattedMissingSignUps = noSignUps.map(channel => `<#${channel.channelId}>`).join(`\n`);
