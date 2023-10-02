@@ -48,10 +48,10 @@ var botReply = exports.botReply = async function(interaction, title, message, ti
     await interaction.reply({
             embeds: [{
                 title: title,
-                description: message,
-                components
+                description: message
             }],
-            ephemeral: ephemeral
+            ephemeral: ephemeral,
+            components
         }).then(msg => {
             if (timeout > 0)
                 setTimeout(() => msg.delete(), timeout)
