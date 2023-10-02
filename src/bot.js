@@ -34,7 +34,7 @@ client.on('interactionCreate', async(interaction) => {
             formattedMissingSignUps = noSignUps.map(channel => `<#${channel.channelId}>`).join(`\n`);
 
             const signUpsWithSpecs = categoryEvents.map(event => {
-                const matchingSignUps = event.signUps.filter(signUp => signUp.userId === interaction.user.id);
+                const matchingSignUps = event.signUps.filter(signUp => signUp.userId === interaction.user.id && signUp.specName !== 'Absence');
                 const matchingSpecs = matchingSignUps.map(signUp => `${getCharacterIcon(interaction, signUp.specName) }`).join('');
 
                 return {
@@ -43,7 +43,7 @@ client.on('interactionCreate', async(interaction) => {
                 };
             });
 
-            const formattedSignUps = signUpsWithSpecs.map(channelId => `<#${channelId.channelId}>\n ${channelId.specs}\n`).join(`\n`);
+            const formattedSignUps = signUpsWithSpecs.map(channelId => `<#${channelId.channelId}>  ${channelId.specs}\n`).join(`\n`);
 
             await botReply(interaction, interaction.channel.parent.name, messages.general.missingSignups.replace('___replace___', formattedMissingSignUps) + messages.general.signups.replace('___replace___', formattedSignUps));
         }
