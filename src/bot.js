@@ -29,7 +29,10 @@ client.on('interactionCreate', async(interaction) => {
         if(interaction.customId === 'show-signups') {
             const categoryEvents = await getCategoryEvents(interaction, categoryId);
 
-            const noSignUps = categoryEvents.signUps.filter(signUp => signUp.userId !== interaction.user.id);
+            const noSignUps = categoryEvents.map(event => {
+                const missingSignUps = event.signUps.filter(signUp => signUp.userId !== interaction.user.id);
+                return missingSignUps
+            });
             let formattedMissingSignUps = ''
             if(noSignUps.length > 0) {
                 formattedMissingSignUps = noSignUps.map(channelId => `<#${channelId}>`).join(`\n`);
