@@ -175,7 +175,7 @@ client.on('interactionCreate', async(interaction) => {
         const channelsInCategory = getChannelsFromCategories(interaction.guild, [categoryId]);
         const categoryEvents = allEvents.filter(event => channelsInCategory.includes(event.channelId));
 
-        const formattedGDKPSignUps = categoryEvents.map(channel => `${channel.title}\n<#${channel.channelId}> by <@${channel.leaderId}>\n${formatTimestampToDateString(channel.startTime)}`).join(`\n\n`);
+        const formattedGDKPSignUps = categoryEvents.map(channel => `**${channel.title}**\n<#${channel.channelId}> by <@${channel.leaderId}>\n${formatTimestampToDateString(channel.startTime*1000)}`).join(`\n\n`);
 
         console.log(categoryEvents)
         row.addComponents(new ButtonBuilder().setCustomId('updateEvents').setLabel('Update Events').setStyle(ButtonStyle.Primary))
