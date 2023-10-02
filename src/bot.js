@@ -162,6 +162,22 @@ client.on('interactionCreate', async(interaction) => {
             console.log(error)
         }
     }
+
+    if(commandName === 'createoverview') {
+        if (interaction.user.id !== '233598324022837249') {
+            botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+            return;
+        }
+
+        const row = new MessageActionRow().addComponents(
+            new MessageButton()
+              .setCustomId('updateevents')
+              .setLabel('Update Events')
+              .setStyle('PRIMARY')
+          );
+
+        await message.reply({ content: 'Raid Overview', components: [row] });
+    }
     // --------------------------------------------------------
 
     // Legendary Bidding Commands

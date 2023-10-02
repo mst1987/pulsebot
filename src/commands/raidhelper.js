@@ -37,6 +37,10 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKE
                 description: 'Gold spent on items in the current ID',
             },
             {
+                name: 'createoverview',
+                description: 'Creates an overview of the current category',
+            },
+            {
                 name: 'signup',
                 description: 'Sign Up to the raid in this channel with the specs/classes you want',
                 options: [{
