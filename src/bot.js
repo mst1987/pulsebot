@@ -18,10 +18,8 @@ client.on('ready', () => {
 
 client.on('interactionCreate', async(interaction) => {
     if(interaction.isButton()) {
-        console.log(interaction);
         const categoryId = interaction.channel.parent.id;
         if (interaction.customId === 'update-events') {
-            console.log('Update Events')
             await interaction.update({
                 embeds: [{description: await showAllEvents(interaction, categoryId)}],
               });
@@ -328,7 +326,6 @@ client.on('interactionCreate', async(interaction) => {
         if (response.type === 'success') {
             const channel = await client.channels.fetch(auctionData.channel);
             if (channel) {
-                console.log(response)
                 const targetMessage = await channel.messages.fetch(response.legendary.messageid);
                 if (targetMessage) {
                     const embed = { title: `${findServerEmoji(interaction, 'poggies')} Auktion gestartet ${findServerEmoji(interaction, 'poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(interaction, response.legendary)}` };
