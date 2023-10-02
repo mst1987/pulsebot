@@ -173,7 +173,7 @@ client.on('interactionCreate', async(interaction) => {
 
         const allEvents = await raidhelper.getAllEvents();
         const channelsInCategory = getChannelsFromCategories(interaction.guild, [categoryId]);
-        const categoryEvents = allEvents.filter(eventId => channelsInCategory.includes(eventId));
+        const categoryEvents = allEvents.filter(event => channelsInCategory.includes(event.channelId));
 
         const formattedGDKPSignUps = categoryEvents.map(channelId => `<#${channelId.channelId}>\n`).join(`\n`);
         console.log(allEvents);
