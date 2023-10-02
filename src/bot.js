@@ -22,9 +22,8 @@ client.on('interactionCreate', async(interaction) => {
         const categoryId = interaction.channel.parent.id;
         if (interaction.customId === 'update-events') {
             console.log('Update Events')
-            await interaction.editReply({
-                content: await showAllEvents(interaction, categoryId),
-                ephemeral: true, // Make sure to set ephemeral to true
+            await interaction.update({
+                embeds: [await showAllEvents(interaction, categoryId)],
               });
         }
     }
