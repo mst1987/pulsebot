@@ -17,6 +17,14 @@ client.on('ready', () => {
 })
 
 client.on('interactionCreate', async(interaction) => {
+    if(interaction.isButton()) {
+        console.log(interaction);
+
+        if (interaction.commandId === 'updateEvents') {
+            console.log('Update Events');
+            await interaction.update({ content: showAllEvents(interaction, categoryId) });
+        }
+    }
     if (!interaction.isChatInputCommand()) return;
     if (interaction.user.bot) return;
 
@@ -161,13 +169,6 @@ client.on('interactionCreate', async(interaction) => {
         } catch (error) {
             console.log(error)
         }
-    }
-
-    console.log(interaction);
-
-    if (interaction.commandId === 'updateEvents') {
-        console.log('Update Events');
-        await interaction.update({ content: showAllEvents(interaction, categoryId) });
     }
 
     if(commandName === 'createoverview') {
