@@ -20,7 +20,7 @@ client.on('interactionCreate', async(interaction) => {
     if(interaction.isButton()) {
         console.log(interaction);
 
-        if (interaction.commandId === 'update-events') {
+        if (interaction.customId === 'update-events') {
             console.log('Update Events');
             await interaction.update({ content: showAllEvents(interaction, categoryId) });
         }
