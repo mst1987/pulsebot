@@ -132,7 +132,7 @@ var formatTimestampToDateString = exports.formatTimestampToDateString = function
     const dateTimeCET = DateTime.fromMillis(timestamp, { zone: 'Europe/Paris' });
 
     // Format the DateTime object as the desired string format
-    const formattedString = dateTimeCET.toFormat('dd.MM.yyyy') + ' um ' + dateTimeCET.toFormat('HH:mm') + ' Uhr';
+    const formattedString = dateTimeCET.toFormat('dd.MM.yyyy') + ' - ' + dateTimeCET.toFormat('HH:mm');
 
     return formattedString;
 }
