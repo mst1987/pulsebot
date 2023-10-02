@@ -254,10 +254,10 @@ client.on('interactionCreate', async(interaction) => {
                 const channel = await client.channels.fetch('1145659881362313248');
                 if (channel) {
                     const targetMessage = await channel.messages.fetch('1147062559036416191');
-                    console.log(getHighestBids.highestBids)
+
                     const formattedResponse = getHighestBids.highestBids.sort((bidA, bidB) => Number(bidA.endtime) - Number(bidB.endtime)).map(highestBid => {
                         if(highestBid._id !== '1152194523951267931') {
-                            return `<#${highestBid._id}> **${formatNumberWithDots(highestBid.highestGold)}g** von <@${highestBid.userid}>\nEndet am **${formatTimestampToDateString(Number(highestBid.endtime))}**\n<t:${highestBid.endtime/1000}:R>\n`;
+                            return `\n<#${highestBid._id}> **${formatNumberWithDots(highestBid.highestGold)}g** von <@${highestBid.userid}>\nEnds in <t:${highestBid.endtime/1000}:R> am **${formatTimestampToDateString(Number(highestBid.endtime))}**`;
                         }
                     }).join('\n');
                     if (targetMessage) {
