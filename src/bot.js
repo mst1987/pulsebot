@@ -169,14 +169,19 @@ client.on('interactionCreate', async(interaction) => {
             return;
         }
 
-        const row = new MessageActionRow().addComponents(
-            new MessageButton()
-              .setCustomId('updateevents')
+        const row = new Discord.MessageActionRow().addComponents(
+            new Discord.MessageButton()
+              .setCustomId('update_button')
               .setLabel('Update Events')
               .setStyle('PRIMARY')
           );
-
-        await message.reply({ content: 'Raid Overview', components: [row] });
+      
+          // Reply with the button
+          await interaction.reply({
+            content: 'Raid Overview',
+            components: [row],
+          });
+        }
     }
     // --------------------------------------------------------
 
