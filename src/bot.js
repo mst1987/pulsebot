@@ -34,7 +34,7 @@ client.on('interactionCreate', async(interaction) => {
             formattedMissingSignUps = noSignUps.map(channel => `<#${channel.channelId}>`).join(`\n`);
 
             const signUpsWithSpecs = categoryEvents.map(event => {
-                const matchingSignUps = event.signUps.filter(signUp => signUp.userId === interaction.user.id && signUp.specName !== 'Absence');
+                const matchingSignUps = event.signUps.filter(signUp => signUp.userId === interaction.user.id && signUp.specName === 'Absence');
                 const matchingSpecs = matchingSignUps.map(signUp => `${getCharacterIcon(interaction, signUp.specName) }`).join('');
 
                 return {
