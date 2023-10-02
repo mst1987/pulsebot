@@ -22,9 +22,7 @@ client.on('interactionCreate', async(interaction) => {
         const categoryId = interaction.channel.parent.id;
         if (interaction.customId === 'update-events') {
             console.log('Update Events')
-            const events = showAllEvents(interaction, categoryId);
-            console.log(events)
-            await interaction.update({ content: events });
+            await interaction.update({ content: await showAllEvents(interaction, categoryId) });
         }
     }
     if (!interaction.isChatInputCommand()) return;
