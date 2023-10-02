@@ -27,14 +27,15 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         if(interaction.customId === 'show-signups') {
-            const categoryEvents = await getCategoryEvents(interaction, categoryId);
+            const categoryEvents = await getCategoryEvents(interaction, categoryId).sort((eventA, eventB) => eventA.startTime - eventB.startTime);
 
-            const noSignUps = categoryEvents.sort((eventA, eventB) => eventA.startTime - eventB.startTime).filter(event => !event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
-            
+            const noSignUps = categoryEvents.filter(event => !event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
             formattedMissingSignUps = noSignUps.map(channel => `<#${channel.channelId}>`).join(`\n`);
 
-            const signUpsWithSpecs = categoryEvents.map(event => {
-                const matchingSignUps = event.signUps.filter(signUp => signUp.userId === interaction.user.id && signUp.specName === 'Absence');
+            const signUps = categoryEvents.filter(event => event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
+            
+            const signUpsWithSpecs = signUps.map(event => {
+                const matchingSignUps = event.signUps.filter(signUp => signUp.userId === interaction.user.id);
                 const matchingSpecs = matchingSignUps.map(signUp => `${getCharacterIcon(interaction, signUp.specName) }`).join('');
 
                 return {
