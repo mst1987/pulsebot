@@ -23,7 +23,7 @@ client.on('interactionCreate', async(interaction) => {
         if (interaction.customId === 'update-events') {
             console.log('Update Events')
             await interaction.update({
-                embeds: [await showAllEvents(interaction, categoryId)],
+                embeds: [{description: await showAllEvents(interaction, categoryId)}],
               });
         }
     }
