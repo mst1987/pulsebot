@@ -176,7 +176,10 @@ client.on('interactionCreate', async(interaction) => {
         const categoryEvents = allEvents.filter(eventId => channelsInCategory.includes(eventId));
 
         const formattedGDKPSignUps = categoryEvents.map(channelId => `<#${channelId.channelId}>\n`).join(`\n`);
+        console.log(allEvents);
 
+        console.log(channelsInCategory);
+        console.log(categoryEvents)
         row.addComponents(new ButtonBuilder().setCustomId('updateEvents').setLabel('Update Events').setStyle(ButtonStyle.Primary))
       
           // Reply with the button
