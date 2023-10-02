@@ -1,4 +1,5 @@
 const { DateTime } = require('luxon');
+const Raidhelper = require('./classes/raidhelper.js');
 
 const timeoutTime = 60000;
 
@@ -142,6 +143,7 @@ var formatNumberWithDots = exports.formatNumberWithDots = function(number) {
 }
 
 var showAllEvents = exports.showAllEvents = async function(interaction, categoryId) {
+    const raidhelper = new Raidhelper();
     const allEvents = await raidhelper.getAllEvents();
     const channelsInCategory = getChannelsFromCategories(interaction.guild, [categoryId]);
     const categoryEvents = allEvents.filter(event => channelsInCategory.includes(event.channelId));
