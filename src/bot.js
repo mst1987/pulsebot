@@ -20,6 +20,7 @@ client.on('interactionCreate', async(interaction) => {
     await delay(500);
     const raidhelper = new Raidhelper();
     if(interaction.isButton()) {
+        console.log('User: ', interaction.user.username, '- Command:', interaction.commandId);
         const categoryId = interaction.channel.parent.id;
         if (interaction.customId === 'update-events') {
             await interaction.update({
@@ -81,6 +82,8 @@ client.on('interactionCreate', async(interaction) => {
     }
     if (!interaction.isChatInputCommand()) return;
     if (interaction.user.bot) return;
+
+    console.log('User: ', interaction.user.username, '- Command:', interaction.commandName);
 
     const legendaryID = '1144865420386517053';
     const commandName = interaction.commandName;
@@ -229,7 +232,7 @@ client.on('interactionCreate', async(interaction) => {
         const row = new ActionRowBuilder();
         row.addComponents(
             new ButtonBuilder().setCustomId('update-events').setLabel('Update Events').setStyle(ButtonStyle.Primary), 
-            new ButtonBuilder().setCustomId('show-signups').setLabel('Show my Signups').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('show-signups').setLabel('Show my Signups').setEmoji('<a:SNIFFA:1123295521600192646>').setStyle(ButtonStyle.Secondary),
             new ButtonBuilder().setCustomId('show-mysetups').setLabel('Show my Setups').setStyle(ButtonStyle.Success)
         )
 
