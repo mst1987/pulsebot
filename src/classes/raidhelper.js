@@ -22,6 +22,7 @@ class Raidhelper {
 
                 // The whole response has been received. Print out the result.
                 resp.on('end', () => {
+                    console.log(resp.headers)
                     if (resp.headers['content-type'].includes('application/json')) {
                         data = JSON.parse(data);
                     } else {
