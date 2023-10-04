@@ -51,6 +51,32 @@ client.on('interactionCreate', async(interaction) => {
 
             await botReply(interaction, interaction.channel.parent.name, messages.general.missingSignups.replace('___replace___', formattedMissingSignUps) + messages.general.signups.replace('___replace___', formattedSignUps));
         }
+
+        if(interaction.customId === 'show-mysetups') {
+            var categoryEvents = await getCategoryEvents(interaction, categoryId);
+
+            categoryEvents = categoryEvents.sort((eventA, eventB) => eventA.startTime - eventB.startTime);
+
+            await Promise.all(categoryEvents.map(async(event) => {
+                const setup = await raidhelper.getSetup(event.id);
+                if (setup) {
+                    setups.push({ channelid: event.channelId, startTime: event.startTime, ...setup });
+                }
+            }));
+
+            if (setups.length < 1) await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage)
+            else {
+                // Filter Setups, sort it and only get User data
+                const setupData = setups.filter((setup, index) => {
+                    return setup.setup.some(user => user.userid === interaction.user.id);
+                }).map(slot => ({...slot, setup: slot.setup.filter(user => user.userid === interaction.user.id) }));
+
+                // Format Signup and get Discord Emojis for the classes
+                const formattedSignUps = setupData.map(channelId => `<#${channelId.channelid}> ${getCharacterIcon(interaction, channelId.setup[0].spec)} ${extendedClassList[channelId.setup[0].spec].name}`).join(`\n`);
+
+                await botReply(interaction, messages.mysetups.successTitle, `\n${formattedSignUps}`)
+            }
+        }
     }
     if (!interaction.isChatInputCommand()) return;
     if (interaction.user.bot) return;
@@ -204,7 +230,11 @@ client.on('interactionCreate', async(interaction) => {
         }
         const categoryId = interaction.channel.parent.id;
         const row = new ActionRowBuilder();
-        row.addComponents(new ButtonBuilder().setCustomId('update-events').setLabel('Update Events').setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId('show-signups').setLabel('Show my Signups').setStyle(ButtonStyle.Secondary))
+        row.addComponents(
+            new ButtonBuilder().setCustomId('update-events').setLabel('Update Events').setStyle(ButtonStyle.Primary), 
+            new ButtonBuilder().setCustomId('show-signups').setLabel('Show my Signups').setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder().setCustomId('show-mysetups').setLabel('Show Events where i am in a Setup').setStyle(ButtonStyle.Success)
+        )
 
         const formattedRaids = await showAllEvents(interaction, categoryId);
         botReply(interaction, interaction.channel.parent.name, formattedRaids, 0, false, [row]);
