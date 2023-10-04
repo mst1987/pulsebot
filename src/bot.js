@@ -17,7 +17,7 @@ client.on('ready', () => {
 })
 
 client.on('interactionCreate', async(interaction) => {
-    delay(2000);
+    await delay(2000);
     const raidhelper = new Raidhelper();
     if(interaction.isButton()) {
         const categoryId = interaction.channel.parent.id;
