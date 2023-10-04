@@ -32,12 +32,8 @@ class Raidhelper {
                         console.error('Received a non-JSON response:', data);
                         resolve();
                     }
-                    
-                    
                 });
-
             }).on("error", (err) => {
-                console.log('errooooooooooooor')
                 console.log("Error: " + err.message);
             });
             request.end()
