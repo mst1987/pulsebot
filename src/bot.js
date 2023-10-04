@@ -53,6 +53,7 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         if(interaction.customId === 'show-mysetups') {
+            let setups = [];
             var categoryEvents = await getCategoryEvents(interaction, categoryId);
 
             categoryEvents = categoryEvents.sort((eventA, eventB) => eventA.startTime - eventB.startTime);
@@ -233,7 +234,7 @@ client.on('interactionCreate', async(interaction) => {
         row.addComponents(
             new ButtonBuilder().setCustomId('update-events').setLabel('Update Events').setStyle(ButtonStyle.Primary), 
             new ButtonBuilder().setCustomId('show-signups').setLabel('Show my Signups').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('show-mysetups').setLabel('Show Events where i am in a Setup').setStyle(ButtonStyle.Success)
+            new ButtonBuilder().setCustomId('show-mysetups').setLabel('Show my Setups').setStyle(ButtonStyle.Success)
         )
 
         const formattedRaids = await showAllEvents(interaction, categoryId);
