@@ -22,7 +22,12 @@ class Raidhelper {
 
                 // The whole response has been received. Print out the result.
                 resp.on('end', () => {
-                    data = JSON.parse(data);
+                    if (resp.headers['content-type'].includes('application/json')) {
+                        data = JSON.parse(data);
+                    } else {
+                        console.error('Received a non-JSON response:', response.data);
+                    }
+                    
                     var filteredEvents = data['postedEvents'].sort((eventA, eventB) => eventA.startTime - eventB.startTime);
 
                     resolve(filteredEvents);
