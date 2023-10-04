@@ -33,7 +33,7 @@ client.on('interactionCreate', async(interaction) => {
             categoryEvents = categoryEvents.sort((eventA, eventB) => eventA.startTime - eventB.startTime);
 
             const noSignUps = categoryEvents.filter(event => !event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
-            formattedMissingSignUps = noSignUps.map(channel => `<#${channel.channelId}>`).join(`\n`);
+            const formattedMissingSignUps = noSignUps.map(channel => `<#${channel.channelId}>`).join(`\n`);
 
             const signUps = categoryEvents.filter(event => event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
             
