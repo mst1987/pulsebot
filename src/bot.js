@@ -70,7 +70,7 @@ client.on('interactionCreate', async(interaction) => {
                 // Filter Setups, sort it and only get User data
                 const setupData = setups.filter((setup, index) => {
                     return setup.setup.some(user => user.userid === interaction.user.id);
-                }).map(slot => ({...slot, setup: slot.setup.filter(user => user.userid === interaction.user.id) }));
+                }).sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(slot => ({...slot, setup: slot.setup.filter(user => user.userid === interaction.user.id) }));
 
                 // Format Signup and get Discord Emojis for the classes
                 const formattedSignUps = setupData.map(channel => `<#${channel.channelid}> ${getCharacterIcon(interaction, channel.setup[0].spec)} ${extendedClassList[channel.setup[0].spec].name}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`).join(`\n`);
