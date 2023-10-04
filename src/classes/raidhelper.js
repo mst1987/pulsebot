@@ -24,14 +24,15 @@ class Raidhelper {
                 resp.on('end', () => {
                     if (resp.headers['content-type'].includes('application/json')) {
                         data = JSON.parse(data);
+                        var filteredEvents = data['postedEvents'].sort((eventA, eventB) => eventA.startTime - eventB.startTime);
+
+                        resolve(filteredEvents);
                     } else {
                         console.error('Received a non-JSON response:', data);
-                        resolve([]);
+                        resolve();
                     }
                     
-                    var filteredEvents = data['postedEvents'].sort((eventA, eventB) => eventA.startTime - eventB.startTime);
-
-                    resolve(filteredEvents);
+                    
                 });
 
             }).on("error", (err) => {
