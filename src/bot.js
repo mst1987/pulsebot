@@ -17,9 +17,12 @@ client.on('ready', () => {
 })
 
 client.on('interactionCreate', async(interaction) => {
+    setTimeout(() => {
+        console.log('User: ', interaction.user.username, '- Command:', interaction.commandName ? interaction.commandName : interaction.commandId);
+
+    }, 2000)
     const raidhelper = new Raidhelper();
     if(interaction.isButton()) {
-        console.log('User: ', interaction.user.username, '- Command:', interaction.customId);
         const categoryId = interaction.channel.parent.id;
         if (interaction.customId === 'update-events') {
             await interaction.update({
@@ -83,10 +86,6 @@ client.on('interactionCreate', async(interaction) => {
     if (interaction.user.bot) return;
 
     const legendaryID = '1144865420386517053';
-
-    // Logging User Command
-    console.log('User: ', interaction.user.username, '- Command:', interaction.commandName);
-
     const commandName = interaction.commandName;
     const categoryIds = ['1115368280245420042', '1143858079289577502', '1157813724741128293'];
     const channelsInCategory = getChannelsFromCategories(interaction.guild, categoryIds);
