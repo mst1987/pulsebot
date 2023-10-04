@@ -7,7 +7,7 @@ const Legendary = require('./classes/legendary.js');
 const messages = require('./config/messages.js');
 const { DateTime } = require('luxon');
 
-const { botReply, findServerEmoji, getCharacterIcon, botFollowup, formatNumberWithDots, formatSignUps, getAuctionMessage, getChannelsFromCategories, formatTimestampToDateString, getItemsToShow, getUserNickname, getWednesdayWeeksAgo, isNumber, toTimestamp, showAllEvents, getCategoryEvents } = require('./functions/helper');
+const { botReply, findServerEmoji, getCharacterIcon, botFollowup, formatNumberWithDots, formatSignUps, getAuctionMessage, getChannelsFromCategories, formatTimestampToDateString, getItemsToShow, getUserNickname, getWednesdayWeeksAgo, isNumber, toTimestamp, showAllEvents, getCategoryEvents, delay } = require('./functions/helper');
 const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
@@ -17,10 +17,7 @@ client.on('ready', () => {
 })
 
 client.on('interactionCreate', async(interaction) => {
-    setTimeout(() => {
-        console.log('User: ', interaction.user.username, '- Command:', interaction.commandName ? interaction.commandName : interaction.commandId);
-
-    }, 2000)
+    delay(2000);
     const raidhelper = new Raidhelper();
     if(interaction.isButton()) {
         const categoryId = interaction.channel.parent.id;

@@ -150,6 +150,12 @@ var showAllEvents = exports.showAllEvents = async function(interaction, category
     return formattedRaids;
 }
 
+var delay = exports.delay = async function(ms){
+    return new Promise(resolve => {
+      setTimeout(resolve, ms);
+    });
+  }
+
 var getCategoryEvents = exports.getCategoryEvents = async function(interaction, categoryId) {
     const raidhelper = new Raidhelper();
     const allEvents = await raidhelper.getAllEvents();
