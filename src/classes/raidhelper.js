@@ -27,7 +27,7 @@ class Raidhelper {
                     if (resp.headers['content-type'].includes('application/json')) {
                         data = JSON.parse(data);
                     } else {
-                        console.error('Received a non-JSON response:', response.data);
+                        console.error('Received a non-JSON response:', data);
                     }
                     
                     var filteredEvents = data['postedEvents'].sort((eventA, eventB) => eventA.startTime - eventB.startTime);
