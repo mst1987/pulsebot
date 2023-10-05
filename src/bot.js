@@ -20,7 +20,7 @@ client.on('interactionCreate', async(interaction) => {
     await delay(500);
     const raidhelper = new Raidhelper();
     if(interaction.isButton()) {
-        console.log('User: ', interaction.user.username, '- Command:', interaction.commandId);
+        console.log('User: ', interaction.user.username, '- Command:', interaction.customId);
         const categoryId = interaction.channel.parent.id;
         if (interaction.customId === 'update-events') {
             await interaction.update({
