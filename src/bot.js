@@ -228,16 +228,21 @@ client.on('interactionCreate', async(interaction) => {
             botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
             return;
         }
-        const categoryId = interaction.channel.parent.id;
-        const row = new ActionRowBuilder();
-        row.addComponents(
-            new ButtonBuilder().setCustomId('update-events').setLabel('Update Events').setStyle(ButtonStyle.Primary), 
-            new ButtonBuilder().setCustomId('show-signups').setLabel('Show my Signups').setEmoji('<a:SNIFFA:1123295521600192646>').setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder().setCustomId('show-mysetups').setLabel('Show my Setups').setStyle(ButtonStyle.Success)
-        )
 
-        const formattedRaids = await showAllEvents(interaction, categoryId);
-        botReply(interaction, interaction.channel.parent.name, formattedRaids, 0, false, [row]);
+        try {
+            const categoryId = interaction.channel.parent.id;
+            const row = new ActionRowBuilder();
+            row.addComponents(
+                new ButtonBuilder().setCustomId('update-events').setLabel('Update Events').setStyle(ButtonStyle.Primary), 
+                new ButtonBuilder().setCustomId('show-signups').setLabel('Show my Signups').setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder().setCustomId('show-mysetups').setLabel('Show my Setups').setStyle(ButtonStyle.Success)
+            )
+    
+            const formattedRaids = await showAllEvents(interaction, categoryId);
+            botReply(interaction, interaction.channel.parent.name, formattedRaids, 0, false, [row]);
+        } catch (error) {
+            console.log(error);
+        }
     }
     // --------------------------------------------------------
 
