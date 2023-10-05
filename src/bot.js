@@ -291,12 +291,16 @@ client.on('interactionCreate', async(interaction) => {
                     const targetMessage = await channel.messages.fetch('1147062559036416191');
 
                     const formattedResponse = getHighestBids.highestBids.sort((bidA, bidB) => Number(bidA.endtime) - Number(bidB.endtime)).map(highestBid => {
-                        if(highestBid._id !== '1152194523951267931' && highestBid.endtime > DateTime.now().setZone('Europe/Paris').toMillis()) {
-                            return `\n<#${highestBid._id}> **${formatNumberWithDots(highestBid.highestGold)}g** from <@${highestBid.userid}>\nEnds <t:${highestBid.endtime/1000}:R> at **${formatTimestampToDateString(Number(highestBid.endtime))}**`;
+                        if(highestBid._id !== '1152194523951267931') {
+                            if(highestBid.endtime > DateTime.now().setZone('Europe/Paris').toMillis()) {
+                                return `\n<#${highestBid._id}> **${formatNumberWithDots(highestBid.highestGold)}g** from <@${highestBid.userid}>\nEnds <t:${highestBid.endtime/1000}:R> at **${formatTimestampToDateString(Number(highestBid.endtime))}**`;
+                            } else {
+                                return `\n<#${highestBid._id}> Gewonnen von <@${highestBid.userid}> für **${formatNumberWithDots(highestBid.highestGold)}g**\n**Gratulation!`;
+                            }
                         }
                     }).join('\n');
                     if (targetMessage) {
-                        const embed = { title: 'Auktionsübersicht', description: `Momentan Höchstbietende: \n${formattedResponse}` };
+                        const embed = { title: 'Auktionsübersicht', description: `${formattedResponse}` };
                         await targetMessage.edit({ embeds: [embed] });
                     }
                 }
