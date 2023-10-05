@@ -295,7 +295,7 @@ client.on('interactionCreate', async(interaction) => {
                             if(highestBid.endtime > DateTime.now().setZone('Europe/Paris').toMillis()) {
                                 return `\n<#${highestBid._id}> **${formatNumberWithDots(highestBid.highestGold)}g** from <@${highestBid.userid}>\nEnds <t:${highestBid.endtime/1000}:R> at **${formatTimestampToDateString(Number(highestBid.endtime))}**`;
                             } else {
-                                return `\n<#${highestBid._id}> Gewonnen von <@${highestBid.userid}> für **${formatNumberWithDots(highestBid.highestGold)}g**\nGratulation!`;
+                                return `\n<#${highestBid._id}> \nGewonnen von <@${highestBid.userid}> für **${formatNumberWithDots(highestBid.highestGold)}g**\n${findServerEmoji(interaction, 'peepoParty')} Gratulation! ${findServerEmoji(interaction, 'peepoParty')}`;
                             }
                         }
                     }).join('\n');
