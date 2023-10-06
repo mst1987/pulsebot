@@ -293,7 +293,7 @@ client.on('interactionCreate', async(interaction) => {
                     const formattedResponse = getHighestBids.highestBids.sort((bidA, bidB) => Number(bidA.endtime) - Number(bidB.endtime)).map(highestBid => {
                         if(highestBid._id !== '1152194523951267931') {
                             if(highestBid.endtime > DateTime.now().setZone('Europe/Paris').toMillis()) {
-                                return `\n<#${highestBid._id}> **${formatNumberWithDots(highestBid.highestGold)}g** from <@${highestBid.userid}>\nEnds <t:${Math.round(Number(highestBid.endtime))/1000}:R> at **${formatTimestampToDateString(Math.round(Number(highestBid.endtime)))}**`;
+                                return `\n<#${highestBid._id}> **${formatNumberWithDots(highestBid.highestGold)}g** from <@${highestBid.userid}>\nEnds <t:${Math.round(Number(highestBid.endtime/1000))}:R> at **${formatTimestampToDateString(Math.round(Number(highestBid.endtime)))}**`;
                             } else {
                                 return `\n<#${highestBid._id}> \nGewonnen von <@${highestBid.userid}> für **${formatNumberWithDots(highestBid.highestGold)}g**\n${findServerEmoji(interaction, 'peepoParty')} Gratulation! ${findServerEmoji(interaction, 'peepoParty')}`;
                             }
