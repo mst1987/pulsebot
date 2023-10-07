@@ -77,7 +77,7 @@ client.on('interactionCreate', async(interaction) => {
 
                 const formattedNew = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(channel => {
                     console.log(channel)
-                    if(channel.id==='1160151147533828186')
+                    if(channel.channelid==='1160150813759504445')
                         console.log(channel)
                     const inSetup = channel.setup.find(signUp => signUp.userid === interaction.user.id);
                     const notInSetup = channel.setup.length > 0 ? 'Not in Setup' : 'Setup not done yet';
