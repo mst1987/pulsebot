@@ -78,7 +78,7 @@ client.on('interactionCreate', async(interaction) => {
 
                 const formattedNew = events.map(channel => {
                     const inSetup = channel.setup.find(signUp => signUp.userid === interaction.user.id);
-                    console.log(test, channel.setup)
+                    console.log(inSetup, channel.setup)
                     const spec = 'Not In Setup';
                     if(inSetup) spec = inSetup.spec;
                     return `<#${channel.channelid}> ${getCharacterIcon(interaction, spec)} ${extendedClassList[spec].name}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`;
