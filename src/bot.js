@@ -61,10 +61,11 @@ client.on('interactionCreate', async(interaction) => {
 
             await Promise.all(categoryEvents.map(async(event) => {
                 const setup = await raidhelper.getSetup(event.id);
-                if(setup.raidid === '1160151147533828186')
-                console.log(setup)
+
                 if (setup) {
                     events.push({ channelid: event.channelId, startTime: event.startTime, ...setup });
+                } else {
+                    events.push({ channelid: event.channelId, startTime: event.startTime });
                 }
             }));
             if (events.length < 1) await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage)
@@ -78,11 +79,8 @@ client.on('interactionCreate', async(interaction) => {
                 const formattedSignUps = setupData.map(channel => `<#${channel.channelid}> ${getCharacterIcon(interaction, channel.setup[0].spec)} ${extendedClassList[channel.setup[0].spec].name}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`).join(`\n`);
                 console.log(events.length)
                 const formattedNew = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(channel => {
-                    console.log(channel.raidid)
-                    if(channel.channelid==='1160150813759504445')
-                        console.log(channel)
                     const inSetup = channel.setup.find(signUp => signUp.userid === interaction.user.id);
-                    const notInSetup = channel.setup.length > 0 ? 'Not in Setup' : 'Setup not done yet';
+                    const notInSetup = channel.setup ? 'Not in Setup' : 'Setup not done yet';
                     let spec;
                     if(inSetup) spec = inSetup.spec;
                     return `<#${channel.channelid}> \n${ spec ? getCharacterIcon(interaction, spec) : findServerEmoji(interaction, 'sadcat') } **${extendedClassList[spec] ? extendedClassList[spec].name : notInSetup}**\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`;
