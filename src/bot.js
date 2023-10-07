@@ -80,10 +80,10 @@ client.on('interactionCreate', async(interaction) => {
                     const inSetup = channel.setup.find(signUp => signUp.userid === interaction.user.id);
                     const notInSetup = 'Not in Setup';
 
-                    let spec = 'sadcat';
+                    let spec;
                     if(inSetup) spec = inSetup.spec;
                     console.log(findServerEmoji(interaction, spec))
-                    return `<#${channel.channelid}> \n${ spec !== 'sadcat' ?getCharacterIcon(interaction, spec) : findServerEmoji(interaction, spec) } ${extendedClassList[spec] ? extendedClassList[spec].name : notInSetup}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`;
+                    return `<#${channel.channelid}> \n${ spec ? getCharacterIcon(interaction, spec) : findServerEmoji(interaction, 'sadcat') } ${extendedClassList[spec] ? extendedClassList[spec].name : notInSetup}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`;
                 }
                     ).join(`\n`)
                     
