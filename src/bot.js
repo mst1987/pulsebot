@@ -65,7 +65,7 @@ client.on('interactionCreate', async(interaction) => {
                     events.push({ channelid: event.channelId, startTime: event.startTime, ...setup });
                 }
             }));
-            console.log(events)
+            console.log(categoryEvents)
             if (events.length < 1) await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage)
             else {
                 // Filter Setups, sort it and only get User data
