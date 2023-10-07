@@ -81,7 +81,7 @@ client.on('interactionCreate', async(interaction) => {
                     console.log(inSetup, channel.setup)
                     const spec = 'Not In Setup';
                     if(inSetup) spec = inSetup.spec;
-                    return `<#${channel.channelid}> ${getCharacterIcon(interaction, spec)} ${extendedClassList[spec].name}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`;
+                    return `<#${channel.channelid}> ${spec ? getCharacterIcon(interaction, spec) : ''} ${spec ? extendedClassList[spec].name : spec}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`;
                 }
                     )
                     
