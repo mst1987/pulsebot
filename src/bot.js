@@ -82,7 +82,7 @@ client.on('interactionCreate', async(interaction) => {
                     const notInSetup = 'Not in Setup';
                     let spec = 'sadge';
                     if(inSetup) spec = inSetup.spec;
-                    return `<#${channel.channelid}> \n${getCharacterIcon(interaction, spec)} ${spec ? extendedClassList[spec].name : notInSetup}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`;
+                    return `<#${channel.channelid}> \n${getCharacterIcon(interaction, spec)} ${extendedClassList[spec].name ? extendedClassList[spec].name : notInSetup}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`;
                 }
                     ).join(`\n`)
                     
