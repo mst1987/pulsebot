@@ -84,7 +84,7 @@ client.on('interactionCreate', async(interaction) => {
                     if(inSetup) spec = inSetup.spec;
                     return `<#${channel.channelid}> ${spec ? getCharacterIcon(interaction, spec) : ''} ${spec ? extendedClassList[spec].name : notInSetup}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`;
                 }
-                    )
+                    ).join(`\n`)
                     
                 console.log(formattedNew)
 
