@@ -78,7 +78,7 @@ client.on('interactionCreate', async(interaction) => {
 
                 const formattedNew = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(channel => {
                     const inSetup = channel.setup.find(signUp => signUp.userid === interaction.user.id);
-                    const notInSetup = 'Not in Setup / Setup not done yet';
+                    const notInSetup = channel.setup.length > 0 ? 'Not in Setup' : 'Setup not done yet';
                     let spec;
                     if(inSetup) spec = inSetup.spec;
                     return `<#${channel.channelid}> \n${ spec ? getCharacterIcon(interaction, spec) : findServerEmoji(interaction, 'sadcat') } **${extendedClassList[spec] ? extendedClassList[spec].name : notInSetup}**\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`;
