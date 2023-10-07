@@ -74,7 +74,7 @@ client.on('interactionCreate', async(interaction) => {
                 
                 // Format Signup and get Discord Emojis for the classes
                 const formattedSignUps = setupData.map(channel => `<#${channel.channelid}> ${getCharacterIcon(interaction, channel.setup[0].spec)} ${extendedClassList[channel.setup[0].spec].name}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`).join(`\n`);
-
+                console.log(events.length)
                 const formattedNew = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(channel => {
                     console.log(channel.raidid)
                     if(channel.channelid==='1160150813759504445')
