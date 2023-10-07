@@ -79,7 +79,7 @@ client.on('interactionCreate', async(interaction) => {
                 const formattedNew = events.map(channel => {
                     const inSetup = channel.setup.find(signUp => signUp.userid === interaction.user.id);
                     console.log(inSetup, channel.setup)
-                    const notInSetup = 'Not In Setup';
+                    const notInSetup = 'Not in Setup';
                     let spec;
                     if(inSetup) spec = inSetup.spec;
                     return `<#${channel.channelid}> ${spec ? getCharacterIcon(interaction, spec) : ''} ${spec ? extendedClassList[spec].name : notInSetup}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`;
@@ -88,7 +88,7 @@ client.on('interactionCreate', async(interaction) => {
                     
                 console.log(formattedNew)
 
-                await botReply(interaction, messages.mysetups.successTitle, `\n${formattedSignUps}`)
+                await botReply(interaction, messages.mysetups.successTitle, `\n${formattedNew}`)
             }   
         }
     }
