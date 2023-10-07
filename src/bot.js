@@ -54,7 +54,7 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         if(interaction.customId === 'show-mysetups') {
-            let setups = [];
+            let events = [];
             var categoryEvents = await getCategoryEvents(interaction, categoryId);
 
             categoryEvents = categoryEvents.sort((eventA, eventB) => eventA.startTime - eventB.startTime);
@@ -62,23 +62,30 @@ client.on('interactionCreate', async(interaction) => {
             await Promise.all(categoryEvents.map(async(event) => {
                 const setup = await raidhelper.getSetup(event.id);
                 if (setup) {
-                    setups.push({ channelid: event.channelId, startTime: event.startTime, ...setup });
+                    events.push({ channelid: event.channelId, startTime: event.startTime, ...setup });
                 }
             }));
 
-            if (setups.length < 1) await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage)
+            if (events.length < 1) await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage)
             else {
                 // Filter Setups, sort it and only get User data
-                const setupData = setups.filter((setup, index) => {
-                    return setup.setup.some(user => user.userid === interaction.user.id);
+                const setupData = events.filter((event, index) => {
+                    return event.setup.some(user => user.userid === interaction.user.id);
                 }).sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(slot => ({...slot, setup: slot.setup.filter(user => user.userid === interaction.user.id) }));
+                
+                
 
                 // Format Signup and get Discord Emojis for the classes
                 const formattedSignUps = setupData.map(channel => `<#${channel.channelid}> ${getCharacterIcon(interaction, channel.setup[0].spec)} ${extendedClassList[channel.setup[0].spec].name}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`).join(`\n`);
 
+                const newFormat = events.map(channel => 
+                    `<#${channel.channelid}> ${getCharacterIcon(interaction, channel.setup[0].spec)} ${extendedClassList[channel.setup[0].spec].name}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n` ).join(`\n`);
+                }
+
+                console.log(newFormat)
+
                 await botReply(interaction, messages.mysetups.successTitle, `\n${formattedSignUps}`)
             }
-        }
     }
     if (!interaction.isChatInputCommand()) return;
     if (interaction.user.bot) return;
