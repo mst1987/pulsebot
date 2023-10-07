@@ -79,7 +79,7 @@ client.on('interactionCreate', async(interaction) => {
                 const formattedSignUps = setupData.map(channel => `<#${channel.channelid}> ${getCharacterIcon(interaction, channel.setup[0].spec)} ${extendedClassList[channel.setup[0].spec].name}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`).join(`\n`);
                 console.log(events.length)
                 const formattedNew = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(channel => {
-                    const inSetup = channel.setup.find(signUp => signUp.userid === interaction.user.id);
+                    const inSetup = channel.setup?.find(signUp => signUp.userid === interaction.user.id);
                     const notInSetup = channel.setup ? 'Not in Setup' : 'Setup not done yet';
                     let spec;
                     if(inSetup) spec = inSetup.spec;
