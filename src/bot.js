@@ -77,7 +77,7 @@ client.on('interactionCreate', async(interaction) => {
                 
                 // Format Signup and get Discord Emojis for the classes
                 const formattedSignUps = setupData.map(channel => `<#${channel.channelid}> ${getCharacterIcon(interaction, channel.setup[0].spec)} ${extendedClassList[channel.setup[0].spec].name}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`).join(`\n`);
-                console.log(events.length)
+
                 const formattedNew = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(channel => {
                     let notInSetup;
                     let emoji;
@@ -92,7 +92,7 @@ client.on('interactionCreate', async(interaction) => {
                     
                     let spec;
                     if(inSetup) spec = inSetup.spec;
-                    return `<#${channel.channelid}> \n${ spec ? getCharacterIcon(interaction, spec) : findServerEmoji(interaction, emoji) } **${extendedClassList[spec] ? extendedClassList[spec].name : notInSetup}**\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`;
+                    return `<#${channel.channelid}> \n${ spec ? getCharacterIcon(interaction, spec) : findServerEmoji(interaction, emoji) } **${spec ? extendedClassList[spec].name : notInSetup}**\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`;
                 }
                     ).join(`\n`)
 
