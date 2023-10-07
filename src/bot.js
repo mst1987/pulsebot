@@ -61,6 +61,7 @@ client.on('interactionCreate', async(interaction) => {
 
             await Promise.all(categoryEvents.map(async(event) => {
                 const setup = await raidhelper.getSetup(event.id);
+                console.log(setup)
                 if (setup) {
                     events.push({ channelid: event.channelId, startTime: event.startTime, ...setup });
                 }
