@@ -4,22 +4,24 @@ const { formatTimestampToDateString } = require('./date.js');
 
 const timeoutTime = 60000;
 
-module.exports = {
-    isNumber: function(value) {
+    function isNumber(value) {
         return typeof value === 'number' && !isNaN(value);
-    },
-    getCharacterIcon: function(interaction, spec) {
+    }
+
+    function getCharacterIcon(interaction, spec) {
         return `${interaction.guild.emojis.cache.find(emoji => emoji.name === extendedClassList[spec]?.icon)}`;
-    },
-    findServerEmoji: function(interaction, emojiName) {
+    }
+
+    function findServerEmoji(interaction, emojiName) {
         return `${interaction.guild.emojis.cache.find(emoji => emoji.name === emojiName)}`;
-    },
+    }
     
-    getUserNickname: async function(interaction) {
+    async function getUserNickname(interaction) {
         const displayName = await interaction.guild.members.fetch(interaction.user.id);
         return displayName;
-    },
-    botReply: async function(interaction, title, message, timeout = timeoutTime, ephemeral = true, components = []) {
+    }
+
+    async function botReply(interaction, title, message, timeout = timeoutTime, ephemeral = true, components = []) {
         await interaction.reply({
                 embeds: [{
                     title: title,
@@ -34,8 +36,9 @@ module.exports = {
             .catch(error => {
                 console.log(error);
             });
-    },
-    botFollowup: async function(interaction, message, timeout = timeoutTime, ephemeral = true) {
+    }
+
+    async function botFollowup(interaction, message, timeout = timeoutTime, ephemeral = true) {
         await interaction.followUp({
                 embeds: [{
                     description: message
@@ -48,8 +51,9 @@ module.exports = {
             .catch(error => {
                 console.log(error);
             });
-    },
-    formatSignUps: function(specs) {
+    }
+
+    function formatSignUps(specs) {
         let signUps = [];
         if (specs) {
             specs = specs.split(',')
@@ -61,8 +65,9 @@ module.exports = {
         }
     
         return signUps;
-    },
-    getChannelsFromCategories: function(guild, categoryIds) {
+    }
+
+    function getChannelsFromCategories(guild, categoryIds) {
         const channelsFromCategories = [];
     
         guild.channels.cache.forEach(channel => {
@@ -75,31 +80,49 @@ module.exports = {
         });
     
         return channelsFromCategories;
-    },
-    formatNumberWithDots: function(number) {
+    }
+
+    function formatNumberWithDots(number) {
         const formattedNumber = number.toLocaleString('en-US'); // Use the 'en-US' locale for comma (,) separator
         return formattedNumber.replace(/,/g, '.');
-    },
-    showAllEvents: async function(interaction, categoryId) {
-        const categoryEvents = await exports.getCategoryEvents(interaction, categoryId);
+    }
+
+    async function showAllEvents(interaction, categoryId) {
+        const categoryEvents = await getCategoryEvents(interaction, categoryId);
     
         const formattedRaids = categoryEvents.map(channel => `**${channel.title}**\n<#${channel.channelId}> by <@${channel.leaderId}>\n${formatTimestampToDateString(channel.startTime*1000)} Uhr`).join(`\n\n`);
     
         return formattedRaids;
-    },
-    delay: async function(ms){
+    }
+
+    async function delay(ms){
         return new Promise(resolve => {
           setTimeout(resolve, ms);
         });
-      },
-    getCategoryEvents: async function(interaction, categoryId) {
+    }
+
+    async function getCategoryEvents(interaction, categoryId) {
         const raidhelper = new Raidhelper();
         const allEvents = await raidhelper.getAllEvents();
-        const channelsInCategory = exports.getChannelsFromCategories(interaction.guild, [categoryId]);
+        const channelsInCategory = getChannelsFromCategories(interaction.guild, [categoryId]);
         const categoryEvents = allEvents.filter(event => channelsInCategory.includes(event.channelId));
     
         return categoryEvents;
     }
+
+module.exports = {
+    isNumber, 
+    getCategoryEvents, 
+    delay, 
+    showAllEvents, 
+    formatNumberWithDots, 
+    getChannelsFromCategories, 
+    formatSignUps, 
+    botFollowup, 
+    botReply, 
+    getUserNickname, 
+    findServerEmoji, 
+    getCharacterIcon
 }
 
 
