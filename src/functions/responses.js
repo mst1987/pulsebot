@@ -1,7 +1,7 @@
 const { getCharacterIcon, findServerEmoji, formatTimestampToDateString } = require('./helper.js');
 
 module.exports = {
-	setupResponse: function (event) {
+	setupResponse: function (interaction, event) {
 		let notInSetup = 'Setup not done yet';
 		let emoji = 'copium';
 		if(event.setup) {
