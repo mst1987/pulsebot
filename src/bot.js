@@ -69,7 +69,8 @@ client.on('interactionCreate', async(interaction) => {
             }));
 
             const events2 = events.filter((event, index) => {
-                return event.setup.some(user => user.userid === interaction.user.id || user.length < 1)});
+                if(!event.setup) return event;
+                else return event.setup.some(user => user.userid === interaction.user.id)});
             console.log(events2);
             if (events.length < 1) {
                 await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
