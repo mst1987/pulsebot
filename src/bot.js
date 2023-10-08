@@ -9,6 +9,7 @@ const { DateTime } = require('luxon');
 
 const { botReply, findServerEmoji, getCharacterIcon, botFollowup, formatNumberWithDots, formatSignUps, getAuctionMessage, getChannelsFromCategories, formatTimestampToDateString, getItemsToShow, getUserNickname, getWednesdayWeeksAgo, isNumber, toTimestamp, showAllEvents, getCategoryEvents, delay } = require('./functions/helper');
 const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { setupResponse } = require('./functions/responses.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
 
@@ -57,8 +58,6 @@ client.on('interactionCreate', async(interaction) => {
             let events = [];
             var categoryEvents = await getCategoryEvents(interaction, categoryId);
 
-            categoryEvents = categoryEvents.sort((eventA, eventB) => eventA.startTime - eventB.startTime);
-
             await Promise.all(categoryEvents.map(async(event) => {
                 const setup = await raidhelper.getSetup(event.id);
 
@@ -68,35 +67,15 @@ client.on('interactionCreate', async(interaction) => {
                     events.push({ channelid: event.channelId, startTime: event.startTime });
                 }
             }));
-            if (events.length < 1) await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage)
-            else {
-                // Filter Setups, sort it and only get User data
-                const setupData = events.filter((event, index) => {
-                    return event.setup?.some(user => user.userid === interaction.user.id);
-                }).sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(slot => ({...slot, setup: slot.setup.filter(user => user.userid === interaction.user.id) }));
-                
-                // Format Signup and get Discord Emojis for the classes
-                const formattedSignUps = setupData.map(channel => `<#${channel.channelid}> ${getCharacterIcon(interaction, channel.setup[0].spec)} ${extendedClassList[channel.setup[0].spec].name}\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`).join(`\n`);
 
-                const formattedNew = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(channel => {
-                    let notInSetup;
-                    let emoji;
-                    if(channel.setup) {
-                        notInSetup = 'Not in Setup';
-                        emoji = 'sadcat';
-                    } else {
-                        notInSetup = 'Setup not done yet';
-                        emoji = 'copium';
-                    }
-                    const inSetup = channel.setup?.find(signUp => signUp.userid === interaction.user.id);
-                    
-                    let spec;
-                    if(inSetup) spec = inSetup.spec;
-                    return `<#${channel.channelid}> \n${ spec ? getCharacterIcon(interaction, spec) : findServerEmoji(interaction, emoji) } **${spec ? extendedClassList[spec].name : notInSetup}**\n${formatTimestampToDateString(channel.startTime*1000)} Uhr\n`;
-                }
-                    ).join(`\n`)
+            if (events.length < 1) {
+                await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
+            } else {
+                const setupResponse = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(event => {
+                    setupResponse(event);
+                }).join(`\n`)
 
-                await botReply(interaction, messages.mysetups.successTitle, `\n${formattedNew}`)
+                await botReply(interaction, messages.mysetups.successTitle, `\n${setupResponse}`)
             }   
         }
     }
