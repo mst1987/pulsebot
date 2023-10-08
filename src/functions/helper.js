@@ -1,5 +1,6 @@
 const { DateTime } = require('luxon');
 const Raidhelper = require('../classes/raidhelper.js');
+const { formatTimestampToDateString } = require('./date.js');
 
 const timeoutTime = 60000;
 
@@ -80,7 +81,7 @@ module.exports = {
         return formattedNumber.replace(/,/g, '.');
     },
     showAllEvents: async function(interaction, categoryId) {
-        const categoryEvents = await getCategoryEvents(interaction, categoryId);
+        const categoryEvents = await this.getCategoryEvents(interaction, categoryId);
     
         const formattedRaids = categoryEvents.map(channel => `**${channel.title}**\n<#${channel.channelId}> by <@${channel.leaderId}>\n${formatTimestampToDateString(channel.startTime*1000)} Uhr`).join(`\n\n`);
     
@@ -94,7 +95,7 @@ module.exports = {
     getCategoryEvents: async function(interaction, categoryId) {
         const raidhelper = new Raidhelper();
         const allEvents = await raidhelper.getAllEvents();
-        const channelsInCategory = getChannelsFromCategories(interaction.guild, [categoryId]);
+        const channelsInCategory = this.getChannelsFromCategories(interaction.guild, [categoryId]);
         const categoryEvents = allEvents.filter(event => channelsInCategory.includes(event.channelId));
     
         return categoryEvents;
