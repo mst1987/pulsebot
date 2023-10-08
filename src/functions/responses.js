@@ -8,7 +8,7 @@ module.exports = {
 			notInSetup = 'Not in Setup';
 			emoji = 'sadcat';
 		}
-		const inSetup = cheventannel.setup?.find(signUp => signUp.userid === interaction.user.id);
+		const inSetup = event.setup?.find(signUp => signUp.userid === interaction.user.id);
 		
 		let spec;
 		if(inSetup) spec = inSetup.spec;
