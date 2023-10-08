@@ -60,7 +60,7 @@ client.on('interactionCreate', async(interaction) => {
 
             await Promise.all(categoryEvents.map(async(event) => {
                 const setup = await raidhelper.getSetup(event.id);
-
+                console.log(event);
                 if (setup) {
                     events.push({ channelid: event.channelId, startTime: event.startTime, ...setup });
                 } else {
@@ -68,10 +68,10 @@ client.on('interactionCreate', async(interaction) => {
                 }
             }));
 
-            const events2 = events.filter((event, index) => {
+            events = events.filter((event, index) => {
                 if(!event.setup) return event;
                 else return event.setup.some(user => user.userid === interaction.user.id)});
-            console.log(events2);
+
             if (events.length < 1) {
                 await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
             } else {
