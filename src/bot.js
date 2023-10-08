@@ -71,11 +71,11 @@ client.on('interactionCreate', async(interaction) => {
             if (events.length < 1) {
                 await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
             } else {
-                const setupResponse = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(event => {
+                const mySetup = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(event => {
                     setupResponse(event);
                 }).join(`\n`)
 
-                await botReply(interaction, messages.mysetups.successTitle, `\n${setupResponse}`)
+                await botReply(interaction, messages.mysetups.successTitle, `\n${mySetup}`)
             }   
         }
     }
