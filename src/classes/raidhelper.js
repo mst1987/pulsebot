@@ -135,7 +135,7 @@ class Raidhelper {
                 }
             };
 
-            const request = await https.request(options, (response) => {
+            const request = https.request(options, (response) => {
                 let data = '';
                 response.on('data', (chunk) => {
                     data += chunk;
@@ -231,7 +231,7 @@ class Raidhelper {
                 }
             };
 
-            const request = await https.request(options, (response) => {
+            const request = https.request(options, (response) => {
                 let data = '';
                 response.on('data', (chunk) => {
                     data += chunk;
