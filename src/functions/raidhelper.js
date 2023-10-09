@@ -64,7 +64,7 @@ async function getSetupsFromEvents(client, interaction, events) {
             }
         }
     }));
-    console.log(myevents);
+
     myevents = myevents.filter((event, index) => {
         return event.setup.some(user => user.userid === interaction.user.id)
     });
