@@ -79,7 +79,7 @@ client.on('interactionCreate', async(interaction) => {
                     return setupResponse(interaction, event);
                 }).join(`\n`)
 
-                await botReply(interaction, messages.mysetups.successTitle, `${mySetup}\n`)
+                await botReply(interaction, 'Alle deine Setups auf dem Discord', `${mySetup}\n`)
                 return;
             }
         }
