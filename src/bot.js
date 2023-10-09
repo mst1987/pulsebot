@@ -43,7 +43,7 @@ client.on('interactionCreate', async(interaction) => {
 
         if (interaction.customId === 'update-events') {
             await interaction.update({
-                embeds: [{ description: await showAllEvents(interaction, categoryId) }],
+                embeds: [{ title: interaction.channel.parent.name, description: await showAllEvents(interaction, categoryId) }],
             });
         }
 
