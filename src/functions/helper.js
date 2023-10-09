@@ -103,7 +103,6 @@ async function getRaidInfosFromChannel(interaction) {
             return { raidData: createRaidData(event), setupData: comp ? comp.setup : [] };
         }
     }
-    await botReply(interaction, messages.signup.errorTitle, messages.signup.errorMessage);
 }
 
 function createRaidData(event) {
@@ -111,7 +110,7 @@ function createRaidData(event) {
         raidid: event.id,
         title: event.title,
         description: event.description,
-        raidname: event.channelName + '' + event.date,
+        raidname: event.channelName + ' ' + event.date,
         date: event.date,
         time: event.time,
         isGdkp: true,
