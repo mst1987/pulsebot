@@ -56,7 +56,7 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         if (interaction.customId === 'show-mysetups') {
-            const events = getCategorySetups(categoryId);
+            const events = await getCategorySetups(categoryId);
 
             if (events.length < 1) {
                 await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
