@@ -226,7 +226,7 @@ client.on('interactionCreate', async(interaction) => {
         const raidInfos = await getRaidInfosFromChannel(interaction);
         console.log(123);
         console.log(raidInfos);
-        botReply(interaction, 'Save', raidInfos)
+        botReply(interaction, 'Save', 'raidInfos')
     }
 
     if (commandName === 'signup') {
