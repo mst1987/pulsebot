@@ -206,7 +206,6 @@ client.on('interactionCreate', async(interaction) => {
         if (!checkForPermission(interaction)) return;
         const raidInfos = await getRaidInfosFromChannel(interaction);
         const response = await raidhelper.saveRaid(raidInfos)
-        console.log(raidInfos, response)
         if (response._id) {
             await botReply(interaction, 'Save', `Raid gespeichert [hier](https://pulse-gdkp.de/raids/${response._id})`)
         } else {
