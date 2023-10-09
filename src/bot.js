@@ -9,7 +9,6 @@ const { DateTime } = require('luxon');
 
 const {
     isNumber,
-    getCategoryEvents,
     delay,
     showAllEvents,
     formatNumberWithDots,
@@ -27,6 +26,7 @@ const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton
 const { setupResponse } = require('./functions/responses.js');
 const { getMissingSignUps, getSignUps, getCategorySetups } = require('./functions/raidhelper.js');
 const { getTargetMessage, updateHighestBids } = require('./functions/legendary.js');
+const { toTimestamp } = require('./functions/date.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
 
