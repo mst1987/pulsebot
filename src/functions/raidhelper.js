@@ -35,7 +35,7 @@ async function getCategorySetups(interaction, categoryId) {
     console.log(categoryEvents);
     await Promise.all(categoryEvents.map(async(event) => {
         const setup = await raidhelper.getSetup(event.id);
-
+        console.log(setup, event.id);
         if (setup) {
             events.push({ channelid: event.channelId, startTime: event.startTime, ...setup });
         } else {
