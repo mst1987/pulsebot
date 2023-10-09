@@ -155,8 +155,7 @@ class Raidhelper {
         });
     }
 
-    async checkIfEvent(eventid) {
-
+    async getEvent(eventid) {
         return new Promise((resolve, reject) => {
             let data = '';
             const options = {

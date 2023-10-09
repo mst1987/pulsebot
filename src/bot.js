@@ -7,7 +7,21 @@ const Legendary = require('./classes/legendary.js');
 const messages = require('./config/messages.js');
 const { DateTime } = require('luxon');
 
-const { botReply, findServerEmoji, getCharacterIcon, botFollowup, formatNumberWithDots, formatSignUps, getAuctionMessage, getChannelsFromCategories, formatTimestampToDateString, getItemsToShow, getUserNickname, getWednesdayWeeksAgo, isNumber, toTimestamp, showAllEvents, getCategoryEvents, delay } = require('./functions/helper');
+const {
+    isNumber,
+    getCategoryEvents,
+    delay,
+    showAllEvents,
+    formatNumberWithDots,
+    getChannelsFromCategories,
+    formatSignUps,
+    botFollowup,
+    botReply,
+    getUserNickname,
+    findServerEmoji,
+    getCharacterIcon,
+    getRaidIdFromChannel
+} = require('./functions/helper');
 const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { setupResponse } = require('./functions/responses.js');
 
@@ -20,16 +34,16 @@ client.on('ready', () => {
 client.on('interactionCreate', async(interaction) => {
     await delay(500);
     const raidhelper = new Raidhelper();
-    if(interaction.isButton()) {
+    if (interaction.isButton()) {
         console.log('User: ', interaction.user.username, '- Command:', interaction.customId);
         const categoryId = interaction.channel.parent.id;
         if (interaction.customId === 'update-events') {
             await interaction.update({
-                embeds: [{description: await showAllEvents(interaction, categoryId)}],
-              });
+                embeds: [{ description: await showAllEvents(interaction, categoryId) }],
+            });
         }
 
-        if(interaction.customId === 'show-signups') {
+        if (interaction.customId === 'show-signups') {
             var categoryEvents = await getCategoryEvents(interaction, categoryId);
 
             categoryEvents = categoryEvents.sort((eventA, eventB) => eventA.startTime - eventB.startTime);
@@ -38,7 +52,7 @@ client.on('interactionCreate', async(interaction) => {
             const formattedMissingSignUps = noSignUps.map(channel => `<#${channel.channelId}>`).join(`\n`);
 
             const signUps = categoryEvents.filter(event => event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
-            
+
             const signUpsWithSpecs = signUps.map(event => {
                 const matchingSignUps = event.signUps.filter(signUp => signUp.userId === interaction.user.id);
                 const matchingSpecs = matchingSignUps.map(signUp => `${getCharacterIcon(interaction, signUp.specName) }`).join('');
@@ -54,13 +68,13 @@ client.on('interactionCreate', async(interaction) => {
             await botReply(interaction, interaction.channel.parent.name, messages.general.missingSignups.replace('___replace___', formattedMissingSignUps) + messages.general.signups.replace('___replace___', formattedSignUps));
         }
 
-        if(interaction.customId === 'show-mysetups') {
+        if (interaction.customId === 'show-mysetups') {
             let events = [];
             var categoryEvents = await getCategoryEvents(interaction, categoryId);
 
             await Promise.all(categoryEvents.map(async(event) => {
                 const setup = await raidhelper.getSetup(event.id);
-                console.log(event);
+
                 if (setup) {
                     events.push({ channelid: event.channelId, startTime: event.startTime, ...setup });
                 } else {
@@ -69,8 +83,9 @@ client.on('interactionCreate', async(interaction) => {
             }));
 
             events = events.filter((event, index) => {
-                if(!event.setup) return event;
-                else return event.setup.some(user => user.userid === interaction.user.id)});
+                if (!event.setup) return event;
+                else return event.setup.some(user => user.userid === interaction.user.id)
+            });
 
             if (events.length < 1) {
                 await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
@@ -80,7 +95,7 @@ client.on('interactionCreate', async(interaction) => {
                 }).join(`\n`)
 
                 await botReply(interaction, messages.mysetups.successTitle, `\n${mySetup}`)
-            }   
+            }
         }
     }
     if (!interaction.isChatInputCommand()) return;
@@ -203,6 +218,11 @@ client.on('interactionCreate', async(interaction) => {
         }
     }
 
+    if (commandName === 'saveraid') {
+        const raidInfos = getRaidInfosFromChannel(interaction);
+        console.log(raidInfos);
+    }
+
     if (commandName === 'signup') {
         let raidId;
         const channelMessages = await interaction.channel.messages.fetch();
@@ -210,7 +230,7 @@ client.on('interactionCreate', async(interaction) => {
 
         for (const [key, value] of botMessages) {
             await interaction.channel.messages.fetch();
-            if (raidhelper.checkIfEvent(key)) raidId = key;
+            if (raidhelper.getEvent(key)) raidId = key;
             else await botReply(interaction, messages.signup.errorTitle, messages.signup.errorMessage);
         }
 
@@ -226,7 +246,7 @@ client.on('interactionCreate', async(interaction) => {
         }
     }
 
-    if(commandName === 'createoverview') {
+    if (commandName === 'createoverview') {
         if (interaction.user.id !== '233598324022837249') {
             botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
             return;
@@ -236,11 +256,11 @@ client.on('interactionCreate', async(interaction) => {
             const categoryId = interaction.channel.parent.id;
             const row = new ActionRowBuilder();
             row.addComponents(
-                new ButtonBuilder().setCustomId('update-events').setLabel('Update Events').setStyle(ButtonStyle.Primary), 
+                new ButtonBuilder().setCustomId('update-events').setLabel('Update Events').setStyle(ButtonStyle.Primary),
                 new ButtonBuilder().setCustomId('show-signups').setLabel('Show my Signups').setStyle(ButtonStyle.Secondary),
                 new ButtonBuilder().setCustomId('show-mysetups').setLabel('Show my Setups').setStyle(ButtonStyle.Success)
             )
-    
+
             const formattedRaids = await showAllEvents(interaction, categoryId);
             botReply(interaction, interaction.channel.parent.name, formattedRaids, 0, false, [row]);
         } catch (error) {
@@ -294,8 +314,8 @@ client.on('interactionCreate', async(interaction) => {
                     const targetMessage = await channel.messages.fetch('1147062559036416191');
 
                     const formattedResponse = getHighestBids.highestBids.sort((bidA, bidB) => Number(bidA.endtime) - Number(bidB.endtime)).map(highestBid => {
-                        if(highestBid._id !== '1152194523951267931') {
-                            if(highestBid.endtime > DateTime.now().setZone('Europe/Paris').toMillis()) {
+                        if (highestBid._id !== '1152194523951267931') {
+                            if (highestBid.endtime > DateTime.now().setZone('Europe/Paris').toMillis()) {
                                 return `\n<#${highestBid._id}> **${formatNumberWithDots(highestBid.highestGold)}g** from <@${highestBid.userid}>\nEnds <t:${Math.round(Number(highestBid.endtime/1000))}:R> at **${formatTimestampToDateString(Math.round(Number(highestBid.endtime)))}**`;
                             } else {
                                 return `\n<#${highestBid._id}> \nGewonnen von <@${highestBid.userid}> für **${formatNumberWithDots(highestBid.highestGold)}g**\n${findServerEmoji(interaction, 'peepoParty')} Gratulation! ${findServerEmoji(interaction, 'peepoParty')}`;
