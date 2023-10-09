@@ -1,5 +1,5 @@
 const Raidhelper = require("../classes/raidhelper");
-const { getCategoryEvents } = require("./helper");
+const { getCategoryEvents, getCharacterIcon } = require("./helper");
 
 async function getMissingSignUps(interaction, categoryId) {
     var categoryEvents = await getCategoryEvents(interaction, categoryId);
