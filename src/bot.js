@@ -35,6 +35,7 @@ client.on('ready', () => {
 })
 
 client.on('interactionCreate', async(interaction) => {
+    console.log(123);
     await delay(500);
     const raidhelper = new Raidhelper();
     if (interaction.isButton()) {
