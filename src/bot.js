@@ -222,8 +222,8 @@ client.on('interactionCreate', async(interaction) => {
     if (commandName === 'saveraid') {
         if (!checkForPermission(interaction)) return;
         const raidInfos = await getRaidInfosFromChannel(interaction);
-        await raidhelper.saveRaid(raidInfos)
-        botReply(interaction, 'Save', `Raid gespeichert [hier](https://pulse-gdkp.de/raids/${raidInfos.raidData.raidid})`)
+        const response = await raidhelper.saveRaid(raidInfos)
+        botReply(interaction, 'Save', `Raid gespeichert [hier](https://pulse-gdkp.de/raids/${response._id})`)
     }
 
     if (commandName === 'signup') {
