@@ -78,7 +78,7 @@ client.on('interactionCreate', async(interaction) => {
                 const mySetup = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(event => {
                     return setupResponse(interaction, event);
                 }).join(`\n`)
-                await botReply(interaction, messages.mysetups.successTitle, `\n`)
+                await botReply(interaction, messages.mysetups.successTitle, `Test123\n`)
             }
         }
     }
