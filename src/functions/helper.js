@@ -94,13 +94,12 @@ async function getRaidInfosFromChannel(interaction) {
     const raidhelper = new Raidhelper();
     const channelMessages = await interaction.channel.messages.fetch();
     const botMessages = channelMessages.filter(msg => msg.author.id === '579155972115660803');
-    console.log(botMessages)
+
     for (const [key, value] of botMessages) {
         const event = await raidhelper.getEvent(key);
-        console.log(event)
+
         if (event.id) {
             const setup = await raidhelper.getSetup(event.id);
-            console.log(setup)
             return { raidData: createRaidData(event), setup: setup ? setup : [] };
         }
     }
