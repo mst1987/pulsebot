@@ -62,8 +62,6 @@ class Raidhelper {
                     filteredEvents = [];
                     if (data) {
                         var filteredEvents = data['postedEvents'].sort((eventA, eventB) => eventA.startTime - eventB.startTime).filter(event => event.signUps.find((signup) => signup.userId === userid && signup.specName !== 'Absence'));
-
-
                     }
                     resolve(filteredEvents);
                 });

@@ -25,6 +25,8 @@ const {
 } = require('./functions/helper');
 const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { setupResponse } = require('./functions/responses.js');
+const { getMissingSignUps, getSignUps, getCategorySetups } = require('./functions/raidhelper.js');
+const { getTargetMessage, updateHighestBids } = require('./functions/legendary.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
 
@@ -38,6 +40,7 @@ client.on('interactionCreate', async(interaction) => {
     if (interaction.isButton()) {
         console.log('User: ', interaction.user.username, '- Command:', interaction.customId);
         const categoryId = interaction.channel.parent.id;
+
         if (interaction.customId === 'update-events') {
             await interaction.update({
                 embeds: [{ description: await showAllEvents(interaction, categoryId) }],
@@ -45,48 +48,14 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         if (interaction.customId === 'show-signups') {
-            var categoryEvents = await getCategoryEvents(interaction, categoryId);
-
-            categoryEvents = categoryEvents.sort((eventA, eventB) => eventA.startTime - eventB.startTime);
-
-            const noSignUps = categoryEvents.filter(event => !event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
-            const formattedMissingSignUps = noSignUps.map(channel => `<#${channel.channelId}>`).join(`\n`);
-
-            const signUps = categoryEvents.filter(event => event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
-
-            const signUpsWithSpecs = signUps.map(event => {
-                const matchingSignUps = event.signUps.filter(signUp => signUp.userId === interaction.user.id);
-                const matchingSpecs = matchingSignUps.map(signUp => `${getCharacterIcon(interaction, signUp.specName) }`).join('');
-
-                return {
-                    specs: matchingSpecs,
-                    ...event,
-                };
-            });
-
-            const formattedSignUps = signUpsWithSpecs.map(channelId => `<#${channelId.channelId}>  ${channelId.specs}\n`).join(`\n`);
+            const formattedMissingSignUps = getMissingSignUps(categoryId);
+            const formattedSignUps = getSignUps(categoryId);
 
             await botReply(interaction, interaction.channel.parent.name, messages.general.missingSignups.replace('___replace___', formattedMissingSignUps) + messages.general.signups.replace('___replace___', formattedSignUps));
         }
 
         if (interaction.customId === 'show-mysetups') {
-            let events = [];
-            var categoryEvents = await getCategoryEvents(interaction, categoryId);
-
-            await Promise.all(categoryEvents.map(async(event) => {
-                const setup = await raidhelper.getSetup(event.id);
-
-                if (setup) {
-                    events.push({ channelid: event.channelId, startTime: event.startTime, ...setup });
-                } else {
-                    events.push({ channelid: event.channelId, startTime: event.startTime });
-                }
-            }));
-
-            events = events.filter((event, index) => {
-                if (!event.setup) return event;
-                else return event.setup.some(user => user.userid === interaction.user.id)
-            });
+            const events = getCategorySetups(categoryId);
 
             if (events.length < 1) {
                 await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
@@ -236,15 +205,13 @@ client.on('interactionCreate', async(interaction) => {
         const botMessages = channelMessages.filter(msg => msg.author.id === '579155972115660803');
 
         for (const [key, value] of botMessages) {
-            await interaction.channel.messages.fetch();
             if (await raidhelper.getEvent(key)) raidId = key;
             else await botReply(interaction, messages.signup.errorTitle, messages.signup.errorMessage);
         }
 
         try {
             const signedUpSpecs = interaction.options.getString('specs');
-            const signUps = formatSignUps(signedUpSpecs);
-            const formattedGDKPSignUps = signUps.map(s => `${getCharacterIcon(interaction, s.specName)}`).join(``);
+            const formattedGDKPSignUps = formatSignUps(signedUpSpecs);
             raidhelper.signUpToRaid(raidId, signUps, interaction.user.id);
 
             await botReply(interaction, messages.signup.successTitle, messages.signup.successMessage.replace('___replace___', formattedGDKPSignUps));
@@ -254,7 +221,7 @@ client.on('interactionCreate', async(interaction) => {
     }
 
     if (commandName === 'createoverview') {
-        if (checkForPermission()) return;
+        if (!checkForPermission(interaction)) return;
 
         try {
             const categoryId = interaction.channel.parent.id;
@@ -312,36 +279,17 @@ client.on('interactionCreate', async(interaction) => {
 
                 botReply(interaction, `**${formatNumberWithDots(Number(bidData.gold))}g**`, `geboten von ${nickname}`, 0, false);
 
-                const getHighestBids = await legendary.getHighestBids();
-                const channel = await client.channels.fetch('1145659881362313248');
-                if (channel) {
-                    const targetMessage = await channel.messages.fetch('1147062559036416191');
-
-                    const formattedResponse = getHighestBids.highestBids.sort((bidA, bidB) => Number(bidA.endtime) - Number(bidB.endtime)).map(highestBid => {
-                        if (highestBid._id !== '1152194523951267931') {
-                            if (highestBid.endtime > DateTime.now().setZone('Europe/Paris').toMillis()) {
-                                return `\n<#${highestBid._id}> **${formatNumberWithDots(highestBid.highestGold)}g** from <@${highestBid.userid}>\nEnds <t:${Math.round(Number(highestBid.endtime/1000))}:R> at **${formatTimestampToDateString(Math.round(Number(highestBid.endtime)))}**`;
-                            } else {
-                                return `\n<#${highestBid._id}> \nGewonnen von <@${highestBid.userid}> für **${formatNumberWithDots(highestBid.highestGold)}g**\n${findServerEmoji(interaction, 'peepoParty')} Gratulation! ${findServerEmoji(interaction, 'peepoParty')}`;
-                            }
-                        }
-                    }).join('\n');
-                    if (targetMessage) {
-                        const embed = { title: 'Auktionsübersicht', description: `${formattedResponse}` };
-                        await targetMessage.edit({ embeds: [embed] });
-                    }
+                const targetMessage = getTargetMessage(client, '1145659881362313248', '1147062559036416191');
+                if (targetMessage) {
+                    updateHighestBids(interaction, targetMessage, legendary);
                 }
 
                 if (response.extended) {
-                    const channel = await client.channels.fetch(response.legendary.channel);
-                    if (channel) {
-                        const targetMessage = await channel.messages.fetch(response.legendary.messageid);
-                        if (targetMessage) {
-                            const embed = { title: `${findServerEmoji(interaction, 'poggies')} Auktion gestartet ${findServerEmoji(interaction, 'poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(interaction, response.legendary)}` };
-                            await targetMessage.edit({ embeds: [embed] });
-                        }
+                    const channelMessage = getTargetMessage(client, response.legendary.channel, response.legendary.messageid);
+                    if (channelMessage) {
+                        const embed = { title: `${findServerEmoji(interaction, 'poggies')} Auktion gestartet ${findServerEmoji(interaction, 'poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(interaction, response.legendary)}` };
+                        await targetMessage.edit({ embeds: [embed] });
                     }
-
                     await botFollowup(interaction, `Die Auktion wurde verlängert und endet nun **${formatTimestampToDateString(Math.round(Number(response.legendary.endtime)))}**: <t:${Math.round(Number(response.legendary.endtime/1000))}:R>`, 0, false)
                 }
             } else {
@@ -351,10 +299,7 @@ client.on('interactionCreate', async(interaction) => {
     }
 
     if (commandName === 'createauction') {
-        if (interaction.user.id !== '233598324022837249') {
-            botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
-            return;
-        }
+        if (!checkForPermission(interaction)) return;
 
         const legendary = new Legendary();
         const auction = await legendary.getAuction(interaction.channel.id)
@@ -395,10 +340,7 @@ client.on('interactionCreate', async(interaction) => {
     }
 
     if (commandName === 'updateauction') {
-        if (interaction.user.id !== '233598324022837249') {
-            botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
-            return;
-        }
+        if (!checkForPermission(interaction)) return;
 
         const legendary = new Legendary();
         let auctionData = {};
@@ -431,10 +373,7 @@ client.on('interactionCreate', async(interaction) => {
     }
 
     if (commandName === 'deleteauction') {
-        if (interaction.user.id !== '233598324022837249') {
-            botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
-            return;
-        }
+        if (!checkForPermission(interaction)) return;
 
         const legendary = new Legendary();
         const response = await legendary.deleteAuction(interaction.channel.id);
@@ -447,19 +386,13 @@ client.on('interactionCreate', async(interaction) => {
     }
 
     if (commandName === 'auctionstatus') {
-        if (interaction.user.id !== '233598324022837249') {
-            botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
-            return;
-        }
+        if (!checkForPermission(interaction)) return;
 
-        botReply(interaction, 'Auktionsübersicht', 'Temp', 0, false);
+        botReply(interaction, 'Auktionsübersicht', '', 0, false);
     }
 
     if (commandName === 'endauction') {
-        if (interaction.user.id !== '233598324022837249') {
-            botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
-            return;
-        }
+        if (!checkForPermission(interaction)) return;
 
         const legendary = new Legendary();
         const response = await legendary.getWinner(interaction.channel.id);
