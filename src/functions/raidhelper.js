@@ -54,6 +54,7 @@ async function getCategorySetups(interaction, categoryId) {
 }
 
 async function getSetupsFromEvents(interaction, events) {
+    const raidhelper = new Raidhelper();
     await Promise.all(events.map(async(event) => {
         const setup = await raidhelper.getSetup(event.id);
 
