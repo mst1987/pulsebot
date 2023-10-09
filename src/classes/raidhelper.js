@@ -216,6 +216,41 @@ class Raidhelper {
             request.end()
         });
     }
+
+    async saveRaid(data) {
+        return new Promise(async(resolve, reject) => {
+            const postData = JSON.stringify(data);
+
+            const options = {
+                host: "pulse-gdkp.de",
+                port: 3001,
+                path: "/api/raids/import",
+                method: "POST",
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': postData.length
+                }
+            };
+
+            const request = await https.request(options, (response) => {
+                let data = '';
+                response.on('data', (chunk) => {
+                    data += chunk;
+                });
+
+                response.on('end', () => {
+                    resolve(data); // Resolve the promise with the response data
+                });
+            });
+
+            request.on('error', (error) => {
+                reject(error); // Reject the promise if there's an error
+            });
+
+            request.write(postData);
+            request.end();
+        });
+    }
 }
 
 module.exports = Raidhelper;
