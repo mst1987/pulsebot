@@ -81,6 +81,14 @@ function getChannelsFromCategories(guild, categoryIds) {
     return channelsFromCategories;
 }
 
+function checkForPermission(interaction) {
+    if (interaction.user.id !== '233598324022837249') {
+        botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
+        return false;
+    }
+    return true;
+}
+
 async function getRaidInfosFromChannel(interaction) {
     const raidhelper = new Raidhelper();
     const channelMessages = await interaction.channel.messages.fetch();
@@ -148,5 +156,6 @@ module.exports = {
     getUserNickname,
     findServerEmoji,
     getCharacterIcon,
-    getRaidInfosFromChannel
+    getRaidInfosFromChannel,
+    checkForPermission
 }

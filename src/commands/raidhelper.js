@@ -116,6 +116,10 @@ const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKE
                 description: 'Ends an auction for a legendary item',
             },
             {
+                name: 'saveraid',
+                description: 'Saves the Raid on pulse-gdkp.de',
+            },
+            {
                 name: 'bid',
                 description: 'Bid on a legendary item. Increment has to be high enough',
                 options: [{

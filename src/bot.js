@@ -20,7 +20,8 @@ const {
     getUserNickname,
     findServerEmoji,
     getCharacterIcon,
-    getRaidIdFromChannel
+    getRaidIdFromChannel,
+    checkForPermission
 } = require('./functions/helper');
 const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { setupResponse } = require('./functions/responses.js');
@@ -219,6 +220,7 @@ client.on('interactionCreate', async(interaction) => {
     }
 
     if (commandName === 'saveraid') {
+        if (checkForPermission()) return;
         const raidInfos = getRaidInfosFromChannel(interaction);
         console.log(raidInfos);
     }
@@ -247,10 +249,7 @@ client.on('interactionCreate', async(interaction) => {
     }
 
     if (commandName === 'createoverview') {
-        if (interaction.user.id !== '233598324022837249') {
-            botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
-            return;
-        }
+        if (checkForPermission()) return;
 
         try {
             const categoryId = interaction.channel.parent.id;
