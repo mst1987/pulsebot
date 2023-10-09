@@ -71,7 +71,6 @@ client.on('interactionCreate', async(interaction) => {
 
         if (interaction.customId === 'show-allsetups') {
             const events = await raidhelper.getUserSignUps(interaction.user.id);
-            console.log()
             setups = await getSetupsFromEvents(interaction, events);
             if (setups.length < 1) {
                 await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
