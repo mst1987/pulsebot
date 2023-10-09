@@ -86,6 +86,7 @@ function checkForPermission(interaction) {
         botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
         return false;
     }
+    console.log('42');
     return true;
 }
 
