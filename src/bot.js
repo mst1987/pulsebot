@@ -1,6 +1,6 @@
 require('dotenv').config({ path: '../.env' });
 
-const extendedClassList = require('./config/variables.js');
+const extendedClassList = require('./config/classlist.js');
 const Raidhelper = require('./classes/raidhelper.js');
 const GDKP = require('./classes/gdkp.js');
 const Legendary = require('./classes/legendary.js');
@@ -27,6 +27,7 @@ const { setupResponse, getAuctionMessage } = require('./functions/responses.js')
 const { getMissingSignUps, getSignUps, getCategorySetups } = require('./functions/raidhelper.js');
 const { getTargetMessage, updateHighestBids } = require('./functions/legendary.js');
 const { toTimestamp } = require('./functions/date.js');
+const { categoryIds, legendaryID, highestBidsChannelId, highestBidsMessageId } = require('./config/variables.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
 
@@ -35,7 +36,6 @@ client.on('ready', () => {
 })
 
 client.on('interactionCreate', async(interaction) => {
-    console.log(123);
     await delay(500);
     const raidhelper = new Raidhelper();
     if (interaction.isButton()) {
@@ -61,6 +61,7 @@ client.on('interactionCreate', async(interaction) => {
             if (events.length < 1) {
                 await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
             } else {
+                console.log(events)
                 const mySetup = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(event => {
                     return setupResponse(interaction, event);
                 }).join(`\n`)
@@ -74,9 +75,7 @@ client.on('interactionCreate', async(interaction) => {
 
     console.log('User: ', interaction.user.username, '- Command:', interaction.commandName);
 
-    const legendaryID = '1144865420386517053';
     const commandName = interaction.commandName;
-    const categoryIds = ['1115368280245420042', '1143858079289577502', '1157813724741128293'];
     const channelsInCategory = getChannelsFromCategories(interaction.guild, categoryIds);
 
     // GDKP Raid commands
@@ -280,7 +279,7 @@ client.on('interactionCreate', async(interaction) => {
 
                 botReply(interaction, `**${formatNumberWithDots(Number(bidData.gold))}g**`, `geboten von ${nickname}`, 0, false);
 
-                const targetMessage = getTargetMessage(client, '1145659881362313248', '1147062559036416191');
+                const targetMessage = getTargetMessage(client, highestBidsChannelId, highestBidsMessageId);
                 if (targetMessage) {
                     updateHighestBids(interaction, targetMessage, legendary);
                 }
