@@ -36,7 +36,6 @@ client.on('ready', () => {
 })
 
 client.on('interactionCreate', async(interaction) => {
-    await delay(500);
     const raidhelper = new Raidhelper();
     if (interaction.isButton()) {
         console.log('User: ', interaction.user.username, '- Command:', interaction.customId);
@@ -76,7 +75,7 @@ client.on('interactionCreate', async(interaction) => {
                 await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
                 return;
             } else {
-                const mySetup = await setups.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(event => {
+                const mySetup = setups.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(event => {
                     return setupResponse(interaction, event);
                 }).join(`\n`)
                 console.log(mySetup)
