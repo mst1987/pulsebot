@@ -70,7 +70,7 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         if (interaction.customId === 'show-allsetups') {
-            const events = await raidhelper.getAllEvents(categoryId);
+            const events = await raidhelper.getUserSignUps(categoryId);
             setups = await getSetupsFromEvents(interaction, events);
             if (setups.length < 1) {
                 await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
