@@ -86,21 +86,20 @@ function checkForPermission(interaction) {
         botReply(interaction, 'Fehlende Berechtigung', 'Dir fehlt die Berechtigung diese Befehl auszuführen.');
         return false;
     }
-    console.log('42');
+
     return true;
 }
 
 async function getRaidInfosFromChannel(interaction) {
     const raidhelper = new Raidhelper();
-    console.log('test');
     const channelMessages = await interaction.channel.messages.fetch();
     const botMessages = channelMessages.filter(msg => msg.author.id === '579155972115660803');
-    console.log('test2');
+
     for (const [key, value] of botMessages) {
         const event = await raidhelper.getEvent(key);
-        console.log(event)
         if (event) {
             const setup = await raidhelper.getSetup(event.id);
+            console.log(setup)
             return { raidData: createRaidData(event), setup: setup ? setup : [] };
         } else await botReply(interaction, messages.signup.errorTitle, messages.signup.errorMessage);
     }
