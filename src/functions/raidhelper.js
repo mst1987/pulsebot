@@ -66,11 +66,11 @@ async function getSetupsFromEvents(client, interaction, events) {
         }
     }));
 
-    events = events.filter((event, index) => {
+    myevents = myevents.filter((event, index) => {
         return event.setup.some(user => user.userid === interaction.user.id)
     });
 
-    return events;
+    return myevents;
 }
 
 
