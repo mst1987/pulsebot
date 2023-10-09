@@ -223,6 +223,7 @@ client.on('interactionCreate', async(interaction) => {
         if (checkForPermission(interaction)) return;
         const raidInfos = getRaidInfosFromChannel(interaction);
         console.log(raidInfos);
+        botReply(interaction, 'Save', raidInfos)
     }
 
     if (commandName === 'signup') {
