@@ -24,7 +24,7 @@ const {
 } = require('./functions/helper');
 const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { setupResponse, getAuctionMessage } = require('./functions/responses.js');
-const { getMissingSignUps, getSignUps, getCategorySetups } = require('./functions/raidhelper.js');
+const { getMissingSignUps, getSignUps, getCategorySetups, getSetupsFromEvents } = require('./functions/raidhelper.js');
 const { getTargetMessage, updateHighestBids } = require('./functions/legendary.js');
 const { toTimestamp } = require('./functions/date.js');
 const { categoryIds, legendaryID, highestBidsChannelId, highestBidsMessageId } = require('./config/variables.js');
