@@ -16,7 +16,7 @@ module.exports = {
 
         let spec;
         if (inSetup) spec = inSetup.spec;
-        return `<#${event.channelid}> \n <t:${Math.round(Number(response.legendary.endtime/1000))}:R> \n ${ spec ? getCharacterIcon(interaction, spec) : findServerEmoji(interaction, emoji) } **${spec ? extendedClassList[spec].name : notInSetup}**\n${formatTimestampToDateString(event.startTime*1000)} Uhr\n`;
+        return `<#${event.channelid}> \n <t:${Math.round(Number(event.startTime))}:R> \n ${ spec ? getCharacterIcon(interaction, spec) : findServerEmoji(interaction, emoji) } **${spec ? extendedClassList[spec].name : notInSetup}**\n${formatTimestampToDateString(event.startTime*1000)} Uhr\n`;
     },
 
     mySetupResponse: function(interaction, events) {
