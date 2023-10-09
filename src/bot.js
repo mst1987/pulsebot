@@ -20,8 +20,8 @@ const {
     getUserNickname,
     findServerEmoji,
     getCharacterIcon,
-    getRaidIdFromChannel,
-    checkForPermission
+    checkForPermission,
+    getRaidInfosFromChannel
 } = require('./functions/helper');
 const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { setupResponse } = require('./functions/responses.js');
