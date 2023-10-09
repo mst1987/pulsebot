@@ -221,7 +221,7 @@ client.on('interactionCreate', async(interaction) => {
 
     if (commandName === 'saveraid') {
         console.log(1);
-        if (checkForPermission(interaction)) return;
+        if (!checkForPermission(interaction)) return;
         console.log(12);
         const raidInfos = getRaidInfosFromChannel(interaction);
         console.log(123);
