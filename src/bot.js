@@ -223,7 +223,7 @@ client.on('interactionCreate', async(interaction) => {
         if (!checkForPermission(interaction)) return;
         const raidInfos = await getRaidInfosFromChannel(interaction);
         console.log(raidInfos);
-        raidhelper.saveRaid(raidInfos)
+        await raidhelper.saveRaid(raidInfos)
         botReply(interaction, 'Save', 'raidInfos')
     }
 

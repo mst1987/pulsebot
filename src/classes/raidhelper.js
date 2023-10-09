@@ -227,8 +227,7 @@ class Raidhelper {
                 path: "/api/raids/import",
                 method: "POST",
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Content-Length': postData.length
+                    'Content-Type': 'application/json'
                 }
             };
 
