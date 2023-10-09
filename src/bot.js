@@ -233,7 +233,7 @@ client.on('interactionCreate', async(interaction) => {
 
         for (const [key, value] of botMessages) {
             await interaction.channel.messages.fetch();
-            if (raidhelper.getEvent(key)) raidId = key;
+            if (await raidhelper.getEvent(key)) raidId = key;
             else await botReply(interaction, messages.signup.errorTitle, messages.signup.errorMessage);
         }
 
