@@ -61,8 +61,6 @@ async function getSetupsFromEvents(client, interaction, events) {
             const setup = await raidhelper.getSetup(event.id);
             if (setup) {
                 events.push({ channelid: event.channelId, startTime: event.startTime, ...setup });
-            } else {
-                events.push({ channelid: event.channelId, startTime: event.startTime });
             }
         }
     }));
