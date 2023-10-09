@@ -23,7 +23,7 @@ module.exports = {
     mySetupResponse: function(interaction, events) {
         // Filter Setups, sort it and only get User data
         const setupData = events.filter((event, index) => {
-            return event.setup ? .some(user => user.userid === interaction.user.id);
+            return event.setup.some(user => user.userid === interaction.user.id);
         }).sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(slot => ({...slot, setup: slot.setup.filter(user => user.userid === interaction.user.id) }));
 
         // Format Signup and get Discord Emojis for the classes
