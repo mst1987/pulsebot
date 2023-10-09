@@ -50,10 +50,32 @@ async function getCategorySetups(interaction, categoryId) {
     });
 
     return events;
+
 }
+
+async function getSetupsFromEvents(interaction, events) {
+    await Promise.all(events.map(async(event) => {
+        const setup = await raidhelper.getSetup(event.id);
+
+        if (setup) {
+            events.push({ channelid: event.channelId, startTime: event.startTime, ...setup });
+        } else {
+            events.push({ channelid: event.channelId, startTime: event.startTime });
+        }
+    }));
+
+    events = events.filter((event, index) => {
+        if (!event.setup) return event;
+        else return event.setup.some(user => user.userid === interaction.user.id)
+    });
+
+    return events;
+}
+
 
 module.exports = {
     getMissingSignUps,
     getSignUps,
-    getCategorySetups
+    getCategorySetups,
+    getSetupsFromEvents
 }

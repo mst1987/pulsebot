@@ -57,8 +57,8 @@ client.on('interactionCreate', async(interaction) => {
 
         if (interaction.customId === 'show-mysetups') {
             const events = await getCategorySetups(interaction, categoryId);
-
-            if (events.length < 1) {
+            setups = await getSetupsFromEvents(interaction, events);
+            if (setups.length < 1) {
                 await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
             } else {
                 const mySetup = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(event => {
