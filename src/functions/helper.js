@@ -100,20 +100,20 @@ async function getRaidInfosFromChannel(interaction) {
         const event = await raidhelper.getEvent(key);
         console.log(event)
         if (event) {
-            //const setup = raidhelper.getSetup();
-            return { raidData: createRaidData(event) };
+            const setup = await raidhelper.getSetup(event.id);
+            return { raidData: createRaidData(event), setup };
         } else await botReply(interaction, messages.signup.errorTitle, messages.signup.errorMessage);
     }
 }
 
 function createRaidData(event) {
     return {
-        raidid: event,
-        title: event,
-        description: event,
-        raidname: event,
-        date: event,
-        time: event,
+        raidid: event.id,
+        title: event.title,
+        description: event.description,
+        raidname: event.channelName + '' + event.date,
+        date: event.date,
+        time: event.time,
         isGdkp: true,
     }
 }
