@@ -1,7 +1,7 @@
 const Raidhelper = require("../classes/raidhelper");
 const { getCategoryEvents } = require("./helper");
 
-async function getMissingSignUps(categoryId) {
+async function getMissingSignUps(interaction, categoryId) {
     var categoryEvents = await getCategoryEvents(interaction, categoryId);
     categoryEvents = categoryEvents.sort((eventA, eventB) => eventA.startTime - eventB.startTime);
 
@@ -10,7 +10,7 @@ async function getMissingSignUps(categoryId) {
     return noSignUps.map(channel => `<#${channel.channelId}>`).join(`\n`);
 }
 
-async function getSignUps(categoryId) {
+async function getSignUps(interaction, categoryId) {
     var categoryEvents = await getCategoryEvents(interaction, categoryId);
     categoryEvents = categoryEvents.sort((eventA, eventB) => eventA.startTime - eventB.startTime);
     const signUps = categoryEvents.filter(event => event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));

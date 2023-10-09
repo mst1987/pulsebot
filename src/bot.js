@@ -49,8 +49,8 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         if (interaction.customId === 'show-signups') {
-            const formattedMissingSignUps = getMissingSignUps(categoryId);
-            const formattedSignUps = getSignUps(categoryId);
+            const formattedMissingSignUps = getMissingSignUps(interaction, categoryId);
+            const formattedSignUps = getSignUps(interaction, categoryId);
 
             await botReply(interaction, interaction.channel.parent.name, messages.general.missingSignups.replace('___replace___', formattedMissingSignUps) + messages.general.signups.replace('___replace___', formattedSignUps));
         }
