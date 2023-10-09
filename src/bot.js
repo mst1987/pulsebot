@@ -68,6 +68,20 @@ client.on('interactionCreate', async(interaction) => {
                 await botReply(interaction, messages.mysetups.successTitle, `\n${mySetup}`)
             }
         }
+
+        if (interaction.customId === 'show-allsetups') {
+            const events = await raidhelper.getAllEvents(categoryId);
+
+            if (events.length < 1) {
+                await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
+            } else {
+                const mySetup = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(event => {
+                    return setupResponse(interaction, event);
+                }).join(`\n`)
+
+                await botReply(interaction, messages.mysetups.successTitle, `\n${mySetup}`)
+            }
+        }
     }
     if (!interaction.isChatInputCommand()) return;
     if (interaction.user.bot) return;
@@ -226,10 +240,12 @@ client.on('interactionCreate', async(interaction) => {
         try {
             const categoryId = interaction.channel.parent.id;
             const row = new ActionRowBuilder();
+            const customEmoji = findServerEmoji(interaction, 'SNIFFA');
             row.addComponents(
                 new ButtonBuilder().setCustomId('update-events').setLabel('Update Events').setStyle(ButtonStyle.Primary),
                 new ButtonBuilder().setCustomId('show-signups').setLabel('Show my Signups').setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder().setCustomId('show-mysetups').setLabel('Show my Setups').setStyle(ButtonStyle.Success)
+                new ButtonBuilder().setCustomId('show-mysetups').setLabel('Show my Setups').setStyle(ButtonStyle.Success),
+                new ButtonBuilder().setCustomId('show-allsetups').setLabel('Show All Setups').setStyle(ButtonStyle.Danger).setEmoji(customEmoji)
             )
 
             const formattedRaids = await showAllEvents(interaction, categoryId);

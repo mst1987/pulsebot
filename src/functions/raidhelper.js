@@ -13,7 +13,7 @@ async function getMissingSignUps(interaction, categoryId) {
 async function getSignUps(interaction, categoryId) {
     var categoryEvents = await getCategoryEvents(interaction, categoryId);
     categoryEvents = categoryEvents.sort((eventA, eventB) => eventA.startTime - eventB.startTime);
-    console.log(categoryEvents);
+
     const signUps = categoryEvents.filter(event => event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
 
     const signUpsWithSpecs = signUps.map(event => {
