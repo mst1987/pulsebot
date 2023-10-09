@@ -53,7 +53,7 @@ async function getCategorySetups(interaction, categoryId) {
 
 }
 
-async function getSetupsFromEvents(interaction, events) {
+async function getSetupsFromEvents(client, interaction, events) {
     const raidhelper = new Raidhelper();
     await Promise.all(events.map(async(event) => {
         console.log(event);
