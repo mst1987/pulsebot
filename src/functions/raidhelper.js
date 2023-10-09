@@ -27,7 +27,7 @@ async function getSignUps(categoryId) {
     return signUpsWithSpecs.map(channelId => `<#${channelId.channelId}>  ${channelId.specs}\n`).join(`\n`);
 }
 
-async function getCategorySetups(categoryId) {
+async function getCategorySetups(interaction, categoryId) {
     let events = [];
     var categoryEvents = await getCategoryEvents(interaction, categoryId);
 
