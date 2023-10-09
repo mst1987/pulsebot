@@ -97,7 +97,7 @@ async function getRaidInfosFromChannel(interaction) {
 
     for (const [key, value] of botMessages) {
         const event = await raidhelper.getEvent(key);
-        console.log(key)
+        console.log(event)
         if (event) {
             const setup = await raidhelper.getSetup(event.id);
             console.log(setup)
