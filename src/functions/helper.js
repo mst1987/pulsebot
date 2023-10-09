@@ -101,7 +101,7 @@ async function getRaidInfosFromChannel(interaction) {
         console.log(event)
         if (event) {
             const setup = await raidhelper.getSetup(event.id);
-            return { raidData: createRaidData(event), setup };
+            return { raidData: createRaidData(event), setup: setup ? setup : [] };
         } else await botReply(interaction, messages.signup.errorTitle, messages.signup.errorMessage);
     }
 }
