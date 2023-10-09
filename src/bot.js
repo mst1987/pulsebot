@@ -220,7 +220,7 @@ client.on('interactionCreate', async(interaction) => {
     }
 
     if (commandName === 'saveraid') {
-        if (checkForPermission()) return;
+        if (checkForPermission(interaction)) return;
         const raidInfos = getRaidInfosFromChannel(interaction);
         console.log(raidInfos);
     }
