@@ -1,3 +1,4 @@
+const Raidhelper = require("../classes/raidhelper");
 const { getCategoryEvents } = require("./helper");
 
 async function getMissingSignUps(categoryId) {
@@ -29,6 +30,7 @@ async function getSignUps(categoryId) {
 
 async function getCategorySetups(interaction, categoryId) {
     let events = [];
+    const raidhelper = new Raidhelper();
     var categoryEvents = await getCategoryEvents(interaction, categoryId);
 
     await Promise.all(categoryEvents.map(async(event) => {
