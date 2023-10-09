@@ -238,7 +238,7 @@ class Raidhelper {
                 });
 
                 response.on('end', () => {
-                    resolve(data); // Resolve the promise with the response data
+                    resolve(JSON.parse(data)); // Resolve the promise with the response data
                 });
             });
 
