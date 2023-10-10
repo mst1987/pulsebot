@@ -15,34 +15,30 @@ class Raidhelper {
                 headers: { 'Authorization': 'Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90', 'StartTimeFilter': currentUnixTimestamp, 'IncludeSignups': true }
             }
 
-            try {
-                var request = https.request(options, (resp) => {
-                    resp.on('data', (chunk) => {
-                        data += chunk;
-                    });
-
-                    // The whole response has been received. Print out the result.
-                    resp.on('end', () => {
-                        if (resp.headers['content-type'].includes('application/json')) {
-                            data = JSON.parse(data);
-                            if (data.status === 'failed') {
-                                reject(data);
-                            } else {
-                                var filteredEvents = data['postedEvents'].sort((eventA, eventB) => eventA.startTime - eventB.startTime);
-
-                                resolve(filteredEvents);
-                            }
-                        } else {
-                            console.error('Received a non-JSON response:', data);
-                            resolve();
-                        }
-                    });
-                }).on("error", (err) => {
-                    console.log("Error: " + err.message);
+            var request = https.request(options, (resp) => {
+                resp.on('data', (chunk) => {
+                    data += chunk;
                 });
-            } catch (error) {
-                console.log('TestError: ', error);
-            }
+
+                // The whole response has been received. Print out the result.
+                resp.on('end', () => {
+                    if (resp.headers['content-type'].includes('application/json')) {
+                        data = JSON.parse(data);
+                        if (data.status === 'failed') {
+                            reject(data);
+                        } else {
+                            var filteredEvents = data['postedEvents'].sort((eventA, eventB) => eventA.startTime - eventB.startTime);
+
+                            resolve(filteredEvents);
+                        }
+                    } else {
+                        console.error('Received a non-JSON response:', data);
+                        resolve();
+                    }
+                });
+            }).on("error", (err) => {
+                console.log("Error: " + err.message);
+            });
             request.end()
         });
     }
