@@ -79,7 +79,7 @@ client.on('interactionCreate', async(interaction) => {
                 const mySetup = setups.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(event => {
                     return setupResponse(interaction, event);
                 }).join(`\n`)
-
+                console.log(interaction)
                 await interaction.reply({
                         embeds: [{
                             title: 'Alle deine Setups auf dem Discord',
