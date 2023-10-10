@@ -1,21 +1,9 @@
 require('dotenv').config();
-const Raidhelper = require('../classes/raidhelper.js');
 const { REST, Routes } = require('discord.js');
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORDJS_BOT_TOKEN);
 
 (async() => {
     try {
-        let eventChoices = [];
-        let classChoices = [];
-        const raidhelper = new Raidhelper();
-        events = await raidhelper.getAllEvents();
-
-        events.forEach(event => {
-            date = new Date(event.startTime * 1000);
-            formattedDate = `${date.getDate()}.${date.getMonth()}.${date.getFullYear()} - ${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`
-            eventChoices.push({ name: event.id + ' | ' + formattedDate + ' | ' + event.title, value: event.id })
-        })
-
         const commands = [{
                 name: 'mysetups',
                 description: 'Show the GDKP events i am in the Setup',
