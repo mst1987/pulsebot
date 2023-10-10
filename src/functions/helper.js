@@ -155,16 +155,12 @@ async function delay(ms) {
 }
 
 async function getCategoryEvents(interaction, categoryId) {
-    try {
-        const raidhelper = new Raidhelper();
-        const allEvents = await raidhelper.getAllEvents();
-        const channelsInCategory = getChannelsFromCategories(interaction.guild, [categoryId]);
-        const categoryEvents = allEvents.filter(event => channelsInCategory.includes(event.channelId));
+    const raidhelper = new Raidhelper();
+    const allEvents = await raidhelper.getAllEvents();
+    const channelsInCategory = getChannelsFromCategories(interaction.guild, [categoryId]);
+    const categoryEvents = allEvents.filter(event => channelsInCategory.includes(event.channelId));
 
-        return categoryEvents;
-    } catch (error) {
-        console.log('CATEGORYERROR:', error);
-    }
+    return categoryEvents;
 }
 
 module.exports = {
