@@ -26,6 +26,7 @@ class Raidhelper {
                         data = JSON.parse(data);
                         if (data.status === 'failed') {
                             //throw (data);
+                            console.log(data);
                         } else {
                             var filteredEvents = data['postedEvents'].sort((eventA, eventB) => eventA.startTime - eventB.startTime);
 
