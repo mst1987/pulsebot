@@ -141,7 +141,7 @@ class Raidhelper {
                 response.on('data', (chunk) => {
                     data += chunk;
                 });
-                console.log(data)
+                console.log(response)
                 response.on('end', () => {
                     resolve(data); // Resolve the promise with the response data
                 });
