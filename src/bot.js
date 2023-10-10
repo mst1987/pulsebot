@@ -236,7 +236,7 @@ client.on('interactionCreate', async(interaction) => {
 
             await botReply(interaction, messages.signup.successTitle, messages.signup.successMessage.replace('___replace___', formattedSignUps));
         } catch (error) {
-            console.log(error)
+            console.log('Error2:', error)
         }
     }
 
@@ -257,7 +257,7 @@ client.on('interactionCreate', async(interaction) => {
             const formattedRaids = await showAllEvents(interaction, categoryId);
             botReply(interaction, interaction.channel.parent.name, formattedRaids, 0, false, [row]);
         } catch (error) {
-            console.log(error);
+            console.log('Error3', error);
         }
     }
     // --------------------------------------------------------
