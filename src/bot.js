@@ -76,8 +76,8 @@ client.on('interactionCreate', async(interaction) => {
                 await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
                 return;
             } else {
-                const mySetup = setups.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(async(event) => {
-                    return await setupResponse(interaction, event);
+                const mySetup = setups.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map((event) => {
+                    return setupResponse(interaction, event);
                 }).join(`\n`)
                 console.log(interaction)
                 await interaction.reply({
