@@ -226,6 +226,7 @@ client.on('interactionCreate', async(interaction) => {
         try {
             const signedUpSpecs = interaction.options.getString('specs');
             const formattedGDKPSignUps = formatSignUps(interaction, signedUpSpecs);
+            console.log(formattedGDKPSignUps)
             raidhelper.signUpToRaid(raidId, signedUpSpecs, interaction.user.id);
 
             await botReply(interaction, messages.signup.successTitle, messages.signup.successMessage.replace('___replace___', formattedGDKPSignUps));
