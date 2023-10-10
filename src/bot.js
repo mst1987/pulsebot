@@ -218,9 +218,9 @@ client.on('interactionCreate', async(interaction) => {
     }
 
     if (commandName === 'signup') {
-        interaction.deferReply({ ephemeral: true });
         let raidId;
         const channelMessages = await interaction.channel.messages.fetch();
+        interaction.deferReply({ ephemeral: true });
         const botMessages = channelMessages.filter(msg => msg.author.id === '579155972115660803');
 
         for (const [key, value] of botMessages) {
@@ -234,7 +234,7 @@ client.on('interactionCreate', async(interaction) => {
 
             await raidhelper.signUpToRaid(raidId, signedUpSpecs, interaction.user.id);
 
-            await botEditReply(interaction, messages.signup.successTitle, messages.signup.successMessage.replace('___replace___', formattedSignUps));
+            await botReply(interaction, messages.signup.successTitle, messages.signup.successMessage.replace('___replace___', formattedSignUps));
         } catch (error) {
             console.log(error)
         }
