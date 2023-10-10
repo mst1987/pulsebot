@@ -22,22 +22,17 @@ class Raidhelper {
 
                 // The whole response has been received. Print out the result.
                 resp.on('end', () => {
-                    if (resp.headers['content-type'].includes('application/json')) {
-                        data = JSON.parse(data);
-                        if (data.status === 'failed') {
-                            reject(data);
-                        } else {
-                            var filteredEvents = data['postedEvents'].sort((eventA, eventB) => eventA.startTime - eventB.startTime);
-
-                            resolve(filteredEvents);
-                        }
+                    data = JSON.parse(data);
+                    if (data.status === 'failed') {
+                        reject(data);
                     } else {
-                        console.error('Received a non-JSON response:', data);
-                        resolve();
+                        var filteredEvents = data['postedEvents'].sort((eventA, eventB) => eventA.startTime - eventB.startTime);
+
+                        resolve(filteredEvents);
                     }
                 });
             }).on("error", (err) => {
-                console.log("Error: " + err.message);
+                console.log(err.message);
             });
             request.end()
         });
