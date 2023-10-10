@@ -33,24 +33,23 @@ async function getCategorySetups(interaction, categoryId) {
     let events = [];
     const raidhelper = new Raidhelper();
     var categoryEvents = await getCategoryEvents(interaction, categoryId);
-    console.log(categoryEvents);
-    await Promise.all(categoryEvents.map(async(event) => {
-        const setup = await raidhelper.getSetup(event.id);
+    if (categoryEvents) {
+        await Promise.all(categoryEvents.map(async(event) => {
+            const setup = await raidhelper.getSetup(event.id);
 
-        if (setup) {
-            events.push({ channelid: event.channelId, startTime: event.startTime, ...setup });
-        } else {
-            events.push({ channelid: event.channelId, startTime: event.startTime });
-        }
-    }));
+            if (setup) {
+                events.push({ channelid: event.channelId, startTime: event.startTime, ...setup });
+            } else {
+                events.push({ channelid: event.channelId, startTime: event.startTime });
+            }
+        }));
 
-    events = events.filter((event, index) => {
-        if (!event.setup) return event;
-        else return event.setup.some(user => user.userid === interaction.user.id)
-    });
-
+        events = events.filter((event, index) => {
+            if (!event.setup) return event;
+            else return event.setup.some(user => user.userid === interaction.user.id)
+        });
+    }
     return events;
-
 }
 
 async function getSetupsFromEvents(client, interaction, events) {
