@@ -1,5 +1,5 @@
 const Raidhelper = require("../classes/raidhelper");
-const { getCategoryEvents, getCharacterIcon } = require("./helper");
+const { getCategoryEvents, getCharacterIcon, delay } = require("./helper");
 
 async function getMissingSignUps(interaction, categoryId) {
     var categoryEvents = await getCategoryEvents(interaction, categoryId);
@@ -59,6 +59,7 @@ async function getSetupsFromEvents(client, interaction, events) {
     await Promise.all(events.map(async(event) => {
         if (client.channels.cache.get(event.channelId)) {
             const setup = await raidhelper.getSetup(event.id);
+            await delay(500);
             if (setup) {
                 myevents.push({ channelid: event.channelId, startTime: event.startTime, ...setup });
             }
