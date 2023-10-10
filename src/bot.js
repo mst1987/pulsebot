@@ -21,7 +21,8 @@ const {
     getCharacterIcon,
     checkForPermission,
     getRaidInfosFromChannel,
-    formatSpecs
+    formatSpecs,
+    botEditReply
 } = require('./functions/helper');
 const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { setupResponse, getAuctionMessage } = require('./functions/responses.js');
