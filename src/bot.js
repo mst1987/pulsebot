@@ -20,7 +20,8 @@ const {
     findServerEmoji,
     getCharacterIcon,
     checkForPermission,
-    getRaidInfosFromChannel
+    getRaidInfosFromChannel,
+    formatSpecs
 } = require('./functions/helper');
 const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { setupResponse, getAuctionMessage } = require('./functions/responses.js');
@@ -224,10 +225,10 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         try {
-            const signedUpSpecs = interaction.options.getString('specs');
+            const signedUpSpecs = formatSpecs(interaction.options.getString('specs'));
             const formattedSignUps = formatSignUps(interaction, signedUpSpecs);
-            console.log(formattedSignUps)
-            raidhelper.signUpToRaid(raidId, signedUpSpecs, interaction.user.id);
+
+            raidhelper.signUpToRaid(raidId, signedUpSpecs.specName, interaction.user.id);
 
             await botReply(interaction, messages.signup.successTitle, messages.signup.successMessage.replace('___replace___', formattedSignUps));
         } catch (error) {

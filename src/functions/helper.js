@@ -53,19 +53,23 @@ async function botFollowup(interaction, message, timeout = timeoutTime, ephemera
 }
 
 function formatSignUps(interaction, specs) {
-    let signUps = [];
+    return specs.map(s => `${getCharacterIcon(interaction, s.specName)}`).join(``);
+}
+
+function formatSpecs(specs) {
+    let formatted = [];
     if (specs) {
         specs = specs.split(',');
         specs = specs.slice(0, 10);
-        console.log(specs);
         specs.forEach(spec => {
             if (extendedClassList[spec]) {
-                signUps.push({ className: extendedClassList[spec].clazz, specName: extendedClassList[spec].spec })
+                formatted.push({ className: extendedClassList[spec].clazz, specName: extendedClassList[spec].spec })
                 console.log(signUps)
             }
         })
     }
-    return signUps.map(s => `${getCharacterIcon(interaction, s.specName)}`).join(``);
+
+    return formatted;
 }
 
 function getChannelsFromCategories(guild, categoryIds) {
@@ -155,6 +159,7 @@ module.exports = {
     formatNumberWithDots,
     getChannelsFromCategories,
     formatSignUps,
+    formatSpecs,
     botFollowup,
     botReply,
     getUserNickname,
