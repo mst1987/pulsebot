@@ -71,7 +71,7 @@ client.on('interactionCreate', async(interaction) => {
 
         if (interaction.customId === 'show-allsetups') {
             const events = await raidhelper.getUserSignUps(interaction.user.id);
-            setups = await getSetupsFromEvents(client, interaction, events);
+            const setups = await getSetupsFromEvents(client, interaction, events);
             if (setups.length < 1) {
                 await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
                 return;
@@ -79,20 +79,8 @@ client.on('interactionCreate', async(interaction) => {
                 const mySetup = setups.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map((event) => {
                     return setupResponse(interaction, event);
                 }).join(`\n`)
-                console.log(interaction)
-                await interaction.reply({
-                        embeds: [{
-                            title: 'Alle deine Setups auf dem Discord',
-                            description: `${mySetup}\n`
-                        }],
-                        ephemeral: true
-                    }).then(msg => {
-                        setTimeout(() => msg.delete(), 60000)
-                    })
-                    .catch(error => {
-                        console.log(error);
-                    });
-                //await botReply(interaction, 'Alle deine Setups auf dem Discord', `${mySetup}\n`)
+
+                await botReply(interaction, 'Alle deine Setups auf dem Discord', `${mySetup}\n`)
                 return;
             }
         }
