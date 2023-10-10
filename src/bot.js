@@ -220,7 +220,6 @@ client.on('interactionCreate', async(interaction) => {
     if (commandName === 'signup') {
         let raidId;
         const channelMessages = await interaction.channel.messages.fetch();
-        interaction.deferReply({ ephemeral: true });
         const botMessages = channelMessages.filter(msg => msg.author.id === '579155972115660803');
 
         for (const [key, value] of botMessages) {
