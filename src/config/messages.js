@@ -10,7 +10,7 @@ module.exports = {
         missingSignups: 'Missing/Absence SignUps: \n___replace___\n\n',
         signups: 'Signed Up GDKP Events: \n___replace___',
         errorTitle: 'Fehler',
-        errorMessage: 'Der Bot braucht zu lange... probiers nochmal!'
+        errorMessage: 'Der Raidhelper Bot ist gerade busy... probiers in 2-3 Sekunden nochmal!'
     },
     mysetups: {
         successTitle: 'Setups',
