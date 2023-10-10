@@ -63,7 +63,8 @@ function formatSignUps(interaction, specs) {
                 signUps.push({ className: extendedClassList[spec].clazz, specName: extendedClassList[spec].spec })
                 console.log(signUps)
             }
-        }).map(s => `${getCharacterIcon(interaction, s.specName)}`).join(``);
+        })
+        signUps.map(s => `${getCharacterIcon(interaction, s.specName)}`).join(``);
     }
 
     return signUps;
