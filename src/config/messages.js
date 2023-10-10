@@ -2,15 +2,15 @@ module.exports = {
     general: {
         missingSignups: 'Missing/Absence SignUps: \n___replace___\n\n',
         signups: 'Signed Up: \n___replace___',
-        errorTitle: 'Missing Infos',
-        errorMessage: ''
+        errorTitle: 'Fehler',
+        errorMessage: 'Der Raidhelper Bot ist gerade busy... probiers in 2-3 Sekunden nochmal!'
     },
     gdkpraids: {
         successTitle: 'GDKP Raid Sign Ups',
         missingSignups: 'Missing/Absence SignUps: \n___replace___\n\n',
         signups: 'Signed Up GDKP Events: \n___replace___',
         errorTitle: 'Fehler',
-        errorMessage: 'Der Raidhelper Bot ist gerade busy... probiers in 2-3 Sekunden nochmal!'
+        errorMessage: ''
     },
     mysetups: {
         successTitle: 'Setups',
