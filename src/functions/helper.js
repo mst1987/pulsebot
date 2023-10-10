@@ -59,8 +59,10 @@ function formatSignUps(specs) {
         specs = specs.slice(0, 10);
         console.log(specs);
         specs.forEach(spec => {
-            if (extendedClassList[spec])
+            if (extendedClassList[spec]) {
                 signUps.push({ className: extendedClassList[spec].clazz, specName: extendedClassList[spec].spec })
+                console.log(signUps)
+            }
         }).map(s => `${getCharacterIcon(interaction, s.specName)}`).join(``);
     }
 
