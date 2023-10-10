@@ -24,6 +24,7 @@ class Raidhelper {
                 resp.on('end', () => {
                     if (resp.headers['content-type'].includes('application/json')) {
                         data = JSON.parse(data);
+                        console.log(data);
                         var filteredEvents = data['postedEvents'].sort((eventA, eventB) => eventA.startTime - eventB.startTime);
 
                         resolve(filteredEvents);
