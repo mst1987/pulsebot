@@ -41,7 +41,7 @@ class Raidhelper {
                     console.log("Error: " + err.message);
                 });
             } catch (error) {
-                console.log(error);
+                console.log('TestError: ', error);
             }
             request.end()
         });
