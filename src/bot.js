@@ -70,6 +70,7 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         if (interaction.customId === 'show-allsetups') {
+            interaction.deferReply();
             const events = await raidhelper.getUserSignUps(interaction.user.id);
             const setups = await getSetupsFromEvents(client, interaction, events);
             let mySetup;
@@ -83,7 +84,7 @@ client.on('interactionCreate', async(interaction) => {
                 console.log(mySetup)
             }
 
-            await botReply(interaction, 'Alle deine Setups auf dem Discord', `${mySetup}\n`)
+            await botEditReply(interaction, 'Alle deine Setups auf dem Discord', `${mySetup}\n`)
             return;
         }
     }

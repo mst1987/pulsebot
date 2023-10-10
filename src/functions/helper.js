@@ -37,6 +37,23 @@ async function botReply(interaction, title, message, timeout = timeoutTime, ephe
         });
 }
 
+async function botEditReply(interaction, title, message, timeout = timeoutTime, ephemeral = true, components = []) {
+    await interaction.editReply({
+            embeds: [{
+                title: title,
+                description: message
+            }],
+            ephemeral: ephemeral,
+            components
+        }).then(msg => {
+            if (timeout > 0)
+                setTimeout(() => msg.delete(), timeout)
+        })
+        .catch(error => {
+            console.log(error);
+        });
+}
+
 async function botFollowup(interaction, message, timeout = timeoutTime, ephemeral = true) {
     await interaction.followUp({
             embeds: [{
@@ -164,5 +181,6 @@ module.exports = {
     findServerEmoji,
     getCharacterIcon,
     getRaidInfosFromChannel,
-    checkForPermission
+    checkForPermission,
+    botEditReply
 }
