@@ -33,7 +33,7 @@ async function botReply(interaction, title, message, timeout = timeoutTime, ephe
                 setTimeout(() => msg.delete(), timeout)
         })
         .catch(error => {
-            console.log('ErrorReply', error);
+            console.log(error);
         });
 }
 
@@ -47,7 +47,7 @@ async function botEditReply(interaction, title, message, timeout = timeoutTime, 
             components
         })
         .catch(error => {
-            console.log('ErrorReplyEdit', error);
+            console.log(error);
         });
 }
 
@@ -163,7 +163,7 @@ async function getCategoryEvents(interaction, categoryId) {
 
         return categoryEvents;
     } catch (error) {
-        console.log('Error', error);
+        console.log(error);
     }
 }
 
