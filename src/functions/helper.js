@@ -33,7 +33,7 @@ async function botReply(interaction, title, message, timeout = timeoutTime, ephe
                 setTimeout(() => msg.delete(), timeout)
         })
         .catch(error => {
-            console.log(error);
+            console.log('ErrorReply', error);
         });
 }
 
@@ -47,7 +47,7 @@ async function botEditReply(interaction, title, message, timeout = timeoutTime, 
             components
         })
         .catch(error => {
-            console.log(error);
+            console.log('ErrorReplyEdit', error);
         });
 }
 
