@@ -115,6 +115,7 @@ class Raidhelper {
     }
 
     async signUp(raidid, classes, userid) {
+        console.log('signup start');
         return new Promise(async(resolve, reject) => {
             const postData = JSON.stringify({
                 userId: userid,
@@ -133,7 +134,7 @@ class Raidhelper {
                     'Content-Length': postData.length
                 }
             };
-
+            console.log('signup mid');
             const request = https.request(options, (response) => {
                 let data = '';
                 response.on('data', (chunk) => {
@@ -148,7 +149,7 @@ class Raidhelper {
             request.on('error', (error) => {
                 reject(error); // Reject the promise if there's an error
             });
-
+            console.log('signup end');
             request.write(postData);
             request.end();
         });
