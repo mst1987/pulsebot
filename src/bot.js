@@ -80,7 +80,19 @@ client.on('interactionCreate', async(interaction) => {
                     return setupResponse(interaction, event);
                 }).join(`\n`)
 
-                await botReply(interaction, 'Alle deine Setups auf dem Discord', `${mySetup}\n`)
+                await interaction.reply({
+                        embeds: [{
+                            title: title,
+                            description: `${mySetup}\n`
+                        }],
+                        ephemeral: true
+                    }).then(msg => {
+                        setTimeout(() => msg.delete(), 60000)
+                    })
+                    .catch(error => {
+                        console.log(error);
+                    });
+                //await botReply(interaction, 'Alle deine Setups auf dem Discord', `${mySetup}\n`)
                 return;
             }
         }
