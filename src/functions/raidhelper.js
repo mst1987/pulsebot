@@ -58,7 +58,7 @@ async function getSetupsFromEvents(client, interaction, events) {
     const raidhelper = new Raidhelper();
     await Promise.all(events.map(async(event) => {
         const setup = await raidhelper.getSetup(event.id);
-        console.log(setup.raidDrop)
+        console.log(setup)
         if (setup) {
             myevents.push({ channelid: event.channelId, startTime: event.startTime, ...setup });
         }
