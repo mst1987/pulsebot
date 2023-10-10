@@ -65,8 +65,7 @@ client.on('interactionCreate', async(interaction) => {
 
                 await botReply(interaction, messages.mysetups.successTitle, `\n${mySetup}`)
             } catch (error) {
-                console.log('CATEGORYERROR:', error);
-                await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
+                await botReply(interaction, messages.general.errorTitle, messages.general.errorMessage);
             }
         }
 
