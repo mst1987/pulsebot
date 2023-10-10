@@ -106,6 +106,7 @@ class Raidhelper {
 
     async signUpToRaid(raidid, signUps, userid) {
         let promises = [];
+        console.log(signUps)
         for (let signUp of signUps) {
             promises.push(await this.signUp(raidid, signUp.specName, userid));
         }
