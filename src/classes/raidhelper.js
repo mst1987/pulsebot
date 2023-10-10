@@ -5,7 +5,7 @@ class Raidhelper {
     constructor() {}
 
     async getAllEvents() {
-        delay(2500);
+        await delay(2500);
         return new Promise((resolve, reject) => {
             let data = '';
             const currentUnixTimestamp = Math.floor(Date.now() / 1000);
