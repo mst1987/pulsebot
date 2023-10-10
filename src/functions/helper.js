@@ -163,7 +163,7 @@ async function getCategoryEvents(interaction, categoryId) {
 
         return categoryEvents;
     } catch (error) {
-        console.log(error);
+        console.log('Error', error);
     }
 }
 
