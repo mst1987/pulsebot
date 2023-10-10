@@ -45,9 +45,6 @@ async function botEditReply(interaction, title, message, timeout = timeoutTime, 
             }],
             ephemeral: ephemeral,
             components
-        }).then(msg => {
-            if (timeout > 0)
-                setTimeout(() => msg.delete(), timeout)
         })
         .catch(error => {
             console.log(error);
