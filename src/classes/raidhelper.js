@@ -136,6 +136,7 @@ class Raidhelper {
             };
             console.log('signup mid');
             const request = https.request(options, (response) => {
+                console.log('signup mid2222');
                 let data = '';
                 response.on('data', (chunk) => {
                     data += chunk;
