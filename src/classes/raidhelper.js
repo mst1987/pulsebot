@@ -40,11 +40,10 @@ class Raidhelper {
                 }).on("error", (err) => {
                     console.log("Error: " + err.message);
                 });
-                request.end()
             } catch (error) {
                 console.log(error);
             }
-
+            request.end()
         });
     }
 
