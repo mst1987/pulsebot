@@ -82,7 +82,7 @@ client.on('interactionCreate', async(interaction) => {
 
                 await interaction.reply({
                         embeds: [{
-                            title: title,
+                            title: 'Alle deine Setups auf dem Discord',
                             description: `${mySetup}\n`
                         }],
                         ephemeral: true
