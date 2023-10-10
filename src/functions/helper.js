@@ -55,8 +55,9 @@ async function botFollowup(interaction, message, timeout = timeoutTime, ephemera
 function formatSignUps(specs) {
     let signUps = [];
     if (specs) {
-        specs = specs.split(',')
-        specs = specs.slice(0, 10)
+        specs = specs.split(',');
+        specs = specs.slice(0, 10);
+        console.log(specs);
         specs.forEach(spec => {
             if (extendedClassList[spec])
                 signUps.push({ className: extendedClassList[spec].clazz, specName: extendedClassList[spec].spec })
