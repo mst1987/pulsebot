@@ -72,17 +72,19 @@ client.on('interactionCreate', async(interaction) => {
         if (interaction.customId === 'show-allsetups') {
             const events = await raidhelper.getUserSignUps(interaction.user.id);
             const setups = await getSetupsFromEvents(client, interaction, events);
+            let mySetup;
             if (setups.length < 1) {
                 await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
                 return;
             } else {
-                const mySetup = setups.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map((event) => {
+                mySetup = setups.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map((event) => {
                     return setupResponse(interaction, event);
                 }).join(`\n`)
                 console.log(mySetup)
-                await botReply(interaction, 'Alle deine Setups auf dem Discord', `${mySetup}\n`)
-                return;
             }
+
+            await botReply(interaction, 'Alle deine Setups auf dem Discord', `${mySetup}\n`)
+            return;
         }
     }
     if (!interaction.isChatInputCommand()) return;
