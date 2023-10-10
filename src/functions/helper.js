@@ -59,12 +59,10 @@ function formatSignUps(interaction, specs) {
 function formatSpecs(specs) {
     let formatted = [];
     if (specs) {
-        specs = specs.split(',');
-        specs = specs.slice(0, 10);
+        specs = specs.split(',').slice(0, 10);
         specs.forEach(spec => {
             if (extendedClassList[spec]) {
                 formatted.push({ className: extendedClassList[spec].clazz, specName: extendedClassList[spec].spec })
-                console.log(signUps)
             }
         })
     }
