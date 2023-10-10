@@ -15,32 +15,36 @@ class Raidhelper {
                 headers: { 'Authorization': 'Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90', 'StartTimeFilter': currentUnixTimestamp, 'IncludeSignups': true }
             }
 
-            var request = https.request(options, (resp) => {
-                resp.on('data', (chunk) => {
-                    data += chunk;
-                });
+            try {
+                var request = https.request(options, (resp) => {
+                    resp.on('data', (chunk) => {
+                        data += chunk;
+                    });
 
-                // The whole response has been received. Print out the result.
-                resp.on('end', () => {
-                    if (resp.headers['content-type'].includes('application/json')) {
-                        data = JSON.parse(data);
-                        if (data.status === 'failed') {
-                            //throw (data);
-                            console.log(data);
+                    // The whole response has been received. Print out the result.
+                    resp.on('end', () => {
+                        if (resp.headers['content-type'].includes('application/json')) {
+                            data = JSON.parse(data);
+                            if (data.status === 'failed') {
+                                throw (data);
+                            } else {
+                                var filteredEvents = data['postedEvents'].sort((eventA, eventB) => eventA.startTime - eventB.startTime);
+
+                                resolve(filteredEvents);
+                            }
                         } else {
-                            var filteredEvents = data['postedEvents'].sort((eventA, eventB) => eventA.startTime - eventB.startTime);
-
-                            resolve(filteredEvents);
+                            console.error('Received a non-JSON response:', data);
+                            resolve();
                         }
-                    } else {
-                        console.error('Received a non-JSON response:', data);
-                        resolve();
-                    }
+                    });
+                }).on("error", (err) => {
+                    console.log("Error: " + err.message);
                 });
-            }).on("error", (err) => {
-                console.log("Error: " + err.message);
-            });
-            request.end()
+                request.end()
+            } catch (error) {
+                console.log(error);
+            }
+
         });
     }
 
