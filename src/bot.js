@@ -82,7 +82,6 @@ client.on('interactionCreate', async(interaction) => {
                 mySetup = setups.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map((event) => {
                     return setupResponse(interaction, event);
                 }).join(`\n`)
-                console.log(mySetup)
             }
 
             await botEditReply(interaction, 'Alle deine Setups auf dem Discord', `${mySetup}\n`)
