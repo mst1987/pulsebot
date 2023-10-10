@@ -197,6 +197,7 @@ class Raidhelper {
                 });
 
                 resp.on('end', () => {
+                    console.log(data);
                     if (!data) {
                         resolve()
                     } else {
