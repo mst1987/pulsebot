@@ -63,10 +63,9 @@ function formatSignUps(interaction, specs) {
                 signUps.push({ className: extendedClassList[spec].clazz, specName: extendedClassList[spec].spec })
                 console.log(signUps)
             }
-        }).map(s => `${getCharacterIcon(interaction, s.specName)}`).join(``);
+        })
     }
-
-    return signUps;
+    return signUps.map(s => `${getCharacterIcon(interaction, s.specName)}`).join(``);
 }
 
 function getChannelsFromCategories(guild, categoryIds) {

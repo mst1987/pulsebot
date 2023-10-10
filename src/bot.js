@@ -225,11 +225,11 @@ client.on('interactionCreate', async(interaction) => {
 
         try {
             const signedUpSpecs = interaction.options.getString('specs');
-            const formattedGDKPSignUps = formatSignUps(interaction, signedUpSpecs);
-            console.log(formattedGDKPSignUps)
+            const formattedSignUps = formatSignUps(interaction, signedUpSpecs);
+            console.log(formattedSignUps)
             raidhelper.signUpToRaid(raidId, signedUpSpecs, interaction.user.id);
 
-            await botReply(interaction, messages.signup.successTitle, messages.signup.successMessage.replace('___replace___', formattedGDKPSignUps));
+            await botReply(interaction, messages.signup.successTitle, messages.signup.successMessage.replace('___replace___', formattedSignUps));
         } catch (error) {
             console.log(error)
         }
