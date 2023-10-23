@@ -25,7 +25,7 @@ const {
     botEditReply
 } = require('./functions/helper');
 const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { setupResponse, getAuctionMessage } = require('./functions/responses.js');
+const { setupResponse, getAuctionMessage, getItemsToShow } = require('./functions/responses.js');
 const { getMissingSignUps, getSignUps, getCategorySetups, getSetupsFromEvents } = require('./functions/raidhelper.js');
 const { getTargetMessage, updateHighestBids } = require('./functions/legendary.js');
 const { toTimestamp } = require('./functions/date.js');
