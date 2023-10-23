@@ -1,5 +1,5 @@
 const { getCharacterIcon, findServerEmoji } = require('./helper.js');
-const { formatTimestampToDateString } = require('./date.js');
+const { formatTimestampToDateString, parseDMYDateString } = require('./date.js');
 
 function setupResponse(interaction, event) {
     let notInSetup = 'Setup not done yet';
