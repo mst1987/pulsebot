@@ -301,7 +301,7 @@ client.on('interactionCreate', async(interaction) => {
 
                 const targetMessage = getTargetMessage(client, highestBidsChannelId, highestBidsMessageId);
                 if (targetMessage) {
-                    updateHighestBids(interaction, targetMessage, legendary);
+                    updateHighestBids(interaction, targetMessage, legendary, client);
                 }
 
                 if (response.extended) {
