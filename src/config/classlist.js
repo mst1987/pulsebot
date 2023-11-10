@@ -24,6 +24,7 @@ module.exports = extendedClassList = {
     'Disc': { icon: 'discipline', name: 'Discipline Priest', clazz: 'Priest', spec: 'Discipline' },
     'Shadow': { icon: 'shadow', name: 'Shadow Priest', clazz: 'Priest', spec: 'Shadow' },
     'HolyPriest': { icon: 'holypriest', name: 'Holy Priest', clazz: 'Priest', spec: 'HolyPriest' },
+    'Holy': { icon: 'holypriest', name: 'Holy Priest', clazz: 'Priest', spec: 'HolyPriest' },
     'PRIEST': { icon: 'priest', name: 'Priest', clazz: 'Priest', spec: 'Priest' },
     //Hunter
     'Survival': { icon: 'survival', name: 'Survival Hunter', clazz: 'Hunter', spec: 'Survival' },
