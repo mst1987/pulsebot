@@ -300,9 +300,8 @@ client.on('interactionCreate', async(interaction) => {
                 botReply(interaction, `**${formatNumberWithDots(Number(bidData.gold))}g**`, `geboten von ${nickname}`, 0, false);
 
                 const targetMessage = await getTargetMessage(client, highestBidsChannelId, highestBidsMessageId);
-                console.log(targetMessage)
                 if (targetMessage) {
-                    updateHighestBids(interaction, targetMessage, legendary, client);
+                    await updateHighestBids(interaction, targetMessage, legendary, client);
                 }
 
                 if (response.extended) {
