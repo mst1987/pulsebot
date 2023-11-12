@@ -308,7 +308,7 @@ client.on('interactionCreate', async(interaction) => {
                     const channelMessage = await getTargetMessage(client, response.legendary.channel, response.legendary.messageid);
                     if (channelMessage) {
                         const embed = { title: `${findServerEmoji(interaction, 'poggies')} Auktion gestartet ${findServerEmoji(interaction, 'poggies')}`, description: `Auktion wurde gestartet\n\n${getAuctionMessage(interaction, response.legendary)}` };
-                        await targetMessage.edit({ embeds: [embed] });
+                        await channelMessage.edit({ embeds: [embed] });
                     }
                     await botFollowup(interaction, `Die Auktion wurde verlängert und endet nun **${formatTimestampToDateString(Math.round(Number(response.legendary.endtime)))}**: <t:${Math.round(Number(response.legendary.endtime/1000))}:R>`, 0, false)
                 }
