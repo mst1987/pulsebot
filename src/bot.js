@@ -28,7 +28,7 @@ const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton
 const { setupResponse, getAuctionMessage, getItemsToShow } = require('./functions/responses.js');
 const { getMissingSignUps, getSignUps, getCategorySetups, getSetupsFromEvents } = require('./functions/raidhelper.js');
 const { getTargetMessage, updateHighestBids } = require('./functions/legendary.js');
-const { toTimestamp, getWednesdayWeeksAgo } = require('./functions/date.js');
+const { toTimestamp, getWednesdayWeeksAgo, formatTimestampToDateString } = require('./functions/date.js');
 const { categoryIds, legendaryID, highestBidsChannelId, highestBidsMessageId } = require('./config/variables.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent], partials: ['MESSAGE', 'REACTION'] });
