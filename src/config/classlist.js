@@ -1,4 +1,4 @@
-const extendedClassList = {
+module.exports = extendedClassList = {
     // Pala
     'Holy1': { icon: 'holypala', name: 'Holy Paladin', clazz: 'Paladin', sodclazz: 'Healer', spec: 'Holy1' },
     'HolyPala': { icon: 'holypala', name: 'Holy Paladin', clazz: 'Paladin', sodclazz: 'Healer', spec: 'Holy1' },
@@ -71,7 +71,3 @@ const extendedClassList = {
     'TankShaman': { icon: 'enhancement', name: 'Enhancement Shaman', clazz: 'Shaman', sodclazz: 'tank', spec: 'Enhancement' },
     'SHAMAN': { icon: 'shaman', name: 'Shaman', clazz: 'Shaman', spec: 'Shaman' },
 }
-
-module.exports = {
-    extendedClassList
-};
