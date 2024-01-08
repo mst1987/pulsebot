@@ -218,15 +218,18 @@ client.on('interactionCreate', async(interaction) => {
 
     if (commandName === 'signup') {
         let raidId;
+        let raid;
         const channelMessages = await interaction.channel.messages.fetch();
         const botMessages = channelMessages.filter(msg => msg.author.id === '579155972115660803');
 
         for (const [key, value] of botMessages) {
-            if (await raidhelper.getEvent(key)) raidId = key;
+            raid = await raidhelper.getEvent(key);
+            if (raid) raidId = key;
             else await botReply(interaction, messages.signup.errorTitle, messages.signup.errorMessage);
         }
 
         try {
+            console.log(raid);
             const signedUpSpecs = formatSpecs(interaction.options.getString('specs'));
             const formattedSignUps = formatSignUps(interaction, signedUpSpecs);
 
