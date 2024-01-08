@@ -70,13 +70,20 @@ function formatSignUps(interaction, specs) {
     return specs.map(s => `${getCharacterIcon(interaction, s.specName)}`).join(``);
 }
 
-function formatSpecs(specs) {
+function formatSpecs(specs, templateId) {
     let formatted = [];
+    let clazz;
     if (specs) {
         specs = specs.split(',').slice(0, 10);
         specs.forEach(spec => {
             if (extendedClassList[spec]) {
-                formatted.push({ className: extendedClassList[spec].clazz, specName: extendedClassList[spec].spec })
+                if (templateId === '40') {
+                    clazz = extendedClassList[spec].sodclazz;
+                } else {
+                    clazz = extendedClassList[spec].clazz;
+                }
+
+                formatted.push({ className: clazz, specName: extendedClassList[spec].spec })
             }
         })
     }
