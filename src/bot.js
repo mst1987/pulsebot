@@ -229,7 +229,6 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         try {
-            console.log(raid);
             const signedUpSpecs = formatSpecs(interaction.options.getString('specs'), raid.templateId);
             const formattedSignUps = formatSignUps(interaction, signedUpSpecs);
 
