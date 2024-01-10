@@ -30,6 +30,7 @@ module.exports = extendedClassList = {
     //Hunter
     'Survival': { icon: 'survival', name: 'Survival Hunter', clazz: 'Hunter', sodclazz: 'melee', spec: 'Survival' },
     'SV': { icon: 'survival', name: 'Survival Hunter', clazz: 'Hunter', sodclazz: 'melee', spec: 'Survival' },
+    'Marksmanship': { icon: 'marksman', name: 'Marksman Hunter', clazz: 'Hunter', sodclazz: 'ranged', spec: 'Marksmanship' },
     'Marksman': { icon: 'marksman', name: 'Marksman Hunter', clazz: 'Hunter', sodclazz: 'ranged', spec: 'Marksmanship' },
     'MM': { icon: 'marksman', name: 'Marksman Hunter', clazz: 'Hunter', sodclazz: 'ranged', spec: 'Marksmanship' },
     'Beastmastery': { icon: 'beastmaster', name: 'Beastmaster Hunter', clazz: 'Hunter', sodclazz: 'ranged', spec: 'Beastmastery' },
