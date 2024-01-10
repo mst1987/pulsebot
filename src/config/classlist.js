@@ -30,10 +30,10 @@ module.exports = extendedClassList = {
     //Hunter
     'Survival': { icon: 'survival', name: 'Survival Hunter', clazz: 'Hunter', sodclazz: 'melee', spec: 'Survival' },
     'SV': { icon: 'survival', name: 'Survival Hunter', clazz: 'Hunter', sodclazz: 'melee', spec: 'Survival' },
-    'Marksman': { icon: 'marksman', name: 'Marksman Hunter', clazz: 'Hunter', sodclazz: 'ranged', spec: 'Marksman' },
-    'MM': { icon: 'marksman', name: 'Marksman Hunter', clazz: 'Hunter', sodclazz: 'ranged', spec: 'Marksman' },
+    'Marksman': { icon: 'marksman', name: 'Marksman Hunter', clazz: 'Hunter', sodclazz: 'ranged', spec: 'Marksmanship' },
+    'MM': { icon: 'marksman', name: 'Marksman Hunter', clazz: 'Hunter', sodclazz: 'ranged', spec: 'Marksmanship' },
     'Beastmaster': { icon: 'beastmastery', name: 'Beastmaster Hunter', clazz: 'Hunter', sodclazz: 'ranged', spec: 'Beastmastery' },
-    'BM': { icon: 'beastmastery', name: 'Beastmaster Hunter', clazz: 'Hunter', sodclazz: 'ranged', spec: 'Beastmastery' },
+    'BM': { icon: 'beastmaster', name: 'Beastmaster Hunter', clazz: 'Hunter', sodclazz: 'ranged', spec: 'Beastmastery' },
     'HUNTER': { icon: 'survival', name: 'Survival Hunter', clazz: 'Hunter', spec: 'Survival' },
     // Warlock
     'Demonology': { icon: 'demonology', name: 'Demonology Warlock', clazz: 'Warlock', sodclazz: 'ranged', spec: 'Demonology' },
