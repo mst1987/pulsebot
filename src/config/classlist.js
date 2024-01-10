@@ -32,7 +32,7 @@ module.exports = extendedClassList = {
     'SV': { icon: 'survival', name: 'Survival Hunter', clazz: 'Hunter', sodclazz: 'melee', spec: 'Survival' },
     'Marksman': { icon: 'marksman', name: 'Marksman Hunter', clazz: 'Hunter', sodclazz: 'ranged', spec: 'Marksmanship' },
     'MM': { icon: 'marksman', name: 'Marksman Hunter', clazz: 'Hunter', sodclazz: 'ranged', spec: 'Marksmanship' },
-    'Beastmastery': { icon: 'beastmastery', name: 'Beastmaster Hunter', clazz: 'Hunter', sodclazz: 'ranged', spec: 'Beastmastery' },
+    'Beastmastery': { icon: 'beastmaster', name: 'Beastmaster Hunter', clazz: 'Hunter', sodclazz: 'ranged', spec: 'Beastmastery' },
     'BM': { icon: 'beastmaster', name: 'Beastmaster Hunter', clazz: 'Hunter', sodclazz: 'ranged', spec: 'Beastmastery' },
     'HUNTER': { icon: 'survival', name: 'Survival Hunter', clazz: 'Hunter', spec: 'Survival' },
     // Warlock
