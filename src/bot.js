@@ -231,7 +231,7 @@ client.on('interactionCreate', async(interaction) => {
         try {
             const signedUpSpecs = formatSpecs(interaction.options.getString('specs'), raid.templateId);
             const formattedSignUps = formatSignUps(interaction, signedUpSpecs);
-
+            console.log(formattedSignUps);
             await raidhelper.signUpToRaid(raidId, signedUpSpecs, interaction.user.id);
 
             await botReply(interaction, messages.signup.successTitle, messages.signup.successMessage.replace('___replace___', formattedSignUps));
