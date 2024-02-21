@@ -75,7 +75,7 @@ client.on('interactionCreate', async(interaction) => {
             const setups = await getSetupsFromEvents(client, interaction, events);
             let mySetup;
             if (setups.length < 1) {
-                await botReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
+                await botEditReply(interaction, messages.mysetups.errorTitle, messages.gdkpraids.errorMessage);
                 return;
             } else {
                 mySetup = setups.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map((event) => {
