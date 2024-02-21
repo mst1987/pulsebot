@@ -70,7 +70,7 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         if (interaction.customId === 'show-allsetups') {
-            interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ ephemeral: true });
             const events = await raidhelper.getUserSignUps(interaction.user.id);
             const setups = await getSetupsFromEvents(client, interaction, events);
             let mySetup;
