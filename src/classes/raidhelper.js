@@ -228,6 +228,7 @@ class Raidhelper {
             const request = https.request(options, (response) => {
                 let data = '';
                 response.on('data', (chunk) => {
+                    console.log(chunk);
                     data += chunk;
                 });
 
