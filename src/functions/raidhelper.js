@@ -11,7 +11,7 @@ async function getAllSignUps(interaction, categoryId) {
         noSignUps: noSignUps.map(channel => `<#${channel.channelId}>`).join(`\n`),
         signUps: getSignUpsWithSpecs(signUps, interaction)
     }
-
+    console.log(response)
     return response;
 }
 
