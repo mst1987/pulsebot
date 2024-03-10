@@ -4,8 +4,8 @@ const { getCategoryEvents, getCharacterIcon, delay } = require("./helper");
 async function getAllSignUps(interaction, categoryId) {
     var categoryEvents = await getCategoryEvents(interaction, categoryId);
 
-    const noSignUps = getEventsWithoutSignup(categoryEvents);
-    const signUps = getEventsWithSignup(categoryEvents);
+    const noSignUps = getEventsWithoutSignup(categoryEvents, interaction);
+    const signUps = getEventsWithSignup(categoryEvents, interaction);
 
     const response = {
         noSignUps: noSignUps.map(channel => `<#${channel.channelId}>`).join(`\n`),
@@ -15,11 +15,11 @@ async function getAllSignUps(interaction, categoryId) {
     return response;
 }
 
-function getEventsWithoutSignup(events) {
+function getEventsWithoutSignup(events, interaction) {
     return events.filter(event => !event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
 }
 
-function getEventsWithSignup(events) {
+function getEventsWithSignup(events, interaction) {
     return events.filter(event => event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
 }
 
