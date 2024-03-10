@@ -52,7 +52,7 @@ client.on('interactionCreate', async(interaction) => {
         if (interaction.customId === 'show-signups') {
             await interaction.deferReply({ ephemeral: true });
             const formattedSignUps = await getAllSignUps(interaction, categoryId);
-            console.log('55 in botjs: ', formattedSignUps)
+            console.log('55 in botjs: ', formattedSignUps.signUps)
             await botEditReply(interaction, interaction.channel.parent.name, messages.general.missingSignups.replace('___replace___', formattedSignUps.noSignUps) + messages.general.signups.replace('___replace___', formattedSignUps.noSignUps));
         }
 
