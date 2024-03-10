@@ -7,8 +7,8 @@ function isNumber(value) {
     return typeof value === 'number' && !isNaN(value);
 }
 
-async function getCharacterIcon(interaction, spec) {
-    return `${await interaction.guild.emojis.cache.find(emoji => emoji.name === extendedClassList[spec]?.icon)}`;
+function getCharacterIcon(interaction, spec) {
+    return `${interaction.guild.emojis.cache.find(emoji => emoji.name === extendedClassList[spec]?.icon)}`;
 }
 
 function findServerEmoji(interaction, emojiName) {
