@@ -5,6 +5,7 @@ class Raidhelper {
     constructor() {}
 
     async getAllEventsV2() {
+        console.log('V2 Stop 1')
         const currentUnixTimestamp = Math.floor(Date.now() / 1000);
         const options = {
             host: "raid-helper.dev",
@@ -13,10 +14,11 @@ class Raidhelper {
             method: "GET",
             headers: { 'Authorization': 'Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90', 'StartTimeFilter': currentUnixTimestamp, 'IncludeSignups': true }
         }
-
+        console.log('V2 Stop 2')
         let response;
         axios.get(options).then(data => response = data).err(err =>console.log(err));
         console.log(response);
+        console.log('V2 Stop 3')
     }
 
     async getAllEvents() {
