@@ -4,26 +4,6 @@ const axios = require('axios');
 class Raidhelper {
     constructor() {}
 
-    async getAllEventsV2() {
-        console.log('V2 Stop 1')
-        const currentUnixTimestamp = Math.floor(Date.now() / 1000);
-        const options = {
-            host: "raid-helper.dev",
-            port: 443,
-            path: "/api/v3/servers/250382792217591808/events",
-            method: "GET",
-            responseType: "json",
-            headers: { 'Authorization': 'Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90', 'StartTimeFilter': currentUnixTimestamp, 'IncludeSignups': true }
-        }
-        console.log('V2 Stop 2')
-        let response;
-        axios.get(options).then(data => {
-            response = JSON.parse(data.data);
-            console.log(response)
-        }).err(err =>console.log(err));
-        console.log('V2 Stop 3')
-    }
-
     async getAllEvents() {
         return new Promise((resolve, reject) => {
             let data = '';
