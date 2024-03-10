@@ -78,8 +78,7 @@ async function getSetupsFromEvents(client, interaction, events) {
 
 
 module.exports = {
-    getMissingSignUps,
-    getSignUps,
+    getAllSignUps,
     getCategorySetups,
     getSetupsFromEvents
 }
