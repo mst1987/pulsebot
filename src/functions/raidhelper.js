@@ -9,7 +9,7 @@ async function getAllSignUps(interaction, categoryId) {
 
     const response = {
         noSignUps: noSignUps.map(channel => `<#${channel.channelId}>`).join(`\n`),
-        signUps: getSignUpsWithSpecs(signUps)
+        signUps: getSignUpsWithSpecs(signUps, interaction)
     }
 
     return response;
@@ -23,7 +23,7 @@ function getEventsWithSignup(events, interaction) {
     return events.filter(event => event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
 }
 
-async function getSignUpsWithSpecs(events) {
+async function getSignUpsWithSpecs(events, interaction) {
     const signUpsWithSpecs = events.map(event => {
         const matchingSignUps = event.signUps.filter(signUp => signUp.userId === interaction.user.id);
         const matchingSpecs = matchingSignUps.map(signUp => `${getCharacterIcon(interaction, signUp.specName) }`).join('');
