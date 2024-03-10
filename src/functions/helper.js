@@ -168,7 +168,7 @@ async function getCategoryEvents(interaction, categoryId) {
     const raidhelper = new Raidhelper();
     const allEvents = await raidhelper.getAllEvents();
     const channelsInCategory = getChannelsFromCategories(interaction.guild, [categoryId]);
-    const categoryEvents = allEvents.filter(event => channelsInCategory.includes(event.channelId));
+    const categoryEvents = allEvents.filter(event => channelsInCategory.includes(event.channelId)).sort((eventA, eventB) => eventA.startTime - eventB.startTime);
 
     return categoryEvents;
 }

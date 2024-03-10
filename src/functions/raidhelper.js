@@ -1,22 +1,30 @@
 const Raidhelper = require("../classes/raidhelper");
 const { getCategoryEvents, getCharacterIcon, delay } = require("./helper");
 
-async function getMissingSignUps(interaction, categoryId) {
+async function getAllSignUps(interaction, categoryId) {
     var categoryEvents = await getCategoryEvents(interaction, categoryId);
-    categoryEvents = categoryEvents.sort((eventA, eventB) => eventA.startTime - eventB.startTime);
 
-    const noSignUps = categoryEvents.filter(event => !event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
+    const noSignUps = getEventsWithoutSignup(categoryEvents);
+    const signUps = getEventsWithSignup(categoryEvents);
 
-    return noSignUps.map(channel => `<#${channel.channelId}>`).join(`\n`);
+    const response = {
+        noSignUps: noSignUps.map(channel => `<#${channel.channelId}>`).join(`\n`),
+        signUps: getSignUpsWithSpecs(signUps)
+    }
+
+    return response;
 }
 
-async function getSignUps(interaction, categoryId) {
-    var categoryEvents = await getCategoryEvents(interaction, categoryId);
-    categoryEvents = categoryEvents.sort((eventA, eventB) => eventA.startTime - eventB.startTime);
+function getEventsWithoutSignup(events) {
+    return events.filter(event => !event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
+}
 
-    const signUps = categoryEvents.filter(event => event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
+function getEventsWithSignup(events) {
+    return events.filter(event => event.signUps.find((signup) => signup.userId === interaction.user.id && signup.specName !== 'Absence'));
+}
 
-    const signUpsWithSpecs = signUps.map(event => {
+async function getSignUpsWithSpecs(events) {
+    const signUpsWithSpecs = events.map(event => {
         const matchingSignUps = event.signUps.filter(signUp => signUp.userId === interaction.user.id);
         const matchingSpecs = matchingSignUps.map(signUp => `${getCharacterIcon(interaction, signUp.specName) }`).join('');
 

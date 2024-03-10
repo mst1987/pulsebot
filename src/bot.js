@@ -26,7 +26,7 @@ const {
 } = require('./functions/helper');
 const { Client, GatewayIntentBits, MessageEmbed, MessageActionRow, MessageButton, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { setupResponse, getAuctionMessage, getItemsToShow } = require('./functions/responses.js');
-const { getMissingSignUps, getSignUps, getCategorySetups, getSetupsFromEvents } = require('./functions/raidhelper.js');
+const { getAllSignUps, getCategorySetups, getSetupsFromEvents } = require('./functions/raidhelper.js');
 const { getTargetMessage, updateHighestBids } = require('./functions/legendary.js');
 const { toTimestamp, getWednesdayWeeksAgo, formatTimestampToDateString } = require('./functions/date.js');
 const { categoryIds, legendaryID, highestBidsChannelId, highestBidsMessageId } = require('./config/variables.js');
@@ -50,10 +50,10 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         if (interaction.customId === 'show-signups') {
-            const formattedMissingSignUps = await getMissingSignUps(interaction, categoryId);
-            const formattedSignUps = await getSignUps(interaction, categoryId);
+            await interaction.deferReply({ ephemeral: true });
+            const formattedSignUps = await getAllSignUps(interaction, categoryId);
 
-            await botReply(interaction, interaction.channel.parent.name, messages.general.missingSignups.replace('___replace___', formattedMissingSignUps) + messages.general.signups.replace('___replace___', formattedSignUps));
+            await botEditReply(interaction, interaction.channel.parent.name, messages.general.missingSignups.replace('___replace___', formattedSignUps.noSignUps) + messages.general.signups.replace('___replace___', formattedSignUps.noSignUps));
         }
 
         if (interaction.customId === 'show-mysetups') {
@@ -64,7 +64,6 @@ client.on('interactionCreate', async(interaction) => {
                     return setupResponse(interaction, event);
                 }).join(`\n`)
                 await botEditReply(interaction, messages.mysetups.successTitle, `${mySetup}\n`)
-                //await botReply(interaction, messages.mysetups.successTitle, `\n${mySetup}`)
             } catch (error) {
                 await botEditReply(interaction, messages.general.errorTitle, messages.general.errorMessage);
             }
@@ -98,6 +97,7 @@ client.on('interactionCreate', async(interaction) => {
 
     // GDKP Raid commands
     if (commandName === 'gdkpraids') {
+        return;
         let signUpChannelIDs = await raidhelper.getUserSignUps(interaction.user.id);
         let missingSignUps = await raidhelper.getMissingSignUps(interaction.user.id);
 
