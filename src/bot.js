@@ -50,9 +50,13 @@ client.on('interactionCreate', async(interaction) => {
         }
 
         if (interaction.customId === 'show-signups') {
-            await interaction.deferReply({ ephemeral: true });
-            const formattedSignUps = await getAllSignUps(interaction, categoryId);
-            await botEditReply(interaction, interaction.channel.parent.name, messages.general.missingSignups.replace('___replace___', formattedSignUps.noSignUps) + messages.general.signups.replace('___replace___', formattedSignUps.signUps));
+            try {
+                await interaction.deferReply({ ephemeral: true });
+                const formattedSignUps = await getAllSignUps(interaction, categoryId);
+                await botEditReply(interaction, interaction.channel.parent.name, messages.general.missingSignups.replace('___replace___', formattedSignUps.noSignUps) + messages.general.signups.replace('___replace___', formattedSignUps.signUps));
+            } catch(error) {
+                await botEditReply(interaction, messages.general.errorTitle, messages.general.errorMessage);
+            } 
         }
 
         if (interaction.customId === 'show-mysetups') {
