@@ -7,14 +7,11 @@ function isNumber(value) {
     return typeof value === 'number' && !isNaN(value);
 }
 
-function getCharacterIcon(interaction, spec) {
-    console.log(spec)
-    console.log('Spec Classlist: ', extendedClassList[spec]);
-    return `${interaction.guild.emojis.cache.find(emoji => emoji.name === extendedClassList[spec]?.icon)}`;
+async function getCharacterIcon(interaction, spec) {
+    return `${await interaction.guild.emojis.cache.find(emoji => emoji.name === extendedClassList[spec]?.icon)}`;
 }
 
 function findServerEmoji(interaction, emojiName) {
-    console.log(emojiName)
     return `${interaction.guild.emojis.cache.find(emoji => emoji.name === emojiName)}`;
 }
 

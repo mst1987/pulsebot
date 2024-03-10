@@ -26,7 +26,7 @@ function getEventsWithSignup(events, interaction) {
 async function getSignUpsWithSpecs(events, interaction) {
     const signUpsWithSpecs = events.map(event => {
         const matchingSignUps = event.signUps.filter(signUp => signUp.userId === interaction.user.id);
-        const matchingSpecs = matchingSignUps.map(signUp => `${getCharacterIcon(interaction, signUp.specName) }`).join('');
+        const matchingSpecs = matchingSignUps.map(signUp => `${ getCharacterIcon(interaction, signUp.specName) }`).join('');
 
         return {
             specs: matchingSpecs,
