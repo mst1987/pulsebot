@@ -59,6 +59,7 @@ client.on('interactionCreate', async(interaction) => {
         if (interaction.customId === 'show-mysetups') {
             try {
                 await interaction.deferReply({ ephemeral: true });
+                await raidhelper.getAllEventsV2();
                 const events = await getCategorySetups(interaction, categoryId);
                 const mySetup = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(event => {
                     return setupResponse(interaction, event);

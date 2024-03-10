@@ -1,7 +1,23 @@
 const https = require('https');
+const axios = require('axios');
 
 class Raidhelper {
     constructor() {}
+
+    async getAllEventsV2() {
+        const currentUnixTimestamp = Math.floor(Date.now() / 1000);
+        const options = {
+            host: "raid-helper.dev",
+            port: 443,
+            path: "/api/v3/servers/250382792217591808/events",
+            method: "GET",
+            headers: { 'Authorization': 'Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90', 'StartTimeFilter': currentUnixTimestamp, 'IncludeSignups': true }
+        }
+
+        let response;
+        axios.get().then(data => response = data).err(err =>console.log(err));
+        console.log(response);
+    }
 
     async getAllEvents() {
         return new Promise((resolve, reject) => {
