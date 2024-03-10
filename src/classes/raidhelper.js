@@ -33,7 +33,7 @@ class Raidhelper {
                     }
                 });
             }).on("error", (err) => {
-                console.log(err.message);
+                console.log('Error: ', err.message);
             });
             request.end()
         });
