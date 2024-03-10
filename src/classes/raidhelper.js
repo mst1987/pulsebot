@@ -19,7 +19,7 @@ class Raidhelper {
         let response;
         axios.get(options).then(data => {
             response = data.data;
-            console.log(data)
+            console.log(data.data)
         }).err(err =>console.log(err));
         console.log(response);
         console.log('V2 Stop 3')
