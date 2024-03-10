@@ -58,14 +58,15 @@ client.on('interactionCreate', async(interaction) => {
 
         if (interaction.customId === 'show-mysetups') {
             try {
+                await interaction.deferReply({ ephemeral: true });
                 const events = await getCategorySetups(interaction, categoryId);
                 const mySetup = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(event => {
                     return setupResponse(interaction, event);
                 }).join(`\n`)
-
-                await botReply(interaction, messages.mysetups.successTitle, `\n${mySetup}`)
+                await botEditReply(interaction, messages.mysetups.successTitle, `${mySetup}\n`)
+                //await botReply(interaction, messages.mysetups.successTitle, `\n${mySetup}`)
             } catch (error) {
-                await botReply(interaction, messages.general.errorTitle, messages.general.errorMessage);
+                await botEditReply(interaction, messages.general.errorTitle, messages.general.errorMessage);
             }
         }
 

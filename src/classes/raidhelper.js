@@ -212,7 +212,6 @@ class Raidhelper {
     }
 
     async saveRaid(data) {
-        console.log(data);
         return new Promise(async(resolve, reject) => {
             const postData = JSON.stringify(data);
 
