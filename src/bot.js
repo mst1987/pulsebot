@@ -60,11 +60,9 @@ client.on('interactionCreate', async(interaction) => {
             try {
                 await interaction.deferReply({ ephemeral: true });
                 const events = await getCategorySetups(interaction, categoryId);
-                console.log('Step 1')
                 const mySetup = events.sort((eventA, eventB) => eventA.startTime - eventB.startTime).map(event => {
                     return setupResponse(interaction, event);
                 }).join(`\n`)
-                console.log('Step 2')
                 await botEditReply(interaction, messages.mysetups.successTitle, `${mySetup}\n`)
             } catch (error) {
                 await botEditReply(interaction, messages.general.errorTitle, messages.general.errorMessage);
