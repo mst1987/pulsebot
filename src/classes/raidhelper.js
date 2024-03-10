@@ -15,7 +15,7 @@ class Raidhelper {
         }
 
         let response;
-        axios.get().then(data => response = data).err(err =>console.log(err));
+        axios.get(options).then(data => response = data).err(err =>console.log(err));
         console.log(response);
     }
 
