@@ -8,13 +8,10 @@ function isNumber(value) {
 }
 
 function getCharacterIcon(interaction, spec) {
-    console.log(spec)
-    console.log('Spec Classlist: ', extendedClassList[spec]);
     return `${interaction.guild.emojis.cache.find(emoji => emoji.name === extendedClassList[spec]?.icon)}`;
 }
 
 function findServerEmoji(interaction, emojiName) {
-    console.log(emojiName)
     return `${interaction.guild.emojis.cache.find(emoji => emoji.name === emojiName)}`;
 }
 
@@ -168,7 +165,7 @@ async function getCategoryEvents(interaction, categoryId) {
     const raidhelper = new Raidhelper();
     const allEvents = await raidhelper.getAllEvents();
     const channelsInCategory = getChannelsFromCategories(interaction.guild, [categoryId]);
-    const categoryEvents = allEvents.filter(event => channelsInCategory.includes(event.channelId));
+    const categoryEvents = allEvents.filter(event => channelsInCategory.includes(event.channelId)).sort((eventA, eventB) => eventA.startTime - eventB.startTime);
 
     return categoryEvents;
 }
