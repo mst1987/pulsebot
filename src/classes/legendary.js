@@ -53,9 +53,9 @@ class Legendary {
           return response.data;
         })
         .catch((error) => {
+          console.log(error);
           return error;
         });
-      console.log(res);
       resolve(res);
     });
   }
