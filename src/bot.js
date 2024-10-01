@@ -723,10 +723,10 @@ client.on("interactionCreate", async (interaction) => {
 
   if (commandName === "deleteauction") {
     if (!checkForPermission(interaction)) return;
-
+    console.log("test");
     const legendary = new Legendary();
     const response = await legendary.deleteAuction(interaction.channel.id);
-
+    console.log(interaction.channel.id);
     if (response.type === "success") {
       botReply(interaction, "Auktion gelöscht", response.message);
     } else {
