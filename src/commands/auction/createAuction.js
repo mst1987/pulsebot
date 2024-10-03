@@ -26,22 +26,7 @@ module.exports = {
             return;
         }
 
-        const row = new ActionRowBuilder();
-        const customEmoji = findServerEmoji(interaction, "SNIFFA");
-        row.addComponents(
-            new ButtonBuilder()
-            .setCustomId("bid-5k")
-            .setLabel("+5.000g")
-            .setStyle(ButtonStyle.Primary),
-            new ButtonBuilder()
-            .setCustomId("bid-10k")
-            .setLabel("+10.000g")
-            .setStyle(ButtonStyle.Secondary),
-            new ButtonBuilder()
-            .setCustomId("bid-custom")
-            .setLabel("Bid eingeben")
-            .setStyle(ButtonStyle.Success)
-        );
+        const row = getBiddingButtonRow();
 
         await interaction.reply({
             embeds: [{

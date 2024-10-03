@@ -3,12 +3,15 @@ const {
     TextInputBuilder,
     TextInputStyle,
     ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
 } = require("discord.js");
 const {
     botReply,
     formatNumberWithDots,
     getUserNickname,
     isNumber,
+    findServerEmoji,
 } = require("./helper");
 const Legendary = require("../classes/legendary");
 const { DateTime } = require("luxon");
@@ -63,6 +66,27 @@ async function showConfirmationModal(interaction, bid) {
     await interaction.showModal(modal);
 }
 
+function getBiddingButtonRow() {
+    const row = new ActionRowBuilder();
+    const customEmoji = findServerEmoji(interaction, "SNIFFA");
+    row.addComponents(
+        new ButtonBuilder()
+        .setCustomId("bid-5k")
+        .setLabel("+5.000g")
+        .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+        .setCustomId("bid-10k")
+        .setLabel("+10.000g")
+        .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+        .setCustomId("bid-custom")
+        .setLabel("Bid eingeben")
+        .setStyle(ButtonStyle.Success)
+    );
+
+    return row;
+}
+
 async function bidForLegendary(client, interaction, bid = null) {
     const role = interaction.member.roles.cache.find(
         (role) => role.id === "1144865420386517053"
@@ -114,13 +138,13 @@ async function bidForLegendary(client, interaction, bid = null) {
 
         if (response.type === "success") {
             const nickname = await getUserNickname(interaction);
-
+            const row = getBiddingButtonRow();
             botReply(
                 interaction,
                 `**${formatNumberWithDots(Number(bidData.gold))}g**`,
                 `geboten von ${nickname}`,
                 0,
-                false
+                false, [row]
             );
 
             const targetMessage = await getTargetMessage(
