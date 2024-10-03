@@ -24,13 +24,13 @@ module.exports = {
 async function showBidModal(interaction) {
     const modal = new ModalBuilder()
         .setCustomId("bidModal")
-        .setTitle("Geben Sie Ihr Gebot ein");
+        .setTitle("Wieviel willst du bieten?");
 
     const bidInput = new TextInputBuilder()
         .setCustomId("bidAmount")
         .setLabel("Gebot (in Gold)")
         .setStyle(TextInputStyle.Short)
-        .setPlaceholder("z.B. 15000")
+        .setPlaceholder("z.B. 250000")
         .setRequired(true)
         .setMinLength(1)
         .setMaxLength(10);
@@ -59,7 +59,7 @@ async function showConfirmationModal(interaction, bid) {
     await interaction.showModal(modal);
 }
 
-async function bidForLegendary(interaction, bid = null) {
+async function bidForLegendary(client, interaction, bid = null) {
     const role = interaction.member.roles.cache.find(
         (role) => role.id === "1144865420386517053"
     );

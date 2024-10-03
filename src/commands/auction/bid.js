@@ -16,6 +16,6 @@ module.exports = {
     name: "bid",
     description: "Place a bid in an auction",
     async execute(interaction, client) {
-        bidForLegendary(interaction);
+        bidForLegendary(client, interaction);
     },
 };

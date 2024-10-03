@@ -30,13 +30,13 @@ module.exports = {
 
                 if (isNaN(bid)) {
                     await interaction.reply({
-                        content: "Bitte geben Sie eine gültige Zahl ein.",
+                        content: "Bitte gib eine gültige Zahl ein.",
                         ephemeral: true,
                     });
                     return;
                 }
 
-                bidForLegendary(modalInteraction, bid);
+                bidForLegendary(client, modalInteraction, bid);
             });
         console.log("modal after");
     },
