@@ -11,7 +11,7 @@ async function getAllSignUps(interaction, categoryId) {
         noSignUps: noSignUps.map((channel) => `<#${channel.channelId}>`).join(`\n`),
         signUps: getSignUpsWithSpecs(signUps, interaction),
     };
-    console.log(response);
+    console.log("_-------------------");
     return response;
 }
 
@@ -39,11 +39,10 @@ function getSignUpsWithSpecs(events, interaction) {
         const matchingSignUps = event.signUps.filter(
             (signUp) => signUp.userId === interaction.user.id
         );
-        console.log("matchingSignUps", matchingSignUps);
         const matchingSpecs = matchingSignUps
             .map((signUp) => `${getCharacterIcon(interaction, signUp.specName)}`)
             .join("");
-
+        console.log("matchingSpecs", matchingSpecs);
         return {
             specs: matchingSpecs,
             ...event,
