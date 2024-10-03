@@ -12,6 +12,9 @@ const {
 } = require("./helper");
 const Legendary = require("../classes/legendary");
 const { DateTime } = require("luxon");
+const { getTargetMessage } = require("./legendary");
+const { getAuctionMessage } = require("./responses");
+const { formatTimestampToDateString } = require("./date");
 
 module.exports = {
     showBidModal,
