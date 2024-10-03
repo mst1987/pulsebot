@@ -20,6 +20,7 @@ client.commands = new Collection();
 
 function loadCommands(dir) {
     const commandFolders = fs.readdirSync(dir);
+    console.log(commandFolders);
     for (const folder of commandFolders) {
         const commandFiles = fs
             .readdirSync(path.join(dir, folder))
