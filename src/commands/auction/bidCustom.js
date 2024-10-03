@@ -1,6 +1,17 @@
-const { showConfirmationModal, showBidModal } = require("../../utils/auction");
-const { botReply, formatNumberWithDots } = require("../../utils/helper");
-
+const { showBidModal } = require("../../utils/auction");
+const Legendary = require("../../classes/legendary");
+const { bidForLegendary } = require("../../utils/auction");
+const { formatTimestampToDateString } = require("../../utils/date");
+const {
+    botReply,
+    getUserNickname,
+    formatNumberWithDots,
+} = require("../../utils/helper");
+const {
+    updateHighestBids,
+    getTargetMessage,
+} = require("../../utils/legendary");
+const { getAuctionMessage } = require("../../utils/responses");
 module.exports = {
     name: "bid-custom",
     description: "Place a bid in an auction",
@@ -25,13 +36,7 @@ module.exports = {
                     return;
                 }
 
-                botReply(
-                    modalInteraction,
-                    `**${formatNumberWithDots(Number(bid))}g**`,
-                    `geboten von ${interaction.user.username}`,
-                    0,
-                    false
-                );
+                bidForLegendary(modalInteraction, bid);
             });
         console.log("modal after");
     },
