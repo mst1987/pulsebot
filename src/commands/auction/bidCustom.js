@@ -7,8 +7,8 @@ module.exports = {
         console.log("bid custom");
         await showBidModal(interaction);
         console.log("bid custom");
-        if (interaction.isModalSubmit()) {
-            console.log("bid modal");
+        interaction.awaitModalSubmit().then(async(modalInteraction) => {
+            console.log("bid modal inner");
             if (interaction.customId === "bidModal") {
                 const bidAmount = interaction.fields.getTextInputValue("bidAmount");
                 const bid = parseInt(bidAmount);
@@ -48,8 +48,7 @@ module.exports = {
                 // Entfernen Sie das ausstehende Gebot
                 pendingBids.delete(interaction.user.id);
             }
-        }
-
+        });
         console.log("modal after");
     },
 };
