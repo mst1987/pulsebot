@@ -108,10 +108,9 @@ async function bidForLegendary(client, interaction, bid = null, add5k) {
         let gold = 0;
         if (add5k) {
             const highestbid = await legendary.getHighestBid(interaction.channel.id);
-            console.log(highestbid);
             bid = Number(highestbid.gold) + 5000;
         }
-        console.log(bid);
+
         if (bid) gold = bid;
         else gold = interaction.options.getString("gold");
 
