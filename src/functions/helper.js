@@ -34,7 +34,7 @@ async function botReply(
     ephemeral = true,
     components = []
 ) {
-    await interaction
+    return await interaction
         .reply({
             embeds: [{
                 title: title,
