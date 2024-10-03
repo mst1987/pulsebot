@@ -39,9 +39,7 @@ function getSignUpsWithSpecs(events, interaction) {
         const matchingSignUps = event.signUps.filter(
             (signUp) => signUp.userId === interaction.user.id
         );
-        const matchingSpecs = matchingSignUps
-            .map((signUp) => `${getCharacterIcon(interaction, signUp.specName)}`)
-            .join("");
+        const matchingSpecs = matchingSignUps.map((signUp) => ``).join("");
         console.log("matchingSpecs", matchingSpecs);
         return {
             specs: matchingSpecs,
