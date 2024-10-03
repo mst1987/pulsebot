@@ -26,7 +26,7 @@ module.exports = {
             return;
         }
 
-        const row = getBiddingButtonRow();
+        const row = getBiddingButtonRow(interaction);
 
         await interaction.reply({
             embeds: [{

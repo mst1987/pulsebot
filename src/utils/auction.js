@@ -66,7 +66,7 @@ async function showConfirmationModal(interaction, bid) {
     await interaction.showModal(modal);
 }
 
-function getBiddingButtonRow() {
+function getBiddingButtonRow(interaction) {
     const row = new ActionRowBuilder();
     const customEmoji = findServerEmoji(interaction, "SNIFFA");
     row.addComponents(
@@ -138,7 +138,7 @@ async function bidForLegendary(client, interaction, bid = null) {
 
         if (response.type === "success") {
             const nickname = await getUserNickname(interaction);
-            const row = getBiddingButtonRow();
+            const row = getBiddingButtonRow(interaction);
             botReply(
                 interaction,
                 `**${formatNumberWithDots(Number(bidData.gold))}g**`,
