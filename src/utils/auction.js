@@ -4,7 +4,12 @@ const {
     TextInputStyle,
     ActionRowBuilder,
 } = require("discord.js");
-const { botReply, formatNumberWithDots, getUserNickname } = require("./helper");
+const {
+    botReply,
+    formatNumberWithDots,
+    getUserNickname,
+    isNumber,
+} = require("./helper");
 const Legendary = require("../classes/legendary");
 
 module.exports = {
