@@ -75,10 +75,6 @@ function getBiddingButtonRow(interaction) {
         .setLabel("+5.000g")
         .setStyle(ButtonStyle.Primary),
         new ButtonBuilder()
-        .setCustomId("bid-10k")
-        .setLabel("+10.000g")
-        .setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder()
         .setCustomId("bid-custom")
         .setLabel("Bid eingeben")
         .setStyle(ButtonStyle.Success)
@@ -87,7 +83,7 @@ function getBiddingButtonRow(interaction) {
     return row;
 }
 
-async function bidForLegendary(client, interaction, bid = null) {
+async function bidForLegendary(client, interaction, bid = null, add5k) {
     const role = interaction.member.roles.cache.find(
         (role) => role.id === "1144865420386517053"
     );
@@ -110,6 +106,9 @@ async function bidForLegendary(client, interaction, bid = null) {
         }
 
         let gold = 0;
+        if (add5k) {
+            bid = Number(legendary.getHighestBid(interaction.channel.id)) + 5000;
+        }
         if (bid) gold = bid;
         else gold = interaction.options.getString("gold");
 

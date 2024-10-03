@@ -91,6 +91,19 @@ class Legendary {
             });
     }
 
+    async getHighestBid(channel) {
+        const url =
+            "https://pulse-gdkp.de:3001/api/legendary/highestbid/" + channel;
+        return axios
+            .get(url, { httpsAgent: agent })
+            .then((response) => {
+                return response.data;
+            })
+            .catch((error) => {
+                throw error;
+            });
+    }
+
     async getHighestBids() {
         const url = "https://pulse-gdkp.de:3001/api/legendary/highestbids";
         return axios
