@@ -1,4 +1,4 @@
-const { getAllSignUps } = require("../../functions/raidhelper");
+const { getAllSignUps } = require("../../utils/raidhelper");
 const { botEditReply } = require("../../utils/helper");
 
 module.exports = {
