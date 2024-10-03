@@ -4,8 +4,9 @@ module.exports = [{
         name: "bid-custom",
         description: "Place a bid in an auction",
         async execute(interaction, client) {
+            console.log("bid custom");
             await showBidModal(interaction);
-
+            console.log("bid custom");
             if (interaction.isModalSubmit()) {
                 if (interaction.customId === "bidModal") {
                     const bidAmount = interaction.fields.getTextInputValue("bidAmount");
