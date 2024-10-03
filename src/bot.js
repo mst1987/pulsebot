@@ -27,6 +27,7 @@ function loadCommands(dir) {
             .filter((file) => file.endsWith(".js"));
         console.log(commandFiles);
         for (const file of commandFiles) {
+            console.log(path.join(dir, folder, file));
             const command = require(path.join(dir, folder, file));
             client.commands.set(command.name, command);
         }
