@@ -42,7 +42,11 @@ client.on("interactionCreate", async(interaction) => {
     const command = client.commands.get(
         interaction.customId || interaction.commandName
     );
-    if (!command) return;
+    if (!command)
+        await interaction.reply({
+            content: "Command not found",
+            ephemeral: true,
+        });
     console.log(`Command: ${command.name}`);
     try {
         await command.execute(interaction);
