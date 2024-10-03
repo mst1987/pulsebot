@@ -7,6 +7,7 @@ module.exports = {
     description: "Signup",
     async execute(interaction, client) {
         const raidhelper = new Raidhelper();
+
         let raidId;
         let raid;
         const channelMessages = await interaction.channel.messages.fetch();

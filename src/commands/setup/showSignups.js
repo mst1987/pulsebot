@@ -7,6 +7,7 @@ module.exports = {
     description: "Show all setups",
     async execute(interaction, client) {
         try {
+            const categoryId = interaction.channel.parent.id;
             await interaction.deferReply({ ephemeral: true });
             const formattedSignUps = await getAllSignUps(interaction, categoryId);
             await botEditReply(
