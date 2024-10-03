@@ -27,6 +27,7 @@ module.exports = {
     showBidModal,
     showConfirmationModal,
     bidForLegendary,
+    getBiddingButtonRow,
 };
 async function showBidModal(interaction) {
     const modal = new ModalBuilder()
