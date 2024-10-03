@@ -20,15 +20,12 @@ client.commands = new Collection();
 
 function loadCommands(dir) {
     const commandFolders = fs.readdirSync(dir);
-    console.log(commandFolders);
     for (const folder of commandFolders) {
         const commandFiles = fs
             .readdirSync(path.join(dir, folder))
             .filter((file) => file.endsWith(".js"));
-        console.log(commandFiles);
         for (const file of commandFiles) {
-            console.log(path.join(dir, folder, file));
-            const command = require(path.join(dir, folder, file));
+            const command = require(path.join(__dirname, dir, folder, file));
             client.commands.set(command.name, command);
         }
     }
