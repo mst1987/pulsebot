@@ -629,15 +629,15 @@ client.on("interactionCreate", async(interaction) => {
         const customEmoji = findServerEmoji(interaction, "SNIFFA");
         row.addComponents(
             new ButtonBuilder()
-            .setCustomId("bid")
+            .setCustomId("bid-5k")
             .setLabel("Bid +5.000g")
             .setStyle(ButtonStyle.Primary),
             new ButtonBuilder()
-            .setCustomId("bid")
+            .setCustomId("bid-10k")
             .setLabel("Bid +10.000g")
             .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
-            .setCustomId("bid")
+            .setCustomId("bid-custom")
             .setLabel("Bid eingeben")
             .setStyle(ButtonStyle.Success)
         );
