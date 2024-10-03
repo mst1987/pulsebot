@@ -8,6 +8,7 @@ module.exports = {
         await showBidModal(interaction);
         console.log("bid custom");
         if (interaction.isModalSubmit()) {
+            console.log("bid modal");
             if (interaction.customId === "bidModal") {
                 const bidAmount = interaction.fields.getTextInputValue("bidAmount");
                 const bid = parseInt(bidAmount);
