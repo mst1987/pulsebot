@@ -9,7 +9,7 @@ const {
     updateHighestBids,
     getTargetMessage,
 } = require("../../utils/legendary");
-const { getAuctionMessage } = require("../../utuls/responses");
+const { getAuctionMessage } = require("../../utils/responses");
 
 module.exports = {
     name: "bid",
