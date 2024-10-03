@@ -1,5 +1,6 @@
 const { getAllSignUps } = require("../../utils/raidhelper");
 const { botEditReply } = require("../../utils/helper");
+const messages = require("../../config/messages");
 
 module.exports = {
     name: "show-signups",
