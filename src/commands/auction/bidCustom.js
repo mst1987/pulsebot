@@ -49,5 +49,7 @@ module.exports = {
                 pendingBids.delete(interaction.user.id);
             }
         }
+
+        console.log("modal after");
     },
 };
