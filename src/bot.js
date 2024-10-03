@@ -37,6 +37,7 @@ client.on("ready", () => {
 });
 
 client.on("messageCreate", (message) => {
+    console.log(message);
     if (!message.content.startsWith(process.env.PREFIX) || message.author.bot)
         return;
 
