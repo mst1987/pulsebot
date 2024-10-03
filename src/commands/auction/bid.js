@@ -1,7 +1,10 @@
 const Legendary = require("../../classes/legendary");
 const { formatTimestampToDateString } = require("../../utils/date");
-const { isNumber, formatNumberWithDots } = require("../../utils/formatters");
-const { botReply, getUserNickname } = require("../../utils/helper");
+const {
+    botReply,
+    getUserNickname,
+    formatNumberWithDots,
+} = require("../../utils/helper");
 const {
     updateHighestBids,
     getTargetMessage,
