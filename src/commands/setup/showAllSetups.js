@@ -1,4 +1,4 @@
-const { getSetupsFromEvents } = require("../../functions/raidhelper");
+const { getSetupsFromEvents } = require("../../utils/raidhelper");
 const { botEditReply } = require("../../utils/helper");
 
 module.exports = {
