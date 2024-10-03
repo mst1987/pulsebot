@@ -1,4 +1,5 @@
 const Raidhelper = require("../classes/raidhelper.js");
+const { extendedClassList } = require("../config/classes.js");
 const { formatTimestampToDateString } = require("./date.js");
 
 const timeoutTime = 60000;
