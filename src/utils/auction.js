@@ -72,7 +72,7 @@ async function bidForLegendary(interaction, bid = null) {
             return;
         }
 
-        const gold = 0;
+        let gold = 0;
         if (bid) gold = bid;
         else gold = interaction.options.getString("gold");
 
