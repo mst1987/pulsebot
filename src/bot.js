@@ -29,7 +29,6 @@ function loadCommands(dir) {
             client.commands.set(command.name, command);
         }
     }
-    console.log(client.commands);
 }
 
 client.on("ready", () => {
