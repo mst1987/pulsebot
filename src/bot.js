@@ -42,7 +42,6 @@ client.on("interactionCreate", async(interaction) => {
     const command = client.commands.get(
         interaction.customId || interaction.commandName
     );
-    console.log(interaction.customId || interaction.commandName);
     if (!command) return;
     console.log(`Command: ${command.name}`);
     try {
