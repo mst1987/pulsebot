@@ -66,7 +66,7 @@ module.exports = {
             };
             const newMessage = await targetMessage.edit({ embeds: [embed] });
         } else {
-            botFollowup(interaction, response.message, 0, false, row);
+            botFollowup(interaction, response.message, 0, false, [row]);
         }
     },
 };
