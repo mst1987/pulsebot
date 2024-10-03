@@ -644,12 +644,11 @@ client.on("interactionCreate", async(interaction) => {
 
         await interaction.reply({
             embeds: [{
-                    title: "title",
-                    description: "message",
-                },
-                row,
-            ],
+                title: "title",
+                description: "message",
+            }, ],
             ephemeral: false,
+            [row]
         });
         const replyMessage = await interaction.fetchReply();
 
