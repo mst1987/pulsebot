@@ -51,7 +51,7 @@ async function showConfirmationModal(interaction, bid) {
 
 async function bidForLegendary(interaction, bid = null) {
     const role = interaction.member.roles.cache.find(
-        (role) => role.id === legendaryID
+        (role) => role.id === "1144865420386517053"
     );
     if (!role) {
         botReply(
