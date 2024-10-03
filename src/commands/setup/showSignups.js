@@ -2,7 +2,7 @@ const { getAllSignUps } = require("../../utils/raidhelper");
 const { botEditReply } = require("../../utils/helper");
 
 module.exports = {
-    name: "show-allsetups",
+    name: "show-signups",
     description: "Show all setups",
     async execute(interaction, client) {
         try {
