@@ -625,6 +625,23 @@ client.on("interactionCreate", async(interaction) => {
             return;
         }
 
+        const row = new ActionRowBuilder();
+        const customEmoji = findServerEmoji(interaction, "SNIFFA");
+        row.addComponents(
+            new ButtonBuilder()
+            .setCustomId("bid")
+            .setLabel("Bid +5.000g")
+            .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+            .setCustomId("bid")
+            .setLabel("Bid +10.000g")
+            .setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder()
+            .setCustomId("bid")
+            .setLabel("Bid eingeben")
+            .setStyle(ButtonStyle.Success)
+        );
+
         await interaction.reply({
             embeds: [{
                 title: "title",
