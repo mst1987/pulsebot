@@ -27,8 +27,8 @@ module.exports = {
 
                 botReply(
                     modalInteraction,
-                    `**${formatNumberWithDots(Number(bidData.gold))}g**`,
-                    `geboten von ${nickname}`,
+                    `**${formatNumberWithDots(Number(bid))}g**`,
+                    `geboten von ${interaction.user.username}`,
                     0,
                     false
                 );
