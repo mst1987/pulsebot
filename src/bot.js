@@ -642,13 +642,15 @@ client.on("interactionCreate", async(interaction) => {
             .setStyle(ButtonStyle.Success)
         );
 
-        const replyMessage = await botReply(
-            interaction,
-            "title",
-            "title",
-            0,
-            false, [row]
-        ).fetchReply();
+        await interaction.reply({
+            embeds: [{
+                title: "title",
+                description: "message",
+            }, ],
+            ephemeral: false,
+            components: [row],
+        });
+        const replyMessage = await interaction.fetchReply();
 
         const auctionData = {
             name: interaction.options.getString("name"),
