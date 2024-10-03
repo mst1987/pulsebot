@@ -30,11 +30,11 @@ module.exports = {
         row.addComponents(
             new ButtonBuilder()
             .setCustomId("bid-5k")
-            .setLabel("Bid +5.000g")
+            .setLabel("+5.000g")
             .setStyle(ButtonStyle.Primary),
             new ButtonBuilder()
             .setCustomId("bid-10k")
-            .setLabel("Bid +10.000g")
+            .setLabel("+10.000g")
             .setStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
             .setCustomId("bid-custom")
