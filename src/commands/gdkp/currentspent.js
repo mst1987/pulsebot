@@ -2,7 +2,7 @@ const messages = require("../../config/messages");
 const GDKP = require("../../classes/gdkp");
 const { getItemsToShow } = require("../../utils/responses");
 const { botReply } = require("../../utils/helper");
-const { getWednesdayWeeksAgo } = require("../../functions/date");
+const { getWednesdayWeeksAgo } = require("../../utils/date");
 
 module.exports = {
     name: "currentspent",
