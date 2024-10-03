@@ -217,6 +217,7 @@ async function delay(ms) {
 async function getCategoryEvents(interaction, categoryId) {
     const raidhelper = new Raidhelper();
     const allEvents = await raidhelper.getAllEvents();
+    console.log(allEvents);
     const channelsInCategory = getChannelsFromCategories(interaction.guild, [
         categoryId,
     ]);
