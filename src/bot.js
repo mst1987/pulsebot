@@ -689,6 +689,7 @@ client.on("interactionCreate", async(interaction) => {
         const legendary = new Legendary();
         let auctionData = {};
         auctionData.channel = interaction.channel.id;
+        console.log(interaction.options);
         if (interaction.options.getString("name"))
             auctionData.name = interaction.options.getString("name");
         if (interaction.options.getString("raid"))
