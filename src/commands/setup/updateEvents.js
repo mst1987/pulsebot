@@ -8,7 +8,10 @@ module.exports = {
         await interaction.update({
             embeds: [{
                 title: interaction.channel.parent.name,
-                description: await showAllEvents(interaction, categoryId),
+                description: await showAllEvents(
+                    interaction,
+                    interaction.channel.parent
+                ),
             }, ],
         });
     },
