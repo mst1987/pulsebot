@@ -7,12 +7,9 @@ async function getAllSignUps(interaction, categoryId) {
     const noSignUps = getEventsWithoutSignup(categoryEvents, interaction);
     const signUps = getEventsWithSignup(categoryEvents, interaction);
     console.log("noSignUps", noSignUps);
-    const response = {
-        noSignUps: noSignUps.map((channel) => `<#${channel.channelId}>`).join(`\n`),
-        signUps: getSignUpsWithSpecs(signUps, interaction),
-    };
+
     console.log("_-------------------");
-    return response;
+    return;
 }
 
 function getEventsWithoutSignup(events, interaction) {
