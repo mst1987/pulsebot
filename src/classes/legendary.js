@@ -3,12 +3,7 @@ const axios = require("axios");
 const fs = require("fs");
 
 const agent = new https.Agent({
-    key: fs.readFileSync("/etc/nginx/_.pulse-gdkp.de_private_key.key", "utf8"),
-    cert: fs.readFileSync("/etc/nginx/pulse-gdkp.de_ssl_certificate.cer", "utf8"),
-    ca: fs.readFileSync(
-        "/etc/nginx/pulse-gdkp.de_ssl_certificate_INTERMEDIATE.cer",
-        "utf8"
-    ),
+    rejectUnauthorized: true,
 });
 class Legendary {
     constructor() {}
