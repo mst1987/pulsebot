@@ -5,6 +5,7 @@ module.exports = {
     name: "show-allsetups",
     description: "Show all setups",
     async execute(interaction, client) {
+        const raidhelper = new RaidHelper();
         await interaction.deferReply({ ephemeral: true });
         const events = await raidhelper.getUserSignUps(interaction.user.id);
         const setups = await getSetupsFromEvents(client, interaction, events);
