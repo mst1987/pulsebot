@@ -45,9 +45,9 @@ client.on("messageCreate", (message) => {
         .trim()
         .split(/ +/);
     const commandName = args.shift().toLowerCase();
-
+    console.log(commandName);
     const command = client.commands.get(commandName);
-
+    console.log(command);
     if (!command) return;
 
     try {
