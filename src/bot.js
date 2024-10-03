@@ -36,7 +36,7 @@ client.on("ready", () => {
     loadCommands("./commands");
 });
 
-client.on("messageCreate", (message) => {
+client.on("interactionCreate", (message) => {
     console.log(message);
     if (!message.content.startsWith(process.env.PREFIX) || message.author.bot)
         return;
