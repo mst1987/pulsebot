@@ -11,7 +11,6 @@ module.exports = {
         interaction
             .awaitModalSubmit({ filter, time: 30000 })
             .then(async(modalInteraction) => {
-                console.log("bid modal inner");
                 const bidAmount =
                     modalInteraction.fields.getTextInputValue("bidAmount");
                 const bid = parseInt(bidAmount);
@@ -26,6 +25,5 @@ module.exports = {
 
                 bidForLegendary(client, modalInteraction, bid);
             });
-        console.log("modal after");
     },
 };
