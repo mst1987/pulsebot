@@ -648,7 +648,7 @@ client.on("interactionCreate", async(interaction) => {
                 description: "message",
             }, ],
             ephemeral: false,
-            components: [row],
+            components: row,
         });
         const replyMessage = await interaction.fetchReply();
 
