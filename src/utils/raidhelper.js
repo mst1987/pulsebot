@@ -7,9 +7,11 @@ async function getAllSignUps(interaction, categoryId) {
     const noSignUps = getEventsWithoutSignup(categoryEvents, interaction);
     const signUps = getEventsWithSignup(categoryEvents, interaction);
     console.log("noSignUps", noSignUps);
-
+    const response = {
+        signUps: getSignUpsWithSpecs(signUps, interaction),
+    };
     console.log("_-------------------");
-    return;
+    return response;
 }
 
 function getEventsWithoutSignup(events, interaction) {
