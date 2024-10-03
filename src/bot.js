@@ -38,10 +38,11 @@ client.on("ready", () => {
 
 client.on("interactionCreate", async(interaction) => {
     if (!interaction.isCommand() && !interaction.isButton()) return;
-    console.log(interaction);
+
     const command = client.commands.get(
         interaction.customId || interaction.commandName
     );
+    console.log(`Command: ${command.name}`);
     if (!command) return;
     console.log(`Command: ${command.name}`);
     try {
