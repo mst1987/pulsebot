@@ -1,7 +1,7 @@
 const { showAllEvents } = require("../../utils/helper");
 
 module.exports = {
-    name: "show-allsetups",
+    name: "update-events",
     description: "Show all setups",
     async execute(interaction, client) {
         console.log("updateevents");
