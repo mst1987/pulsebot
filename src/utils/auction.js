@@ -15,6 +15,10 @@ const { DateTime } = require("luxon");
 const { getTargetMessage } = require("./legendary");
 const { getAuctionMessage } = require("./responses");
 const { formatTimestampToDateString } = require("./date");
+const {
+    highestBidsMessageId,
+    highestBidsChannelId,
+} = require("../config/variables");
 
 module.exports = {
     showBidModal,
