@@ -1,6 +1,7 @@
 const { getSetupsFromEvents } = require("../../utils/raidhelper");
 const { botEditReply } = require("../../utils/helper");
 const Raidhelper = require("../../classes/raidhelper");
+const { setupResponse } = require("../../utils/responses");
 
 module.exports = {
     name: "show-allsetups",
