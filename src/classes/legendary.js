@@ -93,7 +93,7 @@ class Legendary {
 
     async getHighestBid(channel) {
         const url =
-            "https://pulse-gdkp.de:3001/api/legendary/highestbid/" + channel;
+            "https://pulse-gdkp.de:3001/api/legendary/currentbid/" + channel;
         return axios
             .get(url, { httpsAgent: agent })
             .then((response) => {
