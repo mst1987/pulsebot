@@ -648,7 +648,6 @@ client.on("interactionCreate", async(interaction) => {
                 description: "message",
             }, ],
             ephemeral: false,
-            row,
         });
         const replyMessage = await interaction.fetchReply();
 
@@ -680,7 +679,7 @@ client.on("interactionCreate", async(interaction) => {
             const newMessage = await targetMessage.edit({ embeds: [embed] });
             await legendary.updateAuction({ messageid: newMessage.id });
         } else {
-            botFollowup(interaction, response.message);
+            botFollowup(interaction, response.message, 0, false, row);
         }
     }
 
