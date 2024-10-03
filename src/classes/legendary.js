@@ -3,7 +3,7 @@ const axios = require("axios");
 const fs = require("fs");
 
 const agent = new https.Agent({
-    rejectUnauthorized: true,
+    rejectUnauthorized: false,
 });
 class Legendary {
     constructor() {}
