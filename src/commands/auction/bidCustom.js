@@ -1,4 +1,5 @@
 const { showConfirmationModal, showBidModal } = require("../../utils/auction");
+const { botReply } = require("../../utils/helper");
 
 module.exports = {
     name: "bid-custom",
@@ -24,7 +25,13 @@ module.exports = {
                     return;
                 }
 
-                console.log(bid);
+                botReply(
+                    modalInteraction,
+                    `**${formatNumberWithDots(Number(bidData.gold))}g**`,
+                    `geboten von ${nickname}`,
+                    0,
+                    false
+                );
             });
         console.log("modal after");
     },
