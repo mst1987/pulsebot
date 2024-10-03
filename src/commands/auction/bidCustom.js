@@ -12,7 +12,8 @@ module.exports = {
             .awaitModalSubmit({ filter, time: 30000 })
             .then(async(modalInteraction) => {
                 console.log("bid modal inner");
-                const bidAmount = interaction.fields.getTextInputValue("bidAmount");
+                const bidAmount =
+                    modalInteraction.fields.getTextInputValue("bidAmount");
                 const bid = parseInt(bidAmount);
 
                 if (isNaN(bid)) {
