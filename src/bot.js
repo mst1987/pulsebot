@@ -25,6 +25,7 @@ function loadCommands(dir) {
         const commandFiles = fs
             .readdirSync(path.join(dir, folder))
             .filter((file) => file.endsWith(".js"));
+        console.log(commandFiles);
         for (const file of commandFiles) {
             const command = require(path.join(dir, folder, file));
             client.commands.set(command.name, command);
