@@ -36,26 +36,22 @@ client.on("ready", () => {
     loadCommands("./commands");
 });
 
-client.on("interactionCreate", (message) => {
-    console.log(message);
-    if (!message.content.startsWith(process.env.PREFIX) || message.author.bot)
-        return;
+client.on("interactionCreate", async(interaction) => {
+    if (!interaction.isCommand() && !interaction.isButton()) return;
 
-    const args = message.content
-        .slice(process.env.PREFIX.length)
-        .trim()
-        .split(/ +/);
-    const commandName = args.shift().toLowerCase();
-    console.log(commandName);
-    const command = client.commands.get(commandName);
-    console.log(command);
+    //if (interaction.isCommand()) {
+    // Slash Command Handling
+    const command = client.commands.get(interaction.commandName);
     if (!command) return;
 
     try {
-        command.execute(message, args, client, pendingBids);
+        await command.execute(interaction);
     } catch (error) {
         console.error(error);
-        message.reply("There was an error executing that command!");
+        await interaction.reply({
+            content: "There was an error executing this command!",
+            ephemeral: true,
+        });
     }
 });
 
