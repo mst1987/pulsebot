@@ -642,13 +642,8 @@ client.on("interactionCreate", async(interaction) => {
             .setStyle(ButtonStyle.Success)
         );
 
-        await interaction.reply({
-            embeds: [{
-                title: "title",
-                description: "message",
-            }, ],
-            ephemeral: false,
-        });
+        botReply(interaction, "title", "title", 0, false, [row]);
+
         const replyMessage = await interaction.fetchReply();
 
         const auctionData = {
