@@ -4,7 +4,7 @@ const {
     findServerEmoji,
     botReply,
 } = require("../../utils/helper");
-const { getAuctionMessage } = require("../../utuls/responses");
+const { getAuctionMessage } = require("../../utils/responses");
 
 module.exports = {
     name: "updateauction",

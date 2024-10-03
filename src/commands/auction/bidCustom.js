@@ -1,5 +1,4 @@
-const { showConfirmationModal } = require("../../utuls/auction");
-const { showBidModal } = require("../../utuls/auction");
+const { showConfirmationModal, showBidModal } = require("../../utils/auction");
 
 module.exports = {
     name: "bid",
