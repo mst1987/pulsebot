@@ -9,7 +9,7 @@ function isNumber(value) {
 }
 
 function getCharacterIcon(interaction, spec) {
-    console.log("spec", spec);
+    console.log("spec", extendedClassList[spec].icon);
     return `${interaction.guild.emojis.cache.find(
     (emoji) => emoji.name === extendedClassList[spec]?.icon
   )}`;
