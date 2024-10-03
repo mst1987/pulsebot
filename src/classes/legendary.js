@@ -1,5 +1,6 @@
 const https = require("https");
 const axios = require("axios");
+const fs = require("fs");
 
 const agent = new https.Agent({
     key: fs.readFileSync("/etc/nginx/_.pulse-gdkp.de_private_key.key", "utf8"),
