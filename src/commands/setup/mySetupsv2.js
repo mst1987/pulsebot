@@ -1,5 +1,5 @@
-const { getCategorySetups } = require("../../functions/raidhelper");
 const { botEditReply } = require("../../utils/helper");
+const { getCategorySetups } = require("../../utils/raidhelper");
 
 module.exports = {
     name: "show-mysetups",
