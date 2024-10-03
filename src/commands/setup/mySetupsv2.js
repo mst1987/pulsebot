@@ -25,6 +25,7 @@ module.exports = {
                 `${mySetup}\n`
             );
         } catch (error) {
+            console.log(error);
             await botEditReply(
                 interaction,
                 messages.general.errorTitle,
