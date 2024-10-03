@@ -10,6 +10,7 @@ module.exports = {
             const categoryId = interaction.channel.parent.id;
             await interaction.deferReply({ ephemeral: true });
             const formattedSignUps = await getAllSignUps(interaction, categoryId);
+            console.log("formattedSignUps", formattedSignUps);
             await botEditReply(
                 interaction,
                 interaction.channel.parent.name,
