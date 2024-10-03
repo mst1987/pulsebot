@@ -129,7 +129,6 @@ function formatSpecs(specs, templateId) {
 
 function getChannelsFromCategories(guild, categoryIds) {
     const channelsFromCategories = [];
-
     guild.channels.cache.forEach((channel) => {
         if (channel.type === 0) {
             const parent = channel.parent;
@@ -221,10 +220,12 @@ async function getCategoryEvents(interaction, categoryId) {
     const channelsInCategory = getChannelsFromCategories(interaction.guild, [
         categoryId,
     ]);
+
+    console.log(channelsInCategory);
     const categoryEvents = allEvents
         .filter((event) => channelsInCategory.includes(event.channelId))
         .sort((eventA, eventB) => eventA.startTime - eventB.startTime);
-
+    console.log(categoryEvents);
     return categoryEvents;
 }
 
