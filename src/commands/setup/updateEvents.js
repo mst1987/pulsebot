@@ -10,7 +10,7 @@ module.exports = {
                 title: interaction.channel.parent.name,
                 description: await showAllEvents(
                     interaction,
-                    interaction.channel.parent
+                    interaction.channel.parent.id
                 ),
             }, ],
         });
