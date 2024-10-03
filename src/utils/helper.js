@@ -220,12 +220,9 @@ async function getCategoryEvents(interaction, categoryId) {
     const channelsInCategory = getChannelsFromCategories(interaction.guild, [
         categoryId,
     ]);
-    console.log(categoryId);
-    console.log(channelsInCategory);
     const categoryEvents = allEvents
         .filter((event) => channelsInCategory.includes(event.channelId))
         .sort((eventA, eventB) => eventA.startTime - eventB.startTime);
-    console.log(categoryEvents);
     return categoryEvents;
 }
 

@@ -6,6 +6,7 @@ module.exports = {
     name: "show-signups",
     description: "Show all setups",
     async execute(interaction, client) {
+        console.log("show-signups");
         try {
             const categoryId = interaction.channel.parent.id;
             await interaction.deferReply({ ephemeral: true });

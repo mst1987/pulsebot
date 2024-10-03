@@ -4,7 +4,6 @@ module.exports = {
     name: "update-events",
     description: "Show all setups",
     async execute(interaction, client) {
-        console.log("updateevents");
         await interaction.update({
             embeds: [{
                 title: interaction.channel.parent.name,
