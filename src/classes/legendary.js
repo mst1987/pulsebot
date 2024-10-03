@@ -9,8 +9,6 @@ const agent = new https.Agent({
         "/etc/nginx/pulse-gdkp.de_ssl_certificate_INTERMEDIATE.cer",
         "utf8"
     ),
-    fs.readFileSync("/etc/nginx/intermediate2.cer", "utf8"),
-
 });
 class Legendary {
     constructor() {}
