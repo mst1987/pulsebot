@@ -1,6 +1,12 @@
-const { Legendary } = require("../../utils/legendaryClass");
+const Legendary = require("../../classes/legendary");
+const { formatTimestampToDateString } = require("../../utils/date");
 const { isNumber, formatNumberWithDots } = require("../../utils/formatters");
-const { botReply, botFollowup } = require("../../utils/messageHelpers");
+const { botReply, getUserNickname } = require("../../utils/helper");
+const {
+    updateHighestBids,
+    getTargetMessage,
+} = require("../../utils/legendary");
+const { getAuctionMessage } = require("../../utuls/responses");
 
 module.exports = {
     name: "bid",
