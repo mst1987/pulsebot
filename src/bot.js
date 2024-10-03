@@ -38,7 +38,7 @@ client.on("ready", () => {
 
 client.on("interactionCreate", async(interaction) => {
     if (!interaction.isCommand() && !interaction.isButton()) return;
-
+    console.log(interaction);
     //if (interaction.isCommand()) {
     // Slash Command Handling
     const command = client.commands.get(interaction.commandName);
