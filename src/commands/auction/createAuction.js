@@ -1,4 +1,4 @@
-const { ActionRowBuilder } = require("discord.js");
+const { ActionRowBuilder, ButtonBuilder } = require("discord.js");
 const Legendary = require("../../classes/legendary");
 const {
     checkForPermission,
