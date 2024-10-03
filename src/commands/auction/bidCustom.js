@@ -1,5 +1,5 @@
 const { showConfirmationModal, showBidModal } = require("../../utils/auction");
-const { botReply } = require("../../utils/helper");
+const { botReply, formatNumberWithDots } = require("../../utils/helper");
 
 module.exports = {
     name: "bid-custom",
