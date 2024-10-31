@@ -84,7 +84,7 @@ function getBiddingButtonRow(interaction) {
     return row;
 }
 
-async function bidForLegendary(client, interaction, bid = null, add5k) {
+async function bidForLegendary(client, interaction, gold) {
     const role = interaction.member.roles.cache.find(
         (role) => role.id === "1144865420386517053"
     );
@@ -105,17 +105,6 @@ async function bidForLegendary(client, interaction, bid = null, add5k) {
             );
             return;
         }
-
-        let gold = 0;
-        if (add5k) {
-            const highestbid = await legendary.getHighestBid(interaction.channel.id);
-            if (highestbid) {
-                bid = Number(highestbid.gold) + 5000;
-            } else bid = 250000;
-        }
-
-        if (bid) gold = bid;
-        else gold = interaction.options.getString("gold");
 
         if (!isNumber(Number(gold))) {
             botReply(interaction, "Bid Info", "Goldwert muss eine Zahl sein!");

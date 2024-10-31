@@ -16,6 +16,7 @@ module.exports = {
     name: "bid",
     description: "Place a bid in an auction",
     async execute(interaction, client) {
-        bidForLegendary(client, interaction);
+        const bid = interaction.options.getString("gold");
+        bidForLegendary(client, interaction, bid);
     },
 };
