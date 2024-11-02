@@ -1,17 +1,18 @@
 const {
-    ModalBuilder,
-    TextInputBuilder,
-    TextInputStyle,
-    ActionRowBuilder,
-    ButtonBuilder,
-    ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } = require("discord.js");
 const {
-    botReply,
-    formatNumberWithDots,
-    getUserNickname,
-    isNumber,
-    findServerEmoji,
+  botReply,
+  formatNumberWithDots,
+  getUserNickname,
+  isNumber,
+  findServerEmoji,
+  botFollowup,
 } = require("./helper");
 const Legendary = require("../classes/legendary");
 const { DateTime } = require("luxon");
@@ -19,166 +20,167 @@ const { getTargetMessage, updateHighestBids } = require("./legendary");
 const { getAuctionMessage } = require("./responses");
 const { formatTimestampToDateString } = require("./date");
 const {
-    highestBidsMessageId,
-    highestBidsChannelId,
+  highestBidsMessageId,
+  highestBidsChannelId,
 } = require("../config/variables");
 
 module.exports = {
-    showBidModal,
-    showConfirmationModal,
-    bidForLegendary,
-    getBiddingButtonRow,
+  showBidModal,
+  showConfirmationModal,
+  bidForLegendary,
+  getBiddingButtonRow,
 };
 async function showBidModal(interaction) {
-    const modal = new ModalBuilder()
-        .setCustomId("bidModal")
-        .setTitle("Wieviel willst du bieten?");
+  const modal = new ModalBuilder()
+    .setCustomId("bidModal")
+    .setTitle("Wieviel willst du bieten?");
 
-    const bidInput = new TextInputBuilder()
-        .setCustomId("bidAmount")
-        .setLabel("Gebot (in Gold)")
-        .setStyle(TextInputStyle.Short)
-        .setPlaceholder("z.B. 250000")
-        .setRequired(true)
-        .setMinLength(1)
-        .setMaxLength(10);
+  const bidInput = new TextInputBuilder()
+    .setCustomId("bidAmount")
+    .setLabel("Gebot (in Gold)")
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder("z.B. 250000")
+    .setRequired(true)
+    .setMinLength(1)
+    .setMaxLength(10);
 
-    const firstActionRow = new ActionRowBuilder().addComponents(bidInput);
-    modal.addComponents(firstActionRow);
+  const firstActionRow = new ActionRowBuilder().addComponents(bidInput);
+  modal.addComponents(firstActionRow);
 
-    await interaction.showModal(modal);
+  await interaction.showModal(modal);
 }
 
 async function showConfirmationModal(interaction, bid) {
-    const modal = new ModalBuilder()
-        .setCustomId("confirmBidModal")
-        .setTitle("Bestätigen Sie Ihr Gebot");
+  const modal = new ModalBuilder()
+    .setCustomId("confirmBidModal")
+    .setTitle("Bestätigen Sie Ihr Gebot");
 
-    const confirmInput = new TextInputBuilder()
-        .setCustomId("confirmBid")
-        .setLabel(`Bist du sicher, dass du ${bid} Gold bieten möchtest?`)
-        .setStyle(TextInputStyle.Short)
-        .setPlaceholder("Ja oder Nein")
-        .setRequired(true);
+  const confirmInput = new TextInputBuilder()
+    .setCustomId("confirmBid")
+    .setLabel(`Bist du sicher, dass du ${bid} Gold bieten möchtest?`)
+    .setStyle(TextInputStyle.Short)
+    .setPlaceholder("Ja oder Nein")
+    .setRequired(true);
 
-    const firstActionRow = new ActionRowBuilder().addComponents(confirmInput);
-    modal.addComponents(firstActionRow);
+  const firstActionRow = new ActionRowBuilder().addComponents(confirmInput);
+  modal.addComponents(firstActionRow);
 
-    await interaction.showModal(modal);
+  await interaction.showModal(modal);
 }
 
 function getBiddingButtonRow(interaction) {
-    const row = new ActionRowBuilder();
-    const customEmoji = findServerEmoji(interaction, "SNIFFA");
-    row.addComponents(
-        new ButtonBuilder()
-        .setCustomId("bid-5k")
-        .setLabel("+5.000g")
-        .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-        .setCustomId("bid-custom")
-        .setLabel("Bid eingeben")
-        .setStyle(ButtonStyle.Success)
-    );
+  const row = new ActionRowBuilder();
+  const customEmoji = findServerEmoji(interaction, "SNIFFA");
+  row.addComponents(
+    new ButtonBuilder()
+      .setCustomId("bid-5k")
+      .setLabel("+5.000g")
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId("bid-custom")
+      .setLabel("Bid eingeben")
+      .setStyle(ButtonStyle.Success)
+  );
 
-    return row;
+  return row;
 }
 
 async function bidForLegendary(client, interaction, gold) {
-    const role = interaction.member.roles.cache.find(
-        (role) => role.id === "1144865420386517053"
+  const role = interaction.member.roles.cache.find(
+    (role) => role.id === "1144865420386517053"
+  );
+  if (!role) {
+    botReply(
+      interaction,
+      "Fehlende Berechtigung",
+      "Dir fehlt die Legendary Rolle diesen Befehl auszuführen."
     );
-    if (!role) {
-        botReply(
-            interaction,
-            "Fehlende Berechtigung",
-            "Dir fehlt die Legendary Rolle diesen Befehl auszuführen."
+    return;
+  } else {
+    const legendary = new Legendary();
+    if (!legendary.getAuction(interaction.channel.id)) {
+      botReply(
+        interaction,
+        "Auktion Info",
+        "Keine Auktion aktiv für diesen Channel"
+      );
+      return;
+    }
+
+    if (!isNumber(Number(gold))) {
+      botReply(interaction, "Bid Info", "Goldwert muss eine Zahl sein!");
+      return;
+    }
+    if (gold > 5000000) {
+      botReply(
+        interaction,
+        "Vertippt?",
+        `Wolltest du wirklich **${formatNumberWithDots(gold)}g** bieten?`
+      );
+      return;
+    }
+
+    const bidData = {
+      username: interaction.user.tag,
+      userid: interaction.user.id,
+      gold: gold,
+      timestamp: DateTime.now().setZone("Europe/Paris").toMillis(),
+      legendary: interaction.channel.id,
+    };
+
+    response = await legendary.bid(bidData);
+
+    if (response.type === "success") {
+      const nickname = await getUserNickname(interaction);
+      const row = getBiddingButtonRow(interaction);
+      botReply(
+        interaction,
+        `**${formatNumberWithDots(Number(bidData.gold))}g**`,
+        `geboten von ${nickname}`,
+        0,
+        false,
+        [row]
+      );
+
+      const targetMessage = await getTargetMessage(
+        client,
+        highestBidsChannelId,
+        highestBidsMessageId
+      );
+      if (targetMessage) {
+        await updateHighestBids(interaction, targetMessage, legendary, client);
+      }
+
+      if (response.extended) {
+        const channelMessage = await getTargetMessage(
+          client,
+          response.legendary.channel,
+          response.legendary.messageid
         );
-        return;
-    } else {
-        const legendary = new Legendary();
-        if (!legendary.getAuction(interaction.channel.id)) {
-            botReply(
-                interaction,
-                "Auktion Info",
-                "Keine Auktion aktiv für diesen Channel"
-            );
-            return;
-        }
-
-        if (!isNumber(Number(gold))) {
-            botReply(interaction, "Bid Info", "Goldwert muss eine Zahl sein!");
-            return;
-        }
-        if (gold > 5000000) {
-            botReply(
-                interaction,
-                "Vertippt?",
-                `Wolltest du wirklich **${formatNumberWithDots(gold)}g** bieten?`
-            );
-            return;
-        }
-
-        const bidData = {
-            username: interaction.user.tag,
-            userid: interaction.user.id,
-            gold: gold,
-            timestamp: DateTime.now().setZone("Europe/Paris").toMillis(),
-            legendary: interaction.channel.id,
-        };
-
-        response = await legendary.bid(bidData);
-
-        if (response.type === "success") {
-            const nickname = await getUserNickname(interaction);
-            const row = getBiddingButtonRow(interaction);
-            botReply(
-                interaction,
-                `**${formatNumberWithDots(Number(bidData.gold))}g**`,
-                `geboten von ${nickname}`,
-                0,
-                false, [row]
-            );
-
-            const targetMessage = await getTargetMessage(
-                client,
-                highestBidsChannelId,
-                highestBidsMessageId
-            );
-            if (targetMessage) {
-                await updateHighestBids(interaction, targetMessage, legendary, client);
-            }
-
-            if (response.extended) {
-                const channelMessage = await getTargetMessage(
-                    client,
-                    response.legendary.channel,
-                    response.legendary.messageid
-                );
-                if (channelMessage) {
-                    const embed = {
-                        title: `${findServerEmoji(
+        if (channelMessage) {
+          const embed = {
+            title: `${findServerEmoji(
               interaction,
               "poggies"
             )} Auktion gestartet ${findServerEmoji(interaction, "poggies")}`,
-                        description: `Auktion wurde gestartet\n\n${getAuctionMessage(
+            description: `Auktion wurde gestartet\n\n${getAuctionMessage(
               interaction,
               response.legendary
             )}`,
-                    };
-                    await channelMessage.edit({ embeds: [embed] });
-                }
-                await botFollowup(
-                    interaction,
-                    `Die Auktion wurde verlängert und endet nun **${formatTimestampToDateString(
+          };
+          await channelMessage.edit({ embeds: [embed] });
+        }
+        await botFollowup(
+          interaction,
+          `Die Auktion wurde verlängert und endet nun **${formatTimestampToDateString(
             Math.round(Number(response.legendary.endtime))
           )}**: <t:${Math.round(Number(response.legendary.endtime / 1000))}:R>`,
-                    0,
-                    false
-                );
-            }
-        } else {
-            botReply(interaction, "Gebot nicht akzeptiert!", response.message);
-        }
+          0,
+          false
+        );
+      }
+    } else {
+      botReply(interaction, "Gebot nicht akzeptiert!", response.message);
     }
+  }
 }
