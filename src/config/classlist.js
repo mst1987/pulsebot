@@ -365,7 +365,7 @@ module.exports = extendedClassList = {
     icon: "blooddk",
     name: "Blood Deathknight",
     clazz: "DK",
-    spec: "Blood_DPS",
+    spec: "Blood_Tank",
   },
   DEATHKNIGHT: {
     icon: "deathknight",
