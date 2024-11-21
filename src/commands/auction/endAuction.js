@@ -4,7 +4,10 @@ const {
   botReply,
   findServerEmoji,
 } = require("../../utils/helper");
-const { updateHighestBids } = require("../../utils/legendary");
+const {
+  updateHighestBids,
+  getTargetMessage,
+} = require("../../utils/legendary");
 
 module.exports = {
   name: "endauction",
