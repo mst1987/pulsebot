@@ -1,5 +1,9 @@
 const Legendary = require("../../classes/legendary");
 const {
+  highestBidsChannelId,
+  highestBidsMessageId,
+} = require("../../config/variables");
+const {
   checkForPermission,
   botReply,
   findServerEmoji,
