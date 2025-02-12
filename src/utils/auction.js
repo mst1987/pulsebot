@@ -73,8 +73,8 @@ function getBiddingButtonRow(interaction) {
   const customEmoji = findServerEmoji(interaction, "SNIFFA");
   row.addComponents(
     new ButtonBuilder()
-      .setCustomId("bid-5k")
-      .setLabel("+5.000g")
+      .setCustomId("bid-10k")
+      .setLabel("+10.000g")
       .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId("bid-custom")
