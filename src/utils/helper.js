@@ -15,6 +15,8 @@ function getCharacterIcon(interaction, spec) {
 }
 
 function findServerEmoji(interaction, emojiName) {
+  console.log(emojiName);
+  console.log(interaction.guild.emojis.cache);
   return `${interaction.guild.emojis.cache.find(
     (emoji) => emoji.name === emojiName
   )}`;
