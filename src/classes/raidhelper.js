@@ -10,7 +10,7 @@ class Raidhelper {
       path: "/api/v3/servers/1354128137792917555/events",
       method: "GET",
       headers: {
-        Authorization: "Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90",
+        Authorization: "Mdm7VoQVq0KzfRM4EIX8fHxeshqlMnasW3vn8Cth",
         StartTimeFilter: timestamp,
         IncludeSignups: true,
       },
