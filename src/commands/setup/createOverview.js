@@ -16,7 +16,7 @@ module.exports = {
     try {
       const categoryId = interaction.channel.parent.id;
       const row = new ActionRowBuilder();
-      const customEmoji = findServerEmoji(interaction, "SNIFFA");
+      //const customEmoji = findServerEmoji(interaction, "SNIFFA");
       row.addComponents(
         new ButtonBuilder()
           .setCustomId("update-events")
@@ -34,7 +34,6 @@ module.exports = {
           .setCustomId("show-allsetups")
           .setLabel("Show All Setups")
           .setStyle(ButtonStyle.Danger)
-          .setEmoji(customEmoji)
       );
 
       const formattedRaids = await showAllEvents(interaction, categoryId);
