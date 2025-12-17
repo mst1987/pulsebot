@@ -19,7 +19,6 @@ function setupResponse(interaction, event) {
     );
 
   let spec;
-  console.log(spec, emoji);
   if (inSetup) spec = inSetup.spec;
   return `<#${event.channelid}> <t:${Math.round(
     Number(event.startTime)

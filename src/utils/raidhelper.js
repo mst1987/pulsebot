@@ -85,7 +85,6 @@ async function getCategorySetups(interaction, categoryId) {
 async function getSetupsFromEvents(client, interaction, events) {
   let myevents = [];
   const raidhelper = new Raidhelper();
-  console.log(events);
   await Promise.all(
     events.map(async (event) => {
       const setup = await raidhelper.getSetup(event.id);
@@ -100,7 +99,6 @@ async function getSetupsFromEvents(client, interaction, events) {
   );
 
   myevents = myevents.filter((event, index) => {
-    console.log(event);
     if (event.setup)
       return event.setup.some((user) => user.userid === interaction.user.id);
   });
