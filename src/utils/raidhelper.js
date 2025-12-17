@@ -99,7 +99,7 @@ async function getSetupsFromEvents(client, interaction, events) {
   );
 
   myevents = myevents.filter((event, index) => {
-    console.log(user);
+    console.log(interaction.user);
     return event.setup.some((user) => user.userid === interaction.user.id);
   });
   return myevents;
