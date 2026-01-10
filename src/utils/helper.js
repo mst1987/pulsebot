@@ -1,7 +1,11 @@
 const Raidhelper = require("../classes/raidhelper.js");
+const extendedClassList = require("../config/classlist.js");
 const { formatTimestampToDateString } = require("./date.js");
-
-const timeoutTime = 60000;
+const {
+    adminUserId,
+    raidhelperBotId,
+    defaultTimeout,
+} = require("../config/variables");
 
 function isNumber(value) {
     return typeof value === "number" && !isNaN(value);
@@ -9,14 +13,14 @@ function isNumber(value) {
 
 function getCharacterIcon(interaction, spec) {
     return `${interaction.guild.emojis.cache.find(
-    (emoji) => emoji.name === extendedClassList[spec]?.icon
-  )}`;
+        (emoji) => emoji.name === extendedClassList[spec]?.icon
+    )}`;
 }
 
 function findServerEmoji(interaction, emojiName) {
     return `${interaction.guild.emojis.cache.find(
-    (emoji) => emoji.name === emojiName
-  )}`;
+        (emoji) => emoji.name === emojiName
+    )}`;
 }
 
 async function getUserNickname(interaction) {
@@ -30,76 +34,78 @@ async function botReply(
     interaction,
     title,
     message,
-    timeout = timeoutTime,
+    timeout = defaultTimeout,
     ephemeral = true,
     components = []
 ) {
-    return await interaction
-        .reply({
+    try {
+        const msg = await interaction.reply({
             embeds: [{
                 title: title,
                 description: message,
             }, ],
             ephemeral: ephemeral,
             components,
-        })
-        .then((msg) => {
-            if (timeout > 0) setTimeout(() => msg.delete(), timeout);
-        })
-        .catch((error) => {
-            console.log(error);
         });
+
+        if (timeout > 0) {
+            setTimeout(() => msg.delete().catch(console.error), timeout);
+        }
+    } catch (error) {
+        console.error("Error in botReply:", error.message);
+    }
 }
 
 async function botEditReply(
     interaction,
     title,
     message,
-    timeout = timeoutTime,
+    timeout = defaultTimeout,
     ephemeral = true,
     components = []
 ) {
-    await interaction
-        .editReply({
+    try {
+        await interaction.editReply({
             embeds: [{
                 title: title,
                 description: message,
             }, ],
             ephemeral: ephemeral,
             components,
-        })
-        .catch((error) => {
-            console.log(error);
         });
+    } catch (error) {
+        console.error("Error in botEditReply:", error.message);
+    }
 }
 
 async function botFollowup(
     interaction,
     message,
-    timeout = timeoutTime,
+    timeout = defaultTimeout,
     ephemeral = true,
     components = []
 ) {
-    await interaction
-        .followUp({
+    try {
+        const msg = await interaction.followUp({
             embeds: [{
                 description: message,
             }, ],
             ephemeral: ephemeral,
             components,
-        })
-        .then((msg) => {
-            if (timeout > 0) setTimeout(() => msg.delete(), timeout);
-        })
-        .catch((error) => {
-            console.log(error);
         });
+
+        if (timeout > 0) {
+            setTimeout(() => msg.delete().catch(console.error), timeout);
+        }
+    } catch (error) {
+        console.error("Error in botFollowup:", error.message);
+    }
 }
 
 function formatSignUps(interaction, specs) {
     return specs
         .map((s) => `${getCharacterIcon(interaction, s.specName)}`)
-        .join(``);
+        .join("");
 }
 
 function formatSpecs(specs, templateId) {
@@ -128,7 +134,6 @@ function formatSpecs(specs, templateId) {
 
 function getChannelsFromCategories(guild, categoryIds) {
     const channelsFromCategories = [];
-
     guild.channels.cache.forEach((channel) => {
         if (channel.type === 0) {
             const parent = channel.parent;
@@ -142,7 +147,7 @@ function getChannelsFromCategories(guild, categoryIds) {
 }
 
 function checkForPermission(interaction) {
-    if (interaction.user.id !== "233598324022837249") {
+    if (interaction.user.id !== adminUserId) {
         botReply(
             interaction,
             "Fehlende Berechtigung",
@@ -158,7 +163,7 @@ async function getRaidInfosFromChannel(interaction) {
     const raidhelper = new Raidhelper();
     const channelMessages = await interaction.channel.messages.fetch();
     const botMessages = channelMessages.filter(
-        (msg) => msg.author.id === "579155972115660803"
+        (msg) => msg.author.id === raidhelperBotId
     );
 
     for (const [key, value] of botMessages) {
@@ -187,7 +192,7 @@ function createRaidData(event) {
 }
 
 function formatNumberWithDots(number) {
-    const formattedNumber = number.toLocaleString("en-US"); // Use the 'en-US' locale for comma (,) separator
+    const formattedNumber = number.toLocaleString("en-US");
     return formattedNumber.replace(/,/g, ".");
 }
 
@@ -197,13 +202,13 @@ async function showAllEvents(interaction, categoryId) {
     const formattedRaids = categoryEvents
         .map(
             (channel) =>
-            `**${channel.title}** <t:${Math.round(
-          Number(channel.startTime)
-        )}:R> \n<#${channel.channelId}> by <@${
-          channel.leaderId
-        }>\n${formatTimestampToDateString(channel.startTime * 1000)} Uhr`
+                `**${channel.title}** <t:${Math.round(
+                    Number(channel.startTime)
+                )}:R> \n<#${channel.channelId}> by <@${
+                    channel.leaderId
+                }>\n${formatTimestampToDateString(channel.startTime * 1000)} Uhr`
         )
-        .join(`\n\n`);
+        .join("\n\n");
 
     return formattedRaids;
 }
@@ -223,7 +228,6 @@ async function getCategoryEvents(interaction, categoryId) {
     const categoryEvents = allEvents
         .filter((event) => channelsInCategory.includes(event.channelId))
         .sort((eventA, eventB) => eventA.startTime - eventB.startTime);
-
     return categoryEvents;
 }
 

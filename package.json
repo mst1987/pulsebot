@@ -6,7 +6,9 @@
     "scripts": {
         "test": "echo \"Error: no test specified\" && exit 1",
         "start": "node ./src/bot.js",
-        "dev": "nodemon ./src/bot.js"
+        "dev": "nodemon ./src/bot.js",
+        "lint": "eslint src/",
+        "lint:fix": "eslint src/ --fix"
     },
     "keywords": [],
     "author": "",
@@ -17,5 +19,9 @@
         "dotenv": "^16.3.1",
         "luxon": "^3.4.2",
         "moment-timezone": "^0.5.43"
+    },
+    "devDependencies": {
+        "eslint": "^9.39.2",
+        "nodemon": "^3.1.11"
     }
 }

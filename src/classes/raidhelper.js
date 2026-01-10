@@ -7,10 +7,10 @@ class Raidhelper {
         return {
             host: "raid-helper.dev",
             port: 443,
-            path: "/api/v3/servers/250382792217591808/events",
+            path: "/api/v3/servers/1354128137792917555/events",
             method: "GET",
             headers: {
-                Authorization: "Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90",
+                Authorization: "Mdm7VoQVq0KzfRM4EIX8fHxeshqlMnasW3vn8Cth",
                 StartTimeFilter: timestamp,
                 IncludeSignups: true,
             },
@@ -72,7 +72,7 @@ class Raidhelper {
                                 .filter((event) =>
                                     event.signUps.find(
                                         (signup) =>
-                                        signup.userId === userid && signup.specName !== "Absence"
+                                            signup.userId === userid && signup.specName !== "Absence"
                                     )
                                 );
                         }
@@ -104,10 +104,10 @@ class Raidhelper {
                             .sort((eventA, eventB) => eventA.startTime - eventB.startTime)
                             .filter(
                                 (event) =>
-                                !event.signUps.find(
-                                    (signup) =>
-                                    signup.userId === userid && signup.specName !== "Absence"
-                                )
+                                    !event.signUps.find(
+                                        (signup) =>
+                                            signup.userId === userid && signup.specName !== "Absence"
+                                    )
                             );
 
                         resolve(filteredEvents.map((events) => events.channelId));
@@ -130,7 +130,7 @@ class Raidhelper {
     }
 
     async signUp(raidid, classes, userid) {
-        return new Promise(async(resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             const postData = JSON.stringify({
                 userId: userid,
                 className: classes.className,
@@ -235,7 +235,7 @@ class Raidhelper {
     }
 
     async saveRaid(data) {
-        return new Promise(async(resolve, reject) => {
+        return new Promise(async (resolve, reject) => {
             const postData = JSON.stringify(data);
 
             const options = {

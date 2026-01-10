@@ -21,14 +21,14 @@ function setupResponse(interaction, event) {
     let spec;
     if (inSetup) spec = inSetup.spec;
     return `<#${event.channelid}> <t:${Math.round(
-    Number(event.startTime)
-  )}:R> \n ${
-    spec
-      ? getCharacterIcon(interaction, spec)
-      : findServerEmoji(interaction, emoji)
-  } **${
-    spec ? extendedClassList[spec].name : notInSetup
-  }**\n${formatTimestampToDateString(event.startTime * 1000)} Uhr\n`;
+        Number(event.startTime)
+    )}:R> \n ${
+        spec
+            ? getCharacterIcon(interaction, spec)
+            : findServerEmoji(interaction, emoji)
+    } **${
+        spec ? extendedClassList[spec].name : notInSetup
+    }**\n${formatTimestampToDateString(event.startTime * 1000)} Uhr\n`;
 }
 
 function mySetupResponse(interaction, events) {
@@ -47,28 +47,26 @@ function mySetupResponse(interaction, events) {
     return setupData
         .map(
             (channel) =>
-            `<#${channel.channelid}> ${getCharacterIcon(
-          interaction,
-          channel.setup[0].spec
-        )} ${
-          extendedClassList[channel.setup[0].spec].name
-        }\n${formatTimestampToDateString(channel.startTime * 1000)} Uhr\n`
+                `<#${channel.channelid}> ${getCharacterIcon(
+                    interaction,
+                    channel.setup[0].spec
+                )} ${
+                    extendedClassList[channel.setup[0].spec].name
+                }\n${formatTimestampToDateString(channel.startTime * 1000)} Uhr\n`
         )
-        .join(`\n`);
+        .join("\n");
 }
 
 function getAuctionMessage(interaction, legendary) {
-    return `${findServerEmoji(interaction, "dragonwrath")}  **${
-    legendary.name
-  }**\n\nRaid: **${
-    legendary.raid
-  }**\nAuktion endet am **${formatTimestampToDateString(
-    Number(legendary.endtime)
-  )}**\n\nStartpreis ist **${
-    legendary.mingold
-  }g** und Mindesterhöhung liegt bei **${
-    legendary.increment
-  }g**\n\nBenutze den **/bid** Befehl um mitzubieten!\n\nExample:\`\`\`/bid gold:275000\`\`\``;
+    return `**${legendary.name}**\n\nRaid: **${
+        legendary.raid
+    }**\nAuktion endet am **${formatTimestampToDateString(
+        Number(legendary.endtime)
+    )}**\n\nStartpreis ist **${
+        legendary.mingold
+    }g** und Mindesterhöhung liegt bei **${
+        legendary.increment
+    }g**\n\nBenutze den **/bid** Befehl um mitzubieten!\n\nExample:\`\`\`/bid gold:350000\`\`\``;
 }
 
 function getItemsToShow(interaction, items, dateFrom, dateEnd) {
@@ -91,11 +89,11 @@ function getItemsFormatted(interaction, items) {
     return items
         .map(
             (item) =>
-            `${getCharacterIcon(interaction, item.class)} ${item.player} - [${
-          item.item
-        }](${item.wowhead}) - ${item.gold}g`
+                `${getCharacterIcon(interaction, item.class)} ${item.player} - [${
+                    item.item
+                }](${item.wowhead}) - ${item.gold}g`
         )
-        .join(`\n`);
+        .join("\n");
 }
 
 module.exports = {
