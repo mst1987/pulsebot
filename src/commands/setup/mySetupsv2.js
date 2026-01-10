@@ -16,7 +16,7 @@ module.exports = {
                 .map((event) => {
                     return setupResponse(interaction, event);
                 })
-                .join(`\n`);
+                .join("\n");
             await botEditReply(
                 interaction,
                 messages.mysetups.successTitle,

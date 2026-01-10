@@ -1,9 +1,9 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const Legendary = require("../../classes/legendary");
 const {
     checkForPermission,
     findServerEmoji,
     botFollowup,
+    botReply,
 } = require("../../utils/helper");
 const { getAuctionMessage } = require("../../utils/responses");
 const { toTimestamp } = require("../../utils/date");
@@ -49,24 +49,32 @@ module.exports = {
             increment: interaction.options.getString("increment"),
         };
 
-        response = await legendary.createAuction(auctionData);
-        if (response.type === "success") {
-            const targetMessage = await interaction.channel.messages.fetch(
-                replyMessage.id
-            );
-            const embed = {
-                title: `${findServerEmoji(
-          interaction,
-          "poggies"
-        )} Auktion gestartet ${findServerEmoji(interaction, "poggies")}`,
-                description: `Auktion wurde gestartet\n\n${getAuctionMessage(
-          interaction,
-          response.legendary
-        )}`,
-            };
-            const newMessage = await targetMessage.edit({ embeds: [embed] });
-        } else {
-            botFollowup(interaction, response.message, 0, false, [row]);
+        try {
+            const response = await legendary.createAuction(auctionData);
+
+            if (response.type === "success") {
+                const targetMessage = await interaction.channel.messages.fetch(
+                    replyMessage.id
+                );
+                const embed = {
+                    title: `${findServerEmoji(
+                        interaction,
+                        "poggies"
+                    )} Auktion gestartet ${findServerEmoji(interaction, "poggies")}`,
+                    description: `Auktion wurde gestartet\n\n${getAuctionMessage(
+                        interaction,
+                        response.legendary
+                    )}`,
+                };
+                await targetMessage.edit({ embeds: [embed] });
+            } else {
+                botFollowup(interaction, response.message, 0, false, [row]);
+            }
+        } catch (error) {
+            console.error("Error creating auction:", error.message);
+            botFollowup(interaction, "Fehler beim Erstellen der Auktion", 0, false, [
+                row,
+            ]);
         }
     },
 };

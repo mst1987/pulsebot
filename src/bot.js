@@ -14,8 +14,6 @@ const client = new Client({
     partials: ["MESSAGE", "REACTION"],
 });
 
-const pendingBids = new Map();
-
 client.commands = new Collection();
 
 function loadCommands(dir) {
@@ -42,20 +40,37 @@ client.on("interactionCreate", async(interaction) => {
     const command = client.commands.get(
         interaction.customId || interaction.commandName
     );
-    if (!command)
-        await interaction.reply({
-            content: "Command not found",
-            ephemeral: true,
-        });
+
+    if (!command) {
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({
+                content: "Command not found",
+                ephemeral: true,
+            });
+        }
+        return;
+    }
+
     console.log(`Command: ${command.name}`);
+
     try {
         await command.execute(interaction, client);
     } catch (error) {
-        console.error(error);
-        await interaction.reply({
-            content: "There was an error executing this command!",
-            ephemeral: true,
-        });
+        console.error(`Error executing ${command.name}:`, error);
+
+        const errorMessage = "There was an error executing this command!";
+
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({
+                content: errorMessage,
+                ephemeral: true,
+            });
+        } else if (interaction.deferred) {
+            await interaction.followUp({
+                content: errorMessage,
+                ephemeral: true,
+            });
+        }
     }
 });
 

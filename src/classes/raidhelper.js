@@ -1,273 +1,273 @@
 const https = require("https");
 
 class Raidhelper {
-  constructor() {}
+    constructor() {}
 
-  getEventOptions(timestamp) {
-    return {
-      host: "raid-helper.dev",
-      port: 443,
-      path: "/api/v3/servers/1354128137792917555/events",
-      method: "GET",
-      headers: {
-        Authorization: "Mdm7VoQVq0KzfRM4EIX8fHxeshqlMnasW3vn8Cth",
-        StartTimeFilter: timestamp,
-        IncludeSignups: true,
-      },
-    };
-  }
-
-  async getAllEvents() {
-    return new Promise((resolve, reject) => {
-      let data = "";
-      const currentUnixTimestamp = Math.floor(Date.now() / 1000);
-      const options = this.getEventOptions(currentUnixTimestamp);
-
-      var request = https
-        .request(options, (resp) => {
-          resp.on("data", (chunk) => {
-            data += chunk;
-          });
-
-          // The whole response has been received. Print out the result.
-          resp.on("end", () => {
-            data = JSON.parse(data);
-            if (data.status === "failed") {
-              reject(data);
-            } else {
-              var filteredEvents = data["postedEvents"].sort(
-                (eventA, eventB) => eventA.startTime - eventB.startTime
-              );
-
-              resolve(filteredEvents);
-            }
-          });
-        })
-        .on("error", (err) => {
-          console.log(err.message);
-        });
-      request.end();
-    });
-  }
-
-  async getUserSignUps(userid) {
-    return new Promise((resolve, reject) => {
-      let data = "";
-      const currentUnixTimestamp = Math.floor(Date.now() / 1000);
-      const options = this.getEventOptions(currentUnixTimestamp);
-
-      var request = https
-        .request(options, (resp) => {
-          resp.on("data", (chunk) => {
-            data += chunk;
-          });
-
-          // The whole response has been received. Print out the result.
-          resp.on("end", () => {
-            data = JSON.parse(data);
-            filteredEvents = [];
-            if (data) {
-              var filteredEvents = data["postedEvents"]
-                .sort((eventA, eventB) => eventA.startTime - eventB.startTime)
-                .filter((event) =>
-                  event.signUps.find(
-                    (signup) =>
-                      signup.userId === userid && signup.specName !== "Absence"
-                  )
-                );
-            }
-            resolve(filteredEvents);
-          });
-        })
-        .on("error", (err) => {
-          console.log("Error: " + err.message);
-        });
-      request.end();
-    });
-  }
-
-  async getMissingSignUps(userid) {
-    return new Promise((resolve, reject) => {
-      let data = "";
-      const currentUnixTimestamp = Math.floor(Date.now() / 1000);
-      const options = this.getEventOptions(currentUnixTimestamp);
-
-      var request = https
-        .request(options, (resp) => {
-          resp.on("data", (chunk) => {
-            data += chunk;
-          });
-
-          resp.on("end", () => {
-            data = JSON.parse(data);
-            var filteredEvents = data["postedEvents"]
-              .sort((eventA, eventB) => eventA.startTime - eventB.startTime)
-              .filter(
-                (event) =>
-                  !event.signUps.find(
-                    (signup) =>
-                      signup.userId === userid && signup.specName !== "Absence"
-                  )
-              );
-
-            resolve(filteredEvents.map((events) => events.channelId));
-          });
-        })
-        .on("error", (err) => {
-          console.log("Error: " + err.message);
-        });
-      request.end();
-    });
-  }
-
-  async signUpToRaid(raidid, signUps, userid) {
-    let promises = [];
-    for (let signUp of signUps) {
-      promises.push(await this.signUp(raidid, signUp, userid));
+    getEventOptions(timestamp) {
+        return {
+            host: "raid-helper.dev",
+            port: 443,
+            path: "/api/v3/servers/1354128137792917555/events",
+            method: "GET",
+            headers: {
+                Authorization: "Mdm7VoQVq0KzfRM4EIX8fHxeshqlMnasW3vn8Cth",
+                StartTimeFilter: timestamp,
+                IncludeSignups: true,
+            },
+        };
     }
 
-    await Promise.all(promises);
-  }
+    async getAllEvents() {
+        return new Promise((resolve, reject) => {
+            let data = "";
+            const currentUnixTimestamp = Math.floor(Date.now() / 1000);
+            const options = this.getEventOptions(currentUnixTimestamp);
 
-  async signUp(raidid, classes, userid) {
-    return new Promise(async (resolve, reject) => {
-      const postData = JSON.stringify({
-        userId: userid,
-        className: classes.className,
-        specName: classes.specName,
-      });
+            var request = https
+                .request(options, (resp) => {
+                    resp.on("data", (chunk) => {
+                        data += chunk;
+                    });
 
-      const options = {
-        host: "raid-helper.dev",
-        port: 443,
-        path: "/api/v2/events/" + raidid + "/signups",
-        method: "POST",
-        headers: {
-          Authorization: "Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90",
-          "Content-Type": "application/json",
-          "Content-Length": postData.length,
-        },
-      };
-      const request = https.request(options, (response) => {
-        let data = "";
-        response.on("data", (chunk) => {
-          data += chunk;
+                    // The whole response has been received. Print out the result.
+                    resp.on("end", () => {
+                        data = JSON.parse(data);
+                        if (data.status === "failed") {
+                            reject(data);
+                        } else {
+                            var filteredEvents = data["postedEvents"].sort(
+                                (eventA, eventB) => eventA.startTime - eventB.startTime
+                            );
+
+                            resolve(filteredEvents);
+                        }
+                    });
+                })
+                .on("error", (err) => {
+                    console.log(err.message);
+                });
+            request.end();
         });
-        response.on("end", () => {
-          resolve(data); // Resolve the promise with the response data
+    }
+
+    async getUserSignUps(userid) {
+        return new Promise((resolve, reject) => {
+            let data = "";
+            const currentUnixTimestamp = Math.floor(Date.now() / 1000);
+            const options = this.getEventOptions(currentUnixTimestamp);
+
+            var request = https
+                .request(options, (resp) => {
+                    resp.on("data", (chunk) => {
+                        data += chunk;
+                    });
+
+                    // The whole response has been received. Print out the result.
+                    resp.on("end", () => {
+                        data = JSON.parse(data);
+                        filteredEvents = [];
+                        if (data) {
+                            var filteredEvents = data["postedEvents"]
+                                .sort((eventA, eventB) => eventA.startTime - eventB.startTime)
+                                .filter((event) =>
+                                    event.signUps.find(
+                                        (signup) =>
+                                            signup.userId === userid && signup.specName !== "Absence"
+                                    )
+                                );
+                        }
+                        resolve(filteredEvents);
+                    });
+                })
+                .on("error", (err) => {
+                    console.log("Error: " + err.message);
+                });
+            request.end();
         });
-      });
+    }
 
-      request.on("error", (error) => {
-        reject(error); // Reject the promise if there's an error
-      });
-      request.write(postData);
-      request.end();
-    });
-  }
+    async getMissingSignUps(userid) {
+        return new Promise((resolve, reject) => {
+            let data = "";
+            const currentUnixTimestamp = Math.floor(Date.now() / 1000);
+            const options = this.getEventOptions(currentUnixTimestamp);
 
-  async getEvent(eventid) {
-    return new Promise((resolve, reject) => {
-      let data = "";
-      const options = {
-        host: "raid-helper.dev",
-        port: 443,
-        path: "/api/v2/events/" + eventid,
-        method: "GET",
-        headers: { Authorization: "Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90" },
-      };
+            var request = https
+                .request(options, (resp) => {
+                    resp.on("data", (chunk) => {
+                        data += chunk;
+                    });
 
-      var request = https
-        .request(options, (resp) => {
-          resp.on("data", (chunk) => {
-            data += chunk;
-          });
+                    resp.on("end", () => {
+                        data = JSON.parse(data);
+                        var filteredEvents = data["postedEvents"]
+                            .sort((eventA, eventB) => eventA.startTime - eventB.startTime)
+                            .filter(
+                                (event) =>
+                                    !event.signUps.find(
+                                        (signup) =>
+                                            signup.userId === userid && signup.specName !== "Absence"
+                                    )
+                            );
 
-          // The whole response has been received. Print out the result.
-          resp.on("end", () => {
-            data = JSON.parse(data);
-            resolve(data);
-          });
-        })
-        .on("error", (err) => {
-          console.log("Error: " + err.message);
+                        resolve(filteredEvents.map((events) => events.channelId));
+                    });
+                })
+                .on("error", (err) => {
+                    console.log("Error: " + err.message);
+                });
+            request.end();
         });
-      request.end();
-    });
-  }
+    }
 
-  async getSetup(raidid) {
-    return new Promise((resolve, reject) => {
-      let data = "";
-      const currentUnixTimestamp = Math.floor(Date.now() / 1000);
-      const options = {
-        host: "raid-helper.dev",
-        port: 443,
-        path: "/api/raidplan/" + raidid,
-        method: "GET",
-        headers: {
-          Authorization: "Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90",
-          StartTimeFilter: currentUnixTimestamp,
-          IncludeSignups: true,
-        },
-      };
+    async signUpToRaid(raidid, signUps, userid) {
+        let promises = [];
+        for (let signUp of signUps) {
+            promises.push(await this.signUp(raidid, signUp, userid));
+        }
 
-      var request = https
-        .request(options, (resp) => {
-          resp.on("data", (chunk) => {
-            data += chunk;
-          });
+        await Promise.all(promises);
+    }
 
-          resp.on("end", () => {
-            if (!data) {
-              resolve();
-            } else {
-              data = JSON.parse(data);
-              resolve({ raidid: raidid, setup: data.raidDrop });
-            }
-          });
-        })
-        .on("error", (err) => {
-          console.log("Error: " + err.message);
+    async signUp(raidid, classes, userid) {
+        return new Promise(async (resolve, reject) => {
+            const postData = JSON.stringify({
+                userId: userid,
+                className: classes.className,
+                specName: classes.specName,
+            });
+
+            const options = {
+                host: "raid-helper.dev",
+                port: 443,
+                path: "/api/v2/events/" + raidid + "/signups",
+                method: "POST",
+                headers: {
+                    Authorization: "Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90",
+                    "Content-Type": "application/json",
+                    "Content-Length": postData.length,
+                },
+            };
+            const request = https.request(options, (response) => {
+                let data = "";
+                response.on("data", (chunk) => {
+                    data += chunk;
+                });
+                response.on("end", () => {
+                    resolve(data); // Resolve the promise with the response data
+                });
+            });
+
+            request.on("error", (error) => {
+                reject(error); // Reject the promise if there's an error
+            });
+            request.write(postData);
+            request.end();
         });
-      request.end();
-    });
-  }
+    }
 
-  async saveRaid(data) {
-    return new Promise(async (resolve, reject) => {
-      const postData = JSON.stringify(data);
+    async getEvent(eventid) {
+        return new Promise((resolve, reject) => {
+            let data = "";
+            const options = {
+                host: "raid-helper.dev",
+                port: 443,
+                path: "/api/v2/events/" + eventid,
+                method: "GET",
+                headers: { Authorization: "Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90" },
+            };
 
-      const options = {
-        host: "pulse-gdkp.de",
-        port: 3001,
-        path: "/api/raids/import",
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      };
+            var request = https
+                .request(options, (resp) => {
+                    resp.on("data", (chunk) => {
+                        data += chunk;
+                    });
 
-      const request = https.request(options, (response) => {
-        let data = "";
-        response.on("data", (chunk) => {
-          console.log(chunk);
-          data += chunk;
+                    // The whole response has been received. Print out the result.
+                    resp.on("end", () => {
+                        data = JSON.parse(data);
+                        resolve(data);
+                    });
+                })
+                .on("error", (err) => {
+                    console.log("Error: " + err.message);
+                });
+            request.end();
         });
+    }
 
-        response.on("end", () => {
-          resolve(JSON.parse(data)); // Resolve the promise with the response data
+    async getSetup(raidid) {
+        return new Promise((resolve, reject) => {
+            let data = "";
+            const currentUnixTimestamp = Math.floor(Date.now() / 1000);
+            const options = {
+                host: "raid-helper.dev",
+                port: 443,
+                path: "/api/raidplan/" + raidid,
+                method: "GET",
+                headers: {
+                    Authorization: "Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90",
+                    StartTimeFilter: currentUnixTimestamp,
+                    IncludeSignups: true,
+                },
+            };
+
+            var request = https
+                .request(options, (resp) => {
+                    resp.on("data", (chunk) => {
+                        data += chunk;
+                    });
+
+                    resp.on("end", () => {
+                        if (!data) {
+                            resolve();
+                        } else {
+                            data = JSON.parse(data);
+                            resolve({ raidid: raidid, setup: data.raidDrop });
+                        }
+                    });
+                })
+                .on("error", (err) => {
+                    console.log("Error: " + err.message);
+                });
+            request.end();
         });
-      });
+    }
 
-      request.on("error", (error) => {
-        reject(error); // Reject the promise if there's an error
-      });
+    async saveRaid(data) {
+        return new Promise(async (resolve, reject) => {
+            const postData = JSON.stringify(data);
 
-      request.write(postData);
-      request.end();
-    });
-  }
+            const options = {
+                host: "pulse-gdkp.de",
+                port: 3001,
+                path: "/api/raids/import",
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            };
+
+            const request = https.request(options, (response) => {
+                let data = "";
+                response.on("data", (chunk) => {
+                    console.log(chunk);
+                    data += chunk;
+                });
+
+                response.on("end", () => {
+                    resolve(JSON.parse(data)); // Resolve the promise with the response data
+                });
+            });
+
+            request.on("error", (error) => {
+                reject(error); // Reject the promise if there's an error
+            });
+
+            request.write(postData);
+            request.end();
+        });
+    }
 }
 
 module.exports = Raidhelper;

@@ -61,12 +61,12 @@ module.exports = {
                 const formattedGDKPSignUps = setupData
                     .map(
                         (channelId) =>
-                        `<#${channelId.channelid}> ${getCharacterIcon(
-                interaction,
-                channelId.setup[0].spec
-              )} ${extendedClassList[channelId.setup[0].spec].name}`
+                            `<#${channelId.channelid}> ${getCharacterIcon(
+                                interaction,
+                                channelId.setup[0].spec
+                            )} ${extendedClassList[channelId.setup[0].spec].name}`
                     )
-                    .join(`\n`);
+                    .join("\n");
 
                 await botReply(
                     interaction,

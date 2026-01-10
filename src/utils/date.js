@@ -1,7 +1,7 @@
-const { DateTime } = require('luxon');
+const { DateTime } = require("luxon");
 
 module.exports = {
-	getWednesdayWeeksAgo: function(weeks) {
+    getWednesdayWeeksAgo: function(weeks) {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         // Calculate the number of days to subtract to get to the previous Wednesday
@@ -12,26 +12,26 @@ module.exports = {
     
         return weeksAgo;
     },
-	// Function to parse "D-M-YYYY" format
+    // Function to parse "D-M-YYYY" format
     parseDMYDateString: function(dateString) {
-        const parts = dateString.split('-');
+        const parts = dateString.split("-");
         const day = parseInt(parts[0], 10);
         const month = parseInt(parts[1], 10) - 1; // Months in JavaScript are zero-based
         const year = parseInt(parts[2], 10);
         return new Date(year, month, day);
     }, 
-	toTimestamp: function(dateString) {
-        const timestampCET = DateTime.fromFormat(dateString, 'dd.MM.yy-HH:mm', { zone: 'Europe/Paris' }).toMillis();
+    toTimestamp: function(dateString) {
+        const timestampCET = DateTime.fromFormat(dateString, "dd.MM.yy-HH:mm", { zone: "Europe/Paris" }).toMillis();
     
         return timestampCET;
     },
-	formatTimestampToDateString: function(timestamp) {
+    formatTimestampToDateString: function(timestamp) {
         // Convert the timestamp to a Luxon DateTime object in CET
-        const dateTimeCET = DateTime.fromMillis(timestamp, { zone: 'Europe/Paris' });
+        const dateTimeCET = DateTime.fromMillis(timestamp, { zone: "Europe/Paris" });
     
         // Format the DateTime object as the desired string format
-        const formattedString = dateTimeCET.toFormat('dd.MM.yyyy') + ' - ' + dateTimeCET.toFormat('HH:mm');
+        const formattedString = dateTimeCET.toFormat("dd.MM.yyyy") + " - " + dateTimeCET.toFormat("HH:mm");
     
         return formattedString;
     },
-}
+};

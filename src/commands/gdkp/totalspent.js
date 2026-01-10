@@ -30,8 +30,8 @@ module.exports = {
                 }
                 formattedItems[j].push(
                     `${getCharacterIcon(interaction, current.class)} ${
-            current.player
-          } - [${current.item}](${current.wowhead}) - ${current.gold}g`
+                        current.player
+                    } - [${current.item}](${current.wowhead}) - ${current.gold}g`
                 );
                 i++;
             });

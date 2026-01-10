@@ -1,132 +1,113 @@
 const https = require("https");
 const axios = require("axios");
-const fs = require("fs");
+const { API_BASE_URL } = require("../config/variables");
 
 const agent = new https.Agent({
-    rejectUnauthorized: false,
+    rejectUnauthorized: process.env.NODE_ENV === "production",
 });
+
 class Legendary {
-    constructor() {}
+    constructor() {
+        this.baseUrl = `${API_BASE_URL}/legendary`;
+    }
 
     async createAuction(auctionData) {
-        const url = "https://pulse-gdkp.de:3001/api/legendary/createauction";
-        return new Promise(async(resolve, reject) => {
-            const res = await axios
-                .post(url, auctionData, {
-                    httpsAgent: agent,
-                })
-                .then((response) => {
-                    return response.data;
-                })
-                .catch((error) => {
-                    return error;
-                });
-
-            resolve(res);
-        });
+        try {
+            const response = await axios.post(
+                `${this.baseUrl}/createauction`,
+                auctionData, { httpsAgent: agent }
+            );
+            return response.data;
+        } catch (error) {
+            console.error("Error creating auction:", error.message);
+            throw error;
+        }
     }
 
     async updateAuction(auctionData) {
-        const url =
-            "https://pulse-gdkp.de:3001/api/legendary/" + auctionData.channel;
-        return new Promise(async(resolve, reject) => {
-            const res = await axios
-                .put(url, auctionData, {
-                    httpsAgent: agent,
-                })
-                .then((response) => {
-                    return response.data;
-                })
-                .catch((error) => {
-                    return error;
-                });
-
-            resolve(res);
-        });
+        try {
+            const response = await axios.put(
+                `${this.baseUrl}/${auctionData.channel}`,
+                auctionData, { httpsAgent: agent }
+            );
+            return response.data;
+        } catch (error) {
+            console.error("Error updating auction:", error.message);
+            throw error;
+        }
     }
 
     async deleteAuction(channel) {
-        const url = "https://pulse-gdkp.de:3001/api/legendary/" + channel;
-        return new Promise(async(resolve, reject) => {
-            const res = await axios
-                .delete(url, { httpsAgent: agent })
-                .then((response) => {
-                    return response.data;
-                })
-                .catch((error) => {
-                    console.log(error);
-                    return error;
-                });
-            resolve(res);
-        });
+        try {
+            const response = await axios.delete(`${this.baseUrl}/${channel}`, {
+                httpsAgent: agent,
+            });
+            return response.data;
+        } catch (error) {
+            console.error("Error deleting auction:", error.message);
+            throw error;
+        }
     }
 
     async bid(bidData) {
-        const url = "https://pulse-gdkp.de:3001/api/legendary/bid";
-        return new Promise(async(resolve, reject) => {
-            const res = await axios
-                .post(url, bidData, {
-                    httpsAgent: agent,
-                })
-                .then((response) => {
-                    return response.data;
-                })
-                .catch((error) => {
-                    throw error;
-                });
-
-            resolve(res);
-        });
+        try {
+            const response = await axios.post(`${this.baseUrl}/bid`, bidData, {
+                httpsAgent: agent,
+            });
+            return response.data;
+        } catch (error) {
+            console.error("Error placing bid:", error.message);
+            throw error;
+        }
     }
 
     async getAuction(channel) {
-        const url = "https://pulse-gdkp.de:3001/api/legendary/" + channel;
-        return axios
-            .get(url, { httpsAgent: agent })
-            .then((response) => {
-                return response.data;
-            })
-            .catch((error) => {
-                throw error;
+        try {
+            const response = await axios.get(`${this.baseUrl}/${channel}`, {
+                httpsAgent: agent,
             });
+            return response.data;
+        } catch (error) {
+            console.error("Error getting auction:", error.message);
+            throw error;
+        }
     }
 
     async getHighestBid(channel) {
-        const url =
-            "https://pulse-gdkp.de:3001/api/legendary/currentbid/" + channel;
-        return axios
-            .get(url, { httpsAgent: agent })
-            .then((response) => {
-                return response.data;
-            })
-            .catch((error) => {
-                throw error;
-            });
+        try {
+            const response = await axios.get(
+                `${this.baseUrl}/currentbid/${channel}`, { httpsAgent: agent }
+            );
+            return response.data;
+        } catch (error) {
+            console.error("Error getting highest bid:", error.message);
+            throw error;
+        }
     }
 
     async getHighestBids() {
-        const url = "https://pulse-gdkp.de:3001/api/legendary/highestbids";
-        return axios
-            .get(url, { httpsAgent: agent })
-            .then((response) => {
-                return response.data;
-            })
-            .catch((error) => {
-                throw error;
+        try {
+            const response = await axios.get(`${this.baseUrl}/highestbids`, {
+                httpsAgent: agent,
             });
+            return response.data;
+        } catch (error) {
+            console.error("Error getting highest bids:", error.message);
+            throw error;
+        }
     }
 
     async getWinner(channel) {
-        const url =
-            "https://pulse-gdkp.de:3001/api/legendary/highestbid/" + channel;
-        return axios
-            .get(url, { httpsAgent: agent })
-            .then((response) => {
-                return response.data;
-            })
-            .catch((error) => {
-                throw error;
-            });
+        try {
+            const response = await axios.get(
+                `${this.baseUrl}/highestbid/${channel}`, { httpsAgent: agent }
+            );
+            return response.data;
+        } catch (error) {
+            console.error("Error getting winner:", error.message);
+            throw error;
+        }
     }
 }
+
 module.exports = Legendary;
