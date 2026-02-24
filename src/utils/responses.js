@@ -16,7 +16,7 @@ function setupResponse(interaction, event) {
     });
   }
 
-  console.log(interaction.user.id);
+  console.log(inSetup);
 
   let spec;
   if (inSetup) spec = inSetup.spec;
