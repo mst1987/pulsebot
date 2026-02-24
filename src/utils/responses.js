@@ -11,9 +11,7 @@ function setupResponse(interaction, event) {
   if (event.setup) {
     notInSetup = "Not in Setup";
     emoji = "sadcat";
-    inSetup = event.setup.find((signUp) => {
-      return signUp.id === interaction.user.id;
-    });
+    inSetup = event.setup.find((signUp) => signUp.id === interaction.user.id);
   }
 
   console.log(inSetup);
