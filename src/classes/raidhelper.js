@@ -226,7 +226,7 @@ class Raidhelper {
               data = JSON.parse(data);
               console.log("raiddrop: ");
               console.log(data);
-              resolve({ raidid: raidid, setup: data.raidDrop });
+              resolve({ raidid: raidid, setup: data.raiddrop });
             }
           });
         })
