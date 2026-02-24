@@ -17,7 +17,7 @@ function getEventsWithoutSignup(events, interaction) {
     (event) =>
       !event.signUps.find(
         (signup) =>
-          signup.id === interaction.user.id && signup.specName !== "Absence"
+          signup.userId === interaction.user.id && signup.specName !== "Absence"
       )
   );
 }
@@ -26,7 +26,7 @@ function getEventsWithSignup(events, interaction) {
   return events.filter((event) =>
     event.signUps.find(
       (signup) =>
-        signup.id === interaction.user.id && signup.specName !== "Absence"
+        signup.userId === interaction.user.id && signup.specName !== "Absence"
     )
   );
 }
@@ -34,7 +34,7 @@ function getEventsWithSignup(events, interaction) {
 function getSignUpsWithSpecs(events, interaction) {
   const signUpsWithSpecs = events.map((event) => {
     const matchingSignUps = event.signUps.filter(
-      (signUp) => signUp.id === interaction.user.id
+      (signUp) => signUp.userId === interaction.user.id
     );
     const matchingSpecs = matchingSignUps
       .map((signUp) => `${getCharacterIcon(interaction, signUp.specName)}`)
