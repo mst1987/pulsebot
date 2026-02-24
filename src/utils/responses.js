@@ -17,7 +17,7 @@ function setupResponse(interaction, event) {
   console.log(inSetup);
 
   let spec;
-  if (inSetup.slotNumber > 0) spec = inSetup.spec;
+  if (inSetup) spec = inSetup.spec;
   return `<#${event.channelid}> <t:${Math.round(
     Number(event.startTime)
   )}:R> \n ${
@@ -33,12 +33,12 @@ function mySetupResponse(interaction, events) {
   // Filter Setups, sort it and only get User data
   const setupData = events
     .filter((event, index) => {
-      return event.setup.some((user) => user.id === interaction.user.id);
+      return event.setup.some((user) => user.userid === interaction.user.id);
     })
     .sort((eventA, eventB) => eventA.startTime - eventB.startTime)
     .map((slot) => ({
       ...slot,
-      setup: slot.setup.filter((user) => user.id === interaction.user.id),
+      setup: slot.setup.filter((user) => user.userid === interaction.user.id),
     }));
 
   // Format Signup and get Discord Emojis for the classes
