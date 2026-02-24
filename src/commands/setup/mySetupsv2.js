@@ -1,4 +1,3 @@
-/* eslint-disable indent */
 const messages = require("../../config/messages");
 const { botEditReply } = require("../../utils/helper");
 const { getCategorySetups } = require("../../utils/raidhelper");
@@ -11,7 +10,6 @@ module.exports = {
     try {
       await interaction.deferReply({ ephemeral: true });
       const categoryId = interaction.channel.parent.id;
-
       const events = await getCategorySetups(interaction, categoryId);
       const mySetup = events
         .sort((eventA, eventB) => eventA.startTime - eventB.startTime)
@@ -19,7 +17,6 @@ module.exports = {
           return setupResponse(interaction, event);
         })
         .join("\n");
-      console.log(mySetup);
       await botEditReply(
         interaction,
         messages.mysetups.successTitle,
