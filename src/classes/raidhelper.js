@@ -204,7 +204,7 @@ class Raidhelper {
       const options = {
         host: "raid-helper.dev",
         port: 443,
-        path: "/raidplan/" + raidid,
+        path: "/api/raidplan/" + raidid,
         method: "GET",
         headers: {
           Authorization: "Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90",
@@ -218,7 +218,7 @@ class Raidhelper {
           resp.on("data", (chunk) => {
             data += chunk;
           });
-
+          console.log(data);
           resp.on("end", () => {
             if (!data) {
               resolve();
@@ -231,6 +231,7 @@ class Raidhelper {
         .on("error", (err) => {
           console.log("Error: " + err.message);
         });
+
       request.end();
     });
   }
