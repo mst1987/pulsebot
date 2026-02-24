@@ -224,7 +224,7 @@ class Raidhelper {
               resolve();
             } else {
               data = JSON.parse(data);
-              resolve({ raidid: raidid, setup: data });
+              resolve({ raidid: raidid, setup: data.slots });
             }
           });
         })
