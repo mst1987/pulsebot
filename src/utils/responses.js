@@ -7,11 +7,12 @@ const {
 function setupResponse(interaction, event) {
   let notInSetup = "Setup not done yet";
   let emoji = "copium";
-
   let inSetup = false;
-  if (event.setup) notInSetup = "Not in Setup";
-  emoji = "sadcat";
-  inSetup = event.setup.find((signUp) => signUp.id === interaction.user.id);
+  if (event.setup) {
+    notInSetup = "Not in Setup";
+    emoji = "sadcat";
+    inSetup = event.setup.find((signUp) => signUp.id === interaction.user.id);
+  }
 
   let spec;
   if (inSetup) spec = inSetup.spec;
