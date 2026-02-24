@@ -217,7 +217,6 @@ class Raidhelper {
         .request(options, (resp) => {
           resp.on("data", (chunk) => {
             data += chunk;
-            console.log(chunk);
           });
 
           resp.on("end", () => {
@@ -226,6 +225,8 @@ class Raidhelper {
             } else {
               data = JSON.parse(data);
               resolve({ raidid: raidid, setup: data.raidDrop });
+              console.log(123);
+              console.log(data);
             }
           });
         })
