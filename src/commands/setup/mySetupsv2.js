@@ -14,7 +14,6 @@ module.exports = {
       const mySetup = events
         .sort((eventA, eventB) => eventA.startTime - eventB.startTime)
         .map((event) => {
-          console.log(event.setup);
           return setupResponse(interaction, event);
         })
         .join("\n");
