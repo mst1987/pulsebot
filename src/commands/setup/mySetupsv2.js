@@ -11,8 +11,6 @@ module.exports = {
       await interaction.deferReply({ ephemeral: true });
       const categoryId = interaction.channel.parent.id;
       const events = await getCategorySetups(interaction, categoryId);
-      console.log("123131231231");
-      console.log(events);
       const mySetup = events
         .sort((eventA, eventB) => eventA.startTime - eventB.startTime)
         .map((event) => {
