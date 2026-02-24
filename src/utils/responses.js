@@ -17,7 +17,7 @@ function setupResponse(interaction, event) {
   console.log(inSetup);
 
   let spec;
-  if (typeof inSetup !== "undefined") spec = inSetup.spec;
+  if (inSetup !== undefined) spec = inSetup.spec;
   return `<#${event.channelid}> <t:${Math.round(
     Number(event.startTime)
   )}:R> \n ${
