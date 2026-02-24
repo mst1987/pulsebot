@@ -14,6 +14,9 @@ function setupResponse(interaction, event) {
     inSetup = event.setup.find((signUp) => signUp.id === interaction.user.id);
   }
 
+  console.log(signUp.id);
+  console.log(interaction.user.id);
+
   let spec;
   if (inSetup) spec = inSetup.spec;
   return `<#${event.channelid}> <t:${Math.round(
