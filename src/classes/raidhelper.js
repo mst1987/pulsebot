@@ -207,7 +207,7 @@ class Raidhelper {
         path: "/api/raidplan/" + raidid,
         method: "GET",
         headers: {
-          Authorization: "Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90",
+          Authorization: "SXq2bn5zgPoTDT0f2wpx8nRzVQ2JVFrSsRASVgMY",
           StartTimeFilter: currentUnixTimestamp,
           IncludeSignups: true,
         },
@@ -225,8 +225,6 @@ class Raidhelper {
             } else {
               data = JSON.parse(data);
               resolve({ raidid: raidid, setup: data.raidDrop });
-              console.log(123);
-              console.log(data);
             }
           });
         })
