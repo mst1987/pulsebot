@@ -19,6 +19,7 @@ module.exports = {
           return setupResponse(interaction, event);
         })
         .join("\n");
+      console.log(mySetup);
       await botEditReply(
         interaction,
         messages.mysetups.successTitle,
