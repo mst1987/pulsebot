@@ -99,7 +99,7 @@ async function getSetupsFromEvents(client, interaction, events) {
 
   myevents = myevents.filter((event, index) => {
     if (event.setup)
-      return event.setup.some((user) => user.userid === interaction.user.id);
+      return event.setup.some((user) => user.id === interaction.user.id);
   });
   return myevents;
 }
