@@ -41,6 +41,7 @@ function mySetupResponse(interaction, events) {
       setup: slot.setup.filter((user) => user.userid === interaction.user.id),
     }));
 
+  console.log(123);
   // Format Signup and get Discord Emojis for the classes
   return setupData
     .map(
