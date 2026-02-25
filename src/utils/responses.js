@@ -17,7 +17,7 @@ function setupResponse(interaction, event) {
   console.log(inSetup.slotNumber);
 
   let spec;
-  if (inSetup) spec = inSetup.spec;
+  if (inSetup) spec = inSetup.specName;
   return `<#${event.channelid}> <t:${Math.round(
     Number(event.startTime)
   )}:R> \n ${
