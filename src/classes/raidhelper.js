@@ -73,7 +73,7 @@ class Raidhelper {
                 .filter((event) =>
                   event.signUps.find(
                     (signup) =>
-                      signup.id === userid && signup.specName !== "Absence"
+                      signup.userId === userid && signup.specName !== "Absence"
                   )
                 );
             }
@@ -107,7 +107,7 @@ class Raidhelper {
                 (event) =>
                   !event.signUps.find(
                     (signup) =>
-                      signup.id === userid && signup.specName !== "Absence"
+                      signup.userId === userid && signup.specName !== "Absence"
                   )
               );
 
