@@ -14,7 +14,7 @@ function setupResponse(interaction, event) {
     inSetup = event.setup.find((signUp) => signUp.id === interaction.user.id);
   }
 
-  console.log(inSetup);
+  console.log(inSetup.slotNumber);
 
   let spec;
   if (inSetup) spec = inSetup.spec;
@@ -41,7 +41,6 @@ function mySetupResponse(interaction, events) {
       setup: slot.setup.filter((user) => user.userid === interaction.user.id),
     }));
 
-  console.log(123);
   // Format Signup and get Discord Emojis for the classes
   return setupData
     .map(
