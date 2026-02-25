@@ -1,12 +1,9 @@
-const {
-  getCharacterIcon,
-  findServerEmoji,
-  extendedClassList,
-} = require("./helper.js");
+const { getCharacterIcon, findServerEmoji } = require("./helper.js");
 const {
   formatTimestampToDateString,
   parseDMYDateString,
 } = require("./date.js");
+const extendedClassList = require("../config/classlist.js");
 
 function setupResponse(interaction, event) {
   let notInSetup = "Setup not done yet";
