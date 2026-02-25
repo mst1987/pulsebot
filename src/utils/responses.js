@@ -1,4 +1,8 @@
-const { getCharacterIcon, findServerEmoji } = require("./helper.js");
+const {
+  getCharacterIcon,
+  findServerEmoji,
+  extendedClassList,
+} = require("./helper.js");
 const {
   formatTimestampToDateString,
   parseDMYDateString,
