@@ -123,7 +123,7 @@ class Raidhelper {
 
   async signUpToRaid(raidid, signUps, userid) {
     let promises = [];
-    consolelog(raidid);
+    console.log(raidid);
     for (let signUp of signUps) {
       promises.push(await this.signUp(raidid, signUp, userid));
     }
