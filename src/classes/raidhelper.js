@@ -145,7 +145,7 @@ class Raidhelper {
         path: "/api/v2/events/" + raidid + "/signups",
         method: "POST",
         headers: {
-          Authorization: "Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90",
+          Authorization: "SXq2bn5zgPoTDT0f2wpx8nRzVQ2JVFrSsRASVgMY",
           "Content-Type": "application/json",
           "Content-Length": postData.length,
         },
@@ -177,7 +177,7 @@ class Raidhelper {
         port: 443,
         path: "/api/v2/events/" + eventid,
         method: "GET",
-        headers: { Authorization: "Rw8rsVTqkn5i9Adu214rfIc9HaxIGwaFCNAuVB90" },
+        headers: { Authorization: "SXq2bn5zgPoTDT0f2wpx8nRzVQ2JVFrSsRASVgMY" },
       };
 
       var request = https
