@@ -123,7 +123,6 @@ class Raidhelper {
 
   async signUpToRaid(raidid, signUps, userid) {
     let promises = [];
-    console.log(raidid);
     for (let signUp of signUps) {
       promises.push(await this.signUp(raidid, signUp, userid));
     }
@@ -155,7 +154,6 @@ class Raidhelper {
         response.on("data", (chunk) => {
           data += chunk;
         });
-        console.log(data);
         response.on("end", () => {
           resolve(data); // Resolve the promise with the response data
         });
