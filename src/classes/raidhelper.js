@@ -140,7 +140,7 @@ class Raidhelper {
       });
 
       const options = {
-        host: "raid-helper.dev",
+        host: "raid-helper.xyz",
         port: 443,
         path: "/api/v2/events/" + raidid + "/signups",
         method: "POST",
@@ -172,7 +172,7 @@ class Raidhelper {
     return new Promise((resolve, reject) => {
       let data = "";
       const options = {
-        host: "raid-helper.dev",
+        host: "raid-helper.xyz",
         port: 443,
         path: "/api/v2/events/" + eventid,
         method: "GET",
@@ -203,7 +203,7 @@ class Raidhelper {
       let data = "";
       const currentUnixTimestamp = Math.floor(Date.now() / 1000);
       const options = {
-        host: "raid-helper.dev",
+        host: "raid-helper.xyz",
         port: 443,
         path: "/api/raidplan/" + raidid,
         method: "GET",
