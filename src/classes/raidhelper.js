@@ -6,9 +6,9 @@ class Raidhelper {
 
   getEventOptions(timestamp) {
     return {
-      host: "raid-helper.dev",
+      host: "raid-helper.xyz",
       port: 443,
-      path: "/api/v3/servers/1354128137792917555/events",
+      path: "/api/v4/servers/1354128137792917555/events",
       method: "GET",
       headers: {
         Authorization: "SXq2bn5zgPoTDT0f2wpx8nRzVQ2JVFrSsRASVgMY",
