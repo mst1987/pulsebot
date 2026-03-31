@@ -32,12 +32,13 @@ class Raidhelper {
 
           // The whole response has been received. Print out the result.
           resp.on("end", () => {
+            console.log(data);
             data = JSON.parse(data);
             if (data.status === "failed") {
               reject(data);
             } else {
               var filteredEvents = data["postedEvents"].sort(
-                (eventA, eventB) => eventA.startTime - eventB.startTime
+                (eventA, eventB) => eventA.startTime - eventB.startTime,
               );
 
               resolve(filteredEvents);
@@ -73,8 +74,8 @@ class Raidhelper {
                 .filter((event) =>
                   event.signUps.find(
                     (signup) =>
-                      signup.userId === userid && signup.specName !== "Absence"
-                  )
+                      signup.userId === userid && signup.specName !== "Absence",
+                  ),
                 );
             }
             resolve(filteredEvents);
@@ -107,8 +108,8 @@ class Raidhelper {
                 (event) =>
                   !event.signUps.find(
                     (signup) =>
-                      signup.userId === userid && signup.specName !== "Absence"
-                  )
+                      signup.userId === userid && signup.specName !== "Absence",
+                  ),
               );
 
             resolve(filteredEvents.map((events) => events.channelId));
