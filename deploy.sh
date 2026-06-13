@@ -2,7 +2,7 @@
 set -euo pipefail
 
 APP_NAME="pulsebot"
-APP_DIR="/opt/eventhelper"
+APP_DIR="/var/www/pulsebot"
 BRANCH="${1:-main}"
 LOG_TAG="[deploy]"
 
