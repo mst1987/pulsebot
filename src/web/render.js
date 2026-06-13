@@ -1,0 +1,569 @@
+// HTML rendering for the logcheck report website.
+// Uses the Wowhead tooltip widget (power.js) + zamimg icon CDN — no local assets.
+
+const CLASS_COLORS = {
+    Druid: "#FF7D0A", Hunter: "#ABD473", Mage: "#69CCF0", Paladin: "#F58CBA",
+    Priest: "#FFFFFF", Rogue: "#FFF569", Shaman: "#0070DE", Warlock: "#9482C9", Warrior: "#C79C6E",
+};
+
+function esc(s) {
+    return String(s === undefined || s === null ? "" : s)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function iconUrl(icon) {
+    const name = icon ? String(icon).replace(/\.(jpg|jpeg|png|gif)$/i, "").toLowerCase() : "inv_misc_questionmark";
+    return `https://wow.zamimg.com/images/wow/icons/large/${name}.jpg`;
+}
+
+function classIconUrl(type) {
+    return `https://wow.zamimg.com/images/wow/icons/large/classicon_${String(type || "").toLowerCase()}.jpg`;
+}
+
+function tagClass(severity) {
+    return severity === "high" ? "tag tag-high" : "tag tag-medium";
+}
+
+function issueRow(issue) {
+    const icon = `<img class="icon" src="${esc(iconUrl(issue.icon))}" loading="lazy" alt="">`;
+    let name;
+    if (issue.itemId) {
+        name = `<a class="item" href="https://www.wowhead.com/tbc/item=${esc(issue.itemId)}" target="_blank" rel="noopener">${icon}<span>${esc(issue.itemName)}</span></a>`;
+    } else {
+        name = `<span class="item">${icon}<span>${esc(issue.itemName)}</span></span>`;
+    }
+    return `<li>${name}<span class="${tagClass(issue.severity)}">${esc(issue.label)}</span></li>`;
+}
+
+function nameInner(p) {
+    const color = CLASS_COLORS[p.type] || "#ddd";
+    return `<img src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}" title="${esc(p.type)}"><span style="color:${color};font-weight:700">${esc(p.name)}</span>`;
+}
+
+function classCell(p, href) {
+    const inner = nameInner(p);
+    return href
+        ? `<a class="pname-cell" href="${esc(href)}">${inner}</a>`
+        : `<span class="pname-cell">${inner}</span>`;
+}
+
+function playerCard(p, href) {
+    const head = href
+        ? `<a class="player" href="${esc(href)}">`
+        : "<div class=\"player\">";
+    const headEnd = href ? "</a>" : "</div>";
+    const color = CLASS_COLORS[p.type] || "#ddd";
+    const rows = (p.issues || []).map(issueRow).join("");
+    return `
+    <section class="card">
+      ${head}
+        <img class="classicon" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}" title="${esc(p.type)}">
+        <span class="pname" style="color:${color}">${esc(p.name)}</span>
+        <span class="count">${(p.issues || []).length}</span>
+      ${headEnd}
+      <ul class="issues">${rows}</ul>
+    </section>`;
+}
+
+function pctCell(v) {
+    const cls = v >= 100 ? "pct-full" : v > 0 ? "pct-part" : "pct-none";
+    return `<span class="pct ${cls}">${v}%</span>`;
+}
+
+function yesNo(v) {
+    return v ? "<span class=\"pct pct-full\">ja</span>" : "<span class=\"pct pct-none\">nein</span>";
+}
+
+// small inline icon for table headers / labels
+function hicon(icon, title) {
+    if (!icon) return "";
+    return `<img class="hicon" src="${esc(iconUrl(icon))}" alt="" title="${esc(title || "")}">`;
+}
+function colHead(icon, label) {
+    return `${hicon(icon, label)}<span>${esc(label)}</span>`;
+}
+
+function layout(title, body) {
+    return `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${esc(title)}</title>
+<style>
+  :root { --bg:#16181d; --panel:#1f232b; --panel2:#272c36; --text:#e6e6e6; --muted:#9aa0aa; --high:#e0524f; --medium:#e0a23a; --good:#7fd17f; --accent:#7ab7ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  a { color:inherit; }
+  .wrap { max-width:1100px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:22px; margin:0 0 4px; }
+  h2 { font-size:18px; margin:24px 0 12px; }
+  .sub { color:var(--muted); margin:0 0 16px; font-size:14px; }
+  .sub a { color:var(--accent); text-decoration:none; }
+  .summary { background:var(--panel); border:1px solid #2c313b; border-radius:10px; padding:12px 16px; margin-bottom:16px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
+  .card { background:var(--panel); border:1px solid #2c313b; border-radius:10px; overflow:hidden; }
+  .player { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--panel2); border-bottom:1px solid #2c313b; text-decoration:none; }
+  a.player:hover { background:#30353f; }
+  .classicon { width:24px; height:24px; border-radius:4px; }
+  .pname { font-weight:700; font-size:16px; flex:1; }
+  .count { background:#3a2020; color:var(--high); font-weight:700; border-radius:12px; padding:1px 9px; font-size:13px; }
+  ul.issues { list-style:none; margin:0; padding:8px 12px; }
+  ul.issues li { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #23272f; }
+  ul.issues li:last-child { border-bottom:0; }
+  .item { display:flex; align-items:center; gap:8px; flex:1; min-width:0; text-decoration:none; }
+  .item span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .icon { width:22px; height:22px; border-radius:4px; flex:0 0 auto; }
+  .tag { flex:0 0 auto; font-size:12px; font-weight:600; padding:2px 8px; border-radius:6px; }
+  .tag-high { background:rgba(224,82,79,.16); color:var(--high); }
+  .tag-medium { background:rgba(224,162,58,.16); color:var(--medium); }
+  .empty { color:var(--muted); padding:40px; text-align:center; }
+  table.idx { width:100%; border-collapse:collapse; }
+  table.idx th, table.idx td { text-align:left; padding:9px 12px; border-bottom:1px solid #2c313b; }
+  table.idx th { color:var(--muted); font-weight:600; font-size:13px; }
+  table.idx tr:hover td { background:var(--panel2); }
+  .pill { display:inline-block; background:#3a2020; color:var(--high); border-radius:10px; padding:0 8px; font-size:12px; font-weight:700; }
+  .pct { font-weight:700; border-radius:6px; padding:1px 8px; font-size:13px; display:inline-block; min-width:46px; text-align:center; }
+  .pct-full { background:rgba(120,200,120,.16); color:var(--good); }
+  .pct-part { background:rgba(224,162,58,.16); color:var(--medium); }
+  .pct-none { background:rgba(224,82,79,.16); color:var(--high); }
+  .pname-cell { display:inline-flex; align-items:center; gap:8px; text-decoration:none; }
+  .pname-cell img { width:20px; height:20px; border-radius:4px; }
+  .srval { font-weight:700; }
+  .sritems { color:var(--muted); font-size:12.5px; }
+  .sritems a, a.pname-cell:hover span { text-decoration:underline; }
+  .note { color:var(--muted); font-size:12.5px; margin:-6px 0 12px; }
+  nav.tabs { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 20px; border-bottom:1px solid #2c313b; }
+  nav.tabs button { background:none; border:0; border-bottom:2px solid transparent; color:var(--muted); padding:9px 14px; font-size:14px; cursor:pointer; border-radius:6px 6px 0 0; }
+  nav.tabs button:hover { color:var(--text); background:var(--panel2); }
+  nav.tabs button.active { color:var(--text); border-bottom-color:var(--accent); font-weight:700; }
+  .tabpanel { display:none; }
+  .tabpanel.active { display:block; }
+  .armory { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:8px; }
+  .arow { display:flex; align-items:center; gap:10px; background:var(--panel); border:1px solid #2c313b; border-radius:8px; padding:8px 10px; }
+  .aslot { width:80px; flex:0 0 auto; color:var(--muted); font-size:12px; }
+  .aitem { flex:1; min-width:0; }
+  .aitem .item { font-weight:600; }
+  .ameta { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:3px; }
+  .ench-ok { color:var(--good); font-size:12px; }
+  .gem { text-decoration:none; font-size:13px; }
+  .gem-bad { filter:grayscale(1); opacity:.6; }
+  .gem-empty { opacity:.7; }
+  .hicon { width:18px; height:18px; border-radius:3px; vertical-align:-4px; margin-right:5px; }
+  th .hicon { margin-right:4px; }
+  /* hero header */
+  .hero { position:relative; overflow:hidden; border-radius:14px; border:1px solid #2c313b; background:var(--panel); padding:18px 20px; margin:6px 0 22px; display:flex; align-items:center; gap:16px; }
+  .hero-bg { position:absolute; inset:0; background:radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--cc) 28%, transparent), transparent 60%); pointer-events:none; }
+  .hero-class { width:64px; height:64px; border-radius:12px; border:2px solid var(--cc); position:relative; z-index:1; }
+  .hero-main { position:relative; z-index:1; }
+  .hero-name { font-size:26px; font-weight:800; line-height:1.1; }
+  .hero-sub { color:var(--muted); margin-bottom:8px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { background:var(--panel2); border:1px solid #2c313b; border-radius:20px; padding:3px 11px; font-size:13px; display:inline-flex; align-items:center; gap:2px; }
+  .chip b { margin-right:4px; }
+  .chip-warn { color:var(--high); border-color:rgba(224,82,79,.4); }
+  .chip-ok { color:var(--good); border-color:rgba(120,200,120,.4); }
+  /* paperdoll (armory-style) */
+  .doll { display:grid; grid-template-columns:1fr minmax(180px,260px) 1fr; gap:16px; margin-bottom:12px; align-items:start; }
+  .pd-col { display:flex; flex-direction:column; gap:9px; }
+  .pd-center { display:flex; flex-direction:column; align-items:center; gap:14px; padding-top:6px; }
+  .portrait { position:relative; width:190px; height:230px; border-radius:14px; border:1px solid #2c313b;
+    background:radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--cc) 30%, #1a1d24), #14161b 75%);
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+    box-shadow:inset 0 0 60px rgba(0,0,0,.5); }
+  .portrait::after { content:""; position:absolute; inset:0; border-radius:14px; box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--cc) 40%, transparent); }
+  .portrait img { width:96px; height:96px; border-radius:14px; opacity:.92; filter:drop-shadow(0 6px 18px rgba(0,0,0,.6)); }
+  .ilvl-badge { display:flex; flex-direction:column; align-items:center; justify-content:center; width:96px; height:96px; border-radius:50%;
+    border:3px solid var(--cc); background:var(--panel); }
+  .ilvl-badge b { font-size:30px; font-weight:800; line-height:1; }
+  .ilvl-badge span { color:var(--muted); font-size:11px; margin-top:3px; }
+  .pd-col-left, .pd-col-right { align-items:stretch; }
+  .doll-bottom { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-bottom:12px; }
+  .slot { display:flex; align-items:center; gap:11px; background:var(--panel); border:1px solid #2c313b; border-radius:10px; padding:8px 11px; width:100%; transition:background .12s; }
+  .slot:hover { background:var(--panel2); }
+  .slot-right { flex-direction:row-reverse; text-align:right; }
+  .slot-icon { position:relative; width:42px; height:42px; flex:0 0 auto; border:2px solid #2c313b; border-radius:8px; overflow:hidden; display:block; box-shadow:0 0 8px rgba(0,0,0,.4); }
+  .slot-icon img { width:100%; height:100%; display:block; }
+  .slot-info { min-width:0; flex:1; }
+  .slot-name { display:block; font-size:12.5px; font-weight:600; text-decoration:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .slot-ench { font-size:11px; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .slot-ench.ok { color:var(--good); } .slot-ench.bad { color:var(--medium); } .slot-ench.miss { color:var(--high); }
+  .slot-gems { display:flex; gap:3px; margin-top:3px; }
+  .slot-right .slot-gems { justify-content:flex-end; }
+  .gemicon { width:16px; height:16px; border-radius:3px; display:inline-block; overflow:hidden; border:1px solid #0006; line-height:0; }
+  .gemicon img { width:100%; height:100%; display:block; }
+  .gem-bad { filter:grayscale(.7); opacity:.65; }
+  .gem-empty { background:transparent; border:1px dashed var(--high); }
+  .badge { position:absolute; right:-4px; bottom:-4px; width:17px; height:17px; border-radius:50%; font-size:11px; line-height:17px; text-align:center; font-weight:800; color:#fff; border:1px solid #0008; }
+  .b-ok { background:#3a8a3a; } .b-bad { background:#b8862a; } .b-miss { background:#b33; }
+  .empty-slot { opacity:.4; } .slot-ph { width:42px; height:42px; border:1px dashed #3a4150; border-radius:8px; }
+  @media (max-width:720px){ .doll { grid-template-columns:1fr; } .pd-center { order:-1; } .pd-col-left, .pd-col-right { align-items:stretch; } .slot { max-width:none; } }
+  /* index search/paging */
+  .toolbar { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+  .toolbar input, .toolbar select { background:var(--panel2); color:var(--text); border:1px solid #2c313b; border-radius:8px; padding:7px 11px; font-size:14px; }
+  .toolbar input { flex:1; min-width:180px; }
+  .pager { display:flex; gap:6px; justify-content:center; margin-top:14px; }
+  .pager button { background:var(--panel2); color:var(--text); border:1px solid #2c313b; border-radius:8px; padding:6px 12px; cursor:pointer; }
+  .pager button:disabled { opacity:.4; cursor:default; }
+  .pager .pginfo { color:var(--muted); padding:6px 8px; }
+  .del { background:none; border:0; cursor:pointer; font-size:15px; opacity:.6; }
+  .del:hover { opacity:1; }
+  footer { color:var(--muted); font-size:12px; margin-top:40px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+${body}
+<footer>EventHelper · Log-Check · Tooltips by Wowhead</footer>
+</div>
+<script>
+document.addEventListener("click",function(e){
+  var b=e.target.closest("[data-tab]"); if(!b) return;
+  document.querySelectorAll("nav.tabs [data-tab]").forEach(function(x){x.classList.toggle("active",x===b);});
+  var t=b.getAttribute("data-tab");
+  document.querySelectorAll(".tabpanel").forEach(function(p){p.classList.toggle("active",p.id==="tab-"+t);});
+});
+</script>
+<script>const whTooltips={colorLinks:true,iconizeLinks:false,renameLinks:false};</script>
+<script src="https://wow.zamimg.com/widgets/power.js"></script>
+</body>
+</html>`;
+}
+
+function renderGearPanel(players, linkFor) {
+    if (!players || players.length === 0) {
+        return "<div class=\"empty\">✅ Keine Gear-Probleme gefunden!</div>";
+    }
+    const total = players.reduce((n, p) => n + (p.issues || []).length, 0);
+    return `<div class="summary"><strong>${players.length}</strong> Spieler mit insgesamt <strong>${total}</strong> Problem(en).</div>
+      <div class="grid">${players.map((p) => playerCard(p, linkFor(p.name))).join("")}</div>`;
+}
+
+function renderConsumablesPanel(consumables, linkFor) {
+    const rows = (consumables && consumables.players) || [];
+    if (rows.length === 0) return "<div class=\"empty\">Keine Daten.</div>";
+    const ic = (consumables && consumables.icons) || {};
+    const body = rows.map((p) => `<tr>
+      <td>${classCell(p, linkFor(p.name))}</td>
+      <td>${pctCell(p.flask)}</td>
+      <td>${pctCell(p.battle)}</td>
+      <td>${pctCell(p.guardian)}</td>
+      <td>${pctCell(p.food)}</td>
+      <td>${yesNo(p.weaponOiled)}</td>
+    </tr>`).join("");
+    return `<p class="note">Abdeckung in % der Boss-Kämpfe. Ein Flask deckt Kampf- &amp; Wächterelixier ab.</p>
+    <table class="idx">
+      <tr><th>Spieler</th><th>${colHead(ic.flask, "Flask")}</th><th>${colHead(ic.battle, "Kampfelixier")}</th><th>${colHead(ic.guardian, "Wächterelixier")}</th><th>${colHead(ic.food, "Food")}</th><th>Waffe geölt</th></tr>
+      ${body}
+    </table>`;
+}
+
+function renderPotionsPanel(potions, linkFor) {
+    const rows = (potions && potions.players) || [];
+    if (rows.length === 0) return "<div class=\"empty\">Keine Tränke gefunden.</div>";
+    const ic = (potions && potions.icons) || {};
+    const body = rows.map((p) => `<tr>
+      <td>${classCell(p, linkFor(p.name))}</td>
+      <td class="srval">${esc(p.destruction)}</td>
+      <td class="srval">${esc(p.haste)}</td>
+      <td class="srval">${esc(p.mana)}</td>
+      <td class="srval">${esc(p.total)}</td>
+    </tr>`).join("");
+    return `<table class="idx">
+      <tr><th>Spieler</th><th>${colHead(ic.destruction, "Destruction")}</th><th>${colHead(ic.haste, "Haste")}</th><th>${colHead(ic.mana, "Mana")}</th><th>Gesamt</th></tr>
+      ${body}
+    </table>`;
+}
+
+function renderShadowResiPanel(sr, linkFor) {
+    if (!sr || !sr.players || sr.players.length === 0) return "<div class=\"empty\">Kein Mother-Shahraz-Kampf im Report.</div>";
+    const body = sr.players.map((p) => {
+        const items = p.items.map((it) =>
+            `<a href="https://www.wowhead.com/tbc/item=${esc(it.itemId)}" target="_blank" rel="noopener">${esc(it.itemName)} (+${esc(it.sr)})</a>`
+        ).join(", ");
+        return `<tr><td>${classCell(p, linkFor(p.name))}</td><td class="srval">${esc(p.sr)}</td><td class="sritems">${items || "—"}</td></tr>`;
+    }).join("");
+    return `<p class="note">${esc(sr.note)}</p>
+    <table class="idx">
+      <tr><th>Spieler</th><th>SR (Gear)</th><th>Quellen</th></tr>
+      ${body}
+    </table>`;
+}
+
+function renderDrumsPanel(drums, linkFor) {
+    const rows = (drums && drums.players) || [];
+    if (rows.length === 0) return "<div class=\"empty\">Keine Drums gefunden.</div>";
+    const body = rows.map((p) => {
+        const parts = Object.entries(p.byType).map(([k, v]) => `${k}: ${v}`).join(", ");
+        return `<tr><td>${classCell(p, linkFor(p.name))}</td><td class="srval">${esc(p.total)}</td><td class="sritems">${esc(parts)}</td></tr>`;
+    }).join("");
+    return `<table class="idx">
+      <tr><th>Spieler</th><th>${colHead(drums && drums.icon, "Drums gesamt")}</th><th>Aufschlüsselung</th></tr>
+      ${body}
+    </table>`;
+}
+
+function renderRosterPanel(report, linkFor) {
+    const roster = report.roster || [];
+    if (roster.length === 0) return "<div class=\"empty\">Keine Raider gefunden.</div>";
+    const body = roster.map((p) => {
+        const pot = p.potions || {};
+        return `<tr>
+          <td>${classCell(p, linkFor(p.name))}</td>
+          <td>${(p.issues || []).length}</td>
+          <td class="sritems">D ${esc(pot.destruction || 0)} · H ${esc(pot.haste || 0)} · M ${esc(pot.mana || 0)}</td>
+          <td><a class="sub" href="${esc(linkFor(p.name))}">Details →</a></td>
+        </tr>`;
+    }).join("");
+    return `<table class="idx">
+      <tr><th>Spieler</th><th>Gear-Probleme</th><th>Potions</th><th></th></tr>
+      ${body}
+    </table>`;
+}
+
+function renderReportPage(report) {
+    const players = report.players || [];
+    const dateStr = report.date ? esc(report.date) : "";
+    const sub = [
+        report.zone ? `Zone: ${esc(report.zone)}` : "",
+        dateStr,
+        report.reportUrl ? `<a href="${esc(report.reportUrl)}" target="_blank" rel="noopener">→ Warcraft Logs</a>` : "",
+    ].filter(Boolean).join(" · ");
+
+    // map player name -> detail page url
+    const idxByName = {};
+    (report.roster || []).forEach((p, i) => { idxByName[p.name] = i; });
+    const linkFor = (name) => (idxByName[name] !== undefined ? `/r/${report.id}/p/${idxByName[name]}` : null);
+
+    const hasConsum = report.consumables && report.consumables.players && report.consumables.players.length;
+    const hasPotions = report.potions && report.potions.players && report.potions.players.length;
+    const hasShadow = report.shadowResi && report.shadowResi.players && report.shadowResi.players.length;
+    const hasDrums = report.drums && report.drums.players && report.drums.players.length;
+    const hasRoster = report.roster && report.roster.length;
+
+    const tabDefs = [
+        { id: "roster", label: "👥 Raider", show: hasRoster, html: renderRosterPanel(report, linkFor) },
+        { id: "gear", label: "🛡️ Gear", show: true, html: renderGearPanel(players, linkFor) },
+        { id: "consumables", label: "🧪 Consumables", show: hasConsum, html: renderConsumablesPanel(report.consumables, linkFor) },
+        { id: "potions", label: "⚗️ Potions", show: hasPotions, html: renderPotionsPanel(report.potions, linkFor) },
+        { id: "drums", label: "🥁 Drums", show: hasDrums, html: renderDrumsPanel(report.drums, linkFor) },
+        { id: "shadowresi", label: "🌑 Shadow-Resi", show: hasShadow, html: renderShadowResiPanel(report.shadowResi, linkFor) },
+    ].filter((t) => t.show);
+
+    const buttons = tabDefs.map((t, i) =>
+        `<button data-tab="${t.id}"${i === 0 ? " class=\"active\"" : ""}>${t.label}</button>`).join("");
+    const panels = tabDefs.map((t, i) =>
+        `<div id="tab-${t.id}" class="tabpanel${i === 0 ? " active" : ""}">${t.html}</div>`).join("");
+
+    const body = `
+      <h1>${esc(report.title || "Log-Check")}</h1>
+      <p class="sub">${sub} · <a href="/">alle Auswertungen</a></p>
+      <nav class="tabs">${buttons}</nav>
+      ${panels}`;
+
+    return layout(report.title ? `Log-Check: ${report.title}` : "Log-Check", body);
+}
+
+const QUALITY_COLOR = { 0: "#9d9d9d", 1: "#ffffff", 2: "#1eff00", 3: "#0070dd", 4: "#a335ee", 5: "#ff8000" };
+
+// Wowhead item link with enchant + gems so the tooltip shows the authoritative TBC data.
+function wowheadItemUrl(it) {
+    const params = [];
+    if (it.enchant && it.enchant.enchantId) params.push(`ench=${encodeURIComponent(it.enchant.enchantId)}`);
+    const gemIds = (it.gems || []).map((g) => g.id).filter(Boolean);
+    if (gemIds.length) params.push(`gems=${gemIds.join(":")}`);
+    const qs = params.length ? `?${params.join("&")}` : "";
+    return `https://www.wowhead.com/tbc/item=${esc(it.itemId)}${qs}`;
+}
+
+// one equipment slot in the paperdoll (side = "left"/"right"/"bottom" controls alignment)
+function paperdollSlot(it, side) {
+    if (!it) return `<div class="slot empty-slot slot-${side}"><div class="slot-ph"></div></div>`;
+    const q = QUALITY_COLOR[it.quality] !== undefined ? QUALITY_COLOR[it.quality] : "#2c313b";
+    const href = wowheadItemUrl(it);
+    const img = `<img src="${esc(iconUrl(it.icon))}" loading="lazy" alt="">`;
+    // enchant badge + status line (value comes from the Wowhead tooltip, not WCL)
+    let badge = "";
+    let ench = "";
+    if (it.enchant.status === "missing") {
+        badge = "<span class=\"badge b-miss\" title=\"keine Verzauberung\">✗</span>";
+        ench = "<div class=\"slot-ench miss\">keine Verzauberung</div>";
+    } else if (it.enchant.status === "bad") {
+        badge = `<span class="badge b-bad" title="${esc(it.enchant.reason || "suboptimale Verzauberung")}">!</span>`;
+        ench = `<div class="slot-ench bad">suboptimale Verzauberung${it.enchant.reason ? ` · ${esc(it.enchant.reason)}` : ""}</div>`;
+    } else if (it.enchant.status === "ok") {
+        badge = "<span class=\"badge b-ok\" title=\"verzaubert (Details im Tooltip)\">✓</span>";
+        ench = "<div class=\"slot-ench ok\">verzaubert</div>";
+    }
+    // real gem icons + empty sockets
+    let gems = (it.gems || []).map((g) =>
+        `<a class="gemicon ${g.bad ? "gem-bad" : ""}" href="https://www.wowhead.com/tbc/item=${esc(g.id)}" target="_blank" rel="noopener" title="${g.bad ? "suboptimaler Edelstein" : "Edelstein"}"><img src="${esc(iconUrl(g.icon))}" alt=""></a>`).join("");
+    for (let i = 0; i < (it.emptySockets || 0); i++) gems += "<span class=\"gemicon gem-empty\" title=\"leerer Sockel\"></span>";
+    const gemsRow = gems ? `<div class="slot-gems">${gems}</div>` : "";
+    return `<div class="slot slot-${side}">
+      <a class="slot-icon" style="border-color:${q}" href="${href}" target="_blank" rel="noopener" title="${esc(it.itemName)}">${img}${badge}</a>
+      <div class="slot-info">
+        <a class="slot-name" style="color:${q}" href="${href}" target="_blank" rel="noopener">${esc(it.itemName)}</a>
+        ${ench}
+        ${gemsRow}
+      </div>
+    </div>`;
+}
+
+function renderPlayerPage(report, idx) {
+    const p = (report.roster || [])[idx];
+    if (!p) return renderNotFound();
+    const color = CLASS_COLORS[p.type] || "#ddd";
+    const pot = p.potions || {};
+    const ic = report.icons || {};
+    const bySlot = {};
+    for (const it of p.armory || []) bySlot[it.slot] = it;
+
+    const ilvls = (p.armory || []).map((i) => i.itemLevel).filter((n) => n > 0);
+    const avgIlvl = ilvls.length ? Math.round(ilvls.reduce((a, b) => a + b, 0) / ilvls.length) : 0;
+    const issueCount = (p.issues || []).length;
+
+    const LEFT = [0, 1, 2, 14, 4, 8];
+    const RIGHT = [9, 5, 6, 7, 10, 11, 12, 13];
+    const BOTTOM = [15, 16, 17];
+    const left = LEFT.map((s) => paperdollSlot(bySlot[s], "left")).join("");
+    const right = RIGHT.map((s) => paperdollSlot(bySlot[s], "right")).join("");
+    const bottom = BOTTOM.map((s) => paperdollSlot(bySlot[s], "bottom")).join("");
+
+    const potChip = (icon, label, n) => `<span class="chip">${hicon(icon, label)}<b>${esc(n || 0)}</b> ${esc(label)}</span>`;
+
+    const issues = issueCount
+        ? `<ul class="issues" style="background:var(--panel);border:1px solid #2c313b;border-radius:10px">${p.issues.map(issueRow).join("")}</ul>`
+        : "<div class=\"empty\">Keine Gear-Probleme 🎉</div>";
+
+    const body = `
+      <p class="sub"><a href="/r/${esc(report.id)}">← zurück zum Report</a> · ${esc(report.title || "")}</p>
+      <div class="hero" style="--cc:${color}">
+        <div class="hero-bg"></div>
+        <img class="hero-class" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}">
+        <div class="hero-main">
+          <div class="hero-name" style="color:${color}">${esc(p.name)}</div>
+          <div class="hero-sub">Stufe 70 · ${esc(p.type)}</div>
+          <div class="chips">
+            <span class="chip ${issueCount ? "chip-warn" : "chip-ok"}"><b>${issueCount}</b> Gear-Probleme</span>
+            ${potChip(ic.destruction, "Destruction", pot.destruction)}
+            ${potChip(ic.haste, "Haste", pot.haste)}
+            ${potChip(ic.mana, "Mana", pot.mana)}
+          </div>
+        </div>
+      </div>
+      <div class="doll" style="--cc:${color}">
+        <div class="pd-col pd-col-left">${left}</div>
+        <div class="pd-center">
+          <div class="portrait" style="--cc:${color}">
+            <img src="${esc(classIconUrl(p.type))}" alt="">
+          </div>
+          <div class="ilvl-badge"><b>${avgIlvl}</b><span>⌀ iLvl</span></div>
+        </div>
+        <div class="pd-col pd-col-right">${right}</div>
+      </div>
+      <div class="doll-bottom">${bottom}</div>
+      <h2>Gear-Probleme</h2>
+      ${issues}`;
+
+    return layout(`${p.name} — ${report.title || ""}`, body);
+}
+
+function authBar(user) {
+    if (user && user.name) {
+        const admin = user.isAdmin ? " · <span class=\"chip chip-ok\" style=\"padding:1px 8px\">Admin</span>" : "";
+        return `<span class="sub">Eingeloggt als <strong>${esc(user.name)}</strong>${admin} · <a href="/auth/logout">Logout</a></span>`;
+    }
+    return "<a class=\"chip\" href=\"/auth/login\">🔑 Mit Discord einloggen</a>";
+}
+
+function renderIndexPage(reports, ctx = {}) {
+    const user = ctx.user || null;
+    const isAdmin = !!(user && user.isAdmin);
+    const zones = [...new Set(reports.map((r) => r.zone).filter(Boolean))].sort();
+
+    const rows = reports.map((r) => {
+        const when = r.generatedAt ? new Date(r.generatedAt).toLocaleString("de-DE") : "";
+        const search = `${r.title || ""} ${r.zone || ""} ${when}`.toLowerCase();
+        const delCell = isAdmin
+            ? `<td><button class="del" onclick="del('${esc(r.id)}',this)" title="Report löschen">🗑️</button></td>`
+            : "";
+        return `<tr data-search="${esc(search)}" data-zone="${esc(r.zone || "")}">
+        <td><a href="/r/${esc(r.id)}">${esc(r.title || r.id)}</a></td>
+        <td>${esc(r.zone || "")}</td>
+        <td>${esc(when)}</td>
+        <td>${esc(r.playerCount)}</td>
+        <td><span class="pill">${esc(r.issueCount)}</span></td>
+        ${delCell}
+      </tr>`;
+    }).join("");
+
+    if (reports.length === 0) {
+        return layout("Log-Checks", `<div class="toolbar" style="justify-content:space-between"><h1 style="margin:0">Log-Checks</h1>${authBar(user)}</div><div class="empty">Noch keine Auswertungen vorhanden.</div>`);
+    }
+
+    const zoneOpts = ["<option value=\"\">Alle Zonen</option>"].concat(zones.map((z) => `<option value="${esc(z)}">${esc(z)}</option>`)).join("");
+    const showPager = reports.length > 15;
+    const delHead = isAdmin ? "<th></th>" : "";
+
+    const body = `
+      <div class="toolbar" style="justify-content:space-between"><h1 style="margin:0">Log-Checks</h1>${authBar(user)}</div>
+      <p class="sub">${reports.length} Auswertung(en)</p>
+      <div class="toolbar">
+        <input id="q" type="search" placeholder="Suche nach Titel, Zone, Datum …" autocomplete="off">
+        <select id="zf">${zoneOpts}</select>
+      </div>
+      <div class="summary"><table class="idx" id="reptable">
+        <thead><tr><th>Report</th><th>Zone</th><th>Erstellt</th><th>Spieler</th><th>Probleme</th>${delHead}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+      ${showPager ? "<div class=\"pager\"><button id=\"prev\">‹ Zurück</button><span class=\"pginfo\" id=\"pginfo\"></span><button id=\"next\">Weiter ›</button></div>" : ""}
+      <script>
+      (function(){
+        var rows=[].slice.call(document.querySelectorAll('#reptable tbody tr'));
+        var q=document.getElementById('q'), zf=document.getElementById('zf');
+        var pageSize=15, page=0, paged=${showPager ? "true" : "false"};
+        function filtered(){
+          var term=(q.value||'').toLowerCase().trim(), zone=zf.value;
+          return rows.filter(function(r){
+            var okT=!term||r.getAttribute('data-search').indexOf(term)>-1;
+            var okZ=!zone||r.getAttribute('data-zone')===zone;
+            return okT&&okZ;
+          });
+        }
+        function render(){
+          var fr=filtered();
+          rows.forEach(function(r){r.style.display='none';});
+          if(!paged){ fr.forEach(function(r){r.style.display='';}); return; }
+          var pages=Math.max(1,Math.ceil(fr.length/pageSize));
+          if(page>=pages)page=pages-1; if(page<0)page=0;
+          fr.slice(page*pageSize,(page+1)*pageSize).forEach(function(r){r.style.display='';});
+          var info=document.getElementById('pginfo'); if(info)info.textContent='Seite '+(fr.length?page+1:0)+' / '+pages+' · '+fr.length+' Treffer';
+          var pv=document.getElementById('prev'),nx=document.getElementById('next');
+          if(pv)pv.disabled=page<=0; if(nx)nx.disabled=page>=pages-1;
+        }
+        q.addEventListener('input',function(){page=0;render();});
+        zf.addEventListener('change',function(){page=0;render();});
+        var pv=document.getElementById('prev'),nx=document.getElementById('next');
+        if(pv)pv.addEventListener('click',function(){page--;render();});
+        if(nx)nx.addEventListener('click',function(){page++;render();});
+        render();
+      })();
+      function del(id,btn){
+        if(!confirm('Report wirklich löschen?'))return;
+        fetch('/r/'+id,{method:'DELETE'}).then(function(r){
+          if(r.ok){var tr=btn.closest('tr');tr.parentNode.removeChild(tr);}
+          else alert('Löschen fehlgeschlagen (keine Berechtigung?).');
+        });
+      }
+      </script>`;
+
+    return layout("Log-Checks", body);
+}
+
+function renderNotFound() {
+    return layout("Nicht gefunden", "<h1>404</h1><p class=\"sub\">Diese Seite existiert nicht (mehr). <a href=\"/\">Zur Übersicht</a></p>");
+}
+
+module.exports = { renderReportPage, renderPlayerPage, renderIndexPage, renderNotFound };

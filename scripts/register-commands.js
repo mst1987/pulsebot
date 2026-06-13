@@ -37,6 +37,16 @@ const commands = [
             required: true,
         }],
     },
+    {
+        name: "logcheck",
+        description: "Prüft einen Warcraft-Logs-Report auf Gear-Probleme (Verzauberungen, Edelsteine)",
+        options: [{
+            name: "link",
+            description: "Warcraft-Logs-Report-Link oder Report-ID",
+            type: 3,
+            required: true,
+        }],
+    },
 ];
 
 (async () => {

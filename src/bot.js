@@ -4,6 +4,7 @@ const envDev = path.join(__dirname, "../.env.dev");
 const envFile = fs.existsSync(envDev) ? envDev : path.join(__dirname, "../.env");
 require("dotenv").config({ path: envFile });
 const messages = require("./config/messages.js");
+const { startWebServer } = require("./web/server.js");
 
 const { Client, GatewayIntentBits, Collection } = require("discord.js");
 
@@ -34,6 +35,7 @@ function loadCommands(dir) {
 client.on("ready", () => {
     console.log(messages.common.pulseBotReady);
     loadCommands(path.join(__dirname, "commands"));
+    startWebServer();
 });
 
 client.on("interactionCreate", async(interaction) => {
