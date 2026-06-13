@@ -30,12 +30,14 @@ npm ci --omit=dev
 
 echo "$LOG_TAG Checking required environment variables..."
 REQUIRED_VARS=("DISCORDJS_BOT_TOKEN" "CLIENT_ID" "GUILD_ID" "RAIDHELPER_API_KEY" "RAIDHELPER_SERVER_ID")
+ENV_FILE="$APP_DIR/.env"
 MISSING=0
 for VAR in "${REQUIRED_VARS[@]}"; do
-    if [ -z "${!VAR:-}" ]; then
-        echo "$LOG_TAG ERROR: Required env var $VAR is not set"
-        MISSING=1
-    fi
+    # accept the var if it is exported in the shell OR present (non-empty) in .env
+    if [ -n "${!VAR:-}" ]; then continue; fi
+    if [ -f "$ENV_FILE" ] && grep -qE "^[[:space:]]*${VAR}=.+" "$ENV_FILE"; then continue; fi
+    echo "$LOG_TAG ERROR: Required env var $VAR is not set"
+    MISSING=1
 done
 if [ "$MISSING" -eq 1 ]; then
     echo "$LOG_TAG Deployment aborted: missing environment variables"
