@@ -4,6 +4,8 @@ const { analyzeConsumables } = require("../../utils/logcheck/consumables");
 const { analyzeShadowResi } = require("../../utils/logcheck/shadowResi");
 const { analyzeDrums } = require("../../utils/logcheck/drums");
 const { analyzePotions, potionsByName } = require("../../utils/logcheck/potions");
+const { analyzeSunder } = require("../../utils/logcheck/sunder");
+const { analyzeBossUptimes } = require("../../utils/logcheck/bossUptimes");
 const { selectPlayers } = require("../../utils/logcheck/common");
 const { saveReport } = require("../../web/reportStore");
 const { botEditReply } = require("../../utils/helper");
@@ -41,14 +43,21 @@ module.exports = {
         const playerEntries = selectPlayers(table);
 
         // these hit the API; failures should not abort the whole report
+        const idToPlayer = {};
+        for (const p of playerEntries) idToPlayer[p.id] = { name: p.name, type: p.type };
+
         let consumables = null;
         let drums = null;
         let potions = null;
         let shadowResi = null;
+        let sunder = null;
+        let bossUptimes = null;
         try { consumables = await analyzeConsumables(wcl, reportId, fights, playerEntries); } catch (e) { console.error("consumables failed:", e.message); }
         try { drums = await analyzeDrums(wcl, reportId, fights); } catch (e) { console.error("drums failed:", e.message); }
         try { potions = await analyzePotions(wcl, reportId, fights); } catch (e) { console.error("potions failed:", e.message); }
         try { shadowResi = analyzeShadowResi(table, fights); } catch (e) { console.error("shadowResi failed:", e.message); }
+        try { sunder = await analyzeSunder(wcl, reportId, fights, idToPlayer); } catch (e) { console.error("sunder failed:", e.message); }
+        try { bossUptimes = await analyzeBossUptimes(wcl, reportId, fights); } catch (e) { console.error("bossUptimes failed:", e.message); }
 
         // aggregate the icons captured from the API (for headers / detail page)
         const icons = {
@@ -83,6 +92,8 @@ module.exports = {
             shadowResi,
             drums,
             potions,
+            sunder,
+            bossUptimes,
             roster,
             icons,
         };
@@ -98,6 +109,8 @@ module.exports = {
             potions ? `⚗️ Potions: ${potions.players.length}` : "",
             shadowResi ? `🌑 Shadow-Resi (${shadowResi.boss}): ${shadowResi.players.length}` : "",
             drums ? `🥁 Drums: ${drums.players.length}` : "",
+            sunder ? `🪓 Sunder: ${sunder.length} Spieler` : "",
+            bossUptimes ? `📊 Boss-Uptimes: ${bossUptimes.rows.length} Kämpfe` : "",
         ].filter(Boolean).join("\n");
 
         return botEditReply(

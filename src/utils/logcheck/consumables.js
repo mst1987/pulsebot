@@ -61,11 +61,14 @@ async function analyzeConsumables(wcl, reportId, fights, players) {
             if (aura.abilityIcon && !icons[target]) icons[target] = aura.abilityIcon;
             for (const id of overlapsAnyFight(aura.bands, bossFights)) cov[target].add(id);
         }
-        // a flask replaces both elixirs
-        for (const id of cov.flask) { cov.battle.add(id); cov.guardian.add(id); }
-
         const denom = present.size || bossFights.length;
         const pct = (set) => (denom ? Math.round((set.size * 100) / denom) : 0);
+
+        // Flask and elixirs are mutually exclusive in-game: a flask occupies both
+        // elixir slots. So "elixirs" means BOTH a battle AND a guardian elixir on a
+        // fight, and "buffed" = flask OR both elixirs.
+        const elixir = new Set([...cov.battle].filter((id) => cov.guardian.has(id)));
+        const buffed = new Set([...cov.flask, ...elixir]);
 
         // weapon enhancement (oil/sharpening stone): main-hand has a temporary enchant
         const weapon = (p.gear || []).find((g) => g && Number(g.slot) === 15);
@@ -73,7 +76,7 @@ async function analyzeConsumables(wcl, reportId, fights, players) {
 
         results.push({
             name: p.name, type: p.type,
-            flask: pct(cov.flask), battle: pct(cov.battle), guardian: pct(cov.guardian), food: pct(cov.food),
+            flask: pct(cov.flask), elixir: pct(elixir), buffed: pct(buffed), food: pct(cov.food),
             weaponOiled,
         });
     }

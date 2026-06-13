@@ -70,6 +70,29 @@ class WarcraftLogs {
     getBuffs(reportId, start, end, extra = {}) {
         return this.#get(`report/tables/buffs/${reportId}`, { start, end, ...extra });
     }
+
+    /** report/tables/debuffs/{id} for a time window */
+    getDebuffs(reportId, start, end, extra = {}) {
+        return this.#get(`report/tables/debuffs/${reportId}`, { start, end, ...extra });
+    }
+
+    /** One page of report/events/{view}/{id} (use nextPageTimestamp for paging). */
+    getEvents(reportId, view, start, end, extra = {}) {
+        return this.#get(`report/events/${view}/${reportId}`, { start, end, ...extra });
+    }
+
+    /** Fetch all events of a view across a window, following nextPageTimestamp. */
+    async getAllEvents(reportId, view, start, end, extra = {}) {
+        const all = [];
+        let cursor = start;
+        for (let guard = 0; guard < 50; guard++) {
+            const page = await this.getEvents(reportId, view, cursor, end, extra);
+            if (page && Array.isArray(page.events)) all.push(...page.events);
+            if (page && page.nextPageTimestamp && page.nextPageTimestamp > cursor) cursor = page.nextPageTimestamp;
+            else break;
+        }
+        return all;
+    }
 }
 
 module.exports = WarcraftLogs;

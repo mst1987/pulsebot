@@ -57,13 +57,15 @@ function playerCard(p, href) {
         : "<div class=\"player\">";
     const headEnd = href ? "</a>" : "</div>";
     const color = CLASS_COLORS[p.type] || "#ddd";
-    const rows = (p.issues || []).map(issueRow).join("");
+    const issues = p.issues || [];
+    const rows = issues.map(issueRow).join("");
+    const sev = issues.some((i) => i.severity === "high") ? "sev-high" : issues.length ? "sev-med" : "sev-ok";
     return `
-    <section class="card">
+    <section class="card ${sev}">
       ${head}
         <img class="classicon" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}" title="${esc(p.type)}">
         <span class="pname" style="color:${color}">${esc(p.name)}</span>
-        <span class="count">${(p.issues || []).length}</span>
+        <span class="count">${issues.length}</span>
       ${headEnd}
       <ul class="issues">${rows}</ul>
     </section>`;
@@ -105,8 +107,14 @@ function layout(title, body) {
   .sub { color:var(--muted); margin:0 0 16px; font-size:14px; }
   .sub a { color:var(--accent); text-decoration:none; }
   .summary { background:var(--panel); border:1px solid #2c313b; border-radius:10px; padding:12px 16px; margin-bottom:16px; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; }
-  .card { background:var(--panel); border:1px solid #2c313b; border-radius:10px; overflow:hidden; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; align-items:start; }
+  .card { background:var(--panel); border:1px solid #2c313b; border-radius:10px; overflow:hidden; border-left:3px solid #2c313b; }
+  .card.sev-high { border-left-color:var(--high); }
+  .card.sev-med { border-left-color:var(--medium); }
+  .card.sev-ok { border-left-color:var(--good); }
+  .card.sev-med .count { background:rgba(224,162,58,.18); color:var(--medium); }
+  .potions { display:inline-flex; gap:12px; }
+  .potcell { display:inline-flex; align-items:center; gap:4px; }
   .player { display:flex; align-items:center; gap:10px; padding:10px 14px; background:var(--panel2); border-bottom:1px solid #2c313b; text-decoration:none; }
   a.player:hover { background:#30353f; }
   .classicon { width:24px; height:24px; border-radius:4px; }
@@ -254,14 +262,14 @@ function renderConsumablesPanel(consumables, linkFor) {
     const body = rows.map((p) => `<tr>
       <td>${classCell(p, linkFor(p.name))}</td>
       <td>${pctCell(p.flask)}</td>
-      <td>${pctCell(p.battle)}</td>
-      <td>${pctCell(p.guardian)}</td>
+      <td>${pctCell(p.elixir)}</td>
+      <td>${pctCell(p.buffed)}</td>
       <td>${pctCell(p.food)}</td>
       <td>${yesNo(p.weaponOiled)}</td>
     </tr>`).join("");
-    return `<p class="note">Abdeckung in % der Boss-Kämpfe. Ein Flask deckt Kampf- &amp; Wächterelixier ab.</p>
+    return `<p class="note">Abdeckung in % der Boss-Kämpfe. Flask &amp; Elixiere schließen sich aus — „Flask/Elixiere" = Flask <em>oder</em> beide Elixiere aktiv.</p>
     <table class="idx">
-      <tr><th>Spieler</th><th>${colHead(ic.flask, "Flask")}</th><th>${colHead(ic.battle, "Kampfelixier")}</th><th>${colHead(ic.guardian, "Wächterelixier")}</th><th>${colHead(ic.food, "Food")}</th><th>Waffe geölt</th></tr>
+      <tr><th>Spieler</th><th>${colHead(ic.flask, "Flask")}</th><th>${colHead(ic.battle, "Elixiere")}</th><th>Flask/Elixiere</th><th>${colHead(ic.food, "Food")}</th><th>Waffe geölt</th></tr>
       ${body}
     </table>`;
 }
@@ -311,20 +319,68 @@ function renderDrumsPanel(drums, linkFor) {
     </table>`;
 }
 
+function issueCountCell(n) {
+    if (!n) return "<span class=\"pct pct-full\">0</span>";
+    return `<span class="pct pct-none">${n}</span>`;
+}
+
+function potionCells(ic, pot) {
+    const cell = (icon, n) => `<span class="potcell">${hicon(icon, "")}${esc(n || 0)}</span>`;
+    return cell(ic.destruction, pot.destruction) + cell(ic.haste, pot.haste) + cell(ic.mana, pot.mana);
+}
+
 function renderRosterPanel(report, linkFor) {
     const roster = report.roster || [];
     if (roster.length === 0) return "<div class=\"empty\">Keine Raider gefunden.</div>";
+    const ic = report.icons || {};
     const body = roster.map((p) => {
         const pot = p.potions || {};
         return `<tr>
           <td>${classCell(p, linkFor(p.name))}</td>
-          <td>${(p.issues || []).length}</td>
-          <td class="sritems">D ${esc(pot.destruction || 0)} · H ${esc(pot.haste || 0)} · M ${esc(pot.mana || 0)}</td>
+          <td>${issueCountCell((p.issues || []).length)}</td>
+          <td><span class="potions">${potionCells(ic, pot)}</span></td>
           <td><a class="sub" href="${esc(linkFor(p.name))}">Details →</a></td>
         </tr>`;
     }).join("");
     return `<table class="idx">
-      <tr><th>Spieler</th><th>Gear-Probleme</th><th>Potions</th><th></th></tr>
+      <tr><th>Spieler</th><th>Gear-Probleme</th><th>${hicon(ic.destruction)}${hicon(ic.haste)}${hicon(ic.mana)} Potions</th><th></th></tr>
+      ${body}
+    </table>`;
+}
+
+function renderSunderPanel(rows, linkFor) {
+    if (!rows || rows.length === 0) return "<div class=\"empty\">Keine Sunder-Armor-Daten gefunden.</div>";
+    const body = rows.map((p) => {
+        const warn = p.below5 > 0 ? "pct-part" : "pct-full";
+        return `<tr>
+          <td>${classCell(p, linkFor(p.name))}</td>
+          <td class="srval">${esc(p.total)}</td>
+          <td><span class="pct ${warn}">${esc(p.below5)}</span></td>
+        </tr>`;
+    }).join("");
+    return `<p class="note">„&lt; 5 Stacks" = Sunder, die angewandt wurden, während der Boss noch keine 5 Stacks hatte (Stack-Aufbau).</p>
+    <table class="idx">
+      <tr><th>Spieler</th><th>Sunder gesamt</th><th>davon bei &lt; 5 Stacks</th></tr>
+      ${body}
+    </table>`;
+}
+
+function uptimeCell(v) {
+    const cls = v >= 95 ? "pct-full" : v >= 70 ? "pct-part" : "pct-none";
+    return `<span class="pct ${cls}">${v}%</span>`;
+}
+
+function renderBossUptimesPanel(data) {
+    if (!data || !data.rows || data.rows.length === 0) return "<div class=\"empty\">Keine Boss-Daten gefunden.</div>";
+    const head = data.metrics.map((m) => `<th>${esc(m.label)}</th>`).join("");
+    const body = data.rows.map((r) => {
+        const cells = data.metrics.map((m) => `<td>${uptimeCell(r[m.key] || 0)}</td>`).join("");
+        const boss = r.kill ? esc(r.boss) : `${esc(r.boss)} <span class="sritems">(Wipe)</span>`;
+        return `<tr><td>${boss}</td>${cells}</tr>`;
+    }).join("");
+    return `<p class="note">Debuff-Uptime pro Boss-Kampf (in % der Kampfdauer).</p>
+    <table class="idx">
+      <tr><th>Boss</th>${head}</tr>
       ${body}
     </table>`;
 }
@@ -348,13 +404,17 @@ function renderReportPage(report) {
     const hasShadow = report.shadowResi && report.shadowResi.players && report.shadowResi.players.length;
     const hasDrums = report.drums && report.drums.players && report.drums.players.length;
     const hasRoster = report.roster && report.roster.length;
+    const hasSunder = report.sunder && report.sunder.length;
+    const hasBoss = report.bossUptimes && report.bossUptimes.rows && report.bossUptimes.rows.length;
 
     const tabDefs = [
         { id: "roster", label: "👥 Raider", show: hasRoster, html: renderRosterPanel(report, linkFor) },
-        { id: "gear", label: "🛡️ Gear", show: true, html: renderGearPanel(players, linkFor) },
+        { id: "gear", label: "🛡️ Gear Issues", show: true, html: renderGearPanel(players, linkFor) },
         { id: "consumables", label: "🧪 Consumables", show: hasConsum, html: renderConsumablesPanel(report.consumables, linkFor) },
         { id: "potions", label: "⚗️ Potions", show: hasPotions, html: renderPotionsPanel(report.potions, linkFor) },
         { id: "drums", label: "🥁 Drums", show: hasDrums, html: renderDrumsPanel(report.drums, linkFor) },
+        { id: "sunder", label: "🪓 Sunder Armor", show: hasSunder, html: renderSunderPanel(report.sunder, linkFor) },
+        { id: "bosses", label: "📊 Bosse", show: hasBoss, html: renderBossUptimesPanel(report.bossUptimes) },
         { id: "shadowresi", label: "🌑 Shadow-Resi", show: hasShadow, html: renderShadowResiPanel(report.shadowResi, linkFor) },
     ].filter((t) => t.show);
 
