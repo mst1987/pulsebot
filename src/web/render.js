@@ -573,4 +573,8 @@ function renderNotFound() {
     return layout("Nicht gefunden", "<h1>404</h1><p class=\"sub\">Diese Seite existiert nicht (mehr). <a href=\"/\">Zur Übersicht</a></p>");
 }
 
-module.exports = { renderReportPage, renderPlayerPage, renderIndexPage, renderNotFound };
+function renderError(title, message) {
+    return layout(title, `<h1>${esc(title)}</h1><p class="sub">${esc(message)}</p><p class="sub"><a href="/">Zur Übersicht</a> · <a href="/auth/login">Erneut einloggen</a></p>`);
+}
+
+module.exports = { renderReportPage, renderPlayerPage, renderIndexPage, renderNotFound, renderError };

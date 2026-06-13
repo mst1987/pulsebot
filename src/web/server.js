@@ -2,7 +2,7 @@ const http = require("http");
 const crypto = require("crypto");
 const { webPort } = require("../config/variables");
 const { getReport, deleteReport, listReports } = require("./reportStore");
-const { renderReportPage, renderPlayerPage, renderIndexPage, renderNotFound } = require("./render");
+const { renderReportPage, renderPlayerPage, renderIndexPage, renderNotFound, renderError } = require("./render");
 const auth = require("./auth");
 
 function send(res, status, html, headers = {}) {
@@ -37,14 +37,19 @@ async function handle(req, res) {
     if (pathname === "/auth/callback" && req.method === "GET") {
         const code = url.searchParams.get("code");
         const state = url.searchParams.get("state");
-        if (!code || !state || !states.has(state)) return send(res, 400, renderNotFound());
-        states.delete(state);
+        const err = url.searchParams.get("error");
+        if (err) return send(res, 400, renderError("Login abgebrochen", `Discord meldete: ${err}`));
+        if (!code) return send(res, 400, renderError("Login fehlgeschlagen", "Kein Autorisierungscode von Discord erhalten."));
+        // state is CSRF protection; if it's unknown (e.g. the bot restarted) just warn and proceed
+        if (state && !states.has(state)) console.warn("OAuth state not found (process restart?) — proceeding anyway");
+        if (state) states.delete(state);
         try {
             const sid = await auth.completeLogin(code);
             return redirect(res, "/", { "Set-Cookie": `sid=${sid}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800` });
         } catch (e) {
-            console.error("OAuth callback failed:", e.message);
-            return send(res, 500, renderNotFound());
+            const detail = e.response && e.response.data ? JSON.stringify(e.response.data) : e.message;
+            console.error("OAuth callback failed:", detail);
+            return send(res, 500, renderError("Login fehlgeschlagen", `Token-Austausch mit Discord fehlgeschlagen: ${detail}`));
         }
     }
     if (pathname === "/auth/logout" && req.method === "GET") {
