@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="eventhelper"
+APP_NAME="pulsebot"
 APP_DIR="/opt/eventhelper"
 BRANCH="${1:-main}"
 LOG_TAG="[deploy]"

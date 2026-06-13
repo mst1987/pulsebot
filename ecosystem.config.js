@@ -1,7 +1,7 @@
 module.exports = {
     apps: [
         {
-            name: "eventhelper",
+            name: "pulsebot",
             script: "./src/bot.js",
             instances: 1,
             autorestart: true,
