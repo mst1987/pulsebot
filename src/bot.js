@@ -1,7 +1,9 @@
-require("dotenv").config({ path: "../.env" });
-const messages = require("./config/messages.js");
-const fs = require("fs");
+﻿const fs = require("fs");
 const path = require("path");
+const envDev = path.join(__dirname, "../.env.dev");
+const envFile = fs.existsSync(envDev) ? envDev : path.join(__dirname, "../.env");
+require("dotenv").config({ path: envFile });
+const messages = require("./config/messages.js");
 
 const { Client, GatewayIntentBits, Collection } = require("discord.js");
 
@@ -23,7 +25,7 @@ function loadCommands(dir) {
             .readdirSync(path.join(dir, folder))
             .filter((file) => file.endsWith(".js"));
         for (const file of commandFiles) {
-            const command = require(path.join(__dirname, dir, folder, file));
+            const command = require(path.join(dir, folder, file));
             client.commands.set(command.name, command);
         }
     }
@@ -31,11 +33,11 @@ function loadCommands(dir) {
 
 client.on("ready", () => {
     console.log(messages.common.pulseBotReady);
-    loadCommands("./commands");
+    loadCommands(path.join(__dirname, "commands"));
 });
 
 client.on("interactionCreate", async(interaction) => {
-    if (!interaction.isCommand() && !interaction.isButton()) return;
+    if (!interaction.isCommand() && !interaction.isButton() && !interaction.isStringSelectMenu() && !interaction.isModalSubmit()) return;
 
     const command = client.commands.get(
         interaction.customId || interaction.commandName
@@ -58,18 +60,15 @@ client.on("interactionCreate", async(interaction) => {
     } catch (error) {
         console.error(`Error executing ${command.name}:`, error);
 
-        const errorMessage = "There was an error executing this command!";
-
-        if (!interaction.replied && !interaction.deferred) {
-            await interaction.reply({
-                content: errorMessage,
-                ephemeral: true,
-            });
-        } else if (interaction.deferred) {
-            await interaction.followUp({
-                content: errorMessage,
-                ephemeral: true,
-            });
+        try {
+            const errorMessage = "There was an error executing this command!";
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ content: errorMessage, ephemeral: true });
+            } else if (interaction.deferred) {
+                await interaction.followUp({ content: errorMessage, ephemeral: true });
+            }
+        } catch (replyError) {
+            console.error("Failed to send error response:", replyError.message);
         }
     }
 });

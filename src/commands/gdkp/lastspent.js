@@ -1,4 +1,4 @@
-const messages = require("../../config/messages");
+﻿const messages = require("../../config/messages");
 const GDKP = require("../../classes/gdkp");
 const { getItemsToShow } = require("../../utils/responses");
 const { botReply } = require("../../utils/helper");

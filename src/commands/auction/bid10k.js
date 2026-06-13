@@ -1,4 +1,4 @@
-const Legendary = require("../../classes/legendary");
+﻿const Legendary = require("../../classes/legendary");
 const {
     showConfirmationModal,
     showBidModal,
@@ -12,8 +12,10 @@ module.exports = {
         const legendary = new Legendary();
         const highestbid = await legendary.getHighestBid(interaction.channel.id);
         if (highestbid) {
-            bid = Number(highestbid.gold) + 10000;
-        } else bid = 250000;
-        bidForLegendary(client, interaction, bid);
+            const bid = Number(highestbid.gold) + 10000;
+            bidForLegendary(client, interaction, bid);
+        } else {
+            bidForLegendary(client, interaction, 250000);
+        }
     },
 };

@@ -1,4 +1,4 @@
-const Legendary = require("../../classes/legendary");
+﻿const Legendary = require("../../classes/legendary");
 const { toTimestamp } = require("../../utils/date");
 const {
     checkForPermission,
@@ -16,7 +16,6 @@ module.exports = {
         const legendary = new Legendary();
         let auctionData = {};
         auctionData.channel = interaction.channel.id;
-        console.log(interaction.options);
         if (interaction.options.getString("name"))
             auctionData.name = interaction.options.getString("name");
         if (interaction.options.getString("raid"))
@@ -30,7 +29,7 @@ module.exports = {
         if (interaction.options.getString("increment"))
             auctionData.increment = interaction.options.getString("increment");
 
-        response = await legendary.updateAuction(auctionData);
+        const response = await legendary.updateAuction(auctionData);
         if (response.type === "success") {
             const channel = await client.channels.fetch(auctionData.channel);
             if (channel) {

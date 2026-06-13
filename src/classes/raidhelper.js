@@ -1,17 +1,19 @@
-/* eslint-disable indent */
-const https = require("https");
+﻿const https = require("https");
 
 class Raidhelper {
-  constructor() {}
+  constructor() {
+    this.apiKey = process.env.RAIDHELPER_API_KEY;
+    this.serverId = process.env.RAIDHELPER_SERVER_ID;
+  }
 
   getEventOptions(timestamp) {
     return {
       host: "raid-helper.xyz",
       port: 443,
-      path: "/api/v4/servers/1354128137792917555/events",
+      path: `/api/v4/servers/${this.serverId}/events`,
       method: "GET",
       headers: {
-        Authorization: "SXq2bn5zgPoTDT0f2wpx8nRzVQ2JVFrSsRASVgMY",
+        Authorization: this.apiKey,
         StartTimeFilter: timestamp,
         IncludeSignups: true,
       },
@@ -30,9 +32,7 @@ class Raidhelper {
             data += chunk;
           });
 
-          // The whole response has been received. Print out the result.
           resp.on("end", () => {
-            console.log(data);
             data = JSON.parse(data);
             if (data.status === "failed") {
               reject(data);
@@ -64,12 +64,11 @@ class Raidhelper {
             data += chunk;
           });
 
-          // The whole response has been received. Print out the result.
           resp.on("end", () => {
             data = JSON.parse(data);
-            filteredEvents = [];
+            let filteredEvents = [];
             if (data) {
-              var filteredEvents = data["postedEvents"]
+              filteredEvents = data["postedEvents"]
                 .sort((eventA, eventB) => eventA.startTime - eventB.startTime)
                 .filter((event) =>
                   event.signUps.find(
@@ -145,7 +144,7 @@ class Raidhelper {
         path: "/api/v2/events/" + raidid + "/signups",
         method: "POST",
         headers: {
-          Authorization: "SXq2bn5zgPoTDT0f2wpx8nRzVQ2JVFrSsRASVgMY",
+          Authorization: this.apiKey,
           "Content-Type": "application/json",
           "Content-Length": postData.length,
         },
@@ -156,12 +155,12 @@ class Raidhelper {
           data += chunk;
         });
         response.on("end", () => {
-          resolve(data); // Resolve the promise with the response data
+          resolve(data);
         });
       });
 
       request.on("error", (error) => {
-        reject(error); // Reject the promise if there's an error
+        reject(error);
       });
       request.write(postData);
       request.end();
@@ -176,7 +175,7 @@ class Raidhelper {
         port: 443,
         path: "/api/v2/events/" + eventid,
         method: "GET",
-        headers: { Authorization: "SXq2bn5zgPoTDT0f2wpx8nRzVQ2JVFrSsRASVgMY" },
+        headers: { Authorization: this.apiKey },
       };
 
       var request = https
@@ -185,7 +184,6 @@ class Raidhelper {
             data += chunk;
           });
 
-          // The whole response has been received. Print out the result.
           resp.on("end", () => {
             data = JSON.parse(data);
             resolve(data);
@@ -208,7 +206,7 @@ class Raidhelper {
         path: "/api/raidplan/" + raidid,
         method: "GET",
         headers: {
-          Authorization: "SXq2bn5zgPoTDT0f2wpx8nRzVQ2JVFrSsRASVgMY",
+          Authorization: this.apiKey,
           StartTimeFilter: currentUnixTimestamp,
           IncludeSignups: true,
         },
@@ -252,19 +250,18 @@ class Raidhelper {
       };
 
       const request = https.request(options, (response) => {
-        let data = "";
+        let responseData = "";
         response.on("data", (chunk) => {
-          console.log(chunk);
-          data += chunk;
+          responseData += chunk;
         });
 
         response.on("end", () => {
-          resolve(JSON.parse(data)); // Resolve the promise with the response data
+          resolve(JSON.parse(responseData));
         });
       });
 
       request.on("error", (error) => {
-        reject(error); // Reject the promise if there's an error
+        reject(error);
       });
 
       request.write(postData);

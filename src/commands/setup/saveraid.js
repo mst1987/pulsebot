@@ -1,4 +1,4 @@
-const Raidhelper = require("../../classes/raidhelper");
+﻿const Raidhelper = require("../../classes/raidhelper");
 const messages = require("../../config/messages");
 const {
     checkForPermission,

@@ -1,4 +1,4 @@
-const { DateTime } = require("luxon");
+﻿const { DateTime } = require("luxon");
 const { formatNumberWithDots, findServerEmoji } = require("./helper");
 const { formatTimestampToDateString } = require("./date");
 

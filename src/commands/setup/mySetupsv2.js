@@ -1,4 +1,4 @@
-const messages = require("../../config/messages");
+﻿const messages = require("../../config/messages");
 const { botEditReply } = require("../../utils/helper");
 const { getCategorySetups } = require("../../utils/raidhelper");
 const { setupResponse } = require("../../utils/responses");
@@ -9,6 +9,9 @@ module.exports = {
   async execute(interaction, client) {
     try {
       await interaction.deferReply({ ephemeral: true });
+      if (!interaction.channel.parent) {
+        return botEditReply(interaction, "Fehler", "Dieser Befehl muss in einem Kanal mit einer Kategorie ausgeführt werden.");
+      }
       const categoryId = interaction.channel.parent.id;
       const events = await getCategorySetups(interaction, categoryId);
       const mySetup = events

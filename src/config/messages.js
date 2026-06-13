@@ -1,4 +1,4 @@
-module.exports = {
+﻿module.exports = {
     general: {
         missingSignups: "Missing/Absence SignUps: \n___replace___\n\n",
         signups: "Signed Up: \n___replace___",

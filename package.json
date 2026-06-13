@@ -8,7 +8,11 @@
         "start": "node ./src/bot.js",
         "dev": "nodemon ./src/bot.js",
         "lint": "eslint src/",
-        "lint:fix": "eslint src/ --fix"
+        "lint:fix": "eslint src/ --fix",
+        "register": "node scripts/register-commands.js",
+        "register:global": "node scripts/register-commands.js --global",
+        "register:clear": "node scripts/register-commands.js --clear",
+        "register:dev": "node scripts/register-commands.js --dev"
     },
     "keywords": [],
     "author": "",

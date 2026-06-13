@@ -1,10 +1,6 @@
-const axios = require("axios");
-const https = require("https");
+﻿const axios = require("axios");
 const { API_BASE_URL } = require("../config/variables");
-
-const agent = new https.Agent({
-    rejectUnauthorized: process.env.NODE_ENV === "production",
-});
+const agent = require("../utils/httpAgent");
 
 class GDKP {
     constructor() {

@@ -1,4 +1,4 @@
-module.exports = extendedClassList = {
+﻿module.exports = extendedClassList = {
     // Pala
     Holy1: {
         icon: "holypala",

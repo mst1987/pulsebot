@@ -1,4 +1,4 @@
-/* eslint-disable indent */
+﻿/* eslint-disable indent */
 const { showBidModal } = require("../../utils/auction");
 const { bidForLegendary } = require("../../utils/auction");
 

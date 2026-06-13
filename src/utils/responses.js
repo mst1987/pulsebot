@@ -1,4 +1,4 @@
-const { getCharacterIcon, findServerEmoji } = require("./helper.js");
+﻿const { getCharacterIcon, findServerEmoji } = require("./helper.js");
 const {
   formatTimestampToDateString,
   parseDMYDateString,
@@ -14,8 +14,6 @@ function setupResponse(interaction, event) {
     emoji = "sadcat";
     inSetup = event.setup.find((signUp) => signUp.id === interaction.user.id);
   }
-
-  console.log(inSetup.slotNumber);
 
   let spec;
   if (inSetup) spec = inSetup.specName;

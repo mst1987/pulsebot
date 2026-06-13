@@ -1,4 +1,4 @@
-const Legendary = require("../../classes/legendary");
+﻿const Legendary = require("../../classes/legendary");
 const { checkForPermission, botReply } = require("../../utils/helper");
 
 module.exports = {

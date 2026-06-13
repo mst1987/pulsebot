@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+﻿const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const messages = require("../../config/messages");
 const {
     findServerEmoji,
@@ -14,6 +14,9 @@ module.exports = {
         if (!checkForPermission(interaction)) return;
 
         try {
+            if (!interaction.channel.parent) {
+                return botReply(interaction, "Fehler", "Dieser Befehl muss in einem Kanal mit einer Kategorie ausgeführt werden.");
+            }
             const categoryId = interaction.channel.parent.id;
             const row = new ActionRowBuilder();
             //const customEmoji = findServerEmoji(interaction, "SNIFFA");

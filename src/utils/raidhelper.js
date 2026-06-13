@@ -1,4 +1,4 @@
-const Raidhelper = require("../classes/raidhelper");
+﻿const Raidhelper = require("../classes/raidhelper");
 const { getCategoryEvents, getCharacterIcon, delay } = require("./helper");
 
 async function getAllSignUps(interaction, categoryId) {

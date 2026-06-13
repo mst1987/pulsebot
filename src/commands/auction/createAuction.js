@@ -1,4 +1,4 @@
-const Legendary = require("../../classes/legendary");
+﻿const Legendary = require("../../classes/legendary");
 const {
     checkForPermission,
     findServerEmoji,
