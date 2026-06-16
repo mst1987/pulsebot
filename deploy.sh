@@ -44,6 +44,9 @@ if [ "$MISSING" -eq 1 ]; then
     exit 1
 fi
 
+echo "$LOG_TAG Registering slash commands..."
+node scripts/register-commands.js
+
 echo "$LOG_TAG Restarting PM2 process..."
 if pm2 describe "$APP_NAME" > /dev/null 2>&1; then
     pm2 restart "$APP_NAME" --update-env
