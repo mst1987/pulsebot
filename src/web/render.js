@@ -107,7 +107,9 @@ function layout(title, body) {
   .sub { color:var(--muted); margin:0 0 16px; font-size:14px; }
   .sub a { color:var(--accent); text-decoration:none; }
   .summary { background:var(--panel); border:1px solid #2c313b; border-radius:10px; padding:12px 16px; margin-bottom:16px; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:14px; align-items:start; }
+  /* masonry-style columns: short cards fill the vertical space, no row gaps */
+  .grid { column-width:330px; column-gap:14px; }
+  .grid .card { break-inside:avoid; -webkit-column-break-inside:avoid; margin:0 0 14px; }
   .card { background:var(--panel); border:1px solid #2c313b; border-radius:10px; overflow:hidden; border-left:3px solid #2c313b; }
   .card.sev-high { border-left-color:var(--high); }
   .card.sev-med { border-left-color:var(--medium); }

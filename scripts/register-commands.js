@@ -1,5 +1,4 @@
-#!/usr/bin/env node
-const args = process.argv.slice(2);
+﻿const args = process.argv.slice(2);
 const isDev = args.includes("--dev");
 const envFile = isDev ? ".env.dev" : ".env";
 require("dotenv").config({ path: envFile });
@@ -46,6 +45,14 @@ const commands = [
             type: 3,
             required: true,
         }],
+    },
+    {
+        name: "fillsetup",
+        description: "Befüllt das Setup-Sheet aus einem Raidhelper-Raidplan",
+        options: [
+            { name: "setup_id", description: "Raidhelper Setup-ID (Nummer am Ende des Raidplan-Links)", type: 3, required: true },
+            { name: "tank3", description: "3. Tank (Charaktername fuer B13, optional)", type: 3, required: false },
+        ],
     },
 ];
 

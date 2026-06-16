@@ -21,6 +21,7 @@
         "axios": "^1.6.7",
         "discord.js": "^14.12.1",
         "dotenv": "^16.3.1",
+        "googleapis": "^173.0.0",
         "luxon": "^3.4.2",
         "moment-timezone": "^0.5.43"
     },

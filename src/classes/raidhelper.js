@@ -183,15 +183,16 @@ class Raidhelper {
           resp.on("data", (chunk) => {
             data += chunk;
           });
-
           resp.on("end", () => {
-            data = JSON.parse(data);
-            resolve(data);
+            try {
+              resolve(JSON.parse(data));
+            } catch (e) {
+              reject(e);
+            }
           });
+          resp.on("error", reject);
         })
-        .on("error", (err) => {
-          console.log("Error: " + err.message);
-        });
+        .on("error", reject);
       request.end();
     });
   }
@@ -223,7 +224,9 @@ class Raidhelper {
               resolve();
             } else {
               data = JSON.parse(data);
-              resolve({ raidid: raidid, setup: data.slots });
+              const meta = Object.fromEntries(Object.entries(data).filter(([k]) => k !== "slots"));
+              console.log("[getSetup] meta:", JSON.stringify(meta));
+              resolve({ raidid: raidid, setup: data.slots, startTime: data.startTime || data.date || data.start_time || null });
             }
           });
         })
