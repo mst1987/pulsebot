@@ -21,6 +21,12 @@ const defaultTimeout = 60000;
 // Application System
 const applicationChannelId = process.env.APPLICATION_CHANNEL_ID || "";
 const officerRoleId = process.env.OFFICER_ROLE_ID || "";
+// URL templates with a {char} placeholder, used to auto-fill links when the
+// applicant didn't provide one. Defaults target Thunderstrike (EU, fresh/anniversary).
+const applyArmoryUrlTemplate =
+    process.env.APPLY_ARMORY_URL || "https://classic-armory.org/character/eu/tbc-anniversary/thunderstrike/{char}";
+const applyWclUrlTemplate =
+    process.env.APPLY_WCL_URL || "https://fresh.warcraftlogs.com/character/eu/thunderstrike/{char}";
 
 // Logcheck web server (serves the generated report pages)
 const webPort = Number(process.env.WEB_PORT) || 3005;
@@ -32,7 +38,10 @@ const discordClientId = process.env.CLIENT_ID || "";
 const discordClientSecret =
     process.env.DISCORD_CLIENT_SECRET || process.env.CLIENT_SECRET || "";
 // admins that may delete reports: ADMIN_USER_ID plus optional comma list
-const logcheckAdminIds = [adminUserId, ...(process.env.LOGCHECK_ADMIN_IDS || "").split(",")]
+const logcheckAdminIds = [
+    ...String(adminUserId).split(","),
+    ...(process.env.LOGCHECK_ADMIN_IDS || "").split(","),
+]
     .map((s) => s.trim())
     .filter(Boolean);
 
@@ -48,6 +57,8 @@ module.exports = {
     defaultTimeout,
     applicationChannelId,
     officerRoleId,
+    applyArmoryUrlTemplate,
+    applyWclUrlTemplate,
     webPort,
     publicBaseUrl,
     discordClientId,

@@ -20,7 +20,24 @@ const isClear = args.includes("--clear");
 const rest = new REST({ version: "10" }).setToken(token);
 
 const commands = [
-    { name: "createapplication", description: "Erstellt eine Bewerbungsnachricht mit Apply-Button" },
+    {
+        name: "createapplication",
+        description: "Postet eine Nachricht mit Bewerben-Button in einen Channel",
+        options: [
+            {
+                name: "message_id",
+                description: "Message-ID (aus diesem Channel) oder voller Nachrichten-Link",
+                type: 3,
+                required: true,
+            },
+            {
+                name: "channel",
+                description: "Ziel-Channel für die Bewerbungs-Nachricht",
+                type: 7,
+                required: true,
+            },
+        ],
+    },
     { name: "show-mysetups", description: "Show the events where I am in the setup" },
     { name: "createoverview", description: "Creates an event overview for the current category" },
     { name: "show-allsetups", description: "Show all setups for the current category" },

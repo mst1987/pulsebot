@@ -3,4 +3,5 @@
 node_modules
 logs/
 data/
-reference/cla/appsscript/service-account.json
+reference/cla/appsscript/
+service-account.json

@@ -45,7 +45,7 @@ if [ "$MISSING" -eq 1 ]; then
 fi
 
 echo "$LOG_TAG Registering slash commands..."
-node scripts/register-commands.js
+node scripts/register-commands.js || echo "$LOG_TAG WARNING: Command registration failed — run 'npm run register' manually if commands are missing"
 
 echo "$LOG_TAG Restarting PM2 process..."
 if pm2 describe "$APP_NAME" > /dev/null 2>&1; then

@@ -147,7 +147,13 @@ function getChannelsFromCategories(guild, categoryIds) {
 }
 
 function checkForPermission(interaction) {
-    if (interaction.user.id !== adminUserId) {
+    // adminUserId may hold a single id or a comma-separated list of admin ids
+    const admins = String(adminUserId)
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean);
+
+    if (!admins.includes(interaction.user.id)) {
         botReply(
             interaction,
             "Fehlende Berechtigung",

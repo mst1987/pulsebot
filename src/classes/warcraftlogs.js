@@ -81,6 +81,25 @@ class WarcraftLogs {
         return this.#get(`report/events/${view}/${reportId}`, { start, end, ...extra });
     }
 
+    /**
+     * Character parses/rankings (per-boss percentiles). Lives on the fresh host.
+     * @returns array of parses (encounterName, spec, percentile, total, reportID, fightID, startTime, ...)
+     */
+    async getParses(name, realm, region, metric = "dps") {
+        const url = `https://fresh.warcraftlogs.com/v1/parses/character/${encodeURIComponent(name)}/${encodeURIComponent(realm)}/${encodeURIComponent(region)}`;
+        try {
+            const response = await axios.get(url, {
+                params: { metric, api_key: this.apiKey },
+                httpsAgent: agent,
+            });
+            return response.data;
+        } catch (error) {
+            const status = error.response ? error.response.status : "?";
+            console.error(`WCL parses error (${status}) for ${name}-${realm}:`, error.message);
+            throw error;
+        }
+    }
+
     /** Fetch all events of a view across a window, following nextPageTimestamp. */
     async getAllEvents(reportId, view, start, end, extra = {}) {
         const all = [];
