@@ -509,11 +509,12 @@ function logWclUrl(l) {
 function logRow(l, csrfField) {
     const posted = l.postedAt || l.detectedAt;
     const when = posted ? new Date(posted).toLocaleString("de-DE") : "";
-    const title = l.title || l.reportId || "(unbekannt)";
+    const name = l.title || l.reportId || "(unbekannt)";
     const wclUrl = logWclUrl(l);
-    const wcl = wclUrl
-        ? `<a class="mlink" href="${esc(wclUrl)}" target="_blank" rel="noopener">WCL ↗</a>`
-        : "<span class=\"sub\">—</span>";
+    // The log name itself IS the WCL link, so it can be checked before evaluating.
+    const logCell = wclUrl
+        ? `<a class="mlink" href="${esc(wclUrl)}" target="_blank" rel="noopener">${esc(name)} ↗</a>`
+        : esc(name);
     const src = l.guildId && l.channelId && l.messageId
         ? `<a class="mlink" href="https://discord.com/channels/${esc(l.guildId)}/${esc(l.channelId)}/${esc(l.messageId)}" target="_blank" rel="noopener">Nachricht</a>`
         : "<span class=\"sub\">—</span>";
@@ -529,9 +530,8 @@ function logRow(l, csrfField) {
              <button class="btn" type="submit">Auswerten</button>
            </form>`;
     return `<tr>
-      <td>${esc(title)}</td>
+      <td>${logCell}</td>
       <td class="small">${esc(l.reportId || "")}</td>
-      <td>${wcl}</td>
       <td>${src}</td>
       <td>${status}</td>
       <td class="small">${esc(when)}</td>
@@ -603,7 +603,6 @@ function renderCla(user, opts = {}) {
                      <thead><tr>
                        ${lh("title", "Log")}
                        <th>Report-ID</th>
-                       <th>WCL</th>
                        <th>Quelle</th>
                        ${lh("status", "Status")}
                        ${lh("date", "Gepostet")}

@@ -170,12 +170,19 @@ describe("web/renderAdmin", () => {
         });
 
         describe("logs view", () => {
-            it("renders the detected-logs table with a WCL link and a Gepostet column", () => {
+            it("renders the detected-logs table with a Gepostet column and the evaluate button", () => {
                 const html = renderCla(user, { view: "logs", logPage: logPage(), counts: { reports: 0, logs: 1 }, logChannelIds: ["c1"], csrf: "x", nav: nav() });
                 expect(html).toContain("class=\"subnav-item active\" href=\"/admin/cla?view=logs\"");
-                expect(html).toContain("https://classic.warcraftlogs.com/reports/xyz"); // WCL link
                 expect(html).toContain("Gepostet");
                 expect(html).toContain("action=\"/admin/cla/eval\""); // evaluate button
+            });
+
+            it("makes the log NAME the WCL link (no separate WCL column)", () => {
+                const html = renderCla(user, { view: "logs", logPage: logPage(), logChannelIds: ["c1"], csrf: "x", nav: nav() });
+                // the name is the link text, pointing at the WCL report
+                expect(html).toContain("href=\"https://classic.warcraftlogs.com/reports/xyz\" target=\"_blank\" rel=\"noopener\">Kara Log ↗</a>");
+                // no dedicated "WCL" header column anymore
+                expect(html).not.toContain("<th>WCL</th>");
             });
 
             it("has sortable headers scoped to the logs view", () => {
