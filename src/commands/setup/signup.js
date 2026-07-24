@@ -15,15 +15,22 @@ module.exports = {
             (msg) => msg.author.id === "579155972115660803"
         );
 
-        for (const [key, value] of botMessages) {
-            raid = await raidhelper.getEvent(key);
-            if (raid) raidId = key;
-            else
-                await botReply(
-                    interaction,
-                    messages.signup.errorTitle,
-                    messages.signup.errorMessage
-                );
+        for (const [key] of botMessages) {
+            const event = await raidhelper.getEvent(key);
+            if (event && event.id) {
+                raid = event;
+                raidId = key;
+                break;
+            }
+        }
+
+        // No Raidhelper event in this channel: tell the user instead of throwing.
+        if (!raid) {
+            return botReply(
+                interaction,
+                messages.signup.errorTitle,
+                messages.signup.errorMessage
+            );
         }
 
         try {

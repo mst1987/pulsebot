@@ -1,4 +1,4 @@
-﻿module.exports = extendedClassList = {
+﻿const extendedClassList = {
     // Pala
     Holy1: {
         icon: "holypala",
@@ -425,3 +425,5 @@
     },
     SHAMAN: { icon: "shaman", name: "Shaman", clazz: "Shaman", spec: "Shaman" },
 };
+
+module.exports = extendedClassList;

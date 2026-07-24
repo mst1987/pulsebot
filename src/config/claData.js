@@ -2,7 +2,7 @@
 // and reference/cla/*.csv. Do not edit by hand; re-run the generator instead.
 // Reference data for the WoW TBC log audit ("CLA" by Lars Maag / shariva).
 
-/* eslint-disable */
+ 
 module.exports = {
     // WCL/WoW equip slot indices that can carry a permanent enchant
     ENCHANTABLE_SLOTS: [0, 2, 4, 6, 7, 8, 9, 14, 15, 16],
