@@ -86,6 +86,15 @@ const ADMIN_STYLE = `<style>
   .setup-player .sp-spec { font-size:12px; color:var(--muted); margin-left:auto; white-space:nowrap; flex:0 0 auto; }
   .sheetcard { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px; }
   table.idx td.small { white-space:nowrap; color:var(--muted); font-size:12.5px; }
+  /* sortable table headers + pager */
+  a.sort-link { color:inherit; text-decoration:none; display:inline-flex; align-items:center; gap:2px; white-space:nowrap; }
+  a.sort-link:hover { color:var(--accent); }
+  a.sort-link.active { color:var(--accent); }
+  .pager { display:flex; align-items:center; gap:12px; margin-top:12px; flex-wrap:wrap; }
+  .pager-info { font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .pager-btn { display:inline-block; padding:6px 12px; border:1px solid var(--line); border-radius:8px; background:var(--panel2); color:var(--text); text-decoration:none; font-size:13.5px; font-weight:600; }
+  .pager-btn:hover { border-color:var(--accent); color:var(--accent); }
+  .pager-btn.disabled { opacity:.45; pointer-events:none; }
   /* dashboard */
   .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
   .tile { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:15px 16px; }
@@ -523,7 +532,7 @@ function logRow(l, csrfField) {
  * @param {object} opts { reports, logs, logChannelIds, activeGuildId, csrf, msg, nav }
  */
 function renderCla(user, opts = {}) {
-    const reports = opts.reports || [];
+    const rp = opts.reportPage || { items: [], sort: "date", dir: "desc", page: 1, totalPages: 1, total: 0 };
     const logs = opts.logs || [];
     const logChannelIds = opts.logChannelIds || [];
     const csrfField = hiddenCsrf(opts.csrf || "");
@@ -546,20 +555,56 @@ function renderCla(user, opts = {}) {
         logsSection = `${scanForm}${table}`;
     }
 
-    const recent = reports.length
-        ? `<table class="idx">
-             <thead><tr><th>Report</th><th>Zone</th><th>Erstellt</th><th>Spieler</th><th>Probleme</th></tr></thead>
-             <tbody>${reports.slice(0, 15).map((r) => {
+    // Sortable column header: toggles asc/desc on the active column, resets to
+    // page 1, and shows a direction arrow. Text columns default to asc, numeric/
+    // date columns to desc.
+    const DEFAULT_DIR = { title: "asc", zone: "asc", date: "desc", players: "desc", issues: "desc" };
+    const sortHeader = (key, label) => {
+        const active = rp.sort === key;
+        const nextDir = active ? (rp.dir === "asc" ? "desc" : "asc") : (DEFAULT_DIR[key] || "desc");
+        const arrow = active ? (rp.dir === "asc" ? " ▲" : " ▼") : "";
+        return `<th><a class="sort-link${active ? " active" : ""}" href="/admin/cla?sort=${key}&dir=${nextDir}&page=1">${esc(label)}${arrow}</a></th>`;
+    };
+
+    const reportRow = (r) => {
         const when = r.generatedAt ? new Date(r.generatedAt).toLocaleString("de-DE") : "";
+        const wcl = r.reportUrl
+            ? `<a class="mlink" href="${esc(r.reportUrl)}" target="_blank" rel="noopener">WCL ↗</a>`
+            : "<span class=\"sub\">—</span>";
         return `<tr>
                  <td><a href="/r/${esc(r.id)}">${esc(r.title || r.id)}</a></td>
                  <td>${esc(r.zone || "")}</td>
-                 <td>${esc(when)}</td>
+                 <td class="small">${esc(when)}</td>
                  <td>${esc(r.playerCount)}</td>
                  <td><span class="pill">${esc(r.issueCount)}</span></td>
+                 <td>${wcl}</td>
                </tr>`;
-    }).join("")}</tbody>
-           </table>`
+    };
+
+    const pageLink = (p, label, disabled) => (disabled
+        ? `<span class="pager-btn disabled">${esc(label)}</span>`
+        : `<a class="pager-btn" href="/admin/cla?sort=${rp.sort}&dir=${rp.dir}&page=${p}">${esc(label)}</a>`);
+    const pager = rp.total
+        ? `<div class="pager">
+             ${pageLink(rp.page - 1, "‹ Zurück", rp.page <= 1)}
+             <span class="pager-info">Seite ${esc(String(rp.page))} / ${esc(String(rp.totalPages))} · ${esc(String(rp.total))} gesamt</span>
+             ${pageLink(rp.page + 1, "Weiter ›", rp.page >= rp.totalPages)}
+           </div>`
+        : "";
+
+    const recent = rp.items.length
+        ? `<table class="idx">
+             <thead><tr>
+               ${sortHeader("title", "Report")}
+               ${sortHeader("zone", "Zone")}
+               ${sortHeader("date", "Erstellt")}
+               ${sortHeader("players", "Spieler")}
+               ${sortHeader("issues", "Probleme")}
+               <th>WCL</th>
+             </tr></thead>
+             <tbody>${rp.items.map(reportRow).join("")}</tbody>
+           </table>
+           ${pager}`
         : "<p class=\"sub\">Noch keine Auswertungen.</p>";
 
     const body = `

@@ -65,6 +65,9 @@ function listReports() {
                 zone: r.zone,
                 date: r.date,
                 generatedAt: r.generatedAt,
+                // WCL report code + link (older reports may lack these).
+                reportId: r.reportId || "",
+                reportUrl: r.reportUrl || (r.reportId ? `https://classic.warcraftlogs.com/reports/${r.reportId}` : ""),
                 playerCount: (r.players || []).length,
                 issueCount: (r.players || []).reduce((n, p) => n + (p.issues || []).length, 0),
             });

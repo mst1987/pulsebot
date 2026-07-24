@@ -2,6 +2,7 @@ const http = require("http");
 const crypto = require("crypto");
 const { webPort } = require("../config/variables");
 const { getReport, deleteReport, listReports } = require("./reportStore");
+const { prepareReportList } = require("./reportList");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
 const {
     renderDashboard, renderAdminDenied, renderRecruitment, renderCla,
@@ -321,8 +322,13 @@ async function handle(req, res) {
             if (!user) return;
             const guildId = activeGuildFor(req);
             const logs = guildId ? listLogs().filter((l) => !l.guildId || l.guildId === guildId) : listLogs();
+            const reportPage = prepareReportList(listReports(), {
+                sort: url.searchParams.get("sort"),
+                dir: url.searchParams.get("dir"),
+                page: url.searchParams.get("page"),
+            });
             return send(res, 200, renderCla(user, {
-                reports: listReports(),
+                reportPage,
                 logs,
                 logChannelIds: getConfig().logChannelIds || [],
                 activeGuildId: guildId,
