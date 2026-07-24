@@ -111,6 +111,26 @@ async function postAnnouncement(channelId, template, roleIds = []) {
     return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url };
 }
 
+/**
+ * Custom emojis of a guild, for the emoji picker. Returns the Discord code
+ * (`<:name:id>` / `<a:name:id>`) that has to be typed into a message, plus the
+ * image URL for the picker preview.
+ */
+function listEmojis(guildId) {
+    const guild = getGuild(guildId);
+    if (!guild) return [];
+    return [...guild.emojis.cache.values()]
+        .filter((e) => e.available !== false)
+        .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
+        .map((e) => ({
+            id: e.id,
+            name: e.name || "",
+            animated: !!e.animated,
+            code: `<${e.animated ? "a" : ""}:${e.name}:${e.id}>`,
+            url: typeof e.imageURL === "function" ? e.imageURL({ size: 64 }) : e.url,
+        }));
+}
+
 /** Text channels of a guild the bot can post in, for channel dropdowns. */
 function listTextChannels(guildId) {
     const guild = getGuild(guildId);
@@ -351,7 +371,7 @@ async function finishLogButton(channelId, messageId, { reportUrl, title } = {}) 
 }
 
 module.exports = {
-    setClient, getClient, listGuilds, getGuild, listTextChannels,
+    setClient, getClient, listGuilds, getGuild, listTextChannels, listEmojis,
     listCategories, listAllChannels, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,

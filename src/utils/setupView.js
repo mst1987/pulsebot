@@ -35,8 +35,11 @@ const CLASS_ICON_SLUG = {
     Druid: "druid", DK: "deathknight",
 };
 
-const ROLE_ORDER = ["tank", "healer", "melee", "ranged", "dps"];
 const ROLE_LABELS = { tank: "Tanks", healer: "Heiler", melee: "Nahkampf", ranged: "Fernkampf", dps: "DPS" };
+
+// Classes that can main-/off-tank, plus any explicit tank spec (sodclazz/clazz
+// "tank"). Drives the 3rd-tank candidate picker on the raidsheet-fill form.
+const TANK_CANDIDATE_CLASSES = new Set(["Warrior", "Druid", "Paladin", "DK"]);
 
 // The real WoW class for a classlist entry (recovering it when clazz is "Tank").
 function realClass(entry) {
@@ -90,28 +93,68 @@ function enrichSlot(slot) {
     };
 }
 
+// Raid group of a slot: an explicit numeric `slot.group` wins; otherwise fall
+// back to 5 slots per group by position (index 0-4 = group 1), matching the
+// sheet export in src/utils/fillSetup.js. Uses the raw array index so empty
+// slots keep the following players in their real group instead of shifting them.
+function groupOf(slot, index) {
+    const g = slot && slot.group;
+    const n = typeof g === "number" ? g : parseInt(g, 10);
+    if (Number.isInteger(n) && n >= 1) return n;
+    return Math.floor(index / 5) + 1;
+}
+
+// Whether a classlist entry can tank: an explicit tank spec (sodclazz/clazz
+// "tank") or a class that can off-tank (Warrior, Druid, Paladin, DK).
+function isTankSpec(entry) {
+    if (!entry) return false;
+    if (String(entry.sodclazz || "").toLowerCase() === "tank") return true;
+    if (entry.clazz === "Tank") return true;
+    return TANK_CANDIDATE_CLASSES.has(entry.clazz);
+}
+
 /**
- * Turn raw raidplan slots into role-grouped display data. Empty slots (no name)
- * are dropped. Returns:
- *   { total, counts: { [role]: n }, groups: [{ role, label, players: [...] }] }
+ * Turn raw raidplan slots into raid-group display data (Group 1–5 like the
+ * Raid-Helper raidplan). Empty slots (no name) are dropped. Returns:
+ *   { total, groups: [{ group, label, players: [...] }], roleCounts: { [role]: n } }
  */
 function buildSetupView(slots) {
     const players = (Array.isArray(slots) ? slots : [])
-        .map(enrichSlot)
+        .map((slot, index) => ({ ...enrichSlot(slot), group: groupOf(slot, index) }))
         .filter((p) => p.name);
-    const byRole = {};
+    const byGroup = new Map();
     for (const p of players) {
-        (byRole[p.role] = byRole[p.role] || []).push(p);
+        if (!byGroup.has(p.group)) byGroup.set(p.group, []);
+        byGroup.get(p.group).push(p);
     }
-    const groups = ROLE_ORDER
-        .filter((r) => byRole[r] && byRole[r].length)
-        .map((r) => ({ role: r, label: ROLE_LABELS[r], players: byRole[r] }));
-    const counts = {};
-    for (const g of groups) counts[g.role] = g.players.length;
-    return { total: players.length, counts, groups };
+    const groups = [...byGroup.keys()]
+        .sort((a, b) => a - b)
+        .map((g) => ({ group: g, label: `Gruppe ${g}`, players: byGroup.get(g) }));
+    const roleCounts = {};
+    for (const p of players) roleCounts[p.role] = (roleCounts[p.role] || 0) + 1;
+    return { total: players.length, groups, roleCounts };
+}
+
+/**
+ * Names of raiders in the setup whose spec/class can tank — offered as 3rd-tank
+ * candidates on the raidsheet-fill form. Deduped by name, in raidplan order.
+ * Returns [{ name, specName, className }].
+ */
+function tankCandidates(slots) {
+    const seen = new Set();
+    const out = [];
+    for (const slot of (Array.isArray(slots) ? slots : [])) {
+        const p = enrichSlot(slot);
+        if (!p.name || seen.has(p.name)) continue;
+        if (!isTankSpec(SPEC_LOOKUP[p.spec] || null)) continue;
+        seen.add(p.name);
+        out.push({ name: p.name, specName: p.specName, className: p.className });
+    }
+    return out;
 }
 
 module.exports = {
-    buildSetupView, enrichSlot, realClass, roleOf, classIconUrl,
+    buildSetupView, tankCandidates, isTankSpec, groupOf,
+    enrichSlot, realClass, roleOf, classIconUrl,
     CLASS_COLORS, ROLE_LABELS,
 };

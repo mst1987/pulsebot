@@ -14,6 +14,8 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
+        // keeps guild.emojis.cache fresh when emojis change (for the admin emoji picker)
+        GatewayIntentBits.GuildEmojisAndStickers,
     ],
     partials: ["MESSAGE", "REACTION"],
 });

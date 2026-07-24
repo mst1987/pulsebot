@@ -2,6 +2,7 @@
 // + esc/authBar/themeToggleBtn from render.js and adds the admin sidebar shell.
 
 const { layout, esc, authBar, themeToggleBtn } = require("./render");
+const { formatTimestampToDateString } = require("../utils/date");
 
 // admin-specific styling, injected once per admin page (in addition to layout's base <style>)
 const ADMIN_STYLE = `<style>
@@ -71,19 +72,31 @@ const ADMIN_STYLE = `<style>
   .rolegrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:6px; max-height:220px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:10px; background:var(--bg); }
   .rolebox { display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--text); font-weight:500; cursor:pointer; }
   .rolebox input { width:auto; }
-  /* setup (raidplan comp) */
+  /* emoji picker */
+  .emoji-picker { position:relative; display:inline-block; margin-top:2px; }
+  .emoji-panel { display:none; position:absolute; z-index:20; top:calc(100% + 6px); left:0; width:288px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px; box-shadow:0 8px 28px rgba(0,0,0,.35); }
+  .emoji-panel.open { display:block; }
+  .emoji-search { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:7px 10px; font:inherit; margin-bottom:8px; }
+  .emoji-search:focus { border-color:var(--accent); outline:none; }
+  .emoji-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:4px; max-height:220px; overflow-y:auto; }
+  .emoji-item { display:grid; place-items:center; padding:5px; background:transparent; border:1px solid transparent; border-radius:7px; cursor:pointer; }
+  .emoji-item:hover { background:var(--panel2); border-color:var(--line); }
+  .emoji-item img { width:26px; height:26px; object-fit:contain; }
+  .emoji-empty { color:var(--muted); font-size:12.5px; padding:6px 2px; }
+  /* setup (raidplan comp), grouped into raid groups 1-5 */
   .setup-summary { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
   .setup-count { background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:4px 12px; font-size:13px; color:var(--muted); }
   .setup-count b { color:var(--text); font-variant-numeric:tabular-nums; }
   .setup-count.setup-total { border-color:var(--accent-soft); background:var(--accent-soft); }
-  .setup-role { margin-bottom:16px; }
-  .setup-role-head { font-size:12.5px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); margin:0 0 8px; }
-  .setup-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px; }
-  .setup-player { display:flex; align-items:center; gap:9px; background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--line); border-radius:8px; padding:7px 11px; min-width:0; }
-  .setup-ico { width:24px; height:24px; border-radius:5px; flex:0 0 auto; }
+  .setup-groups { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
+  .setup-group { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .setup-group-head { font-size:12.5px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); margin:0 0 8px; display:flex; justify-content:space-between; align-items:center; }
+  .setup-group-n { background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:1px 8px; font-size:11px; color:var(--text); font-variant-numeric:tabular-nums; }
+  .setup-group-list { display:flex; flex-direction:column; gap:6px; }
+  .setup-player { display:flex; align-items:center; gap:9px; background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--line); border-radius:8px; padding:6px 10px; min-width:0; }
+  .setup-ico { width:22px; height:22px; border-radius:5px; flex:0 0 auto; }
   .setup-ico-blank { background:var(--panel2); border:1px solid var(--line); }
-  .setup-player .sp-name { font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .setup-player .sp-spec { font-size:12px; color:var(--muted); margin-left:auto; white-space:nowrap; flex:0 0 auto; }
+  .setup-player .sp-name { font-weight:700; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
   .sheetcard { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px; }
   table.idx td.small { white-space:nowrap; color:var(--muted); font-size:12.5px; }
   /* sortable table headers + pager */
@@ -286,7 +299,22 @@ function renderAdminDenied(user) {
 function renderDashboard(user, opts = {}) {
     const s = opts.stats || {};
     const recent = opts.recentReports || [];
+    const upcoming = opts.upcoming || { events: [], error: null };
     const n = (v) => esc(String(v || 0));
+
+    const sheetBadge = (sheet) => sheet
+        ? `<span class="pill" style="background:var(--good-bg);color:var(--good)" title="Gefüllt am ${esc(new Date(sheet.filledAt).toLocaleString("de-DE"))}${sheet.playerCount ? ` · ${esc(sheet.playerCount)} Spieler` : ""}">Sheet ✓</span>`
+        : "<span class=\"pill\">Sheet fehlt</span>";
+    const upcomingRows = upcoming.error
+        ? `<tr><td colspan="4" class="sub" style="padding:16px;color:var(--high)">${esc(upcoming.error)}</td></tr>`
+        : (upcoming.events.length
+            ? upcoming.events.map((ev) => `<tr>
+                <td><a class="mlink" href="${raidplanUrl(ev.id)}" target="_blank" rel="noopener">${esc(ev.title || ev.id)}</a></td>
+                <td class="small">${esc(ev.channelName || "")}</td>
+                <td class="small">${esc(formatEventTime(ev.startTime))}</td>
+                <td>${sheetBadge(ev.sheet)}</td>
+              </tr>`).join("")
+            : "<tr><td colspan=\"4\" class=\"sub\" style=\"padding:16px\">Keine anstehenden Events mit fertigem Setup.</td></tr>");
 
     const tile = (label, value, sub, accent) =>
         `<div class="tile${accent ? " accent" : ""}"><div class="t-label">${esc(label)}</div><div class="t-value">${n(value)}</div><div class="t-sub">${sub}</div></div>`;
@@ -314,6 +342,13 @@ function renderDashboard(user, opts = {}) {
 
     const body = `
       ${tiles}
+      <div class="dash-card" style="margin-bottom:16px">
+        <div class="dash-card-head"><h3>Upcoming Events</h3><a class="mlink" href="/admin/raids">Alle →</a></div>
+        <table class="idx">
+          <thead><tr><th>Event</th><th>Kanal</th><th>Termin</th><th>Sheet</th></tr></thead>
+          <tbody>${upcomingRows}</tbody>
+        </table>
+      </div>
       <div class="dash-grid">
         <div class="dash-card">
           <div class="dash-card-head"><h3>Letzte Auswertungen</h3><a class="mlink" href="/admin/cla">Alle →</a></div>
@@ -338,6 +373,42 @@ function renderDashboard(user, opts = {}) {
 
 function hiddenCsrf(csrf) {
     return `<input type="hidden" name="_csrf" value="${esc(csrf)}">`;
+}
+
+// Client-side glue for the emoji picker: inserts an emoji's Discord code
+// (`<:name:id>`) into the last-focused text field of the picker's form. Guarded
+// so it binds only once even if several pickers are on the page.
+const EMOJI_PICKER_SCRIPT = "<script>(function(){if(window.__emojiPicker)return;window.__emojiPicker=1;"
+    + "var last=null;"
+    + "document.addEventListener('focusin',function(e){var el=e.target;if(el&&(el.tagName==='TEXTAREA'||(el.tagName==='INPUT'&&el.type==='text')))last=el;});"
+    + "function target(p){var f=p.closest('form');if(last&&f&&f.contains(last))return last;return f?f.querySelector('textarea, input[type=text]'):last;}"
+    + "document.addEventListener('click',function(e){"
+    + "var t=e.target.closest('.emoji-trigger');if(t){e.preventDefault();var pn=t.parentNode.querySelector('.emoji-panel');document.querySelectorAll('.emoji-panel.open').forEach(function(o){if(o!==pn)o.classList.remove('open');});if(pn){pn.classList.toggle('open');var s=pn.querySelector('.emoji-search');if(s&&pn.classList.contains('open'))s.focus();}return;}"
+    + "var it=e.target.closest('.emoji-item');if(it){e.preventDefault();var fld=target(it.closest('.emoji-picker'));if(fld){var c=it.getAttribute('data-code');var a=fld.selectionStart==null?fld.value.length:fld.selectionStart;var b=fld.selectionEnd==null?a:fld.selectionEnd;fld.value=fld.value.slice(0,a)+c+fld.value.slice(b);var pos=a+c.length;fld.focus();try{fld.setSelectionRange(pos,pos);}catch(_){}last=fld;}return;}"
+    + "if(!e.target.closest('.emoji-panel'))document.querySelectorAll('.emoji-panel.open').forEach(function(o){o.classList.remove('open');});"
+    + "});"
+    + "document.addEventListener('input',function(e){if(e.target.classList&&e.target.classList.contains('emoji-search')){var q=e.target.value.toLowerCase();e.target.closest('.emoji-panel').querySelectorAll('.emoji-item').forEach(function(i){i.style.display=(i.getAttribute('data-name')||'').indexOf(q)===-1?'none':'';});}});"
+    + "})();</script>";
+
+/**
+ * Emoji picker: a "Emoji einfügen" button + dropdown of the server's custom
+ * emojis. Clicking one inserts its Discord code into the last-focused text field
+ * of the same form. Returns "" when the server has no custom emojis.
+ */
+function emojiPicker(emojis) {
+    const list = emojis || [];
+    if (!list.length) return "";
+    const items = list.map((em) =>
+        `<button type="button" class="emoji-item" data-code="${esc(em.code)}" data-name="${esc((em.name || "").toLowerCase())}" title=":${esc(em.name)}:">`
+        + `<img src="${esc(em.url)}" alt=":${esc(em.name)}:" loading="lazy"></button>`
+    ).join("");
+    return `<div class="emoji-picker">
+      <button type="button" class="btn btn-ghost emoji-trigger">😀 Emoji einfügen</button>
+      <div class="emoji-panel">
+        <input type="text" class="emoji-search" placeholder="Emoji suchen …" autocomplete="off">
+        <div class="emoji-grid">${items}</div>
+      </div>
+    </div>${EMOJI_PICKER_SCRIPT}`;
 }
 
 function templateListItem(t) {
@@ -368,6 +439,7 @@ function renderPostEdit(user, opts) {
           <label>Nachrichtentext</label>
           <textarea name="content" style="min-height:160px">${esc(p.content)}</textarea>
           <div class="hint">Der eigentliche Nachrichtentext — inkl. Emojis. Custom-Emojis als <code>&lt;:name:id&gt;</code>, Discord-Markdown erlaubt.</div>
+          ${emojiPicker(opts.emojis)}
         </div>
         <div class="field">
           <label>Embed-Titel (optional)</label>
@@ -433,6 +505,7 @@ function renderRecruitment(user, opts = {}) {
           <label>Text</label>
           <textarea name="body" placeholder="Beschreibungstext …">${esc(e.body)}</textarea>
           <div class="hint">Discord-Markdown ist erlaubt (**fett**, *kursiv*, Zeilenumbrüche).</div>
+          ${emojiPicker(opts.emojis)}
         </div>
         <div class="field">
           <label>Button-Beschriftung (optional)</label>
@@ -740,30 +813,48 @@ function renderRaids(user, opts = {}) {
 
 /**
  * Raid-event creation form (posts a Raid-Helper event).
- * @param {object} opts { defaults, leaderId, channels, csrf, msg, nav }
+ * @param {object} opts { defaults, leaderId, channels, reusableEvents, templates, csrf, msg, nav }
  */
 function renderRaidCreate(user, opts = {}) {
     const d = opts.defaults || { templateId: "", channelId: "" };
     const leaderId = opts.leaderId || "";
     const templates = opts.templates || [];
+    const reusableEvents = opts.reusableEvents || [];
     const csrfField = hiddenCsrf(opts.csrf || "");
+
+    // Optional "reuse an existing event" picker. Selecting an event pre-fills the
+    // form (title/template/description) and switches the channel input to a
+    // clone-name field (see the toggle script below): a new channel is cloned
+    // from the source event's channel and the new event is posted there.
+    const reuseField = reusableEvents.length
+        ? `<div class="field">
+          <label>Vorhandenes Event wiederverwenden (optional)</label>
+          <select name="sourceEventId" id="sourceEventSelect">
+            <option value="">— Neues Event von Grund auf —</option>
+            ${reusableEvents.map((ev) => `<option value="${esc(ev.id)}" data-title="${esc(ev.title || "")}" data-template="${esc(ev.templateId || "")}" data-desc="${esc(ev.description || "")}" data-channel="${esc(ev.channelName || "")}">${esc(ev.title || "(ohne Titel)")}${ev.channelName ? ` · #${esc(ev.channelName)}` : ""}</option>`).join("")}
+          </select>
+          <div class="hint">Übernimmt Titel, Template und Beschreibung. Der Channel des Events wird für das neue Datum geklont — den Namen unten anpassen.</div>
+        </div>`
+        : "";
+
     const createForm = `
       <p class="note"><a class="mlink" href="/admin/raids">← Zurück zur Event-Übersicht</a></p>
       <h2>Neues Raid-Event anlegen</h2>
       <p class="note">Legt über die Raid-Helper-API ein echtes Event mit Signup-Nachricht an. Standardwerte kommen aus den <a href="/admin/settings">Einstellungen</a>.</p>
-      <form class="card-form" method="POST" action="/admin/raids/new">
+      <form class="card-form" method="POST" action="/admin/raids/new" id="raidCreateForm">
         ${csrfField}
+        ${reuseField}
         <div class="field">
           <label>Titel</label>
           <input type="text" name="title" placeholder="GDKP Karazhan" required>
         </div>
         <div class="field">
-          <label>Datum (TT-MM-JJJJ)</label>
-          <input type="text" name="date" placeholder="24-07-2026" required>
+          <label>Datum</label>
+          <input type="date" name="date" required>
         </div>
         <div class="field">
-          <label>Uhrzeit (HH:MM)</label>
-          <input type="text" name="time" placeholder="20:00" required>
+          <label>Uhrzeit</label>
+          <input type="time" name="time" placeholder="20:00" required>
         </div>
         <div class="field">
           <label>Template</label>
@@ -772,10 +863,15 @@ function renderRaidCreate(user, opts = {}) {
         ? "Aus der Liste wählen oder eine eigene Raid-Helper-Template-ID eintippen."
         : "Noch keine Templates hinterlegt — Raid-Helper-Template-ID eintippen oder unten laden/anlegen."}</div>
         </div>
-        <div class="field">
+        <div class="field" id="channelPickField">
           <label>Channel</label>
           ${channelSelect("channelId", opts.channels || [], d.channelId, { required: true, allowEmpty: true })}
           <div class="hint">Text-Channels des oben gewählten Servers.</div>
+        </div>
+        <div class="field" id="channelNameField" style="display:none">
+          <label>Channelname (neuer Klon)</label>
+          <input type="text" name="channelName" id="channelNameInput" placeholder="z.B. gdkp-kara-24-07" disabled>
+          <div class="hint">Aus dem gewählten Event vorbelegt — hier anpassen. Der Channel wird geklont (Rechte, Thema) und das neue Event darin gepostet.</div>
         </div>
         <div class="field">
           <label>Event-Leiter (Discord-User-ID)</label>
@@ -790,7 +886,37 @@ function renderRaidCreate(user, opts = {}) {
           <button class="btn" type="submit">Event anlegen</button>
           <a class="btn btn-ghost" href="/admin/raids">Abbrechen</a>
         </div>
-      </form>`;
+      </form>
+      <script>(function(){
+        var form=document.getElementById("raidCreateForm");if(!form)return;
+        var src=form.querySelector("[name=sourceEventId]");if(!src)return;
+        var pickField=document.getElementById("channelPickField");
+        var pickInput=pickField?pickField.querySelector("select,input"):null;
+        var nameField=document.getElementById("channelNameField");
+        var nameInput=document.getElementById("channelNameInput");
+        var titleInput=form.querySelector("[name=title]");
+        var tplInput=form.querySelector("[name=templateId]");
+        var descInput=form.querySelector("[name=description]");
+        function apply(){
+          var o=src.options[src.selectedIndex];
+          if(o&&o.value){
+            if(titleInput)titleInput.value=o.getAttribute("data-title")||"";
+            if(tplInput)tplInput.value=o.getAttribute("data-template")||"";
+            if(descInput)descInput.value=o.getAttribute("data-desc")||"";
+            if(nameInput)nameInput.value=o.getAttribute("data-channel")||"";
+            if(pickField)pickField.style.display="none";
+            if(pickInput){pickInput.required=false;pickInput.disabled=true;}
+            if(nameField)nameField.style.display="";
+            if(nameInput){nameInput.required=true;nameInput.disabled=false;}
+          }else{
+            if(pickField)pickField.style.display="";
+            if(pickInput){pickInput.required=true;pickInput.disabled=false;}
+            if(nameField)nameField.style.display="none";
+            if(nameInput){nameInput.required=false;nameInput.disabled=true;}
+          }
+        }
+        src.addEventListener("change",apply);apply();
+      })();</script>`;
 
     // --- template management: list + delete, add by hand, import from Raid-Helper ---
     const templateRows = templates.length
@@ -945,27 +1071,27 @@ function renderEventDetail(user, opts = {}) {
         </div>
       </div>`;
 
-    // --- Setup (Raidplan comp), grouped by role with class icons/colours ---
+    // --- Setup (Raidplan comp), grouped into raid groups 1-5 with class icons/colours ---
     let setupSection;
     if (opts.setupError) {
         setupSection = `<div class="flash flash-err">Setup konnte nicht geladen werden: ${esc(opts.setupError)}</div>`;
     } else if (!setup || !setup.total) {
         setupSection = "<p class=\"sub\">Für dieses Event ist noch kein Setup (Raidplan) angelegt.</p>";
     } else {
-        const summary = `<div class="setup-summary">${setup.groups
-            .map((g) => `<span class="setup-count"><b>${esc(String(g.players.length))}</b> ${esc(g.label)}</span>`)
-            .join("")}<span class="setup-count setup-total"><b>${esc(String(setup.total))}</b> gesamt</span></div>`;
+        const summary = "<div class=\"setup-summary\">"
+            + `<span class="setup-count setup-total"><b>${esc(String(setup.total))}</b> Raider</span>`
+            + `<span class="setup-count"><b>${esc(String(setup.groups.length))}</b> Gruppen</span>`
+            + "</div>";
         const groups = setup.groups.map((g) => `
-      <div class="setup-role">
-        <h4 class="setup-role-head">${esc(g.label)} · ${esc(String(g.players.length))}</h4>
-        <div class="setup-grid">${g.players.map((p) => `
-          <span class="setup-player" style="border-left-color:${esc(p.classColor || "var(--line)")}">
-            ${p.iconUrl ? `<img class="setup-ico" src="${esc(p.iconUrl)}" alt="${esc(p.className || "")}" title="${esc(p.className || "")}" loading="lazy">` : "<span class=\"setup-ico setup-ico-blank\"></span>"}
+      <div class="setup-group">
+        <h4 class="setup-group-head">${esc(g.label)}<span class="setup-group-n">${esc(String(g.players.length))}</span></h4>
+        <div class="setup-group-list">${g.players.map((p) => `
+          <span class="setup-player" style="border-left-color:${esc(p.classColor || "var(--line)")}" title="${esc(p.specName)}">
+            ${p.iconUrl ? `<img class="setup-ico" src="${esc(p.iconUrl)}" alt="${esc(p.className || "")}" title="${esc(p.specName)}" loading="lazy">` : "<span class=\"setup-ico setup-ico-blank\"></span>"}
             <span class="sp-name">${esc(p.name)}</span>
-            <span class="sp-spec">${esc(p.specName)}</span>
           </span>`).join("")}</div>
       </div>`).join("");
-        setupSection = summary + groups;
+        setupSection = summary + `<div class="setup-groups">${groups}</div>`;
     }
 
     // --- Anmelde-Aufruf ---
@@ -1002,17 +1128,39 @@ function renderEventDetail(user, opts = {}) {
         const matchHint = opts.matchedSheetId
             ? "Automatisch anhand des Event-Titels vorausgewählt — bei Bedarf ändern."
             : "Kein Raidsheet passte automatisch zum Titel — bitte manuell wählen.";
-        fillSection = `
-      <form class="card-form" method="POST" action="/admin/raids/fill" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Fülle Sheet …'">
-        ${csrfField}
-        <input type="hidden" name="event" value="${esc(ev.id)}">
-        <div class="field"><label>Raidsheet</label><select name="sheetId" required>${sheetOptions}</select><div class="hint">${matchHint}</div></div>
-        <div class="field">
+        // 3rd tank: a picker of all tank-capable raiders in the setup, falling
+        // back to a free-text field when no candidates (or setup) are available.
+        const tankCands = opts.tankCandidates || [];
+        const tank3Field = tankCands.length
+            ? `<div class="field">
+          <label>Tank 3 (Off-Tank, optional)</label>
+          <select name="tank3">
+            <option value="">— keiner —</option>
+            ${tankCands.map((c) => `<option value="${esc(c.name)}">${esc(c.name)}${c.specName ? ` — ${esc(c.specName)}` : ""}</option>`).join("")}
+          </select>
+          <div class="hint">Auswahl aller tank-fähigen Raider im Setup. Wird in die 3. Tank-Zeile eingetragen.</div>
+        </div>`
+            : `<div class="field">
           <label>Tank 3 (optional)</label>
           <input type="text" name="tank3" placeholder="Name des 3. Tanks">
           <div class="hint">Wird manuell in die Tank-Zeile eingetragen.</div>
-        </div>
-        <div class="row-actions"><button class="btn" type="submit">Raidsheet füllen</button></div>
+        </div>`;
+        // Link to the copy already created for this event (if any), with its
+        // scheduled deletion date.
+        const es = opts.eventSheet;
+        const existingSheet = es && es.url
+            ? `<div class="sheetcard">
+          <div><strong>Gefülltes Sheet:</strong> <a class="mlink" href="${esc(es.url)}" target="_blank" rel="noopener">${esc(es.eventTitle || "Sheet öffnen")}</a></div>
+          <div class="hint">${es.deleteAfter ? `Wird am ${esc(formatTimestampToDateString(es.deleteAfter).split(" - ")[0].trim())} automatisch gelöscht.` : "Kopie ist angelegt."} Erneutes Füllen ersetzt diese Kopie.</div>
+        </div>`
+            : "";
+        fillSection = existingSheet + `
+      <form class="card-form" method="POST" action="/admin/raids/fill" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Erstelle Sheet …'">
+        ${csrfField}
+        <input type="hidden" name="event" value="${esc(ev.id)}">
+        <div class="field"><label>Vorlage (Ausgangssheet)</label><select name="sheetId" required>${sheetOptions}</select><div class="hint">${matchHint}</div></div>
+        ${tank3Field}
+        <div class="row-actions"><button class="btn" type="submit">Neues Sheet erstellen &amp; füllen</button></div>
       </form>`;
     }
 
@@ -1020,13 +1168,13 @@ function renderEventDetail(user, opts = {}) {
       <p class="note"><a class="mlink" href="/admin/raids">← Zurück zur Event-Übersicht</a></p>
       ${meta}
       <h2>Setup</h2>
-      <p class="note">Aktueller Raidplan dieses Events, gruppiert nach Rolle. Icons und Farben richten sich nach der WoW-Klasse.</p>
+      <p class="note">Aktueller Raidplan dieses Events, in Raid-Gruppen 1–5 wie im Raid-Helper. Icons und Farben richten sich nach der WoW-Klasse.</p>
       ${setupSection}
       <h2>Anmelde-Aufruf</h2>
       <p class="note">Postet eine Aufruf-Nachricht in den Event-Channel und pingt die gewählten Rollen.</p>
       ${notifySection}
       <h2>Raidsheet füllen</h2>
-      <p class="note">Überträgt das Raid-Helper-Setup dieses Events in das passende Google-Sheet.</p>
+      <p class="note">Legt für diesen Raid eine eigene Kopie der Vorlage an, überträgt das Raid-Helper-Setup hinein und teilt sie per Link. Die Kopie wird 3 Tage nach dem Raid automatisch gelöscht; die Vorlage bleibt unangetastet.</p>
       ${fillSection}`;
     return adminLayout("Event-Details — Pulsebot Admin", "raids", user, body, opts.msg, opts.nav);
 }

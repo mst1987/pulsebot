@@ -20,11 +20,15 @@ const {
 const { buildReport, ReportError } = require("../utils/logcheck/report");
 const { listLogs, deleteLog } = require("./logStore");
 const { evaluateLog, scanLogChannels } = require("./logChannel");
+const { getEventSheet, markEventSheetFilled } = require("./eventSheetStore");
 const Raidhelper = require("../classes/raidhelper");
 const SheetsClient = require("../classes/sheets");
+const Drive = require("../classes/drive");
 const { fillSetupSheet } = require("../utils/fillSetup");
 const { matchRaidsheet } = require("../utils/raidsheets");
-const { buildSetupView } = require("../utils/setupView");
+const { buildSetupView, tankCandidates } = require("../utils/setupView");
+const { toRaidHelperDate, formatTimestampToDateString } = require("../utils/date");
+const { startSheetCleanup } = require("../utils/sheetCleanup");
 const discord = require("./discord");
 const auth = require("./auth");
 
@@ -71,6 +75,8 @@ async function loadEventGroups(guildId) {
                 leaderId: ev.leaderId,
                 channelId: ev.channelId,
                 channelName: meta.name,
+                templateId: (ev.templateId !== null && ev.templateId !== undefined) ? String(ev.templateId) : "",
+                description: ev.description || "",
                 signupCount: (ev.signUps || []).filter((s) => s.specName !== "Absence").length,
             });
         }
@@ -78,6 +84,42 @@ async function loadEventGroups(guildId) {
         return { groups, error: null };
     } catch (e) {
         return { groups: [], error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
+    }
+}
+
+// Find the next few upcoming events that already have a Raid-Helper setup
+// (raidplan) built, annotated with whether their sheet was filled via the admin
+// tool. Events without a setup are skipped. `getSetup` is one HTTP call per
+// event, so `maxChecks` caps how deep we probe to keep the dashboard snappy.
+async function loadUpcomingSetups(guildId, limit = 3, maxChecks = 8) {
+    if (!guildId) return { events: [], error: null };
+    try {
+        const rh = new Raidhelper();
+        const events = await rh.getAllEvents(); // sorted ascending by startTime
+        const catMap = discord.getChannelCategoryMap(guildId);
+        const inGuild = events.filter((ev) => catMap[ev.channelId]);
+        const out = [];
+        let checked = 0;
+        for (const ev of inGuild) {
+            if (out.length >= limit || checked >= maxChecks) break;
+            checked += 1;
+            const result = await rh.getSetup(ev.id);
+            if (!result || !result.setup || !result.setup.length) continue;
+            const meta = catMap[ev.channelId] || {};
+            out.push({
+                id: ev.id,
+                title: ev.title,
+                startTime: ev.startTime,
+                channelId: ev.channelId,
+                channelName: meta.name || "",
+                signupCount: (ev.signUps || []).filter((s) => s.specName !== "Absence").length,
+                playerCount: result.setup.filter((s) => s && s.name).length,
+                sheet: getEventSheet(ev.id),
+            });
+        }
+        return { events: out, error: null };
+    } catch (e) {
+        return { events: [], error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
     }
 }
 
@@ -214,6 +256,7 @@ async function handle(req, res) {
                 editingPost: editPostId ? getRecruitmentPost(editPostId) : null,
                 posts: guildId ? listRecruitmentPosts().filter((p) => p.guildId === guildId) : listRecruitmentPosts(),
                 channels: discord.listTextChannels(guildId),
+                emojis: discord.listEmojis(guildId),
                 activeGuildId: guildId,
                 csrf: auth.csrfToken(req),
                 msg: flashFromQuery(url),
@@ -416,11 +459,20 @@ async function handle(req, res) {
         if (req.method === "GET") {
             const user = requireAdmin(req, res);
             if (!user) return;
+            const guildId = activeGuildFor(req);
+            // Existing events feed the "reuse an event for a new date" picker.
+            // Best-effort: an API error just leaves the picker empty.
+            const { groups } = await loadEventGroups(guildId);
+            const reusableEvents = groups.flatMap((g) => g.events).map((ev) => ({
+                id: ev.id, title: ev.title, templateId: ev.templateId,
+                description: ev.description, channelId: ev.channelId, channelName: ev.channelName,
+            }));
             return send(res, 200, renderRaidCreate(user, {
                 defaults: getConfig().raidDefaults,
                 leaderId: user.id,
-                channels: discord.listTextChannels(activeGuildFor(req)),
+                channels: discord.listTextChannels(guildId),
                 templates: listRaidTemplates(),
+                reusableEvents,
                 csrf: auth.csrfToken(req),
                 msg: flashFromQuery(url),
                 nav: navFor(req),
@@ -431,13 +483,26 @@ async function handle(req, res) {
             if (!user) return;
             const form = await readFormBody(req);
             if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/raids/new?msg=csrf");
+            const date = toRaidHelperDate(form.date);
+            if (!date) return redirect(res, `/admin/raids/new?err=${encodeURIComponent("Ungültiges Datum.")}`);
             try {
                 const rh = new Raidhelper();
+                let channelId = (form.channelId || "").trim();
+                const sourceEventId = (form.sourceEventId || "").trim();
+                // Reuse an existing event for a new date: clone its channel (name
+                // taken over and edited by the admin), then post the new event there.
+                if (sourceEventId) {
+                    const { groups } = await loadEventGroups(activeGuildFor(req));
+                    const source = groups.flatMap((g) => g.events).find((ev) => ev.id === sourceEventId);
+                    if (!source) return redirect(res, `/admin/raids/new?err=${encodeURIComponent("Quell-Event nicht gefunden.")}`);
+                    const cloned = await discord.duplicateChannel(source.channelId, (form.channelName || "").trim());
+                    channelId = cloned.id;
+                }
                 const result = await rh.createEvent({
-                    channelId: (form.channelId || "").trim(),
+                    channelId,
                     leaderId: (form.leaderId || "").trim(),
                     templateId: (form.templateId || "").trim(),
-                    date: (form.date || "").trim(),
+                    date,
                     time: (form.time || "").trim(),
                     title: (form.title || "").trim(),
                     description: form.description || "",
@@ -557,10 +622,13 @@ async function handle(req, res) {
         // Pull the Raid-Helper raidplan setup so it can be shown inline (best-effort).
         let setup = null;
         let setupError = null;
+        let tankCands = [];
         try {
             const rh = new Raidhelper();
             const result = await rh.getSetup(eventId);
-            setup = buildSetupView(result && result.setup ? result.setup : []);
+            const slots = result && result.setup ? result.setup : [];
+            setup = buildSetupView(slots);
+            tankCands = tankCandidates(slots);
         } catch (e) {
             console.error("event setup load failed:", e.message);
             setupError = e.message || "Setup konnte nicht geladen werden.";
@@ -576,6 +644,8 @@ async function handle(req, res) {
             matchedSheetId: matched ? matched.id : "",
             setup,
             setupError,
+            tankCandidates: tankCands,
+            eventSheet: getEventSheet(eventId),
             csrf: auth.csrfToken(req),
             msg: flashFromQuery(url),
             nav: navFor(req),
@@ -603,7 +673,10 @@ async function handle(req, res) {
         }
     }
 
-    // fill a raidsheet from the event's Raid-Helper setup
+    // fill a raidsheet from the event's Raid-Helper setup. Each raid gets its
+    // OWN copy of the source raidsheet: copy it, share it by link, fill the
+    // copy, link it on the event page, and schedule its deletion 3 days after
+    // the raid. The source raidsheet is never written to or deleted.
     if (pathname === "/admin/raids/fill" && req.method === "POST") {
         const user = requireAdmin(req, res);
         if (!user) return;
@@ -620,9 +693,35 @@ async function handle(req, res) {
             if (!result || !result.setup || !result.setup.length) {
                 return redirect(res, `${back}&err=${encodeURIComponent("Setup nicht gefunden oder leer.")}`);
             }
-            const client = new SheetsClient({ spreadsheetId: sheet.spreadsheetId, sheetName: sheet.sheetName, gid: sheet.gid });
+            // Event meta (title + start) for the copy name and the deletion schedule.
+            const { groups: evGroups } = await loadEventGroups(activeGuildFor(req));
+            const ev = evGroups.flatMap((g) => g.events).find((e) => e.id === eventId) || {};
+            const startMs = (Number(ev.startTime) || 0) * 1000;
+            const raidDate = startMs ? formatTimestampToDateString(startMs).split(" - ")[0].trim() : "";
+            const copyName = `${ev.title || sheet.name || "Raidsheet"}${raidDate ? ` — ${raidDate}` : ""}`;
+            // Delete 3 days after the raid (fallback: 3 days from now if start unknown).
+            const deleteAfter = (startMs || Date.now()) + 3 * 24 * 60 * 60 * 1000;
+
+            const drive = new Drive();
+            // Re-filling replaces the previous copy: delete its Drive file first.
+            const prev = getEventSheet(eventId);
+            if (prev && prev.spreadsheetId) {
+                try { await drive.deleteFile(prev.spreadsheetId); }
+                catch (e) { console.error("previous copy delete failed:", e.message); }
+            }
+            // Copy the source raidsheet and record it immediately, so even a later
+            // failure leaves a tracked copy the cleanup sweeper can remove.
+            const copy = await drive.copyFile(sheet.spreadsheetId, copyName);
+            markEventSheetFilled(eventId, {
+                spreadsheetId: copy.id, url: copy.url,
+                sourceSheetId: sheet.spreadsheetId, deleteAfter,
+            });
+            await drive.shareAnyoneWriter(copy.id);
+            const client = new SheetsClient({ spreadsheetId: copy.id, sheetName: sheet.sheetName, gid: sheet.gid });
             const summary = await fillSetupSheet(client, result.setup, { tab: sheet.sheetName || "Setup", tank3: (form.tank3 || "").trim() });
-            return redirect(res, `${back}&ok=${encodeURIComponent(`Raidsheet gefüllt: ${summary.playerCount} Spieler.`)}`);
+            markEventSheetFilled(eventId, { sheetId: sheet.id, sheetName: sheet.name, playerCount: summary.playerCount });
+            const delDate = formatTimestampToDateString(deleteAfter).split(" - ")[0].trim();
+            return redirect(res, `${back}&ok=${encodeURIComponent(`Neues Sheet erstellt & gefüllt: ${summary.playerCount} Spieler. Wird am ${delDate} automatisch gelöscht.`)}`);
         } catch (e) {
             console.error("raidsheet fill failed:", e.message);
             return redirect(res, `${back}&err=${encodeURIComponent(e.message || "Füllen fehlgeschlagen.")}`);
@@ -740,9 +839,11 @@ async function handle(req, res) {
             categories: (cfg.categoryIds || []).length,
             adminRoles: (cfg.adminRoleIds || []).length,
         };
+        const upcoming = await loadUpcomingSetups(activeGuildFor(req), 3);
         return send(res, 200, renderDashboard(user, {
             stats,
             recentReports: reports.slice(0, 8),
+            upcoming,
             msg: flashFromQuery(url),
             nav: navFor(req),
         }));
@@ -781,6 +882,8 @@ function startWebServer(client) {
     server.listen(webPort, () => {
         console.log(`Logcheck web server listening on port ${webPort}`);
     });
+    // Sweep due raid-sheet copies (deleted a few days after each raid).
+    startSheetCleanup();
     return server;
 }
 

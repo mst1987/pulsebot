@@ -100,6 +100,52 @@ describe("web/renderAdmin", () => {
             const html = renderDashboard(user, { nav: nav(), recentReports: [] });
             expect(html).toContain("Noch keine Auswertungen");
         });
+
+        it("renders the Upcoming Events card with a link to the raidplan", () => {
+            const html = renderDashboard(user, {
+                nav: nav(),
+                upcoming: { events: [{ id: "evt1", title: "Gruul & Maggi", channelName: "gruul-run", startTime: 1893456000, sheet: null }], error: null },
+            });
+            expect(html).toContain("Upcoming Events");
+            expect(html).toContain("Gruul &amp; Maggi");
+            expect(html).toContain("raid-helper.xyz/raidplan/evt1");
+            expect(html).toContain("gruul-run");
+        });
+
+        it("marks the sheet as done when a fill record exists, missing otherwise", () => {
+            const filled = renderDashboard(user, {
+                nav: nav(),
+                upcoming: { events: [{ id: "e1", title: "A", startTime: 1893456000, sheet: { filledAt: 1700000000000, playerCount: 25 } }], error: null },
+            });
+            expect(filled).toContain("Sheet ✓");
+            expect(filled).toContain("25 Spieler");
+
+            const missing = renderDashboard(user, {
+                nav: nav(),
+                upcoming: { events: [{ id: "e1", title: "A", startTime: 1893456000, sheet: null }], error: null },
+            });
+            expect(missing).toContain("Sheet fehlt");
+            expect(missing).not.toContain("Sheet ✓");
+        });
+
+        it("shows an empty state when no upcoming event has a setup", () => {
+            const html = renderDashboard(user, { nav: nav(), upcoming: { events: [], error: null } });
+            expect(html).toContain("Keine anstehenden Events mit fertigem Setup");
+        });
+
+        it("surfaces an error loading upcoming events", () => {
+            const html = renderDashboard(user, { nav: nav(), upcoming: { events: [], error: "Raid-Helper API down" } });
+            expect(html).toContain("Raid-Helper API down");
+        });
+
+        it("escapes event titles in the Upcoming Events card", () => {
+            const html = renderDashboard(user, {
+                nav: nav(),
+                upcoming: { events: [{ id: "e1", title: "<img src=x>", startTime: 1893456000, sheet: null }], error: null },
+            });
+            expect(html).toContain("&lt;img src=x&gt;");
+            expect(html).not.toContain("<img src=x>");
+        });
     });
 
     describe("renderRecruitment", () => {
@@ -117,6 +163,33 @@ describe("web/renderAdmin", () => {
         it("prompts to pick a server before posting when none is active", () => {
             const html = renderRecruitment(user, { templates: [], activeGuildId: "", csrf: "x", nav: nav() });
             expect(html).toContain("Wähle oben einen Server");
+        });
+
+        it("renders an emoji picker with the server's custom emojis in the template form", () => {
+            const html = renderRecruitment(user, {
+                templates: [], activeGuildId: "g1", csrf: "x", nav: nav(),
+                emojis: [{ id: "1", name: "pepe", animated: false, code: "<:pepe:1>", url: "https://cdn/pepe.png" }],
+            });
+            expect(html).toContain("Emoji einfügen");
+            expect(html).toContain("data-code=\"&lt;:pepe:1&gt;\"");
+            expect(html).toContain("https://cdn/pepe.png");
+        });
+
+        it("omits the emoji picker when the server has no custom emojis", () => {
+            const html = renderRecruitment(user, {
+                templates: [], activeGuildId: "g1", csrf: "x", nav: nav(), emojis: [],
+            });
+            expect(html).not.toContain("Emoji einfügen");
+        });
+
+        it("renders the emoji picker on the post-edit form too", () => {
+            const html = renderRecruitment(user, {
+                editingPost: { id: "p1", channelName: "gen", content: "hi", title: "", body: "", buttonLabel: "" },
+                csrf: "x", nav: nav(),
+                emojis: [{ id: "1", name: "pepe", animated: false, code: "<:pepe:1>", url: "https://cdn/pepe.png" }],
+            });
+            expect(html).toContain("Emoji einfügen");
+            expect(html).toContain("data-code=\"&lt;:pepe:1&gt;\"");
         });
     });
 
@@ -256,6 +329,46 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("action=\"/admin/raid-templates\"");
             expect(html).toContain("Aus Raid-Helper laden");
         });
+
+        it("uses a native datepicker for the date field", () => {
+            const html = renderRaidCreate(user, {
+                defaults: { templateId: "", channelId: "" }, templates: [], leaderId: "1", channels: [], csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("<input type=\"date\" name=\"date\"");
+            expect(html).toContain("<input type=\"time\" name=\"time\"");
+        });
+
+        it("renders the reuse-event picker with prefill data and a channel-name field", () => {
+            const html = renderRaidCreate(user, {
+                defaults: { templateId: "", channelId: "" }, templates: [], leaderId: "1", channels: [], csrf: "x", nav: nav(),
+                reusableEvents: [
+                    { id: "ev1", title: "GDKP Kara", templateId: "3", description: "hi", channelId: "c1", channelName: "gdkp-kara" },
+                ],
+            });
+            expect(html).toContain("name=\"sourceEventId\"");
+            expect(html).toContain("data-channel=\"gdkp-kara\"");
+            expect(html).toContain("data-template=\"3\"");
+            expect(html).toContain("name=\"channelName\"");
+        });
+
+        it("omits the reuse picker when there are no existing events", () => {
+            const html = renderRaidCreate(user, {
+                defaults: { templateId: "", channelId: "" }, templates: [], leaderId: "1", channels: [], csrf: "x", nav: nav(),
+                reusableEvents: [],
+            });
+            expect(html).not.toContain("name=\"sourceEventId\"");
+        });
+
+        it("escapes malicious event titles in the picker options", () => {
+            const html = renderRaidCreate(user, {
+                defaults: { templateId: "", channelId: "" }, templates: [], leaderId: "1", channels: [], csrf: "x", nav: nav(),
+                reusableEvents: [
+                    { id: "ev1", title: "<b>x</b>", templateId: "", description: "", channelId: "c1", channelName: "chan" },
+                ],
+            });
+            expect(html).toContain("&lt;b&gt;x&lt;/b&gt;");
+            expect(html).not.toContain("data-title=\"<b>x</b>\"");
+        });
     });
 
     describe("renderEventDetail", () => {
@@ -287,31 +400,75 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("Keine Raidsheets konfiguriert");
         });
 
-        it("renders the setup grouped by role with class icons, colours and counts", () => {
+        it("renders the setup grouped into raid groups with class icons and colours", () => {
             const setup = {
                 total: 2,
-                counts: { tank: 1, healer: 1 },
+                roleCounts: { tank: 1, healer: 1 },
                 groups: [
-                    { role: "tank", label: "Tanks", players: [{ name: "Tankadin", specName: "Protection Pala", className: "Paladin", classColor: "#F58CBA", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/classicon_paladin.jpg", role: "tank" }] },
-                    { role: "healer", label: "Heiler", players: [{ name: "Healy", specName: "Holy Priest", className: "Priest", classColor: "#FFFFFF", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/classicon_priest.jpg", role: "healer" }] },
+                    { group: 1, label: "Gruppe 1", players: [{ name: "Tankadin", specName: "Protection Pala", className: "Paladin", classColor: "#F58CBA", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/classicon_paladin.jpg", role: "tank" }] },
+                    { group: 2, label: "Gruppe 2", players: [{ name: "Healy", specName: "Holy Priest", className: "Priest", classColor: "#FFFFFF", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/classicon_priest.jpg", role: "healer" }] },
                 ],
             };
             const html = renderEventDetail(user, { ...base, notifyTemplates: [], roles: [], raidsheets: [], setup });
             expect(html).toContain("<h2>Setup</h2>");
             expect(html).toContain("Tankadin");
-            expect(html).toContain("Protection Pala");
             expect(html).toContain("classicon_paladin.jpg");
             expect(html).toContain("border-left-color:#F58CBA");
-            // role headers + summary counts
-            expect(html).toContain("Tanks · 1");
-            expect(html).toContain("Heiler");
-            expect(html).toContain(">2</b> gesamt");
+            // spec no longer shown as text, but kept as a hover title
+            expect(html).toContain("title=\"Protection Pala\"");
+            // raid-group headers + summary counts
+            expect(html).toContain("Gruppe 1");
+            expect(html).toContain("Gruppe 2");
+            expect(html).toContain(">2</b> Raider");
+            expect(html).toContain(">2</b> Gruppen");
+        });
+
+        it("offers tank-capable raiders as a Tank-3 dropdown on the fill form", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                raidsheets: [{ id: "t45", name: "Tier 4/5" }],
+                tankCandidates: [
+                    { name: "Warri", specName: "Fury Warrior", className: "Warrior" },
+                    { name: "Beary", specName: "Feral Tank", className: "Druid" },
+                ],
+            });
+            expect(html).toContain("name=\"tank3\"");
+            expect(html).toContain("<select name=\"tank3\">");
+            expect(html).toContain("Warri — Fury Warrior");
+            expect(html).toContain("Beary — Feral Tank");
+        });
+
+        it("links the created event-sheet copy with its deletion date", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                raidsheets: [{ id: "t45", name: "Tier 4/5" }],
+                eventSheet: {
+                    eventId: "e1", eventTitle: "GDKP Kara",
+                    url: "https://docs.google.com/spreadsheets/d/copy-1/edit",
+                    deleteAfter: 1753559200000,
+                },
+            });
+            expect(html).toContain("https://docs.google.com/spreadsheets/d/copy-1/edit");
+            expect(html).toContain("Gefülltes Sheet");
+            expect(html).toContain("automatisch gelöscht");
+            // button reflects the copy behaviour
+            expect(html).toContain("Neues Sheet erstellen");
+        });
+
+        it("falls back to a free-text Tank-3 field when no candidates exist", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                raidsheets: [{ id: "t45", name: "Tier 4/5" }],
+                tankCandidates: [],
+            });
+            expect(html).toContain("name=\"tank3\"");
+            expect(html).toContain("placeholder=\"Name des 3. Tanks\"");
         });
 
         it("escapes player names in the setup", () => {
             const setup = {
-                total: 1, counts: { dps: 1 },
-                groups: [{ role: "dps", label: "DPS", players: [{ name: "<b>x</b>", specName: "Fire Mage", className: "Mage", classColor: "#69CCF0", iconUrl: "", role: "dps" }] }],
+                total: 1, roleCounts: { dps: 1 },
+                groups: [{ group: 1, label: "Gruppe 1", players: [{ name: "<b>x</b>", specName: "Fire Mage", className: "Mage", classColor: "#69CCF0", iconUrl: "", role: "dps" }] }],
             };
             const html = renderEventDetail(user, { ...base, setup });
             expect(html).toContain("&lt;b&gt;x&lt;/b&gt;");
@@ -319,7 +476,7 @@ describe("web/renderAdmin", () => {
         });
 
         it("shows an empty state when the event has no setup", () => {
-            const html = renderEventDetail(user, { ...base, setup: { total: 0, counts: {}, groups: [] } });
+            const html = renderEventDetail(user, { ...base, setup: { total: 0, roleCounts: {}, groups: [] } });
             expect(html).toContain("noch kein Setup");
         });
 
