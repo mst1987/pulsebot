@@ -875,6 +875,7 @@ async function handle(req, res) {
                 clientId: trim("blizzardClientId"),
                 region: trim("blizzardRegion") || "eu",
                 realmSlug: trim("blizzardRealmSlug").toLowerCase() || "thunderstrike",
+                namespace: trim("blizzardNamespace").toLowerCase(),
             };
             const secretInput = trim("blizzardClientSecret");
             if (secretInput === "-") blizzard.clientSecret = "";
@@ -1038,13 +1039,19 @@ async function handle(req, res) {
         const wclUrl = fillCharTemplate(applyWclUrlTemplate, name);
         const client = new Blizzard(bzCfg);
         const gearConfigured = client.isConfigured();
+        const gearNamespace = client._resolve().namespace;
         let gear = null;
         let gearError = "";
+        let charSummary = null;
         if (gearConfigured && name) {
+            // Summary first — its level/last-login reveal whether the profile is
+            // the right character (a level 60/80 hit on a level-70 TBC char means
+            // a wrong-namespace match → wrong-era gear).
+            charSummary = await client.getCharacterSummary(name);
             gear = await client.getEquipment(name);
             if (gear === null) {
                 const e = client.lastError || {};
-                if (e.status === 404) gearError = `Charakter „${name}" nicht in der Blizzard-API gefunden (404). Realm-Slug „${bzCfg.realmSlug || "thunderstrike"}" und Schreibweise prüfen — bei TBC-Anniversary sind viele Chars (noch) nicht abrufbar.`;
+                if (e.status === 404) gearError = `Charakter „${name}" nicht in der Blizzard-API gefunden (404, Namespace ${gearNamespace}). Realm-Slug „${bzCfg.realmSlug || "thunderstrike"}"/Schreibweise prüfen oder den Namespace in den Einstellungen ändern (z.B. profile-classicann-${bzCfg.region || "eu"}).`;
                 else if (e.status === 403) gearError = "Zugriff verweigert (403) — die Profile-API ist für diesen Realm evtl. nicht freigegeben.";
                 else if (e.status === 401) gearError = "Authentifizierung fehlgeschlagen (401) — Battle.net Client-ID/Secret prüfen.";
                 else if (e.status) gearError = `Blizzard-API-Fehler (${e.status}).`;
@@ -1053,6 +1060,7 @@ async function handle(req, res) {
         }
         return send(res, 200, renderHistoryChar(user, {
             character: name, realm, items, armoryUrl, wclUrl, gear, gearConfigured, gearError,
+            charSummary, gearNamespace,
             csrf: auth.csrfToken(req), msg: flashFromQuery(url), nav: navFor(req),
         }));
     }

@@ -20,6 +20,7 @@ describe("config/variables", () => {
         "blizzardClientSecret",
         "blizzardRegion",
         "blizzardRealmSlug",
+        "blizzardNamespace",
         "webPort",
         "publicBaseUrl",
         "discordClientId",
@@ -52,6 +53,7 @@ describe("config/variables", () => {
             "BLIZZARD_CLIENT_SECRET",
             "BLIZZARD_REGION",
             "BLIZZARD_REALM",
+            "BLIZZARD_NAMESPACE",
         ]) {
             delete process.env[key];
         }
@@ -109,6 +111,7 @@ describe("config/variables", () => {
         expect(variables.blizzardClientSecret).toBe("");
         expect(variables.blizzardRegion).toBe("eu");
         expect(variables.blizzardRealmSlug).toBe("thunderstrike");
+        expect(variables.blizzardNamespace).toBe("");
     });
 
     it("derives logcheckAdminIds as a trimmed non-empty list including the admin", () => {

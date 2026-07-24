@@ -5,7 +5,7 @@ const {
     officerRoleId, applicationChannelId,
     highestBidsChannelId, highestBidsMessageId, categoryIds,
     googleSpreadsheetId, googleSheetName, googleSheetGid,
-    blizzardClientId, blizzardClientSecret, blizzardRegion, blizzardRealmSlug,
+    blizzardClientId, blizzardClientSecret, blizzardRegion, blizzardRealmSlug, blizzardNamespace,
 } = require("../config/variables");
 
 // Editable bot settings live as JSON files under data/settings/.
@@ -57,6 +57,8 @@ const CONFIG_DEFAULTS = {
         clientSecret: blizzardClientSecret || "",
         region: blizzardRegion || "eu",
         realmSlug: blizzardRealmSlug || "thunderstrike",
+        // Profile namespace override; empty = auto (profile-classic-<region>).
+        namespace: blizzardNamespace || "",
     },
     // Which loot addon a Discord category uses, keyed by category id:
     // "gargul" | "rclc". Steers the loot-import parser and the char-loot history.

@@ -94,7 +94,7 @@ describe("web/settingsStore", () => {
             const cfg = getConfig();
             expect(cfg.blizzard).toEqual(expect.objectContaining({
                 clientId: expect.any(String), clientSecret: expect.any(String),
-                region: "eu", realmSlug: "thunderstrike",
+                region: "eu", realmSlug: "thunderstrike", namespace: "",
             }));
             expect(cfg.categoryLootTool).toEqual({});
         });

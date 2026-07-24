@@ -101,7 +101,7 @@ describe("classes/Blizzard", () => {
             const client = configured();
             const result = await client.getEquipment("Ghost");
             expect(result).toBeNull();
-            expect(client.lastError).toEqual({ status: 404, message: expect.any(String) });
+            expect(client.lastError).toMatchObject({ status: 404, message: expect.any(String) });
         });
 
         it("records lastError reason when unconfigured or nameless, and clears it on success", async () => {
@@ -143,6 +143,50 @@ describe("classes/Blizzard", () => {
             const [url, cfg] = axios.get.mock.calls[0];
             expect(url).toBe("https://us.api.blizzard.com/profile/wow/character/other/foo/equipment");
             expect(cfg.params.namespace).toBe("profile-classic-us");
+        });
+
+        it("uses an explicitly configured namespace override", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+            axios.get.mockResolvedValue({ data: { equipped_items: [] } });
+
+            const c = new Blizzard({ clientId: "id", clientSecret: "s", namespace: "profile-classicann-eu" });
+            await c.getEquipment("Foo");
+            expect(axios.get.mock.calls[0][1].params.namespace).toBe("profile-classicann-eu");
+        });
+    });
+
+    describe("getCharacterSummary", () => {
+        function configured() {
+            return new Blizzard({ clientId: "id", clientSecret: "secret" });
+        }
+
+        it("returns the character's level, item level, realm and last-login", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+            axios.get.mockResolvedValue({ data: {
+                name: "Foo", level: 70, average_item_level: 115, last_login_timestamp: 1784574268000,
+                realm: { name: "Thunderstrike" }, character_class: { name: "Shaman" }, faction: { name: "Horde" },
+            } });
+            const c = configured();
+            const s = await c.getCharacterSummary("Foo");
+            // hits the base character profile (no /equipment suffix)
+            expect(axios.get.mock.calls[0][0]).toBe("https://eu.api.blizzard.com/profile/wow/character/thunderstrike/foo");
+            expect(s).toMatchObject({
+                name: "Foo", level: 70, itemLevel: 115, lastLogin: 1784574268000,
+                realm: "Thunderstrike", className: "Shaman", faction: "Horde", namespace: "profile-classic-eu",
+            });
+        });
+
+        it("returns null and records lastError on failure", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+            axios.get.mockRejectedValue({ response: { status: 404 } });
+            const c = configured();
+            expect(await c.getCharacterSummary("Ghost")).toBeNull();
+            expect(c.lastError).toMatchObject({ status: 404 });
+        });
+
+        it("returns null without credentials", async () => {
+            expect(await new Blizzard().getCharacterSummary("Foo")).toBeNull();
+            expect(axios.get).not.toHaveBeenCalled();
         });
     });
 });

@@ -29,6 +29,10 @@ class Blizzard {
         this.clientSecret = opts.clientSecret || process.env.BLIZZARD_CLIENT_SECRET || "";
         this.region = (opts.region || process.env.BLIZZARD_REGION || "eu").toLowerCase();
         this.realmSlug = (opts.realmSlug || process.env.BLIZZARD_REALM || "thunderstrike").toLowerCase();
+        // An explicit namespace (from config/env) always wins; otherwise it is
+        // derived from the effective region so a per-call region override still
+        // works. `this.namespace` is the resolved default for the instance region.
+        this._namespaceExplicit = Boolean(opts.namespace);
         this.namespace = opts.namespace || `profile-classic-${this.region}`;
         this.locale = opts.locale || "en_GB";
         this._token = null;
@@ -75,20 +79,28 @@ class Blizzard {
         return this._token;
     }
 
-    /**
-     * A character's equipped items, normalized to { slot, itemId, name, quality,
-     * level }. Returns null on any problem (not configured, auth failure, 403/404,
-     * empty/unknown character, network error) so the caller can fall back to a
-     * classic-armory.org link. Character/realm names are lowercased for the API.
-     */
-    async getEquipment(characterName, opts = {}) {
+    // Resolve the effective { region, realm, namespace, host } for a call,
+    // honouring per-call overrides then the instance config. The namespace is
+    // configurable on purpose: the correct one for the Anniversary realms is not
+    // officially documented (community reports mention profile-classic vs
+    // profile-classicann vs profile-classic1x), and the wrong one can even return
+    // a same-named character from a different Classic line (→ wrong-era gear).
+    _resolve(opts = {}) {
+        const region = (opts.region || this.region || "eu").toLowerCase();
+        const realm = (opts.realmSlug || this.realmSlug || "").toLowerCase();
+        const namespace = opts.namespace
+            || (this._namespaceExplicit ? this.namespace : `profile-classic-${region}`);
+        return { region, realm, namespace, host: `https://${region}.api.blizzard.com` };
+    }
+
+    // Authenticated GET against a character profile sub-path (e.g. "" or
+    // "/equipment"). Returns res.data, or null on any failure (records lastError).
+    async _getCharacter(characterName, subPath, opts = {}) {
         if (!this.isConfigured()) { this.lastError = { reason: "not_configured" }; return null; }
         if (!characterName) { this.lastError = { reason: "no_name" }; return null; }
-        const realm = (opts.realmSlug || this.realmSlug || "").toLowerCase();
-        const region = (opts.region || this.region || "eu").toLowerCase();
-        const namespace = opts.namespace || `profile-classic-${region}`;
+        const { realm, namespace, host } = this._resolve(opts);
         const name = encodeURIComponent(String(characterName).trim().toLowerCase());
-        const url = `https://${region}.api.blizzard.com/profile/wow/character/${encodeURIComponent(realm)}/${name}/equipment`;
+        const url = `${host}/profile/wow/character/${encodeURIComponent(realm)}/${name}${subPath}`;
         try {
             const token = await this.getToken();
             const res = await axios.get(url, {
@@ -97,24 +109,56 @@ class Blizzard {
                 timeout: 12000,
             });
             this.lastError = null;
-            const items = (res.data && res.data.equipped_items) || [];
-            return items.map((it) => ({
-                slot: (it.slot && it.slot.type) || "",
-                itemId: (it.item && it.item.id) || null,
-                name: it.name || "",
-                quality: (it.quality && it.quality.type) || "",
-                level: (it.level && it.level.value) || null,
-            }));
+            return res.data;
         } catch (err) {
             const status = err.response && err.response.status;
-            this.lastError = { status: status || null, message: (err.code || err.message || "unbekannt") };
-            // 403/404 are the documented "no profile data for this character/realm"
-            // responses — expected, not an outage. Log briefly and fall back.
+            this.lastError = { status: status || null, message: (err.code || err.message || "unbekannt"), namespace };
             console.warn(
-                `Blizzard equipment lookup failed for ${characterName}@${realm} (${status || err.code || err.message}) — falling back to armory link.`
+                `Blizzard profile lookup failed for ${characterName}@${realm} [${namespace}]${subPath} (${status || err.code || err.message}) — falling back.`
             );
             return null;
         }
+    }
+
+    /**
+     * A character's equipped items, normalized to { slot, itemId, name, quality,
+     * level }. Returns null on any problem (not configured, auth failure, 403/404,
+     * empty/unknown character, network error) so the caller can fall back to a
+     * classic-armory.org link.
+     */
+    async getEquipment(characterName, opts = {}) {
+        const data = await this._getCharacter(characterName, "/equipment", opts);
+        if (!data) return null;
+        const items = data.equipped_items || [];
+        return items.map((it) => ({
+            slot: (it.slot && it.slot.type) || "",
+            itemId: (it.item && it.item.id) || null,
+            name: it.name || "",
+            quality: (it.quality && it.quality.type) || "",
+            level: (it.level && it.level.value) || null,
+        }));
+    }
+
+    /**
+     * Character summary for diagnostics: { name, realm, level, itemLevel,
+     * lastLogin (epoch ms), className, faction, namespace }. Lets the UI show
+     * whether the profile data is the right character and how fresh it is (a
+     * level 60/80 result on a level-70 TBC char reveals a wrong-namespace hit).
+     * Returns null on failure.
+     */
+    async getCharacterSummary(characterName, opts = {}) {
+        const data = await this._getCharacter(characterName, "", opts);
+        if (!data) return null;
+        return {
+            name: data.name || characterName,
+            realm: (data.realm && data.realm.name) || "",
+            level: data.level || null,
+            itemLevel: (data.average_item_level ?? data.equipped_item_level) || null,
+            lastLogin: data.last_login_timestamp || null,
+            className: (data.character_class && data.character_class.name) || "",
+            faction: (data.faction && data.faction.name) || "",
+            namespace: this._resolve(opts).namespace,
+        };
     }
 }
 

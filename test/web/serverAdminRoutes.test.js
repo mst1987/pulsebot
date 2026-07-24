@@ -51,11 +51,15 @@ jest.mock("../../src/web/lootStore", () => ({
     clearEvent: (...a) => mockClearLootEvent(...a),
 }));
 const mockBlizzardEquip = jest.fn(() => Promise.resolve(null));
+const mockBlizzardSummary = jest.fn(() => Promise.resolve(null));
 let mockBlizzardConfigured = false;
 jest.mock("../../src/classes/blizzard", () =>
     jest.fn().mockImplementation(() => ({
         isConfigured: () => mockBlizzardConfigured,
         getEquipment: mockBlizzardEquip,
+        getCharacterSummary: mockBlizzardSummary,
+        _resolve: () => ({ namespace: "profile-classic-eu" }),
+        lastError: null,
     })));
 jest.mock("../../src/web/logStore", () => ({
     listLogs: jest.fn(() => []),
@@ -549,7 +553,7 @@ describe("settings route: Battle.net credentials", () => {
             blizzardRegion: "eu", blizzardRealmSlug: "Thunderstrike",
         });
         expect(store.saveConfig).toHaveBeenCalledWith(expect.objectContaining({
-            blizzard: { clientId: "cid", region: "eu", realmSlug: "thunderstrike", clientSecret: "sec" },
+            blizzard: { clientId: "cid", region: "eu", realmSlug: "thunderstrike", namespace: "", clientSecret: "sec" },
         }));
         expect(redirectTo(res)).toBe("/admin/settings?msg=saved");
     });
@@ -591,6 +595,7 @@ describe("event history & loot routes", () => {
         mockEventsWithLoot.mockClear().mockReturnValue([]);
         mockLootCharacters.mockClear().mockReturnValue([]);
         mockBlizzardEquip.mockClear().mockResolvedValue(null);
+        mockBlizzardSummary.mockClear().mockResolvedValue(null);
         mockBlizzardConfigured = false;
         store.saveConfig.mockClear();
     });
@@ -667,11 +672,24 @@ describe("event history & loot routes", () => {
         expect(body(res)).toBe("HISTORY_CHAR");
     });
 
-    it("GET /admin/history/char queries Blizzard gear when configured", async () => {
+    it("GET /admin/history/char queries Blizzard gear + summary when configured", async () => {
         mockBlizzardConfigured = true;
         mockBlizzardEquip.mockResolvedValue([{ slot: "HEAD", itemId: 1, name: "Hat" }]);
+        mockBlizzardSummary.mockResolvedValue({ level: 70, namespace: "profile-classic-eu" });
         await request("GET", "/admin/history/char?name=Foo");
         expect(mockBlizzardEquip).toHaveBeenCalledWith("Foo");
+        expect(mockBlizzardSummary).toHaveBeenCalledWith("Foo");
+    });
+
+    it("POST /admin/settings saves the blizzard profile namespace override", async () => {
+        const res = await request("POST", "/admin/settings", {
+            blizzardClientId: "cid", blizzardRegion: "eu", blizzardRealmSlug: "thunderstrike",
+            blizzardNamespace: "profile-classicann-eu",
+        });
+        expect(store.saveConfig).toHaveBeenCalledWith(expect.objectContaining({
+            blizzard: expect.objectContaining({ namespace: "profile-classicann-eu" }),
+        }));
+        expect(redirectTo(res)).toBe("/admin/settings?msg=saved");
     });
 });
 
