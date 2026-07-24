@@ -95,6 +95,13 @@ const ADMIN_STYLE = `<style>
   .pager-btn { display:inline-block; padding:6px 12px; border:1px solid var(--line); border-radius:8px; background:var(--panel2); color:var(--text); text-decoration:none; font-size:13.5px; font-weight:600; }
   .pager-btn:hover { border-color:var(--accent); color:var(--accent); }
   .pager-btn.disabled { opacity:.45; pointer-events:none; }
+  /* submenu (sub-view tabs) */
+  .subnav { display:flex; gap:6px; border-bottom:1px solid var(--line); margin:0 0 18px; flex-wrap:wrap; }
+  .subnav-item { display:inline-flex; align-items:center; gap:7px; padding:9px 14px; color:var(--muted); text-decoration:none; font-weight:600; font-size:14.5px; border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .subnav-item:hover { color:var(--text); }
+  .subnav-item.active { color:var(--accent); border-bottom-color:var(--accent); }
+  .subnav-count { font-size:12px; font-weight:700; background:var(--panel2); color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:1px 8px; font-variant-numeric:tabular-nums; }
+  .subnav-item.active .subnav-count { color:var(--accent); border-color:var(--accent-soft); }
   /* dashboard */
   .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
   .tile { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:15px 16px; }
@@ -492,13 +499,24 @@ function renderRecruitment(user, opts = {}) {
     return adminLayout("Recruitment — Pulsebot Admin", "recruitment", user, body, opts.msg, opts.nav);
 }
 
-// A single row in the "detected logs" table (from the log channels).
+// WCL report link for a detected log (prefer the stored link, else derive it).
+function logWclUrl(l) {
+    return l.link || (l.reportId ? `https://classic.warcraftlogs.com/reports/${l.reportId}` : "");
+}
+
+// A single row in the "detected logs" table (from the log channels). The date
+// column shows when the log was POSTED in the channel (postedAt), not detected.
 function logRow(l, csrfField) {
-    const when = l.detectedAt ? new Date(l.detectedAt).toLocaleString("de-DE") : "";
+    const posted = l.postedAt || l.detectedAt;
+    const when = posted ? new Date(posted).toLocaleString("de-DE") : "";
     const title = l.title || l.reportId || "(unbekannt)";
+    const wclUrl = logWclUrl(l);
+    const wcl = wclUrl
+        ? `<a class="mlink" href="${esc(wclUrl)}" target="_blank" rel="noopener">WCL ↗</a>`
+        : "<span class=\"sub\">—</span>";
     const src = l.guildId && l.channelId && l.messageId
         ? `<a class="mlink" href="https://discord.com/channels/${esc(l.guildId)}/${esc(l.channelId)}/${esc(l.messageId)}" target="_blank" rel="noopener">Nachricht</a>`
-        : `<a class="mlink" href="${esc(l.link || "#")}" target="_blank" rel="noopener">Log</a>`;
+        : "<span class=\"sub\">—</span>";
     const status = l.status === "done"
         ? "<span class=\"pill\" style=\"background:var(--good-bg);color:var(--good)\">ausgewertet</span>"
         : "<span class=\"pill\">offen</span>";
@@ -513,6 +531,7 @@ function logRow(l, csrfField) {
     return `<tr>
       <td>${esc(title)}</td>
       <td class="small">${esc(l.reportId || "")}</td>
+      <td>${wcl}</td>
       <td>${src}</td>
       <td>${status}</td>
       <td class="small">${esc(when)}</td>
@@ -526,88 +545,114 @@ function logRow(l, csrfField) {
     </tr>`;
 }
 
+// A sortable <th>: toggles asc/desc on the active column, resets to page 1, keeps
+// the current view, and shows a direction arrow. `defaults` sets the initial
+// direction per key (text asc, date/number desc).
+function claSortHeader(view, page, defaults, key, label) {
+    const active = page.sort === key;
+    const nextDir = active ? (page.dir === "asc" ? "desc" : "asc") : (defaults[key] || "desc");
+    const arrow = active ? (page.dir === "asc" ? " ▲" : " ▼") : "";
+    return `<th><a class="sort-link${active ? " active" : ""}" href="/admin/cla?view=${view}&sort=${key}&dir=${nextDir}&page=1">${esc(label)}${arrow}</a></th>`;
+}
+
+// Prev/next pager that preserves the view + current sort.
+function claPager(view, page) {
+    if (!page.total) return "";
+    const link = (p, label, disabled) => (disabled
+        ? `<span class="pager-btn disabled">${esc(label)}</span>`
+        : `<a class="pager-btn" href="/admin/cla?view=${view}&sort=${page.sort}&dir=${page.dir}&page=${p}">${esc(label)}</a>`);
+    return `<div class="pager">
+             ${link(page.page - 1, "‹ Zurück", page.page <= 1)}
+             <span class="pager-info">Seite ${esc(String(page.page))} / ${esc(String(page.totalPages))} · ${esc(String(page.total))} gesamt</span>
+             ${link(page.page + 1, "Weiter ›", page.page >= page.totalPages)}
+           </div>`;
+}
+
 /**
- * CLA / Logcheck page: a form to run a report from a WCL link + recent reports,
- * plus the logs detected in the configured log channels (evaluate with one click).
- * @param {object} opts { reports, logs, logChannelIds, activeGuildId, csrf, msg, nav }
+ * CLA / Logcheck page. Two sub-views selected via a submenu: "reports" (the log
+ * evaluations, default) and "logs" (logs detected in the log channels). Both are
+ * sortable + paged; the active one is passed in as reportPage / logPage.
+ * @param {object} opts { view, reportPage, logPage, counts, logChannelIds,
+ *                        activeGuildId, csrf, msg, nav }
  */
 function renderCla(user, opts = {}) {
-    const rp = opts.reportPage || { items: [], sort: "date", dir: "desc", page: 1, totalPages: 1, total: 0 };
-    const logs = opts.logs || [];
+    const view = opts.view === "logs" ? "logs" : "reports";
+    const counts = opts.counts || { reports: 0, logs: 0 };
     const logChannelIds = opts.logChannelIds || [];
     const csrfField = hiddenCsrf(opts.csrf || "");
 
-    // --- logs detected in the log channels ---
-    let logsSection;
-    if (!logChannelIds.length) {
-        logsSection = "<p class=\"sub\">Es sind noch keine Log-Channels konfiguriert. Lege sie in den <a href=\"/admin/settings\">Einstellungen</a> fest, damit der Bot automatisch Logs erkennt.</p>";
+    const tab = (id, label, count) => `<a class="subnav-item${view === id ? " active" : ""}" href="/admin/cla?view=${id}">${esc(label)}${count ? ` <span class="subnav-count">${esc(String(count))}</span>` : ""}</a>`;
+    const subnav = `<div class="subnav">${tab("reports", "Auswertungen", counts.reports)}${tab("logs", "Erkannte Logs", counts.logs)}</div>`;
+
+    let content;
+    if (view === "logs") {
+        // --- detected logs ---
+        const lp = opts.logPage || { items: [], sort: "date", dir: "desc", page: 1, totalPages: 1, total: 0 };
+        const LOG_DIR = { title: "asc", status: "asc", date: "desc" };
+        const lh = (key, label) => claSortHeader("logs", lp, LOG_DIR, key, label);
+        let logsSection;
+        if (!logChannelIds.length) {
+            logsSection = "<p class=\"sub\">Es sind noch keine Log-Channels konfiguriert. Lege sie in den <a href=\"/admin/settings\">Einstellungen</a> fest, damit der Bot automatisch Logs erkennt.</p>";
+        } else {
+            const scanForm = `<form method="POST" action="/admin/cla/scan" style="margin:0 0 14px" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Suche läuft …'">
+                 ${csrfField}
+                 <button class="btn btn-ghost" type="submit">Log-Channels nach neuen Logs durchsuchen</button>
+               </form>`;
+            const table = lp.items.length
+                ? `<table class="idx">
+                     <thead><tr>
+                       ${lh("title", "Log")}
+                       <th>Report-ID</th>
+                       <th>WCL</th>
+                       <th>Quelle</th>
+                       ${lh("status", "Status")}
+                       ${lh("date", "Gepostet")}
+                       <th></th>
+                     </tr></thead>
+                     <tbody>${lp.items.map((l) => logRow(l, csrfField)).join("")}</tbody>
+                   </table>
+                   ${claPager("logs", lp)}`
+                : "<p class=\"sub\">Noch keine Logs erkannt. Sobald im Log-Channel ein Warcraft-Logs-Link gepostet wird, taucht er hier auf.</p>";
+            logsSection = `${scanForm}${table}`;
+        }
+        content = `
+      <h2>Erkannte Logs aus dem Log-Channel</h2>
+      <p class="note">Vom Bot automatisch erkannte Warcraft-Logs, neueste zuerst (nach Post-Zeit im Channel). Über den WCL-Link vorab prüfen, dann „Auswerten" — jeder Report nur einmal.</p>
+      ${logsSection}`;
     } else {
-        const scanForm = `<form method="POST" action="/admin/cla/scan" style="margin:0 0 14px" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Suche läuft …'">
-             ${csrfField}
-             <button class="btn btn-ghost" type="submit">Log-Channels nach neuen Logs durchsuchen</button>
-           </form>`;
-        const table = logs.length
+        // --- report evaluations ---
+        const rp = opts.reportPage || { items: [], sort: "date", dir: "desc", page: 1, totalPages: 1, total: 0 };
+        const REPORT_DIR = { title: "asc", zone: "asc", date: "desc", players: "desc", issues: "desc" };
+        const rh = (key, label) => claSortHeader("reports", rp, REPORT_DIR, key, label);
+        const reportRow = (r) => {
+            const when = r.generatedAt ? new Date(r.generatedAt).toLocaleString("de-DE") : "";
+            const wcl = r.reportUrl
+                ? `<a class="mlink" href="${esc(r.reportUrl)}" target="_blank" rel="noopener">WCL ↗</a>`
+                : "<span class=\"sub\">—</span>";
+            return `<tr>
+                     <td><a href="/r/${esc(r.id)}">${esc(r.title || r.id)}</a></td>
+                     <td>${esc(r.zone || "")}</td>
+                     <td class="small">${esc(when)}</td>
+                     <td>${esc(r.playerCount)}</td>
+                     <td><span class="pill">${esc(r.issueCount)}</span></td>
+                     <td>${wcl}</td>
+                   </tr>`;
+        };
+        const table = rp.items.length
             ? `<table class="idx">
-                 <thead><tr><th>Log</th><th>Report-ID</th><th>Quelle</th><th>Status</th><th>Erkannt</th><th></th></tr></thead>
-                 <tbody>${logs.map((l) => logRow(l, csrfField)).join("")}</tbody>
-               </table>`
-            : "<p class=\"sub\">Noch keine Logs erkannt. Sobald im Log-Channel ein Warcraft-Logs-Link gepostet wird, taucht er hier auf.</p>";
-        logsSection = `${scanForm}${table}`;
-    }
-
-    // Sortable column header: toggles asc/desc on the active column, resets to
-    // page 1, and shows a direction arrow. Text columns default to asc, numeric/
-    // date columns to desc.
-    const DEFAULT_DIR = { title: "asc", zone: "asc", date: "desc", players: "desc", issues: "desc" };
-    const sortHeader = (key, label) => {
-        const active = rp.sort === key;
-        const nextDir = active ? (rp.dir === "asc" ? "desc" : "asc") : (DEFAULT_DIR[key] || "desc");
-        const arrow = active ? (rp.dir === "asc" ? " ▲" : " ▼") : "";
-        return `<th><a class="sort-link${active ? " active" : ""}" href="/admin/cla?sort=${key}&dir=${nextDir}&page=1">${esc(label)}${arrow}</a></th>`;
-    };
-
-    const reportRow = (r) => {
-        const when = r.generatedAt ? new Date(r.generatedAt).toLocaleString("de-DE") : "";
-        const wcl = r.reportUrl
-            ? `<a class="mlink" href="${esc(r.reportUrl)}" target="_blank" rel="noopener">WCL ↗</a>`
-            : "<span class=\"sub\">—</span>";
-        return `<tr>
-                 <td><a href="/r/${esc(r.id)}">${esc(r.title || r.id)}</a></td>
-                 <td>${esc(r.zone || "")}</td>
-                 <td class="small">${esc(when)}</td>
-                 <td>${esc(r.playerCount)}</td>
-                 <td><span class="pill">${esc(r.issueCount)}</span></td>
-                 <td>${wcl}</td>
-               </tr>`;
-    };
-
-    const pageLink = (p, label, disabled) => (disabled
-        ? `<span class="pager-btn disabled">${esc(label)}</span>`
-        : `<a class="pager-btn" href="/admin/cla?sort=${rp.sort}&dir=${rp.dir}&page=${p}">${esc(label)}</a>`);
-    const pager = rp.total
-        ? `<div class="pager">
-             ${pageLink(rp.page - 1, "‹ Zurück", rp.page <= 1)}
-             <span class="pager-info">Seite ${esc(String(rp.page))} / ${esc(String(rp.totalPages))} · ${esc(String(rp.total))} gesamt</span>
-             ${pageLink(rp.page + 1, "Weiter ›", rp.page >= rp.totalPages)}
-           </div>`
-        : "";
-
-    const recent = rp.items.length
-        ? `<table class="idx">
-             <thead><tr>
-               ${sortHeader("title", "Report")}
-               ${sortHeader("zone", "Zone")}
-               ${sortHeader("date", "Erstellt")}
-               ${sortHeader("players", "Spieler")}
-               ${sortHeader("issues", "Probleme")}
-               <th>WCL</th>
-             </tr></thead>
-             <tbody>${rp.items.map(reportRow).join("")}</tbody>
-           </table>
-           ${pager}`
-        : "<p class=\"sub\">Noch keine Auswertungen.</p>";
-
-    const body = `
+                 <thead><tr>
+                   ${rh("title", "Report")}
+                   ${rh("zone", "Zone")}
+                   ${rh("date", "Erstellt")}
+                   ${rh("players", "Spieler")}
+                   ${rh("issues", "Probleme")}
+                   <th>WCL</th>
+                 </tr></thead>
+                 <tbody>${rp.items.map(reportRow).join("")}</tbody>
+               </table>
+               ${claPager("reports", rp)}`
+            : "<p class=\"sub\">Noch keine Auswertungen.</p>";
+        content = `
       <h2>Neue Auswertung</h2>
       <form class="card-form" method="POST" action="/admin/cla">
         ${csrfField}
@@ -620,12 +665,11 @@ function renderCla(user, opts = {}) {
           <button class="btn" type="submit">Auswertung erstellen</button>
         </div>
       </form>
-      <h2>Erkannte Logs aus dem Log-Channel</h2>
-      <p class="note">Vom Bot automatisch erkannte Warcraft-Logs. „Auswerten" erstellt die Auswertung — jeder Report nur einmal.</p>
-      ${logsSection}
-      <h2>Letzte Auswertungen</h2>
-      ${recent}
-      <p class="sub" style="margin-top:10px"><a href="/">→ Alle Auswertungen &amp; Übersicht</a></p>`;
+      <h2>Auswertungen</h2>
+      ${table}`;
+    }
+
+    const body = `${subnav}${content}`;
     return adminLayout("CLA / Logcheck — Pulsebot Admin", "cla", user, body, opts.msg, opts.nav);
 }
 

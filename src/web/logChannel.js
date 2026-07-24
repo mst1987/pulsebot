@@ -63,6 +63,7 @@ async function handleLogMessage(message) {
             reportId,
             link,
             source: "listener",
+            postedAt: message.createdTimestamp,
         });
         try {
             const btn = await discord.postLogButton(message, { logId: log.id });
@@ -144,6 +145,7 @@ async function scanLogChannels(guildId, { perChannel = 50 } = {}) {
                     reportId,
                     link,
                     source: "scan",
+                    postedAt: msg.createdTimestamp,
                 });
                 count++;
             }

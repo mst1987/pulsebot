@@ -60,6 +60,18 @@ describe("web/logStore", () => {
             saveLog(base({ reportId: "RPT2", messageId: "m2" }));
             expect(listLogs()).toHaveLength(2);
         });
+
+        it("stores the channel post time (postedAt) and preserves it on re-save", () => {
+            const a = saveLog(base({ postedAt: 1234 }));
+            expect(a.postedAt).toBe(1234);
+            // a later re-detection without postedAt keeps the original
+            const b = saveLog(base({ messageId: "m2" }));
+            expect(b.postedAt).toBe(1234);
+        });
+
+        it("defaults postedAt to 0 when not provided", () => {
+            expect(saveLog(base()).postedAt).toBe(0);
+        });
     });
 
     describe("setButtonMessage", () => {

@@ -121,43 +121,73 @@ describe("web/renderAdmin", () => {
     });
 
     describe("renderCla", () => {
-        const page = (over = {}) => ({
+        const reportPage = (over = {}) => ({
             items: [{ id: "r1", title: "Kara", zone: "Karazhan", generatedAt: 1000, playerCount: 25, issueCount: 3, reportUrl: "https://classic.warcraftlogs.com/reports/abc" }],
             sort: "date", dir: "desc", page: 1, totalPages: 1, total: 1, ...over,
         });
-
-        it("renders the report form and the reports table", () => {
-            const html = renderCla(user, { reportPage: page(), csrf: "x", nav: nav() });
-            expect(html).toContain("action=\"/admin/cla\"");
-            expect(html).toContain("/r/r1");
-            expect(html).toContain("Kara");
+        const logPage = (over = {}) => ({
+            items: [{ id: "l1", reportId: "xyz", link: "https://classic.warcraftlogs.com/reports/xyz", title: "Kara Log", status: "open", postedAt: 5000, detectedAt: 1, guildId: "g1", channelId: "c1", messageId: "m1" }],
+            sort: "date", dir: "desc", page: 1, totalPages: 1, total: 1, ...over,
         });
 
-        it("links each report to its WCL report", () => {
-            const html = renderCla(user, { reportPage: page(), csrf: "x", nav: nav() });
-            expect(html).toContain("https://classic.warcraftlogs.com/reports/abc");
-            expect(html).toContain("target=\"_blank\"");
+        it("shows a submenu separating Auswertungen and Erkannte Logs with counts", () => {
+            const html = renderCla(user, { view: "reports", reportPage: reportPage(), counts: { reports: 4, logs: 2 }, csrf: "x", nav: nav() });
+            expect(html).toContain("class=\"subnav\"");
+            expect(html).toContain("href=\"/admin/cla?view=reports\"");
+            expect(html).toContain("href=\"/admin/cla?view=logs\"");
+            expect(html).toContain("Auswertungen");
+            expect(html).toContain("Erkannte Logs");
+            // active tab = reports
+            expect(html).toContain("class=\"subnav-item active\" href=\"/admin/cla?view=reports\"");
         });
 
-        it("renders sortable column headers with the active direction arrow", () => {
-            const html = renderCla(user, { reportPage: page(), csrf: "x", nav: nav() });
-            // active date column shows a descending arrow and links to toggle asc
-            expect(html).toContain("class=\"sort-link active\" href=\"/admin/cla?sort=date&dir=asc&page=1\"");
-            expect(html).toContain("Erstellt ▼");
-            // an inactive column links with its default direction
-            expect(html).toContain("/admin/cla?sort=title&dir=asc&page=1");
+        describe("reports view", () => {
+            it("renders the new-report form, the table and the WCL link", () => {
+                const html = renderCla(user, { view: "reports", reportPage: reportPage(), csrf: "x", nav: nav() });
+                expect(html).toContain("action=\"/admin/cla\"");
+                expect(html).toContain("/r/r1");
+                expect(html).toContain("https://classic.warcraftlogs.com/reports/abc");
+            });
+
+            it("has sortable headers that keep the view and show the active arrow", () => {
+                const html = renderCla(user, { view: "reports", reportPage: reportPage(), csrf: "x", nav: nav() });
+                expect(html).toContain("class=\"sort-link active\" href=\"/admin/cla?view=reports&sort=date&dir=asc&page=1\"");
+                expect(html).toContain("Erstellt ▼");
+                expect(html).toContain("/admin/cla?view=reports&sort=title&dir=asc&page=1");
+            });
+
+            it("pages with prev disabled on page 1", () => {
+                const html = renderCla(user, { view: "reports", reportPage: reportPage({ page: 1, totalPages: 3, total: 40 }), csrf: "x", nav: nav() });
+                expect(html).toContain("Seite 1 / 3 · 40 gesamt");
+                expect(html).toContain("pager-btn disabled");
+                expect(html).toContain("/admin/cla?view=reports&sort=date&dir=desc&page=2");
+            });
+
+            it("shows an empty state when there are no reports", () => {
+                const html = renderCla(user, { view: "reports", reportPage: reportPage({ items: [], total: 0 }), csrf: "x", nav: nav() });
+                expect(html).toContain("Noch keine Auswertungen");
+            });
         });
 
-        it("shows pager controls with prev disabled on the first page", () => {
-            const html = renderCla(user, { reportPage: page({ page: 1, totalPages: 3, total: 47 }), csrf: "x", nav: nav() });
-            expect(html).toContain("Seite 1 / 3 · 47 gesamt");
-            expect(html).toContain("pager-btn disabled"); // ‹ Zurück disabled
-            expect(html).toContain("/admin/cla?sort=date&dir=desc&page=2"); // Weiter →
-        });
+        describe("logs view", () => {
+            it("renders the detected-logs table with a WCL link and a Gepostet column", () => {
+                const html = renderCla(user, { view: "logs", logPage: logPage(), counts: { reports: 0, logs: 1 }, logChannelIds: ["c1"], csrf: "x", nav: nav() });
+                expect(html).toContain("class=\"subnav-item active\" href=\"/admin/cla?view=logs\"");
+                expect(html).toContain("https://classic.warcraftlogs.com/reports/xyz"); // WCL link
+                expect(html).toContain("Gepostet");
+                expect(html).toContain("action=\"/admin/cla/eval\""); // evaluate button
+            });
 
-        it("shows an empty state when there are no reports", () => {
-            const html = renderCla(user, { reportPage: page({ items: [], total: 0 }), csrf: "x", nav: nav() });
-            expect(html).toContain("Noch keine Auswertungen");
+            it("has sortable headers scoped to the logs view", () => {
+                const html = renderCla(user, { view: "logs", logPage: logPage(), logChannelIds: ["c1"], csrf: "x", nav: nav() });
+                expect(html).toContain("/admin/cla?view=logs&sort=date&dir=asc&page=1"); // active date toggles
+                expect(html).toContain("/admin/cla?view=logs&sort=title&dir=asc&page=1");
+            });
+
+            it("prompts to configure log channels when none are set", () => {
+                const html = renderCla(user, { view: "logs", logPage: logPage({ items: [] }), logChannelIds: [], csrf: "x", nav: nav() });
+                expect(html).toContain("noch keine Log-Channels konfiguriert");
+            });
         });
     });
 
