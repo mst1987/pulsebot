@@ -226,6 +226,113 @@ describe("web/discord channel management", () => {
         });
     });
 
+    describe("parseApplicationEmbed", () => {
+        it("extracts every field the /apply flow writes, stripping class emoji markup", () => {
+            const embed = {
+                title: "Neue Bewerbung von Marcstz",
+                fields: [
+                    { name: "Bewerber", value: "<@42>" },
+                    { name: "Charakter", value: "Xyz" },
+                    { name: "Klasse / Spec", value: "<:mage:99> Magier – Feuer" },
+                    { name: "Armory (automatisch ermittelt)", value: "https://armory/x" },
+                    { name: "WarcraftLogs", value: "https://logs/x" },
+                    { name: "Über den Bewerber", value: "Hallo Welt" },
+                ],
+                footer: { text: "Discord: marc | 25.07.2026" },
+            };
+            expect(discord.parseApplicationEmbed(embed)).toEqual({
+                applicantId: "42",
+                displayName: "Marcstz",
+                character: "Xyz",
+                classSpec: "Magier – Feuer",
+                armory: "https://armory/x",
+                wcl: "https://logs/x",
+                description: "Hallo Welt",
+                discordName: "marc",
+                date: "25.07.2026",
+            });
+        });
+
+        it("returns blank fields for a null embed", () => {
+            expect(discord.parseApplicationEmbed(null).applicantId).toBe("");
+        });
+    });
+
+    describe("listApplications", () => {
+        // A fake thread whose first message carries the application embed.
+        function appThread(id, name, createdTimestamp, embed) {
+            const messages = embed
+                ? [{ embeds: [embed] }, { embeds: [{ title: "📊 Parse" }] }] // newest-first from fetch()
+                : [];
+            return {
+                id, name, guildId: "g1", createdTimestamp,
+                messages: { fetch: jest.fn(async () => new Map(messages.map((m, i) => [String(i), m]))) },
+            };
+        }
+        const embedFor = (char) => ({
+            title: `Neue Bewerbung von ${char}`,
+            fields: [{ name: "Bewerber", value: "<@42>" }, { name: "Charakter", value: char }],
+        });
+
+        function appChannel(active, archived) {
+            return {
+                threads: {
+                    fetchActive: jest.fn(async () => ({ threads: new Map(active.map((t) => [t.id, t])) })),
+                    fetchArchived: jest.fn(async () => ({ threads: new Map(archived.map((t) => [t.id, t])) })),
+                },
+            };
+        }
+
+        it("returns active + archived applications parsed and newest-first", async () => {
+            const t1 = appThread("1", "Feuer - Alt", 100, embedFor("Alt"));
+            const t2 = appThread("2", "Frost - Neu", 300, embedFor("Neu"));
+            const channel = appChannel([t2], [t1]);
+            setClientWithGuild(makeGuild([]), jest.fn(async () => channel));
+
+            const { applications, error } = await discord.listApplications("app1");
+            expect(error).toBeNull();
+            expect(applications.map((a) => a.threadId)).toEqual(["2", "1"]); // newest first
+            expect(applications[0]).toMatchObject({
+                threadId: "2", name: "Frost - Neu", character: "Neu", archived: false,
+                url: "https://discord.com/channels/g1/2",
+            });
+            expect(applications[1]).toMatchObject({ threadId: "1", character: "Alt", archived: true });
+        });
+
+        it("returns an error when the bot is not connected", async () => {
+            discord.setClient(null);
+            expect(await discord.listApplications("app1")).toEqual({ applications: [], error: "Bot nicht verbunden." });
+        });
+
+        it("returns no error and no apps when no channel is configured", async () => {
+            setClientWithGuild(makeGuild([]), jest.fn());
+            expect(await discord.listApplications("")).toEqual({ applications: [], error: null });
+        });
+
+        it("reports an error when the channel cannot be fetched", async () => {
+            setClientWithGuild(makeGuild([]), jest.fn(async () => { throw new Error("nope"); }));
+            const res = await discord.listApplications("app1");
+            expect(res.applications).toEqual([]);
+            expect(res.error).toMatch(/nicht gefunden/);
+        });
+
+        it("reports an error when the channel has no thread support", async () => {
+            setClientWithGuild(makeGuild([]), jest.fn(async () => ({ id: "c", name: "plain" })));
+            const res = await discord.listApplications("app1");
+            expect(res.error).toMatch(/keine Threads/);
+        });
+
+        it("still lists a thread whose messages cannot be read (name only)", async () => {
+            const bad = {
+                id: "9", name: "Kaputt", guildId: "g1", createdTimestamp: 5,
+                messages: { fetch: jest.fn(async () => { throw new Error("boom"); }) },
+            };
+            setClientWithGuild(makeGuild([]), jest.fn(async () => appChannel([bad], [])));
+            const { applications } = await discord.listApplications("app1");
+            expect(applications).toEqual([expect.objectContaining({ threadId: "9", name: "Kaputt", applicantId: "" })]);
+        });
+    });
+
     describe("duplicateChannel", () => {
         it("clones the source channel with a new name (same category)", async () => {
             const source = {

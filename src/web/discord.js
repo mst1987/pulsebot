@@ -372,6 +372,120 @@ async function scanRecruitment(guildId, { perChannel = 50 } = {}) {
     return found;
 }
 
+// Strip Discord custom-emoji markup (<:name:id> / <a:name:id>) so the class/spec
+// value from an application embed reads as plain text in the web menu.
+function stripEmojiMarkup(value) {
+    return String(value || "").replace(/<a?:\w+:\d+>/g, "").replace(/\s+/g, " ").trim();
+}
+
+// The field that identifies the bot's application embed (see applyModal.js).
+function isApplicationField(name) {
+    return String(name || "").toLowerCase().startsWith("bewerber");
+}
+
+function embedHasApplicantField(embed) {
+    return (embed.fields || []).some((f) => isApplicationField(f.name));
+}
+
+/**
+ * Parse the bot's application embed (built in commands/apply/applyModal.js) into
+ * the structured fields the admin menu lists. Field names are matched by prefix
+ * so the "(automatisch ermittelt)" suffix on auto-filled links still matches.
+ */
+function parseApplicationEmbed(embed) {
+    const out = {
+        applicantId: "", displayName: "", character: "",
+        classSpec: "", armory: "", wcl: "", description: "",
+        discordName: "", date: "",
+    };
+    if (!embed) return out;
+    const titleMatch = String(embed.title || "").match(/^Neue Bewerbung von (.+)$/);
+    if (titleMatch) out.displayName = titleMatch[1].trim();
+    for (const f of embed.fields || []) {
+        const name = String(f.name || "").toLowerCase();
+        const value = f.value || "";
+        if (isApplicationField(name)) {
+            const m = value.match(/<@!?(\d+)>/);
+            out.applicantId = m ? m[1] : "";
+        } else if (name.startsWith("charakter")) {
+            out.character = value.trim();
+        } else if (name.startsWith("klasse")) {
+            out.classSpec = stripEmojiMarkup(value);
+        } else if (name.startsWith("armory")) {
+            out.armory = value.trim();
+        } else if (name.startsWith("warcraftlogs")) {
+            out.wcl = value.trim();
+        } else if (name.startsWith("über")) {
+            out.description = value.trim();
+        }
+    }
+    const footerMatch = String((embed.footer && embed.footer.text) || "").match(/Discord:\s*(.+?)\s*\|\s*(.+)$/);
+    if (footerMatch) {
+        out.discordName = footerMatch[1].trim();
+        out.date = footerMatch[2].trim();
+    }
+    return out;
+}
+
+/**
+ * List the applications posted as threads in the application channel. Each thread
+ * is created by the /apply flow (commands/apply/applyModal.js) and carries a bot
+ * embed with the applicant's character, class/spec, armory + logs links and
+ * description. Reads active and archived threads, parses each first embed, and
+ * returns the applications (newest first) plus an error string when the channel
+ * is missing/unreadable so the UI can degrade gracefully.
+ * @returns {Promise<{ applications: object[], error: string|null }>}
+ */
+async function listApplications(channelId, { archivedLimit = 100 } = {}) {
+    if (!client) return { applications: [], error: "Bot nicht verbunden." };
+    if (!channelId) return { applications: [], error: null };
+    let channel;
+    try {
+        channel = await client.channels.fetch(channelId);
+    } catch {
+        return { applications: [], error: "Bewerbungs-Channel nicht gefunden (ID prüfen)." };
+    }
+    if (!channel || !channel.threads || typeof channel.threads.fetchActive !== "function") {
+        return { applications: [], error: "Der konfigurierte Bewerbungs-Channel unterstützt keine Threads." };
+    }
+
+    // Collect active + archived threads, deduped by id (active wins).
+    const threads = new Map();
+    try {
+        const active = await channel.threads.fetchActive();
+        for (const t of active.threads.values()) threads.set(t.id, { thread: t, archived: false });
+    } catch { /* keep going with whatever we can read */ }
+    try {
+        const archived = await channel.threads.fetchArchived({ limit: archivedLimit });
+        for (const t of archived.threads.values()) {
+            if (!threads.has(t.id)) threads.set(t.id, { thread: t, archived: true });
+        }
+    } catch { /* archived may be inaccessible — ignore */ }
+
+    const applications = [];
+    for (const { thread, archived } of threads.values()) {
+        let details = parseApplicationEmbed(null);
+        try {
+            const messages = await thread.messages.fetch({ limit: 10 });
+            // fetch() returns newest-first; the application embed is the oldest match.
+            const appMsg = [...messages.values()].reverse()
+                .find((m) => (m.embeds || []).some(embedHasApplicantField));
+            const embed = appMsg && appMsg.embeds.find(embedHasApplicantField);
+            if (embed) details = parseApplicationEmbed(embed);
+        } catch { /* thread unreadable — list it with its name only */ }
+        applications.push({
+            threadId: thread.id,
+            name: thread.name || "",
+            url: `https://discord.com/channels/${thread.guildId}/${thread.id}`,
+            createdAt: thread.createdTimestamp || 0,
+            archived,
+            ...details,
+        });
+    }
+    applications.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    return { applications, error: null };
+}
+
 /**
  * Post a "Log auswerten" button as a reply under a detected log message.
  * @param {import("discord.js").Message} message the message that contained the log link
@@ -424,5 +538,6 @@ module.exports = {
     listMembersWithRoles, postMissingPing,
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,
     isRecruitmentMessage, extractTemplate,
+    listApplications, parseApplicationEmbed,
     postLogButton, finishLogButton, LOG_EVAL_PREFIX,
 };
