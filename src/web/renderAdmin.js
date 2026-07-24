@@ -2,6 +2,7 @@
 // + esc/authBar/themeToggleBtn from render.js and adds the admin sidebar shell.
 
 const { layout, esc, authBar, themeToggleBtn } = require("./render");
+const { formatTimestampToDateString } = require("../utils/date");
 
 // admin-specific styling, injected once per admin page (in addition to layout's base <style>)
 const ADMIN_STYLE = `<style>
@@ -1079,13 +1080,22 @@ function renderEventDetail(user, opts = {}) {
           <input type="text" name="tank3" placeholder="Name des 3. Tanks">
           <div class="hint">Wird manuell in die Tank-Zeile eingetragen.</div>
         </div>`;
-        fillSection = `
-      <form class="card-form" method="POST" action="/admin/raids/fill" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Fülle Sheet …'">
+        // Link to the copy already created for this event (if any), with its
+        // scheduled deletion date.
+        const es = opts.eventSheet;
+        const existingSheet = es && es.url
+            ? `<div class="sheetcard">
+          <div><strong>Gefülltes Sheet:</strong> <a class="mlink" href="${esc(es.url)}" target="_blank" rel="noopener">${esc(es.eventTitle || "Sheet öffnen")}</a></div>
+          <div class="hint">${es.deleteAfter ? `Wird am ${esc(formatTimestampToDateString(es.deleteAfter).split(" - ")[0].trim())} automatisch gelöscht.` : "Kopie ist angelegt."} Erneutes Füllen ersetzt diese Kopie.</div>
+        </div>`
+            : "";
+        fillSection = existingSheet + `
+      <form class="card-form" method="POST" action="/admin/raids/fill" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Erstelle Sheet …'">
         ${csrfField}
         <input type="hidden" name="event" value="${esc(ev.id)}">
-        <div class="field"><label>Raidsheet</label><select name="sheetId" required>${sheetOptions}</select><div class="hint">${matchHint}</div></div>
+        <div class="field"><label>Vorlage (Ausgangssheet)</label><select name="sheetId" required>${sheetOptions}</select><div class="hint">${matchHint}</div></div>
         ${tank3Field}
-        <div class="row-actions"><button class="btn" type="submit">Raidsheet füllen</button></div>
+        <div class="row-actions"><button class="btn" type="submit">Neues Sheet erstellen &amp; füllen</button></div>
       </form>`;
     }
 
@@ -1099,7 +1109,7 @@ function renderEventDetail(user, opts = {}) {
       <p class="note">Postet eine Aufruf-Nachricht in den Event-Channel und pingt die gewählten Rollen.</p>
       ${notifySection}
       <h2>Raidsheet füllen</h2>
-      <p class="note">Überträgt das Raid-Helper-Setup dieses Events in das passende Google-Sheet.</p>
+      <p class="note">Legt für diesen Raid eine eigene Kopie der Vorlage an, überträgt das Raid-Helper-Setup hinein und teilt sie per Link. Die Kopie wird 3 Tage nach dem Raid automatisch gelöscht; die Vorlage bleibt unangetastet.</p>
       ${fillSection}`;
     return adminLayout("Event-Details — Pulsebot Admin", "raids", user, body, opts.msg, opts.nav);
 }

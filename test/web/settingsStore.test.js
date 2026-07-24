@@ -26,6 +26,7 @@ const {
     listRaidTemplates, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
     listNotify, getNotify, saveNotify, deleteNotify,
     listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
+    listEventSheets, getEventSheet, saveEventSheet, deleteEventSheet,
     getConfig, saveConfig,
 } = require("../../src/web/settingsStore.js");
 
@@ -298,6 +299,48 @@ describe("web/settingsStore", () => {
             saveConfig({ officerRoleId: "role-1" });
             expect(getRaidsheet(saved.id)).not.toBeNull();
             expect(getConfig().officerRoleId).toBe("role-1");
+        });
+    });
+
+    describe("event sheets (per-event copies)", () => {
+        const rec = () => ({
+            eventId: "e1", eventTitle: "GDKP Kara", spreadsheetId: "copy-1",
+            url: "https://docs.google.com/spreadsheets/d/copy-1/edit",
+            sourceSheetId: "src-1", deleteAfter: 1234,
+        });
+
+        it("records a copy with a generated id and normalised fields", () => {
+            const saved = saveEventSheet(rec());
+            expect(saved.id).toMatch(/^[0-9a-f]{12}$/);
+            expect(saved).toMatchObject({ eventId: "e1", spreadsheetId: "copy-1", deleteAfter: 1234 });
+            expect(saved.createdAt).toEqual(expect.any(Number));
+            expect(getEventSheet("e1")).toMatchObject({ spreadsheetId: "copy-1" });
+        });
+
+        it("keeps one record per event: re-saving replaces the previous copy", () => {
+            saveEventSheet(rec());
+            saveEventSheet({ ...rec(), spreadsheetId: "copy-2", url: "u2" });
+            expect(listEventSheets()).toHaveLength(1);
+            expect(getEventSheet("e1").spreadsheetId).toBe("copy-2");
+        });
+
+        it("tracks copies for different events independently", () => {
+            saveEventSheet(rec());
+            saveEventSheet({ ...rec(), eventId: "e2", spreadsheetId: "copy-x" });
+            expect(listEventSheets()).toHaveLength(2);
+            expect(getEventSheet("e2").spreadsheetId).toBe("copy-x");
+        });
+
+        it("getEventSheet returns null for an unknown event and list tolerates a missing file", () => {
+            expect(listEventSheets()).toEqual([]);
+            expect(getEventSheet("nope")).toBeNull();
+        });
+
+        it("deleteEventSheet removes by record id and reports success", () => {
+            const saved = saveEventSheet(rec());
+            expect(deleteEventSheet(saved.id)).toBe(true);
+            expect(deleteEventSheet(saved.id)).toBe(false);
+            expect(getEventSheet("e1")).toBeNull();
         });
     });
 });

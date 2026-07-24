@@ -355,6 +355,23 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("Beary — Feral Tank");
         });
 
+        it("links the created event-sheet copy with its deletion date", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                raidsheets: [{ id: "t45", name: "Tier 4/5" }],
+                eventSheet: {
+                    eventId: "e1", eventTitle: "GDKP Kara",
+                    url: "https://docs.google.com/spreadsheets/d/copy-1/edit",
+                    deleteAfter: 1753559200000,
+                },
+            });
+            expect(html).toContain("https://docs.google.com/spreadsheets/d/copy-1/edit");
+            expect(html).toContain("Gefülltes Sheet");
+            expect(html).toContain("automatisch gelöscht");
+            // button reflects the copy behaviour
+            expect(html).toContain("Neues Sheet erstellen");
+        });
+
         it("falls back to a free-text Tank-3 field when no candidates exist", () => {
             const html = renderEventDetail(user, {
                 ...base,
