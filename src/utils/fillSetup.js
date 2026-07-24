@@ -270,7 +270,9 @@ async function fillSetupSheet(sheetsClient, slots, opts = {}) {
                     sheetsClient.batchClear(clearRanges),
                     sheetsClient.batchWrite(writeData),
                 ]);
-                await sheetsClient.applyConditionalFormatting(playerColors);
+                // Scope colours to the tab we filled so per-raid tabs don't
+                // clobber each other (opts.tab is the target tab title).
+                await sheetsClient.applyConditionalFormatting(playerColors, opts.tab);
             })(),
             new Promise((_, reject) => {
                 timeoutId = setTimeout(
