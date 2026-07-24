@@ -2,6 +2,7 @@
 // + esc/authBar/themeToggleBtn from render.js and adds the admin sidebar shell.
 
 const { layout, esc, authBar, themeToggleBtn } = require("./render");
+const { logPostedAt } = require("./reportList");
 const { formatTimestampToDateString } = require("../utils/date");
 
 // admin-specific styling, injected once per admin page (in addition to layout's base <style>)
@@ -588,9 +589,10 @@ function logWclUrl(l) {
 }
 
 // A single row in the "detected logs" table (from the log channels). The date
-// column shows when the log was POSTED in the channel (postedAt), not detected.
+// column shows when the log was POSTED in the channel (derived from the Discord
+// message id / postedAt), not when the bot detected it.
 function logRow(l, csrfField) {
-    const posted = l.postedAt || l.detectedAt;
+    const posted = logPostedAt(l);
     const when = posted ? new Date(posted).toLocaleString("de-DE") : "";
     const name = l.title || l.reportId || "(unbekannt)";
     const wclUrl = logWclUrl(l);

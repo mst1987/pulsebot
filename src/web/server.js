@@ -19,7 +19,7 @@ const {
 } = require("./settingsStore");
 const { buildReport, ReportError } = require("../utils/logcheck/report");
 const { listLogs, deleteLog } = require("./logStore");
-const { evaluateLog, scanLogChannels } = require("./logChannel");
+const { evaluateLog, scanLogChannels, backfillLogTitles } = require("./logChannel");
 const { getEventSheet, markEventSheetFilled } = require("./eventSheetStore");
 const Raidhelper = require("../classes/raidhelper");
 const SheetsClient = require("../classes/sheets");
@@ -375,6 +375,9 @@ async function handle(req, res) {
             // Only the active view is paginated; the other tab is just a link.
             const reportPage = view === "reports" ? prepareReportList(reports, sortQuery) : null;
             const logPage = view === "logs" ? prepareLogList(logs, sortQuery) : null;
+            // Lazily fill in the real Warcraft-Logs names for the logs shown on
+            // this page (best-effort; safe no-op without an API key).
+            if (logPage) await backfillLogTitles(logPage.items);
             return send(res, 200, renderCla(user, {
                 view,
                 reportPage,
