@@ -864,9 +864,13 @@ async function handle(req, res) {
             const secretInput = trim("blizzardClientSecret");
             if (secretInput === "-") blizzard.clientSecret = "";
             else if (secretInput) blizzard.clientSecret = secretInput;
-            const categoryIds = list("categoryIds");
+            // Event categories are chosen by name via "cat:<categoryId>" checkboxes.
+            const categoryIds = Object.keys(form)
+                .filter((k) => k.startsWith("cat:"))
+                .map((k) => k.slice(4))
+                .filter(Boolean);
             // Per-category roles arrive as checkbox fields "catrole:<categoryId>:<roleId>".
-            // Only keep assignments for categories that are still configured.
+            // Only keep assignments for categories that are actually selected.
             const categoryRoles = {};
             for (const k of Object.keys(form)) {
                 if (!k.startsWith("catrole:")) continue;

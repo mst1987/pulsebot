@@ -1372,28 +1372,38 @@ function renderSettings(user, opts = {}) {
     const categoryRoles = config.categoryRoles || {};
     const csrfField = hiddenCsrf(opts.csrf || "");
 
-    // Per-category raider-role assignment: for each configured event category, a
-    // grid of role checkboxes (checked from config.categoryRoles). Powers the
+    // Event categories are picked by NAME from the guild's real categories (not by
+    // typing raw IDs), so they can be told apart. Each chosen category gets a grid
+    // of raider-role checkboxes — filtered to raid/raider roles — which powers the
     // attendance / "ping missing raiders" feature on the event detail page.
-    const catName = (id) => {
-        const hit = categories.find((c) => c.id === id);
-        return hit ? hit.name : id;
-    };
+    const configuredCatIds = config.categoryIds || [];
+    // Show every guild category, plus any configured id the bot can't currently
+    // resolve to a name (so a stale/unknown selection is never silently dropped).
+    const knownCatIds = new Set(categories.map((c) => c.id));
+    const catRows = [
+        ...categories.map((c) => ({ id: c.id, name: c.name, unknown: false })),
+        ...configuredCatIds.filter((id) => !knownCatIds.has(id)).map((id) => ({ id, name: id, unknown: true })),
+    ];
+    // Only offer roles that have to do with Raid / Raider.
+    const raidRoles = roles.filter((r) => /raid/i.test(r.name || ""));
+
     let categoryRolesSection;
-    if (!(config.categoryIds || []).length) {
-        categoryRolesSection = "<p class=\"hint\">Trage oben Kategorie-IDs ein und speichere, um ihnen Raider-Rollen zuzuordnen.</p>";
-    } else if (!roles.length) {
-        categoryRolesSection = "<p class=\"hint\">Keine Rollen geladen (Server gewählt und Bot online?). Rollen-Zuordnung ist erst verfügbar, wenn der Bot verbunden ist.</p>";
+    if (!catRows.length) {
+        categoryRolesSection = "<p class=\"hint\">Keine Kategorien geladen (Server gewählt und Bot online?). Die Auswahl ist verfügbar, sobald der Bot verbunden ist.</p>";
     } else {
-        categoryRolesSection = (config.categoryIds || []).map((catId) => {
-            const assigned = new Set(categoryRoles[catId] || []);
-            const boxes = roles.map((r) =>
-                `<label class="rolebox"><input type="checkbox" name="catrole:${esc(catId)}:${esc(r.id)}" value="1"${assigned.has(r.id) ? " checked" : ""}> @${esc(r.name)}</label>`).join("");
+        const roleHint = raidRoles.length
+            ? ""
+            : "<div class=\"hint\">Keine Raid-/Raider-Rollen gefunden. Es werden nur Rollen angeboten, deren Name „Raid“ enthält.</div>";
+        categoryRolesSection = catRows.map((cat) => {
+            const isEvent = configuredCatIds.includes(cat.id);
+            const assigned = new Set(categoryRoles[cat.id] || []);
+            const boxes = raidRoles.map((r) =>
+                `<label class="rolebox"><input type="checkbox" name="catrole:${esc(cat.id)}:${esc(r.id)}" value="1"${assigned.has(r.id) ? " checked" : ""}> @${esc(r.name)}</label>`).join("");
             return `<div class="field">
-          <label>${esc(catName(catId))} <span class="hint" style="font-weight:400">(${esc(catId)})</span></label>
-          <div class="rolegrid">${boxes}</div>
+          <label class="rolebox" style="font-weight:600"><input type="checkbox" name="cat:${esc(cat.id)}" value="1"${isEvent ? " checked" : ""}> ${esc(cat.name)}${cat.unknown ? " <span class=\"hint\" style=\"font-weight:400\">(unbekannte ID — abwählen zum Entfernen)</span>" : ""}</label>
+          <div class="rolegrid" style="margin-top:8px">${boxes || "<span class=\"hint\">—</span>"}</div>
         </div>`;
-        }).join("");
+        }).join("") + roleHint;
     }
 
     // A single raidsheet edit card (or the "new" form when sheet is null).
@@ -1469,15 +1479,8 @@ function renderSettings(user, opts = {}) {
         </div>
 
         <div class="tab-panel" data-panel="events" role="tabpanel">
-          <h2 style="margin-top:0">Event-Kategorien</h2>
-          <div class="field">
-            <label>Kategorie-IDs (kommagetrennt)</label>
-            <input type="text" name="categoryIds" value="${esc((config.categoryIds || []).join(", "))}" placeholder="111…, 222…, 333…">
-            <div class="hint">Discord-Kategorien, deren Channels Raid-Events enthalten.</div>
-          </div>
-
-          <h2>Raider-Rollen je Kategorie</h2>
-          <p class="hint">Ordne jeder Event-Kategorie die erwarteten Raider-Rollen zu. Auf der Event-Detail-Seite wird dann angezeigt, wer sich angemeldet hat und wer noch fehlt.</p>
+          <h2 style="margin-top:0">Event-Kategorien &amp; Raider-Rollen</h2>
+          <p class="hint">Wähle die Kategorien, deren Channels Raid-Events enthalten, und ordne jeder die erwarteten Raider-Rollen zu. Auf der Event-Detail-Seite wird dann angezeigt, wer sich angemeldet hat und wer (mit einer dieser Rollen) noch fehlt.</p>
           ${categoryRolesSection}
 
           <h2>Armory / Battle.net API</h2>
