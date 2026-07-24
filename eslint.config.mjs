@@ -28,4 +28,40 @@ export default [
       semi: ["error", "always"],
     },
   },
+  {
+    files: ["test/**/*.js", "jest.config.js"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "commonjs",
+      globals: {
+        console: "readonly",
+        require: "readonly",
+        module: "readonly",
+        __dirname: "readonly",
+        process: "readonly",
+        setTimeout: "readonly",
+        setInterval: "readonly",
+        // Jest globals
+        describe: "readonly",
+        it: "readonly",
+        test: "readonly",
+        expect: "readonly",
+        beforeEach: "readonly",
+        afterEach: "readonly",
+        beforeAll: "readonly",
+        afterAll: "readonly",
+        jest: "readonly",
+      },
+    },
+    rules: {
+      "no-unused-vars": "warn",
+      "no-undef": "off",
+      "no-console": "off",
+      eqeqeq: ["error", "always"],
+      // See the src block: linebreak-style is off to keep the Linux CI green.
+      "linebreak-style": "off",
+      quotes: ["error", "double"],
+      semi: ["error", "always"],
+    },
+  },
 ];

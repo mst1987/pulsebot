@@ -11,6 +11,9 @@ A Discord bot for managing community events. Built with Node.js and Discord.js v
 ```bash
 npm start              # Run production bot
 npm run dev            # Run with auto-reload (nodemon)
+npm test               # Run the Jest test suite
+npm run test:watch     # Run Jest in watch mode
+npm run test:coverage  # Run Jest with a coverage report
 npm run lint           # Check code style
 npm run lint:fix       # Auto-fix lint issues
 npm run register       # Register slash commands to guild (instant)
@@ -19,27 +22,21 @@ npm run register:clear   # Remove all guild slash commands
 node src/discordcommands/raidhelper.js  # Legacy command registration script
 ```
 
-## Development Workflow (for AI assistants)
+## Development Workflow
 
-These conventions are mandatory when building features in this repo:
+`main` is the integration branch and always reflects the production-ready state. `main` and `dev` are kept in sync; new work does **not** branch off `dev`.
 
-1. **Work in a git worktree, not on the checked-out branch directly.** Create a
-   dedicated worktree for each feature/task instead of committing on the branch in
-   the primary working directory. This keeps the main checkout clean and isolates
-   the work.
-2. **Make the feature testable locally, right away.** After implementing a change,
-   start whatever is needed so the user can test immediately — run the bot
-   (`node src/bot.js`) so the web server on port 3005 is live, register any new
-   slash commands (`npm run register:dev`), etc. Don't leave the user to figure out
-   how to launch it; hand over a working, running setup and the exact URL/steps.
-3. **Open a pull request as soon as a piece of work is finished — don't wait to be
-   asked.** Once a task is done and verified (smoke-test + `npm run lint`), merge the
-   latest `dev` into the feature branch first, then open a PR against `main` with
-   `gh pr create`. Summarize what changed and how it was verified in the PR body.
-4. **Clean up after merge.** Once the work is merged, stop everything that was
-   started for it — kill background bot/dev processes, free port 3005, and remove
-   the feature worktree — so nothing from the work process is left running or
-   lingering.
+1. **Branch off `main`** for every new feature or fix: `git switch main && git pull && git switch -c feature/<name>`.
+2. **Use a git worktree** so the feature is developed in its own directory without disturbing the main checkout:
+   ```bash
+   git worktree add ../eventhelper-<name> -b feature/<name> main
+   ```
+   Work happens in `../eventhelper-<name>/`; the primary checkout stays on `main`.
+3. **Write and run tests** for the change (`npm test` must pass) and keep `npm run lint` clean before opening a PR.
+4. **Open a PR targeting `main` as soon as the feature is finished — proactively, without waiting to be asked.** Summarize what changed and how it was verified in the PR body. Merge to `main` only via PR.
+5. **Clean up the worktree** after the PR is merged: `git worktree remove ../eventhelper-<name>`.
+
+Every change must ship with tests (see the Testing section). Do not merge a feature branch that lowers coverage of the modules it touches.
 
 ## Architecture
 
@@ -146,7 +143,18 @@ Both Axios clients use the shared `utils/httpAgent.js` which enables SSL cert ve
 - **Semicolons:** Always (enforced by ESLint).
 - **Line endings:** Left to Git (`core.autocrlf`) and your editor — not enforced by ESLint. (The `linebreak-style: windows` rule was removed: git stores LF blobs, so a fixed `windows` rule broke the Linux CI.)
 - **Language:** User-facing strings in German. Variable names, function names, comments in English.
-- **No TypeScript. No test framework.**
+- **No TypeScript.** Plain JavaScript / CommonJS only.
+- **Tests:** Jest. Every module has a matching test; every new feature ships with tests (see Testing).
+
+## Testing
+
+The project uses [Jest](https://jestjs.io/). Tests live next to the source tree under `test/`, mirroring `src/` (e.g. `src/utils/date.js` → `test/utils/date.test.js`).
+
+- Run the full suite with `npm test`, watch mode with `npm run test:watch`, coverage with `npm run test:coverage`.
+- Config is in `jest.config.js` (Node test environment, coverage collected from `src/**/*.js`).
+- **Discord interactions and API clients are never hit for real.** Use the shared mock helpers in `test/helpers/` (`mockInteraction()` for a fake `interaction`, plus module mocks for the `classes/*` API clients). Mock external I/O with `jest.mock(...)` — no test may make a real network request.
+- Prefer testing pure logic directly (formatters in `utils/helper.js`, date math in `utils/date.js`, the logcheck analyzers in `utils/logcheck/*`). For command files, assert on which helper (`botReply`/`botEditReply`) was called with which arguments.
+- ESLint recognises Jest globals for files under `test/` via `eslint.config.mjs`.
 
 ## Common Patterns
 
@@ -187,6 +195,8 @@ const raidInfos = await getRaidInfosFromChannel(interaction);
 
 - Do not switch to ES Modules (`import`/`export`). The entire codebase is CommonJS.
 - Do not add TypeScript.
+- Do not add a feature or fix without tests, and do not merge with a failing `npm test`.
+- Do not branch off `dev` — always branch off `main` and open PRs against `main` (see Development Workflow).
 - Do not hardcode Discord IDs or API keys in command or utility files — use `config/variables.js` which reads from environment variables.
 - Do not use `interaction.reply()` after already calling `interaction.deferReply()` — use `botEditReply` or `botFollowup` instead.
 - Do not create slash commands without also adding them to `scripts/register-commands.js` and re-running `npm run register`.
