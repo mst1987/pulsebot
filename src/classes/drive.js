@@ -1,31 +1,45 @@
 const { google } = require("googleapis");
 
-// Thin Google Drive client used to give each raid its own throwaway copy of the
+// Google Drive client used to give each raid its own throwaway copy of the
 // source raidsheet: copy the file, share it by link, and later delete the copy.
-// Uses the same service-account key as classes/sheets.js but with the Drive
-// scope. The copies are owned by the service account; deleteFile only ever
-// removes copies whose ids we tracked ourselves — never the source sheet.
+//
+// It authenticates as a REAL user via OAuth (refresh token), NOT as the service
+// account. A service account has no Drive storage quota of its own, so any file
+// it tried to own would fail with "storage quota exceeded" — copies must be
+// owned by a user with storage. The refresh token belongs to that user; the
+// copies land in their Drive. deleteFile only ever removes copies whose ids we
+// tracked ourselves — never the source sheet.
+//
+// Required env (see scripts/get-drive-token.js to obtain the refresh token):
+//   GOOGLE_OAUTH_CLIENT_ID, GOOGLE_OAUTH_CLIENT_SECRET, GOOGLE_OAUTH_REFRESH_TOKEN
 class Drive {
     constructor() {
-        this.auth = new google.auth.GoogleAuth({
-            keyFile: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE,
-            scopes: ["https://www.googleapis.com/auth/drive"],
-        });
-        this._drivePromise = null;
-    }
-
-    async _getDrive() {
-        if (!this._drivePromise) {
-            this._drivePromise = this.auth.getClient().then((client) =>
-                google.drive({ version: "v3", auth: client })
+        const clientId = process.env.GOOGLE_OAUTH_CLIENT_ID;
+        const clientSecret = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+        const refreshToken = process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
+        if (!clientId || !clientSecret || !refreshToken) {
+            throw new Error(
+                "Google-OAuth ist nicht konfiguriert. Setze GOOGLE_OAUTH_CLIENT_ID, "
+                + "GOOGLE_OAUTH_CLIENT_SECRET und GOOGLE_OAUTH_REFRESH_TOKEN (siehe "
+                + "scripts/get-drive-token.js)."
             );
         }
-        return this._drivePromise;
+        this.auth = new google.auth.OAuth2(clientId, clientSecret);
+        this.auth.setCredentials({ refresh_token: refreshToken });
+        this._drive = null;
     }
 
-    // Copy a spreadsheet (or any Drive file). Returns { id, url } of the copy.
+    _getDrive() {
+        if (!this._drive) {
+            this._drive = google.drive({ version: "v3", auth: this.auth });
+        }
+        return this._drive;
+    }
+
+    // Copy a spreadsheet (or any Drive file). The copy is owned by the OAuth
+    // user. Returns { id, url } of the copy.
     async copyFile(sourceId, name) {
-        const drive = await this._getDrive();
+        const drive = this._getDrive();
         const res = await drive.files.copy({
             fileId: sourceId,
             requestBody: name ? { name } : {},
@@ -37,9 +51,10 @@ class Drive {
         return { id, url: `https://docs.google.com/spreadsheets/d/${id}/edit` };
     }
 
-    // Share a file as "anyone with the link can edit".
+    // Share a file as "anyone with the link can edit" (so the service account
+    // that fills the sheet, and the guild, can open it).
     async shareAnyoneWriter(fileId) {
-        const drive = await this._getDrive();
+        const drive = this._getDrive();
         await drive.permissions.create({
             fileId,
             requestBody: { role: "writer", type: "anyone" },
@@ -49,7 +64,7 @@ class Drive {
 
     // Permanently delete a file. Callers must only pass ids of copies they made.
     async deleteFile(fileId) {
-        const drive = await this._getDrive();
+        const drive = this._getDrive();
         await drive.files.delete({ fileId, supportsAllDrives: true });
     }
 }

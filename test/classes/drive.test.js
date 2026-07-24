@@ -1,6 +1,6 @@
 // Mock googleapis before requiring the client.
-const mockGetClient = jest.fn().mockResolvedValue({ fakeAuthClient: true });
-const mockGoogleAuth = jest.fn().mockImplementation(() => ({ getClient: mockGetClient }));
+const mockSetCredentials = jest.fn();
+const mockOAuth2 = jest.fn().mockImplementation(() => ({ setCredentials: mockSetCredentials }));
 
 const driveApi = {
     files: {
@@ -15,33 +15,40 @@ const mockDrive = jest.fn().mockReturnValue(driveApi);
 
 jest.mock("googleapis", () => ({
     google: {
-        auth: { GoogleAuth: mockGoogleAuth },
+        auth: { OAuth2: mockOAuth2 },
         drive: mockDrive,
     },
 }));
 
 const Drive = require("../../src/classes/drive.js");
 
-describe("classes/Drive", () => {
+describe("classes/Drive (OAuth as a real user)", () => {
+    const OLD = { ...process.env };
     beforeEach(() => {
         jest.clearAllMocks();
         driveApi.files.copy.mockResolvedValue({ data: { id: "copy-1" } });
-        process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE = "/tmp/key.json";
+        process.env.GOOGLE_OAUTH_CLIENT_ID = "cid";
+        process.env.GOOGLE_OAUTH_CLIENT_SECRET = "secret";
+        process.env.GOOGLE_OAUTH_REFRESH_TOKEN = "rtok";
+    });
+    afterEach(() => { process.env = { ...OLD }; });
+
+    it("throws a helpful error when OAuth env vars are missing", () => {
+        delete process.env.GOOGLE_OAUTH_REFRESH_TOKEN;
+        expect(() => new Drive()).toThrow(/GOOGLE_OAUTH_REFRESH_TOKEN|OAuth/);
     });
 
-    it("requests the drive scope", () => {
+    it("authenticates as the user with the stored refresh token", () => {
         new Drive();
-        expect(mockGoogleAuth).toHaveBeenCalledWith(expect.objectContaining({
-            scopes: ["https://www.googleapis.com/auth/drive"],
-        }));
+        expect(mockOAuth2).toHaveBeenCalledWith("cid", "secret");
+        expect(mockSetCredentials).toHaveBeenCalledWith({ refresh_token: "rtok" });
     });
 
     it("copies a file and returns its id + spreadsheet url", async () => {
-        const drive = new Drive();
-        const res = await drive.copyFile("source-9", "GDKP Kara — 24.07.2026");
+        const res = await new Drive().copyFile("source-9", "GDKP Kara");
         expect(driveApi.files.copy).toHaveBeenCalledWith(expect.objectContaining({
             fileId: "source-9",
-            requestBody: { name: "GDKP Kara — 24.07.2026" },
+            requestBody: { name: "GDKP Kara" },
             supportsAllDrives: true,
         }));
         expect(res).toEqual({
@@ -69,12 +76,5 @@ describe("classes/Drive", () => {
             fileId: "copy-1",
             supportsAllDrives: true,
         }));
-    });
-
-    it("reuses one authenticated drive client per instance", async () => {
-        const drive = new Drive();
-        await drive.deleteFile("a");
-        await drive.deleteFile("b");
-        expect(mockGetClient).toHaveBeenCalledTimes(1);
     });
 });
