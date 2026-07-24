@@ -68,13 +68,15 @@ describe("commands/logcheck/logcheck", () => {
         expect(typeof command.execute).toBe("function");
     });
 
-    it("rejects a link without a parseable report id before deferring", async () => {
+    it("replies with an error when the report id cannot be parsed", async () => {
         WarcraftLogs.parseReportId.mockReturnValueOnce("");
         const interaction = mockInteraction({ options: { link: "not-a-report" } });
 
         await command.execute(interaction);
 
-        expect(interaction.deferReply).not.toHaveBeenCalled();
+        // buildReport validates the link and throws a ReportError, which the
+        // command surfaces via botEditReply after deferring.
+        expect(interaction.deferReply).toHaveBeenCalled();
         expect(botEditReply).toHaveBeenCalledWith(
             interaction,
             "Fehler",

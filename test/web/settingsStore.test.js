@@ -1,0 +1,133 @@
+// Mock fs with an in-memory store so tests never touch the repo's disk.
+jest.mock("fs", () => {
+    const store = new Map();
+    const enoent = (p) => {
+        const e = new Error(`ENOENT: no such file '${p}'`);
+        e.code = "ENOENT";
+        return e;
+    };
+    return {
+        __store: store,
+        mkdirSync: jest.fn(),
+        writeFileSync: jest.fn((p, data) => {
+            store.set(p, String(data));
+        }),
+        readFileSync: jest.fn((p) => {
+            if (!store.has(p)) throw enoent(p);
+            return store.get(p);
+        }),
+    };
+});
+
+const fs = require("fs");
+const {
+    listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
+    listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
+    getConfig, saveConfig,
+} = require("../../src/web/settingsStore.js");
+
+beforeEach(() => {
+    fs.__store.clear();
+});
+
+describe("web/settingsStore", () => {
+    describe("getConfig", () => {
+        it("returns the defaults when nothing is stored", () => {
+            const cfg = getConfig();
+            expect(cfg.adminRoleIds).toEqual([]);
+            expect(cfg.raidDefaults).toEqual({ templateId: "", channelId: "" });
+        });
+
+        it("merges stored values over the defaults", () => {
+            saveConfig({ adminRoleIds: ["111", "222"], raidDefaults: { templateId: "tpl" } });
+            const cfg = getConfig();
+            expect(cfg.adminRoleIds).toEqual(["111", "222"]);
+            // raidDefaults is deep-merged: channelId keeps its default
+            expect(cfg.raidDefaults).toEqual({ templateId: "tpl", channelId: "" });
+        });
+
+        it("guards adminRoleIds to an array when the stored value is malformed", () => {
+            // write a bad shape directly, then read through getConfig
+            saveConfig({});
+            fs.__store.set([...fs.__store.keys()].find((k) => k.endsWith("config.json")),
+                JSON.stringify({ adminRoleIds: "not-an-array" }));
+            expect(getConfig().adminRoleIds).toEqual([]);
+        });
+    });
+
+    describe("saveConfig", () => {
+        it("persists a partial update and deep-merges raidDefaults", () => {
+            saveConfig({ raidDefaults: { templateId: "a", channelId: "c1" } });
+            saveConfig({ raidDefaults: { channelId: "c2" } });
+            const cfg = getConfig();
+            expect(cfg.raidDefaults.templateId).toBe("a");
+            expect(cfg.raidDefaults.channelId).toBe("c2");
+        });
+    });
+
+    describe("recruitment templates", () => {
+        it("creates a template with a generated id and trims fields", () => {
+            const saved = saveRecruitment({ name: "  Heiler  ", title: " Titel ", body: "b", buttonLabel: " go " });
+            expect(saved.id).toMatch(/^[0-9a-f]{12}$/);
+            expect(saved.name).toBe("Heiler");
+            expect(saved.title).toBe("Titel");
+            expect(saved.buttonLabel).toBe("go");
+            expect(getRecruitment(saved.id)).toMatchObject({ name: "Heiler" });
+        });
+
+        it("updates an existing template in place instead of creating a new one", () => {
+            const a = saveRecruitment({ name: "A" });
+            const b = saveRecruitment({ id: a.id, name: "A2", title: "T" });
+            expect(b.id).toBe(a.id);
+            expect(listRecruitment()).toHaveLength(1);
+            expect(getRecruitment(a.id).name).toBe("A2");
+        });
+
+        it("getRecruitment returns null for an unknown id", () => {
+            expect(getRecruitment("nope")).toBeNull();
+        });
+
+        it("deleteRecruitment removes by id and reports success", () => {
+            const a = saveRecruitment({ name: "A" });
+            expect(deleteRecruitment(a.id)).toBe(true);
+            expect(deleteRecruitment(a.id)).toBe(false);
+            expect(listRecruitment()).toHaveLength(0);
+        });
+
+        it("listRecruitment tolerates a missing/empty file", () => {
+            expect(listRecruitment()).toEqual([]);
+        });
+    });
+
+    describe("recruitment posts", () => {
+        const post = () => ({ guildId: "g1", channelId: "c1", messageId: "m1", title: "Hi", source: "web" });
+
+        it("creates a tracked post with an id", () => {
+            const saved = saveRecruitmentPost(post());
+            expect(saved.id).toMatch(/^[0-9a-f]{12}$/);
+            expect(getRecruitmentPost(saved.id)).toMatchObject({ channelId: "c1", messageId: "m1" });
+        });
+
+        it("deduplicates by (channelId, messageId) on re-save", () => {
+            saveRecruitmentPost(post());
+            saveRecruitmentPost({ ...post(), title: "Updated", source: "scan" });
+            const all = listRecruitmentPosts();
+            expect(all).toHaveLength(1);
+            expect(all[0].title).toBe("Updated");
+        });
+
+        it("updates by id (e.g. an edited embed)", () => {
+            const saved = saveRecruitmentPost(post());
+            saveRecruitmentPost({ id: saved.id, title: "Edited", body: "new" });
+            expect(getRecruitmentPost(saved.id).title).toBe("Edited");
+            expect(listRecruitmentPosts()).toHaveLength(1);
+        });
+
+        it("deleteRecruitmentPost removes by id and reports success", () => {
+            const saved = saveRecruitmentPost(post());
+            expect(deleteRecruitmentPost(saved.id)).toBe(true);
+            expect(deleteRecruitmentPost(saved.id)).toBe(false);
+            expect(listRecruitmentPosts()).toHaveLength(0);
+        });
+    });
+});

@@ -33,7 +33,7 @@ node src/discordcommands/raidhelper.js  # Legacy command registration script
    ```
    Work happens in `../eventhelper-<name>/`; the primary checkout stays on `main`.
 3. **Write and run tests** for the change (`npm test` must pass) and keep `npm run lint` clean before opening a PR.
-4. **Open a PR targeting `main`** once the feature is finished. Merge to `main` only via PR.
+4. **Open a PR targeting `main` as soon as the feature is finished — proactively, without waiting to be asked.** Summarize what changed and how it was verified in the PR body. Merge to `main` only via PR.
 5. **Clean up the worktree** after the PR is merged: `git worktree remove ../eventhelper-<name>`.
 
 Every change must ship with tests (see the Testing section). Do not merge a feature branch that lowers coverage of the modules it touches.
@@ -141,7 +141,7 @@ Both Axios clients use the shared `utils/httpAgent.js` which enables SSL cert ve
 - **Indentation:** 4 spaces.
 - **Quotes:** Double quotes (enforced by ESLint).
 - **Semicolons:** Always (enforced by ESLint).
-- **Line endings:** CRLF on Windows (enforced by ESLint `linebreak-style: windows`).
+- **Line endings:** Left to Git (`core.autocrlf`) and your editor — not enforced by ESLint. (The `linebreak-style: windows` rule was removed: git stores LF blobs, so a fixed `windows` rule broke the Linux CI.)
 - **Language:** User-facing strings in German. Variable names, function names, comments in English.
 - **No TypeScript.** Plain JavaScript / CommonJS only.
 - **Tests:** Jest. Every module has a matching test; every new feature ships with tests (see Testing).

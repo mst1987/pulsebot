@@ -5,6 +5,7 @@ const API_BASE_URL =
 // Discord IDs
 const legendaryID = "1144865420386517053";
 const adminUserId = process.env.ADMIN_USER_ID || "233598324022837249";
+const guildId = process.env.GUILD_ID || "";
 const raidhelperBotId = "579155972115660803";
 const categoryIds = [
     "1115368280245420042",
@@ -33,6 +34,12 @@ const webPort = Number(process.env.WEB_PORT) || 3005;
 const publicBaseUrl =
     process.env.PUBLIC_BASE_URL || `http://localhost:${webPort}`;
 
+// Local development: auto-login as the first admin without OAuth, so the web
+// menu works on any port without registering a Discord callback URL. Hard-gated
+// to non-production so it can never bypass auth on the live bot.
+const devAutoLogin =
+    process.env.DEV_AUTO_LOGIN === "1" && process.env.NODE_ENV !== "production";
+
 // Discord OAuth for the logcheck website (login + admin delete)
 const discordClientId = process.env.CLIENT_ID || "";
 const discordClientSecret =
@@ -44,11 +51,18 @@ const logcheckAdminIds = [
 ]
     .map((s) => s.trim())
     .filter(Boolean);
+// Discord role IDs that grant access to the web admin menu (comma list).
+// Members with any of these roles get admin access without being in the ID list.
+const adminRoleIds = (process.env.ADMIN_ROLE_IDS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
 module.exports = {
     API_BASE_URL,
     legendaryID,
     adminUserId,
+    guildId,
     raidhelperBotId,
     categoryIds,
     highestBidsChannelId,
@@ -64,4 +78,6 @@ module.exports = {
     discordClientId,
     discordClientSecret,
     logcheckAdminIds,
+    adminRoleIds,
+    devAutoLogin,
 };

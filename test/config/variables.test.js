@@ -18,6 +18,9 @@ describe("config/variables", () => {
         "discordClientId",
         "discordClientSecret",
         "logcheckAdminIds",
+        "adminRoleIds",
+        "guildId",
+        "devAutoLogin",
     ];
 
     // Load with a clean env so the documented defaults are exercised.
