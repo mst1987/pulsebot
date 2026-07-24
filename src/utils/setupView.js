@@ -35,6 +35,44 @@ const CLASS_ICON_SLUG = {
     Druid: "druid", DK: "deathknight",
 };
 
+// classlist `icon` slug -> zamimg spell/ability icon filename, so each raider
+// shows their SPEC icon (not just a generic class icon). All URLs verified to
+// return HTTP 200 on wow.zamimg.com. Falls back to the class icon when a spec
+// has no entry here.
+const SPEC_ICON = {
+    // Warrior
+    arms: "ability_warrior_savageblow", fury: "ability_warrior_innerrage",
+    protection: "ability_warrior_defensivestance", warrior: "inv_sword_27",
+    // Paladin
+    holypala: "spell_holy_holybolt", protpala: "spell_holy_devotionaura",
+    retribution: "spell_holy_auraoflight", paladin: "spell_holy_holybolt",
+    // Hunter
+    beastmaster: "ability_hunter_beasttaming", marksman: "ability_hunter_focusedaim",
+    survival: "ability_hunter_swiftstrike", hunter: "inv_weapon_bow_07",
+    // Rogue
+    assassination: "ability_rogue_eviscerate", combat: "ability_backstab",
+    sublety: "ability_stealth", rogue: "inv_throwingknife_04",
+    // Priest
+    discipline: "spell_holy_powerwordshield", holypriest: "spell_holy_holynova",
+    shadow: "spell_shadow_shadowwordpain", priest: "inv_staff_30",
+    // Shaman
+    elemental: "spell_nature_lightning", enhancement: "spell_nature_lightningshield",
+    restosham: "spell_nature_magicimmunity", shaman: "spell_nature_lightning",
+    // Mage
+    arcane: "spell_holy_magicalsentry", firemage: "spell_fire_firebolt02",
+    frostmage: "spell_frost_frostbolt02", mage: "spell_holy_magicalsentry",
+    // Warlock
+    affliction: "spell_shadow_deathcoil", demonology: "spell_shadow_metamorphosis",
+    destruction: "spell_shadow_rainoffire", warlock: "spell_shadow_deathcoil",
+    // Druid
+    balance: "spell_nature_starfall", feral: "ability_druid_catform",
+    guardian: "ability_racial_bearform", restoration: "spell_nature_healingtouch",
+    druid: "ability_druid_catform",
+    // Death Knight
+    unholy: "spell_deathknight_unholypresence", frostdk: "spell_deathknight_frostpresence",
+    blooddk: "spell_deathknight_bloodpresence", deathknight: "spell_deathknight_bloodpresence",
+};
+
 const ROLE_LABELS = { tank: "Tanks", healer: "Heiler", melee: "Nahkampf", ranged: "Fernkampf", dps: "DPS" };
 
 // Classes that can main-/off-tank, plus any explicit tank spec (sodclazz/clazz
@@ -72,9 +110,18 @@ function classIconUrl(cls) {
     return slug ? `https://wow.zamimg.com/images/wow/icons/large/classicon_${slug}.jpg` : "";
 }
 
+// zamimg SPEC-icon URL for a classlist entry (by its icon slug). Falls back to
+// the class icon when the spec has no mapping, or "" when nothing is known.
+function specIconUrl(entry) {
+    const file = entry && SPEC_ICON[entry.icon];
+    if (file) return `https://wow.zamimg.com/images/wow/icons/large/${file}.jpg`;
+    return classIconUrl(realClass(entry));
+}
+
 /**
  * Enrich one raidplan slot into display data:
  * { name, spec, specName, className, classColor, iconUrl, role }.
+ * iconUrl is the SPEC icon (class icon as fallback).
  */
 function enrichSlot(slot) {
     const slotObj = slot || {};
@@ -88,7 +135,7 @@ function enrichSlot(slot) {
         specName: entry ? entry.name : (spec || "Unbekannt"),
         className: cls || "",
         classColor: (cls && CLASS_COLORS[cls]) || "",
-        iconUrl: classIconUrl(cls),
+        iconUrl: specIconUrl(entry),
         role: roleOf(entry),
     };
 }
@@ -155,6 +202,6 @@ function tankCandidates(slots) {
 
 module.exports = {
     buildSetupView, tankCandidates, isTankSpec, groupOf,
-    enrichSlot, realClass, roleOf, classIconUrl,
+    enrichSlot, realClass, roleOf, classIconUrl, specIconUrl,
     CLASS_COLORS, ROLE_LABELS,
 };
