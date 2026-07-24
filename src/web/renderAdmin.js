@@ -145,6 +145,13 @@ const ADMIN_STYLE = `<style>
   .subnav-count { font-size:12px; font-weight:700; background:var(--panel2); color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:1px 8px; font-variant-numeric:tabular-nums; }
   .subnav-item.active .subnav-count { color:var(--accent); border-color:var(--accent-soft); }
   .cat-badge { display:inline-block; font-size:12px; font-weight:600; background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent-soft); border-radius:999px; padding:2px 10px; white-space:nowrap; }
+  /* recruitment applications list */
+  .applist { display:flex; flex-direction:column; gap:12px; }
+  .app-card-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+  .app-card-head .app-name { font-size:15px; font-weight:800; }
+  dl.app-meta { display:grid; grid-template-columns:auto 1fr; gap:5px 16px; margin:0; font-size:13.5px; align-items:baseline; }
+  dl.app-meta dt { color:var(--muted); font-weight:600; white-space:nowrap; }
+  dl.app-meta dd { margin:0; min-width:0; word-break:break-word; }
   /* dashboard */
   .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
   .tile { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:15px 16px; }
@@ -494,10 +501,71 @@ function renderPostEdit(user, opts) {
     return adminLayout("Recruitment — Nachricht bearbeiten", "recruitment", user, body, opts.msg, opts.nav);
 }
 
+// Render an application field value that is expected to hold a URL as a link,
+// falling back to escaped plain text (so a hand-typed non-URL still shows).
+function applicationLinkCell(value) {
+    const v = String(value || "").trim();
+    if (!v) return "<span class=\"sub\">—</span>";
+    if (/^https?:\/\//i.test(v)) return `<a class="mlink" href="${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>`;
+    return esc(v);
+}
+
+// One application (a thread in the application channel) as a details card. The
+// class/spec is shown as a badge; every remaining detail from the embed goes into
+// the definition list so nothing from the form is lost.
+function applicationCard(a) {
+    const title = a.character || a.name || "Bewerbung";
+    const badges = [];
+    if (a.classSpec) badges.push(`<span class="cat-badge">${esc(a.classSpec)}</span>`);
+    if (a.archived) badges.push("<span class=\"lbadge\">archiviert</span>");
+
+    const who = a.displayName || a.discordName || (a.applicantId ? "Discord-Mitglied" : "");
+    const whoExtra = a.discordName && a.discordName !== a.displayName
+        ? ` <span class="sub">(${esc(a.discordName)})</span>` : "";
+    const rows = [
+        ["Bewerber", who ? `${esc(who)}${whoExtra}` : ""],
+        ["Charakter", a.character ? esc(a.character) : ""],
+        ["Armory", a.armory ? applicationLinkCell(a.armory) : ""],
+        ["WarcraftLogs", a.wcl ? applicationLinkCell(a.wcl) : ""],
+        ["Über den Bewerber", a.description ? esc(a.description).replace(/\n/g, "<br>") : ""],
+        ["Eingereicht", a.date ? esc(a.date) : ""],
+    ].filter(([, v]) => v);
+    const dl = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${v}</dd>`).join("");
+
+    return `<div class="sheetcard">
+      <div class="app-card-head">
+        <span class="app-name">${esc(title)}</span>
+        ${badges.join(" ")}
+        <a class="mlink" style="margin-left:auto" href="${esc(a.url)}" target="_blank" rel="noopener">Thread öffnen ↗</a>
+      </div>
+      <dl class="app-meta">${dl}</dl>
+    </div>`;
+}
+
+// The "Bewerbungen" tab body: config hint / error / empty state / list of cards.
+function recruitmentApplications(opts) {
+    if (!opts.applicationChannelId) {
+        return "<p class=\"sub\">Es ist noch kein Bewerbungs-Channel konfiguriert. Lege ihn in den "
+            + "<a class=\"mlink\" href=\"/admin/settings\">Einstellungen</a> fest, damit die Bewerbungen hier erscheinen.</p>";
+    }
+    if (opts.applicationsError) {
+        return `<div class="flash flash-err">${esc(opts.applicationsError)}</div>`;
+    }
+    const apps = opts.applications || [];
+    if (!apps.length) {
+        return "<p class=\"sub\">Noch keine Bewerbungen im Bewerbungs-Channel gefunden.</p>";
+    }
+    return `<div class="applist">${apps.map(applicationCard).join("")}</div>`;
+}
+
 /**
- * Recruitment page: templates (edit text), post a template to a channel, and
- * manage messages the bot already posted (edit in place / scan / remove).
- * @param {object} opts { templates, editing, posts, editingPost, channels, activeGuildId, csrf, msg, nav }
+ * Recruitment page. Three sub-views via a submenu: "templates" (edit template
+ * texts, the default), "posts" (post a template + manage already-posted messages)
+ * and "applications" (the applications posted as threads in the application
+ * channel). Editing a template forces the templates view; editing a posted
+ * message renders its own full-page form.
+ * @param {object} opts { view, templates, editing, posts, editingPost, channels,
+ *   applications, applicationsError, applicationChannelId, activeGuildId, csrf, msg, nav }
  */
 function renderRecruitment(user, opts = {}) {
     if (opts.editingPost) return renderPostEdit(user, opts);
@@ -508,6 +576,10 @@ function renderRecruitment(user, opts = {}) {
     const activeGuildId = opts.activeGuildId || "";
     const editing = opts.editing || null;
     const csrfField = hiddenCsrf(opts.csrf || "");
+    // Editing a template always lands on the templates view; otherwise honour ?view=.
+    const view = editing
+        ? "templates"
+        : (["posts", "applications"].includes(opts.view) ? opts.view : "templates");
 
     // --- templates: list + create/edit form ---
     const list = templates.length
@@ -591,16 +663,37 @@ function renderRecruitment(user, opts = {}) {
            </table>`
         : "<p class=\"sub\">Noch keine geposteten Nachrichten getrackt. Poste oben eine Vorlage oder durchsuche den Server.</p>";
 
-    const body = `
-      <h2>Recruitment-Vorlagen</h2>
-      <p class="note">Vorlagen-Texte, die der Bot beim Posten nutzt (auch via Discord-Befehl <code>/recruitment</code>).</p>
-      ${list}
-      ${templateForm}
+    // --- sub-view tabs ---
+    const appCount = opts.applications ? opts.applications.length : null;
+    const tab = (id, label, count) => `<a class="subnav-item${view === id ? " active" : ""}" href="/admin/recruitment?view=${id}">${esc(label)}${count ? ` <span class="subnav-count">${esc(String(count))}</span>` : ""}</a>`;
+    const subnav = "<div class=\"subnav\">"
+        + tab("templates", "Vorlagen", templates.length)
+        + tab("posts", "Nachrichten", posts.length)
+        + tab("applications", "Bewerbungen", appCount)
+        + "</div>";
+
+    let content;
+    if (view === "applications") {
+        content = `
+      <h2>Bewerbungen</h2>
+      <p class="note">Bewerbungen aus den Threads im Bewerbungs-Channel — mit allen Details aus dem Bewerbungsformular, neueste zuerst.</p>
+      ${recruitmentApplications(opts)}`;
+    } else if (view === "posts") {
+        content = `
       <h2>Nachricht posten</h2>
       ${postSection}
       <h2>Gepostete Nachrichten</h2>
       ${scanForm}
       ${postsTable}`;
+    } else {
+        content = `
+      <h2>Recruitment-Vorlagen</h2>
+      <p class="note">Vorlagen-Texte, die der Bot beim Posten nutzt (auch via Discord-Befehl <code>/recruitment</code>).</p>
+      ${list}
+      ${templateForm}`;
+    }
+
+    const body = `${subnav}${content}`;
     return adminLayout("Recruitment — Pulsebot Admin", "recruitment", user, body, opts.msg, opts.nav);
 }
 

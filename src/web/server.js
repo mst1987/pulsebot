@@ -261,13 +261,28 @@ async function handle(req, res) {
             const guildId = activeGuildFor(req);
             const editId = url.searchParams.get("edit");
             const editPostId = url.searchParams.get("editpost");
+            const view = url.searchParams.get("view") || "";
+            const { applicationChannelId } = getConfig();
+            // Applications live as Discord threads — only fetch them when their tab
+            // is open (the fetch hits Discord and shouldn't run on every page view).
+            let applications;
+            let applicationsError = null;
+            if (view === "applications" && !editId && !editPostId) {
+                const res2 = await discord.listApplications(applicationChannelId);
+                applications = res2.applications;
+                applicationsError = res2.error;
+            }
             return send(res, 200, renderRecruitment(user, {
+                view,
                 templates: listRecruitment(),
                 editing: editId ? getRecruitment(editId) : null,
                 editingPost: editPostId ? getRecruitmentPost(editPostId) : null,
                 posts: guildId ? listRecruitmentPosts().filter((p) => p.guildId === guildId) : listRecruitmentPosts(),
                 channels: discord.listTextChannels(guildId),
                 emojis: discord.listEmojis(guildId),
+                applications,
+                applicationsError,
+                applicationChannelId,
                 activeGuildId: guildId,
                 csrf: auth.csrfToken(req),
                 msg: flashFromQuery(url),

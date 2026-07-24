@@ -161,9 +161,88 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("Recruitment-Vorlagen");
         });
 
-        it("prompts to pick a server before posting when none is active", () => {
-            const html = renderRecruitment(user, { templates: [], activeGuildId: "", csrf: "x", nav: nav() });
+        it("prompts to pick a server before posting when none is active (posts tab)", () => {
+            const html = renderRecruitment(user, { view: "posts", templates: [], activeGuildId: "", csrf: "x", nav: nav() });
             expect(html).toContain("Wähle oben einen Server");
+        });
+
+        it("renders sub-view tabs (Vorlagen / Nachrichten / Bewerbungen)", () => {
+            const html = renderRecruitment(user, { templates: [], posts: [], activeGuildId: "g1", csrf: "x", nav: nav() });
+            expect(html).toContain("class=\"subnav\"");
+            expect(html).toContain("href=\"/admin/recruitment?view=templates\"");
+            expect(html).toContain("href=\"/admin/recruitment?view=posts\"");
+            expect(html).toContain("href=\"/admin/recruitment?view=applications\"");
+            expect(html).toContain("Bewerbungen");
+        });
+
+        it("marks the requested sub-view active", () => {
+            const html = renderRecruitment(user, { view: "posts", templates: [], posts: [], activeGuildId: "g1", csrf: "x", nav: nav() });
+            expect(html).toContain("class=\"subnav-item active\" href=\"/admin/recruitment?view=posts\"");
+        });
+
+        it("editing a template forces the templates view regardless of ?view=", () => {
+            const html = renderRecruitment(user, {
+                view: "applications",
+                editing: { id: "t1", name: "Heiler", title: "T", body: "", buttonLabel: "" },
+                templates: [], activeGuildId: "g1", csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("Vorlage bearbeiten: Heiler");
+            expect(html).toContain("Recruitment-Vorlagen");
+        });
+
+        it("hints to configure a channel on the applications tab when none is set", () => {
+            const html = renderRecruitment(user, { view: "applications", templates: [], activeGuildId: "g1", csrf: "x", nav: nav() });
+            expect(html).toContain("kein Bewerbungs-Channel konfiguriert");
+            expect(html).toContain("/admin/settings");
+        });
+
+        it("shows an empty state when the channel is set but has no applications", () => {
+            const html = renderRecruitment(user, {
+                view: "applications", applicationChannelId: "app1", applications: [],
+                templates: [], activeGuildId: "g1", csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("Noch keine Bewerbungen");
+        });
+
+        it("surfaces a fetch error on the applications tab", () => {
+            const html = renderRecruitment(user, {
+                view: "applications", applicationChannelId: "app1",
+                applicationsError: "Bewerbungs-Channel nicht gefunden (ID prüfen).",
+                templates: [], activeGuildId: "g1", csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("flash-err");
+            expect(html).toContain("nicht gefunden");
+        });
+
+        it("lists applications with all details and escapes free text", () => {
+            const html = renderRecruitment(user, {
+                view: "applications", applicationChannelId: "app1",
+                applications: [{
+                    threadId: "111", name: "Feuer - Xyz", url: "https://discord.com/channels/g1/111",
+                    createdAt: 2000, archived: false,
+                    applicantId: "42", displayName: "Marcstz", character: "Xyz",
+                    classSpec: "Magier – Feuer", armory: "https://armory/x",
+                    wcl: "https://logs/x", description: "Hallo <script>", date: "25.07.2026",
+                }],
+                templates: [], activeGuildId: "g1", csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("class=\"app-name\">Xyz<");
+            expect(html).toContain("Magier – Feuer");
+            expect(html).toContain("https://discord.com/channels/g1/111");
+            expect(html).toContain("href=\"https://armory/x\"");
+            expect(html).toContain("href=\"https://logs/x\"");
+            expect(html).toContain("Hallo &lt;script&gt;");
+            expect(html).not.toContain("Hallo <script>");
+            expect(html).toContain("25.07.2026");
+        });
+
+        it("marks archived applications with a badge", () => {
+            const html = renderRecruitment(user, {
+                view: "applications", applicationChannelId: "app1",
+                applications: [{ threadId: "1", name: "Alt", url: "u", archived: true }],
+                templates: [], activeGuildId: "g1", csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("archiviert");
         });
 
         it("renders an emoji picker with the server's custom emojis in the template form", () => {

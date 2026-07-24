@@ -98,6 +98,8 @@ jest.mock("../../src/web/discord", () => ({
     postMissingPing: jest.fn(async () => ({ channelId: "c1", messageId: "m1", url: "u" })),
     createChannel: jest.fn(),
     duplicateChannel: jest.fn(),
+    listEmojis: jest.fn(() => []),
+    listApplications: jest.fn(async () => ({ applications: [], error: null })),
 }));
 jest.mock("../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({
@@ -781,5 +783,43 @@ describe("settings categoryRoles", () => {
             categoryRoles: { cat: ["r1", "r2"] },
         }));
         expect(redirectTo(res)).toBe("/admin/settings?msg=saved");
+    });
+});
+
+describe("recruitment applications tab (GET /admin/recruitment)", () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+        auth.getActiveGuild.mockReturnValue("g1");
+        store.getConfig.mockReturnValue({ raidDefaults: {}, categoryIds: [], adminRoleIds: [], applicationChannelId: "app1" });
+        discord.listApplications.mockResolvedValue({ applications: [], error: null });
+    });
+
+    const lastRenderOpts = () => renderAdmin.renderRecruitment.mock.calls.at(-1)[1];
+
+    it("fetches applications from the configured channel when the tab is open", async () => {
+        discord.listApplications.mockResolvedValue({
+            applications: [{ threadId: "1", name: "Feuer - Xyz", url: "u" }],
+            error: null,
+        });
+        const res = await request("GET", "/admin/recruitment?view=applications");
+        expect(res.end).toHaveBeenCalledWith("RECRUITMENT");
+        expect(discord.listApplications).toHaveBeenCalledWith("app1");
+        const opts = lastRenderOpts();
+        expect(opts.view).toBe("applications");
+        expect(opts.applications).toHaveLength(1);
+        expect(opts.applicationChannelId).toBe("app1");
+    });
+
+    it("does NOT fetch applications on the default (templates) view", async () => {
+        await request("GET", "/admin/recruitment");
+        expect(discord.listApplications).not.toHaveBeenCalled();
+        expect(lastRenderOpts().applications).toBeUndefined();
+    });
+
+    it("passes a fetch error through to the renderer", async () => {
+        discord.listApplications.mockResolvedValue({ applications: [], error: "Bewerbungs-Channel nicht gefunden (ID prüfen)." });
+        await request("GET", "/admin/recruitment?view=applications");
+        expect(lastRenderOpts().applicationsError).toBe("Bewerbungs-Channel nicht gefunden (ID prüfen).");
     });
 });
