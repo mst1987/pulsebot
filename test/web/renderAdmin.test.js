@@ -2,6 +2,7 @@ const {
     renderDashboard, renderAdminDenied,
     renderRecruitment, renderCla, renderRaids, renderRaidCreate,
     renderEventDetail, renderNotifyTemplates, renderChannels, renderSettings,
+    renderHistory, renderHistoryEvent, renderHistoryChar, fillCharTemplate,
 } = require("../../src/web/renderAdmin.js");
 
 const user = { id: "42", name: "Marcstz", isAdmin: true };
@@ -709,6 +710,105 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("value=\"kara, gruul\"");
             expect(html).toContain("action=\"/admin/settings/raidsheets\"");
             expect(html).toContain("formaction=\"/admin/settings/raidsheets/delete\"");
+        });
+
+        it("prefills Battle.net client id / region / realm but never echoes the secret", () => {
+            const html = renderSettings(user, {
+                config: {
+                    adminRoleIds: [], raidDefaults: {},
+                    blizzard: { clientId: "abc123", clientSecret: "topsecret", region: "eu", realmSlug: "thunderstrike" },
+                },
+                csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("Battle.net Client-ID");
+            expect(html).toContain("value=\"abc123\"");
+            expect(html).toContain("value=\"thunderstrike\"");
+            // the secret value must NOT appear anywhere in the HTML
+            expect(html).not.toContain("topsecret");
+            // the password field signals that a secret is stored
+            expect(html).toContain("gespeichert");
+        });
+    });
+
+    describe("renderHistory", () => {
+        const loot = (over = {}) => ({ character: "Foo", characterKey: "foo", itemId: 1, itemName: "X", offspec: false, source: "rclc", awardedAt: 1000, ...over });
+        it("renders the import panel, category marking, loot list, logs and characters", () => {
+            const html = renderHistory(user, {
+                csrf: "x", nav: nav(), activeGuildId: "g1",
+                events: [{ id: "e1", title: "SSC", startTime: 1893456000, categoryId: "cat1" }],
+                categories: [{ id: "cat1", name: "PUG Raids" }],
+                categoryLootTool: { cat1: "rclc" },
+                lootEvents: [{ eventId: "e1", label: "SSC", count: 5, sources: ["rclc"], awardedAt: 1000, importedAt: 2000 }],
+                logs: [{ reportId: "RPT1", title: "Kara", link: "https://classic.warcraftlogs.com/reports/RPT1" }],
+                chars: [{ character: "Foo", count: 3 }],
+            });
+            expect(html).toContain("action=\"/admin/history/import\"");
+            expect(html).toContain("Loot-Tool je Kategorie");
+            expect(html).toContain("PUG Raids");
+            // category's stored tool preselected
+            expect(html).toContain("<option value=\"rclc\" selected>RCLootcouncil</option>");
+            expect(html).toContain("/admin/history/event?event=e1");
+            expect(html).toContain("classic.warcraftlogs.com/reports/RPT1");
+            expect(html).toContain("/admin/history/char?name=Foo");
+            // file-into-textarea upload hook
+            expect(html).toContain("readAsText");
+        });
+
+        it("shows empty states when there is no data", () => {
+            const html = renderHistory(user, { csrf: "x", nav: nav() });
+            expect(html).toContain("Noch kein Loot importiert");
+        });
+
+        it("escapes a malicious event title in the import picker", () => {
+            const html = renderHistory(user, {
+                csrf: "x", nav: nav(),
+                events: [{ id: "e1", title: "<img src=x>", startTime: 0, categoryId: "" }],
+            });
+            expect(html).toContain("&lt;img src=x&gt;");
+            expect(html).not.toContain("<img src=x>");
+        });
+
+        it("renders a loot table with wowhead links and char links (event view)", () => {
+            const html = renderHistoryEvent(user, {
+                eventId: "e1", label: "SSC", csrf: "x", nav: nav(),
+                items: [loot({ itemId: 29920, itemName: "Phoenix-Ring", itemLink: "https://www.wowhead.com/tbc/item=29920", boss: "Vashj" })],
+            });
+            expect(html).toContain("wowhead.com/tbc/item=29920");
+            expect(html).toContain("/admin/history/char?name=Foo");
+            expect(html).toContain("Loot löschen");
+        });
+    });
+
+    describe("renderHistoryChar", () => {
+        it("shows armory/WCL links and the loot table, hints to configure gear when unavailable", () => {
+            const html = renderHistoryChar(user, {
+                character: "Foo", realm: "Thunderstrike", csrf: "x", nav: nav(),
+                armoryUrl: "https://classic-armory.org/character/eu/tbc-anniversary/thunderstrike/Foo",
+                wclUrl: "https://fresh.warcraftlogs.com/character/eu/thunderstrike/Foo",
+                gear: null, gearConfigured: false,
+                items: [{ character: "Foo", itemId: 1, itemName: "X", offspec: true, response: "Off Spec", source: "gargul", awardedAt: 1000 }],
+            });
+            expect(html).toContain("classic-armory.org");
+            expect(html).toContain("fresh.warcraftlogs.com");
+            expect(html).toContain("Battle.net-Zugang");
+            expect(html).toContain("Off Spec");
+        });
+
+        it("renders the live gear paperdoll when equipment is present", () => {
+            const html = renderHistoryChar(user, {
+                character: "Foo", csrf: "x", nav: nav(), items: [],
+                gearConfigured: true,
+                gear: [{ slot: "HEAD", itemId: 29011, name: "Cursed Vision", quality: "EPIC", level: 120 }],
+            });
+            expect(html).toContain("Aktuelles Gear (Paperdoll)");
+            expect(html).toContain("Cursed Vision");
+            expect(html).toContain("wowhead.com/tbc/item=29011");
+        });
+    });
+
+    describe("fillCharTemplate", () => {
+        it("substitutes and url-encodes the character name", () => {
+            expect(fillCharTemplate("https://a/{char}", "Naphfß")).toBe("https://a/Naphf%C3%9F");
         });
     });
 

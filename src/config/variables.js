@@ -29,6 +29,15 @@ const applyArmoryUrlTemplate =
 const applyWclUrlTemplate =
     process.env.APPLY_WCL_URL || "https://fresh.warcraftlogs.com/character/eu/thunderstrike/{char}";
 
+// Battle.net API (optional live character gear / paperdoll on the char-history
+// page). Empty by default → char pages just link to classic-armory.org. These
+// are only bootstrap defaults; the admin menu can override them in the settings
+// store (kept out of .env on purpose, like the other editable config).
+const blizzardClientId = process.env.BLIZZARD_CLIENT_ID || "";
+const blizzardClientSecret = process.env.BLIZZARD_CLIENT_SECRET || "";
+const blizzardRegion = process.env.BLIZZARD_REGION || "eu";
+const blizzardRealmSlug = process.env.BLIZZARD_REALM || "thunderstrike";
+
 // Google Sheets (raid setup sheets). Used as the default "Tier 4/5" raidsheet
 // seeded into the settings store; further raidsheets are added in the admin menu.
 const googleSpreadsheetId = process.env.GOOGLE_SPREADSHEET_ID || "";
@@ -82,6 +91,10 @@ module.exports = {
     officerRoleId,
     applyArmoryUrlTemplate,
     applyWclUrlTemplate,
+    blizzardClientId,
+    blizzardClientSecret,
+    blizzardRegion,
+    blizzardRealmSlug,
     webPort,
     publicBaseUrl,
     discordClientId,

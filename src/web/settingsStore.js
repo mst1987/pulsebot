@@ -5,6 +5,7 @@ const {
     officerRoleId, applicationChannelId,
     highestBidsChannelId, highestBidsMessageId, categoryIds,
     googleSpreadsheetId, googleSheetName, googleSheetGid,
+    blizzardClientId, blizzardClientSecret, blizzardRegion, blizzardRealmSlug,
 } = require("../config/variables");
 
 // Editable bot settings live as JSON files under data/settings/.
@@ -49,6 +50,17 @@ const CONFIG_DEFAULTS = {
     logChannelIds: [],
     // Defaults pre-filled into the raid-event form.
     raidDefaults: { templateId: "", channelId: "" },
+    // Battle.net API credentials for optional live character gear (paperdoll) on
+    // the char-history page. Empty → char pages just link to classic-armory.org.
+    blizzard: {
+        clientId: blizzardClientId || "",
+        clientSecret: blizzardClientSecret || "",
+        region: blizzardRegion || "eu",
+        realmSlug: blizzardRealmSlug || "thunderstrike",
+    },
+    // Which loot addon a Discord category uses, keyed by category id:
+    // "gargul" | "rclc". Steers the loot-import parser and the char-loot history.
+    categoryLootTool: {},
 };
 
 function ensureDir() {
@@ -363,6 +375,9 @@ function getConfig() {
         categoryIds: Array.isArray(stored.categoryIds) ? stored.categoryIds : CONFIG_DEFAULTS.categoryIds,
         categoryRoles: normalizeCategoryRoles(stored.categoryRoles),
         logChannelIds: Array.isArray(stored.logChannelIds) ? stored.logChannelIds : CONFIG_DEFAULTS.logChannelIds,
+        blizzard: { ...CONFIG_DEFAULTS.blizzard, ...(stored.blizzard || {}) },
+        categoryLootTool: (stored.categoryLootTool && typeof stored.categoryLootTool === "object")
+            ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
     };
 }
 
@@ -386,8 +401,11 @@ function normalizeCategoryRoles(raw) {
 
 /** Merge and persist a partial config update. Returns the full saved config. */
 function saveConfig(partial) {
-    const next = { ...getConfig(), ...partial };
-    if (partial.raidDefaults) next.raidDefaults = { ...getConfig().raidDefaults, ...partial.raidDefaults };
+    const current = getConfig();
+    const next = { ...current, ...partial };
+    if (partial.raidDefaults) next.raidDefaults = { ...current.raidDefaults, ...partial.raidDefaults };
+    if (partial.blizzard) next.blizzard = { ...current.blizzard, ...partial.blizzard };
+    if (partial.categoryLootTool) next.categoryLootTool = { ...current.categoryLootTool, ...partial.categoryLootTool };
     writeJson(CONFIG_FILE, next);
     return next;
 }

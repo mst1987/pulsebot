@@ -1,6 +1,6 @@
 const http = require("http");
 const crypto = require("crypto");
-const { webPort } = require("../config/variables");
+const { webPort, applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../config/variables");
 const { getReport, deleteReport, listReports } = require("./reportStore");
 const { prepareReportList, prepareLogList, annotateLogCategories } = require("./reportList");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
@@ -8,7 +8,15 @@ const {
     renderDashboard, renderAdminDenied, renderRecruitment, renderCla,
     renderRaids, renderRaidCreate, renderEventDetail, renderNotifyTemplates,
     renderChannels, renderSettings,
+    renderHistory, renderHistoryEvent, renderHistoryChar, fillCharTemplate,
 } = require("./renderAdmin");
+const {
+    addImport: addLootImport, listByEvent: listLootByEvent,
+    listByCharacter: listLootByCharacter, eventsWithLoot, characters: lootCharacters,
+    clearEvent: clearLootEvent,
+} = require("./lootStore");
+const { parseLoot, LootParseError } = require("../utils/lootImport");
+const Blizzard = require("../classes/blizzard");
 const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
@@ -846,6 +854,16 @@ async function handle(req, res) {
                 .split(",")
                 .map((s) => s.trim())
                 .filter(Boolean);
+            // Battle.net secret: empty field keeps the stored secret (never echoed
+            // back to the page); a single "-" clears it; anything else replaces it.
+            const blizzard = {
+                clientId: trim("blizzardClientId"),
+                region: trim("blizzardRegion") || "eu",
+                realmSlug: trim("blizzardRealmSlug").toLowerCase() || "thunderstrike",
+            };
+            const secretInput = trim("blizzardClientSecret");
+            if (secretInput === "-") blizzard.clientSecret = "";
+            else if (secretInput) blizzard.clientSecret = secretInput;
             const categoryIds = list("categoryIds");
             // Per-category roles arrive as checkbox fields "catrole:<categoryId>:<roleId>".
             // Only keep assignments for categories that are still configured.
@@ -869,6 +887,7 @@ async function handle(req, res) {
                     templateId: trim("raidTemplateId"),
                     channelId: trim("raidChannelId"),
                 },
+                blizzard,
             });
             return redirect(res, "/admin/settings?msg=saved");
         }
@@ -890,6 +909,125 @@ async function handle(req, res) {
         if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/settings?msg=csrf");
         deleteRaidsheet((form.id || "").trim());
         return redirect(res, "/admin/settings?msg=deleted");
+    }
+
+    // ===== Event history & loot =====
+    if (pathname === "/admin/history" && req.method === "GET") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const guildId = activeGuildFor(req);
+        const { groups } = await loadEventGroups(guildId);
+        const events = groups.flatMap((g) => g.events.map((ev) => ({
+            id: ev.id, title: ev.title, startTime: ev.startTime, categoryId: g.categoryId,
+        })));
+        const cfg = getConfig();
+        return send(res, 200, renderHistory(user, {
+            events,
+            lootEvents: eventsWithLoot(),
+            logs: listLogs(),
+            categories: guildId ? discord.listCategories(guildId) : [],
+            categoryLootTool: cfg.categoryLootTool || {},
+            chars: lootCharacters(),
+            guildId,
+            activeGuildId: guildId,
+            csrf: auth.csrfToken(req),
+            msg: flashFromQuery(url),
+            nav: navFor(req),
+        }));
+    }
+
+    // Import a loot export (RCLootcouncil JSON / Gargul CSV) for one event.
+    if (pathname === "/admin/history/import" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/history?msg=csrf");
+        const data = String(form.data || "").trim();
+        if (!data) return redirect(res, "/admin/history?err=" + encodeURIComponent("Kein Loot-Text eingefügt."));
+        const tool = (form.tool || "auto").trim();
+        let eventId = (form.event || "").trim();
+        let eventLabel = "";
+        let categoryId = "";
+        if (eventId === "__manual__" || !eventId) {
+            const label = String(form.manualLabel || "").trim();
+            if (!label) return redirect(res, "/admin/history?err=" + encodeURIComponent("Bitte ein Event wählen oder eine Bezeichnung eingeben."));
+            eventLabel = label;
+            eventId = "manual-" + label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+        } else {
+            const { groups } = await loadEventGroups(activeGuildFor(req));
+            const found = groups.flatMap((g) => g.events.map((ev) => ({ ev, g }))).find((x) => x.ev.id === eventId);
+            eventLabel = found ? (found.ev.title || eventId) : eventId;
+            categoryId = found ? (found.g.categoryId || "") : "";
+        }
+        let items;
+        try {
+            items = parseLoot(data, tool);
+        } catch (e) {
+            const msg = e instanceof LootParseError ? e.message : "Import fehlgeschlagen.";
+            return redirect(res, "/admin/history?err=" + encodeURIComponent(msg));
+        }
+        if (!items.length) return redirect(res, "/admin/history?err=" + encodeURIComponent("Keine Loot-Einträge im Export gefunden."));
+        const { added, skipped } = addLootImport(eventId, items, { categoryId, eventLabel });
+        if (categoryId && (tool === "gargul" || tool === "rclc")) {
+            saveConfig({ categoryLootTool: { [categoryId]: tool } });
+        }
+        return redirect(res, "/admin/history?ok=" + encodeURIComponent(`${added} Item(s) importiert${skipped ? `, ${skipped} Duplikat(e) übersprungen` : ""}.`));
+    }
+
+    // Mark which loot addon a Discord category uses.
+    if (pathname === "/admin/history/category-tool" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/history?msg=csrf");
+        const categoryId = (form.categoryId || "").trim();
+        const tool = (form.tool || "").trim();
+        if (categoryId) saveConfig({ categoryLootTool: { [categoryId]: (tool === "gargul" || tool === "rclc") ? tool : "" } });
+        return redirect(res, "/admin/history?msg=saved");
+    }
+
+    // Delete all loot stored for one event.
+    if (pathname === "/admin/history/clear" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/history?msg=csrf");
+        const removed = clearLootEvent((form.event || "").trim());
+        return redirect(res, "/admin/history?ok=" + encodeURIComponent(`${removed} Loot-Eintrag/-Einträge gelöscht.`));
+    }
+
+    if (pathname === "/admin/history/event" && req.method === "GET") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const eventId = url.searchParams.get("event") || "";
+        const items = listLootByEvent(eventId);
+        const label = (items[0] && items[0].eventLabel) || eventId;
+        return send(res, 200, renderHistoryEvent(user, {
+            eventId, label, items, csrf: auth.csrfToken(req), msg: flashFromQuery(url), nav: navFor(req),
+        }));
+    }
+
+    if (pathname === "/admin/history/char" && req.method === "GET") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const name = url.searchParams.get("name") || "";
+        const items = listLootByCharacter(name);
+        const cfg = getConfig();
+        const realm = (items[0] && items[0].realm) || "";
+        const armoryUrl = fillCharTemplate(applyArmoryUrlTemplate, name);
+        const wclUrl = fillCharTemplate(applyWclUrlTemplate, name);
+        const client = new Blizzard(cfg.blizzard || {});
+        const gearConfigured = client.isConfigured();
+        let gear = null;
+        let gearError = "";
+        if (gearConfigured && name) {
+            try { gear = await client.getEquipment(name); }
+            catch (e) { gearError = e.message || ""; }
+        }
+        return send(res, 200, renderHistoryChar(user, {
+            character: name, realm, items, armoryUrl, wclUrl, gear, gearConfigured, gearError,
+            csrf: auth.csrfToken(req), msg: flashFromQuery(url), nav: navFor(req),
+        }));
     }
 
     if (req.method !== "GET") return send(res, 405, renderNotFound());

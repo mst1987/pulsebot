@@ -1,0 +1,179 @@
+// Parsers for the two loot-addon exports used on the server, both normalized to
+// a single loot-item shape so the store / history pages don't care which addon
+// produced them.
+//
+//   RCLootcouncil  → a JSON array of loot entries (rich: item name, boss,
+//                    response, class, the gear the player replaced, ML, …).
+//   Gargul         → a small CSV `dateTime,character,itemID,offspec,id`
+//                    (date, char without realm, item id, offspec flag, unique id).
+//
+// Normalized loot item:
+//   { source, rawId, itemId, itemName, itemLink, player, character, characterKey,
+//     realm, class, response, offspec, boss, instance, note, replacedGear,
+//     awardedAt, awardedBy }
+//
+// `rawId` + `source` is the dedup key (stable across re-imports of the same log).
+
+// Wowhead links for TBC (Burning Crusade). Item names resolve in the tooltip even
+// when an export (Gargul) only gives us the id.
+function itemLink(itemId) {
+    return itemId ? `https://www.wowhead.com/tbc/item=${itemId}` : "";
+}
+
+// "Naphfß-Thunderstrike" → { character: "Naphfß", realm: "Thunderstrike" }.
+// WoW character names never contain "-", so the first "-" splits name/realm.
+// Gargul names have no realm suffix → realm stays "".
+function splitPlayer(raw) {
+    const player = String(raw || "").trim();
+    const dash = player.indexOf("-");
+    if (dash === -1) return { player, character: player, realm: "" };
+    return { player, character: player.slice(0, dash), realm: player.slice(dash + 1) };
+}
+
+// Case-insensitive grouping key for a character (used to build the per-char
+// history). Kept simple: lowercased name, realm-independent.
+function characterKey(character) {
+    return String(character || "").trim().toLowerCase();
+}
+
+class LootParseError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = "LootParseError";
+    }
+}
+
+// --- RCLootcouncil (JSON array) ------------------------------------------------
+
+function normalizeRclcRow(r) {
+    if (!r || (r.itemID === undefined && !r.itemName)) return null;
+    const { player, character, realm } = splitPlayer(r.player);
+    const itemId = Number(r.itemID) || null;
+    const servertime = Number(r.servertime);
+    const awardedAt = servertime
+        ? servertime * 1000
+        : Date.parse(`${String(r.date || "").replace(/\//g, "-")}T${r.time || "00:00:00"}`) || 0;
+    const gear = [r.gear1, r.gear2]
+        .map((g) => String(g || "").replace(/^\[|\]$/g, "").trim())
+        .filter(Boolean);
+    const responseId = r.responseID !== undefined ? String(r.responseID) : "";
+    return {
+        source: "rclc",
+        rawId: String(r.id || `${itemId}-${r.servertime || ""}-${player}`),
+        itemId,
+        itemName: String(r.itemName || "").trim(),
+        itemLink: itemLink(itemId),
+        player,
+        character,
+        characterKey: characterKey(character),
+        realm,
+        class: String(r.class || "").trim(),
+        response: String(r.response || "").trim(),
+        offspec: responseId === "4" || /off\s*spec/i.test(String(r.response || "")),
+        boss: String(r.boss || "").trim(),
+        instance: String(r.instance || "").trim(),
+        note: String(r.note || "").trim(),
+        replacedGear: gear,
+        awardedAt,
+        awardedBy: splitPlayer(r.owner).player,
+    };
+}
+
+function parseRclc(text) {
+    let data;
+    try {
+        data = JSON.parse(String(text || "").trim());
+    } catch {
+        throw new LootParseError(
+            "Konnte den RCLootcouncil-Export nicht als JSON lesen. Bitte den kompletten Export (JSON) einfügen."
+        );
+    }
+    const rows = Array.isArray(data) ? data : (Array.isArray(data && data.loot) ? data.loot : null);
+    if (!rows) {
+        throw new LootParseError(
+            "Unerwartetes RCLootcouncil-Format — erwartet wird eine JSON-Liste von Loot-Einträgen."
+        );
+    }
+    return rows.map(normalizeRclcRow).filter(Boolean);
+}
+
+// --- Gargul (CSV) --------------------------------------------------------------
+
+const GARGUL_REQUIRED = ["character", "itemid", "id"];
+
+function parseCsvLine(line) {
+    // The Gargul export has no quoting/embedded commas, but be defensive.
+    return line.split(",").map((c) => c.trim());
+}
+
+function parseGargul(text) {
+    const lines = String(text || "")
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter(Boolean);
+    if (!lines.length) throw new LootParseError("Der Gargul-Export ist leer.");
+
+    const header = parseCsvLine(lines[0]).map((h) => h.toLowerCase());
+    const idx = {};
+    header.forEach((h, i) => { idx[h] = i; });
+    const missing = GARGUL_REQUIRED.filter((c) => idx[c] === undefined);
+    if (missing.length) {
+        throw new LootParseError(
+            `Unerwartetes Gargul-Format — es fehlt die Spalte „${missing.join("\", \"")}". Kopfzeile erwartet: dateTime,character,itemID,offspec,id`
+        );
+    }
+
+    const out = [];
+    for (const line of lines.slice(1)) {
+        const cols = parseCsvLine(line);
+        const rawCharacter = cols[idx.character] || "";
+        const itemId = Number(cols[idx.itemid]) || null;
+        if (!rawCharacter || !itemId) continue;
+        const { player, character, realm } = splitPlayer(rawCharacter);
+        const offspec = idx.offspec !== undefined && String(cols[idx.offspec]).trim() === "1";
+        const dateStr = idx.datetime !== undefined ? cols[idx.datetime] : "";
+        const awardedAt = dateStr ? (Date.parse(`${dateStr}T00:00:00Z`) || 0) : 0;
+        out.push({
+            source: "gargul",
+            rawId: String(cols[idx.id] || `${itemId}-${dateStr}-${player}`),
+            itemId,
+            itemName: "",
+            itemLink: itemLink(itemId),
+            player,
+            character,
+            characterKey: characterKey(character),
+            realm,
+            class: "",
+            response: offspec ? "Off Spec" : "Main Spec",
+            offspec,
+            boss: "",
+            instance: "",
+            note: "",
+            replacedGear: [],
+            awardedAt,
+            awardedBy: "",
+        });
+    }
+    return out;
+}
+
+// --- dispatch ------------------------------------------------------------------
+
+/**
+ * Parse a loot export. `tool` is "rclc" | "gargul". When omitted or "auto", the
+ * format is sniffed (JSON → rclc, otherwise csv → gargul).
+ */
+function parseLoot(text, tool = "auto") {
+    const t = String(tool || "auto").toLowerCase();
+    if (t === "rclc") return parseRclc(text);
+    if (t === "gargul") return parseGargul(text);
+    // auto-detect
+    const trimmed = String(text || "").trim();
+    if (trimmed.startsWith("[") || trimmed.startsWith("{")) return parseRclc(text);
+    return parseGargul(text);
+}
+
+module.exports = {
+    parseLoot, parseRclc, parseGargul,
+    splitPlayer, characterKey, itemLink, LootParseError,
+};

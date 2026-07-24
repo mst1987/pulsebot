@@ -16,6 +16,10 @@ describe("config/variables", () => {
         "officerRoleId",
         "applyArmoryUrlTemplate",
         "applyWclUrlTemplate",
+        "blizzardClientId",
+        "blizzardClientSecret",
+        "blizzardRegion",
+        "blizzardRealmSlug",
         "webPort",
         "publicBaseUrl",
         "discordClientId",
@@ -44,6 +48,10 @@ describe("config/variables", () => {
             "DISCORD_CLIENT_SECRET",
             "CLIENT_SECRET",
             "LOGCHECK_ADMIN_IDS",
+            "BLIZZARD_CLIENT_ID",
+            "BLIZZARD_CLIENT_SECRET",
+            "BLIZZARD_REGION",
+            "BLIZZARD_REALM",
         ]) {
             delete process.env[key];
         }
@@ -94,6 +102,13 @@ describe("config/variables", () => {
     it("keeps the {char} placeholder in the url templates", () => {
         expect(variables.applyArmoryUrlTemplate).toContain("{char}");
         expect(variables.applyWclUrlTemplate).toContain("{char}");
+    });
+
+    it("defaults the Battle.net config to empty credentials on the Thunderstrike EU realm", () => {
+        expect(variables.blizzardClientId).toBe("");
+        expect(variables.blizzardClientSecret).toBe("");
+        expect(variables.blizzardRegion).toBe("eu");
+        expect(variables.blizzardRealmSlug).toBe("thunderstrike");
     });
 
     it("derives logcheckAdminIds as a trimmed non-empty list including the admin", () => {
