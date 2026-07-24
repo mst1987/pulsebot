@@ -1,6 +1,7 @@
 const {
     renderDashboard, renderAdminDenied,
-    renderRecruitment, renderCla, renderRaids, renderSettings,
+    renderRecruitment, renderCla, renderRaids, renderRaidCreate,
+    renderEventDetail, renderNotifyTemplates, renderSettings,
 } = require("../../src/web/renderAdmin.js");
 
 const user = { id: "42", name: "Marcstz", isAdmin: true };
@@ -131,15 +132,82 @@ describe("web/renderAdmin", () => {
         });
     });
 
-    describe("renderRaids", () => {
-        it("prefills the default template id and the leader id", () => {
+    describe("renderRaids (events overview)", () => {
+        it("groups events by category with links and a details button", () => {
             const html = renderRaids(user, {
+                guildId: "g1", activeGuildId: "g1", csrf: "x", nav: nav(),
+                groups: [{
+                    categoryId: "cat1", categoryName: "Raids Tier 4/5",
+                    events: [{ id: "e1", title: "GDKP Kara", startTime: 1721851200, channelId: "c1", channelName: "kara", signupCount: 12 }],
+                }],
+            });
+            expect(html).toContain("Raids Tier 4/5");
+            expect(html).toContain("GDKP Kara");
+            expect(html).toContain("/admin/raids/detail?event=e1");
+            expect(html).toContain("raid-helper.xyz/raidplan/e1");
+            expect(html).toContain("href=\"/admin/raids/new\"");
+        });
+
+        it("prompts to pick a server when none is active", () => {
+            const html = renderRaids(user, { activeGuildId: "", csrf: "x", nav: nav() });
+            expect(html).toContain("Wähle oben einen Server");
+        });
+
+        it("shows an error when event loading failed", () => {
+            const html = renderRaids(user, { activeGuildId: "g1", error: "API down", csrf: "x", nav: nav() });
+            expect(html).toContain("API down");
+        });
+    });
+
+    describe("renderRaidCreate", () => {
+        it("prefills the default template id and the leader id and posts to /new", () => {
+            const html = renderRaidCreate(user, {
                 defaults: { templateId: "TPL-9", channelId: "" },
                 leaderId: "42", channels: [{ id: "c1", name: "raids" }], csrf: "x", nav: nav(),
             });
             expect(html).toContain("value=\"TPL-9\"");
             expect(html).toContain("value=\"42\"");
-            expect(html).toContain("action=\"/admin/raids\"");
+            expect(html).toContain("action=\"/admin/raids/new\"");
+        });
+    });
+
+    describe("renderEventDetail", () => {
+        const base = {
+            event: { id: "e1", title: "GDKP Kara", startTime: 1721851200, channelId: "c1", channelName: "kara" },
+            channelName: "kara", categoryName: "Raids", guildId: "g1", csrf: "x", nav: nav(),
+        };
+
+        it("renders links and both per-event functions", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                notifyTemplates: [{ id: "t1", name: "Kara-Reminder" }],
+                roles: [{ id: "r1", name: "Raider" }, { id: "r2", name: "Trial" }],
+                raidsheets: [{ id: "t45", name: "Tier 4/5" }],
+                matchedSheetId: "t45",
+            });
+            expect(html).toContain("action=\"/admin/raids/notify\"");
+            expect(html).toContain("action=\"/admin/raids/fill\"");
+            expect(html).toContain("name=\"role_r1\"");
+            expect(html).toContain("Raider");
+            // matched raidsheet preselected
+            expect(html).toContain("value=\"t45\" selected");
+            expect(html).toContain("discord.com/channels/g1/c1/e1");
+        });
+
+        it("guides the user when there are no templates or sheets", () => {
+            const html = renderEventDetail(user, { ...base, notifyTemplates: [], roles: [], raidsheets: [] });
+            expect(html).toContain("Noch keine Aufruf-Vorlagen");
+            expect(html).toContain("Keine Raidsheets konfiguriert");
+        });
+    });
+
+    describe("renderNotifyTemplates", () => {
+        it("lists templates and escapes their names", () => {
+            const html = renderNotifyTemplates(user, {
+                templates: [{ id: "t1", name: "<b>Kara</b>", title: "T" }], csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("&lt;b&gt;Kara&lt;/b&gt;");
+            expect(html).toContain("action=\"/admin/raids/templates\"");
         });
     });
 
@@ -152,6 +220,19 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("value=\"111, 222\"");
             expect(html).toContain("value=\"t\"");
             expect(html).toContain("value=\"c\"");
+        });
+
+        it("renders configured raidsheets and a new-sheet form", () => {
+            const html = renderSettings(user, {
+                config: { adminRoleIds: [], raidDefaults: {} },
+                raidsheets: [{ id: "t45", name: "Tier 4/5", spreadsheetId: "sid", sheetName: "Setup", gid: 0, keywords: ["kara", "gruul"] }],
+                csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("Raidsheets");
+            expect(html).toContain("value=\"Tier 4/5\"");
+            expect(html).toContain("value=\"kara, gruul\"");
+            expect(html).toContain("action=\"/admin/settings/raidsheets\"");
+            expect(html).toContain("formaction=\"/admin/settings/raidsheets/delete\"");
         });
     });
 

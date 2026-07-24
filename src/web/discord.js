@@ -29,6 +29,67 @@ function getGuild(guildId) {
     return client && guildId ? client.guilds.cache.get(guildId) : null;
 }
 
+/** Roles of a guild that can be pinged (excludes @everyone), highest first. */
+function listRoles(guildId) {
+    const guild = getGuild(guildId);
+    if (!guild) return [];
+    return [...guild.roles.cache.values()]
+        .filter((r) => r.id !== guild.id) // drop @everyone
+        .sort((a, b) => (b.rawPosition || 0) - (a.rawPosition || 0))
+        .map((r) => ({ id: r.id, name: r.name }));
+}
+
+/**
+ * Map every channel of a guild to its parent category, so event channelIds can
+ * be grouped by Discord category. Returns { [channelId]: { name, categoryId, categoryName } }.
+ */
+function getChannelCategoryMap(guildId) {
+    const guild = getGuild(guildId);
+    const map = {};
+    if (!guild) return map;
+    for (const c of guild.channels.cache.values()) {
+        map[c.id] = {
+            name: c.name,
+            categoryId: c.parent ? c.parent.id : "",
+            categoryName: c.parent ? c.parent.name : "",
+        };
+    }
+    return map;
+}
+
+/**
+ * Post a sign-up announcement into a channel, pinging the given roles.
+ * The message body comes from a notify template (title/body → embed); the role
+ * mentions live in the plain content so they actually ping.
+ * @returns { guildId, channelId, messageId, url }
+ */
+async function postAnnouncement(channelId, template, roleIds = []) {
+    if (!client) throw new Error("Bot nicht verbunden.");
+    const channel = await client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden oder kein Textkanal.");
+
+    const roles = (roleIds || []).filter(Boolean);
+    const mentions = roles.map((id) => `<@&${id}>`).join(" ");
+    const payload = { allowedMentions: { roles } };
+
+    if (template.title || template.body) {
+        const embed = new EmbedBuilder().setColor(0x5865F2);
+        if (template.title) embed.setTitle(template.title);
+        if (template.body) embed.setDescription(template.body);
+        payload.embeds = [embed];
+        payload.content = mentions || undefined;
+    } else {
+        // no embed → put everything in the message content
+        payload.content = [mentions, template.body || ""].filter(Boolean).join("\n") || mentions;
+    }
+    if (!payload.content && (!payload.embeds || !payload.embeds.length)) {
+        throw new Error("Nachricht ist leer — Vorlage oder Rollen wählen.");
+    }
+
+    const posted = await channel.send(payload);
+    return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url };
+}
+
 /** Text channels of a guild the bot can post in, for channel dropdowns. */
 function listTextChannels(guildId) {
     const guild = getGuild(guildId);
@@ -156,6 +217,7 @@ async function scanRecruitment(guildId, { perChannel = 50 } = {}) {
 
 module.exports = {
     setClient, getClient, listGuilds, getGuild, listTextChannels,
+    listRoles, getChannelCategoryMap, postAnnouncement,
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,
     isRecruitmentMessage, extractTemplate,
 };

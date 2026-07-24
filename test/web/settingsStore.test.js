@@ -23,6 +23,8 @@ const fs = require("fs");
 const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
+    listNotify, getNotify, saveNotify, deleteNotify,
+    listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
     getConfig, saveConfig,
 } = require("../../src/web/settingsStore.js");
 
@@ -151,6 +153,72 @@ describe("web/settingsStore", () => {
             expect(deleteRecruitmentPost(saved.id)).toBe(true);
             expect(deleteRecruitmentPost(saved.id)).toBe(false);
             expect(listRecruitmentPosts()).toHaveLength(0);
+        });
+    });
+
+    describe("notify (Anmelde-Aufruf) templates", () => {
+        it("creates a template with an id and trims fields (no button)", () => {
+            const saved = saveNotify({ name: "  Kara  ", title: " Anmeldung ", body: "b" });
+            expect(saved.id).toMatch(/^[0-9a-f]{12}$/);
+            expect(saved.name).toBe("Kara");
+            expect(saved.title).toBe("Anmeldung");
+            expect(saved).not.toHaveProperty("buttonLabel");
+            expect(getNotify(saved.id)).toMatchObject({ name: "Kara" });
+        });
+
+        it("updates an existing template in place", () => {
+            const a = saveNotify({ name: "A" });
+            const b = saveNotify({ id: a.id, name: "A2", body: "x" });
+            expect(b.id).toBe(a.id);
+            expect(listNotify()).toHaveLength(1);
+            expect(getNotify(a.id).name).toBe("A2");
+        });
+
+        it("deletes by id and tolerates a missing file", () => {
+            expect(listNotify()).toEqual([]);
+            const a = saveNotify({ name: "A" });
+            expect(deleteNotify(a.id)).toBe(true);
+            expect(deleteNotify(a.id)).toBe(false);
+        });
+    });
+
+    describe("raidsheets", () => {
+        it("seeds a default Tier 4/5 sheet when nothing is stored", () => {
+            const sheets = listRaidsheets();
+            expect(sheets).toHaveLength(1);
+            expect(sheets[0].id).toBe("tier45");
+            expect(sheets[0].name).toMatch(/Tier 4/);
+            expect(Array.isArray(sheets[0].keywords)).toBe(true);
+        });
+
+        it("creates a new sheet and parses comma-separated keywords", () => {
+            const saved = saveRaidsheet({ name: "Tier 6", spreadsheetId: "s6", sheetName: "SWP", keywords: "swp, sunwell" });
+            expect(saved.id).toMatch(/^[0-9a-f]{12}$/);
+            expect(saved.keywords).toEqual(["swp", "sunwell"]);
+            const all = listRaidsheets();
+            // default + new one are both now materialised
+            expect(all.map((s) => s.name)).toEqual(expect.arrayContaining(["Tier 4 / Tier 5", "Tier 6"]));
+            expect(getRaidsheet(saved.id)).toMatchObject({ spreadsheetId: "s6", sheetName: "SWP" });
+        });
+
+        it("updates the seeded default in place by id", () => {
+            const updated = saveRaidsheet({ id: "tier45", name: "T45", keywords: ["kara"] });
+            expect(updated.name).toBe("T45");
+            expect(getRaidsheet("tier45").name).toBe("T45");
+        });
+
+        it("deletes a sheet by id and reports success", () => {
+            const saved = saveRaidsheet({ name: "Tier 6", spreadsheetId: "s6" });
+            expect(deleteRaidsheet(saved.id)).toBe(true);
+            expect(deleteRaidsheet(saved.id)).toBe(false);
+            expect(getRaidsheet(saved.id)).toBeNull();
+        });
+
+        it("does not clobber raidsheets when saving general config", () => {
+            const saved = saveRaidsheet({ name: "Tier 6", spreadsheetId: "s6" });
+            saveConfig({ officerRoleId: "role-1" });
+            expect(getRaidsheet(saved.id)).not.toBeNull();
+            expect(getConfig().officerRoleId).toBe("role-1");
         });
     });
 });

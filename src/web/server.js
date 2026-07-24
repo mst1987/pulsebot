@@ -3,14 +3,22 @@ const crypto = require("crypto");
 const { webPort } = require("../config/variables");
 const { getReport, deleteReport, listReports } = require("./reportStore");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
-const { renderDashboard, renderAdminDenied, renderRecruitment, renderCla, renderRaids, renderSettings } = require("./renderAdmin");
+const {
+    renderDashboard, renderAdminDenied, renderRecruitment, renderCla,
+    renderRaids, renderRaidCreate, renderEventDetail, renderNotifyTemplates, renderSettings,
+} = require("./renderAdmin");
 const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
+    listNotify, getNotify, saveNotify, deleteNotify,
+    listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
     getConfig, saveConfig,
 } = require("./settingsStore");
 const { buildReport, ReportError } = require("../utils/logcheck/report");
 const Raidhelper = require("../classes/raidhelper");
+const SheetsClient = require("../classes/sheets");
+const { fillSetupSheet } = require("../utils/fillSetup");
+const { matchRaidsheet } = require("../utils/raidsheets");
 const discord = require("./discord");
 const auth = require("./auth");
 
@@ -32,6 +40,39 @@ function activeGuildFor(req) {
     if (selected) return selected;
     const guilds = discord.listGuilds();
     return guilds.length === 1 ? guilds[0].id : "";
+}
+
+// Fetch all upcoming Raid-Helper events for a guild and group them by the
+// Discord category their channel lives in. Returns { groups, error }.
+async function loadEventGroups(guildId) {
+    if (!guildId) return { groups: [], error: null };
+    try {
+        const rh = new Raidhelper();
+        const events = await rh.getAllEvents();
+        const catMap = discord.getChannelCategoryMap(guildId);
+        const byCat = new Map();
+        for (const ev of events) {
+            const meta = catMap[ev.channelId];
+            if (!meta) continue; // event channel not in this guild
+            const key = meta.categoryId || "__none__";
+            if (!byCat.has(key)) {
+                byCat.set(key, { categoryId: meta.categoryId || "", categoryName: meta.categoryName || "Ohne Kategorie", events: [] });
+            }
+            byCat.get(key).events.push({
+                id: ev.id,
+                title: ev.title,
+                startTime: ev.startTime,
+                leaderId: ev.leaderId,
+                channelId: ev.channelId,
+                channelName: meta.name,
+                signupCount: (ev.signUps || []).filter((s) => s.specName !== "Absence").length,
+            });
+        }
+        const groups = [...byCat.values()].sort((a, b) => a.categoryName.localeCompare(b.categoryName));
+        return { groups, error: null };
+    } catch (e) {
+        return { groups: [], error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
+    }
 }
 
 // Context for the server selector shown on every admin page.
@@ -296,12 +337,29 @@ async function handle(req, res) {
         }
     }
 
-    // raid events: form + create via Raid-Helper API
-    if (pathname === "/admin/raids") {
+    // raid events overview: all server events grouped by Discord category
+    if (pathname === "/admin/raids" && req.method === "GET") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const guildId = activeGuildFor(req);
+        const { groups, error } = await loadEventGroups(guildId);
+        return send(res, 200, renderRaids(user, {
+            groups,
+            error,
+            guildId,
+            activeGuildId: guildId,
+            csrf: auth.csrfToken(req),
+            msg: flashFromQuery(url),
+            nav: navFor(req),
+        }));
+    }
+
+    // raid event creation: form + create via Raid-Helper API
+    if (pathname === "/admin/raids/new") {
         if (req.method === "GET") {
             const user = requireAdmin(req, res);
             if (!user) return;
-            return send(res, 200, renderRaids(user, {
+            return send(res, 200, renderRaidCreate(user, {
                 defaults: getConfig().raidDefaults,
                 leaderId: user.id,
                 channels: discord.listTextChannels(activeGuildFor(req)),
@@ -314,7 +372,7 @@ async function handle(req, res) {
             const user = requireAdmin(req, res);
             if (!user) return;
             const form = await readFormBody(req);
-            if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/raids?msg=csrf");
+            if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/raids/new?msg=csrf");
             try {
                 const rh = new Raidhelper();
                 const result = await rh.createEvent({
@@ -328,14 +386,120 @@ async function handle(req, res) {
                 });
                 if (result && result.status === "failed") {
                     const msg = result.message || "Raid-Helper hat die Erstellung abgelehnt.";
-                    return redirect(res, `/admin/raids?err=${encodeURIComponent(msg)}`);
+                    return redirect(res, `/admin/raids/new?err=${encodeURIComponent(msg)}`);
                 }
-                return redirect(res, "/admin/raids?msg=saved");
+                return redirect(res, "/admin/raids?ok=" + encodeURIComponent("Event angelegt."));
             } catch (e) {
                 console.error("raid create failed:", e.message);
-                return redirect(res, `/admin/raids?err=${encodeURIComponent(e.message || "Event konnte nicht angelegt werden.")}`);
+                return redirect(res, `/admin/raids/new?err=${encodeURIComponent(e.message || "Event konnte nicht angelegt werden.")}`);
             }
         }
+    }
+
+    // per-event detail: links + Anmelde-Aufruf + Raidsheet füllen
+    if (pathname === "/admin/raids/detail" && req.method === "GET") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const guildId = activeGuildFor(req);
+        const eventId = (url.searchParams.get("event") || "").trim();
+        const { groups, error } = await loadEventGroups(guildId);
+        if (error) return redirect(res, `/admin/raids?err=${encodeURIComponent(error)}`);
+        const found = groups.flatMap((g) => g.events.map((e) => ({ e, g }))).find((x) => x.e.id === eventId);
+        if (!found) return redirect(res, `/admin/raids?err=${encodeURIComponent("Event nicht gefunden.")}`);
+        const raidsheets = listRaidsheets();
+        const matched = matchRaidsheet(raidsheets, found.e.title);
+        return send(res, 200, renderEventDetail(user, {
+            event: found.e,
+            channelName: found.e.channelName,
+            categoryName: found.g.categoryName,
+            guildId,
+            notifyTemplates: listNotify(),
+            roles: discord.listRoles(guildId),
+            raidsheets,
+            matchedSheetId: matched ? matched.id : "",
+            csrf: auth.csrfToken(req),
+            msg: flashFromQuery(url),
+            nav: navFor(req),
+        }));
+    }
+
+    // post an Anmelde-Aufruf into the event channel, pinging the chosen roles
+    if (pathname === "/admin/raids/notify" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        const eventId = (form.event || "").trim();
+        const back = `/admin/raids/detail?event=${encodeURIComponent(eventId)}`;
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, `${back}&msg=csrf`);
+        const template = getNotify((form.templateId || "").trim());
+        const channelId = (form.channelId || "").trim();
+        const roleIds = Object.keys(form).filter((k) => k.startsWith("role_")).map((k) => k.slice(5));
+        if (!template || !channelId) return redirect(res, `${back}&err=${encodeURIComponent("Vorlage oder Channel fehlt.")}`);
+        try {
+            await discord.postAnnouncement(channelId, template, roleIds);
+            return redirect(res, `${back}&ok=${encodeURIComponent("Anmelde-Aufruf gepostet.")}`);
+        } catch (e) {
+            console.error("notify post failed:", e.message);
+            return redirect(res, `${back}&err=${encodeURIComponent(e.message || "Posten fehlgeschlagen.")}`);
+        }
+    }
+
+    // fill a raidsheet from the event's Raid-Helper setup
+    if (pathname === "/admin/raids/fill" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        const eventId = (form.event || "").trim();
+        const back = `/admin/raids/detail?event=${encodeURIComponent(eventId)}`;
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, `${back}&msg=csrf`);
+        const sheet = getRaidsheet((form.sheetId || "").trim());
+        if (!sheet) return redirect(res, `${back}&err=${encodeURIComponent("Raidsheet nicht gefunden.")}`);
+        if (!sheet.spreadsheetId) return redirect(res, `${back}&err=${encodeURIComponent("Raidsheet hat keine Spreadsheet-ID (in den Einstellungen ergänzen).")}`);
+        try {
+            const rh = new Raidhelper();
+            const result = await rh.getSetup(eventId);
+            if (!result || !result.setup || !result.setup.length) {
+                return redirect(res, `${back}&err=${encodeURIComponent("Setup nicht gefunden oder leer.")}`);
+            }
+            const client = new SheetsClient({ spreadsheetId: sheet.spreadsheetId, sheetName: sheet.sheetName, gid: sheet.gid });
+            const summary = await fillSetupSheet(client, result.setup, { tab: sheet.sheetName || "Setup", tank3: (form.tank3 || "").trim() });
+            return redirect(res, `${back}&ok=${encodeURIComponent(`Raidsheet gefüllt: ${summary.playerCount} Spieler.`)}`);
+        } catch (e) {
+            console.error("raidsheet fill failed:", e.message);
+            return redirect(res, `${back}&err=${encodeURIComponent(e.message || "Füllen fehlgeschlagen.")}`);
+        }
+    }
+
+    // Anmelde-Aufruf templates (create/edit/delete)
+    if (pathname === "/admin/raids/templates") {
+        if (req.method === "GET") {
+            const user = requireAdmin(req, res);
+            if (!user) return;
+            const editId = url.searchParams.get("edit");
+            return send(res, 200, renderNotifyTemplates(user, {
+                templates: listNotify(),
+                editing: editId ? getNotify(editId) : null,
+                csrf: auth.csrfToken(req),
+                msg: flashFromQuery(url),
+                nav: navFor(req),
+            }));
+        }
+        if (req.method === "POST") {
+            const user = requireAdmin(req, res);
+            if (!user) return;
+            const form = await readFormBody(req);
+            if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/raids/templates?msg=csrf");
+            saveNotify(form);
+            return redirect(res, "/admin/raids/templates?msg=saved");
+        }
+    }
+    if (pathname === "/admin/raids/templates/delete" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/raids/templates?msg=csrf");
+        deleteNotify((form.id || "").trim());
+        return redirect(res, "/admin/raids/templates?msg=deleted");
     }
 
     // settings: admin roles + raid defaults (stored in the settings DB, not .env)
@@ -345,6 +509,7 @@ async function handle(req, res) {
             if (!user) return;
             return send(res, 200, renderSettings(user, {
                 config: getConfig(),
+                raidsheets: listRaidsheets(),
                 csrf: auth.csrfToken(req),
                 msg: flashFromQuery(url),
                 nav: navFor(req),
@@ -374,6 +539,24 @@ async function handle(req, res) {
             });
             return redirect(res, "/admin/settings?msg=saved");
         }
+    }
+
+    // raidsheets: create/update one (Google-Sheets target keyed by content)
+    if (pathname === "/admin/settings/raidsheets" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/settings?msg=csrf");
+        saveRaidsheet(form);
+        return redirect(res, "/admin/settings?msg=saved");
+    }
+    if (pathname === "/admin/settings/raidsheets/delete" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/settings?msg=csrf");
+        deleteRaidsheet((form.id || "").trim());
+        return redirect(res, "/admin/settings?msg=deleted");
     }
 
     if (req.method !== "GET") return send(res, 405, renderNotFound());
