@@ -105,6 +105,58 @@ describe("classes/Raidhelper", () => {
         });
     });
 
+    describe("getTemplates", () => {
+        it("derives distinct templates from events, keyed by templateId, sorted by name", async () => {
+            respondWith({
+                postedEvents: [
+                    { id: "e1", startTime: 100, templateId: 3, templateName: "Karazhan" },
+                    { id: "e2", startTime: 200, templateId: 7, templateName: "Molten Core" },
+                    { id: "e3", startTime: 300, templateId: 3, templateName: "Karazhan" },
+                ],
+            });
+            const client = new Raidhelper();
+
+            const result = await client.getTemplates();
+
+            expect(result).toEqual([
+                { id: "3", name: "Karazhan" },
+                { id: "7", name: "Molten Core" },
+            ]);
+        });
+
+        it("falls back to the event title when no template name is present", async () => {
+            respondWith({
+                postedEvents: [{ id: "e1", startTime: 100, templateId: 5, title: "Fun Run" }],
+            });
+            const client = new Raidhelper();
+
+            const result = await client.getTemplates();
+
+            expect(result).toEqual([{ id: "5", name: "Fun Run" }]);
+        });
+
+        it("skips events without a templateId", async () => {
+            respondWith({
+                postedEvents: [
+                    { id: "e1", startTime: 100, title: "No template" },
+                    { id: "e2", startTime: 200, templateId: 9, templateName: "Real" },
+                ],
+            });
+            const client = new Raidhelper();
+
+            const result = await client.getTemplates();
+
+            expect(result).toEqual([{ id: "9", name: "Real" }]);
+        });
+
+        it("returns an empty list when the events request fails", async () => {
+            respondWith({ status: "failed", message: "bad key" });
+            const client = new Raidhelper();
+
+            await expect(client.getTemplates()).resolves.toEqual([]);
+        });
+    });
+
     describe("getUserSignUps", () => {
         const body = {
             postedEvents: [

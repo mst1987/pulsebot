@@ -23,6 +23,7 @@ const fs = require("fs");
 const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
+    listRaidTemplates, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
     getConfig, saveConfig,
 } = require("../../src/web/settingsStore.js");
 
@@ -119,6 +120,74 @@ describe("web/settingsStore", () => {
 
         it("listRecruitment tolerates a missing/empty file", () => {
             expect(listRecruitment()).toEqual([]);
+        });
+    });
+
+    describe("raid templates", () => {
+        it("creates a template keyed by its Raid-Helper templateId and trims fields", () => {
+            const saved = saveRaidTemplate({ id: "  3 ", name: "  GDKP Kara  " });
+            expect(saved).toMatchObject({ id: "3", name: "GDKP Kara" });
+            expect(listRaidTemplates()).toHaveLength(1);
+        });
+
+        it("rejects a blank templateId", () => {
+            expect(saveRaidTemplate({ id: "  ", name: "x" })).toBeNull();
+            expect(listRaidTemplates()).toHaveLength(0);
+        });
+
+        it("updates the name in place for an existing id instead of duplicating", () => {
+            saveRaidTemplate({ id: "7", name: "Old" });
+            const again = saveRaidTemplate({ id: "7", name: "New" });
+            expect(again.id).toBe("7");
+            expect(listRaidTemplates()).toHaveLength(1);
+            expect(listRaidTemplates()[0].name).toBe("New");
+        });
+
+        it("keeps the existing name when an update carries a blank name", () => {
+            saveRaidTemplate({ id: "7", name: "Keep" });
+            saveRaidTemplate({ id: "7", name: "" });
+            expect(listRaidTemplates()[0].name).toBe("Keep");
+        });
+
+        it("deleteRaidTemplate removes by id and reports success", () => {
+            saveRaidTemplate({ id: "3", name: "A" });
+            expect(deleteRaidTemplate("3")).toBe(true);
+            expect(deleteRaidTemplate("3")).toBe(false);
+            expect(listRaidTemplates()).toHaveLength(0);
+        });
+
+        it("listRaidTemplates tolerates a missing file", () => {
+            expect(listRaidTemplates()).toEqual([]);
+        });
+
+        describe("saveRaidTemplates (bulk import)", () => {
+            it("adds new templates and reports counts, skipping blank ids", () => {
+                const res = saveRaidTemplates([
+                    { id: "3", name: "Kara" },
+                    { id: "7", name: "MC" },
+                    { id: "", name: "ignored" },
+                ]);
+                expect(res).toEqual({ added: 2, updated: 0 });
+                expect(listRaidTemplates()).toHaveLength(2);
+            });
+
+            it("updates existing templates and only overwrites the name when provided", () => {
+                saveRaidTemplate({ id: "3", name: "Original" });
+                const res = saveRaidTemplates([
+                    { id: "3", name: "" },
+                    { id: "9", name: "Neu" },
+                ]);
+                expect(res).toEqual({ added: 1, updated: 1 });
+                const byId = Object.fromEntries(listRaidTemplates().map((t) => [t.id, t.name]));
+                expect(byId["3"]).toBe("Original");
+                expect(byId["9"]).toBe("Neu");
+            });
+
+            it("writes nothing and returns zero counts for an empty list", () => {
+                const res = saveRaidTemplates([]);
+                expect(res).toEqual({ added: 0, updated: 0 });
+                expect(fs.writeFileSync).not.toHaveBeenCalled();
+            });
         });
     });
 
