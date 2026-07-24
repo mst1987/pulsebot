@@ -291,7 +291,22 @@ function renderAdminDenied(user) {
 function renderDashboard(user, opts = {}) {
     const s = opts.stats || {};
     const recent = opts.recentReports || [];
+    const upcoming = opts.upcoming || { events: [], error: null };
     const n = (v) => esc(String(v || 0));
+
+    const sheetBadge = (sheet) => sheet
+        ? `<span class="pill" style="background:var(--good-bg);color:var(--good)" title="Gefüllt am ${esc(new Date(sheet.filledAt).toLocaleString("de-DE"))}${sheet.playerCount ? ` · ${esc(sheet.playerCount)} Spieler` : ""}">Sheet ✓</span>`
+        : "<span class=\"pill\">Sheet fehlt</span>";
+    const upcomingRows = upcoming.error
+        ? `<tr><td colspan="4" class="sub" style="padding:16px;color:var(--high)">${esc(upcoming.error)}</td></tr>`
+        : (upcoming.events.length
+            ? upcoming.events.map((ev) => `<tr>
+                <td><a class="mlink" href="${raidplanUrl(ev.id)}" target="_blank" rel="noopener">${esc(ev.title || ev.id)}</a></td>
+                <td class="small">${esc(ev.channelName || "")}</td>
+                <td class="small">${esc(formatEventTime(ev.startTime))}</td>
+                <td>${sheetBadge(ev.sheet)}</td>
+              </tr>`).join("")
+            : "<tr><td colspan=\"4\" class=\"sub\" style=\"padding:16px\">Keine anstehenden Events mit fertigem Setup.</td></tr>");
 
     const tile = (label, value, sub, accent) =>
         `<div class="tile${accent ? " accent" : ""}"><div class="t-label">${esc(label)}</div><div class="t-value">${n(value)}</div><div class="t-sub">${sub}</div></div>`;
@@ -319,6 +334,13 @@ function renderDashboard(user, opts = {}) {
 
     const body = `
       ${tiles}
+      <div class="dash-card" style="margin-bottom:16px">
+        <div class="dash-card-head"><h3>Upcoming Events</h3><a class="mlink" href="/admin/raids">Alle →</a></div>
+        <table class="idx">
+          <thead><tr><th>Event</th><th>Kanal</th><th>Termin</th><th>Sheet</th></tr></thead>
+          <tbody>${upcomingRows}</tbody>
+        </table>
+      </div>
       <div class="dash-grid">
         <div class="dash-card">
           <div class="dash-card-head"><h3>Letzte Auswertungen</h3><a class="mlink" href="/admin/cla">Alle →</a></div>
