@@ -19,6 +19,28 @@ npm run register:clear   # Remove all guild slash commands
 node src/discordcommands/raidhelper.js  # Legacy command registration script
 ```
 
+## Development Workflow (for AI assistants)
+
+These conventions are mandatory when building features in this repo:
+
+1. **Work in a git worktree, not on the checked-out branch directly.** Create a
+   dedicated worktree for each feature/task instead of committing on the branch in
+   the primary working directory. This keeps the main checkout clean and isolates
+   the work.
+2. **Make the feature testable locally, right away.** After implementing a change,
+   start whatever is needed so the user can test immediately — run the bot
+   (`node src/bot.js`) so the web server on port 3005 is live, register any new
+   slash commands (`npm run register:dev`), etc. Don't leave the user to figure out
+   how to launch it; hand over a working, running setup and the exact URL/steps.
+3. **Open a pull request as soon as a piece of work is finished — don't wait to be
+   asked.** Once a task is done and verified (smoke-test + `npm run lint`), merge the
+   latest `dev` into the feature branch first, then open a PR against `dev` with
+   `gh pr create`. Summarize what changed and how it was verified in the PR body.
+4. **Clean up after merge.** Once the work is merged, stop everything that was
+   started for it — kill background bot/dev processes, free port 3005, and remove
+   the feature worktree — so nothing from the work process is left running or
+   lingering.
+
 ## Architecture
 
 ```

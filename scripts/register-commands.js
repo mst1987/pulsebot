@@ -38,6 +38,24 @@ const commands = [
             },
         ],
     },
+    {
+        name: "recruitment",
+        description: "Postet eine im Admin-Menü gepflegte Recruitment-Vorlage in einen Channel",
+        options: [
+            {
+                name: "vorlage",
+                description: "Name der Recruitment-Vorlage (im Admin-Menü angelegt)",
+                type: 3,
+                required: true,
+            },
+            {
+                name: "channel",
+                description: "Ziel-Channel für die Recruitment-Nachricht",
+                type: 7,
+                required: true,
+            },
+        ],
+    },
     { name: "show-mysetups", description: "Show the events where I am in the setup" },
     { name: "createoverview", description: "Creates an event overview for the current category" },
     { name: "show-allsetups", description: "Show all setups for the current category" },

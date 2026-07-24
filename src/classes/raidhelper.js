@@ -238,6 +238,48 @@ class Raidhelper {
     });
   }
 
+  // Create a new Raid-Helper event in the given channel.
+  // data: { channelId, leaderId, templateId, date (dd-MM-yyyy), time (HH:mm), title, description }
+  // Endpoint per raid-helper.xyz API: POST /api/v2/servers/{serverId}/channels/{channelId}/event
+  async createEvent(data) {
+    return new Promise((resolve, reject) => {
+      const { channelId, ...body } = data;
+      const postData = JSON.stringify(body);
+
+      const options = {
+        host: "raid-helper.xyz",
+        port: 443,
+        path: `/api/v2/servers/${this.serverId}/channels/${channelId}/event`,
+        method: "POST",
+        headers: {
+          Authorization: this.apiKey,
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(postData),
+        },
+      };
+
+      const request = https.request(options, (response) => {
+        let responseData = "";
+        response.on("data", (chunk) => {
+          responseData += chunk;
+        });
+        response.on("end", () => {
+          let parsed;
+          try {
+            parsed = JSON.parse(responseData);
+          } catch {
+            return reject(new Error(`Unerwartete Antwort von Raid-Helper (HTTP ${response.statusCode}): ${responseData.slice(0, 200)}`));
+          }
+          resolve(parsed);
+        });
+      });
+
+      request.on("error", (error) => reject(error));
+      request.write(postData);
+      request.end();
+    });
+  }
+
   async saveRaid(data) {
     return new Promise(async (resolve, reject) => {
       const postData = JSON.stringify(data);

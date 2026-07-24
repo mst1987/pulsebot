@@ -35,7 +35,7 @@ function loadCommands(dir) {
 client.on("ready", () => {
     console.log(messages.common.pulseBotReady);
     loadCommands(path.join(__dirname, "commands"));
-    startWebServer();
+    startWebServer(client);
 });
 
 client.on("interactionCreate", async(interaction) => {
