@@ -300,4 +300,5 @@ describe("web/settingsStore", () => {
             expect(getConfig().officerRoleId).toBe("role-1");
         });
     });
+
 });

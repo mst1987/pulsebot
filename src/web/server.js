@@ -23,10 +23,12 @@ const { evaluateLog, scanLogChannels } = require("./logChannel");
 const { getEventSheet, markEventSheetFilled } = require("./eventSheetStore");
 const Raidhelper = require("../classes/raidhelper");
 const SheetsClient = require("../classes/sheets");
+const Drive = require("../classes/drive");
 const { fillSetupSheet } = require("../utils/fillSetup");
 const { matchRaidsheet } = require("../utils/raidsheets");
 const { buildSetupView, tankCandidates } = require("../utils/setupView");
-const { toRaidHelperDate } = require("../utils/date");
+const { toRaidHelperDate, formatTimestampToDateString } = require("../utils/date");
+const { startSheetCleanup } = require("../utils/sheetCleanup");
 const discord = require("./discord");
 const auth = require("./auth");
 
@@ -636,6 +638,7 @@ async function handle(req, res) {
             setup,
             setupError,
             tankCandidates: tankCands,
+            eventSheet: getEventSheet(eventId),
             csrf: auth.csrfToken(req),
             msg: flashFromQuery(url),
             nav: navFor(req),
@@ -663,7 +666,10 @@ async function handle(req, res) {
         }
     }
 
-    // fill a raidsheet from the event's Raid-Helper setup
+    // fill a raidsheet from the event's Raid-Helper setup. Each raid gets its
+    // OWN copy of the source raidsheet: copy it, share it by link, fill the
+    // copy, link it on the event page, and schedule its deletion 3 days after
+    // the raid. The source raidsheet is never written to or deleted.
     if (pathname === "/admin/raids/fill" && req.method === "POST") {
         const user = requireAdmin(req, res);
         if (!user) return;
@@ -680,10 +686,35 @@ async function handle(req, res) {
             if (!result || !result.setup || !result.setup.length) {
                 return redirect(res, `${back}&err=${encodeURIComponent("Setup nicht gefunden oder leer.")}`);
             }
-            const client = new SheetsClient({ spreadsheetId: sheet.spreadsheetId, sheetName: sheet.sheetName, gid: sheet.gid });
+            // Event meta (title + start) for the copy name and the deletion schedule.
+            const { groups: evGroups } = await loadEventGroups(activeGuildFor(req));
+            const ev = evGroups.flatMap((g) => g.events).find((e) => e.id === eventId) || {};
+            const startMs = (Number(ev.startTime) || 0) * 1000;
+            const raidDate = startMs ? formatTimestampToDateString(startMs).split(" - ")[0].trim() : "";
+            const copyName = `${ev.title || sheet.name || "Raidsheet"}${raidDate ? ` — ${raidDate}` : ""}`;
+            // Delete 3 days after the raid (fallback: 3 days from now if start unknown).
+            const deleteAfter = (startMs || Date.now()) + 3 * 24 * 60 * 60 * 1000;
+
+            const drive = new Drive();
+            // Re-filling replaces the previous copy: delete its Drive file first.
+            const prev = getEventSheet(eventId);
+            if (prev && prev.spreadsheetId) {
+                try { await drive.deleteFile(prev.spreadsheetId); }
+                catch (e) { console.error("previous copy delete failed:", e.message); }
+            }
+            // Copy the source raidsheet and record it immediately, so even a later
+            // failure leaves a tracked copy the cleanup sweeper can remove.
+            const copy = await drive.copyFile(sheet.spreadsheetId, copyName);
+            markEventSheetFilled(eventId, {
+                spreadsheetId: copy.id, url: copy.url,
+                sourceSheetId: sheet.spreadsheetId, deleteAfter,
+            });
+            await drive.shareAnyoneWriter(copy.id);
+            const client = new SheetsClient({ spreadsheetId: copy.id, sheetName: sheet.sheetName, gid: sheet.gid });
             const summary = await fillSetupSheet(client, result.setup, { tab: sheet.sheetName || "Setup", tank3: (form.tank3 || "").trim() });
             markEventSheetFilled(eventId, { sheetId: sheet.id, sheetName: sheet.name, playerCount: summary.playerCount });
-            return redirect(res, `${back}&ok=${encodeURIComponent(`Raidsheet gefüllt: ${summary.playerCount} Spieler.`)}`);
+            const delDate = formatTimestampToDateString(deleteAfter).split(" - ")[0].trim();
+            return redirect(res, `${back}&ok=${encodeURIComponent(`Neues Sheet erstellt & gefüllt: ${summary.playerCount} Spieler. Wird am ${delDate} automatisch gelöscht.`)}`);
         } catch (e) {
             console.error("raidsheet fill failed:", e.message);
             return redirect(res, `${back}&err=${encodeURIComponent(e.message || "Füllen fehlgeschlagen.")}`);
@@ -844,6 +875,8 @@ function startWebServer(client) {
     server.listen(webPort, () => {
         console.log(`Logcheck web server listening on port ${webPort}`);
     });
+    // Sweep due raid-sheet copies (deleted a few days after each raid).
+    startSheetCleanup();
     return server;
 }
 

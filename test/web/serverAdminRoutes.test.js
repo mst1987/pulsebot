@@ -46,6 +46,16 @@ jest.mock("../../src/web/settingsStore", () => ({
     getConfig: jest.fn(() => ({ raidDefaults: {}, categoryIds: [], adminRoleIds: [] })),
     saveConfig: jest.fn(),
 }));
+const mockCopyFile = jest.fn();
+const mockShareAnyoneWriter = jest.fn();
+const mockDeleteFile = jest.fn();
+jest.mock("../../src/classes/drive", () =>
+    jest.fn().mockImplementation(() => ({
+        copyFile: mockCopyFile,
+        shareAnyoneWriter: mockShareAnyoneWriter,
+        deleteFile: mockDeleteFile,
+    })));
+jest.mock("../../src/utils/sheetCleanup", () => ({ startSheetCleanup: jest.fn() }));
 jest.mock("../../src/web/discord", () => ({
     setClient: jest.fn(),
     listGuilds: jest.fn(() => [{ id: "g1", name: "G" }]),
@@ -65,7 +75,7 @@ jest.mock("../../src/classes/raidhelper", () =>
         getAllEvents: mockGetAllEvents,
         createEvent: mockCreateEvent,
     })));
-jest.mock("../../src/classes/sheets", () => jest.fn().mockImplementation(() => ({})));
+jest.mock("../../src/classes/sheets", () => jest.fn().mockImplementation((cfg) => ({ cfg })));
 const mockFillSetupSheet = jest.fn(() => Promise.resolve({ playerCount: 25 }));
 jest.mock("../../src/utils/fillSetup", () => ({ fillSetupSheet: mockFillSetupSheet }));
 jest.mock("../../src/web/eventSheetStore", () => ({
@@ -329,6 +339,75 @@ describe("event detail route (setup)", () => {
         expect(opts.setup).toBeNull();
         expect(opts.setupError).toContain("Raid-Helper down");
     });
+
+    it("passes the tracked event-sheet copy to the detail view", async () => {
+        mockGetSetup.mockResolvedValueOnce({ setup: [] });
+        mockGetEventSheet.mockReturnValueOnce({ eventId: "e1", url: "u", deleteAfter: 5 });
+        await request("GET", "/admin/raids/detail?event=e1");
+        const opts = renderAdmin.renderEventDetail.mock.calls[0][1];
+        expect(opts.eventSheet).toMatchObject({ eventId: "e1", url: "u" });
+    });
+});
+
+describe("raidsheet fill route (per-event copy)", () => {
+    const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
+    beforeEach(() => {
+        jest.clearAllMocks();
+        auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+        auth.checkCsrf.mockReturnValue(true);
+        auth.getActiveGuild.mockReturnValue("g1");
+        mockGetAllEvents.mockResolvedValue([
+            { id: "e1", channelId: "c1", title: "GDKP Kara", startTime: 100, leaderId: "u1", signUps: [] },
+        ]);
+        discord.getChannelCategoryMap.mockReturnValue({
+            c1: { name: "kara", categoryId: "cat", categoryName: "Raids" },
+        });
+        store.getRaidsheet.mockReturnValue({ id: "tier45", name: "Tier 4/5", spreadsheetId: "src-1", sheetName: "Setup", gid: "0" });
+        mockGetEventSheet.mockReturnValue(null);
+        mockGetSetup.mockResolvedValue({ setup: [{ name: "Tankadin", specName: "ProtPala" }] });
+        mockCopyFile.mockResolvedValue({ id: "copy-1", url: "https://docs.google.com/spreadsheets/d/copy-1/edit" });
+        mockShareAnyoneWriter.mockResolvedValue();
+        mockFillSetupSheet.mockResolvedValue({ playerCount: 25 });
+    });
+
+    it("copies the source sheet, shares it, fills the copy, and schedules deletion", async () => {
+        const res = await request("POST", "/admin/raids/fill", { event: "e1", sheetId: "tier45", tank3: "Cosma" });
+        // copy of the source (never the source itself)
+        expect(mockCopyFile).toHaveBeenCalledWith("src-1", expect.stringContaining("GDKP Kara"));
+        expect(mockShareAnyoneWriter).toHaveBeenCalledWith("copy-1");
+        // fills the COPY, not the source
+        const fillClient = mockFillSetupSheet.mock.calls[0][0];
+        expect(fillClient.cfg.spreadsheetId).toBe("copy-1");
+        expect(mockFillSetupSheet.mock.calls[0][2]).toMatchObject({ tank3: "Cosma" });
+        // records the copy with a deletion 3 days after the raid (startTime 100s)
+        expect(mockMarkEventSheetFilled).toHaveBeenCalledWith("e1", expect.objectContaining({
+            spreadsheetId: "copy-1", sourceSheetId: "src-1",
+            deleteAfter: 100 * 1000 + THREE_DAYS,
+        }));
+        expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1");
+        expect(redirectTo(res)).toContain("ok=");
+    });
+
+    it("deletes the previous copy's Drive file before creating a new one on re-fill", async () => {
+        mockGetEventSheet.mockReturnValue({ spreadsheetId: "copy-old", eventId: "e1" });
+        await request("POST", "/admin/raids/fill", { event: "e1", sheetId: "tier45" });
+        expect(mockDeleteFile).toHaveBeenCalledWith("copy-old");
+        expect(mockCopyFile).toHaveBeenCalled();
+    });
+
+    it("errors without copying when the setup is empty", async () => {
+        mockGetSetup.mockResolvedValueOnce({ setup: [] });
+        const res = await request("POST", "/admin/raids/fill", { event: "e1", sheetId: "tier45" });
+        expect(mockCopyFile).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("err=");
+    });
+
+    it("rejects a bad CSRF token before doing anything", async () => {
+        auth.checkCsrf.mockReturnValueOnce(false);
+        const res = await request("POST", "/admin/raids/fill", { event: "e1", sheetId: "tier45" });
+        expect(mockCopyFile).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("msg=csrf");
+    });
 });
 
 describe("dashboard upcoming events (GET /)", () => {
@@ -405,12 +484,16 @@ describe("dashboard upcoming events (GET /)", () => {
 describe("raidsheet fill route records the fill", () => {
     beforeEach(() => {
         store.getRaidsheet.mockReturnValue({ id: "tier45", name: "Tier 4/5", spreadsheetId: "sheet123", sheetName: "Setup", gid: "0" });
+        mockGetEventSheet.mockReturnValue(null);
+        mockCopyFile.mockResolvedValue({ id: "copy-1", url: "https://docs.google.com/spreadsheets/d/copy-1/edit" });
+        mockShareAnyoneWriter.mockResolvedValue();
     });
 
     it("POST /admin/raids/fill marks the event sheet as filled on success", async () => {
         mockGetSetup.mockResolvedValueOnce({ setup: [{ name: "Tank" }] });
         const res = await request("POST", "/admin/raids/fill", { event: "e1", sheetId: "tier45" });
         expect(mockFillSetupSheet).toHaveBeenCalled();
+        // the post-fill record carries the player count for the dashboard
         expect(mockMarkEventSheetFilled).toHaveBeenCalledWith("e1", {
             sheetId: "tier45", sheetName: "Tier 4/5", playerCount: 25,
         });

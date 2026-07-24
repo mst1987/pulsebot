@@ -54,6 +54,12 @@ function markEventSheetFilled(eventId, data = {}) {
         sheetId: String(data.sheetId || (match && match.sheetId) || "").trim(),
         sheetName: String(data.sheetName || (match && match.sheetName) || "").trim(),
         playerCount: Number(data.playerCount || (match && match.playerCount) || 0),
+        // Per-raid throwaway copy: the created Drive file, its share link, the
+        // source it was copied from, and when the cleanup sweeper should delete it.
+        spreadsheetId: String(data.spreadsheetId || (match && match.spreadsheetId) || "").trim(),
+        url: String(data.url || (match && match.url) || "").trim(),
+        sourceSheetId: String(data.sourceSheetId || (match && match.sourceSheetId) || "").trim(),
+        deleteAfter: Number(data.deleteAfter || (match && match.deleteAfter) || 0),
     };
     let saved;
     if (match) {
@@ -66,4 +72,14 @@ function markEventSheetFilled(eventId, data = {}) {
     return saved;
 }
 
-module.exports = { listEventSheets, getEventSheet, markEventSheetFilled };
+/** Remove the record for an event id. Returns true if one was removed. */
+function deleteEventSheet(eventId) {
+    const id = String(eventId || "").trim();
+    const events = listEventSheets();
+    const next = events.filter((e) => e.eventId !== id);
+    if (next.length === events.length) return false;
+    writeJson(EVENT_SHEETS_FILE, { events: next });
+    return true;
+}
+
+module.exports = { listEventSheets, getEventSheet, markEventSheetFilled, deleteEventSheet };

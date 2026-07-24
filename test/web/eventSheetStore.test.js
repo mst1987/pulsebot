@@ -20,7 +20,7 @@ jest.mock("fs", () => {
 });
 
 const fs = require("fs");
-const { listEventSheets, getEventSheet, markEventSheetFilled } = require("../../src/web/eventSheetStore.js");
+const { listEventSheets, getEventSheet, markEventSheetFilled, deleteEventSheet } = require("../../src/web/eventSheetStore.js");
 
 beforeEach(() => {
     fs.__store.clear();
@@ -80,6 +80,33 @@ describe("web/eventSheetStore", () => {
             markEventSheetFilled("evt2", { sheetId: "s2" });
             expect(listEventSheets()).toHaveLength(2);
             expect(getEventSheet("evt2").sheetId).toBe("s2");
+        });
+
+        it("stores the per-raid copy details (Drive file, link, deletion time)", () => {
+            const saved = markEventSheetFilled("evt1", {
+                spreadsheetId: "copy-1", url: "https://docs.google.com/spreadsheets/d/copy-1/edit",
+                sourceSheetId: "src-1", deleteAfter: 999,
+            });
+            expect(saved).toMatchObject({
+                spreadsheetId: "copy-1", url: "https://docs.google.com/spreadsheets/d/copy-1/edit",
+                sourceSheetId: "src-1", deleteAfter: 999,
+            });
+        });
+
+        it("preserves copy details when a later fill only refreshes the player count", () => {
+            markEventSheetFilled("evt1", { spreadsheetId: "copy-1", url: "u", deleteAfter: 999 });
+            const second = markEventSheetFilled("evt1", { sheetId: "tier45", playerCount: 25 });
+            // second call keeps the copy fields from the first
+            expect(second).toMatchObject({ spreadsheetId: "copy-1", url: "u", deleteAfter: 999, playerCount: 25 });
+        });
+    });
+
+    describe("deleteEventSheet", () => {
+        it("removes a record by event id and reports success", () => {
+            markEventSheetFilled("evt1", { sheetId: "s1" });
+            expect(deleteEventSheet("evt1")).toBe(true);
+            expect(deleteEventSheet("evt1")).toBe(false);
+            expect(getEventSheet("evt1")).toBeNull();
         });
     });
 
