@@ -11,6 +11,7 @@ const {
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
 const RECRUITMENT_FILE = path.join(SETTINGS_DIR, "recruitment.json");
 const RECRUITMENT_POSTS_FILE = path.join(SETTINGS_DIR, "recruitment-posts.json");
+const RAID_TEMPLATES_FILE = path.join(SETTINGS_DIR, "raid-templates.json");
 const NOTIFY_FILE = path.join(SETTINGS_DIR, "notify.json");
 const CONFIG_FILE = path.join(SETTINGS_DIR, "config.json");
 
@@ -167,6 +168,75 @@ function deleteRecruitmentPost(id) {
     return true;
 }
 
+// ---- raid templates (Raid-Helper templateId -> friendly name) ----
+// Raid-Helper has no public "list templates" endpoint, so the admin menu keeps
+// its own list of the server's templates: added by hand or imported from the
+// server's existing Raid-Helper events. It powers the dropdown in the raid form.
+
+/** All known raid templates, newest-updated first. */
+function listRaidTemplates() {
+    const data = readJson(RAID_TEMPLATES_FILE, { templates: [] });
+    const templates = Array.isArray(data.templates) ? data.templates : [];
+    return templates.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
+/**
+ * Create or update a raid template, keyed by its Raid-Helper templateId.
+ * A blank templateId is rejected (returns null). Returns the saved template.
+ */
+function saveRaidTemplate(data) {
+    const id = String(data.id || "").trim();
+    if (!id) return null;
+    const name = String(data.name || "").trim();
+    const templates = listRaidTemplates();
+    const match = templates.find((t) => t.id === id);
+    let saved;
+    if (match) {
+        saved = Object.assign(match, { name: name || match.name, updatedAt: Date.now() });
+    } else {
+        saved = { id, name, createdAt: Date.now(), updatedAt: Date.now() };
+        templates.push(saved);
+    }
+    writeJson(RAID_TEMPLATES_FILE, { templates });
+    return saved;
+}
+
+/**
+ * Upsert many raid templates at once (used by the "import from Raid-Helper"
+ * action). Returns { added, updated } counts.
+ */
+function saveRaidTemplates(list) {
+    const incoming = (Array.isArray(list) ? list : [])
+        .map((t) => ({ id: String(t.id || "").trim(), name: String(t.name || "").trim() }))
+        .filter((t) => t.id);
+    const templates = listRaidTemplates();
+    let added = 0;
+    let updated = 0;
+    for (const t of incoming) {
+        const match = templates.find((x) => x.id === t.id);
+        if (match) {
+            // Only overwrite the name when the import actually carries one.
+            if (t.name && t.name !== match.name) match.name = t.name;
+            match.updatedAt = Date.now();
+            updated += 1;
+        } else {
+            templates.push({ id: t.id, name: t.name, createdAt: Date.now(), updatedAt: Date.now() });
+            added += 1;
+        }
+    }
+    if (incoming.length) writeJson(RAID_TEMPLATES_FILE, { templates });
+    return { added, updated };
+}
+
+/** Delete a raid template by its templateId. Returns true if one was removed. */
+function deleteRaidTemplate(id) {
+    const templates = listRaidTemplates();
+    const next = templates.filter((t) => t.id !== id);
+    if (next.length === templates.length) return false;
+    writeJson(RAID_TEMPLATES_FILE, { templates: next });
+    return true;
+}
+
 // ---- notify (Anmelde-Aufruf) templates: message texts posted with a role ping ----
 
 /** All Anmelde-Aufruf templates, newest-edited first. */
@@ -303,6 +373,7 @@ function saveConfig(partial) {
 module.exports = {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
+    listRaidTemplates, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
     listNotify, getNotify, saveNotify, deleteNotify,
     listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
     getConfig, saveConfig,

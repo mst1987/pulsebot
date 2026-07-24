@@ -110,6 +110,7 @@ const NAV_ICONS = {
     recruitment: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M19 8v6M22 11h-6\"/></svg>",
     cla: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 3v16a2 2 0 0 0 2 2h16\"/><path d=\"m7 14 3-4 3 3 4-6\"/></svg>",
     raids: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/></svg>",
+    channels: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 9h16M4 15h16M10 3 8 21M16 3l-2 18\"/></svg>",
     settings: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z\"/></svg>",
 };
 
@@ -118,6 +119,7 @@ const TABS = [
     { id: "recruitment", label: "Recruitment", href: "/admin/recruitment", group: "Verwaltung" },
     { id: "cla", label: "CLA / Logcheck", href: "/admin/cla", group: "Verwaltung" },
     { id: "raids", label: "Raid-Events", href: "/admin/raids", group: "Verwaltung" },
+    { id: "channels", label: "Kanäle", href: "/admin/channels", group: "Verwaltung" },
     { id: "settings", label: "Einstellungen", href: "/admin/settings", group: "System" },
 ];
 
@@ -297,6 +299,7 @@ function renderDashboard(user, opts = {}) {
             ${quick("/admin/recruitment", NAV_ICONS.recruitment, "Recruitment verwalten")}
             ${quick("/admin/cla", NAV_ICONS.cla, "Neue Log-Auswertung")}
             ${quick("/admin/raids", NAV_ICONS.raids, "Raid-Event anlegen")}
+            ${quick("/admin/channels", NAV_ICONS.channels, "Kanäle verwalten")}
             ${quick("/admin/settings", NAV_ICONS.settings, "Einstellungen")}
           </div>
         </div>
@@ -569,6 +572,19 @@ function renderCla(user, opts = {}) {
 }
 
 /**
+ * A Raid-Helper template picker: an input with a <datalist> of known templates.
+ * Lets the admin pick a saved template OR type any template ID by hand, so it
+ * never blocks event creation even when the template list is empty.
+ */
+function raidTemplateField(templates, selectedId) {
+    const options = (templates || [])
+        .map((t) => `<option value="${esc(t.id)}">${esc(t.name || "(ohne Name)")}</option>`)
+        .join("");
+    return `<input type="text" name="templateId" list="raidTemplateList" value="${esc(selectedId || "")}" placeholder="Template wählen oder ID eintippen" autocomplete="off" required>
+      <datalist id="raidTemplateList">${options}</datalist>`;
+}
+
+/**
  * Raid-events overview: every server event grouped by Discord category, with
  * links to the Discord post / Raid-Helper setup and a per-event detail page.
  * @param {object} opts { groups, guildId, activeGuildId, error, csrf, msg, nav }
@@ -628,8 +644,9 @@ function renderRaids(user, opts = {}) {
 function renderRaidCreate(user, opts = {}) {
     const d = opts.defaults || { templateId: "", channelId: "" };
     const leaderId = opts.leaderId || "";
+    const templates = opts.templates || [];
     const csrfField = hiddenCsrf(opts.csrf || "");
-    const body = `
+    const createForm = `
       <p class="note"><a class="mlink" href="/admin/raids">← Zurück zur Event-Übersicht</a></p>
       <h2>Neues Raid-Event anlegen</h2>
       <p class="note">Legt über die Raid-Helper-API ein echtes Event mit Signup-Nachricht an. Standardwerte kommen aus den <a href="/admin/settings">Einstellungen</a>.</p>
@@ -648,9 +665,11 @@ function renderRaidCreate(user, opts = {}) {
           <input type="text" name="time" placeholder="20:00" required>
         </div>
         <div class="field">
-          <label>Template-ID</label>
-          <input type="text" name="templateId" value="${esc(d.templateId)}" placeholder="Raid-Helper Template-ID" required>
-          <div class="hint">Standard aus den Einstellungen — hier bei Bedarf überschreiben.</div>
+          <label>Template</label>
+          ${raidTemplateField(templates, d.templateId)}
+          <div class="hint">${templates.length
+        ? "Aus der Liste wählen oder eine eigene Raid-Helper-Template-ID eintippen."
+        : "Noch keine Templates hinterlegt — Raid-Helper-Template-ID eintippen oder unten laden/anlegen."}</div>
         </div>
         <div class="field">
           <label>Channel</label>
@@ -671,7 +690,129 @@ function renderRaidCreate(user, opts = {}) {
           <a class="btn btn-ghost" href="/admin/raids">Abbrechen</a>
         </div>
       </form>`;
-    return adminLayout("Neues Raid-Event — Pulsebot Admin", "raids", user, body, opts.msg, opts.nav);
+
+    // --- template management: list + delete, add by hand, import from Raid-Helper ---
+    const templateRows = templates.length
+        ? `<table class="idx" style="margin-bottom:14px">
+             <thead><tr><th>Name</th><th class="small">Template-ID</th><th></th></tr></thead>
+             <tbody>${templates.map((t) => `<tr>
+               <td><strong>${esc(t.name || "(ohne Name)")}</strong></td>
+               <td class="small">${esc(t.id)}</td>
+               <td class="row-actions">
+                 <form method="POST" action="/admin/raid-templates/delete" onsubmit="return confirm('Template aus der Liste entfernen?')" style="margin:0">
+                   ${csrfField}<input type="hidden" name="id" value="${esc(t.id)}">
+                   <button class="btn btn-danger" type="submit">Entfernen</button>
+                 </form>
+               </td>
+             </tr>`).join("")}</tbody>
+           </table>`
+        : "<p class=\"sub\">Noch keine Templates gespeichert.</p>";
+
+    const templateSection = `
+      <h2>Raid-Helper-Templates</h2>
+      <p class="note">Raid-Helper bietet keinen Endpunkt zum Auflisten von Templates. Der Bot pflegt daher eine eigene Liste — automatisch aus den bestehenden Events deines Servers geladen oder von Hand ergänzt. Sie füllt die Auswahl oben.</p>
+      ${templateRows}
+      <div class="row-actions" style="margin-bottom:14px">
+        <form method="POST" action="/admin/raid-templates/import" style="margin:0" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Lädt …'">
+          ${csrfField}
+          <button class="btn btn-ghost" type="submit">Aus Raid-Helper laden</button>
+        </form>
+      </div>
+      <form class="card-form" method="POST" action="/admin/raid-templates">
+        ${csrfField}
+        <div class="field">
+          <label>Template-ID</label>
+          <input type="text" name="id" placeholder="z.B. 3" required>
+        </div>
+        <div class="field">
+          <label>Name</label>
+          <input type="text" name="name" placeholder="z.B. GDKP Karazhan">
+        </div>
+        <div class="row-actions"><button class="btn" type="submit">Template speichern</button></div>
+      </form>`;
+
+    return adminLayout("Raid-Events — Pulsebot Admin", "raids", user, `${createForm}${templateSection}`, opts.msg, opts.nav);
+}
+
+/**
+ * Channel management page: create a new channel, or duplicate an existing one
+ * (full clone, editable name, same category).
+ * @param {object} opts { categories, channels, activeGuildId, csrf, msg, nav }
+ */
+function renderChannels(user, opts = {}) {
+    const categories = opts.categories || [];
+    const channels = opts.channels || [];
+    const activeGuildId = opts.activeGuildId || "";
+    const csrfField = hiddenCsrf(opts.csrf || "");
+
+    if (!activeGuildId) {
+        const body = "<p class=\"sub\">Wähle oben einen Server, um Kanäle zu verwalten.</p>";
+        return adminLayout("Kanäle — Pulsebot Admin", "channels", user, body, opts.msg, opts.nav);
+    }
+
+    const categoryOptions = "<option value=\"\">— keine Kategorie —</option>"
+        + categories.map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("");
+
+    const createForm = `
+      <h2>Neuen Kanal erstellen</h2>
+      <form class="card-form" method="POST" action="/admin/channels/create">
+        ${csrfField}
+        <div class="field">
+          <label>Name</label>
+          <input type="text" name="name" placeholder="z.B. kara-signup" required>
+        </div>
+        <div class="field">
+          <label>Typ</label>
+          <select name="type">
+            <option value="text">Text</option>
+            <option value="voice">Voice</option>
+            <option value="announcement">Ankündigung</option>
+            <option value="forum">Forum</option>
+            <option value="stage">Stage</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Kategorie</label>
+          <select name="parentId">${categoryOptions}</select>
+        </div>
+        <div class="row-actions"><button class="btn" type="submit">Kanal erstellen</button></div>
+      </form>`;
+
+    let duplicateForm;
+    if (!channels.length) {
+        duplicateForm = "<p class=\"sub\">Keine Kanäle zum Duplizieren gefunden.</p>";
+    } else {
+        const channelOptions = channels
+            .map((c) => `<option value="${esc(c.id)}" data-name="${esc(c.name)}">#${esc(c.name)} · ${esc(c.typeLabel || "Kanal")}${c.category ? ` · ${esc(c.category)}` : ""}</option>`)
+            .join("");
+        duplicateForm = `
+      <form class="card-form" method="POST" action="/admin/channels/duplicate">
+        ${csrfField}
+        <div class="field">
+          <label>Kanal duplizieren</label>
+          <select name="channelId" id="dupSource" required>${channelOptions}</select>
+          <div class="hint">Vollständiger Klon (Rechte, Thema, Slowmode) in derselben Kategorie wie das Original.</div>
+        </div>
+        <div class="field">
+          <label>Name des Duplikats</label>
+          <input type="text" name="name" id="dupName" placeholder="Name übernehmen &amp; anpassen">
+          <div class="hint">Vorbelegt mit dem Original-Namen — hier anpassen. Leer = Name des Originals.</div>
+        </div>
+        <div class="row-actions"><button class="btn" type="submit">Duplizieren</button></div>
+      </form>
+      <script>(function(){
+        var sel=document.getElementById("dupSource"),name=document.getElementById("dupName");
+        function sync(){var o=sel.options[sel.selectedIndex];if(o&&!name.value)name.value=o.getAttribute("data-name")||"";}
+        function force(){var o=sel.options[sel.selectedIndex];if(o)name.value=o.getAttribute("data-name")||"";}
+        if(sel&&name){sync();sel.addEventListener("change",force);}
+      })();</script>`;
+    }
+
+    const body = `
+      ${createForm}
+      <h2>Kanal duplizieren</h2>
+      ${duplicateForm}`;
+    return adminLayout("Kanäle — Pulsebot Admin", "channels", user, body, opts.msg, opts.nav);
 }
 
 /**
@@ -928,5 +1069,5 @@ function renderSettings(user, opts = {}) {
 module.exports = {
     adminLayout, adminNav, renderDashboard, renderAdminDenied,
     renderRecruitment, renderCla, renderRaids, renderRaidCreate,
-    renderEventDetail, renderNotifyTemplates, renderSettings, hiddenCsrf, esc,
+    renderEventDetail, renderNotifyTemplates, renderChannels, renderSettings, hiddenCsrf, esc,
 };

@@ -5,11 +5,13 @@ const { getReport, deleteReport, listReports } = require("./reportStore");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
 const {
     renderDashboard, renderAdminDenied, renderRecruitment, renderCla,
-    renderRaids, renderRaidCreate, renderEventDetail, renderNotifyTemplates, renderSettings,
+    renderRaids, renderRaidCreate, renderEventDetail, renderNotifyTemplates,
+    renderChannels, renderSettings,
 } = require("./renderAdmin");
 const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
+    listRaidTemplates, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
     listNotify, getNotify, saveNotify, deleteNotify,
     listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
     getConfig, saveConfig,
@@ -404,6 +406,7 @@ async function handle(req, res) {
                 defaults: getConfig().raidDefaults,
                 leaderId: user.id,
                 channels: discord.listTextChannels(activeGuildFor(req)),
+                templates: listRaidTemplates(),
                 csrf: auth.csrfToken(req),
                 msg: flashFromQuery(url),
                 nav: navFor(req),
@@ -434,6 +437,94 @@ async function handle(req, res) {
                 console.error("raid create failed:", e.message);
                 return redirect(res, `/admin/raids/new?err=${encodeURIComponent(e.message || "Event konnte nicht angelegt werden.")}`);
             }
+        }
+    }
+
+    // raid templates: add one by hand (feeds the create-form dropdown)
+    if (pathname === "/admin/raid-templates" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/raids/new?msg=csrf");
+        const saved = saveRaidTemplate({ id: (form.id || "").trim(), name: (form.name || "").trim() });
+        if (!saved) return redirect(res, "/admin/raids/new?err=" + encodeURIComponent("Template-ID fehlt."));
+        return redirect(res, "/admin/raids/new?msg=saved");
+    }
+    // raid templates: remove one
+    if (pathname === "/admin/raid-templates/delete" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/raids/new?msg=csrf");
+        deleteRaidTemplate((form.id || "").trim());
+        return redirect(res, "/admin/raids/new?msg=deleted");
+    }
+    // raid templates: import the distinct templates used by the server's events
+    if (pathname === "/admin/raid-templates/import" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/raids/new?msg=csrf");
+        try {
+            const rh = new Raidhelper();
+            const templates = await rh.getTemplates();
+            if (!templates.length) {
+                return redirect(res, "/admin/raids/new?err=" + encodeURIComponent("Keine Templates in den aktuellen Events gefunden."));
+            }
+            const { added, updated } = saveRaidTemplates(templates);
+            return redirect(res, "/admin/raids/new?ok=" + encodeURIComponent(`${added} neu, ${updated} aktualisiert.`));
+        } catch (e) {
+            console.error("raid template import failed:", e.message);
+            return redirect(res, "/admin/raids/new?err=" + encodeURIComponent(e.message || "Laden fehlgeschlagen."));
+        }
+    }
+
+    // channels: create a new channel or duplicate an existing one
+    if (pathname === "/admin/channels" && req.method === "GET") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const guildId = activeGuildFor(req);
+        return send(res, 200, renderChannels(user, {
+            categories: discord.listCategories(guildId),
+            channels: discord.listAllChannels(guildId),
+            activeGuildId: guildId,
+            csrf: auth.csrfToken(req),
+            msg: flashFromQuery(url),
+            nav: navFor(req),
+        }));
+    }
+    if (pathname === "/admin/channels/create" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/channels?msg=csrf");
+        const guildId = activeGuildFor(req);
+        if (!guildId) return redirect(res, "/admin/channels?err=" + encodeURIComponent("Kein Server gewählt."));
+        try {
+            const created = await discord.createChannel(guildId, {
+                name: (form.name || "").trim(),
+                type: (form.type || "text").trim(),
+                parentId: (form.parentId || "").trim(),
+            });
+            return redirect(res, "/admin/channels?ok=" + encodeURIComponent(`Kanal #${created.name} erstellt.`));
+        } catch (e) {
+            console.error("channel create failed:", e.message);
+            return redirect(res, "/admin/channels?err=" + encodeURIComponent(e.message || "Kanal konnte nicht erstellt werden."));
+        }
+    }
+    if (pathname === "/admin/channels/duplicate" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/channels?msg=csrf");
+        const channelId = (form.channelId || "").trim();
+        if (!channelId) return redirect(res, "/admin/channels?err=" + encodeURIComponent("Kein Kanal gewählt."));
+        try {
+            const created = await discord.duplicateChannel(channelId, (form.name || "").trim());
+            return redirect(res, "/admin/channels?ok=" + encodeURIComponent(`Kanal #${created.name} dupliziert.`));
+        } catch (e) {
+            console.error("channel duplicate failed:", e.message);
+            return redirect(res, "/admin/channels?err=" + encodeURIComponent(e.message || "Kanal konnte nicht dupliziert werden."));
         }
     }
 

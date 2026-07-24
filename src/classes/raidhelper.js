@@ -52,6 +52,32 @@ class Raidhelper {
     });
   }
 
+  // Derive the distinct templates the server actually uses from its events.
+  // Raid-Helper exposes no "list templates" endpoint, so we read the already
+  // available events (v4 endpoint) and collapse them to { id, name } by
+  // templateId. Returns [] on any API failure so callers can degrade cleanly.
+  async getTemplates() {
+    let events;
+    try {
+      events = await this.getAllEvents();
+    } catch {
+      return [];
+    }
+    const byId = new Map();
+    for (const event of events || []) {
+      const hasId = event && event.templateId !== null && event.templateId !== undefined;
+      const id = hasId ? String(event.templateId).trim() : "";
+      if (!id || byId.has(id)) continue;
+      const name = String(
+        event.templateName || event.templateTitle || event.title || ""
+      ).trim();
+      byId.set(id, { id, name });
+    }
+    return [...byId.values()].sort((a, b) =>
+      (a.name || a.id).localeCompare(b.name || b.id)
+    );
+  }
+
   async getUserSignUps(userid) {
     return new Promise((resolve, reject) => {
       let data = "";

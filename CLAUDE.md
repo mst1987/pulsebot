@@ -33,10 +33,28 @@ node src/discordcommands/raidhelper.js  # Legacy command registration script
    ```
    Work happens in `../eventhelper-<name>/`; the primary checkout stays on `main`.
 3. **Write and run tests** for the change (`npm test` must pass) and keep `npm run lint` clean before opening a PR.
-4. **Open a PR targeting `main` as soon as the feature is finished — proactively, without waiting to be asked.** Summarize what changed and how it was verified in the PR body. Merge to `main` only via PR.
-5. **Clean up the worktree** after the PR is merged: `git worktree remove ../eventhelper-<name>`.
+4. **Spin up a local test instance on its own port** so the change can be verified live, isolated from every other running instance (see “Local test instances” below). Every agent-made change must be runnable this way, and the agent hands the reviewer the local URL to click.
+5. **Open a PR targeting `main` as soon as the feature is finished — proactively, without waiting to be asked.** Summarize what changed and how it was verified in the PR body (including the local test URL/port used). Merge to `main` only via PR.
+6. **Clean up the worktree** after the PR is merged: `git worktree remove ../eventhelper-<name>` (stop its test instance first).
 
 Every change must ship with tests (see the Testing section). Do not merge a feature branch that lowers coverage of the modules it touches.
+
+### Local test instances (one port per change)
+
+Every feature worktree runs its **own** bot/web instance on a **new, unused port**, so several changes can be reviewed side by side without clobbering each other. Never reuse the default port (`3005`) for a feature branch — pick a fresh one and keep it stable for that worktree.
+
+- **Port convention:** allocate a distinct `WEB_PORT` per worktree, counting up from `3010` (`3010`, `3011`, `3012`, …). Record the chosen port in the PR body so the reviewer knows where to look. If a port is already taken, take the next free one.
+- **Start it** (from the worktree root) with a non-production env, a unique port, and the OAuth-free dev login so `/admin` opens without a Discord callback:
+  ```bash
+  # bash
+  WEB_PORT=3010 DEV_AUTO_LOGIN=1 NODE_ENV=development npm start
+  ```
+  ```powershell
+  # PowerShell
+  $env:WEB_PORT=3010; $env:DEV_AUTO_LOGIN=1; $env:NODE_ENV="development"; npm start
+  ```
+  The admin menu is then reachable at `http://localhost:3010/`. `DEV_AUTO_LOGIN=1` auto-logs-in the first admin and is hard-gated to non-production (`src/config/variables.js`), so it can never weaken auth on the live bot. A per-worktree `.env.dev` (with its own `WEB_PORT`) may hold these values instead of inline env vars.
+- **After the change:** report the port/URL you used to verify it, and stop the instance when done (it is only for review, never left running in production).
 
 ## Architecture
 

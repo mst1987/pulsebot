@@ -1,7 +1,7 @@
 const {
     renderDashboard, renderAdminDenied,
     renderRecruitment, renderCla, renderRaids, renderRaidCreate,
-    renderEventDetail, renderNotifyTemplates, renderSettings,
+    renderEventDetail, renderNotifyTemplates, renderChannels, renderSettings,
 } = require("../../src/web/renderAdmin.js");
 
 const user = { id: "42", name: "Marcstz", isAdmin: true };
@@ -169,6 +169,27 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("value=\"42\"");
             expect(html).toContain("action=\"/admin/raids/new\"");
         });
+
+        it("renders saved templates as datalist options and escapes their names", () => {
+            const html = renderRaidCreate(user, {
+                defaults: { templateId: "", channelId: "" },
+                templates: [{ id: "3", name: "<b>Kara</b>" }],
+                leaderId: "42", channels: [], csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("<datalist id=\"raidTemplateList\">");
+            expect(html).toContain("value=\"3\"");
+            expect(html).toContain("&lt;b&gt;Kara&lt;/b&gt;");
+            expect(html).not.toContain("<b>Kara</b>");
+        });
+
+        it("offers the import and add-template actions on the dedicated routes", () => {
+            const html = renderRaidCreate(user, {
+                defaults: { templateId: "", channelId: "" }, templates: [], leaderId: "1", channels: [], csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("action=\"/admin/raid-templates/import\"");
+            expect(html).toContain("action=\"/admin/raid-templates\"");
+            expect(html).toContain("Aus Raid-Helper laden");
+        });
     });
 
     describe("renderEventDetail", () => {
@@ -208,6 +229,40 @@ describe("web/renderAdmin", () => {
             });
             expect(html).toContain("&lt;b&gt;Kara&lt;/b&gt;");
             expect(html).toContain("action=\"/admin/raids/templates\"");
+        });
+    });
+
+    describe("renderChannels", () => {
+        it("prompts to pick a server when none is active", () => {
+            const html = renderChannels(user, { activeGuildId: "", csrf: "x", nav: nav() });
+            expect(html).toContain("Wähle oben einen Server");
+        });
+
+        it("renders the create form with categories and the duplicate form with channels", () => {
+            const html = renderChannels(user, {
+                activeGuildId: "g1",
+                categories: [{ id: "cat", name: "Raids" }],
+                channels: [{ id: "t1", name: "kara-signup", typeLabel: "Text", category: "Raids" }],
+                csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("action=\"/admin/channels/create\"");
+            expect(html).toContain("action=\"/admin/channels/duplicate\"");
+            expect(html).toContain("Raids");
+            expect(html).toContain("kara-signup");
+            // duplicate source carries the name so the JS can prefill the rename field
+            expect(html).toContain("data-name=\"kara-signup\"");
+        });
+
+        it("shows an empty state for duplication when there are no channels", () => {
+            const html = renderChannels(user, {
+                activeGuildId: "g1", categories: [], channels: [], csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("Keine Kanäle zum Duplizieren");
+        });
+
+        it("marks the channels nav item active", () => {
+            const html = renderChannels(user, { activeGuildId: "g1", categories: [], channels: [], csrf: "x", nav: nav() });
+            expect(html).toContain("class=\"nav-item active\" href=\"/admin/channels\"");
         });
     });
 
