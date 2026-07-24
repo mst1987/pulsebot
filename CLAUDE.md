@@ -26,6 +26,7 @@ node src/discordcommands/raidhelper.js  # Legacy command registration script
 
 `main` is the integration branch and always reflects the production-ready state. `main` and `dev` are kept in sync; new work does **not** branch off `dev`.
 
+0. **Sync `main` first — always, before touching anything.** Every unit of work starts by fetching and fast-forwarding `main` so the branch is cut from the current production state: `git fetch origin && git checkout main && git pull --ff-only origin main`. Never start editing on a stale `main` or a branch whose base has moved on.
 1. **Branch off `main`** for every new feature or fix: `git switch main && git pull && git switch -c feature/<name>`.
 2. **Use a git worktree** so the feature is developed in its own directory without disturbing the main checkout:
    ```bash
@@ -34,8 +35,9 @@ node src/discordcommands/raidhelper.js  # Legacy command registration script
    Work happens in `../eventhelper-<name>/`; the primary checkout stays on `main`.
 3. **Write and run tests** for the change (`npm test` must pass) and keep `npm run lint` clean before opening a PR.
 4. **Spin up a local test instance on its own port** so the change can be verified live, isolated from every other running instance (see “Local test instances” below). Every agent-made change must be runnable this way, and the agent hands the reviewer the local URL to click.
-5. **Open a PR targeting `main` as soon as the feature is finished — proactively, without waiting to be asked.** Summarize what changed and how it was verified in the PR body (including the local test URL/port used). Merge to `main` only via PR.
-6. **Clean up the worktree** after the PR is merged: `git worktree remove ../eventhelper-<name>` (stop its test instance first).
+5. **Re-sync `main` into the branch before opening or updating the PR.** `main` may have moved while you worked, so `git fetch origin && git merge origin/main` (or rebase) on the feature branch, resolve any conflicts **locally**, and re-run `npm test` + `npm run lint` on the merged result. A PR must never be opened or left in a conflicting state — resolve it before handing it over.
+6. **Open a PR targeting `main` as soon as the feature is finished — proactively, without waiting to be asked.** Summarize what changed and how it was verified in the PR body (including the local test URL/port used). Merge to `main` only via PR.
+7. **Clean up the worktree** after the PR is merged: `git worktree remove ../eventhelper-<name>` (stop its test instance first).
 
 Every change must ship with tests (see the Testing section). Do not merge a feature branch that lowers coverage of the modules it touches.
 
