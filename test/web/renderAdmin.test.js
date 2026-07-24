@@ -399,6 +399,9 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("/admin/raids/new?source=new&category=cat1");
             // action cell no longer uses display:flex on the td (divider alignment fix)
             expect(html).toContain("td.cell-actions");
+            // categories are rendered as tabs
+            expect(html).toContain("class=\"tabs\"");
+            expect(html).toContain("data-tab=\"cat-cat1-0\"");
         });
 
         it("prompts to pick a server when none is active", () => {
@@ -843,6 +846,9 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("/admin/history/char?name=Foo");
             // file-into-textarea upload hook
             expect(html).toContain("readAsText");
+            // sections are organized as tabs
+            expect(html).toContain("data-tab=\"import\"");
+            expect(html).toContain("data-panel=\"chars\"");
         });
 
         it("shows empty states when there is no data", () => {
@@ -867,6 +873,8 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("wowhead.com/tbc/item=29920");
             expect(html).toContain("/admin/history/char?name=Foo");
             expect(html).toContain("Loot löschen");
+            // Wowhead icons enabled on item pages
+            expect(html).toContain("iconizeLinks:true");
         });
     });
 
@@ -894,6 +902,27 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("Aktuelles Gear (Paperdoll)");
             expect(html).toContain("Cursed Vision");
             expect(html).toContain("wowhead.com/tbc/item=29011");
+        });
+
+        it("organizes gear/loot as tabs and offers a manual paperdoll reload", () => {
+            const html = renderHistoryChar(user, {
+                character: "Foo", csrf: "x", nav: nav(), items: [],
+                gearConfigured: true, gear: null,
+            });
+            expect(html).toContain("data-tab=\"gear\"");
+            expect(html).toContain("data-tab=\"loot\"");
+            expect(html).toContain("Paperdoll neu laden");
+            expect(html).toContain("/admin/history/char?name=Foo");
+        });
+
+        it("surfaces the gear error reason when the Blizzard lookup failed", () => {
+            const html = renderHistoryChar(user, {
+                character: "Ghost", csrf: "x", nav: nav(), items: [],
+                gearConfigured: true, gear: null,
+                gearError: "Charakter „Ghost\" nicht in der Blizzard-API gefunden (404).",
+            });
+            expect(html).toContain("flash-err");
+            expect(html).toContain("nicht in der Blizzard-API gefunden (404)");
         });
     });
 

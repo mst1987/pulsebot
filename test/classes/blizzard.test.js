@@ -98,8 +98,25 @@ describe("classes/Blizzard", () => {
             axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
             axios.get.mockRejectedValue({ response: { status: 404 } });
 
-            const result = await configured().getEquipment("Ghost");
+            const client = configured();
+            const result = await client.getEquipment("Ghost");
             expect(result).toBeNull();
+            expect(client.lastError).toEqual({ status: 404, message: expect.any(String) });
+        });
+
+        it("records lastError reason when unconfigured or nameless, and clears it on success", async () => {
+            const bare = new Blizzard();
+            await bare.getEquipment("Foo");
+            expect(bare.lastError).toEqual({ reason: "not_configured" });
+
+            const c = configured();
+            await c.getEquipment("");
+            expect(c.lastError).toEqual({ reason: "no_name" });
+
+            axios.post.mockResolvedValue({ data: { access_token: "t", expires_in: 3600 } });
+            axios.get.mockResolvedValue({ data: { equipped_items: [] } });
+            await c.getEquipment("Foo");
+            expect(c.lastError).toBeNull();
         });
 
         it("returns null (fallback) on a 403 from the equipment endpoint", async () => {

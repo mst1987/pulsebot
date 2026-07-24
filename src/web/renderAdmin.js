@@ -126,6 +126,8 @@ const ADMIN_STYLE = `<style>
   .tab-btn.active { color:var(--text); background:var(--panel); border-color:var(--line); border-bottom-color:var(--panel); }
   .tab-panel { display:none; }
   .tab-panel.active { display:block; }
+  .tab-count { display:inline-block; margin-left:6px; padding:0 7px; border-radius:999px; font-size:11.5px; font-weight:700; background:var(--panel2); color:var(--muted); border:1px solid var(--line); }
+  .tab-btn.active .tab-count { background:var(--accent-soft); color:var(--accent); border-color:var(--accent-soft); }
   .sheetcard { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px; }
   table.idx td.small { white-space:nowrap; color:var(--muted); font-size:12.5px; }
   /* sortable table headers + pager */
@@ -263,6 +265,39 @@ function messageUrl(p) {
     return `https://discord.com/channels/${esc(p.guildId)}/${esc(p.channelId)}/${esc(p.messageId)}`;
 }
 
+/**
+ * A self-contained tab group. `groupId` must be unique on the page; `items` is
+ * [{ id, label, content, active }] where `label` may contain HTML (e.g. a count
+ * badge) and `content` is the panel HTML. The toggle script is scoped to the
+ * group so multiple groups can coexist. Falls back to the first tab as active.
+ */
+function tabGroup(groupId, items) {
+    const list = items.filter(Boolean);
+    if (!list.length) return "";
+    const activeIdx = Math.max(0, list.findIndex((t) => t.active));
+    const btns = list.map((t, i) => `<button type="button" class="tab-btn${i === activeIdx ? " active" : ""}" data-tab="${esc(t.id)}" role="tab">${t.label}</button>`).join("");
+    const panels = list.map((t, i) => `<div class="tab-panel${i === activeIdx ? " active" : ""}" data-panel="${esc(t.id)}" role="tabpanel">${t.content}</div>`).join("");
+    return `<div class="tabwrap" id="${esc(groupId)}">
+        <div class="tabs" role="tablist">${btns}</div>
+        ${panels}
+      </div>
+      <script>(function(){
+        var root=document.getElementById(${JSON.stringify(groupId)});if(!root)return;
+        var btns=[].slice.call(root.querySelectorAll(".tabs > .tab-btn"));
+        var panels=[].slice.call(root.children).filter(function(n){return n.classList&&n.classList.contains("tab-panel");});
+        btns.forEach(function(b){b.addEventListener("click",function(){
+          var t=b.getAttribute("data-tab");
+          btns.forEach(function(x){x.classList.toggle("active",x===b);});
+          panels.forEach(function(p){p.classList.toggle("active",p.getAttribute("data-panel")===t);});
+        });});
+      })();</script>`;
+}
+
+// Small count pill for a tab label.
+function tabCount(n) {
+    return `<span class="tab-count">${esc(String(n))}</span>`;
+}
+
 // --- event link helpers (Discord post / channel / Raid-Helper raidplan) ---
 function eventPostUrl(guildId, channelId, eventId) {
     return `https://discord.com/channels/${esc(guildId)}/${esc(channelId)}/${esc(eventId)}`;
@@ -284,8 +319,9 @@ function formatEventTime(startTime) {
 const CREST_SVG = "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\"><path d=\"M12 2 4 6v6c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V6l-8-4Z\"/><path d=\"m9 12 2 2 4-4\" stroke-linecap=\"round\"/></svg>";
 const BURGER_SVG = "<svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M4 6h16M4 12h16M4 18h16\"/></svg>";
 
-/** Wrap admin page body in the sidebar app shell (nav + topbar + content). */
-function adminLayout(title, active, user, body, msg, nav) {
+/** Wrap admin page body in the sidebar app shell (nav + topbar + content).
+ * `extra.wowheadIconize` opts this page into Wowhead item icons + auto-names. */
+function adminLayout(title, active, user, body, msg, nav, extra = {}) {
     const name = (user && user.name) || "Admin";
     const initial = esc(name.slice(0, 1).toUpperCase() || "A");
     const label = esc(tabLabel(active));
@@ -320,7 +356,7 @@ function adminLayout(title, active, user, body, msg, nav) {
         </div>
       </div>
       <script>(function(){var t=document.getElementById("adminMenuToggle"),s=document.getElementById("adminSide");if(t&&s)t.addEventListener("click",function(){s.classList.toggle("open");});})();</script>`;
-    return layout(title, shell, { bare: true, bodyClass: "admin" });
+    return layout(title, shell, { bare: true, bodyClass: "admin", wowheadIconize: Boolean(extra.wowheadIconize) });
 }
 
 /** Shown when the visitor is not logged in or lacks admin access. */
@@ -911,7 +947,9 @@ function renderRaids(user, opts = {}) {
     } else if (!groups.length) {
         listing = "<p class=\"sub\">Keine anstehenden Events gefunden.</p>";
     } else {
-        listing = groups.map((g) => {
+        // One tab per Discord category; the panel holds that category's event
+        // table plus its "＋ Event" (format pre-filled from the latest event).
+        const tabs = groups.map((g, i) => {
             const rows = g.events.map((ev) => {
                 const links = [
                     `<a class="mlink" href="${eventPostUrl(guildId, ev.channelId, ev.id)}" target="_blank" rel="noopener">Discord</a>`,
@@ -926,24 +964,22 @@ function renderRaids(user, opts = {}) {
                 </tr>`;
             }).join("");
             // "＋ Event" pre-fills the create form by reusing this category's most
-            // recent event as the template (title/template/channel-name format),
-            // so a new raid keeps the same naming/format used in this category.
+            // recent event as the template (title/template/channel-name format).
             const latest = g.events.slice().sort((a, b) => (b.startTime || 0) - (a.startTime || 0))[0];
             const newHref = "/admin/raids/new"
                 + (latest ? `?source=${esc(latest.id)}` : "")
                 + (g.categoryId ? `${latest ? "&" : "?"}category=${esc(g.categoryId)}` : "");
-            return `<div class="dash-card" style="margin-bottom:16px">
-                <div class="dash-card-head">
-                  <h3>${esc(g.categoryName || "Ohne Kategorie")}</h3>
-                  <span class="small" style="margin-left:auto">${g.events.length} Event(s)</span>
+            const content = `
+                <div class="row-actions" style="justify-content:flex-end;margin-bottom:12px">
                   <a class="btn btn-ghost btn-sm" href="${newHref}" title="Neues Event in dieser Kategorie anlegen (Format vorbelegt)">＋ Event</a>
                 </div>
                 <table class="idx" style="margin:0">
                   <thead><tr><th>Event</th><th>Termin</th><th>Anm.</th><th>Links</th><th></th></tr></thead>
                   <tbody>${rows}</tbody>
-                </table>
-              </div>`;
-        }).join("");
+                </table>`;
+            return { id: `cat-${g.categoryId || "none"}-${i}`, label: `${esc(g.categoryName || "Ohne Kategorie")}${tabCount(g.events.length)}`, content };
+        });
+        listing = tabGroup("raidCatTabs", tabs);
     }
 
     const body = `
@@ -1821,11 +1857,13 @@ function renderHistory(user, opts = {}) {
 
     const body = `
       <p class="note">Loot pro Event importieren (RCLootcouncil-JSON oder Gargul-CSV), Warcraft-Logs verlinken und pro Charakter die Loot-Historie samt Armory einsehen.</p>
-      ${importPanel}
-      ${categorySection}
-      ${lootSection}
-      ${logsSection}
-      ${charSection}`;
+      ${tabGroup("historyTabs", [
+        { id: "import", label: "Import", content: importPanel, active: true },
+        { id: "loot", label: `Importierter Loot${tabCount(lootEvents.length)}`, content: lootSection },
+        { id: "logs", label: `Warcraft Logs${tabCount(logs.length)}`, content: logsSection },
+        { id: "cats", label: "Loot-Tools", content: categorySection },
+        { id: "chars", label: `Charaktere${tabCount(chars.length)}`, content: charSection },
+    ])}`;
     return adminLayout("Historie & Loot — Pulsebot Admin", "history", user, body, opts.msg, opts.nav);
 }
 
@@ -1876,7 +1914,7 @@ function renderHistoryEvent(user, opts = {}) {
         </div>
         ${table}
       </div>`;
-    return adminLayout("Event-Loot — Pulsebot Admin", "history", user, body, opts.msg, opts.nav);
+    return adminLayout("Event-Loot — Pulsebot Admin", "history", user, body, opts.msg, opts.nav, { wowheadIconize: true });
 }
 
 /**
@@ -1893,7 +1931,8 @@ function renderHistoryChar(user, opts = {}) {
         ${opts.wclUrl ? `<a class="btn btn-ghost btn-sm" href="${esc(opts.wclUrl)}" target="_blank" rel="noopener">Warcraft Logs ↗</a>` : ""}
       </div>`;
 
-    let gearSection;
+    const reloadBtn = `<a class="btn btn-ghost btn-sm" href="/admin/history/char?name=${encodeURIComponent(character)}">↻ Paperdoll neu laden</a>`;
+    let gearInner;
     if (Array.isArray(opts.gear) && opts.gear.length) {
         const gearRows = opts.gear.map((g) => `<tr>
             <td class="small">${esc(g.slot || "")}</td>
@@ -1901,30 +1940,39 @@ function renderHistoryChar(user, opts = {}) {
             <td class="small">${esc(g.quality || "")}</td>
             <td class="small">${g.level ? esc(String(g.level)) : ""}</td>
           </tr>`).join("");
-        gearSection = `<div class="dash-card" style="margin-bottom:18px">
+        gearInner = `<div class="dash-card">
             <div class="dash-card-head"><h3>Aktuelles Gear (Paperdoll)</h3><span class="small" style="margin-left:auto">Battle.net API</span></div>
             <table class="idx" style="margin:0"><thead><tr><th>Slot</th><th>Item</th><th>Qualität</th><th>iLvl</th></tr></thead><tbody>${gearRows}</tbody></table>
           </div>`;
     } else if (opts.gearConfigured) {
-        gearSection = `<p class="sub">Kein Live-Gear von der Battle.net-API verfügbar${opts.gearError ? ` (${esc(opts.gearError)})` : ""} — nutze den Armory-Link oben.</p>`;
+        gearInner = `<div class="flash flash-err" style="margin:0 0 12px">${esc(opts.gearError || "Kein Live-Gear von der Battle.net-API verfügbar.")}</div>
+          <p class="sub">Nutze solange den Armory-Link oben. „Paperdoll neu laden" fragt erneut ab.</p>`;
     } else {
-        gearSection = "<p class=\"sub\">Für Live-Gear (Paperdoll) Battle.net-Zugang in den <a href=\"/admin/settings\">Einstellungen</a> hinterlegen. Ohne Zugang steht der Armory-Link oben zur Verfügung.</p>";
+        gearInner = "<p class=\"sub\">Für Live-Gear (Paperdoll) Battle.net-Zugang in den <a href=\"/admin/settings\">Einstellungen</a> hinterlegen. Ohne Zugang steht der Armory-Link oben zur Verfügung.</p>";
     }
+    const gearTab = `
+      <div class="row-actions" style="margin-bottom:12px">
+        ${opts.gearConfigured ? reloadBtn : "<a class=\"btn btn-ghost btn-sm\" href=\"/admin/settings\">Battle.net einrichten</a>"}
+      </div>
+      ${gearInner}`;
 
-    const table = items.length
-        ? lootTable(items, { showEvent: true })
+    const lootTab = items.length
+        ? `<div class="dash-card">
+             <div class="dash-card-head"><h3>Loot-Historie</h3><span class="small" style="margin-left:auto">${items.length} Item(s)</span></div>
+             ${lootTable(items, { showEvent: true })}
+           </div>`
         : "<p class=\"sub\">Kein Loot für diesen Charakter gespeichert.</p>";
+
     const body = `
       <p class="note"><a class="mlink" href="/admin/history">← Zurück zur Historie</a></p>
       <h2 style="margin-top:0">${esc(character)}${opts.realm ? ` <span class="sub">· ${esc(opts.realm)}</span>` : ""}</h2>
       ${links}
       <div style="height:14px"></div>
-      ${gearSection}
-      <div class="dash-card">
-        <div class="dash-card-head"><h3>Loot-Historie</h3><span class="small" style="margin-left:auto">${items.length} Item(s)</span></div>
-        ${table}
-      </div>`;
-    return adminLayout(`${character || "Charakter"} — Pulsebot Admin`, "history", user, body, opts.msg, opts.nav);
+      ${tabGroup("charTabs", [
+        { id: "gear", label: "Gear (Paperdoll)", content: gearTab, active: true },
+        { id: "loot", label: `Loot-Historie${tabCount(items.length)}`, content: lootTab },
+    ])}`;
+    return adminLayout(`${character || "Charakter"} — Pulsebot Admin`, "history", user, body, opts.msg, opts.nav, { wowheadIconize: true });
 }
 
 module.exports = {
