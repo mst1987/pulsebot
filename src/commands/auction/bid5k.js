@@ -17,6 +17,5 @@ module.exports = {
         } else {
             bidForLegendary(client, interaction, 250000);
         }
-        bidForLegendary(client, interaction, bid);
     },
 };

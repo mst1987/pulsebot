@@ -60,12 +60,12 @@ describe("commands/auction/bidCustom", () => {
         await flush();
 
         expect(bidForLegendary).not.toHaveBeenCalled();
-        // NOTE: the source replies on the original `interaction`, not on the
-        // resolved `modalInteraction`.
-        expect(interaction.reply).toHaveBeenCalledWith(
+        // The reply goes to the resolved modalInteraction (the submitted modal).
+        expect(modalInteraction.reply).toHaveBeenCalledWith(
             expect.objectContaining({
                 content: "Bitte gib eine gültige Zahl ein.",
             })
         );
+        expect(interaction.reply).not.toHaveBeenCalled();
     });
 });

@@ -6,13 +6,6 @@ const { bidForLegendary } = require("../../../src/utils/auction.js");
 const Legendary = require("../../../src/classes/legendary.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
-// NOTE: bid5k.js has a bug. The variable `bid` is declared with `const` inside
-// the if/else blocks, but line 20 references `bid` in the outer function scope
-// where it is not defined. Every execution therefore throws a ReferenceError
-// AFTER the first (correct) bidForLegendary call. These tests assert the current
-// (buggy) behavior: the intended bid amount is still forwarded once before the
-// throw. See report.
-
 describe("commands/auction/bid5k", () => {
     it("exports name/description/execute with correct name", () => {
         expect(command).toEqual(
@@ -24,31 +17,27 @@ describe("commands/auction/bid5k", () => {
         );
     });
 
-    it("adds 5000 to the current highest bid, then throws (bug)", async () => {
+    it("adds 5000 to the current highest bid and forwards it once", async () => {
         Legendary.mockImplementation(() => ({
             getHighestBid: jest.fn().mockResolvedValue({ gold: "250000" }),
         }));
         const client = { id: "client" };
         const interaction = mockInteraction();
 
-        await expect(command.execute(interaction, client)).rejects.toThrow(
-            ReferenceError
-        );
+        await expect(command.execute(interaction, client)).resolves.toBeUndefined();
 
         expect(bidForLegendary).toHaveBeenCalledTimes(1);
         expect(bidForLegendary).toHaveBeenCalledWith(client, interaction, 255000);
     });
 
-    it("falls back to 250000 when there is no highest bid, then throws (bug)", async () => {
+    it("falls back to 250000 when there is no highest bid", async () => {
         Legendary.mockImplementation(() => ({
             getHighestBid: jest.fn().mockResolvedValue(null),
         }));
         const client = { id: "client" };
         const interaction = mockInteraction();
 
-        await expect(command.execute(interaction, client)).rejects.toThrow(
-            ReferenceError
-        );
+        await expect(command.execute(interaction, client)).resolves.toBeUndefined();
 
         expect(bidForLegendary).toHaveBeenCalledTimes(1);
         expect(bidForLegendary).toHaveBeenCalledWith(client, interaction, 250000);

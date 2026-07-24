@@ -56,13 +56,15 @@ async function showBidModal(interaction) {
 async function showConfirmationModal(interaction, bid) {
     const modal = new ModalBuilder()
         .setCustomId("confirmBidModal")
-        .setTitle("Bestätigen Sie Ihr Gebot");
+        .setTitle(`Gebot bestätigen: ${bid}g`);
 
+    // Discord limits a TextInput label to 45 characters, so keep it constant
+    // and surface the bid amount via the modal title / placeholder instead.
     const confirmInput = new TextInputBuilder()
         .setCustomId("confirmBid")
-        .setLabel(`Bist du sicher, dass du ${bid} Gold bieten möchtest?`)
+        .setLabel("Gebot bestätigen?")
         .setStyle(TextInputStyle.Short)
-        .setPlaceholder("Ja oder Nein")
+        .setPlaceholder(`${bid} Gold — Ja oder Nein?`)
         .setRequired(true);
 
     const firstActionRow = new ActionRowBuilder().addComponents(confirmInput);

@@ -28,7 +28,7 @@ describe("commands/setup/signup", () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        getEvent = jest.fn().mockResolvedValue({ templateId: "10" });
+        getEvent = jest.fn().mockResolvedValue({ id: "evt1", templateId: "10" });
         signUpToRaid = jest.fn().mockResolvedValue(undefined);
         Raidhelper.mockImplementation(() => ({ getEvent, signUpToRaid }));
         helper.formatSpecs.mockReturnValue([{ className: "Paladin", specName: "Holy1" }]);
@@ -59,16 +59,30 @@ describe("commands/setup/signup", () => {
         expect(helper.botReply.mock.calls[0][1]).toBe(messages.signup.successTitle);
     });
 
-    it("does not sign up when the channel has no raidhelper message", async () => {
+    it("replies with the error message when the channel has no raidhelper event", async () => {
         // default mock channel returns an empty message collection
         const interaction = mockInteraction({ options: { specs: "Holy1" } });
 
         await expect(signup.execute(interaction, {})).resolves.toBeUndefined();
 
         expect(signUpToRaid).not.toHaveBeenCalled();
-        // NOTE: with no raid found, `raid` is undefined and `raid.templateId`
-        // throws a TypeError that is swallowed by the try/catch, so no reply
-        // (success or error) is ever sent to the user.
-        expect(helper.botReply).not.toHaveBeenCalled();
+        // With no raid found the command now returns a clear error reply
+        // instead of silently swallowing a TypeError.
+        expect(helper.botReply).toHaveBeenCalledTimes(1);
+        expect(helper.botReply.mock.calls[0][1]).toBe(messages.signup.errorTitle);
+    });
+
+    it("skips non-event bot messages and replies with an error", async () => {
+        getEvent.mockResolvedValue({}); // event without an id => not a real event
+        const interaction = mockInteraction({
+            channel: channelWithBotMessage(),
+            options: { specs: "Holy1" },
+        });
+
+        await signup.execute(interaction, {});
+
+        expect(signUpToRaid).not.toHaveBeenCalled();
+        expect(helper.botReply).toHaveBeenCalledTimes(1);
+        expect(helper.botReply.mock.calls[0][1]).toBe(messages.signup.errorTitle);
     });
 });

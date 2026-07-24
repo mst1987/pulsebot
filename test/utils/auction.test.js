@@ -46,15 +46,18 @@ describe("utils/auction", () => {
     });
 
     describe("showConfirmationModal", () => {
-        // NOTE: BUG in src/utils/auction.js showConfirmationModal — the text-input
-        // label `Bist du sicher, dass du ${bid} Gold bieten möchtest?` is already
-        // 46+ chars even before the bid is inserted, exceeding Discord's 45-char
-        // label limit. discord.js therefore throws for ANY bid value, so this
-        // modal can never actually be shown. Asserting current (broken) behavior.
-        it("throws because the label exceeds Discord's 45 character limit", async () => {
+        // The text-input label is a short constant ("Gebot bestätigen?") within
+        // Discord's 45-char limit; the bid amount is surfaced via the title and
+        // placeholder instead, so building the modal never throws.
+        it("shows the confirmation modal even for the largest bid", async () => {
             const interaction = mockInteraction();
-            await expect(showConfirmationModal(interaction, 12345)).rejects.toThrow();
-            expect(interaction.showModal).not.toHaveBeenCalled();
+            await expect(
+                showConfirmationModal(interaction, 5000000)
+            ).resolves.toBeUndefined();
+            expect(interaction.showModal).toHaveBeenCalledTimes(1);
+            expect(interaction.showModal.mock.calls[0][0].data.custom_id).toBe(
+                "confirmBidModal"
+            );
         });
     });
 

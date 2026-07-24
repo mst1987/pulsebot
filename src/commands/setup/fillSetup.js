@@ -240,6 +240,7 @@ module.exports = {
                 .map((p) => [p.name, { name: p.name, color: getClassColor(p.entry) }])
         ).values()];
 
+        let timeoutId;
         try {
             const sheetsClient = new SheetsClient();
             await Promise.race([
@@ -250,13 +251,17 @@ module.exports = {
                     ]);
                     await sheetsClient.applyConditionalFormatting(playerColors);
                 })(),
-                new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error("Timeout nach 150s — Sheets API antwortet nicht")), 150000)
-                ),
+                new Promise((_, reject) => {
+                    timeoutId = setTimeout(() => reject(new Error("Timeout nach 150s — Sheets API antwortet nicht")), 150000);
+                }),
             ]);
         } catch (e) {
             console.error("[fillsetup] Sheets error:", e.message);
             return botEditReply(interaction, "Fehler", `Google Sheets Fehler: ${e.message}`);
+        } finally {
+            // Clear the race timeout so it doesn't keep the process alive when
+            // the Sheets work wins the race.
+            clearTimeout(timeoutId);
         }
 
         const sheetUrl = `https://docs.google.com/spreadsheets/d/${process.env.GOOGLE_SPREADSHEET_ID}/edit`;

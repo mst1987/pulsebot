@@ -1,4 +1,4 @@
-﻿/* eslint-disable indent */
+﻿ 
 const { showBidModal } = require("../../utils/auction");
 const { bidForLegendary } = require("../../utils/auction");
 
@@ -16,7 +16,7 @@ module.exports = {
         const bid = parseInt(bidAmount);
 
         if (isNaN(bid)) {
-          await interaction.reply({
+          await modalInteraction.reply({
             content: "Bitte gib eine gültige Zahl ein.",
             ephemeral: true,
           });
