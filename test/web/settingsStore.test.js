@@ -61,6 +61,7 @@ describe("web/settingsStore", () => {
             expect(def).toHaveProperty("highestBidsChannelId");
             expect(def).toHaveProperty("highestBidsMessageId");
             expect(Array.isArray(def.categoryIds)).toBe(true);
+            expect(Array.isArray(def.logChannelIds)).toBe(true);
 
             saveConfig({
                 applicationChannelId: "app-1",
@@ -68,6 +69,7 @@ describe("web/settingsStore", () => {
                 highestBidsChannelId: "hb-1",
                 highestBidsMessageId: "msg-1",
                 categoryIds: ["c1", "c2"],
+                logChannelIds: ["log-1", "log-2"],
             });
             const cfg = getConfig();
             expect(cfg.applicationChannelId).toBe("app-1");
@@ -75,6 +77,14 @@ describe("web/settingsStore", () => {
             expect(cfg.highestBidsChannelId).toBe("hb-1");
             expect(cfg.highestBidsMessageId).toBe("msg-1");
             expect(cfg.categoryIds).toEqual(["c1", "c2"]);
+            expect(cfg.logChannelIds).toEqual(["log-1", "log-2"]);
+        });
+
+        it("guards logChannelIds to an array when the stored value is malformed", () => {
+            saveConfig({});
+            fs.__store.set([...fs.__store.keys()].find((k) => k.endsWith("config.json")),
+                JSON.stringify({ logChannelIds: "nope" }));
+            expect(getConfig().logChannelIds).toEqual([]);
         });
     });
 

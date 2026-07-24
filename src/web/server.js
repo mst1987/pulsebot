@@ -10,6 +10,8 @@ const {
     getConfig, saveConfig,
 } = require("./settingsStore");
 const { buildReport, ReportError } = require("../utils/logcheck/report");
+const { listLogs, deleteLog } = require("./logStore");
+const { evaluateLog, scanLogChannels } = require("./logChannel");
 const Raidhelper = require("../classes/raidhelper");
 const discord = require("./discord");
 const auth = require("./auth");
@@ -273,8 +275,13 @@ async function handle(req, res) {
         if (req.method === "GET") {
             const user = requireAdmin(req, res);
             if (!user) return;
+            const guildId = activeGuildFor(req);
+            const logs = guildId ? listLogs().filter((l) => !l.guildId || l.guildId === guildId) : listLogs();
             return send(res, 200, renderCla(user, {
                 reports: listReports(),
+                logs,
+                logChannelIds: getConfig().logChannelIds || [],
+                activeGuildId: guildId,
                 csrf: auth.csrfToken(req),
                 msg: flashFromQuery(url),
                 nav: navFor(req),
@@ -294,6 +301,40 @@ async function handle(req, res) {
                 return redirect(res, `/admin/cla?err=${encodeURIComponent(text)}`);
             }
         }
+    }
+    // evaluate a tracked log from the admin list (once)
+    if (pathname === "/admin/cla/eval" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/cla?msg=csrf");
+        const res2 = await evaluateLog((form.logId || "").trim());
+        if (res2.ok) return redirect(res, `/r/${res2.id}`);
+        if (res2.already && res2.url) return redirect(res, res2.url);
+        return redirect(res, `/admin/cla?err=${encodeURIComponent(res2.error || "Auswertung fehlgeschlagen.")}`);
+    }
+    // scan the configured log channels for logs posted while the bot was offline
+    if (pathname === "/admin/cla/scan" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/cla?msg=csrf");
+        try {
+            const found = await scanLogChannels(activeGuildFor(req));
+            return redirect(res, `/admin/cla?ok=${encodeURIComponent(`${found} neue(r) Log(s) gefunden.`)}`);
+        } catch (e) {
+            console.error("log scan failed:", e.message);
+            return redirect(res, `/admin/cla?err=${encodeURIComponent(e.message || "Scan fehlgeschlagen.")}`);
+        }
+    }
+    // remove a tracked log from the list (does not touch Discord / the report)
+    if (pathname === "/admin/cla/log-delete" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/cla?msg=csrf");
+        deleteLog((form.logId || "").trim());
+        return redirect(res, "/admin/cla?msg=deleted");
     }
 
     // raid events: form + create via Raid-Helper API
@@ -367,6 +408,7 @@ async function handle(req, res) {
                 highestBidsChannelId: trim("highestBidsChannelId"),
                 highestBidsMessageId: trim("highestBidsMessageId"),
                 categoryIds: list("categoryIds"),
+                logChannelIds: list("logChannelIds"),
                 raidDefaults: {
                     templateId: trim("raidTemplateId"),
                     channelId: trim("raidChannelId"),

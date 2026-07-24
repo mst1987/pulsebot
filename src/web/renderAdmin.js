@@ -445,13 +445,68 @@ function renderRecruitment(user, opts = {}) {
     return adminLayout("Recruitment — Pulsebot Admin", "recruitment", user, body, opts.msg, opts.nav);
 }
 
+// A single row in the "detected logs" table (from the log channels).
+function logRow(l, csrfField) {
+    const when = l.detectedAt ? new Date(l.detectedAt).toLocaleString("de-DE") : "";
+    const title = l.title || l.reportId || "(unbekannt)";
+    const src = l.guildId && l.channelId && l.messageId
+        ? `<a class="mlink" href="https://discord.com/channels/${esc(l.guildId)}/${esc(l.channelId)}/${esc(l.messageId)}" target="_blank" rel="noopener">Nachricht</a>`
+        : `<a class="mlink" href="${esc(l.link || "#")}" target="_blank" rel="noopener">Log</a>`;
+    const status = l.status === "done"
+        ? "<span class=\"pill\" style=\"background:var(--good-bg);color:var(--good)\">ausgewertet</span>"
+        : "<span class=\"pill\">offen</span>";
+    const action = l.status === "done"
+        ? (l.reportUrl || l.reportRefId
+            ? `<a class="btn btn-ghost" href="${esc(l.reportUrl || `/r/${l.reportRefId}`)}">Öffnen</a>`
+            : "")
+        : `<form method="POST" action="/admin/cla/eval" style="margin:0" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Läuft …'">
+             ${csrfField}<input type="hidden" name="logId" value="${esc(l.id)}">
+             <button class="btn" type="submit">Auswerten</button>
+           </form>`;
+    return `<tr>
+      <td>${esc(title)}</td>
+      <td class="small">${esc(l.reportId || "")}</td>
+      <td>${src}</td>
+      <td>${status}</td>
+      <td class="small">${esc(when)}</td>
+      <td class="row-actions">
+        ${action}
+        <form method="POST" action="/admin/cla/log-delete" style="margin:0" onsubmit="return confirm('Log aus der Liste entfernen?')">
+          ${csrfField}<input type="hidden" name="logId" value="${esc(l.id)}">
+          <button class="btn btn-danger" type="submit">×</button>
+        </form>
+      </td>
+    </tr>`;
+}
+
 /**
- * CLA / Logcheck page: a form to run a report from a WCL link + recent reports.
- * @param {object} opts { reports, csrf, msg }
+ * CLA / Logcheck page: a form to run a report from a WCL link + recent reports,
+ * plus the logs detected in the configured log channels (evaluate with one click).
+ * @param {object} opts { reports, logs, logChannelIds, activeGuildId, csrf, msg, nav }
  */
 function renderCla(user, opts = {}) {
     const reports = opts.reports || [];
+    const logs = opts.logs || [];
+    const logChannelIds = opts.logChannelIds || [];
     const csrfField = hiddenCsrf(opts.csrf || "");
+
+    // --- logs detected in the log channels ---
+    let logsSection;
+    if (!logChannelIds.length) {
+        logsSection = "<p class=\"sub\">Es sind noch keine Log-Channels konfiguriert. Lege sie in den <a href=\"/admin/settings\">Einstellungen</a> fest, damit der Bot automatisch Logs erkennt.</p>";
+    } else {
+        const scanForm = `<form method="POST" action="/admin/cla/scan" style="margin:0 0 14px" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Suche läuft …'">
+             ${csrfField}
+             <button class="btn btn-ghost" type="submit">Log-Channels nach neuen Logs durchsuchen</button>
+           </form>`;
+        const table = logs.length
+            ? `<table class="idx">
+                 <thead><tr><th>Log</th><th>Report-ID</th><th>Quelle</th><th>Status</th><th>Erkannt</th><th></th></tr></thead>
+                 <tbody>${logs.map((l) => logRow(l, csrfField)).join("")}</tbody>
+               </table>`
+            : "<p class=\"sub\">Noch keine Logs erkannt. Sobald im Log-Channel ein Warcraft-Logs-Link gepostet wird, taucht er hier auf.</p>";
+        logsSection = `${scanForm}${table}`;
+    }
 
     const recent = reports.length
         ? `<table class="idx">
@@ -482,6 +537,9 @@ function renderCla(user, opts = {}) {
           <button class="btn" type="submit">Auswertung erstellen</button>
         </div>
       </form>
+      <h2>Erkannte Logs aus dem Log-Channel</h2>
+      <p class="note">Vom Bot automatisch erkannte Warcraft-Logs. „Auswerten" erstellt die Auswertung — jeder Report nur einmal.</p>
+      ${logsSection}
       <h2>Letzte Auswertungen</h2>
       ${recent}
       <p class="sub" style="margin-top:10px"><a href="/">→ Alle Auswertungen &amp; Übersicht</a></p>`;
@@ -586,6 +644,13 @@ function renderSettings(user, opts = {}) {
           <label>Kategorie-IDs (kommagetrennt)</label>
           <input type="text" name="categoryIds" value="${esc((config.categoryIds || []).join(", "))}" placeholder="111…, 222…, 333…">
           <div class="hint">Discord-Kategorien, deren Channels Raid-Events enthalten.</div>
+        </div>
+
+        <h2>Log-Auswertung</h2>
+        <div class="field">
+          <label>Log-Channel-IDs (kommagetrennt)</label>
+          <input type="text" name="logChannelIds" value="${esc((config.logChannelIds || []).join(", "))}" placeholder="111…, 222…">
+          <div class="hint">Channels, in denen automatisch Warcraft-Logs gepostet werden. Der Bot bietet dort per Button die Auswertung an.</div>
         </div>
 
         <h2>Raid-Standardwerte</h2>

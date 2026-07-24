@@ -15,6 +15,8 @@ function getClient() {
 }
 
 const RECRUIT_BUTTON_ID = "apply";
+// Button under a detected log; customId carries the tracked log id after the ":".
+const LOG_EVAL_PREFIX = "logcheck-eval";
 const TEXT_CHANNEL_TYPES = [ChannelType.GuildText, ChannelType.GuildAnnouncement];
 
 /** Servers (guilds) the bot is a member of, for the server selector. */
@@ -154,8 +156,54 @@ async function scanRecruitment(guildId, { perChannel = 50 } = {}) {
     return found;
 }
 
+/**
+ * Post a "Log auswerten" button as a reply under a detected log message.
+ * @param {import("discord.js").Message} message the message that contained the log link
+ * @param {object} opts { logId, title }
+ * @returns {Promise<{channelId: string, messageId: string}>}
+ */
+async function postLogButton(message, { logId, title } = {}) {
+    if (!client) throw new Error("Bot nicht verbunden.");
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId(`${LOG_EVAL_PREFIX}:${logId}`)
+            .setLabel("Log auswerten")
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji("📊")
+    );
+    const content = `📊 **Warcraft-Logs-Report erkannt**${title ? ` – ${title}` : ""}.\n`
+        + "Klicke auf **Log auswerten**, um Gear, Consumables, Drums, Potions & Shadow-Resi zu prüfen.";
+    const sent = await message.reply({ content, components: [row], allowedMentions: { repliedUser: false } });
+    return { channelId: sent.channelId, messageId: sent.id };
+}
+
+/**
+ * Turn a previously-posted log button message into the "done" state: replace the
+ * button with a link to the finished report. Best-effort — returns false on error.
+ */
+async function finishLogButton(channelId, messageId, { reportUrl, title } = {}) {
+    if (!client || !channelId || !messageId) return false;
+    try {
+        const channel = await client.channels.fetch(channelId);
+        const message = await channel.messages.fetch(messageId);
+        const components = reportUrl
+            ? [new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setLabel("Auswertung öffnen").setStyle(ButtonStyle.Link).setURL(reportUrl))]
+            : [];
+        await message.edit({
+            content: `✅ **Ausgewertet**${title ? ` – ${title}` : ""}`,
+            components,
+        });
+        return true;
+    } catch (e) {
+        console.error("finishLogButton failed:", e.message);
+        return false;
+    }
+}
+
 module.exports = {
     setClient, getClient, listGuilds, getGuild, listTextChannels,
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,
     isRecruitmentMessage, extractTemplate,
+    postLogButton, finishLogButton, LOG_EVAL_PREFIX,
 };
