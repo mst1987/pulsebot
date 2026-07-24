@@ -1017,16 +1017,24 @@ async function handle(req, res) {
         const name = url.searchParams.get("name") || "";
         const items = listLootByCharacter(name);
         const cfg = getConfig();
-        const realm = (items[0] && items[0].realm) || "";
+        const bzCfg = cfg.blizzard || {};
+        const realm = (items[0] && items[0].realm) || bzCfg.realmSlug || "";
         const armoryUrl = fillCharTemplate(applyArmoryUrlTemplate, name);
         const wclUrl = fillCharTemplate(applyWclUrlTemplate, name);
-        const client = new Blizzard(cfg.blizzard || {});
+        const client = new Blizzard(bzCfg);
         const gearConfigured = client.isConfigured();
         let gear = null;
         let gearError = "";
         if (gearConfigured && name) {
-            try { gear = await client.getEquipment(name); }
-            catch (e) { gearError = e.message || ""; }
+            gear = await client.getEquipment(name);
+            if (gear === null) {
+                const e = client.lastError || {};
+                if (e.status === 404) gearError = `Charakter „${name}" nicht in der Blizzard-API gefunden (404). Realm-Slug „${bzCfg.realmSlug || "thunderstrike"}" und Schreibweise prüfen — bei TBC-Anniversary sind viele Chars (noch) nicht abrufbar.`;
+                else if (e.status === 403) gearError = "Zugriff verweigert (403) — die Profile-API ist für diesen Realm evtl. nicht freigegeben.";
+                else if (e.status === 401) gearError = "Authentifizierung fehlgeschlagen (401) — Battle.net Client-ID/Secret prüfen.";
+                else if (e.status) gearError = `Blizzard-API-Fehler (${e.status}).`;
+                else gearError = `Blizzard-API nicht erreichbar (${e.message || "Netzwerkfehler"}).`;
+            }
         }
         return send(res, 200, renderHistoryChar(user, {
             character: name, realm, items, armoryUrl, wclUrl, gear, gearConfigured, gearError,

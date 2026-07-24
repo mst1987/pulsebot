@@ -304,7 +304,7 @@ document.addEventListener("click",function(e){
   paint();
 })();
 </script>
-<script>const whTooltips={colorLinks:true,iconizeLinks:false,renameLinks:false};</script>
+<script>const whTooltips={colorLinks:true,iconizeLinks:${opts.wowheadIconize ? "true" : "false"},renameLinks:${opts.wowheadIconize ? "true" : "false"}};</script>
 <script src="https://wow.zamimg.com/widgets/power.js"></script>
 </body>
 </html>`;
