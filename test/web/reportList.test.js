@@ -1,4 +1,4 @@
-const { prepareReportList, DEFAULT_PAGE_SIZE } = require("../../src/web/reportList.js");
+const { prepareReportList, prepareLogList, DEFAULT_PAGE_SIZE } = require("../../src/web/reportList.js");
 
 // Build n reports with ascending generatedAt (id0 oldest … id{n-1} newest).
 function makeReports(n) {
@@ -43,19 +43,20 @@ describe("web/reportList prepareReportList", () => {
         expect(prepareReportList(reports, { sort: "zone", dir: "asc" }).items[0].id).toBe("b"); // Gruul
     });
 
-    it("paginates and reports totals", () => {
+    it("paginates and reports totals (15 per page)", () => {
         const rp = prepareReportList(makeReports(47), { page: "2" });
         expect(rp.total).toBe(47);
         expect(rp.pageSize).toBe(DEFAULT_PAGE_SIZE);
-        expect(rp.totalPages).toBe(3);
+        expect(DEFAULT_PAGE_SIZE).toBe(15);
+        expect(rp.totalPages).toBe(4); // ceil(47/15)
         expect(rp.page).toBe(2);
-        expect(rp.items).toHaveLength(20);
-        // page 2 of newest-first: ids 46..0 → page1 46..27, page2 26..7
-        expect(rp.items[0].id).toBe("id26");
+        expect(rp.items).toHaveLength(15);
+        // newest-first ids 46..0 → page1 46..32, page2 31..17
+        expect(rp.items[0].id).toBe("id31");
     });
 
     it("clamps an out-of-range or invalid page into [1, totalPages]", () => {
-        expect(prepareReportList(makeReports(47), { page: "999" }).page).toBe(3);
+        expect(prepareReportList(makeReports(47), { page: "999" }).page).toBe(4);
         expect(prepareReportList(makeReports(47), { page: "0" }).page).toBe(1);
         expect(prepareReportList(makeReports(47), { page: "abc" }).page).toBe(1);
         expect(prepareReportList(makeReports(5), { page: "2" }).page).toBe(1); // only 1 page
@@ -78,5 +79,42 @@ describe("web/reportList prepareReportList", () => {
         const snapshot = reports.map((r) => r.id);
         prepareReportList(reports, { sort: "title", dir: "asc" });
         expect(reports.map((r) => r.id)).toEqual(snapshot);
+    });
+});
+
+describe("web/reportList prepareLogList", () => {
+    const logs = [
+        { id: "a", title: "Kara A", status: "open", detectedAt: 9999, postedAt: 100 },
+        { id: "b", title: "Kara B", status: "done", detectedAt: 1, postedAt: 300 },
+        { id: "c", title: "Kara C", status: "open", detectedAt: 5000, postedAt: 200 },
+    ];
+
+    it("defaults to newest CHANNEL-POST time first (postedAt, not detectedAt)", () => {
+        const lp = prepareLogList(logs);
+        expect(lp.sort).toBe("date");
+        expect(lp.dir).toBe("desc");
+        expect(lp.items.map((l) => l.id)).toEqual(["b", "c", "a"]); // 300, 200, 100
+    });
+
+    it("falls back to detectedAt when postedAt is absent", () => {
+        const noPosted = [
+            { id: "x", detectedAt: 10 },
+            { id: "y", detectedAt: 30 },
+            { id: "z", detectedAt: 20 },
+        ];
+        expect(prepareLogList(noPosted).items.map((l) => l.id)).toEqual(["y", "z", "x"]);
+    });
+
+    it("sorts by title and status", () => {
+        expect(prepareLogList(logs, { sort: "title", dir: "asc" }).items.map((l) => l.id)).toEqual(["a", "b", "c"]);
+        // status asc: open(0) before done(1); tiebreak newest postedAt first → c(200) then a(100)
+        expect(prepareLogList(logs, { sort: "status", dir: "asc" }).items.map((l) => l.id)).toEqual(["c", "a", "b"]);
+    });
+
+    it("paginates logs 15 per page", () => {
+        const many = Array.from({ length: 20 }, (_, i) => ({ id: "l" + i, postedAt: i }));
+        const lp = prepareLogList(many, { page: "2" });
+        expect(lp.totalPages).toBe(2);
+        expect(lp.items).toHaveLength(5);
     });
 });

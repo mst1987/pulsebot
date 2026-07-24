@@ -63,6 +63,10 @@ function saveLog(data) {
         link: data.link || (existing && existing.link) || "",
         title: data.title || (existing && existing.title) || "",
         source: data.source || (existing && existing.source) || "listener",
+        // When the Warcraft-Logs link was posted in the channel (Discord message
+        // createdTimestamp). This is what the CLA logs list sorts by — not the
+        // detection time. Falls back to the existing value on refresh.
+        postedAt: data.postedAt || (existing && existing.postedAt) || 0,
     };
     let saved;
     if (existing) {

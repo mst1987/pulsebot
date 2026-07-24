@@ -2,7 +2,7 @@ const http = require("http");
 const crypto = require("crypto");
 const { webPort } = require("../config/variables");
 const { getReport, deleteReport, listReports } = require("./reportStore");
-const { prepareReportList } = require("./reportList");
+const { prepareReportList, prepareLogList } = require("./reportList");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
 const {
     renderDashboard, renderAdminDenied, renderRecruitment, renderCla,
@@ -365,14 +365,21 @@ async function handle(req, res) {
             if (!user) return;
             const guildId = activeGuildFor(req);
             const logs = guildId ? listLogs().filter((l) => !l.guildId || l.guildId === guildId) : listLogs();
-            const reportPage = prepareReportList(listReports(), {
+            const reports = listReports();
+            const view = url.searchParams.get("view") === "logs" ? "logs" : "reports";
+            const sortQuery = {
                 sort: url.searchParams.get("sort"),
                 dir: url.searchParams.get("dir"),
                 page: url.searchParams.get("page"),
-            });
+            };
+            // Only the active view is paginated; the other tab is just a link.
+            const reportPage = view === "reports" ? prepareReportList(reports, sortQuery) : null;
+            const logPage = view === "logs" ? prepareLogList(logs, sortQuery) : null;
             return send(res, 200, renderCla(user, {
+                view,
                 reportPage,
-                logs,
+                logPage,
+                counts: { reports: reports.length, logs: logs.length },
                 logChannelIds: getConfig().logChannelIds || [],
                 activeGuildId: guildId,
                 csrf: auth.csrfToken(req),
@@ -400,24 +407,24 @@ async function handle(req, res) {
         const user = requireAdmin(req, res);
         if (!user) return;
         const form = await readFormBody(req);
-        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/cla?msg=csrf");
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/cla?view=logs&msg=csrf");
         const res2 = await evaluateLog((form.logId || "").trim());
         if (res2.ok) return redirect(res, `/r/${res2.id}`);
         if (res2.already && res2.url) return redirect(res, res2.url);
-        return redirect(res, `/admin/cla?err=${encodeURIComponent(res2.error || "Auswertung fehlgeschlagen.")}`);
+        return redirect(res, `/admin/cla?view=logs&err=${encodeURIComponent(res2.error || "Auswertung fehlgeschlagen.")}`);
     }
     // scan the configured log channels for logs posted while the bot was offline
     if (pathname === "/admin/cla/scan" && req.method === "POST") {
         const user = requireAdmin(req, res);
         if (!user) return;
         const form = await readFormBody(req);
-        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/cla?msg=csrf");
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/cla?view=logs&msg=csrf");
         try {
             const found = await scanLogChannels(activeGuildFor(req));
-            return redirect(res, `/admin/cla?ok=${encodeURIComponent(`${found} neue(r) Log(s) gefunden.`)}`);
+            return redirect(res, `/admin/cla?view=logs&ok=${encodeURIComponent(`${found} neue(r) Log(s) gefunden.`)}`);
         } catch (e) {
             console.error("log scan failed:", e.message);
-            return redirect(res, `/admin/cla?err=${encodeURIComponent(e.message || "Scan fehlgeschlagen.")}`);
+            return redirect(res, `/admin/cla?view=logs&err=${encodeURIComponent(e.message || "Scan fehlgeschlagen.")}`);
         }
     }
     // remove a tracked log from the list (does not touch Discord / the report)
@@ -425,9 +432,9 @@ async function handle(req, res) {
         const user = requireAdmin(req, res);
         if (!user) return;
         const form = await readFormBody(req);
-        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/cla?msg=csrf");
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/cla?view=logs&msg=csrf");
         deleteLog((form.logId || "").trim());
-        return redirect(res, "/admin/cla?msg=deleted");
+        return redirect(res, "/admin/cla?view=logs&msg=deleted");
     }
 
     // raid events overview: all server events grouped by Discord category

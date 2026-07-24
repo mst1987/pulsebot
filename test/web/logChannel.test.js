@@ -20,6 +20,7 @@ function msg(over = {}) {
         guildId: "g1",
         channelId: "logch",
         id: "m1",
+        createdTimestamp: 111000,
         content: "",
         embeds: [],
         components: [],
@@ -55,7 +56,7 @@ describe("web/logChannel — messageText", () => {
 describe("web/logChannel — handleLogMessage", () => {
     it("registers a fresh log and posts an evaluate button", async () => {
         await handleLogMessage(msg({ content: "log https://classic.warcraftlogs.com/reports/RPT1" }));
-        expect(logStore.saveLog).toHaveBeenCalledWith(expect.objectContaining({ reportId: "RPT1", channelId: "logch", source: "listener" }));
+        expect(logStore.saveLog).toHaveBeenCalledWith(expect.objectContaining({ reportId: "RPT1", channelId: "logch", source: "listener", postedAt: 111000 }));
         expect(discord.postLogButton).toHaveBeenCalledWith(expect.any(Object), { logId: "log1" });
         expect(logStore.setButtonMessage).toHaveBeenCalledWith("log1", { channelId: "logch", messageId: "btn1" });
     });
@@ -140,7 +141,7 @@ describe("web/logChannel — scanLogChannels", () => {
 
     it("registers new logs found in the configured channels", async () => {
         const messages = new Map([
-            ["m1", { content: "https://classic.warcraftlogs.com/reports/RPT1", embeds: [], components: [] }],
+            ["m1", { content: "https://classic.warcraftlogs.com/reports/RPT1", embeds: [], components: [], createdTimestamp: 222000 }],
         ]);
         const channel = {
             isTextBased: () => true,
@@ -153,6 +154,6 @@ describe("web/logChannel — scanLogChannels", () => {
 
         const count = await scanLogChannels("g1");
         expect(count).toBe(1);
-        expect(logStore.saveLog).toHaveBeenCalledWith(expect.objectContaining({ reportId: "RPT1", source: "scan" }));
+        expect(logStore.saveLog).toHaveBeenCalledWith(expect.objectContaining({ reportId: "RPT1", source: "scan", postedAt: 222000 }));
     });
 });
