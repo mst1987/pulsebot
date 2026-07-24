@@ -148,6 +148,84 @@ describe("web/discord channel management", () => {
         });
     });
 
+    describe("listMembersWithRoles", () => {
+        // A fake member with a roles.cache keyed by role id.
+        function member(id, displayName, roleIds) {
+            return { id, displayName, user: { username: displayName }, roles: { cache: new Map(roleIds.map((r) => [r, { id: r }])) } };
+        }
+        function guildWithMembers(members) {
+            return { members: { fetch: jest.fn(async () => new Map(members.map((m) => [m.id, m]))) } };
+        }
+
+        it("returns members holding at least one wanted role, sorted by name", async () => {
+            const guild = guildWithMembers([
+                member("1", "Bob", ["r1"]),
+                member("2", "Alice", ["r2", "r9"]),
+                member("3", "Cara", ["r9"]),
+            ]);
+            setClientWithGuild(guild);
+            const { members, error } = await discord.listMembersWithRoles("g1", ["r1", "r2"]);
+            expect(error).toBeNull();
+            expect(members).toEqual([
+                { id: "2", displayName: "Alice" },
+                { id: "1", displayName: "Bob" },
+            ]);
+        });
+
+        it("returns an empty list without fetching when no roleIds are given", async () => {
+            const guild = guildWithMembers([member("1", "Bob", ["r1"])]);
+            setClientWithGuild(guild);
+            const res = await discord.listMembersWithRoles("g1", []);
+            expect(res).toEqual({ members: [], error: null });
+            expect(guild.members.fetch).not.toHaveBeenCalled();
+        });
+
+        it("degrades gracefully with an error when the fetch fails (missing intent)", async () => {
+            const guild = { members: { fetch: jest.fn(async () => { throw new Error("Used disallowed intents"); }) } };
+            setClientWithGuild(guild);
+            const res = await discord.listMembersWithRoles("g1", ["r1"]);
+            expect(res.members).toEqual([]);
+            expect(res.error).toMatch(/disallowed intents/i);
+        });
+
+        it("returns an error when the guild is unknown", async () => {
+            setClientWithGuild(null);
+            const res = await discord.listMembersWithRoles("nope", ["r1"]);
+            expect(res.members).toEqual([]);
+            expect(res.error).toMatch(/Server nicht gefunden/);
+        });
+    });
+
+    describe("postMissingPing", () => {
+        it("pings exactly the given users with scoped allowedMentions", async () => {
+            const send = jest.fn(async () => ({ id: "m1", url: "https://d/m1" }));
+            const channel = { id: "chan", isTextBased: () => true, send };
+            setClientWithGuild(makeGuild([]), jest.fn(async () => channel));
+            const res = await discord.postMissingPing("chan", ["1", "2", "2"], "Bitte melden");
+            expect(res).toEqual({ channelId: "chan", messageId: "m1", url: "https://d/m1" });
+            const payload = send.mock.calls[0][0];
+            expect(payload.content).toBe("<@1> <@2>\nBitte melden");
+            expect(payload.allowedMentions).toEqual({ users: ["1", "2"] });
+        });
+
+        it("uses a default message when no text is given", async () => {
+            const send = jest.fn(async () => ({ id: "m1", url: "u" }));
+            setClientWithGuild(makeGuild([]), jest.fn(async () => ({ id: "chan", isTextBased: () => true, send })));
+            await discord.postMissingPing("chan", ["1"], "");
+            expect(send.mock.calls[0][0].content).toMatch(/an oder ab/);
+        });
+
+        it("throws when there are no users to ping", async () => {
+            setClientWithGuild(makeGuild([]), jest.fn());
+            await expect(discord.postMissingPing("chan", [], "x")).rejects.toThrow("Keine fehlenden Raider");
+        });
+
+        it("throws when the bot is not connected", async () => {
+            discord.setClient(null);
+            await expect(discord.postMissingPing("chan", ["1"], "x")).rejects.toThrow("Bot nicht verbunden");
+        });
+    });
+
     describe("duplicateChannel", () => {
         it("clones the source channel with a new name (same category)", async () => {
             const source = {
