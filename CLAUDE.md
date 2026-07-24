@@ -11,6 +11,9 @@ A Discord bot for managing community events. Built with Node.js and Discord.js v
 ```bash
 npm start              # Run production bot
 npm run dev            # Run with auto-reload (nodemon)
+npm test               # Run the Jest test suite
+npm run test:watch     # Run Jest in watch mode
+npm run test:coverage  # Run Jest with a coverage report
 npm run lint           # Check code style
 npm run lint:fix       # Auto-fix lint issues
 npm run register       # Register slash commands to guild (instant)
@@ -18,6 +21,22 @@ npm run register:global  # Register globally (takes ~1 hour)
 npm run register:clear   # Remove all guild slash commands
 node src/discordcommands/raidhelper.js  # Legacy command registration script
 ```
+
+## Development Workflow
+
+`main` is the integration branch and always reflects the production-ready state. `main` and `dev` are kept in sync; new work does **not** branch off `dev`.
+
+1. **Branch off `main`** for every new feature or fix: `git switch main && git pull && git switch -c feature/<name>`.
+2. **Use a git worktree** so the feature is developed in its own directory without disturbing the main checkout:
+   ```bash
+   git worktree add ../eventhelper-<name> -b feature/<name> main
+   ```
+   Work happens in `../eventhelper-<name>/`; the primary checkout stays on `main`.
+3. **Write and run tests** for the change (`npm test` must pass) and keep `npm run lint` clean before opening a PR.
+4. **Open a PR targeting `main`** once the feature is finished. Merge to `main` only via PR.
+5. **Clean up the worktree** after the PR is merged: `git worktree remove ../eventhelper-<name>`.
+
+Every change must ship with tests (see the Testing section). Do not merge a feature branch that lowers coverage of the modules it touches.
 
 ## Architecture
 
@@ -124,7 +143,18 @@ Both Axios clients use the shared `utils/httpAgent.js` which enables SSL cert ve
 - **Semicolons:** Always (enforced by ESLint).
 - **Line endings:** CRLF on Windows (enforced by ESLint `linebreak-style: windows`).
 - **Language:** User-facing strings in German. Variable names, function names, comments in English.
-- **No TypeScript. No test framework.**
+- **No TypeScript.** Plain JavaScript / CommonJS only.
+- **Tests:** Jest. Every module has a matching test; every new feature ships with tests (see Testing).
+
+## Testing
+
+The project uses [Jest](https://jestjs.io/). Tests live next to the source tree under `test/`, mirroring `src/` (e.g. `src/utils/date.js` → `test/utils/date.test.js`).
+
+- Run the full suite with `npm test`, watch mode with `npm run test:watch`, coverage with `npm run test:coverage`.
+- Config is in `jest.config.js` (Node test environment, coverage collected from `src/**/*.js`).
+- **Discord interactions and API clients are never hit for real.** Use the shared mock helpers in `test/helpers/` (`mockInteraction()` for a fake `interaction`, plus module mocks for the `classes/*` API clients). Mock external I/O with `jest.mock(...)` — no test may make a real network request.
+- Prefer testing pure logic directly (formatters in `utils/helper.js`, date math in `utils/date.js`, the logcheck analyzers in `utils/logcheck/*`). For command files, assert on which helper (`botReply`/`botEditReply`) was called with which arguments.
+- ESLint recognises Jest globals for files under `test/` via `eslint.config.mjs`.
 
 ## Common Patterns
 
@@ -165,6 +195,8 @@ const raidInfos = await getRaidInfosFromChannel(interaction);
 
 - Do not switch to ES Modules (`import`/`export`). The entire codebase is CommonJS.
 - Do not add TypeScript.
+- Do not add a feature or fix without tests, and do not merge with a failing `npm test`.
+- Do not branch off `dev` — always branch off `main` and open PRs against `main` (see Development Workflow).
 - Do not hardcode Discord IDs or API keys in command or utility files — use `config/variables.js` which reads from environment variables.
 - Do not use `interaction.reply()` after already calling `interaction.deferReply()` — use `botEditReply` or `botFollowup` instead.
 - Do not create slash commands without also adding them to `scripts/register-commands.js` and re-running `npm run register`.
