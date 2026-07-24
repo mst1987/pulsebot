@@ -78,12 +78,11 @@ const ADMIN_STYLE = `<style>
   .setup-count.setup-total { border-color:var(--accent-soft); background:var(--accent-soft); }
   .setup-role { margin-bottom:16px; }
   .setup-role-head { font-size:12.5px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); margin:0 0 8px; }
-  .setup-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px; }
+  .setup-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }
   .setup-player { display:flex; align-items:center; gap:9px; background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--line); border-radius:8px; padding:7px 11px; min-width:0; }
   .setup-ico { width:24px; height:24px; border-radius:5px; flex:0 0 auto; }
   .setup-ico-blank { background:var(--panel2); border:1px solid var(--line); }
-  .setup-player .sp-name { font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .setup-player .sp-spec { font-size:12px; color:var(--muted); margin-left:auto; white-space:nowrap; flex:0 0 auto; }
+  .setup-player .sp-name { font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
   .sheetcard { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px; }
   table.idx td.small { white-space:nowrap; color:var(--muted); font-size:12.5px; }
   /* dashboard */
@@ -871,10 +870,9 @@ function renderEventDetail(user, opts = {}) {
       <div class="setup-role">
         <h4 class="setup-role-head">${esc(g.label)} · ${esc(String(g.players.length))}</h4>
         <div class="setup-grid">${g.players.map((p) => `
-          <span class="setup-player" style="border-left-color:${esc(p.classColor || "var(--line)")}">
-            ${p.iconUrl ? `<img class="setup-ico" src="${esc(p.iconUrl)}" alt="${esc(p.className || "")}" title="${esc(p.className || "")}" loading="lazy">` : "<span class=\"setup-ico setup-ico-blank\"></span>"}
+          <span class="setup-player" style="border-left-color:${esc(p.classColor || "var(--line)")}" title="${esc(p.specName)}">
+            ${p.iconUrl ? `<img class="setup-ico" src="${esc(p.iconUrl)}" alt="${esc(p.className || "")}" title="${esc(p.specName)}" loading="lazy">` : "<span class=\"setup-ico setup-ico-blank\"></span>"}
             <span class="sp-name">${esc(p.name)}</span>
-            <span class="sp-spec">${esc(p.specName)}</span>
           </span>`).join("")}</div>
       </div>`).join("");
         setupSection = summary + groups;
