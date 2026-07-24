@@ -491,14 +491,46 @@ function renderSettings(user, opts = {}) {
     const rd = config.raidDefaults || {};
     const csrfField = hiddenCsrf(opts.csrf || "");
     const body = `
-      <h2>Admin-Zugang</h2>
+      <p class="note">Alle Werte werden in der Datenbank gespeichert und greifen ohne Bot-Neustart. IDs bekommst du in Discord per Rechtsklick → „ID kopieren" (Entwicklermodus).</p>
       <form class="card-form" method="POST" action="/admin/settings">
         ${csrfField}
+        <h2 style="margin-top:0">Admin-Zugang</h2>
         <div class="field">
           <label>Admin-Rollen (Discord-Rollen-IDs, kommagetrennt)</label>
           <input type="text" name="adminRoleIds" value="${esc((config.adminRoleIds || []).join(", "))}" placeholder="123456789012345678, 234567890123456789">
           <div class="hint">Mitglieder mit einer dieser Rollen erhalten Admin-Zugang. Die <code>ADMIN_USER_ID</code> aus der .env behält immer Zugang (Notfall-Zugang).</div>
         </div>
+
+        <h2>Recruitment</h2>
+        <div class="field">
+          <label>Bewerbungs-Channel-ID</label>
+          <input type="text" name="applicationChannelId" value="${esc(config.applicationChannelId || "")}" placeholder="Discord-Channel-ID">
+          <div class="hint">Channel, in dem neue Bewerbungen als Thread gepostet werden.</div>
+        </div>
+        <div class="field">
+          <label>Offizier-Rollen-ID</label>
+          <input type="text" name="officerRoleId" value="${esc(config.officerRoleId || "")}" placeholder="Discord-Rollen-ID">
+          <div class="hint">Wird bei neuen Bewerbungen gepingt. Leer lassen für keinen Ping.</div>
+        </div>
+
+        <h2>Auktionen</h2>
+        <div class="field">
+          <label>Höchstgebote-Channel-ID</label>
+          <input type="text" name="highestBidsChannelId" value="${esc(config.highestBidsChannelId || "")}" placeholder="Discord-Channel-ID">
+        </div>
+        <div class="field">
+          <label>Höchstgebote-Message-ID</label>
+          <input type="text" name="highestBidsMessageId" value="${esc(config.highestBidsMessageId || "")}" placeholder="Discord-Message-ID">
+          <div class="hint">Die Nachricht mit der Höchstgebote-Übersicht, die der Bot aktualisiert.</div>
+        </div>
+
+        <h2>Event-Kategorien</h2>
+        <div class="field">
+          <label>Kategorie-IDs (kommagetrennt)</label>
+          <input type="text" name="categoryIds" value="${esc((config.categoryIds || []).join(", "))}" placeholder="111…, 222…, 333…">
+          <div class="hint">Discord-Kategorien, deren Channels Raid-Events enthalten.</div>
+        </div>
+
         <h2>Raid-Standardwerte</h2>
         <div class="field">
           <label>Standard-Template-ID</label>
@@ -508,6 +540,7 @@ function renderSettings(user, opts = {}) {
           <label>Standard-Channel-ID</label>
           <input type="text" name="raidChannelId" value="${esc(rd.channelId || "")}" placeholder="Discord-Channel-ID">
         </div>
+
         <div class="row-actions">
           <button class="btn" type="submit">Speichern</button>
         </div>

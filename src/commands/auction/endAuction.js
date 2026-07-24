@@ -1,8 +1,6 @@
 ﻿const Legendary = require("../../classes/legendary");
-const {
-    highestBidsChannelId,
-    highestBidsMessageId,
-} = require("../../config/variables");
+// highestBids* come from the admin-editable config (no restart needed).
+const { getConfig } = require("../../web/settingsStore");
 const {
     checkForPermission,
     botReply,
@@ -41,6 +39,7 @@ module.exports = {
                 0,
                 false
             );
+            const { highestBidsChannelId, highestBidsMessageId } = getConfig();
             const targetMessage = await getTargetMessage(
                 client,
                 highestBidsChannelId,

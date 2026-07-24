@@ -1,8 +1,8 @@
 const { ChannelType, ThreadAutoArchiveDuration } = require("discord.js");
 const { pendingApplications } = require("../../utils/applicationState");
-const {
-    applicationChannelId, officerRoleId, applyArmoryUrlTemplate, applyWclUrlTemplate,
-} = require("../../config/variables");
+const { applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../../config/variables");
+// applicationChannelId + officerRoleId come from the admin-editable config (no restart).
+const { getConfig } = require("../../web/settingsStore");
 const { getClass } = require("../../config/applyClasses");
 const WarcraftLogs = require("../../classes/warcraftlogs");
 const { analyzeApplicant } = require("../../utils/logcheck/applicant");
@@ -88,6 +88,7 @@ module.exports = {
         const threadTitle = pending.spec ? `${pending.spec} - ${characterName}` : characterName;
 
         try {
+            const { applicationChannelId, officerRoleId } = getConfig();
             const channel = await client.channels.fetch(applicationChannelId);
             const thread = await channel.threads.create({
                 name: threadTitle,

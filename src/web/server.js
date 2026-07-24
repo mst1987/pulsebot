@@ -351,15 +351,21 @@ async function handle(req, res) {
             if (!user) return;
             const form = await readFormBody(req);
             if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/settings?msg=csrf");
-            const adminRoleIds = String(form.adminRoleIds || "")
+            const trim = (k) => String(form[k] || "").trim();
+            const list = (k) => String(form[k] || "")
                 .split(",")
                 .map((s) => s.trim())
                 .filter(Boolean);
             saveConfig({
-                adminRoleIds,
+                adminRoleIds: list("adminRoleIds"),
+                officerRoleId: trim("officerRoleId"),
+                applicationChannelId: trim("applicationChannelId"),
+                highestBidsChannelId: trim("highestBidsChannelId"),
+                highestBidsMessageId: trim("highestBidsMessageId"),
+                categoryIds: list("categoryIds"),
                 raidDefaults: {
-                    templateId: (form.raidTemplateId || "").trim(),
-                    channelId: (form.raidChannelId || "").trim(),
+                    templateId: trim("raidTemplateId"),
+                    channelId: trim("raidChannelId"),
                 },
             });
             return redirect(res, "/admin/settings?msg=saved");
