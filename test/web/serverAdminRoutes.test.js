@@ -94,6 +94,8 @@ jest.mock("../../src/web/discord", () => ({
     listRoles: jest.fn(() => []),
     getChannelCategoryMap: jest.fn(() => ({})),
     postAnnouncement: jest.fn(),
+    listMembersWithRoles: jest.fn(async () => ({ members: [], error: null })),
+    postMissingPing: jest.fn(async () => ({ channelId: "c1", messageId: "m1", url: "u" })),
     createChannel: jest.fn(),
     duplicateChannel: jest.fn(),
 }));
@@ -668,5 +670,116 @@ describe("event history & loot routes", () => {
         mockBlizzardEquip.mockResolvedValue([{ slot: "HEAD", itemId: 1, name: "Hat" }]);
         await request("GET", "/admin/history/char?name=Foo");
         expect(mockBlizzardEquip).toHaveBeenCalledWith("Foo");
+    });
+});
+
+describe("attendance on the event detail route", () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+        auth.checkCsrf.mockReturnValue(true);
+        auth.getActiveGuild.mockReturnValue("g1");
+        mockGetAllEvents.mockResolvedValue([
+            { id: "e1", channelId: "c1", title: "Kara", startTime: 100, signUps: [{ userId: "u1", specName: "Warrior" }] },
+        ]);
+        discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "kara", categoryId: "cat", categoryName: "Raids" } });
+        mockGetSetup.mockResolvedValue({ setup: [] });
+        store.getConfig.mockReturnValue({ raidDefaults: {}, categoryIds: ["cat"], adminRoleIds: [], categoryRoles: { cat: ["r1"] } });
+        discord.listMembersWithRoles.mockResolvedValue({
+            members: [{ id: "u1", displayName: "Alice" }, { id: "u2", displayName: "Bob" }], error: null,
+        });
+    });
+
+    it("GET /admin/raids/detail computes who reacted vs. who is still missing", async () => {
+        await request("GET", "/admin/raids/detail?event=e1");
+        expect(discord.listMembersWithRoles).toHaveBeenCalledWith("g1", ["r1"]);
+        const opts = renderAdmin.renderEventDetail.mock.calls.at(-1)[1];
+        expect(opts.attendance.responded.map((m) => m.id)).toEqual(["u1"]);
+        expect(opts.attendance.missing.map((m) => m.id)).toEqual(["u2"]);
+        expect(opts.attendanceRoleIds).toEqual(["r1"]);
+    });
+
+    it("skips the member lookup when the category has no roles assigned", async () => {
+        store.getConfig.mockReturnValue({ raidDefaults: {}, categoryIds: ["cat"], adminRoleIds: [], categoryRoles: {} });
+        await request("GET", "/admin/raids/detail?event=e1");
+        expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
+        const opts = renderAdmin.renderEventDetail.mock.calls.at(-1)[1];
+        expect(opts.attendance).toEqual({ responded: [], missing: [] });
+    });
+});
+
+describe("ping missing raiders route", () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+        auth.checkCsrf.mockReturnValue(true);
+        auth.getActiveGuild.mockReturnValue("g1");
+        mockGetAllEvents.mockResolvedValue([
+            { id: "e1", channelId: "c1", title: "Kara", startTime: 100, signUps: [{ userId: "u1", specName: "Warrior" }] },
+        ]);
+        discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "kara", categoryId: "cat", categoryName: "Raids" } });
+        store.getConfig.mockReturnValue({ raidDefaults: {}, categoryIds: ["cat"], adminRoleIds: [], categoryRoles: { cat: ["r1"] } });
+        discord.listMembersWithRoles.mockResolvedValue({
+            members: [{ id: "u1", displayName: "Alice" }, { id: "u2", displayName: "Bob" }], error: null,
+        });
+        discord.postMissingPing.mockResolvedValue({ channelId: "c1", messageId: "m1", url: "u" });
+    });
+
+    it("POST /admin/raids/ping-missing pings only the non-responders", async () => {
+        const res = await request("POST", "/admin/raids/ping-missing", { event: "e1", text: "Bitte melden" });
+        expect(discord.listMembersWithRoles).toHaveBeenCalledWith("g1", ["r1"]);
+        expect(discord.postMissingPing).toHaveBeenCalledWith("c1", ["u2"], "Bitte melden");
+        expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&ok=");
+    });
+
+    it("errors when the category has no roles assigned", async () => {
+        store.getConfig.mockReturnValue({ raidDefaults: {}, categoryIds: ["cat"], adminRoleIds: [], categoryRoles: {} });
+        const res = await request("POST", "/admin/raids/ping-missing", { event: "e1" });
+        expect(discord.postMissingPing).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("err=");
+    });
+
+    it("reports success without pinging when nobody is missing", async () => {
+        discord.listMembersWithRoles.mockResolvedValueOnce({ members: [{ id: "u1", displayName: "Alice" }], error: null });
+        const res = await request("POST", "/admin/raids/ping-missing", { event: "e1" });
+        expect(discord.postMissingPing).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("ok=");
+    });
+
+    it("surfaces the members error (missing intent) without pinging", async () => {
+        discord.listMembersWithRoles.mockResolvedValueOnce({ members: [], error: "Used disallowed intents" });
+        const res = await request("POST", "/admin/raids/ping-missing", { event: "e1" });
+        expect(discord.postMissingPing).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("err=");
+    });
+
+    it("rejects a bad CSRF token before doing anything", async () => {
+        auth.checkCsrf.mockReturnValueOnce(false);
+        const res = await request("POST", "/admin/raids/ping-missing", { event: "e1" });
+        expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("msg=csrf");
+    });
+});
+
+describe("settings categoryRoles", () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+        auth.checkCsrf.mockReturnValue(true);
+        auth.getActiveGuild.mockReturnValue("g1");
+    });
+
+    it("POST /admin/settings collects per-category roles from checkbox fields", async () => {
+        const res = await request("POST", "/admin/settings", {
+            categoryIds: "cat, cat2",
+            "catrole:cat:r1": "1",
+            "catrole:cat:r2": "1",
+            "catrole:other:r9": "1",
+        });
+        expect(store.saveConfig).toHaveBeenCalledWith(expect.objectContaining({
+            categoryIds: ["cat", "cat2"],
+            categoryRoles: { cat: ["r1", "r2"] },
+        }));
+        expect(redirectTo(res)).toBe("/admin/settings?msg=saved");
     });
 });

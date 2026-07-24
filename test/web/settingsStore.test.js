@@ -105,6 +105,26 @@ describe("web/settingsStore", () => {
                 JSON.stringify({ categoryLootTool: "nope" }));
             expect(getConfig().categoryLootTool).toEqual({});
         });
+
+        it("defaults categoryRoles to an empty object and round-trips a map", () => {
+            expect(getConfig().categoryRoles).toEqual({});
+            saveConfig({ categoryRoles: { c1: ["r1", "r2"], c2: ["r3"] } });
+            expect(getConfig().categoryRoles).toEqual({ c1: ["r1", "r2"], c2: ["r3"] });
+        });
+
+        it("normalises categoryRoles: trims, dedupes, drops empties and non-arrays", () => {
+            saveConfig({});
+            fs.__store.set([...fs.__store.keys()].find((k) => k.endsWith("config.json")),
+                JSON.stringify({ categoryRoles: { c1: [" r1 ", "r1", ""], c2: [], c3: "nope" } }));
+            expect(getConfig().categoryRoles).toEqual({ c1: ["r1"] });
+        });
+
+        it("guards categoryRoles to an object when the stored value is malformed", () => {
+            saveConfig({});
+            fs.__store.set([...fs.__store.keys()].find((k) => k.endsWith("config.json")),
+                JSON.stringify({ categoryRoles: "nope" }));
+            expect(getConfig().categoryRoles).toEqual({});
+        });
     });
 
     describe("saveConfig", () => {

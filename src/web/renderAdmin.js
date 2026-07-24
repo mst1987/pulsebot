@@ -62,7 +62,19 @@ const ADMIN_STYLE = `<style>
   .btn-danger:hover { filter:none; background:var(--high); color:#fff; }
   .btn-sm { padding:6px 12px; font-size:13px; }
   .row-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  /* action cell stays a real table-cell so its row divider aligns with the rest */
   td.cell-actions { text-align:right; white-space:nowrap; vertical-align:middle; }
+  /* native date/time pickers follow the active theme (calendar/clock popup + icon) */
+  input[type=date], input[type=time], input[type=datetime-local] { color-scheme:dark; }
+  :root[data-theme="light"] input[type=date],
+  :root[data-theme="light"] input[type=time],
+  :root[data-theme="light"] input[type=datetime-local] { color-scheme:light; }
+  input[type=date]::-webkit-calendar-picker-indicator,
+  input[type=time]::-webkit-calendar-picker-indicator,
+  input[type=datetime-local]::-webkit-calendar-picker-indicator { filter:var(--picker-filter,none); cursor:pointer; opacity:.85; }
+  input[type=date]::-webkit-calendar-picker-indicator:hover,
+  input[type=time]::-webkit-calendar-picker-indicator:hover,
+  input[type=datetime-local]::-webkit-calendar-picker-indicator:hover { opacity:1; }
   /* inline pill badges (loot source / response) — distinct from render.js's corner .badge */
   .lbadge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700; line-height:1.5; border:1px solid var(--line); background:var(--panel2); color:var(--muted); }
   .lbadge-ok { background:var(--good-bg); color:var(--good); border-color:var(--good); }
@@ -817,11 +829,22 @@ function renderRaids(user, opts = {}) {
                   <td class="small">${esc(formatEventTime(ev.startTime))}</td>
                   <td class="small">${esc(String(ev.signupCount || 0))}</td>
                   <td class="small">${links}</td>
-                  <td class="row-actions"><a class="btn btn-ghost" href="/admin/raids/detail?event=${esc(ev.id)}">Details</a></td>
+                  <td class="cell-actions"><div class="row-actions" style="justify-content:flex-end"><a class="btn btn-ghost btn-sm" href="/admin/raids/detail?event=${esc(ev.id)}">Details</a></div></td>
                 </tr>`;
             }).join("");
+            // "＋ Event" pre-fills the create form by reusing this category's most
+            // recent event as the template (title/template/channel-name format),
+            // so a new raid keeps the same naming/format used in this category.
+            const latest = g.events.slice().sort((a, b) => (b.startTime || 0) - (a.startTime || 0))[0];
+            const newHref = "/admin/raids/new"
+                + (latest ? `?source=${esc(latest.id)}` : "")
+                + (g.categoryId ? `${latest ? "&" : "?"}category=${esc(g.categoryId)}` : "");
             return `<div class="dash-card" style="margin-bottom:16px">
-                <div class="dash-card-head"><h3>${esc(g.categoryName || "Ohne Kategorie")}</h3><span class="small" style="margin-left:auto">${g.events.length} Event(s)</span></div>
+                <div class="dash-card-head">
+                  <h3>${esc(g.categoryName || "Ohne Kategorie")}</h3>
+                  <span class="small" style="margin-left:auto">${g.events.length} Event(s)</span>
+                  <a class="btn btn-ghost btn-sm" href="${newHref}" title="Neues Event in dieser Kategorie anlegen (Format vorbelegt)">＋ Event</a>
+                </div>
                 <table class="idx" style="margin:0">
                   <thead><tr><th>Event</th><th>Termin</th><th>Anm.</th><th>Links</th><th></th></tr></thead>
                   <tbody>${rows}</tbody>
@@ -852,12 +875,13 @@ function renderRaidCreate(user, opts = {}) {
     // form (title/template/description) and switches the channel input to a
     // clone-name field (see the toggle script below): a new channel is cloned
     // from the source event's channel and the new event is posted there.
+    const preselect = (opts.defaults && opts.defaults.sourceEventId) || "";
     const reuseField = reusableEvents.length
         ? `<div class="field">
           <label>Vorhandenes Event wiederverwenden (optional)</label>
           <select name="sourceEventId" id="sourceEventSelect">
-            <option value="">— Neues Event von Grund auf —</option>
-            ${reusableEvents.map((ev) => `<option value="${esc(ev.id)}" data-title="${esc(ev.title || "")}" data-template="${esc(ev.templateId || "")}" data-desc="${esc(ev.description || "")}" data-channel="${esc(ev.channelName || "")}">${esc(ev.title || "(ohne Titel)")}${ev.channelName ? ` · #${esc(ev.channelName)}` : ""}</option>`).join("")}
+            <option value=""${preselect ? "" : " selected"}>— Neues Event von Grund auf —</option>
+            ${reusableEvents.map((ev) => `<option value="${esc(ev.id)}"${ev.id === preselect ? " selected" : ""} data-title="${esc(ev.title || "")}" data-template="${esc(ev.templateId || "")}" data-desc="${esc(ev.description || "")}" data-channel="${esc(ev.channelName || "")}">${esc(ev.title || "(ohne Titel)")}${ev.channelName ? ` · #${esc(ev.channelName)}` : ""}</option>`).join("")}
           </select>
           <div class="hint">Übernimmt Titel, Template und Beschreibung. Der Channel des Events wird für das neue Datum geklont — den Namen unten anpassen.</div>
         </div>`
@@ -1082,6 +1106,8 @@ function renderEventDetail(user, opts = {}) {
     const roles = opts.roles || [];
     const raidsheets = opts.raidsheets || [];
     const setup = opts.setup || null;
+    const attendance = opts.attendance || { responded: [], missing: [] };
+    const attendanceRoleIds = opts.attendanceRoleIds || [];
 
     // Prominent "open sheet" button, shown top-right of the meta card once a
     // raid sheet has been created for this event.
@@ -1199,16 +1225,56 @@ function renderEventDetail(user, opts = {}) {
       </form>`;
     }
 
+    // --- Anwesenheit: role holders who have not reacted to the signup yet ---
+    const nameList = (people) => people.length
+        ? `<div class="rolegrid">${people.map((p) => `<span class="rolebox">${esc(p.displayName || p.id)}</span>`).join("")}</div>`
+        : "<p class=\"sub\">—</p>";
+    let attendanceSection;
+    if (!attendanceRoleIds.length) {
+        attendanceSection = "<p class=\"sub\">Dieser Kategorie sind noch keine Raider-Rollen zugeordnet. Lege sie in den <a class=\"mlink\" href=\"/admin/settings\">Einstellungen → Events</a> fest, um zu sehen, wer noch fehlt.</p>";
+    } else if (opts.membersError) {
+        attendanceSection = `<div class="flash flash-err">Mitglieder konnten nicht geladen werden: ${esc(opts.membersError)}</div>`
+            + "<p class=\"sub\">Für den Rollen-Abgleich muss im Discord Developer Portal der <strong>„Server Members Intent“</strong> aktiviert sein.</p>";
+    } else {
+        const expected = attendance.responded.length + attendance.missing.length;
+        const summary = "<div class=\"setup-summary\">"
+            + `<span class="setup-count setup-total"><b>${esc(String(expected))}</b> erwartet</span>`
+            + `<span class="setup-count"><b>${esc(String(attendance.responded.length))}</b> reagiert</span>`
+            + `<span class="setup-count"><b>${esc(String(attendance.missing.length))}</b> fehlt</span>`
+            + "</div>";
+        const pingForm = attendance.missing.length
+            ? `<form class="card-form" method="POST" action="/admin/raids/ping-missing" style="margin-top:16px" onsubmit="this.querySelector('button').disabled=true">
+        ${csrfField}
+        <input type="hidden" name="event" value="${esc(ev.id)}">
+        <div class="field">
+          <label>Nachricht (optional)</label>
+          <input type="text" name="text" placeholder="Bitte meldet euch für den Raid an oder ab.">
+          <div class="hint">Wird im Event-Channel gepostet und pingt genau die ${esc(String(attendance.missing.length))} fehlenden Raider.</div>
+        </div>
+        <div class="row-actions"><button class="btn" type="submit">Fehlende Raider pingen</button></div>
+      </form>`
+            : "<p class=\"sub\" style=\"margin-top:12px\">Es haben schon alle erwarteten Raider reagiert. 🎉</p>";
+        attendanceSection = summary
+            + `<h4 style="margin:14px 0 6px">Fehlt (noch keine Reaktion)</h4>${nameList(attendance.missing)}`
+            + `<h4 style="margin:14px 0 6px">Reagiert (an- oder abgemeldet)</h4>${nameList(attendance.responded)}`
+            + pingForm;
+    }
+
     const body = `
       <p class="note"><a class="mlink" href="/admin/raids">← Zurück zur Event-Übersicht</a></p>
       ${meta}
       <div class="tabs" role="tablist">
         <button type="button" class="tab-btn active" data-tab="setup" role="tab">Setup</button>
+        <button type="button" class="tab-btn" data-tab="attendance" role="tab">Anwesenheit</button>
         <button type="button" class="tab-btn" data-tab="actions" role="tab">Anmeldung &amp; Sheet</button>
       </div>
       <div class="tab-panel active" data-panel="setup" role="tabpanel">
         <p class="note">Aktueller Raidplan dieses Events, in Raid-Gruppen 1–5 wie im Raid-Helper. Icons und Farben richten sich nach der WoW-Spec.</p>
         ${setupSection}
+      </div>
+      <div class="tab-panel" data-panel="attendance" role="tabpanel">
+        <p class="note">Abgleich der Raider-Rollen dieser Kategorie mit den Raid-Helper-Anmeldungen: wer sich an- oder abgemeldet hat und wer noch gar nicht reagiert hat.</p>
+        ${attendanceSection}
       </div>
       <div class="tab-panel" data-panel="actions" role="tabpanel">
         <h2 style="margin-top:0">Anmelde-Aufruf</h2>
@@ -1301,7 +1367,34 @@ function renderSettings(user, opts = {}) {
     const rd = config.raidDefaults || {};
     const bz = config.blizzard || {};
     const raidsheets = opts.raidsheets || [];
+    const roles = opts.roles || [];
+    const categories = opts.categories || [];
+    const categoryRoles = config.categoryRoles || {};
     const csrfField = hiddenCsrf(opts.csrf || "");
+
+    // Per-category raider-role assignment: for each configured event category, a
+    // grid of role checkboxes (checked from config.categoryRoles). Powers the
+    // attendance / "ping missing raiders" feature on the event detail page.
+    const catName = (id) => {
+        const hit = categories.find((c) => c.id === id);
+        return hit ? hit.name : id;
+    };
+    let categoryRolesSection;
+    if (!(config.categoryIds || []).length) {
+        categoryRolesSection = "<p class=\"hint\">Trage oben Kategorie-IDs ein und speichere, um ihnen Raider-Rollen zuzuordnen.</p>";
+    } else if (!roles.length) {
+        categoryRolesSection = "<p class=\"hint\">Keine Rollen geladen (Server gewählt und Bot online?). Rollen-Zuordnung ist erst verfügbar, wenn der Bot verbunden ist.</p>";
+    } else {
+        categoryRolesSection = (config.categoryIds || []).map((catId) => {
+            const assigned = new Set(categoryRoles[catId] || []);
+            const boxes = roles.map((r) =>
+                `<label class="rolebox"><input type="checkbox" name="catrole:${esc(catId)}:${esc(r.id)}" value="1"${assigned.has(r.id) ? " checked" : ""}> @${esc(r.name)}</label>`).join("");
+            return `<div class="field">
+          <label>${esc(catName(catId))} <span class="hint" style="font-weight:400">(${esc(catId)})</span></label>
+          <div class="rolegrid">${boxes}</div>
+        </div>`;
+        }).join("");
+    }
 
     // A single raidsheet edit card (or the "new" form when sheet is null).
     const sheetForm = (sheet) => {
@@ -1322,7 +1415,6 @@ function renderSettings(user, opts = {}) {
         </form>`;
     };
     const raidsheetSection = `
-      <h2>Raidsheets</h2>
       <p class="note">Google-Sheets nach Content aufgeteilt (Tier 4/5 usw.). Beim Füllen wird anhand der Keywords das passende Sheet vorgeschlagen.</p>
       ${raidsheets.map((s) => sheetForm(s)).join("")}
       <h3 style="margin-top:18px">Neues Raidsheet</h3>
@@ -1330,88 +1422,126 @@ function renderSettings(user, opts = {}) {
 
     const body = `
       <p class="note">Alle Werte werden in der Datenbank gespeichert und greifen ohne Bot-Neustart. IDs bekommst du in Discord per Rechtsklick → „ID kopieren" (Entwicklermodus).</p>
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab-btn active" data-tab="zugang" role="tab">Zugang</button>
+        <button type="button" class="tab-btn" data-tab="recruitment" role="tab">Recruitment</button>
+        <button type="button" class="tab-btn" data-tab="auktionen" role="tab">Auktionen</button>
+        <button type="button" class="tab-btn" data-tab="events" role="tab">Events</button>
+        <button type="button" class="tab-btn" data-tab="logs" role="tab">Logs</button>
+        <button type="button" class="tab-btn" data-tab="raidsheets" role="tab">Raidsheets</button>
+      </div>
       <form class="card-form" method="POST" action="/admin/settings">
         ${csrfField}
-        <h2 style="margin-top:0">Admin-Zugang</h2>
-        <div class="field">
-          <label>Admin-Rollen (Discord-Rollen-IDs, kommagetrennt)</label>
-          <input type="text" name="adminRoleIds" value="${esc((config.adminRoleIds || []).join(", "))}" placeholder="123456789012345678, 234567890123456789">
-          <div class="hint">Mitglieder mit einer dieser Rollen erhalten Admin-Zugang. Die <code>ADMIN_USER_ID</code> aus der .env behält immer Zugang (Notfall-Zugang).</div>
+        <div class="tab-panel active" data-panel="zugang" role="tabpanel">
+          <h2 style="margin-top:0">Admin-Zugang</h2>
+          <div class="field">
+            <label>Admin-Rollen (Discord-Rollen-IDs, kommagetrennt)</label>
+            <input type="text" name="adminRoleIds" value="${esc((config.adminRoleIds || []).join(", "))}" placeholder="123456789012345678, 234567890123456789">
+            <div class="hint">Mitglieder mit einer dieser Rollen erhalten Admin-Zugang. Die <code>ADMIN_USER_ID</code> aus der .env behält immer Zugang (Notfall-Zugang).</div>
+          </div>
         </div>
 
-        <h2>Recruitment</h2>
-        <div class="field">
-          <label>Bewerbungs-Channel-ID</label>
-          <input type="text" name="applicationChannelId" value="${esc(config.applicationChannelId || "")}" placeholder="Discord-Channel-ID">
-          <div class="hint">Channel, in dem neue Bewerbungen als Thread gepostet werden.</div>
-        </div>
-        <div class="field">
-          <label>Offizier-Rollen-ID</label>
-          <input type="text" name="officerRoleId" value="${esc(config.officerRoleId || "")}" placeholder="Discord-Rollen-ID">
-          <div class="hint">Wird bei neuen Bewerbungen gepingt. Leer lassen für keinen Ping.</div>
-        </div>
-
-        <h2>Auktionen</h2>
-        <div class="field">
-          <label>Höchstgebote-Channel-ID</label>
-          <input type="text" name="highestBidsChannelId" value="${esc(config.highestBidsChannelId || "")}" placeholder="Discord-Channel-ID">
-        </div>
-        <div class="field">
-          <label>Höchstgebote-Message-ID</label>
-          <input type="text" name="highestBidsMessageId" value="${esc(config.highestBidsMessageId || "")}" placeholder="Discord-Message-ID">
-          <div class="hint">Die Nachricht mit der Höchstgebote-Übersicht, die der Bot aktualisiert.</div>
+        <div class="tab-panel" data-panel="recruitment" role="tabpanel">
+          <h2 style="margin-top:0">Recruitment</h2>
+          <div class="field">
+            <label>Bewerbungs-Channel-ID</label>
+            <input type="text" name="applicationChannelId" value="${esc(config.applicationChannelId || "")}" placeholder="Discord-Channel-ID">
+            <div class="hint">Channel, in dem neue Bewerbungen als Thread gepostet werden.</div>
+          </div>
+          <div class="field">
+            <label>Offizier-Rollen-ID</label>
+            <input type="text" name="officerRoleId" value="${esc(config.officerRoleId || "")}" placeholder="Discord-Rollen-ID">
+            <div class="hint">Wird bei neuen Bewerbungen gepingt. Leer lassen für keinen Ping.</div>
+          </div>
         </div>
 
-        <h2>Event-Kategorien</h2>
-        <div class="field">
-          <label>Kategorie-IDs (kommagetrennt)</label>
-          <input type="text" name="categoryIds" value="${esc((config.categoryIds || []).join(", "))}" placeholder="111…, 222…, 333…">
-          <div class="hint">Discord-Kategorien, deren Channels Raid-Events enthalten.</div>
+        <div class="tab-panel" data-panel="auktionen" role="tabpanel">
+          <h2 style="margin-top:0">Auktionen</h2>
+          <div class="field">
+            <label>Höchstgebote-Channel-ID</label>
+            <input type="text" name="highestBidsChannelId" value="${esc(config.highestBidsChannelId || "")}" placeholder="Discord-Channel-ID">
+          </div>
+          <div class="field">
+            <label>Höchstgebote-Message-ID</label>
+            <input type="text" name="highestBidsMessageId" value="${esc(config.highestBidsMessageId || "")}" placeholder="Discord-Message-ID">
+            <div class="hint">Die Nachricht mit der Höchstgebote-Übersicht, die der Bot aktualisiert.</div>
+          </div>
         </div>
 
-        <h2>Log-Auswertung</h2>
-        <div class="field">
-          <label>Log-Channel-IDs (kommagetrennt)</label>
-          <input type="text" name="logChannelIds" value="${esc((config.logChannelIds || []).join(", "))}" placeholder="111…, 222…">
-          <div class="hint">Channels, in denen automatisch Warcraft-Logs gepostet werden. Der Bot bietet dort per Button die Auswertung an.</div>
+        <div class="tab-panel" data-panel="events" role="tabpanel">
+          <h2 style="margin-top:0">Event-Kategorien</h2>
+          <div class="field">
+            <label>Kategorie-IDs (kommagetrennt)</label>
+            <input type="text" name="categoryIds" value="${esc((config.categoryIds || []).join(", "))}" placeholder="111…, 222…, 333…">
+            <div class="hint">Discord-Kategorien, deren Channels Raid-Events enthalten.</div>
+          </div>
+
+          <h2>Raider-Rollen je Kategorie</h2>
+          <p class="hint">Ordne jeder Event-Kategorie die erwarteten Raider-Rollen zu. Auf der Event-Detail-Seite wird dann angezeigt, wer sich angemeldet hat und wer noch fehlt.</p>
+          ${categoryRolesSection}
+
+          <h2>Armory / Battle.net API</h2>
+          <p class="hint" style="margin:-6px 0 12px">Optional: Mit Battle.net-API-Zugang zeigt die Char-Historie das Live-Gear (Paperdoll) direkt an. Ohne Zugang wird pro Char auf classic-armory.org verlinkt. Client anlegen unter <code>develop.battle.net</code>. Hinweis: Die Classic-Profile-API ist nur teilweise verfügbar — bei fehlenden Daten wird automatisch auf den Armory-Link zurückgefallen.</p>
+          <div class="field">
+            <label>Battle.net Client-ID</label>
+            <input type="text" name="blizzardClientId" value="${esc(bz.clientId || "")}" placeholder="Client-ID von develop.battle.net" autocomplete="off">
+          </div>
+          <div class="field">
+            <label>Battle.net Client-Secret</label>
+            <input type="password" name="blizzardClientSecret" value="" placeholder="${bz.clientSecret ? "•••••••• (gespeichert – leer lassen, um es zu behalten)" : "Client-Secret"}" autocomplete="off">
+            <div class="hint">Leer lassen behält das gespeicherte Secret. Zum Entfernen ein einzelnes Minus <code>-</code> eintragen.</div>
+          </div>
+          <div class="field">
+            <label>Region</label>
+            <input type="text" name="blizzardRegion" value="${esc(bz.region || "eu")}" placeholder="eu">
+          </div>
+          <div class="field">
+            <label>Realm-Slug</label>
+            <input type="text" name="blizzardRealmSlug" value="${esc(bz.realmSlug || "thunderstrike")}" placeholder="thunderstrike">
+            <div class="hint">Kleingeschrieben, Bindestriche statt Leerzeichen (z.B. <code>thunderstrike</code>).</div>
+          </div>
+
+          <h2>Raid-Standardwerte</h2>
+          <div class="field">
+            <label>Standard-Template-ID</label>
+            <input type="text" name="raidTemplateId" value="${esc(rd.templateId || "")}" placeholder="Raid-Helper Template-ID">
+          </div>
+          <div class="field">
+            <label>Standard-Channel-ID</label>
+            <input type="text" name="raidChannelId" value="${esc(rd.channelId || "")}" placeholder="Discord-Channel-ID">
+          </div>
         </div>
 
-        <h2>Armory / Battle.net API</h2>
-        <p class="hint" style="margin:-6px 0 12px">Optional: Mit Battle.net-API-Zugang zeigt die Char-Historie das Live-Gear (Paperdoll) direkt an. Ohne Zugang wird pro Char auf classic-armory.org verlinkt. Client anlegen unter <code>develop.battle.net</code>. Hinweis: Die Classic-Profile-API ist nur teilweise verfügbar — bei fehlenden Daten wird automatisch auf den Armory-Link zurückgefallen.</p>
-        <div class="field">
-          <label>Battle.net Client-ID</label>
-          <input type="text" name="blizzardClientId" value="${esc(bz.clientId || "")}" placeholder="Client-ID von develop.battle.net" autocomplete="off">
-        </div>
-        <div class="field">
-          <label>Battle.net Client-Secret</label>
-          <input type="password" name="blizzardClientSecret" value="" placeholder="${bz.clientSecret ? "•••••••• (gespeichert – leer lassen, um es zu behalten)" : "Client-Secret"}" autocomplete="off">
-          <div class="hint">Leer lassen behält das gespeicherte Secret. Zum Entfernen ein einzelnes Minus <code>-</code> eintragen.</div>
-        </div>
-        <div class="field">
-          <label>Region</label>
-          <input type="text" name="blizzardRegion" value="${esc(bz.region || "eu")}" placeholder="eu">
-        </div>
-        <div class="field">
-          <label>Realm-Slug</label>
-          <input type="text" name="blizzardRealmSlug" value="${esc(bz.realmSlug || "thunderstrike")}" placeholder="thunderstrike">
-          <div class="hint">Kleingeschrieben, Bindestriche statt Leerzeichen (z.B. <code>thunderstrike</code>).</div>
+        <div class="tab-panel" data-panel="logs" role="tabpanel">
+          <h2 style="margin-top:0">Log-Auswertung</h2>
+          <div class="field">
+            <label>Log-Channel-IDs (kommagetrennt)</label>
+            <input type="text" name="logChannelIds" value="${esc((config.logChannelIds || []).join(", "))}" placeholder="111…, 222…">
+            <div class="hint">Channels, in denen automatisch Warcraft-Logs gepostet werden. Der Bot bietet dort per Button die Auswertung an.</div>
+          </div>
         </div>
 
-        <h2>Raid-Standardwerte</h2>
-        <div class="field">
-          <label>Standard-Template-ID</label>
-          <input type="text" name="raidTemplateId" value="${esc(rd.templateId || "")}" placeholder="Raid-Helper Template-ID">
-        </div>
-        <div class="field">
-          <label>Standard-Channel-ID</label>
-          <input type="text" name="raidChannelId" value="${esc(rd.channelId || "")}" placeholder="Discord-Channel-ID">
-        </div>
-
-        <div class="row-actions">
+        <div class="row-actions settings-save">
           <button class="btn" type="submit">Speichern</button>
         </div>
       </form>
-      ${raidsheetSection}`;
+
+      <div class="tab-panel" data-panel="raidsheets" role="tabpanel">
+        <h2 style="margin-top:0">Raidsheets</h2>
+        ${raidsheetSection}
+      </div>
+
+      <script>(function(){
+        var btns=document.querySelectorAll(".tabs .tab-btn");
+        var panels=document.querySelectorAll(".tab-panel");
+        var save=document.querySelector(".settings-save");
+        btns.forEach(function(b){ b.addEventListener("click",function(){
+          var t=b.getAttribute("data-tab");
+          btns.forEach(function(x){ x.classList.toggle("active", x===b); });
+          panels.forEach(function(p){ p.classList.toggle("active", p.getAttribute("data-panel")===t); });
+          if(save){ save.style.display = t==="raidsheets" ? "none" : ""; }
+        }); });
+      })();</script>`;
     return adminLayout("Einstellungen — Pulsebot Admin", "settings", user, body, opts.msg, opts.nav);
 }
 

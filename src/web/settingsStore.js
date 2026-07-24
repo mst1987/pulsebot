@@ -43,6 +43,9 @@ const CONFIG_DEFAULTS = {
     highestBidsMessageId: highestBidsMessageId || "",
     // Discord category IDs that contain the event channels.
     categoryIds: Array.isArray(categoryIds) ? categoryIds : [],
+    // Per-category expected raider roles: { [categoryId]: [roleId, ...] }. Used to
+    // compare who signed up to an event against who is expected to (attendance).
+    categoryRoles: {},
     // Channels the bot watches for Warcraft-Logs links to offer auto-evaluation.
     logChannelIds: [],
     // Defaults pre-filled into the raid-event form.
@@ -370,11 +373,30 @@ function getConfig() {
         raidDefaults: { ...CONFIG_DEFAULTS.raidDefaults, ...(stored.raidDefaults || {}) },
         adminRoleIds: Array.isArray(stored.adminRoleIds) ? stored.adminRoleIds : CONFIG_DEFAULTS.adminRoleIds,
         categoryIds: Array.isArray(stored.categoryIds) ? stored.categoryIds : CONFIG_DEFAULTS.categoryIds,
+        categoryRoles: normalizeCategoryRoles(stored.categoryRoles),
         logChannelIds: Array.isArray(stored.logChannelIds) ? stored.logChannelIds : CONFIG_DEFAULTS.logChannelIds,
         blizzard: { ...CONFIG_DEFAULTS.blizzard, ...(stored.blizzard || {}) },
         categoryLootTool: (stored.categoryLootTool && typeof stored.categoryLootTool === "object")
             ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
     };
+}
+
+/**
+ * Normalise the categoryRoles map to `{ [categoryId]: string[] }`: drop non-array
+ * values, coerce entries to trimmed non-empty strings, dedupe, and drop categories
+ * that end up with no roles. Always returns a plain object (never undefined).
+ */
+function normalizeCategoryRoles(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, roles] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        if (!key) continue;
+        const list = Array.isArray(roles) ? roles : [];
+        const clean = [...new Set(list.map((r) => String(r).trim()).filter(Boolean))];
+        if (clean.length) out[key] = clean;
+    }
+    return out;
 }
 
 /** Merge and persist a partial config update. Returns the full saved config. */
