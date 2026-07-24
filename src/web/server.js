@@ -790,6 +790,16 @@ async function handle(req, res) {
                 .split(",")
                 .map((s) => s.trim())
                 .filter(Boolean);
+            // Battle.net secret: empty field keeps the stored secret (never echoed
+            // back to the page); a single "-" clears it; anything else replaces it.
+            const blizzard = {
+                clientId: trim("blizzardClientId"),
+                region: trim("blizzardRegion") || "eu",
+                realmSlug: trim("blizzardRealmSlug").toLowerCase() || "thunderstrike",
+            };
+            const secretInput = trim("blizzardClientSecret");
+            if (secretInput === "-") blizzard.clientSecret = "";
+            else if (secretInput) blizzard.clientSecret = secretInput;
             saveConfig({
                 adminRoleIds: list("adminRoleIds"),
                 officerRoleId: trim("officerRoleId"),
@@ -802,6 +812,7 @@ async function handle(req, res) {
                     templateId: trim("raidTemplateId"),
                     channelId: trim("raidChannelId"),
                 },
+                blizzard,
             });
             return redirect(res, "/admin/settings?msg=saved");
         }

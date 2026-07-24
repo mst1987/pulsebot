@@ -89,6 +89,22 @@ describe("web/settingsStore", () => {
                 JSON.stringify({ logChannelIds: "nope" }));
             expect(getConfig().logChannelIds).toEqual([]);
         });
+
+        it("exposes blizzard defaults and a categoryLootTool map", () => {
+            const cfg = getConfig();
+            expect(cfg.blizzard).toEqual(expect.objectContaining({
+                clientId: expect.any(String), clientSecret: expect.any(String),
+                region: "eu", realmSlug: "thunderstrike",
+            }));
+            expect(cfg.categoryLootTool).toEqual({});
+        });
+
+        it("guards categoryLootTool to an object when the stored value is malformed", () => {
+            saveConfig({});
+            fs.__store.set([...fs.__store.keys()].find((k) => k.endsWith("config.json")),
+                JSON.stringify({ categoryLootTool: "nope" }));
+            expect(getConfig().categoryLootTool).toEqual({});
+        });
     });
 
     describe("saveConfig", () => {
@@ -98,6 +114,22 @@ describe("web/settingsStore", () => {
             const cfg = getConfig();
             expect(cfg.raidDefaults.templateId).toBe("a");
             expect(cfg.raidDefaults.channelId).toBe("c2");
+        });
+
+        it("deep-merges blizzard credentials without dropping untouched fields", () => {
+            saveConfig({ blizzard: { clientId: "cid", clientSecret: "sec" } });
+            saveConfig({ blizzard: { clientSecret: "sec2" } });
+            const cfg = getConfig();
+            expect(cfg.blizzard.clientId).toBe("cid");
+            expect(cfg.blizzard.clientSecret).toBe("sec2");
+            expect(cfg.blizzard.realmSlug).toBe("thunderstrike");
+        });
+
+        it("merges categoryLootTool entries per category", () => {
+            saveConfig({ categoryLootTool: { cat1: "gargul" } });
+            saveConfig({ categoryLootTool: { cat2: "rclc" } });
+            const cfg = getConfig();
+            expect(cfg.categoryLootTool).toEqual({ cat1: "gargul", cat2: "rclc" });
         });
     });
 

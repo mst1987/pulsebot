@@ -507,3 +507,37 @@ describe("raidsheet fill route records the fill", () => {
         expect(redirectTo(res)).toContain("&err=");
     });
 });
+
+describe("settings route: Battle.net credentials", () => {
+    it("POST /admin/settings saves blizzard client id/region/realm and the new secret", async () => {
+        store.saveConfig.mockClear();
+        const res = await request("POST", "/admin/settings", {
+            blizzardClientId: "cid", blizzardClientSecret: "sec",
+            blizzardRegion: "eu", blizzardRealmSlug: "Thunderstrike",
+        });
+        expect(store.saveConfig).toHaveBeenCalledWith(expect.objectContaining({
+            blizzard: { clientId: "cid", region: "eu", realmSlug: "thunderstrike", clientSecret: "sec" },
+        }));
+        expect(redirectTo(res)).toBe("/admin/settings?msg=saved");
+    });
+
+    it("keeps the stored secret when the secret field is left blank", async () => {
+        store.saveConfig.mockClear();
+        await request("POST", "/admin/settings", {
+            blizzardClientId: "cid", blizzardClientSecret: "",
+            blizzardRegion: "eu", blizzardRealmSlug: "thunderstrike",
+        });
+        const arg = store.saveConfig.mock.calls[0][0];
+        // no clientSecret key → settingsStore deep-merge keeps the existing one
+        expect(arg.blizzard).not.toHaveProperty("clientSecret");
+    });
+
+    it("clears the stored secret when the field is a single dash", async () => {
+        store.saveConfig.mockClear();
+        await request("POST", "/admin/settings", {
+            blizzardClientId: "cid", blizzardClientSecret: "-",
+            blizzardRegion: "eu", blizzardRealmSlug: "thunderstrike",
+        });
+        expect(store.saveConfig.mock.calls[0][0].blizzard.clientSecret).toBe("");
+    });
+});

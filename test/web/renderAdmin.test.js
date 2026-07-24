@@ -582,6 +582,23 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("action=\"/admin/settings/raidsheets\"");
             expect(html).toContain("formaction=\"/admin/settings/raidsheets/delete\"");
         });
+
+        it("prefills Battle.net client id / region / realm but never echoes the secret", () => {
+            const html = renderSettings(user, {
+                config: {
+                    adminRoleIds: [], raidDefaults: {},
+                    blizzard: { clientId: "abc123", clientSecret: "topsecret", region: "eu", realmSlug: "thunderstrike" },
+                },
+                csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("Battle.net Client-ID");
+            expect(html).toContain("value=\"abc123\"");
+            expect(html).toContain("value=\"thunderstrike\"");
+            // the secret value must NOT appear anywhere in the HTML
+            expect(html).not.toContain("topsecret");
+            // the password field signals that a secret is stored
+            expect(html).toContain("gespeichert");
+        });
     });
 
     describe("renderAdminDenied", () => {

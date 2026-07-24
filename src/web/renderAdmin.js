@@ -1291,6 +1291,7 @@ function renderNotifyTemplates(user, opts = {}) {
 function renderSettings(user, opts = {}) {
     const config = opts.config || { adminRoleIds: [], raidDefaults: {} };
     const rd = config.raidDefaults || {};
+    const bz = config.blizzard || {};
     const raidsheets = opts.raidsheets || [];
     const csrfField = hiddenCsrf(opts.csrf || "");
 
@@ -1365,6 +1366,27 @@ function renderSettings(user, opts = {}) {
           <label>Log-Channel-IDs (kommagetrennt)</label>
           <input type="text" name="logChannelIds" value="${esc((config.logChannelIds || []).join(", "))}" placeholder="111…, 222…">
           <div class="hint">Channels, in denen automatisch Warcraft-Logs gepostet werden. Der Bot bietet dort per Button die Auswertung an.</div>
+        </div>
+
+        <h2>Armory / Battle.net API</h2>
+        <p class="hint" style="margin:-6px 0 12px">Optional: Mit Battle.net-API-Zugang zeigt die Char-Historie das Live-Gear (Paperdoll) direkt an. Ohne Zugang wird pro Char auf classic-armory.org verlinkt. Client anlegen unter <code>develop.battle.net</code>. Hinweis: Die Classic-Profile-API ist nur teilweise verfügbar — bei fehlenden Daten wird automatisch auf den Armory-Link zurückgefallen.</p>
+        <div class="field">
+          <label>Battle.net Client-ID</label>
+          <input type="text" name="blizzardClientId" value="${esc(bz.clientId || "")}" placeholder="Client-ID von develop.battle.net" autocomplete="off">
+        </div>
+        <div class="field">
+          <label>Battle.net Client-Secret</label>
+          <input type="password" name="blizzardClientSecret" value="" placeholder="${bz.clientSecret ? "•••••••• (gespeichert – leer lassen, um es zu behalten)" : "Client-Secret"}" autocomplete="off">
+          <div class="hint">Leer lassen behält das gespeicherte Secret. Zum Entfernen ein einzelnes Minus <code>-</code> eintragen.</div>
+        </div>
+        <div class="field">
+          <label>Region</label>
+          <input type="text" name="blizzardRegion" value="${esc(bz.region || "eu")}" placeholder="eu">
+        </div>
+        <div class="field">
+          <label>Realm-Slug</label>
+          <input type="text" name="blizzardRealmSlug" value="${esc(bz.realmSlug || "thunderstrike")}" placeholder="thunderstrike">
+          <div class="hint">Kleingeschrieben, Bindestriche statt Leerzeichen (z.B. <code>thunderstrike</code>).</div>
         </div>
 
         <h2>Raid-Standardwerte</h2>
