@@ -31,6 +31,35 @@ jest.mock("../../src/web/renderAdmin", () => ({
     renderNotifyTemplates: jest.fn(() => "NOTIFY"),
     renderChannels: jest.fn(() => "CHANNELS"),
     renderSettings: jest.fn(() => "SETTINGS"),
+    renderHistory: jest.fn(() => "HISTORY"),
+    renderHistoryEvent: jest.fn(() => "HISTORY_EVENT"),
+    renderHistoryChar: jest.fn(() => "HISTORY_CHAR"),
+    fillCharTemplate: (tpl, c) => String(tpl || "").replace("{char}", encodeURIComponent(c || "")),
+}));
+const mockAddLootImport = jest.fn(() => ({ added: 2, skipped: 0 }));
+const mockListLootByEvent = jest.fn(() => []);
+const mockListLootByCharacter = jest.fn(() => []);
+const mockEventsWithLoot = jest.fn(() => []);
+const mockLootCharacters = jest.fn(() => []);
+const mockClearLootEvent = jest.fn(() => 3);
+jest.mock("../../src/web/lootStore", () => ({
+    addImport: (...a) => mockAddLootImport(...a),
+    listByEvent: (...a) => mockListLootByEvent(...a),
+    listByCharacter: (...a) => mockListLootByCharacter(...a),
+    eventsWithLoot: (...a) => mockEventsWithLoot(...a),
+    characters: (...a) => mockLootCharacters(...a),
+    clearEvent: (...a) => mockClearLootEvent(...a),
+}));
+const mockBlizzardEquip = jest.fn(() => Promise.resolve(null));
+let mockBlizzardConfigured = false;
+jest.mock("../../src/classes/blizzard", () =>
+    jest.fn().mockImplementation(() => ({
+        isConfigured: () => mockBlizzardConfigured,
+        getEquipment: mockBlizzardEquip,
+    })));
+jest.mock("../../src/web/logStore", () => ({
+    listLogs: jest.fn(() => []),
+    deleteLog: jest.fn(),
 }));
 jest.mock("../../src/web/settingsStore", () => ({
     listRecruitment: jest.fn(() => []), getRecruitment: jest.fn(), saveRecruitment: jest.fn(),
@@ -539,5 +568,105 @@ describe("settings route: Battle.net credentials", () => {
             blizzardRegion: "eu", blizzardRealmSlug: "thunderstrike",
         });
         expect(store.saveConfig.mock.calls[0][0].blizzard.clientSecret).toBe("");
+    });
+});
+
+describe("event history & loot routes", () => {
+    const GARGUL = "dateTime,character,itemID,offspec,id\n2026-07-12,Foo,29992,0,ABC";
+    const RCLC = JSON.stringify([{
+        player: "Foo-Thunderstrike", itemID: 100, itemName: "X", id: "r1",
+        servertime: "1784574268", response: "BIS", responseID: "1", boss: "B", owner: "ML-Thunderstrike",
+    }]);
+    const body = (res) => res.end.mock.calls[0] && res.end.mock.calls[0][0];
+
+    beforeEach(() => {
+        mockAddLootImport.mockClear().mockReturnValue({ added: 2, skipped: 0 });
+        mockClearLootEvent.mockClear().mockReturnValue(3);
+        mockListLootByEvent.mockClear().mockReturnValue([]);
+        mockListLootByCharacter.mockClear().mockReturnValue([]);
+        mockEventsWithLoot.mockClear().mockReturnValue([]);
+        mockLootCharacters.mockClear().mockReturnValue([]);
+        mockBlizzardEquip.mockClear().mockResolvedValue(null);
+        mockBlizzardConfigured = false;
+        store.saveConfig.mockClear();
+    });
+
+    it("GET /admin/history renders the history page", async () => {
+        const res = await request("GET", "/admin/history");
+        expect(body(res)).toBe("HISTORY");
+    });
+
+    it("POST /admin/history/import parses a manual Gargul import and stores it", async () => {
+        const res = await request("POST", "/admin/history/import", {
+            event: "__manual__", manualLabel: "SSC 12.07", tool: "gargul", data: GARGUL,
+        });
+        expect(mockAddLootImport).toHaveBeenCalledTimes(1);
+        const [eventId, items, meta] = mockAddLootImport.mock.calls[0];
+        expect(eventId).toBe("manual-ssc-12-07");
+        expect(items).toHaveLength(1);
+        expect(items[0]).toMatchObject({ source: "gargul", character: "Foo", itemId: 29992 });
+        expect(meta.eventLabel).toBe("SSC 12.07");
+        expect(redirectTo(res)).toContain("/admin/history?ok=");
+    });
+
+    it("POST /admin/history/import auto-detects RCLootcouncil JSON", async () => {
+        await request("POST", "/admin/history/import", {
+            event: "__manual__", manualLabel: "Night", tool: "auto", data: RCLC,
+        });
+        const items = mockAddLootImport.mock.calls[0][1];
+        expect(items[0]).toMatchObject({ source: "rclc", character: "Foo", itemId: 100 });
+    });
+
+    it("POST /admin/history/import rejects an empty paste", async () => {
+        const res = await request("POST", "/admin/history/import", { event: "__manual__", manualLabel: "x", data: "" });
+        expect(mockAddLootImport).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("err=");
+    });
+
+    it("POST /admin/history/import surfaces a parse error", async () => {
+        const res = await request("POST", "/admin/history/import", {
+            event: "__manual__", manualLabel: "x", tool: "rclc", data: "not json",
+        });
+        expect(mockAddLootImport).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("err=");
+    });
+
+    it("POST /admin/history/import requires an event or manual label", async () => {
+        const res = await request("POST", "/admin/history/import", { event: "__manual__", manualLabel: "", data: GARGUL });
+        expect(mockAddLootImport).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("err=");
+    });
+
+    it("POST /admin/history/category-tool saves the category mapping", async () => {
+        const res = await request("POST", "/admin/history/category-tool", { categoryId: "cat1", tool: "rclc" });
+        expect(store.saveConfig).toHaveBeenCalledWith({ categoryLootTool: { cat1: "rclc" } });
+        expect(redirectTo(res)).toBe("/admin/history?msg=saved");
+    });
+
+    it("POST /admin/history/clear clears an event's loot", async () => {
+        const res = await request("POST", "/admin/history/clear", { event: "e1" });
+        expect(mockClearLootEvent).toHaveBeenCalledWith("e1");
+        expect(redirectTo(res)).toContain("/admin/history?ok=");
+    });
+
+    it("GET /admin/history/event renders the event loot", async () => {
+        mockListLootByEvent.mockReturnValue([{ eventLabel: "SSC", character: "Foo" }]);
+        const res = await request("GET", "/admin/history/event?event=e1");
+        expect(mockListLootByEvent).toHaveBeenCalledWith("e1");
+        expect(body(res)).toBe("HISTORY_EVENT");
+    });
+
+    it("GET /admin/history/char skips the Blizzard call when unconfigured", async () => {
+        const res = await request("GET", "/admin/history/char?name=Foo");
+        expect(mockListLootByCharacter).toHaveBeenCalledWith("Foo");
+        expect(mockBlizzardEquip).not.toHaveBeenCalled();
+        expect(body(res)).toBe("HISTORY_CHAR");
+    });
+
+    it("GET /admin/history/char queries Blizzard gear when configured", async () => {
+        mockBlizzardConfigured = true;
+        mockBlizzardEquip.mockResolvedValue([{ slot: "HEAD", itemId: 1, name: "Hat" }]);
+        await request("GET", "/admin/history/char?name=Foo");
+        expect(mockBlizzardEquip).toHaveBeenCalledWith("Foo");
     });
 });

@@ -60,7 +60,13 @@ const ADMIN_STYLE = `<style>
   .btn-ghost:hover { filter:none; background:var(--panel3); }
   .btn-danger { background:var(--high-bg); color:var(--high); border:1px solid var(--high); }
   .btn-danger:hover { filter:none; background:var(--high); color:#fff; }
+  .btn-sm { padding:6px 12px; font-size:13px; }
   .row-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  td.cell-actions { text-align:right; white-space:nowrap; vertical-align:middle; }
+  /* inline pill badges (loot source / response) — distinct from render.js's corner .badge */
+  .lbadge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700; line-height:1.5; border:1px solid var(--line); background:var(--panel2); color:var(--muted); }
+  .lbadge-ok { background:var(--good-bg); color:var(--good); border-color:var(--good); }
+  .lbadge-neutral { background:var(--accent-soft); color:var(--accent); border-color:var(--accent-soft); }
   .flash { border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:14px; }
   .flash-ok { background:var(--good-bg); color:var(--good); border:1px solid var(--good); }
   .flash-err { background:var(--high-bg); color:var(--high); border:1px solid var(--high); }
@@ -166,6 +172,7 @@ const NAV_ICONS = {
     raids: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/></svg>",
     channels: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 9h16M4 15h16M10 3 8 21M16 3l-2 18\"/></svg>",
     settings: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z\"/></svg>",
+    history: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 3v5h5\"/><path d=\"M3.05 13A9 9 0 1 0 6 5.3L3 8\"/><path d=\"M12 7v5l3 2\"/></svg>",
 };
 
 const TABS = [
@@ -173,6 +180,7 @@ const TABS = [
     { id: "recruitment", label: "Recruitment", href: "/admin/recruitment", group: "Verwaltung" },
     { id: "cla", label: "CLA / Logcheck", href: "/admin/cla", group: "Verwaltung" },
     { id: "raids", label: "Raid-Events", href: "/admin/raids", group: "Verwaltung" },
+    { id: "history", label: "Historie & Loot", href: "/admin/history", group: "Verwaltung" },
     { id: "channels", label: "Kanäle", href: "/admin/channels", group: "Verwaltung" },
     { id: "settings", label: "Einstellungen", href: "/admin/settings", group: "System" },
 ];
@@ -1407,8 +1415,296 @@ function renderSettings(user, opts = {}) {
     return adminLayout("Einstellungen — Pulsebot Admin", "settings", user, body, opts.msg, opts.nav);
 }
 
+// ===== Event history & loot ==================================================
+
+const LOOT_TOOL_LABELS = { gargul: "Gargul", rclc: "RCLootcouncil" };
+function sourceBadge(source) {
+    const label = LOOT_TOOL_LABELS[source] || source || "?";
+    return `<span class="lbadge">${esc(label)}</span>`;
+}
+// Format an epoch-ms timestamp for the German UI (loot awardedAt / importedAt).
+function fmtMs(ms, withTime = true) {
+    const n = Number(ms);
+    if (!n) return "";
+    return new Date(n).toLocaleString("de-DE", withTime
+        ? { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }
+        : { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+// Fill a {char} URL template (armory / WCL) for a character name.
+function fillCharTemplate(tpl, character) {
+    return String(tpl || "").replace("{char}", encodeURIComponent(String(character || "").trim()));
+}
+
+/**
+ * Event-history & loot landing page: import panel (per event, paste + upload),
+ * per-category loot-tool marking, the imported-loot-per-event list, the tracked
+ * Warcraft-Logs list and a quick character index.
+ * @param {object} opts { events, lootEvents, logs, categories, categoryLootTool,
+ *                         chars, guildId, csrf, msg, nav, activeGuildId }
+ */
+function renderHistory(user, opts = {}) {
+    const events = opts.events || [];
+    const lootEvents = opts.lootEvents || [];
+    const logs = opts.logs || [];
+    const categories = opts.categories || [];
+    const catTool = opts.categoryLootTool || {};
+    const chars = opts.chars || [];
+    const csrfField = hiddenCsrf(opts.csrf || "");
+
+    const toolOptions = (sel) => ["auto", "gargul", "rclc"].map((v) => {
+        const label = v === "auto" ? "Auto-Erkennung" : LOOT_TOOL_LABELS[v];
+        return `<option value="${v}"${v === sel ? " selected" : ""}>${label}</option>`;
+    }).join("");
+
+    // --- import panel ---
+    const eventOptions = events.map((ev) => {
+        const cat = ev.categoryId || "";
+        const tool = catTool[cat] || "";
+        const label = `${ev.title || "(ohne Titel)"}${ev.startTime ? ` · ${formatEventTime(ev.startTime)}` : ""}`;
+        return `<option value="${esc(ev.id)}" data-label="${esc(ev.title || "")}" data-category="${esc(cat)}" data-tool="${esc(tool)}">${esc(label)}</option>`;
+    }).join("");
+    const importPanel = `
+      <div class="dash-card" style="margin-bottom:18px">
+        <div class="dash-card-head"><h3>Loot importieren</h3></div>
+        <form class="card-form" method="POST" action="/admin/history/import" style="padding:14px 16px" id="lootImportForm">
+          ${csrfField}
+          <div class="field">
+            <label>Event</label>
+            <select name="event" id="lootEventSelect">
+              <option value="__manual__" data-tool="">— Anderes / vergangenes Event (manuell benennen) —</option>
+              ${eventOptions}
+            </select>
+            <div class="hint">Aktuelle Events des Servers. Für ältere Raids „manuell benennen" wählen.</div>
+          </div>
+          <div class="field" id="lootManualField" style="display:none">
+            <label>Event-Bezeichnung (manuell)</label>
+            <input type="text" name="manualLabel" placeholder="z.B. SSC/TK — 12.07.2026">
+          </div>
+          <div class="field">
+            <label>Loot-Tool</label>
+            <select name="tool" id="lootToolSelect">${toolOptions("auto")}</select>
+            <div class="hint">Wird aus der Kategorie-Markierung vorbelegt. „Auto" erkennt JSON (RCLootcouncil) bzw. CSV (Gargul) selbst.</div>
+          </div>
+          <div class="field">
+            <label>Export einfügen</label>
+            <textarea name="data" id="lootData" rows="6" placeholder="RCLootcouncil-JSON oder Gargul-CSV hier einfügen …"></textarea>
+          </div>
+          <div class="field">
+            <label>… oder Datei hochladen</label>
+            <input type="file" id="lootFile" accept=".json,.csv,.txt,.tsv">
+            <div class="hint">Die Datei wird lokal in das Feld oben geladen — kein separater Upload.</div>
+          </div>
+          <div class="row-actions"><button class="btn" type="submit">Loot importieren</button></div>
+        </form>
+      </div>
+      <script>(function(){
+        var sel=document.getElementById("lootEventSelect");
+        var manual=document.getElementById("lootManualField");
+        var tool=document.getElementById("lootToolSelect");
+        var file=document.getElementById("lootFile");
+        var data=document.getElementById("lootData");
+        function apply(){
+          var o=sel.options[sel.selectedIndex];
+          if(manual) manual.style.display=(o&&o.value==="__manual__")?"":"none";
+          var t=o?o.getAttribute("data-tool"):"";
+          if(t&&tool){for(var i=0;i<tool.options.length;i++){if(tool.options[i].value===t){tool.selectedIndex=i;break;}}}
+        }
+        if(sel){sel.addEventListener("change",apply);apply();}
+        if(file&&data){file.addEventListener("change",function(e){
+          var f=e.target.files[0];if(!f)return;var r=new FileReader();
+          r.onload=function(){data.value=r.result;};r.readAsText(f);
+        });}
+      })();</script>`;
+
+    // --- per-category loot-tool marking ---
+    const catRows = categories.length
+        ? categories.map((c) => {
+            const cur = catTool[c.id] || "";
+            const opt = (v, label) => `<option value="${v}"${v === cur ? " selected" : ""}>${label}</option>`;
+            return `<tr>
+              <td><strong>${esc(c.name)}</strong></td>
+              <td class="row-actions">
+                <form method="POST" action="/admin/history/category-tool" class="row-actions" style="margin:0">
+                  ${csrfField}<input type="hidden" name="categoryId" value="${esc(c.id)}">
+                  <select name="tool">${opt("", "— nicht gesetzt —")}${opt("gargul", "Gargul")}${opt("rclc", "RCLootcouncil")}</select>
+                  <button class="btn btn-ghost btn-sm" type="submit">Speichern</button>
+                </form>
+              </td>
+            </tr>`;
+        }).join("")
+        : "<tr><td colspan=\"2\" class=\"sub\">Keine Kategorien gefunden (Server gewählt?).</td></tr>";
+    const categorySection = `
+      <div class="dash-card" style="margin-bottom:18px">
+        <div class="dash-card-head"><h3>Loot-Tool je Kategorie</h3></div>
+        <table class="idx" style="margin:0"><tbody>${catRows}</tbody></table>
+      </div>`;
+
+    // --- imported loot per event ---
+    const lootRows = lootEvents.map((e) => {
+        const label = e.label || e.eventId;
+        const badges = (e.sources || []).map(sourceBadge).join(" ");
+        return `<tr>
+          <td><strong>${esc(label)}</strong></td>
+          <td class="small">${esc(fmtMs(e.awardedAt || e.importedAt, false))}</td>
+          <td class="small">${esc(String(e.count))}</td>
+          <td class="small">${badges}</td>
+          <td class="cell-actions"><div class="row-actions" style="justify-content:flex-end">
+            <a class="btn btn-ghost btn-sm" href="/admin/history/event?event=${esc(e.eventId)}">Loot ansehen</a>
+          </div></td>
+        </tr>`;
+    }).join("");
+    const lootSection = lootEvents.length
+        ? `<div class="dash-card" style="margin-bottom:18px">
+             <div class="dash-card-head"><h3>Importierter Loot</h3><span class="small" style="margin-left:auto">${lootEvents.length} Event(s)</span></div>
+             <table class="idx" style="margin:0">
+               <thead><tr><th>Event</th><th>Datum</th><th>Items</th><th>Quelle</th><th></th></tr></thead>
+               <tbody>${lootRows}</tbody>
+             </table>
+           </div>`
+        : "<p class=\"sub\">Noch kein Loot importiert.</p>";
+
+    // --- tracked Warcraft Logs (direct links) ---
+    const logRows = logs.map((l) => {
+        const url = logWclUrl(l);
+        const when = logPostedAt(l);
+        return `<tr>
+          <td>${url ? `<a class="mlink" href="${esc(url)}" target="_blank" rel="noopener">${esc(l.title || l.reportId || "(Log)")} ↗</a>` : esc(l.title || "(Log)")}</td>
+          <td class="small">${esc(when ? new Date(when).toLocaleDateString("de-DE") : "")}</td>
+          <td class="small">${esc(l.zone || "")}</td>
+        </tr>`;
+    }).join("");
+    const logsSection = logs.length
+        ? `<div class="dash-card" style="margin-bottom:18px">
+             <div class="dash-card-head"><h3>Warcraft Logs</h3><span class="small" style="margin-left:auto">${logs.length}</span></div>
+             <table class="idx" style="margin:0">
+               <thead><tr><th>Log</th><th>Datum</th><th>Zone</th></tr></thead>
+               <tbody>${logRows}</tbody>
+             </table>
+           </div>`
+        : "<p class=\"sub\">Keine Warcraft-Logs erfasst (Log-Channels in den Einstellungen konfigurieren).</p>";
+
+    // --- character index ---
+    const charChips = chars.length
+        ? chars.map((c) => `<a class="btn btn-ghost btn-sm" href="/admin/history/char?name=${encodeURIComponent(c.character)}">${esc(c.character)} <span class="small">(${esc(String(c.count))})</span></a>`).join(" ")
+        : "<span class=\"sub\">Noch keine Charaktere mit Loot.</span>";
+    const charSection = `
+      <div class="dash-card">
+        <div class="dash-card-head"><h3>Charaktere</h3></div>
+        <div class="row-actions" style="padding:14px 16px">${charChips}</div>
+      </div>`;
+
+    const body = `
+      <p class="note">Loot pro Event importieren (RCLootcouncil-JSON oder Gargul-CSV), Warcraft-Logs verlinken und pro Charakter die Loot-Historie samt Armory einsehen.</p>
+      ${importPanel}
+      ${categorySection}
+      ${lootSection}
+      ${logsSection}
+      ${charSection}`;
+    return adminLayout("Historie & Loot — Pulsebot Admin", "history", user, body, opts.msg, opts.nav);
+}
+
+// A shared loot table (item, player→char page, response, boss, time).
+function lootTable(items, { showEvent = false } = {}) {
+    const rows = items.map((it) => {
+        const item = it.itemLink
+            ? `<a class="mlink" href="${esc(it.itemLink)}" target="_blank" rel="noopener">${esc(it.itemName || ("Item " + it.itemId))}</a>`
+            : esc(it.itemName || ("Item " + it.itemId));
+        const resp = it.offspec
+            ? `<span class="lbadge lbadge-neutral">${esc(it.response || "Off Spec")}</span>`
+            : `<span class="lbadge lbadge-ok">${esc(it.response || "Main Spec")}</span>`;
+        return `<tr>
+          <td>${item}</td>
+          <td><a class="mlink" href="/admin/history/char?name=${encodeURIComponent(it.character)}">${esc(it.character)}</a></td>
+          <td class="small">${resp}</td>
+          <td class="small">${esc(it.boss || "")}</td>
+          ${showEvent ? `<td class="small">${esc(it.eventLabel || it.eventId || "")}</td>` : ""}
+          <td class="small">${esc(fmtMs(it.awardedAt))}</td>
+          <td class="small">${sourceBadge(it.source)}</td>
+        </tr>`;
+    }).join("");
+    const head = `<tr><th>Item</th><th>Charakter</th><th>Response</th><th>Boss</th>${showEvent ? "<th>Event</th>" : ""}<th>Zeit</th><th>Quelle</th></tr>`;
+    return `<table class="idx" style="margin:0"><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+}
+
+/**
+ * Loot of a single event.
+ * @param {object} opts { eventId, label, items, csrf, msg, nav }
+ */
+function renderHistoryEvent(user, opts = {}) {
+    const items = opts.items || [];
+    const label = opts.label || opts.eventId || "Event";
+    const csrfField = hiddenCsrf(opts.csrf || "");
+    const table = items.length
+        ? lootTable(items)
+        : "<p class=\"sub\">Kein Loot für dieses Event gespeichert.</p>";
+    const body = `
+      <p class="note"><a class="mlink" href="/admin/history">← Zurück zur Historie</a></p>
+      <div class="dash-card">
+        <div class="dash-card-head">
+          <h3>${esc(label)}</h3>
+          <span class="small" style="margin-left:auto">${items.length} Item(s)</span>
+          <form method="POST" action="/admin/history/clear" style="margin:0" onsubmit="return confirm('Gesamten Loot dieses Events löschen?')">
+            ${csrfField}<input type="hidden" name="event" value="${esc(opts.eventId || "")}">
+            <button class="btn btn-danger btn-sm" type="submit">Loot löschen</button>
+          </form>
+        </div>
+        ${table}
+      </div>`;
+    return adminLayout("Event-Loot — Pulsebot Admin", "history", user, body, opts.msg, opts.nav);
+}
+
+/**
+ * A character's loot history + armory/WCL links + optional live gear (paperdoll).
+ * @param {object} opts { character, realm, items, armoryUrl, wclUrl, gear,
+ *                         gearConfigured, gearError, csrf, msg, nav }
+ */
+function renderHistoryChar(user, opts = {}) {
+    const character = opts.character || "";
+    const items = opts.items || [];
+    const links = `
+      <div class="row-actions">
+        ${opts.armoryUrl ? `<a class="btn btn-ghost btn-sm" href="${esc(opts.armoryUrl)}" target="_blank" rel="noopener">Armory ↗</a>` : ""}
+        ${opts.wclUrl ? `<a class="btn btn-ghost btn-sm" href="${esc(opts.wclUrl)}" target="_blank" rel="noopener">Warcraft Logs ↗</a>` : ""}
+      </div>`;
+
+    let gearSection;
+    if (Array.isArray(opts.gear) && opts.gear.length) {
+        const gearRows = opts.gear.map((g) => `<tr>
+            <td class="small">${esc(g.slot || "")}</td>
+            <td>${g.itemId ? `<a class="mlink" href="https://www.wowhead.com/tbc/item=${esc(String(g.itemId))}" target="_blank" rel="noopener">${esc(g.name || ("Item " + g.itemId))}</a>` : esc(g.name || "")}</td>
+            <td class="small">${esc(g.quality || "")}</td>
+            <td class="small">${g.level ? esc(String(g.level)) : ""}</td>
+          </tr>`).join("");
+        gearSection = `<div class="dash-card" style="margin-bottom:18px">
+            <div class="dash-card-head"><h3>Aktuelles Gear (Paperdoll)</h3><span class="small" style="margin-left:auto">Battle.net API</span></div>
+            <table class="idx" style="margin:0"><thead><tr><th>Slot</th><th>Item</th><th>Qualität</th><th>iLvl</th></tr></thead><tbody>${gearRows}</tbody></table>
+          </div>`;
+    } else if (opts.gearConfigured) {
+        gearSection = `<p class="sub">Kein Live-Gear von der Battle.net-API verfügbar${opts.gearError ? ` (${esc(opts.gearError)})` : ""} — nutze den Armory-Link oben.</p>`;
+    } else {
+        gearSection = "<p class=\"sub\">Für Live-Gear (Paperdoll) Battle.net-Zugang in den <a href=\"/admin/settings\">Einstellungen</a> hinterlegen. Ohne Zugang steht der Armory-Link oben zur Verfügung.</p>";
+    }
+
+    const table = items.length
+        ? lootTable(items, { showEvent: true })
+        : "<p class=\"sub\">Kein Loot für diesen Charakter gespeichert.</p>";
+    const body = `
+      <p class="note"><a class="mlink" href="/admin/history">← Zurück zur Historie</a></p>
+      <h2 style="margin-top:0">${esc(character)}${opts.realm ? ` <span class="sub">· ${esc(opts.realm)}</span>` : ""}</h2>
+      ${links}
+      <div style="height:14px"></div>
+      ${gearSection}
+      <div class="dash-card">
+        <div class="dash-card-head"><h3>Loot-Historie</h3><span class="small" style="margin-left:auto">${items.length} Item(s)</span></div>
+        ${table}
+      </div>`;
+    return adminLayout(`${character || "Charakter"} — Pulsebot Admin`, "history", user, body, opts.msg, opts.nav);
+}
+
 module.exports = {
     adminLayout, adminNav, renderDashboard, renderAdminDenied,
     renderRecruitment, renderCla, renderRaids, renderRaidCreate,
-    renderEventDetail, renderNotifyTemplates, renderChannels, renderSettings, hiddenCsrf, esc,
+    renderEventDetail, renderNotifyTemplates, renderChannels, renderSettings,
+    renderHistory, renderHistoryEvent, renderHistoryChar,
+    fillCharTemplate, hiddenCsrf, esc,
 };
