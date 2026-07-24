@@ -769,12 +769,13 @@ describe("settings categoryRoles", () => {
         auth.getActiveGuild.mockReturnValue("g1");
     });
 
-    it("POST /admin/settings collects per-category roles from checkbox fields", async () => {
+    it("POST /admin/settings collects chosen categories and their roles from checkboxes", async () => {
         const res = await request("POST", "/admin/settings", {
-            categoryIds: "cat, cat2",
+            "cat:cat": "1",
+            "cat:cat2": "1",
             "catrole:cat:r1": "1",
             "catrole:cat:r2": "1",
-            "catrole:other:r9": "1",
+            "catrole:other:r9": "1", // dropped: 'other' is not a chosen category
         });
         expect(store.saveConfig).toHaveBeenCalledWith(expect.objectContaining({
             categoryIds: ["cat", "cat2"],
