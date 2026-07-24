@@ -68,6 +68,10 @@ const ADMIN_STYLE = `<style>
   .serverbar .hint { color:var(--medium); font-size:12.5px; }
   a.mlink { color:var(--accent); text-decoration:none; }
   a.mlink:hover { text-decoration:underline; }
+  .rolegrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:6px; max-height:220px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:10px; background:var(--bg); }
+  .rolebox { display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--text); font-weight:500; cursor:pointer; }
+  .rolebox input { width:auto; }
+  .sheetcard { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px; }
   table.idx td.small { white-space:nowrap; color:var(--muted); font-size:12.5px; }
   /* dashboard */
   .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
@@ -174,6 +178,24 @@ function channelSelect(name, channels, selectedId, opts = {}) {
 
 function messageUrl(p) {
     return `https://discord.com/channels/${esc(p.guildId)}/${esc(p.channelId)}/${esc(p.messageId)}`;
+}
+
+// --- event link helpers (Discord post / channel / Raid-Helper raidplan) ---
+function eventPostUrl(guildId, channelId, eventId) {
+    return `https://discord.com/channels/${esc(guildId)}/${esc(channelId)}/${esc(eventId)}`;
+}
+function channelUrl(guildId, channelId) {
+    return `https://discord.com/channels/${esc(guildId)}/${esc(channelId)}`;
+}
+function raidplanUrl(eventId) {
+    return `https://raid-helper.xyz/raidplan/${esc(eventId)}`;
+}
+function formatEventTime(startTime) {
+    const secs = Number(startTime);
+    if (!secs) return "";
+    return new Date(secs * 1000).toLocaleString("de-DE", {
+        weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+    });
 }
 
 const CREST_SVG = "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\"><path d=\"M12 2 4 6v6c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V6l-8-4Z\"/><path d=\"m9 12 2 2 4-4\" stroke-linecap=\"round\"/></svg>";
@@ -489,17 +511,71 @@ function renderCla(user, opts = {}) {
 }
 
 /**
- * Raid-event creation form (posts a Raid-Helper event).
- * @param {object} opts { defaults, leaderId, csrf, msg }
+ * Raid-events overview: every server event grouped by Discord category, with
+ * links to the Discord post / Raid-Helper setup and a per-event detail page.
+ * @param {object} opts { groups, guildId, activeGuildId, error, csrf, msg, nav }
  */
 function renderRaids(user, opts = {}) {
+    const groups = opts.groups || [];
+    const guildId = opts.guildId || "";
+    const actions = `
+      <div class="row-actions" style="margin-bottom:16px">
+        <a class="btn" href="/admin/raids/new">＋ Neues Event</a>
+        <a class="btn btn-ghost" href="/admin/raids/templates">Aufruf-Vorlagen</a>
+      </div>`;
+
+    let listing;
+    if (!opts.activeGuildId) {
+        listing = "<p class=\"sub\">Wähle oben einen Server, um die Events zu sehen.</p>";
+    } else if (opts.error) {
+        listing = `<div class="flash flash-err">${esc(opts.error)}</div>`;
+    } else if (!groups.length) {
+        listing = "<p class=\"sub\">Keine anstehenden Events gefunden.</p>";
+    } else {
+        listing = groups.map((g) => {
+            const rows = g.events.map((ev) => {
+                const links = [
+                    `<a class="mlink" href="${eventPostUrl(guildId, ev.channelId, ev.id)}" target="_blank" rel="noopener">Discord</a>`,
+                    `<a class="mlink" href="${raidplanUrl(ev.id)}" target="_blank" rel="noopener">Setup/Comp</a>`,
+                ].join(" · ");
+                return `<tr>
+                  <td><strong>${esc(ev.title || "(ohne Titel)")}</strong><div class="small">#${esc(ev.channelName || ev.channelId)}</div></td>
+                  <td class="small">${esc(formatEventTime(ev.startTime))}</td>
+                  <td class="small">${esc(String(ev.signupCount || 0))}</td>
+                  <td class="small">${links}</td>
+                  <td class="row-actions"><a class="btn btn-ghost" href="/admin/raids/detail?event=${esc(ev.id)}">Details</a></td>
+                </tr>`;
+            }).join("");
+            return `<div class="dash-card" style="margin-bottom:16px">
+                <div class="dash-card-head"><h3>${esc(g.categoryName || "Ohne Kategorie")}</h3><span class="small" style="margin-left:auto">${g.events.length} Event(s)</span></div>
+                <table class="idx" style="margin:0">
+                  <thead><tr><th>Event</th><th>Termin</th><th>Anm.</th><th>Links</th><th></th></tr></thead>
+                  <tbody>${rows}</tbody>
+                </table>
+              </div>`;
+        }).join("");
+    }
+
+    const body = `
+      <p class="note">Alle anstehenden Events des Servers, gruppiert nach Discord-Kategorie. Über „Details" pro Event einen Anmelde-Aufruf posten oder das Raidsheet füllen.</p>
+      ${actions}
+      ${listing}`;
+    return adminLayout("Raid-Events — Pulsebot Admin", "raids", user, body, opts.msg, opts.nav);
+}
+
+/**
+ * Raid-event creation form (posts a Raid-Helper event).
+ * @param {object} opts { defaults, leaderId, channels, csrf, msg, nav }
+ */
+function renderRaidCreate(user, opts = {}) {
     const d = opts.defaults || { templateId: "", channelId: "" };
     const leaderId = opts.leaderId || "";
     const csrfField = hiddenCsrf(opts.csrf || "");
     const body = `
+      <p class="note"><a class="mlink" href="/admin/raids">← Zurück zur Event-Übersicht</a></p>
       <h2>Neues Raid-Event anlegen</h2>
       <p class="note">Legt über die Raid-Helper-API ein echtes Event mit Signup-Nachricht an. Standardwerte kommen aus den <a href="/admin/settings">Einstellungen</a>.</p>
-      <form class="card-form" method="POST" action="/admin/raids">
+      <form class="card-form" method="POST" action="/admin/raids/new">
         ${csrfField}
         <div class="field">
           <label>Titel</label>
@@ -534,9 +610,160 @@ function renderRaids(user, opts = {}) {
         </div>
         <div class="row-actions">
           <button class="btn" type="submit">Event anlegen</button>
+          <a class="btn btn-ghost" href="/admin/raids">Abbrechen</a>
         </div>
       </form>`;
-    return adminLayout("Raid-Events — Pulsebot Admin", "raids", user, body, opts.msg, opts.nav);
+    return adminLayout("Neues Raid-Event — Pulsebot Admin", "raids", user, body, opts.msg, opts.nav);
+}
+
+/**
+ * Per-event detail page: links plus the two per-event functions —
+ * post an Anmelde-Aufruf (role ping) and fill the matching raidsheet.
+ * @param {object} opts { event, channelName, categoryName, guildId, notifyTemplates,
+ *                         roles, raidsheets, matchedSheetId, csrf, msg, nav }
+ */
+function renderEventDetail(user, opts = {}) {
+    const ev = opts.event || {};
+    const csrfField = hiddenCsrf(opts.csrf || "");
+    const guildId = opts.guildId || "";
+    const notifyTemplates = opts.notifyTemplates || [];
+    const roles = opts.roles || [];
+    const raidsheets = opts.raidsheets || [];
+
+    const meta = `
+      <div class="dash-card" style="margin-bottom:16px">
+        <div class="dash-card-head"><h3>${esc(ev.title || "(ohne Titel)")}</h3></div>
+        <div style="padding:14px 16px" class="small">
+          <div>Termin: <strong>${esc(formatEventTime(ev.startTime)) || "—"}</strong></div>
+          <div>Channel: #${esc(opts.channelName || ev.channelId)} · Kategorie: ${esc(opts.categoryName || "—")}</div>
+          <div style="margin-top:8px">
+            <a class="mlink" href="${eventPostUrl(guildId, ev.channelId, ev.id)}" target="_blank" rel="noopener">Discord-Post</a> ·
+            <a class="mlink" href="${channelUrl(guildId, ev.channelId)}" target="_blank" rel="noopener">Channel</a> ·
+            <a class="mlink" href="${raidplanUrl(ev.id)}" target="_blank" rel="noopener">Setup / Comp</a>
+          </div>
+        </div>
+      </div>`;
+
+    // --- Anmelde-Aufruf ---
+    let notifySection;
+    if (!notifyTemplates.length) {
+        notifySection = "<p class=\"sub\">Noch keine Aufruf-Vorlagen. Lege zuerst unter <a class=\"mlink\" href=\"/admin/raids/templates\">Aufruf-Vorlagen</a> eine an.</p>";
+    } else {
+        const tplOptions = notifyTemplates.map((t) => `<option value="${esc(t.id)}">${esc(t.name || "(ohne Name)")}</option>`).join("");
+        const roleBoxes = roles.length
+            ? `<div class="rolegrid">${roles.map((r) => `<label class="rolebox"><input type="checkbox" name="role_${esc(r.id)}" value="1"> @${esc(r.name)}</label>`).join("")}</div>`
+            : "<p class=\"sub\">Keine Rollen gefunden (Server gewählt?).</p>";
+        notifySection = `
+      <form class="card-form" method="POST" action="/admin/raids/notify">
+        ${csrfField}
+        <input type="hidden" name="event" value="${esc(ev.id)}">
+        <input type="hidden" name="channelId" value="${esc(ev.channelId)}">
+        <div class="field"><label>Aufruf-Vorlage</label><select name="templateId" required>${tplOptions}</select></div>
+        <div class="field">
+          <label>Rollen pingen</label>
+          ${roleBoxes}
+          <div class="hint">Die ausgewählten Rollen werden im Event-Channel angepingt.</div>
+        </div>
+        <div class="row-actions"><button class="btn" type="submit">Anmelde-Aufruf posten</button></div>
+      </form>`;
+    }
+
+    // --- Raidsheet füllen ---
+    let fillSection;
+    if (!raidsheets.length) {
+        fillSection = "<p class=\"sub\">Keine Raidsheets konfiguriert. Lege sie in den <a class=\"mlink\" href=\"/admin/settings\">Einstellungen</a> an.</p>";
+    } else {
+        const sheetOptions = raidsheets.map((s) =>
+            `<option value="${esc(s.id)}"${s.id === opts.matchedSheetId ? " selected" : ""}>${esc(s.name || s.id)}</option>`).join("");
+        const matchHint = opts.matchedSheetId
+            ? "Automatisch anhand des Event-Titels vorausgewählt — bei Bedarf ändern."
+            : "Kein Raidsheet passte automatisch zum Titel — bitte manuell wählen.";
+        fillSection = `
+      <form class="card-form" method="POST" action="/admin/raids/fill" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Fülle Sheet …'">
+        ${csrfField}
+        <input type="hidden" name="event" value="${esc(ev.id)}">
+        <div class="field"><label>Raidsheet</label><select name="sheetId" required>${sheetOptions}</select><div class="hint">${matchHint}</div></div>
+        <div class="field">
+          <label>Tank 3 (optional)</label>
+          <input type="text" name="tank3" placeholder="Name des 3. Tanks">
+          <div class="hint">Wird manuell in die Tank-Zeile eingetragen.</div>
+        </div>
+        <div class="row-actions"><button class="btn" type="submit">Raidsheet füllen</button></div>
+      </form>`;
+    }
+
+    const body = `
+      <p class="note"><a class="mlink" href="/admin/raids">← Zurück zur Event-Übersicht</a></p>
+      ${meta}
+      <h2>Anmelde-Aufruf</h2>
+      <p class="note">Postet eine Aufruf-Nachricht in den Event-Channel und pingt die gewählten Rollen.</p>
+      ${notifySection}
+      <h2>Raidsheet füllen</h2>
+      <p class="note">Überträgt das Raid-Helper-Setup dieses Events in das passende Google-Sheet.</p>
+      ${fillSection}`;
+    return adminLayout("Event-Details — Pulsebot Admin", "raids", user, body, opts.msg, opts.nav);
+}
+
+/**
+ * Anmelde-Aufruf templates: list + create/edit form (like recruitment, no button).
+ * @param {object} opts { templates, editing, csrf, msg, nav }
+ */
+function renderNotifyTemplates(user, opts = {}) {
+    const templates = opts.templates || [];
+    const editing = opts.editing || null;
+    const csrfField = hiddenCsrf(opts.csrf || "");
+
+    const list = templates.length
+        ? `<table class="idx" style="margin-bottom:18px">
+             <thead><tr><th>Name</th><th>Titel</th><th></th></tr></thead>
+             <tbody>${templates.map((t) => `<tr>
+               <td><strong>${esc(t.name || "(ohne Name)")}</strong></td>
+               <td class="sub" style="margin:0">${esc(t.title || "")}</td>
+               <td class="row-actions">
+                 <a class="btn btn-ghost" href="/admin/raids/templates?edit=${esc(t.id)}">Bearbeiten</a>
+                 <form method="POST" action="/admin/raids/templates/delete" onsubmit="return confirm('Vorlage wirklich löschen?')" style="margin:0">
+                   ${csrfField}<input type="hidden" name="id" value="${esc(t.id)}">
+                   <button class="btn btn-danger" type="submit">Löschen</button>
+                 </form>
+               </td>
+             </tr>`).join("")}</tbody>
+           </table>`
+        : "<p class=\"sub\">Noch keine Aufruf-Vorlagen. Lege unten die erste an.</p>";
+
+    const e = editing || { id: "", name: "", title: "", body: "" };
+    const formTitle = editing ? `Vorlage bearbeiten: ${esc(editing.name || "")}` : "Neue Aufruf-Vorlage anlegen";
+    const form = `
+      <h2>${formTitle}</h2>
+      <form class="card-form" method="POST" action="/admin/raids/templates">
+        ${csrfField}
+        <input type="hidden" name="id" value="${esc(e.id)}">
+        <div class="field">
+          <label>Name (interne Bezeichnung)</label>
+          <input type="text" name="name" value="${esc(e.name)}" placeholder="z.B. Kara-Reminder" required>
+          <div class="hint">Nur zur Auswahl — nicht Teil der geposteten Nachricht.</div>
+        </div>
+        <div class="field">
+          <label>Titel der Nachricht (optional)</label>
+          <input type="text" name="title" value="${esc(e.title)}" placeholder="Anmeldung offen!">
+        </div>
+        <div class="field">
+          <label>Text</label>
+          <textarea name="body" placeholder="Bitte tragt euch für den Raid ein …">${esc(e.body)}</textarea>
+          <div class="hint">Discord-Markdown erlaubt. Die Rollen-Pings werden beim Posten pro Event ausgewählt.</div>
+        </div>
+        <div class="row-actions">
+          <button class="btn" type="submit">${editing ? "Speichern" : "Vorlage anlegen"}</button>
+          ${editing ? "<a class=\"btn btn-ghost\" href=\"/admin/raids/templates\">Abbrechen</a>" : ""}
+        </div>
+      </form>`;
+
+    const body = `
+      <p class="note"><a class="mlink" href="/admin/raids">← Zurück zur Event-Übersicht</a></p>
+      <h2>Aufruf-Vorlagen</h2>
+      <p class="note">Nachrichten-Vorlagen, die der Bot pro Event mit Rollen-Ping postet.</p>
+      ${list}
+      ${form}`;
+    return adminLayout("Aufruf-Vorlagen — Pulsebot Admin", "raids", user, body, opts.msg, opts.nav);
 }
 
 /**
@@ -546,7 +773,34 @@ function renderRaids(user, opts = {}) {
 function renderSettings(user, opts = {}) {
     const config = opts.config || { adminRoleIds: [], raidDefaults: {} };
     const rd = config.raidDefaults || {};
+    const raidsheets = opts.raidsheets || [];
     const csrfField = hiddenCsrf(opts.csrf || "");
+
+    // A single raidsheet edit card (or the "new" form when sheet is null).
+    const sheetForm = (sheet) => {
+        const s = sheet || { id: "", name: "", spreadsheetId: "", sheetName: "Setup", gid: "", keywords: [] };
+        const keywords = Array.isArray(s.keywords) ? s.keywords.join(", ") : (s.keywords || "");
+        return `<form class="sheetcard" method="POST" action="/admin/settings/raidsheets">
+          ${csrfField}
+          <input type="hidden" name="id" value="${esc(s.id)}">
+          <div class="field"><label>Name (Content)</label><input type="text" name="name" value="${esc(s.name)}" placeholder="z.B. Tier 6 / SWP" required></div>
+          <div class="field"><label>Spreadsheet-ID</label><input type="text" name="spreadsheetId" value="${esc(s.spreadsheetId)}" placeholder="Google-Sheet-ID"></div>
+          <div class="field"><label>Tab-Name</label><input type="text" name="sheetName" value="${esc(s.sheetName || "Setup")}" placeholder="Setup"></div>
+          <div class="field"><label>Tab-GID</label><input type="text" name="gid" value="${esc(s.gid === undefined || s.gid === null ? "" : String(s.gid))}" placeholder="0"></div>
+          <div class="field"><label>Keywords (kommagetrennt)</label><input type="text" name="keywords" value="${esc(keywords)}" placeholder="kara, gruul, maggi"><div class="hint">Passt ein Keyword auf den Event-Titel, wird dieses Sheet automatisch vorgeschlagen.</div></div>
+          <div class="row-actions">
+            <button class="btn" type="submit">${s.id ? "Speichern" : "Raidsheet anlegen"}</button>
+            ${s.id ? "<button class=\"btn btn-danger\" type=\"submit\" formaction=\"/admin/settings/raidsheets/delete\" onclick=\"return confirm('Raidsheet wirklich löschen?')\">Löschen</button>" : ""}
+          </div>
+        </form>`;
+    };
+    const raidsheetSection = `
+      <h2>Raidsheets</h2>
+      <p class="note">Google-Sheets nach Content aufgeteilt (Tier 4/5 usw.). Beim Füllen wird anhand der Keywords das passende Sheet vorgeschlagen.</p>
+      ${raidsheets.map((s) => sheetForm(s)).join("")}
+      <h3 style="margin-top:18px">Neues Raidsheet</h3>
+      ${sheetForm(null)}`;
+
     const body = `
       <p class="note">Alle Werte werden in der Datenbank gespeichert und greifen ohne Bot-Neustart. IDs bekommst du in Discord per Rechtsklick → „ID kopieren" (Entwicklermodus).</p>
       <form class="card-form" method="POST" action="/admin/settings">
@@ -601,11 +855,13 @@ function renderSettings(user, opts = {}) {
         <div class="row-actions">
           <button class="btn" type="submit">Speichern</button>
         </div>
-      </form>`;
+      </form>
+      ${raidsheetSection}`;
     return adminLayout("Einstellungen — Pulsebot Admin", "settings", user, body, opts.msg, opts.nav);
 }
 
 module.exports = {
     adminLayout, adminNav, renderDashboard, renderAdminDenied,
-    renderRecruitment, renderCla, renderRaids, renderSettings, hiddenCsrf, esc,
+    renderRecruitment, renderCla, renderRaids, renderRaidCreate,
+    renderEventDetail, renderNotifyTemplates, renderSettings, hiddenCsrf, esc,
 };

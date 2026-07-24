@@ -1,10 +1,15 @@
 ﻿const { google } = require("googleapis");
 
 class SheetsClient {
-    constructor() {
-        this.spreadsheetId = process.env.GOOGLE_SPREADSHEET_ID;
-        this.sheetName = process.env.GOOGLE_SHEET_NAME || "Setup";
-        this.sheetId = Number(process.env.GOOGLE_SHEET_GID) || 34139428;
+    // config (all optional) lets a caller target a specific raidsheet:
+    //   { spreadsheetId, sheetName, gid }. Anything omitted falls back to the
+    //   GOOGLE_* env vars (backwards-compatible with the original no-arg usage).
+    constructor(config = {}) {
+        this.spreadsheetId = config.spreadsheetId || process.env.GOOGLE_SPREADSHEET_ID;
+        this.sheetName = config.sheetName || process.env.GOOGLE_SHEET_NAME || "Setup";
+        this.sheetId = config.gid !== undefined && config.gid !== null && config.gid !== ""
+            ? Number(config.gid)
+            : (Number(process.env.GOOGLE_SHEET_GID) || 34139428);
         this.auth = new google.auth.GoogleAuth({
             keyFile: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_FILE,
             scopes: ["https://www.googleapis.com/auth/spreadsheets"],

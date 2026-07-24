@@ -4,13 +4,26 @@ const crypto = require("crypto");
 const {
     officerRoleId, applicationChannelId,
     highestBidsChannelId, highestBidsMessageId, categoryIds,
+    googleSpreadsheetId, googleSheetName, googleSheetGid,
 } = require("../config/variables");
 
 // Editable bot settings live as JSON files under data/settings/.
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
 const RECRUITMENT_FILE = path.join(SETTINGS_DIR, "recruitment.json");
 const RECRUITMENT_POSTS_FILE = path.join(SETTINGS_DIR, "recruitment-posts.json");
+const NOTIFY_FILE = path.join(SETTINGS_DIR, "notify.json");
 const CONFIG_FILE = path.join(SETTINGS_DIR, "config.json");
+
+// The "Tier 4/5" raidsheet that ships by default (seeded from the GOOGLE_* env
+// vars). It always exists so a fresh install can fill setups without any config.
+const DEFAULT_RAIDSHEET = {
+    id: "tier45",
+    name: "Tier 4 / Tier 5",
+    spreadsheetId: googleSpreadsheetId || "",
+    sheetName: googleSheetName || "Setup",
+    gid: googleSheetGid || 34139428,
+    keywords: ["kara", "karazhan", "gruul", "maggi", "magtheridon"],
+};
 
 // General bot config editable from the admin menu (kept out of .env on purpose).
 // Defaults come from config/variables (env / historical hard-codes); values saved
@@ -152,6 +165,118 @@ function deleteRecruitmentPost(id) {
     return true;
 }
 
+// ---- notify (Anmelde-Aufruf) templates: message texts posted with a role ping ----
+
+/** All Anmelde-Aufruf templates, newest-edited first. */
+function listNotify() {
+    const data = readJson(NOTIFY_FILE, { templates: [] });
+    const templates = Array.isArray(data.templates) ? data.templates : [];
+    return templates.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+}
+
+/** A single Anmelde-Aufruf template by id, or null. */
+function getNotify(id) {
+    return listNotify().find((t) => t.id === id) || null;
+}
+
+/** Create or update an Anmelde-Aufruf template. Returns the saved template. */
+function saveNotify(data) {
+    const templates = listNotify();
+    const clean = {
+        name: String(data.name || "").trim(),
+        title: String(data.title || "").trim(),
+        body: String(data.body || ""),
+    };
+    const existing = data.id && templates.find((t) => t.id === data.id);
+    let saved;
+    if (existing) {
+        saved = Object.assign(existing, clean, { updatedAt: Date.now() });
+    } else {
+        saved = Object.assign({ id: newId(), createdAt: Date.now(), updatedAt: Date.now() }, clean);
+        templates.push(saved);
+    }
+    writeJson(NOTIFY_FILE, { templates });
+    return saved;
+}
+
+/** Delete an Anmelde-Aufruf template by id. Returns true if one was removed. */
+function deleteNotify(id) {
+    const templates = listNotify();
+    const next = templates.filter((t) => t.id !== id);
+    if (next.length === templates.length) return false;
+    writeJson(NOTIFY_FILE, { templates: next });
+    return true;
+}
+
+// ---- raidsheets: Google-Sheets targets keyed by content (Tier 4/5, …) ----
+
+// Prefer a provided value, falling back when it is null/undefined.
+function pick(value, fallback) {
+    return value === undefined || value === null ? fallback : value;
+}
+
+function normalizeRaidsheet(data, fallback = {}) {
+    const keywords = Array.isArray(data.keywords)
+        ? data.keywords.map((k) => String(k).trim()).filter(Boolean)
+        : String(data.keywords || "").split(",").map((k) => k.trim()).filter(Boolean);
+    return {
+        name: String(pick(data.name, fallback.name || "")).trim(),
+        spreadsheetId: String(pick(data.spreadsheetId, fallback.spreadsheetId || "")).trim(),
+        sheetName: String(pick(data.sheetName, fallback.sheetName || "Setup")).trim() || "Setup",
+        gid: String(pick(data.gid, pick(fallback.gid, ""))).trim(),
+        keywords,
+    };
+}
+
+/**
+ * All configured raidsheets. When nothing has been saved yet the default
+ * "Tier 4/5" sheet (seeded from the GOOGLE_* env vars) is returned so the
+ * feature works out of the box.
+ */
+function listRaidsheets() {
+    const stored = readJson(CONFIG_FILE, {});
+    if (Array.isArray(stored.raidsheets) && stored.raidsheets.length) {
+        return stored.raidsheets;
+    }
+    return [{ ...DEFAULT_RAIDSHEET }];
+}
+
+/** A single raidsheet by id, or null. */
+function getRaidsheet(id) {
+    return listRaidsheets().find((s) => s.id === id) || null;
+}
+
+/**
+ * Create or update a raidsheet. If `data.id` matches an existing sheet it is
+ * updated, otherwise a new one is created. Persisting always materialises the
+ * current list (including the seeded default) so it survives further edits.
+ */
+function saveRaidsheet(data) {
+    const sheets = listRaidsheets().map((s) => ({ ...s }));
+    const existing = data.id && sheets.find((s) => s.id === data.id);
+    let saved;
+    if (existing) {
+        Object.assign(existing, normalizeRaidsheet(data, existing));
+        saved = existing;
+    } else {
+        saved = { id: newId(), ...normalizeRaidsheet(data) };
+        sheets.push(saved);
+    }
+    const stored = readJson(CONFIG_FILE, {});
+    writeJson(CONFIG_FILE, { ...stored, raidsheets: sheets });
+    return saved;
+}
+
+/** Delete a raidsheet by id. Returns true if one was removed. */
+function deleteRaidsheet(id) {
+    const sheets = listRaidsheets().map((s) => ({ ...s }));
+    const next = sheets.filter((s) => s.id !== id);
+    if (next.length === sheets.length) return false;
+    const stored = readJson(CONFIG_FILE, {});
+    writeJson(CONFIG_FILE, { ...stored, raidsheets: next });
+    return true;
+}
+
 /** The current admin config, merged over defaults. */
 function getConfig() {
     const stored = readJson(CONFIG_FILE, {});
@@ -175,5 +300,7 @@ function saveConfig(partial) {
 module.exports = {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
+    listNotify, getNotify, saveNotify, deleteNotify,
+    listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
     getConfig, saveConfig,
 };
