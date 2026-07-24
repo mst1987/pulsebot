@@ -1,4 +1,4 @@
-const { prepareReportList, prepareLogList, DEFAULT_PAGE_SIZE, logPostedAt, snowflakeTimestamp } = require("../../src/web/reportList.js");
+const { prepareReportList, prepareLogList, annotateLogCategories, DEFAULT_PAGE_SIZE, logPostedAt, snowflakeTimestamp } = require("../../src/web/reportList.js");
 
 // Build n reports with ascending generatedAt (id0 oldest … id{n-1} newest).
 function makeReports(n) {
@@ -145,5 +145,26 @@ describe("web/reportList prepareLogList", () => {
         const lp = prepareLogList(many, { page: "2" });
         expect(lp.totalPages).toBe(2);
         expect(lp.items).toHaveLength(5);
+    });
+
+    describe("annotateLogCategories", () => {
+        it("tags each log with its Discord category + channel name from the map", () => {
+            const items = [
+                { id: "a", channelId: "c1" },
+                { id: "b", channelId: "c2" }, // not in the map → untouched
+            ];
+            annotateLogCategories(items, {
+                c1: { name: "kara-logs", categoryId: "cat1", categoryName: "Karazhan" },
+            });
+            expect(items[0]).toMatchObject({ categoryName: "Karazhan", channelName: "kara-logs" });
+            expect(items[1].categoryName).toBeUndefined();
+        });
+
+        it("tolerates a missing map / items", () => {
+            expect(() => annotateLogCategories(undefined, undefined)).not.toThrow();
+            const items = [{ id: "a", channelId: "c1" }];
+            annotateLogCategories(items, null);
+            expect(items[0].categoryName).toBeUndefined();
+        });
     });
 });

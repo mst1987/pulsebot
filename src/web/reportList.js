@@ -100,8 +100,26 @@ function prepareLogList(logs, query = {}, opts = {}) {
     });
 }
 
+/**
+ * Attach the Discord category (and channel name) to each log from a channel→
+ * category map (discord.getChannelCategoryMap), so the list can show a category
+ * badge — handy when logs come from several channels. Mutates the items in place
+ * (render-only, not persisted) and returns them.
+ */
+function annotateLogCategories(items, catMap) {
+    const map = catMap || {};
+    for (const l of items || []) {
+        const meta = l && map[l.channelId];
+        if (meta) {
+            l.categoryName = meta.categoryName || "";
+            l.channelName = meta.name || "";
+        }
+    }
+    return items;
+}
+
 module.exports = {
-    prepareReportList, prepareLogList, sortAndPaginate,
+    prepareReportList, prepareLogList, sortAndPaginate, annotateLogCategories,
     DEFAULT_PAGE_SIZE, REPORT_SORT_KEYS, LOG_SORT_KEYS,
     logPostedAt, snowflakeTimestamp,
 };
