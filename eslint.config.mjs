@@ -20,7 +20,10 @@ export default [
       "no-console": "off",
       "consistent-return": "off",
       eqeqeq: ["error", "always"],
-      "linebreak-style": ["error", "windows"],
+      // Line endings are left to Git (core.autocrlf) + the editor, not ESLint:
+      // git stores LF blobs, so a fixed "windows" rule fails the Linux CI while a
+      // "unix" rule fails local Windows checkouts. So linebreak-style stays off.
+      "linebreak-style": "off",
       quotes: ["error", "double"],
       semi: ["error", "always"],
     },

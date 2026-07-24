@@ -34,7 +34,7 @@ These conventions are mandatory when building features in this repo:
    how to launch it; hand over a working, running setup and the exact URL/steps.
 3. **Open a pull request as soon as a piece of work is finished — don't wait to be
    asked.** Once a task is done and verified (smoke-test + `npm run lint`), merge the
-   latest `dev` into the feature branch first, then open a PR against `dev` with
+   latest `dev` into the feature branch first, then open a PR against `main` with
    `gh pr create`. Summarize what changed and how it was verified in the PR body.
 4. **Clean up after merge.** Once the work is merged, stop everything that was
    started for it — kill background bot/dev processes, free port 3005, and remove
@@ -144,7 +144,7 @@ Both Axios clients use the shared `utils/httpAgent.js` which enables SSL cert ve
 - **Indentation:** 4 spaces.
 - **Quotes:** Double quotes (enforced by ESLint).
 - **Semicolons:** Always (enforced by ESLint).
-- **Line endings:** CRLF on Windows (enforced by ESLint `linebreak-style: windows`).
+- **Line endings:** Left to Git (`core.autocrlf`) and your editor — not enforced by ESLint. (The `linebreak-style: windows` rule was removed: git stores LF blobs, so a fixed `windows` rule broke the Linux CI.)
 - **Language:** User-facing strings in German. Variable names, function names, comments in English.
 - **No TypeScript. No test framework.**
 
