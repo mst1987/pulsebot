@@ -118,7 +118,7 @@ describe("classes/SheetsClient", () => {
 
             expect(sheetsApi.spreadsheets.get).toHaveBeenCalledWith({
                 spreadsheetId: "sheet-123",
-                fields: "sheets(properties.sheetId,conditionalFormats)",
+                fields: "sheets(properties(sheetId,title),conditionalFormats)",
             });
 
             expect(sheetsApi.spreadsheets.batchUpdate).toHaveBeenCalledTimes(1);
@@ -182,6 +182,62 @@ describe("classes/SheetsClient", () => {
                 client.applyConditionalFormatting([])
             ).resolves.toBeUndefined();
             expect(sheetsApi.spreadsheets.batchUpdate).not.toHaveBeenCalled();
+        });
+
+        it("only touches the named tab when onlyTitle is given", async () => {
+            sheetsApi.spreadsheets.get.mockResolvedValue({
+                data: {
+                    sheets: [
+                        { properties: { sheetId: 1, title: "Setup" }, conditionalFormats: [] },
+                        { properties: { sheetId: 2, title: "Kara 24.07." }, conditionalFormats: [] },
+                    ],
+                },
+            });
+            const client = new SheetsClient();
+            await client.applyConditionalFormatting([{ name: "P", color: { red: 1 } }], "Kara 24.07.");
+            expect(sheetsApi.spreadsheets.batchUpdate).toHaveBeenCalledTimes(1);
+            const req = sheetsApi.spreadsheets.batchUpdate.mock.calls[0][0].requestBody.requests[0];
+            expect(req.addConditionalFormatRule.rule.ranges[0].sheetId).toBe(2);
+        });
+    });
+
+    describe("duplicateTab", () => {
+        it("duplicates a tab and returns the new tab's id + title", async () => {
+            sheetsApi.spreadsheets.batchUpdate.mockResolvedValueOnce({
+                data: { replies: [{ duplicateSheet: { properties: { sheetId: 555, title: "Kara 24.07." } } }] },
+            });
+            const client = new SheetsClient({ spreadsheetId: "s1", gid: "34" });
+            const res = await client.duplicateTab("Kara 24.07.");
+            expect(res).toEqual({ sheetId: 555, title: "Kara 24.07." });
+            const req = sheetsApi.spreadsheets.batchUpdate.mock.calls[0][0].requestBody.requests[0];
+            expect(req.duplicateSheet).toMatchObject({ sourceSheetId: 34, newSheetName: "Kara 24.07." });
+        });
+
+        it("retries with a numeric suffix on a name collision", async () => {
+            sheetsApi.spreadsheets.batchUpdate
+                .mockRejectedValueOnce(new Error("A sheet with the name \"Kara\" already exists."))
+                .mockResolvedValueOnce({ data: { replies: [{ duplicateSheet: { properties: { sheetId: 7, title: "Kara (2)" } } }] } });
+            const client = new SheetsClient({ spreadsheetId: "s1", gid: "1" });
+            const res = await client.duplicateTab("Kara");
+            expect(res.title).toBe("Kara (2)");
+            expect(sheetsApi.spreadsheets.batchUpdate.mock.calls[1][0].requestBody.requests[0].duplicateSheet.newSheetName).toBe("Kara (2)");
+        });
+
+        it("rethrows a non-collision error immediately", async () => {
+            sheetsApi.spreadsheets.batchUpdate.mockRejectedValueOnce(new Error("permission denied"));
+            await expect(new SheetsClient({ spreadsheetId: "s1", gid: "1" }).duplicateTab("Kara")).rejects.toThrow(/permission/);
+            expect(sheetsApi.spreadsheets.batchUpdate).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe("deleteTab", () => {
+        it("issues a deleteSheet request for the given gid", async () => {
+            const client = new SheetsClient({ spreadsheetId: "s1" });
+            await client.deleteTab(555);
+            expect(sheetsApi.spreadsheets.batchUpdate).toHaveBeenCalledWith({
+                spreadsheetId: "s1",
+                requestBody: { requests: [{ deleteSheet: { sheetId: 555 } }] },
+            });
         });
     });
 });

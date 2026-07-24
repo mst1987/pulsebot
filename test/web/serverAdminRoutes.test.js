@@ -46,15 +46,8 @@ jest.mock("../../src/web/settingsStore", () => ({
     getConfig: jest.fn(() => ({ raidDefaults: {}, categoryIds: [], adminRoleIds: [] })),
     saveConfig: jest.fn(),
 }));
-const mockCopyFile = jest.fn();
-const mockShareAnyoneWriter = jest.fn();
-const mockDeleteFile = jest.fn();
-jest.mock("../../src/classes/drive", () =>
-    jest.fn().mockImplementation(() => ({
-        copyFile: mockCopyFile,
-        shareAnyoneWriter: mockShareAnyoneWriter,
-        deleteFile: mockDeleteFile,
-    })));
+const mockDuplicateTab = jest.fn();
+const mockDeleteTab = jest.fn();
 jest.mock("../../src/utils/sheetCleanup", () => ({ startSheetCleanup: jest.fn() }));
 jest.mock("../../src/web/discord", () => ({
     setClient: jest.fn(),
@@ -75,7 +68,11 @@ jest.mock("../../src/classes/raidhelper", () =>
         getAllEvents: mockGetAllEvents,
         createEvent: mockCreateEvent,
     })));
-jest.mock("../../src/classes/sheets", () => jest.fn().mockImplementation((cfg) => ({ cfg })));
+jest.mock("../../src/classes/sheets", () => jest.fn().mockImplementation((cfg) => ({
+    cfg,
+    duplicateTab: (...a) => mockDuplicateTab(...a),
+    deleteTab: (...a) => mockDeleteTab(...a),
+})));
 const mockFillSetupSheet = jest.fn(() => Promise.resolve({ playerCount: 25 }));
 jest.mock("../../src/utils/fillSetup", () => ({ fillSetupSheet: mockFillSetupSheet }));
 jest.mock("../../src/web/eventSheetStore", () => ({
@@ -349,7 +346,7 @@ describe("event detail route (setup)", () => {
     });
 });
 
-describe("raidsheet fill route (per-event copy)", () => {
+describe("raidsheet fill route (per-raid tab)", () => {
     const THREE_DAYS = 3 * 24 * 60 * 60 * 1000;
     beforeEach(() => {
         jest.clearAllMocks();
@@ -362,50 +359,49 @@ describe("raidsheet fill route (per-event copy)", () => {
         discord.getChannelCategoryMap.mockReturnValue({
             c1: { name: "kara", categoryId: "cat", categoryName: "Raids" },
         });
-        store.getRaidsheet.mockReturnValue({ id: "tier45", name: "Tier 4/5", spreadsheetId: "src-1", sheetName: "Setup", gid: "0" });
+        store.getRaidsheet.mockReturnValue({ id: "tier45", name: "Tier 4/5", spreadsheetId: "master-1", sheetName: "Setup", gid: "34" });
         mockGetEventSheet.mockReturnValue(null);
         mockGetSetup.mockResolvedValue({ setup: [{ name: "Tankadin", specName: "ProtPala" }] });
-        mockCopyFile.mockResolvedValue({ id: "copy-1", url: "https://docs.google.com/spreadsheets/d/copy-1/edit" });
-        mockShareAnyoneWriter.mockResolvedValue();
+        mockDuplicateTab.mockResolvedValue({ sheetId: 555, title: "GDKP Kara 24.07.2026" });
         mockFillSetupSheet.mockResolvedValue({ playerCount: 25 });
     });
 
-    it("copies the source sheet, shares it, fills the copy, and schedules deletion", async () => {
+    it("duplicates the template tab, fills it, links it, and schedules deletion", async () => {
         const res = await request("POST", "/admin/raids/fill", { event: "e1", sheetId: "tier45", tank3: "Cosma" });
-        // copy of the source (never the source itself)
-        expect(mockCopyFile).toHaveBeenCalledWith("src-1", expect.stringContaining("GDKP Kara"));
-        expect(mockShareAnyoneWriter).toHaveBeenCalledWith("copy-1");
-        // fills the COPY, not the source
+        // duplicate a tab named after the raid, from the template gid
+        expect(mockDuplicateTab).toHaveBeenCalledWith(expect.stringContaining("GDKP Kara"), "34");
+        // fills the new tab (client targets the master spreadsheet, tab = new tab title)
         const fillClient = mockFillSetupSheet.mock.calls[0][0];
-        expect(fillClient.cfg.spreadsheetId).toBe("copy-1");
-        expect(mockFillSetupSheet.mock.calls[0][2]).toMatchObject({ tank3: "Cosma" });
-        // records the copy with a deletion 3 days after the raid (startTime 100s)
+        expect(fillClient.cfg.spreadsheetId).toBe("master-1");
+        expect(mockFillSetupSheet.mock.calls[0][2]).toMatchObject({ tab: "GDKP Kara 24.07.2026", tank3: "Cosma" });
+        // records the tab (master + gid + deep link) with a deletion 3 days after the raid
         expect(mockMarkEventSheetFilled).toHaveBeenCalledWith("e1", expect.objectContaining({
-            spreadsheetId: "copy-1", sourceSheetId: "src-1",
+            spreadsheetId: "master-1", sheetGid: 555,
+            url: "https://docs.google.com/spreadsheets/d/master-1/edit#gid=555",
             deleteAfter: 100 * 1000 + THREE_DAYS,
         }));
         expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1");
         expect(redirectTo(res)).toContain("ok=");
     });
 
-    it("deletes the previous copy's Drive file before creating a new one on re-fill", async () => {
-        mockGetEventSheet.mockReturnValue({ spreadsheetId: "copy-old", eventId: "e1" });
+    it("deletes the previous raid tab before creating a new one on re-fill", async () => {
+        mockGetEventSheet.mockReturnValue({ eventId: "e1", spreadsheetId: "master-1", sheetGid: 111 });
         await request("POST", "/admin/raids/fill", { event: "e1", sheetId: "tier45" });
-        expect(mockDeleteFile).toHaveBeenCalledWith("copy-old");
-        expect(mockCopyFile).toHaveBeenCalled();
+        expect(mockDeleteTab).toHaveBeenCalledWith(111);
+        expect(mockDuplicateTab).toHaveBeenCalled();
     });
 
-    it("errors without copying when the setup is empty", async () => {
+    it("errors without duplicating a tab when the setup is empty", async () => {
         mockGetSetup.mockResolvedValueOnce({ setup: [] });
         const res = await request("POST", "/admin/raids/fill", { event: "e1", sheetId: "tier45" });
-        expect(mockCopyFile).not.toHaveBeenCalled();
+        expect(mockDuplicateTab).not.toHaveBeenCalled();
         expect(redirectTo(res)).toContain("err=");
     });
 
     it("rejects a bad CSRF token before doing anything", async () => {
         auth.checkCsrf.mockReturnValueOnce(false);
         const res = await request("POST", "/admin/raids/fill", { event: "e1", sheetId: "tier45" });
-        expect(mockCopyFile).not.toHaveBeenCalled();
+        expect(mockDuplicateTab).not.toHaveBeenCalled();
         expect(redirectTo(res)).toContain("msg=csrf");
     });
 });
@@ -485,8 +481,7 @@ describe("raidsheet fill route records the fill", () => {
     beforeEach(() => {
         store.getRaidsheet.mockReturnValue({ id: "tier45", name: "Tier 4/5", spreadsheetId: "sheet123", sheetName: "Setup", gid: "0" });
         mockGetEventSheet.mockReturnValue(null);
-        mockCopyFile.mockResolvedValue({ id: "copy-1", url: "https://docs.google.com/spreadsheets/d/copy-1/edit" });
-        mockShareAnyoneWriter.mockResolvedValue();
+        mockDuplicateTab.mockResolvedValue({ sheetId: 555, title: "Raid" });
     });
 
     it("POST /admin/raids/fill marks the event sheet as filled on success", async () => {

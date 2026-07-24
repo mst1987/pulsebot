@@ -54,11 +54,13 @@ function markEventSheetFilled(eventId, data = {}) {
         sheetId: String(data.sheetId || (match && match.sheetId) || "").trim(),
         sheetName: String(data.sheetName || (match && match.sheetName) || "").trim(),
         playerCount: Number(data.playerCount || (match && match.playerCount) || 0),
-        // Per-raid throwaway copy: the created Drive file, its share link, the
-        // source it was copied from, and when the cleanup sweeper should delete it.
+        // Per-raid throwaway tab: the master spreadsheet, the duplicated tab's
+        // gid, its deep link, and when the cleanup sweeper should delete the tab.
         spreadsheetId: String(data.spreadsheetId || (match && match.spreadsheetId) || "").trim(),
+        sheetGid: (data.sheetGid !== undefined && data.sheetGid !== null)
+            ? Number(data.sheetGid)
+            : (match && match.sheetGid !== undefined ? match.sheetGid : null),
         url: String(data.url || (match && match.url) || "").trim(),
-        sourceSheetId: String(data.sourceSheetId || (match && match.sourceSheetId) || "").trim(),
         deleteAfter: Number(data.deleteAfter || (match && match.deleteAfter) || 0),
     };
     let saved;
