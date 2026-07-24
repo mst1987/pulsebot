@@ -71,6 +71,19 @@ const ADMIN_STYLE = `<style>
   .rolegrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:6px; max-height:220px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:10px; background:var(--bg); }
   .rolebox { display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--text); font-weight:500; cursor:pointer; }
   .rolebox input { width:auto; }
+  /* setup (raidplan comp) */
+  .setup-summary { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .setup-count { background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:4px 12px; font-size:13px; color:var(--muted); }
+  .setup-count b { color:var(--text); font-variant-numeric:tabular-nums; }
+  .setup-count.setup-total { border-color:var(--accent-soft); background:var(--accent-soft); }
+  .setup-role { margin-bottom:16px; }
+  .setup-role-head { font-size:12.5px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); margin:0 0 8px; }
+  .setup-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px; }
+  .setup-player { display:flex; align-items:center; gap:9px; background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--line); border-radius:8px; padding:7px 11px; min-width:0; }
+  .setup-ico { width:24px; height:24px; border-radius:5px; flex:0 0 auto; }
+  .setup-ico-blank { background:var(--panel2); border:1px solid var(--line); }
+  .setup-player .sp-name { font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .setup-player .sp-spec { font-size:12px; color:var(--muted); margin-left:auto; white-space:nowrap; flex:0 0 auto; }
   .sheetcard { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px; }
   table.idx td.small { white-space:nowrap; color:var(--muted); font-size:12.5px; }
   /* dashboard */
@@ -828,6 +841,7 @@ function renderEventDetail(user, opts = {}) {
     const notifyTemplates = opts.notifyTemplates || [];
     const roles = opts.roles || [];
     const raidsheets = opts.raidsheets || [];
+    const setup = opts.setup || null;
 
     const meta = `
       <div class="dash-card" style="margin-bottom:16px">
@@ -842,6 +856,29 @@ function renderEventDetail(user, opts = {}) {
           </div>
         </div>
       </div>`;
+
+    // --- Setup (Raidplan comp), grouped by role with class icons/colours ---
+    let setupSection;
+    if (opts.setupError) {
+        setupSection = `<div class="flash flash-err">Setup konnte nicht geladen werden: ${esc(opts.setupError)}</div>`;
+    } else if (!setup || !setup.total) {
+        setupSection = "<p class=\"sub\">Für dieses Event ist noch kein Setup (Raidplan) angelegt.</p>";
+    } else {
+        const summary = `<div class="setup-summary">${setup.groups
+            .map((g) => `<span class="setup-count"><b>${esc(String(g.players.length))}</b> ${esc(g.label)}</span>`)
+            .join("")}<span class="setup-count setup-total"><b>${esc(String(setup.total))}</b> gesamt</span></div>`;
+        const groups = setup.groups.map((g) => `
+      <div class="setup-role">
+        <h4 class="setup-role-head">${esc(g.label)} · ${esc(String(g.players.length))}</h4>
+        <div class="setup-grid">${g.players.map((p) => `
+          <span class="setup-player" style="border-left-color:${esc(p.classColor || "var(--line)")}">
+            ${p.iconUrl ? `<img class="setup-ico" src="${esc(p.iconUrl)}" alt="${esc(p.className || "")}" title="${esc(p.className || "")}" loading="lazy">` : "<span class=\"setup-ico setup-ico-blank\"></span>"}
+            <span class="sp-name">${esc(p.name)}</span>
+            <span class="sp-spec">${esc(p.specName)}</span>
+          </span>`).join("")}</div>
+      </div>`).join("");
+        setupSection = summary + groups;
+    }
 
     // --- Anmelde-Aufruf ---
     let notifySection;
@@ -894,6 +931,9 @@ function renderEventDetail(user, opts = {}) {
     const body = `
       <p class="note"><a class="mlink" href="/admin/raids">← Zurück zur Event-Übersicht</a></p>
       ${meta}
+      <h2>Setup</h2>
+      <p class="note">Aktueller Raidplan dieses Events, gruppiert nach Rolle. Icons und Farben richten sich nach der WoW-Klasse.</p>
+      ${setupSection}
       <h2>Anmelde-Aufruf</h2>
       <p class="note">Postet eine Aufruf-Nachricht in den Event-Channel und pingt die gewählten Rollen.</p>
       ${notifySection}

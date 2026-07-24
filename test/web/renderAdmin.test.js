@@ -220,6 +220,48 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("Noch keine Aufruf-Vorlagen");
             expect(html).toContain("Keine Raidsheets konfiguriert");
         });
+
+        it("renders the setup grouped by role with class icons, colours and counts", () => {
+            const setup = {
+                total: 2,
+                counts: { tank: 1, healer: 1 },
+                groups: [
+                    { role: "tank", label: "Tanks", players: [{ name: "Tankadin", specName: "Protection Pala", className: "Paladin", classColor: "#F58CBA", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/classicon_paladin.jpg", role: "tank" }] },
+                    { role: "healer", label: "Heiler", players: [{ name: "Healy", specName: "Holy Priest", className: "Priest", classColor: "#FFFFFF", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/classicon_priest.jpg", role: "healer" }] },
+                ],
+            };
+            const html = renderEventDetail(user, { ...base, notifyTemplates: [], roles: [], raidsheets: [], setup });
+            expect(html).toContain("<h2>Setup</h2>");
+            expect(html).toContain("Tankadin");
+            expect(html).toContain("Protection Pala");
+            expect(html).toContain("classicon_paladin.jpg");
+            expect(html).toContain("border-left-color:#F58CBA");
+            // role headers + summary counts
+            expect(html).toContain("Tanks · 1");
+            expect(html).toContain("Heiler");
+            expect(html).toContain(">2</b> gesamt");
+        });
+
+        it("escapes player names in the setup", () => {
+            const setup = {
+                total: 1, counts: { dps: 1 },
+                groups: [{ role: "dps", label: "DPS", players: [{ name: "<b>x</b>", specName: "Fire Mage", className: "Mage", classColor: "#69CCF0", iconUrl: "", role: "dps" }] }],
+            };
+            const html = renderEventDetail(user, { ...base, setup });
+            expect(html).toContain("&lt;b&gt;x&lt;/b&gt;");
+            expect(html).not.toContain("<b>x</b>");
+        });
+
+        it("shows an empty state when the event has no setup", () => {
+            const html = renderEventDetail(user, { ...base, setup: { total: 0, counts: {}, groups: [] } });
+            expect(html).toContain("noch kein Setup");
+        });
+
+        it("shows an error when the setup could not be loaded", () => {
+            const html = renderEventDetail(user, { ...base, setup: null, setupError: "Raid-Helper down" });
+            expect(html).toContain("Setup konnte nicht geladen werden");
+            expect(html).toContain("Raid-Helper down");
+        });
     });
 
     describe("renderNotifyTemplates", () => {

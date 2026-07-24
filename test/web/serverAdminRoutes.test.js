@@ -3,6 +3,8 @@
 const { EventEmitter } = require("events");
 
 const mockGetTemplates = jest.fn();
+const mockGetSetup = jest.fn();
+const mockGetAllEvents = jest.fn();
 
 jest.mock("http", () => {
     const fakeServer = { on: jest.fn(), listen: jest.fn() };
@@ -54,7 +56,12 @@ jest.mock("../../src/web/discord", () => ({
     duplicateChannel: jest.fn(),
 }));
 jest.mock("../../src/classes/raidhelper", () =>
-    jest.fn().mockImplementation(() => ({ getTemplates: mockGetTemplates, createEvent: jest.fn() })));
+    jest.fn().mockImplementation(() => ({
+        getTemplates: mockGetTemplates,
+        getSetup: mockGetSetup,
+        getAllEvents: mockGetAllEvents,
+        createEvent: jest.fn(),
+    })));
 jest.mock("../../src/web/auth", () => ({
     configured: jest.fn(() => true),
     loginUrl: jest.fn(() => "https://d/authorize"),
@@ -71,6 +78,7 @@ const http = require("http");
 const store = require("../../src/web/settingsStore");
 const discord = require("../../src/web/discord");
 const auth = require("../../src/web/auth");
+const renderAdmin = require("../../src/web/renderAdmin");
 const { startWebServer } = require("../../src/web/server.js");
 
 startWebServer();
@@ -198,5 +206,37 @@ describe("channel routes", () => {
         auth.getUser.mockReturnValue(null);
         const res = await request("GET", "/admin/channels");
         expect(res.end).toHaveBeenCalledWith("DENIED");
+    });
+});
+
+describe("event detail route (setup)", () => {
+    beforeEach(() => {
+        mockGetAllEvents.mockResolvedValue([
+            { id: "e1", channelId: "c1", title: "GDKP Kara", startTime: 100, leaderId: "u1", signUps: [] },
+        ]);
+        discord.getChannelCategoryMap.mockReturnValue({
+            c1: { name: "kara", categoryId: "cat", categoryName: "Raids" },
+        });
+        renderAdmin.renderEventDetail.mockClear();
+    });
+
+    it("GET /admin/raids/detail loads the raidplan setup and passes a built view", async () => {
+        mockGetSetup.mockResolvedValueOnce({ setup: [{ name: "Tankadin", specName: "ProtPala" }] });
+        const res = await request("GET", "/admin/raids/detail?event=e1");
+        expect(mockGetSetup).toHaveBeenCalledWith("e1");
+        expect(res.end).toHaveBeenCalledWith("EVENTDETAIL");
+        const opts = renderAdmin.renderEventDetail.mock.calls[0][1];
+        expect(opts.setup).toMatchObject({ total: 1 });
+        expect(opts.setup.groups[0].players[0].name).toBe("Tankadin");
+        expect(opts.setupError).toBeNull();
+    });
+
+    it("surfaces a setupError but still renders the page when getSetup fails", async () => {
+        mockGetSetup.mockRejectedValueOnce(new Error("Raid-Helper down"));
+        const res = await request("GET", "/admin/raids/detail?event=e1");
+        expect(res.end).toHaveBeenCalledWith("EVENTDETAIL");
+        const opts = renderAdmin.renderEventDetail.mock.calls[0][1];
+        expect(opts.setup).toBeNull();
+        expect(opts.setupError).toContain("Raid-Helper down");
     });
 });
