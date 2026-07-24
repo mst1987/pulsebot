@@ -304,6 +304,23 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("href=\"/admin/raids/new\"");
         });
 
+        it("offers a per-category create button that reuses the category's latest event as format", () => {
+            const html = renderRaids(user, {
+                guildId: "g1", activeGuildId: "g1", csrf: "x", nav: nav(),
+                groups: [{
+                    categoryId: "cat1", categoryName: "PUG Raids",
+                    events: [
+                        { id: "old", title: "SSC alt", startTime: 1000, channelId: "c1", channelName: "ssc-alt", signupCount: 5 },
+                        { id: "new", title: "SSC neu", startTime: 5000, channelId: "c2", channelName: "ssc-neu", signupCount: 5 },
+                    ],
+                }],
+            });
+            // ＋ Event links to the create form pre-seeded with the newest event + category
+            expect(html).toContain("/admin/raids/new?source=new&category=cat1");
+            // action cell no longer uses display:flex on the td (divider alignment fix)
+            expect(html).toContain("td.cell-actions");
+        });
+
         it("prompts to pick a server when none is active", () => {
             const html = renderRaids(user, { activeGuildId: "", csrf: "x", nav: nav() });
             expect(html).toContain("Wähle oben einen Server");
@@ -368,6 +385,17 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("name=\"channelName\"");
         });
 
+        it("pre-selects the reuse source when defaults.sourceEventId is given", () => {
+            const html = renderRaidCreate(user, {
+                defaults: { templateId: "", channelId: "", sourceEventId: "ev1" },
+                templates: [], leaderId: "1", channels: [], csrf: "x", nav: nav(),
+                reusableEvents: [
+                    { id: "ev1", title: "GDKP Kara", templateId: "3", description: "", channelId: "c1", channelName: "gdkp-kara" },
+                ],
+            });
+            expect(html).toContain("<option value=\"ev1\" selected");
+        });
+
         it("omits the reuse picker when there are no existing events", () => {
             const html = renderRaidCreate(user, {
                 defaults: { templateId: "", channelId: "" }, templates: [], leaderId: "1", channels: [], csrf: "x", nav: nav(),
@@ -415,6 +443,52 @@ describe("web/renderAdmin", () => {
             const html = renderEventDetail(user, { ...base, notifyTemplates: [], roles: [], raidsheets: [] });
             expect(html).toContain("Noch keine Aufruf-Vorlagen");
             expect(html).toContain("Keine Raidsheets konfiguriert");
+        });
+
+        it("renders an attendance tab with missing raiders and a ping button", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                attendanceRoleIds: ["r1"],
+                attendance: {
+                    responded: [{ id: "1", displayName: "Alice" }],
+                    missing: [{ id: "2", displayName: "Bob" }],
+                },
+            });
+            expect(html).toContain("data-tab=\"attendance\"");
+            expect(html).toContain("data-panel=\"attendance\"");
+            expect(html).toContain("action=\"/admin/raids/ping-missing\"");
+            expect(html).toContain("Fehlende Raider pingen");
+            expect(html).toContain("Bob");
+            expect(html).toContain("Alice");
+            expect(html).toContain(">1</b> reagiert");
+            expect(html).toContain(">1</b> fehlt");
+        });
+
+        it("hints to assign roles when the category has none", () => {
+            const html = renderEventDetail(user, { ...base, attendanceRoleIds: [] });
+            expect(html).toContain("data-panel=\"attendance\"");
+            expect(html).toContain("keine Raider-Rollen zugeordnet");
+            expect(html).not.toContain("action=\"/admin/raids/ping-missing\"");
+        });
+
+        it("shows the Server-Members-Intent hint when members cannot be loaded", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                attendanceRoleIds: ["r1"],
+                membersError: "Used disallowed intents",
+            });
+            expect(html).toContain("Server Members Intent");
+            expect(html).not.toContain("action=\"/admin/raids/ping-missing\"");
+        });
+
+        it("celebrates when everyone has reacted (no ping form)", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                attendanceRoleIds: ["r1"],
+                attendance: { responded: [{ id: "1", displayName: "Alice" }], missing: [] },
+            });
+            expect(html).not.toContain("action=\"/admin/raids/ping-missing\"");
+            expect(html).toContain("alle erwarteten Raider reagiert");
         });
 
         it("renders the setup grouped into raid groups with class icons and colours", () => {
@@ -568,6 +642,60 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("value=\"111, 222\"");
             expect(html).toContain("value=\"t\"");
             expect(html).toContain("value=\"c\"");
+        });
+
+        it("splits the categories into tabs with a raidsheets tab", () => {
+            const html = renderSettings(user, {
+                config: { adminRoleIds: [], raidDefaults: {} },
+                csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("data-tab=\"zugang\"");
+            expect(html).toContain("data-tab=\"recruitment\"");
+            expect(html).toContain("data-tab=\"auktionen\"");
+            expect(html).toContain("data-tab=\"events\"");
+            expect(html).toContain("data-tab=\"logs\"");
+            expect(html).toContain("data-tab=\"raidsheets\"");
+            expect(html).toContain("data-panel=\"zugang\"");
+            expect(html).toContain("data-panel=\"raidsheets\"");
+        });
+
+        it("renders per-category role checkboxes prechecked from categoryRoles", () => {
+            const html = renderSettings(user, {
+                config: { adminRoleIds: [], raidDefaults: {}, categoryIds: ["cat1"], categoryRoles: { cat1: ["r2"] } },
+                roles: [{ id: "r1", name: "Raider" }, { id: "r2", name: "Trial" }],
+                categories: [{ id: "cat1", name: "Kara" }],
+                csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("Raider-Rollen je Kategorie");
+            expect(html).toContain("Kara");
+            expect(html).toContain("name=\"catrole:cat1:r1\"");
+            // the assigned role is prechecked, the other is not
+            expect(html).toContain("name=\"catrole:cat1:r2\" value=\"1\" checked");
+            expect(html).toContain("name=\"catrole:cat1:r1\" value=\"1\"> @Raider");
+        });
+
+        it("hints instead of showing role boxes when no categories are configured", () => {
+            const html = renderSettings(user, {
+                config: { adminRoleIds: [], raidDefaults: {}, categoryIds: [], categoryRoles: {} },
+                roles: [{ id: "r1", name: "Raider" }],
+                categories: [],
+                csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("um ihnen Raider-Rollen zuzuordnen");
+            expect(html).not.toContain("name=\"catrole:");
+        });
+
+        it("keeps all config fields in one form so hidden tabs still submit", () => {
+            const html = renderSettings(user, {
+                config: { adminRoleIds: [], raidDefaults: {} },
+                csrf: "x", nav: nav(),
+            });
+            // one main config form, all inputs live inside it
+            const formCount = (html.match(/action="\/admin\/settings"/g) || []).length;
+            expect(formCount).toBe(1);
+            expect(html).toContain("name=\"adminRoleIds\"");
+            expect(html).toContain("name=\"logChannelIds\"");
+            expect(html).toContain("name=\"categoryIds\"");
         });
 
         it("renders configured raidsheets and a new-sheet form", () => {

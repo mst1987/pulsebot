@@ -112,6 +112,53 @@ async function postAnnouncement(channelId, template, roleIds = []) {
 }
 
 /**
+ * Guild members that hold at least one of the given roles, for the event
+ * attendance check. Fetching the full member list needs the privileged
+ * GuildMembers intent ("Server Members Intent" in the Developer Portal); when it
+ * is missing (or the fetch fails) this returns an empty list plus an error so the
+ * UI can degrade gracefully instead of crashing.
+ * @returns {Promise<{ members: {id:string, displayName:string}[], error: string|null }>}
+ */
+async function listMembersWithRoles(guildId, roleIds = []) {
+    const guild = getGuild(guildId);
+    if (!guild) return { members: [], error: "Server nicht gefunden oder Bot nicht verbunden." };
+    const wanted = new Set((roleIds || []).map(String).filter(Boolean));
+    if (!wanted.size) return { members: [], error: null };
+    try {
+        const all = await guild.members.fetch();
+        const members = [...all.values()]
+            .filter((m) => [...wanted].some((id) => m.roles.cache.has(id)))
+            .map((m) => ({ id: m.id, displayName: m.displayName || m.user.username }))
+            .sort((a, b) => a.displayName.localeCompare(b.displayName));
+        return { members, error: null };
+    } catch (e) {
+        return { members: [], error: (e && e.message) || "Mitglieder konnten nicht geladen werden (GuildMembers-Intent aktiv?)." };
+    }
+}
+
+/**
+ * Ping the given users in a channel, asking them to sign up or off for an event.
+ * The mentions live in the plain content so they actually notify; allowedMentions
+ * is scoped to exactly those users.
+ * @returns {Promise<{ channelId, messageId, url }>}
+ */
+async function postMissingPing(channelId, userIds = [], text = "") {
+    if (!client) throw new Error("Bot nicht verbunden.");
+    const users = [...new Set((userIds || []).map(String).filter(Boolean))];
+    if (!users.length) throw new Error("Keine fehlenden Raider zum Pingen.");
+    const channel = await client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden oder kein Textkanal.");
+    const mentions = users.map((id) => `<@${id}>`).join(" ");
+    const body = String(text || "").trim()
+        || "Bitte meldet euch für den Raid an oder ab, damit die Aufstellung vollständig ist.";
+    const posted = await channel.send({
+        content: `${mentions}\n${body}`,
+        allowedMentions: { users },
+    });
+    return { channelId: channel.id, messageId: posted.id, url: posted.url };
+}
+
+/**
  * Custom emojis of a guild, for the emoji picker. Returns the Discord code
  * (`<:name:id>` / `<a:name:id>`) that has to be typed into a message, plus the
  * image URL for the picker preview.
@@ -374,6 +421,7 @@ module.exports = {
     setClient, getClient, listGuilds, getGuild, listTextChannels, listEmojis,
     listCategories, listAllChannels, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,
+    listMembersWithRoles, postMissingPing,
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,
     isRecruitmentMessage, extractTemplate,
     postLogButton, finishLogButton, LOG_EVAL_PREFIX,

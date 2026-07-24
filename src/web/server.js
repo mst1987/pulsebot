@@ -27,6 +27,7 @@ const Drive = require("../classes/drive");
 const { fillSetupSheet } = require("../utils/fillSetup");
 const { matchRaidsheet } = require("../utils/raidsheets");
 const { buildSetupView, tankCandidates } = require("../utils/setupView");
+const { computeAttendance } = require("../utils/attendance");
 const { toRaidHelperDate, formatTimestampToDateString } = require("../utils/date");
 const { startSheetCleanup } = require("../utils/sheetCleanup");
 const discord = require("./discord");
@@ -75,9 +76,11 @@ async function loadEventGroups(guildId) {
                 leaderId: ev.leaderId,
                 channelId: ev.channelId,
                 channelName: meta.name,
+                categoryId: meta.categoryId || "",
                 templateId: (ev.templateId !== null && ev.templateId !== undefined) ? String(ev.templateId) : "",
                 description: ev.description || "",
                 signupCount: (ev.signUps || []).filter((s) => s.specName !== "Absence").length,
+                signUps: (ev.signUps || []).map((s) => ({ userId: s.userId, specName: s.specName })),
             });
         }
         const groups = [...byCat.values()].sort((a, b) => a.categoryName.localeCompare(b.categoryName));
@@ -474,8 +477,11 @@ async function handle(req, res) {
                 id: ev.id, title: ev.title, templateId: ev.templateId,
                 description: ev.description, channelId: ev.channelId, channelName: ev.channelName,
             }));
+            // ?source=<eventId> pre-selects that event in the reuse picker so a
+            // category's "＋ Event" button keeps the same naming/format.
+            const sourceEventId = url.searchParams.get("source") || "";
             return send(res, 200, renderRaidCreate(user, {
-                defaults: getConfig().raidDefaults,
+                defaults: { ...getConfig().raidDefaults, sourceEventId },
                 leaderId: user.id,
                 channels: discord.listTextChannels(guildId),
                 templates: listRaidTemplates(),
@@ -640,6 +646,16 @@ async function handle(req, res) {
             console.error("event setup load failed:", e.message);
             setupError = e.message || "Setup konnte nicht geladen werden.";
         }
+        // Attendance: who (holding a role assigned to this event's category) has not
+        // reacted to the signup yet. Empty roleIds → feature simply stays inactive.
+        const categoryRoleIds = (getConfig().categoryRoles || {})[found.g.categoryId] || [];
+        let attendance = { responded: [], missing: [] };
+        let membersError = null;
+        if (categoryRoleIds.length) {
+            const res2 = await discord.listMembersWithRoles(guildId, categoryRoleIds);
+            membersError = res2.error;
+            attendance = computeAttendance(res2.members, found.e.signUps || []);
+        }
         return send(res, 200, renderEventDetail(user, {
             event: found.e,
             channelName: found.e.channelName,
@@ -653,6 +669,9 @@ async function handle(req, res) {
             setupError,
             tankCandidates: tankCands,
             eventSheet: getEventSheet(eventId),
+            attendance,
+            attendanceRoleIds: categoryRoleIds,
+            membersError,
             csrf: auth.csrfToken(req),
             msg: flashFromQuery(url),
             nav: navFor(req),
@@ -676,6 +695,40 @@ async function handle(req, res) {
             return redirect(res, `${back}&ok=${encodeURIComponent("Anmelde-Aufruf gepostet.")}`);
         } catch (e) {
             console.error("notify post failed:", e.message);
+            return redirect(res, `${back}&err=${encodeURIComponent(e.message || "Posten fehlgeschlagen.")}`);
+        }
+    }
+
+    // ping the raiders who have a role assigned to this event's category but have
+    // not reacted to the signup yet, asking them to sign up or off
+    if (pathname === "/admin/raids/ping-missing" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        const eventId = (form.event || "").trim();
+        const back = `/admin/raids/detail?event=${encodeURIComponent(eventId)}`;
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, `${back}&msg=csrf`);
+        const guildId = activeGuildFor(req);
+        const { groups, error } = await loadEventGroups(guildId);
+        if (error) return redirect(res, `${back}&err=${encodeURIComponent(error)}`);
+        const found = groups.flatMap((g) => g.events.map((e) => ({ e, g }))).find((x) => x.e.id === eventId);
+        if (!found) return redirect(res, `${back}&err=${encodeURIComponent("Event nicht gefunden.")}`);
+        // Re-resolve missing server-side; never trust ids posted by the client.
+        const categoryRoleIds = (getConfig().categoryRoles || {})[found.g.categoryId] || [];
+        if (!categoryRoleIds.length) {
+            return redirect(res, `${back}&err=${encodeURIComponent("Dieser Kategorie sind keine Rollen zugeordnet (Einstellungen → Events).")}`);
+        }
+        const { members, error: membersError } = await discord.listMembersWithRoles(guildId, categoryRoleIds);
+        if (membersError) return redirect(res, `${back}&err=${encodeURIComponent(membersError)}`);
+        const { missing } = computeAttendance(members, found.e.signUps || []);
+        if (!missing.length) {
+            return redirect(res, `${back}&ok=${encodeURIComponent("Niemand fehlt — es haben schon alle reagiert.")}`);
+        }
+        try {
+            await discord.postMissingPing(found.e.channelId, missing.map((m) => m.id), form.text);
+            return redirect(res, `${back}&ok=${encodeURIComponent(`${missing.length} fehlende Raider gepingt.`)}`);
+        } catch (e) {
+            console.error("ping-missing failed:", e.message);
             return redirect(res, `${back}&err=${encodeURIComponent(e.message || "Posten fehlgeschlagen.")}`);
         }
     }
@@ -772,9 +825,12 @@ async function handle(req, res) {
         if (req.method === "GET") {
             const user = requireAdmin(req, res);
             if (!user) return;
+            const guildId = activeGuildFor(req);
             return send(res, 200, renderSettings(user, {
                 config: getConfig(),
                 raidsheets: listRaidsheets(),
+                roles: discord.listRoles(guildId),
+                categories: discord.listCategories(guildId),
                 csrf: auth.csrfToken(req),
                 msg: flashFromQuery(url),
                 nav: navFor(req),
@@ -790,13 +846,24 @@ async function handle(req, res) {
                 .split(",")
                 .map((s) => s.trim())
                 .filter(Boolean);
+            const categoryIds = list("categoryIds");
+            // Per-category roles arrive as checkbox fields "catrole:<categoryId>:<roleId>".
+            // Only keep assignments for categories that are still configured.
+            const categoryRoles = {};
+            for (const k of Object.keys(form)) {
+                if (!k.startsWith("catrole:")) continue;
+                const [, catId, roleId] = k.split(":");
+                if (!catId || !roleId || !categoryIds.includes(catId)) continue;
+                (categoryRoles[catId] = categoryRoles[catId] || []).push(roleId);
+            }
             saveConfig({
                 adminRoleIds: list("adminRoleIds"),
                 officerRoleId: trim("officerRoleId"),
                 applicationChannelId: trim("applicationChannelId"),
                 highestBidsChannelId: trim("highestBidsChannelId"),
                 highestBidsMessageId: trim("highestBidsMessageId"),
-                categoryIds: list("categoryIds"),
+                categoryIds,
+                categoryRoles,
                 logChannelIds: list("logChannelIds"),
                 raidDefaults: {
                     templateId: trim("raidTemplateId"),

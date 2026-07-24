@@ -16,6 +16,10 @@ const client = new Client({
         GatewayIntentBits.MessageContent,
         // keeps guild.emojis.cache fresh when emojis change (for the admin emoji picker)
         GatewayIntentBits.GuildEmojisAndStickers,
+        // privileged: lets the admin menu resolve who holds a raid role, to compare
+        // against event signups (attendance / ping missing raiders). Requires the
+        // "Server Members Intent" to be enabled in the Discord Developer Portal.
+        GatewayIntentBits.GuildMembers,
     ],
     partials: ["MESSAGE", "REACTION"],
 });
