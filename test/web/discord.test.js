@@ -107,6 +107,47 @@ describe("web/discord channel management", () => {
         });
     });
 
+    describe("listEmojis", () => {
+        function emoji(id, name, { animated = false, available = true, imageURL, url } = {}) {
+            return { id, name, animated, available, imageURL, url };
+        }
+        function guildWithEmojis(emojis) {
+            return { emojis: { cache: new Map(emojis.map((e) => [e.id, e])) } };
+        }
+
+        it("returns custom emojis sorted by name with Discord codes and preview URLs", () => {
+            const guild = guildWithEmojis([
+                emoji("2", "zug", { imageURL: () => "https://cdn/zug.png" }),
+                emoji("1", "apfel", { imageURL: () => "https://cdn/apfel.png" }),
+                emoji("3", "wave", { animated: true, imageURL: () => "https://cdn/wave.gif" }),
+            ]);
+            setClientWithGuild(guild);
+            expect(discord.listEmojis("g1")).toEqual([
+                { id: "1", name: "apfel", animated: false, code: "<:apfel:1>", url: "https://cdn/apfel.png" },
+                { id: "3", name: "wave", animated: true, code: "<a:wave:3>", url: "https://cdn/wave.gif" },
+                { id: "2", name: "zug", animated: false, code: "<:zug:2>", url: "https://cdn/zug.png" },
+            ]);
+        });
+
+        it("skips unavailable emojis and falls back to .url when imageURL is missing", () => {
+            const guild = guildWithEmojis([
+                emoji("1", "gone", { available: false, imageURL: () => "https://cdn/gone.png" }),
+                emoji("2", "keep", { url: "https://cdn/keep.png" }),
+            ]);
+            setClientWithGuild(guild);
+            expect(discord.listEmojis("g1")).toEqual([
+                { id: "2", name: "keep", animated: false, code: "<:keep:2>", url: "https://cdn/keep.png" },
+            ]);
+        });
+
+        it("returns [] when the guild is unknown or the bot is not connected", () => {
+            discord.setClient(null);
+            expect(discord.listEmojis("g1")).toEqual([]);
+            setClientWithGuild(null);
+            expect(discord.listEmojis("nope")).toEqual([]);
+        });
+    });
+
     describe("duplicateChannel", () => {
         it("clones the source channel with a new name (same category)", async () => {
             const source = {

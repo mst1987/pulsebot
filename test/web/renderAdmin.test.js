@@ -118,6 +118,33 @@ describe("web/renderAdmin", () => {
             const html = renderRecruitment(user, { templates: [], activeGuildId: "", csrf: "x", nav: nav() });
             expect(html).toContain("Wähle oben einen Server");
         });
+
+        it("renders an emoji picker with the server's custom emojis in the template form", () => {
+            const html = renderRecruitment(user, {
+                templates: [], activeGuildId: "g1", csrf: "x", nav: nav(),
+                emojis: [{ id: "1", name: "pepe", animated: false, code: "<:pepe:1>", url: "https://cdn/pepe.png" }],
+            });
+            expect(html).toContain("Emoji einfügen");
+            expect(html).toContain("data-code=\"&lt;:pepe:1&gt;\"");
+            expect(html).toContain("https://cdn/pepe.png");
+        });
+
+        it("omits the emoji picker when the server has no custom emojis", () => {
+            const html = renderRecruitment(user, {
+                templates: [], activeGuildId: "g1", csrf: "x", nav: nav(), emojis: [],
+            });
+            expect(html).not.toContain("Emoji einfügen");
+        });
+
+        it("renders the emoji picker on the post-edit form too", () => {
+            const html = renderRecruitment(user, {
+                editingPost: { id: "p1", channelName: "gen", content: "hi", title: "", body: "", buttonLabel: "" },
+                csrf: "x", nav: nav(),
+                emojis: [{ id: "1", name: "pepe", animated: false, code: "<:pepe:1>", url: "https://cdn/pepe.png" }],
+            });
+            expect(html).toContain("Emoji einfügen");
+            expect(html).toContain("data-code=\"&lt;:pepe:1&gt;\"");
+        });
     });
 
     describe("renderCla", () => {

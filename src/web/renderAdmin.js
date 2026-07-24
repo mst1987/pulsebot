@@ -71,6 +71,17 @@ const ADMIN_STYLE = `<style>
   .rolegrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:6px; max-height:220px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:10px; background:var(--bg); }
   .rolebox { display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--text); font-weight:500; cursor:pointer; }
   .rolebox input { width:auto; }
+  /* emoji picker */
+  .emoji-picker { position:relative; display:inline-block; margin-top:2px; }
+  .emoji-panel { display:none; position:absolute; z-index:20; top:calc(100% + 6px); left:0; width:288px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px; box-shadow:0 8px 28px rgba(0,0,0,.35); }
+  .emoji-panel.open { display:block; }
+  .emoji-search { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:7px 10px; font:inherit; margin-bottom:8px; }
+  .emoji-search:focus { border-color:var(--accent); outline:none; }
+  .emoji-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:4px; max-height:220px; overflow-y:auto; }
+  .emoji-item { display:grid; place-items:center; padding:5px; background:transparent; border:1px solid transparent; border-radius:7px; cursor:pointer; }
+  .emoji-item:hover { background:var(--panel2); border-color:var(--line); }
+  .emoji-item img { width:26px; height:26px; object-fit:contain; }
+  .emoji-empty { color:var(--muted); font-size:12.5px; padding:6px 2px; }
   /* setup (raidplan comp) */
   .setup-summary { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
   .setup-count { background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:4px 12px; font-size:13px; color:var(--muted); }
@@ -324,6 +335,42 @@ function hiddenCsrf(csrf) {
     return `<input type="hidden" name="_csrf" value="${esc(csrf)}">`;
 }
 
+// Client-side glue for the emoji picker: inserts an emoji's Discord code
+// (`<:name:id>`) into the last-focused text field of the picker's form. Guarded
+// so it binds only once even if several pickers are on the page.
+const EMOJI_PICKER_SCRIPT = "<script>(function(){if(window.__emojiPicker)return;window.__emojiPicker=1;"
+    + "var last=null;"
+    + "document.addEventListener('focusin',function(e){var el=e.target;if(el&&(el.tagName==='TEXTAREA'||(el.tagName==='INPUT'&&el.type==='text')))last=el;});"
+    + "function target(p){var f=p.closest('form');if(last&&f&&f.contains(last))return last;return f?f.querySelector('textarea, input[type=text]'):last;}"
+    + "document.addEventListener('click',function(e){"
+    + "var t=e.target.closest('.emoji-trigger');if(t){e.preventDefault();var pn=t.parentNode.querySelector('.emoji-panel');document.querySelectorAll('.emoji-panel.open').forEach(function(o){if(o!==pn)o.classList.remove('open');});if(pn){pn.classList.toggle('open');var s=pn.querySelector('.emoji-search');if(s&&pn.classList.contains('open'))s.focus();}return;}"
+    + "var it=e.target.closest('.emoji-item');if(it){e.preventDefault();var fld=target(it.closest('.emoji-picker'));if(fld){var c=it.getAttribute('data-code');var a=fld.selectionStart==null?fld.value.length:fld.selectionStart;var b=fld.selectionEnd==null?a:fld.selectionEnd;fld.value=fld.value.slice(0,a)+c+fld.value.slice(b);var pos=a+c.length;fld.focus();try{fld.setSelectionRange(pos,pos);}catch(_){}last=fld;}return;}"
+    + "if(!e.target.closest('.emoji-panel'))document.querySelectorAll('.emoji-panel.open').forEach(function(o){o.classList.remove('open');});"
+    + "});"
+    + "document.addEventListener('input',function(e){if(e.target.classList&&e.target.classList.contains('emoji-search')){var q=e.target.value.toLowerCase();e.target.closest('.emoji-panel').querySelectorAll('.emoji-item').forEach(function(i){i.style.display=(i.getAttribute('data-name')||'').indexOf(q)===-1?'none':'';});}});"
+    + "})();</script>";
+
+/**
+ * Emoji picker: a "Emoji einfügen" button + dropdown of the server's custom
+ * emojis. Clicking one inserts its Discord code into the last-focused text field
+ * of the same form. Returns "" when the server has no custom emojis.
+ */
+function emojiPicker(emojis) {
+    const list = emojis || [];
+    if (!list.length) return "";
+    const items = list.map((em) =>
+        `<button type="button" class="emoji-item" data-code="${esc(em.code)}" data-name="${esc((em.name || "").toLowerCase())}" title=":${esc(em.name)}:">`
+        + `<img src="${esc(em.url)}" alt=":${esc(em.name)}:" loading="lazy"></button>`
+    ).join("");
+    return `<div class="emoji-picker">
+      <button type="button" class="btn btn-ghost emoji-trigger">😀 Emoji einfügen</button>
+      <div class="emoji-panel">
+        <input type="text" class="emoji-search" placeholder="Emoji suchen …" autocomplete="off">
+        <div class="emoji-grid">${items}</div>
+      </div>
+    </div>${EMOJI_PICKER_SCRIPT}`;
+}
+
 function templateListItem(t) {
     return `<tr>
       <td><strong>${esc(t.name || "(ohne Name)")}</strong></td>
@@ -352,6 +399,7 @@ function renderPostEdit(user, opts) {
           <label>Nachrichtentext</label>
           <textarea name="content" style="min-height:160px">${esc(p.content)}</textarea>
           <div class="hint">Der eigentliche Nachrichtentext — inkl. Emojis. Custom-Emojis als <code>&lt;:name:id&gt;</code>, Discord-Markdown erlaubt.</div>
+          ${emojiPicker(opts.emojis)}
         </div>
         <div class="field">
           <label>Embed-Titel (optional)</label>
@@ -417,6 +465,7 @@ function renderRecruitment(user, opts = {}) {
           <label>Text</label>
           <textarea name="body" placeholder="Beschreibungstext …">${esc(e.body)}</textarea>
           <div class="hint">Discord-Markdown ist erlaubt (**fett**, *kursiv*, Zeilenumbrüche).</div>
+          ${emojiPicker(opts.emojis)}
         </div>
         <div class="field">
           <label>Button-Beschriftung (optional)</label>

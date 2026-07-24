@@ -213,6 +213,7 @@ async function handle(req, res) {
                 editingPost: editPostId ? getRecruitmentPost(editPostId) : null,
                 posts: guildId ? listRecruitmentPosts().filter((p) => p.guildId === guildId) : listRecruitmentPosts(),
                 channels: discord.listTextChannels(guildId),
+                emojis: discord.listEmojis(guildId),
                 activeGuildId: guildId,
                 csrf: auth.csrfToken(req),
                 msg: flashFromQuery(url),
