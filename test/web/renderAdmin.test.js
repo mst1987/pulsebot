@@ -739,29 +739,42 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("data-panel=\"raidsheets\"");
         });
 
-        it("renders per-category role checkboxes prechecked from categoryRoles", () => {
+        it("picks categories by name and offers only raid-related roles, prechecked from categoryRoles", () => {
             const html = renderSettings(user, {
                 config: { adminRoleIds: [], raidDefaults: {}, categoryIds: ["cat1"], categoryRoles: { cat1: ["r2"] } },
-                roles: [{ id: "r1", name: "Raider" }, { id: "r2", name: "Trial" }],
+                roles: [{ id: "r1", name: "Raider" }, { id: "r2", name: "Raid Lead" }, { id: "r3", name: "Trial" }],
+                categories: [{ id: "cat1", name: "Kara" }, { id: "cat2", name: "Voice" }],
+                csrf: "x", nav: nav(),
+            });
+            // category chosen by name via a checkbox; the configured one is checked
+            expect(html).toContain("name=\"cat:cat1\" value=\"1\" checked");
+            expect(html).toContain("name=\"cat:cat2\" value=\"1\">"); // not configured -> unchecked
+            expect(html).toContain("Kara");
+            // only raid/raider roles are offered
+            expect(html).toContain("name=\"catrole:cat1:r1\" value=\"1\"> @Raider");
+            expect(html).toContain("name=\"catrole:cat1:r2\" value=\"1\" checked"); // prechecked
+            expect(html).not.toContain("catrole:cat1:r3"); // "Trial" is filtered out
+        });
+
+        it("preserves an unknown configured category id so it is not silently dropped", () => {
+            const html = renderSettings(user, {
+                config: { adminRoleIds: [], raidDefaults: {}, categoryIds: ["stale99"], categoryRoles: {} },
+                roles: [{ id: "r1", name: "Raider" }],
                 categories: [{ id: "cat1", name: "Kara" }],
                 csrf: "x", nav: nav(),
             });
-            expect(html).toContain("Raider-Rollen je Kategorie");
-            expect(html).toContain("Kara");
-            expect(html).toContain("name=\"catrole:cat1:r1\"");
-            // the assigned role is prechecked, the other is not
-            expect(html).toContain("name=\"catrole:cat1:r2\" value=\"1\" checked");
-            expect(html).toContain("name=\"catrole:cat1:r1\" value=\"1\"> @Raider");
+            expect(html).toContain("name=\"cat:stale99\" value=\"1\" checked");
+            expect(html).toContain("unbekannte ID");
         });
 
-        it("hints instead of showing role boxes when no categories are configured", () => {
+        it("hints when no categories are loaded (bot offline)", () => {
             const html = renderSettings(user, {
                 config: { adminRoleIds: [], raidDefaults: {}, categoryIds: [], categoryRoles: {} },
                 roles: [{ id: "r1", name: "Raider" }],
                 categories: [],
                 csrf: "x", nav: nav(),
             });
-            expect(html).toContain("um ihnen Raider-Rollen zuzuordnen");
+            expect(html).toContain("Keine Kategorien geladen");
             expect(html).not.toContain("name=\"catrole:");
         });
 
@@ -775,7 +788,6 @@ describe("web/renderAdmin", () => {
             expect(formCount).toBe(1);
             expect(html).toContain("name=\"adminRoleIds\"");
             expect(html).toContain("name=\"logChannelIds\"");
-            expect(html).toContain("name=\"categoryIds\"");
         });
 
         it("renders configured raidsheets and a new-sheet form", () => {
