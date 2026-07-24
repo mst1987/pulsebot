@@ -747,30 +747,48 @@ function renderRaids(user, opts = {}) {
 
 /**
  * Raid-event creation form (posts a Raid-Helper event).
- * @param {object} opts { defaults, leaderId, channels, csrf, msg, nav }
+ * @param {object} opts { defaults, leaderId, channels, reusableEvents, templates, csrf, msg, nav }
  */
 function renderRaidCreate(user, opts = {}) {
     const d = opts.defaults || { templateId: "", channelId: "" };
     const leaderId = opts.leaderId || "";
     const templates = opts.templates || [];
+    const reusableEvents = opts.reusableEvents || [];
     const csrfField = hiddenCsrf(opts.csrf || "");
+
+    // Optional "reuse an existing event" picker. Selecting an event pre-fills the
+    // form (title/template/description) and switches the channel input to a
+    // clone-name field (see the toggle script below): a new channel is cloned
+    // from the source event's channel and the new event is posted there.
+    const reuseField = reusableEvents.length
+        ? `<div class="field">
+          <label>Vorhandenes Event wiederverwenden (optional)</label>
+          <select name="sourceEventId" id="sourceEventSelect">
+            <option value="">— Neues Event von Grund auf —</option>
+            ${reusableEvents.map((ev) => `<option value="${esc(ev.id)}" data-title="${esc(ev.title || "")}" data-template="${esc(ev.templateId || "")}" data-desc="${esc(ev.description || "")}" data-channel="${esc(ev.channelName || "")}">${esc(ev.title || "(ohne Titel)")}${ev.channelName ? ` · #${esc(ev.channelName)}` : ""}</option>`).join("")}
+          </select>
+          <div class="hint">Übernimmt Titel, Template und Beschreibung. Der Channel des Events wird für das neue Datum geklont — den Namen unten anpassen.</div>
+        </div>`
+        : "";
+
     const createForm = `
       <p class="note"><a class="mlink" href="/admin/raids">← Zurück zur Event-Übersicht</a></p>
       <h2>Neues Raid-Event anlegen</h2>
       <p class="note">Legt über die Raid-Helper-API ein echtes Event mit Signup-Nachricht an. Standardwerte kommen aus den <a href="/admin/settings">Einstellungen</a>.</p>
-      <form class="card-form" method="POST" action="/admin/raids/new">
+      <form class="card-form" method="POST" action="/admin/raids/new" id="raidCreateForm">
         ${csrfField}
+        ${reuseField}
         <div class="field">
           <label>Titel</label>
           <input type="text" name="title" placeholder="GDKP Karazhan" required>
         </div>
         <div class="field">
-          <label>Datum (TT-MM-JJJJ)</label>
-          <input type="text" name="date" placeholder="24-07-2026" required>
+          <label>Datum</label>
+          <input type="date" name="date" required>
         </div>
         <div class="field">
-          <label>Uhrzeit (HH:MM)</label>
-          <input type="text" name="time" placeholder="20:00" required>
+          <label>Uhrzeit</label>
+          <input type="time" name="time" placeholder="20:00" required>
         </div>
         <div class="field">
           <label>Template</label>
@@ -779,10 +797,15 @@ function renderRaidCreate(user, opts = {}) {
         ? "Aus der Liste wählen oder eine eigene Raid-Helper-Template-ID eintippen."
         : "Noch keine Templates hinterlegt — Raid-Helper-Template-ID eintippen oder unten laden/anlegen."}</div>
         </div>
-        <div class="field">
+        <div class="field" id="channelPickField">
           <label>Channel</label>
           ${channelSelect("channelId", opts.channels || [], d.channelId, { required: true, allowEmpty: true })}
           <div class="hint">Text-Channels des oben gewählten Servers.</div>
+        </div>
+        <div class="field" id="channelNameField" style="display:none">
+          <label>Channelname (neuer Klon)</label>
+          <input type="text" name="channelName" id="channelNameInput" placeholder="z.B. gdkp-kara-24-07" disabled>
+          <div class="hint">Aus dem gewählten Event vorbelegt — hier anpassen. Der Channel wird geklont (Rechte, Thema) und das neue Event darin gepostet.</div>
         </div>
         <div class="field">
           <label>Event-Leiter (Discord-User-ID)</label>
@@ -797,7 +820,37 @@ function renderRaidCreate(user, opts = {}) {
           <button class="btn" type="submit">Event anlegen</button>
           <a class="btn btn-ghost" href="/admin/raids">Abbrechen</a>
         </div>
-      </form>`;
+      </form>
+      <script>(function(){
+        var form=document.getElementById("raidCreateForm");if(!form)return;
+        var src=form.querySelector("[name=sourceEventId]");if(!src)return;
+        var pickField=document.getElementById("channelPickField");
+        var pickInput=pickField?pickField.querySelector("select,input"):null;
+        var nameField=document.getElementById("channelNameField");
+        var nameInput=document.getElementById("channelNameInput");
+        var titleInput=form.querySelector("[name=title]");
+        var tplInput=form.querySelector("[name=templateId]");
+        var descInput=form.querySelector("[name=description]");
+        function apply(){
+          var o=src.options[src.selectedIndex];
+          if(o&&o.value){
+            if(titleInput)titleInput.value=o.getAttribute("data-title")||"";
+            if(tplInput)tplInput.value=o.getAttribute("data-template")||"";
+            if(descInput)descInput.value=o.getAttribute("data-desc")||"";
+            if(nameInput)nameInput.value=o.getAttribute("data-channel")||"";
+            if(pickField)pickField.style.display="none";
+            if(pickInput){pickInput.required=false;pickInput.disabled=true;}
+            if(nameField)nameField.style.display="";
+            if(nameInput){nameInput.required=true;nameInput.disabled=false;}
+          }else{
+            if(pickField)pickField.style.display="";
+            if(pickInput){pickInput.required=true;pickInput.disabled=false;}
+            if(nameField)nameField.style.display="none";
+            if(nameInput){nameInput.required=false;nameInput.disabled=true;}
+          }
+        }
+        src.addEventListener("change",apply);apply();
+      })();</script>`;
 
     // --- template management: list + delete, add by hand, import from Raid-Helper ---
     const templateRows = templates.length

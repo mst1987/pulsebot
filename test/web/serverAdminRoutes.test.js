@@ -5,6 +5,7 @@ const { EventEmitter } = require("events");
 const mockGetTemplates = jest.fn();
 const mockGetSetup = jest.fn();
 const mockGetAllEvents = jest.fn();
+const mockCreateEvent = jest.fn();
 
 jest.mock("http", () => {
     const fakeServer = { on: jest.fn(), listen: jest.fn() };
@@ -60,7 +61,7 @@ jest.mock("../../src/classes/raidhelper", () =>
         getTemplates: mockGetTemplates,
         getSetup: mockGetSetup,
         getAllEvents: mockGetAllEvents,
-        createEvent: jest.fn(),
+        createEvent: mockCreateEvent,
     })));
 jest.mock("../../src/web/auth", () => ({
     configured: jest.fn(() => true),
@@ -117,6 +118,12 @@ beforeEach(() => {
     auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
     auth.checkCsrf.mockReturnValue(true);
     auth.getActiveGuild.mockReturnValue("g1");
+    mockCreateEvent.mockReset();
+    mockCreateEvent.mockResolvedValue({ status: "ok" });
+    mockGetAllEvents.mockReset();
+    mockGetAllEvents.mockResolvedValue([]);
+    discord.duplicateChannel.mockReset();
+    discord.getChannelCategoryMap.mockReturnValue({});
 });
 
 describe("raid template routes", () => {
@@ -206,6 +213,70 @@ describe("channel routes", () => {
         auth.getUser.mockReturnValue(null);
         const res = await request("GET", "/admin/channels");
         expect(res.end).toHaveBeenCalledWith("DENIED");
+    });
+});
+
+describe("raid create route", () => {
+    it("GET /admin/raids/new loads reusable events for the picker", async () => {
+        mockGetAllEvents.mockResolvedValueOnce([
+            { id: "ev1", channelId: "c1", title: "GDKP Kara", templateId: 3, description: "d", startTime: 100, signUps: [] },
+        ]);
+        discord.getChannelCategoryMap.mockReturnValueOnce({
+            c1: { name: "gdkp-kara", categoryId: "cat", categoryName: "Raids" },
+        });
+        const res = await request("GET", "/admin/raids/new");
+        expect(res.end).toHaveBeenCalledWith("RAIDCREATE");
+        const opts = renderAdmin.renderRaidCreate.mock.calls.at(-1)[1];
+        expect(opts.reusableEvents).toEqual([
+            { id: "ev1", title: "GDKP Kara", templateId: "3", description: "d", channelId: "c1", channelName: "gdkp-kara" },
+        ]);
+    });
+
+    it("POST /admin/raids/new creates an event in the chosen channel (no reuse)", async () => {
+        const res = await request("POST", "/admin/raids/new", {
+            channelId: "c1", leaderId: "42", templateId: "3", date: "2026-07-24", time: "20:00", title: "GDKP Kara",
+        });
+        expect(discord.duplicateChannel).not.toHaveBeenCalled();
+        expect(mockCreateEvent).toHaveBeenCalledWith(expect.objectContaining({
+            channelId: "c1", date: "24-07-2026", time: "20:00", title: "GDKP Kara",
+        }));
+        expect(redirectTo(res)).toContain("/admin/raids?ok=");
+    });
+
+    it("POST /admin/raids/new reuses an event: clones its channel and posts there", async () => {
+        mockGetAllEvents.mockResolvedValue([
+            { id: "ev1", channelId: "c1", title: "GDKP Kara", templateId: 3, startTime: 100, signUps: [] },
+        ]);
+        discord.getChannelCategoryMap.mockReturnValue({
+            c1: { name: "gdkp-kara", categoryId: "cat", categoryName: "Raids" },
+        });
+        discord.duplicateChannel.mockResolvedValueOnce({ id: "cNew", name: "gdkp-kara-24" });
+        const res = await request("POST", "/admin/raids/new", {
+            sourceEventId: "ev1", channelName: "gdkp-kara-24", leaderId: "42",
+            templateId: "3", date: "2026-07-24", time: "20:00", title: "GDKP Kara",
+        });
+        expect(discord.duplicateChannel).toHaveBeenCalledWith("c1", "gdkp-kara-24");
+        expect(mockCreateEvent).toHaveBeenCalledWith(expect.objectContaining({
+            channelId: "cNew", date: "24-07-2026",
+        }));
+        expect(redirectTo(res)).toContain("/admin/raids?ok=");
+    });
+
+    it("POST /admin/raids/new rejects an invalid date", async () => {
+        const res = await request("POST", "/admin/raids/new", {
+            channelId: "c1", leaderId: "42", templateId: "3", date: "", time: "20:00", title: "x",
+        });
+        expect(mockCreateEvent).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("/admin/raids/new?err=");
+    });
+
+    it("POST /admin/raids/new errors when the source event is not found", async () => {
+        const res = await request("POST", "/admin/raids/new", {
+            sourceEventId: "missing", channelName: "x", leaderId: "42", templateId: "3", date: "2026-07-24", time: "20:00", title: "x",
+        });
+        expect(discord.duplicateChannel).not.toHaveBeenCalled();
+        expect(mockCreateEvent).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("/admin/raids/new?err=");
     });
 });
 

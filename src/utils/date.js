@@ -28,10 +28,23 @@ module.exports = {
     formatTimestampToDateString: function(timestamp) {
         // Convert the timestamp to a Luxon DateTime object in CET
         const dateTimeCET = DateTime.fromMillis(timestamp, { zone: "Europe/Paris" });
-    
+
         // Format the DateTime object as the desired string format
         const formattedString = dateTimeCET.toFormat("dd.MM.yyyy") + " - " + dateTimeCET.toFormat("HH:mm");
-    
+
         return formattedString;
+    },
+    // Normalize a date into the "dd-MM-yyyy" format the Raid-Helper create API
+    // expects. Accepts an ISO date from an <input type="date"> ("yyyy-MM-dd") and
+    // passes through an already-"dd-MM-yyyy" value unchanged. Returns "" for empty
+    // or unrecognised input so callers can validate/report cleanly.
+    toRaidHelperDate: function(value) {
+        const str = String(value || "").trim();
+        if (!str) return "";
+        const iso = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (iso) return `${iso[3]}-${iso[2]}-${iso[1]}`;
+        // already dd-MM-yyyy (what the API wants) — accept as-is
+        if (/^\d{2}-\d{2}-\d{4}$/.test(str)) return str;
+        return "";
     },
 };
