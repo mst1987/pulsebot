@@ -373,7 +373,9 @@ describe("web/renderAdmin", () => {
                 ],
             };
             const html = renderEventDetail(user, { ...base, notifyTemplates: [], roles: [], raidsheets: [], setup });
-            expect(html).toContain("<h2>Setup</h2>");
+            // Setup lives in its own tab now
+            expect(html).toContain("data-tab=\"setup\"");
+            expect(html).toContain("data-panel=\"setup\"");
             expect(html).toContain("Tankadin");
             expect(html).toContain("classicon_paladin.jpg");
             expect(html).toContain("border-left-color:#F58CBA");
@@ -416,6 +418,15 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("automatisch gelöscht");
             // button reflects the copy behaviour
             expect(html).toContain("Neues Sheet erstellen");
+            // prominent "open sheet" button in the meta card
+            expect(html).toContain("class=\"btn sheet-btn\"");
+            expect(html).toContain("Sheet öffnen");
+        });
+
+        it("omits the prominent sheet button when no sheet exists yet", () => {
+            const html = renderEventDetail(user, { ...base, raidsheets: [{ id: "t45", name: "Tier 4/5" }] });
+            expect(html).not.toContain("Sheet öffnen");
+            expect(html).not.toContain("class=\"btn sheet-btn\"");
         });
 
         it("falls back to a free-text Tank-3 field when no candidates exist", () => {

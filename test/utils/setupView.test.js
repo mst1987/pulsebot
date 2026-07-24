@@ -14,7 +14,8 @@ describe("utils/setupView", () => {
                 classColor: "#69CCF0",
                 role: "ranged",
             });
-            expect(p.iconUrl).toBe("https://wow.zamimg.com/images/wow/icons/large/classicon_mage.jpg");
+            // spec icon (Fire mage), not the generic class icon
+            expect(p.iconUrl).toBe("https://wow.zamimg.com/images/wow/icons/large/spell_fire_firebolt02.jpg");
         });
 
         it("resolves a spec by its spec field too (not just the classlist key)", () => {
@@ -28,11 +29,11 @@ describe("utils/setupView", () => {
             const prot = enrichSlot({ name: "Pala", specName: "ProtPala" });
             expect(prot.className).toBe("Paladin");
             expect(prot.role).toBe("tank");
-            expect(prot.iconUrl).toContain("classicon_paladin");
+            expect(prot.iconUrl).toContain("spell_holy_devotionaura"); // prot-pala spec icon
 
             const blood = enrichSlot({ name: "Dk", specName: "BloodTank" });
             expect(blood.className).toBe("DK");
-            expect(blood.iconUrl).toContain("classicon_deathknight");
+            expect(blood.iconUrl).toContain("spell_deathknight_bloodpresence"); // blood spec icon
             expect(blood.role).toBe("tank");
         });
 

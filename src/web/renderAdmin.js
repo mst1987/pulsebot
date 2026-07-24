@@ -97,6 +97,16 @@ const ADMIN_STYLE = `<style>
   .setup-ico { width:22px; height:22px; border-radius:5px; flex:0 0 auto; }
   .setup-ico-blank { background:var(--panel2); border:1px solid var(--line); }
   .setup-player .sp-name { font-weight:700; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+  /* prominent "open sheet" button in the event meta card */
+  .sheet-btn { flex:0 0 auto; background:var(--accent); color:#fff; border:1px solid var(--accent); font-weight:700; box-shadow:0 0 0 4px var(--accent-soft), 0 2px 10px rgba(0,0,0,.25); }
+  .sheet-btn:hover { filter:brightness(1.08); text-decoration:none; }
+  /* tabs on the event detail page */
+  .tabs { display:flex; gap:4px; border-bottom:1px solid var(--line); margin:4px 0 18px; flex-wrap:wrap; }
+  .tab-btn { appearance:none; background:transparent; border:1px solid transparent; border-bottom:none; color:var(--muted); font:inherit; font-weight:600; padding:9px 16px; border-radius:9px 9px 0 0; cursor:pointer; margin-bottom:-1px; }
+  .tab-btn:hover { color:var(--text); background:var(--panel2); }
+  .tab-btn.active { color:var(--text); background:var(--panel); border-color:var(--line); border-bottom-color:var(--panel); }
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
   .sheetcard { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px; }
   table.idx td.small { white-space:nowrap; color:var(--muted); font-size:12.5px; }
   /* sortable table headers + pager */
@@ -1014,9 +1024,18 @@ function renderEventDetail(user, opts = {}) {
     const raidsheets = opts.raidsheets || [];
     const setup = opts.setup || null;
 
+    // Prominent "open sheet" button, shown top-right of the meta card once a
+    // raid sheet has been created for this event.
+    const sheetLink = opts.eventSheet && opts.eventSheet.url;
+    const sheetBtn = sheetLink
+        ? `<a class="btn sheet-btn" href="${esc(opts.eventSheet.url)}" target="_blank" rel="noopener">📄 Sheet öffnen</a>`
+        : "";
     const meta = `
       <div class="dash-card" style="margin-bottom:16px">
-        <div class="dash-card-head"><h3>${esc(ev.title || "(ohne Titel)")}</h3></div>
+        <div class="dash-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <h3 style="margin:0">${esc(ev.title || "(ohne Titel)")}</h3>
+          ${sheetBtn}
+        </div>
         <div style="padding:14px 16px" class="small">
           <div>Termin: <strong>${esc(formatEventTime(ev.startTime)) || "—"}</strong></div>
           <div>Channel: #${esc(opts.channelName || ev.channelId)} · Kategorie: ${esc(opts.categoryName || "—")}</div>
@@ -1124,15 +1143,31 @@ function renderEventDetail(user, opts = {}) {
     const body = `
       <p class="note"><a class="mlink" href="/admin/raids">← Zurück zur Event-Übersicht</a></p>
       ${meta}
-      <h2>Setup</h2>
-      <p class="note">Aktueller Raidplan dieses Events, in Raid-Gruppen 1–5 wie im Raid-Helper. Icons und Farben richten sich nach der WoW-Klasse.</p>
-      ${setupSection}
-      <h2>Anmelde-Aufruf</h2>
-      <p class="note">Postet eine Aufruf-Nachricht in den Event-Channel und pingt die gewählten Rollen.</p>
-      ${notifySection}
-      <h2>Raidsheet füllen</h2>
-      <p class="note">Legt für diesen Raid eine eigene Kopie der Vorlage an, überträgt das Raid-Helper-Setup hinein und teilt sie per Link. Die Kopie wird 3 Tage nach dem Raid automatisch gelöscht; die Vorlage bleibt unangetastet.</p>
-      ${fillSection}`;
+      <div class="tabs" role="tablist">
+        <button type="button" class="tab-btn active" data-tab="setup" role="tab">Setup</button>
+        <button type="button" class="tab-btn" data-tab="actions" role="tab">Anmeldung &amp; Sheet</button>
+      </div>
+      <div class="tab-panel active" data-panel="setup" role="tabpanel">
+        <p class="note">Aktueller Raidplan dieses Events, in Raid-Gruppen 1–5 wie im Raid-Helper. Icons und Farben richten sich nach der WoW-Spec.</p>
+        ${setupSection}
+      </div>
+      <div class="tab-panel" data-panel="actions" role="tabpanel">
+        <h2 style="margin-top:0">Anmelde-Aufruf</h2>
+        <p class="note">Postet eine Aufruf-Nachricht in den Event-Channel und pingt die gewählten Rollen.</p>
+        ${notifySection}
+        <h2>Raidsheet füllen</h2>
+        <p class="note">Legt für diesen Raid eine eigene Kopie der Vorlage an, überträgt das Raid-Helper-Setup hinein und teilt sie per Link. Die Kopie wird 3 Tage nach dem Raid automatisch gelöscht; die Vorlage bleibt unangetastet.</p>
+        ${fillSection}
+      </div>
+      <script>(function(){
+        var btns=document.querySelectorAll(".tab-btn");
+        var panels=document.querySelectorAll(".tab-panel");
+        btns.forEach(function(b){ b.addEventListener("click",function(){
+          var t=b.getAttribute("data-tab");
+          btns.forEach(function(x){ x.classList.toggle("active", x===b); });
+          panels.forEach(function(p){ p.classList.toggle("active", p.getAttribute("data-panel")===t); });
+        }); });
+      })();</script>`;
     return adminLayout("Event-Details — Pulsebot Admin", "raids", user, body, opts.msg, opts.nav);
 }
 
