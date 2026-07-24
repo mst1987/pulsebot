@@ -21,6 +21,9 @@ jest.mock("../../src/web/renderAdmin", () => ({
     renderRecruitment: jest.fn(() => "RECRUITMENT"),
     renderCla: jest.fn(() => "CLA"),
     renderRaids: jest.fn(() => "RAIDS"),
+    renderRaidCreate: jest.fn(() => "RAIDCREATE"),
+    renderEventDetail: jest.fn(() => "EVENTDETAIL"),
+    renderNotifyTemplates: jest.fn(() => "NOTIFY"),
     renderChannels: jest.fn(() => "CHANNELS"),
     renderSettings: jest.fn(() => "SETTINGS"),
 }));
@@ -33,6 +36,8 @@ jest.mock("../../src/web/settingsStore", () => ({
     saveRaidTemplate: jest.fn(() => ({ id: "3", name: "Kara" })),
     saveRaidTemplates: jest.fn(() => ({ added: 2, updated: 1 })),
     deleteRaidTemplate: jest.fn(() => true),
+    listNotify: jest.fn(() => []), getNotify: jest.fn(), saveNotify: jest.fn(), deleteNotify: jest.fn(),
+    listRaidsheets: jest.fn(() => []), getRaidsheet: jest.fn(), saveRaidsheet: jest.fn(), deleteRaidsheet: jest.fn(),
     getConfig: jest.fn(() => ({ raidDefaults: {}, categoryIds: [], adminRoleIds: [] })),
     saveConfig: jest.fn(),
 }));
@@ -42,6 +47,9 @@ jest.mock("../../src/web/discord", () => ({
     listTextChannels: jest.fn(() => []),
     listCategories: jest.fn(() => [{ id: "cat", name: "Raids" }]),
     listAllChannels: jest.fn(() => [{ id: "t1", name: "kara" }]),
+    listRoles: jest.fn(() => []),
+    getChannelCategoryMap: jest.fn(() => ({})),
+    postAnnouncement: jest.fn(),
     createChannel: jest.fn(),
     duplicateChannel: jest.fn(),
 }));
@@ -104,43 +112,43 @@ beforeEach(() => {
 });
 
 describe("raid template routes", () => {
-    it("POST /admin/raids/templates saves a template and redirects", async () => {
-        const res = await request("POST", "/admin/raids/templates", { id: "3", name: "Kara" });
+    it("POST /admin/raid-templates saves a template and redirects to the create page", async () => {
+        const res = await request("POST", "/admin/raid-templates", { id: "3", name: "Kara" });
         expect(store.saveRaidTemplate).toHaveBeenCalledWith({ id: "3", name: "Kara" });
-        expect(redirectTo(res)).toBe("/admin/raids?msg=saved");
+        expect(redirectTo(res)).toBe("/admin/raids/new?msg=saved");
     });
 
-    it("POST /admin/raids/templates errors when the id is blank (save returns null)", async () => {
+    it("POST /admin/raid-templates errors when the id is blank (save returns null)", async () => {
         store.saveRaidTemplate.mockReturnValueOnce(null);
-        const res = await request("POST", "/admin/raids/templates", { id: "", name: "x" });
-        expect(redirectTo(res)).toContain("/admin/raids?err=");
+        const res = await request("POST", "/admin/raid-templates", { id: "", name: "x" });
+        expect(redirectTo(res)).toContain("/admin/raids/new?err=");
     });
 
-    it("POST /admin/raids/templates/delete removes and redirects", async () => {
-        const res = await request("POST", "/admin/raids/templates/delete", { id: "3" });
+    it("POST /admin/raid-templates/delete removes and redirects", async () => {
+        const res = await request("POST", "/admin/raid-templates/delete", { id: "3" });
         expect(store.deleteRaidTemplate).toHaveBeenCalledWith("3");
-        expect(redirectTo(res)).toBe("/admin/raids?msg=deleted");
+        expect(redirectTo(res)).toBe("/admin/raids/new?msg=deleted");
     });
 
-    it("POST /admin/raids/templates/import imports from Raid-Helper and reports counts", async () => {
+    it("POST /admin/raid-templates/import imports from Raid-Helper and reports counts", async () => {
         mockGetTemplates.mockResolvedValueOnce([{ id: "3", name: "Kara" }, { id: "7", name: "MC" }]);
-        const res = await request("POST", "/admin/raids/templates/import");
+        const res = await request("POST", "/admin/raid-templates/import");
         expect(store.saveRaidTemplates).toHaveBeenCalledWith([{ id: "3", name: "Kara" }, { id: "7", name: "MC" }]);
-        expect(redirectTo(res)).toContain("/admin/raids?ok=");
+        expect(redirectTo(res)).toContain("/admin/raids/new?ok=");
     });
 
-    it("POST /admin/raids/templates/import errors when no templates are found", async () => {
+    it("POST /admin/raid-templates/import errors when no templates are found", async () => {
         mockGetTemplates.mockResolvedValueOnce([]);
-        const res = await request("POST", "/admin/raids/templates/import");
+        const res = await request("POST", "/admin/raid-templates/import");
         expect(store.saveRaidTemplates).not.toHaveBeenCalled();
-        expect(redirectTo(res)).toContain("/admin/raids?err=");
+        expect(redirectTo(res)).toContain("/admin/raids/new?err=");
     });
 
     it("rejects a bad CSRF token", async () => {
         auth.checkCsrf.mockReturnValueOnce(false);
-        const res = await request("POST", "/admin/raids/templates", { id: "3" });
+        const res = await request("POST", "/admin/raid-templates", { id: "3" });
         expect(store.saveRaidTemplate).not.toHaveBeenCalled();
-        expect(redirectTo(res)).toBe("/admin/raids?msg=csrf");
+        expect(redirectTo(res)).toBe("/admin/raids/new?msg=csrf");
     });
 });
 

@@ -29,6 +29,12 @@ const applyArmoryUrlTemplate =
 const applyWclUrlTemplate =
     process.env.APPLY_WCL_URL || "https://fresh.warcraftlogs.com/character/eu/thunderstrike/{char}";
 
+// Google Sheets (raid setup sheets). Used as the default "Tier 4/5" raidsheet
+// seeded into the settings store; further raidsheets are added in the admin menu.
+const googleSpreadsheetId = process.env.GOOGLE_SPREADSHEET_ID || "";
+const googleSheetName = process.env.GOOGLE_SHEET_NAME || "Setup";
+const googleSheetGid = Number(process.env.GOOGLE_SHEET_GID) || 34139428;
+
 // Logcheck web server (serves the generated report pages)
 const webPort = Number(process.env.WEB_PORT) || 3005;
 const publicBaseUrl =
@@ -67,6 +73,9 @@ module.exports = {
     categoryIds,
     highestBidsChannelId,
     highestBidsMessageId,
+    googleSpreadsheetId,
+    googleSheetName,
+    googleSheetGid,
     maxBidAmount,
     defaultTimeout,
     applicationChannelId,
