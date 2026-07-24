@@ -2,8 +2,8 @@ const http = require("http");
 const crypto = require("crypto");
 const { webPort } = require("../config/variables");
 const { getReport, deleteReport, listReports } = require("./reportStore");
-const { renderReportPage, renderPlayerPage, renderIndexPage, renderNotFound, renderError } = require("./render");
-const { renderAdminHome, renderAdminDenied, renderRecruitment, renderCla, renderRaids, renderSettings } = require("./renderAdmin");
+const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
+const { renderDashboard, renderAdminDenied, renderRecruitment, renderCla, renderRaids, renderSettings } = require("./renderAdmin");
 const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
@@ -137,10 +137,9 @@ async function handle(req, res) {
     }
 
     // --- admin menu ---
+    // /admin is an alias of the dashboard, which lives at the site root.
     if (pathname === "/admin" && req.method === "GET") {
-        const user = requireAdmin(req, res);
-        if (!user) return;
-        return send(res, 200, renderAdminHome(user, { msg: flashFromQuery(url), nav: navFor(req) }));
+        return redirect(res, "/");
     }
 
     // switch the active server (from the server selector); returns to the referring page
@@ -227,7 +226,12 @@ async function handle(req, res) {
         if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/recruitment?msg=csrf");
         const post = getRecruitmentPost((form.id || "").trim());
         if (!post) return redirect(res, "/admin/recruitment?err=" + encodeURIComponent("Nachricht nicht gefunden."));
-        const template = { title: form.title || "", body: form.body || "", buttonLabel: form.buttonLabel || "" };
+        const template = {
+            content: form.content || "",
+            title: form.title || "",
+            body: form.body || "",
+            buttonLabel: form.buttonLabel || "",
+        };
         try {
             await discord.editRecruitment(post.channelId, post.messageId, template);
             saveRecruitmentPost({ id: post.id, ...template });
@@ -378,8 +382,27 @@ async function handle(req, res) {
         res.writeHead(200, { "Content-Type": "text/plain" });
         return res.end("ok");
     }
+    // Start page = admin dashboard. Anonymous/non-admin visitors get the login/denied
+    // page; the public report pages below (/r/...) stay reachable without login.
     if (pathname === "/" || pathname === "") {
-        return send(res, 200, renderIndexPage(listReports(), { user: auth.getUser(req) }));
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const reports = listReports();
+        const cfg = getConfig();
+        const stats = {
+            reportsTotal: reports.length,
+            reportsWithIssues: reports.filter((r) => (r.issueCount || 0) > 0).length,
+            templates: listRecruitment().length,
+            posts: listRecruitmentPosts().length,
+            categories: (cfg.categoryIds || []).length,
+            adminRoles: (cfg.adminRoleIds || []).length,
+        };
+        return send(res, 200, renderDashboard(user, {
+            stats,
+            recentReports: reports.slice(0, 8),
+            msg: flashFromQuery(url),
+            nav: navFor(req),
+        }));
     }
     // per-raider detail page: /r/<id>/p/<idx>
     const pm = pathname.match(/^\/r\/([a-zA-Z0-9]+)\/p\/(\d+)\/?$/);

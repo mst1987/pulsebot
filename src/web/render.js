@@ -609,90 +609,6 @@ function authBar(user) {
     return `<a class="discord-btn" href="/auth/login">${DISCORD_LOGO}<span>Mit Discord einloggen</span></a>`;
 }
 
-function renderIndexPage(reports, ctx = {}) {
-    const user = ctx.user || null;
-    const isAdmin = !!(user && user.isAdmin);
-    const zones = [...new Set(reports.map((r) => r.zone).filter(Boolean))].sort();
-
-    const rows = reports.map((r) => {
-        const when = r.generatedAt ? new Date(r.generatedAt).toLocaleString("de-DE") : "";
-        const search = `${r.title || ""} ${r.zone || ""} ${when}`.toLowerCase();
-        const delCell = isAdmin
-            ? `<td><button class="del" onclick="del('${esc(r.id)}',this)" title="Report löschen">🗑️</button></td>`
-            : "";
-        return `<tr data-search="${esc(search)}" data-zone="${esc(r.zone || "")}">
-        <td><a href="/r/${esc(r.id)}">${esc(r.title || r.id)}</a></td>
-        <td>${esc(r.zone || "")}</td>
-        <td>${esc(when)}</td>
-        <td>${esc(r.playerCount)}</td>
-        <td><span class="pill">${esc(r.issueCount)}</span></td>
-        ${delCell}
-      </tr>`;
-    }).join("");
-
-    if (reports.length === 0) {
-        return layout("Log-Checks", `<div class="toolbar" style="justify-content:space-between"><h1 style="margin:0">Log-Checks</h1>${authBar(user)}</div><div class="empty">Noch keine Auswertungen vorhanden.</div>`);
-    }
-
-    const zoneOpts = ["<option value=\"\">Alle Zonen</option>"].concat(zones.map((z) => `<option value="${esc(z)}">${esc(z)}</option>`)).join("");
-    const showPager = reports.length > 15;
-    const delHead = isAdmin ? "<th></th>" : "";
-
-    const body = `
-      <div class="toolbar" style="justify-content:space-between"><h1 style="margin:0">Log-Checks</h1>${authBar(user)}</div>
-      <p class="sub">${reports.length} Auswertung(en)</p>
-      <div class="toolbar">
-        <input id="q" type="search" placeholder="Suche nach Titel, Zone, Datum …" autocomplete="off">
-        <select id="zf">${zoneOpts}</select>
-      </div>
-      <div class="summary"><table class="idx" id="reptable">
-        <thead><tr><th>Report</th><th>Zone</th><th>Erstellt</th><th>Spieler</th><th>Probleme</th>${delHead}</tr></thead>
-        <tbody>${rows}</tbody>
-      </table></div>
-      ${showPager ? "<div class=\"pager\"><button id=\"prev\">‹ Zurück</button><span class=\"pginfo\" id=\"pginfo\"></span><button id=\"next\">Weiter ›</button></div>" : ""}
-      <script>
-      (function(){
-        var rows=[].slice.call(document.querySelectorAll('#reptable tbody tr'));
-        var q=document.getElementById('q'), zf=document.getElementById('zf');
-        var pageSize=15, page=0, paged=${showPager ? "true" : "false"};
-        function filtered(){
-          var term=(q.value||'').toLowerCase().trim(), zone=zf.value;
-          return rows.filter(function(r){
-            var okT=!term||r.getAttribute('data-search').indexOf(term)>-1;
-            var okZ=!zone||r.getAttribute('data-zone')===zone;
-            return okT&&okZ;
-          });
-        }
-        function render(){
-          var fr=filtered();
-          rows.forEach(function(r){r.style.display='none';});
-          if(!paged){ fr.forEach(function(r){r.style.display='';}); return; }
-          var pages=Math.max(1,Math.ceil(fr.length/pageSize));
-          if(page>=pages)page=pages-1; if(page<0)page=0;
-          fr.slice(page*pageSize,(page+1)*pageSize).forEach(function(r){r.style.display='';});
-          var info=document.getElementById('pginfo'); if(info)info.textContent='Seite '+(fr.length?page+1:0)+' / '+pages+' · '+fr.length+' Treffer';
-          var pv=document.getElementById('prev'),nx=document.getElementById('next');
-          if(pv)pv.disabled=page<=0; if(nx)nx.disabled=page>=pages-1;
-        }
-        q.addEventListener('input',function(){page=0;render();});
-        zf.addEventListener('change',function(){page=0;render();});
-        var pv=document.getElementById('prev'),nx=document.getElementById('next');
-        if(pv)pv.addEventListener('click',function(){page--;render();});
-        if(nx)nx.addEventListener('click',function(){page++;render();});
-        render();
-      })();
-      function del(id,btn){
-        if(!confirm('Report wirklich löschen?'))return;
-        fetch('/r/'+id,{method:'DELETE'}).then(function(r){
-          if(r.ok){var tr=btn.closest('tr');tr.parentNode.removeChild(tr);}
-          else alert('Löschen fehlgeschlagen (keine Berechtigung?).');
-        });
-      }
-      </script>`;
-
-    return layout("Log-Checks", body);
-}
-
 function renderNotFound() {
     return layout("Nicht gefunden", "<h1>404</h1><p class=\"sub\">Diese Seite existiert nicht (mehr). <a href=\"/\">Zur Übersicht</a></p>");
 }
@@ -701,4 +617,4 @@ function renderError(title, message) {
     return layout(title, `<h1>${esc(title)}</h1><p class="sub">${esc(message)}</p><p class="sub"><a href="/">Zur Übersicht</a> · <a href="/auth/login">Erneut einloggen</a></p>`);
 }
 
-module.exports = { renderReportPage, renderPlayerPage, renderIndexPage, renderNotFound, renderError, layout, esc, authBar, themeToggleBtn };
+module.exports = { renderReportPage, renderPlayerPage, renderNotFound, renderError, layout, esc, authBar, themeToggleBtn };

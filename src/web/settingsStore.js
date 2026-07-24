@@ -126,6 +126,7 @@ function saveRecruitmentPost(data) {
         channelId: data.channelId || (match && match.channelId) || "",
         messageId: data.messageId || (match && match.messageId) || "",
         channelName: data.channelName || (match && match.channelName) || "",
+        content: data.content || "",
         title: data.title || "",
         body: data.body || "",
         buttonLabel: data.buttonLabel || "",

@@ -1,7 +1,6 @@
 const {
     renderReportPage,
     renderPlayerPage,
-    renderIndexPage,
     renderNotFound,
     renderError,
 } = require("../../src/web/render.js");
@@ -259,86 +258,6 @@ describe("web/render", () => {
             const html = renderPlayerPage(sampleReport(), 99);
             expect(html).toContain("404");
             expect(html).toContain("<title>Nicht gefunden</title>");
-        });
-    });
-
-    describe("renderIndexPage", () => {
-        function sampleReports() {
-            return [
-                {
-                    id: "r1",
-                    title: "Kara Run",
-                    zone: "Karazhan",
-                    generatedAt: 1000,
-                    playerCount: 25,
-                    issueCount: 3,
-                },
-                {
-                    id: "r2",
-                    title: "Gruul Run",
-                    zone: "Gruul",
-                    generatedAt: 2000,
-                    playerCount: 25,
-                    issueCount: 0,
-                },
-            ];
-        }
-
-        it("shows the empty state when there are no reports", () => {
-            const html = renderIndexPage([], {});
-            expect(html).toContain("Noch keine Auswertungen vorhanden");
-        });
-
-        it("lists reports with links and zones", () => {
-            const html = renderIndexPage(sampleReports(), {});
-            expect(html).toContain("/r/r1");
-            expect(html).toContain("Kara Run");
-            expect(html).toContain("Gruul Run");
-            expect(html).toContain("Karazhan");
-        });
-
-        it("shows the Discord login button when logged out", () => {
-            const html = renderIndexPage(sampleReports(), {});
-            expect(html).toContain("Mit Discord einloggen");
-            expect(html).toContain("/auth/login");
-            expect(html).not.toContain("🗑️");
-        });
-
-        it("shows the admin delete buttons and logout for an admin", () => {
-            const html = renderIndexPage(sampleReports(), {
-                user: { name: "Alice", isAdmin: true },
-            });
-            expect(html).toContain("Eingeloggt als");
-            expect(html).toContain("Admin");
-            expect(html).toContain("/auth/logout");
-            expect(html).toContain("🗑️");
-        });
-
-        it("hides delete buttons for a non-admin user", () => {
-            const html = renderIndexPage(sampleReports(), {
-                user: { name: "Bob", isAdmin: false },
-            });
-            expect(html).toContain("Eingeloggt als");
-            expect(html).not.toContain("Admin");
-            expect(html).not.toContain("🗑️");
-        });
-
-        it("escapes report titles in the table", () => {
-            const html = renderIndexPage(
-                [
-                    {
-                        id: "r3",
-                        title: "<img src=x>",
-                        zone: "",
-                        generatedAt: 1,
-                        playerCount: 1,
-                        issueCount: 0,
-                    },
-                ],
-                {}
-            );
-            expect(html).toContain("&lt;img src=x&gt;");
-            expect(html).not.toContain("<img src=x>");
         });
     });
 
