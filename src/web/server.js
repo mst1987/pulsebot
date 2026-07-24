@@ -2,7 +2,7 @@ const http = require("http");
 const crypto = require("crypto");
 const { webPort } = require("../config/variables");
 const { getReport, deleteReport, listReports } = require("./reportStore");
-const { prepareReportList, prepareLogList } = require("./reportList");
+const { prepareReportList, prepareLogList, annotateLogCategories } = require("./reportList");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
 const {
     renderDashboard, renderAdminDenied, renderRecruitment, renderCla,
@@ -376,8 +376,12 @@ async function handle(req, res) {
             const reportPage = view === "reports" ? prepareReportList(reports, sortQuery) : null;
             const logPage = view === "logs" ? prepareLogList(logs, sortQuery) : null;
             // Lazily fill in the real Warcraft-Logs names for the logs shown on
-            // this page (best-effort; safe no-op without an API key).
-            if (logPage) await backfillLogTitles(logPage.items);
+            // this page (best-effort; safe no-op without an API key), and tag each
+            // with its Discord category so the list can show a category badge.
+            if (logPage) {
+                await backfillLogTitles(logPage.items);
+                annotateLogCategories(logPage.items, discord.getChannelCategoryMap(guildId));
+            }
             return send(res, 200, renderCla(user, {
                 view,
                 reportPage,

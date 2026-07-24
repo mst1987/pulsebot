@@ -264,6 +264,23 @@ describe("web/renderAdmin", () => {
                 expect(html).toContain("/admin/cla?view=logs&sort=title&dir=asc&page=1");
             });
 
+            it("shows a category badge (with the channel name as tooltip) when known", () => {
+                const html = renderCla(user, {
+                    view: "logs",
+                    logPage: logPage({ items: [{ ...logPage().items[0], categoryName: "Karazhan", channelName: "kara-logs" }] }),
+                    logChannelIds: ["c1"], csrf: "x", nav: nav(),
+                });
+                expect(html).toContain("<th>Kategorie</th>");
+                expect(html).toContain("class=\"cat-badge\" title=\"#kara-logs\">Karazhan</span>");
+            });
+
+            it("shows a dash in the category column when the category is unknown", () => {
+                const html = renderCla(user, { view: "logs", logPage: logPage(), logChannelIds: ["c1"], csrf: "x", nav: nav() });
+                expect(html).toContain("<th>Kategorie</th>");
+                // no badge element is rendered (the CSS rule doesn't count)
+                expect(html).not.toContain("class=\"cat-badge\"");
+            });
+
             it("prompts to configure log channels when none are set", () => {
                 const html = renderCla(user, { view: "logs", logPage: logPage({ items: [] }), logChannelIds: [], csrf: "x", nav: nav() });
                 expect(html).toContain("noch keine Log-Channels konfiguriert");
