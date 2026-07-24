@@ -20,6 +20,7 @@ const {
 const { buildReport, ReportError } = require("../utils/logcheck/report");
 const { listLogs, deleteLog } = require("./logStore");
 const { evaluateLog, scanLogChannels } = require("./logChannel");
+const { getEventSheet, markEventSheetFilled } = require("./eventSheetStore");
 const Raidhelper = require("../classes/raidhelper");
 const SheetsClient = require("../classes/sheets");
 const { fillSetupSheet } = require("../utils/fillSetup");
@@ -81,6 +82,42 @@ async function loadEventGroups(guildId) {
         return { groups, error: null };
     } catch (e) {
         return { groups: [], error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
+    }
+}
+
+// Find the next few upcoming events that already have a Raid-Helper setup
+// (raidplan) built, annotated with whether their sheet was filled via the admin
+// tool. Events without a setup are skipped. `getSetup` is one HTTP call per
+// event, so `maxChecks` caps how deep we probe to keep the dashboard snappy.
+async function loadUpcomingSetups(guildId, limit = 3, maxChecks = 8) {
+    if (!guildId) return { events: [], error: null };
+    try {
+        const rh = new Raidhelper();
+        const events = await rh.getAllEvents(); // sorted ascending by startTime
+        const catMap = discord.getChannelCategoryMap(guildId);
+        const inGuild = events.filter((ev) => catMap[ev.channelId]);
+        const out = [];
+        let checked = 0;
+        for (const ev of inGuild) {
+            if (out.length >= limit || checked >= maxChecks) break;
+            checked += 1;
+            const result = await rh.getSetup(ev.id);
+            if (!result || !result.setup || !result.setup.length) continue;
+            const meta = catMap[ev.channelId] || {};
+            out.push({
+                id: ev.id,
+                title: ev.title,
+                startTime: ev.startTime,
+                channelId: ev.channelId,
+                channelName: meta.name || "",
+                signupCount: (ev.signUps || []).filter((s) => s.specName !== "Absence").length,
+                playerCount: result.setup.filter((s) => s && s.name).length,
+                sheet: getEventSheet(ev.id),
+            });
+        }
+        return { events: out, error: null };
+    } catch (e) {
+        return { events: [], error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
     }
 }
 
@@ -645,6 +682,7 @@ async function handle(req, res) {
             }
             const client = new SheetsClient({ spreadsheetId: sheet.spreadsheetId, sheetName: sheet.sheetName, gid: sheet.gid });
             const summary = await fillSetupSheet(client, result.setup, { tab: sheet.sheetName || "Setup", tank3: (form.tank3 || "").trim() });
+            markEventSheetFilled(eventId, { sheetId: sheet.id, sheetName: sheet.name, playerCount: summary.playerCount });
             return redirect(res, `${back}&ok=${encodeURIComponent(`Raidsheet gefüllt: ${summary.playerCount} Spieler.`)}`);
         } catch (e) {
             console.error("raidsheet fill failed:", e.message);
@@ -763,9 +801,11 @@ async function handle(req, res) {
             categories: (cfg.categoryIds || []).length,
             adminRoles: (cfg.adminRoleIds || []).length,
         };
+        const upcoming = await loadUpcomingSetups(activeGuildFor(req), 3);
         return send(res, 200, renderDashboard(user, {
             stats,
             recentReports: reports.slice(0, 8),
+            upcoming,
             msg: flashFromQuery(url),
             nav: navFor(req),
         }));
