@@ -712,7 +712,7 @@ function renderRecruitment(user, opts = {}) {
     if (view === "applications") {
         content = `
       <h2>Bewerbungen</h2>
-      <p class="note">Bewerbungen aus den Threads im Bewerbungs-Channel — mit allen Details aus dem Bewerbungsformular, neueste zuerst.</p>
+      <p class="note">Bewerbungen aus den Threads im Bewerbungs-Channel — mit allen Details aus dem Bewerbungsformular. Es werden die letzten 10 Bewerbungen der vergangenen 6 Wochen angezeigt (neueste zuerst).</p>
       ${recruitmentApplications(opts)}`;
     } else if (view === "posts") {
         content = `
