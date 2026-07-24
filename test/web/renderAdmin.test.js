@@ -118,17 +118,73 @@ describe("web/renderAdmin", () => {
             const html = renderRecruitment(user, { templates: [], activeGuildId: "", csrf: "x", nav: nav() });
             expect(html).toContain("Wähle oben einen Server");
         });
+
+        it("renders an emoji picker with the server's custom emojis in the template form", () => {
+            const html = renderRecruitment(user, {
+                templates: [], activeGuildId: "g1", csrf: "x", nav: nav(),
+                emojis: [{ id: "1", name: "pepe", animated: false, code: "<:pepe:1>", url: "https://cdn/pepe.png" }],
+            });
+            expect(html).toContain("Emoji einfügen");
+            expect(html).toContain("data-code=\"&lt;:pepe:1&gt;\"");
+            expect(html).toContain("https://cdn/pepe.png");
+        });
+
+        it("omits the emoji picker when the server has no custom emojis", () => {
+            const html = renderRecruitment(user, {
+                templates: [], activeGuildId: "g1", csrf: "x", nav: nav(), emojis: [],
+            });
+            expect(html).not.toContain("Emoji einfügen");
+        });
+
+        it("renders the emoji picker on the post-edit form too", () => {
+            const html = renderRecruitment(user, {
+                editingPost: { id: "p1", channelName: "gen", content: "hi", title: "", body: "", buttonLabel: "" },
+                csrf: "x", nav: nav(),
+                emojis: [{ id: "1", name: "pepe", animated: false, code: "<:pepe:1>", url: "https://cdn/pepe.png" }],
+            });
+            expect(html).toContain("Emoji einfügen");
+            expect(html).toContain("data-code=\"&lt;:pepe:1&gt;\"");
+        });
     });
 
     describe("renderCla", () => {
-        it("renders the report form and lists recent reports", () => {
-            const html = renderCla(user, {
-                reports: [{ id: "r1", title: "Kara", zone: "Karazhan", generatedAt: 1000, playerCount: 25, issueCount: 3 }],
-                csrf: "x", nav: nav(),
-            });
+        const page = (over = {}) => ({
+            items: [{ id: "r1", title: "Kara", zone: "Karazhan", generatedAt: 1000, playerCount: 25, issueCount: 3, reportUrl: "https://classic.warcraftlogs.com/reports/abc" }],
+            sort: "date", dir: "desc", page: 1, totalPages: 1, total: 1, ...over,
+        });
+
+        it("renders the report form and the reports table", () => {
+            const html = renderCla(user, { reportPage: page(), csrf: "x", nav: nav() });
             expect(html).toContain("action=\"/admin/cla\"");
             expect(html).toContain("/r/r1");
             expect(html).toContain("Kara");
+        });
+
+        it("links each report to its WCL report", () => {
+            const html = renderCla(user, { reportPage: page(), csrf: "x", nav: nav() });
+            expect(html).toContain("https://classic.warcraftlogs.com/reports/abc");
+            expect(html).toContain("target=\"_blank\"");
+        });
+
+        it("renders sortable column headers with the active direction arrow", () => {
+            const html = renderCla(user, { reportPage: page(), csrf: "x", nav: nav() });
+            // active date column shows a descending arrow and links to toggle asc
+            expect(html).toContain("class=\"sort-link active\" href=\"/admin/cla?sort=date&dir=asc&page=1\"");
+            expect(html).toContain("Erstellt ▼");
+            // an inactive column links with its default direction
+            expect(html).toContain("/admin/cla?sort=title&dir=asc&page=1");
+        });
+
+        it("shows pager controls with prev disabled on the first page", () => {
+            const html = renderCla(user, { reportPage: page({ page: 1, totalPages: 3, total: 47 }), csrf: "x", nav: nav() });
+            expect(html).toContain("Seite 1 / 3 · 47 gesamt");
+            expect(html).toContain("pager-btn disabled"); // ‹ Zurück disabled
+            expect(html).toContain("/admin/cla?sort=date&dir=desc&page=2"); // Weiter →
+        });
+
+        it("shows an empty state when there are no reports", () => {
+            const html = renderCla(user, { reportPage: page({ items: [], total: 0 }), csrf: "x", nav: nav() });
+            expect(html).toContain("Noch keine Auswertungen");
         });
     });
 
