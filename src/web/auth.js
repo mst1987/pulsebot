@@ -150,7 +150,7 @@ async function resolveIsAdmin(userId) {
     if (logcheckAdminIds.includes(String(userId))) return true;
     // Role IDs are configured in the admin menu (data/settings/config.json),
     // with any .env ADMIN_ROLE_IDS merged in as an optional fallback.
-    const roleIds = [...new Set([...getConfig().adminRoleIds, ...envAdminRoleIds])];
+    const roleIds = [...new Set([...(getConfig().adminRoleIds || []), ...(envAdminRoleIds || [])])];
     if (!roleIds.length || !botClient || !guildId) return false;
     try {
         const guild = botClient.guilds.cache.get(guildId) || await botClient.guilds.fetch(guildId);
