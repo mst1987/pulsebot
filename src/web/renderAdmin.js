@@ -2,6 +2,7 @@
 // + esc/authBar/themeToggleBtn from render.js and adds the admin sidebar shell.
 
 const { layout, esc, authBar, themeToggleBtn } = require("./render");
+const { logPostedAt } = require("./reportList");
 const { formatTimestampToDateString } = require("../utils/date");
 
 // admin-specific styling, injected once per admin page (in addition to layout's base <style>)
@@ -139,6 +140,7 @@ const ADMIN_STYLE = `<style>
   .subnav-item.active { color:var(--accent); border-bottom-color:var(--accent); }
   .subnav-count { font-size:12px; font-weight:700; background:var(--panel2); color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:1px 8px; font-variant-numeric:tabular-nums; }
   .subnav-item.active .subnav-count { color:var(--accent); border-color:var(--accent-soft); }
+  .cat-badge { display:inline-block; font-size:12px; font-weight:600; background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent-soft); border-radius:999px; padding:2px 10px; white-space:nowrap; }
   /* dashboard */
   .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
   .tile { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:15px 16px; }
@@ -602,9 +604,10 @@ function logWclUrl(l) {
 }
 
 // A single row in the "detected logs" table (from the log channels). The date
-// column shows when the log was POSTED in the channel (postedAt), not detected.
+// column shows when the log was POSTED in the channel (derived from the Discord
+// message id / postedAt), not when the bot detected it.
 function logRow(l, csrfField) {
-    const posted = l.postedAt || l.detectedAt;
+    const posted = logPostedAt(l);
     const when = posted ? new Date(posted).toLocaleString("de-DE") : "";
     const name = l.title || l.reportId || "(unbekannt)";
     const wclUrl = logWclUrl(l);
@@ -626,9 +629,13 @@ function logRow(l, csrfField) {
              ${csrfField}<input type="hidden" name="logId" value="${esc(l.id)}">
              <button class="btn" type="submit">Auswerten</button>
            </form>`;
+    const category = l.categoryName
+        ? `<span class="cat-badge"${l.channelName ? ` title="#${esc(l.channelName)}"` : ""}>${esc(l.categoryName)}</span>`
+        : "<span class=\"sub\">—</span>";
     return `<tr>
       <td>${logCell}</td>
       <td class="small">${esc(l.reportId || "")}</td>
+      <td>${category}</td>
       <td>${src}</td>
       <td>${status}</td>
       <td class="small">${esc(when)}</td>
@@ -700,6 +707,7 @@ function renderCla(user, opts = {}) {
                      <thead><tr>
                        ${lh("title", "Log")}
                        <th>Report-ID</th>
+                       <th>Kategorie</th>
                        <th>Quelle</th>
                        ${lh("status", "Status")}
                        ${lh("date", "Gepostet")}

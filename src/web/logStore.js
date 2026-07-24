@@ -111,6 +111,23 @@ function markEvaluated(id, { reportRefId, reportUrl, title, zone } = {}) {
     return log;
 }
 
+/**
+ * Set a log's display title (the Warcraft-Logs report name), backfilled lazily
+ * when the CLA logs list is viewed. No-op for a blank title or unknown id.
+ * Returns the saved log, or null.
+ */
+function setLogTitle(id, title) {
+    const clean = String(title || "").trim();
+    if (!clean) return null;
+    const logs = readAll();
+    const log = logs.find((l) => l.id === id);
+    if (!log || log.title === clean) return log || null;
+    log.title = clean;
+    log.updatedAt = Date.now();
+    writeAll(logs);
+    return log;
+}
+
 /** Delete a tracked log by id. Returns true if one was removed. */
 function deleteLog(id) {
     const logs = readAll();
@@ -122,5 +139,5 @@ function deleteLog(id) {
 
 module.exports = {
     listLogs, getLog, getByReportId, saveLog, setButtonMessage,
-    markEvaluated, deleteLog, LOGS_FILE,
+    markEvaluated, setLogTitle, deleteLog, LOGS_FILE,
 };

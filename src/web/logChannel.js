@@ -7,6 +7,7 @@ const logStore = require("./logStore");
 const discord = require("./discord");
 const { extractWclLinks } = require("../utils/logcheck/logLinks");
 const { buildReport, ReportError } = require("../utils/logcheck/report");
+const WarcraftLogs = require("../classes/warcraftlogs");
 
 // In-process guard so a double click (or a click racing the web button) cannot
 // start two evaluations of the same log before the first marks it done.
@@ -154,4 +155,39 @@ async function scanLogChannels(guildId, { perChannel = 50 } = {}) {
     return count;
 }
 
-module.exports = { handleLogMessage, evaluateLog, scanLogChannels, messageText, isLogChannel };
+/**
+ * Backfill missing display titles for a set of logs from the Warcraft-Logs
+ * report name (report/fights → title). Mutates each log's `title` in place and
+ * persists it, so the CLA logs list shows the real log name instead of the raw
+ * report code. Best-effort: a missing API key or a failed/rate-limited request
+ * is ignored (the row keeps its code and is retried on the next view). Only the
+ * given logs (i.e. the current page) are fetched, in parallel. Returns how many
+ * titles were filled.
+ */
+async function backfillLogTitles(logs) {
+    const missing = (logs || []).filter((l) => l && !l.title && l.reportId);
+    if (!missing.length) return 0;
+    let wcl;
+    try {
+        wcl = new WarcraftLogs();
+    } catch {
+        return 0; // no WARCRAFTLOGS_API_KEY — skip silently
+    }
+    let filled = 0;
+    await Promise.all(missing.map(async (l) => {
+        try {
+            const data = await wcl.getFights(l.reportId);
+            const title = data && data.title ? String(data.title).trim() : "";
+            if (title) {
+                logStore.setLogTitle(l.id, title);
+                l.title = title; // reflect in the in-memory page items
+                filled += 1;
+            }
+        } catch {
+            // report deleted / rate-limited — leave the code, retry next time
+        }
+    }));
+    return filled;
+}
+
+module.exports = { handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles, messageText, isLogChannel };

@@ -2,7 +2,7 @@ const http = require("http");
 const crypto = require("crypto");
 const { webPort } = require("../config/variables");
 const { getReport, deleteReport, listReports } = require("./reportStore");
-const { prepareReportList, prepareLogList } = require("./reportList");
+const { prepareReportList, prepareLogList, annotateLogCategories } = require("./reportList");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
 const {
     renderDashboard, renderAdminDenied, renderRecruitment, renderCla,
@@ -19,7 +19,7 @@ const {
 } = require("./settingsStore");
 const { buildReport, ReportError } = require("../utils/logcheck/report");
 const { listLogs, deleteLog } = require("./logStore");
-const { evaluateLog, scanLogChannels } = require("./logChannel");
+const { evaluateLog, scanLogChannels, backfillLogTitles } = require("./logChannel");
 const { getEventSheet, markEventSheetFilled } = require("./eventSheetStore");
 const Raidhelper = require("../classes/raidhelper");
 const SheetsClient = require("../classes/sheets");
@@ -378,6 +378,13 @@ async function handle(req, res) {
             // Only the active view is paginated; the other tab is just a link.
             const reportPage = view === "reports" ? prepareReportList(reports, sortQuery) : null;
             const logPage = view === "logs" ? prepareLogList(logs, sortQuery) : null;
+            // Lazily fill in the real Warcraft-Logs names for the logs shown on
+            // this page (best-effort; safe no-op without an API key), and tag each
+            // with its Discord category so the list can show a category badge.
+            if (logPage) {
+                await backfillLogTitles(logPage.items);
+                annotateLogCategories(logPage.items, discord.getChannelCategoryMap(guildId));
+            }
             return send(res, 200, renderCla(user, {
                 view,
                 reportPage,

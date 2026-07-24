@@ -5,12 +5,16 @@ jest.mock("../../src/utils/logcheck/report.js", () => {
     class ReportError extends Error {}
     return { buildReport: jest.fn(), ReportError };
 });
+const mockGetFights = jest.fn();
+jest.mock("../../src/classes/warcraftlogs.js", () =>
+    jest.fn().mockImplementation(() => ({ getFights: mockGetFights })));
 
+const WarcraftLogs = require("../../src/classes/warcraftlogs.js");
 const { getConfig } = require("../../src/web/settingsStore.js");
 const logStore = require("../../src/web/logStore.js");
 const discord = require("../../src/web/discord.js");
 const { buildReport, ReportError } = require("../../src/utils/logcheck/report.js");
-const { handleLogMessage, evaluateLog, scanLogChannels, messageText } = require("../../src/web/logChannel.js");
+const { handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles, messageText } = require("../../src/web/logChannel.js");
 
 const CLIENT = { user: { id: "botself" } };
 
@@ -155,5 +159,53 @@ describe("web/logChannel — scanLogChannels", () => {
         const count = await scanLogChannels("g1");
         expect(count).toBe(1);
         expect(logStore.saveLog).toHaveBeenCalledWith(expect.objectContaining({ reportId: "RPT1", source: "scan", postedAt: 222000 }));
+    });
+});
+
+describe("web/logChannel — backfillLogTitles", () => {
+    const OLD_KEY = process.env.WARCRAFTLOGS_API_KEY;
+    beforeEach(() => {
+        process.env.WARCRAFTLOGS_API_KEY = "wcl-key";
+        mockGetFights.mockReset();
+        WarcraftLogs.mockImplementation(() => ({ getFights: mockGetFights }));
+    });
+    afterEach(() => {
+        if (OLD_KEY === undefined) delete process.env.WARCRAFTLOGS_API_KEY;
+        else process.env.WARCRAFTLOGS_API_KEY = OLD_KEY;
+    });
+
+    it("fills the WCL report name into logs missing a title and persists it", async () => {
+        mockGetFights.mockResolvedValue({ title: "  Karazhan 24/07 ", zoneName: "Karazhan" });
+        const logs = [
+            { id: "l1", reportId: "AAA" },
+            { id: "l2", reportId: "BBB", title: "Kept" }, // already has a title → skipped
+        ];
+        const filled = await backfillLogTitles(logs);
+        expect(filled).toBe(1);
+        expect(logs[0].title).toBe("Karazhan 24/07");           // mutated in place
+        expect(logStore.setLogTitle).toHaveBeenCalledWith("l1", "Karazhan 24/07");
+        expect(mockGetFights).toHaveBeenCalledTimes(1);          // only the untitled one
+        expect(logs[1].title).toBe("Kept");
+    });
+
+    it("is a no-op without any untitled logs", async () => {
+        expect(await backfillLogTitles([{ id: "x", reportId: "Y", title: "T" }])).toBe(0);
+        expect(mockGetFights).not.toHaveBeenCalled();
+    });
+
+    it("skips silently when the WCL API key is missing", async () => {
+        delete process.env.WARCRAFTLOGS_API_KEY;
+        WarcraftLogs.mockImplementationOnce(() => { throw new Error("WARCRAFTLOGS_API_KEY is not set"); });
+        expect(await backfillLogTitles([{ id: "l1", reportId: "AAA" }])).toBe(0);
+        expect(logStore.setLogTitle).not.toHaveBeenCalled();
+    });
+
+    it("tolerates a failed/empty WCL response (keeps the code, no crash)", async () => {
+        mockGetFights.mockRejectedValueOnce(new Error("404"));
+        mockGetFights.mockResolvedValueOnce({ title: "" });
+        const logs = [{ id: "l1", reportId: "AAA" }, { id: "l2", reportId: "BBB" }];
+        expect(await backfillLogTitles(logs)).toBe(0);
+        expect(logStore.setLogTitle).not.toHaveBeenCalled();
+        expect(logs[0].title).toBeUndefined();
     });
 });

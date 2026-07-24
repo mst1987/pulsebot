@@ -68,7 +68,23 @@ function prepareReportList(reports, query = {}, opts = {}) {
 }
 
 // ---- detected logs (sorted by CHANNEL POST time, not detection time) ----
-const logPostedAt = (l) => l.postedAt || l.detectedAt || 0;
+
+// Discord snowflake -> creation (post) timestamp in ms. The message id encodes
+// exactly when it was posted, so we can recover the channel-post time for EVERY
+// tracked log (old and new) without any API call or re-scan.
+const DISCORD_EPOCH = 1420070400000;
+function snowflakeTimestamp(id) {
+    if (!id || !/^\d+$/.test(String(id))) return 0;
+    try {
+        return Number(BigInt(id) >> 22n) + DISCORD_EPOCH;
+    } catch {
+        return 0;
+    }
+}
+
+// When the log was POSTED in the channel: prefer the stored postedAt, else derive
+// it from the Discord message id, else fall back to the detection time.
+const logPostedAt = (l) => l.postedAt || snowflakeTimestamp(l && l.messageId) || l.detectedAt || 0;
 const LOG_SORT_KEYS = {
     date: logPostedAt,
     title: (l) => String(l.title || l.reportId || "").toLowerCase(),
@@ -84,7 +100,26 @@ function prepareLogList(logs, query = {}, opts = {}) {
     });
 }
 
+/**
+ * Attach the Discord category (and channel name) to each log from a channel→
+ * category map (discord.getChannelCategoryMap), so the list can show a category
+ * badge — handy when logs come from several channels. Mutates the items in place
+ * (render-only, not persisted) and returns them.
+ */
+function annotateLogCategories(items, catMap) {
+    const map = catMap || {};
+    for (const l of items || []) {
+        const meta = l && map[l.channelId];
+        if (meta) {
+            l.categoryName = meta.categoryName || "";
+            l.channelName = meta.name || "";
+        }
+    }
+    return items;
+}
+
 module.exports = {
-    prepareReportList, prepareLogList, sortAndPaginate,
+    prepareReportList, prepareLogList, sortAndPaginate, annotateLogCategories,
     DEFAULT_PAGE_SIZE, REPORT_SORT_KEYS, LOG_SORT_KEYS,
+    logPostedAt, snowflakeTimestamp,
 };

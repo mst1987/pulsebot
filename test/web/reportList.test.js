@@ -1,4 +1,4 @@
-const { prepareReportList, prepareLogList, DEFAULT_PAGE_SIZE } = require("../../src/web/reportList.js");
+const { prepareReportList, prepareLogList, annotateLogCategories, DEFAULT_PAGE_SIZE, logPostedAt, snowflakeTimestamp } = require("../../src/web/reportList.js");
 
 // Build n reports with ascending generatedAt (id0 oldest … id{n-1} newest).
 function makeReports(n) {
@@ -96,6 +96,35 @@ describe("web/reportList prepareLogList", () => {
         expect(lp.items.map((l) => l.id)).toEqual(["b", "c", "a"]); // 300, 200, 100
     });
 
+    describe("snowflakeTimestamp / logPostedAt", () => {
+        it("decodes a Discord message id to its post timestamp (Discord epoch)", () => {
+            // id 0 -> exactly the Discord epoch (2015-01-01)
+            expect(snowflakeTimestamp("0")).toBe(1420070400000);
+            // (1 << 22) -> epoch + 1ms
+            expect(snowflakeTimestamp(String(4194304))).toBe(1420070400001);
+            expect(snowflakeTimestamp("not-a-number")).toBe(0);
+            expect(snowflakeTimestamp("")).toBe(0);
+            expect(snowflakeTimestamp(undefined)).toBe(0);
+        });
+
+        it("logPostedAt prefers postedAt, then the message-id snowflake, then detectedAt", () => {
+            const mid = String((123n << 22n));
+            expect(logPostedAt({ postedAt: 5, messageId: mid, detectedAt: 9 })).toBe(5);
+            expect(logPostedAt({ messageId: mid, detectedAt: 9 })).toBe(snowflakeTimestamp(mid));
+            expect(logPostedAt({ detectedAt: 9 })).toBe(9);
+            expect(logPostedAt({})).toBe(0);
+        });
+
+        it("sorts logs without postedAt by their message-id post time", () => {
+            const noPosted = [
+                { id: "old", messageId: String(100n << 22n), detectedAt: 5 },
+                { id: "new", messageId: String(900n << 22n), detectedAt: 5 },
+                { id: "mid", messageId: String(500n << 22n), detectedAt: 5 },
+            ];
+            expect(prepareLogList(noPosted).items.map((l) => l.id)).toEqual(["new", "mid", "old"]);
+        });
+    });
+
     it("falls back to detectedAt when postedAt is absent", () => {
         const noPosted = [
             { id: "x", detectedAt: 10 },
@@ -116,5 +145,26 @@ describe("web/reportList prepareLogList", () => {
         const lp = prepareLogList(many, { page: "2" });
         expect(lp.totalPages).toBe(2);
         expect(lp.items).toHaveLength(5);
+    });
+
+    describe("annotateLogCategories", () => {
+        it("tags each log with its Discord category + channel name from the map", () => {
+            const items = [
+                { id: "a", channelId: "c1" },
+                { id: "b", channelId: "c2" }, // not in the map → untouched
+            ];
+            annotateLogCategories(items, {
+                c1: { name: "kara-logs", categoryId: "cat1", categoryName: "Karazhan" },
+            });
+            expect(items[0]).toMatchObject({ categoryName: "Karazhan", channelName: "kara-logs" });
+            expect(items[1].categoryName).toBeUndefined();
+        });
+
+        it("tolerates a missing map / items", () => {
+            expect(() => annotateLogCategories(undefined, undefined)).not.toThrow();
+            const items = [{ id: "a", channelId: "c1" }];
+            annotateLogCategories(items, null);
+            expect(items[0].categoryName).toBeUndefined();
+        });
     });
 });
