@@ -3,6 +3,7 @@ const {
     parseDMYDateString,
     toTimestamp,
     formatTimestampToDateString,
+    toRaidHelperDate,
 } = require("../../src/utils/date.js");
 
 describe("utils/date", () => {
@@ -47,6 +48,23 @@ describe("utils/date", () => {
             // 2024-07-24T18:30:00Z == 20:30 CEST
             const formatted = formatTimestampToDateString(Date.UTC(2024, 6, 24, 18, 30));
             expect(formatted).toBe("24.07.2024 - 20:30");
+        });
+    });
+
+    describe("toRaidHelperDate", () => {
+        it("converts an ISO date (from <input type=date>) to dd-MM-yyyy", () => {
+            expect(toRaidHelperDate("2026-07-24")).toBe("24-07-2026");
+        });
+
+        it("passes an already dd-MM-yyyy value through unchanged", () => {
+            expect(toRaidHelperDate("24-07-2026")).toBe("24-07-2026");
+        });
+
+        it("returns '' for empty or unrecognised input", () => {
+            expect(toRaidHelperDate("")).toBe("");
+            expect(toRaidHelperDate(null)).toBe("");
+            expect(toRaidHelperDate("not-a-date")).toBe("");
+            expect(toRaidHelperDate("2026/07/24")).toBe("");
         });
     });
 });

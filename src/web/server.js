@@ -24,6 +24,7 @@ const SheetsClient = require("../classes/sheets");
 const { fillSetupSheet } = require("../utils/fillSetup");
 const { matchRaidsheet } = require("../utils/raidsheets");
 const { buildSetupView } = require("../utils/setupView");
+const { toRaidHelperDate } = require("../utils/date");
 const discord = require("./discord");
 const auth = require("./auth");
 
@@ -70,6 +71,8 @@ async function loadEventGroups(guildId) {
                 leaderId: ev.leaderId,
                 channelId: ev.channelId,
                 channelName: meta.name,
+                templateId: (ev.templateId !== null && ev.templateId !== undefined) ? String(ev.templateId) : "",
+                description: ev.description || "",
                 signupCount: (ev.signUps || []).filter((s) => s.specName !== "Absence").length,
             });
         }
@@ -403,11 +406,20 @@ async function handle(req, res) {
         if (req.method === "GET") {
             const user = requireAdmin(req, res);
             if (!user) return;
+            const guildId = activeGuildFor(req);
+            // Existing events feed the "reuse an event for a new date" picker.
+            // Best-effort: an API error just leaves the picker empty.
+            const { groups } = await loadEventGroups(guildId);
+            const reusableEvents = groups.flatMap((g) => g.events).map((ev) => ({
+                id: ev.id, title: ev.title, templateId: ev.templateId,
+                description: ev.description, channelId: ev.channelId, channelName: ev.channelName,
+            }));
             return send(res, 200, renderRaidCreate(user, {
                 defaults: getConfig().raidDefaults,
                 leaderId: user.id,
-                channels: discord.listTextChannels(activeGuildFor(req)),
+                channels: discord.listTextChannels(guildId),
                 templates: listRaidTemplates(),
+                reusableEvents,
                 csrf: auth.csrfToken(req),
                 msg: flashFromQuery(url),
                 nav: navFor(req),
@@ -418,13 +430,26 @@ async function handle(req, res) {
             if (!user) return;
             const form = await readFormBody(req);
             if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/raids/new?msg=csrf");
+            const date = toRaidHelperDate(form.date);
+            if (!date) return redirect(res, `/admin/raids/new?err=${encodeURIComponent("Ungültiges Datum.")}`);
             try {
                 const rh = new Raidhelper();
+                let channelId = (form.channelId || "").trim();
+                const sourceEventId = (form.sourceEventId || "").trim();
+                // Reuse an existing event for a new date: clone its channel (name
+                // taken over and edited by the admin), then post the new event there.
+                if (sourceEventId) {
+                    const { groups } = await loadEventGroups(activeGuildFor(req));
+                    const source = groups.flatMap((g) => g.events).find((ev) => ev.id === sourceEventId);
+                    if (!source) return redirect(res, `/admin/raids/new?err=${encodeURIComponent("Quell-Event nicht gefunden.")}`);
+                    const cloned = await discord.duplicateChannel(source.channelId, (form.channelName || "").trim());
+                    channelId = cloned.id;
+                }
                 const result = await rh.createEvent({
-                    channelId: (form.channelId || "").trim(),
+                    channelId,
                     leaderId: (form.leaderId || "").trim(),
                     templateId: (form.templateId || "").trim(),
-                    date: (form.date || "").trim(),
+                    date,
                     time: (form.time || "").trim(),
                     title: (form.title || "").trim(),
                     description: form.description || "",

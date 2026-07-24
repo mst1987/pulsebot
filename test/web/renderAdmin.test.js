@@ -190,6 +190,46 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("action=\"/admin/raid-templates\"");
             expect(html).toContain("Aus Raid-Helper laden");
         });
+
+        it("uses a native datepicker for the date field", () => {
+            const html = renderRaidCreate(user, {
+                defaults: { templateId: "", channelId: "" }, templates: [], leaderId: "1", channels: [], csrf: "x", nav: nav(),
+            });
+            expect(html).toContain("<input type=\"date\" name=\"date\"");
+            expect(html).toContain("<input type=\"time\" name=\"time\"");
+        });
+
+        it("renders the reuse-event picker with prefill data and a channel-name field", () => {
+            const html = renderRaidCreate(user, {
+                defaults: { templateId: "", channelId: "" }, templates: [], leaderId: "1", channels: [], csrf: "x", nav: nav(),
+                reusableEvents: [
+                    { id: "ev1", title: "GDKP Kara", templateId: "3", description: "hi", channelId: "c1", channelName: "gdkp-kara" },
+                ],
+            });
+            expect(html).toContain("name=\"sourceEventId\"");
+            expect(html).toContain("data-channel=\"gdkp-kara\"");
+            expect(html).toContain("data-template=\"3\"");
+            expect(html).toContain("name=\"channelName\"");
+        });
+
+        it("omits the reuse picker when there are no existing events", () => {
+            const html = renderRaidCreate(user, {
+                defaults: { templateId: "", channelId: "" }, templates: [], leaderId: "1", channels: [], csrf: "x", nav: nav(),
+                reusableEvents: [],
+            });
+            expect(html).not.toContain("name=\"sourceEventId\"");
+        });
+
+        it("escapes malicious event titles in the picker options", () => {
+            const html = renderRaidCreate(user, {
+                defaults: { templateId: "", channelId: "" }, templates: [], leaderId: "1", channels: [], csrf: "x", nav: nav(),
+                reusableEvents: [
+                    { id: "ev1", title: "<b>x</b>", templateId: "", description: "", channelId: "c1", channelName: "chan" },
+                ],
+            });
+            expect(html).toContain("&lt;b&gt;x&lt;/b&gt;");
+            expect(html).not.toContain("data-title=\"<b>x</b>\"");
+        });
     });
 
     describe("renderEventDetail", () => {
