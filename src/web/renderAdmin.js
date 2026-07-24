@@ -1102,22 +1102,22 @@ function renderEventDetail(user, opts = {}) {
           <input type="text" name="tank3" placeholder="Name des 3. Tanks">
           <div class="hint">Wird manuell in die Tank-Zeile eingetragen.</div>
         </div>`;
-        // Link to the raid tab already created for this event (if any), with its
+        // Link to the copy already created for this event (if any), with its
         // scheduled deletion date.
         const es = opts.eventSheet;
         const existingSheet = es && es.url
             ? `<div class="sheetcard">
-          <div><strong>Raid-Tab:</strong> <a class="mlink" href="${esc(es.url)}" target="_blank" rel="noopener">${esc(ev.title || "Tab öffnen")}</a></div>
-          <div class="hint">${es.deleteAfter ? `Wird am ${esc(formatTimestampToDateString(es.deleteAfter).split(" - ")[0].trim())} automatisch gelöscht.` : "Tab ist angelegt."} Erneutes Füllen ersetzt diesen Tab.</div>
+          <div><strong>Gefülltes Sheet:</strong> <a class="mlink" href="${esc(es.url)}" target="_blank" rel="noopener">${esc(es.eventTitle || "Sheet öffnen")}</a></div>
+          <div class="hint">${es.deleteAfter ? `Wird am ${esc(formatTimestampToDateString(es.deleteAfter).split(" - ")[0].trim())} automatisch gelöscht.` : "Kopie ist angelegt."} Erneutes Füllen ersetzt diese Kopie.</div>
         </div>`
             : "";
         fillSection = existingSheet + `
-      <form class="card-form" method="POST" action="/admin/raids/fill" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Erstelle Tab …'">
+      <form class="card-form" method="POST" action="/admin/raids/fill" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Erstelle Sheet …'">
         ${csrfField}
         <input type="hidden" name="event" value="${esc(ev.id)}">
-        <div class="field"><label>Vorlage-Sheet</label><select name="sheetId" required>${sheetOptions}</select><div class="hint">${matchHint}</div></div>
+        <div class="field"><label>Vorlage (Ausgangssheet)</label><select name="sheetId" required>${sheetOptions}</select><div class="hint">${matchHint}</div></div>
         ${tank3Field}
-        <div class="row-actions"><button class="btn" type="submit">Neuen Raid-Tab erstellen &amp; füllen</button></div>
+        <div class="row-actions"><button class="btn" type="submit">Neues Sheet erstellen &amp; füllen</button></div>
       </form>`;
     }
 
@@ -1131,7 +1131,7 @@ function renderEventDetail(user, opts = {}) {
       <p class="note">Postet eine Aufruf-Nachricht in den Event-Channel und pingt die gewählten Rollen.</p>
       ${notifySection}
       <h2>Raidsheet füllen</h2>
-      <p class="note">Legt im Vorlage-Sheet einen eigenen Tab für diesen Raid an (Kopie des Setup-Tabs) und trägt das Raid-Helper-Setup dort ein. Der Tab wird 3 Tage nach dem Raid automatisch gelöscht; die Vorlage bleibt unangetastet.</p>
+      <p class="note">Legt für diesen Raid eine eigene Kopie der Vorlage an, überträgt das Raid-Helper-Setup hinein und teilt sie per Link. Die Kopie wird 3 Tage nach dem Raid automatisch gelöscht; die Vorlage bleibt unangetastet.</p>
       ${fillSection}`;
     return adminLayout("Event-Details — Pulsebot Admin", "raids", user, body, opts.msg, opts.nav);
 }

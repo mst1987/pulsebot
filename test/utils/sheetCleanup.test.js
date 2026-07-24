@@ -1,65 +1,56 @@
 const mockListEventSheets = jest.fn();
 const mockDeleteEventSheet = jest.fn();
-const mockDeleteTab = jest.fn().mockResolvedValue({});
+const mockDeleteFile = jest.fn().mockResolvedValue({});
 
 jest.mock("../../src/web/eventSheetStore", () => ({
     listEventSheets: mockListEventSheets,
     deleteEventSheet: mockDeleteEventSheet,
 }));
-// classes/sheets is required by sheetCleanup for its default client factory; the
-// tests inject their own factory, so a light stub is enough.
-jest.mock("../../src/classes/sheets", () => jest.fn());
+jest.mock("../../src/classes/drive", () =>
+    jest.fn().mockImplementation(() => ({ deleteFile: mockDeleteFile })));
 
 const { sweepDueSheets, startSheetCleanup } = require("../../src/utils/sheetCleanup.js");
 
 describe("utils/sheetCleanup", () => {
     const NOW = 1_000_000_000_000;
-    // factory that records which spreadsheet a client was made for
-    const makeClient = (spreadsheetId) => ({ spreadsheetId, deleteTab: (gid) => mockDeleteTab(spreadsheetId, gid) });
+    let drive;
 
     beforeEach(() => {
         jest.clearAllMocks();
-        mockDeleteTab.mockResolvedValue({});
+        mockDeleteFile.mockResolvedValue({});
+        drive = { deleteFile: mockDeleteFile };
     });
 
-    it("deletes only tabs whose deleteAfter is due", async () => {
+    it("deletes only copies whose deleteAfter is due", async () => {
         mockListEventSheets.mockReturnValue([
-            { eventId: "a", spreadsheetId: "master", sheetGid: 11, deleteAfter: NOW - 1 },   // due
-            { eventId: "b", spreadsheetId: "master", sheetGid: 22, deleteAfter: NOW + 1000 }, // future
-            { eventId: "c", spreadsheetId: "master", sheetGid: 33, deleteAfter: NOW },        // due (==now)
+            { eventId: "a", spreadsheetId: "sheet-a", deleteAfter: NOW - 1 },   // due
+            { eventId: "b", spreadsheetId: "sheet-b", deleteAfter: NOW + 1000 }, // future
+            { eventId: "c", spreadsheetId: "sheet-c", deleteAfter: NOW },        // due (==now)
         ]);
-        const deleted = await sweepDueSheets(NOW, makeClient);
+        const deleted = await sweepDueSheets(NOW, drive);
         expect(deleted).toBe(2);
-        expect(mockDeleteTab).toHaveBeenCalledWith("master", 11);
-        expect(mockDeleteTab).toHaveBeenCalledWith("master", 33);
-        expect(mockDeleteTab).not.toHaveBeenCalledWith("master", 22);
+        expect(mockDeleteFile).toHaveBeenCalledWith("sheet-a");
+        expect(mockDeleteFile).toHaveBeenCalledWith("sheet-c");
+        expect(mockDeleteFile).not.toHaveBeenCalledWith("sheet-b");
         expect(mockDeleteEventSheet).toHaveBeenCalledWith("a");
         expect(mockDeleteEventSheet).toHaveBeenCalledWith("c");
         expect(mockDeleteEventSheet).not.toHaveBeenCalledWith("b");
     });
 
-    it("handles a gid of 0 (a valid tab id) as due", async () => {
+    it("skips records without a spreadsheetId or deleteAfter", async () => {
         mockListEventSheets.mockReturnValue([
-            { eventId: "a", spreadsheetId: "master", sheetGid: 0, deleteAfter: NOW - 1 },
+            { eventId: "x", spreadsheetId: "", deleteAfter: NOW - 1 },
+            { eventId: "y", spreadsheetId: "sheet-y", deleteAfter: 0 },
         ]);
-        expect(await sweepDueSheets(NOW, makeClient)).toBe(1);
-        expect(mockDeleteTab).toHaveBeenCalledWith("master", 0);
+        expect(await sweepDueSheets(NOW, drive)).toBe(0);
+        expect(mockDeleteFile).not.toHaveBeenCalled();
     });
 
-    it("skips records without a spreadsheetId, gid, or deleteAfter", async () => {
-        mockListEventSheets.mockReturnValue([
-            { eventId: "x", spreadsheetId: "", sheetGid: 11, deleteAfter: NOW - 1 },
-            { eventId: "y", spreadsheetId: "master", sheetGid: null, deleteAfter: NOW - 1 },
-            { eventId: "z", spreadsheetId: "master", sheetGid: 11, deleteAfter: 0 },
-        ]);
-        expect(await sweepDueSheets(NOW, makeClient)).toBe(0);
-        expect(mockDeleteTab).not.toHaveBeenCalled();
-    });
-
-    it("keeps the record when the tab delete fails (retried next sweep)", async () => {
-        mockListEventSheets.mockReturnValue([{ eventId: "a", spreadsheetId: "master", sheetGid: 11, deleteAfter: NOW - 1 }]);
-        mockDeleteTab.mockRejectedValueOnce(new Error("boom"));
-        expect(await sweepDueSheets(NOW, makeClient)).toBe(0);
+    it("keeps the record when the Drive delete fails (retried next sweep)", async () => {
+        mockListEventSheets.mockReturnValue([{ eventId: "a", spreadsheetId: "sheet-a", deleteAfter: NOW - 1 }]);
+        mockDeleteFile.mockRejectedValueOnce(new Error("boom"));
+        const deleted = await sweepDueSheets(NOW, drive);
+        expect(deleted).toBe(0);
         expect(mockDeleteEventSheet).not.toHaveBeenCalled();
     });
 

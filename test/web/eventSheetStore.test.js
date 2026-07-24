@@ -82,22 +82,22 @@ describe("web/eventSheetStore", () => {
             expect(getEventSheet("evt2").sheetId).toBe("s2");
         });
 
-        it("stores the per-raid tab details (master sheet, tab gid, link, deletion time)", () => {
+        it("stores the per-raid copy details (Drive file, link, deletion time)", () => {
             const saved = markEventSheetFilled("evt1", {
-                spreadsheetId: "master-1", sheetGid: 555,
-                url: "https://docs.google.com/spreadsheets/d/master-1/edit#gid=555", deleteAfter: 999,
+                spreadsheetId: "copy-1", url: "https://docs.google.com/spreadsheets/d/copy-1/edit",
+                sourceSheetId: "src-1", deleteAfter: 999,
             });
             expect(saved).toMatchObject({
-                spreadsheetId: "master-1", sheetGid: 555,
-                url: "https://docs.google.com/spreadsheets/d/master-1/edit#gid=555", deleteAfter: 999,
+                spreadsheetId: "copy-1", url: "https://docs.google.com/spreadsheets/d/copy-1/edit",
+                sourceSheetId: "src-1", deleteAfter: 999,
             });
         });
 
-        it("preserves tab details when a later fill only refreshes the player count", () => {
-            markEventSheetFilled("evt1", { spreadsheetId: "master-1", sheetGid: 555, url: "u", deleteAfter: 999 });
+        it("preserves copy details when a later fill only refreshes the player count", () => {
+            markEventSheetFilled("evt1", { spreadsheetId: "copy-1", url: "u", deleteAfter: 999 });
             const second = markEventSheetFilled("evt1", { sheetId: "tier45", playerCount: 25 });
-            // second call keeps the tab fields from the first
-            expect(second).toMatchObject({ spreadsheetId: "master-1", sheetGid: 555, url: "u", deleteAfter: 999, playerCount: 25 });
+            // second call keeps the copy fields from the first
+            expect(second).toMatchObject({ spreadsheetId: "copy-1", url: "u", deleteAfter: 999, playerCount: 25 });
         });
     });
 

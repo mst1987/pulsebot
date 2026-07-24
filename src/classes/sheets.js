@@ -27,41 +27,6 @@ class SheetsClient {
         return this._sheetsPromise;
     }
 
-    // Duplicate a tab within the SAME spreadsheet (no new Drive file, so this
-    // works for a service account that has no storage quota of its own). Returns
-    // { sheetId, title } of the new tab. On a name collision a numeric suffix is
-    // appended. sourceGid defaults to this client's configured tab.
-    async duplicateTab(newTitle, sourceGid = this.sheetId) {
-        const sheets = await this._getSheets();
-        const base = String(newTitle || "Raid").slice(0, 90);
-        for (let attempt = 0; attempt < 6; attempt++) {
-            const title = attempt === 0 ? base : `${base} (${attempt + 1})`;
-            try {
-                const res = await sheets.spreadsheets.batchUpdate({
-                    spreadsheetId: this.spreadsheetId,
-                    requestBody: { requests: [{ duplicateSheet: { sourceSheetId: Number(sourceGid), newSheetName: title } }] },
-                });
-                const props = res.data.replies[0].duplicateSheet.properties;
-                return { sheetId: props.sheetId, title: props.title };
-            } catch (e) {
-                const msg = String(e.message || "");
-                // Retry only when the failure is a duplicate tab name.
-                if (!/already exists|bereits/i.test(msg) || attempt === 5) throw e;
-            }
-        }
-        throw new Error("Konnte keinen eindeutigen Tab-Namen finden.");
-    }
-
-    // Delete a tab by its sheetId (gid). Callers must only pass gids of tabs we
-    // created — never the source template tab.
-    async deleteTab(sheetGid) {
-        const sheets = await this._getSheets();
-        await sheets.spreadsheets.batchUpdate({
-            spreadsheetId: this.spreadsheetId,
-            requestBody: { requests: [{ deleteSheet: { sheetId: Number(sheetGid) } }] },
-        });
-    }
-
     async batchWrite(data) {
         const sheets = await this._getSheets();
         await sheets.spreadsheets.values.batchUpdate({
@@ -79,19 +44,17 @@ class SheetsClient {
     }
 
     // playerColors: [{ name: "Brandowl", color: { red, green, blue } }]
-    // Clears conditional format rules, then adds one rule per player covering
-    // A1:Z200. When `onlyTitle` is given only that tab is touched (so per-raid
-    // tabs don't clobber each other's colours); otherwise every tab is updated.
+    // Clears all conditional format rules across every tab, then adds one rule
+    // per player on every tab covering A1:Z200.
     // All per-tab batchUpdates run in parallel; protected tabs are silently skipped.
-    async applyConditionalFormatting(playerColors, onlyTitle) {
+    async applyConditionalFormatting(playerColors) {
         const sheets = await this._getSheets();
 
         const spreadsheet = await sheets.spreadsheets.get({
             spreadsheetId: this.spreadsheetId,
-            fields: "sheets(properties(sheetId,title),conditionalFormats)",
+            fields: "sheets(properties.sheetId,conditionalFormats)",
         });
-        let allSheets = spreadsheet.data.sheets || [];
-        if (onlyTitle) allSheets = allSheets.filter((s) => s.properties.title === onlyTitle);
+        const allSheets = spreadsheet.data.sheets || [];
 
         const updateTab = async (sheet) => {
             const sheetId = sheet.properties.sheetId;
