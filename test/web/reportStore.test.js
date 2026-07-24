@@ -139,6 +139,19 @@ describe("web/reportStore", () => {
             expect(newer).toMatchObject({ playerCount: 1, issueCount: 0 });
         });
 
+        it("exposes the WCL report code + url, deriving the url from the code when absent", () => {
+            const withUrl = saveReport({ title: "A", reportId: "abc", reportUrl: "https://x/y", players: [] });
+            const codeOnly = saveReport({ title: "B", reportId: "def", players: [] });
+            const neither = saveReport({ title: "C", players: [] });
+            const byId = Object.fromEntries(listReports().map((r) => [r.id, r]));
+            expect(byId[withUrl]).toMatchObject({ reportId: "abc", reportUrl: "https://x/y" });
+            expect(byId[codeOnly]).toMatchObject({
+                reportId: "def",
+                reportUrl: "https://classic.warcraftlogs.com/reports/def",
+            });
+            expect(byId[neither]).toMatchObject({ reportId: "", reportUrl: "" });
+        });
+
         it("skips unreadable files", () => {
             saveReport({ title: "Good", players: [] });
             fs.__store.set(path.join(REPORTS_DIR, "corrupt99.json"), "{broken");

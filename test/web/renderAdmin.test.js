@@ -118,17 +118,73 @@ describe("web/renderAdmin", () => {
             const html = renderRecruitment(user, { templates: [], activeGuildId: "", csrf: "x", nav: nav() });
             expect(html).toContain("Wähle oben einen Server");
         });
+
+        it("renders an emoji picker with the server's custom emojis in the template form", () => {
+            const html = renderRecruitment(user, {
+                templates: [], activeGuildId: "g1", csrf: "x", nav: nav(),
+                emojis: [{ id: "1", name: "pepe", animated: false, code: "<:pepe:1>", url: "https://cdn/pepe.png" }],
+            });
+            expect(html).toContain("Emoji einfügen");
+            expect(html).toContain("data-code=\"&lt;:pepe:1&gt;\"");
+            expect(html).toContain("https://cdn/pepe.png");
+        });
+
+        it("omits the emoji picker when the server has no custom emojis", () => {
+            const html = renderRecruitment(user, {
+                templates: [], activeGuildId: "g1", csrf: "x", nav: nav(), emojis: [],
+            });
+            expect(html).not.toContain("Emoji einfügen");
+        });
+
+        it("renders the emoji picker on the post-edit form too", () => {
+            const html = renderRecruitment(user, {
+                editingPost: { id: "p1", channelName: "gen", content: "hi", title: "", body: "", buttonLabel: "" },
+                csrf: "x", nav: nav(),
+                emojis: [{ id: "1", name: "pepe", animated: false, code: "<:pepe:1>", url: "https://cdn/pepe.png" }],
+            });
+            expect(html).toContain("Emoji einfügen");
+            expect(html).toContain("data-code=\"&lt;:pepe:1&gt;\"");
+        });
     });
 
     describe("renderCla", () => {
-        it("renders the report form and lists recent reports", () => {
-            const html = renderCla(user, {
-                reports: [{ id: "r1", title: "Kara", zone: "Karazhan", generatedAt: 1000, playerCount: 25, issueCount: 3 }],
-                csrf: "x", nav: nav(),
-            });
+        const page = (over = {}) => ({
+            items: [{ id: "r1", title: "Kara", zone: "Karazhan", generatedAt: 1000, playerCount: 25, issueCount: 3, reportUrl: "https://classic.warcraftlogs.com/reports/abc" }],
+            sort: "date", dir: "desc", page: 1, totalPages: 1, total: 1, ...over,
+        });
+
+        it("renders the report form and the reports table", () => {
+            const html = renderCla(user, { reportPage: page(), csrf: "x", nav: nav() });
             expect(html).toContain("action=\"/admin/cla\"");
             expect(html).toContain("/r/r1");
             expect(html).toContain("Kara");
+        });
+
+        it("links each report to its WCL report", () => {
+            const html = renderCla(user, { reportPage: page(), csrf: "x", nav: nav() });
+            expect(html).toContain("https://classic.warcraftlogs.com/reports/abc");
+            expect(html).toContain("target=\"_blank\"");
+        });
+
+        it("renders sortable column headers with the active direction arrow", () => {
+            const html = renderCla(user, { reportPage: page(), csrf: "x", nav: nav() });
+            // active date column shows a descending arrow and links to toggle asc
+            expect(html).toContain("class=\"sort-link active\" href=\"/admin/cla?sort=date&dir=asc&page=1\"");
+            expect(html).toContain("Erstellt ▼");
+            // an inactive column links with its default direction
+            expect(html).toContain("/admin/cla?sort=title&dir=asc&page=1");
+        });
+
+        it("shows pager controls with prev disabled on the first page", () => {
+            const html = renderCla(user, { reportPage: page({ page: 1, totalPages: 3, total: 47 }), csrf: "x", nav: nav() });
+            expect(html).toContain("Seite 1 / 3 · 47 gesamt");
+            expect(html).toContain("pager-btn disabled"); // ‹ Zurück disabled
+            expect(html).toContain("/admin/cla?sort=date&dir=desc&page=2"); // Weiter →
+        });
+
+        it("shows an empty state when there are no reports", () => {
+            const html = renderCla(user, { reportPage: page({ items: [], total: 0 }), csrf: "x", nav: nav() });
+            expect(html).toContain("Noch keine Auswertungen");
         });
     });
 
@@ -261,31 +317,58 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("Keine Raidsheets konfiguriert");
         });
 
-        it("renders the setup grouped by role with class icons, colours and counts", () => {
+        it("renders the setup grouped into raid groups with class icons and colours", () => {
             const setup = {
                 total: 2,
-                counts: { tank: 1, healer: 1 },
+                roleCounts: { tank: 1, healer: 1 },
                 groups: [
-                    { role: "tank", label: "Tanks", players: [{ name: "Tankadin", specName: "Protection Pala", className: "Paladin", classColor: "#F58CBA", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/classicon_paladin.jpg", role: "tank" }] },
-                    { role: "healer", label: "Heiler", players: [{ name: "Healy", specName: "Holy Priest", className: "Priest", classColor: "#FFFFFF", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/classicon_priest.jpg", role: "healer" }] },
+                    { group: 1, label: "Gruppe 1", players: [{ name: "Tankadin", specName: "Protection Pala", className: "Paladin", classColor: "#F58CBA", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/classicon_paladin.jpg", role: "tank" }] },
+                    { group: 2, label: "Gruppe 2", players: [{ name: "Healy", specName: "Holy Priest", className: "Priest", classColor: "#FFFFFF", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/classicon_priest.jpg", role: "healer" }] },
                 ],
             };
             const html = renderEventDetail(user, { ...base, notifyTemplates: [], roles: [], raidsheets: [], setup });
             expect(html).toContain("<h2>Setup</h2>");
             expect(html).toContain("Tankadin");
-            expect(html).toContain("Protection Pala");
             expect(html).toContain("classicon_paladin.jpg");
             expect(html).toContain("border-left-color:#F58CBA");
-            // role headers + summary counts
-            expect(html).toContain("Tanks · 1");
-            expect(html).toContain("Heiler");
-            expect(html).toContain(">2</b> gesamt");
+            // spec no longer shown as text, but kept as a hover title
+            expect(html).toContain("title=\"Protection Pala\"");
+            // raid-group headers + summary counts
+            expect(html).toContain("Gruppe 1");
+            expect(html).toContain("Gruppe 2");
+            expect(html).toContain(">2</b> Raider");
+            expect(html).toContain(">2</b> Gruppen");
+        });
+
+        it("offers tank-capable raiders as a Tank-3 dropdown on the fill form", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                raidsheets: [{ id: "t45", name: "Tier 4/5" }],
+                tankCandidates: [
+                    { name: "Warri", specName: "Fury Warrior", className: "Warrior" },
+                    { name: "Beary", specName: "Feral Tank", className: "Druid" },
+                ],
+            });
+            expect(html).toContain("name=\"tank3\"");
+            expect(html).toContain("<select name=\"tank3\">");
+            expect(html).toContain("Warri — Fury Warrior");
+            expect(html).toContain("Beary — Feral Tank");
+        });
+
+        it("falls back to a free-text Tank-3 field when no candidates exist", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                raidsheets: [{ id: "t45", name: "Tier 4/5" }],
+                tankCandidates: [],
+            });
+            expect(html).toContain("name=\"tank3\"");
+            expect(html).toContain("placeholder=\"Name des 3. Tanks\"");
         });
 
         it("escapes player names in the setup", () => {
             const setup = {
-                total: 1, counts: { dps: 1 },
-                groups: [{ role: "dps", label: "DPS", players: [{ name: "<b>x</b>", specName: "Fire Mage", className: "Mage", classColor: "#69CCF0", iconUrl: "", role: "dps" }] }],
+                total: 1, roleCounts: { dps: 1 },
+                groups: [{ group: 1, label: "Gruppe 1", players: [{ name: "<b>x</b>", specName: "Fire Mage", className: "Mage", classColor: "#69CCF0", iconUrl: "", role: "dps" }] }],
             };
             const html = renderEventDetail(user, { ...base, setup });
             expect(html).toContain("&lt;b&gt;x&lt;/b&gt;");
@@ -293,7 +376,7 @@ describe("web/renderAdmin", () => {
         });
 
         it("shows an empty state when the event has no setup", () => {
-            const html = renderEventDetail(user, { ...base, setup: { total: 0, counts: {}, groups: [] } });
+            const html = renderEventDetail(user, { ...base, setup: { total: 0, roleCounts: {}, groups: [] } });
             expect(html).toContain("noch kein Setup");
         });
 
