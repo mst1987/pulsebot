@@ -33,6 +33,9 @@ class Blizzard {
         this.locale = opts.locale || "en_GB";
         this._token = null;
         this._tokenExpiry = 0; // epoch ms
+        // Reason the last getEquipment() returned null, for UI diagnostics:
+        // { status, message } or { reason: "not_configured" | "no_name" }.
+        this.lastError = null;
     }
 
     /** Whether credentials are present. Without them getEquipment() short-circuits to null. */
@@ -79,7 +82,8 @@ class Blizzard {
      * classic-armory.org link. Character/realm names are lowercased for the API.
      */
     async getEquipment(characterName, opts = {}) {
-        if (!this.isConfigured() || !characterName) return null;
+        if (!this.isConfigured()) { this.lastError = { reason: "not_configured" }; return null; }
+        if (!characterName) { this.lastError = { reason: "no_name" }; return null; }
         const realm = (opts.realmSlug || this.realmSlug || "").toLowerCase();
         const region = (opts.region || this.region || "eu").toLowerCase();
         const namespace = opts.namespace || `profile-classic-${region}`;
@@ -92,6 +96,7 @@ class Blizzard {
                 headers: { Authorization: `Bearer ${token}` },
                 timeout: 12000,
             });
+            this.lastError = null;
             const items = (res.data && res.data.equipped_items) || [];
             return items.map((it) => ({
                 slot: (it.slot && it.slot.type) || "",
@@ -102,6 +107,7 @@ class Blizzard {
             }));
         } catch (err) {
             const status = err.response && err.response.status;
+            this.lastError = { status: status || null, message: (err.code || err.message || "unbekannt") };
             // 403/404 are the documented "no profile data for this character/realm"
             // responses — expected, not an outage. Log briefly and fall back.
             console.warn(
