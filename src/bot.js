@@ -35,8 +35,6 @@ function loadCommands(dir) {
 
 client.on("ready", () => {
     console.log(messages.common.pulseBotReady);
-    loadCommands(path.join(__dirname, "commands"));
-    startWebServer(client);
 });
 
 // Watch the configured log channels for Warcraft-Logs links and offer to evaluate them.
@@ -94,4 +92,31 @@ client.on("interactionCreate", async(interaction) => {
     }
 });
 
-client.login(process.env.DISCORDJS_BOT_TOKEN);
+// Boot the bot: load commands and bring the web server up FIRST, independent of
+// the Discord gateway, then log in best-effort. This way the admin menu / report
+// pages are always reachable locally (e.g. per-feature test instances) even when
+// the token is missing/invalid or Discord is unreachable — a failed login only
+// disables the Discord-backed features, it never takes the process down.
+function start() {
+    loadCommands(path.join(__dirname, "commands"));
+    startWebServer(client);
+
+    const token = process.env.DISCORDJS_BOT_TOKEN;
+    if (!token) {
+        console.warn("DISCORDJS_BOT_TOKEN not set — web UI only, Discord features disabled.");
+        return;
+    }
+    Promise.resolve()
+        .then(() => client.login(token))
+        .catch((err) => {
+            console.error("Discord login failed (web UI still running):", err.message);
+        });
+}
+
+// Auto-start only when run directly (`node src/bot.js` / `npm start`); requiring
+// the module (e.g. in tests) does not boot anything.
+if (require.main === module) {
+    start();
+}
+
+module.exports = { client, start, loadCommands };

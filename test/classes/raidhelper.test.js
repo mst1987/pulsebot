@@ -103,6 +103,20 @@ describe("classes/Raidhelper", () => {
                 message: "bad key",
             });
         });
+
+        it("rejects (does not throw) on a non-JSON error body", async () => {
+            respondWith("Endpoint GET /api/v4/servers/events not found");
+            const client = new Raidhelper();
+
+            await expect(client.getAllEvents()).rejects.toBeInstanceOf(Error);
+        });
+
+        it("rejects when the request emits an error", async () => {
+            respondWith(null, { error: new Error("socket hang up") });
+            const client = new Raidhelper();
+
+            await expect(client.getAllEvents()).rejects.toThrow("socket hang up");
+        });
     });
 
     describe("getTemplates", () => {
@@ -278,6 +292,13 @@ describe("classes/Raidhelper", () => {
             const result = await client.getSetup("raid-9");
 
             expect(result).toBeUndefined();
+        });
+
+        it("resolves undefined (does not throw) on a non-JSON body", async () => {
+            respondWith("Raidplan not found");
+            const client = new Raidhelper();
+
+            await expect(client.getSetup("raid-9")).resolves.toBeUndefined();
         });
     });
 
