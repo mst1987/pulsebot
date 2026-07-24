@@ -924,6 +924,29 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("flash-err");
             expect(html).toContain("nicht in der Blizzard-API gefunden (404)");
         });
+
+        it("shows the character summary + queried namespace for diagnostics", () => {
+            const html = renderHistoryChar(user, {
+                character: "Foo", csrf: "x", nav: nav(), items: [],
+                gearConfigured: true, gear: [{ slot: "HEAD", itemId: 1, name: "Hat" }],
+                gearNamespace: "profile-classic-eu",
+                charSummary: { level: 70, itemLevel: 115, realm: "Thunderstrike", className: "Shaman", lastLogin: 1784574268000 },
+            });
+            expect(html).toContain("Level 70");
+            expect(html).toContain("Thunderstrike");
+            expect(html).toContain("profile-classic-eu");
+            expect(html).toContain("zuletzt online");
+        });
+
+        it("warns when the summary level is not 70 (likely wrong namespace/char)", () => {
+            const html = renderHistoryChar(user, {
+                character: "Foo", csrf: "x", nav: nav(), items: [],
+                gearConfigured: true, gear: null, gearNamespace: "profile-classic-eu",
+                charSummary: { level: 80, realm: "Thunderstrike" },
+            });
+            expect(html).toContain("Level 80");
+            expect(html).toContain("wahrscheinlich der falsche Namespace");
+        });
     });
 
     describe("fillCharTemplate", () => {

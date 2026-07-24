@@ -1632,6 +1632,11 @@ function renderSettings(user, opts = {}) {
             <input type="text" name="blizzardRealmSlug" value="${esc(bz.realmSlug || "thunderstrike")}" placeholder="thunderstrike">
             <div class="hint">Kleingeschrieben, Bindestriche statt Leerzeichen (z.B. <code>thunderstrike</code>).</div>
           </div>
+          <div class="field">
+            <label>Profile-Namespace (optional)</label>
+            <input type="text" name="blizzardNamespace" value="${esc(bz.namespace || "")}" placeholder="leer = automatisch (profile-classic-${esc(bz.region || "eu")})">
+            <div class="hint">Nur setzen, wenn das Live-Gear falsch/veraltet ist (z.B. Naxxramas-Gear bei einem TBC-Char). Der korrekte Namespace für die Anniversary-Realms ist nicht offiziell dokumentiert — probiere <code>profile-classic-${esc(bz.region || "eu")}</code>, <code>profile-classicann-${esc(bz.region || "eu")}</code> oder <code>profile-classic1x-${esc(bz.region || "eu")}</code>. Die Char-Seite zeigt Level + „zuletzt online", damit du den richtigen erkennst.</div>
+          </div>
 
           <h2>Raid-Standardwerte</h2>
           <div class="field">
@@ -1950,10 +1955,31 @@ function renderHistoryChar(user, opts = {}) {
     } else {
         gearInner = "<p class=\"sub\">Für Live-Gear (Paperdoll) Battle.net-Zugang in den <a href=\"/admin/settings\">Einstellungen</a> hinterlegen. Ohne Zugang steht der Armory-Link oben zur Verfügung.</p>";
     }
+    // Diagnostics strip: character level / iLvl / last-login / realm + the queried
+    // namespace. Reveals a wrong-namespace hit (e.g. a level 60/80 result on a
+    // level-70 TBC char → wrong-era gear like old Naxxramas pieces).
+    const s = opts.charSummary;
+    const nsBadge = opts.gearNamespace ? `<span class="lbadge" title="abgefragter Profile-Namespace">${esc(opts.gearNamespace)}</span>` : "";
+    let summaryStrip = "";
+    if (s) {
+        const parts = [];
+        if (s.level) parts.push(`<strong>Level ${esc(String(s.level))}</strong>`);
+        if (s.className) parts.push(esc(s.className));
+        if (s.itemLevel) parts.push(`Ø iLvl ${esc(String(s.itemLevel))}`);
+        if (s.realm) parts.push(`Realm: ${esc(s.realm)}`);
+        if (s.lastLogin) parts.push(`zuletzt online ${esc(fmtMs(s.lastLogin, false))}`);
+        const wrongLevel = s.level && Number(s.level) !== 70;
+        const warn = wrongLevel
+            ? `<div class="flash flash-err" style="margin:10px 0 0">Die Blizzard-API meldet <strong>Level ${esc(String(s.level))}</strong> — wahrscheinlich der falsche Namespace/Char (nicht dein TBC-Char auf Level 70). Passe den Profile-Namespace in den <a href="/admin/settings">Einstellungen</a> an (z.B. profile-classicann-…).</div>`
+            : "";
+        summaryStrip = `<div class="sheetcard" style="margin-bottom:12px"><div class="small">${parts.join(" · ")}</div>${warn}</div>`;
+    }
     const gearTab = `
-      <div class="row-actions" style="margin-bottom:12px">
+      <div class="row-actions" style="margin-bottom:12px;align-items:center">
         ${opts.gearConfigured ? reloadBtn : "<a class=\"btn btn-ghost btn-sm\" href=\"/admin/settings\">Battle.net einrichten</a>"}
+        ${opts.gearConfigured ? nsBadge : ""}
       </div>
+      ${summaryStrip}
       ${gearInner}`;
 
     const lootTab = items.length

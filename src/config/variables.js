@@ -37,6 +37,10 @@ const blizzardClientId = process.env.BLIZZARD_CLIENT_ID || "";
 const blizzardClientSecret = process.env.BLIZZARD_CLIENT_SECRET || "";
 const blizzardRegion = process.env.BLIZZARD_REGION || "eu";
 const blizzardRealmSlug = process.env.BLIZZARD_REALM || "thunderstrike";
+// Profile namespace override. Empty = auto (profile-classic-<region>). The
+// correct namespace for the Anniversary realms is not officially documented, so
+// this is adjustable (e.g. profile-classicann-eu / profile-classic1x-eu).
+const blizzardNamespace = process.env.BLIZZARD_NAMESPACE || "";
 
 // Google Sheets (raid setup sheets). Used as the default "Tier 4/5" raidsheet
 // seeded into the settings store; further raidsheets are added in the admin menu.
@@ -95,6 +99,7 @@ module.exports = {
     blizzardClientSecret,
     blizzardRegion,
     blizzardRealmSlug,
+    blizzardNamespace,
     webPort,
     publicBaseUrl,
     discordClientId,
