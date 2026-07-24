@@ -24,7 +24,7 @@ const Raidhelper = require("../classes/raidhelper");
 const SheetsClient = require("../classes/sheets");
 const { fillSetupSheet } = require("../utils/fillSetup");
 const { matchRaidsheet } = require("../utils/raidsheets");
-const { buildSetupView } = require("../utils/setupView");
+const { buildSetupView, tankCandidates } = require("../utils/setupView");
 const discord = require("./discord");
 const auth = require("./auth");
 
@@ -551,10 +551,13 @@ async function handle(req, res) {
         // Pull the Raid-Helper raidplan setup so it can be shown inline (best-effort).
         let setup = null;
         let setupError = null;
+        let tankCands = [];
         try {
             const rh = new Raidhelper();
             const result = await rh.getSetup(eventId);
-            setup = buildSetupView(result && result.setup ? result.setup : []);
+            const slots = result && result.setup ? result.setup : [];
+            setup = buildSetupView(slots);
+            tankCands = tankCandidates(slots);
         } catch (e) {
             console.error("event setup load failed:", e.message);
             setupError = e.message || "Setup konnte nicht geladen werden.";
@@ -570,6 +573,7 @@ async function handle(req, res) {
             matchedSheetId: matched ? matched.id : "",
             setup,
             setupError,
+            tankCandidates: tankCands,
             csrf: auth.csrfToken(req),
             msg: flashFromQuery(url),
             nav: navFor(req),
