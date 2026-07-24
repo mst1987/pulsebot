@@ -43,17 +43,20 @@ Every change must ship with tests (see the Testing section). Do not merge a feat
 
 Every feature worktree runs its **own** bot/web instance on a **new, unused port**, so several changes can be reviewed side by side without clobbering each other. Never reuse the default port (`3005`) for a feature branch — pick a fresh one and keep it stable for that worktree.
 
-- **Port convention:** allocate a distinct `WEB_PORT` per worktree, counting up from `3010` (`3010`, `3011`, `3012`, …). Record the chosen port in the PR body so the reviewer knows where to look. If a port is already taken, take the next free one.
-- **Start it** (from the worktree root) with a non-production env, a unique port, and the OAuth-free dev login so `/admin` opens without a Discord callback:
+The web server boots **independently of the Discord gateway** (`src/bot.js` `start()`): it comes up first, then the bot logs in best-effort. A missing/invalid token or an offline Discord only disables the Discord-backed features (guild/channel/role lists, posting) — the admin menu and report pages stay reachable. So a local instance is useful even without a working token.
+
+- **Each worktree needs its own env file.** `.env` / `.env.dev` are git-ignored and are **not** copied into new worktrees, so `npm start` in a fresh worktree finds no config. Copy the dev env in and give it a unique port:
   ```bash
-  # bash
-  WEB_PORT=3010 DEV_AUTO_LOGIN=1 NODE_ENV=development npm start
+  cp ../eventhelper/.env.dev .env.dev        # from the main checkout
+  printf '\nWEB_PORT=3010\nDEV_AUTO_LOGIN=1\n' >> .env.dev
   ```
-  ```powershell
-  # PowerShell
-  $env:WEB_PORT=3010; $env:DEV_AUTO_LOGIN=1; $env:NODE_ENV="development"; npm start
+  `.env.dev` points at a **separate dev Discord application**, so running it never clashes with the production bot. `bot.js` prefers `.env.dev` over `.env` automatically.
+- **Port convention:** allocate a distinct `WEB_PORT` per worktree, counting up from `3010` (`3010`, `3011`, `3012`, …). Record the chosen port in the PR body so the reviewer knows where to look. If a port is already taken, take the next free one.
+- **Start it** from the worktree root — with `.env.dev` in place, just:
+  ```bash
+  npm start          # reads WEB_PORT + DEV_AUTO_LOGIN from .env.dev
   ```
-  The admin menu is then reachable at `http://localhost:3010/`. `DEV_AUTO_LOGIN=1` auto-logs-in the first admin and is hard-gated to non-production (`src/config/variables.js`), so it can never weaken auth on the live bot. A per-worktree `.env.dev` (with its own `WEB_PORT`) may hold these values instead of inline env vars.
+  or override inline (bash: `WEB_PORT=3010 DEV_AUTO_LOGIN=1 NODE_ENV=development npm start`; PowerShell: `$env:WEB_PORT=3010; $env:DEV_AUTO_LOGIN=1; npm start`). The admin menu is then at `http://localhost:3010/`. `DEV_AUTO_LOGIN=1` auto-logs-in the first admin and is hard-gated to non-production (`src/config/variables.js`), so it can never weaken auth on the live bot.
 - **After the change:** report the port/URL you used to verify it, and stop the instance when done (it is only for review, never left running in production).
 
 ## Architecture

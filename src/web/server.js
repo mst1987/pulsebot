@@ -23,6 +23,7 @@ const Raidhelper = require("../classes/raidhelper");
 const SheetsClient = require("../classes/sheets");
 const { fillSetupSheet } = require("../utils/fillSetup");
 const { matchRaidsheet } = require("../utils/raidsheets");
+const { buildSetupView } = require("../utils/setupView");
 const discord = require("./discord");
 const auth = require("./auth");
 
@@ -540,6 +541,17 @@ async function handle(req, res) {
         if (!found) return redirect(res, `/admin/raids?err=${encodeURIComponent("Event nicht gefunden.")}`);
         const raidsheets = listRaidsheets();
         const matched = matchRaidsheet(raidsheets, found.e.title);
+        // Pull the Raid-Helper raidplan setup so it can be shown inline (best-effort).
+        let setup = null;
+        let setupError = null;
+        try {
+            const rh = new Raidhelper();
+            const result = await rh.getSetup(eventId);
+            setup = buildSetupView(result && result.setup ? result.setup : []);
+        } catch (e) {
+            console.error("event setup load failed:", e.message);
+            setupError = e.message || "Setup konnte nicht geladen werden.";
+        }
         return send(res, 200, renderEventDetail(user, {
             event: found.e,
             channelName: found.e.channelName,
@@ -549,6 +561,8 @@ async function handle(req, res) {
             roles: discord.listRoles(guildId),
             raidsheets,
             matchedSheetId: matched ? matched.id : "",
+            setup,
+            setupError,
             csrf: auth.csrfToken(req),
             msg: flashFromQuery(url),
             nav: navFor(req),

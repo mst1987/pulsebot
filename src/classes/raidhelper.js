@@ -33,21 +33,26 @@ class Raidhelper {
           });
 
           resp.on("end", () => {
-            data = JSON.parse(data);
-            if (data.status === "failed") {
-              reject(data);
-            } else {
-              var filteredEvents = data["postedEvents"].sort(
-                (eventA, eventB) => eventA.startTime - eventB.startTime,
-              );
-
-              resolve(filteredEvents);
+            // Raid-Helper returns plain-text errors (e.g. "Endpoint ... not found")
+            // for bad server ids / API errors. Guard JSON.parse so a non-JSON body
+            // rejects cleanly instead of throwing out of this async callback and
+            // crashing the process.
+            let parsed;
+            try {
+              parsed = JSON.parse(data);
+            } catch {
+              return reject(new Error(`Unerwartete Antwort von Raid-Helper (HTTP ${resp.statusCode}): ${String(data).slice(0, 200)}`));
             }
+            if (!parsed || parsed.status === "failed" || !Array.isArray(parsed.postedEvents)) {
+              return reject(parsed && parsed.status === "failed" ? parsed : new Error("Raid-Helper lieferte keine Events."));
+            }
+            const filteredEvents = parsed.postedEvents.sort(
+              (eventA, eventB) => eventA.startTime - eventB.startTime,
+            );
+            resolve(filteredEvents);
           });
         })
-        .on("error", (err) => {
-          console.log(err.message);
-        });
+        .on("error", (err) => reject(err));
       request.end();
     });
   }
@@ -247,18 +252,21 @@ class Raidhelper {
 
           resp.on("end", () => {
             if (!data) {
-              resolve();
-            } else {
-              data = JSON.parse(data);
-              const meta = Object.fromEntries(Object.entries(data).filter(([k]) => k !== "slots"));
-              console.log("[getSetup] meta:", JSON.stringify(meta));
-              resolve({ raidid: raidid, setup: data.slots, startTime: data.startTime || data.date || data.start_time || null });
+              return resolve();
             }
+            // Guard JSON.parse: a raidplan that doesn't exist yet returns a
+            // non-JSON body. Resolve undefined (no setup) instead of throwing out
+            // of this async callback and crashing the process.
+            let parsed;
+            try {
+              parsed = JSON.parse(data);
+            } catch {
+              return resolve();
+            }
+            resolve({ raidid: raidid, setup: parsed.slots, startTime: parsed.startTime || parsed.date || parsed.start_time || null });
           });
         })
-        .on("error", (err) => {
-          console.log("Error: " + err.message);
-        });
+        .on("error", () => resolve());
 
       request.end();
     });
