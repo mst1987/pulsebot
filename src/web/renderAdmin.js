@@ -71,19 +71,20 @@ const ADMIN_STYLE = `<style>
   .rolegrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:6px; max-height:220px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:10px; background:var(--bg); }
   .rolebox { display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--text); font-weight:500; cursor:pointer; }
   .rolebox input { width:auto; }
-  /* setup (raidplan comp) */
+  /* setup (raidplan comp), grouped into raid groups 1-5 */
   .setup-summary { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
   .setup-count { background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:4px 12px; font-size:13px; color:var(--muted); }
   .setup-count b { color:var(--text); font-variant-numeric:tabular-nums; }
   .setup-count.setup-total { border-color:var(--accent-soft); background:var(--accent-soft); }
-  .setup-role { margin-bottom:16px; }
-  .setup-role-head { font-size:12.5px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); margin:0 0 8px; }
-  .setup-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px; }
-  .setup-player { display:flex; align-items:center; gap:9px; background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--line); border-radius:8px; padding:7px 11px; min-width:0; }
-  .setup-ico { width:24px; height:24px; border-radius:5px; flex:0 0 auto; }
+  .setup-groups { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
+  .setup-group { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  .setup-group-head { font-size:12.5px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); margin:0 0 8px; display:flex; justify-content:space-between; align-items:center; }
+  .setup-group-n { background:var(--panel); border:1px solid var(--line); border-radius:999px; padding:1px 8px; font-size:11px; color:var(--text); font-variant-numeric:tabular-nums; }
+  .setup-group-list { display:flex; flex-direction:column; gap:6px; }
+  .setup-player { display:flex; align-items:center; gap:9px; background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--line); border-radius:8px; padding:6px 10px; min-width:0; }
+  .setup-ico { width:22px; height:22px; border-radius:5px; flex:0 0 auto; }
   .setup-ico-blank { background:var(--panel2); border:1px solid var(--line); }
-  .setup-player .sp-name { font-weight:700; font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .setup-player .sp-spec { font-size:12px; color:var(--muted); margin-left:auto; white-space:nowrap; flex:0 0 auto; }
+  .setup-player .sp-name { font-weight:700; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
   .sheetcard { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px; }
   table.idx td.small { white-space:nowrap; color:var(--muted); font-size:12.5px; }
   /* dashboard */
@@ -857,27 +858,27 @@ function renderEventDetail(user, opts = {}) {
         </div>
       </div>`;
 
-    // --- Setup (Raidplan comp), grouped by role with class icons/colours ---
+    // --- Setup (Raidplan comp), grouped into raid groups 1-5 with class icons/colours ---
     let setupSection;
     if (opts.setupError) {
         setupSection = `<div class="flash flash-err">Setup konnte nicht geladen werden: ${esc(opts.setupError)}</div>`;
     } else if (!setup || !setup.total) {
         setupSection = "<p class=\"sub\">Für dieses Event ist noch kein Setup (Raidplan) angelegt.</p>";
     } else {
-        const summary = `<div class="setup-summary">${setup.groups
-            .map((g) => `<span class="setup-count"><b>${esc(String(g.players.length))}</b> ${esc(g.label)}</span>`)
-            .join("")}<span class="setup-count setup-total"><b>${esc(String(setup.total))}</b> gesamt</span></div>`;
+        const summary = "<div class=\"setup-summary\">"
+            + `<span class="setup-count setup-total"><b>${esc(String(setup.total))}</b> Raider</span>`
+            + `<span class="setup-count"><b>${esc(String(setup.groups.length))}</b> Gruppen</span>`
+            + "</div>";
         const groups = setup.groups.map((g) => `
-      <div class="setup-role">
-        <h4 class="setup-role-head">${esc(g.label)} · ${esc(String(g.players.length))}</h4>
-        <div class="setup-grid">${g.players.map((p) => `
-          <span class="setup-player" style="border-left-color:${esc(p.classColor || "var(--line)")}">
-            ${p.iconUrl ? `<img class="setup-ico" src="${esc(p.iconUrl)}" alt="${esc(p.className || "")}" title="${esc(p.className || "")}" loading="lazy">` : "<span class=\"setup-ico setup-ico-blank\"></span>"}
+      <div class="setup-group">
+        <h4 class="setup-group-head">${esc(g.label)}<span class="setup-group-n">${esc(String(g.players.length))}</span></h4>
+        <div class="setup-group-list">${g.players.map((p) => `
+          <span class="setup-player" style="border-left-color:${esc(p.classColor || "var(--line)")}" title="${esc(p.specName)}">
+            ${p.iconUrl ? `<img class="setup-ico" src="${esc(p.iconUrl)}" alt="${esc(p.className || "")}" title="${esc(p.specName)}" loading="lazy">` : "<span class=\"setup-ico setup-ico-blank\"></span>"}
             <span class="sp-name">${esc(p.name)}</span>
-            <span class="sp-spec">${esc(p.specName)}</span>
           </span>`).join("")}</div>
       </div>`).join("");
-        setupSection = summary + groups;
+        setupSection = summary + `<div class="setup-groups">${groups}</div>`;
     }
 
     // --- Anmelde-Aufruf ---
@@ -914,16 +915,29 @@ function renderEventDetail(user, opts = {}) {
         const matchHint = opts.matchedSheetId
             ? "Automatisch anhand des Event-Titels vorausgewählt — bei Bedarf ändern."
             : "Kein Raidsheet passte automatisch zum Titel — bitte manuell wählen.";
+        // 3rd tank: a picker of all tank-capable raiders in the setup, falling
+        // back to a free-text field when no candidates (or setup) are available.
+        const tankCands = opts.tankCandidates || [];
+        const tank3Field = tankCands.length
+            ? `<div class="field">
+          <label>Tank 3 (Off-Tank, optional)</label>
+          <select name="tank3">
+            <option value="">— keiner —</option>
+            ${tankCands.map((c) => `<option value="${esc(c.name)}">${esc(c.name)}${c.specName ? ` — ${esc(c.specName)}` : ""}</option>`).join("")}
+          </select>
+          <div class="hint">Auswahl aller tank-fähigen Raider im Setup. Wird in die 3. Tank-Zeile eingetragen.</div>
+        </div>`
+            : `<div class="field">
+          <label>Tank 3 (optional)</label>
+          <input type="text" name="tank3" placeholder="Name des 3. Tanks">
+          <div class="hint">Wird manuell in die Tank-Zeile eingetragen.</div>
+        </div>`;
         fillSection = `
       <form class="card-form" method="POST" action="/admin/raids/fill" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Fülle Sheet …'">
         ${csrfField}
         <input type="hidden" name="event" value="${esc(ev.id)}">
         <div class="field"><label>Raidsheet</label><select name="sheetId" required>${sheetOptions}</select><div class="hint">${matchHint}</div></div>
-        <div class="field">
-          <label>Tank 3 (optional)</label>
-          <input type="text" name="tank3" placeholder="Name des 3. Tanks">
-          <div class="hint">Wird manuell in die Tank-Zeile eingetragen.</div>
-        </div>
+        ${tank3Field}
         <div class="row-actions"><button class="btn" type="submit">Raidsheet füllen</button></div>
       </form>`;
     }
@@ -932,7 +946,7 @@ function renderEventDetail(user, opts = {}) {
       <p class="note"><a class="mlink" href="/admin/raids">← Zurück zur Event-Übersicht</a></p>
       ${meta}
       <h2>Setup</h2>
-      <p class="note">Aktueller Raidplan dieses Events, gruppiert nach Rolle. Icons und Farben richten sich nach der WoW-Klasse.</p>
+      <p class="note">Aktueller Raidplan dieses Events, in Raid-Gruppen 1–5 wie im Raid-Helper. Icons und Farben richten sich nach der WoW-Klasse.</p>
       ${setupSection}
       <h2>Anmelde-Aufruf</h2>
       <p class="note">Postet eine Aufruf-Nachricht in den Event-Channel und pingt die gewählten Rollen.</p>

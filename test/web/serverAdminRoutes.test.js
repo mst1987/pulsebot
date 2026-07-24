@@ -228,6 +228,9 @@ describe("event detail route (setup)", () => {
         const opts = renderAdmin.renderEventDetail.mock.calls[0][1];
         expect(opts.setup).toMatchObject({ total: 1 });
         expect(opts.setup.groups[0].players[0].name).toBe("Tankadin");
+        expect(opts.setup.groups[0].group).toBe(1);
+        // the prot-pala is offered as a tank candidate for the fill form
+        expect(opts.tankCandidates.map((c) => c.name)).toEqual(["Tankadin"]);
         expect(opts.setupError).toBeNull();
     });
 
