@@ -15,12 +15,12 @@ const {
     listRaidTemplates, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
     listNotify, getNotify, saveNotify, deleteNotify,
     listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
-    getEventSheet, saveEventSheet, deleteEventSheet,
     getConfig, saveConfig,
 } = require("./settingsStore");
 const { buildReport, ReportError } = require("../utils/logcheck/report");
 const { listLogs, deleteLog } = require("./logStore");
 const { evaluateLog, scanLogChannels } = require("./logChannel");
+const { getEventSheet, markEventSheetFilled } = require("./eventSheetStore");
 const Raidhelper = require("../classes/raidhelper");
 const SheetsClient = require("../classes/sheets");
 const Drive = require("../classes/drive");
@@ -84,6 +84,42 @@ async function loadEventGroups(guildId) {
         return { groups, error: null };
     } catch (e) {
         return { groups: [], error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
+    }
+}
+
+// Find the next few upcoming events that already have a Raid-Helper setup
+// (raidplan) built, annotated with whether their sheet was filled via the admin
+// tool. Events without a setup are skipped. `getSetup` is one HTTP call per
+// event, so `maxChecks` caps how deep we probe to keep the dashboard snappy.
+async function loadUpcomingSetups(guildId, limit = 3, maxChecks = 8) {
+    if (!guildId) return { events: [], error: null };
+    try {
+        const rh = new Raidhelper();
+        const events = await rh.getAllEvents(); // sorted ascending by startTime
+        const catMap = discord.getChannelCategoryMap(guildId);
+        const inGuild = events.filter((ev) => catMap[ev.channelId]);
+        const out = [];
+        let checked = 0;
+        for (const ev of inGuild) {
+            if (out.length >= limit || checked >= maxChecks) break;
+            checked += 1;
+            const result = await rh.getSetup(ev.id);
+            if (!result || !result.setup || !result.setup.length) continue;
+            const meta = catMap[ev.channelId] || {};
+            out.push({
+                id: ev.id,
+                title: ev.title,
+                startTime: ev.startTime,
+                channelId: ev.channelId,
+                channelName: meta.name || "",
+                signupCount: (ev.signUps || []).filter((s) => s.specName !== "Absence").length,
+                playerCount: result.setup.filter((s) => s && s.name).length,
+                sheet: getEventSheet(ev.id),
+            });
+        }
+        return { events: out, error: null };
+    } catch (e) {
+        return { events: [], error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
     }
 }
 
@@ -662,23 +698,21 @@ async function handle(req, res) {
             const drive = new Drive();
             // Re-filling replaces the previous copy: delete its Drive file first.
             const prev = getEventSheet(eventId);
-            if (prev) {
-                if (prev.spreadsheetId) {
-                    try { await drive.deleteFile(prev.spreadsheetId); }
-                    catch (e) { console.error("previous copy delete failed:", e.message); }
-                }
-                deleteEventSheet(prev.id);
+            if (prev && prev.spreadsheetId) {
+                try { await drive.deleteFile(prev.spreadsheetId); }
+                catch (e) { console.error("previous copy delete failed:", e.message); }
             }
             // Copy the source raidsheet and record it immediately, so even a later
             // failure leaves a tracked copy the cleanup sweeper can remove.
             const copy = await drive.copyFile(sheet.spreadsheetId, copyName);
-            saveEventSheet({
-                eventId, eventTitle: ev.title || "", spreadsheetId: copy.id,
-                url: copy.url, sourceSheetId: sheet.spreadsheetId, deleteAfter,
+            markEventSheetFilled(eventId, {
+                spreadsheetId: copy.id, url: copy.url,
+                sourceSheetId: sheet.spreadsheetId, deleteAfter,
             });
             await drive.shareAnyoneWriter(copy.id);
             const client = new SheetsClient({ spreadsheetId: copy.id, sheetName: sheet.sheetName, gid: sheet.gid });
             const summary = await fillSetupSheet(client, result.setup, { tab: sheet.sheetName || "Setup", tank3: (form.tank3 || "").trim() });
+            markEventSheetFilled(eventId, { sheetId: sheet.id, sheetName: sheet.name, playerCount: summary.playerCount });
             const delDate = formatTimestampToDateString(deleteAfter).split(" - ")[0].trim();
             return redirect(res, `${back}&ok=${encodeURIComponent(`Neues Sheet erstellt & gefüllt: ${summary.playerCount} Spieler. Wird am ${delDate} automatisch gelöscht.`)}`);
         } catch (e) {
@@ -798,9 +832,11 @@ async function handle(req, res) {
             categories: (cfg.categoryIds || []).length,
             adminRoles: (cfg.adminRoleIds || []).length,
         };
+        const upcoming = await loadUpcomingSetups(activeGuildFor(req), 3);
         return send(res, 200, renderDashboard(user, {
             stats,
             recentReports: reports.slice(0, 8),
+            upcoming,
             msg: flashFromQuery(url),
             nav: navFor(req),
         }));

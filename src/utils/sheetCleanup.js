@@ -4,7 +4,7 @@
 // failure leaves the record in place so the next sweep retries.
 
 const Drive = require("../classes/drive");
-const { listEventSheets, deleteEventSheet } = require("../web/settingsStore");
+const { listEventSheets, deleteEventSheet } = require("../web/eventSheetStore");
 
 /**
  * Delete every tracked copy whose deleteAfter is due (<= now). Best-effort:
@@ -19,7 +19,7 @@ async function sweepDueSheets(now = Date.now(), drive = new Drive()) {
     for (const s of due) {
         try {
             await drive.deleteFile(s.spreadsheetId);
-            deleteEventSheet(s.id);
+            deleteEventSheet(s.eventId);
             deleted += 1;
         } catch (e) {
             console.error(`[sheetCleanup] delete failed for ${s.spreadsheetId}: ${e.message}`);

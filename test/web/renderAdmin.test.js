@@ -100,6 +100,52 @@ describe("web/renderAdmin", () => {
             const html = renderDashboard(user, { nav: nav(), recentReports: [] });
             expect(html).toContain("Noch keine Auswertungen");
         });
+
+        it("renders the Upcoming Events card with a link to the raidplan", () => {
+            const html = renderDashboard(user, {
+                nav: nav(),
+                upcoming: { events: [{ id: "evt1", title: "Gruul & Maggi", channelName: "gruul-run", startTime: 1893456000, sheet: null }], error: null },
+            });
+            expect(html).toContain("Upcoming Events");
+            expect(html).toContain("Gruul &amp; Maggi");
+            expect(html).toContain("raid-helper.xyz/raidplan/evt1");
+            expect(html).toContain("gruul-run");
+        });
+
+        it("marks the sheet as done when a fill record exists, missing otherwise", () => {
+            const filled = renderDashboard(user, {
+                nav: nav(),
+                upcoming: { events: [{ id: "e1", title: "A", startTime: 1893456000, sheet: { filledAt: 1700000000000, playerCount: 25 } }], error: null },
+            });
+            expect(filled).toContain("Sheet ✓");
+            expect(filled).toContain("25 Spieler");
+
+            const missing = renderDashboard(user, {
+                nav: nav(),
+                upcoming: { events: [{ id: "e1", title: "A", startTime: 1893456000, sheet: null }], error: null },
+            });
+            expect(missing).toContain("Sheet fehlt");
+            expect(missing).not.toContain("Sheet ✓");
+        });
+
+        it("shows an empty state when no upcoming event has a setup", () => {
+            const html = renderDashboard(user, { nav: nav(), upcoming: { events: [], error: null } });
+            expect(html).toContain("Keine anstehenden Events mit fertigem Setup");
+        });
+
+        it("surfaces an error loading upcoming events", () => {
+            const html = renderDashboard(user, { nav: nav(), upcoming: { events: [], error: "Raid-Helper API down" } });
+            expect(html).toContain("Raid-Helper API down");
+        });
+
+        it("escapes event titles in the Upcoming Events card", () => {
+            const html = renderDashboard(user, {
+                nav: nav(),
+                upcoming: { events: [{ id: "e1", title: "<img src=x>", startTime: 1893456000, sheet: null }], error: null },
+            });
+            expect(html).toContain("&lt;img src=x&gt;");
+            expect(html).not.toContain("<img src=x>");
+        });
     });
 
     describe("renderRecruitment", () => {

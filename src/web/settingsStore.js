@@ -14,7 +14,6 @@ const RECRUITMENT_POSTS_FILE = path.join(SETTINGS_DIR, "recruitment-posts.json")
 const RAID_TEMPLATES_FILE = path.join(SETTINGS_DIR, "raid-templates.json");
 const NOTIFY_FILE = path.join(SETTINGS_DIR, "notify.json");
 const CONFIG_FILE = path.join(SETTINGS_DIR, "config.json");
-const EVENT_SHEETS_FILE = path.join(SETTINGS_DIR, "event-sheets.json");
 
 // The "Tier 4/5" raidsheet that ships by default (seeded from the GOOGLE_* env
 // vars). It always exists so a fresh install can fill setups without any config.
@@ -350,54 +349,6 @@ function deleteRaidsheet(id) {
     return true;
 }
 
-// ---- event sheets: per-event throwaway copies of a raidsheet ----
-// Each raid gets its own copy of the source raidsheet (created on "fill"). We
-// track the copy so the event page can link it and the cleanup sweeper can
-// delete it a few days after the raid. One record per event: re-filling an
-// event replaces its record (the caller deletes the old copy first).
-
-/** All tracked event-sheet copies. */
-function listEventSheets() {
-    const data = readJson(EVENT_SHEETS_FILE, { sheets: [] });
-    return Array.isArray(data.sheets) ? data.sheets : [];
-}
-
-/** The tracked copy for an event, or null. */
-function getEventSheet(eventId) {
-    return listEventSheets().find((s) => s.eventId === eventId) || null;
-}
-
-/**
- * Record (or replace) the copy created for an event. Keyed by eventId, so a
- * re-fill overwrites the previous record. Returns the saved record.
- * data: { eventId, eventTitle, spreadsheetId, url, sourceSheetId, deleteAfter }
- */
-function saveEventSheet(data) {
-    const sheets = listEventSheets().filter((s) => s.eventId !== data.eventId);
-    const saved = {
-        id: newId(),
-        eventId: String(data.eventId || ""),
-        eventTitle: String(data.eventTitle || ""),
-        spreadsheetId: String(data.spreadsheetId || ""),
-        url: String(data.url || ""),
-        sourceSheetId: String(data.sourceSheetId || ""),
-        deleteAfter: Number(data.deleteAfter) || 0,
-        createdAt: Date.now(),
-    };
-    sheets.push(saved);
-    writeJson(EVENT_SHEETS_FILE, { sheets });
-    return saved;
-}
-
-/** Delete a tracked event-sheet record by its id. Returns true if removed. */
-function deleteEventSheet(id) {
-    const sheets = listEventSheets();
-    const next = sheets.filter((s) => s.id !== id);
-    if (next.length === sheets.length) return false;
-    writeJson(EVENT_SHEETS_FILE, { sheets: next });
-    return true;
-}
-
 /** The current admin config, merged over defaults. */
 function getConfig() {
     const stored = readJson(CONFIG_FILE, {});
@@ -425,6 +376,5 @@ module.exports = {
     listRaidTemplates, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
     listNotify, getNotify, saveNotify, deleteNotify,
     listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
-    listEventSheets, getEventSheet, saveEventSheet, deleteEventSheet,
     getConfig, saveConfig,
 };

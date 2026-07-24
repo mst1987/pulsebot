@@ -2,7 +2,7 @@ const mockListEventSheets = jest.fn();
 const mockDeleteEventSheet = jest.fn();
 const mockDeleteFile = jest.fn().mockResolvedValue({});
 
-jest.mock("../../src/web/settingsStore", () => ({
+jest.mock("../../src/web/eventSheetStore", () => ({
     listEventSheets: mockListEventSheets,
     deleteEventSheet: mockDeleteEventSheet,
 }));
@@ -23,9 +23,9 @@ describe("utils/sheetCleanup", () => {
 
     it("deletes only copies whose deleteAfter is due", async () => {
         mockListEventSheets.mockReturnValue([
-            { id: "a", spreadsheetId: "sheet-a", deleteAfter: NOW - 1 },   // due
-            { id: "b", spreadsheetId: "sheet-b", deleteAfter: NOW + 1000 }, // future
-            { id: "c", spreadsheetId: "sheet-c", deleteAfter: NOW },        // due (==now)
+            { eventId: "a", spreadsheetId: "sheet-a", deleteAfter: NOW - 1 },   // due
+            { eventId: "b", spreadsheetId: "sheet-b", deleteAfter: NOW + 1000 }, // future
+            { eventId: "c", spreadsheetId: "sheet-c", deleteAfter: NOW },        // due (==now)
         ]);
         const deleted = await sweepDueSheets(NOW, drive);
         expect(deleted).toBe(2);
@@ -39,15 +39,15 @@ describe("utils/sheetCleanup", () => {
 
     it("skips records without a spreadsheetId or deleteAfter", async () => {
         mockListEventSheets.mockReturnValue([
-            { id: "x", spreadsheetId: "", deleteAfter: NOW - 1 },
-            { id: "y", spreadsheetId: "sheet-y", deleteAfter: 0 },
+            { eventId: "x", spreadsheetId: "", deleteAfter: NOW - 1 },
+            { eventId: "y", spreadsheetId: "sheet-y", deleteAfter: 0 },
         ]);
         expect(await sweepDueSheets(NOW, drive)).toBe(0);
         expect(mockDeleteFile).not.toHaveBeenCalled();
     });
 
     it("keeps the record when the Drive delete fails (retried next sweep)", async () => {
-        mockListEventSheets.mockReturnValue([{ id: "a", spreadsheetId: "sheet-a", deleteAfter: NOW - 1 }]);
+        mockListEventSheets.mockReturnValue([{ eventId: "a", spreadsheetId: "sheet-a", deleteAfter: NOW - 1 }]);
         mockDeleteFile.mockRejectedValueOnce(new Error("boom"));
         const deleted = await sweepDueSheets(NOW, drive);
         expect(deleted).toBe(0);
