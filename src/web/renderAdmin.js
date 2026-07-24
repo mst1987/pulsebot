@@ -69,12 +69,34 @@ const ADMIN_STYLE = `<style>
   a.mlink { color:var(--accent); text-decoration:none; }
   a.mlink:hover { text-decoration:underline; }
   table.idx td.small { white-space:nowrap; color:var(--muted); font-size:12.5px; }
+  /* dashboard */
+  .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+  .tile { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:15px 16px; }
+  .tile.accent { border-top:2px solid var(--accent); }
+  .tile .t-label { font-size:12.5px; color:var(--muted); font-weight:600; }
+  .tile .t-value { font-size:28px; font-weight:800; letter-spacing:-.5px; margin-top:6px; line-height:1; font-variant-numeric:tabular-nums; }
+  .tile .t-sub { font-size:12.5px; color:var(--muted); margin-top:6px; }
+  .dash-grid { display:grid; grid-template-columns:1.5fr 1fr; gap:16px; }
+  .dash-card { background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .dash-card-head { display:flex; align-items:center; gap:10px; padding:13px 16px; border-bottom:1px solid var(--line-soft); }
+  .dash-card-head h3 { font-size:15px; margin:0; }
+  .dash-card-head .mlink { margin-left:auto; font-size:13px; }
+  .dash-card table.idx { margin:0; }
+  .dash-card table.idx th, .dash-card table.idx td { padding:9px 16px; }
+  .quick { display:flex; flex-direction:column; }
+  .quick a { display:flex; align-items:center; gap:12px; padding:12px 16px; border-top:1px solid var(--line-soft); color:var(--text); text-decoration:none; font-weight:600; font-size:14px; }
+  .quick a:first-child { border-top:0; }
+  .quick a:hover { background:var(--panel2); }
+  .quick a .qi { width:32px; height:32px; border-radius:8px; display:grid; place-items:center; background:var(--accent-soft); color:var(--accent); flex:0 0 auto; }
+  .quick a .qi svg { width:17px; height:17px; }
   @media (max-width:900px) {
     .app { grid-template-columns:1fr; }
     .side { position:fixed; z-index:30; width:264px; transform:translateX(-102%); transition:transform .2s; box-shadow:0 8px 28px rgba(0,0,0,.35); }
     .side.open { transform:none; }
     .menu-toggle { display:inline-grid; place-items:center; width:38px; height:38px; border-radius:8px; border:1px solid var(--line); background:var(--panel2); color:var(--text); cursor:pointer; }
     .content { padding:18px 14px; }
+    .tiles { grid-template-columns:repeat(2,1fr); }
+    .dash-grid { grid-template-columns:1fr; }
   }
 </style>`;
 
@@ -88,7 +110,7 @@ const NAV_ICONS = {
 };
 
 const TABS = [
-    { id: "home", label: "Übersicht", href: "/admin", group: "Verwaltung" },
+    { id: "home", label: "Übersicht", href: "/", group: "Verwaltung" },
     { id: "recruitment", label: "Recruitment", href: "/admin/recruitment", group: "Verwaltung" },
     { id: "cla", label: "CLA / Logcheck", href: "/admin/cla", group: "Verwaltung" },
     { id: "raids", label: "Raid-Events", href: "/admin/raids", group: "Verwaltung" },
@@ -207,27 +229,57 @@ function renderAdminDenied(user) {
     return layout("Admin — Zugang", `${ADMIN_STYLE}<h1>Pulsebot Admin</h1>${body}`);
 }
 
-function renderAdminHome(user, opts = {}) {
-    const body = `
-      <div class="cards">
-        <a class="navcard" href="/admin/recruitment">
-          <span class="ico">${NAV_ICONS.recruitment}</span><h3>Recruitment</h3>
-          <p>Vorlagen-Texte für Recruitment-Nachrichten bearbeiten.</p>
-        </a>
-        <a class="navcard" href="/admin/cla">
-          <span class="ico">${NAV_ICONS.cla}</span><h3>CLA / Logcheck</h3>
-          <p>Warcraft-Logs-Report auswerten und Link erzeugen.</p>
-        </a>
-        <a class="navcard" href="/admin/raids">
-          <span class="ico">${NAV_ICONS.raids}</span><h3>Raid-Events</h3>
-          <p>Raid-Events anlegen und verwalten.</p>
-        </a>
-        <a class="navcard" href="/admin/settings">
-          <span class="ico">${NAV_ICONS.settings}</span><h3>Einstellungen</h3>
-          <p>Admin-Rollen und Raid-Standardwerte pflegen.</p>
-        </a>
+// The dashboard — the app's start page. Shows key figures plus quick links.
+function renderDashboard(user, opts = {}) {
+    const s = opts.stats || {};
+    const recent = opts.recentReports || [];
+    const n = (v) => esc(String(v || 0));
+
+    const tile = (label, value, sub, accent) =>
+        `<div class="tile${accent ? " accent" : ""}"><div class="t-label">${esc(label)}</div><div class="t-value">${n(value)}</div><div class="t-sub">${sub}</div></div>`;
+    const tiles = `<div class="tiles">
+        ${tile("Log-Check-Auswertungen", s.reportsTotal, `${n(s.reportsWithIssues)} mit Problemen`, true)}
+        ${tile("Recruitment-Vorlagen", s.templates, `${n(s.posts)} gepostete Nachrichten`)}
+        ${tile("Event-Kategorien", s.categories, "in den Einstellungen gepflegt")}
+        ${tile("Admin-Rollen", s.adminRoles, s.adminRoles ? "konfiguriert" : "noch keine gesetzt")}
       </div>`;
-    return adminLayout("EventHelper Admin", "home", user, body, opts.msg, opts.nav);
+
+    const recentRows = recent.length
+        ? recent.map((r) => {
+            const when = r.generatedAt ? new Date(r.generatedAt).toLocaleDateString("de-DE") : "";
+            return `<tr>
+              <td><a class="mlink" href="/r/${esc(r.id)}">${esc(r.title || r.id)}</a></td>
+              <td>${esc(r.zone || "")}</td>
+              <td class="small">${esc(when)}</td>
+              <td><span class="pill">${esc(r.issueCount)}</span></td>
+            </tr>`;
+        }).join("")
+        : "<tr><td colspan=\"4\" class=\"sub\" style=\"padding:16px\">Noch keine Auswertungen.</td></tr>";
+
+    const quick = (href, icon, label) =>
+        `<a href="${href}"><span class="qi">${icon}</span>${esc(label)}</a>`;
+
+    const body = `
+      ${tiles}
+      <div class="dash-grid">
+        <div class="dash-card">
+          <div class="dash-card-head"><h3>Letzte Auswertungen</h3><a class="mlink" href="/admin/cla">Alle →</a></div>
+          <table class="idx">
+            <thead><tr><th>Report</th><th>Zone</th><th>Erstellt</th><th>Probleme</th></tr></thead>
+            <tbody>${recentRows}</tbody>
+          </table>
+        </div>
+        <div class="dash-card">
+          <div class="dash-card-head"><h3>Schnellzugriff</h3></div>
+          <div class="quick">
+            ${quick("/admin/recruitment", NAV_ICONS.recruitment, "Recruitment verwalten")}
+            ${quick("/admin/cla", NAV_ICONS.cla, "Neue Log-Auswertung")}
+            ${quick("/admin/raids", NAV_ICONS.raids, "Raid-Event anlegen")}
+            ${quick("/admin/settings", NAV_ICONS.settings, "Einstellungen")}
+          </div>
+        </div>
+      </div>`;
+    return adminLayout("Übersicht — EventHelper Admin", "home", user, body, opts.msg, opts.nav);
 }
 
 function hiddenCsrf(csrf) {
@@ -259,13 +311,18 @@ function renderPostEdit(user, opts) {
         ${csrfField}
         <input type="hidden" name="id" value="${esc(p.id)}">
         <div class="field">
-          <label>Titel</label>
-          <input type="text" name="title" value="${esc(p.title)}" placeholder="Wir suchen Verstärkung!">
+          <label>Nachrichtentext</label>
+          <textarea name="content" style="min-height:160px">${esc(p.content)}</textarea>
+          <div class="hint">Der eigentliche Nachrichtentext — inkl. Emojis. Custom-Emojis als <code>&lt;:name:id&gt;</code>, Discord-Markdown erlaubt.</div>
         </div>
         <div class="field">
-          <label>Text</label>
+          <label>Embed-Titel (optional)</label>
+          <input type="text" name="title" value="${esc(p.title)}" placeholder="Wir suchen Verstärkung!">
+          <div class="hint">Nur falls die Nachricht ein Embed nutzt.</div>
+        </div>
+        <div class="field">
+          <label>Embed-Text (optional)</label>
           <textarea name="body">${esc(p.body)}</textarea>
-          <div class="hint">Discord-Markdown erlaubt.</div>
         </div>
         <div class="field">
           <label>Button-Beschriftung</label>
@@ -491,14 +548,46 @@ function renderSettings(user, opts = {}) {
     const rd = config.raidDefaults || {};
     const csrfField = hiddenCsrf(opts.csrf || "");
     const body = `
-      <h2>Admin-Zugang</h2>
+      <p class="note">Alle Werte werden in der Datenbank gespeichert und greifen ohne Bot-Neustart. IDs bekommst du in Discord per Rechtsklick → „ID kopieren" (Entwicklermodus).</p>
       <form class="card-form" method="POST" action="/admin/settings">
         ${csrfField}
+        <h2 style="margin-top:0">Admin-Zugang</h2>
         <div class="field">
           <label>Admin-Rollen (Discord-Rollen-IDs, kommagetrennt)</label>
           <input type="text" name="adminRoleIds" value="${esc((config.adminRoleIds || []).join(", "))}" placeholder="123456789012345678, 234567890123456789">
           <div class="hint">Mitglieder mit einer dieser Rollen erhalten Admin-Zugang. Die <code>ADMIN_USER_ID</code> aus der .env behält immer Zugang (Notfall-Zugang).</div>
         </div>
+
+        <h2>Recruitment</h2>
+        <div class="field">
+          <label>Bewerbungs-Channel-ID</label>
+          <input type="text" name="applicationChannelId" value="${esc(config.applicationChannelId || "")}" placeholder="Discord-Channel-ID">
+          <div class="hint">Channel, in dem neue Bewerbungen als Thread gepostet werden.</div>
+        </div>
+        <div class="field">
+          <label>Offizier-Rollen-ID</label>
+          <input type="text" name="officerRoleId" value="${esc(config.officerRoleId || "")}" placeholder="Discord-Rollen-ID">
+          <div class="hint">Wird bei neuen Bewerbungen gepingt. Leer lassen für keinen Ping.</div>
+        </div>
+
+        <h2>Auktionen</h2>
+        <div class="field">
+          <label>Höchstgebote-Channel-ID</label>
+          <input type="text" name="highestBidsChannelId" value="${esc(config.highestBidsChannelId || "")}" placeholder="Discord-Channel-ID">
+        </div>
+        <div class="field">
+          <label>Höchstgebote-Message-ID</label>
+          <input type="text" name="highestBidsMessageId" value="${esc(config.highestBidsMessageId || "")}" placeholder="Discord-Message-ID">
+          <div class="hint">Die Nachricht mit der Höchstgebote-Übersicht, die der Bot aktualisiert.</div>
+        </div>
+
+        <h2>Event-Kategorien</h2>
+        <div class="field">
+          <label>Kategorie-IDs (kommagetrennt)</label>
+          <input type="text" name="categoryIds" value="${esc((config.categoryIds || []).join(", "))}" placeholder="111…, 222…, 333…">
+          <div class="hint">Discord-Kategorien, deren Channels Raid-Events enthalten.</div>
+        </div>
+
         <h2>Raid-Standardwerte</h2>
         <div class="field">
           <label>Standard-Template-ID</label>
@@ -508,6 +597,7 @@ function renderSettings(user, opts = {}) {
           <label>Standard-Channel-ID</label>
           <input type="text" name="raidChannelId" value="${esc(rd.channelId || "")}" placeholder="Discord-Channel-ID">
         </div>
+
         <div class="row-actions">
           <button class="btn" type="submit">Speichern</button>
         </div>
@@ -516,6 +606,6 @@ function renderSettings(user, opts = {}) {
 }
 
 module.exports = {
-    adminLayout, adminNav, renderAdminHome, renderAdminDenied,
+    adminLayout, adminNav, renderDashboard, renderAdminDenied,
     renderRecruitment, renderCla, renderRaids, renderSettings, hiddenCsrf, esc,
 };

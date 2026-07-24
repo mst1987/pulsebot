@@ -53,6 +53,29 @@ describe("web/settingsStore", () => {
                 JSON.stringify({ adminRoleIds: "not-an-array" }));
             expect(getConfig().adminRoleIds).toEqual([]);
         });
+
+        it("exposes the channel/role ids and persists overrides", () => {
+            const def = getConfig();
+            expect(def).toHaveProperty("applicationChannelId");
+            expect(def).toHaveProperty("officerRoleId");
+            expect(def).toHaveProperty("highestBidsChannelId");
+            expect(def).toHaveProperty("highestBidsMessageId");
+            expect(Array.isArray(def.categoryIds)).toBe(true);
+
+            saveConfig({
+                applicationChannelId: "app-1",
+                officerRoleId: "role-1",
+                highestBidsChannelId: "hb-1",
+                highestBidsMessageId: "msg-1",
+                categoryIds: ["c1", "c2"],
+            });
+            const cfg = getConfig();
+            expect(cfg.applicationChannelId).toBe("app-1");
+            expect(cfg.officerRoleId).toBe("role-1");
+            expect(cfg.highestBidsChannelId).toBe("hb-1");
+            expect(cfg.highestBidsMessageId).toBe("msg-1");
+            expect(cfg.categoryIds).toEqual(["c1", "c2"]);
+        });
     });
 
     describe("saveConfig", () => {

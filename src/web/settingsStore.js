@@ -1,6 +1,10 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const {
+    officerRoleId, applicationChannelId,
+    highestBidsChannelId, highestBidsMessageId, categoryIds,
+} = require("../config/variables");
 
 // Editable bot settings live as JSON files under data/settings/.
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
@@ -9,10 +13,21 @@ const RECRUITMENT_POSTS_FILE = path.join(SETTINGS_DIR, "recruitment-posts.json")
 const CONFIG_FILE = path.join(SETTINGS_DIR, "config.json");
 
 // General bot config editable from the admin menu (kept out of .env on purpose).
+// Defaults come from config/variables (env / historical hard-codes); values saved
+// from the admin menu override them and take effect without a bot restart.
 const CONFIG_DEFAULTS = {
     // Discord role IDs that grant access to the admin menu (in addition to the
     // ADMIN_USER_ID bootstrap from .env, which can never be locked out).
     adminRoleIds: [],
+    // Officer role pinged when a new application arrives.
+    officerRoleId: officerRoleId || "",
+    // Channel new applications are posted to.
+    applicationChannelId: applicationChannelId || "",
+    // Auction "highest bids" overview message (channel + message id).
+    highestBidsChannelId: highestBidsChannelId || "",
+    highestBidsMessageId: highestBidsMessageId || "",
+    // Discord category IDs that contain the event channels.
+    categoryIds: Array.isArray(categoryIds) ? categoryIds : [],
     // Defaults pre-filled into the raid-event form.
     raidDefaults: { templateId: "", channelId: "" },
 };
@@ -111,6 +126,7 @@ function saveRecruitmentPost(data) {
         channelId: data.channelId || (match && match.channelId) || "",
         messageId: data.messageId || (match && match.messageId) || "",
         channelName: data.channelName || (match && match.channelName) || "",
+        content: data.content || "",
         title: data.title || "",
         body: data.body || "",
         buttonLabel: data.buttonLabel || "",
@@ -144,6 +160,7 @@ function getConfig() {
         ...stored,
         raidDefaults: { ...CONFIG_DEFAULTS.raidDefaults, ...(stored.raidDefaults || {}) },
         adminRoleIds: Array.isArray(stored.adminRoleIds) ? stored.adminRoleIds : CONFIG_DEFAULTS.adminRoleIds,
+        categoryIds: Array.isArray(stored.categoryIds) ? stored.categoryIds : CONFIG_DEFAULTS.categoryIds,
     };
 }
 

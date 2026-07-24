@@ -19,12 +19,9 @@ const { DateTime } = require("luxon");
 const { getTargetMessage, updateHighestBids } = require("./legendary");
 const { getAuctionMessage } = require("./responses");
 const { formatTimestampToDateString } = require("./date");
-const {
-    highestBidsMessageId,
-    highestBidsChannelId,
-    legendaryID,
-    maxBidAmount,
-} = require("../config/variables");
+const { legendaryID, maxBidAmount } = require("../config/variables");
+// highestBids* come from the admin-editable config so they can change without a restart.
+const { getConfig } = require("../web/settingsStore");
 
 module.exports = {
     showBidModal,
@@ -151,6 +148,7 @@ async function bidForLegendary(client, interaction, gold) {
                 false, [row]
             );
 
+            const { highestBidsChannelId, highestBidsMessageId } = getConfig();
             const targetMessage = await getTargetMessage(
                 client,
                 highestBidsChannelId,

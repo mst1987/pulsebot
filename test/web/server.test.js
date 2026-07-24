@@ -15,9 +15,16 @@ jest.mock("../../src/web/reportStore", () => ({
 jest.mock("../../src/web/render", () => ({
     renderReportPage: jest.fn(() => "REPORT_PAGE"),
     renderPlayerPage: jest.fn(() => "PLAYER_PAGE"),
-    renderIndexPage: jest.fn(() => "INDEX_PAGE"),
     renderNotFound: jest.fn(() => "NOT_FOUND"),
     renderError: jest.fn(() => "ERROR_PAGE"),
+}));
+jest.mock("../../src/web/renderAdmin", () => ({
+    renderDashboard: jest.fn(() => "DASHBOARD"),
+    renderAdminDenied: jest.fn(() => "DENIED"),
+    renderRecruitment: jest.fn(() => "RECRUITMENT"),
+    renderCla: jest.fn(() => "CLA"),
+    renderRaids: jest.fn(() => "RAIDS"),
+    renderSettings: jest.fn(() => "SETTINGS"),
 }));
 jest.mock("../../src/web/auth", () => ({
     configured: jest.fn(() => true),
@@ -80,15 +87,13 @@ describe("web/server", () => {
             expect(res.end).toHaveBeenCalledWith("ok");
         });
 
-        it("GET / renders the index page", async () => {
-            store.listReports.mockReturnValue([{ id: "a" }]);
+        it("GET / is admin-only: anonymous visitors get the login/denied page", async () => {
+            auth.getUser.mockReturnValue(null);
             const res = await request({ url: "/", method: "GET", headers: {} });
-            expect(store.listReports).toHaveBeenCalled();
-            expect(render.renderIndexPage).toHaveBeenCalled();
-            expect(res.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.objectContaining({
                 "Content-Type": "text/html; charset=utf-8",
             }));
-            expect(res.end).toHaveBeenCalledWith("INDEX_PAGE");
+            expect(res.end).toHaveBeenCalledWith("DENIED");
         });
 
         it("GET /r/<id> renders the report when it exists", async () => {

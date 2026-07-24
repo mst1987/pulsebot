@@ -1,5 +1,5 @@
 const {
-    renderAdminHome, renderAdminDenied,
+    renderDashboard, renderAdminDenied,
     renderRecruitment, renderCla, renderRaids, renderSettings,
 } = require("../../src/web/renderAdmin.js");
 
@@ -7,9 +7,9 @@ const user = { id: "42", name: "Marcstz", isAdmin: true };
 const nav = () => ({ guilds: [{ id: "g1", name: "Meine Gilde" }], activeGuildId: "g1", csrf: "tok" });
 
 describe("web/renderAdmin", () => {
-    describe("adminLayout shell (via renderAdminHome)", () => {
+    describe("adminLayout shell (via renderDashboard)", () => {
         it("produces a full HTML document with the sidebar app shell", () => {
-            const html = renderAdminHome(user, { nav: nav() });
+            const html = renderDashboard(user, { nav: nav() });
             expect(html.startsWith("<!DOCTYPE html>")).toBe(true);
             expect(html).toContain("class=\"app\"");
             expect(html).toContain("class=\"side\"");
@@ -20,19 +20,19 @@ describe("web/renderAdmin", () => {
         });
 
         it("includes the theme toggle button in the shell", () => {
-            const html = renderAdminHome(user, { nav: nav() });
+            const html = renderDashboard(user, { nav: nav() });
             expect(html).toContain("id=\"themeBtn\"");
         });
 
         it("shows the logged-in user's name and initial in the sidebar footer", () => {
-            const html = renderAdminHome(user, { nav: nav() });
+            const html = renderDashboard(user, { nav: nav() });
             expect(html).toContain("class=\"avatar\">M<");
             expect(html).toContain("Marcstz");
             expect(html).toContain("/auth/logout");
         });
 
         it("renders the page title for the active section", () => {
-            expect(renderAdminHome(user, { nav: nav() })).toContain("class=\"page-title\">Übersicht<");
+            expect(renderDashboard(user, { nav: nav() })).toContain("class=\"page-title\">Übersicht<");
             expect(renderCla(user, { nav: nav() })).toContain("class=\"page-title\">CLA / Logcheck<");
         });
 
@@ -44,36 +44,60 @@ describe("web/renderAdmin", () => {
         });
 
         it("renders a flash message when provided", () => {
-            const ok = renderAdminHome(user, { nav: nav(), msg: { type: "ok", text: "Gespeichert." } });
+            const ok = renderDashboard(user, { nav: nav(), msg: { type: "ok", text: "Gespeichert." } });
             expect(ok).toContain("flash-ok");
             expect(ok).toContain("Gespeichert.");
-            const err = renderAdminHome(user, { nav: nav(), msg: { type: "err", text: "Kaputt." } });
+            const err = renderDashboard(user, { nav: nav(), msg: { type: "err", text: "Kaputt." } });
             expect(err).toContain("flash-err");
         });
     });
 
     describe("server bar", () => {
         it("renders the guild selector with the guild name", () => {
-            const html = renderAdminHome(user, { nav: nav() });
+            const html = renderDashboard(user, { nav: nav() });
             expect(html).toContain("Meine Gilde");
             expect(html).toContain("action=\"/admin/server\"");
         });
 
         it("warns to pick a server when none is active", () => {
-            const html = renderAdminHome(user, { nav: { guilds: [{ id: "g1", name: "G" }], activeGuildId: "", csrf: "t" } });
+            const html = renderDashboard(user, { nav: { guilds: [{ id: "g1", name: "G" }], activeGuildId: "", csrf: "t" } });
             expect(html).toContain("bitte zuerst einen Server wählen");
         });
     });
 
-    describe("renderAdminHome", () => {
-        it("shows navigation cards for the work areas", () => {
-            const html = renderAdminHome(user, { nav: nav() });
+    describe("renderDashboard", () => {
+        it("renders quick-access links to every area", () => {
+            const html = renderDashboard(user, { nav: nav() });
             expect(html).toContain("href=\"/admin/recruitment\"");
             expect(html).toContain("href=\"/admin/cla\"");
             expect(html).toContain("href=\"/admin/raids\"");
             expect(html).toContain("href=\"/admin/settings\"");
-            // icons are inline SVG now, not emoji
             expect(html).not.toContain("📢");
+        });
+
+        it("shows the key figures from stats", () => {
+            const html = renderDashboard(user, {
+                nav: nav(),
+                stats: { reportsTotal: 12, reportsWithIssues: 3, templates: 2, posts: 5, categories: 4, adminRoles: 1 },
+            });
+            expect(html).toContain("Log-Check-Auswertungen");
+            expect(html).toContain(">12<");
+            expect(html).toContain("3 mit Problemen");
+            expect(html).toContain("Event-Kategorien");
+        });
+
+        it("lists recent reports linking to the public report pages", () => {
+            const html = renderDashboard(user, {
+                nav: nav(),
+                recentReports: [{ id: "r1", title: "Kara", zone: "Karazhan", generatedAt: 1000, issueCount: 3 }],
+            });
+            expect(html).toContain("/r/r1");
+            expect(html).toContain("Kara");
+        });
+
+        it("shows an empty state when there are no reports", () => {
+            const html = renderDashboard(user, { nav: nav(), recentReports: [] });
+            expect(html).toContain("Noch keine Auswertungen");
         });
     });
 

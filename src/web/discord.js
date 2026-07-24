@@ -41,18 +41,29 @@ function listTextChannels(guildId) {
         .map((c) => ({ id: c.id, name: c.name, category: c.parent ? c.parent.name : "" }));
 }
 
-/** Build the recruitment embed + apply-button row from a template. */
+/**
+ * Build a recruitment message payload from a template. Faithfully round-trips
+ * both the plain message text (`content`, where emojis usually live) and an
+ * optional embed (title + description), plus the apply button.
+ */
 function buildRecruitmentMessage(template) {
-    const embed = new EmbedBuilder().setColor(0x5865F2);
-    if (template.title) embed.setTitle(template.title);
-    if (template.body) embed.setDescription(template.body);
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId(RECRUIT_BUTTON_ID)
             .setLabel(template.buttonLabel || "Jetzt bewerben")
             .setStyle(ButtonStyle.Success)
     );
-    return { embeds: [embed], components: [row] };
+    const payload = { content: template.content || "", components: [row] };
+    if (template.title || template.body) {
+        const embed = new EmbedBuilder().setColor(0x5865F2);
+        if (template.title) embed.setTitle(template.title);
+        if (template.body) embed.setDescription(template.body);
+        payload.embeds = [embed];
+    } else {
+        // no embed → clear any existing one when editing (message keeps its content)
+        payload.embeds = [];
+    }
+    return payload;
 }
 
 /** Post a recruitment template to a channel. Returns { guildId, channelId, messageId, url }. */
@@ -103,6 +114,7 @@ function extractTemplate(msg) {
         }
     }
     return {
+        content: msg.content || "",
         title: (embed && embed.title) || "",
         body: (embed && embed.description) || "",
         buttonLabel,
