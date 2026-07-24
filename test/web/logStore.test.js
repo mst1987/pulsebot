@@ -22,7 +22,7 @@ jest.mock("fs", () => {
 const fs = require("fs");
 const {
     listLogs, getLog, getByReportId, saveLog, setButtonMessage,
-    markEvaluated, deleteLog,
+    markEvaluated, setLogTitle, deleteLog,
 } = require("../../src/web/logStore.js");
 
 beforeEach(() => {
@@ -85,6 +85,24 @@ describe("web/logStore", () => {
 
         it("returns null for an unknown id", () => {
             expect(setButtonMessage("nope", {})).toBeNull();
+        });
+    });
+
+    describe("setLogTitle", () => {
+        it("backfills a log's display title", () => {
+            const a = saveLog(base());
+            const updated = setLogTitle(a.id, "  Karazhan 24/07  ");
+            expect(updated.title).toBe("Karazhan 24/07");
+            expect(getLog(a.id).title).toBe("Karazhan 24/07");
+        });
+
+        it("is a no-op for a blank title or unknown id", () => {
+            const a = saveLog(base());
+            const writes = fs.writeFileSync.mock.calls.length;
+            expect(setLogTitle(a.id, "   ")).toBeNull();
+            expect(setLogTitle("nope", "x")).toBeNull();
+            // neither wrote to disk
+            expect(fs.writeFileSync.mock.calls.length).toBe(writes);
         });
     });
 
