@@ -5,6 +5,7 @@ const envFile = fs.existsSync(envDev) ? envDev : path.join(__dirname, "../.env")
 require("dotenv").config({ path: envFile });
 const messages = require("./config/messages.js");
 const { startWebServer } = require("./web/server.js");
+const { handleLogMessage } = require("./web/logChannel.js");
 
 const { Client, GatewayIntentBits, Collection } = require("discord.js");
 
@@ -38,12 +39,30 @@ client.on("ready", () => {
     startWebServer(client);
 });
 
+// Watch the configured log channels for Warcraft-Logs links and offer to evaluate them.
+client.on("messageCreate", async(message) => {
+    try {
+        if (!message.guild) return;
+        await handleLogMessage(message);
+    } catch (error) {
+        console.error("messageCreate handler error:", error.message);
+    }
+});
+
+// Resolve the command/handler key: slash commands use commandName; component
+// customIds may carry an argument after ":" (e.g. "logcheck-eval:<id>"), so the
+// handler is looked up by the prefix before the colon.
+function lookupKey(interaction) {
+    if (interaction.commandName) return interaction.commandName;
+    const customId = interaction.customId || "";
+    const idx = customId.indexOf(":");
+    return idx > -1 ? customId.slice(0, idx) : customId;
+}
+
 client.on("interactionCreate", async(interaction) => {
     if (!interaction.isCommand() && !interaction.isButton() && !interaction.isStringSelectMenu() && !interaction.isModalSubmit()) return;
 
-    const command = client.commands.get(
-        interaction.customId || interaction.commandName
-    );
+    const command = client.commands.get(lookupKey(interaction));
 
     if (!command) {
         if (!interaction.replied && !interaction.deferred) {

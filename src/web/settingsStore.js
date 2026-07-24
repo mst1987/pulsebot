@@ -41,6 +41,8 @@ const CONFIG_DEFAULTS = {
     highestBidsMessageId: highestBidsMessageId || "",
     // Discord category IDs that contain the event channels.
     categoryIds: Array.isArray(categoryIds) ? categoryIds : [],
+    // Channels the bot watches for Warcraft-Logs links to offer auto-evaluation.
+    logChannelIds: [],
     // Defaults pre-filled into the raid-event form.
     raidDefaults: { templateId: "", channelId: "" },
 };
@@ -286,6 +288,7 @@ function getConfig() {
         raidDefaults: { ...CONFIG_DEFAULTS.raidDefaults, ...(stored.raidDefaults || {}) },
         adminRoleIds: Array.isArray(stored.adminRoleIds) ? stored.adminRoleIds : CONFIG_DEFAULTS.adminRoleIds,
         categoryIds: Array.isArray(stored.categoryIds) ? stored.categoryIds : CONFIG_DEFAULTS.categoryIds,
+        logChannelIds: Array.isArray(stored.logChannelIds) ? stored.logChannelIds : CONFIG_DEFAULTS.logChannelIds,
     };
 }
 
