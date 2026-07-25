@@ -19,7 +19,7 @@ describe("classes/Blizzard", () => {
             const b = new Blizzard({ clientId: "a", clientSecret: "b" });
             expect(b.region).toBe("eu");
             expect(b.realmSlug).toBe("thunderstrike");
-            expect(b.namespace).toBe("profile-classic-eu");
+            expect(b.namespace).toBe("profile-classicann-eu");
             expect(b.apiHost).toBe("https://eu.api.blizzard.com");
         });
 
@@ -27,7 +27,7 @@ describe("classes/Blizzard", () => {
             const b = new Blizzard({ clientId: "a", clientSecret: "b", region: "US", realmSlug: "MyRealm" });
             expect(b.region).toBe("us");
             expect(b.realmSlug).toBe("myrealm");
-            expect(b.namespace).toBe("profile-classic-us");
+            expect(b.namespace).toBe("profile-classicann-us");
             expect(b.apiHost).toBe("https://us.api.blizzard.com");
         });
     });
@@ -73,13 +73,29 @@ describe("classes/Blizzard", () => {
             // equipment request: lowercased char + realm, classic namespace, bearer token
             const [url, cfg] = axios.get.mock.calls[0];
             expect(url).toBe("https://eu.api.blizzard.com/profile/wow/character/thunderstrike/thrall/equipment");
-            expect(cfg.params).toEqual({ namespace: "profile-classic-eu", locale: "en_GB" });
+            expect(cfg.params).toEqual({ namespace: "profile-classicann-eu", locale: "en_GB" });
             expect(cfg.headers.Authorization).toBe("Bearer tok");
 
             expect(result).toEqual([
-                { slot: "HEAD", itemId: 29011, name: "Cursed Vision", quality: "EPIC", level: 120 },
-                { slot: "NECK", itemId: 28530, name: "Adornment", quality: "RARE", level: 115 },
+                { slot: "HEAD", itemId: 29011, name: "Cursed Vision", quality: "EPIC", level: 120, enchants: [], gems: [], emptySockets: 0 },
+                { slot: "NECK", itemId: 28530, name: "Adornment", quality: "RARE", level: 115, enchants: [], gems: [], emptySockets: 0 },
             ]);
+        });
+
+        it("extracts enchants, gems and empty sockets from an item", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+            axios.get.mockResolvedValue({ data: { equipped_items: [{
+                slot: { type: "HEAD" }, item: { id: 29011 }, name: "Helm",
+                enchantments: [{ display_string: "Enchanted: +150 Mana" }],
+                sockets: [
+                    { socket_type: { type: "META" }, item: { name: "Chaotic Skyfire Diamond" } },
+                    { socket_type: { type: "RED" } },
+                ],
+            }] } });
+            const [item] = await configured().getEquipment("Foo");
+            expect(item.enchants).toEqual(["Enchanted: +150 Mana"]);
+            expect(item.gems).toEqual(["Chaotic Skyfire Diamond"]);
+            expect(item.emptySockets).toBe(1);
         });
 
         it("caches the token across calls", async () => {
@@ -142,7 +158,7 @@ describe("classes/Blizzard", () => {
             await configured().getEquipment("Foo", { realmSlug: "Other", region: "us" });
             const [url, cfg] = axios.get.mock.calls[0];
             expect(url).toBe("https://us.api.blizzard.com/profile/wow/character/other/foo/equipment");
-            expect(cfg.params.namespace).toBe("profile-classic-us");
+            expect(cfg.params.namespace).toBe("profile-classicann-us");
         });
 
         it("uses an explicitly configured namespace override", async () => {
@@ -172,7 +188,7 @@ describe("classes/Blizzard", () => {
             expect(axios.get.mock.calls[0][0]).toBe("https://eu.api.blizzard.com/profile/wow/character/thunderstrike/foo");
             expect(s).toMatchObject({
                 name: "Foo", level: 70, itemLevel: 115, lastLogin: 1784574268000,
-                realm: "Thunderstrike", className: "Shaman", faction: "Horde", namespace: "profile-classic-eu",
+                realm: "Thunderstrike", className: "Shaman", faction: "Horde", namespace: "profile-classicann-eu",
             });
         });
 

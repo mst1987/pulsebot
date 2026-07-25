@@ -1,8 +1,10 @@
 const axios = require("axios");
 
 // Blizzard Battle.net API client for reading a character's equipped gear
-// (paperdoll) on the WoW Classic progression realms (default: Thunderstrike EU,
-// namespace profile-classic-eu).
+// (paperdoll) on the WoW Classic Anniversary realms (default: Thunderstrike EU,
+// namespace profile-classicann-eu — confirmed correct for the Anniversary realms;
+// the plain profile-classic-<region> namespace resolves to a different Classic
+// line and can return a wrong-era character/gear).
 //
 // IMPORTANT: the Classic profile API is only partially available. Depending on
 // the realm/character, the equipment endpoint may return 403/404 or empty data
@@ -33,7 +35,7 @@ class Blizzard {
         // derived from the effective region so a per-call region override still
         // works. `this.namespace` is the resolved default for the instance region.
         this._namespaceExplicit = Boolean(opts.namespace);
-        this.namespace = opts.namespace || `profile-classic-${this.region}`;
+        this.namespace = opts.namespace || `profile-classicann-${this.region}`;
         this.locale = opts.locale || "en_GB";
         this._token = null;
         this._tokenExpiry = 0; // epoch ms
@@ -89,7 +91,7 @@ class Blizzard {
         const region = (opts.region || this.region || "eu").toLowerCase();
         const realm = (opts.realmSlug || this.realmSlug || "").toLowerCase();
         const namespace = opts.namespace
-            || (this._namespaceExplicit ? this.namespace : `profile-classic-${region}`);
+            || (this._namespaceExplicit ? this.namespace : `profile-classicann-${region}`);
         return { region, realm, namespace, host: `https://${region}.api.blizzard.com` };
     }
 
@@ -122,21 +124,32 @@ class Blizzard {
 
     /**
      * A character's equipped items, normalized to { slot, itemId, name, quality,
-     * level }. Returns null on any problem (not configured, auth failure, 403/404,
-     * empty/unknown character, network error) so the caller can fall back to a
-     * classic-armory.org link.
+     * level, enchants, gems, emptySockets }. `enchants`/`gems` are display strings;
+     * `emptySockets` counts sockets without a gem. Returns null on any problem
+     * (not configured, auth failure, 403/404, empty/unknown character, network
+     * error) so the caller can fall back to a classic-armory.org link.
      */
     async getEquipment(characterName, opts = {}) {
         const data = await this._getCharacter(characterName, "/equipment", opts);
         if (!data) return null;
         const items = data.equipped_items || [];
-        return items.map((it) => ({
-            slot: (it.slot && it.slot.type) || "",
-            itemId: (it.item && it.item.id) || null,
-            name: it.name || "",
-            quality: (it.quality && it.quality.type) || "",
-            level: (it.level && it.level.value) || null,
-        }));
+        return items.map((it) => {
+            const sockets = it.sockets || [];
+            return {
+                slot: (it.slot && it.slot.type) || "",
+                itemId: (it.item && it.item.id) || null,
+                name: it.name || "",
+                quality: (it.quality && it.quality.type) || "",
+                level: (it.level && it.level.value) || null,
+                enchants: (it.enchantments || [])
+                    .map((e) => e.display_string || (e.source_item && e.source_item.name) || "")
+                    .filter(Boolean),
+                gems: sockets
+                    .map((s) => (s.item && s.item.name) || "")
+                    .filter(Boolean),
+                emptySockets: sockets.filter((s) => !s.item).length,
+            };
+        });
     }
 
     /**
