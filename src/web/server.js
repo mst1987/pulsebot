@@ -3,7 +3,9 @@ const crypto = require("crypto");
 const { webPort, applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../config/variables");
 const { getReport, deleteReport, listReports } = require("./reportStore");
 const { prepareReportList, prepareLogList, annotateLogCategories, logPostedAt } = require("./reportList");
-const { buildRecentEvents, RECENT_WINDOW_DAYS } = require("./recentEvents");
+const { buildRecentEvents } = require("./recentEvents");
+const { listRaidEvents } = require("./raidEventStore");
+const { scanRaidEvents, startRaidEventScan } = require("./raidEventScan");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
 const {
     renderDashboard, renderAdminDenied, renderRecruitment, renderCla,
@@ -191,40 +193,38 @@ async function loadUpcomingSetups(guildId, limit = 3, maxChecks = 8) {
 // Find the raids that already took place, annotated with everything the
 // dashboard links to: their Warcraft-Logs (matched by post time, see
 // recentEvents.js), the CLA evaluation of those logs, imported loot and the
-// soft-reserve list. One Raid-Helper call; every other lookup is local.
+// soft-reserve list.
+//
+// Reads from the locally persisted raidEventStore (see raidEventScan.js)
+// instead of a live, windowed Raid-Helper call, so a raid stays listed once it
+// has been scanned — even after Raid-Helper stops returning it or its channel
+// is renamed/deleted. A scan runs first to pick up anything new since the last
+// background sweep (every dashboard view is effectively an on-demand rescan);
+// if that scan fails but the store already has events for this guild, they are
+// shown regardless — only a guild with nothing stored yet surfaces the error.
 async function loadRecentEvents(guildId, limit = 5) {
     if (!guildId) return { events: [], error: null };
-    try {
-        const rh = new Raidhelper();
-        const sinceSeconds = Math.floor(Date.now() / 1000) - RECENT_WINDOW_DAYS * 86400;
-        const events = await rh.getPastEvents(sinceSeconds);
-        const catMap = discord.getChannelCategoryMap(guildId);
-        const inGuild = events.filter((ev) => catMap[ev.channelId]);
-        // Only logs from this guild can belong to one of its raids.
-        const logs = listLogs()
-            .filter((l) => !l.guildId || l.guildId === guildId)
-            .map((l) => ({ ...l, postedAt: logPostedAt(l) }));
-        const recent = buildRecentEvents(inGuild, { logs, limit, windowDays: RECENT_WINDOW_DAYS });
-        return {
-            events: recent.map((ev) => {
-                const meta = catMap[ev.channelId] || {};
-                return {
-                    id: ev.id,
-                    title: ev.title,
-                    startTime: ev.startTime,
-                    channelId: ev.channelId,
-                    channelName: meta.name || "",
-                    categoryName: meta.categoryName || "",
-                    logs: ev.logs,
-                    lootCount: listLootByEvent(ev.id).length,
-                    softres: getEventSoftres(ev.id),
-                };
-            }),
-            error: null,
-        };
-    } catch (e) {
-        return { events: [], error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
-    }
+    const { error: scanError } = await scanRaidEvents(guildId);
+    const stored = listRaidEvents(guildId);
+    // Only logs from this guild can belong to one of its raids.
+    const logs = listLogs()
+        .filter((l) => !l.guildId || l.guildId === guildId)
+        .map((l) => ({ ...l, postedAt: logPostedAt(l) }));
+    const recent = buildRecentEvents(stored, { logs, limit, windowDays: Infinity });
+    return {
+        events: recent.map((ev) => ({
+            id: ev.id,
+            title: ev.title,
+            startTime: ev.startTime,
+            channelId: ev.channelId,
+            channelName: ev.channelName || "",
+            categoryName: ev.categoryName || "",
+            logs: ev.logs,
+            lootCount: listLootByEvent(ev.id).length,
+            softres: getEventSoftres(ev.id),
+        })),
+        error: stored.length ? null : scanError,
+    };
 }
 
 // Context for the server selector shown on every admin page.
@@ -1448,6 +1448,10 @@ function startWebServer(client) {
     });
     // Sweep due raid-sheet copies (deleted a few days after each raid).
     startSheetCleanup();
+    // Periodically snapshot finished Raid-Helper events into raidEventStore (see
+    // loadRecentEvents), so a raid shows up on the dashboard even if nobody opens
+    // it right after the raid ends.
+    startRaidEventScan();
     return server;
 }
 
