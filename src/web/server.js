@@ -3,7 +3,7 @@ const crypto = require("crypto");
 const { webPort, applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../config/variables");
 const { getReport, deleteReport, listReports } = require("./reportStore");
 const { prepareReportList, prepareLogList, annotateLogCategories, logPostedAt } = require("./reportList");
-const { buildRecentEvents } = require("./recentEvents");
+const { buildRecentEvents, matchLogsForEvent } = require("./recentEvents");
 const { listRaidEvents } = require("./raidEventStore");
 const { scanRaidEvents, startRaidEventScan } = require("./raidEventScan");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
@@ -225,6 +225,23 @@ async function loadRecentEvents(guildId, limit = 5) {
         })),
         error: stored.length ? null : scanError,
     };
+}
+
+// Annotate upcoming Raid-Helper events the same way loadRecentEvents() does for
+// past ones (matched Warcraft-Logs, imported-loot count, softres list), so the
+// History page's "Kommende Raids" table can use the same row rendering as
+// "Vergangene Raids". Upcoming events don't go through the persisted
+// raidEventStore — they come straight from the live Raid-Helper event list.
+function annotateUpcomingExtras(events, guildId) {
+    const logs = listLogs()
+        .filter((l) => !l.guildId || l.guildId === guildId)
+        .map((l) => ({ ...l, postedAt: logPostedAt(l) }));
+    return (events || []).map((ev) => ({
+        ...ev,
+        logs: matchLogsForEvent(ev, logs),
+        lootCount: listLootByEvent(ev.id).length,
+        softres: getEventSoftres(ev.id),
+    }));
 }
 
 // Context for the server selector shown on every admin page.
@@ -1256,13 +1273,21 @@ async function handle(req, res) {
         const user = requireAdmin(req, res);
         if (!user) return;
         const guildId = activeGuildFor(req);
-        const { groups } = await loadEventGroups(guildId);
-        const events = groups.flatMap((g) => g.events.map((ev) => ({
-            id: ev.id, title: ev.title, startTime: ev.startTime, categoryId: g.categoryId,
-        })));
+        const { groups, error: upcomingError } = await loadEventGroups(guildId);
+        const allUpcoming = groups.flatMap((g) => g.events);
+        const events = allUpcoming.map((ev) => ({
+            id: ev.id, title: ev.title, startTime: ev.startTime, categoryId: ev.categoryId,
+        }));
+        // "Alle Raids" tab: every raid, upcoming and already past, each linking to
+        // its details/loot/WCL/evaluation — same row rendering as the dashboard's
+        // "Latest Events" card (see raidTable() in renderAdmin.js).
+        const upcomingRaids = { events: annotateUpcomingExtras(allUpcoming, guildId), error: upcomingError };
+        const pastRaids = await loadRecentEvents(guildId, Infinity);
         const cfg = getConfig();
         return send(res, 200, renderHistory(user, {
             events,
+            upcomingRaids,
+            pastRaids,
             lootEvents: eventsWithLoot(),
             logs: listLogs(),
             categories: guildId ? discord.listCategories(guildId) : [],

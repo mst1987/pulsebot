@@ -583,6 +583,74 @@ function renderAdminDenied(user) {
     return layout("Admin — Zugang", `${ADMIN_STYLE}<h1>Pulsebot Admin</h1>${body}`);
 }
 
+// One event's logs: the WCL link itself, plus the CLA report when evaluated.
+// Shared by the dashboard's "Latest Events" card and the History page's raid
+// tables (see raidTable()).
+function logsCell(ev) {
+    const logs = ev.logs || [];
+    if (!logs.length) return "<span class=\"sub\">—</span>";
+    return logs.map((l) => {
+        const url = logWclUrl(l);
+        const name = l.title || l.reportId || "(Log)";
+        const link = url
+            ? `<a class="mlink" href="${esc(url)}" target="_blank" rel="noopener">${esc(name)} ↗</a>`
+            : esc(name);
+        const report = (l.status === "done" && (l.reportUrl || l.reportRefId))
+            ? ` · <a class="mlink" href="${esc(l.reportUrl || `/r/${l.reportRefId}`)}">Auswertung</a>`
+            : "";
+        return `<div>${link}${report}</div>`;
+    }).join("");
+}
+
+function lootCell(ev) {
+    return ev.lootCount
+        ? `<a class="mlink" href="/admin/history/event?event=${esc(ev.id)}">${esc(String(ev.lootCount))} Items</a>`
+        : "<a class=\"mlink\" href=\"/admin/history\">importieren</a>";
+}
+
+function linksCell(ev, guildId) {
+    const links = [];
+    if (guildId && ev.channelId) {
+        links.push(`<a class="mlink" href="${eventPostUrl(guildId, ev.channelId, ev.id)}" target="_blank" rel="noopener">Discord</a>`);
+    }
+    links.push(`<a class="mlink" href="${raidplanUrl(ev.id)}" target="_blank" rel="noopener">Setup/Comp</a>`);
+    if (ev.softres && ev.softres.url) {
+        links.push(`<a class="mlink" href="${esc(ev.softres.url)}" target="_blank" rel="noopener">Softres</a>`);
+    }
+    return links.join(" · ");
+}
+
+/**
+ * A table of raids (upcoming or past), each row linking to its details, its
+ * Warcraft-Log/CLA evaluation, its imported loot and its Discord/setup/softres
+ * links. Shared by the dashboard's "Latest Events" card and the History page's
+ * "Alle Raids" tab.
+ * @param {object[]} events  each optionally carrying `.logs`/`.lootCount`/`.softres`
+ * @param {string} guildId   for the Discord-post link
+ * @param {{ error?: string, emptyMessage: string }} opts
+ */
+function raidTable(events, guildId, { error, emptyMessage }) {
+    let rows;
+    if (error) {
+        rows = `<tr><td colspan="5" class="sub" style="padding:16px;color:var(--high)">${esc(error)}</td></tr>`;
+    } else if (!events.length) {
+        rows = `<tr><td colspan="5" class="sub" style="padding:16px">${esc(emptyMessage)}</td></tr>`;
+    } else {
+        rows = events.map((ev) => `<tr>
+            <td><strong>${eventDetailLink(ev)}</strong>${ev.channelName ? `<div class="small">#${esc(ev.channelName)}</div>` : ""}</td>
+            <td class="small">${esc(formatEventTime(ev.startTime))}</td>
+            <td class="small">${logsCell(ev)}</td>
+            <td class="small">${lootCell(ev)}</td>
+            <td class="small">${linksCell(ev, guildId)}</td>
+          </tr>`).join("");
+    }
+
+    return `<table class="idx">
+          <thead><tr><th>Event</th><th>Termin</th><th>Logs</th><th>Loot</th><th>Links</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+}
+
 /**
  * "Latest Events" — the raids that already happened, with everything that gets
  * attached to them afterwards: the Warcraft-Logs posted in the log channels (and
@@ -594,61 +662,9 @@ function renderAdminDenied(user) {
 function latestEventsCard(recent, nav) {
     const data = recent || { events: [], error: null };
     const guildId = (nav && nav.activeGuildId) || "";
-
-    // One event's logs: the WCL link itself, plus the CLA report when evaluated.
-    const logsCell = (ev) => {
-        const logs = ev.logs || [];
-        if (!logs.length) return "<span class=\"sub\">—</span>";
-        return logs.map((l) => {
-            const url = logWclUrl(l);
-            const name = l.title || l.reportId || "(Log)";
-            const link = url
-                ? `<a class="mlink" href="${esc(url)}" target="_blank" rel="noopener">${esc(name)} ↗</a>`
-                : esc(name);
-            const report = (l.status === "done" && (l.reportUrl || l.reportRefId))
-                ? ` · <a class="mlink" href="${esc(l.reportUrl || `/r/${l.reportRefId}`)}">Auswertung</a>`
-                : "";
-            return `<div>${link}${report}</div>`;
-        }).join("");
-    };
-
-    const lootCell = (ev) => (ev.lootCount
-        ? `<a class="mlink" href="/admin/history/event?event=${esc(ev.id)}">${esc(String(ev.lootCount))} Items</a>`
-        : "<a class=\"mlink\" href=\"/admin/history\">importieren</a>");
-
-    const linksCell = (ev) => {
-        const links = [];
-        if (guildId && ev.channelId) {
-            links.push(`<a class="mlink" href="${eventPostUrl(guildId, ev.channelId, ev.id)}" target="_blank" rel="noopener">Discord</a>`);
-        }
-        links.push(`<a class="mlink" href="${raidplanUrl(ev.id)}" target="_blank" rel="noopener">Setup/Comp</a>`);
-        if (ev.softres && ev.softres.url) {
-            links.push(`<a class="mlink" href="${esc(ev.softres.url)}" target="_blank" rel="noopener">Softres</a>`);
-        }
-        return links.join(" · ");
-    };
-
-    let rows;
-    if (data.error) {
-        rows = `<tr><td colspan="5" class="sub" style="padding:16px;color:var(--high)">${esc(data.error)}</td></tr>`;
-    } else if (!data.events.length) {
-        rows = "<tr><td colspan=\"5\" class=\"sub\" style=\"padding:16px\">Keine vergangenen Events gefunden.</td></tr>";
-    } else {
-        rows = data.events.map((ev) => `<tr>
-            <td><strong>${eventDetailLink(ev)}</strong>${ev.channelName ? `<div class="small">#${esc(ev.channelName)}</div>` : ""}</td>
-            <td class="small">${esc(formatEventTime(ev.startTime))}</td>
-            <td class="small">${logsCell(ev)}</td>
-            <td class="small">${lootCell(ev)}</td>
-            <td class="small">${linksCell(ev)}</td>
-          </tr>`).join("");
-    }
-
     return `<div class="dash-card" style="margin-bottom:16px">
         <div class="dash-card-head"><h3>Latest Events</h3><a class="mlink" href="/admin/history">Historie &amp; Loot →</a></div>
-        <table class="idx">
-          <thead><tr><th>Event</th><th>Termin</th><th>Logs</th><th>Loot</th><th>Links</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
+        ${raidTable(data.events, guildId, { error: data.error, emptyMessage: "Keine vergangenen Events gefunden." })}
       </div>`;
 }
 
@@ -2408,17 +2424,33 @@ function fillCharTemplate(tpl, character) {
  * Event-history & loot landing page: import panel (per event, paste + upload),
  * per-category loot-tool marking, the imported-loot-per-event list, the tracked
  * Warcraft-Logs list and a quick character index.
- * @param {object} opts { events, lootEvents, logs, categories, categoryLootTool,
- *                         chars, guildId, csrf, msg, nav, activeGuildId }
+ * @param {object} opts { events, upcomingRaids, pastRaids, lootEvents, logs,
+ *                         categories, categoryLootTool, chars, guildId, csrf,
+ *                         msg, nav, activeGuildId }
  */
 function renderHistory(user, opts = {}) {
     const events = opts.events || [];
+    const upcomingRaids = opts.upcomingRaids || { events: [], error: null };
+    const pastRaids = opts.pastRaids || { events: [], error: null };
     const lootEvents = opts.lootEvents || [];
     const logs = opts.logs || [];
     const categories = opts.categories || [];
     const catTool = opts.categoryLootTool || {};
     const chars = opts.chars || [];
     const csrfField = hiddenCsrf(opts.csrf || "");
+    const guildId = opts.guildId || (opts.nav && opts.nav.activeGuildId) || "";
+
+    // --- Alle Raids: every raid, upcoming and already past, with the same
+    // details/loot/WCL/evaluation links as the dashboard's "Latest Events". ---
+    const raidsSection = `
+      <div class="dash-card" style="margin-bottom:18px">
+        <div class="dash-card-head"><h3>Kommende Raids</h3><span class="small" style="margin-left:auto">${upcomingRaids.events.length}</span></div>
+        ${raidTable(upcomingRaids.events, guildId, { error: upcomingRaids.error, emptyMessage: "Keine anstehenden Raids gefunden." })}
+      </div>
+      <div class="dash-card">
+        <div class="dash-card-head"><h3>Vergangene Raids</h3><span class="small" style="margin-left:auto">${pastRaids.events.length}</span></div>
+        ${raidTable(pastRaids.events, guildId, { error: pastRaids.error, emptyMessage: "Keine vergangenen Raids gefunden." })}
+      </div>`;
 
     const toolOptions = (sel) => ["auto", "gargul", "rclc"].map((v) => {
         const label = v === "auto" ? "Auto-Erkennung" : LOOT_TOOL_LABELS[v];
@@ -2568,7 +2600,8 @@ function renderHistory(user, opts = {}) {
     const body = `
       <p class="note">Loot pro Event importieren (RCLootcouncil-JSON oder Gargul-CSV), Warcraft-Logs verlinken und pro Charakter die Loot-Historie samt Armory einsehen.</p>
       ${tabGroup("historyTabs", [
-        { id: "import", label: "Import", content: importPanel, active: true },
+        { id: "raids", label: `Alle Raids${tabCount(upcomingRaids.events.length + pastRaids.events.length)}`, content: raidsSection, active: true },
+        { id: "import", label: "Import", content: importPanel },
         { id: "loot", label: `Importierter Loot${tabCount(lootEvents.length)}`, content: lootSection },
         { id: "logs", label: `Warcraft Logs${tabCount(logs.length)}`, content: logsSection },
         { id: "cats", label: "Loot-Tools", content: categorySection },
