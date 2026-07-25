@@ -15,9 +15,14 @@ const {
 } = require("./renderAdmin");
 const {
     addImport: addLootImport, listByEvent: listLootByEvent,
-    listByCharacter: listLootByCharacter, eventsWithLoot, characters: lootCharacters,
+    listByCharacter: listLootByCharacter, eventsWithLoot,
     clearEvent: clearLootEvent,
 } = require("./lootStore");
+const {
+    annotatedCharacters, rememberFromLoot: rememberClassesFromLoot,
+    resolveMissing: resolveCharacterInfo,
+} = require("./characterInfo");
+const { getCharacter } = require("./characterStore");
 const { parseLoot, LootParseError } = require("../utils/lootImport");
 const Blizzard = require("../classes/blizzard");
 const {
@@ -1332,7 +1337,7 @@ async function handle(req, res) {
             logs: listLogs(),
             categories: guildId ? discord.listCategories(guildId) : [],
             categoryLootTool: cfg.categoryLootTool || {},
-            chars: lootCharacters(),
+            chars: annotatedCharacters(),
             guildId,
             activeGuildId: guildId,
             csrf: auth.csrfToken(req),
@@ -1392,10 +1397,32 @@ async function handle(req, res) {
         }
         if (!items.length) return redirect(res, withFlash(back, "err", "Keine Loot-Einträge im Export gefunden."));
         const { added, skipped } = addLootImport(eventId, items, { categoryId, eventLabel });
+        // RCLootcouncil exports carry the raider's class — keep it right away, so the
+        // character list only has to fall back to the logs for what is still missing.
+        rememberClassesFromLoot(items);
         if (categoryId && (tool === "gargul" || tool === "rclc")) {
             saveConfig({ categoryLootTool: { [categoryId]: tool } });
         }
         return redirect(res, withFlash(back, "ok", `${added} Item(s) importiert${skipped ? `, ${skipped} Duplikat(e) übersprungen` : ""}.`));
+    }
+
+    // Fill in the class/spec of the loot characters: from the export, from an
+    // already evaluated CLA report, else from the Warcraft-Logs report of the raid.
+    if (pathname === "/admin/history/characters-resolve" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/history?msg=csrf");
+        const r = await resolveCharacterInfo();
+        if (r.error) return redirect(res, "/admin/history?err=" + encodeURIComponent(r.error));
+        const filled = r.fromExport + r.fromReports + r.fromWcl;
+        const parts = [`${filled} Charakter(e) ergänzt`];
+        if (r.checkedReports) parts.push(`${r.checkedReports} Log(s) ausgewertet`);
+        // Say what was NOT covered, so an empty result is never mistaken for "done".
+        if (r.pendingReports) parts.push(`${r.pendingReports} weitere(s) Log(s) offen — nochmal ausführen`);
+        if (r.unlinked.length) parts.push(`${r.unlinked.length} ohne zugeordnetes Log (Log im CLA-Menü dem Event zuordnen)`);
+        if (r.missing.length) parts.push(`${r.missing.length} weiterhin ohne Klasse`);
+        return redirect(res, "/admin/history?ok=" + encodeURIComponent(`${parts.join(", ")}.`));
     }
 
     // Mark which loot addon a Discord category uses.
@@ -1465,7 +1492,7 @@ async function handle(req, res) {
         }
         return send(res, 200, renderHistoryChar(user, {
             character: name, realm, items, armoryUrl, wclUrl, gear, gearConfigured, gearError,
-            charSummary, gearNamespace,
+            charSummary, gearNamespace, info: getCharacter(name),
             csrf: auth.csrfToken(req), msg: flashFromQuery(url), nav: navFor(req),
         }));
     }

@@ -53,6 +53,21 @@ jest.mock("../../src/web/lootStore", () => ({
     characters: (...a) => mockLootCharacters(...a),
     clearEvent: (...a) => mockClearLootEvent(...a),
 }));
+const mockAnnotatedCharacters = jest.fn(() => []);
+const mockRememberFromLoot = jest.fn(() => 0);
+const mockResolveCharacterInfo = jest.fn(async () => ({
+    fromExport: 0, fromReports: 0, fromWcl: 0, checkedReports: 0, pendingReports: 0,
+    missing: [], unlinked: [], error: "",
+}));
+jest.mock("../../src/web/characterInfo", () => ({
+    annotatedCharacters: (...a) => mockAnnotatedCharacters(...a),
+    rememberFromLoot: (...a) => mockRememberFromLoot(...a),
+    resolveMissing: (...a) => mockResolveCharacterInfo(...a),
+}));
+const mockGetCharacterInfo = jest.fn(() => null);
+jest.mock("../../src/web/characterStore", () => ({
+    getCharacter: (...a) => mockGetCharacterInfo(...a),
+}));
 const mockBlizzardEquip = jest.fn(() => Promise.resolve(null));
 const mockBlizzardSummary = jest.fn(() => Promise.resolve(null));
 let mockBlizzardConfigured = false;
@@ -836,6 +851,13 @@ describe("event history & loot routes", () => {
         mockListLootByCharacter.mockClear().mockReturnValue([]);
         mockEventsWithLoot.mockClear().mockReturnValue([]);
         mockLootCharacters.mockClear().mockReturnValue([]);
+        mockAnnotatedCharacters.mockClear().mockReturnValue([]);
+        mockRememberFromLoot.mockClear().mockReturnValue(0);
+        mockResolveCharacterInfo.mockClear().mockResolvedValue({
+            fromExport: 0, fromReports: 0, fromWcl: 0, checkedReports: 0, pendingReports: 0,
+            missing: [], unlinked: [], error: "",
+        });
+        mockGetCharacterInfo.mockClear().mockReturnValue(null);
         mockBlizzardEquip.mockClear().mockResolvedValue(null);
         mockBlizzardSummary.mockClear().mockResolvedValue(null);
         mockBlizzardConfigured = false;
@@ -969,6 +991,65 @@ describe("event history & loot routes", () => {
         const res = await request("POST", "/admin/history/clear", { event: "e1" });
         expect(mockClearLootEvent).toHaveBeenCalledWith("e1");
         expect(redirectTo(res)).toContain("/admin/history?ok=");
+    });
+
+    describe("character class/spec", () => {
+        it("GET /admin/history passes the characters WITH their class/spec", async () => {
+            mockAnnotatedCharacters.mockReturnValue([
+                { key: "gemli", character: "Gemli", count: 6, className: "Warrior", spec: "Fury", source: "wcl" },
+            ]);
+            await request("GET", "/admin/history");
+            const opts = renderAdmin.renderHistory.mock.calls[0][1];
+            expect(opts.chars).toEqual([expect.objectContaining({ character: "Gemli", className: "Warrior", spec: "Fury" })]);
+        });
+
+        it("POST /admin/history/import keeps the class the export carried", async () => {
+            await request("POST", "/admin/history/import", {
+                event: "__manual__", manualLabel: "SSC", tool: "gargul", data: GARGUL,
+            });
+            expect(mockRememberFromLoot).toHaveBeenCalledTimes(1);
+            expect(mockRememberFromLoot.mock.calls[0][0][0]).toMatchObject({ character: "Foo" });
+        });
+
+        it("POST /admin/history/characters-resolve reports what it filled in", async () => {
+            mockResolveCharacterInfo.mockResolvedValue({
+                fromExport: 1, fromReports: 2, fromWcl: 3, checkedReports: 2, pendingReports: 0,
+                missing: [], unlinked: [], error: "",
+            });
+            const res = await request("POST", "/admin/history/characters-resolve");
+            const location = decodeURIComponent(redirectTo(res));
+            expect(location).toContain("6 Charakter(e) ergänzt");
+            expect(location).toContain("2 Log(s) ausgewertet");
+        });
+
+        it("POST /admin/history/characters-resolve names what it could NOT cover", async () => {
+            mockResolveCharacterInfo.mockResolvedValue({
+                fromExport: 0, fromReports: 0, fromWcl: 1, checkedReports: 1, pendingReports: 3,
+                missing: ["Nwek"], unlinked: ["Ohkami", "Devire"], error: "",
+            });
+            const res = await request("POST", "/admin/history/characters-resolve");
+            const location = decodeURIComponent(redirectTo(res));
+            expect(location).toContain("3 weitere(s) Log(s) offen");
+            expect(location).toContain("2 ohne zugeordnetes Log");
+            expect(location).toContain("1 weiterhin ohne Klasse");
+        });
+
+        it("POST /admin/history/characters-resolve surfaces a missing WCL key as an error", async () => {
+            mockResolveCharacterInfo.mockResolvedValue({
+                fromExport: 0, fromReports: 0, fromWcl: 0, checkedReports: 0, pendingReports: 0,
+                missing: [], unlinked: [], error: "WCL-API-Key fehlt",
+            });
+            const res = await request("POST", "/admin/history/characters-resolve");
+            expect(redirectTo(res)).toContain("/admin/history?err=");
+        });
+
+        it("GET /admin/history/char passes the character's stored class/spec", async () => {
+            mockGetCharacterInfo.mockReturnValue({ className: "Paladin", spec: "Holy", source: "wcl" });
+            await request("GET", "/admin/history/char?name=Keslight");
+            expect(mockGetCharacterInfo).toHaveBeenCalledWith("Keslight");
+            const opts = renderAdmin.renderHistoryChar.mock.calls[0][1];
+            expect(opts.info).toMatchObject({ className: "Paladin", spec: "Holy" });
+        });
     });
 
     describe("submitted from the Raid-Events detail page (origin=raid)", () => {

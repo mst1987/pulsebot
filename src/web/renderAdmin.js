@@ -7,6 +7,7 @@ const { formatTimestampToDateString } = require("../utils/date");
 const {
     SPEC_CATALOG, SPEC_LINE_RE, resolveSpec, parseWantedBlock, buildSpecLine, insertSpecLine, removeSpecLine,
 } = require("../utils/recruitmentSpecs");
+const { CLASS_COLORS, classSpecIconUrl } = require("../utils/setupView");
 
 // admin-specific styling, injected once per admin page (in addition to layout's base <style>)
 const ADMIN_STYLE = `<style>
@@ -2473,6 +2474,48 @@ function sourceBadge(source) {
     const label = LOOT_TOOL_LABELS[source] || source || "?";
     return `<span class="lbadge">${esc(label)}</span>`;
 }
+
+// --- character class/spec cells (Historie & Loot) ---
+// Where a stored class/spec came from, so a wrong entry can be traced back.
+const CLASS_SOURCE_LABELS = {
+    export: "Loot-Export",
+    report: "Auswertung",
+    wcl: "Warcraft Log",
+    manual: "manuell",
+};
+function classSourceBadge(source) {
+    const label = CLASS_SOURCE_LABELS[source];
+    return label ? `<span class="lbadge">${esc(label)}</span>` : "<span class=\"sub\">—</span>";
+}
+// Class and spec as ONE label — "Holy Paladin" — with the spec's icon in front.
+// Without a known spec it stays the plain class; an unknown class is a dash.
+function classSpecLabel(className, spec) {
+    return spec ? `${spec} ${className}` : className;
+}
+function specIcon(className, spec) {
+    const url = classSpecIconUrl(className, spec);
+    return url
+        ? `<img src="${esc(url)}" alt="" width="18" height="18" loading="lazy" style="border-radius:4px;vertical-align:-4px;margin-right:6px">`
+        : "";
+}
+function classSpecCell(className, spec) {
+    if (!className) return "<span class=\"sub\">—</span>";
+    const color = CLASS_COLORS[className];
+    return `${specIcon(className, spec)}<span style="font-weight:700${color ? `;color:${esc(color)}` : ""}">${esc(classSpecLabel(className, spec))}</span>`;
+}
+// "· Holy Paladin" behind a character's name, as far as it is known.
+function charClassSuffix(info) {
+    const className = (info && info.className) || "";
+    if (!className) return "";
+    const spec = (info && info.spec) || "";
+    const color = CLASS_COLORS[className];
+    return ` <span style="font-weight:700${color ? `;color:${esc(color)}` : ""}">· ${specIcon(className, spec)}${esc(classSpecLabel(className, spec))}</span>`;
+}
+// A character's name linking to their history page, class-coloured when known.
+function charLink(c) {
+    const color = CLASS_COLORS[c.className];
+    return `<a class="mlink" href="/admin/history/char?name=${encodeURIComponent(c.character)}"${color ? ` style="color:${esc(color)}"` : ""}>${esc(c.character)}</a>`;
+}
 // Format an epoch-ms timestamp for the German UI (loot awardedAt / importedAt).
 function fmtMs(ms, withTime = true) {
     const n = Number(ms);
@@ -2667,13 +2710,36 @@ function renderHistory(user, opts = {}) {
            </div>`
         : "<p class=\"sub\">Keine Warcraft-Logs erfasst (Log-Channels in den Einstellungen konfigurieren).</p>";
 
-    // --- character index ---
+    // --- character index: chips for a quick jump, plus the class/spec list ---
     const charChips = chars.length
         ? chars.map((c) => `<a class="btn btn-ghost btn-sm" href="/admin/history/char?name=${encodeURIComponent(c.character)}">${esc(c.character)} <span class="small">(${esc(String(c.count))})</span></a>`).join(" ")
         : "<span class=\"sub\">Noch keine Charaktere mit Loot.</span>";
+    const charRows = chars.map((c) => `<tr>
+        <td>${charLink(c)}</td>
+        <td>${classSpecCell(c.className, c.spec)}</td>
+        <td class="small">${esc(String(c.count))}</td>
+        <td class="small">${classSourceBadge(c.source)}</td>
+      </tr>`).join("");
+    const missingClasses = chars.filter((c) => !c.className || !c.spec).length;
+    const charTable = chars.length
+        ? `<table class="idx" style="margin:0">
+             <thead><tr><th>Charakter</th><th>Klasse &amp; Spec</th><th>Items</th><th>Quelle</th></tr></thead>
+             <tbody>${charRows}</tbody>
+           </table>`
+        : "<p class=\"sub\" style=\"padding:14px 16px\">Noch keine Charaktere mit Loot.</p>";
+    const resolveForm = chars.length
+        ? `<form method="POST" action="/admin/history/characters-resolve" style="margin:0" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Suche läuft …'">
+             ${csrfField}
+             <button class="btn btn-ghost btn-sm" type="submit" title="Nimmt die Klasse aus dem Loot-Export bzw. einer vorhandenen Auswertung und liest den Rest aus dem Warcraft-Log des Raids">Klassen &amp; Specs ergänzen${missingClasses ? ` (${missingClasses} offen)` : ""}</button>
+           </form>`
+        : "";
     const charSection = `
+      <div class="dash-card" style="margin-bottom:18px">
+        <div class="dash-card-head"><h3>Charaktere</h3>${resolveForm ? `<span style="margin-left:auto">${resolveForm}</span>` : ""}</div>
+        ${charTable}
+      </div>
       <div class="dash-card">
-        <div class="dash-card-head"><h3>Charaktere</h3></div>
+        <div class="dash-card-head"><h3>Schnellzugriff</h3></div>
         <div class="row-actions" style="padding:14px 16px">${charChips}</div>
       </div>`;
 
@@ -2819,7 +2885,7 @@ function renderHistoryChar(user, opts = {}) {
 
     const body = `
       <p class="note"><a class="mlink" href="/admin/history">← Zurück zur Historie</a></p>
-      <h2 style="margin-top:0">${esc(character)}${opts.realm ? ` <span class="sub">· ${esc(opts.realm)}</span>` : ""}</h2>
+      <h2 style="margin-top:0">${esc(character)}${opts.realm ? ` <span class="sub">· ${esc(opts.realm)}</span>` : ""}${charClassSuffix(opts.info)}</h2>
       ${links}
       <div style="height:14px"></div>
       ${tabGroup("charTabs", [
