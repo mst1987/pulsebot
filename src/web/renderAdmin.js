@@ -360,6 +360,15 @@ function channelUrl(guildId, channelId) {
 function raidplanUrl(eventId) {
     return `https://raid-helper.xyz/raidplan/${esc(eventId)}`;
 }
+// The event's page INSIDE the admin tool — the default target for an event name,
+// so a click stays in the tool instead of jumping to raid-helper.xyz.
+function eventDetailUrl(eventId) {
+    return `/admin/raids/detail?event=${encodeURIComponent(eventId)}`;
+}
+function eventDetailLink(event) {
+    const label = (event && (event.title || event.id)) || "";
+    return `<a class="mlink" href="${eventDetailUrl(event.id)}" data-loader="Event wird geladen">${esc(label)}</a>`;
+}
 // The bot may run in a UTC container (the Docker image sets no TZ), so every
 // `toLocaleString` MUST pin the timeZone explicitly — otherwise German raid
 // times render in the host zone (2h early in summer). See date.js for the
@@ -504,7 +513,7 @@ function latestEventsCard(recent, nav) {
         rows = "<tr><td colspan=\"5\" class=\"sub\" style=\"padding:16px\">Keine vergangenen Events gefunden.</td></tr>";
     } else {
         rows = data.events.map((ev) => `<tr>
-            <td><strong>${esc(ev.title || ev.id)}</strong>${ev.channelName ? `<div class="small">#${esc(ev.channelName)}</div>` : ""}</td>
+            <td><strong>${eventDetailLink(ev)}</strong>${ev.channelName ? `<div class="small">#${esc(ev.channelName)}</div>` : ""}</td>
             <td class="small">${esc(formatEventTime(ev.startTime))}</td>
             <td class="small">${logsCell(ev)}</td>
             <td class="small">${lootCell(ev)}</td>
@@ -535,7 +544,7 @@ function renderDashboard(user, opts = {}) {
         ? `<tr><td colspan="4" class="sub" style="padding:16px;color:var(--high)">${esc(upcoming.error)}</td></tr>`
         : (upcoming.events.length
             ? upcoming.events.map((ev) => `<tr>
-                <td><a class="mlink" href="${raidplanUrl(ev.id)}" target="_blank" rel="noopener">${esc(ev.title || ev.id)}</a></td>
+                <td>${eventDetailLink(ev)}</td>
                 <td class="small">${esc(ev.channelName || "")}</td>
                 <td class="small">${esc(formatEventTime(ev.startTime))}</td>
                 <td>${sheetBadge(ev.sheet)}</td>

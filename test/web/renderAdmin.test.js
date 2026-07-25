@@ -115,14 +115,16 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("Noch keine Auswertungen");
         });
 
-        it("renders the Upcoming Events card with a link to the raidplan", () => {
+        it("renders the Upcoming Events card, linking the event to its admin detail page", () => {
             const html = renderDashboard(user, {
                 nav: nav(),
                 upcoming: { events: [{ id: "evt1", title: "Gruul & Maggi", channelName: "gruul-run", startTime: 1893456000, sheet: null }], error: null },
             });
             expect(html).toContain("Upcoming Events");
             expect(html).toContain("Gruul &amp; Maggi");
-            expect(html).toContain("raid-helper.xyz/raidplan/evt1");
+            expect(html).toContain("href=\"/admin/raids/detail?event=evt1\"");
+            // the event name no longer leaves the tool for raid-helper.xyz
+            expect(html).not.toContain("raid-helper.xyz/raidplan/evt1");
             expect(html).toContain("gruul-run");
         });
 
@@ -183,6 +185,16 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("#kara-run");
             expect(html).toContain("https://discord.com/channels/g1/c1/e1");
             expect(html).toContain("raid-helper.xyz/raidplan/e1");
+        });
+
+        it("links the event name to its admin detail page", () => {
+            const html = latest([pastEvent()]);
+            expect(html).toContain("href=\"/admin/raids/detail?event=e1\"");
+        });
+
+        it("url-encodes the event id in the detail link", () => {
+            const html = latest([pastEvent({ id: "a b&c" })]);
+            expect(html).toContain("href=\"/admin/raids/detail?event=a%20b%26c\"");
         });
 
         it("links every matched Warcraft-Log", () => {
