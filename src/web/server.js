@@ -3,7 +3,7 @@ const crypto = require("crypto");
 const { webPort, applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../config/variables");
 const { getReport, deleteReport, listReports } = require("./reportStore");
 const { prepareReportList, prepareLogList, annotateLogCategories, logPostedAt } = require("./reportList");
-const { buildRecentEvents } = require("./recentEvents");
+const { buildRecentEvents, matchLogsForEvent } = require("./recentEvents");
 const { listRaidEvents } = require("./raidEventStore");
 const { scanRaidEvents, startRaidEventScan } = require("./raidEventScan");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
@@ -230,6 +230,23 @@ async function loadRecentEvents(guildId, limit = 5) {
         })),
         error: stored.length ? null : scanError,
     };
+}
+
+// Annotate upcoming Raid-Helper events the same way loadRecentEvents() does for
+// past ones (matched Warcraft-Logs, imported-loot count, softres list), so the
+// History page's "Kommende Raids" table can use the same row rendering as
+// "Vergangene Raids". Upcoming events don't go through the persisted
+// raidEventStore — they come straight from the live Raid-Helper event list.
+function annotateUpcomingExtras(events, guildId) {
+    const logs = listLogs()
+        .filter((l) => !l.guildId || l.guildId === guildId)
+        .map((l) => ({ ...l, postedAt: logPostedAt(l) }));
+    return (events || []).map((ev) => ({
+        ...ev,
+        logs: matchLogsForEvent(ev, logs),
+        lootCount: listLootByEvent(ev.id).length,
+        softres: getEventSoftres(ev.id),
+    }));
 }
 
 // Context for the server selector shown on every admin page.
@@ -712,7 +729,9 @@ async function handle(req, res) {
                     description: form.description || "",
                 });
                 if (result && result.status === "failed") {
-                    const msg = result.message || "Raid-Helper hat die Erstellung abgelehnt.";
+                    // Raid-Helper's v4 error payloads use "reason" (e.g. {reason:"invalid token"});
+                    // "message" is kept as a fallback for any other shape.
+                    const msg = result.reason || result.message || "Raid-Helper hat die Erstellung abgelehnt.";
                     return redirect(res, `/admin/raids/new?err=${encodeURIComponent(msg)}`);
                 }
                 return redirect(res, "/admin/raids?ok=" + encodeURIComponent("Event angelegt."));
@@ -1261,13 +1280,21 @@ async function handle(req, res) {
         const user = requireAdmin(req, res);
         if (!user) return;
         const guildId = activeGuildFor(req);
-        const { groups } = await loadEventGroups(guildId);
-        const events = groups.flatMap((g) => g.events.map((ev) => ({
-            id: ev.id, title: ev.title, startTime: ev.startTime, categoryId: g.categoryId,
-        })));
+        const { groups, error: upcomingError } = await loadEventGroups(guildId);
+        const allUpcoming = groups.flatMap((g) => g.events);
+        const events = allUpcoming.map((ev) => ({
+            id: ev.id, title: ev.title, startTime: ev.startTime, categoryId: ev.categoryId,
+        }));
+        // "Alle Raids" tab: every raid, upcoming and already past, each linking to
+        // its details/loot/WCL/evaluation — same row rendering as the dashboard's
+        // "Latest Events" card (see raidTable() in renderAdmin.js).
+        const upcomingRaids = { events: annotateUpcomingExtras(allUpcoming, guildId), error: upcomingError };
+        const pastRaids = await loadRecentEvents(guildId, Infinity);
         const cfg = getConfig();
         return send(res, 200, renderHistory(user, {
             events,
+            upcomingRaids,
+            pastRaids,
             lootEvents: eventsWithLoot(),
             logs: listLogs(),
             categories: guildId ? discord.listCategories(guildId) : [],
@@ -1278,7 +1305,19 @@ async function handle(req, res) {
             csrf: auth.csrfToken(req),
             msg: flashFromQuery(url),
             nav: navFor(req),
+            tab: url.searchParams.get("tab") || "",
         }));
+    }
+
+    // Remove a tracked log from the "Warcraft Logs" tab of the Historie & Loot page
+    // (does not touch Discord / the report itself — same store as /admin/cla/log-delete).
+    if (pathname === "/admin/history/log-delete" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/history?tab=logs&msg=csrf");
+        deleteLog((form.logId || "").trim());
+        return redirect(res, "/admin/history?tab=logs&msg=deleted");
     }
 
     // Import a loot export (RCLootcouncil JSON / Gargul CSV) for one event. Reachable

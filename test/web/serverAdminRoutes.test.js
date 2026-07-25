@@ -390,6 +390,14 @@ describe("raid create route", () => {
         expect(redirectTo(res)).toContain("/admin/raids?ok=");
     });
 
+    it("POST /admin/raids/new surfaces Raid-Helper's failure reason in the redirect", async () => {
+        mockCreateEvent.mockResolvedValueOnce({ status: "failed", reason: "invalid token" });
+        const res = await request("POST", "/admin/raids/new", {
+            channelId: "c1", leaderId: "42", templateId: "3", date: "2026-07-24", time: "20:00", title: "GDKP Kara",
+        });
+        expect(redirectTo(res)).toBe(`/admin/raids/new?err=${encodeURIComponent("invalid token")}`);
+    });
+
     it("POST /admin/raids/new rejects an invalid date", async () => {
         const res = await request("POST", "/admin/raids/new", {
             channelId: "c1", leaderId: "42", templateId: "3", date: "", time: "20:00", title: "x",
@@ -842,11 +850,64 @@ describe("event history & loot routes", () => {
         mockBlizzardSummary.mockClear().mockResolvedValue(null);
         mockBlizzardConfigured = false;
         store.saveConfig.mockClear();
+        // "Alle Raids" tab (GET /admin/history) pulls past raids from the same
+        // persisted store as the dashboard — pin it down explicitly here so this
+        // describe block doesn't depend on state left by an earlier one.
+        mockScanRaidEvents.mockReset().mockResolvedValue({ scanned: 0, error: null });
+        mockListRaidEvents.mockReset().mockReturnValue([]);
+        logStore.listLogs.mockReturnValue([]);
+        mockGetEventSoftres.mockReturnValue(null);
     });
 
     it("GET /admin/history renders the history page", async () => {
         const res = await request("GET", "/admin/history");
         expect(body(res)).toBe("HISTORY");
+    });
+
+    describe("GET /admin/history — Alle Raids tab", () => {
+        const opts = () => renderAdmin.renderHistory.mock.calls.at(-1)[1];
+
+        it("lists upcoming raids from the live Raid-Helper event list", async () => {
+            mockGetAllEvents.mockResolvedValue([
+                { id: "e1", channelId: "c1", title: "SSC/TK", startTime: 2000000000, signUps: [] },
+            ]);
+            discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "ssc-tk", categoryId: "cat", categoryName: "Raids" } });
+            await request("GET", "/admin/history");
+            expect(opts().upcomingRaids.events.map((e) => e.id)).toEqual(["e1"]);
+            expect(opts().upcomingRaids.error).toBeNull();
+        });
+
+        it("lists ALL stored past raids, not just the dashboard's default 5", async () => {
+            const stored = Array.from({ length: 8 }, (_, i) => ({
+                id: `p${i}`, guildId: "g1", title: `Raid ${i}`, channelId: "c1", channelName: "kara",
+                categoryId: "cat", categoryName: "Raids", startTime: 1000 + i,
+            }));
+            mockListRaidEvents.mockReturnValue(stored);
+            await request("GET", "/admin/history");
+            expect(opts().pastRaids.events).toHaveLength(8);
+        });
+
+        it("annotates upcoming raids with loot count and softres, same as past raids", async () => {
+            mockGetAllEvents.mockResolvedValue([
+                { id: "e1", channelId: "c1", title: "SSC/TK", startTime: 2000000000, signUps: [] },
+            ]);
+            discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "ssc-tk", categoryId: "cat", categoryName: "Raids" } });
+            mockListLootByEvent.mockReturnValue([{ id: "i1" }]);
+            mockGetEventSoftres.mockReturnValue({ eventId: "e1", url: "https://softres.it/raid/r1" });
+            await request("GET", "/admin/history");
+            const ev = opts().upcomingRaids.events[0];
+            expect(ev.lootCount).toBe(1);
+            expect(ev.softres).toMatchObject({ url: "https://softres.it/raid/r1" });
+        });
+
+        it("still passes the reduced event list for the Import dropdown unchanged", async () => {
+            mockGetAllEvents.mockResolvedValue([
+                { id: "e1", channelId: "c1", title: "SSC/TK", startTime: 2000000000, signUps: [] },
+            ]);
+            discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "ssc-tk", categoryId: "cat", categoryName: "Raids" } });
+            await request("GET", "/admin/history");
+            expect(opts().events).toEqual([{ id: "e1", title: "SSC/TK", startTime: 2000000000, categoryId: "cat" }]);
+        });
     });
 
     it("POST /admin/history/import parses a manual Gargul import and stores it", async () => {

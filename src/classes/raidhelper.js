@@ -188,7 +188,7 @@ class Raidhelper {
       const options = {
         host: "raid-helper.xyz",
         port: 443,
-        path: "/api/v2/events/" + raidid + "/signups",
+        path: "/api/v4/events/" + raidid + "/signups",
         method: "POST",
         headers: {
           Authorization: this.apiKey,
@@ -220,7 +220,7 @@ class Raidhelper {
       const options = {
         host: "raid-helper.xyz",
         port: 443,
-        path: "/api/v2/events/" + eventid,
+        path: "/api/v4/events/" + eventid,
         method: "GET",
         headers: { Authorization: this.apiKey },
       };
@@ -290,7 +290,9 @@ class Raidhelper {
 
   // Create a new Raid-Helper event in the given channel.
   // data: { channelId, leaderId, templateId, date (dd-MM-yyyy), time (HH:mm), title, description }
-  // Endpoint per raid-helper.xyz API: POST /api/v2/servers/{serverId}/channels/{channelId}/event
+  // Endpoint per raid-helper.xyz API: POST /api/v4/servers/{serverId}/channels/{channelId}/event
+  // (the v2 event-creation/signup endpoints have been shut down server-side — they now all
+  // 404 with a generic "Endpoint ... not found" regardless of auth, verified live 2026-07-25)
   async createEvent(data) {
     return new Promise((resolve, reject) => {
       const { channelId, ...body } = data;
@@ -299,7 +301,7 @@ class Raidhelper {
       const options = {
         host: "raid-helper.xyz",
         port: 443,
-        path: `/api/v2/servers/${this.serverId}/channels/${channelId}/event`,
+        path: `/api/v4/servers/${this.serverId}/channels/${channelId}/event`,
         method: "POST",
         headers: {
           Authorization: this.apiKey,
