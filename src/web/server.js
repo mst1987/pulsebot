@@ -430,6 +430,7 @@ async function handle(req, res) {
                 channelId: posted.channelId,
                 messageId: posted.messageId,
                 channelName: channel ? channel.name : "",
+                content: template.content,
                 title: template.title,
                 body: template.body,
                 buttonLabel: template.buttonLabel,
