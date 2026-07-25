@@ -931,6 +931,58 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("Setup konnte nicht geladen werden");
             expect(html).toContain("Raid-Helper down");
         });
+
+        describe("Loot tab", () => {
+            it("renders a Loot tab with an import form bound to this event", () => {
+                const html = renderEventDetail(user, base);
+                expect(html).toContain("data-tab=\"loot\"");
+                expect(html).toContain("data-panel=\"loot\"");
+                expect(html).toContain("action=\"/admin/history/import\"");
+                expect(html).toContain("name=\"event\" value=\"e1\"");
+                expect(html).toContain("name=\"origin\" value=\"raid\"");
+            });
+
+            it("preselects the loot tool from the category setting", () => {
+                const html = renderEventDetail(user, { ...base, lootTool: "gargul" });
+                expect(html).toMatch(/<option value="gargul" selected>Gargul<\/option>/);
+            });
+
+            it("defaults to auto-detection when no category tool is set", () => {
+                const html = renderEventDetail(user, base);
+                expect(html).toMatch(/<option value="auto" selected>Auto-Erkennung<\/option>/);
+            });
+
+            it("shows no existing-loot card and an unbadged tab when nothing was imported yet", () => {
+                const html = renderEventDetail(user, { ...base, lootItems: [] });
+                expect(html).not.toContain("<h3>Bereits importiert</h3>");
+                expect(html).toContain(">Loot</button>");
+            });
+
+            it("lists already-imported loot with a count badge and a delete action", () => {
+                const html = renderEventDetail(user, {
+                    ...base,
+                    lootItems: [
+                        { id: "i1", itemName: "Band of Sulfuras", character: "Tankadin", response: "Main Spec", boss: "Nightbane", awardedAt: 1721851200000, source: "gargul" },
+                    ],
+                });
+                expect(html).toContain("Bereits importiert");
+                expect(html).toContain("Band of Sulfuras");
+                expect(html).toContain("Tankadin");
+                expect(html).toContain("tab-count\">1<");
+                expect(html).toContain("action=\"/admin/history/clear\"");
+                // the clear form must also carry the raid-detail origin so it redirects back here
+                expect(html).toMatch(/action="\/admin\/history\/clear"[\s\S]*?name="origin" value="raid"/);
+            });
+
+            it("escapes item and character names in the existing-loot table", () => {
+                const html = renderEventDetail(user, {
+                    ...base,
+                    lootItems: [{ id: "i1", itemName: "<b>x</b>", character: "<i>y</i>", response: "Main Spec", awardedAt: 1721851200000, source: "gargul" }],
+                });
+                expect(html).toContain("&lt;b&gt;x&lt;/b&gt;");
+                expect(html).not.toContain("<b>x</b>");
+            });
+        });
     });
 
     describe("renderNotifyTemplates", () => {

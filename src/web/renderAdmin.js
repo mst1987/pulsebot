@@ -1747,6 +1747,56 @@ function renderEventDetail(user, opts = {}) {
         search.addEventListener("blur",function(){ setTimeout(function(){ results.style.display="none"; },200); }); }
       })();</script>`;
 
+    // --- Loot (dropped items from this raid), imported directly on the event page
+    // instead of having to go through Historie & Loot and pick the event by hand. ---
+    const lootItems = opts.lootItems || [];
+    const lootToolOptions = ["auto", "gargul", "rclc"].map((v) => {
+        const label = v === "auto" ? "Auto-Erkennung" : LOOT_TOOL_LABELS[v];
+        return `<option value="${v}"${v === (opts.lootTool || "auto") ? " selected" : ""}>${label}</option>`;
+    }).join("");
+    const lootExisting = lootItems.length
+        ? `<div class="dash-card" style="margin-bottom:16px">
+          <div class="dash-card-head">
+            <h3>Bereits importiert</h3>
+            <span class="small" style="margin-left:auto">${esc(String(lootItems.length))} Item(s)</span>
+            <form method="POST" action="/admin/history/clear" style="margin:0 0 0 8px" onsubmit="return confirm('Gesamten Loot dieses Events löschen?')">
+              ${csrfField}<input type="hidden" name="event" value="${esc(ev.id)}"><input type="hidden" name="origin" value="raid">
+              <button class="btn btn-danger btn-sm" type="submit">Loot löschen</button>
+            </form>
+          </div>
+          ${lootTable(lootItems)}
+        </div>`
+        : "";
+    const lootSection = lootExisting + `
+      <form class="card-form" method="POST" action="/admin/history/import" id="raidLootImportForm">
+        ${csrfField}
+        <input type="hidden" name="event" value="${esc(ev.id)}">
+        <input type="hidden" name="origin" value="raid">
+        <div class="field">
+          <label>Loot-Tool</label>
+          <select name="tool">${lootToolOptions}</select>
+          <div class="hint">Wird aus der Kategorie-Markierung vorbelegt. „Auto" erkennt JSON (RCLootcouncil) bzw. CSV (Gargul) selbst.</div>
+        </div>
+        <div class="field">
+          <label>Export einfügen</label>
+          <textarea name="data" id="raidLootData" rows="6" placeholder="RCLootcouncil-JSON oder Gargul-CSV hier einfügen …"></textarea>
+        </div>
+        <div class="field">
+          <label>… oder Datei hochladen</label>
+          <input type="file" id="raidLootFile" accept=".json,.csv,.txt,.tsv">
+          <div class="hint">Die Datei wird lokal in das Feld oben geladen — kein separater Upload.</div>
+        </div>
+        <div class="row-actions"><button class="btn" type="submit">Loot importieren</button></div>
+      </form>
+      <script>(function(){
+        var file=document.getElementById("raidLootFile");
+        var data=document.getElementById("raidLootData");
+        if(file&&data){file.addEventListener("change",function(e){
+          var f=e.target.files[0];if(!f)return;var r=new FileReader();
+          r.onload=function(){data.value=r.result;};r.readAsText(f);
+        });}
+      })();</script>`;
+
     const body = `
       <p class="note"><a class="mlink" href="/admin/raids">← Zurück zur Event-Übersicht</a></p>
       ${meta}
@@ -1754,6 +1804,7 @@ function renderEventDetail(user, opts = {}) {
         <button type="button" class="tab-btn active" data-tab="setup" role="tab">Setup</button>
         <button type="button" class="tab-btn" data-tab="attendance" role="tab">Anwesenheit</button>
         <button type="button" class="tab-btn" data-tab="actions" role="tab">Anmeldung &amp; Sheet</button>
+        <button type="button" class="tab-btn" data-tab="loot" role="tab">Loot${lootItems.length ? tabCount(lootItems.length) : ""}</button>
         <button type="button" class="tab-btn" data-tab="softres" role="tab">Softres</button>
       </div>
       <div class="tab-panel active" data-panel="setup" role="tabpanel">
@@ -1779,6 +1830,11 @@ function renderEventDetail(user, opts = {}) {
         <h2 style="margin-top:0">Softres-Liste erstellen</h2>
         <p class="note">Legt eine Soft-Reserve-Liste auf softres.it an — die Instanzen sind aus dem Event-Titel vorausgewählt. Wähle die Anzahl der Softres pro Spieler und markiere optional hardreservten Loot. Du bekommst danach einen Ansehen- und einen Bearbeiten-Link.</p>
         ${softresSection}
+      </div>
+      <div class="tab-panel" data-panel="loot" role="tabpanel">
+        <h2 style="margin-top:0">Gedroppten Loot importieren</h2>
+        <p class="note">RCLootcouncil-Export (JSON) oder Gargul-CSV dieses Raids einfügen oder hochladen — landet direkt in der <a class="mlink" href="/admin/history">Event-Historie</a>. Bereits importierter Loot wird beim erneuten Import automatisch übersprungen (Duplikat-Erkennung).</p>
+        ${lootSection}
       </div>
       <script>(function(){
         var btns=document.querySelectorAll(".tab-btn");
