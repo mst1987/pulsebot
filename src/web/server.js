@@ -682,10 +682,11 @@ async function handle(req, res) {
             membersError = res2.error;
             attendance = computeAttendance(res2.members, found.e.signUps || []);
         }
-        // Softres: pre-select the instances the event title implies, plus the full
-        // catalogue for the chosen edition so the admin can tweak the selection.
-        const suggestedInstances = softres.parseInstancesFromTitle(found.e.title);
-        const softresEdition = suggestedInstances.length ? suggestedInstances[0].edition : "tbc";
+        // Softres: pre-select the instances the event title implies. For now the
+        // guild only raids TBC, so restrict both the suggestion and the pickable
+        // catalogue to the TBC edition.
+        const softresEdition = "tbc";
+        const suggestedInstances = softres.parseInstancesFromTitle(found.e.title, softresEdition);
         return send(res, 200, renderEventDetail(user, {
             event: found.e,
             channelName: found.e.channelName,
@@ -700,7 +701,7 @@ async function handle(req, res) {
             tankCandidates: tankCands,
             eventSheet: getEventSheet(eventId),
             eventSoftres: getEventSoftres(eventId),
-            softresCatalogue: softres.catalogue(),
+            softresCatalogue: softres.catalogue().filter((g) => g.edition === softresEdition),
             softresEdition,
             softresSuggested: suggestedInstances.map((i) => i.code),
             attendance,
@@ -848,6 +849,36 @@ async function handle(req, res) {
             return redirect(res, `${back}&ok=${encodeURIComponent("Raidsheet in den Channel gepostet.")}`);
         } catch (e) {
             console.error("post-sheet failed:", e.message);
+            return redirect(res, `${back}&err=${encodeURIComponent(e.message || "Posten fehlgeschlagen.")}`);
+        }
+    }
+
+    // post the softres list link into the event channel, with an optional message
+    if (pathname === "/admin/raids/post-softres" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        const eventId = (form.event || "").trim();
+        const back = `/admin/raids/detail?event=${encodeURIComponent(eventId)}`;
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, `${back}&msg=csrf`);
+        const sr = getEventSoftres(eventId);
+        if (!sr || !sr.url) return redirect(res, `${back}&err=${encodeURIComponent("Für dieses Event gibt es noch keine Softres-Liste.")}`);
+        // Resolve the event's channel + title server-side; never trust posted ids.
+        const { groups, error } = await loadEventGroups(activeGuildFor(req));
+        if (error) return redirect(res, `${back}&err=${encodeURIComponent(error)}`);
+        const found = groups.flatMap((g) => g.events).find((e) => e.id === eventId);
+        if (!found) return redirect(res, `${back}&err=${encodeURIComponent("Event nicht gefunden.")}`);
+        try {
+            await discord.postLink(found.channelId, {
+                url: sr.url,
+                title: found.title ? `Softres – ${found.title}` : "Softres",
+                message: form.message,
+                label: "Softres öffnen",
+                emoji: "🎁",
+            });
+            return redirect(res, `${back}&ok=${encodeURIComponent("Softres-Link in den Channel gepostet.")}`);
+        } catch (e) {
+            console.error("post-softres failed:", e.message);
             return redirect(res, `${back}&err=${encodeURIComponent(e.message || "Posten fehlgeschlagen.")}`);
         }
     }

@@ -102,6 +102,7 @@ const ADMIN_STYLE = `<style>
   .emoji-item { display:grid; place-items:center; padding:5px; background:transparent; border:1px solid transparent; border-radius:7px; cursor:pointer; }
   .emoji-item:hover { background:var(--panel2); border-color:var(--line); }
   .emoji-item img { width:26px; height:26px; object-fit:contain; }
+  .hr-row:hover { background:var(--panel2); }
   .emoji-empty { color:var(--muted); font-size:12.5px; padding:6px 2px; }
   /* setup (raidplan comp), grouped into raid groups 1-5 */
   .setup-summary { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
@@ -1245,17 +1246,35 @@ function renderEventDetail(user, opts = {}) {
     const attendance = opts.attendance || { responded: [], missing: [] };
     const attendanceRoleIds = opts.attendanceRoleIds || [];
 
-    // Prominent "open sheet" button, shown top-right of the meta card once a
-    // raid sheet has been created for this event.
+    // Quick actions top-right of the meta card: open/post the sheet, open/post the
+    // softres list, or (when none exists yet) jump to the Softres tab to create one.
+    const eventSoftres = opts.eventSoftres;
+    const channelLabel = esc(opts.channelName || ev.channelId);
     const sheetLink = opts.eventSheet && opts.eventSheet.url;
     const sheetBtn = sheetLink
         ? `<a class="btn sheet-btn" href="${esc(opts.eventSheet.url)}" target="_blank" rel="noopener">📄 Sheet öffnen</a>`
         : "";
+    const quickPost = (action, label, title) => `<form method="POST" action="${action}" style="margin:0" onsubmit="this.querySelector('button').disabled=true">
+            ${csrfField}<input type="hidden" name="event" value="${esc(ev.id)}">
+            <button class="btn btn-ghost" type="submit" title="${title}">${label}</button>
+          </form>`;
+    const headerBtns = [];
+    if (sheetLink) {
+        headerBtns.push(sheetBtn);
+        headerBtns.push(quickPost("/admin/raids/post-sheet", "📤 Sheet posten", `Sheet-Link in #${channelLabel} posten`));
+    }
+    if (eventSoftres && eventSoftres.url) {
+        headerBtns.push(`<a class="btn btn-ghost" href="${esc(eventSoftres.url)}" target="_blank" rel="noopener">🔗 Softres öffnen</a>`);
+        headerBtns.push(quickPost("/admin/raids/post-softres", "📤 Softres posten", `Softres-Link in #${channelLabel} posten`));
+    } else {
+        headerBtns.push("<button type=\"button\" class=\"btn btn-ghost\" onclick=\"var t=document.querySelector('[data-tab=softres]'); if(t) t.click();\">➕ Softres erstellen</button>");
+    }
+    const headerActions = `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end">${headerBtns.join("")}</div>`;
     const meta = `
       <div class="dash-card" style="margin-bottom:16px">
-        <div class="dash-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <div class="dash-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
           <h3 style="margin:0">${esc(ev.title || "(ohne Titel)")}</h3>
-          ${sheetBtn}
+          ${headerActions}
         </div>
         <div style="padding:14px 16px" class="small">
           <div>Termin: <strong>${esc(formatEventTime(ev.startTime)) || "—"}</strong></div>
@@ -1413,7 +1432,7 @@ function renderEventDetail(user, opts = {}) {
         : "<p class=\"sub\">Noch kein gefülltes Sheet vorhanden — fülle oben zuerst ein Raidsheet, dann kannst du den Link hier in den Channel posten.</p>";
 
     // --- Softres (softres.it soft-reserve list) ---
-    const so = opts.eventSoftres;
+    const so = eventSoftres;
     const catalogue = opts.softresCatalogue || [];
     const suggested = new Set(opts.softresSuggested || []);
     const existingSoftres = so && so.url
@@ -1442,12 +1461,12 @@ function renderEventDetail(user, opts = {}) {
           <div class="hint">Aus dem Event-Titel vorausgewählt. Alle gewählten Instanzen müssen zur selben Erweiterung gehören — beim Ankreuzen wird die Auswahl automatisch auf eine Erweiterung beschränkt.</div>
         </div>
         <div class="field" style="max-width:220px"><label>Softres pro Spieler</label><input type="number" name="amount" min="1" max="6" value="1"></div>
-        <div class="field" style="max-width:220px"><label>Fraktion</label><select name="faction"><option value="Alliance">Alliance</option><option value="Horde">Horde</option></select></div>
+        <div class="field" style="max-width:220px"><label>Fraktion</label><select name="faction"><option value="Horde" selected>Horde</option><option value="Alliance">Alliance</option></select></div>
         <div class="field">
           <label>Hardreserved Items (optional)</label>
           <div style="position:relative">
             <input type="text" id="hrSearch" placeholder="Item-Namen suchen (Wowhead) …" autocomplete="off">
-            <div id="hrResults" class="hr-results" style="display:none;position:absolute;z-index:20;left:0;right:0;background:var(--card);border:1px solid var(--line);border-radius:8px;max-height:260px;overflow:auto"></div>
+            <div id="hrResults" class="hr-results" style="display:none;position:absolute;z-index:20;left:0;right:0;background:var(--panel);border:1px solid var(--line);border-radius:8px;max-height:260px;overflow:auto;box-shadow:0 8px 28px rgba(0,0,0,.35)"></div>
           </div>
           <ul id="hrList" style="list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:6px"></ul>
           <input type="hidden" name="hardReserves" id="hrData" value="[]">
