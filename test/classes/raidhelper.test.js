@@ -94,6 +94,15 @@ describe("classes/Raidhelper", () => {
             expect(options.headers.Authorization).toBe("test-key");
         });
 
+        it("filters by now when no start time is given", async () => {
+            respondWith({ postedEvents: [] });
+            const now = Math.floor(Date.now() / 1000);
+            await new Raidhelper().getAllEvents();
+            const filter = lastOptions().headers.StartTimeFilter;
+            expect(filter).toBeGreaterThanOrEqual(now);
+            expect(filter).toBeLessThan(now + 5);
+        });
+
         it("rejects when the API reports status failed", async () => {
             respondWith({ status: "failed", message: "bad key" });
             const client = new Raidhelper();

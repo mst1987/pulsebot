@@ -43,6 +43,19 @@ describe("web/recentEvents", () => {
             expect(matchLogsForEvent(event, logs)).toHaveLength(2);
         });
 
+        it("keeps a log that is explicitly assigned to this event, whatever the time", () => {
+            const logs = [log("assigned", startMs + 5 * DAY, { eventId: "e1" })];
+            expect(matchLogsForEvent(event, logs).map((l) => l.id)).toEqual(["assigned"]);
+        });
+
+        it("drops a log assigned to a DIFFERENT event even when the time fits", () => {
+            const logs = [
+                log("otherEvent", startMs + 2 * HOUR, { eventId: "e2" }),
+                log("unassigned", startMs + HOUR),
+            ];
+            expect(matchLogsForEvent(event, logs).map((l) => l.id)).toEqual(["unassigned"]);
+        });
+
         it("returns nothing for an event without a start time", () => {
             expect(matchLogsForEvent({ id: "e1" }, [log("x", NOW)])).toEqual([]);
             expect(matchLogsForEvent(null, [log("x", NOW)])).toEqual([]);

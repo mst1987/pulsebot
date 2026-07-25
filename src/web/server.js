@@ -27,7 +27,8 @@ const {
     getConfig, saveConfig,
 } = require("./settingsStore");
 const { buildReport, ReportError } = require("../utils/logcheck/report");
-const { listLogs, deleteLog } = require("./logStore");
+const { listLogs, getLog, deleteLog, linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent } = require("./logStore");
+const { annotateMatches, autoMatches } = require("./logEventMatch");
 const { evaluateLog, scanLogChannels, backfillLogTitles } = require("./logChannel");
 const { getEventSheet, markEventSheetFilled } = require("./eventSheetStore");
 const { getEventSoftres, saveEventSoftres } = require("./eventSoftresStore");
@@ -100,6 +101,51 @@ async function loadEventGroups(guildId) {
     } catch (e) {
         return { groups: [], error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
     }
+}
+
+// How far back events are fetched when logs are assigned to events. Reaches well
+// past the dashboard's window so older logs can still be filed by hand.
+const LOG_MATCH_WINDOW_DAYS = 60;
+
+// Flat list of the guild's already started raids that a detected log could belong
+// to, newest start first. Returns { events, error }.
+async function loadMatchableEvents(guildId, days = LOG_MATCH_WINDOW_DAYS) {
+    if (!guildId) return { events: [], error: null };
+    try {
+        const rh = new Raidhelper();
+        const from = Math.floor(Date.now() / 1000) - days * 24 * 60 * 60;
+        const events = await rh.getPastEvents(from);
+        const catMap = discord.getChannelCategoryMap(guildId);
+        const out = [];
+        for (const ev of events || []) {
+            const meta = catMap[ev.channelId];
+            if (!meta) continue; // event channel not in this guild
+            out.push({
+                id: ev.id,
+                title: ev.title,
+                startTime: ev.startTime,
+                channelId: ev.channelId,
+                channelName: meta.name || "",
+                categoryId: meta.categoryId || "",
+                categoryName: meta.categoryName || "",
+            });
+        }
+        out.sort((a, b) => (Number(b.startTime) || 0) - (Number(a.startTime) || 0));
+        return { events: out, error: null };
+    } catch (e) {
+        return { events: [], error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
+    }
+}
+
+// A log's event assignment as stored: label + start snapshot, so it keeps its
+// name once Raid-Helper no longer lists the event.
+function eventLinkFields(event, source) {
+    return {
+        eventId: event.id,
+        eventLabel: event.title || event.id,
+        eventStartTime: Number(event.startTime) || 0,
+        source,
+    };
 }
 
 // Find the next few upcoming events that already have a Raid-Helper setup
@@ -447,14 +493,22 @@ async function handle(req, res) {
             // Lazily fill in the real Warcraft-Logs names for the logs shown on
             // this page (best-effort; safe no-op without an API key), and tag each
             // with its Discord category so the list can show a category badge.
+            // Events a log could belong to (only needed for the logs view) —
+            // used to offer/show the event assignment per log.
+            let matchEvents = { events: [], error: null };
             if (logPage) {
                 await backfillLogTitles(logPage.items);
                 annotateLogCategories(logPage.items, discord.getChannelCategoryMap(guildId));
+                matchEvents = await loadMatchableEvents(guildId);
+                annotateMatches(logPage.items, matchEvents.events);
             }
             return send(res, 200, renderCla(user, {
                 view,
                 reportPage,
                 logPage,
+                matchEvents: matchEvents.events,
+                matchEventsError: matchEvents.error,
+                unlinkedCount: logs.filter((l) => !l.eventId).length,
                 counts: { reports: reports.length, logs: logs.length },
                 logChannelIds: getConfig().logChannelIds || [],
                 activeGuildId: guildId,
@@ -511,6 +565,53 @@ async function handle(req, res) {
         if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/cla?view=logs&msg=csrf");
         deleteLog((form.logId || "").trim());
         return redirect(res, "/admin/cla?view=logs&msg=deleted");
+    }
+    // assign a tracked log to the event it belongs to (admin picks from the list)
+    if (pathname === "/admin/cla/log-link" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/cla?view=logs&msg=csrf");
+        const logId = (form.logId || "").trim();
+        const eventId = (form.eventId || "").trim();
+        const back = "/admin/cla?view=logs";
+        if (!getLog(logId)) return redirect(res, `${back}&err=${encodeURIComponent("Log nicht gefunden.")}`);
+        if (!eventId) return redirect(res, `${back}&err=${encodeURIComponent("Kein Event gewählt.")}`);
+        // Re-resolve the event server-side; never trust the label posted by the client.
+        const { events, error } = await loadMatchableEvents(activeGuildFor(req));
+        if (error) return redirect(res, `${back}&err=${encodeURIComponent(error)}`);
+        const event = events.find((e) => e.id === eventId);
+        if (!event) return redirect(res, `${back}&err=${encodeURIComponent("Event nicht gefunden.")}`);
+        linkLogEvent(logId, eventLinkFields(event, "manual"));
+        return redirect(res, `${back}&ok=${encodeURIComponent(`Log „${event.title || event.id}" zugeordnet.`)}`);
+    }
+    // remove a log's event assignment (the log itself stays tracked)
+    if (pathname === "/admin/cla/log-unlink" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/cla?view=logs&msg=csrf");
+        const removed = unlinkLogEvent((form.logId || "").trim());
+        if (!removed) return redirect(res, `/admin/cla?view=logs&err=${encodeURIComponent("Keine Zuordnung vorhanden.")}`);
+        return redirect(res, `/admin/cla?view=logs&ok=${encodeURIComponent("Zuordnung entfernt.")}`);
+    }
+    // assign every still-unassigned log whose event match is unambiguous
+    if (pathname === "/admin/cla/log-automatch" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/cla?view=logs&msg=csrf");
+        const back = "/admin/cla?view=logs";
+        const guildId = activeGuildFor(req);
+        const { events, error } = await loadMatchableEvents(guildId);
+        if (error) return redirect(res, `${back}&err=${encodeURIComponent(error)}`);
+        const logs = (guildId ? listLogs().filter((l) => !l.guildId || l.guildId === guildId) : listLogs())
+            .filter((l) => !l.eventId);
+        const matches = autoMatches(logs, events);
+        for (const m of matches) linkLogEvent(m.log.id, eventLinkFields(m.event, "auto"));
+        const rest = logs.length - matches.length;
+        const text = `${matches.length} Log(s) automatisch zugeordnet${rest ? `, ${rest} ohne eindeutiges Event` : ""}.`;
+        return redirect(res, `${back}&ok=${encodeURIComponent(text)}`);
     }
 
     // raid events overview: all server events grouped by Discord category

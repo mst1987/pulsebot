@@ -23,17 +23,26 @@ const LOG_WINDOW_AFTER_MS = 18 * HOUR_MS;
 const RECENT_WINDOW_DAYS = 21;
 
 /**
- * Logs that belong to one event, newest post first.
- * @param {object} event  { startTime } — Raid-Helper start time in SECONDS
+ * Logs that belong to one event, newest post first. An explicit assignment (the
+ * `eventId` set via the CLA logs list, see logEventMatch.js) always wins over the
+ * time window: such a log shows up under ITS event only, never under a
+ * neighbouring raid that merely happens to fit time-wise.
+ * @param {object} event  { id, startTime } — Raid-Helper start time in SECONDS
  * @param {object[]} logs tracked logs, each annotated with a `postedAt` in ms
  */
 function matchLogsForEvent(event, logs) {
     const startMs = Number(event && event.startTime) * 1000;
     if (!startMs) return [];
+    const eventId = String((event && event.id) || "");
     const from = startMs - LOG_WINDOW_BEFORE_MS;
     const to = startMs + LOG_WINDOW_AFTER_MS;
     return (logs || [])
-        .filter((l) => l && l.postedAt >= from && l.postedAt <= to)
+        .filter((l) => {
+            if (!l) return false;
+            const linked = String(l.eventId || "");
+            if (linked) return linked === eventId;
+            return l.postedAt >= from && l.postedAt <= to;
+        })
         .sort((a, b) => (b.postedAt || 0) - (a.postedAt || 0));
 }
 

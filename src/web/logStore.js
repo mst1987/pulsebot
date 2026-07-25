@@ -128,6 +128,55 @@ function setLogTitle(id, title) {
     return log;
 }
 
+/**
+ * Link a log to the Raid-Helper event it belongs to. Stores a snapshot of the
+ * event's title/start time as well, because Raid-Helper drops past events from
+ * its list — without the snapshot an old assignment would lose its label.
+ * `source` records whether the match was applied automatically ("auto") or
+ * picked by an admin ("manual"). Returns the saved log, or null for an unknown
+ * id / blank event id.
+ */
+function linkEvent(id, { eventId, eventLabel, eventStartTime, source } = {}) {
+    const cleanEvent = String(eventId || "").trim();
+    if (!cleanEvent) return null;
+    const logs = readAll();
+    const log = logs.find((l) => l.id === id);
+    if (!log) return null;
+    log.eventId = cleanEvent;
+    log.eventLabel = String(eventLabel || "").trim();
+    log.eventStartTime = Number(eventStartTime) || 0;
+    log.eventLinkSource = source === "auto" ? "auto" : "manual";
+    log.eventLinkedAt = Date.now();
+    log.updatedAt = Date.now();
+    writeAll(logs);
+    return log;
+}
+
+/**
+ * Remove a log's event assignment. Returns the saved log, or null when the id is
+ * unknown or the log was not linked in the first place (no write in that case).
+ */
+function unlinkEvent(id) {
+    const logs = readAll();
+    const log = logs.find((l) => l.id === id);
+    if (!log || !log.eventId) return null;
+    delete log.eventId;
+    delete log.eventLabel;
+    delete log.eventStartTime;
+    delete log.eventLinkSource;
+    delete log.eventLinkedAt;
+    log.updatedAt = Date.now();
+    writeAll(logs);
+    return log;
+}
+
+/** All logs linked to one event id, newest post first. */
+function listLogsForEvent(eventId) {
+    const id = String(eventId || "").trim();
+    if (!id) return [];
+    return listLogs().filter((l) => l.eventId === id);
+}
+
 /** Delete a tracked log by id. Returns true if one was removed. */
 function deleteLog(id) {
     const logs = readAll();
@@ -140,4 +189,5 @@ function deleteLog(id) {
 module.exports = {
     listLogs, getLog, getByReportId, saveLog, setButtonMessage,
     markEvaluated, setLogTitle, deleteLog, LOGS_FILE,
+    linkEvent, unlinkEvent, listLogsForEvent,
 };
