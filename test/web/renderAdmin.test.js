@@ -1214,6 +1214,84 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("Noch kein Loot importiert");
         });
 
+        describe("character list with class/spec", () => {
+            const chars = (over = {}) => [{
+                key: "gemli", character: "Gemli", count: 6,
+                className: "Warrior", spec: "Fury", source: "wcl", ...over,
+            }];
+
+            it("shows class and spec as one labelled cell with the spec icon", () => {
+                const html = renderHistory(user, { csrf: "x", nav: nav(), chars: chars() });
+                expect(html).toContain("<th>Klasse &amp; Spec</th>");
+                expect(html).toContain("Fury Warrior");
+                // no separate class/spec columns anymore
+                expect(html).not.toContain("<th>Spec</th>");
+                // fury spec icon from the shared icon table
+                expect(html).toContain("ability_warrior_innerrage.jpg");
+                expect(html).toContain("<span class=\"lbadge\">Warcraft Log</span>"); // source badge
+                // class colour (Warrior) on the name and the class cell
+                expect(html).toContain("#C79C6E");
+                expect(html).toContain("/admin/history/char?name=Gemli");
+            });
+
+            it("falls back to the plain class (with class icon) when the spec is unknown", () => {
+                const html = renderHistory(user, { csrf: "x", nav: nav(), chars: chars({ spec: "" }) });
+                expect(html).toContain(">Warrior<");
+                expect(html).toContain("classicon_warrior.jpg");
+                expect(html).not.toContain("ability_warrior_innerrage.jpg");
+            });
+
+            it("marks an unknown class/spec instead of inventing one", () => {
+                const html = renderHistory(user, {
+                    csrf: "x", nav: nav(), chars: chars({ className: "", spec: "", source: "" }),
+                });
+                expect(html).toContain("Gemli");
+                // (the "Warcraft Logs" tab label also contains that text — match the badge)
+                expect(html).not.toContain("<span class=\"lbadge\">Warcraft Log</span>");
+                expect(html).not.toContain("#C79C6E");
+                expect(html).not.toContain("classicon_warrior.jpg");
+            });
+
+            it("offers the resolve button with the number of open characters", () => {
+                const html = renderHistory(user, {
+                    csrf: "x", nav: nav(),
+                    chars: [...chars(), { key: "nwek", character: "Nwek", count: 2, className: "", spec: "", source: "" }],
+                });
+                expect(html).toContain("action=\"/admin/history/characters-resolve\"");
+                expect(html).toContain("(1 offen)");
+            });
+
+            it("hides the resolve button when there are no characters at all", () => {
+                const html = renderHistory(user, { csrf: "x", nav: nav(), chars: [] });
+                expect(html).not.toContain("action=\"/admin/history/characters-resolve\"");
+                expect(html).toContain("Noch keine Charaktere mit Loot");
+            });
+        });
+
+        describe("renderHistoryChar header", () => {
+            it("shows the known spec and class next to the name", () => {
+                const html = renderHistoryChar(user, {
+                    csrf: "x", nav: nav(), character: "Keslight", items: [],
+                    info: { className: "Paladin", spec: "Holy", source: "wcl" },
+                });
+                expect(html).toContain("· <img");
+                expect(html).toContain("Holy Paladin");
+                expect(html).toContain("spell_holy_holybolt.jpg"); // holy paladin spec icon
+                expect(html).toContain("#F58CBA"); // paladin colour
+            });
+
+            it("falls back to the plain class, and to nothing at all when unknown", () => {
+                const classOnly = renderHistoryChar(user, {
+                    csrf: "x", nav: nav(), character: "Gemli", items: [], info: { className: "Warrior", spec: "" },
+                });
+                expect(classOnly).toContain("classicon_warrior.jpg");
+                expect(classOnly).toContain(">Warrior</span>");
+                const unknown = renderHistoryChar(user, { csrf: "x", nav: nav(), character: "Gemli", items: [] });
+                expect(unknown).not.toContain("classicon_warrior.jpg");
+                expect(unknown).not.toContain(">Warrior</span>");
+            });
+        });
+
         it("shows an 'Alle Raids' tab, active by default, listing upcoming and past raids", () => {
             const html = renderHistory(user, {
                 csrf: "x", nav: nav(), activeGuildId: "g1",
