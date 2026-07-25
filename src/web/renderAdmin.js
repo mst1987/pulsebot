@@ -450,6 +450,75 @@ function renderAdminDenied(user) {
     return layout("Admin — Zugang", `${ADMIN_STYLE}<h1>Pulsebot Admin</h1>${body}`);
 }
 
+/**
+ * "Latest Events" — the raids that already happened, with everything that gets
+ * attached to them afterwards: the Warcraft-Logs posted in the log channels (and
+ * their CLA evaluation, if one exists), the imported loot and the soft-reserve
+ * list. Rendered on the dashboard right below the upcoming events.
+ * @param {object} recent { events, error } from server.loadRecentEvents
+ * @param {object} nav    the server-selector context (for the guild id)
+ */
+function latestEventsCard(recent, nav) {
+    const data = recent || { events: [], error: null };
+    const guildId = (nav && nav.activeGuildId) || "";
+
+    // One event's logs: the WCL link itself, plus the CLA report when evaluated.
+    const logsCell = (ev) => {
+        const logs = ev.logs || [];
+        if (!logs.length) return "<span class=\"sub\">—</span>";
+        return logs.map((l) => {
+            const url = logWclUrl(l);
+            const name = l.title || l.reportId || "(Log)";
+            const link = url
+                ? `<a class="mlink" href="${esc(url)}" target="_blank" rel="noopener">${esc(name)} ↗</a>`
+                : esc(name);
+            const report = (l.status === "done" && (l.reportUrl || l.reportRefId))
+                ? ` · <a class="mlink" href="${esc(l.reportUrl || `/r/${l.reportRefId}`)}">Auswertung</a>`
+                : "";
+            return `<div>${link}${report}</div>`;
+        }).join("");
+    };
+
+    const lootCell = (ev) => (ev.lootCount
+        ? `<a class="mlink" href="/admin/history/event?event=${esc(ev.id)}">${esc(String(ev.lootCount))} Items</a>`
+        : "<a class=\"mlink\" href=\"/admin/history\">importieren</a>");
+
+    const linksCell = (ev) => {
+        const links = [];
+        if (guildId && ev.channelId) {
+            links.push(`<a class="mlink" href="${eventPostUrl(guildId, ev.channelId, ev.id)}" target="_blank" rel="noopener">Discord</a>`);
+        }
+        links.push(`<a class="mlink" href="${raidplanUrl(ev.id)}" target="_blank" rel="noopener">Setup/Comp</a>`);
+        if (ev.softres && ev.softres.url) {
+            links.push(`<a class="mlink" href="${esc(ev.softres.url)}" target="_blank" rel="noopener">Softres</a>`);
+        }
+        return links.join(" · ");
+    };
+
+    let rows;
+    if (data.error) {
+        rows = `<tr><td colspan="5" class="sub" style="padding:16px;color:var(--high)">${esc(data.error)}</td></tr>`;
+    } else if (!data.events.length) {
+        rows = "<tr><td colspan=\"5\" class=\"sub\" style=\"padding:16px\">Keine vergangenen Events gefunden.</td></tr>";
+    } else {
+        rows = data.events.map((ev) => `<tr>
+            <td><strong>${esc(ev.title || ev.id)}</strong>${ev.channelName ? `<div class="small">#${esc(ev.channelName)}</div>` : ""}</td>
+            <td class="small">${esc(formatEventTime(ev.startTime))}</td>
+            <td class="small">${logsCell(ev)}</td>
+            <td class="small">${lootCell(ev)}</td>
+            <td class="small">${linksCell(ev)}</td>
+          </tr>`).join("");
+    }
+
+    return `<div class="dash-card" style="margin-bottom:16px">
+        <div class="dash-card-head"><h3>Latest Events</h3><a class="mlink" href="/admin/history">Historie &amp; Loot →</a></div>
+        <table class="idx">
+          <thead><tr><th>Event</th><th>Termin</th><th>Logs</th><th>Loot</th><th>Links</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+}
+
 // The dashboard — the app's start page. Shows key figures plus quick links.
 function renderDashboard(user, opts = {}) {
     const s = opts.stats || {};
@@ -504,6 +573,7 @@ function renderDashboard(user, opts = {}) {
           <tbody>${upcomingRows}</tbody>
         </table>
       </div>
+      ${latestEventsCard(opts.recentEvents, opts.nav)}
       <div class="dash-grid">
         <div class="dash-card">
           <div class="dash-card-head"><h3>Letzte Auswertungen</h3><a class="mlink" href="/admin/cla">Alle →</a></div>

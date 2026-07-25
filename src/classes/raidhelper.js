@@ -20,11 +20,12 @@ class Raidhelper {
     };
   }
 
-  async getAllEvents() {
+  // Fetch the server's events with a StartTimeFilter lower bound (unix seconds),
+  // sorted ascending by start time. Shared by getAllEvents/getPastEvents.
+  async fetchEvents(startTimeFilter) {
     return new Promise((resolve, reject) => {
       let data = "";
-      const currentUnixTimestamp = Math.floor(Date.now() / 1000);
-      const options = this.getEventOptions(currentUnixTimestamp);
+      const options = this.getEventOptions(startTimeFilter);
 
       var request = https
         .request(options, (resp) => {
@@ -55,6 +56,21 @@ class Raidhelper {
         .on("error", (err) => reject(err));
       request.end();
     });
+  }
+
+  async getAllEvents() {
+    return this.fetchEvents(Math.floor(Date.now() / 1000));
+  }
+
+  // Events that have already started, newest first. Raid-Helper's StartTimeFilter
+  // is only a LOWER bound (there is no documented upper-bound header on v4), so we
+  // ask for everything since `sinceSeconds` and drop what is still upcoming here.
+  async getPastEvents(sinceSeconds) {
+    const now = Math.floor(Date.now() / 1000);
+    const events = await this.fetchEvents(Math.floor(sinceSeconds) || now);
+    return events
+      .filter((event) => Number(event.startTime) <= now)
+      .sort((eventA, eventB) => eventB.startTime - eventA.startTime);
   }
 
   // Derive the distinct templates the server actually uses from its events.
