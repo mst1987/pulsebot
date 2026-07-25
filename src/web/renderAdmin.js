@@ -736,7 +736,7 @@ function hiddenCsrf(csrf) {
 // so it binds only once even if several pickers are on the page.
 const EMOJI_PICKER_SCRIPT = "<script>(function(){if(window.__emojiPicker)return;window.__emojiPicker=1;"
     + "var last=null;"
-    + "document.addEventListener('focusin',function(e){var el=e.target;if(el&&(el.tagName==='TEXTAREA'||(el.tagName==='INPUT'&&el.type==='text'))&&!el.closest('.emoji-panel'))last=el;});"
+    + "document.addEventListener('focusin',function(e){var el=e.target;if(el&&(el.tagName==='TEXTAREA'||(el.tagName==='INPUT'&&el.type==='text'))&&!el.closest('.emoji-panel')&&!el.closest('.spec-add-panel'))last=el;});"
     + "function target(p){var f=p.closest('form');if(last&&f&&f.contains(last))return last;return f?f.querySelector('textarea, input[type=text]'):last;}"
     + "document.addEventListener('click',function(e){"
     + "var t=e.target.closest('.emoji-trigger');if(t){e.preventDefault();var pn=t.parentNode.querySelector('.emoji-panel');document.querySelectorAll('.emoji-panel.open').forEach(function(o){if(o!==pn)o.classList.remove('open');});if(pn){pn.classList.toggle('open');var s=pn.querySelector('.emoji-search');if(s&&pn.classList.contains('open'))s.focus();}return;}"
@@ -917,9 +917,14 @@ function renderPostEdit(user, opts) {
         <input type="hidden" name="id" value="${esc(p.id)}">
         <div class="field">
           <label>Nachrichtentext</label>
-          <textarea name="content" style="min-height:160px">${esc(p.content)}</textarea>
+          <textarea name="content" id="postContent" style="min-height:160px">${esc(p.content)}</textarea>
           <div class="hint">Der eigentliche Nachrichtentext — inkl. Emojis. Custom-Emojis als <code>&lt;:name:id&gt;</code>, Discord-Markdown erlaubt.</div>
           ${emojiPicker(opts.emojis)}
+        </div>
+        <div class="field">
+          <label>Gesuchte Klassen/Specs</label>
+          ${specPicker("postContent", opts.emojis)}
+          <div class="hint">Wird automatisch im Nachrichtentext oben ein-/ausgetragen — dort weiterhin frei editierbar.</div>
         </div>
         <div class="field">
           <label>Embed-Titel (optional)</label>
@@ -929,11 +934,6 @@ function renderPostEdit(user, opts) {
         <div class="field">
           <label>Embed-Text (optional)</label>
           <textarea name="body" id="postBody">${esc(p.body)}</textarea>
-        </div>
-        <div class="field">
-          <label>Gesuchte Klassen/Specs</label>
-          ${specPicker("postBody", opts.emojis)}
-          <div class="hint">Wird automatisch im Embed-Text oben ein-/ausgetragen — dort weiterhin frei editierbar.</div>
         </div>
         <div class="field">
           <label>Button-Beschriftung</label>
@@ -1035,7 +1035,7 @@ function renderRecruitment(user, opts = {}) {
            </table>`
         : "<p class=\"sub\">Noch keine Vorlagen. Lege unten die erste an.</p>";
 
-    const e = editing || { id: "", name: "", title: "", body: "", buttonLabel: "" };
+    const e = editing || { id: "", name: "", content: "", title: "", body: "", buttonLabel: "" };
     const formTitle = editing ? `Vorlage bearbeiten: ${esc(editing.name || "")}` : "Neue Vorlage anlegen";
     const templateForm = `
       <h2>${formTitle}</h2>
@@ -1048,19 +1048,24 @@ function renderRecruitment(user, opts = {}) {
           <div class="hint">Nur zur Auswahl — nicht Teil der geposteten Nachricht.</div>
         </div>
         <div class="field">
-          <label>Titel der Nachricht</label>
-          <input type="text" name="title" value="${esc(e.title)}" placeholder="Wir suchen Verstärkung!">
-        </div>
-        <div class="field">
-          <label>Text</label>
-          <textarea name="body" id="tplBody" placeholder="Beschreibungstext …">${esc(e.body)}</textarea>
-          <div class="hint">Discord-Markdown ist erlaubt (**fett**, *kursiv*, Zeilenumbrüche).</div>
+          <label>Nachrichtentext</label>
+          <textarea name="content" id="tplContent" placeholder="Nachrichtentext …">${esc(e.content)}</textarea>
+          <div class="hint">Der eigentliche Nachrichtentext — inkl. Emojis. Custom-Emojis als &lt;:name:id&gt;, Discord-Markdown erlaubt.</div>
           ${emojiPicker(opts.emojis)}
         </div>
         <div class="field">
           <label>Gesuchte Klassen/Specs</label>
-          ${specPicker("tplBody", opts.emojis)}
-          <div class="hint">Wird automatisch im Text oben ein-/ausgetragen (Zeile „## Icon Spec-Name") — dort weiterhin frei editierbar.</div>
+          ${specPicker("tplContent", opts.emojis)}
+          <div class="hint">Wird automatisch im Nachrichtentext oben ein-/ausgetragen (Zeile „## Icon Spec-Name") — dort weiterhin frei editierbar.</div>
+        </div>
+        <div class="field">
+          <label>Embed-Titel (optional)</label>
+          <input type="text" name="title" value="${esc(e.title)}" placeholder="Wir suchen Verstärkung!">
+          <div class="hint">Nur falls die Nachricht zusätzlich ein Embed nutzen soll.</div>
+        </div>
+        <div class="field">
+          <label>Embed-Text (optional)</label>
+          <textarea name="body" id="tplBody" placeholder="Embed-Beschreibung …">${esc(e.body)}</textarea>
         </div>
         <div class="field">
           <label>Button-Beschriftung (optional)</label>
