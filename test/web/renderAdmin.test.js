@@ -162,6 +162,98 @@ describe("web/renderAdmin", () => {
         });
     });
 
+    describe("renderDashboard — Latest Events", () => {
+        const pastEvent = (over = {}) => ({
+            id: "e1", title: "Kara", channelId: "c1", channelName: "kara-run",
+            startTime: 1700000000, logs: [], lootCount: 0, softres: null, ...over,
+        });
+        const latest = (events, error = null) =>
+            renderDashboard(user, { nav: nav(), recentEvents: { events, error } });
+
+        it("renders the card with a link to the history page", () => {
+            const html = latest([pastEvent()]);
+            expect(html).toContain("Latest Events");
+            expect(html).toContain("Historie &amp; Loot →");
+            expect(html).toContain("href=\"/admin/history\"");
+        });
+
+        it("lists the event with its channel, Discord post and raidplan links", () => {
+            const html = latest([pastEvent()]);
+            expect(html).toContain("Kara");
+            expect(html).toContain("#kara-run");
+            expect(html).toContain("https://discord.com/channels/g1/c1/e1");
+            expect(html).toContain("raid-helper.xyz/raidplan/e1");
+        });
+
+        it("links every matched Warcraft-Log", () => {
+            const html = latest([pastEvent({
+                logs: [
+                    { id: "l1", reportId: "abc123", title: "Kara 12.07.", link: "https://classic.warcraftlogs.com/reports/abc123", status: "open" },
+                    { id: "l2", reportId: "def456", title: "", status: "open" },
+                ],
+            })]);
+            expect(html).toContain("https://classic.warcraftlogs.com/reports/abc123");
+            expect(html).toContain("Kara 12.07.");
+            // no stored link -> derived from the report id, and the id is the label
+            expect(html).toContain("https://classic.warcraftlogs.com/reports/def456");
+            expect(html).toContain("def456");
+        });
+
+        it("links the CLA evaluation of an evaluated log", () => {
+            const html = latest([pastEvent({
+                logs: [{ id: "l1", reportId: "abc", title: "Kara", status: "done", reportRefId: "rep9" }],
+            })]);
+            expect(html).toContain("href=\"/r/rep9\"");
+            expect(html).toContain("Auswertung");
+        });
+
+        it("does not offer an evaluation link for an unevaluated log", () => {
+            // (plain "Auswertung" also appears in the reports card, so match the link)
+            const html = latest([pastEvent({ logs: [{ id: "l1", reportId: "abc", status: "open", reportRefId: "rep9" }] })]);
+            expect(html).not.toContain("href=\"/r/rep9\"");
+        });
+
+        it("shows a dash when no log could be matched", () => {
+            expect(latest([pastEvent({ logs: [] })])).toContain(">—<");
+        });
+
+        it("links imported loot, or offers the import when there is none", () => {
+            const withLoot = latest([pastEvent({ lootCount: 14 })]);
+            expect(withLoot).toContain("/admin/history/event?event=e1");
+            expect(withLoot).toContain("14 Items");
+
+            const without = latest([pastEvent({ lootCount: 0 })]);
+            expect(without).toContain("importieren");
+            expect(without).not.toContain("/admin/history/event?event=e1");
+        });
+
+        it("links the soft-reserve list when one was created", () => {
+            const html = latest([pastEvent({ softres: { url: "https://softres.it/raid/r1" } })]);
+            expect(html).toContain("https://softres.it/raid/r1");
+            expect(html).toContain("Softres");
+            expect(latest([pastEvent()])).not.toContain("Softres");
+        });
+
+        it("shows an empty state and surfaces load errors", () => {
+            expect(latest([])).toContain("Keine vergangenen Events gefunden");
+            expect(latest([], "Raid-Helper kaputt")).toContain("Raid-Helper kaputt");
+        });
+
+        it("escapes event titles and log names", () => {
+            const html = latest([pastEvent({
+                title: "<img src=x>",
+                logs: [{ id: "l1", reportId: "a", title: "<b>boom</b>", status: "open" }],
+            })]);
+            expect(html).toContain("&lt;img src=x&gt;");
+            expect(html).toContain("&lt;b&gt;boom&lt;/b&gt;");
+            expect(html).not.toContain("<img src=x>");
+        });
+
+        it("renders the card even without any recentEvents data", () => {
+            expect(renderDashboard(user, { nav: nav() })).toContain("Latest Events");
+        });
+    });
+
     describe("renderRecruitment", () => {
         it("lists templates and escapes their names", () => {
             const html = renderRecruitment(user, {

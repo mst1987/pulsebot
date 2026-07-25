@@ -103,19 +103,6 @@ describe("classes/Raidhelper", () => {
             expect(filter).toBeLessThan(now + 5);
         });
 
-        it("accepts an explicit (past) start time filter", async () => {
-            respondWith({ postedEvents: [] });
-            await new Raidhelper().getAllEvents(1700000000);
-            expect(lastOptions().headers.StartTimeFilter).toBe(1700000000);
-        });
-
-        it("falls back to now for an unusable start time filter", async () => {
-            respondWith({ postedEvents: [] });
-            const now = Math.floor(Date.now() / 1000);
-            await new Raidhelper().getAllEvents("nope");
-            expect(lastOptions().headers.StartTimeFilter).toBeGreaterThanOrEqual(now);
-        });
-
         it("rejects when the API reports status failed", async () => {
             respondWith({ status: "failed", message: "bad key" });
             const client = new Raidhelper();
@@ -138,6 +125,46 @@ describe("classes/Raidhelper", () => {
             const client = new Raidhelper();
 
             await expect(client.getAllEvents()).rejects.toThrow("socket hang up");
+        });
+    });
+
+    describe("getPastEvents", () => {
+        const NOW = 1_700_000_000_000;
+        let nowSpy;
+        beforeEach(() => { nowSpy = jest.spyOn(Date, "now").mockReturnValue(NOW); });
+        afterEach(() => nowSpy.mockRestore());
+        const nowSecs = Math.floor(NOW / 1000);
+
+        it("returns only events that already started, newest first", async () => {
+            respondWith({
+                postedEvents: [
+                    { id: "old", startTime: nowSecs - 7200 },
+                    { id: "upcoming", startTime: nowSecs + 3600 },
+                    { id: "recent", startTime: nowSecs - 600 },
+                ],
+            });
+            const client = new Raidhelper();
+
+            const result = await client.getPastEvents(nowSecs - 86400);
+
+            expect(result.map((e) => e.id)).toEqual(["recent", "old"]);
+        });
+
+        it("sends the given lower bound as StartTimeFilter", async () => {
+            respondWith({ postedEvents: [] });
+            await new Raidhelper().getPastEvents(1699999999);
+            expect(lastOptions().headers.StartTimeFilter).toBe(1699999999);
+        });
+
+        it("falls back to now when no lower bound is given", async () => {
+            respondWith({ postedEvents: [] });
+            await new Raidhelper().getPastEvents();
+            expect(lastOptions().headers.StartTimeFilter).toBe(nowSecs);
+        });
+
+        it("rejects when the API fails", async () => {
+            respondWith({ status: "failed", message: "bad key" });
+            await expect(new Raidhelper().getPastEvents(1)).rejects.toEqual({ status: "failed", message: "bad key" });
         });
     });
 

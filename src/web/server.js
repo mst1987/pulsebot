@@ -2,7 +2,8 @@ const http = require("http");
 const crypto = require("crypto");
 const { webPort, applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../config/variables");
 const { getReport, deleteReport, listReports } = require("./reportStore");
-const { prepareReportList, prepareLogList, annotateLogCategories } = require("./reportList");
+const { prepareReportList, prepareLogList, annotateLogCategories, logPostedAt } = require("./reportList");
+const { buildRecentEvents, RECENT_WINDOW_DAYS } = require("./recentEvents");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
 const {
     renderDashboard, renderAdminDenied, renderRecruitment, renderCla,
@@ -102,19 +103,18 @@ async function loadEventGroups(guildId) {
     }
 }
 
-// How far back events are fetched when logs are matched to events. Raid-Helper
-// drops past events from its default list, so matching finished raids needs an
-// explicitly backdated StartTimeFilter.
+// How far back events are fetched when logs are assigned to events. Reaches well
+// past the dashboard's window so older logs can still be filed by hand.
 const LOG_MATCH_WINDOW_DAYS = 60;
 
-// Flat list of the guild's events (past window + upcoming) that a detected log
-// could belong to, newest start first. Returns { events, error }.
+// Flat list of the guild's already started raids that a detected log could belong
+// to, newest start first. Returns { events, error }.
 async function loadMatchableEvents(guildId, days = LOG_MATCH_WINDOW_DAYS) {
     if (!guildId) return { events: [], error: null };
     try {
         const rh = new Raidhelper();
         const from = Math.floor(Date.now() / 1000) - days * 24 * 60 * 60;
-        const events = await rh.getAllEvents(from);
+        const events = await rh.getPastEvents(from);
         const catMap = discord.getChannelCategoryMap(guildId);
         const out = [];
         for (const ev of events || []) {
@@ -179,6 +179,45 @@ async function loadUpcomingSetups(guildId, limit = 3, maxChecks = 8) {
             });
         }
         return { events: out, error: null };
+    } catch (e) {
+        return { events: [], error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
+    }
+}
+
+// Find the raids that already took place, annotated with everything the
+// dashboard links to: their Warcraft-Logs (matched by post time, see
+// recentEvents.js), the CLA evaluation of those logs, imported loot and the
+// soft-reserve list. One Raid-Helper call; every other lookup is local.
+async function loadRecentEvents(guildId, limit = 5) {
+    if (!guildId) return { events: [], error: null };
+    try {
+        const rh = new Raidhelper();
+        const sinceSeconds = Math.floor(Date.now() / 1000) - RECENT_WINDOW_DAYS * 86400;
+        const events = await rh.getPastEvents(sinceSeconds);
+        const catMap = discord.getChannelCategoryMap(guildId);
+        const inGuild = events.filter((ev) => catMap[ev.channelId]);
+        // Only logs from this guild can belong to one of its raids.
+        const logs = listLogs()
+            .filter((l) => !l.guildId || l.guildId === guildId)
+            .map((l) => ({ ...l, postedAt: logPostedAt(l) }));
+        const recent = buildRecentEvents(inGuild, { logs, limit, windowDays: RECENT_WINDOW_DAYS });
+        return {
+            events: recent.map((ev) => {
+                const meta = catMap[ev.channelId] || {};
+                return {
+                    id: ev.id,
+                    title: ev.title,
+                    startTime: ev.startTime,
+                    channelId: ev.channelId,
+                    channelName: meta.name || "",
+                    categoryName: meta.categoryName || "",
+                    logs: ev.logs,
+                    lootCount: listLootByEvent(ev.id).length,
+                    softres: getEventSoftres(ev.id),
+                };
+            }),
+            error: null,
+        };
     } catch (e) {
         return { events: [], error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
     }
@@ -1328,11 +1367,16 @@ async function handle(req, res) {
             categories: (cfg.categoryIds || []).length,
             adminRoles: (cfg.adminRoleIds || []).length,
         };
-        const upcoming = await loadUpcomingSetups(activeGuildFor(req), 3);
+        const guildId = activeGuildFor(req);
+        const [upcoming, recentEvents] = await Promise.all([
+            loadUpcomingSetups(guildId, 3),
+            loadRecentEvents(guildId, 5),
+        ]);
         return send(res, 200, renderDashboard(user, {
             stats,
             recentReports: reports.slice(0, 8),
             upcoming,
+            recentEvents,
             msg: flashFromQuery(url),
             nav: navFor(req),
         }));

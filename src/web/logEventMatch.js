@@ -8,15 +8,15 @@
 // events fetched from Raid-Helper.
 
 const { logPostedAt } = require("./reportList");
+const { LOG_WINDOW_BEFORE_MS, LOG_WINDOW_AFTER_MS } = require("./recentEvents");
 
 const HOUR_MS = 60 * 60 * 1000;
 
-// How far around an event start a log post may fall to still count as that
-// raid's log. Asymmetric on purpose: a link posted before the official start
-// (early logging) is at most a couple of hours early, while a link posted after
-// the raid can trail by a whole evening.
-const DEFAULT_BEFORE_MS = 3 * HOUR_MS;
-const DEFAULT_AFTER_MS = 12 * HOUR_MS;
+// How far around an event start a log post may fall to still count as that raid's
+// log — the same window the dashboard's "Latest Events" card uses, so a suggested
+// assignment never contradicts what the dashboard already shows.
+const DEFAULT_BEFORE_MS = LOG_WINDOW_BEFORE_MS;
+const DEFAULT_AFTER_MS = LOG_WINDOW_AFTER_MS;
 // When the two best candidates are this close to each other (two raids the same
 // evening), the assignment is a coin flip — never guess, ask the admin.
 const DEFAULT_AMBIGUOUS_MS = 2 * HOUR_MS;

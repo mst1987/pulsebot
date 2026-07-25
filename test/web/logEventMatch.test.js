@@ -65,7 +65,7 @@ describe("web/logEventMatch", () => {
         });
 
         it("prefers an event from the log channel's own category over a closer one", () => {
-            const sameCat = event({ id: "e2", title: "Kara", startTime: secs(START + 3 * HOUR_MS), categoryId: "cat9" });
+            const sameCat = event({ id: "e2", title: "Kara", startTime: secs(START - 4 * HOUR_MS), categoryId: "cat9" });
             const cands = candidatesFor(log({ categoryId: "cat9" }), [event(), sameCat]);
             expect(cands[0].event.id).toBe("e2");
             expect(cands[0].sameCategory).toBe(true);
@@ -109,8 +109,11 @@ describe("web/logEventMatch", () => {
 
         it("is not ambiguous when the second event is clearly further away", () => {
             const a = event({ id: "e1", startTime: secs(START) });
-            const b = event({ id: "e2", startTime: secs(START + 9 * HOUR_MS) });
-            expect(bestMatch(log(), [a, b]).ambiguous).toBe(false);
+            const b = event({ id: "e2", startTime: secs(START - 9 * HOUR_MS) });
+            const res = bestMatch(log(), [a, b]);
+            expect(res.candidates).toHaveLength(2); // both in the window …
+            expect(res.match.event.id).toBe("e1"); // … but only one is close
+            expect(res.ambiguous).toBe(false);
         });
 
         it("resolves an otherwise ambiguous pair via the log's category", () => {
