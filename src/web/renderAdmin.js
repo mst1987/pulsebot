@@ -86,9 +86,13 @@ const ADMIN_STYLE = `<style>
   .flash-err { background:var(--high-bg); color:var(--high); border:1px solid var(--high); }
   /* toast notifications (post-redirect ok/err feedback) */
   .toast-wrap { position:fixed; top:16px; right:16px; z-index:1000; display:flex; flex-direction:column; gap:8px; max-width:min(360px,calc(100vw - 32px)); pointer-events:none; }
-  .toast { pointer-events:auto; display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:10px; font-size:14px; line-height:1.4; box-shadow:0 8px 28px rgba(0,0,0,.35); border:1px solid; animation:toast-in .22s ease; }
-  .toast-ok { background:var(--good-bg); color:var(--good); border-color:var(--good); }
-  .toast-err { background:var(--high-bg); color:var(--high); border-color:var(--high); }
+  /* solid (opaque) background so the toast stays readable over any content it overlays */
+  .toast { pointer-events:auto; display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:10px; font-size:14px; line-height:1.4; box-shadow:0 8px 28px rgba(0,0,0,.35); background:var(--panel); border:1px solid var(--line); border-left:4px solid var(--line); color:var(--text); animation:toast-in .22s ease; }
+  .toast-ok { border-left-color:var(--good); }
+  .toast-ok .toast-ico { color:var(--good); }
+  .toast-err { border-left-color:var(--high); }
+  .toast-err .toast-ico { color:var(--high); }
+  .toast-ico { flex:0 0 auto; font-weight:800; }
   .toast-msg { flex:1; }
   .toast-x { background:none; border:0; color:inherit; font-size:18px; line-height:1; cursor:pointer; opacity:.7; padding:0; margin:-2px -2px 0 0; }
   .toast-x:hover { opacity:1; }
@@ -246,6 +250,7 @@ function flash(msg) {
     if (!msg) return "";
     const ok = msg.type !== "err";
     return `<div class="toast-wrap"><div class="toast ${ok ? "toast-ok" : "toast-err"}" role="status" aria-live="polite">`
+        + `<span class="toast-ico" aria-hidden="true">${ok ? "&#10003;" : "&#33;"}</span>`
         + `<span class="toast-msg">${esc(msg.text)}</span>`
         + "<button class=\"toast-x\" type=\"button\" aria-label=\"Schließen\">&times;</button>"
         + "</div></div>"
