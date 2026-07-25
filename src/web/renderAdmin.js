@@ -180,8 +180,10 @@ const ADMIN_STYLE = `<style>
   a.mlink:hover { text-decoration:underline; }
   .rolegrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:6px; max-height:220px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:10px; background:var(--bg); }
   .rolebox {
-    display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--text); font-weight:500; cursor:pointer;
+    display:flex; align-items:flex-start; gap:8px; font-size:13.5px; color:var(--text); font-weight:500; cursor:pointer;
     padding:5px 7px; border-radius:7px; border:1px solid transparent; transition:background-color .12s, border-color .12s; }
+  /* checkbox sits on the first line of a (possibly multi-line) label, not centred against the whole block */
+  .rolebox input[type=checkbox] { margin-top:1px; }
   .rolebox:hover { background:var(--panel2); }
   .rolebox:has(input:checked) { background:var(--accent-soft); border-color:var(--accent-soft); box-shadow:0 0 14px -8px var(--accent); }
   /* emoji picker */
@@ -1740,6 +1742,21 @@ function renderEventDetail(user, opts = {}) {
         headerBtns.push("<button type=\"button\" class=\"btn btn-ghost\" onclick=\"var t=document.querySelector('[data-tab=softres]'); if(t) t.click();\">➕ Softres erstellen</button>");
     }
     const headerActions = `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end">${headerBtns.join("")}</div>`;
+
+    // Quick overview stats — signups vs. expected headcount, setup size, missing
+    // raiders, chosen softres instances — so the key numbers are visible without
+    // switching tabs.
+    const signupTarget = Number(opts.signupTarget) || 0;
+    const statSpans = [
+        `<span class="setup-count setup-total"><b>${esc(String(ev.signupCount || 0))}${signupTarget ? ` / ${esc(String(signupTarget))}` : ""}</b> Anmeldungen</span>`,
+    ];
+    if (setup && setup.total) statSpans.push(`<span class="setup-count"><b>${esc(String(setup.total))}</b> im Setup</span>`);
+    if (attendanceRoleIds.length) statSpans.push(`<span class="setup-count"><b>${esc(String(attendance.missing.length))}</b> fehlt</span>`);
+    if (eventSoftres && eventSoftres.instances && eventSoftres.instances.length) {
+        statSpans.push(`<span class="setup-count"><b>${esc(String(eventSoftres.instances.length))}</b> Softres-Instanz(en)</span>`);
+    }
+    const overviewStats = `<div class="setup-summary" style="margin-top:10px">${statSpans.join("")}</div>`;
+
     const meta = `
       <div class="dash-card" style="margin-bottom:16px">
         <div class="dash-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -1754,6 +1771,7 @@ function renderEventDetail(user, opts = {}) {
             <a class="mlink" href="${channelUrl(guildId, ev.channelId)}" target="_blank" rel="noopener">Channel</a> ·
             <a class="mlink" href="${raidplanUrl(ev.id)}" target="_blank" rel="noopener">Setup / Comp</a>
           </div>
+          ${overviewStats}
         </div>
       </div>`;
 
@@ -1852,9 +1870,19 @@ function renderEventDetail(user, opts = {}) {
       </form>`;
     }
 
-    // --- Anwesenheit: role holders who have not reacted to the signup yet ---
+    // --- Anwesenheit: role holders who have not reacted to the signup yet.
+    // Members with a known class/spec (from a past signup, see buildSpecHistory
+    // in utils/attendance.js) get the same icon + class-colour chip as the setup. ---
     const nameList = (people) => people.length
-        ? `<div class="rolegrid">${people.map((p) => `<span class="rolebox">${esc(p.displayName || p.id)}</span>`).join("")}</div>`
+        ? `<div class="rolegrid">${people.map((p) => {
+            const prof = p.profile;
+            const label = esc(p.displayName || p.id);
+            if (!prof) return `<span class="rolebox">${label}</span>`;
+            return `<span class="rolebox setup-player" style="border-left-color:${esc(prof.classColor || "var(--line)")}" title="${esc(prof.specName || "")}">
+              ${prof.iconUrl ? `<img class="setup-ico" src="${esc(prof.iconUrl)}" alt="${esc(prof.className || "")}" loading="lazy">` : "<span class=\"setup-ico setup-ico-blank\"></span>"}
+              <span class="sp-name">${label}</span>
+            </span>`;
+        }).join("")}</div>`
         : "<p class=\"sub\">—</p>";
     let attendanceSection;
     if (!attendanceRoleIds.length) {

@@ -1003,6 +1003,30 @@ describe("attendance on the event detail route", () => {
         const opts = renderAdmin.renderEventDetail.mock.calls.at(-1)[1];
         expect(opts.attendance).toEqual({ responded: [], missing: [] });
     });
+
+    it("enriches missing raiders with a class/spec profile from a past event's signup", async () => {
+        mockGetAllEvents.mockResolvedValue([
+            { id: "e0", channelId: "c1", title: "Kara letzte Woche", startTime: 50, signUps: [{ userId: "u2", specName: "Shadow" }] },
+            { id: "e1", channelId: "c1", title: "Kara", startTime: 100, signUps: [{ userId: "u1", specName: "Warrior" }] },
+        ]);
+        await request("GET", "/admin/raids/detail?event=e1");
+        const opts = renderAdmin.renderEventDetail.mock.calls.at(-1)[1];
+        const bob = opts.attendance.missing.find((m) => m.id === "u2");
+        expect(bob.profile).toMatchObject({ className: "Priest", specName: "Shadow Priest" });
+    });
+
+    it("computes the signup target from the created softres list when present", async () => {
+        mockGetEventSoftres.mockReturnValueOnce({ eventId: "e1", url: "https://softres.it/raid/r1", instances: ["ssc", "tempestkeep"] });
+        await request("GET", "/admin/raids/detail?event=e1");
+        const opts = renderAdmin.renderEventDetail.mock.calls.at(-1)[1];
+        expect(opts.signupTarget).toBe(25);
+    });
+
+    it("falls back to the expected attendance headcount when no softres list exists yet", async () => {
+        await request("GET", "/admin/raids/detail?event=e1");
+        const opts = renderAdmin.renderEventDetail.mock.calls.at(-1)[1];
+        expect(opts.signupTarget).toBe(2);
+    });
 });
 
 describe("ping missing raiders route", () => {

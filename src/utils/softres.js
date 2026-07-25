@@ -70,6 +70,20 @@ function nameOf(code) {
     return inst ? inst.name : String(code || "");
 }
 
+/**
+ * Expected raid size for a set of chosen instance codes: the largest `slots`
+ * among them (not summed — picking e.g. SSC + TK still means one 25-man raid).
+ * Used as the signup target on the event detail page. Unknown codes are
+ * ignored; returns 0 when nothing is known.
+ */
+function targetSizeForInstances(codes = []) {
+    const sizes = (codes || [])
+        .map((c) => INSTANCES[String(c || "").trim()])
+        .filter(Boolean)
+        .map((inst) => inst.slots);
+    return sizes.length ? Math.max(...sizes) : 0;
+}
+
 /** The distinct editions present in the catalogue, in a sensible order. */
 function listEditions() {
     const order = ["classic", "tbc", "wotlk"];
@@ -164,6 +178,6 @@ async function createRaid(opts = {}) {
 module.exports = {
     SOFTRES_BASE, VALID_FACTIONS,
     normalizeTitle, titleHasKeyword, parseInstancesFromTitle,
-    instancesForEdition, listEditions, editionOf, nameOf, catalogue,
+    instancesForEdition, listEditions, editionOf, nameOf, catalogue, targetSizeForInstances,
     buildItemNotes, buildCreatePayload, createRaid,
 };

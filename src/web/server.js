@@ -42,7 +42,7 @@ const Drive = require("../classes/drive");
 const { fillSetupSheet } = require("../utils/fillSetup");
 const { matchRaidsheet } = require("../utils/raidsheets");
 const { buildSetupView, tankCandidates } = require("../utils/setupView");
-const { computeAttendance } = require("../utils/attendance");
+const { computeAttendance, buildSpecHistory, withSpecProfiles } = require("../utils/attendance");
 const { toRaidHelperDate, formatTimestampToDateString } = require("../utils/date");
 const { startSheetCleanup } = require("../utils/sheetCleanup");
 const discord = require("./discord");
@@ -842,12 +842,26 @@ async function handle(req, res) {
             const res2 = await discord.listMembersWithRoles(guildId, categoryRoleIds);
             membersError = res2.error;
             attendance = computeAttendance(res2.members, found.e.signUps || []);
+            // Enrich with class/spec/colour from each member's most recent signup in
+            // another event (within the same lookback window) so raiders who haven't
+            // reacted here yet can still be shown with their known class.
+            const specHistory = buildSpecHistory(groups.flatMap((g) => g.events));
+            attendance = {
+                responded: withSpecProfiles(attendance.responded, specHistory),
+                missing: withSpecProfiles(attendance.missing, specHistory),
+            };
         }
         // Softres: pre-select the instances the event title implies. For now the
         // guild only raids TBC, so restrict both the suggestion and the pickable
         // catalogue to the TBC edition.
         const softresEdition = "tbc";
         const suggestedInstances = softres.parseInstancesFromTitle(found.e.title, softresEdition);
+        const eventSoftres = getEventSoftres(eventId);
+        // Signup counter target: the raid size implied by the created softres list,
+        // falling back to the expected headcount from the attendance role(s).
+        const signupTarget = eventSoftres && eventSoftres.instances && eventSoftres.instances.length
+            ? softres.targetSizeForInstances(eventSoftres.instances)
+            : (categoryRoleIds.length ? (attendance.responded.length + attendance.missing.length) : 0);
         return send(res, 200, renderEventDetail(user, {
             event: found.e,
             channelName: found.e.channelName,
@@ -861,13 +875,14 @@ async function handle(req, res) {
             setupError,
             tankCandidates: tankCands,
             eventSheet: getEventSheet(eventId),
-            eventSoftres: getEventSoftres(eventId),
+            eventSoftres,
             softresCatalogue: softres.catalogue().filter((g) => g.edition === softresEdition),
             softresEdition,
             softresSuggested: suggestedInstances.map((i) => i.code),
             attendance,
             attendanceRoleIds: categoryRoleIds,
             membersError,
+            signupTarget,
             lootItems: listLootByEvent(eventId),
             lootTool: (getConfig().categoryLootTool || {})[found.g.categoryId] || "",
             csrf: auth.csrfToken(req),
