@@ -893,10 +893,17 @@ function specPicker(targetFieldId, emojis) {
     </div>${specPickerScript(emojis)}`;
 }
 
+// A short single-line excerpt of a longer text, for list rows.
+function textPreview(s, max = 60) {
+    const clean = String(s || "").replace(/\s+/g, " ").trim();
+    if (!clean) return "";
+    return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
+}
+
 function templateListItem(t) {
     return `<tr>
       <td><strong>${esc(t.name || "(ohne Name)")}</strong></td>
-      <td class="sub" style="margin:0">${esc(t.title || "")}</td>
+      <td class="sub" style="margin:0">${esc(textPreview(t.content || t.title))}</td>
       <td class="row-actions">
         <a class="btn btn-ghost" href="/admin/recruitment?edit=${esc(t.id)}">Bearbeiten</a>
         <form method="POST" action="/admin/recruitment/delete" onsubmit="return confirm('Vorlage wirklich löschen?')" style="margin:0">
@@ -919,7 +926,7 @@ function renderPostEdit(user, opts) {
         <input type="hidden" name="id" value="${esc(p.id)}">
         <div class="field">
           <label>Nachrichtentext</label>
-          <textarea name="content" id="postContent" style="min-height:160px">${esc(p.content)}</textarea>
+          <textarea name="content" id="postContent" style="min-height:380px">${esc(p.content)}</textarea>
           <div class="hint">Der eigentliche Nachrichtentext — inkl. Emojis. Custom-Emojis als <code>&lt;:name:id&gt;</code>, Discord-Markdown erlaubt.</div>
           ${emojiPicker(opts.emojis)}
         </div>
@@ -927,15 +934,6 @@ function renderPostEdit(user, opts) {
           <label>Gesuchte Klassen/Specs</label>
           ${specPicker("postContent", opts.emojis)}
           <div class="hint">Wird automatisch im Nachrichtentext oben ein-/ausgetragen — dort weiterhin frei editierbar.</div>
-        </div>
-        <div class="field">
-          <label>Embed-Titel (optional)</label>
-          <input type="text" name="title" value="${esc(p.title)}" placeholder="Wir suchen Verstärkung!">
-          <div class="hint">Nur falls die Nachricht ein Embed nutzt.</div>
-        </div>
-        <div class="field">
-          <label>Embed-Text (optional)</label>
-          <textarea name="body" id="postBody">${esc(p.body)}</textarea>
         </div>
         <div class="field">
           <label>Button-Beschriftung</label>
@@ -1032,7 +1030,7 @@ function renderRecruitment(user, opts = {}) {
     // --- templates: list + create/edit form ---
     const list = templates.length
         ? `<table class="idx" style="margin-bottom:18px">
-             <thead><tr><th>Name</th><th>Titel</th><th></th></tr></thead>
+             <thead><tr><th>Name</th><th>Vorschau</th><th></th></tr></thead>
              <tbody>${templates.map(templateListItem).join("").split("__CSRF__").join(csrfField)}</tbody>
            </table>`
         : "<p class=\"sub\">Noch keine Vorlagen. Lege unten die erste an.</p>";
@@ -1051,7 +1049,7 @@ function renderRecruitment(user, opts = {}) {
         </div>
         <div class="field">
           <label>Nachrichtentext</label>
-          <textarea name="content" id="tplContent" placeholder="Nachrichtentext …">${esc(e.content)}</textarea>
+          <textarea name="content" id="tplContent" placeholder="Nachrichtentext …" style="min-height:380px">${esc(e.content)}</textarea>
           <div class="hint">Der eigentliche Nachrichtentext — inkl. Emojis. Custom-Emojis als &lt;:name:id&gt;, Discord-Markdown erlaubt.</div>
           ${emojiPicker(opts.emojis)}
         </div>
@@ -1059,15 +1057,6 @@ function renderRecruitment(user, opts = {}) {
           <label>Gesuchte Klassen/Specs</label>
           ${specPicker("tplContent", opts.emojis)}
           <div class="hint">Wird automatisch im Nachrichtentext oben ein-/ausgetragen (Zeile „## Icon Spec-Name") — dort weiterhin frei editierbar.</div>
-        </div>
-        <div class="field">
-          <label>Embed-Titel (optional)</label>
-          <input type="text" name="title" value="${esc(e.title)}" placeholder="Wir suchen Verstärkung!">
-          <div class="hint">Nur falls die Nachricht zusätzlich ein Embed nutzen soll.</div>
-        </div>
-        <div class="field">
-          <label>Embed-Text (optional)</label>
-          <textarea name="body" id="tplBody" placeholder="Embed-Beschreibung …">${esc(e.body)}</textarea>
         </div>
         <div class="field">
           <label>Button-Beschriftung (optional)</label>
@@ -1105,10 +1094,10 @@ function renderRecruitment(user, opts = {}) {
         : "";
     const postsTable = posts.length
         ? `<table class="idx">
-             <thead><tr><th>Channel</th><th>Titel</th><th class="small">Quelle</th><th></th></tr></thead>
+             <thead><tr><th>Channel</th><th>Vorschau</th><th class="small">Quelle</th><th></th></tr></thead>
              <tbody>${posts.map((p) => `<tr>
                <td>#${esc(p.channelName || p.channelId)}</td>
-               <td>${esc(p.title || "(kein Titel)")} · <a class="mlink" href="${messageUrl(p)}" target="_blank" rel="noopener">öffnen</a></td>
+               <td>${esc(textPreview(p.content || p.title) || "(kein Text)")} · <a class="mlink" href="${messageUrl(p)}" target="_blank" rel="noopener">öffnen</a></td>
                <td class="small">${esc(p.source || "")}</td>
                <td class="row-actions">
                  <a class="btn btn-ghost" href="/admin/recruitment?editpost=${esc(p.id)}">Bearbeiten</a>
