@@ -1,6 +1,6 @@
 const {
     renderDashboard, renderAdminDenied,
-    renderRecruitment, renderCla, renderRaids, renderRaidCreate,
+    renderRecruitment, renderRecruitmentFragment, renderCla, renderRaids, renderRaidCreate,
     renderEventDetail, renderNotifyTemplates, renderChannels, renderSettings,
     renderHistory, renderHistoryEvent, renderHistoryChar, fillCharTemplate,
     formatEventTime, fmtMs, formatMatchOffset,
@@ -269,6 +269,7 @@ describe("web/renderAdmin", () => {
     describe("renderRecruitment", () => {
         it("lists templates and escapes their names", () => {
             const html = renderRecruitment(user, {
+                view: "templates",
                 templates: [{ id: "t1", name: "<img src=x>", title: "T" }],
                 channels: [{ id: "c1", name: "general" }],
                 activeGuildId: "g1", csrf: "x", nav: nav(),
@@ -364,7 +365,7 @@ describe("web/renderAdmin", () => {
 
         it("renders an emoji picker with the server's custom emojis in the template form", () => {
             const html = renderRecruitment(user, {
-                templates: [], activeGuildId: "g1", csrf: "x", nav: nav(),
+                view: "templates", templates: [], activeGuildId: "g1", csrf: "x", nav: nav(),
                 emojis: [{ id: "1", name: "pepe", animated: false, code: "<:pepe:1>", url: "https://cdn/pepe.png" }],
             });
             expect(html).toContain("Emoji einfügen");
@@ -374,9 +375,43 @@ describe("web/renderAdmin", () => {
 
         it("omits the emoji picker when the server has no custom emojis", () => {
             const html = renderRecruitment(user, {
-                templates: [], activeGuildId: "g1", csrf: "x", nav: nav(), emojis: [],
+                view: "templates", templates: [], activeGuildId: "g1", csrf: "x", nav: nav(), emojis: [],
             });
             expect(html).not.toContain("Emoji einfügen");
+        });
+
+        it("defaults to the posts (\"Nachrichten\") view when no ?view= is given", () => {
+            const html = renderRecruitment(user, { templates: [], posts: [], activeGuildId: "g1", csrf: "x", nav: nav() });
+            expect(html).toContain("class=\"subnav-item active\" href=\"/admin/recruitment?view=posts\"");
+            expect(html).toContain("Nachricht posten");
+            expect(html).not.toContain("Recruitment-Vorlagen");
+        });
+
+        describe("renderRecruitmentFragment (AJAX save/navigation)", () => {
+            it("renders the same content region as the full page, wrapped for the AJAX swap", () => {
+                const opts = { view: "templates", templates: [{ id: "t1", name: "Heiler" }], csrf: "x" };
+                const fragment = renderRecruitmentFragment(opts);
+                expect(fragment).toContain("<div id=\"recruitment-view\">");
+                expect(fragment).toContain("Recruitment-Vorlagen");
+                expect(fragment).toContain("Heiler");
+                // it's swapped into the surrounding admin shell, not a full document
+                expect(fragment).not.toContain("<html");
+                expect(fragment).not.toContain("class=\"side\"");
+            });
+
+            it("renders the post-edit form when editingPost is set", () => {
+                const fragment = renderRecruitmentFragment({
+                    editingPost: { id: "p1", channelName: "gen", content: "Hi", buttonLabel: "" }, csrf: "x",
+                });
+                expect(fragment).toContain("Gepostete Nachricht bearbeiten");
+                expect(fragment).toContain("action=\"/admin/recruitment/post-update\"");
+            });
+
+            it("includes the fetch()-based submit handler so forms don't trigger a full page reload", () => {
+                const fragment = renderRecruitmentFragment({ view: "posts", templates: [], posts: [] });
+                expect(fragment).toContain("addEventListener(\"submit\"");
+                expect(fragment).toContain("X-Requested-With");
+            });
         });
 
         it("renders the emoji picker on the post-edit form too", () => {

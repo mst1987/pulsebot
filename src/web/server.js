@@ -8,7 +8,7 @@ const { listRaidEvents } = require("./raidEventStore");
 const { scanRaidEvents, startRaidEventScan } = require("./raidEventScan");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
 const {
-    renderDashboard, renderAdminDenied, renderRecruitment, renderCla,
+    renderDashboard, renderAdminDenied, renderRecruitment, renderRecruitmentFragment, renderCla,
     renderRaids, renderRaidCreate, renderEventDetail, renderNotifyTemplates,
     renderChannels, renderSettings,
     renderHistory, renderHistoryEvent, renderHistoryChar, fillCharTemplate,
@@ -65,12 +65,75 @@ function flashFromQuery(url) {
     return FLASH[url.searchParams.get("msg")] || null;
 }
 
+// The recruitment page submits its forms via fetch() (see RECRUITMENT_AJAX_SCRIPT
+// in renderAdmin.js) so saving doesn't flash the whole page. Those requests carry
+// this header instead of a normal navigation.
+function isAjax(req) {
+    return req.headers["x-requested-with"] === "fetch";
+}
+
 // The server the admin is managing: explicit selection, else the bot's only guild.
 function activeGuildFor(req) {
     const selected = auth.getActiveGuild(req);
     if (selected) return selected;
     const guilds = discord.listGuilds();
     return guilds.length === 1 ? guilds[0].id : "";
+}
+
+// Shared by GET /admin/recruitment and the AJAX fragment responses below: builds
+// every option renderRecruitment(Fragment) needs except csrf/nav/msg (the caller
+// adds those, since they differ between a full page load and a POST reply).
+async function loadRecruitmentOpts(req, url) {
+    const guildId = activeGuildFor(req);
+    const editId = url.searchParams.get("edit");
+    const editPostId = url.searchParams.get("editpost");
+    const view = url.searchParams.get("view") || "";
+    const { applicationChannelId } = getConfig();
+    // Applications live as Discord threads — only fetch them when their tab is
+    // open (the fetch hits Discord and shouldn't run on every page view).
+    let applications;
+    let applicationsError = null;
+    if (view === "applications" && !editId && !editPostId) {
+        const res2 = await discord.listApplications(applicationChannelId);
+        applications = res2.applications;
+        applicationsError = res2.error;
+    }
+    return {
+        view,
+        templates: listRecruitment(),
+        editing: editId ? getRecruitment(editId) : null,
+        editingPost: editPostId ? getRecruitmentPost(editPostId) : null,
+        posts: guildId ? listRecruitmentPosts().filter((p) => p.guildId === guildId) : listRecruitmentPosts(),
+        channels: discord.listTextChannels(guildId),
+        emojis: discord.listEmojis(guildId),
+        applications,
+        applicationsError,
+        applicationChannelId,
+        activeGuildId: guildId,
+    };
+}
+
+// Recruitment POST routes land here instead of a bare redirect: a fetch()-driven
+// request (see isAjax()) gets back JSON with the message plus the refreshed
+// fragment HTML for `view`; a classic form post still gets a redirect with a
+// ?ok=/?err= flash — both land on the tab the action belongs to (previously every
+// redirect dropped back to the "templates" default, regardless of where the
+// action was triggered from — e.g. editing a posted message on the "Nachrichten"
+// tab landed back on "Vorlagen" after saving).
+async function recruitmentResult(req, res, view, result) {
+    if (isAjax(req)) {
+        const fragUrl = new URL(`http://localhost/admin/recruitment?view=${view}`);
+        const opts = await loadRecruitmentOpts(req, fragUrl);
+        opts.csrf = auth.csrfToken(req);
+        return send(res, 200, JSON.stringify({
+            ok: result.type !== "err",
+            message: result.text,
+            url: `/admin/recruitment?view=${view}`,
+            html: renderRecruitmentFragment(opts),
+        }), { "Content-Type": "application/json; charset=utf-8" });
+    }
+    const param = result.type === "err" ? "err" : "ok";
+    return redirect(res, `/admin/recruitment?view=${view}&${param}=${encodeURIComponent(result.text)}`);
 }
 
 // How far back events are looked up when a past raid has to be found again — for
@@ -387,63 +450,38 @@ async function handle(req, res) {
         if (req.method === "GET") {
             const user = requireAdmin(req, res);
             if (!user) return;
-            const guildId = activeGuildFor(req);
-            const editId = url.searchParams.get("edit");
-            const editPostId = url.searchParams.get("editpost");
-            const view = url.searchParams.get("view") || "";
-            const { applicationChannelId } = getConfig();
-            // Applications live as Discord threads — only fetch them when their tab
-            // is open (the fetch hits Discord and shouldn't run on every page view).
-            let applications;
-            let applicationsError = null;
-            if (view === "applications" && !editId && !editPostId) {
-                const res2 = await discord.listApplications(applicationChannelId);
-                applications = res2.applications;
-                applicationsError = res2.error;
-            }
-            return send(res, 200, renderRecruitment(user, {
-                view,
-                templates: listRecruitment(),
-                editing: editId ? getRecruitment(editId) : null,
-                editingPost: editPostId ? getRecruitmentPost(editPostId) : null,
-                posts: guildId ? listRecruitmentPosts().filter((p) => p.guildId === guildId) : listRecruitmentPosts(),
-                channels: discord.listTextChannels(guildId),
-                emojis: discord.listEmojis(guildId),
-                applications,
-                applicationsError,
-                applicationChannelId,
-                activeGuildId: guildId,
-                csrf: auth.csrfToken(req),
-                msg: flashFromQuery(url),
-                nav: navFor(req),
-            }));
+            const opts = await loadRecruitmentOpts(req, url);
+            opts.csrf = auth.csrfToken(req);
+            opts.nav = navFor(req);
+            opts.msg = flashFromQuery(url);
+            return send(res, 200, renderRecruitment(user, opts));
         }
         if (req.method === "POST") {
             const user = requireAdmin(req, res);
             if (!user) return;
             const form = await readFormBody(req);
-            if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/recruitment?msg=csrf");
+            if (!auth.checkCsrf(req, form._csrf)) return recruitmentResult(req, res, "templates", { type: "err", text: FLASH.csrf.text });
             saveRecruitment(form);
-            return redirect(res, "/admin/recruitment?msg=saved");
+            return recruitmentResult(req, res, "templates", { type: "ok", text: "Gespeichert." });
         }
     }
     if (pathname === "/admin/recruitment/delete" && req.method === "POST") {
         const user = requireAdmin(req, res);
         if (!user) return;
         const form = await readFormBody(req);
-        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/recruitment?msg=csrf");
+        if (!auth.checkCsrf(req, form._csrf)) return recruitmentResult(req, res, "templates", { type: "err", text: FLASH.csrf.text });
         deleteRecruitment(form.id);
-        return redirect(res, "/admin/recruitment?msg=deleted");
+        return recruitmentResult(req, res, "templates", { type: "ok", text: "Gelöscht." });
     }
     // post a template into a channel and track the message
     if (pathname === "/admin/recruitment/post" && req.method === "POST") {
         const user = requireAdmin(req, res);
         if (!user) return;
         const form = await readFormBody(req);
-        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/recruitment?msg=csrf");
+        if (!auth.checkCsrf(req, form._csrf)) return recruitmentResult(req, res, "posts", { type: "err", text: FLASH.csrf.text });
         const template = getRecruitment((form.templateId || "").trim());
         const channelId = (form.channelId || "").trim();
-        if (!template || !channelId) return redirect(res, "/admin/recruitment?err=" + encodeURIComponent("Vorlage oder Channel fehlt."));
+        if (!template || !channelId) return recruitmentResult(req, res, "posts", { type: "err", text: "Vorlage oder Channel fehlt." });
         try {
             const posted = await discord.postRecruitment(channelId, template);
             const channel = discord.getClient() ? await discord.getClient().channels.fetch(channelId) : null;
@@ -458,10 +496,10 @@ async function handle(req, res) {
                 buttonLabel: template.buttonLabel,
                 source: "web",
             });
-            return redirect(res, "/admin/recruitment?ok=" + encodeURIComponent("Nachricht gepostet."));
+            return recruitmentResult(req, res, "posts", { type: "ok", text: "Nachricht gepostet." });
         } catch (e) {
             console.error("recruitment post failed:", e.message);
-            return redirect(res, "/admin/recruitment?err=" + encodeURIComponent(e.message || "Posten fehlgeschlagen."));
+            return recruitmentResult(req, res, "posts", { type: "err", text: e.message || "Posten fehlgeschlagen." });
         }
     }
     // update an already-posted message (edit its embed in Discord)
@@ -469,9 +507,9 @@ async function handle(req, res) {
         const user = requireAdmin(req, res);
         if (!user) return;
         const form = await readFormBody(req);
-        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/recruitment?msg=csrf");
+        if (!auth.checkCsrf(req, form._csrf)) return recruitmentResult(req, res, "posts", { type: "err", text: FLASH.csrf.text });
         const post = getRecruitmentPost((form.id || "").trim());
-        if (!post) return redirect(res, "/admin/recruitment?err=" + encodeURIComponent("Nachricht nicht gefunden."));
+        if (!post) return recruitmentResult(req, res, "posts", { type: "err", text: "Nachricht nicht gefunden." });
         const template = {
             content: form.content || "",
             title: form.title || "",
@@ -481,10 +519,10 @@ async function handle(req, res) {
         try {
             await discord.editRecruitment(post.channelId, post.messageId, template);
             saveRecruitmentPost({ id: post.id, ...template });
-            return redirect(res, "/admin/recruitment?ok=" + encodeURIComponent("Nachricht aktualisiert."));
+            return recruitmentResult(req, res, "posts", { type: "ok", text: "Nachricht aktualisiert." });
         } catch (e) {
             console.error("recruitment update failed:", e.message);
-            return redirect(res, "/admin/recruitment?err=" + encodeURIComponent(e.message || "Aktualisieren fehlgeschlagen."));
+            return recruitmentResult(req, res, "posts", { type: "err", text: e.message || "Aktualisieren fehlgeschlagen." });
         }
     }
     // stop tracking a posted message (Discord message stays)
@@ -492,25 +530,25 @@ async function handle(req, res) {
         const user = requireAdmin(req, res);
         if (!user) return;
         const form = await readFormBody(req);
-        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/recruitment?msg=csrf");
+        if (!auth.checkCsrf(req, form._csrf)) return recruitmentResult(req, res, "posts", { type: "err", text: FLASH.csrf.text });
         deleteRecruitmentPost((form.id || "").trim());
-        return redirect(res, "/admin/recruitment?msg=deleted");
+        return recruitmentResult(req, res, "posts", { type: "ok", text: "Gelöscht." });
     }
     // scan the active server's channels for bot recruitment messages and import them
     if (pathname === "/admin/recruitment/scan" && req.method === "POST") {
         const user = requireAdmin(req, res);
         if (!user) return;
         const form = await readFormBody(req);
-        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/recruitment?msg=csrf");
+        if (!auth.checkCsrf(req, form._csrf)) return recruitmentResult(req, res, "posts", { type: "err", text: FLASH.csrf.text });
         const guildId = activeGuildFor(req);
-        if (!guildId) return redirect(res, "/admin/recruitment?err=" + encodeURIComponent("Kein Server gewählt."));
+        if (!guildId) return recruitmentResult(req, res, "posts", { type: "err", text: "Kein Server gewählt." });
         try {
             const found = await discord.scanRecruitment(guildId);
             for (const f of found) saveRecruitmentPost({ ...f, source: "scan" });
-            return redirect(res, "/admin/recruitment?ok=" + encodeURIComponent(`${found.length} Nachricht(en) gefunden/aktualisiert.`));
+            return recruitmentResult(req, res, "posts", { type: "ok", text: `${found.length} Nachricht(en) gefunden/aktualisiert.` });
         } catch (e) {
             console.error("recruitment scan failed:", e.message);
-            return redirect(res, "/admin/recruitment?err=" + encodeURIComponent(e.message || "Scan fehlgeschlagen."));
+            return recruitmentResult(req, res, "posts", { type: "err", text: e.message || "Scan fehlgeschlagen." });
         }
     }
 

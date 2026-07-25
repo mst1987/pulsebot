@@ -949,10 +949,10 @@ function templateListItem(t) {
 }
 
 // Edit form for a message the bot already posted (updates the Discord embed).
-function renderPostEdit(user, opts) {
+function renderPostEditBody(opts) {
     const p = opts.editingPost;
     const csrfField = hiddenCsrf(opts.csrf || "");
-    const body = `
+    return `
       <h2>Gepostete Nachricht bearbeiten</h2>
       <p class="note">In #${esc(p.channelName || p.channelId)} · <a class="mlink" href="${messageUrl(p)}" target="_blank" rel="noopener">Nachricht öffnen</a>. Änderungen werden direkt in Discord aktualisiert.</p>
       <form class="card-form" method="POST" action="/admin/recruitment/post-update">
@@ -978,7 +978,6 @@ function renderPostEdit(user, opts) {
           <a class="btn btn-ghost" href="/admin/recruitment">Abbrechen</a>
         </div>
       </form>`;
-    return adminLayout("Recruitment — Nachricht bearbeiten", "recruitment", user, body, opts.msg, opts.nav);
 }
 
 // Render an application field value that is expected to hold a URL as a link,
@@ -1039,27 +1038,26 @@ function recruitmentApplications(opts) {
 }
 
 /**
- * Recruitment page. Three sub-views via a submenu: "templates" (edit template
- * texts, the default), "posts" (post a template + manage already-posted messages)
- * and "applications" (the applications posted as threads in the application
- * channel). Editing a template forces the templates view; editing a posted
- * message renders its own full-page form.
+ * Recruitment page. Three sub-views via a submenu: "posts" (post a template +
+ * manage already-posted messages, the default), "templates" (edit template
+ * texts) and "applications" (the applications posted as threads in the
+ * application channel). Editing a template forces the templates view; editing
+ * a posted message renders its own full-page form.
  * @param {object} opts { view, templates, editing, posts, editingPost, channels,
  *   applications, applicationsError, applicationChannelId, activeGuildId, csrf, msg, nav }
  */
-function renderRecruitment(user, opts = {}) {
-    if (opts.editingPost) return renderPostEdit(user, opts);
-
+function renderRecruitmentBody(opts = {}) {
     const templates = opts.templates || [];
     const posts = opts.posts || [];
     const channels = opts.channels || [];
     const activeGuildId = opts.activeGuildId || "";
     const editing = opts.editing || null;
     const csrfField = hiddenCsrf(opts.csrf || "");
-    // Editing a template always lands on the templates view; otherwise honour ?view=.
+    // Editing a template always lands on the templates view; otherwise honour ?view=,
+    // defaulting to "posts" — the first/standard tab.
     const view = editing
         ? "templates"
-        : (["posts", "applications"].includes(opts.view) ? opts.view : "templates");
+        : (["templates", "applications"].includes(opts.view) ? opts.view : "posts");
 
     // --- templates: list + create/edit form ---
     const list = templates.length
@@ -1148,8 +1146,8 @@ function renderRecruitment(user, opts = {}) {
     const appCount = opts.applications ? opts.applications.length : null;
     const tab = (id, label, count) => `<a class="subnav-item${view === id ? " active" : ""}" href="/admin/recruitment?view=${id}">${esc(label)}${count ? ` <span class="subnav-count">${esc(String(count))}</span>` : ""}</a>`;
     const subnav = "<div class=\"subnav\">"
-        + tab("templates", "Vorlagen", templates.length)
         + tab("posts", "Nachrichten", posts.length)
+        + tab("templates", "Vorlagen", templates.length)
         + tab("applications", "Bewerbungen", appCount)
         + "</div>";
 
@@ -1174,8 +1172,61 @@ function renderRecruitment(user, opts = {}) {
       ${templateForm}`;
     }
 
-    const body = `${subnav}${content}`;
-    return adminLayout("Recruitment — Pulsebot Admin", "recruitment", user, body, opts.msg, opts.nav);
+    return `${subnav}${content}`;
+}
+
+// Recruitment forms submit via fetch() instead of a normal navigation, so saving
+// a template or a posted message doesn't flash the whole page and drop the admin
+// back on the wrong tab (see server.js's isAjax()/recruitmentResult()). This is
+// the only page doing this — everywhere else a plain POST-redirect is enough.
+// Scripts inserted via innerHTML/outerHTML never execute, so embedding this
+// inside the swappable fragment is safe: it runs once, on the real page load,
+// and registers delegated listeners on `document` that survive later swaps.
+const RECRUITMENT_AJAX_SCRIPT = `<script>(function(){
+  var root=document.getElementById("recruitment-view");if(!root)return;
+  function toast(ok,text){
+    var wrap=document.createElement("div");wrap.className="toast-wrap";
+    wrap.innerHTML='<div class="toast '+(ok?"toast-ok":"toast-err")+'" role="status" aria-live="polite">'
+      +'<span class="toast-ico" aria-hidden="true">'+(ok?"&#10003;":"&#33;")+'</span>'
+      +'<span class="toast-msg"></span>'
+      +'<button class="toast-x" type="button" aria-label="Schließen">&times;</button></div>';
+    wrap.querySelector(".toast-msg").textContent=text;
+    document.body.appendChild(wrap);
+    var t=wrap.querySelector(".toast");
+    function close(){t.classList.add("hide");setTimeout(function(){wrap.remove();},220);}
+    wrap.querySelector(".toast-x").addEventListener("click",close);
+    setTimeout(close,4500);
+  }
+  document.addEventListener("submit",function(e){
+    if(e.defaultPrevented)return;
+    var form=e.target;
+    if(!form||!form.closest||!form.closest("#recruitment-view"))return;
+    if((form.getAttribute("method")||"GET").toUpperCase()!=="POST")return;
+    e.preventDefault();
+    fetch(form.getAttribute("action"),{
+      method:"POST",
+      headers:{"Content-Type":"application/x-www-form-urlencoded","X-Requested-With":"fetch"},
+      body:new URLSearchParams(new FormData(form)),
+    }).then(function(r){return r.json();}).then(function(data){
+      var view=document.getElementById("recruitment-view");
+      if(data.html&&view)view.outerHTML=data.html;
+      toast(!!data.ok,data.message||(data.ok?"Gespeichert.":"Fehler."));
+      if(data.url)history.replaceState(null,"",data.url);
+    }).catch(function(){form.submit();});
+  });
+})();</script>`;
+
+/** The recruitment page's content region — the initial full-page render and the
+ * AJAX fragment swapped in after saving share this exact markup (see
+ * RECRUITMENT_AJAX_SCRIPT above), so the server only has to render it once. */
+function renderRecruitmentFragment(opts = {}) {
+    const inner = opts.editingPost ? renderPostEditBody(opts) : renderRecruitmentBody(opts);
+    return `<div id="recruitment-view">${inner}</div>${RECRUITMENT_AJAX_SCRIPT}`;
+}
+
+function renderRecruitment(user, opts = {}) {
+    const title = opts.editingPost ? "Recruitment — Nachricht bearbeiten" : "Recruitment — Pulsebot Admin";
+    return adminLayout(title, "recruitment", user, renderRecruitmentFragment(opts), opts.msg, opts.nav);
 }
 
 // WCL report link for a detected log (prefer the stored link, else derive it).
@@ -2846,7 +2897,7 @@ function renderHistoryChar(user, opts = {}) {
 
 module.exports = {
     adminLayout, adminNav, renderDashboard, renderAdminDenied,
-    renderRecruitment, renderCla, renderRaids, renderRaidCreate,
+    renderRecruitment, renderRecruitmentFragment, renderCla, renderRaids, renderRaidCreate,
     renderEventDetail, renderNotifyTemplates, renderChannels, renderSettings,
     renderHistory, renderHistoryEvent, renderHistoryChar,
     fillCharTemplate, hiddenCsrf, esc,

@@ -26,6 +26,7 @@ jest.mock("../../src/web/renderAdmin", () => ({
     renderDashboard: jest.fn(() => "DASHBOARD"),
     renderAdminDenied: jest.fn(() => "DENIED"),
     renderRecruitment: jest.fn(() => "RECRUITMENT"),
+    renderRecruitmentFragment: jest.fn(() => "RECRUITMENT_FRAGMENT"),
     renderCla: jest.fn(() => "CLA"),
     renderRaids: jest.fn(() => "RAIDS"),
     renderRaidCreate: jest.fn(() => "RAIDCREATE"),
@@ -137,6 +138,10 @@ jest.mock("../../src/web/discord", () => ({
     listEmojis: jest.fn(() => []),
     listApplications: jest.fn(async () => ({ applications: [], error: null })),
     postLink: jest.fn(async () => ({ channelId: "c1", messageId: "m1", url: "u" })),
+    getClient: jest.fn(() => null),
+    postRecruitment: jest.fn(async () => ({ guildId: "g1", channelId: "c1", messageId: "m1" })),
+    editRecruitment: jest.fn(async () => {}),
+    scanRecruitment: jest.fn(async () => []),
 }));
 jest.mock("../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({
@@ -205,11 +210,11 @@ function mockRes() {
 }
 
 // Drive a request. For POST, streams the form body once listeners are attached.
-async function request(method, url, form) {
+async function request(method, url, form, headers) {
     const req = new EventEmitter();
     req.method = method;
     req.url = url;
-    req.headers = {};
+    req.headers = { ...headers };
     const res = mockRes();
     const p = handler(req, res);
     if (method === "POST") {
@@ -220,6 +225,13 @@ async function request(method, url, form) {
     await p;
     await flush();
     return res;
+}
+
+// The JSON body of an AJAX (fetch) response, or undefined if none was sent.
+function jsonBody(res) {
+    const call = res.end.mock.calls[0];
+    if (!call) return undefined;
+    try { return JSON.parse(call[0]); } catch { return undefined; }
 }
 
 // The Location a route redirected to (302), or undefined.
@@ -1273,7 +1285,7 @@ describe("recruitment applications tab (GET /admin/recruitment)", () => {
         expect(opts.applicationChannelId).toBe("app1");
     });
 
-    it("does NOT fetch applications on the default (templates) view", async () => {
+    it("does NOT fetch applications on the default (posts) view", async () => {
         await request("GET", "/admin/recruitment");
         expect(discord.listApplications).not.toHaveBeenCalled();
         expect(lastRenderOpts().applications).toBeUndefined();
@@ -1283,6 +1295,105 @@ describe("recruitment applications tab (GET /admin/recruitment)", () => {
         discord.listApplications.mockResolvedValue({ applications: [], error: "Bewerbungs-Channel nicht gefunden (ID prüfen)." });
         await request("GET", "/admin/recruitment?view=applications");
         expect(lastRenderOpts().applicationsError).toBe("Bewerbungs-Channel nicht gefunden (ID prüfen).");
+    });
+});
+
+// The recruitment page submits its forms via fetch() (X-Requested-With: fetch)
+// so saving doesn't reload the whole page — see RECRUITMENT_AJAX_SCRIPT in
+// renderAdmin.js. Every mutating route must also land back on the tab it
+// belongs to (not always "templates", the old universal redirect target),
+// both for a plain form post (redirect) and for the AJAX variant (JSON).
+describe("recruitment save/post routes land on the right tab", () => {
+    const AJAX = { "x-requested-with": "fetch" };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+        auth.checkCsrf.mockReturnValue(true);
+        auth.getActiveGuild.mockReturnValue("g1");
+        store.getConfig.mockReturnValue({ raidDefaults: {}, categoryIds: [], adminRoleIds: [] });
+        store.getRecruitment.mockReturnValue({ id: "t1", name: "Heiler", content: "Hi", buttonLabel: "" });
+        store.getRecruitmentPost.mockReturnValue({
+            id: "p1", channelId: "c1", messageId: "m1", content: "Hi",
+        });
+    });
+
+    it("POST /admin/recruitment (save template) redirects to the templates tab", async () => {
+        const res = await request("POST", "/admin/recruitment", { name: "Heiler" });
+        expect(store.saveRecruitment).toHaveBeenCalled();
+        expect(redirectTo(res)).toBe("/admin/recruitment?view=templates&ok=Gespeichert.");
+    });
+
+    it("POST /admin/recruitment as AJAX returns JSON with the refreshed fragment instead of redirecting", async () => {
+        const res = await request("POST", "/admin/recruitment", { name: "Heiler" }, AJAX);
+        expect(redirectTo(res)).toBeUndefined();
+        expect(jsonBody(res)).toEqual({
+            ok: true, message: "Gespeichert.", url: "/admin/recruitment?view=templates", html: "RECRUITMENT_FRAGMENT",
+        });
+    });
+
+    it("POST /admin/recruitment/delete redirects to the templates tab", async () => {
+        const res = await request("POST", "/admin/recruitment/delete", { id: "t1" });
+        expect(store.deleteRecruitment).toHaveBeenCalledWith("t1");
+        expect(redirectTo(res)).toBe("/admin/recruitment?view=templates&ok=Gel%C3%B6scht.");
+    });
+
+    it("POST /admin/recruitment/post redirects to the posts tab", async () => {
+        const res = await request("POST", "/admin/recruitment/post", { templateId: "t1", channelId: "c1" });
+        expect(discord.postRecruitment).toHaveBeenCalled();
+        expect(redirectTo(res)).toBe("/admin/recruitment?view=posts&ok=Nachricht%20gepostet.");
+    });
+
+    // The bug this fixes: editing a posted message is only reachable from the
+    // "Nachrichten" (posts) tab, but every recruitment redirect used to land
+    // back on "templates" regardless — so saving bounced the admin to the
+    // wrong tab. It must now redirect to "posts" instead.
+    it("POST /admin/recruitment/post-update redirects to the posts tab, not templates", async () => {
+        const res = await request("POST", "/admin/recruitment/post-update", { id: "p1", content: "Neu" });
+        expect(discord.editRecruitment).toHaveBeenCalled();
+        expect(redirectTo(res)).toBe("/admin/recruitment?view=posts&ok=Nachricht%20aktualisiert.");
+    });
+
+    it("POST /admin/recruitment/post-update as AJAX returns the posts view, not templates", async () => {
+        const res = await request("POST", "/admin/recruitment/post-update", { id: "p1", content: "Neu" }, AJAX);
+        expect(jsonBody(res)).toEqual({
+            ok: true, message: "Nachricht aktualisiert.", url: "/admin/recruitment?view=posts", html: "RECRUITMENT_FRAGMENT",
+        });
+    });
+
+    it("POST /admin/recruitment/post-delete redirects to the posts tab", async () => {
+        const res = await request("POST", "/admin/recruitment/post-delete", { id: "p1" });
+        expect(store.deleteRecruitmentPost).toHaveBeenCalledWith("p1");
+        expect(redirectTo(res)).toBe("/admin/recruitment?view=posts&ok=Gel%C3%B6scht.");
+    });
+
+    it("POST /admin/recruitment/scan redirects to the posts tab", async () => {
+        discord.scanRecruitment.mockResolvedValueOnce([{ channelId: "c1", messageId: "m2" }]);
+        const res = await request("POST", "/admin/recruitment/scan", {});
+        expect(redirectTo(res)).toBe("/admin/recruitment?view=posts&ok=1%20Nachricht(en)%20gefunden%2Faktualisiert.");
+    });
+
+    it("rejects a bad CSRF token and still lands on the calling tab", async () => {
+        auth.checkCsrf.mockReturnValueOnce(false);
+        const res = await request("POST", "/admin/recruitment/post-update", { id: "p1" });
+        expect(discord.editRecruitment).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("/admin/recruitment?view=posts&err=");
+    });
+
+    it("a bad CSRF token as AJAX returns ok:false instead of a redirect", async () => {
+        auth.checkCsrf.mockReturnValueOnce(false);
+        const res = await request("POST", "/admin/recruitment/post-update", { id: "p1" }, AJAX);
+        const body = jsonBody(res);
+        expect(body.ok).toBe(false);
+        expect(body.url).toBe("/admin/recruitment?view=posts");
+    });
+
+    it("surfaces a Discord error from post-update as an AJAX error response", async () => {
+        discord.editRecruitment.mockRejectedValueOnce(new Error("rate limited"));
+        const res = await request("POST", "/admin/recruitment/post-update", { id: "p1" }, AJAX);
+        const body = jsonBody(res);
+        expect(body.ok).toBe(false);
+        expect(body.message).toBe("rate limited");
     });
 });
 
