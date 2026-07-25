@@ -4,6 +4,9 @@
 const { layout, esc, authBar, themeToggleBtn } = require("./render");
 const { logPostedAt } = require("./reportList");
 const { formatTimestampToDateString } = require("../utils/date");
+const {
+    SPEC_CATALOG, SPEC_LINE_RE, resolveSpec, parseWantedBlock, buildSpecLine, insertSpecLine, removeSpecLine,
+} = require("../utils/recruitmentSpecs");
 
 // admin-specific styling, injected once per admin page (in addition to layout's base <style>)
 const ADMIN_STYLE = `<style>
@@ -40,27 +43,94 @@ const ADMIN_STYLE = `<style>
   .page-title { font-size:24px; font-weight:800; letter-spacing:-.3px; margin:0 0 18px; }
   /* ===== admin components ===== */
   .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
-  .navcard { display:block; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; text-decoration:none; transition:background .12s, border-color .12s; }
-  .navcard:hover { background:var(--panel2); border-color:var(--accent); }
+  .navcard {
+    display:block; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; text-decoration:none;
+    transition:background-color .15s ease, border-color .15s ease, transform .15s ease, box-shadow .15s ease; }
+  .navcard:hover { background:var(--panel2); border-color:var(--accent); transform:translateY(-2px); box-shadow:0 10px 28px -10px var(--accent); }
   .navcard h3 { margin:0 0 6px; font-size:17px; }
   .navcard p { margin:0; color:var(--muted); font-size:13.5px; }
   .navcard .ico { display:inline-grid; place-items:center; width:38px; height:38px; border-radius:9px; background:var(--accent-soft); color:var(--accent); margin-bottom:10px; }
   .navcard .ico svg { width:20px; height:20px; }
   form.card-form { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; margin:0 0 16px; }
-  .field { margin-bottom:14px; }
-  .field label { display:block; font-size:13px; color:var(--muted); margin-bottom:5px; font-weight:600; }
-  .field input[type=text], .field input[type=url], .field textarea, .field select {
-    width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:9px 11px; font:inherit; }
-  .field input:focus, .field textarea:focus, .field select:focus { border-color:var(--accent); outline:none; }
-  .field textarea { min-height:120px; resize:vertical; }
-  .field .hint { color:var(--muted); font-size:12px; margin-top:4px; }
-  .btn { display:inline-block; background:var(--accent); color:var(--accent-ink); border:0; border-radius:8px; padding:9px 18px; font-weight:700; font-size:14px; cursor:pointer; text-decoration:none; }
+  .field { margin-bottom:16px; }
+  .field label { display:block; font-size:13px; color:var(--muted); margin-bottom:7px; font-weight:600; line-height:1.3; }
+  /* every text-like input type (not just text/url) gets the same box — number, date, time,
+     password, search, tel, email, … so nothing falls back to unstyled browser chrome.
+     Capped max-width so short values (dates, IDs, numbers) don't stretch across the whole card. */
+  .field input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]):not([type=submit]):not([type=button]),
+  .field select {
+    width:100%; max-width:440px; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px;
+    padding:9px 12px; font:inherit; transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease; }
+  .field input[type=date], .field input[type=time], .field input[type=datetime-local] { max-width:190px; }
+  .field input[type=number] { max-width:130px; }
+  .field textarea {
+    width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px;
+    padding:10px 12px; font:inherit; min-height:160px; resize:vertical;
+    transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease; }
+  .field input:focus, .field textarea:focus, .field select:focus {
+    border-color:var(--accent); outline:none; box-shadow:0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--accent); }
+  .field .hint { color:var(--muted); font-size:12px; margin-top:5px; line-height:1.4; }
+  .field input[disabled] { opacity:.6; cursor:not-allowed; box-shadow:none; }
+  /* file upload: dashed drop-style box + a real accent button for the native picker */
+  .field input[type=file] {
+    width:100%; background:var(--bg); color:var(--muted); border:1.5px dashed var(--line); border-radius:8px;
+    padding:9px 12px; font:inherit; font-size:13.5px; cursor:pointer; transition:border-color .15s ease, box-shadow .15s ease; }
+  .field input[type=file]:hover, .field input[type=file]:focus-visible {
+    border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); outline:none; }
+  .field input[type=file]::file-selector-button {
+    background:var(--accent); color:var(--accent-ink); border:0; border-radius:6px; padding:7px 14px;
+    font-weight:700; font-size:13px; cursor:pointer; margin-right:12px; transition:filter .15s ease, transform .1s ease; }
+  .field input[type=file]::file-selector-button:hover { filter:brightness(1.08); }
+  .field input[type=file]::file-selector-button:active { transform:scale(.97); }
+  /* custom checkbox — replaces the native browser box everywhere, not just inside .field */
+  input[type=checkbox] {
+    appearance:none; -webkit-appearance:none; width:18px; height:18px; min-width:18px; margin:0;
+    border:1.5px solid var(--line); border-radius:5px; background:var(--bg); cursor:pointer; position:relative;
+    transition:background-color .15s ease, border-color .15s ease, box-shadow .15s ease; flex:0 0 auto; }
+  input[type=checkbox]:hover { border-color:var(--accent); }
+  input[type=checkbox]:checked {
+    background-color:var(--accent); border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft), 0 0 10px -3px var(--accent); }
+  input[type=checkbox]:checked::after {
+    content:""; position:absolute; left:3px; top:3px; width:8px; height:5px;
+    border:2px solid var(--accent-ink); border-top:0; border-right:0; transform:rotate(-45deg);
+    animation:chk-pop .2s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes chk-pop { from { transform:rotate(-45deg) scale(.3); opacity:0; } to { transform:rotate(-45deg) scale(1); opacity:1; } }
+  input[type=checkbox]:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  input[type=checkbox]:disabled { opacity:.5; cursor:not-allowed; box-shadow:none; }
+  /* toggle switch — for a single on/off setting (as opposed to multi-select checkbox lists) */
+  .switch { position:relative; display:inline-flex; align-items:center; flex:0 0 auto; cursor:pointer; }
+  .switch input[type=checkbox] {
+    position:absolute; inset:0; width:36px; height:20px; margin:0; opacity:0; border:0; background:none; cursor:pointer; box-shadow:none; }
+  .switch input[type=checkbox]::after { content:none; }
+  .switch-track {
+    width:36px; height:20px; border-radius:999px; background:var(--panel3); border:1.5px solid var(--line);
+    transition:background-color .2s ease, border-color .2s ease, box-shadow .2s ease; flex:0 0 auto; position:relative; }
+  .switch-thumb {
+    position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:var(--muted);
+    transition:transform .25s cubic-bezier(.34,1.56,.64,1), background-color .2s ease; }
+  .switch input[type=checkbox]:checked + .switch-track {
+    background:var(--accent); border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft), 0 0 12px -3px var(--accent); }
+  .switch input[type=checkbox]:checked + .switch-track .switch-thumb { transform:translateX(16px); background:var(--accent-ink); }
+  .switch input[type=checkbox]:focus-visible + .switch-track { outline:2px solid var(--accent); outline-offset:2px; }
+  .switch-row { display:flex; align-items:center; gap:10px; cursor:pointer; }
+  .btn {
+    display:inline-block; background:var(--accent); color:var(--accent-ink); border:0; border-radius:8px; padding:9px 18px;
+    font-weight:700; font-size:14px; cursor:pointer; text-decoration:none;
+    transition:filter .15s ease, box-shadow .2s ease, transform .1s ease; }
   .btn:hover { filter:brightness(1.08); }
+  .btn:not(.btn-ghost):not(.btn-danger):hover { box-shadow:0 4px 22px -6px var(--accent); transform:translateY(-1px); }
+  .btn:not(.btn-ghost):active { transform:translateY(0); }
   .btn-ghost { background:var(--panel2); color:var(--text); border:1px solid var(--line); }
-  .btn-ghost:hover { filter:none; background:var(--panel3); }
+  .btn-ghost:hover { filter:none; background:var(--panel3); border-color:var(--accent); }
   .btn-danger { background:var(--high-bg); color:var(--high); border:1px solid var(--high); }
-  .btn-danger:hover { filter:none; background:var(--high); color:#fff; }
+  .btn-danger:hover { filter:none; background:var(--high); color:#fff; box-shadow:0 4px 22px -8px var(--high); transform:translateY(-1px); }
   .btn-sm { padding:6px 12px; font-size:13px; }
+  @media (prefers-reduced-motion:reduce) {
+    input[type=checkbox]:checked::after, .switch-thumb, .btn, .navcard, .rolebox,
+    .field input, .field textarea, .field select, .emoji-panel { transition:none !important; animation:none !important; }
+  }
   /* compact inline select for in-table forms (e.g. the log→event assignment) */
   .sel-sm { max-width:270px; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:6px 8px; font:inherit; font-size:13px; }
   .row-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
@@ -109,20 +179,70 @@ const ADMIN_STYLE = `<style>
   a.mlink { color:var(--accent); text-decoration:none; }
   a.mlink:hover { text-decoration:underline; }
   .rolegrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:6px; max-height:220px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:10px; background:var(--bg); }
-  .rolebox { display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--text); font-weight:500; cursor:pointer; }
-  .rolebox input { width:auto; }
+  .rolebox {
+    display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--text); font-weight:500; cursor:pointer;
+    padding:5px 7px; border-radius:7px; border:1px solid transparent; transition:background-color .12s, border-color .12s; }
+  .rolebox:hover { background:var(--panel2); }
+  .rolebox:has(input:checked) { background:var(--accent-soft); border-color:var(--accent-soft); box-shadow:0 0 14px -8px var(--accent); }
   /* emoji picker */
   .emoji-picker { position:relative; display:inline-block; margin-top:2px; }
-  .emoji-panel { display:none; position:absolute; z-index:20; top:calc(100% + 6px); left:0; width:288px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px; box-shadow:0 8px 28px rgba(0,0,0,.35); }
-  .emoji-panel.open { display:block; }
-  .emoji-search { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:7px 10px; font:inherit; margin-bottom:8px; }
-  .emoji-search:focus { border-color:var(--accent); outline:none; }
+  .emoji-panel {
+    display:none; position:absolute; z-index:20; top:calc(100% + 6px); left:0; width:288px; background:var(--panel);
+    border:1px solid var(--line); border-radius:10px; padding:10px; box-shadow:0 12px 32px -6px rgba(0,0,0,.4), 0 0 0 1px var(--line);
+    transform-origin:top left; }
+  .emoji-panel.open { display:block; animation:emoji-pop .16s cubic-bezier(.2,.9,.3,1.2) both; }
+  @keyframes emoji-pop { from { opacity:0; transform:scale(.92) translateY(-4px); } to { opacity:1; transform:none; } }
+  .emoji-search {
+    width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:7px 10px;
+    font:inherit; margin-bottom:8px; transition:border-color .15s ease, box-shadow .15s ease; }
+  .emoji-search:focus { border-color:var(--accent); outline:none; box-shadow:0 0 0 3px var(--accent-soft); }
   .emoji-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:4px; max-height:220px; overflow-y:auto; }
-  .emoji-item { display:grid; place-items:center; padding:5px; background:transparent; border:1px solid transparent; border-radius:7px; cursor:pointer; }
-  .emoji-item:hover { background:var(--panel2); border-color:var(--line); }
+  .emoji-item {
+    display:grid; place-items:center; padding:5px; background:transparent; border:1px solid transparent; border-radius:7px;
+    cursor:pointer; transition:background-color .12s ease, border-color .12s ease, transform .1s ease; }
+  .emoji-item:hover { background:var(--accent-soft); border-color:var(--accent-soft); transform:translateY(-1px); }
+  .emoji-item:active { transform:scale(.9); }
+  .emoji-item:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
   .emoji-item img { width:26px; height:26px; object-fit:contain; }
   .hr-row:hover { background:var(--panel2); }
   .emoji-empty { color:var(--muted); font-size:12.5px; padding:6px 2px; }
+  /* recruitment "gesuchte Klassen/Specs" picker: pills + add-dropdown */
+  .spec-picker { display:flex; flex-direction:column; gap:10px; }
+  .spec-pills { display:flex; flex-wrap:wrap; gap:6px; min-height:32px; }
+  .spec-pill {
+    display:inline-flex; align-items:center; gap:6px; background:var(--accent-soft); border:1px solid var(--accent-soft);
+    color:var(--text); border-radius:999px; padding:4px 6px 4px 8px; font-size:13px; font-weight:600;
+    animation:spec-pop .18s cubic-bezier(.34,1.56,.64,1) both; }
+  .spec-pill img { width:18px; height:18px; border-radius:4px; flex:0 0 auto; }
+  .spec-pill-q {
+    width:18px; height:18px; border-radius:4px; background:var(--panel3); color:var(--muted); font-size:11px; font-weight:800;
+    display:grid; place-items:center; flex:0 0 auto; }
+  .spec-pill-custom { background:var(--panel2); border-color:var(--line); }
+  .spec-pill-x {
+    background:none; border:0; color:inherit; opacity:.6; cursor:pointer; font-size:15px; line-height:1; padding:2px;
+    border-radius:50%; display:grid; place-items:center; transition:opacity .12s ease, background-color .12s ease; }
+  .spec-pill-x:hover { opacity:1; background:rgba(0,0,0,.12); }
+  @keyframes spec-pop { from { transform:scale(.85); opacity:0; } to { transform:none; opacity:1; } }
+  /* icon dropdown to add another spec — same interaction/visual pattern as .emoji-picker */
+  .spec-add { position:relative; display:inline-block; }
+  .spec-add-panel {
+    display:none; position:absolute; z-index:20; top:calc(100% + 6px); left:0; width:260px; background:var(--panel);
+    border:1px solid var(--line); border-radius:10px; padding:10px; box-shadow:0 12px 32px -6px rgba(0,0,0,.4), 0 0 0 1px var(--line);
+    transform-origin:top left; }
+  .spec-add-panel.open { display:block; animation:emoji-pop .16s cubic-bezier(.2,.9,.3,1.2) both; }
+  .spec-add-search {
+    width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:7px 10px;
+    font:inherit; margin-bottom:8px; transition:border-color .15s ease, box-shadow .15s ease; }
+  .spec-add-search:focus { border-color:var(--accent); outline:none; box-shadow:0 0 0 3px var(--accent-soft); }
+  .spec-add-list { display:flex; flex-direction:column; gap:2px; max-height:230px; overflow-y:auto; }
+  .spec-option {
+    display:flex; align-items:center; gap:8px; width:100%; padding:6px 8px; background:transparent; border:1px solid transparent;
+    border-radius:7px; cursor:pointer; font:inherit; font-size:13px; color:var(--text); text-align:left;
+    transition:background-color .12s ease, border-color .12s ease; }
+  .spec-option:hover { background:var(--accent-soft); border-color:var(--accent-soft); }
+  .spec-option img { width:20px; height:20px; border-radius:4px; flex:0 0 auto; }
+  .spec-empty { color:var(--muted); font-size:12.5px; padding:6px 2px; }
+  @media (prefers-reduced-motion:reduce) { .spec-pill, .spec-add-panel.open { animation:none; } }
   /* setup (raidplan comp), grouped into raid groups 1-5 */
   .setup-summary { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
   .setup-count { background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:4px 12px; font-size:13px; color:var(--muted); }
@@ -616,7 +736,7 @@ function hiddenCsrf(csrf) {
 // so it binds only once even if several pickers are on the page.
 const EMOJI_PICKER_SCRIPT = "<script>(function(){if(window.__emojiPicker)return;window.__emojiPicker=1;"
     + "var last=null;"
-    + "document.addEventListener('focusin',function(e){var el=e.target;if(el&&(el.tagName==='TEXTAREA'||(el.tagName==='INPUT'&&el.type==='text')))last=el;});"
+    + "document.addEventListener('focusin',function(e){var el=e.target;if(el&&(el.tagName==='TEXTAREA'||(el.tagName==='INPUT'&&el.type==='text'))&&!el.closest('.emoji-panel'))last=el;});"
     + "function target(p){var f=p.closest('form');if(last&&f&&f.contains(last))return last;return f?f.querySelector('textarea, input[type=text]'):last;}"
     + "document.addEventListener('click',function(e){"
     + "var t=e.target.closest('.emoji-trigger');if(t){e.preventDefault();var pn=t.parentNode.querySelector('.emoji-panel');document.querySelectorAll('.emoji-panel.open').forEach(function(o){if(o!==pn)o.classList.remove('open');});if(pn){pn.classList.toggle('open');var s=pn.querySelector('.emoji-search');if(s&&pn.classList.contains('open'))s.focus();}return;}"
@@ -645,6 +765,130 @@ function emojiPicker(emojis) {
         <div class="emoji-grid">${items}</div>
       </div>
     </div>${EMOJI_PICKER_SCRIPT}`;
+}
+
+/**
+ * Client-side glue for the recruitment "gesuchte Klassen/Specs" picker. The
+ * actual parsing/rewriting logic lives once in utils/recruitmentSpecs.js and
+ * is embedded here verbatim (Function#toString) so server (initial state
+ * isn't even needed — the picker parses the textarea's own value on load)
+ * and browser share the exact same source instead of two hand-kept regexes.
+ * `emojis` is the active guild's custom emoji list (for turning a spec's
+ * icon key into a real Discord `<:name:id>` code when one is available).
+ */
+function specPickerScript(emojis) {
+    return `<script>(function(){
+      var SPEC_CATALOG=${JSON.stringify(SPEC_CATALOG)};
+      var GUILD_EMOJIS=${JSON.stringify(emojis || [])};
+      var SPEC_LINE_RE=${SPEC_LINE_RE.toString()};
+      ${resolveSpec.toString()}
+      ${parseWantedBlock.toString()}
+      ${buildSpecLine.toString()}
+      ${insertSpecLine.toString()}
+      ${removeSpecLine.toString()}
+      function escHtml(s){var d=document.createElement("div");d.textContent=s==null?"":String(s);return d.innerHTML;}
+      // The guild's own custom emoji for a spec's classlist.js icon key, if one is
+      // uploaded — exact name match first, then a same-prefix fallback for near-miss
+      // spellings (a guild's "beastmastery" emoji vs. classlist's "beastmaster" key).
+      function findGuildEmoji(icon){
+        icon=(icon||"").toLowerCase();
+        var exact=GUILD_EMOJIS.find(function(e){return (e.name||"").toLowerCase()===icon;});
+        if(exact)return exact;
+        var pre=GUILD_EMOJIS.find(function(e){var n=(e.name||"").toLowerCase();return n.length>3&&icon.length>3&&(n.indexOf(icon)===0||icon.indexOf(n)===0);});
+        return pre||null;
+      }
+      // Prefer the real Discord server emoji (what actually ends up in the message);
+      // fall back to the generic WoW spec icon only when the guild has none uploaded.
+      function specIconHtml(spec){
+        var emoji=findGuildEmoji(spec.icon);
+        if(emoji&&emoji.url)return "<img src=\\""+emoji.url+"\\" alt=\\"\\">";
+        return "<img src=\\"https://wow.zamimg.com/images/wow/icons/large/"+spec.icon.toLowerCase()+".jpg\\" alt=\\"\\">";
+      }
+      function initPicker(root){
+        var ta=document.getElementById(root.getAttribute("data-target"));
+        if(!ta)return;
+        var pillsEl=root.querySelector(".spec-pills");
+        var trigger=root.querySelector(".spec-add-trigger");
+        var panel=root.querySelector(".spec-add-panel");
+        var search=root.querySelector(".spec-add-search");
+        var list=root.querySelector(".spec-add-list");
+        var available=[];
+        function renderList(filter){
+          var q=(filter||"").toLowerCase();
+          var rows=available.filter(function(s){return !q||s.name.toLowerCase().indexOf(q)!==-1;});
+          list.innerHTML=rows.map(function(s){
+            return "<button type=\\"button\\" class=\\"spec-option\\" data-key=\\""+s.key+"\\">"+specIconHtml(s)+"<span>"+escHtml(s.name)+"</span></button>";
+          }).join("")||"<div class=\\"spec-empty\\">Keine Treffer.</div>";
+        }
+        function render(){
+          var parsed=parseWantedBlock(ta.value);
+          pillsEl.innerHTML=parsed.entries.map(function(entry){
+            var spec=entry.spec;
+            var label=spec?spec.name:entry.label;
+            var iconHtml=spec?specIconHtml(spec):"<span class=\\"spec-pill-q\\">?</span>";
+            var cls=spec?"spec-pill":"spec-pill spec-pill-custom";
+            return "<span class=\\""+cls+"\\" data-index=\\""+entry.index+"\\">"+iconHtml+"<span>"+escHtml(label)+"</span>"
+              +"<button type=\\"button\\" class=\\"spec-pill-x\\" aria-label=\\"Entfernen\\">&times;</button></span>";
+          }).join("")||"<span class=\\"hint\\">Noch nichts ausgewählt — mit „+ Klasse/Spec hinzufügen“ unten.</span>";
+          var selectedKeys={};
+          parsed.entries.forEach(function(e){if(e.spec)selectedKeys[e.spec.key]=true;});
+          available=SPEC_CATALOG.filter(function(s){return !selectedKeys[s.key];});
+          renderList(search.value);
+        }
+        pillsEl.addEventListener("click",function(e){
+          var btn=e.target.closest(".spec-pill-x");
+          if(!btn)return;
+          var idx=parseInt(btn.closest(".spec-pill").getAttribute("data-index"),10);
+          ta.value=removeSpecLine(ta.value,idx);
+          render();
+        });
+        trigger.addEventListener("click",function(e){
+          e.preventDefault();
+          document.querySelectorAll(".spec-add-panel.open").forEach(function(o){if(o!==panel)o.classList.remove("open");});
+          panel.classList.toggle("open");
+          if(panel.classList.contains("open")){search.value="";renderList("");search.focus();}
+        });
+        list.addEventListener("click",function(e){
+          var opt=e.target.closest(".spec-option");
+          if(!opt)return;
+          var spec=SPEC_CATALOG.find(function(s){return s.key===opt.getAttribute("data-key");});
+          if(!spec)return;
+          var emoji=findGuildEmoji(spec.icon);
+          ta.value=insertSpecLine(ta.value,spec,emoji?emoji.code:"");
+          panel.classList.remove("open");
+          render();
+        });
+        search.addEventListener("input",function(){renderList(search.value);});
+        document.addEventListener("click",function(e){if(!root.contains(e.target))panel.classList.remove("open");});
+        var t;
+        ta.addEventListener("input",function(){clearTimeout(t);t=setTimeout(render,200);});
+        render();
+      }
+      function init(){document.querySelectorAll(".spec-picker").forEach(initPicker);}
+      if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+    })();</script>`;
+}
+
+/**
+ * "Gesuchte Klassen/Specs" picker: pills for the specs currently detected in
+ * `targetFieldId`'s textarea + an icon dropdown (same interaction as the emoji
+ * picker) to add another. Icons prefer the guild's real Discord custom emoji
+ * so what's shown always matches what actually gets inserted; adding/removing
+ * rewrites the "## <emoji> Spec Name" block in that textarea in place, leaving
+ * the rest of the text (and manual edits) untouched. `targetFieldId` must be
+ * the id of the body textarea already rendered on the page.
+ */
+function specPicker(targetFieldId, emojis) {
+    return `<div class="spec-picker" data-target="${esc(targetFieldId)}">
+      <div class="spec-pills"></div>
+      <div class="spec-add">
+        <button type="button" class="btn btn-ghost btn-sm spec-add-trigger">+ Klasse/Spec hinzufügen</button>
+        <div class="spec-add-panel">
+          <input type="text" class="spec-add-search" placeholder="Suchen …" autocomplete="off">
+          <div class="spec-add-list"></div>
+        </div>
+      </div>
+    </div>${specPickerScript(emojis)}`;
 }
 
 function templateListItem(t) {
@@ -684,7 +928,12 @@ function renderPostEdit(user, opts) {
         </div>
         <div class="field">
           <label>Embed-Text (optional)</label>
-          <textarea name="body">${esc(p.body)}</textarea>
+          <textarea name="body" id="postBody">${esc(p.body)}</textarea>
+        </div>
+        <div class="field">
+          <label>Gesuchte Klassen/Specs</label>
+          ${specPicker("postBody", opts.emojis)}
+          <div class="hint">Wird automatisch im Embed-Text oben ein-/ausgetragen — dort weiterhin frei editierbar.</div>
         </div>
         <div class="field">
           <label>Button-Beschriftung</label>
@@ -804,9 +1053,14 @@ function renderRecruitment(user, opts = {}) {
         </div>
         <div class="field">
           <label>Text</label>
-          <textarea name="body" placeholder="Beschreibungstext …">${esc(e.body)}</textarea>
+          <textarea name="body" id="tplBody" placeholder="Beschreibungstext …">${esc(e.body)}</textarea>
           <div class="hint">Discord-Markdown ist erlaubt (**fett**, *kursiv*, Zeilenumbrüche).</div>
           ${emojiPicker(opts.emojis)}
+        </div>
+        <div class="field">
+          <label>Gesuchte Klassen/Specs</label>
+          ${specPicker("tplBody", opts.emojis)}
+          <div class="hint">Wird automatisch im Text oben ein-/ausgetragen (Zeile „## Icon Spec-Name") — dort weiterhin frei editierbar.</div>
         </div>
         <div class="field">
           <label>Button-Beschriftung (optional)</label>
@@ -1952,7 +2206,10 @@ function renderSettings(user, opts = {}) {
             const boxes = raidRoles.map((r) =>
                 `<label class="rolebox"><input type="checkbox" name="catrole:${esc(cat.id)}:${esc(r.id)}" value="1"${assigned.has(r.id) ? " checked" : ""}> @${esc(r.name)}</label>`).join("");
             return `<div class="field">
-          <label class="rolebox" style="font-weight:600"><input type="checkbox" name="cat:${esc(cat.id)}" value="1"${isEvent ? " checked" : ""}> ${esc(cat.name)}${cat.unknown ? " <span class=\"hint\" style=\"font-weight:400\">(unbekannte ID — abwählen zum Entfernen)</span>" : ""}</label>
+          <label class="switch-row" style="font-weight:600">
+            <span class="switch"><input type="checkbox" name="cat:${esc(cat.id)}" value="1"${isEvent ? " checked" : ""}><span class="switch-track"><span class="switch-thumb"></span></span></span>
+            ${esc(cat.name)}${cat.unknown ? " <span class=\"hint\" style=\"font-weight:400\">(unbekannte ID — abwählen zum Entfernen)</span>" : ""}
+          </label>
           <div class="rolegrid" style="margin-top:8px">${boxes || "<span class=\"hint\">—</span>"}</div>
         </div>`;
         }).join("") + roleHint;
