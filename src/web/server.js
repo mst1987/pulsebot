@@ -246,6 +246,20 @@ function redirect(res, location, headers = {}) {
     res.end();
 }
 
+// Redirect target for the loot import/clear routes: back to the event's own
+// Raid-Events detail page when they were submitted from its "Loot" tab
+// (origin=raid, with the event id — never trust an arbitrary client-supplied
+// URL here, that would be an open redirect), else the Historie & Loot page.
+function lootBackUrl(form) {
+    const eventId = (form.event || "").trim();
+    return (form.origin === "raid" && eventId)
+        ? `/admin/raids/detail?event=${encodeURIComponent(eventId)}`
+        : "/admin/history";
+}
+function withFlash(base, key, value) {
+    return `${base}${base.includes("?") ? "&" : "?"}${key}=${encodeURIComponent(value)}`;
+}
+
 // Read and parse an application/x-www-form-urlencoded request body (capped).
 function readFormBody(req) {
     return new Promise((resolve) => {
@@ -848,6 +862,8 @@ async function handle(req, res) {
             attendance,
             attendanceRoleIds: categoryRoleIds,
             membersError,
+            lootItems: listLootByEvent(eventId),
+            lootTool: (getConfig().categoryLootTool || {})[found.g.categoryId] || "",
             csrf: auth.csrfToken(req),
             msg: flashFromQuery(url),
             nav: navFor(req),
@@ -1237,21 +1253,24 @@ async function handle(req, res) {
         }));
     }
 
-    // Import a loot export (RCLootcouncil JSON / Gargul CSV) for one event.
+    // Import a loot export (RCLootcouncil JSON / Gargul CSV) for one event. Reachable
+    // both from the Historie & Loot page and from an event's own "Loot" tab on its
+    // Raid-Events detail page (see lootBackUrl).
     if (pathname === "/admin/history/import" && req.method === "POST") {
         const user = requireAdmin(req, res);
         if (!user) return;
         const form = await readFormBody(req);
-        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/history?msg=csrf");
+        const back = lootBackUrl(form);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, withFlash(back, "msg", "csrf"));
         const data = String(form.data || "").trim();
-        if (!data) return redirect(res, "/admin/history?err=" + encodeURIComponent("Kein Loot-Text eingefügt."));
+        if (!data) return redirect(res, withFlash(back, "err", "Kein Loot-Text eingefügt."));
         const tool = (form.tool || "auto").trim();
         let eventId = (form.event || "").trim();
         let eventLabel = "";
         let categoryId = "";
         if (eventId === "__manual__" || !eventId) {
             const label = String(form.manualLabel || "").trim();
-            if (!label) return redirect(res, "/admin/history?err=" + encodeURIComponent("Bitte ein Event wählen oder eine Bezeichnung eingeben."));
+            if (!label) return redirect(res, withFlash(back, "err", "Bitte ein Event wählen oder eine Bezeichnung eingeben."));
             eventLabel = label;
             eventId = "manual-" + label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
         } else {
@@ -1265,14 +1284,14 @@ async function handle(req, res) {
             items = parseLoot(data, tool);
         } catch (e) {
             const msg = e instanceof LootParseError ? e.message : "Import fehlgeschlagen.";
-            return redirect(res, "/admin/history?err=" + encodeURIComponent(msg));
+            return redirect(res, withFlash(back, "err", msg));
         }
-        if (!items.length) return redirect(res, "/admin/history?err=" + encodeURIComponent("Keine Loot-Einträge im Export gefunden."));
+        if (!items.length) return redirect(res, withFlash(back, "err", "Keine Loot-Einträge im Export gefunden."));
         const { added, skipped } = addLootImport(eventId, items, { categoryId, eventLabel });
         if (categoryId && (tool === "gargul" || tool === "rclc")) {
             saveConfig({ categoryLootTool: { [categoryId]: tool } });
         }
-        return redirect(res, "/admin/history?ok=" + encodeURIComponent(`${added} Item(s) importiert${skipped ? `, ${skipped} Duplikat(e) übersprungen` : ""}.`));
+        return redirect(res, withFlash(back, "ok", `${added} Item(s) importiert${skipped ? `, ${skipped} Duplikat(e) übersprungen` : ""}.`));
     }
 
     // Mark which loot addon a Discord category uses.
@@ -1292,9 +1311,10 @@ async function handle(req, res) {
         const user = requireAdmin(req, res);
         if (!user) return;
         const form = await readFormBody(req);
-        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/history?msg=csrf");
+        const back = lootBackUrl(form);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, withFlash(back, "msg", "csrf"));
         const removed = clearLootEvent((form.event || "").trim());
-        return redirect(res, "/admin/history?ok=" + encodeURIComponent(`${removed} Loot-Eintrag/-Einträge gelöscht.`));
+        return redirect(res, withFlash(back, "ok", `${removed} Loot-Eintrag/-Einträge gelöscht.`));
     }
 
     if (pathname === "/admin/history/event" && req.method === "GET") {

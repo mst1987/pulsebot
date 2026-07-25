@@ -415,6 +415,29 @@ describe("event detail route (setup)", () => {
         const opts = renderAdmin.renderEventDetail.mock.calls[0][1];
         expect(opts.eventSheet).toMatchObject({ eventId: "e1", url: "u" });
     });
+
+    it("passes this event's already-imported loot and its category's loot tool to the detail view", async () => {
+        mockGetSetup.mockResolvedValueOnce({ setup: [] });
+        mockListLootByEvent.mockReturnValueOnce([{ id: "i1", itemName: "Sulfuras" }]);
+        // getConfig() is read twice on this route (categoryRoles for attendance,
+        // categoryLootTool for the Loot tab) — stub both calls the same way.
+        store.getConfig.mockReturnValue({ categoryLootTool: { cat: "gargul" } });
+        await request("GET", "/admin/raids/detail?event=e1");
+        expect(mockListLootByEvent).toHaveBeenCalledWith("e1");
+        const opts = renderAdmin.renderEventDetail.mock.calls[0][1];
+        expect(opts.lootItems).toEqual([{ id: "i1", itemName: "Sulfuras" }]);
+        expect(opts.lootTool).toBe("gargul");
+    });
+
+    it("defaults to an empty loot list and no preset tool when nothing is configured", async () => {
+        mockGetSetup.mockResolvedValueOnce({ setup: [] });
+        mockListLootByEvent.mockReturnValueOnce([]);
+        store.getConfig.mockReturnValue({});
+        await request("GET", "/admin/raids/detail?event=e1");
+        const opts = renderAdmin.renderEventDetail.mock.calls[0][1];
+        expect(opts.lootItems).toEqual([]);
+        expect(opts.lootTool).toBe("");
+    });
 });
 
 describe("raidsheet fill route (per-event copy)", () => {
@@ -819,6 +842,43 @@ describe("event history & loot routes", () => {
         const res = await request("POST", "/admin/history/clear", { event: "e1" });
         expect(mockClearLootEvent).toHaveBeenCalledWith("e1");
         expect(redirectTo(res)).toContain("/admin/history?ok=");
+    });
+
+    describe("submitted from the Raid-Events detail page (origin=raid)", () => {
+        it("POST /admin/history/import redirects back to the event's detail page on success", async () => {
+            const res = await request("POST", "/admin/history/import", {
+                event: "e1", origin: "raid", tool: "gargul", data: GARGUL,
+            });
+            expect(mockAddLootImport).toHaveBeenCalledTimes(1);
+            expect(mockAddLootImport.mock.calls[0][0]).toBe("e1");
+            expect(redirectTo(res)).toBe("/admin/raids/detail?event=e1&ok=2%20Item(s)%20importiert.");
+        });
+
+        it("POST /admin/history/import redirects back to the event's detail page on a parse error", async () => {
+            const res = await request("POST", "/admin/history/import", {
+                event: "e1", origin: "raid", tool: "rclc", data: "not json",
+            });
+            expect(mockAddLootImport).not.toHaveBeenCalled();
+            expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&err=");
+        });
+
+        it("POST /admin/history/import redirects back to the event's detail page on a bad CSRF token", async () => {
+            auth.checkCsrf.mockReturnValueOnce(false);
+            const res = await request("POST", "/admin/history/import", { event: "e1", origin: "raid", data: GARGUL });
+            expect(mockAddLootImport).not.toHaveBeenCalled();
+            expect(redirectTo(res)).toBe("/admin/raids/detail?event=e1&msg=csrf");
+        });
+
+        it("POST /admin/history/clear redirects back to the event's detail page", async () => {
+            const res = await request("POST", "/admin/history/clear", { event: "e1", origin: "raid" });
+            expect(mockClearLootEvent).toHaveBeenCalledWith("e1");
+            expect(redirectTo(res)).toBe("/admin/raids/detail?event=e1&ok=3%20Loot-Eintrag%2F-Eintr%C3%A4ge%20gel%C3%B6scht.");
+        });
+
+        it("ignores origin=raid without an event id and falls back to the history page", async () => {
+            const res = await request("POST", "/admin/history/import", { event: "", origin: "raid", manualLabel: "x", data: GARGUL });
+            expect(redirectTo(res)).toContain("/admin/history?ok=");
+        });
     });
 
     it("GET /admin/history/event renders the event loot", async () => {
