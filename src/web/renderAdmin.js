@@ -80,9 +80,22 @@ const ADMIN_STYLE = `<style>
   .lbadge-ok { background:var(--good-bg); color:var(--good); border-color:var(--good); }
   .lbadge-neutral { background:var(--accent-soft); color:var(--accent); border-color:var(--accent-soft); }
   .lbadge-warn { background:var(--high-bg); color:var(--high); border-color:var(--high); }
+  /* inline flash (kept for contextual, in-content errors) */
   .flash { border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:14px; }
   .flash-ok { background:var(--good-bg); color:var(--good); border:1px solid var(--good); }
   .flash-err { background:var(--high-bg); color:var(--high); border:1px solid var(--high); }
+  /* toast notifications (post-redirect ok/err feedback) */
+  .toast-wrap { position:fixed; top:16px; right:16px; z-index:1000; display:flex; flex-direction:column; gap:8px; max-width:min(360px,calc(100vw - 32px)); pointer-events:none; }
+  .toast { pointer-events:auto; display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-radius:10px; font-size:14px; line-height:1.4; box-shadow:0 8px 28px rgba(0,0,0,.35); border:1px solid; animation:toast-in .22s ease; }
+  .toast-ok { background:var(--good-bg); color:var(--good); border-color:var(--good); }
+  .toast-err { background:var(--high-bg); color:var(--high); border-color:var(--high); }
+  .toast-msg { flex:1; }
+  .toast-x { background:none; border:0; color:inherit; font-size:18px; line-height:1; cursor:pointer; opacity:.7; padding:0; margin:-2px -2px 0 0; }
+  .toast-x:hover { opacity:1; }
+  .toast.hide { animation:toast-out .22s ease forwards; }
+  @keyframes toast-in { from { opacity:0; transform:translateX(20px); } to { opacity:1; transform:none; } }
+  @keyframes toast-out { from { opacity:1; transform:none; } to { opacity:0; transform:translateX(20px); } }
+  @media (prefers-reduced-motion:reduce) { .toast, .toast.hide { animation:none; } }
   .serverbar { display:flex; align-items:center; gap:8px; margin:0; flex-wrap:wrap; }
   .serverbar label { color:var(--muted); font-size:13px; font-weight:600; margin:0; }
   .serverbar select { background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font:inherit; }
@@ -226,10 +239,18 @@ function tabLabel(active) {
     return t ? t.label : "Admin";
 }
 
+// Post-redirect ok/err feedback is shown as an auto-dismissing toast (top-right),
+// not as an inline banner. Inline, in-content errors still use the .flash-* classes.
 function flash(msg) {
     if (!msg) return "";
     const ok = msg.type !== "err";
-    return `<div class="flash ${ok ? "flash-ok" : "flash-err"}">${esc(msg.text)}</div>`;
+    return `<div class="toast-wrap"><div class="toast ${ok ? "toast-ok" : "toast-err"}" role="status" aria-live="polite">`
+        + `<span class="toast-msg">${esc(msg.text)}</span>`
+        + "<button class=\"toast-x\" type=\"button\" aria-label=\"Schließen\">&times;</button>"
+        + "</div></div>"
+        + "<script>(function(){var s=document.currentScript,w=s.previousElementSibling,t=w.querySelector(\".toast\");"
+        + "function close(){t.classList.add(\"hide\");setTimeout(function(){w.remove();},220);}"
+        + "t.querySelector(\".toast-x\").addEventListener(\"click\",close);setTimeout(close,4500);})();</script>";
 }
 
 /** Server selector shown at the top of every admin page. nav = { guilds, activeGuildId, csrf }. */
