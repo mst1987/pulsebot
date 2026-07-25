@@ -426,12 +426,15 @@ describe("raidsheet fill route (per-event copy)", () => {
         mockGetSetup.mockResolvedValue({ setup: [{ name: "Tankadin", specName: "ProtPala" }] });
         mockCopyFile.mockResolvedValue({ id: "copy-1", url: "https://docs.google.com/spreadsheets/d/copy-1/edit" });
         mockShareAnyoneWriter.mockResolvedValue();
+        mockDeleteFile.mockResolvedValue();
         mockFillSetupSheet.mockResolvedValue({ playerCount: 25 });
     });
 
     it("copies the source sheet, shares it, fills the copy, and schedules deletion", async () => {
-        const res = await request("POST", "/admin/raids/fill", { event: "e1", sheetId: "tier45", tank3: "Cosma" });
-        // copy of the source (never the source itself)
+        const res = await request("POST", "/admin/raids/fill", {
+            event: "e1", sheetId: "tier45", tank3: "Cosma", eventTitle: "GDKP Kara", eventStartTime: "100",
+        });
+        // copy of the source (never the source itself); name from the form title
         expect(mockCopyFile).toHaveBeenCalledWith("src-1", expect.stringContaining("GDKP Kara"));
         expect(mockShareAnyoneWriter).toHaveBeenCalledWith("copy-1");
         // fills the COPY, not the source
@@ -443,21 +446,37 @@ describe("raidsheet fill route (per-event copy)", () => {
             spreadsheetId: "copy-1", sourceSheetId: "src-1",
             deleteAfter: 100 * 1000 + THREE_DAYS,
         }));
+        // the slow getAllEvents round-trip is no longer part of the fill path
+        expect(mockGetAllEvents).not.toHaveBeenCalled();
         expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1");
         expect(redirectTo(res)).toContain("ok=");
     });
 
-    it("deletes the previous copy's Drive file before creating a new one on re-fill", async () => {
+    it("runs the setup fetch and the Drive copy concurrently", async () => {
+        await request("POST", "/admin/raids/fill", { event: "e1", sheetId: "tier45" });
+        // both the setup fetch and the copy happen (in parallel); neither waits on
+        // a getAllEvents call, which is gone from this path
+        expect(mockGetSetup).toHaveBeenCalledWith("e1");
+        expect(mockCopyFile).toHaveBeenCalled();
+        expect(mockGetAllEvents).not.toHaveBeenCalled();
+    });
+
+    it("deletes the previous copy's Drive file on re-fill (off the critical path)", async () => {
         mockGetEventSheet.mockReturnValue({ spreadsheetId: "copy-old", eventId: "e1" });
         await request("POST", "/admin/raids/fill", { event: "e1", sheetId: "tier45" });
         expect(mockDeleteFile).toHaveBeenCalledWith("copy-old");
         expect(mockCopyFile).toHaveBeenCalled();
     });
 
-    it("errors without copying when the setup is empty", async () => {
+    it("discards the fresh orphan copy (and keeps the previous one) when the setup is empty", async () => {
         mockGetSetup.mockResolvedValueOnce({ setup: [] });
         const res = await request("POST", "/admin/raids/fill", { event: "e1", sheetId: "tier45" });
-        expect(mockCopyFile).not.toHaveBeenCalled();
+        // the copy is created in parallel, then deleted again; the previous copy and
+        // its record are left untouched (no markEventSheetFilled, no fill)
+        expect(mockCopyFile).toHaveBeenCalled();
+        expect(mockDeleteFile).toHaveBeenCalledWith("copy-1");
+        expect(mockFillSetupSheet).not.toHaveBeenCalled();
+        expect(mockMarkEventSheetFilled).not.toHaveBeenCalled();
         expect(redirectTo(res)).toContain("err=");
     });
 
@@ -546,6 +565,7 @@ describe("raidsheet fill route records the fill", () => {
         mockGetEventSheet.mockReturnValue(null);
         mockCopyFile.mockResolvedValue({ id: "copy-1", url: "https://docs.google.com/spreadsheets/d/copy-1/edit" });
         mockShareAnyoneWriter.mockResolvedValue();
+        mockDeleteFile.mockResolvedValue();
     });
 
     it("POST /admin/raids/fill marks the event sheet as filled on success", async () => {
