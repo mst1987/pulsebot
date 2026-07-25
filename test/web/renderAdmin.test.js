@@ -768,6 +768,51 @@ describe("web/renderAdmin", () => {
             expect(html).toContain(">1</b> fehlt");
         });
 
+        it("shows a class/spec icon and colour for attendance members with a known profile", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                attendanceRoleIds: ["r1"],
+                attendance: {
+                    responded: [{ id: "1", displayName: "Alice" }],
+                    missing: [{
+                        id: "2",
+                        displayName: "Bob",
+                        profile: { specName: "Fury Warrior", className: "Warrior", classColor: "#C79C6E", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/ability_warrior_innerrage.jpg" },
+                    }],
+                },
+            });
+            expect(html).toContain("ability_warrior_innerrage.jpg");
+            expect(html).toContain("border-left-color:#C79C6E");
+            expect(html).toContain("title=\"Fury Warrior\"");
+            // member without a known profile still renders as a plain chip
+            expect(html).toContain("<span class=\"rolebox\">Alice</span>");
+        });
+
+        it("shows an overview stats row with a signup counter next to the header buttons", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                event: { ...base.event, signupCount: 18 },
+                signupTarget: 25,
+                attendanceRoleIds: ["r1"],
+                attendance: { responded: [{ id: "1", displayName: "Alice" }], missing: [{ id: "2", displayName: "Bob" }] },
+                eventSoftres: { url: "https://softres.it/raid/r1", editUrl: "https://softres.it/raid/r1/t1", instances: ["ssc", "tempestkeep"] },
+                setup: { total: 20, groups: [], roleCounts: {} },
+            });
+            expect(html).toContain("setup-summary");
+            expect(html).toContain(">18 / 25</b> Anmeldungen");
+            expect(html).toContain(">20</b> im Setup");
+            expect(html).toContain(">1</b> fehlt");
+            expect(html).toContain(">2</b> Softres-Instanz(en)");
+        });
+
+        it("shows only the signup count (no target) when neither softres nor attendance roles are known", () => {
+            const html = renderEventDetail(user, { ...base, event: { ...base.event, signupCount: 4 } });
+            expect(html).toContain(">4</b> Anmeldungen");
+            expect(html).not.toContain(">4 / ");
+            expect(html).not.toContain("im Setup");
+            expect(html).not.toContain("Softres-Instanz(en)");
+        });
+
         it("hints to assign roles when the category has none", () => {
             const html = renderEventDetail(user, { ...base, attendanceRoleIds: [] });
             expect(html).toContain("data-panel=\"attendance\"");

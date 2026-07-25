@@ -200,8 +200,27 @@ function tankCandidates(slots) {
     return out;
 }
 
+/**
+ * Class/spec display data for a raw spec key (classlist key or spec name), or
+ * null when the spec is unknown — used to enrich a *name only* (e.g. a past
+ * signup) without a full raidplan slot. Unlike enrichSlot(), this never makes
+ * up a fallback so callers can tell "known" from "unknown" apart.
+ * @returns {{ specName:string, className:string, classColor:string, iconUrl:string }|null}
+ */
+function specProfile(spec) {
+    const entry = SPEC_LOOKUP[String(spec || "").trim()];
+    if (!entry) return null;
+    const cls = realClass(entry);
+    return {
+        specName: entry.name,
+        className: cls || "",
+        classColor: (cls && CLASS_COLORS[cls]) || "",
+        iconUrl: specIconUrl(entry),
+    };
+}
+
 module.exports = {
     buildSetupView, tankCandidates, isTankSpec, groupOf,
-    enrichSlot, realClass, roleOf, classIconUrl, specIconUrl,
+    enrichSlot, realClass, roleOf, classIconUrl, specIconUrl, specProfile,
     CLASS_COLORS, ROLE_LABELS,
 };

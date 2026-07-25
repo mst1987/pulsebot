@@ -1,6 +1,6 @@
 const {
     buildSetupView, tankCandidates, isTankSpec, groupOf,
-    enrichSlot, realClass, roleOf, classIconUrl,
+    enrichSlot, realClass, roleOf, classIconUrl, specProfile,
 } = require("../../src/utils/setupView.js");
 
 describe("utils/setupView", () => {
@@ -51,6 +51,24 @@ describe("utils/setupView", () => {
             expect(p.classColor).toBe("");
             expect(p.iconUrl).toBe("");
             expect(p.role).toBe("dps");
+        });
+    });
+
+    describe("specProfile", () => {
+        it("resolves a known spec key to display data", () => {
+            expect(specProfile("Fury")).toMatchObject({
+                specName: "Fury Warrior", className: "Warrior", classColor: "#C79C6E",
+            });
+        });
+
+        it("resolves a spec by its spec field too, like enrichSlot", () => {
+            expect(specProfile("Destruction")).toMatchObject({ className: "Warlock" });
+        });
+
+        it("returns null for an unknown or empty spec, unlike enrichSlot's fallback", () => {
+            expect(specProfile("Nonsense")).toBeNull();
+            expect(specProfile("")).toBeNull();
+            expect(specProfile()).toBeNull();
         });
     });
 

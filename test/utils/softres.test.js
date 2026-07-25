@@ -32,6 +32,17 @@ describe("utils/softres", () => {
         });
     });
 
+    describe("instancesForEdition", () => {
+        it("no longer lists the combined dungeons — multi-select checkboxes cover that", () => {
+            const codes = softres.instancesForEdition("tbc").map((i) => i.code);
+            expect(codes).not.toContain("gruulmag");
+            expect(codes).not.toContain("ssctempestkeep");
+            expect(codes).not.toContain("bthyjal");
+            // the standalone instances are still there individually
+            expect(codes).toEqual(expect.arrayContaining(["gruul", "magtheridon", "ssc", "tempestkeep", "blacktemple", "hyjal"]));
+        });
+    });
+
     describe("editionOf / nameOf", () => {
         it("resolves known codes", () => {
             expect(softres.editionOf("kara")).toBe("tbc");
@@ -41,6 +52,22 @@ describe("utils/softres", () => {
         it("degrades gracefully for unknown codes", () => {
             expect(softres.editionOf("nope")).toBe("");
             expect(softres.nameOf("nope")).toBe("nope");
+        });
+        it("uses the short form for the long-named TBC raids", () => {
+            expect(softres.nameOf("ssc")).toBe("SSC");
+            expect(softres.nameOf("tempestkeep")).toBe("TK");
+        });
+    });
+
+    describe("targetSizeForInstances", () => {
+        it("takes the largest slot count among the chosen instances, not the sum", () => {
+            expect(softres.targetSizeForInstances(["gruul", "magtheridon"])).toBe(25);
+            expect(softres.targetSizeForInstances(["kara"])).toBe(10);
+        });
+        it("ignores unknown codes and returns 0 when nothing is known", () => {
+            expect(softres.targetSizeForInstances(["nope"])).toBe(0);
+            expect(softres.targetSizeForInstances([])).toBe(0);
+            expect(softres.targetSizeForInstances()).toBe(0);
         });
     });
 
