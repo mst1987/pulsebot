@@ -106,6 +106,7 @@ function saveRecruitment(data) {
     const templates = listRecruitment();
     const clean = {
         name: String(data.name || "").trim(),
+        content: String(data.content || ""),
         title: String(data.title || "").trim(),
         body: String(data.body || ""),
         buttonLabel: String(data.buttonLabel || "").trim(),
