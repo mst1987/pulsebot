@@ -40,67 +40,94 @@ const ADMIN_STYLE = `<style>
   .page-title { font-size:24px; font-weight:800; letter-spacing:-.3px; margin:0 0 18px; }
   /* ===== admin components ===== */
   .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
-  .navcard { display:block; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; text-decoration:none; transition:background .12s, border-color .12s; }
-  .navcard:hover { background:var(--panel2); border-color:var(--accent); }
+  .navcard {
+    display:block; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; text-decoration:none;
+    transition:background-color .15s ease, border-color .15s ease, transform .15s ease, box-shadow .15s ease; }
+  .navcard:hover { background:var(--panel2); border-color:var(--accent); transform:translateY(-2px); box-shadow:0 10px 28px -10px var(--accent); }
   .navcard h3 { margin:0 0 6px; font-size:17px; }
   .navcard p { margin:0; color:var(--muted); font-size:13.5px; }
   .navcard .ico { display:inline-grid; place-items:center; width:38px; height:38px; border-radius:9px; background:var(--accent-soft); color:var(--accent); margin-bottom:10px; }
   .navcard .ico svg { width:20px; height:20px; }
   form.card-form { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; margin:0 0 16px; }
-  .field { margin-bottom:14px; }
-  .field label { display:block; font-size:13px; color:var(--muted); margin-bottom:5px; font-weight:600; }
+  .field { margin-bottom:16px; }
+  .field label { display:block; font-size:13px; color:var(--muted); margin-bottom:7px; font-weight:600; line-height:1.3; }
   /* every text-like input type (not just text/url) gets the same box — number, date, time,
-     password, search, tel, email, … so nothing falls back to unstyled browser chrome */
+     password, search, tel, email, … so nothing falls back to unstyled browser chrome.
+     Capped max-width so short values (dates, IDs, numbers) don't stretch across the whole card. */
   .field input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]):not([type=submit]):not([type=button]),
-  .field textarea, .field select {
-    width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:9px 11px; font:inherit; }
-  .field input:focus, .field textarea:focus, .field select:focus { border-color:var(--accent); outline:none; }
-  .field textarea { min-height:120px; resize:vertical; }
-  .field .hint { color:var(--muted); font-size:12px; margin-top:4px; }
-  .field input[disabled] { opacity:.6; cursor:not-allowed; }
+  .field select {
+    width:100%; max-width:440px; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px;
+    padding:9px 12px; font:inherit; transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease; }
+  .field input[type=date], .field input[type=time], .field input[type=datetime-local] { max-width:190px; }
+  .field input[type=number] { max-width:130px; }
+  .field textarea {
+    width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px;
+    padding:10px 12px; font:inherit; min-height:160px; resize:vertical;
+    transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease; }
+  .field input:focus, .field textarea:focus, .field select:focus {
+    border-color:var(--accent); outline:none; box-shadow:0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--accent); }
+  .field .hint { color:var(--muted); font-size:12px; margin-top:5px; line-height:1.4; }
+  .field input[disabled] { opacity:.6; cursor:not-allowed; box-shadow:none; }
   /* file upload: dashed drop-style box + a real accent button for the native picker */
   .field input[type=file] {
     width:100%; background:var(--bg); color:var(--muted); border:1.5px dashed var(--line); border-radius:8px;
-    padding:9px 11px; font:inherit; font-size:13.5px; cursor:pointer; transition:border-color .12s; }
-  .field input[type=file]:hover { border-color:var(--accent); }
+    padding:9px 12px; font:inherit; font-size:13.5px; cursor:pointer; transition:border-color .15s ease, box-shadow .15s ease; }
+  .field input[type=file]:hover, .field input[type=file]:focus-visible {
+    border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); outline:none; }
   .field input[type=file]::file-selector-button {
     background:var(--accent); color:var(--accent-ink); border:0; border-radius:6px; padding:7px 14px;
-    font-weight:700; font-size:13px; cursor:pointer; margin-right:12px; transition:filter .12s; }
+    font-weight:700; font-size:13px; cursor:pointer; margin-right:12px; transition:filter .15s ease, transform .1s ease; }
   .field input[type=file]::file-selector-button:hover { filter:brightness(1.08); }
+  .field input[type=file]::file-selector-button:active { transform:scale(.97); }
   /* custom checkbox — replaces the native browser box everywhere, not just inside .field */
   input[type=checkbox] {
     appearance:none; -webkit-appearance:none; width:18px; height:18px; min-width:18px; margin:0;
     border:1.5px solid var(--line); border-radius:5px; background:var(--bg); cursor:pointer; position:relative;
-    transition:background-color .12s, border-color .12s; flex:0 0 auto; }
+    transition:background-color .15s ease, border-color .15s ease, box-shadow .15s ease; flex:0 0 auto; }
   input[type=checkbox]:hover { border-color:var(--accent); }
-  input[type=checkbox]:checked { background-color:var(--accent); border-color:var(--accent); }
+  input[type=checkbox]:checked {
+    background-color:var(--accent); border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft), 0 0 10px -3px var(--accent); }
   input[type=checkbox]:checked::after {
     content:""; position:absolute; left:3px; top:3px; width:8px; height:5px;
-    border:2px solid var(--accent-ink); border-top:0; border-right:0; transform:rotate(-45deg); }
+    border:2px solid var(--accent-ink); border-top:0; border-right:0; transform:rotate(-45deg);
+    animation:chk-pop .2s cubic-bezier(.34,1.56,.64,1); }
+  @keyframes chk-pop { from { transform:rotate(-45deg) scale(.3); opacity:0; } to { transform:rotate(-45deg) scale(1); opacity:1; } }
   input[type=checkbox]:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-  input[type=checkbox]:disabled { opacity:.5; cursor:not-allowed; }
+  input[type=checkbox]:disabled { opacity:.5; cursor:not-allowed; box-shadow:none; }
   /* toggle switch — for a single on/off setting (as opposed to multi-select checkbox lists) */
   .switch { position:relative; display:inline-flex; align-items:center; flex:0 0 auto; cursor:pointer; }
   .switch input[type=checkbox] {
-    position:absolute; inset:0; width:36px; height:20px; margin:0; opacity:0; border:0; background:none; cursor:pointer; }
+    position:absolute; inset:0; width:36px; height:20px; margin:0; opacity:0; border:0; background:none; cursor:pointer; box-shadow:none; }
   .switch input[type=checkbox]::after { content:none; }
   .switch-track {
     width:36px; height:20px; border-radius:999px; background:var(--panel3); border:1.5px solid var(--line);
-    transition:background-color .15s, border-color .15s; flex:0 0 auto; position:relative; }
+    transition:background-color .2s ease, border-color .2s ease, box-shadow .2s ease; flex:0 0 auto; position:relative; }
   .switch-thumb {
     position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:var(--muted);
-    transition:transform .15s, background-color .15s; }
-  .switch input[type=checkbox]:checked + .switch-track { background:var(--accent); border-color:var(--accent); }
+    transition:transform .25s cubic-bezier(.34,1.56,.64,1), background-color .2s ease; }
+  .switch input[type=checkbox]:checked + .switch-track {
+    background:var(--accent); border-color:var(--accent);
+    box-shadow:0 0 0 3px var(--accent-soft), 0 0 12px -3px var(--accent); }
   .switch input[type=checkbox]:checked + .switch-track .switch-thumb { transform:translateX(16px); background:var(--accent-ink); }
   .switch input[type=checkbox]:focus-visible + .switch-track { outline:2px solid var(--accent); outline-offset:2px; }
   .switch-row { display:flex; align-items:center; gap:10px; cursor:pointer; }
-  .btn { display:inline-block; background:var(--accent); color:var(--accent-ink); border:0; border-radius:8px; padding:9px 18px; font-weight:700; font-size:14px; cursor:pointer; text-decoration:none; }
+  .btn {
+    display:inline-block; background:var(--accent); color:var(--accent-ink); border:0; border-radius:8px; padding:9px 18px;
+    font-weight:700; font-size:14px; cursor:pointer; text-decoration:none;
+    transition:filter .15s ease, box-shadow .2s ease, transform .1s ease; }
   .btn:hover { filter:brightness(1.08); }
+  .btn:not(.btn-ghost):not(.btn-danger):hover { box-shadow:0 4px 22px -6px var(--accent); transform:translateY(-1px); }
+  .btn:not(.btn-ghost):active { transform:translateY(0); }
   .btn-ghost { background:var(--panel2); color:var(--text); border:1px solid var(--line); }
-  .btn-ghost:hover { filter:none; background:var(--panel3); }
+  .btn-ghost:hover { filter:none; background:var(--panel3); border-color:var(--accent); }
   .btn-danger { background:var(--high-bg); color:var(--high); border:1px solid var(--high); }
-  .btn-danger:hover { filter:none; background:var(--high); color:#fff; }
+  .btn-danger:hover { filter:none; background:var(--high); color:#fff; box-shadow:0 4px 22px -8px var(--high); transform:translateY(-1px); }
   .btn-sm { padding:6px 12px; font-size:13px; }
+  @media (prefers-reduced-motion:reduce) {
+    input[type=checkbox]:checked::after, .switch-thumb, .btn, .navcard, .rolebox,
+    .field input, .field textarea, .field select, .emoji-panel { transition:none !important; animation:none !important; }
+  }
   /* compact inline select for in-table forms (e.g. the log→event assignment) */
   .sel-sm { max-width:270px; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:6px 8px; font:inherit; font-size:13px; }
   .row-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
@@ -153,16 +180,26 @@ const ADMIN_STYLE = `<style>
     display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--text); font-weight:500; cursor:pointer;
     padding:5px 7px; border-radius:7px; border:1px solid transparent; transition:background-color .12s, border-color .12s; }
   .rolebox:hover { background:var(--panel2); }
-  .rolebox:has(input:checked) { background:var(--accent-soft); border-color:var(--accent-soft); }
+  .rolebox:has(input:checked) { background:var(--accent-soft); border-color:var(--accent-soft); box-shadow:0 0 14px -8px var(--accent); }
   /* emoji picker */
   .emoji-picker { position:relative; display:inline-block; margin-top:2px; }
-  .emoji-panel { display:none; position:absolute; z-index:20; top:calc(100% + 6px); left:0; width:288px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px; box-shadow:0 8px 28px rgba(0,0,0,.35); }
-  .emoji-panel.open { display:block; }
-  .emoji-search { width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:7px 10px; font:inherit; margin-bottom:8px; }
-  .emoji-search:focus { border-color:var(--accent); outline:none; }
+  .emoji-panel {
+    display:none; position:absolute; z-index:20; top:calc(100% + 6px); left:0; width:288px; background:var(--panel);
+    border:1px solid var(--line); border-radius:10px; padding:10px; box-shadow:0 12px 32px -6px rgba(0,0,0,.4), 0 0 0 1px var(--line);
+    transform-origin:top left; }
+  .emoji-panel.open { display:block; animation:emoji-pop .16s cubic-bezier(.2,.9,.3,1.2) both; }
+  @keyframes emoji-pop { from { opacity:0; transform:scale(.92) translateY(-4px); } to { opacity:1; transform:none; } }
+  .emoji-search {
+    width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:7px 10px;
+    font:inherit; margin-bottom:8px; transition:border-color .15s ease, box-shadow .15s ease; }
+  .emoji-search:focus { border-color:var(--accent); outline:none; box-shadow:0 0 0 3px var(--accent-soft); }
   .emoji-grid { display:grid; grid-template-columns:repeat(6,1fr); gap:4px; max-height:220px; overflow-y:auto; }
-  .emoji-item { display:grid; place-items:center; padding:5px; background:transparent; border:1px solid transparent; border-radius:7px; cursor:pointer; }
-  .emoji-item:hover { background:var(--panel2); border-color:var(--line); }
+  .emoji-item {
+    display:grid; place-items:center; padding:5px; background:transparent; border:1px solid transparent; border-radius:7px;
+    cursor:pointer; transition:background-color .12s ease, border-color .12s ease, transform .1s ease; }
+  .emoji-item:hover { background:var(--accent-soft); border-color:var(--accent-soft); transform:translateY(-1px); }
+  .emoji-item:active { transform:scale(.9); }
+  .emoji-item:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
   .emoji-item img { width:26px; height:26px; object-fit:contain; }
   .hr-row:hover { background:var(--panel2); }
   .emoji-empty { color:var(--muted); font-size:12.5px; padding:6px 2px; }
@@ -659,7 +696,7 @@ function hiddenCsrf(csrf) {
 // so it binds only once even if several pickers are on the page.
 const EMOJI_PICKER_SCRIPT = "<script>(function(){if(window.__emojiPicker)return;window.__emojiPicker=1;"
     + "var last=null;"
-    + "document.addEventListener('focusin',function(e){var el=e.target;if(el&&(el.tagName==='TEXTAREA'||(el.tagName==='INPUT'&&el.type==='text')))last=el;});"
+    + "document.addEventListener('focusin',function(e){var el=e.target;if(el&&(el.tagName==='TEXTAREA'||(el.tagName==='INPUT'&&el.type==='text'))&&!el.closest('.emoji-panel'))last=el;});"
     + "function target(p){var f=p.closest('form');if(last&&f&&f.contains(last))return last;return f?f.querySelector('textarea, input[type=text]'):last;}"
     + "document.addEventListener('click',function(e){"
     + "var t=e.target.closest('.emoji-trigger');if(t){e.preventDefault();var pn=t.parentNode.querySelector('.emoji-panel');document.querySelectorAll('.emoji-panel.open').forEach(function(o){if(o!==pn)o.classList.remove('open');});if(pn){pn.classList.toggle('open');var s=pn.querySelector('.emoji-search');if(s&&pn.classList.contains('open'))s.focus();}return;}"
