@@ -290,7 +290,7 @@ describe("classes/Raidhelper", () => {
     });
 
     describe("getEvent", () => {
-        it("GETs the v2 event path and returns parsed JSON", async () => {
+        it("GETs the v4 event path and returns parsed JSON", async () => {
             respondWith({ id: "evt-1", title: "Raid" });
             const client = new Raidhelper();
 
@@ -298,7 +298,7 @@ describe("classes/Raidhelper", () => {
 
             expect(result).toEqual({ id: "evt-1", title: "Raid" });
             const options = lastOptions();
-            expect(options.path).toBe("/api/v2/events/evt-1");
+            expect(options.path).toBe("/api/v4/events/evt-1");
             expect(options.headers).toEqual({ Authorization: "test-key" });
         });
 
@@ -365,7 +365,7 @@ describe("classes/Raidhelper", () => {
             expect(result).toBe("OK");
             const options = lastOptions();
             expect(options.method).toBe("POST");
-            expect(options.path).toBe("/api/v2/events/raid-1/signups");
+            expect(options.path).toBe("/api/v4/events/raid-1/signups");
             expect(options.headers.Authorization).toBe("test-key");
             expect(options.headers["Content-Type"]).toBe("application/json");
 
@@ -399,6 +399,64 @@ describe("classes/Raidhelper", () => {
             );
 
             expect(https.request).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    describe("createEvent", () => {
+        it("POSTs to the v4 servers/channels/event path with channelId excluded from the body", async () => {
+            respondWith({ id: "evt-9", status: "success" });
+            const client = new Raidhelper();
+
+            const result = await client.createEvent({
+                channelId: "chan-1",
+                leaderId: "u1",
+                templateId: "tpl-1",
+                date: "05-03-2026",
+                time: "20:00",
+                title: "GDKP Kara",
+                description: "Bring pots",
+            });
+
+            expect(result).toEqual({ id: "evt-9", status: "success" });
+            const options = lastOptions();
+            expect(options.method).toBe("POST");
+            expect(options.path).toBe("/api/v4/servers/server-42/channels/chan-1/event");
+            expect(options.headers.Authorization).toBe("test-key");
+
+            const req = https.request.mock.results[https.request.mock.results.length - 1].value;
+            expect(req.write).toHaveBeenCalledWith(JSON.stringify({
+                leaderId: "u1",
+                templateId: "tpl-1",
+                date: "05-03-2026",
+                time: "20:00",
+                title: "GDKP Kara",
+                description: "Bring pots",
+            }));
+        });
+
+        it("surfaces Raid-Helper's structured failure payload (status/reason)", async () => {
+            respondWith({ status: "failed", reason: "invalid token" });
+            const client = new Raidhelper();
+
+            const result = await client.createEvent({ channelId: "chan-1" });
+
+            expect(result).toEqual({ status: "failed", reason: "invalid token" });
+        });
+
+        it("rejects with a descriptive error on a non-JSON response", async () => {
+            respondWith("Endpoint POST /api/v4/servers/1/channels/2/event not found");
+            const client = new Raidhelper();
+
+            await expect(client.createEvent({ channelId: "chan-1" })).rejects.toThrow(
+                /Unerwartete Antwort von Raid-Helper/
+            );
+        });
+
+        it("rejects when the request emits an error", async () => {
+            respondWith(null, { error: new Error("ECONNRESET") });
+            const client = new Raidhelper();
+
+            await expect(client.createEvent({ channelId: "chan-1" })).rejects.toThrow("ECONNRESET");
         });
     });
 
