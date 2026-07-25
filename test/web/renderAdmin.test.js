@@ -46,12 +46,14 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("class=\"nav-item\" href=\"/admin/cla\"");
         });
 
-        it("renders a flash message when provided", () => {
+        it("renders an ok/err message as a toast when provided", () => {
             const ok = renderDashboard(user, { nav: nav(), msg: { type: "ok", text: "Gespeichert." } });
-            expect(ok).toContain("flash-ok");
+            expect(ok).toContain("toast-ok");
+            expect(ok).toContain("toast-msg");
             expect(ok).toContain("Gespeichert.");
             const err = renderDashboard(user, { nav: nav(), msg: { type: "err", text: "Kaputt." } });
-            expect(err).toContain("flash-err");
+            expect(err).toContain("toast-err");
+            expect(err).toContain("Kaputt.");
         });
     });
 
