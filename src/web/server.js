@@ -707,7 +707,9 @@ async function handle(req, res) {
                     description: form.description || "",
                 });
                 if (result && result.status === "failed") {
-                    const msg = result.message || "Raid-Helper hat die Erstellung abgelehnt.";
+                    // Raid-Helper's v4 error payloads use "reason" (e.g. {reason:"invalid token"});
+                    // "message" is kept as a fallback for any other shape.
+                    const msg = result.reason || result.message || "Raid-Helper hat die Erstellung abgelehnt.";
                     return redirect(res, `/admin/raids/new?err=${encodeURIComponent(msg)}`);
                 }
                 return redirect(res, "/admin/raids?ok=" + encodeURIComponent("Event angelegt."));

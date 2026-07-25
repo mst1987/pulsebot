@@ -375,6 +375,14 @@ describe("raid create route", () => {
         expect(redirectTo(res)).toContain("/admin/raids?ok=");
     });
 
+    it("POST /admin/raids/new surfaces Raid-Helper's failure reason in the redirect", async () => {
+        mockCreateEvent.mockResolvedValueOnce({ status: "failed", reason: "invalid token" });
+        const res = await request("POST", "/admin/raids/new", {
+            channelId: "c1", leaderId: "42", templateId: "3", date: "2026-07-24", time: "20:00", title: "GDKP Kara",
+        });
+        expect(redirectTo(res)).toBe(`/admin/raids/new?err=${encodeURIComponent("invalid token")}`);
+    });
+
     it("POST /admin/raids/new rejects an invalid date", async () => {
         const res = await request("POST", "/admin/raids/new", {
             channelId: "c1", leaderId: "42", templateId: "3", date: "", time: "20:00", title: "x",
