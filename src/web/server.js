@@ -1300,7 +1300,19 @@ async function handle(req, res) {
             csrf: auth.csrfToken(req),
             msg: flashFromQuery(url),
             nav: navFor(req),
+            tab: url.searchParams.get("tab") || "",
         }));
+    }
+
+    // Remove a tracked log from the "Warcraft Logs" tab of the Historie & Loot page
+    // (does not touch Discord / the report itself — same store as /admin/cla/log-delete).
+    if (pathname === "/admin/history/log-delete" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/history?tab=logs&msg=csrf");
+        deleteLog((form.logId || "").trim());
+        return redirect(res, "/admin/history?tab=logs&msg=deleted");
     }
 
     // Import a loot export (RCLootcouncil JSON / Gargul CSV) for one event. Reachable
