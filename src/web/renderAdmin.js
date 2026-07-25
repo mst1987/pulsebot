@@ -4,6 +4,9 @@
 const { layout, esc, authBar, themeToggleBtn } = require("./render");
 const { logPostedAt } = require("./reportList");
 const { formatTimestampToDateString } = require("../utils/date");
+const {
+    SPEC_CATALOG, SPEC_LINE_RE, resolveSpec, parseWantedBlock, buildSpecLine, insertSpecLine, removeSpecLine,
+} = require("../utils/recruitmentSpecs");
 
 // admin-specific styling, injected once per admin page (in addition to layout's base <style>)
 const ADMIN_STYLE = `<style>
@@ -203,6 +206,26 @@ const ADMIN_STYLE = `<style>
   .emoji-item img { width:26px; height:26px; object-fit:contain; }
   .hr-row:hover { background:var(--panel2); }
   .emoji-empty { color:var(--muted); font-size:12.5px; padding:6px 2px; }
+  /* recruitment "gesuchte Klassen/Specs" picker: pills + add-dropdown */
+  .spec-picker { display:flex; flex-direction:column; gap:10px; }
+  .spec-pills { display:flex; flex-wrap:wrap; gap:6px; min-height:32px; }
+  .spec-pill {
+    display:inline-flex; align-items:center; gap:6px; background:var(--accent-soft); border:1px solid var(--accent-soft);
+    color:var(--text); border-radius:999px; padding:4px 6px 4px 8px; font-size:13px; font-weight:600;
+    animation:spec-pop .18s cubic-bezier(.34,1.56,.64,1) both; }
+  .spec-pill img { width:18px; height:18px; border-radius:4px; flex:0 0 auto; }
+  .spec-pill-q {
+    width:18px; height:18px; border-radius:4px; background:var(--panel3); color:var(--muted); font-size:11px; font-weight:800;
+    display:grid; place-items:center; flex:0 0 auto; }
+  .spec-pill-custom { background:var(--panel2); border-color:var(--line); }
+  .spec-pill-x {
+    background:none; border:0; color:inherit; opacity:.6; cursor:pointer; font-size:15px; line-height:1; padding:2px;
+    border-radius:50%; display:grid; place-items:center; transition:opacity .12s ease, background-color .12s ease; }
+  .spec-pill-x:hover { opacity:1; background:rgba(0,0,0,.12); }
+  @keyframes spec-pop { from { transform:scale(.85); opacity:0; } to { transform:none; opacity:1; } }
+  .spec-add-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .spec-add-row select.spec-select { flex:1; width:auto; min-width:180px; max-width:320px; }
+  @media (prefers-reduced-motion:reduce) { .spec-pill { animation:none; } }
   /* setup (raidplan comp), grouped into raid groups 1-5 */
   .setup-summary { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
   .setup-count { background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:4px 12px; font-size:13px; color:var(--muted); }
@@ -727,6 +750,94 @@ function emojiPicker(emojis) {
     </div>${EMOJI_PICKER_SCRIPT}`;
 }
 
+/**
+ * Client-side glue for the recruitment "gesuchte Klassen/Specs" picker. The
+ * actual parsing/rewriting logic lives once in utils/recruitmentSpecs.js and
+ * is embedded here verbatim (Function#toString) so server (initial state
+ * isn't even needed — the picker parses the textarea's own value on load)
+ * and browser share the exact same source instead of two hand-kept regexes.
+ * `emojis` is the active guild's custom emoji list (for turning a spec's
+ * icon key into a real Discord `<:name:id>` code when one is available).
+ */
+function specPickerScript(emojis) {
+    return `<script>(function(){
+      var SPEC_CATALOG=${JSON.stringify(SPEC_CATALOG)};
+      var GUILD_EMOJIS=${JSON.stringify(emojis || [])};
+      var SPEC_LINE_RE=${SPEC_LINE_RE.toString()};
+      ${resolveSpec.toString()}
+      ${parseWantedBlock.toString()}
+      ${buildSpecLine.toString()}
+      ${insertSpecLine.toString()}
+      ${removeSpecLine.toString()}
+      function escHtml(s){var d=document.createElement("div");d.textContent=s==null?"":String(s);return d.innerHTML;}
+      function findEmojiCode(icon){
+        icon=(icon||"").toLowerCase();
+        var exact=GUILD_EMOJIS.find(function(e){return (e.name||"").toLowerCase()===icon;});
+        if(exact)return exact.code;
+        var pre=GUILD_EMOJIS.find(function(e){var n=(e.name||"").toLowerCase();return n.length>3&&icon.length>3&&(n.indexOf(icon)===0||icon.indexOf(n)===0);});
+        return pre?pre.code:"";
+      }
+      function initPicker(root){
+        var ta=document.getElementById(root.getAttribute("data-target"));
+        if(!ta)return;
+        var pillsEl=root.querySelector(".spec-pills");
+        var select=root.querySelector(".spec-select");
+        function render(){
+          var parsed=parseWantedBlock(ta.value);
+          pillsEl.innerHTML=parsed.entries.map(function(entry){
+            var spec=entry.spec;
+            var label=spec?spec.name:entry.label;
+            var iconHtml=spec
+              ?"<img src=\\"https://wow.zamimg.com/images/wow/icons/large/"+spec.icon.toLowerCase()+".jpg\\" alt=\\"\\">"
+              :"<span class=\\"spec-pill-q\\">?</span>";
+            var cls=spec?"spec-pill":"spec-pill spec-pill-custom";
+            return "<span class=\\""+cls+"\\" data-index=\\""+entry.index+"\\">"+iconHtml+"<span>"+escHtml(label)+"</span>"
+              +"<button type=\\"button\\" class=\\"spec-pill-x\\" aria-label=\\"Entfernen\\">&times;</button></span>";
+          }).join("")||"<span class=\\"hint\\">Noch nichts ausgewählt — mit dem Dropdown unten hinzufügen.</span>";
+          var selectedKeys={};
+          parsed.entries.forEach(function(e){if(e.spec)selectedKeys[e.spec.key]=true;});
+          select.innerHTML=SPEC_CATALOG.filter(function(s){return !selectedKeys[s.key];})
+            .map(function(s){return "<option value=\\""+s.key+"\\">"+escHtml(s.name)+"</option>";}).join("");
+        }
+        pillsEl.addEventListener("click",function(e){
+          var btn=e.target.closest(".spec-pill-x");
+          if(!btn)return;
+          var idx=parseInt(btn.closest(".spec-pill").getAttribute("data-index"),10);
+          ta.value=removeSpecLine(ta.value,idx);
+          render();
+        });
+        root.querySelector(".spec-add-btn").addEventListener("click",function(){
+          var spec=SPEC_CATALOG.find(function(s){return s.key===select.value;});
+          if(!spec)return;
+          ta.value=insertSpecLine(ta.value,spec,findEmojiCode(spec.icon));
+          render();
+        });
+        var t;
+        ta.addEventListener("input",function(){clearTimeout(t);t=setTimeout(render,200);});
+        render();
+      }
+      function init(){document.querySelectorAll(".spec-picker").forEach(initPicker);}
+      if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+    })();</script>`;
+}
+
+/**
+ * "Gesuchte Klassen/Specs" picker: pills for the specs currently detected in
+ * `targetFieldId`'s textarea + a dropdown to add another. Adding/removing
+ * rewrites the "## <emoji> Spec Name" block in that textarea in place,
+ * leaving the rest of the text (and manual edits) untouched. `targetFieldId`
+ * must be the id of the body textarea already rendered on the page.
+ */
+function specPicker(targetFieldId, emojis) {
+    return `<div class="spec-picker" data-target="${esc(targetFieldId)}">
+      <div class="spec-pills"></div>
+      <div class="spec-add-row">
+        <select class="spec-select"></select>
+        <button type="button" class="btn btn-ghost btn-sm spec-add-btn">+ Hinzufügen</button>
+      </div>
+    </div>${specPickerScript(emojis)}`;
+}
+
 function templateListItem(t) {
     return `<tr>
       <td><strong>${esc(t.name || "(ohne Name)")}</strong></td>
@@ -764,7 +875,12 @@ function renderPostEdit(user, opts) {
         </div>
         <div class="field">
           <label>Embed-Text (optional)</label>
-          <textarea name="body">${esc(p.body)}</textarea>
+          <textarea name="body" id="postBody">${esc(p.body)}</textarea>
+        </div>
+        <div class="field">
+          <label>Gesuchte Klassen/Specs</label>
+          ${specPicker("postBody", opts.emojis)}
+          <div class="hint">Wird automatisch im Embed-Text oben ein-/ausgetragen — dort weiterhin frei editierbar.</div>
         </div>
         <div class="field">
           <label>Button-Beschriftung</label>
@@ -884,9 +1000,14 @@ function renderRecruitment(user, opts = {}) {
         </div>
         <div class="field">
           <label>Text</label>
-          <textarea name="body" placeholder="Beschreibungstext …">${esc(e.body)}</textarea>
+          <textarea name="body" id="tplBody" placeholder="Beschreibungstext …">${esc(e.body)}</textarea>
           <div class="hint">Discord-Markdown ist erlaubt (**fett**, *kursiv*, Zeilenumbrüche).</div>
           ${emojiPicker(opts.emojis)}
+        </div>
+        <div class="field">
+          <label>Gesuchte Klassen/Specs</label>
+          ${specPicker("tplBody", opts.emojis)}
+          <div class="hint">Wird automatisch im Text oben ein-/ausgetragen (Zeile „## Icon Spec-Name") — dort weiterhin frei editierbar.</div>
         </div>
         <div class="field">
           <label>Button-Beschriftung (optional)</label>
