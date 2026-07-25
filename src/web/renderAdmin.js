@@ -49,11 +49,51 @@ const ADMIN_STYLE = `<style>
   form.card-form { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; margin:0 0 16px; }
   .field { margin-bottom:14px; }
   .field label { display:block; font-size:13px; color:var(--muted); margin-bottom:5px; font-weight:600; }
-  .field input[type=text], .field input[type=url], .field textarea, .field select {
+  /* every text-like input type (not just text/url) gets the same box — number, date, time,
+     password, search, tel, email, … so nothing falls back to unstyled browser chrome */
+  .field input:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=hidden]):not([type=submit]):not([type=button]),
+  .field textarea, .field select {
     width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:9px 11px; font:inherit; }
   .field input:focus, .field textarea:focus, .field select:focus { border-color:var(--accent); outline:none; }
   .field textarea { min-height:120px; resize:vertical; }
   .field .hint { color:var(--muted); font-size:12px; margin-top:4px; }
+  .field input[disabled] { opacity:.6; cursor:not-allowed; }
+  /* file upload: dashed drop-style box + a real accent button for the native picker */
+  .field input[type=file] {
+    width:100%; background:var(--bg); color:var(--muted); border:1.5px dashed var(--line); border-radius:8px;
+    padding:9px 11px; font:inherit; font-size:13.5px; cursor:pointer; transition:border-color .12s; }
+  .field input[type=file]:hover { border-color:var(--accent); }
+  .field input[type=file]::file-selector-button {
+    background:var(--accent); color:var(--accent-ink); border:0; border-radius:6px; padding:7px 14px;
+    font-weight:700; font-size:13px; cursor:pointer; margin-right:12px; transition:filter .12s; }
+  .field input[type=file]::file-selector-button:hover { filter:brightness(1.08); }
+  /* custom checkbox — replaces the native browser box everywhere, not just inside .field */
+  input[type=checkbox] {
+    appearance:none; -webkit-appearance:none; width:18px; height:18px; min-width:18px; margin:0;
+    border:1.5px solid var(--line); border-radius:5px; background:var(--bg); cursor:pointer; position:relative;
+    transition:background-color .12s, border-color .12s; flex:0 0 auto; }
+  input[type=checkbox]:hover { border-color:var(--accent); }
+  input[type=checkbox]:checked { background-color:var(--accent); border-color:var(--accent); }
+  input[type=checkbox]:checked::after {
+    content:""; position:absolute; left:3px; top:3px; width:8px; height:5px;
+    border:2px solid var(--accent-ink); border-top:0; border-right:0; transform:rotate(-45deg); }
+  input[type=checkbox]:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+  input[type=checkbox]:disabled { opacity:.5; cursor:not-allowed; }
+  /* toggle switch — for a single on/off setting (as opposed to multi-select checkbox lists) */
+  .switch { position:relative; display:inline-flex; align-items:center; flex:0 0 auto; cursor:pointer; }
+  .switch input[type=checkbox] {
+    position:absolute; inset:0; width:36px; height:20px; margin:0; opacity:0; border:0; background:none; cursor:pointer; }
+  .switch input[type=checkbox]::after { content:none; }
+  .switch-track {
+    width:36px; height:20px; border-radius:999px; background:var(--panel3); border:1.5px solid var(--line);
+    transition:background-color .15s, border-color .15s; flex:0 0 auto; position:relative; }
+  .switch-thumb {
+    position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:var(--muted);
+    transition:transform .15s, background-color .15s; }
+  .switch input[type=checkbox]:checked + .switch-track { background:var(--accent); border-color:var(--accent); }
+  .switch input[type=checkbox]:checked + .switch-track .switch-thumb { transform:translateX(16px); background:var(--accent-ink); }
+  .switch input[type=checkbox]:focus-visible + .switch-track { outline:2px solid var(--accent); outline-offset:2px; }
+  .switch-row { display:flex; align-items:center; gap:10px; cursor:pointer; }
   .btn { display:inline-block; background:var(--accent); color:var(--accent-ink); border:0; border-radius:8px; padding:9px 18px; font-weight:700; font-size:14px; cursor:pointer; text-decoration:none; }
   .btn:hover { filter:brightness(1.08); }
   .btn-ghost { background:var(--panel2); color:var(--text); border:1px solid var(--line); }
@@ -109,8 +149,11 @@ const ADMIN_STYLE = `<style>
   a.mlink { color:var(--accent); text-decoration:none; }
   a.mlink:hover { text-decoration:underline; }
   .rolegrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:6px; max-height:220px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:10px; background:var(--bg); }
-  .rolebox { display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--text); font-weight:500; cursor:pointer; }
-  .rolebox input { width:auto; }
+  .rolebox {
+    display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--text); font-weight:500; cursor:pointer;
+    padding:5px 7px; border-radius:7px; border:1px solid transparent; transition:background-color .12s, border-color .12s; }
+  .rolebox:hover { background:var(--panel2); }
+  .rolebox:has(input:checked) { background:var(--accent-soft); border-color:var(--accent-soft); }
   /* emoji picker */
   .emoji-picker { position:relative; display:inline-block; margin-top:2px; }
   .emoji-panel { display:none; position:absolute; z-index:20; top:calc(100% + 6px); left:0; width:288px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px; box-shadow:0 8px 28px rgba(0,0,0,.35); }
@@ -1952,7 +1995,10 @@ function renderSettings(user, opts = {}) {
             const boxes = raidRoles.map((r) =>
                 `<label class="rolebox"><input type="checkbox" name="catrole:${esc(cat.id)}:${esc(r.id)}" value="1"${assigned.has(r.id) ? " checked" : ""}> @${esc(r.name)}</label>`).join("");
             return `<div class="field">
-          <label class="rolebox" style="font-weight:600"><input type="checkbox" name="cat:${esc(cat.id)}" value="1"${isEvent ? " checked" : ""}> ${esc(cat.name)}${cat.unknown ? " <span class=\"hint\" style=\"font-weight:400\">(unbekannte ID — abwählen zum Entfernen)</span>" : ""}</label>
+          <label class="switch-row" style="font-weight:600">
+            <span class="switch"><input type="checkbox" name="cat:${esc(cat.id)}" value="1"${isEvent ? " checked" : ""}><span class="switch-track"><span class="switch-thumb"></span></span></span>
+            ${esc(cat.name)}${cat.unknown ? " <span class=\"hint\" style=\"font-weight:400\">(unbekannte ID — abwählen zum Entfernen)</span>" : ""}
+          </label>
           <div class="rolegrid" style="margin-top:8px">${boxes || "<span class=\"hint\">—</span>"}</div>
         </div>`;
         }).join("") + roleHint;
