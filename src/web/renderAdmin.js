@@ -223,9 +223,26 @@ const ADMIN_STYLE = `<style>
     border-radius:50%; display:grid; place-items:center; transition:opacity .12s ease, background-color .12s ease; }
   .spec-pill-x:hover { opacity:1; background:rgba(0,0,0,.12); }
   @keyframes spec-pop { from { transform:scale(.85); opacity:0; } to { transform:none; opacity:1; } }
-  .spec-add-row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-  .spec-add-row select.spec-select { flex:1; width:auto; min-width:180px; max-width:320px; }
-  @media (prefers-reduced-motion:reduce) { .spec-pill { animation:none; } }
+  /* icon dropdown to add another spec — same interaction/visual pattern as .emoji-picker */
+  .spec-add { position:relative; display:inline-block; }
+  .spec-add-panel {
+    display:none; position:absolute; z-index:20; top:calc(100% + 6px); left:0; width:260px; background:var(--panel);
+    border:1px solid var(--line); border-radius:10px; padding:10px; box-shadow:0 12px 32px -6px rgba(0,0,0,.4), 0 0 0 1px var(--line);
+    transform-origin:top left; }
+  .spec-add-panel.open { display:block; animation:emoji-pop .16s cubic-bezier(.2,.9,.3,1.2) both; }
+  .spec-add-search {
+    width:100%; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:7px 10px;
+    font:inherit; margin-bottom:8px; transition:border-color .15s ease, box-shadow .15s ease; }
+  .spec-add-search:focus { border-color:var(--accent); outline:none; box-shadow:0 0 0 3px var(--accent-soft); }
+  .spec-add-list { display:flex; flex-direction:column; gap:2px; max-height:230px; overflow-y:auto; }
+  .spec-option {
+    display:flex; align-items:center; gap:8px; width:100%; padding:6px 8px; background:transparent; border:1px solid transparent;
+    border-radius:7px; cursor:pointer; font:inherit; font-size:13px; color:var(--text); text-align:left;
+    transition:background-color .12s ease, border-color .12s ease; }
+  .spec-option:hover { background:var(--accent-soft); border-color:var(--accent-soft); }
+  .spec-option img { width:20px; height:20px; border-radius:4px; flex:0 0 auto; }
+  .spec-empty { color:var(--muted); font-size:12.5px; padding:6px 2px; }
+  @media (prefers-reduced-motion:reduce) { .spec-pill, .spec-add-panel.open { animation:none; } }
   /* setup (raidplan comp), grouped into raid groups 1-5 */
   .setup-summary { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
   .setup-count { background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:4px 12px; font-size:13px; color:var(--muted); }
@@ -770,34 +787,53 @@ function specPickerScript(emojis) {
       ${insertSpecLine.toString()}
       ${removeSpecLine.toString()}
       function escHtml(s){var d=document.createElement("div");d.textContent=s==null?"":String(s);return d.innerHTML;}
-      function findEmojiCode(icon){
+      // The guild's own custom emoji for a spec's classlist.js icon key, if one is
+      // uploaded — exact name match first, then a same-prefix fallback for near-miss
+      // spellings (a guild's "beastmastery" emoji vs. classlist's "beastmaster" key).
+      function findGuildEmoji(icon){
         icon=(icon||"").toLowerCase();
         var exact=GUILD_EMOJIS.find(function(e){return (e.name||"").toLowerCase()===icon;});
-        if(exact)return exact.code;
+        if(exact)return exact;
         var pre=GUILD_EMOJIS.find(function(e){var n=(e.name||"").toLowerCase();return n.length>3&&icon.length>3&&(n.indexOf(icon)===0||icon.indexOf(n)===0);});
-        return pre?pre.code:"";
+        return pre||null;
+      }
+      // Prefer the real Discord server emoji (what actually ends up in the message);
+      // fall back to the generic WoW spec icon only when the guild has none uploaded.
+      function specIconHtml(spec){
+        var emoji=findGuildEmoji(spec.icon);
+        if(emoji&&emoji.url)return "<img src=\\""+emoji.url+"\\" alt=\\"\\">";
+        return "<img src=\\"https://wow.zamimg.com/images/wow/icons/large/"+spec.icon.toLowerCase()+".jpg\\" alt=\\"\\">";
       }
       function initPicker(root){
         var ta=document.getElementById(root.getAttribute("data-target"));
         if(!ta)return;
         var pillsEl=root.querySelector(".spec-pills");
-        var select=root.querySelector(".spec-select");
+        var trigger=root.querySelector(".spec-add-trigger");
+        var panel=root.querySelector(".spec-add-panel");
+        var search=root.querySelector(".spec-add-search");
+        var list=root.querySelector(".spec-add-list");
+        var available=[];
+        function renderList(filter){
+          var q=(filter||"").toLowerCase();
+          var rows=available.filter(function(s){return !q||s.name.toLowerCase().indexOf(q)!==-1;});
+          list.innerHTML=rows.map(function(s){
+            return "<button type=\\"button\\" class=\\"spec-option\\" data-key=\\""+s.key+"\\">"+specIconHtml(s)+"<span>"+escHtml(s.name)+"</span></button>";
+          }).join("")||"<div class=\\"spec-empty\\">Keine Treffer.</div>";
+        }
         function render(){
           var parsed=parseWantedBlock(ta.value);
           pillsEl.innerHTML=parsed.entries.map(function(entry){
             var spec=entry.spec;
             var label=spec?spec.name:entry.label;
-            var iconHtml=spec
-              ?"<img src=\\"https://wow.zamimg.com/images/wow/icons/large/"+spec.icon.toLowerCase()+".jpg\\" alt=\\"\\">"
-              :"<span class=\\"spec-pill-q\\">?</span>";
+            var iconHtml=spec?specIconHtml(spec):"<span class=\\"spec-pill-q\\">?</span>";
             var cls=spec?"spec-pill":"spec-pill spec-pill-custom";
             return "<span class=\\""+cls+"\\" data-index=\\""+entry.index+"\\">"+iconHtml+"<span>"+escHtml(label)+"</span>"
               +"<button type=\\"button\\" class=\\"spec-pill-x\\" aria-label=\\"Entfernen\\">&times;</button></span>";
-          }).join("")||"<span class=\\"hint\\">Noch nichts ausgewählt — mit dem Dropdown unten hinzufügen.</span>";
+          }).join("")||"<span class=\\"hint\\">Noch nichts ausgewählt — mit „+ Klasse/Spec hinzufügen“ unten.</span>";
           var selectedKeys={};
           parsed.entries.forEach(function(e){if(e.spec)selectedKeys[e.spec.key]=true;});
-          select.innerHTML=SPEC_CATALOG.filter(function(s){return !selectedKeys[s.key];})
-            .map(function(s){return "<option value=\\""+s.key+"\\">"+escHtml(s.name)+"</option>";}).join("");
+          available=SPEC_CATALOG.filter(function(s){return !selectedKeys[s.key];});
+          renderList(search.value);
         }
         pillsEl.addEventListener("click",function(e){
           var btn=e.target.closest(".spec-pill-x");
@@ -806,12 +842,24 @@ function specPickerScript(emojis) {
           ta.value=removeSpecLine(ta.value,idx);
           render();
         });
-        root.querySelector(".spec-add-btn").addEventListener("click",function(){
-          var spec=SPEC_CATALOG.find(function(s){return s.key===select.value;});
+        trigger.addEventListener("click",function(e){
+          e.preventDefault();
+          document.querySelectorAll(".spec-add-panel.open").forEach(function(o){if(o!==panel)o.classList.remove("open");});
+          panel.classList.toggle("open");
+          if(panel.classList.contains("open")){search.value="";renderList("");search.focus();}
+        });
+        list.addEventListener("click",function(e){
+          var opt=e.target.closest(".spec-option");
+          if(!opt)return;
+          var spec=SPEC_CATALOG.find(function(s){return s.key===opt.getAttribute("data-key");});
           if(!spec)return;
-          ta.value=insertSpecLine(ta.value,spec,findEmojiCode(spec.icon));
+          var emoji=findGuildEmoji(spec.icon);
+          ta.value=insertSpecLine(ta.value,spec,emoji?emoji.code:"");
+          panel.classList.remove("open");
           render();
         });
+        search.addEventListener("input",function(){renderList(search.value);});
+        document.addEventListener("click",function(e){if(!root.contains(e.target))panel.classList.remove("open");});
         var t;
         ta.addEventListener("input",function(){clearTimeout(t);t=setTimeout(render,200);});
         render();
@@ -823,17 +871,22 @@ function specPickerScript(emojis) {
 
 /**
  * "Gesuchte Klassen/Specs" picker: pills for the specs currently detected in
- * `targetFieldId`'s textarea + a dropdown to add another. Adding/removing
- * rewrites the "## <emoji> Spec Name" block in that textarea in place,
- * leaving the rest of the text (and manual edits) untouched. `targetFieldId`
- * must be the id of the body textarea already rendered on the page.
+ * `targetFieldId`'s textarea + an icon dropdown (same interaction as the emoji
+ * picker) to add another. Icons prefer the guild's real Discord custom emoji
+ * so what's shown always matches what actually gets inserted; adding/removing
+ * rewrites the "## <emoji> Spec Name" block in that textarea in place, leaving
+ * the rest of the text (and manual edits) untouched. `targetFieldId` must be
+ * the id of the body textarea already rendered on the page.
  */
 function specPicker(targetFieldId, emojis) {
     return `<div class="spec-picker" data-target="${esc(targetFieldId)}">
       <div class="spec-pills"></div>
-      <div class="spec-add-row">
-        <select class="spec-select"></select>
-        <button type="button" class="btn btn-ghost btn-sm spec-add-btn">+ Hinzufügen</button>
+      <div class="spec-add">
+        <button type="button" class="btn btn-ghost btn-sm spec-add-trigger">+ Klasse/Spec hinzufügen</button>
+        <div class="spec-add-panel">
+          <input type="text" class="spec-add-search" placeholder="Suchen …" autocomplete="off">
+          <div class="spec-add-list"></div>
+        </div>
       </div>
     </div>${specPickerScript(emojis)}`;
 }
