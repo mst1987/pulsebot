@@ -37,9 +37,33 @@ node src/discordcommands/raidhelper.js  # Legacy command registration script
 4. **Spin up a local test instance on its own port** so the change can be verified live, isolated from every other running instance (see “Local test instances” below). Every agent-made change must be runnable this way, and the agent hands the reviewer the local URL to click.
 5. **Re-sync `main` into the branch before opening or updating the PR.** `main` may have moved while you worked, so `git fetch origin && git merge origin/main` (or rebase) on the feature branch, resolve any conflicts **locally**, and re-run `npm test` + `npm run lint` on the merged result. A PR must never be opened or left in a conflicting state — resolve it before handing it over.
 6. **Open a PR targeting `main` as soon as the feature is finished — proactively, without waiting to be asked.** Summarize what changed and how it was verified in the PR body (including the local test URL/port used). Merge to `main` only via PR.
-7. **Clean up the worktree** after the PR is merged: `git worktree remove ../eventhelper-<name>` (stop its test instance first).
+7. **Clean up the worktree** after the PR is merged — see “Cleanup after merges” below. Always **stop its test instance first**, then remove the worktree.
 
 Every change must ship with tests (see the Testing section). Do not merge a feature branch that lowers coverage of the modules it touches.
+
+### Cleanup after merges (do this after every merge, and sweep regularly)
+
+Once a PR is merged, its worktree and its running test instance are dead weight — clean them up promptly, and **periodically sweep** for leftovers (e.g. at the start of a session, or whenever asked to “clean up test instances”). Stray instances hold ports and RAM; orphaned worktrees clutter the tree.
+
+**The routine:**
+1. **Find merged worktrees:** cross-reference `git worktree list` with `git branch --merged origin/main` (run `git fetch origin` first). Any worktree whose branch is merged can go.
+2. **Stop its test instance first.** Find the dev instances and stop them before touching their worktree:
+   ```powershell
+   # ports 3010+ are per-worktree dev instances (3005 is the default)
+   Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -ge 3010 -and $_.LocalPort -le 3020 } | Select LocalPort, OwningProcess
+   Stop-Process -Id <pid> -Force
+   ```
+3. **Remove the worktree — one at a time, verifying between each:**
+   ```bash
+   git worktree remove ../eventhelper-<name>   # do NOT reach for --force by default
+   git worktree list                            # confirm the main checkout is still listed
+   ```
+
+**⚠️ Safety rules — a botched sweep once wiped the main checkout (`.git` + local env). Never again:**
+- **Remove worktrees one by one, not in a blind `--force` loop.** After each removal, re-run `git worktree list` (or `git -C <main> rev-parse --git-dir`). If any git command suddenly reports **“not a git repository”**, STOP immediately — do not continue removing.
+- **The main worktree `d:/programming/eventhelper` is sacred and must never be removed.** It holds the real `.git` (objects/refs) that every linked worktree depends on; losing it detaches them all.
+- **`.env` / `.env.dev` are git-ignored and live ONLY on local disk — never on origin.** The main checkout’s env cannot be recovered from GitHub. Before any operation that could touch the main checkout (re-clone, delete, move), **back up its `.env` and `.env.dev` first**. A worktree’s `.env.dev` is a copy of the main’s and can serve as a fallback source.
+- Prefer plain `git worktree remove` (which refuses on a dirty/uncommitted tree — a useful guardrail). Only use `--force` on a specific worktree you have confirmed is safe to discard.
 
 ### Local test instances (one port per change)
 
