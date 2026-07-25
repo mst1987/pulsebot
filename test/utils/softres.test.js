@@ -89,7 +89,7 @@ describe("utils/softres", () => {
             expect(axios.post).toHaveBeenCalledWith(
                 "https://softres.it/api/raid/create",
                 expect.objectContaining({ instances: ["kara"], amount: 2, faction: "Alliance" }),
-                expect.any(Object)
+                expect.objectContaining({ timeout: 45000 })
             );
             expect(res).toEqual({
                 raidId: "abc123",

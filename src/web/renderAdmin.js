@@ -202,6 +202,28 @@ const ADMIN_STYLE = `<style>
     .tiles { grid-template-columns:repeat(2,1fr); }
     .dash-grid { grid-template-columns:1fr; }
   }
+  /* Full-page loading overlay for long operations (softres create, sheet fill, posting). */
+  .page-loader { position:fixed; inset:0; z-index:9999; display:none; align-items:center; justify-content:center;
+    background:rgba(9,11,18,.66); backdrop-filter:blur(5px) saturate(1.1); -webkit-backdrop-filter:blur(5px) saturate(1.1); }
+  .page-loader.show { display:flex; animation:pl-fade .18s ease both; }
+  @keyframes pl-fade { from { opacity:0 } to { opacity:1 } }
+  .pl-box { display:flex; flex-direction:column; align-items:center; gap:20px; padding:8px; }
+  .pl-rune { position:relative; width:96px; height:96px; }
+  .pl-rune span { position:absolute; border-radius:50%; }
+  .pl-rune .r1 { inset:0; border:3px solid transparent; border-top-color:var(--accent); border-right-color:var(--accent);
+    animation:pl-spin 1s cubic-bezier(.6,.2,.4,.8) infinite; }
+  .pl-rune .r2 { inset:13px; border:3px solid transparent; border-bottom-color:var(--accent); opacity:.6;
+    animation:pl-spin 1.5s linear infinite reverse; }
+  .pl-rune .r3 { inset:32px; background:radial-gradient(circle at 50% 40%, #fff, var(--accent) 70%); box-shadow:0 0 26px 2px var(--accent);
+    animation:pl-pulse 1.2s ease-in-out infinite; }
+  @keyframes pl-spin { to { transform:rotate(360deg) } }
+  @keyframes pl-pulse { 0%,100% { transform:scale(.55); opacity:.55 } 50% { transform:scale(1); opacity:1 } }
+  .pl-text { color:#fff; font-weight:800; letter-spacing:.4px; font-size:15px; text-shadow:0 1px 8px rgba(0,0,0,.5); }
+  .pl-dots::after { content:""; animation:pl-dots 1.4s steps(4,end) infinite; }
+  @keyframes pl-dots { 0% { content:"" } 25% { content:"." } 50% { content:".." } 75% { content:"..." } 100% { content:"" } }
+  @media (prefers-reduced-motion:reduce) {
+    .pl-rune .r1,.pl-rune .r2,.pl-rune .r3,.pl-dots::after,.page-loader.show { animation-duration:.001ms; animation-iteration-count:1; }
+  }
 </style>`;
 
 // inline nav icons (stroke = currentColor)
@@ -389,7 +411,31 @@ function adminLayout(title, active, user, body, msg, nav, extra = {}) {
           </div>
         </div>
       </div>
-      <script>(function(){var t=document.getElementById("adminMenuToggle"),s=document.getElementById("adminSide");if(t&&s)t.addEventListener("click",function(){s.classList.toggle("open");});})();</script>`;
+      <div class="page-loader" id="pageLoader" aria-hidden="true" role="status" aria-live="polite">
+        <div class="pl-box">
+          <div class="pl-rune"><span class="r1"></span><span class="r2"></span><span class="r3"></span></div>
+          <div class="pl-text"><span id="plText">Wird verarbeitet</span><span class="pl-dots"></span></div>
+        </div>
+      </div>
+      <script>(function(){
+        var t=document.getElementById("adminMenuToggle"),s=document.getElementById("adminSide");
+        if(t&&s)t.addEventListener("click",function(){s.classList.toggle("open");});
+        // Full-page loader: any form opting in via data-loader shows it on submit and
+        // it stays up through the navigation to the redirected page. Also shown on
+        // clicks of links marked data-loader (e.g. a slow detail page).
+        var el=document.getElementById("pageLoader"), txt=document.getElementById("plText");
+        function show(label){ if(!el)return; if(label&&txt)txt.textContent=label; el.classList.add("show"); el.setAttribute("aria-hidden","false"); }
+        function hide(){ if(el){ el.classList.remove("show"); el.setAttribute("aria-hidden","true"); } }
+        document.addEventListener("submit",function(e){
+          var f=e.target; if(f&&f.getAttribute&&f.hasAttribute("data-loader")){ show(f.getAttribute("data-loader")||null); }
+        },true);
+        document.addEventListener("click",function(e){
+          var a=e.target&&e.target.closest?e.target.closest("[data-loader]"):null;
+          if(a&&a.tagName==="A"&&!e.metaKey&&!e.ctrlKey&&a.target!=="_blank"){ show(a.getAttribute("data-loader")||null); }
+        },true);
+        // If the page is restored from bfcache (back button), make sure the loader is gone.
+        window.addEventListener("pageshow",function(e){ if(e.persisted) hide(); });
+      })();</script>`;
     return layout(title, shell, { bare: true, bodyClass: "admin", wowheadIconize: Boolean(extra.wowheadIconize) });
 }
 
@@ -994,7 +1040,7 @@ function renderRaids(user, opts = {}) {
                   <td class="small">${esc(formatEventTime(ev.startTime))}</td>
                   <td class="small">${esc(String(ev.signupCount || 0))}</td>
                   <td class="small">${links}</td>
-                  <td class="cell-actions"><div class="row-actions" style="justify-content:flex-end"><a class="btn btn-ghost btn-sm" href="/admin/raids/detail?event=${esc(ev.id)}">Details</a></div></td>
+                  <td class="cell-actions"><div class="row-actions" style="justify-content:flex-end"><a class="btn btn-ghost btn-sm" href="/admin/raids/detail?event=${esc(ev.id)}" data-loader="Event wird geladen">Details</a></div></td>
                 </tr>`;
             }).join("");
             // "＋ Event" pre-fills the create form by reusing this category's most
@@ -1280,7 +1326,7 @@ function renderEventDetail(user, opts = {}) {
     const sheetBtn = sheetLink
         ? `<a class="btn sheet-btn" href="${esc(opts.eventSheet.url)}" target="_blank" rel="noopener">📄 Sheet öffnen</a>`
         : "";
-    const quickPost = (action, label, title) => `<form method="POST" action="${action}" style="margin:0" onsubmit="this.querySelector('button').disabled=true">
+    const quickPost = (action, label, title) => `<form method="POST" action="${action}" data-loader="Wird gepostet" style="margin:0" onsubmit="this.querySelector('button').disabled=true">
             ${csrfField}<input type="hidden" name="event" value="${esc(ev.id)}">
             <button class="btn btn-ghost" type="submit" title="${title}">${label}</button>
           </form>`;
@@ -1346,7 +1392,7 @@ function renderEventDetail(user, opts = {}) {
             ? `<div class="rolegrid">${roles.map((r) => `<label class="rolebox"><input type="checkbox" name="role_${esc(r.id)}" value="1"> @${esc(r.name)}</label>`).join("")}</div>`
             : "<p class=\"sub\">Keine Rollen gefunden (Server gewählt?).</p>";
         notifySection = `
-      <form class="card-form" method="POST" action="/admin/raids/notify">
+      <form class="card-form" method="POST" action="/admin/raids/notify" data-loader="Wird gepostet">
         ${csrfField}
         <input type="hidden" name="event" value="${esc(ev.id)}">
         <input type="hidden" name="channelId" value="${esc(ev.channelId)}">
@@ -1397,7 +1443,7 @@ function renderEventDetail(user, opts = {}) {
         </div>`
             : "";
         fillSection = existingSheet + `
-      <form class="card-form" method="POST" action="/admin/raids/fill" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Erstelle Sheet …'">
+      <form class="card-form" method="POST" action="/admin/raids/fill" data-loader="Sheet wird erstellt &amp; gefüllt" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Erstelle Sheet …'">
         ${csrfField}
         <input type="hidden" name="event" value="${esc(ev.id)}">
         <div class="field"><label>Vorlage (Ausgangssheet)</label><select name="sheetId" required>${sheetOptions}</select><div class="hint">${matchHint}</div></div>
@@ -1424,7 +1470,7 @@ function renderEventDetail(user, opts = {}) {
             + `<span class="setup-count"><b>${esc(String(attendance.missing.length))}</b> fehlt</span>`
             + "</div>";
         const pingForm = attendance.missing.length
-            ? `<form class="card-form" method="POST" action="/admin/raids/ping-missing" style="margin-top:16px" onsubmit="this.querySelector('button').disabled=true">
+            ? `<form class="card-form" method="POST" action="/admin/raids/ping-missing" data-loader="Wird gepostet" style="margin-top:16px" onsubmit="this.querySelector('button').disabled=true">
         ${csrfField}
         <input type="hidden" name="event" value="${esc(ev.id)}">
         <div class="field">
@@ -1445,7 +1491,7 @@ function renderEventDetail(user, opts = {}) {
     // sheet exists, independent of whether raidsheet templates are configured) ---
     const evSheet = opts.eventSheet;
     const postSheetSection = evSheet && evSheet.url
-        ? `<form class="card-form" method="POST" action="/admin/raids/post-sheet" style="margin-top:8px" onsubmit="this.querySelector('button').disabled=true">
+        ? `<form class="card-form" method="POST" action="/admin/raids/post-sheet" data-loader="Wird gepostet" style="margin-top:8px" onsubmit="this.querySelector('button').disabled=true">
         ${csrfField}
         <input type="hidden" name="event" value="${esc(ev.id)}">
         <div class="field">
@@ -1478,7 +1524,7 @@ function renderEventDetail(user, opts = {}) {
           </div>
         </fieldset>`).join("");
     const softresSection = existingSoftres + `
-      <form class="card-form" method="POST" action="/admin/raids/softres" onsubmit="this.querySelector('button[type=submit]').disabled=true;this.querySelector('button[type=submit]').textContent='Erstelle Softres …'">
+      <form class="card-form" method="POST" action="/admin/raids/softres" data-loader="Softres wird erstellt" onsubmit="this.querySelector('button[type=submit]').disabled=true;this.querySelector('button[type=submit]').textContent='Erstelle Softres …'">
         ${csrfField}
         <input type="hidden" name="event" value="${esc(ev.id)}">
         <div class="field">
