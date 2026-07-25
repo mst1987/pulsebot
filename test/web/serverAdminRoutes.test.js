@@ -104,6 +104,7 @@ jest.mock("../../src/web/discord", () => ({
     duplicateChannel: jest.fn(),
     listEmojis: jest.fn(() => []),
     listApplications: jest.fn(async () => ({ applications: [], error: null })),
+    postLink: jest.fn(async () => ({ channelId: "c1", messageId: "m1", url: "u" })),
 }));
 jest.mock("../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({
@@ -119,6 +120,27 @@ jest.mock("../../src/web/eventSheetStore", () => ({
     getEventSheet: mockGetEventSheet,
     markEventSheetFilled: mockMarkEventSheetFilled,
     listEventSheets: jest.fn(() => []),
+}));
+const mockGetEventSoftres = jest.fn(() => null);
+const mockSaveEventSoftres = jest.fn((id, data) => ({ eventId: id, ...data }));
+jest.mock("../../src/web/eventSoftresStore", () => ({
+    getEventSoftres: mockGetEventSoftres,
+    saveEventSoftres: mockSaveEventSoftres,
+    listEventSoftres: jest.fn(() => []),
+}));
+const mockCreateRaid = jest.fn(async () => ({
+    raidId: "r1", token: "t1", url: "https://softres.it/raid/r1", editUrl: "https://softres.it/raid/r1/t1",
+}));
+// Keep the real pure helpers (parseInstancesFromTitle/catalogue/editionOf used by
+// the detail route) but stub the networked createRaid.
+jest.mock("../../src/utils/softres", () => ({
+    ...jest.requireActual("../../src/utils/softres"),
+    createRaid: mockCreateRaid,
+}));
+const mockSearchItems = jest.fn(async () => [{ id: 28830, name: "Dragonspine Trophy", icon: "x", iconUrl: "i", quality: 4 }]);
+jest.mock("../../src/utils/wowhead", () => ({
+    ...jest.requireActual("../../src/utils/wowhead"),
+    searchItems: mockSearchItems,
 }));
 jest.mock("../../src/web/auth", () => ({
     configured: jest.fn(() => true),
@@ -840,5 +862,108 @@ describe("recruitment applications tab (GET /admin/recruitment)", () => {
         discord.listApplications.mockResolvedValue({ applications: [], error: "Bewerbungs-Channel nicht gefunden (ID prüfen)." });
         await request("GET", "/admin/recruitment?view=applications");
         expect(lastRenderOpts().applicationsError).toBe("Bewerbungs-Channel nicht gefunden (ID prüfen).");
+    });
+});
+
+describe("raidsheet post-to-channel route", () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+        auth.checkCsrf.mockReturnValue(true);
+        auth.getActiveGuild.mockReturnValue("g1");
+        mockGetAllEvents.mockResolvedValue([
+            { id: "e1", channelId: "c1", title: "GDKP Kara", startTime: 100, leaderId: "u1", signUps: [] },
+        ]);
+        discord.getChannelCategoryMap.mockReturnValue({
+            c1: { name: "kara", categoryId: "cat", categoryName: "Raids" },
+        });
+    });
+
+    it("posts the filled sheet link into the event channel with the optional message", async () => {
+        mockGetEventSheet.mockReturnValue({ eventId: "e1", url: "https://docs.google.com/x" });
+        const res = await request("POST", "/admin/raids/post-sheet", { event: "e1", message: "Bitte eintragen" });
+        expect(discord.postLink).toHaveBeenCalledWith("c1", expect.objectContaining({
+            url: "https://docs.google.com/x",
+            message: "Bitte eintragen",
+            title: expect.stringContaining("GDKP Kara"),
+        }));
+        expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&ok=");
+    });
+
+    it("errors when no sheet has been created yet", async () => {
+        mockGetEventSheet.mockReturnValue(null);
+        const res = await request("POST", "/admin/raids/post-sheet", { event: "e1" });
+        expect(discord.postLink).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&err=");
+    });
+
+    it("rejects a bad CSRF token", async () => {
+        auth.checkCsrf.mockReturnValueOnce(false);
+        const res = await request("POST", "/admin/raids/post-sheet", { event: "e1" });
+        expect(discord.postLink).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("msg=csrf");
+    });
+});
+
+describe("softres routes", () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+        auth.checkCsrf.mockReturnValue(true);
+        auth.getActiveGuild.mockReturnValue("g1");
+        mockGetAllEvents.mockResolvedValue([
+            { id: "e1", channelId: "c1", title: "Kara + Gruul", startTime: 100, leaderId: "u1", signUps: [] },
+        ]);
+        discord.getChannelCategoryMap.mockReturnValue({
+            c1: { name: "kara", categoryId: "cat", categoryName: "Raids" },
+        });
+        mockCreateRaid.mockResolvedValue({
+            raidId: "r1", token: "t1", url: "https://softres.it/raid/r1", editUrl: "https://softres.it/raid/r1/t1",
+        });
+    });
+
+    it("GET /admin/raids/softres/item-search proxies Wowhead and returns JSON", async () => {
+        const res = await request("GET", "/admin/raids/softres/item-search?q=dragon&edition=tbc");
+        expect(mockSearchItems).toHaveBeenCalledWith("dragon", { edition: "tbc" });
+        const body = res.end.mock.calls[0][0];
+        expect(JSON.parse(body).items[0].id).toBe(28830);
+    });
+
+    it("POST /admin/raids/softres creates a list with the chosen instances and reserves", async () => {
+        const res = await request("POST", "/admin/raids/softres", {
+            event: "e1", inst_kara: "1", inst_gruul: "1", amount: "2", faction: "Alliance",
+            hardReserves: JSON.stringify([{ id: 28830, name: "Dragonspine Trophy" }]),
+        });
+        expect(mockCreateRaid).toHaveBeenCalledWith(expect.objectContaining({
+            instances: expect.arrayContaining(["kara", "gruul"]),
+            edition: "tbc",
+            amount: "2",
+            faction: "Alliance",
+            hardReserves: [{ id: 28830, name: "Dragonspine Trophy" }],
+        }));
+        expect(mockSaveEventSoftres).toHaveBeenCalledWith("e1", expect.objectContaining({ raidId: "r1", edition: "tbc" }));
+        expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&ok=");
+    });
+
+    it("errors when no instance is selected", async () => {
+        const res = await request("POST", "/admin/raids/softres", { event: "e1", amount: "2", faction: "Alliance" });
+        expect(mockCreateRaid).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("err=");
+    });
+
+    it("errors when instances mix editions", async () => {
+        const res = await request("POST", "/admin/raids/softres", {
+            event: "e1", inst_kara: "1", inst_mc: "1", amount: "2", faction: "Alliance",
+        });
+        expect(mockCreateRaid).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("err=");
+    });
+
+    it("surfaces a softres API error", async () => {
+        mockCreateRaid.mockRejectedValueOnce(new Error("softres.it lehnte die Anfrage ab: nope"));
+        const res = await request("POST", "/admin/raids/softres", {
+            event: "e1", inst_kara: "1", amount: "1", faction: "Alliance",
+        });
+        expect(redirectTo(res)).toContain("err=");
     });
 });

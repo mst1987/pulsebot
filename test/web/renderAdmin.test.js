@@ -3,6 +3,7 @@ const {
     renderRecruitment, renderCla, renderRaids, renderRaidCreate,
     renderEventDetail, renderNotifyTemplates, renderChannels, renderSettings,
     renderHistory, renderHistoryEvent, renderHistoryChar, fillCharTemplate,
+    formatEventTime, fmtMs,
 } = require("../../src/web/renderAdmin.js");
 
 const user = { id: "42", name: "Marcstz", isAdmin: true };
@@ -972,6 +973,44 @@ describe("web/renderAdmin", () => {
         it("shows an access-denied message for a logged-in non-admin", () => {
             const html = renderAdminDenied({ id: "9", name: "Bob", isAdmin: false });
             expect(html).toContain("keinen Admin-Zugang");
+        });
+    });
+
+    // Regression: the container runs in UTC (no TZ in the image), so the time
+    // formatters MUST pin Europe/Berlin explicitly or raid times show 2h early
+    // in summer. These assertions hold regardless of the host's own timezone.
+    describe("time formatting is pinned to Europe/Berlin", () => {
+        it("formatEventTime renders a summer (CEST, +2) event in Berlin time", () => {
+            const secs = Date.UTC(2024, 6, 1, 18, 0, 0) / 1000; // 2024-07-01 18:00 UTC → 20:00 CEST
+            const out = formatEventTime(secs);
+            expect(out).toContain("20:00");
+            expect(out).toContain("01.07");
+        });
+
+        it("formatEventTime renders a winter (CET, +1) event in Berlin time", () => {
+            const secs = Date.UTC(2024, 0, 1, 19, 0, 0) / 1000; // 2024-01-01 19:00 UTC → 20:00 CET
+            const out = formatEventTime(secs);
+            expect(out).toContain("20:00");
+            expect(out).toContain("01.01");
+        });
+
+        it("formatEventTime returns empty for a falsy timestamp", () => {
+            expect(formatEventTime(0)).toBe("");
+            expect(formatEventTime(null)).toBe("");
+        });
+
+        it("fmtMs renders an epoch-ms timestamp in Berlin time with date", () => {
+            const ms = Date.UTC(2024, 6, 1, 18, 0, 0); // → 20:00 CEST, 01.07.2024
+            const out = fmtMs(ms);
+            expect(out).toContain("20:00");
+            expect(out).toContain("01.07.2024");
+        });
+
+        it("fmtMs without time renders date only", () => {
+            const ms = Date.UTC(2024, 6, 1, 18, 0, 0);
+            const out = fmtMs(ms, false);
+            expect(out).toContain("01.07.2024");
+            expect(out).not.toContain("20:00");
         });
     });
 });

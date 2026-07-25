@@ -29,6 +29,9 @@ const { buildReport, ReportError } = require("../utils/logcheck/report");
 const { listLogs, deleteLog } = require("./logStore");
 const { evaluateLog, scanLogChannels, backfillLogTitles } = require("./logChannel");
 const { getEventSheet, markEventSheetFilled } = require("./eventSheetStore");
+const { getEventSoftres, saveEventSoftres } = require("./eventSoftresStore");
+const softres = require("../utils/softres");
+const wowhead = require("../utils/wowhead");
 const Raidhelper = require("../classes/raidhelper");
 const SheetsClient = require("../classes/sheets");
 const Drive = require("../classes/drive");
@@ -679,6 +682,10 @@ async function handle(req, res) {
             membersError = res2.error;
             attendance = computeAttendance(res2.members, found.e.signUps || []);
         }
+        // Softres: pre-select the instances the event title implies, plus the full
+        // catalogue for the chosen edition so the admin can tweak the selection.
+        const suggestedInstances = softres.parseInstancesFromTitle(found.e.title);
+        const softresEdition = suggestedInstances.length ? suggestedInstances[0].edition : "tbc";
         return send(res, 200, renderEventDetail(user, {
             event: found.e,
             channelName: found.e.channelName,
@@ -692,6 +699,10 @@ async function handle(req, res) {
             setupError,
             tankCandidates: tankCands,
             eventSheet: getEventSheet(eventId),
+            eventSoftres: getEventSoftres(eventId),
+            softresCatalogue: softres.catalogue(),
+            softresEdition,
+            softresSuggested: suggestedInstances.map((i) => i.code),
             attendance,
             attendanceRoleIds: categoryRoleIds,
             membersError,
@@ -808,6 +819,94 @@ async function handle(req, res) {
         } catch (e) {
             console.error("raidsheet fill failed:", e.message);
             return redirect(res, `${back}&err=${encodeURIComponent(e.message || "Füllen fehlgeschlagen.")}`);
+        }
+    }
+
+    // post the filled raidsheet link into the event channel, with an optional message
+    if (pathname === "/admin/raids/post-sheet" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        const eventId = (form.event || "").trim();
+        const back = `/admin/raids/detail?event=${encodeURIComponent(eventId)}`;
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, `${back}&msg=csrf`);
+        const es = getEventSheet(eventId);
+        if (!es || !es.url) return redirect(res, `${back}&err=${encodeURIComponent("Für dieses Event gibt es noch kein gefülltes Sheet.")}`);
+        // Resolve the event's channel + title server-side; never trust posted ids.
+        const { groups, error } = await loadEventGroups(activeGuildFor(req));
+        if (error) return redirect(res, `${back}&err=${encodeURIComponent(error)}`);
+        const found = groups.flatMap((g) => g.events).find((e) => e.id === eventId);
+        if (!found) return redirect(res, `${back}&err=${encodeURIComponent("Event nicht gefunden.")}`);
+        try {
+            await discord.postLink(found.channelId, {
+                url: es.url,
+                title: found.title ? `Raidsheet – ${found.title}` : "Raidsheet",
+                message: form.message,
+                label: "Raidsheet öffnen",
+                emoji: "📄",
+            });
+            return redirect(res, `${back}&ok=${encodeURIComponent("Raidsheet in den Channel gepostet.")}`);
+        } catch (e) {
+            console.error("post-sheet failed:", e.message);
+            return redirect(res, `${back}&err=${encodeURIComponent(e.message || "Posten fehlgeschlagen.")}`);
+        }
+    }
+
+    // Wowhead item search for the softres hard-reserve picker (returns JSON).
+    if (pathname === "/admin/raids/softres/item-search" && req.method === "GET") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const q = url.searchParams.get("q") || "";
+        const edition = url.searchParams.get("edition") || "tbc";
+        const items = await wowhead.searchItems(q, { edition });
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-cache" });
+        return res.end(JSON.stringify({ items }));
+    }
+
+    // create a softres.it soft-reserve list for this event (instances derived from
+    // the title, but editable), with the chosen number of reserves and hard reserves
+    if (pathname === "/admin/raids/softres" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        const eventId = (form.event || "").trim();
+        const back = `/admin/raids/detail?event=${encodeURIComponent(eventId)}`;
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, `${back}&msg=csrf`);
+        const codes = Object.keys(form).filter((k) => k.startsWith("inst_")).map((k) => k.slice(5));
+        if (!codes.length) return redirect(res, `${back}&err=${encodeURIComponent("Mindestens eine Instanz wählen.")}`);
+        // All chosen instances must belong to one edition (a softres list is single-edition).
+        const editions = [...new Set(codes.map((c) => softres.editionOf(c)).filter(Boolean))];
+        if (editions.length !== 1) {
+            return redirect(res, `${back}&err=${encodeURIComponent("Alle gewählten Instanzen müssen zur selben Erweiterung gehören.")}`);
+        }
+        let hardReserves = [];
+        try {
+            const parsed = JSON.parse(form.hardReserves || "[]");
+            if (Array.isArray(parsed)) hardReserves = parsed;
+        } catch { /* ignore malformed HR payload — treat as none */ }
+        try {
+            const created = await softres.createRaid({
+                instances: codes,
+                edition: editions[0],
+                amount: form.amount,
+                faction: (form.faction || "").trim(),
+                hardReserves,
+                hideReserves: form.hideReserves === "1",
+            });
+            saveEventSoftres(eventId, {
+                raidId: created.raidId,
+                token: created.token,
+                url: created.url,
+                editUrl: created.editUrl,
+                edition: editions[0],
+                instances: codes,
+                amount: Number(form.amount) || 1,
+                hardReserveCount: hardReserves.length,
+            });
+            return redirect(res, `${back}&ok=${encodeURIComponent("Softres-Liste erstellt.")}#softres`);
+        } catch (e) {
+            console.error("softres create failed:", e.message);
+            return redirect(res, `${back}&err=${encodeURIComponent(e.message || "Softres-Erstellung fehlgeschlagen.")}`);
         }
     }
 
