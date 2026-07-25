@@ -118,6 +118,37 @@ function specIconUrl(entry) {
     return classIconUrl(realClass(entry));
 }
 
+// Warcraft Logs names a spec by (class, spec) — "Paladin" + "Holy" — while the
+// classlist is keyed by its own slugs. Several spec names exist for two classes
+// (Holy, Protection, Restoration, Frost), so the class decides which icon is meant.
+const WCL_SPEC_SLUG = {
+    Warrior: { arms: "arms", fury: "fury", protection: "protection" },
+    Paladin: { holy: "holypala", protection: "protpala", retribution: "retribution" },
+    Hunter: { beastmastery: "beastmaster", marksmanship: "marksman", survival: "survival" },
+    Rogue: { assassination: "assassination", combat: "combat", subtlety: "sublety" },
+    Priest: { discipline: "discipline", holy: "holypriest", shadow: "shadow" },
+    Shaman: { elemental: "elemental", enhancement: "enhancement", restoration: "restosham" },
+    Mage: { arcane: "arcane", fire: "firemage", frost: "frostmage" },
+    Warlock: { affliction: "affliction", demonology: "demonology", destruction: "destruction" },
+    Druid: { balance: "balance", feral: "feral", guardian: "guardian", restoration: "restoration" },
+    DK: { blood: "blooddk", frost: "frostdk", unholy: "unholy" },
+};
+
+/**
+ * Spec icon for a (class, spec) pair as Warcraft Logs reports it. Falls back to
+ * the plain class icon for an unknown/blank spec, and to "" for an unknown class.
+ * @param {string} className e.g. "Paladin"
+ * @param {string} spec      e.g. "Holy" / "Beast Mastery" (case/space tolerant)
+ */
+function classSpecIconUrl(className, spec) {
+    const cls = String(className || "").trim();
+    const key = String(spec || "").trim().toLowerCase().replace(/[\s_-]/g, "");
+    const slug = (WCL_SPEC_SLUG[cls] || {})[key];
+    const file = slug && SPEC_ICON[slug];
+    if (file) return `https://wow.zamimg.com/images/wow/icons/large/${file}.jpg`;
+    return classIconUrl(cls);
+}
+
 /**
  * Enrich one raidplan slot into display data:
  * { name, spec, specName, className, classColor, iconUrl, role }.
@@ -221,6 +252,6 @@ function specProfile(spec) {
 
 module.exports = {
     buildSetupView, tankCandidates, isTankSpec, groupOf,
-    enrichSlot, realClass, roleOf, classIconUrl, specIconUrl, specProfile,
+    enrichSlot, realClass, roleOf, classIconUrl, specIconUrl, specProfile, classSpecIconUrl,
     CLASS_COLORS, ROLE_LABELS,
 };

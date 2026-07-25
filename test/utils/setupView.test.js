@@ -1,6 +1,6 @@
 const {
     buildSetupView, tankCandidates, isTankSpec, groupOf,
-    enrichSlot, realClass, roleOf, classIconUrl, specProfile,
+    enrichSlot, realClass, roleOf, classIconUrl, specProfile, classSpecIconUrl,
 } = require("../../src/utils/setupView.js");
 
 describe("utils/setupView", () => {
@@ -69,6 +69,41 @@ describe("utils/setupView", () => {
             expect(specProfile("Nonsense")).toBeNull();
             expect(specProfile("")).toBeNull();
             expect(specProfile()).toBeNull();
+        });
+    });
+
+    describe("classSpecIconUrl (Warcraft-Logs class + spec pairs)", () => {
+        const file = (url) => String(url).split("/").pop();
+
+        it("resolves a spec to its own icon", () => {
+            expect(file(classSpecIconUrl("Warrior", "Fury"))).toBe("ability_warrior_innerrage.jpg");
+            expect(file(classSpecIconUrl("Warlock", "Destruction"))).toBe("spell_shadow_rainoffire.jpg");
+        });
+
+        it("tells apart spec names that exist for two classes", () => {
+            expect(file(classSpecIconUrl("Paladin", "Holy"))).toBe("spell_holy_holybolt.jpg");
+            expect(file(classSpecIconUrl("Priest", "Holy"))).toBe("spell_holy_holynova.jpg");
+            expect(file(classSpecIconUrl("Druid", "Restoration"))).toBe("spell_nature_healingtouch.jpg");
+            expect(file(classSpecIconUrl("Shaman", "Restoration"))).toBe("spell_nature_magicimmunity.jpg");
+            expect(file(classSpecIconUrl("Warrior", "Protection"))).toBe("ability_warrior_defensivestance.jpg");
+            expect(file(classSpecIconUrl("Paladin", "Protection"))).toBe("spell_holy_devotionaura.jpg");
+            expect(file(classSpecIconUrl("Mage", "Frost"))).toBe("spell_frost_frostbolt02.jpg");
+            expect(file(classSpecIconUrl("DK", "Frost"))).toBe("spell_deathknight_frostpresence.jpg");
+        });
+
+        it("is tolerant about case and spacing in the spec name", () => {
+            expect(file(classSpecIconUrl("Hunter", "beast mastery"))).toBe("ability_hunter_beasttaming.jpg");
+            expect(file(classSpecIconUrl("Rogue", "SUBTLETY"))).toBe("ability_stealth.jpg");
+        });
+
+        it("falls back to the class icon for a missing/unknown spec", () => {
+            expect(file(classSpecIconUrl("Paladin", ""))).toBe("classicon_paladin.jpg");
+            expect(file(classSpecIconUrl("Paladin", "Nonsense"))).toBe("classicon_paladin.jpg");
+        });
+
+        it("returns '' when even the class is unknown", () => {
+            expect(classSpecIconUrl("Nope", "Holy")).toBe("");
+            expect(classSpecIconUrl("", "")).toBe("");
         });
     });
 

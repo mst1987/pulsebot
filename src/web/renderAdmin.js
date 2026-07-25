@@ -7,7 +7,7 @@ const { formatTimestampToDateString } = require("../utils/date");
 const {
     SPEC_CATALOG, SPEC_LINE_RE, resolveSpec, parseWantedBlock, buildSpecLine, insertSpecLine, removeSpecLine,
 } = require("../utils/recruitmentSpecs");
-const { CLASS_COLORS } = require("../utils/setupView");
+const { CLASS_COLORS, classSpecIconUrl } = require("../utils/setupView");
 
 // admin-specific styling, injected once per admin page (in addition to layout's base <style>)
 const ADMIN_STYLE = `<style>
@@ -2436,20 +2436,29 @@ function classSourceBadge(source) {
     const label = CLASS_SOURCE_LABELS[source];
     return label ? `<span class="lbadge">${esc(label)}</span>` : "<span class=\"sub\">—</span>";
 }
-// The class name in its WoW class colour (unknown classes stay a plain dash).
-function classCell(className) {
+// Class and spec as ONE label — "Holy Paladin" — with the spec's icon in front.
+// Without a known spec it stays the plain class; an unknown class is a dash.
+function classSpecLabel(className, spec) {
+    return spec ? `${spec} ${className}` : className;
+}
+function specIcon(className, spec) {
+    const url = classSpecIconUrl(className, spec);
+    return url
+        ? `<img src="${esc(url)}" alt="" width="18" height="18" loading="lazy" style="border-radius:4px;vertical-align:-4px;margin-right:6px">`
+        : "";
+}
+function classSpecCell(className, spec) {
     if (!className) return "<span class=\"sub\">—</span>";
     const color = CLASS_COLORS[className];
-    return `<span style="font-weight:700${color ? `;color:${esc(color)}` : ""}">${esc(className)}</span>`;
+    return `${specIcon(className, spec)}<span style="font-weight:700${color ? `;color:${esc(color)}` : ""}">${esc(classSpecLabel(className, spec))}</span>`;
 }
-// "· Fury Warrior" behind a character's name, as far as it is known.
+// "· Holy Paladin" behind a character's name, as far as it is known.
 function charClassSuffix(info) {
     const className = (info && info.className) || "";
     if (!className) return "";
     const spec = (info && info.spec) || "";
     const color = CLASS_COLORS[className];
-    const label = spec ? `${spec} ${className}` : className;
-    return ` <span style="font-weight:700${color ? `;color:${esc(color)}` : ""}">· ${esc(label)}</span>`;
+    return ` <span style="font-weight:700${color ? `;color:${esc(color)}` : ""}">· ${specIcon(className, spec)}${esc(classSpecLabel(className, spec))}</span>`;
 }
 // A character's name linking to their history page, class-coloured when known.
 function charLink(c) {
@@ -2656,15 +2665,14 @@ function renderHistory(user, opts = {}) {
         : "<span class=\"sub\">Noch keine Charaktere mit Loot.</span>";
     const charRows = chars.map((c) => `<tr>
         <td>${charLink(c)}</td>
-        <td>${classCell(c.className)}</td>
-        <td class="small">${c.spec ? esc(c.spec) : "<span class=\"sub\">—</span>"}</td>
+        <td>${classSpecCell(c.className, c.spec)}</td>
         <td class="small">${esc(String(c.count))}</td>
         <td class="small">${classSourceBadge(c.source)}</td>
       </tr>`).join("");
     const missingClasses = chars.filter((c) => !c.className || !c.spec).length;
     const charTable = chars.length
         ? `<table class="idx" style="margin:0">
-             <thead><tr><th>Charakter</th><th>Klasse</th><th>Spec</th><th>Items</th><th>Quelle</th></tr></thead>
+             <thead><tr><th>Charakter</th><th>Klasse &amp; Spec</th><th>Items</th><th>Quelle</th></tr></thead>
              <tbody>${charRows}</tbody>
            </table>`
         : "<p class=\"sub\" style=\"padding:14px 16px\">Noch keine Charaktere mit Loot.</p>";
