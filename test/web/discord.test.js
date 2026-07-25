@@ -317,8 +317,9 @@ describe("web/discord channel management", () => {
         }
 
         it("returns active + archived applications parsed and newest-first", async () => {
-            const t1 = appThread("1", "Feuer - Alt", 100, embedFor("Alt"));
-            const t2 = appThread("2", "Frost - Neu", 300, embedFor("Neu"));
+            const now = Date.now();
+            const t1 = appThread("1", "Feuer - Alt", now - 2000, embedFor("Alt"));
+            const t2 = appThread("2", "Frost - Neu", now - 1000, embedFor("Neu"));
             const channel = appChannel([t2], [t1]);
             setClientWithGuild(makeGuild([]), jest.fn(async () => channel));
 
@@ -330,6 +331,29 @@ describe("web/discord channel management", () => {
                 url: "https://discord.com/channels/g1/2",
             });
             expect(applications[1]).toMatchObject({ threadId: "1", character: "Alt", archived: true });
+        });
+
+        it("excludes threads older than the max age (6 weeks)", async () => {
+            const now = Date.now();
+            const recent = appThread("r", "Neu", now - 1000, embedFor("Neu"));
+            const old = appThread("o", "Alt", now - (7 * 7 * 24 * 60 * 60 * 1000), embedFor("Alt")); // 7 weeks
+            setClientWithGuild(makeGuild([]), jest.fn(async () => appChannel([recent, old], [])));
+
+            const { applications } = await discord.listApplications("app1");
+            expect(applications.map((a) => a.threadId)).toEqual(["r"]);
+            // the too-old thread is dropped before its messages are ever fetched
+            expect(old.messages.fetch).not.toHaveBeenCalled();
+        });
+
+        it("caps the list to at most 10 newest applications", async () => {
+            const base = Date.now();
+            const many = Array.from({ length: 12 }, (_, i) =>
+                appThread(String(i), `App ${i}`, base - (i * 1000), embedFor(`C${i}`))); // i=0 newest
+            setClientWithGuild(makeGuild([]), jest.fn(async () => appChannel(many, [])));
+
+            const { applications } = await discord.listApplications("app1");
+            expect(applications).toHaveLength(10);
+            expect(applications.map((a) => a.threadId)).toEqual(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
         });
 
         it("returns an error when the bot is not connected", async () => {
@@ -357,7 +381,7 @@ describe("web/discord channel management", () => {
 
         it("still lists a thread whose messages cannot be read (name only)", async () => {
             const bad = {
-                id: "9", name: "Kaputt", guildId: "g1", createdTimestamp: 5,
+                id: "9", name: "Kaputt", guildId: "g1", createdTimestamp: Date.now() - 1000,
                 messages: { fetch: jest.fn(async () => { throw new Error("boom"); }) },
             };
             setClientWithGuild(makeGuild([]), jest.fn(async () => appChannel([bad], [])));

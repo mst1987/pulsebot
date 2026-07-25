@@ -427,16 +427,22 @@ function parseApplicationEmbed(embed) {
     return out;
 }
 
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
 /**
  * List the applications posted as threads in the application channel. Each thread
  * is created by the /apply flow (commands/apply/applyModal.js) and carries a bot
  * embed with the applicant's character, class/spec, armory + logs links and
- * description. Reads active and archived threads, parses each first embed, and
- * returns the applications (newest first) plus an error string when the channel
- * is missing/unreadable so the UI can degrade gracefully.
+ * description. Reads active and archived threads, keeps only the most recent ones
+ * (at most `limit`, and none older than `maxAgeWeeks`), then parses each first
+ * embed. Returns the applications (newest first) plus an error string when the
+ * channel is missing/unreadable so the UI can degrade gracefully.
+ *
+ * Age + count are applied BEFORE fetching each thread's messages, so at most
+ * `limit` message fetches hit Discord regardless of how many threads exist.
  * @returns {Promise<{ applications: object[], error: string|null }>}
  */
-async function listApplications(channelId, { archivedLimit = 100 } = {}) {
+async function listApplications(channelId, { limit = 10, maxAgeWeeks = 6, archivedLimit = 100 } = {}) {
     if (!client) return { applications: [], error: "Bot nicht verbunden." };
     if (!channelId) return { applications: [], error: null };
     let channel;
@@ -462,8 +468,16 @@ async function listApplications(channelId, { archivedLimit = 100 } = {}) {
         }
     } catch { /* archived may be inaccessible — ignore */ }
 
+    // Keep only recent threads, newest first, capped to `limit` — done before the
+    // per-thread message fetch so we never load more than we show.
+    const cutoff = Date.now() - (maxAgeWeeks * WEEK_MS);
+    const selected = [...threads.values()]
+        .filter(({ thread }) => (thread.createdTimestamp || 0) >= cutoff)
+        .sort((a, b) => (b.thread.createdTimestamp || 0) - (a.thread.createdTimestamp || 0))
+        .slice(0, limit);
+
     const applications = [];
-    for (const { thread, archived } of threads.values()) {
+    for (const { thread, archived } of selected) {
         let details = parseApplicationEmbed(null);
         try {
             const messages = await thread.messages.fetch({ limit: 10 });
@@ -482,7 +496,6 @@ async function listApplications(channelId, { archivedLimit = 100 } = {}) {
             ...details,
         });
     }
-    applications.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     return { applications, error: null };
 }
 
