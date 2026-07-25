@@ -3,7 +3,7 @@ const {
     renderRecruitment, renderCla, renderRaids, renderRaidCreate,
     renderEventDetail, renderNotifyTemplates, renderChannels, renderSettings,
     renderHistory, renderHistoryEvent, renderHistoryChar, fillCharTemplate,
-    formatEventTime, fmtMs,
+    formatEventTime, fmtMs, formatMatchOffset,
 } = require("../../src/web/renderAdmin.js");
 
 const user = { id: "42", name: "Marcstz", isAdmin: true };
@@ -378,6 +378,87 @@ describe("web/renderAdmin", () => {
                 const html = renderCla(user, { view: "logs", logPage: logPage({ items: [] }), logChannelIds: [], csrf: "x", nav: nav() });
                 expect(html).toContain("noch keine Log-Channels konfiguriert");
             });
+
+            describe("event assignment", () => {
+                const withCandidates = (over = {}) => logPage({
+                    items: [{
+                        ...logPage().items[0],
+                        candidates: [
+                            { eventId: "e1", title: "SSC/TK", startTime: 1785088800, diffMs: 30 * 60 * 1000, categoryName: "Raids" },
+                            { eventId: "e2", title: "Kara", startTime: 1785099600, diffMs: -2.5 * 3600 * 1000, categoryName: "Raids" },
+                        ],
+                        matchAmbiguous: false,
+                        ...over,
+                    }],
+                });
+
+                it("offers the matching events as a dropdown with the best guess preselected", () => {
+                    const html = renderCla(user, { view: "logs", logPage: withCandidates(), logChannelIds: ["c1"], csrf: "x", nav: nav() });
+                    expect(html).toContain("<th>Event</th>");
+                    expect(html).toContain("action=\"/admin/cla/log-link\"");
+                    expect(html).toContain("<option value=\"e1\" selected>");
+                    expect(html).toContain("<option value=\"e2\">");
+                    expect(html).toContain("30 min nach Start");
+                    expect(html).toContain("2 h 30 min vor Start");
+                    expect(html).toContain("Zuordnen");
+                });
+
+                it("warns when several events fit the log's post time", () => {
+                    const html = renderCla(user, {
+                        view: "logs", logPage: withCandidates({ matchAmbiguous: true }),
+                        logChannelIds: ["c1"], csrf: "x", nav: nav(),
+                    });
+                    expect(html).toContain("mehrere Events passen");
+                });
+
+                it("shows an existing assignment with a remove button instead of the dropdown", () => {
+                    const html = renderCla(user, {
+                        view: "logs",
+                        logPage: logPage({ items: [{ ...logPage().items[0], eventId: "e1", eventLabel: "SSC/TK", eventStartTime: 1785088800, eventLinkSource: "auto" }] }),
+                        logChannelIds: ["c1"], csrf: "x", nav: nav(),
+                    });
+                    expect(html).toContain("action=\"/admin/cla/log-unlink\"");
+                    expect(html).toContain("SSC/TK");
+                    expect(html).toContain("automatisch zugeordnet");
+                    expect(html).not.toContain("action=\"/admin/cla/log-link\"");
+                });
+
+                it("shows a dash when no event fits the log", () => {
+                    const html = renderCla(user, {
+                        view: "logs", logPage: logPage({ items: [{ ...logPage().items[0], candidates: [] }] }),
+                        logChannelIds: ["c1"], csrf: "x", nav: nav(),
+                    });
+                    expect(html).toContain("Kein Event mit passender Startzeit");
+                    expect(html).not.toContain("action=\"/admin/cla/log-link\"");
+                });
+
+                it("offers the bulk auto-assignment only when unassigned logs AND events exist", () => {
+                    const opts = { view: "logs", logPage: withCandidates(), logChannelIds: ["c1"], csrf: "x", nav: nav() };
+                    const withBoth = renderCla(user, { ...opts, unlinkedCount: 1, matchEvents: [{ id: "e1" }] });
+                    expect(withBoth).toContain("action=\"/admin/cla/log-automatch\"");
+                    expect(renderCla(user, { ...opts, unlinkedCount: 0, matchEvents: [{ id: "e1" }] }))
+                        .not.toContain("action=\"/admin/cla/log-automatch\"");
+                    expect(renderCla(user, { ...opts, unlinkedCount: 2, matchEvents: [] }))
+                        .not.toContain("action=\"/admin/cla/log-automatch\"");
+                });
+
+                it("hints when the events for the assignment could not be loaded", () => {
+                    const html = renderCla(user, {
+                        view: "logs", logPage: withCandidates(), logChannelIds: ["c1"], csrf: "x", nav: nav(),
+                        matchEventsError: "API down",
+                    });
+                    expect(html).toContain("konnten nicht geladen werden: API down");
+                });
+            });
+        });
+    });
+
+    describe("formatMatchOffset", () => {
+        it("labels the distance between the log post and the event start", () => {
+            expect(formatMatchOffset(0)).toBe("pünktlich zum Start");
+            expect(formatMatchOffset(25 * 60 * 1000)).toBe("25 min nach Start");
+            expect(formatMatchOffset(-90 * 60 * 1000)).toBe("1 h 30 min vor Start");
+            expect(formatMatchOffset(2 * 3600 * 1000)).toBe("2 h nach Start");
         });
     });
 

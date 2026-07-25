@@ -61,6 +61,8 @@ const ADMIN_STYLE = `<style>
   .btn-danger { background:var(--high-bg); color:var(--high); border:1px solid var(--high); }
   .btn-danger:hover { filter:none; background:var(--high); color:#fff; }
   .btn-sm { padding:6px 12px; font-size:13px; }
+  /* compact inline select for in-table forms (e.g. the log→event assignment) */
+  .sel-sm { max-width:270px; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:6px 8px; font:inherit; font-size:13px; }
   .row-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   /* action cell stays a real table-cell so its row divider aligns with the rest */
   td.cell-actions { text-align:right; white-space:nowrap; vertical-align:middle; }
@@ -818,6 +820,58 @@ function logWclUrl(l) {
     return l.link || (l.reportId ? `https://classic.warcraftlogs.com/reports/${l.reportId}` : "");
 }
 
+// "vor/nach Start" hint for a candidate event: how far the log post sits from the
+// event's start time (ms; positive = posted after the start).
+function formatMatchOffset(diffMs) {
+    const ms = Number(diffMs) || 0;
+    const mins = Math.round(Math.abs(ms) / 60000);
+    const hours = Math.floor(mins / 60);
+    const rest = mins % 60;
+    const span = hours ? `${hours} h${rest ? ` ${rest} min` : ""}` : `${mins} min`;
+    if (mins === 0) return "pünktlich zum Start";
+    return ms >= 0 ? `${span} nach Start` : `${span} vor Start`;
+}
+
+// A candidate label for the assignment dropdown: event title, its start and how
+// far the log post is away from it.
+function matchOptionLabel(c) {
+    const when = c.startTime ? formatEventTime(c.startTime) : "";
+    return `${c.title || c.eventId}${when ? ` · ${when}` : ""} (${formatMatchOffset(c.diffMs)})`;
+}
+
+/**
+ * The "Event" cell of a detected-log row: either the existing assignment with a
+ * remove button, or a dropdown of the events whose start time is close enough to
+ * the log's post time (best guess preselected).
+ */
+function logEventCell(l, csrfField) {
+    if (l.eventId) {
+        const label = l.eventLabel || l.eventId;
+        const when = l.eventStartTime ? formatEventTime(l.eventStartTime) : "";
+        const auto = l.eventLinkSource === "auto" ? " · automatisch zugeordnet" : "";
+        const title = `${label}${when ? ` — ${when}` : ""}${auto}`;
+        return `<div class="row-actions" style="flex-wrap:nowrap;gap:6px">
+          <span class="pill" title="${esc(title)}">${esc(label)}</span>
+          <form method="POST" action="/admin/cla/log-unlink" style="margin:0" onsubmit="return confirm('Zuordnung zu diesem Event entfernen?')">
+            ${csrfField}<input type="hidden" name="logId" value="${esc(l.id)}">
+            <button class="btn btn-ghost btn-sm" type="submit" title="Zuordnung entfernen">×</button>
+          </form>
+        </div>`;
+    }
+    const cands = l.candidates || [];
+    if (!cands.length) return "<span class=\"sub\" title=\"Kein Event mit passender Startzeit gefunden\">—</span>";
+    const options = cands.map((c, i) => `<option value="${esc(c.eventId)}"${i === 0 ? " selected" : ""}>${esc(matchOptionLabel(c))}</option>`).join("");
+    const hint = l.matchAmbiguous
+        ? "<div class=\"hint\">mehrere Events passen — bitte prüfen</div>"
+        : "";
+    return `<form method="POST" action="/admin/cla/log-link" class="row-actions" style="margin:0;gap:6px;flex-wrap:wrap">
+      ${csrfField}<input type="hidden" name="logId" value="${esc(l.id)}">
+      <select name="eventId" class="sel-sm">${options}</select>
+      <button class="btn btn-ghost btn-sm" type="submit">Zuordnen</button>
+      ${hint}
+    </form>`;
+}
+
 // A single row in the "detected logs" table (from the log channels). The date
 // column shows when the log was POSTED in the channel (derived from the Discord
 // message id / postedAt), not when the bot detected it.
@@ -851,6 +905,7 @@ function logRow(l, csrfField) {
       <td>${logCell}</td>
       <td class="small">${esc(l.reportId || "")}</td>
       <td>${category}</td>
+      <td>${logEventCell(l, csrfField)}</td>
       <td>${src}</td>
       <td>${status}</td>
       <td class="small">${esc(when)}</td>
@@ -892,6 +947,7 @@ function claPager(view, page) {
  * evaluations, default) and "logs" (logs detected in the log channels). Both are
  * sortable + paged; the active one is passed in as reportPage / logPage.
  * @param {object} opts { view, reportPage, logPage, counts, logChannelIds,
+ *                        matchEvents, matchEventsError, unlinkedCount,
  *                        activeGuildId, csrf, msg, nav }
  */
 function renderCla(user, opts = {}) {
@@ -913,16 +969,30 @@ function renderCla(user, opts = {}) {
         if (!logChannelIds.length) {
             logsSection = "<p class=\"sub\">Es sind noch keine Log-Channels konfiguriert. Lege sie in den <a href=\"/admin/settings\">Einstellungen</a> fest, damit der Bot automatisch Logs erkennt.</p>";
         } else {
-            const scanForm = `<form method="POST" action="/admin/cla/scan" style="margin:0 0 14px" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Suche läuft …'">
-                 ${csrfField}
-                 <button class="btn btn-ghost" type="submit">Log-Channels nach neuen Logs durchsuchen</button>
-               </form>`;
+            // Both buttons act on the whole list, so they share one row.
+            const autoForm = (opts.unlinkedCount && (opts.matchEvents || []).length)
+                ? `<form method="POST" action="/admin/cla/log-automatch" style="margin:0" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Ordne zu …'">
+                     ${csrfField}
+                     <button class="btn btn-ghost" type="submit" title="Ordnet jedes offene Log dem Event zu, dessen Startzeit eindeutig passt">Logs automatisch Events zuordnen</button>
+                   </form>`
+                : "";
+            const eventsHint = opts.matchEventsError
+                ? `<p class="hint">Events für die Zuordnung konnten nicht geladen werden: ${esc(opts.matchEventsError)}</p>`
+                : "";
+            const scanForm = `<div class="row-actions" style="margin:0 0 14px">
+                 <form method="POST" action="/admin/cla/scan" style="margin:0" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Suche läuft …'">
+                   ${csrfField}
+                   <button class="btn btn-ghost" type="submit">Log-Channels nach neuen Logs durchsuchen</button>
+                 </form>
+                 ${autoForm}
+               </div>${eventsHint}`;
             const table = lp.items.length
                 ? `<table class="idx">
                      <thead><tr>
                        ${lh("title", "Log")}
                        <th>Report-ID</th>
                        <th>Kategorie</th>
+                       <th>Event</th>
                        <th>Quelle</th>
                        ${lh("status", "Status")}
                        ${lh("date", "Gepostet")}
@@ -937,6 +1007,7 @@ function renderCla(user, opts = {}) {
         content = `
       <h2>Erkannte Logs aus dem Log-Channel</h2>
       <p class="note">Vom Bot automatisch erkannte Warcraft-Logs, neueste zuerst (nach Post-Zeit im Channel). Über den WCL-Link vorab prüfen, dann „Auswerten" — jeder Report nur einmal.</p>
+      <p class="note">In der Spalte <strong>Event</strong> wird jedes Log dem Raid zugeordnet, dessen Startzeit zur Post-Zeit passt (Vorschlag vorausgewählt, Zuordnung jederzeit über „×" wieder entfernbar).</p>
       ${logsSection}`;
     } else {
         // --- report evaluations ---
@@ -2053,13 +2124,16 @@ function renderHistory(user, opts = {}) {
           <td>${url ? `<a class="mlink" href="${esc(url)}" target="_blank" rel="noopener">${esc(l.title || l.reportId || "(Log)")} ↗</a>` : esc(l.title || "(Log)")}</td>
           <td class="small">${esc(when ? new Date(when).toLocaleDateString("de-DE", { timeZone: DISPLAY_TZ }) : "")}</td>
           <td class="small">${esc(l.zone || "")}</td>
+          <td class="small">${l.eventId
+        ? `<span class="pill" title="${esc(l.eventStartTime ? formatEventTime(l.eventStartTime) : "")}">${esc(l.eventLabel || l.eventId)}</span>`
+        : "<span class=\"sub\">—</span>"}</td>
         </tr>`;
     }).join("");
     const logsSection = logs.length
         ? `<div class="dash-card" style="margin-bottom:18px">
              <div class="dash-card-head"><h3>Warcraft Logs</h3><span class="small" style="margin-left:auto">${logs.length}</span></div>
              <table class="idx" style="margin:0">
-               <thead><tr><th>Log</th><th>Datum</th><th>Zone</th></tr></thead>
+               <thead><tr><th>Log</th><th>Datum</th><th>Zone</th><th>Event</th></tr></thead>
                <tbody>${logRows}</tbody>
              </table>
            </div>`
@@ -2231,5 +2305,5 @@ module.exports = {
     renderEventDetail, renderNotifyTemplates, renderChannels, renderSettings,
     renderHistory, renderHistoryEvent, renderHistoryChar,
     fillCharTemplate, hiddenCsrf, esc,
-    formatEventTime, fmtMs,
+    formatEventTime, fmtMs, formatMatchOffset,
 };

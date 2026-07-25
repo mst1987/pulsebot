@@ -20,10 +20,17 @@ class Raidhelper {
     };
   }
 
-  async getAllEvents() {
+  // Raid-Helper only returns events starting at/after StartTimeFilter, so the
+  // default (now) yields the upcoming events. Pass an explicit unix timestamp in
+  // SECONDS to reach back into the past (e.g. to match already finished raids
+  // against posted logs).
+  async getAllEvents(startTimeFilter) {
     return new Promise((resolve, reject) => {
       let data = "";
-      const currentUnixTimestamp = Math.floor(Date.now() / 1000);
+      const from = Number(startTimeFilter);
+      const currentUnixTimestamp = Number.isFinite(from) && from > 0
+        ? Math.floor(from)
+        : Math.floor(Date.now() / 1000);
       const options = this.getEventOptions(currentUnixTimestamp);
 
       var request = https

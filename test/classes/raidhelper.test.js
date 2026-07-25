@@ -94,6 +94,28 @@ describe("classes/Raidhelper", () => {
             expect(options.headers.Authorization).toBe("test-key");
         });
 
+        it("filters by now when no start time is given", async () => {
+            respondWith({ postedEvents: [] });
+            const now = Math.floor(Date.now() / 1000);
+            await new Raidhelper().getAllEvents();
+            const filter = lastOptions().headers.StartTimeFilter;
+            expect(filter).toBeGreaterThanOrEqual(now);
+            expect(filter).toBeLessThan(now + 5);
+        });
+
+        it("accepts an explicit (past) start time filter", async () => {
+            respondWith({ postedEvents: [] });
+            await new Raidhelper().getAllEvents(1700000000);
+            expect(lastOptions().headers.StartTimeFilter).toBe(1700000000);
+        });
+
+        it("falls back to now for an unusable start time filter", async () => {
+            respondWith({ postedEvents: [] });
+            const now = Math.floor(Date.now() / 1000);
+            await new Raidhelper().getAllEvents("nope");
+            expect(lastOptions().headers.StartTimeFilter).toBeGreaterThanOrEqual(now);
+        });
+
         it("rejects when the API reports status failed", async () => {
             respondWith({ status: "failed", message: "bad key" });
             const client = new Raidhelper();

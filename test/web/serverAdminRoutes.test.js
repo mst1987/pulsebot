@@ -61,9 +61,16 @@ jest.mock("../../src/classes/blizzard", () =>
         _resolve: () => ({ namespace: "profile-classic-eu" }),
         lastError: null,
     })));
+const mockListLogs = jest.fn(() => []);
+const mockGetLog = jest.fn(() => null);
+const mockLinkLogEvent = jest.fn((id, data) => ({ id, ...data }));
+const mockUnlinkLogEvent = jest.fn((id) => ({ id }));
 jest.mock("../../src/web/logStore", () => ({
-    listLogs: jest.fn(() => []),
+    listLogs: (...a) => mockListLogs(...a),
+    getLog: (...a) => mockGetLog(...a),
     deleteLog: jest.fn(),
+    linkEvent: (...a) => mockLinkLogEvent(...a),
+    unlinkEvent: (...a) => mockUnlinkLogEvent(...a),
 }));
 jest.mock("../../src/web/settingsStore", () => ({
     listRecruitment: jest.fn(() => []), getRecruitment: jest.fn(), saveRecruitment: jest.fn(),
@@ -1006,6 +1013,126 @@ describe("softres routes", () => {
         const res = await request("POST", "/admin/raids/softres", {
             event: "e1", inst_kara: "1", amount: "1", faction: "Alliance",
         });
+        expect(redirectTo(res)).toContain("err=");
+    });
+});
+
+describe("log → event assignment routes", () => {
+    // Raid starts 18:00 UTC, the log link is posted 30 minutes later.
+    const START = Math.floor(Date.UTC(2026, 6, 24, 18, 0, 0) / 1000);
+    const POSTED = Date.UTC(2026, 6, 24, 18, 30, 0);
+    const openLog = (over = {}) => ({
+        id: "l1", guildId: "g1", channelId: "c1", messageId: "m1", reportId: "RPT1",
+        title: "SSC Log", status: "open", postedAt: POSTED, ...over,
+    });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+        auth.checkCsrf.mockReturnValue(true);
+        auth.getActiveGuild.mockReturnValue("g1");
+        auth.csrfToken.mockReturnValue("tok");
+        mockGetAllEvents.mockResolvedValue([
+            { id: "e1", channelId: "c1", title: "SSC/TK", startTime: START, signUps: [] },
+        ]);
+        discord.getChannelCategoryMap.mockReturnValue({
+            c1: { name: "raid-logs", categoryId: "cat", categoryName: "Raids" },
+        });
+        discord.listGuilds.mockReturnValue([{ id: "g1", name: "Guild" }]);
+        mockListLogs.mockReturnValue([openLog()]);
+        mockGetLog.mockReturnValue(openLog());
+    });
+
+    it("GET /admin/cla?view=logs offers the matching event per log", async () => {
+        await request("GET", "/admin/cla?view=logs");
+        const opts = renderAdmin.renderCla.mock.calls[0][1];
+        expect(opts.matchEvents.map((e) => e.id)).toEqual(["e1"]);
+        expect(opts.unlinkedCount).toBe(1);
+        const item = opts.logPage.items[0];
+        expect(item.candidates).toEqual([expect.objectContaining({ eventId: "e1", title: "SSC/TK" })]);
+        expect(item.matchAmbiguous).toBe(false);
+    });
+
+    it("GET /admin/cla?view=logs fetches events from the PAST as well", async () => {
+        await request("GET", "/admin/cla?view=logs");
+        const startFilter = mockGetAllEvents.mock.calls[mockGetAllEvents.mock.calls.length - 1][0];
+        expect(typeof startFilter).toBe("number");
+        expect(startFilter).toBeLessThan(Math.floor(Date.now() / 1000));
+    });
+
+    it("GET /admin/cla?view=logs surfaces a Raid-Helper failure without breaking the page", async () => {
+        mockGetAllEvents.mockRejectedValue(new Error("API down"));
+        await request("GET", "/admin/cla?view=logs");
+        const opts = renderAdmin.renderCla.mock.calls[0][1];
+        expect(opts.matchEventsError).toBe("API down");
+        expect(opts.matchEvents).toEqual([]);
+    });
+
+    it("GET /admin/cla?view=logs keeps an existing assignment instead of offering candidates", async () => {
+        mockListLogs.mockReturnValue([openLog({ eventId: "e1", eventLabel: "SSC/TK" })]);
+        await request("GET", "/admin/cla?view=logs");
+        const opts = renderAdmin.renderCla.mock.calls[0][1];
+        expect(opts.unlinkedCount).toBe(0);
+        expect(opts.logPage.items[0].candidates).toBeUndefined();
+    });
+
+    it("POST /admin/cla/log-link stores the assignment with the event snapshot", async () => {
+        const res = await request("POST", "/admin/cla/log-link", { logId: "l1", eventId: "e1" });
+        expect(mockLinkLogEvent).toHaveBeenCalledWith("l1", {
+            eventId: "e1", eventLabel: "SSC/TK", eventStartTime: START, source: "manual",
+        });
+        expect(redirectTo(res)).toContain("/admin/cla?view=logs&ok=");
+    });
+
+    it("POST /admin/cla/log-link rejects an unknown log or event", async () => {
+        mockGetLog.mockReturnValue(null);
+        const res1 = await request("POST", "/admin/cla/log-link", { logId: "nope", eventId: "e1" });
+        expect(redirectTo(res1)).toContain("err=");
+
+        mockGetLog.mockReturnValue(openLog());
+        const res2 = await request("POST", "/admin/cla/log-link", { logId: "l1", eventId: "e999" });
+        expect(redirectTo(res2)).toContain("err=");
+        expect(mockLinkLogEvent).not.toHaveBeenCalled();
+    });
+
+    it("POST /admin/cla/log-link rejects an empty event selection", async () => {
+        const res = await request("POST", "/admin/cla/log-link", { logId: "l1", eventId: "" });
+        expect(mockLinkLogEvent).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("err=");
+    });
+
+    it("POST /admin/cla/log-unlink removes the assignment", async () => {
+        const res = await request("POST", "/admin/cla/log-unlink", { logId: "l1" });
+        expect(mockUnlinkLogEvent).toHaveBeenCalledWith("l1");
+        expect(redirectTo(res)).toContain("ok=");
+    });
+
+    it("POST /admin/cla/log-unlink reports when there was nothing to remove", async () => {
+        mockUnlinkLogEvent.mockReturnValueOnce(null);
+        const res = await request("POST", "/admin/cla/log-unlink", { logId: "l1" });
+        expect(redirectTo(res)).toContain("err=");
+    });
+
+    it("POST /admin/cla/log-automatch assigns the unambiguous logs only", async () => {
+        mockListLogs.mockReturnValue([
+            openLog(),
+            // posted days later — no event in the window, stays unassigned
+            openLog({ id: "l2", reportId: "RPT2", postedAt: POSTED + 40 * 3600 * 1000 }),
+            // already assigned — untouched
+            openLog({ id: "l3", reportId: "RPT3", eventId: "e1" }),
+        ]);
+        const res = await request("POST", "/admin/cla/log-automatch");
+        expect(mockLinkLogEvent).toHaveBeenCalledTimes(1);
+        expect(mockLinkLogEvent).toHaveBeenCalledWith("l1", expect.objectContaining({ eventId: "e1", source: "auto" }));
+        const location = decodeURIComponent(redirectTo(res));
+        expect(location).toContain("1 Log(s) automatisch zugeordnet");
+        expect(location).toContain("1 ohne eindeutiges Event");
+    });
+
+    it("POST /admin/cla/log-automatch surfaces a Raid-Helper failure", async () => {
+        mockGetAllEvents.mockRejectedValue(new Error("API down"));
+        const res = await request("POST", "/admin/cla/log-automatch");
+        expect(mockLinkLogEvent).not.toHaveBeenCalled();
         expect(redirectTo(res)).toContain("err=");
     });
 });

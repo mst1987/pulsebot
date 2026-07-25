@@ -111,6 +111,7 @@ function annotateLogCategories(items, catMap) {
     for (const l of items || []) {
         const meta = l && map[l.channelId];
         if (meta) {
+            l.categoryId = meta.categoryId || "";
             l.categoryName = meta.categoryName || "";
             l.channelName = meta.name || "";
         }

@@ -23,6 +23,7 @@ const fs = require("fs");
 const {
     listLogs, getLog, getByReportId, saveLog, setButtonMessage,
     markEvaluated, setLogTitle, deleteLog,
+    linkEvent, unlinkEvent, listLogsForEvent,
 } = require("../../src/web/logStore.js");
 
 beforeEach(() => {
@@ -137,6 +138,82 @@ describe("web/logStore", () => {
 
         it("getLog returns null for unknown id", () => {
             expect(getLog("missing")).toBeNull();
+        });
+    });
+
+    describe("linkEvent / unlinkEvent", () => {
+        it("stores the event assignment incl. a label/start snapshot", () => {
+            const a = saveLog(base());
+            const linked = linkEvent(a.id, { eventId: "ev1", eventLabel: "SSC/TK", eventStartTime: 1785000000 });
+            expect(linked.eventId).toBe("ev1");
+            expect(linked.eventLabel).toBe("SSC/TK");
+            expect(linked.eventStartTime).toBe(1785000000);
+            expect(linked.eventLinkSource).toBe("manual");
+            expect(typeof linked.eventLinkedAt).toBe("number");
+            expect(getLog(a.id).eventId).toBe("ev1");
+        });
+
+        it("records an automatic match as such", () => {
+            const a = saveLog(base());
+            expect(linkEvent(a.id, { eventId: "ev1", source: "auto" }).eventLinkSource).toBe("auto");
+        });
+
+        it("survives a re-detection of the same report", () => {
+            const a = saveLog(base());
+            linkEvent(a.id, { eventId: "ev1", eventLabel: "SSC/TK" });
+            const again = saveLog(base({ messageId: "m2" }));
+            expect(again.eventId).toBe("ev1");
+            expect(again.eventLabel).toBe("SSC/TK");
+        });
+
+        it("replaces an existing assignment", () => {
+            const a = saveLog(base());
+            linkEvent(a.id, { eventId: "ev1", eventLabel: "Alt" });
+            const moved = linkEvent(a.id, { eventId: "ev2", eventLabel: "Neu" });
+            expect(moved.eventId).toBe("ev2");
+            expect(moved.eventLabel).toBe("Neu");
+        });
+
+        it("refuses a blank event id or unknown log", () => {
+            const a = saveLog(base());
+            expect(linkEvent(a.id, { eventId: "  " })).toBeNull();
+            expect(linkEvent("nope", { eventId: "ev1" })).toBeNull();
+            expect(linkEvent(a.id)).toBeNull();
+            expect(getLog(a.id).eventId).toBeUndefined();
+        });
+
+        it("unlinkEvent clears every link field", () => {
+            const a = saveLog(base());
+            linkEvent(a.id, { eventId: "ev1", eventLabel: "SSC/TK", eventStartTime: 1785000000, source: "auto" });
+            const cleared = unlinkEvent(a.id);
+            expect(cleared.eventId).toBeUndefined();
+            expect(cleared.eventLabel).toBeUndefined();
+            expect(cleared.eventStartTime).toBeUndefined();
+            expect(cleared.eventLinkSource).toBeUndefined();
+            expect(cleared.eventLinkedAt).toBeUndefined();
+            expect(getLog(a.id).eventId).toBeUndefined();
+        });
+
+        it("unlinkEvent is a no-op without a link / for an unknown id", () => {
+            const a = saveLog(base());
+            const writes = fs.writeFileSync.mock.calls.length;
+            expect(unlinkEvent(a.id)).toBeNull();
+            expect(unlinkEvent("nope")).toBeNull();
+            expect(fs.writeFileSync.mock.calls.length).toBe(writes);
+        });
+    });
+
+    describe("listLogsForEvent", () => {
+        it("returns only the logs linked to that event", () => {
+            const a = saveLog(base({ reportId: "R1" }));
+            const b = saveLog(base({ reportId: "R2", messageId: "m2" }));
+            saveLog(base({ reportId: "R3", messageId: "m3" }));
+            linkEvent(a.id, { eventId: "ev1" });
+            linkEvent(b.id, { eventId: "ev2" });
+            expect(listLogsForEvent("ev1").map((l) => l.reportId)).toEqual(["R1"]);
+            expect(listLogsForEvent("ev2").map((l) => l.reportId)).toEqual(["R2"]);
+            expect(listLogsForEvent("")).toEqual([]);
+            expect(listLogsForEvent("unknown")).toEqual([]);
         });
     });
 
