@@ -127,6 +127,9 @@ const ADMIN_STYLE = `<style>
   .btn-danger { background:var(--high-bg); color:var(--high); border:1px solid var(--high); }
   .btn-danger:hover { filter:none; background:var(--high); color:#fff; box-shadow:0 4px 22px -8px var(--high); transform:translateY(-1px); }
   .btn-sm { padding:6px 12px; font-size:13px; }
+  /* round icon-only row action (open / delete a log entry) */
+  .btn-icon { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; padding:0; border-radius:9px; flex:0 0 auto; }
+  .btn-icon svg { width:16px; height:16px; }
   @media (prefers-reduced-motion:reduce) {
     input[type=checkbox]:checked::after, .switch-thumb, .btn, .navcard, .rolebox,
     .field input, .field textarea, .field select, .emoji-panel { transition:none !important; animation:none !important; }
@@ -360,6 +363,20 @@ const NAV_ICONS = {
     settings: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z\"/></svg>",
     history: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 3v5h5\"/><path d=\"M3.05 13A9 9 0 1 0 6 5.3L3 8\"/><path d=\"M12 7v5l3 2\"/></svg>",
 };
+
+// icon-only row actions (log lists: open the evaluation / delete the tracked log)
+const ACTION_ICONS = {
+    open: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6\"/><path d=\"M15 3h6v6\"/><path d=\"M10 14 21 3\"/></svg>",
+    trash: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 6h18\"/><path d=\"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2\"/><path d=\"m19 6-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6\"/><path d=\"M10 11v6M14 11v6\"/></svg>",
+};
+
+// A small round icon-only button for a row action (open / delete). `kind` picks the
+// color scheme ("ghost" = neutral, "danger" = destructive); `label` is used for the
+// tooltip and accessible name since the icon alone carries no text.
+function iconBtn(tag, kind, icon, label, attrs = "") {
+    const cls = `btn btn-icon ${kind === "danger" ? "btn-danger" : "btn-ghost"}`;
+    return `<${tag} class="${cls}" title="${esc(label)}" aria-label="${esc(label)}" ${attrs}>${ACTION_ICONS[icon]}</${tag}>`;
+}
 
 const TABS = [
     { id: "home", label: "Übersicht", href: "/", group: "Verwaltung" },
@@ -1237,7 +1254,7 @@ function logRow(l, csrfField) {
         : "<span class=\"pill\">offen</span>";
     const action = l.status === "done"
         ? (l.reportUrl || l.reportRefId
-            ? `<a class="btn btn-ghost" href="${esc(l.reportUrl || `/r/${l.reportRefId}`)}">Öffnen</a>`
+            ? iconBtn("a", "ghost", "open", "Öffnen", `href="${esc(l.reportUrl || `/r/${l.reportRefId}`)}"`)
             : "")
         : `<form method="POST" action="/admin/cla/eval" style="margin:0" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Läuft …'">
              ${csrfField}<input type="hidden" name="logId" value="${esc(l.id)}">
@@ -1248,19 +1265,18 @@ function logRow(l, csrfField) {
         : "<span class=\"sub\">—</span>";
     return `<tr>
       <td>${logCell}</td>
-      <td class="small">${esc(l.reportId || "")}</td>
       <td>${category}</td>
       <td>${logEventCell(l, csrfField)}</td>
       <td>${src}</td>
       <td>${status}</td>
       <td class="small">${esc(when)}</td>
-      <td class="row-actions">
+      <td class="cell-actions"><div class="row-actions" style="justify-content:flex-end">
         ${action}
         <form method="POST" action="/admin/cla/log-delete" style="margin:0" onsubmit="return confirm('Log aus der Liste entfernen?')">
           ${csrfField}<input type="hidden" name="logId" value="${esc(l.id)}">
-          <button class="btn btn-danger" type="submit">×</button>
+          ${iconBtn("button", "danger", "trash", "Löschen", "type=\"submit\"")}
         </form>
-      </td>
+      </div></td>
     </tr>`;
 }
 
@@ -1335,7 +1351,6 @@ function renderCla(user, opts = {}) {
                 ? `<table class="idx">
                      <thead><tr>
                        ${lh("title", "Log")}
-                       <th>Report-ID</th>
                        <th>Kategorie</th>
                        <th>Event</th>
                        <th>Quelle</th>
@@ -2564,10 +2579,16 @@ function renderHistory(user, opts = {}) {
            </div>`
         : "<p class=\"sub\">Noch kein Loot importiert.</p>";
 
-    // --- tracked Warcraft Logs (direct links) ---
+    // --- tracked Warcraft Logs (direct links), formatted like CLA's "Erkannte Logs" ---
     const logRows = logs.map((l) => {
         const url = logWclUrl(l);
         const when = logPostedAt(l);
+        const status = l.status === "done"
+            ? "<span class=\"pill\" style=\"background:var(--good-bg);color:var(--good)\">ausgewertet</span>"
+            : "<span class=\"pill\">offen</span>";
+        const openAction = (l.status === "done" && (l.reportUrl || l.reportRefId))
+            ? iconBtn("a", "ghost", "open", "Öffnen", `href="${esc(l.reportUrl || `/r/${l.reportRefId}`)}"`)
+            : "";
         return `<tr>
           <td>${url ? `<a class="mlink" href="${esc(url)}" target="_blank" rel="noopener">${esc(l.title || l.reportId || "(Log)")} ↗</a>` : esc(l.title || "(Log)")}</td>
           <td class="small">${esc(when ? new Date(when).toLocaleDateString("de-DE", { timeZone: DISPLAY_TZ }) : "")}</td>
@@ -2575,13 +2596,21 @@ function renderHistory(user, opts = {}) {
           <td class="small">${l.eventId
         ? `<span class="pill" title="${esc(l.eventStartTime ? formatEventTime(l.eventStartTime) : "")}">${esc(l.eventLabel || l.eventId)}</span>`
         : "<span class=\"sub\">—</span>"}</td>
+          <td>${status}</td>
+          <td class="cell-actions"><div class="row-actions" style="justify-content:flex-end">
+            ${openAction}
+            <form method="POST" action="/admin/history/log-delete" style="margin:0" onsubmit="return confirm('Log aus der Liste entfernen?')">
+              ${csrfField}<input type="hidden" name="logId" value="${esc(l.id)}">
+              ${iconBtn("button", "danger", "trash", "Löschen", "type=\"submit\"")}
+            </form>
+          </div></td>
         </tr>`;
     }).join("");
     const logsSection = logs.length
         ? `<div class="dash-card" style="margin-bottom:18px">
              <div class="dash-card-head"><h3>Warcraft Logs</h3><span class="small" style="margin-left:auto">${logs.length}</span></div>
              <table class="idx" style="margin:0">
-               <thead><tr><th>Log</th><th>Datum</th><th>Zone</th><th>Event</th></tr></thead>
+               <thead><tr><th>Log</th><th>Datum</th><th>Zone</th><th>Event</th><th>Status</th><th></th></tr></thead>
                <tbody>${logRows}</tbody>
              </table>
            </div>`
@@ -2597,13 +2626,14 @@ function renderHistory(user, opts = {}) {
         <div class="row-actions" style="padding:14px 16px">${charChips}</div>
       </div>`;
 
+    const activeTab = opts.tab || "raids";
     const body = `
       <p class="note">Loot pro Event importieren (RCLootcouncil-JSON oder Gargul-CSV), Warcraft-Logs verlinken und pro Charakter die Loot-Historie samt Armory einsehen.</p>
       ${tabGroup("historyTabs", [
-        { id: "raids", label: `Alle Raids${tabCount(upcomingRaids.events.length + pastRaids.events.length)}`, content: raidsSection, active: true },
-        { id: "import", label: "Import", content: importPanel },
-        { id: "loot", label: `Importierter Loot${tabCount(lootEvents.length)}`, content: lootSection },
-        { id: "logs", label: `Warcraft Logs${tabCount(logs.length)}`, content: logsSection },
+        { id: "raids", label: `Alle Raids${tabCount(upcomingRaids.events.length + pastRaids.events.length)}`, content: raidsSection, active: activeTab === "raids" },
+        { id: "import", label: "Import", content: importPanel, active: activeTab === "import" },
+        { id: "loot", label: `Importierter Loot${tabCount(lootEvents.length)}`, content: lootSection, active: activeTab === "loot" },
+        { id: "logs", label: `Warcraft Logs${tabCount(logs.length)}`, content: logsSection, active: activeTab === "logs" },
         { id: "cats", label: "Loot-Tools", content: categorySection },
         { id: "chars", label: `Charaktere${tabCount(chars.length)}`, content: charSection },
     ])}`;
