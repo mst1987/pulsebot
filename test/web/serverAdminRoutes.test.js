@@ -905,6 +905,48 @@ describe("raidsheet post-to-channel route", () => {
     });
 });
 
+describe("softres post-to-channel route", () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+        auth.checkCsrf.mockReturnValue(true);
+        auth.getActiveGuild.mockReturnValue("g1");
+        mockGetAllEvents.mockResolvedValue([
+            { id: "e1", channelId: "c1", title: "SSC&TK&Gruul", startTime: 100, leaderId: "u1", signUps: [] },
+        ]);
+        discord.getChannelCategoryMap.mockReturnValue({
+            c1: { name: "ssc-tk", categoryId: "cat", categoryName: "PUG Raids" },
+        });
+    });
+
+    it("posts the softres link into the event channel with the optional message", async () => {
+        mockGetEventSoftres.mockReturnValue({ eventId: "e1", url: "https://softres.it/raid/r1" });
+        const res = await request("POST", "/admin/raids/post-softres", { event: "e1", message: "SR eintragen" });
+        expect(discord.postLink).toHaveBeenCalledWith("c1", expect.objectContaining({
+            url: "https://softres.it/raid/r1",
+            message: "SR eintragen",
+            title: expect.stringContaining("SSC&TK&Gruul"),
+            label: "Softres öffnen",
+        }));
+        expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&ok=");
+    });
+
+    it("errors when no softres list exists yet", async () => {
+        mockGetEventSoftres.mockReturnValue(null);
+        const res = await request("POST", "/admin/raids/post-softres", { event: "e1" });
+        expect(discord.postLink).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&err=");
+    });
+
+    it("rejects a bad CSRF token", async () => {
+        mockGetEventSoftres.mockReturnValue({ eventId: "e1", url: "https://softres.it/raid/r1" });
+        auth.checkCsrf.mockReturnValueOnce(false);
+        const res = await request("POST", "/admin/raids/post-softres", { event: "e1" });
+        expect(discord.postLink).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("msg=csrf");
+    });
+});
+
 describe("softres routes", () => {
     beforeEach(() => {
         jest.clearAllMocks();

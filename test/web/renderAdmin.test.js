@@ -643,6 +643,46 @@ describe("web/renderAdmin", () => {
             expect(html).not.toContain("class=\"btn sheet-btn\"");
         });
 
+        // --- header quick-action buttons (open/post sheet & softres) ---
+        const tbcCatalogue = [{ edition: "tbc", label: "The Burning Crusade", instances: [{ code: "kara", name: "Karazhan" }, { code: "gruul", name: "Gruul's Lair" }] }];
+
+        it("shows a 'Softres erstellen' button in the header when no softres exists", () => {
+            const html = renderEventDetail(user, { ...base, softresCatalogue: tbcCatalogue, softresSuggested: [] });
+            expect(html).toContain("Softres erstellen");
+            expect(html).not.toContain("action=\"/admin/raids/post-softres\"");
+        });
+
+        it("shows 'Sheet posten', 'Softres öffnen' and 'Softres posten' in the header when both exist", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                softresCatalogue: tbcCatalogue,
+                eventSheet: { eventId: "e1", url: "https://docs.google.com/x" },
+                eventSoftres: { url: "https://softres.it/raid/r1", editUrl: "https://softres.it/raid/r1/t1", amount: 2, instances: ["kara"] },
+            });
+            expect(html).toContain("action=\"/admin/raids/post-sheet\"");
+            expect(html).toContain("📤 Sheet posten");
+            expect(html).toContain("Softres öffnen");
+            expect(html).toContain("action=\"/admin/raids/post-softres\"");
+            expect(html).toContain("📤 Softres posten");
+            expect(html).not.toContain("Softres erstellen");
+        });
+
+        it("preselects Horde and offers only TBC instances in the softres form", () => {
+            const html = renderEventDetail(user, { ...base, softresCatalogue: tbcCatalogue, softresSuggested: ["kara"] });
+            expect(html).toContain("value=\"Horde\" selected");
+            expect(html).toContain("name=\"inst_kara\"");
+            expect(html).not.toContain("name=\"inst_mc\"");
+            // suggested instance pre-checked
+            expect(html).toContain("name=\"inst_kara\" value=\"1\" data-edition=\"tbc\" class=\"softres-inst\" checked");
+        });
+
+        it("gives the HR item dropdown a solid (defined) background, not the undefined --card var", () => {
+            const html = renderEventDetail(user, { ...base, softresCatalogue: tbcCatalogue });
+            expect(html).toContain("id=\"hrResults\"");
+            expect(html).toContain("background:var(--panel)");
+            expect(html).not.toContain("var(--card)");
+        });
+
         it("falls back to a free-text Tank-3 field when no candidates exist", () => {
             const html = renderEventDetail(user, {
                 ...base,
