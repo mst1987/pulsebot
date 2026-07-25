@@ -260,9 +260,10 @@ async function duplicateChannel(channelId, newName) {
 }
 
 /**
- * Build a recruitment message payload from a template. Faithfully round-trips
- * both the plain message text (`content`, where emojis usually live) and an
- * optional embed (title + description), plus the apply button.
+ * Build a recruitment message payload from a template: plain message text
+ * (`content`, where emojis usually live) plus the apply button. No embed —
+ * `embeds: []` also clears any embed a message still had from before this
+ * was the case (e.g. one added by hand in Discord).
  */
 function buildRecruitmentMessage(template) {
     const row = new ActionRowBuilder().addComponents(
@@ -271,17 +272,7 @@ function buildRecruitmentMessage(template) {
             .setLabel(template.buttonLabel || "Jetzt bewerben")
             .setStyle(ButtonStyle.Success)
     );
-    const payload = { content: template.content || "", components: [row] };
-    if (template.title || template.body) {
-        const embed = new EmbedBuilder().setColor(0x5865F2);
-        if (template.title) embed.setTitle(template.title);
-        if (template.body) embed.setDescription(template.body);
-        payload.embeds = [embed];
-    } else {
-        // no embed → clear any existing one when editing (message keeps its content)
-        payload.embeds = [];
-    }
-    return payload;
+    return { content: template.content || "", embeds: [], components: [row] };
 }
 
 /** Post a recruitment template to a channel. Returns { guildId, channelId, messageId, url }. */
