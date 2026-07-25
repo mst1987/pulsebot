@@ -94,6 +94,18 @@ jest.mock("../../src/classes/drive", () =>
         deleteFile: mockDeleteFile,
     })));
 jest.mock("../../src/utils/sheetCleanup", () => ({ startSheetCleanup: jest.fn() }));
+const mockScanRaidEvents = jest.fn(async () => ({ scanned: 0, error: null }));
+jest.mock("../../src/web/raidEventScan", () => ({
+    scanRaidEvents: (...a) => mockScanRaidEvents(...a),
+    scanAllGuilds: jest.fn(),
+    startRaidEventScan: jest.fn(),
+}));
+const mockListRaidEvents = jest.fn(() => []);
+jest.mock("../../src/web/raidEventStore", () => ({
+    listRaidEvents: (...a) => mockListRaidEvents(...a),
+    getRaidEvent: jest.fn(),
+    saveRaidEvents: jest.fn(),
+}));
 jest.mock("../../src/web/discord", () => ({
     setClient: jest.fn(),
     listGuilds: jest.fn(() => [{ id: "g1", name: "G" }]),
@@ -167,7 +179,6 @@ const discord = require("../../src/web/discord");
 const auth = require("../../src/web/auth");
 const renderAdmin = require("../../src/web/renderAdmin");
 const logStore = require("../../src/web/logStore");
-const { RECENT_WINDOW_DAYS } = require("../../src/web/recentEvents");
 const { startWebServer } = require("../../src/web/server.js");
 
 startWebServer();
@@ -626,13 +637,16 @@ describe("dashboard latest (past) events (GET /)", () => {
     const secs = (msAgo) => Math.floor((NOW - msAgo) / 1000);
     let nowSpy;
 
+    const storedEvent = (over = {}) => ({
+        id: "e1", guildId: "g1", title: "Kara", channelId: "c1", channelName: "kara",
+        categoryId: "cat", categoryName: "Raids", startTime: secs(2 * HOUR), ...over,
+    });
+
     beforeEach(() => {
         nowSpy = jest.spyOn(Date, "now").mockReturnValue(NOW);
         renderAdmin.renderDashboard.mockClear();
-        discord.getChannelCategoryMap.mockReturnValue({
-            c1: { name: "kara", categoryId: "cat", categoryName: "Raids" },
-            c2: { name: "gruul", categoryId: "cat", categoryName: "Raids" },
-        });
+        mockScanRaidEvents.mockReset().mockResolvedValue({ scanned: 0, error: null });
+        mockListRaidEvents.mockReset().mockReturnValue([]);
         logStore.listLogs.mockReturnValue([]);
         mockListLootByEvent.mockReturnValue([]);
         mockGetEventSoftres.mockReturnValue(null);
@@ -641,15 +655,13 @@ describe("dashboard latest (past) events (GET /)", () => {
 
     const recentFromLastRender = () => renderAdmin.renderDashboard.mock.calls.at(-1)[1].recentEvents;
 
-    it("asks Raid-Helper for events since the lookback window", async () => {
+    it("scans for newly finished events before reading the store", async () => {
         await request("GET", "/");
-        expect(mockGetPastEvents).toHaveBeenCalledWith(Math.floor(NOW / 1000) - RECENT_WINDOW_DAYS * 86400);
+        expect(mockScanRaidEvents).toHaveBeenCalledWith("g1");
     });
 
-    it("lists past events of the active guild with channel and category", async () => {
-        mockGetPastEvents.mockResolvedValueOnce([
-            { id: "e1", channelId: "c1", title: "Kara", startTime: secs(2 * HOUR) },
-        ]);
+    it("lists stored past events of the active guild with channel and category", async () => {
+        mockListRaidEvents.mockReturnValue([storedEvent()]);
         const res = await request("GET", "/");
         expect(res.end).toHaveBeenCalledWith("DASHBOARD");
         const recent = recentFromLastRender();
@@ -660,18 +672,8 @@ describe("dashboard latest (past) events (GET /)", () => {
         });
     });
 
-    it("ignores events whose channel is not in the active guild", async () => {
-        mockGetPastEvents.mockResolvedValueOnce([
-            { id: "e1", channelId: "elsewhere", title: "Fremd", startTime: secs(HOUR) },
-        ]);
-        await request("GET", "/");
-        expect(recentFromLastRender().events).toEqual([]);
-    });
-
     it("attaches the logs posted around the raid and skips unrelated ones", async () => {
-        mockGetPastEvents.mockResolvedValueOnce([
-            { id: "e1", channelId: "c1", title: "Kara", startTime: secs(6 * HOUR) },
-        ]);
+        mockListRaidEvents.mockReturnValue([storedEvent({ startTime: secs(6 * HOUR) })]);
         logStore.listLogs.mockReturnValue([
             { id: "l1", guildId: "g1", reportId: "abc", postedAt: NOW - 3 * HOUR },
             { id: "l2", guildId: "g1", reportId: "old", postedAt: NOW - 20 * 24 * HOUR },
@@ -681,9 +683,7 @@ describe("dashboard latest (past) events (GET /)", () => {
     });
 
     it("ignores logs tracked for another guild", async () => {
-        mockGetPastEvents.mockResolvedValueOnce([
-            { id: "e1", channelId: "c1", title: "Kara", startTime: secs(2 * HOUR) },
-        ]);
+        mockListRaidEvents.mockReturnValue([storedEvent()]);
         logStore.listLogs.mockReturnValue([
             { id: "other", guildId: "g2", reportId: "abc", postedAt: NOW - HOUR },
         ]);
@@ -694,18 +694,14 @@ describe("dashboard latest (past) events (GET /)", () => {
     it("derives a log's post time from its message id when postedAt is missing", async () => {
         // snowflake for NOW - 1h (Discord epoch 1420070400000)
         const messageId = String((BigInt(NOW - HOUR - 1420070400000) << 22n));
-        mockGetPastEvents.mockResolvedValueOnce([
-            { id: "e1", channelId: "c1", title: "Kara", startTime: secs(2 * HOUR) },
-        ]);
+        mockListRaidEvents.mockReturnValue([storedEvent()]);
         logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "g1", reportId: "abc", messageId }]);
         await request("GET", "/");
         expect(recentFromLastRender().events[0].logs.map((l) => l.id)).toEqual(["l1"]);
     });
 
     it("annotates the imported loot count and the softres list", async () => {
-        mockGetPastEvents.mockResolvedValueOnce([
-            { id: "e1", channelId: "c1", title: "Kara", startTime: secs(2 * HOUR) },
-        ]);
+        mockListRaidEvents.mockReturnValue([storedEvent()]);
         mockListLootByEvent.mockReturnValue([{ id: "i1" }, { id: "i2" }]);
         mockGetEventSoftres.mockReturnValue({ eventId: "e1", url: "https://softres.it/raid/r1" });
         await request("GET", "/");
@@ -715,19 +711,30 @@ describe("dashboard latest (past) events (GET /)", () => {
         expect(ev.softres).toMatchObject({ url: "https://softres.it/raid/r1" });
     });
 
-    it("reports an error when the Raid-Helper API throws", async () => {
-        mockGetPastEvents.mockRejectedValueOnce(new Error("API kaputt"));
+    it("still shows stored events when today's scan fails", async () => {
+        mockScanRaidEvents.mockResolvedValue({ scanned: 0, error: "API kaputt" });
+        mockListRaidEvents.mockReturnValue([storedEvent()]);
+        await request("GET", "/");
+        const recent = recentFromLastRender();
+        expect(recent.events).toHaveLength(1);
+        expect(recent.error).toBeNull();
+    });
+
+    it("surfaces the scan error only when nothing has been stored yet", async () => {
+        mockScanRaidEvents.mockResolvedValue({ scanned: 0, error: "API kaputt" });
+        mockListRaidEvents.mockReturnValue([]);
         await request("GET", "/");
         const recent = recentFromLastRender();
         expect(recent.events).toEqual([]);
         expect(recent.error).toContain("API kaputt");
     });
 
-    it("skips the Raid-Helper call entirely when no server is selected", async () => {
+    it("skips the scan and store lookup entirely when no server is selected", async () => {
         auth.getActiveGuild.mockReturnValue("");
         discord.listGuilds.mockReturnValueOnce([{ id: "g1" }, { id: "g2" }]);
         await request("GET", "/");
-        expect(mockGetPastEvents).not.toHaveBeenCalled();
+        expect(mockScanRaidEvents).not.toHaveBeenCalled();
+        expect(mockListRaidEvents).not.toHaveBeenCalled();
         expect(recentFromLastRender()).toEqual({ events: [], error: null });
     });
 });
