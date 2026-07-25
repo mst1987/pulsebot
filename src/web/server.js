@@ -66,13 +66,21 @@ function activeGuildFor(req) {
     return guilds.length === 1 ? guilds[0].id : "";
 }
 
-// Fetch all upcoming Raid-Helper events for a guild and group them by the
-// Discord category their channel lives in. Returns { groups, error }.
-async function loadEventGroups(guildId) {
+// How far back events are looked up when a past raid has to be found again — for
+// the log→event assignment and for the event detail page, which the dashboard's
+// "Latest Events" card links to.
+const EVENT_LOOKBACK_DAYS = 60;
+const eventLookbackSince = () => Math.floor(Date.now() / 1000) - EVENT_LOOKBACK_DAYS * 24 * 60 * 60;
+
+// Fetch the guild's Raid-Helper events and group them by the Discord category
+// their channel lives in. By default only UPCOMING events (Raid-Helper filters by
+// start time); pass `sinceSeconds` to include raids that already took place.
+// Returns { groups, error }.
+async function loadEventGroups(guildId, { sinceSeconds } = {}) {
     if (!guildId) return { groups: [], error: null };
     try {
         const rh = new Raidhelper();
-        const events = await rh.getAllEvents();
+        const events = sinceSeconds ? await rh.fetchEvents(sinceSeconds) : await rh.getAllEvents();
         const catMap = discord.getChannelCategoryMap(guildId);
         const byCat = new Map();
         for (const ev of events) {
@@ -103,13 +111,9 @@ async function loadEventGroups(guildId) {
     }
 }
 
-// How far back events are fetched when logs are assigned to events. Reaches well
-// past the dashboard's window so older logs can still be filed by hand.
-const LOG_MATCH_WINDOW_DAYS = 60;
-
 // Flat list of the guild's already started raids that a detected log could belong
 // to, newest start first. Returns { events, error }.
-async function loadMatchableEvents(guildId, days = LOG_MATCH_WINDOW_DAYS) {
+async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
     if (!guildId) return { events: [], error: null };
     try {
         const rh = new Raidhelper();
@@ -793,7 +797,8 @@ async function handle(req, res) {
         if (!user) return;
         const guildId = activeGuildFor(req);
         const eventId = (url.searchParams.get("event") || "").trim();
-        const { groups, error } = await loadEventGroups(guildId);
+        // Include past raids: the dashboard's "Latest Events" card links here.
+        const { groups, error } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
         if (error) return redirect(res, `/admin/raids?err=${encodeURIComponent(error)}`);
         const found = groups.flatMap((g) => g.events.map((e) => ({ e, g }))).find((x) => x.e.id === eventId);
         if (!found) return redirect(res, `/admin/raids?err=${encodeURIComponent("Event nicht gefunden.")}`);
@@ -885,7 +890,7 @@ async function handle(req, res) {
         const back = `/admin/raids/detail?event=${encodeURIComponent(eventId)}`;
         if (!auth.checkCsrf(req, form._csrf)) return redirect(res, `${back}&msg=csrf`);
         const guildId = activeGuildFor(req);
-        const { groups, error } = await loadEventGroups(guildId);
+        const { groups, error } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
         if (error) return redirect(res, `${back}&err=${encodeURIComponent(error)}`);
         const found = groups.flatMap((g) => g.events.map((e) => ({ e, g }))).find((x) => x.e.id === eventId);
         if (!found) return redirect(res, `${back}&err=${encodeURIComponent("Event nicht gefunden.")}`);
@@ -985,7 +990,8 @@ async function handle(req, res) {
         const es = getEventSheet(eventId);
         if (!es || !es.url) return redirect(res, `${back}&err=${encodeURIComponent("Für dieses Event gibt es noch kein gefülltes Sheet.")}`);
         // Resolve the event's channel + title server-side; never trust posted ids.
-        const { groups, error } = await loadEventGroups(activeGuildFor(req));
+        // Past raids included — the detail page is reachable for them too.
+        const { groups, error } = await loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
         if (error) return redirect(res, `${back}&err=${encodeURIComponent(error)}`);
         const found = groups.flatMap((g) => g.events).find((e) => e.id === eventId);
         if (!found) return redirect(res, `${back}&err=${encodeURIComponent("Event nicht gefunden.")}`);
@@ -1015,7 +1021,8 @@ async function handle(req, res) {
         const sr = getEventSoftres(eventId);
         if (!sr || !sr.url) return redirect(res, `${back}&err=${encodeURIComponent("Für dieses Event gibt es noch keine Softres-Liste.")}`);
         // Resolve the event's channel + title server-side; never trust posted ids.
-        const { groups, error } = await loadEventGroups(activeGuildFor(req));
+        // Past raids included — the detail page is reachable for them too.
+        const { groups, error } = await loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
         if (error) return redirect(res, `${back}&err=${encodeURIComponent(error)}`);
         const found = groups.flatMap((g) => g.events).find((e) => e.id === eventId);
         if (!found) return redirect(res, `${back}&err=${encodeURIComponent("Event nicht gefunden.")}`);

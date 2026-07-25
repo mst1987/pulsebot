@@ -6,6 +6,7 @@ const mockGetTemplates = jest.fn();
 const mockGetSetup = jest.fn();
 const mockGetAllEvents = jest.fn();
 const mockGetPastEvents = jest.fn();
+const mockFetchEvents = jest.fn();
 const mockCreateEvent = jest.fn();
 const mockGetEventSheet = jest.fn(() => null);
 const mockMarkEventSheetFilled = jest.fn();
@@ -116,6 +117,7 @@ jest.mock("../../src/classes/raidhelper", () =>
         getSetup: mockGetSetup,
         getAllEvents: mockGetAllEvents,
         getPastEvents: mockGetPastEvents,
+        fetchEvents: mockFetchEvents,
         createEvent: mockCreateEvent,
     })));
 jest.mock("../../src/classes/sheets", () => jest.fn().mockImplementation((cfg) => ({ cfg })));
@@ -210,6 +212,12 @@ beforeEach(() => {
     mockGetAllEvents.mockResolvedValue([]);
     mockGetPastEvents.mockReset();
     mockGetPastEvents.mockResolvedValue([]);
+    // Routes that must also find already finished raids (the event detail page and
+    // its actions) go through fetchEvents with a backdated filter. By default it
+    // serves the same events as getAllEvents, so tests that only care about the
+    // event itself stay unchanged; the lookback is asserted explicitly below.
+    mockFetchEvents.mockReset();
+    mockFetchEvents.mockImplementation((since) => mockGetAllEvents(since));
     mockGetSetup.mockReset();
     mockGetEventSheet.mockReset();
     mockGetEventSheet.mockReturnValue(null);
@@ -414,6 +422,27 @@ describe("event detail route (setup)", () => {
         await request("GET", "/admin/raids/detail?event=e1");
         const opts = renderAdmin.renderEventDetail.mock.calls[0][1];
         expect(opts.eventSheet).toMatchObject({ eventId: "e1", url: "u" });
+    });
+
+    // The dashboard's "Latest Events" card links here, so a raid that is already
+    // over must open too — Raid-Helper only returns those with a backdated filter.
+    it("also opens an event that already took place", async () => {
+        mockGetSetup.mockResolvedValueOnce({ setup: [] });
+        const past = Math.floor(Date.now() / 1000) - 5 * 86400;
+        mockFetchEvents.mockResolvedValueOnce([
+            { id: "old1", channelId: "c1", title: "Kara letzte Woche", startTime: past, signUps: [] },
+        ]);
+        const res = await request("GET", "/admin/raids/detail?event=old1");
+        expect(res.end).toHaveBeenCalledWith("EVENTDETAIL");
+        const since = mockFetchEvents.mock.calls[0][0];
+        expect(since).toBeLessThan(Math.floor(Date.now() / 1000) - 7 * 86400);
+        expect(renderAdmin.renderEventDetail.mock.calls[0][1].event.id).toBe("old1");
+    });
+
+    it("still redirects when the event is in neither the past nor the future window", async () => {
+        mockFetchEvents.mockResolvedValueOnce([]);
+        const res = await request("GET", "/admin/raids/detail?event=nope");
+        expect(redirectTo(res)).toContain("/admin/raids?err=");
     });
 });
 
