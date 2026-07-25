@@ -531,6 +531,36 @@ async function finishLogButton(channelId, messageId, { reportUrl, title } = {}) 
     }
 }
 
+/**
+ * Post a raidsheet / softres link into a channel, optionally preceded by a
+ * custom message. Renders an embed with a link button so raiders can open the
+ * sheet in one click. Used by the event-detail "in Channel posten" buttons.
+ * @param {string} channelId target text channel
+ * @param {object} opts { url, title, message, label, emoji }
+ * @returns {Promise<{channelId: string, messageId: string, url: string}>}
+ */
+async function postLink(channelId, { url, title, message, label = "Öffnen", emoji = "📄" } = {}) {
+    if (!client) throw new Error("Bot nicht verbunden.");
+    if (!url) throw new Error("Kein Link vorhanden.");
+    const channel = await client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden oder kein Textkanal.");
+
+    const embed = new EmbedBuilder()
+        .setColor(0x1f9d55)
+        .setTitle(`${emoji} ${title || "Link"}`)
+        .setURL(url)
+        .setDescription(`[${label}](${url})`);
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setLabel(label).setStyle(ButtonStyle.Link).setURL(url)
+    );
+    const payload = { embeds: [embed], components: [row] };
+    const text = String(message || "").trim();
+    if (text) payload.content = text;
+
+    const posted = await channel.send(payload);
+    return { channelId: channel.id, messageId: posted.id, url: posted.url };
+}
+
 module.exports = {
     setClient, getClient, listGuilds, getGuild, listTextChannels, listEmojis,
     listCategories, listAllChannels, createChannel, duplicateChannel,
@@ -540,4 +570,5 @@ module.exports = {
     isRecruitmentMessage, extractTemplate,
     listApplications, parseApplicationEmbed,
     postLogButton, finishLogButton, LOG_EVAL_PREFIX,
+    postLink,
 };

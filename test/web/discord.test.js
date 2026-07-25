@@ -226,6 +226,39 @@ describe("web/discord channel management", () => {
         });
     });
 
+    describe("postLink", () => {
+        it("posts an embed with a link button and no content when no message is given", async () => {
+            const send = jest.fn(async () => ({ id: "m9", url: "https://d/m9" }));
+            setClientWithGuild(makeGuild([]), jest.fn(async () => ({ id: "chan", isTextBased: () => true, send })));
+            const res = await discord.postLink("chan", { url: "https://sheet/1", title: "Raidsheet – MC", label: "Sheet öffnen" });
+            expect(res).toEqual({ channelId: "chan", messageId: "m9", url: "https://d/m9" });
+            const payload = send.mock.calls[0][0];
+            expect(payload.content).toBeUndefined();
+            expect(payload.embeds).toHaveLength(1);
+            expect(payload.components).toHaveLength(1);
+            const embedJson = payload.embeds[0].toJSON();
+            expect(embedJson.title).toContain("Raidsheet – MC");
+            expect(embedJson.url).toBe("https://sheet/1");
+        });
+
+        it("includes the optional message as content", async () => {
+            const send = jest.fn(async () => ({ id: "m1", url: "u" }));
+            setClientWithGuild(makeGuild([]), jest.fn(async () => ({ id: "chan", isTextBased: () => true, send })));
+            await discord.postLink("chan", { url: "https://sheet/1", title: "X", message: "  Bitte eintragen!  " });
+            expect(send.mock.calls[0][0].content).toBe("Bitte eintragen!");
+        });
+
+        it("throws without a url", async () => {
+            setClientWithGuild(makeGuild([]), jest.fn());
+            await expect(discord.postLink("chan", { url: "" })).rejects.toThrow("Kein Link");
+        });
+
+        it("throws when the bot is not connected", async () => {
+            discord.setClient(null);
+            await expect(discord.postLink("chan", { url: "https://x" })).rejects.toThrow("Bot nicht verbunden");
+        });
+    });
+
     describe("parseApplicationEmbed", () => {
         it("extracts every field the /apply flow writes, stripping class emoji markup", () => {
             const embed = {

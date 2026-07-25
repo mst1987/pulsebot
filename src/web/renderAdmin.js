@@ -308,10 +308,16 @@ function channelUrl(guildId, channelId) {
 function raidplanUrl(eventId) {
     return `https://raid-helper.xyz/raidplan/${esc(eventId)}`;
 }
+// The bot may run in a UTC container (the Docker image sets no TZ), so every
+// `toLocaleString` MUST pin the timeZone explicitly — otherwise German raid
+// times render in the host zone (2h early in summer). See date.js for the
+// Luxon-based formatters used elsewhere.
+const DISPLAY_TZ = "Europe/Berlin";
 function formatEventTime(startTime) {
     const secs = Number(startTime);
     if (!secs) return "";
     return new Date(secs * 1000).toLocaleString("de-DE", {
+        timeZone: DISPLAY_TZ,
         weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
     });
 }
@@ -378,7 +384,7 @@ function renderDashboard(user, opts = {}) {
     const n = (v) => esc(String(v || 0));
 
     const sheetBadge = (sheet) => sheet
-        ? `<span class="pill" style="background:var(--good-bg);color:var(--good)" title="Gefüllt am ${esc(new Date(sheet.filledAt).toLocaleString("de-DE"))}${sheet.playerCount ? ` · ${esc(sheet.playerCount)} Spieler` : ""}">Sheet ✓</span>`
+        ? `<span class="pill" style="background:var(--good-bg);color:var(--good)" title="Gefüllt am ${esc(new Date(sheet.filledAt).toLocaleString("de-DE", { timeZone: DISPLAY_TZ }))}${sheet.playerCount ? ` · ${esc(sheet.playerCount)} Spieler` : ""}">Sheet ✓</span>`
         : "<span class=\"pill\">Sheet fehlt</span>";
     const upcomingRows = upcoming.error
         ? `<tr><td colspan="4" class="sub" style="padding:16px;color:var(--high)">${esc(upcoming.error)}</td></tr>`
@@ -402,7 +408,7 @@ function renderDashboard(user, opts = {}) {
 
     const recentRows = recent.length
         ? recent.map((r) => {
-            const when = r.generatedAt ? new Date(r.generatedAt).toLocaleDateString("de-DE") : "";
+            const when = r.generatedAt ? new Date(r.generatedAt).toLocaleDateString("de-DE", { timeZone: DISPLAY_TZ }) : "";
             return `<tr>
               <td><a class="mlink" href="/r/${esc(r.id)}">${esc(r.title || r.id)}</a></td>
               <td>${esc(r.zone || "")}</td>
@@ -743,7 +749,7 @@ function logWclUrl(l) {
 // message id / postedAt), not when the bot detected it.
 function logRow(l, csrfField) {
     const posted = logPostedAt(l);
-    const when = posted ? new Date(posted).toLocaleString("de-DE") : "";
+    const when = posted ? new Date(posted).toLocaleString("de-DE", { timeZone: DISPLAY_TZ }) : "";
     const name = l.title || l.reportId || "(unbekannt)";
     const wclUrl = logWclUrl(l);
     // The log name itself IS the WCL link, so it can be checked before evaluating.
@@ -864,7 +870,7 @@ function renderCla(user, opts = {}) {
         const REPORT_DIR = { title: "asc", zone: "asc", date: "desc", players: "desc", issues: "desc" };
         const rh = (key, label) => claSortHeader("reports", rp, REPORT_DIR, key, label);
         const reportRow = (r) => {
-            const when = r.generatedAt ? new Date(r.generatedAt).toLocaleString("de-DE") : "";
+            const when = r.generatedAt ? new Date(r.generatedAt).toLocaleString("de-DE", { timeZone: DISPLAY_TZ }) : "";
             const wcl = r.reportUrl
                 ? `<a class="mlink" href="${esc(r.reportUrl)}" target="_blank" rel="noopener">WCL ↗</a>`
                 : "<span class=\"sub\">—</span>";
@@ -1389,6 +1395,114 @@ function renderEventDetail(user, opts = {}) {
             + pingForm;
     }
 
+    // --- Post the filled raidsheet link into the event channel (shown whenever a
+    // sheet exists, independent of whether raidsheet templates are configured) ---
+    const evSheet = opts.eventSheet;
+    const postSheetSection = evSheet && evSheet.url
+        ? `<form class="card-form" method="POST" action="/admin/raids/post-sheet" style="margin-top:8px" onsubmit="this.querySelector('button').disabled=true">
+        ${csrfField}
+        <input type="hidden" name="event" value="${esc(ev.id)}">
+        <div class="field">
+          <label>Nachricht (optional)</label>
+          <input type="text" name="message" placeholder="z. B. Das Raidsheet für heute Abend – bitte eintragen!">
+          <div class="hint">Postet den Sheet-Link (📄 mit Button) in #${esc(opts.channelName || ev.channelId)}.</div>
+        </div>
+        <div class="row-actions"><button class="btn" type="submit">📄 Sheet in Channel posten</button></div>
+      </form>`
+        : "<p class=\"sub\">Noch kein gefülltes Sheet vorhanden — fülle oben zuerst ein Raidsheet, dann kannst du den Link hier in den Channel posten.</p>";
+
+    // --- Softres (softres.it soft-reserve list) ---
+    const so = opts.eventSoftres;
+    const catalogue = opts.softresCatalogue || [];
+    const suggested = new Set(opts.softresSuggested || []);
+    const existingSoftres = so && so.url
+        ? `<div class="sheetcard" id="softres-existing">
+          <div><strong>Softres-Liste:</strong>
+            <a class="mlink" href="${esc(so.url)}" target="_blank" rel="noopener">Ansehen</a>
+            · <a class="mlink" href="${esc(so.editUrl)}" target="_blank" rel="noopener">Bearbeiten (mit Token)</a>
+          </div>
+          <div class="hint">${esc(String(so.amount || 1))} Softres/Spieler · ${esc(String((so.instances || []).length))} Instanz(en)${so.hardReserveCount ? ` · ${esc(String(so.hardReserveCount))} Hardreserve(s)` : ""}. Neu erstellen ersetzt den Link unten nicht automatisch auf softres.it.</div>
+        </div>`
+        : "";
+    const instGroups = catalogue.map((g) => `
+        <fieldset class="softres-ed" style="border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:0 0 10px">
+          <legend class="small" style="padding:0 6px">${esc(g.label)}</legend>
+          <div class="rolegrid">
+            ${g.instances.map((i) => `<label class="rolebox"><input type="checkbox" name="inst_${esc(i.code)}" value="1" data-edition="${esc(g.edition)}" class="softres-inst"${suggested.has(i.code) ? " checked" : ""}> ${esc(i.name)}</label>`).join("")}
+          </div>
+        </fieldset>`).join("");
+    const softresSection = existingSoftres + `
+      <form class="card-form" method="POST" action="/admin/raids/softres" onsubmit="this.querySelector('button[type=submit]').disabled=true;this.querySelector('button[type=submit]').textContent='Erstelle Softres …'">
+        ${csrfField}
+        <input type="hidden" name="event" value="${esc(ev.id)}">
+        <div class="field">
+          <label>Instanzen (Raids)</label>
+          ${instGroups}
+          <div class="hint">Aus dem Event-Titel vorausgewählt. Alle gewählten Instanzen müssen zur selben Erweiterung gehören — beim Ankreuzen wird die Auswahl automatisch auf eine Erweiterung beschränkt.</div>
+        </div>
+        <div class="field" style="max-width:220px"><label>Softres pro Spieler</label><input type="number" name="amount" min="1" max="6" value="1"></div>
+        <div class="field" style="max-width:220px"><label>Fraktion</label><select name="faction"><option value="Alliance">Alliance</option><option value="Horde">Horde</option></select></div>
+        <div class="field">
+          <label>Hardreserved Items (optional)</label>
+          <div style="position:relative">
+            <input type="text" id="hrSearch" placeholder="Item-Namen suchen (Wowhead) …" autocomplete="off">
+            <div id="hrResults" class="hr-results" style="display:none;position:absolute;z-index:20;left:0;right:0;background:var(--card);border:1px solid var(--line);border-radius:8px;max-height:260px;overflow:auto"></div>
+          </div>
+          <ul id="hrList" style="list-style:none;padding:0;margin:8px 0 0;display:flex;flex-direction:column;gap:6px"></ul>
+          <input type="hidden" name="hardReserves" id="hrData" value="[]">
+          <div class="hint">Diese Items werden auf softres.it als Hardreserve (gebannt für Softres) markiert.</div>
+        </div>
+        <div class="row-actions"><button class="btn" type="submit">Softres-Liste erstellen</button></div>
+      </form>
+      <script>(function(){
+        var boxes=[].slice.call(document.querySelectorAll(".softres-inst"));
+        function currentEdition(){ for(var i=0;i<boxes.length;i++){ if(boxes[i].checked) return boxes[i].getAttribute("data-edition"); } return "tbc"; }
+        boxes.forEach(function(b){ b.addEventListener("change",function(){
+          if(b.checked){ var ed=b.getAttribute("data-edition"); boxes.forEach(function(x){ if(x.getAttribute("data-edition")!==ed) x.checked=false; }); }
+        }); });
+        var search=document.getElementById("hrSearch");
+        var results=document.getElementById("hrResults");
+        var listEl=document.getElementById("hrList");
+        var dataEl=document.getElementById("hrData");
+        var items=[]; var t=null;
+        function save(){ dataEl.value=JSON.stringify(items.map(function(i){return {id:i.id,name:i.name};})); render(); }
+        function render(){
+          listEl.innerHTML="";
+          items.forEach(function(it,idx){
+            var li=document.createElement("li");
+            li.className="rolebox"; li.style.display="flex"; li.style.justifyContent="space-between"; li.style.alignItems="center";
+            var left=document.createElement("span");
+            if(it.iconUrl){ var img=document.createElement("img"); img.src=it.iconUrl; img.width=18; img.height=18; img.style.verticalAlign="middle"; img.style.marginRight="6px"; img.style.borderRadius="3px"; left.appendChild(img); }
+            left.appendChild(document.createTextNode(it.name+" (#"+it.id+")"));
+            var rm=document.createElement("button"); rm.type="button"; rm.textContent="✕"; rm.className="btn"; rm.style.padding="2px 8px";
+            rm.addEventListener("click",function(){ items.splice(idx,1); save(); });
+            li.appendChild(left); li.appendChild(rm); listEl.appendChild(li);
+          });
+        }
+        function pick(it){ if(!items.some(function(x){return x.id===it.id;})) items.push(it); search.value=""; results.style.display="none"; results.innerHTML=""; save(); }
+        function query(q){
+          fetch("/admin/raids/softres/item-search?edition="+encodeURIComponent(currentEdition())+"&q="+encodeURIComponent(q))
+            .then(function(r){return r.json();}).then(function(d){
+              var list=(d&&d.items)||[]; results.innerHTML="";
+              if(!list.length){ results.style.display="none"; return; }
+              list.forEach(function(it){
+                var row=document.createElement("div"); row.style.padding="6px 10px"; row.style.cursor="pointer"; row.className="hr-row";
+                if(it.iconUrl){ var img=document.createElement("img"); img.src=it.iconUrl; img.width=18; img.height=18; img.style.verticalAlign="middle"; img.style.marginRight="6px"; img.style.borderRadius="3px"; row.appendChild(img); }
+                row.appendChild(document.createTextNode(it.name));
+                row.addEventListener("mousedown",function(e){ e.preventDefault(); pick(it); });
+                results.appendChild(row);
+              });
+              results.style.display="block";
+            })["catch"](function(){ results.style.display="none"; });
+        }
+        if(search){ search.addEventListener("input",function(){
+          var q=search.value.trim(); clearTimeout(t);
+          if(q.length<2){ results.style.display="none"; return; }
+          t=setTimeout(function(){ query(q); },250);
+        });
+        search.addEventListener("blur",function(){ setTimeout(function(){ results.style.display="none"; },200); }); }
+      })();</script>`;
+
     const body = `
       <p class="note"><a class="mlink" href="/admin/raids">← Zurück zur Event-Übersicht</a></p>
       ${meta}
@@ -1396,6 +1510,7 @@ function renderEventDetail(user, opts = {}) {
         <button type="button" class="tab-btn active" data-tab="setup" role="tab">Setup</button>
         <button type="button" class="tab-btn" data-tab="attendance" role="tab">Anwesenheit</button>
         <button type="button" class="tab-btn" data-tab="actions" role="tab">Anmeldung &amp; Sheet</button>
+        <button type="button" class="tab-btn" data-tab="softres" role="tab">Softres</button>
       </div>
       <div class="tab-panel active" data-panel="setup" role="tabpanel">
         <p class="note">Aktueller Raidplan dieses Events, in Raid-Gruppen 1–5 wie im Raid-Helper. Icons und Farben richten sich nach der WoW-Spec.</p>
@@ -1412,6 +1527,14 @@ function renderEventDetail(user, opts = {}) {
         <h2>Raidsheet füllen</h2>
         <p class="note">Legt für diesen Raid eine eigene Kopie der Vorlage an, überträgt das Raid-Helper-Setup hinein und teilt sie per Link. Die Kopie wird 3 Tage nach dem Raid automatisch gelöscht; die Vorlage bleibt unangetastet.</p>
         ${fillSection}
+        <h2>Raidsheet in Channel posten</h2>
+        <p class="note">Postet den Link zum gefüllten Raidsheet als Nachricht mit Button in den Event-Channel — optional mit eigener Nachricht.</p>
+        ${postSheetSection}
+      </div>
+      <div class="tab-panel" data-panel="softres" role="tabpanel" id="softres">
+        <h2 style="margin-top:0">Softres-Liste erstellen</h2>
+        <p class="note">Legt eine Soft-Reserve-Liste auf softres.it an — die Instanzen sind aus dem Event-Titel vorausgewählt. Wähle die Anzahl der Softres pro Spieler und markiere optional hardreservten Loot. Du bekommst danach einen Ansehen- und einen Bearbeiten-Link.</p>
+        ${softresSection}
       </div>
       <script>(function(){
         var btns=document.querySelectorAll(".tab-btn");
@@ -1694,8 +1817,8 @@ function fmtMs(ms, withTime = true) {
     const n = Number(ms);
     if (!n) return "";
     return new Date(n).toLocaleString("de-DE", withTime
-        ? { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }
-        : { day: "2-digit", month: "2-digit", year: "numeric" });
+        ? { timeZone: DISPLAY_TZ, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }
+        : { timeZone: DISPLAY_TZ, day: "2-digit", month: "2-digit", year: "numeric" });
 }
 // Fill a {char} URL template (armory / WCL) for a character name.
 function fillCharTemplate(tpl, character) {
@@ -1836,7 +1959,7 @@ function renderHistory(user, opts = {}) {
         const when = logPostedAt(l);
         return `<tr>
           <td>${url ? `<a class="mlink" href="${esc(url)}" target="_blank" rel="noopener">${esc(l.title || l.reportId || "(Log)")} ↗</a>` : esc(l.title || "(Log)")}</td>
-          <td class="small">${esc(when ? new Date(when).toLocaleDateString("de-DE") : "")}</td>
+          <td class="small">${esc(when ? new Date(when).toLocaleDateString("de-DE", { timeZone: DISPLAY_TZ }) : "")}</td>
           <td class="small">${esc(l.zone || "")}</td>
         </tr>`;
     }).join("");
@@ -2007,4 +2130,5 @@ module.exports = {
     renderEventDetail, renderNotifyTemplates, renderChannels, renderSettings,
     renderHistory, renderHistoryEvent, renderHistoryChar,
     fillCharTemplate, hiddenCsrf, esc,
+    formatEventTime, fmtMs,
 };
