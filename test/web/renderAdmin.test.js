@@ -27,6 +27,16 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("id=\"themeBtn\"");
         });
 
+        it("includes the full-page loading overlay and its trigger script", () => {
+            const html = renderDashboard(user, { nav: nav() });
+            expect(html).toContain("id=\"pageLoader\"");
+            expect(html).toContain("pl-rune");
+            expect(html).toContain("@keyframes pl-spin");
+            // forms/links opt in via data-loader; the shell wires the submit/click handlers
+            expect(html).toContain("data-loader");
+            expect(html).toContain("prefers-reduced-motion");
+        });
+
         it("shows the logged-in user's name and initial in the sidebar footer", () => {
             const html = renderDashboard(user, { nav: nav() });
             expect(html).toContain("class=\"avatar\">M<");
@@ -523,6 +533,19 @@ describe("web/renderAdmin", () => {
             // matched raidsheet preselected
             expect(html).toContain("value=\"t45\" selected");
             expect(html).toContain("discord.com/channels/g1/c1/e1");
+        });
+
+        it("opts the long-running forms into the page loader", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                notifyTemplates: [{ id: "t1", name: "Kara-Reminder" }],
+                roles: [{ id: "r1", name: "Raider" }],
+                raidsheets: [{ id: "t45", name: "Tier 4/5" }],
+                softresCatalogue: [{ edition: "tbc", label: "TBC", instances: [{ code: "kara", name: "Karazhan" }] }],
+            });
+            // softres create + sheet fill carry a data-loader with a label
+            expect(html).toMatch(/action="\/admin\/raids\/softres"[^>]*data-loader="Softres wird erstellt"/);
+            expect(html).toMatch(/action="\/admin\/raids\/fill"[^>]*data-loader=/);
         });
 
         it("guides the user when there are no templates or sheets", () => {

@@ -143,7 +143,9 @@ async function createRaid(opts = {}) {
     const payload = buildCreatePayload(opts);
     const { data } = await axios.post(`${SOFTRES_BASE}/api/raid/create`, payload, {
         httpsAgent,
-        timeout: 20000,
+        // softres.it can be slow to answer under load; give it generous headroom
+        // so creating/re-creating a list doesn't fail with a premature timeout.
+        timeout: 45000,
         headers: { "Content-Type": "application/json" },
     });
     if (!data || data.code !== undefined || !data.raidId) {
