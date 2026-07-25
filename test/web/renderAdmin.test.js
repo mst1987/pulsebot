@@ -1214,6 +1214,41 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("Noch kein Loot importiert");
         });
 
+        it("shows an 'Alle Raids' tab, active by default, listing upcoming and past raids", () => {
+            const html = renderHistory(user, {
+                csrf: "x", nav: nav(), activeGuildId: "g1",
+                upcomingRaids: {
+                    events: [{ id: "e1", title: "SSC/TK", startTime: 1893456000, channelId: "c1", channelName: "ssc-tk", logs: [], lootCount: 0, softres: null }],
+                    error: null,
+                },
+                pastRaids: {
+                    events: [{ id: "e0", title: "Kara letzte Woche", startTime: 1700000000, channelId: "c2", channelName: "kara", logs: [], lootCount: 3, softres: null }],
+                    error: null,
+                },
+            });
+            // first tab, active by default
+            expect(html).toMatch(/<button type="button" class="tab-btn active" data-tab="raids"/);
+            expect(html).toContain("data-panel=\"raids\"");
+            expect(html).toContain("Kommende Raids");
+            expect(html).toContain("Vergangene Raids");
+            // Details link (event name -> detail page)
+            expect(html).toContain("href=\"/admin/raids/detail?event=e1\"");
+            expect(html).toContain("href=\"/admin/raids/detail?event=e0\"");
+            // Loot link
+            expect(html).toContain("/admin/history/event?event=e0");
+            expect(html).toContain("3 Items");
+        });
+
+        it("surfaces load errors and empty states separately for upcoming vs. past raids", () => {
+            const html = renderHistory(user, {
+                csrf: "x", nav: nav(),
+                upcomingRaids: { events: [], error: "Raid-Helper kaputt" },
+                pastRaids: { events: [], error: null },
+            });
+            expect(html).toContain("Raid-Helper kaputt");
+            expect(html).toContain("Keine vergangenen Raids gefunden.");
+        });
+
         it("escapes a malicious event title in the import picker", () => {
             const html = renderHistory(user, {
                 csrf: "x", nav: nav(),
