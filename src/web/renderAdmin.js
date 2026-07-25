@@ -79,6 +79,7 @@ const ADMIN_STYLE = `<style>
   .lbadge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; font-weight:700; line-height:1.5; border:1px solid var(--line); background:var(--panel2); color:var(--muted); }
   .lbadge-ok { background:var(--good-bg); color:var(--good); border-color:var(--good); }
   .lbadge-neutral { background:var(--accent-soft); color:var(--accent); border-color:var(--accent-soft); }
+  .lbadge-warn { background:var(--high-bg); color:var(--high); border-color:var(--high); }
   .flash { border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:14px; }
   .flash-ok { background:var(--good-bg); color:var(--good); border:1px solid var(--good); }
   .flash-err { background:var(--high-bg); color:var(--high); border:1px solid var(--high); }
@@ -1634,8 +1635,8 @@ function renderSettings(user, opts = {}) {
           </div>
           <div class="field">
             <label>Profile-Namespace (optional)</label>
-            <input type="text" name="blizzardNamespace" value="${esc(bz.namespace || "")}" placeholder="leer = automatisch (profile-classic-${esc(bz.region || "eu")})">
-            <div class="hint">Nur setzen, wenn das Live-Gear falsch/veraltet ist (z.B. Naxxramas-Gear bei einem TBC-Char). Der korrekte Namespace für die Anniversary-Realms ist nicht offiziell dokumentiert — probiere <code>profile-classic-${esc(bz.region || "eu")}</code>, <code>profile-classicann-${esc(bz.region || "eu")}</code> oder <code>profile-classic1x-${esc(bz.region || "eu")}</code>. Die Char-Seite zeigt Level + „zuletzt online", damit du den richtigen erkennst.</div>
+            <input type="text" name="blizzardNamespace" value="${esc(bz.namespace || "")}" placeholder="leer = automatisch (profile-classicann-${esc(bz.region || "eu")})">
+            <div class="hint">Leer lassen = automatisch <code>profile-classicann-${esc(bz.region || "eu")}</code> (bestätigt korrekt für die Anniversary-Realms wie Thunderstrike). Nur überschreiben, falls nötig (z.B. <code>profile-classic-${esc(bz.region || "eu")}</code> oder <code>profile-classic1x-${esc(bz.region || "eu")}</code>). Die Char-Seite zeigt Level + „zuletzt online" zur Kontrolle.</div>
           </div>
 
           <h2>Raid-Standardwerte</h2>
@@ -1939,15 +1940,24 @@ function renderHistoryChar(user, opts = {}) {
     const reloadBtn = `<a class="btn btn-ghost btn-sm" href="/admin/history/char?name=${encodeURIComponent(character)}">↻ Paperdoll neu laden</a>`;
     let gearInner;
     if (Array.isArray(opts.gear) && opts.gear.length) {
-        const gearRows = opts.gear.map((g) => `<tr>
+        const gearRows = opts.gear.map((g) => {
+            const enchant = (g.enchants && g.enchants.length)
+                ? esc(g.enchants.join(", "))
+                : "<span class=\"sub\">—</span>";
+            const gems = (g.gems && g.gems.length) ? esc(g.gems.join(", ")) : "";
+            const empty = g.emptySockets ? `<span class="lbadge lbadge-warn">${g.emptySockets} leer</span>` : "";
+            const socketCell = (gems || empty) ? `${gems}${gems && empty ? " " : ""}${empty}` : "<span class=\"sub\">—</span>";
+            return `<tr>
             <td class="small">${esc(g.slot || "")}</td>
             <td>${g.itemId ? `<a class="mlink" href="https://www.wowhead.com/tbc/item=${esc(String(g.itemId))}" target="_blank" rel="noopener">${esc(g.name || ("Item " + g.itemId))}</a>` : esc(g.name || "")}</td>
-            <td class="small">${esc(g.quality || "")}</td>
             <td class="small">${g.level ? esc(String(g.level)) : ""}</td>
-          </tr>`).join("");
+            <td class="small">${enchant}</td>
+            <td class="small">${socketCell}</td>
+          </tr>`;
+        }).join("");
         gearInner = `<div class="dash-card">
             <div class="dash-card-head"><h3>Aktuelles Gear (Paperdoll)</h3><span class="small" style="margin-left:auto">Battle.net API</span></div>
-            <table class="idx" style="margin:0"><thead><tr><th>Slot</th><th>Item</th><th>Qualität</th><th>iLvl</th></tr></thead><tbody>${gearRows}</tbody></table>
+            <table class="idx" style="margin:0"><thead><tr><th>Slot</th><th>Item</th><th>iLvl</th><th>Verzauberung</th><th>Sockel</th></tr></thead><tbody>${gearRows}</tbody></table>
           </div>`;
     } else if (opts.gearConfigured) {
         gearInner = `<div class="flash flash-err" style="margin:0 0 12px">${esc(opts.gearError || "Kein Live-Gear von der Battle.net-API verfügbar.")}</div>

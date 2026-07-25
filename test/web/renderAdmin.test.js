@@ -893,15 +893,22 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("Off Spec");
         });
 
-        it("renders the live gear paperdoll when equipment is present", () => {
+        it("renders the live gear paperdoll with enchants, gems and empty sockets", () => {
             const html = renderHistoryChar(user, {
                 character: "Foo", csrf: "x", nav: nav(), items: [],
                 gearConfigured: true,
-                gear: [{ slot: "HEAD", itemId: 29011, name: "Cursed Vision", quality: "EPIC", level: 120 }],
+                gear: [{
+                    slot: "HEAD", itemId: 29011, name: "Cursed Vision", quality: "EPIC", level: 120,
+                    enchants: ["Enchanted: +150 Mana"], gems: ["Chaotic Skyfire Diamond"], emptySockets: 1,
+                }],
             });
             expect(html).toContain("Aktuelles Gear (Paperdoll)");
             expect(html).toContain("Cursed Vision");
             expect(html).toContain("wowhead.com/tbc/item=29011");
+            expect(html).toContain("Verzauberung");
+            expect(html).toContain("Enchanted: +150 Mana");
+            expect(html).toContain("Chaotic Skyfire Diamond");
+            expect(html).toContain("1 leer");
         });
 
         it("organizes gear/loot as tabs and offers a manual paperdoll reload", () => {
