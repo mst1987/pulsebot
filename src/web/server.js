@@ -885,34 +885,44 @@ async function handle(req, res) {
         if (!sheet) return redirect(res, `${back}&err=${encodeURIComponent("Raidsheet nicht gefunden.")}`);
         if (!sheet.spreadsheetId) return redirect(res, `${back}&err=${encodeURIComponent("Raidsheet hat keine Spreadsheet-ID (in den Einstellungen ergänzen).")}`);
         try {
-            const rh = new Raidhelper();
-            const result = await rh.getSetup(eventId);
-            if (!result || !result.setup || !result.setup.length) {
-                return redirect(res, `${back}&err=${encodeURIComponent("Setup nicht gefunden oder leer.")}`);
-            }
-            // Event meta (title + start) for the copy name and the deletion schedule.
-            const { groups: evGroups } = await loadEventGroups(activeGuildFor(req));
-            const ev = evGroups.flatMap((g) => g.events).find((e) => e.id === eventId) || {};
-            const startMs = (Number(ev.startTime) || 0) * 1000;
+            // Event meta (title + start) is only needed for the copy name and the
+            // deletion schedule — take it from the detail page (hidden fields) instead
+            // of a full getAllEvents round-trip. Both are cosmetic, so trusting the
+            // client here is fine; fall back to the sheet name / "now".
+            const startMs = (Number(form.eventStartTime) || 0) * 1000;
             const raidDate = startMs ? formatTimestampToDateString(startMs).split(" - ")[0].trim() : "";
-            const copyName = `${ev.title || sheet.name || "Raidsheet"}${raidDate ? ` — ${raidDate}` : ""}`;
+            const copyName = `${(form.eventTitle || "").trim() || sheet.name || "Raidsheet"}${raidDate ? ` — ${raidDate}` : ""}`;
             // Delete 3 days after the raid (fallback: 3 days from now if start unknown).
             const deleteAfter = (startMs || Date.now()) + 3 * 24 * 60 * 60 * 1000;
 
+            const rh = new Raidhelper();
             const drive = new Drive();
-            // Re-filling replaces the previous copy: delete its Drive file first.
             const prev = getEventSheet(eventId);
-            if (prev && prev.spreadsheetId) {
-                try { await drive.deleteFile(prev.spreadsheetId); }
-                catch (e) { console.error("previous copy delete failed:", e.message); }
+
+            // The Raid-Helper setup fetch and the Drive copy don't depend on each
+            // other — run them concurrently so the two biggest latencies overlap
+            // instead of summing. Don't touch the previous copy yet: if the setup
+            // turns out empty we keep it and only discard the fresh (orphan) copy.
+            const [result, copy] = await Promise.all([
+                rh.getSetup(eventId),
+                drive.copyFile(sheet.spreadsheetId, copyName),
+            ]);
+
+            if (!result || !result.setup || !result.setup.length) {
+                drive.deleteFile(copy.id).catch((e) => console.error("orphan copy cleanup failed:", e.message));
+                return redirect(res, `${back}&err=${encodeURIComponent("Setup nicht gefunden oder leer.")}`);
             }
-            // Copy the source raidsheet and record it immediately, so even a later
-            // failure leaves a tracked copy the cleanup sweeper can remove.
-            const copy = await drive.copyFile(sheet.spreadsheetId, copyName);
+
+            // Commit to the new copy: record it (so a later failure still leaves a
+            // sweepable copy), share it so the service account can write, and delete
+            // the previous copy off the critical path (background, best-effort).
             markEventSheetFilled(eventId, {
                 spreadsheetId: copy.id, url: copy.url,
                 sourceSheetId: sheet.spreadsheetId, deleteAfter,
             });
+            if (prev && prev.spreadsheetId && prev.spreadsheetId !== copy.id) {
+                drive.deleteFile(prev.spreadsheetId).catch((e) => console.error("previous copy delete failed:", e.message));
+            }
             await drive.shareAnyoneWriter(copy.id);
             const client = new SheetsClient({ spreadsheetId: copy.id, sheetName: sheet.sheetName, gid: sheet.gid });
             const summary = await fillSetupSheet(client, result.setup, { tab: sheet.sheetName || "Setup", tank3: (form.tank3 || "").trim() });

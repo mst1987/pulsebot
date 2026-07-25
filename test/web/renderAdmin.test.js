@@ -616,6 +616,16 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("discord.com/channels/g1/c1/e1");
         });
 
+        it("passes the event title and start time as hidden fields on the fill form (avoids a getAllEvents round-trip)", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                event: { id: "e1", title: "GDKP Kara", startTime: 1721851200, channelId: "c1" },
+                raidsheets: [{ id: "t45", name: "Tier 4/5" }],
+            });
+            expect(html).toContain("name=\"eventTitle\" value=\"GDKP Kara\"");
+            expect(html).toContain("name=\"eventStartTime\" value=\"1721851200\"");
+        });
+
         it("opts the long-running forms into the page loader", () => {
             const html = renderEventDetail(user, {
                 ...base,

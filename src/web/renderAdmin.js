@@ -1517,6 +1517,8 @@ function renderEventDetail(user, opts = {}) {
       <form class="card-form" method="POST" action="/admin/raids/fill" data-loader="Sheet wird erstellt &amp; gefüllt" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Erstelle Sheet …'">
         ${csrfField}
         <input type="hidden" name="event" value="${esc(ev.id)}">
+        <input type="hidden" name="eventTitle" value="${esc(ev.title || "")}">
+        <input type="hidden" name="eventStartTime" value="${esc(String(ev.startTime || ""))}">
         <div class="field"><label>Vorlage (Ausgangssheet)</label><select name="sheetId" required>${sheetOptions}</select><div class="hint">${matchHint}</div></div>
         ${tank3Field}
         <div class="row-actions"><button class="btn" type="submit">Neues Sheet erstellen &amp; füllen</button></div>
