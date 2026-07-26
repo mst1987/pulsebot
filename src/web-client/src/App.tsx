@@ -6,6 +6,7 @@ import ChannelsPage from "./pages/ChannelsPage";
 import SettingsPage from "./pages/SettingsPage";
 import RaidsPage from "./pages/RaidsPage";
 import RaidCreatePage from "./pages/RaidCreatePage";
+import RecruitmentPage from "./pages/RecruitmentPage";
 import { getSession, type ApiError, type Session } from "./api";
 
 type LoadState =
@@ -53,6 +54,7 @@ export default function App() {
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="raids" element={<RaidsPage />} />
                 <Route path="raids/new" element={<RaidCreatePage />} />
+                <Route path="recruitment" element={<RecruitmentPage />} />
             </Route>
         </Routes>
     );

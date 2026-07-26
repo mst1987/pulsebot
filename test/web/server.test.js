@@ -196,7 +196,7 @@ describe("web/server", () => {
     describe("React admin client (src/web-client/)", () => {
         it("delegates /api/* requests to apiRouter", async () => {
             await request({ url: "/api/session", method: "GET", headers: {} });
-            expect(apiRouter.handle).toHaveBeenCalledWith("/api/session", expect.any(Object), expect.any(Object));
+            expect(apiRouter.handle).toHaveBeenCalledWith("/api/session", expect.any(Object), expect.any(Object), expect.any(URL));
         });
 
         it("delegates /admin2 and /admin2/* requests to staticClient", async () => {
