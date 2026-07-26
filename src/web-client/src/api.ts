@@ -411,6 +411,23 @@ export type LootItem = {
     eventLabel?: string;
 };
 
+// A loot character with its resolved WoW class/spec (or blank if unresolved
+// yet). classColor/iconUrl are computed server-side from config/classlist.js
+// — never duplicated client-side, same rule as lib/recruitmentSpecs.ts's
+// specCatalog.
+export type AnnotatedCharacter = {
+    key: string;
+    character: string;
+    realm: string;
+    count: number;
+    className: string;
+    spec: string;
+    source: string;
+    reportId: string;
+    classColor: string;
+    iconUrl: string;
+};
+
 export type HistoryData = {
     events: HistoryEvent[];
     upcomingRaids: { events: RaidRow[]; error: string | null };
@@ -419,6 +436,7 @@ export type HistoryData = {
     logs: LootLog[];
     categories: Category[];
     categoryLootTool: Record<string, string>;
+    chars: AnnotatedCharacter[];
     activeGuildId: string;
 };
 
@@ -454,4 +472,74 @@ export type HistoryEventData = { eventId: string; label: string; items: LootItem
 
 export function getHistoryEvent(eventId: string): Promise<HistoryEventData> {
     return get<HistoryEventData>(`/api/history/event?event=${encodeURIComponent(eventId)}`);
+}
+
+export type ResolveCharactersResult = {
+    fromExport: number;
+    fromReports: number;
+    fromWcl: number;
+    checkedReports: number;
+    pendingReports: number;
+    missing: string[];
+    unlinked: string[];
+    message: string;
+};
+
+export function resolveCharacters(csrfToken: string | null): Promise<ResolveCharactersResult> {
+    return send("POST", "/api/history/characters-resolve", csrfToken, {});
+}
+
+export type GearItem = {
+    slot: string;
+    itemId: number | null;
+    name: string;
+    quality: string;
+    level: number | null;
+    enchants: string[];
+    gems: string[];
+    emptySockets: number;
+};
+
+export type CharSummary = {
+    name: string;
+    realm: string;
+    level: number | null;
+    itemLevel: number | null;
+    lastLogin: number | null;
+    className: string;
+    faction: string;
+    namespace: string;
+};
+
+// Mirrors getCharacter()'s stored record, enriched with the same classColor/
+// iconUrl fields the "Charaktere" tab gets, so the char page's header can
+// render the class/spec suffix the same way.
+export type CharInfo = {
+    key: string;
+    character: string;
+    className: string;
+    spec: string;
+    source: string;
+    reportId: string;
+    updatedAt: number;
+    classColor: string;
+    iconUrl: string;
+};
+
+export type HistoryCharData = {
+    character: string;
+    realm: string;
+    items: LootItem[];
+    armoryUrl: string;
+    wclUrl: string;
+    gear: GearItem[] | null;
+    gearConfigured: boolean;
+    gearError: string;
+    charSummary: CharSummary | null;
+    gearNamespace: string;
+    info: CharInfo | null;
+};
+
+export function getHistoryChar(name: string): Promise<HistoryCharData> {
+    return get<HistoryCharData>(`/api/history/char?name=${encodeURIComponent(name)}`);
 }

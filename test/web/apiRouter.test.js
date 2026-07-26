@@ -38,12 +38,33 @@ jest.mock("../../src/web/logStore", () => ({
 jest.mock("../../src/web/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 0, skipped: 0 })),
     listByEvent: jest.fn(() => []),
+    listByCharacter: jest.fn(() => []),
     eventsWithLoot: jest.fn(() => []),
     clearEvent: jest.fn(() => 0),
 }));
 jest.mock("../../src/web/characterInfo", () => ({
     rememberFromLoot: jest.fn(),
+    annotatedCharacters: jest.fn(() => []),
+    resolveMissing: jest.fn(() => Promise.resolve({
+        fromExport: 0, fromReports: 0, fromWcl: 0, checkedReports: 0, pendingReports: 0, missing: [], unlinked: [], error: "",
+    })),
 }));
+jest.mock("../../src/web/characterStore", () => ({
+    getCharacter: jest.fn(() => null),
+}));
+const mockIsConfigured = jest.fn(() => false);
+const mockGetCharacterSummary = jest.fn(() => Promise.resolve(null));
+const mockGetEquipment = jest.fn(() => Promise.resolve(null));
+const mockResolve = jest.fn(() => ({ region: "eu", realm: "thunderstrike", namespace: "profile-classicann-eu" }));
+let mockLastError = null;
+jest.mock("../../src/classes/blizzard", () =>
+    jest.fn().mockImplementation(() => ({
+        isConfigured: mockIsConfigured,
+        getCharacterSummary: mockGetCharacterSummary,
+        getEquipment: mockGetEquipment,
+        _resolve: mockResolve,
+        get lastError() { return mockLastError; },
+    })));
 jest.mock("../../src/utils/lootImport", () => {
     class LootParseError extends Error {}
     return {
@@ -93,6 +114,7 @@ const raidEventGroups = require("../../src/web/raidEventGroups");
 const logStore = require("../../src/web/logStore");
 const lootStore = require("../../src/web/lootStore");
 const characterInfo = require("../../src/web/characterInfo");
+const characterStore = require("../../src/web/characterStore");
 const lootImport = require("../../src/utils/lootImport");
 const lootEventMatch = require("../../src/web/lootEventMatch");
 const { handle } = require("../../src/web/apiRouter");
@@ -853,7 +875,31 @@ describe("web/apiRouter", () => {
                 categories: [{ id: "cat1", name: "Raids" }],
                 categoryLootTool: { cat1: "gargul" },
                 activeGuildId: "guild-1",
+                chars: [],
             });
+        });
+
+        it("annotates loot characters with their class color and spec icon", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            characterInfo.annotatedCharacters.mockReturnValue([
+                { key: "anna@t", character: "Anna", realm: "t", count: 3, className: "Paladin", spec: "Holy", source: "wcl", reportId: "r1" },
+                { key: "bob@t", character: "Bob", realm: "t", count: 1, className: "", spec: "", source: "", reportId: "" },
+            ]);
+
+            const res = await get("/api/history");
+
+            expect(body(res).data.chars).toEqual([
+                {
+                    key: "anna@t", character: "Anna", realm: "t", count: 3, className: "Paladin", spec: "Holy", source: "wcl", reportId: "r1",
+                    classColor: expect.any(String), iconUrl: expect.any(String),
+                },
+                {
+                    key: "bob@t", character: "Bob", realm: "t", count: 1, className: "", spec: "", source: "", reportId: "",
+                    classColor: "", iconUrl: "",
+                },
+            ]);
+            expect(body(res).data.chars[0].classColor).not.toBe("");
+            expect(body(res).data.chars[0].iconUrl).toMatch(/^https:\/\//);
         });
     });
 
@@ -1012,6 +1058,216 @@ describe("web/apiRouter", () => {
             const res = await get("/api/history/event", { event: "e1" });
             expect(lootStore.listByEvent).toHaveBeenCalledWith("e1");
             expect(body(res)).toEqual({ data: { eventId: "e1", label: "Kara", items: [{ eventLabel: "Kara", itemName: "Sword" }] } });
+        });
+    });
+
+    describe("POST /api/history/characters-resolve", () => {
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await post("/api/history/characters-resolve", {});
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+            expect(characterInfo.resolveMissing).not.toHaveBeenCalled();
+        });
+
+        it("returns 403 when the CSRF token is invalid", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(false);
+            const res = await post("/api/history/characters-resolve", {});
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(characterInfo.resolveMissing).not.toHaveBeenCalled();
+        });
+
+        it("composes the German summary message from the resolve result (minimal case)", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            characterInfo.resolveMissing.mockResolvedValue({
+                fromExport: 1, fromReports: 2, fromWcl: 0, checkedReports: 0, pendingReports: 0, missing: [], unlinked: [], error: "",
+            });
+
+            const res = await post("/api/history/characters-resolve", {});
+
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(body(res).data).toEqual(expect.objectContaining({
+                fromExport: 1, fromReports: 2, fromWcl: 0,
+                message: "3 Charakter(e) ergänzt.",
+            }));
+        });
+
+        it("composes every optional part when present (reports/pending/unlinked/missing)", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            characterInfo.resolveMissing.mockResolvedValue({
+                fromExport: 1, fromReports: 1, fromWcl: 2,
+                checkedReports: 3, pendingReports: 2,
+                missing: ["Charlie"], unlinked: ["Dora", "Eve"], error: "",
+            });
+
+            const res = await post("/api/history/characters-resolve", {});
+
+            expect(body(res).data.message).toBe(
+                "4 Charakter(e) ergänzt, 3 Log(s) ausgewertet, 2 weitere(s) Log(s) offen — nochmal ausführen, "
+                + "2 ohne zugeordnetes Log (Log im CLA-Menü dem Event zuordnen), 1 weiterhin ohne Klasse.",
+            );
+        });
+
+        it("returns 502 with the WCL error when resolveMissing reports one", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            characterInfo.resolveMissing.mockResolvedValue({
+                fromExport: 0, fromReports: 0, fromWcl: 0, checkedReports: 0, pendingReports: 0, missing: [], unlinked: [],
+                error: "WCL-API-Key fehlt (WARCRAFTLOGS_API_KEY in .env) — Specs können nicht aus den Logs gelesen werden.",
+            });
+
+            const res = await post("/api/history/characters-resolve", {});
+
+            expect(res.writeHead).toHaveBeenCalledWith(502, expect.any(Object));
+            expect(body(res)).toEqual({
+                error: {
+                    code: "wcl_unavailable",
+                    message: "WCL-API-Key fehlt (WARCRAFTLOGS_API_KEY in .env) — Specs können nicht aus den Logs gelesen werden.",
+                },
+            });
+        });
+    });
+
+    describe("GET /api/history/char", () => {
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            mockIsConfigured.mockReturnValue(false);
+            mockGetCharacterSummary.mockResolvedValue(null);
+            mockGetEquipment.mockResolvedValue(null);
+            mockResolve.mockReturnValue({ region: "eu", realm: "thunderstrike", namespace: "profile-classicann-eu" });
+            mockLastError = null;
+            lootStore.listByCharacter.mockReturnValue([]);
+            settingsStore.getConfig.mockReturnValue({});
+            characterStore.getCharacter.mockReturnValue(null);
+        });
+
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await get("/api/history/char", { name: "Anna" });
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+        });
+
+        it("returns loot + links but no gear when Blizzard is not configured", async () => {
+            lootStore.listByCharacter.mockReturnValue([{ character: "Anna", realm: "thunderstrike", itemName: "Sword" }]);
+
+            const res = await get("/api/history/char", { name: "Anna" });
+
+            expect(lootStore.listByCharacter).toHaveBeenCalledWith("Anna");
+            expect(mockGetCharacterSummary).not.toHaveBeenCalled();
+            expect(mockGetEquipment).not.toHaveBeenCalled();
+            expect(body(res).data).toEqual({
+                character: "Anna",
+                realm: "thunderstrike",
+                items: [{ character: "Anna", realm: "thunderstrike", itemName: "Sword" }],
+                armoryUrl: expect.stringContaining(encodeURIComponent("Anna")),
+                wclUrl: expect.stringContaining(encodeURIComponent("Anna")),
+                gear: null,
+                gearConfigured: false,
+                gearError: "",
+                charSummary: null,
+                gearNamespace: "profile-classicann-eu",
+                info: null,
+            });
+        });
+
+        it("falls back to the configured realm slug when no loot item carries a realm", async () => {
+            settingsStore.getConfig.mockReturnValue({ blizzard: { realmSlug: "thunderstrike" } });
+
+            const res = await get("/api/history/char", { name: "Anna" });
+
+            expect(body(res).data.realm).toBe("thunderstrike");
+        });
+
+        it("returns an empty character/realm/gear response when name is missing", async () => {
+            const res = await get("/api/history/char", {});
+            expect(body(res).data.character).toBe("");
+            expect(mockGetCharacterSummary).not.toHaveBeenCalled();
+        });
+
+        it("returns the resolved gear + charSummary + info when Blizzard is configured and succeeds", async () => {
+            mockIsConfigured.mockReturnValue(true);
+            mockGetCharacterSummary.mockResolvedValue({ name: "Anna", level: 70, className: "Paladin" });
+            mockGetEquipment.mockResolvedValue([{ slot: "Head", itemId: 123, name: "Helm" }]);
+            characterStore.getCharacter.mockReturnValue({ character: "Anna", className: "Paladin" });
+
+            const res = await get("/api/history/char", { name: "Anna" });
+
+            expect(body(res).data.gear).toEqual([{ slot: "Head", itemId: 123, name: "Helm" }]);
+            expect(body(res).data.charSummary).toEqual({ name: "Anna", level: 70, className: "Paladin" });
+            expect(body(res).data.gearConfigured).toBe(true);
+            expect(body(res).data.gearError).toBe("");
+            expect(body(res).data.info).toEqual({
+                character: "Anna",
+                className: "Paladin",
+                classColor: "#F58CBA",
+                iconUrl: "https://wow.zamimg.com/images/wow/icons/large/classicon_paladin.jpg",
+            });
+        });
+
+        it("builds the 404 gearError with name/namespace/realm when the profile is not found", async () => {
+            mockIsConfigured.mockReturnValue(true);
+            mockGetEquipment.mockResolvedValue(null);
+            mockLastError = { status: 404 };
+            settingsStore.getConfig.mockReturnValue({ blizzard: { realmSlug: "thunderstrike", region: "eu" } });
+
+            const res = await get("/api/history/char", { name: "Anna" });
+
+            expect(body(res).data.gearError).toBe(
+                "Charakter „Anna\" nicht in der Blizzard-API gefunden (404, Namespace profile-classicann-eu). "
+                + "Realm-Slug „thunderstrike\"/Schreibweise prüfen oder den Namespace in den Einstellungen ändern (z.B. profile-classicann-eu).",
+            );
+        });
+
+        it("builds the 403 gearError", async () => {
+            mockIsConfigured.mockReturnValue(true);
+            mockGetEquipment.mockResolvedValue(null);
+            mockLastError = { status: 403 };
+
+            const res = await get("/api/history/char", { name: "Anna" });
+
+            expect(body(res).data.gearError).toBe("Zugriff verweigert (403) — die Profile-API ist für diesen Realm evtl. nicht freigegeben.");
+        });
+
+        it("builds the 401 gearError", async () => {
+            mockIsConfigured.mockReturnValue(true);
+            mockGetEquipment.mockResolvedValue(null);
+            mockLastError = { status: 401 };
+
+            const res = await get("/api/history/char", { name: "Anna" });
+
+            expect(body(res).data.gearError).toBe("Authentifizierung fehlgeschlagen (401) — Battle.net Client-ID/Secret prüfen.");
+        });
+
+        it("builds the generic-status gearError for any other HTTP status", async () => {
+            mockIsConfigured.mockReturnValue(true);
+            mockGetEquipment.mockResolvedValue(null);
+            mockLastError = { status: 500 };
+
+            const res = await get("/api/history/char", { name: "Anna" });
+
+            expect(body(res).data.gearError).toBe("Blizzard-API-Fehler (500).");
+        });
+
+        it("builds the network-error gearError when there is no status", async () => {
+            mockIsConfigured.mockReturnValue(true);
+            mockGetEquipment.mockResolvedValue(null);
+            mockLastError = { message: "ECONNRESET" };
+
+            const res = await get("/api/history/char", { name: "Anna" });
+
+            expect(body(res).data.gearError).toBe("Blizzard-API nicht erreichbar (ECONNRESET).");
+        });
+
+        it("falls back to a generic network-error message when lastError carries no message either", async () => {
+            mockIsConfigured.mockReturnValue(true);
+            mockGetEquipment.mockResolvedValue(null);
+            mockLastError = {};
+
+            const res = await get("/api/history/char", { name: "Anna" });
+
+            expect(body(res).data.gearError).toBe("Blizzard-API nicht erreichbar (Netzwerkfehler).");
         });
     });
 

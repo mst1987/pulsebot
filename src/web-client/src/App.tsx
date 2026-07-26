@@ -9,6 +9,7 @@ import RaidCreatePage from "./pages/RaidCreatePage";
 import RecruitmentPage from "./pages/RecruitmentPage";
 import HistoryPage from "./pages/HistoryPage";
 import HistoryEventPage from "./pages/HistoryEventPage";
+import HistoryCharPage from "./pages/HistoryCharPage";
 import { getSession, type ApiError, type Session } from "./api";
 
 type LoadState =
@@ -59,6 +60,7 @@ export default function App() {
                 <Route path="recruitment" element={<RecruitmentPage />} />
                 <Route path="history" element={<HistoryPage />} />
                 <Route path="history/event" element={<HistoryEventPage />} />
+                <Route path="history/char" element={<HistoryCharPage />} />
             </Route>
         </Routes>
     );

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { getHistoryEvent, clearHistoryEvent, type ApiError, type HistoryEventData, type LootItem } from "../api";
 import { fmtMs } from "../lib/format";
+import { CharacterLink } from "../components/ClassSpec";
 import type { ShellContext } from "../components/Shell";
 
 const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil" };
@@ -14,8 +15,7 @@ function LootTable({ items }: { items: LootItem[] }) {
                 {items.map((it, i) => (
                     <tr key={i}>
                         <td>{it.itemLink ? <a className="mlink" href={it.itemLink} target="_blank" rel="noopener noreferrer">{it.itemName || `Item ${it.itemId}`}</a> : (it.itemName || `Item ${it.itemId}`)}</td>
-                        {/* /admin/history/char isn't migrated yet (Part B) — plain link to the classic SSR page. */}
-                        <td><a className="mlink" href={`/admin/history/char?name=${encodeURIComponent(it.character)}`}>{it.character}</a></td>
+                        <td><CharacterLink character={it.character} /></td>
                         <td className="small">
                             {it.offspec
                                 ? <span className="lbadge lbadge-neutral">{it.response || "Off Spec"}</span>
