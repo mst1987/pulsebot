@@ -19,6 +19,7 @@ const {
 } = require("./apiRoutes/recruitment");
 const {
     getHistoryData, deleteHistoryLog, importLoot, saveCategoryLootTool, clearHistoryEvent, getHistoryEvent,
+    resolveCharacters, getHistoryChar,
 } = require("./apiRoutes/history");
 
 /** Dispatches an /api/* request. `url` is only needed by routes that read query params. */
@@ -137,6 +138,14 @@ async function handle(pathname, req, res, url) {
     }
     if (pathname === "/api/history/event" && req.method === "GET") {
         getHistoryEvent(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/history/characters-resolve" && req.method === "POST") {
+        await resolveCharacters(req, res);
+        return true;
+    }
+    if (pathname === "/api/history/char" && req.method === "GET") {
+        await getHistoryChar(req, res, url);
         return true;
     }
     error(res, 404, "not_found", "Unbekannter API-Endpunkt.");

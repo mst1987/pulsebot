@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
-    getHistoryData, importLoot, deleteHistoryLog, saveCategoryLootTool,
-    type ApiError, type HistoryData, type HistoryEvent, type LootEventSummary, type LootLog,
+    getHistoryData, importLoot, deleteHistoryLog, saveCategoryLootTool, resolveCharacters,
+    type ApiError, type HistoryData, type HistoryEvent, type LootEventSummary, type LootLog, type AnnotatedCharacter,
 } from "../api";
 import { formatEventTime, fmtMs } from "../lib/format";
 import RaidTable from "../components/RaidTable";
+import { ClassSpecCell, CharacterLink } from "../components/ClassSpec";
 import type { ShellContext } from "../components/Shell";
 
 type Flash = { type: "ok" | "err"; text: string };
-type Tab = "raids" | "import" | "loot" | "logs" | "cats";
+type Tab = "raids" | "import" | "loot" | "logs" | "cats" | "chars";
 
 const TABS: { id: Tab; label: string; count?: (d: HistoryData) => number }[] = [
     { id: "raids", label: "Alle Raids", count: (d) => d.upcomingRaids.events.length + d.pastRaids.events.length },
@@ -17,9 +18,18 @@ const TABS: { id: Tab; label: string; count?: (d: HistoryData) => number }[] = [
     { id: "loot", label: "Importierter Loot", count: (d) => d.lootEvents.length },
     { id: "logs", label: "Warcraft Logs", count: (d) => d.logs.length },
     { id: "cats", label: "Loot-Tools" },
+    { id: "chars", label: "Charaktere", count: (d) => d.chars.length },
 ];
 
 const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil" };
+// Where a stored class/spec came from, so a wrong entry can be traced back —
+// mirrors renderAdmin.js's CLASS_SOURCE_LABELS.
+const CLASS_SOURCE_LABELS: Record<string, string> = {
+    export: "Loot-Export",
+    report: "Auswertung",
+    wcl: "Warcraft Log",
+    manual: "manuell",
+};
 
 function ImportForm({ data, csrfToken, onImported }: {
     data: HistoryData;
@@ -230,6 +240,64 @@ function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: s
     );
 }
 
+function CharactersTab({ chars, csrfToken, onChanged }: {
+    chars: AnnotatedCharacter[];
+    csrfToken: string | null;
+    onChanged: (msg: string) => void;
+}) {
+    const [busy, setBusy] = useState(false);
+
+    const resolve = async () => {
+        setBusy(true);
+        try {
+            const r = await resolveCharacters(csrfToken);
+            onChanged(r.message);
+        } catch (err) {
+            onChanged((err as ApiError).message);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    if (!chars.length) return <p className="sub">Noch keine Charaktere mit Loot.</p>;
+
+    const missing = chars.filter((c) => !c.className || !c.spec).length;
+
+    return (
+        <div className="dash-card">
+            <div className="dash-card-head">
+                <h3>Charaktere</h3>
+                <span style={{ marginLeft: "auto" }}>
+                    <button
+                        className="btn btn-ghost btn-sm"
+                        type="button"
+                        disabled={busy}
+                        title="Nimmt die Klasse aus dem Loot-Export bzw. einer vorhandenen Auswertung und liest den Rest aus dem Warcraft-Log des Raids"
+                        onClick={resolve}
+                    >
+                        {busy ? "Suche läuft …" : `Klassen & Specs ergänzen${missing ? ` (${missing} offen)` : ""}`}
+                    </button>
+                </span>
+            </div>
+            <table className="idx" style={{ margin: 0 }}>
+                <thead><tr><th>Charakter</th><th>Klasse &amp; Spec</th><th>Items</th><th>Quelle</th></tr></thead>
+                <tbody>
+                    {chars.map((c) => (
+                        <tr key={c.key}>
+                            <td><CharacterLink character={c.character} classColor={c.classColor} /></td>
+                            <td><ClassSpecCell className={c.className} spec={c.spec} classColor={c.classColor} iconUrl={c.iconUrl} /></td>
+                            <td className="small">{c.count}</td>
+                            <td className="small">{CLASS_SOURCE_LABELS[c.source]
+                                ? <span className="lbadge">{CLASS_SOURCE_LABELS[c.source]}</span>
+                                : <span className="sub">—</span>}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
 export default function HistoryPage() {
     const { csrfToken } = useOutletContext<ShellContext>();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -284,6 +352,7 @@ export default function HistoryPage() {
             {tab === "loot" && <LootEventsTab lootEvents={data.lootEvents} />}
             {tab === "logs" && <LogsTab logs={data.logs} csrfToken={csrfToken} onChanged={afterChange} />}
             {tab === "cats" && <CategoryToolsTab data={data} csrfToken={csrfToken} onChanged={afterChange} />}
+            {tab === "chars" && <CharactersTab chars={data.chars} csrfToken={csrfToken} onChanged={afterChange} />}
         </>
     );
 }

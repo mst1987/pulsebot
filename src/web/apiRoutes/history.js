@@ -7,15 +7,22 @@ const { loadRecentEvents, annotateUpcomingExtras } = require("../dashboardData")
 const { getConfig, saveConfig } = require("../settingsStore");
 const { listLogs, deleteLog } = require("../logStore");
 const {
-    addImport: addLootImport, listByEvent: listLootByEvent, eventsWithLoot, clearEvent: clearLootEvent,
+    addImport: addLootImport, listByEvent: listLootByEvent, listByCharacter: listLootByCharacter, eventsWithLoot, clearEvent: clearLootEvent,
 } = require("../lootStore");
-const { rememberFromLoot: rememberClassesFromLoot } = require("../characterInfo");
+const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../characterInfo");
+const { getCharacter } = require("../characterStore");
 const { parseLoot, detectImportDate, LootParseError } = require("../../utils/lootImport");
 const { bestDayMatch, formatDayDisplay, dayKey } = require("../lootEventMatch");
+const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setupView");
+const { applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../../config/variables");
+const Blizzard = require("../../classes/blizzard");
 const discord = require("../discord");
 
 // A manually-labelled loot bucket's synthetic event id: "manual-<slug>".
 const slugify = (label) => String(label || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+
+// Fill a {char} URL template (armory / WCL) for a character name.
+const fillCharTemplate = (tpl, character) => String(tpl || "").replace("{char}", encodeURIComponent(String(character || "").trim()));
 
 /** GET /api/history — everything the "Alle Raids/Import/Loot/Logs/Loot-Tools" tabs need. */
 async function getHistoryData(req, res) {
@@ -38,6 +45,11 @@ async function getHistoryData(req, res) {
         categories: guildId ? discord.listCategories(guildId) : [],
         categoryLootTool: cfg.categoryLootTool || {},
         activeGuildId: guildId,
+        chars: annotatedCharacters().map((c) => ({
+            ...c,
+            classColor: CLASS_COLORS[c.className] || "",
+            iconUrl: c.className ? classSpecIconUrl(c.className, c.spec) : "",
+        })),
     });
 }
 
@@ -152,6 +164,89 @@ function getHistoryEvent(req, res, url) {
     ok(res, { eventId, label, items });
 }
 
+/**
+ * POST /api/history/characters-resolve — fill in the class/spec that is still
+ * missing for the loot characters: from the export, from an already evaluated
+ * CLA report, else from the Warcraft-Logs report of the raid.
+ */
+async function resolveCharacters(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const r = await resolveMissing();
+    if (r.error) return error(res, 502, "wcl_unavailable", r.error);
+    const filled = r.fromExport + r.fromReports + r.fromWcl;
+    const parts = [`${filled} Charakter(e) ergänzt`];
+    if (r.checkedReports) parts.push(`${r.checkedReports} Log(s) ausgewertet`);
+    // Say what was NOT covered, so an empty result is never mistaken for "done".
+    if (r.pendingReports) parts.push(`${r.pendingReports} weitere(s) Log(s) offen — nochmal ausführen`);
+    if (r.unlinked.length) parts.push(`${r.unlinked.length} ohne zugeordnetes Log (Log im CLA-Menü dem Event zuordnen)`);
+    if (r.missing.length) parts.push(`${r.missing.length} weiterhin ohne Klasse`);
+    ok(res, { ...r, message: `${parts.join(", ")}.` });
+}
+
+/**
+ * GET /api/history/char?name=<name> — loot history plus live Blizzard gear
+ * (paperdoll) and diagnostics for one character.
+ */
+async function getHistoryChar(req, res, url) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    const name = url.searchParams.get("name") || "";
+    const items = listLootByCharacter(name);
+    const cfg = getConfig();
+    const bzCfg = cfg.blizzard || {};
+    const realm = (items[0] && items[0].realm) || bzCfg.realmSlug || "";
+    const armoryUrl = fillCharTemplate(applyArmoryUrlTemplate, name);
+    const wclUrl = fillCharTemplate(applyWclUrlTemplate, name);
+    const client = new Blizzard(bzCfg);
+    const gearConfigured = client.isConfigured();
+    const gearNamespace = client._resolve().namespace;
+    let gear = null;
+    let gearError = "";
+    let charSummary = null;
+    if (gearConfigured && name) {
+        // Summary first — its level/last-login reveal whether the profile is
+        // the right character (a level 60/80 hit on a level-70 TBC char means
+        // a wrong-namespace match → wrong-era gear).
+        charSummary = await client.getCharacterSummary(name);
+        gear = await client.getEquipment(name);
+        if (gear === null) {
+            const e = client.lastError || {};
+            if (e.status === 404) gearError = `Charakter „${name}" nicht in der Blizzard-API gefunden (404, Namespace ${gearNamespace}). Realm-Slug „${bzCfg.realmSlug || "thunderstrike"}"/Schreibweise prüfen oder den Namespace in den Einstellungen ändern (z.B. profile-classicann-${bzCfg.region || "eu"}).`;
+            else if (e.status === 403) gearError = "Zugriff verweigert (403) — die Profile-API ist für diesen Realm evtl. nicht freigegeben.";
+            else if (e.status === 401) gearError = "Authentifizierung fehlgeschlagen (401) — Battle.net Client-ID/Secret prüfen.";
+            else if (e.status) gearError = `Blizzard-API-Fehler (${e.status}).`;
+            else gearError = `Blizzard-API nicht erreichbar (${e.message || "Netzwerkfehler"}).`;
+        }
+    }
+    ok(res, {
+        character: name,
+        realm,
+        items,
+        armoryUrl,
+        wclUrl,
+        gear,
+        gearConfigured,
+        gearError,
+        charSummary,
+        gearNamespace,
+        info: enrichCharInfo(getCharacter(name)),
+    });
+}
+
+// Add the same color/icon fields the "Charaktere" tab gets, so the char-detail
+// header can render the class/spec suffix without duplicating CLASS_COLORS.
+function enrichCharInfo(info) {
+    if (!info) return null;
+    return {
+        ...info,
+        classColor: CLASS_COLORS[info.className] || "",
+        iconUrl: info.className ? classSpecIconUrl(info.className, info.spec) : "",
+    };
+}
+
 module.exports = {
     getHistoryData, deleteHistoryLog, importLoot, saveCategoryLootTool, clearHistoryEvent, getHistoryEvent,
+    resolveCharacters, getHistoryChar,
 };
