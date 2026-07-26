@@ -187,3 +187,79 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
     .tiles { grid-template-columns: repeat(2, 1fr); }
     .dash-grid { grid-template-columns: 1fr; }
 }
+
+/* ===== recruitment: sub-nav, emoji picker, spec picker, application cards ===== */
+.subnav { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin: 0 0 18px; flex-wrap: wrap; }
+.subnav-item { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; background: none; border: 0; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14.5px; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; font: inherit; }
+.subnav-item:hover { color: var(--text); }
+.subnav-item.active { color: var(--accent); border-bottom-color: var(--accent); }
+.subnav-count { font-size: 12px; font-weight: 700; background: var(--panel2); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; font-variant-numeric: tabular-nums; }
+.subnav-item.active .subnav-count { color: var(--accent); border-color: var(--accent-soft); }
+.cat-badge { display: inline-block; font-size: 12px; font-weight: 600; background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-soft); border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
+.lbadge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; line-height: 1.5; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); }
+
+.applist { display: flex; flex-direction: column; gap: 12px; }
+.app-card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.app-card-head .app-name { font-size: 15px; font-weight: 800; }
+dl.app-meta { display: grid; grid-template-columns: auto 1fr; gap: 5px 16px; margin: 0; font-size: 13.5px; align-items: baseline; }
+dl.app-meta dt { color: var(--muted); font-weight: 600; white-space: nowrap; }
+dl.app-meta dd { margin: 0; min-width: 0; word-break: break-word; }
+
+.emoji-picker { position: relative; display: inline-block; margin-top: 2px; }
+.emoji-panel {
+    display: none; position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; width: 288px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px; box-shadow: 0 12px 32px -6px rgba(0, 0, 0, .4), 0 0 0 1px var(--line);
+}
+.emoji-panel.open { display: block; animation: emoji-pop .16s cubic-bezier(.2, .9, .3, 1.2) both; }
+@keyframes emoji-pop { from { opacity: 0; transform: scale(.92) translateY(-4px); } to { opacity: 1; transform: none; } }
+.emoji-search {
+    width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+    font: inherit; margin-bottom: 8px; transition: border-color .15s ease, box-shadow .15s ease;
+}
+.emoji-search:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.emoji-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; max-height: 220px; overflow-y: auto; }
+.emoji-item {
+    display: grid; place-items: center; padding: 5px; background: transparent; border: 1px solid transparent; border-radius: 7px;
+    cursor: pointer; transition: background-color .12s ease, border-color .12s ease, transform .1s ease;
+}
+.emoji-item:hover { background: var(--accent-soft); border-color: var(--accent-soft); transform: translateY(-1px); }
+.emoji-item img { width: 26px; height: 26px; object-fit: contain; }
+.emoji-empty { color: var(--muted); font-size: 12.5px; padding: 6px 2px; grid-column: 1 / -1; }
+
+.spec-picker { display: flex; flex-direction: column; gap: 10px; }
+.spec-pills { display: flex; flex-wrap: wrap; gap: 6px; min-height: 32px; }
+.spec-pill {
+    display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); border: 1px solid var(--accent-soft);
+    color: var(--text); border-radius: 999px; padding: 4px 6px 4px 8px; font-size: 13px; font-weight: 600;
+}
+.spec-pill img { width: 18px; height: 18px; border-radius: 4px; flex: 0 0 auto; }
+.spec-pill-q {
+    width: 18px; height: 18px; border-radius: 4px; background: var(--panel3); color: var(--muted); font-size: 11px; font-weight: 800;
+    display: grid; place-items: center; flex: 0 0 auto;
+}
+.spec-pill-custom { background: var(--panel2); border-color: var(--line); }
+.spec-pill-x {
+    background: none; border: 0; color: inherit; opacity: .6; cursor: pointer; font-size: 15px; line-height: 1; padding: 2px;
+    border-radius: 50%; display: grid; place-items: center; transition: opacity .12s ease, background-color .12s ease;
+}
+.spec-pill-x:hover { opacity: 1; background: rgba(0, 0, 0, .12); }
+.spec-add { position: relative; display: inline-block; }
+.spec-add-panel {
+    display: none; position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; width: 260px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px; box-shadow: 0 12px 32px -6px rgba(0, 0, 0, .4), 0 0 0 1px var(--line);
+}
+.spec-add-panel.open { display: block; animation: emoji-pop .16s cubic-bezier(.2, .9, .3, 1.2) both; }
+.spec-add-search {
+    width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+    font: inherit; margin-bottom: 8px; transition: border-color .15s ease, box-shadow .15s ease;
+}
+.spec-add-search:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.spec-add-list { display: flex; flex-direction: column; gap: 2px; max-height: 230px; overflow-y: auto; }
+.spec-option {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; background: transparent; border: 1px solid transparent;
+    border-radius: 7px; cursor: pointer; font: inherit; font-size: 13px; color: var(--text); text-align: left;
+    transition: background-color .12s ease, border-color .12s ease;
+}
+.spec-option:hover { background: var(--accent-soft); border-color: var(--accent-soft); }
+.spec-option img { width: 20px; height: 20px; border-radius: 4px; flex: 0 0 auto; }
+.spec-empty { color: var(--muted); font-size: 12.5px; padding: 6px 2px; }

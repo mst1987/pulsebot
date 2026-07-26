@@ -255,7 +255,7 @@ async function handle(req, res) {
 
     // --- new React admin client (see src/web-client/), migrated view by view ---
     if (pathname.startsWith("/api/")) {
-        await apiRouter.handle(pathname, req, res);
+        await apiRouter.handle(pathname, req, res, url);
         return;
     }
     if (pathname === "/admin2" || pathname.startsWith("/admin2/")) {

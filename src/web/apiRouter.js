@@ -13,9 +13,13 @@ const { getRaids, getRaidCreateContext, createRaid } = require("./apiRoutes/raid
 const {
     getRaidTemplates, createRaidTemplate, deleteRaidTemplateHandler, importRaidTemplates,
 } = require("./apiRoutes/raidTemplates");
+const {
+    getRecruitmentData, saveRecruitmentTemplate, deleteRecruitmentTemplate, postRecruitmentTemplate,
+    updateRecruitmentPost, deleteRecruitmentPostHandler, scanRecruitmentPosts,
+} = require("./apiRoutes/recruitment");
 
-/** Dispatches an /api/* request. Returns true if handled, false to fall through. */
-async function handle(pathname, req, res) {
+/** Dispatches an /api/* request. `url` is only needed by routes that read query params. */
+async function handle(pathname, req, res, url) {
     if (pathname === "/api/session" && req.method === "GET") {
         getSession(req, res);
         return true;
@@ -78,6 +82,34 @@ async function handle(pathname, req, res) {
     }
     if (pathname === "/api/raid-templates/import" && req.method === "POST") {
         await importRaidTemplates(req, res);
+        return true;
+    }
+    if (pathname === "/api/recruitment" && req.method === "GET") {
+        await getRecruitmentData(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/recruitment" && req.method === "POST") {
+        await saveRecruitmentTemplate(req, res);
+        return true;
+    }
+    if (pathname === "/api/recruitment/delete" && req.method === "POST") {
+        await deleteRecruitmentTemplate(req, res);
+        return true;
+    }
+    if (pathname === "/api/recruitment/post" && req.method === "POST") {
+        await postRecruitmentTemplate(req, res);
+        return true;
+    }
+    if (pathname === "/api/recruitment/post-update" && req.method === "POST") {
+        await updateRecruitmentPost(req, res);
+        return true;
+    }
+    if (pathname === "/api/recruitment/post-delete" && req.method === "POST") {
+        await deleteRecruitmentPostHandler(req, res);
+        return true;
+    }
+    if (pathname === "/api/recruitment/scan" && req.method === "POST") {
+        await scanRecruitmentPosts(req, res);
         return true;
     }
     error(res, 404, "not_found", "Unbekannter API-Endpunkt.");
