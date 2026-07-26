@@ -129,3 +129,59 @@ export function duplicateChannel(
 ): Promise<{ id: string; name: string }> {
     return send("POST", "/api/channels/duplicate", csrfToken, input);
 }
+
+export type Role = { id: string; name: string };
+
+export type BlizzardConfig = {
+    clientId: string;
+    clientSecret?: string;
+    region: string;
+    realmSlug: string;
+    namespace: string;
+};
+
+export type AdminConfig = {
+    adminRoleIds: string[];
+    officerRoleId: string;
+    applicationChannelId: string;
+    highestBidsChannelId: string;
+    highestBidsMessageId: string;
+    categoryIds: string[];
+    categoryRoles: Record<string, string[]>;
+    logChannelIds: string[];
+    raidDefaults: { templateId: string; channelId: string };
+    blizzard: BlizzardConfig;
+};
+
+export type Raidsheet = {
+    id: string;
+    name: string;
+    spreadsheetId: string;
+    sheetName: string;
+    gid: string;
+    keywords: string[];
+};
+
+export type SettingsData = {
+    config: AdminConfig;
+    raidsheets: Raidsheet[];
+    roles: Role[];
+    categories: Category[];
+    activeGuildId: string;
+};
+
+export function getSettings(): Promise<SettingsData> {
+    return get<SettingsData>("/api/settings");
+}
+
+export function updateSettings(csrfToken: string | null, partial: Partial<AdminConfig>): Promise<{ config: AdminConfig }> {
+    return send("PATCH", "/api/settings", csrfToken, partial);
+}
+
+export function saveRaidsheet(csrfToken: string | null, input: Partial<Raidsheet>): Promise<Raidsheet> {
+    return send("POST", "/api/settings/raidsheets", csrfToken, input);
+}
+
+export function deleteRaidsheet(csrfToken: string | null, id: string): Promise<{ id: string }> {
+    return send("POST", "/api/settings/raidsheets/delete", csrfToken, { id });
+}
