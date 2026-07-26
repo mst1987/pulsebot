@@ -11,7 +11,7 @@ const {
 } = require("../lootStore");
 const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../characterInfo");
 const { getCharacter } = require("../characterStore");
-const { parseLoot, detectImportDate, LootParseError } = require("../../utils/lootImport");
+const { parseLoot, detectImportDate, enrichItemNames, LootParseError } = require("../../utils/lootImport");
 const { bestDayMatch, formatDayDisplay, dayKey } = require("../lootEventMatch");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setupView");
 const { applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../../config/variables");
@@ -84,6 +84,7 @@ async function importLoot(req, res) {
         return error(res, 400, "parse_failed", e instanceof LootParseError ? e.message : "Import fehlgeschlagen.");
     }
     if (!items.length) return error(res, 400, "empty", "Keine Loot-Einträge im Export gefunden.");
+    await enrichItemNames(items);
 
     let eventId = String(body.event || "").trim();
     const manualTitle = String(body.manualLabel || "").trim();

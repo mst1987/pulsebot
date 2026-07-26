@@ -1,5 +1,7 @@
+jest.mock("../../src/utils/wowhead");
+const wowhead = require("../../src/utils/wowhead");
 const {
-    parseLoot, parseRclc, parseGargul, detectImportDate,
+    parseLoot, parseRclc, parseGargul, detectImportDate, enrichItemNames,
     splitPlayer, characterKey, itemLink, LootParseError,
 } = require("../../src/utils/lootImport");
 
@@ -143,6 +145,49 @@ describe("utils/lootImport", () => {
         it("auto-detects JSON as rclc and CSV as gargul", () => {
             expect(parseLoot(RCLC_JSON, "auto")[0].source).toBe("rclc");
             expect(parseLoot(GARGUL_CSV)[0].source).toBe("gargul");
+        });
+    });
+
+    describe("enrichItemNames", () => {
+        afterEach(() => jest.clearAllMocks());
+
+        it("fills name/icon for Gargul items missing both, looking up each id once", async () => {
+            wowhead.lookupItem.mockResolvedValue({ id: 29992, name: "Sunhawk Leggings", iconUrl: "https://example/icon.jpg" });
+            const items = parseGargul(GARGUL_CSV); // three rows, three distinct item ids
+            await enrichItemNames(items);
+            expect(items[0]).toMatchObject({ itemName: "Sunhawk Leggings", itemIconUrl: "https://example/icon.jpg" });
+            expect(wowhead.lookupItem).toHaveBeenCalledTimes(3); // three distinct item ids in the fixture
+        });
+
+        it("only looks up icons for RCLootcouncil items (name already known)", async () => {
+            wowhead.lookupItem.mockResolvedValue({ id: 29920, name: "ignored", iconUrl: "https://example/ring.jpg" });
+            const items = parseRclc(RCLC_JSON);
+            await enrichItemNames(items);
+            expect(items[0]).toMatchObject({ itemName: "Phoenix-Ring of Rebirth", itemIconUrl: "https://example/ring.jpg" });
+        });
+
+        it("dedupes lookups for repeated item ids", async () => {
+            wowhead.lookupItem.mockResolvedValue({ id: 1, name: "X", iconUrl: "https://example/x.jpg" });
+            const items = [
+                { itemId: 1, itemName: "", itemIconUrl: "" },
+                { itemId: 1, itemName: "", itemIconUrl: "" },
+            ];
+            await enrichItemNames(items);
+            expect(wowhead.lookupItem).toHaveBeenCalledTimes(1);
+            expect(items[1]).toMatchObject({ itemName: "X", itemIconUrl: "https://example/x.jpg" });
+        });
+
+        it("leaves items untouched when the lookup fails (best-effort)", async () => {
+            wowhead.lookupItem.mockResolvedValue(null);
+            const items = [{ itemId: 5, itemName: "", itemIconUrl: "" }];
+            await enrichItemNames(items);
+            expect(items[0]).toMatchObject({ itemName: "", itemIconUrl: "" });
+        });
+
+        it("skips items that already have both a name and an icon", async () => {
+            const items = [{ itemId: 1, itemName: "Known", itemIconUrl: "https://example/known.jpg" }];
+            await enrichItemNames(items);
+            expect(wowhead.lookupItem).not.toHaveBeenCalled();
         });
     });
 

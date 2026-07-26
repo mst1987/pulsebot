@@ -548,6 +548,7 @@ export type LootLog = {
 export type LootItem = {
     itemId: number;
     itemName: string;
+    itemIconUrl?: string;
     itemLink: string;
     character: string;
     response: string;
