@@ -162,9 +162,11 @@ jest.mock("../../src/web/eventSheetStore", () => ({
 }));
 const mockGetEventSoftres = jest.fn(() => null);
 const mockSaveEventSoftres = jest.fn((id, data) => ({ eventId: id, ...data }));
+const mockSetEventSoftresLink = jest.fn((id, data) => ({ eventId: id, ...data }));
 jest.mock("../../src/web/eventSoftresStore", () => ({
     getEventSoftres: mockGetEventSoftres,
     saveEventSoftres: mockSaveEventSoftres,
+    setEventSoftresLink: mockSetEventSoftresLink,
     listEventSoftres: jest.fn(() => []),
 }));
 const mockCreateRaid = jest.fn(async () => ({
@@ -1612,6 +1614,24 @@ describe("softres routes", () => {
         const res = await request("POST", "/admin/raids/softres", {
             event: "e1", inst_kara: "1", amount: "1", faction: "Alliance",
         });
+        expect(redirectTo(res)).toContain("err=");
+    });
+
+    it("POST /admin/raids/softres/link points the event at a manually chosen link", async () => {
+        const res = await request("POST", "/admin/raids/softres/link", {
+            event: "e1", softresUrl: "https://softres.it/raid/other", softresEditUrl: "https://softres.it/raid/other/tok",
+        });
+        expect(mockSetEventSoftresLink).toHaveBeenCalledWith("e1", {
+            url: "https://softres.it/raid/other", editUrl: "https://softres.it/raid/other/tok",
+        });
+        expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&ok=");
+    });
+
+    it("rejects a manual link that isn't a softres.it raid URL", async () => {
+        const res = await request("POST", "/admin/raids/softres/link", {
+            event: "e1", softresUrl: "https://evil.example/raid/other",
+        });
+        expect(mockSetEventSoftresLink).not.toHaveBeenCalled();
         expect(redirectTo(res)).toContain("err=");
     });
 });

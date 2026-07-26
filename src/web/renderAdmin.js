@@ -2036,6 +2036,17 @@ function renderEventDetail(user, opts = {}) {
     const so = eventSoftres;
     const catalogue = opts.softresCatalogue || [];
     const suggested = new Set(opts.softresSuggested || []);
+    const softresLinkForm = `
+      <details class="softres-link-details">
+        <summary style="cursor:pointer">${so && so.url ? "Anderen Softres-Link verwenden" : "Schon eine Liste auf softres.it? Link manuell hinterlegen"}</summary>
+        <form class="card-form" style="margin-top:10px" method="POST" action="/admin/raids/softres/link">
+          ${csrfField}
+          <input type="hidden" name="event" value="${esc(ev.id)}">
+          <div class="field"><label>Softres-Link (Ansehen)</label><input type="url" name="softresUrl" placeholder="https://softres.it/raid/..." value="${so ? esc(so.url) : ""}" required></div>
+          <div class="field"><label>Softres-Link (Bearbeiten, optional)</label><input type="url" name="softresEditUrl" placeholder="https://softres.it/raid/.../token" value="${so ? esc(so.editUrl) : ""}"></div>
+          <div class="row-actions"><button class="btn" type="submit">Link speichern</button></div>
+        </form>
+      </details>`;
     const existingSoftres = so && so.url
         ? `<div class="sheetcard" id="softres-existing">
           <div><strong>Softres-Liste:</strong>
@@ -2043,8 +2054,9 @@ function renderEventDetail(user, opts = {}) {
             · <a class="mlink" href="${esc(so.editUrl)}" target="_blank" rel="noopener">Bearbeiten (mit Token)</a>
           </div>
           <div class="hint">${esc(String(so.amount || 1))} Softres/Spieler · ${esc(String((so.instances || []).length))} Instanz(en)${so.hardReserveCount ? ` · ${esc(String(so.hardReserveCount))} Hardreserve(s)` : ""}. Neu erstellen ersetzt den Link unten nicht automatisch auf softres.it.</div>
+          ${softresLinkForm}
         </div>`
-        : "";
+        : softresLinkForm;
     const instGroups = catalogue.map((g) => `
         <fieldset class="softres-ed" style="border:1px solid var(--line);border-radius:8px;padding:8px 12px;margin:0 0 10px">
           <legend class="small" style="padding:0 6px">${esc(g.label)}</legend>

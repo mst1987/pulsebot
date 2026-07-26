@@ -37,7 +37,7 @@ const { annotateMatches, autoMatches } = require("./logEventMatch");
 const { bestDayMatch, formatDayDisplay, dayKey } = require("./lootEventMatch");
 const { evaluateLog, scanLogChannels, backfillLogTitles } = require("./logChannel");
 const { getEventSheet, markEventSheetFilled } = require("./eventSheetStore");
-const { getEventSoftres, saveEventSoftres } = require("./eventSoftresStore");
+const { getEventSoftres, saveEventSoftres, setEventSoftresLink } = require("./eventSoftresStore");
 const softres = require("../utils/softres");
 const wowhead = require("../utils/wowhead");
 const Raidhelper = require("../classes/raidhelper");
@@ -1066,6 +1066,23 @@ async function handle(req, res) {
             console.error("softres create failed:", e.message);
             return redirect(res, `${back}&err=${encodeURIComponent(e.message || "Softres-Erstellung fehlgeschlagen.")}`);
         }
+    }
+
+    // point the event at a manually chosen softres.it link (e.g. one already set
+    // up directly on softres.it) instead of one created via the API above
+    if (pathname === "/admin/raids/softres/link" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        const eventId = (form.event || "").trim();
+        const back = `/admin/raids/detail?event=${encodeURIComponent(eventId)}`;
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, `${back}&msg=csrf`);
+        const softresUrl = (form.softresUrl || "").trim();
+        if (!/^https:\/\/(www\.)?softres\.it\/raid\/[a-zA-Z0-9]+/i.test(softresUrl)) {
+            return redirect(res, `${back}&err=${encodeURIComponent("Das muss ein softres.it-Raid-Link sein (https://softres.it/raid/...).")}#softres`);
+        }
+        setEventSoftresLink(eventId, { url: softresUrl, editUrl: (form.softresEditUrl || "").trim() });
+        return redirect(res, `${back}&ok=${encodeURIComponent("Softres-Link aktualisiert.")}#softres`);
     }
 
     // Anmelde-Aufruf templates (create/edit/delete)
