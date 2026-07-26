@@ -1,35 +1,51 @@
 import { useEffect, useState } from "react";
+import { Routes, Route } from "react-router-dom";
+import Shell from "./components/Shell";
+import DashboardPage from "./pages/DashboardPage";
+import { getSession, type ApiError, type Session } from "./api";
 
-type SessionResponse = {
-    data: {
-        user: { id: string; name: string; isAdmin: boolean } | null;
-        csrfToken: string | null;
-    };
-};
+type LoadState =
+    | { status: "loading" }
+    | { status: "ready"; session: Session }
+    | { status: "error"; error: ApiError };
 
-function App() {
-    const [session, setSession] = useState<SessionResponse["data"] | null>(null);
-    const [error, setError] = useState<string | null>(null);
+function useSession(): LoadState {
+    const [state, setState] = useState<LoadState>({ status: "loading" });
 
     useEffect(() => {
-        fetch("/api/session", { credentials: "include" })
-            .then((res) => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                return res.json() as Promise<SessionResponse>;
-            })
-            .then((body) => setSession(body.data))
-            .catch((err) => setError(String(err)));
+        getSession()
+            .then((session) => setState({ status: "ready", session }))
+            .catch((error: ApiError) => setState({ status: "error", error }));
     }, []);
 
-    return (
-        <main>
-            <h1>EventHelper Admin (React) — Phase 0</h1>
-            <p>Diese Seite belegt nur, dass Vite-Dev-Server, API-Proxy und der neue /api-Layer zusammenspielen.</p>
-            {error && <p style={{ color: "crimson" }}>Fehler beim Laden der Session: {error}</p>}
-            {!error && !session && <p>Lade Session…</p>}
-            {session && <pre>{JSON.stringify(session, null, 2)}</pre>}
-        </main>
-    );
+    return state;
 }
 
-export default App;
+export default function App() {
+    const state = useSession();
+
+    if (state.status === "loading") return <div className="empty">Lade…</div>;
+    if (state.status === "error") {
+        return <div className="empty">Fehler beim Laden der Session: {state.error.message}</div>;
+    }
+
+    const { user } = state.session;
+    if (!user || !user.isAdmin) {
+        return (
+            <div className="empty" style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center", paddingTop: 80 }}>
+                <p>{user
+                    ? "Dein Discord-Konto hat keinen Admin-Zugang zu diesem Menü."
+                    : "Bitte melde dich mit Discord an, um das Admin-Menü zu nutzen."}</p>
+                {!user && <a className="mlink" href="/auth/login">Mit Discord anmelden</a>}
+            </div>
+        );
+    }
+
+    return (
+        <Routes>
+            <Route element={<Shell user={user} />}>
+                <Route index element={<DashboardPage />} />
+            </Route>
+        </Routes>
+    );
+}

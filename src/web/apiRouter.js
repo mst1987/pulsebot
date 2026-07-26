@@ -3,6 +3,11 @@
 // context. Mounted under /api/* by server.js's handle().
 const auth = require("./auth");
 const { ok, error } = require("./apiResponse");
+const { requireAdmin } = require("./apiMiddleware");
+const { listReports } = require("./reportStore");
+const { getConfig, listRecruitment, listRecruitmentPosts } = require("./settingsStore");
+const { activeGuildFor } = require("./activeGuild");
+const { loadUpcomingSetups, loadRecentEvents } = require("./dashboardData");
 
 /** GET /api/session — who the caller is (if anyone), plus their CSRF token. */
 function getSession(req, res) {
@@ -13,10 +18,44 @@ function getSession(req, res) {
     });
 }
 
+/** GET /api/dashboard — the admin start page's key figures + quick lists. */
+async function getDashboard(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    const reports = listReports();
+    const cfg = getConfig();
+    const stats = {
+        reportsTotal: reports.length,
+        reportsWithIssues: reports.filter((r) => (r.issueCount || 0) > 0).length,
+        templates: listRecruitment().length,
+        posts: listRecruitmentPosts().length,
+        categories: (cfg.categoryIds || []).length,
+        adminRoles: (cfg.adminRoleIds || []).length,
+    };
+    const guildId = activeGuildFor(req);
+    const [upcoming, recentEvents] = await Promise.all([
+        loadUpcomingSetups(guildId, 3),
+        loadRecentEvents(guildId, 5),
+    ]);
+    ok(res, {
+        stats,
+        recentReports: reports.slice(0, 8).map((r) => ({
+            id: r.id, title: r.title, zone: r.zone, generatedAt: r.generatedAt, issueCount: r.issueCount || 0,
+        })),
+        upcoming,
+        recentEvents,
+        activeGuildId: guildId,
+    });
+}
+
 /** Dispatches an /api/* request. Returns true if handled, false to fall through. */
 async function handle(pathname, req, res) {
     if (pathname === "/api/session" && req.method === "GET") {
         getSession(req, res);
+        return true;
+    }
+    if (pathname === "/api/dashboard" && req.method === "GET") {
+        await getDashboard(req, res);
         return true;
     }
     error(res, 404, "not_found", "Unbekannter API-Endpunkt.");
