@@ -449,7 +449,7 @@ function renderBossUptimesPanel(data) {
     </table>`;
 }
 
-function renderReportPage(report) {
+function renderReportPage(report, user) {
     const players = report.players || [];
     const dateStr = report.date ? esc(report.date) : "";
     const sub = [
@@ -488,6 +488,7 @@ function renderReportPage(report) {
         `<div id="tab-${t.id}" class="tabpanel${i === 0 ? " active" : ""}">${t.html}</div>`).join("");
 
     const body = `
+      <div style="text-align:right;margin-bottom:8px">${authBar(user)}</div>
       <h1>${esc(report.title || "Log-Check")}</h1>
       <p class="sub">${sub} · <a href="/">alle Auswertungen</a></p>
       <nav class="tabs">${buttons}</nav>
@@ -542,7 +543,7 @@ function paperdollSlot(it, side) {
     </div>`;
 }
 
-function renderPlayerPage(report, idx) {
+function renderPlayerPage(report, idx, user) {
     const p = (report.roster || [])[idx];
     if (!p) return renderNotFound();
     const color = CLASS_COLORS[p.type] || "#ddd";
@@ -569,6 +570,7 @@ function renderPlayerPage(report, idx) {
         : "<div class=\"empty\">Keine Gear-Probleme 🎉</div>";
 
     const body = `
+      <div style="text-align:right;margin-bottom:8px">${authBar(user)}</div>
       <p class="sub"><a href="/r/${esc(report.id)}">← zurück zum Report</a> · ${esc(report.title || "")}</p>
       <div class="hero" style="--cc:${color}">
         <div class="hero-bg"></div>

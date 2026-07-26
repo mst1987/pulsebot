@@ -1474,7 +1474,7 @@ function renderCla(user, opts = {}) {
             : "<p class=\"sub\">Noch keine Auswertungen.</p>";
         content = `
       <h2>Neue Auswertung</h2>
-      <form class="card-form" method="POST" action="/admin/cla">
+      <form class="card-form" method="POST" action="/admin/cla" data-loader="Auswertung wird erstellt" onsubmit="this.querySelector('button[type=submit]').disabled=true;this.querySelector('button[type=submit]').textContent='Erstelle Auswertung …'">
         ${csrfField}
         <div class="field">
           <label>Warcraft-Logs-Report-Link oder Report-ID</label>
@@ -2186,6 +2186,59 @@ function renderEventDetail(user, opts = {}) {
         });}
       })();</script>`;
 
+    // --- Logs (Warcraft-Logs assigned to this raid): already-linked logs with
+    // their evaluate/unlink actions, plus a picker to assign a still-unassigned
+    // detected log to this event. Mirrors the CLA logs tab's per-row actions,
+    // but scoped to one event so it can be worked from the raid page directly.
+    const eventLogs = opts.eventLogs || [];
+    const unlinkedLogs = opts.unlinkedLogs || [];
+    const eventLogRow = (l) => {
+        const wclUrl = logWclUrl(l);
+        const name = l.title || l.reportId || "(unbekannt)";
+        const link = wclUrl
+            ? `<a class="mlink" href="${esc(wclUrl)}" target="_blank" rel="noopener">${esc(name)} ↗</a>`
+            : esc(name);
+        const status = l.status === "done"
+            ? "<span class=\"pill\" style=\"background:var(--good-bg);color:var(--good)\">ausgewertet</span>"
+            : "<span class=\"pill\">offen</span>";
+        const action = l.status === "done"
+            ? (l.reportUrl || l.reportRefId
+                ? `<a class="btn btn-ghost btn-sm" href="${esc(l.reportUrl || `/r/${l.reportRefId}`)}">Öffnen</a>`
+                : "")
+            : `<form method="POST" action="/admin/cla/eval" style="margin:0" onsubmit="this.querySelector('button').disabled=true;this.querySelector('button').textContent='Läuft …'">
+                 ${csrfField}<input type="hidden" name="logId" value="${esc(l.id)}">
+                 <button class="btn btn-sm" type="submit">Auswerten</button>
+               </form>`;
+        return `<div class="row-actions" style="justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line-soft)">
+          <div>${link} ${status}</div>
+          <div class="row-actions" style="gap:6px">
+            ${action}
+            <form method="POST" action="/admin/cla/log-unlink" style="margin:0" onsubmit="return confirm('Zuordnung zu diesem Raid entfernen?')">
+              ${csrfField}<input type="hidden" name="logId" value="${esc(l.id)}">
+              <input type="hidden" name="event" value="${esc(ev.id)}">
+              <input type="hidden" name="returnTo" value="event">
+              <button class="btn btn-ghost btn-sm" type="submit" title="Zuordnung entfernen">✕</button>
+            </form>
+          </div>
+        </div>`;
+    };
+    const linkLogForm = unlinkedLogs.length
+        ? `<form method="POST" action="/admin/cla/log-link" class="row-actions" style="gap:8px;margin-top:12px;flex-wrap:wrap">
+             ${csrfField}
+             <input type="hidden" name="eventId" value="${esc(ev.id)}">
+             <input type="hidden" name="returnTo" value="event">
+             <select name="logId" class="sel-sm">
+               ${unlinkedLogs.map((l) => `<option value="${esc(l.id)}">${esc(l.title || l.reportId || "(unbekannt)")}</option>`).join("")}
+             </select>
+             <button class="btn btn-ghost btn-sm" type="submit">Log zuordnen</button>
+           </form>`
+        : "<p class=\"sub\">Keine noch nicht zugeordneten Logs vorhanden.</p>";
+    const logsSection = `
+      ${eventLogs.length ? eventLogs.map(eventLogRow).join("") : "<p class=\"sub\">Für dieses Event ist noch kein Log zugeordnet.</p>"}
+      <h2>Log zuordnen</h2>
+      <p class="note">Ordnet ein bereits erkanntes, aber noch keinem Event zugeordnetes Log diesem Raid zu.</p>
+      ${linkLogForm}`;
+
     const body = `
       <p class="note"><a class="mlink" href="/admin/raids">← Zurück zur Event-Übersicht</a></p>
       ${meta}
@@ -2195,6 +2248,7 @@ function renderEventDetail(user, opts = {}) {
         <button type="button" class="tab-btn" data-tab="actions" role="tab">Anmeldung &amp; Sheet</button>
         <button type="button" class="tab-btn" data-tab="loot" role="tab">Loot${lootItems.length ? tabCount(lootItems.length) : ""}</button>
         <button type="button" class="tab-btn" data-tab="softres" role="tab">Softres</button>
+        <button type="button" class="tab-btn" data-tab="logs" role="tab">Logs${eventLogs.length ? tabCount(eventLogs.length) : ""}</button>
       </div>
       <div class="tab-panel active" data-panel="setup" role="tabpanel">
         <p class="note">Aktueller Raidplan dieses Events, in Raid-Gruppen 1–5 wie im Raid-Helper. Icons und Farben richten sich nach der WoW-Spec.</p>
@@ -2224,6 +2278,11 @@ function renderEventDetail(user, opts = {}) {
         <h2 style="margin-top:0">Gedroppten Loot importieren</h2>
         <p class="note">RCLootcouncil-Export (JSON) oder Gargul-CSV dieses Raids einfügen oder hochladen — landet direkt in der <a class="mlink" href="/admin/history">Event-Historie</a>. Bereits importierter Loot wird beim erneuten Import automatisch übersprungen (Duplikat-Erkennung).</p>
         ${lootSection}
+      </div>
+      <div class="tab-panel" data-panel="logs" role="tabpanel">
+        <h2 style="margin-top:0">Zugeordnete Logs</h2>
+        <p class="note">Warcraft-Logs, die diesem Raid zugeordnet sind, sowie noch offene, erkannte Logs zum Zuordnen.</p>
+        ${logsSection}
       </div>
       <script>(function(){
         var btns=document.querySelectorAll(".tab-btn");

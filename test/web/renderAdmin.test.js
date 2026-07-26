@@ -997,6 +997,50 @@ describe("web/renderAdmin", () => {
             expect(html).not.toContain("var(--card)");
         });
 
+        it("lists logs already assigned to this raid, with Auswerten/unlink actions", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                eventLogs: [
+                    { id: "l1", title: "Kara Woche 3", reportId: "RPT1", link: "https://classic.warcraftlogs.com/reports/RPT1", status: "open" },
+                    { id: "l2", title: "Kara Woche 2", reportId: "RPT2", status: "done", reportUrl: "/r/abc" },
+                ],
+            });
+            expect(html).toContain("Kara Woche 3");
+            expect(html).toContain("https://classic.warcraftlogs.com/reports/RPT1");
+            expect(html).toContain("action=\"/admin/cla/eval\"");
+            expect(html).toContain("name=\"logId\" value=\"l1\"");
+            expect(html).toContain("Kara Woche 2");
+            expect(html).toContain("href=\"/r/abc\"");
+            // both rows offer an unlink form scoped back to this event
+            expect(html).toContain("action=\"/admin/cla/log-unlink\"");
+            expect(html).toContain("name=\"event\" value=\"e1\"");
+            expect(html).toContain("name=\"returnTo\" value=\"event\"");
+            expect(html).toContain("data-tab=\"logs\"");
+            expect(html).toContain(">Logs<span class=\"tab-count\">2</span>");
+        });
+
+        it("shows the empty state and no tab count when no log is assigned yet", () => {
+            const html = renderEventDetail(user, { ...base, eventLogs: [] });
+            expect(html).toContain("Für dieses Event ist noch kein Log zugeordnet.");
+            expect(html).toContain(">Logs</button>");
+        });
+
+        it("offers a picker to assign a still-unassigned detected log to this raid", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                unlinkedLogs: [{ id: "l3", title: "SSC Woche 1", reportId: "RPT3" }],
+            });
+            expect(html).toContain("action=\"/admin/cla/log-link\"");
+            expect(html).toContain("name=\"eventId\" value=\"e1\"");
+            expect(html).toContain("<option value=\"l3\">SSC Woche 1</option>");
+            expect(html).toContain("Log zuordnen");
+        });
+
+        it("shows a hint instead of the picker when there is nothing left to assign", () => {
+            const html = renderEventDetail(user, { ...base, unlinkedLogs: [] });
+            expect(html).toContain("Keine noch nicht zugeordneten Logs vorhanden.");
+        });
+
         it("falls back to a free-text Tank-3 field when no candidates exist", () => {
             const html = renderEventDetail(user, {
                 ...base,

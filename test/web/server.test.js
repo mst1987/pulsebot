@@ -108,6 +108,13 @@ describe("web/server", () => {
             expect(res.end).toHaveBeenCalledWith("REPORT_PAGE");
         });
 
+        it("GET /r/<id> passes the current visitor to renderReportPage so it can show the admin-menu link", async () => {
+            store.getReport.mockReturnValue({ id: "abc" });
+            auth.getUser.mockReturnValue({ id: "u1", name: "Admin", isAdmin: true });
+            await request({ url: "/r/abc123", method: "GET", headers: {} });
+            expect(render.renderReportPage).toHaveBeenCalledWith({ id: "abc" }, { id: "u1", name: "Admin", isAdmin: true });
+        });
+
         it("GET /r/<id> returns 404 when missing", async () => {
             store.getReport.mockReturnValue(null);
             const res = await request({ url: "/r/missing1", method: "GET", headers: {} });
@@ -117,10 +124,18 @@ describe("web/server", () => {
 
         it("GET /r/<id>/p/<idx> renders the player detail page", async () => {
             store.getReport.mockReturnValue({ id: "abc" });
+            auth.getUser.mockReturnValue(null);
             const res = await request({ url: "/r/abc123/p/2", method: "GET", headers: {} });
             expect(store.getReport).toHaveBeenCalledWith("abc123");
-            expect(render.renderPlayerPage).toHaveBeenCalledWith({ id: "abc" }, 2);
+            expect(render.renderPlayerPage).toHaveBeenCalledWith({ id: "abc" }, 2, null);
             expect(res.end).toHaveBeenCalledWith("PLAYER_PAGE");
+        });
+
+        it("GET /r/<id>/p/<idx> passes the current visitor to renderPlayerPage too", async () => {
+            store.getReport.mockReturnValue({ id: "abc" });
+            auth.getUser.mockReturnValue({ id: "u1", name: "Admin", isAdmin: true });
+            await request({ url: "/r/abc123/p/2", method: "GET", headers: {} });
+            expect(render.renderPlayerPage).toHaveBeenCalledWith({ id: "abc" }, 2, { id: "u1", name: "Admin", isAdmin: true });
         });
 
         it("returns 404 for an unknown path", async () => {
