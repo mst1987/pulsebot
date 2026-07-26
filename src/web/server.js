@@ -53,7 +53,8 @@ const discord = require("./discord");
 const auth = require("./auth");
 const { activeGuildFor } = require("./activeGuild");
 const { loadUpcomingSetups, loadRecentEvents, annotateUpcomingExtras } = require("./dashboardData");
-const { EVENT_LOOKBACK_DAYS, eventLookbackSince, loadEventGroups } = require("./raidEventGroups");
+const { eventLookbackSince, loadEventGroups } = require("./raidEventGroups");
+const { loadMatchableEvents, eventLinkFields } = require("./matchableEvents");
 const apiRouter = require("./apiRouter");
 const staticClient = require("./staticClient");
 
@@ -130,47 +131,6 @@ async function recruitmentResult(req, res, view, result) {
     }
     const param = result.type === "err" ? "err" : "ok";
     return redirect(res, `/admin/recruitment?view=${view}&${param}=${encodeURIComponent(result.text)}`);
-}
-
-// Flat list of the guild's already started raids that a detected log could belong
-// to, newest start first. Returns { events, error }.
-async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
-    if (!guildId) return { events: [], error: null };
-    try {
-        const rh = new Raidhelper();
-        const from = Math.floor(Date.now() / 1000) - days * 24 * 60 * 60;
-        const events = await rh.getPastEvents(from);
-        const catMap = discord.getChannelCategoryMap(guildId);
-        const out = [];
-        for (const ev of events || []) {
-            const meta = catMap[ev.channelId];
-            if (!meta) continue; // event channel not in this guild
-            out.push({
-                id: ev.id,
-                title: ev.title,
-                startTime: ev.startTime,
-                channelId: ev.channelId,
-                channelName: meta.name || "",
-                categoryId: meta.categoryId || "",
-                categoryName: meta.categoryName || "",
-            });
-        }
-        out.sort((a, b) => (Number(b.startTime) || 0) - (Number(a.startTime) || 0));
-        return { events: out, error: null };
-    } catch (e) {
-        return { events: [], error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
-    }
-}
-
-// A log's event assignment as stored: label + start snapshot, so it keeps its
-// name once Raid-Helper no longer lists the event.
-function eventLinkFields(event, source) {
-    return {
-        eventId: event.id,
-        eventLabel: event.title || event.id,
-        eventStartTime: Number(event.startTime) || 0,
-        source,
-    };
 }
 
 // Context for the server selector shown on every admin page.

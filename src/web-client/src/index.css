@@ -74,6 +74,11 @@ form.card-form { background: var(--panel); border: 1px solid var(--line); border
 .btn:hover { filter: brightness(1.08); box-shadow: 0 4px 22px -6px var(--accent); transform: translateY(-1px); }
 .btn:active { transform: translateY(0); }
 .btn:disabled { opacity: .6; cursor: not-allowed; filter: none; box-shadow: none; transform: none; }
+.btn-ghost { background: var(--panel2); color: var(--text); border: 1px solid var(--line); }
+.btn-ghost:hover { filter: none; background: var(--panel3); border-color: var(--accent); box-shadow: none; }
+.btn-danger { background: var(--high-bg); color: var(--high); border: 1px solid var(--high); }
+.btn-danger:hover { filter: none; background: var(--high); color: #fff; box-shadow: 0 4px 22px -8px var(--high); transform: translateY(-1px); }
+.btn-sm { padding: 6px 12px; font-size: 13px; }
 .row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .pill { display: inline-block; background: var(--high-bg); color: var(--high); border-radius: 10px; padding: 0 8px; font-size: 12px; font-weight: 700; }
 .pill.good { background: var(--good-bg); color: var(--good); }
@@ -205,6 +210,17 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 .flash { border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 14px; }
 .flash-ok { background: var(--good-bg); color: var(--good); border: 1px solid var(--good); }
 .flash-err { background: var(--high-bg); color: var(--high); border: 1px solid var(--high); }
+
+/* ===== CLA: sortable table headers + pager (new pattern, first paginated table) ===== */
+.sort-link { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 2px; white-space: nowrap; cursor: pointer; }
+.sort-link:hover { color: var(--accent); }
+.sort-link.active { color: var(--accent); }
+.pager { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+.pager-info { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pager-btn { display: inline-block; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--text); text-decoration: none; font-size: 13.5px; font-weight: 600; cursor: pointer; font: inherit; }
+.pager-btn:hover { border-color: var(--accent); color: var(--accent); }
+.pager-btn.disabled, .pager-btn:disabled { opacity: .45; pointer-events: none; cursor: default; }
+.sel-sm { max-width: 270px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13px; }
 
 .applist { display: flex; flex-direction: column; gap: 12px; }
 .app-card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
