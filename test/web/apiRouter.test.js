@@ -27,6 +27,9 @@ jest.mock("../../src/web/discord", () => ({
     createChannel: jest.fn(),
     duplicateChannel: jest.fn(),
 }));
+jest.mock("../../src/web/raidEventGroups", () => ({
+    loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
+}));
 
 const auth = require("../../src/web/auth");
 const reportStore = require("../../src/web/reportStore");
@@ -34,6 +37,7 @@ const settingsStore = require("../../src/web/settingsStore");
 const { activeGuildFor } = require("../../src/web/activeGuild");
 const dashboardData = require("../../src/web/dashboardData");
 const discord = require("../../src/web/discord");
+const raidEventGroups = require("../../src/web/raidEventGroups");
 const { handle } = require("../../src/web/apiRouter");
 
 function mockRes() {
@@ -343,6 +347,51 @@ describe("web/apiRouter", () => {
             const res = await post("/api/settings/raidsheets/delete", { id: "s1" });
             expect(settingsStore.deleteRaidsheet).toHaveBeenCalledWith("s1");
             expect(body(res)).toEqual({ data: { id: "s1" } });
+        });
+    });
+
+    describe("GET /api/raids", () => {
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = mockRes();
+            await handle("/api/raids", { method: "GET" }, res);
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+            expect(raidEventGroups.loadEventGroups).not.toHaveBeenCalled();
+        });
+
+        it("returns the active guild's upcoming events grouped by category", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", title: "Kara" }] }],
+                error: null,
+            });
+
+            const res = mockRes();
+            await handle("/api/raids", { method: "GET" }, res);
+
+            expect(raidEventGroups.loadEventGroups).toHaveBeenCalledWith("guild-1");
+            expect(body(res)).toEqual({
+                data: {
+                    groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", title: "Kara" }] }],
+                    error: null,
+                    activeGuildId: "guild-1",
+                },
+            });
+        });
+
+        it("passes the Raid-Helper API error through instead of failing the request", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: "Raid-Helper nicht erreichbar." });
+
+            const res = mockRes();
+            await handle("/api/raids", { method: "GET" }, res);
+
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(body(res)).toEqual({
+                data: { groups: [], error: "Raid-Helper nicht erreichbar.", activeGuildId: "guild-1" },
+            });
         });
     });
 

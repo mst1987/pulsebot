@@ -9,6 +9,7 @@ const { getChannels, createChannel, duplicateChannel } = require("./apiRoutes/ch
 const {
     getSettings, updateSettings, saveRaidsheetHandler, deleteRaidsheetHandler,
 } = require("./apiRoutes/settings");
+const { getRaids } = require("./apiRoutes/raids");
 
 /** Dispatches an /api/* request. Returns true if handled, false to fall through. */
 async function handle(pathname, req, res) {
@@ -46,6 +47,10 @@ async function handle(pathname, req, res) {
     }
     if (pathname === "/api/settings/raidsheets/delete" && req.method === "POST") {
         await deleteRaidsheetHandler(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids" && req.method === "GET") {
+        await getRaids(req, res);
         return true;
     }
     error(res, 404, "not_found", "Unbekannter API-Endpunkt.");

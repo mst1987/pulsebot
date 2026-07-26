@@ -15,7 +15,7 @@ const TABS: { id: string; label: string; href: string; group: string; icon: Reac
     { id: "home", label: "Übersicht", href: "/", group: "Verwaltung", icon: <HomeIcon />, internal: true },
     { id: "recruitment", label: "Recruitment", href: "/admin/recruitment", group: "Verwaltung", icon: <RecruitmentIcon /> },
     { id: "cla", label: "CLA / Logcheck", href: "/admin/cla", group: "Verwaltung", icon: <ClaIcon /> },
-    { id: "raids", label: "Raid-Events", href: "/admin/raids", group: "Verwaltung", icon: <RaidsIcon /> },
+    { id: "raids", label: "Raid-Events", href: "/raids", group: "Verwaltung", icon: <RaidsIcon />, internal: true },
     { id: "history", label: "Historie & Loot", href: "/admin/history", group: "Verwaltung", icon: <HistoryIcon /> },
     { id: "channels", label: "Kanäle", href: "/channels", group: "Verwaltung", icon: <ChannelsIcon />, internal: true },
     { id: "settings", label: "Einstellungen", href: "/settings", group: "System", icon: <SettingsIcon />, internal: true },

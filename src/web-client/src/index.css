@@ -83,6 +83,9 @@ code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; padding:
 .tab-btn.active { color: var(--text); background: var(--panel); border-color: var(--line); border-bottom-color: var(--panel); }
 .tab-panel { display: none; }
 .tab-panel.active { display: block; }
+.tab-count { display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px; font-size: 11.5px; font-weight: 700; background: var(--panel2); color: var(--muted); border: 1px solid var(--line); }
+.tab-btn.active .tab-count { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft); }
+td.cell-actions { text-align: right; white-space: nowrap; vertical-align: middle; }
 
 /* ===== category/role assignment matrix ===== */
 .rolegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: var(--bg); }
