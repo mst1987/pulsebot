@@ -32,7 +32,9 @@ const {
     getConfig, saveConfig,
 } = require("./settingsStore");
 const { buildReport, ReportError } = require("../utils/logcheck/report");
-const { listLogs, getLog, deleteLog, linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent } = require("./logStore");
+const {
+    listLogs, listLogsForEvent, getLog, deleteLog, linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent,
+} = require("./logStore");
 const { annotateMatches, autoMatches } = require("./logEventMatch");
 const { bestDayMatch, formatDayDisplay, dayKey } = require("./lootEventMatch");
 const { evaluateLog, scanLogChannels, backfillLogTitles } = require("./logChannel");
@@ -488,7 +490,11 @@ async function handle(req, res) {
         if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/cla?view=logs&msg=csrf");
         const logId = (form.logId || "").trim();
         const eventId = (form.eventId || "").trim();
-        const back = "/admin/cla?view=logs";
+        // The raid detail page links here too (assigning a log to itself) and wants
+        // to land back on itself instead of the global CLA logs list.
+        const back = form.returnTo === "event" && eventId
+            ? `/admin/raids/detail?event=${encodeURIComponent(eventId)}`
+            : "/admin/cla?view=logs";
         if (!getLog(logId)) return redirect(res, `${back}&err=${encodeURIComponent("Log nicht gefunden.")}`);
         if (!eventId) return redirect(res, `${back}&err=${encodeURIComponent("Kein Event gewählt.")}`);
         // Re-resolve the event server-side; never trust the label posted by the client.
@@ -504,10 +510,16 @@ async function handle(req, res) {
         const user = requireAdmin(req, res);
         if (!user) return;
         const form = await readFormBody(req);
-        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/cla?view=logs&msg=csrf");
+        // Same "come back to the raid detail page" escape hatch as log-link above —
+        // the event id has to be passed explicitly since unlinking drops it.
+        const eventId = (form.event || "").trim();
+        const back = form.returnTo === "event" && eventId
+            ? `/admin/raids/detail?event=${encodeURIComponent(eventId)}`
+            : "/admin/cla?view=logs";
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, `${back}&msg=csrf`);
         const removed = unlinkLogEvent((form.logId || "").trim());
-        if (!removed) return redirect(res, `/admin/cla?view=logs&err=${encodeURIComponent("Keine Zuordnung vorhanden.")}`);
-        return redirect(res, `/admin/cla?view=logs&ok=${encodeURIComponent("Zuordnung entfernt.")}`);
+        if (!removed) return redirect(res, `${back}&err=${encodeURIComponent("Keine Zuordnung vorhanden.")}`);
+        return redirect(res, `${back}&ok=${encodeURIComponent("Zuordnung entfernt.")}`);
     }
     // assign every still-unassigned log whose event match is unambiguous
     if (pathname === "/admin/cla/log-automatch" && req.method === "POST") {
@@ -759,6 +771,11 @@ async function handle(req, res) {
         const signupTarget = eventSoftres && eventSoftres.instances && eventSoftres.instances.length
             ? softres.targetSizeForInstances(eventSoftres.instances)
             : (categoryRoleIds.length ? (attendance.responded.length + attendance.missing.length) : 0);
+        // Logs: already assigned to this event, plus the still-unassigned ones from
+        // this guild (candidates for the "Log zuordnen" picker below).
+        const eventLogs = listLogsForEvent(eventId);
+        const unlinkedLogs = listLogs().filter((l) => (!l.guildId || l.guildId === guildId) && !l.eventId);
+        await backfillLogTitles([...eventLogs, ...unlinkedLogs]);
         return send(res, 200, renderEventDetail(user, {
             event: found.e,
             channelName: found.e.channelName,
@@ -782,6 +799,8 @@ async function handle(req, res) {
             signupTarget,
             lootItems: listLootByEvent(eventId),
             lootTool: (getConfig().categoryLootTool || {})[found.g.categoryId] || "",
+            eventLogs,
+            unlinkedLogs,
             csrf: auth.csrfToken(req),
             msg: flashFromQuery(url),
             nav: navFor(req),
@@ -1414,13 +1433,13 @@ async function handle(req, res) {
     const pm = pathname.match(/^\/r\/([a-zA-Z0-9]+)\/p\/(\d+)\/?$/);
     if (pm) {
         const report = getReport(pm[1]);
-        if (report) return send(res, 200, renderPlayerPage(report, Number(pm[2])));
+        if (report) return send(res, 200, renderPlayerPage(report, Number(pm[2]), auth.getUser(req)));
         return send(res, 404, renderNotFound());
     }
     const m = pathname.match(/^\/r\/([a-zA-Z0-9]+)\/?$/);
     if (m) {
         const report = getReport(m[1]);
-        if (report) return send(res, 200, renderReportPage(report));
+        if (report) return send(res, 200, renderReportPage(report, auth.getUser(req)));
         return send(res, 404, renderNotFound());
     }
     return send(res, 404, renderNotFound());

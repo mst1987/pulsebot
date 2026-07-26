@@ -224,6 +224,26 @@ describe("web/render", () => {
             expect(html).not.toContain("data-tab=\"potions\"");
             expect(html).not.toContain("data-tab=\"sunder\"");
         });
+
+        it("shows the admin-menu link for a logged-in admin", () => {
+            const html = renderReportPage(sampleReport(), { name: "Admin", isAdmin: true });
+            expect(html).toContain("Eingeloggt als");
+            expect(html).toContain("<strong>Admin</strong>");
+            expect(html).toContain("href=\"/admin\"");
+            expect(html).toContain("Admin-Menü");
+        });
+
+        it("shows a Discord login button for an anonymous visitor, no admin-menu link", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html).toContain("Mit Discord einloggen");
+            expect(html).not.toContain("Admin-Menü");
+        });
+
+        it("shows no admin-menu link for a logged-in non-admin", () => {
+            const html = renderReportPage(sampleReport(), { name: "Bob", isAdmin: false });
+            expect(html).toContain("Eingeloggt als");
+            expect(html).not.toContain("Admin-Menü");
+        });
     });
 
     describe("renderPlayerPage", () => {
@@ -258,6 +278,17 @@ describe("web/render", () => {
             const html = renderPlayerPage(sampleReport(), 99);
             expect(html).toContain("404");
             expect(html).toContain("<title>Nicht gefunden</title>");
+        });
+
+        it("shows the admin-menu link for a logged-in admin", () => {
+            const html = renderPlayerPage(sampleReport(), 0, { name: "Admin", isAdmin: true });
+            expect(html).toContain("Admin-Menü");
+        });
+
+        it("shows no admin-menu link for an anonymous visitor", () => {
+            const html = renderPlayerPage(sampleReport(), 0);
+            expect(html).toContain("Mit Discord einloggen");
+            expect(html).not.toContain("Admin-Menü");
         });
     });
 

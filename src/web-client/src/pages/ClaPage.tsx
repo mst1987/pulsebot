@@ -113,7 +113,7 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
                     <div className="hint">Die Auswertung kann einige Sekunden dauern — nach dem Absenden bitte kurz warten.</div>
                 </div>
                 <div className="row-actions">
-                    <button className="btn" type="submit" disabled={busy}>Auswertung erstellen</button>
+                    <button className="btn" type="submit" disabled={busy}>{busy ? "Erstelle Auswertung …" : "Auswertung erstellen"}</button>
                 </div>
             </form>
             <h2>Auswertungen</h2>

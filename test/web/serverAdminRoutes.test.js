@@ -81,6 +81,7 @@ jest.mock("../../src/classes/blizzard", () =>
     })));
 jest.mock("../../src/web/logStore", () => ({
     listLogs: jest.fn(() => []),
+    listLogsForEvent: jest.fn(() => []),
     getLog: jest.fn(() => null),
     deleteLog: jest.fn(),
     linkEvent: jest.fn((id, data) => ({ id, ...data })),
@@ -504,6 +505,22 @@ describe("event detail route (setup)", () => {
         const opts = renderAdmin.renderEventDetail.mock.calls[0][1];
         expect(opts.lootItems).toEqual([{ id: "i1", itemName: "Sulfuras" }]);
         expect(opts.lootTool).toBe("gargul");
+    });
+
+    it("passes the logs already assigned to this event and the guild's still-unassigned ones", async () => {
+        mockGetSetup.mockResolvedValueOnce({ setup: [] });
+        logStore.listLogsForEvent.mockReturnValueOnce([{ id: "l1", eventId: "e1", title: "Kara" }]);
+        logStore.listLogs.mockReturnValueOnce([
+            { id: "l1", eventId: "e1", guildId: "g1" },
+            { id: "l2", guildId: "g1" },
+            { id: "l3", guildId: "other-guild" },
+        ]);
+        await request("GET", "/admin/raids/detail?event=e1");
+        expect(logStore.listLogsForEvent).toHaveBeenCalledWith("e1");
+        const opts = renderAdmin.renderEventDetail.mock.calls[0][1];
+        expect(opts.eventLogs).toEqual([{ id: "l1", eventId: "e1", title: "Kara" }]);
+        // unassigned + same guild only — l1 is already linked, l3 belongs to another guild
+        expect(opts.unlinkedLogs.map((l) => l.id)).toEqual(["l2"]);
     });
 
     it("defaults to an empty loot list and no preset tool when nothing is configured", async () => {
@@ -1730,6 +1747,21 @@ describe("log → event assignment routes", () => {
         logStore.unlinkEvent.mockReturnValueOnce(null);
         const res = await request("POST", "/admin/cla/log-unlink", { logId: "l1" });
         expect(redirectTo(res)).toContain("err=");
+    });
+
+    it("POST /admin/cla/log-link returns to the raid detail page when linked from there", async () => {
+        const res = await request("POST", "/admin/cla/log-link", { logId: "l1", eventId: "e1", returnTo: "event" });
+        expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&ok=");
+    });
+
+    it("POST /admin/cla/log-unlink returns to the raid detail page when unlinked from there", async () => {
+        const res = await request("POST", "/admin/cla/log-unlink", { logId: "l1", event: "e1", returnTo: "event" });
+        expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&ok=");
+    });
+
+    it("POST /admin/cla/log-unlink falls back to the CLA logs list without a returnTo event", async () => {
+        const res = await request("POST", "/admin/cla/log-unlink", { logId: "l1" });
+        expect(redirectTo(res)).toContain("/admin/cla?view=logs&ok=");
     });
 
     it("POST /admin/cla/log-automatch assigns the unambiguous logs only", async () => {

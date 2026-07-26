@@ -13,6 +13,11 @@ const { publicBaseUrl } = require("../../config/variables");
 // A user-facing failure whose message is safe to show directly.
 class ReportError extends Error {}
 
+// In-flight guard keyed by WCL report id, so a double form submit (or two tabs)
+// racing on the same link joins the build already underway instead of spending
+// several seconds of API calls twice and leaving two duplicate report entries.
+const inFlight = new Map();
+
 /**
  * Build a logcheck report from a WCL link/id. Shared by the /logcheck Discord
  * command and the web admin CLA panel. Returns { id, url, report }.
@@ -23,7 +28,14 @@ async function buildReport(link) {
     if (!reportId) {
         throw new ReportError("Konnte keine Report-ID aus dem Link lesen.");
     }
+    const running = inFlight.get(reportId);
+    if (running) return running;
+    const build = buildReportForId(reportId).finally(() => inFlight.delete(reportId));
+    inFlight.set(reportId, build);
+    return build;
+}
 
+async function buildReportForId(reportId) {
     let wcl;
     try {
         wcl = new WarcraftLogs();
