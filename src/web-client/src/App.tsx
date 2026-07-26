@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import Shell from "./components/Shell";
 import DashboardPage from "./pages/DashboardPage";
+import ChannelsPage from "./pages/ChannelsPage";
 import { getSession, type ApiError, type Session } from "./api";
 
 type LoadState =
@@ -29,7 +30,7 @@ export default function App() {
         return <div className="empty">Fehler beim Laden der Session: {state.error.message}</div>;
     }
 
-    const { user } = state.session;
+    const { user, csrfToken } = state.session;
     if (!user || !user.isAdmin) {
         return (
             <div className="empty" style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center", paddingTop: 80 }}>
@@ -43,8 +44,9 @@ export default function App() {
 
     return (
         <Routes>
-            <Route element={<Shell user={user} />}>
+            <Route element={<Shell user={user} csrfToken={csrfToken} />}>
                 <Route index element={<DashboardPage />} />
+                <Route path="channels" element={<ChannelsPage />} />
             </Route>
         </Routes>
     );

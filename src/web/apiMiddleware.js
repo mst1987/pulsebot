@@ -14,4 +14,18 @@ function requireAdmin(req, res) {
     return user;
 }
 
-module.exports = { requireAdmin };
+/**
+ * CSRF check for mutating /api/* requests: the SPA sends the token from
+ * GET /api/session as an X-CSRF-Token header (the SSR forms use a hidden
+ * `_csrf` field instead — see auth.checkCsrf()). Sends a JSON 403 and returns
+ * false when missing/invalid.
+ */
+function requireCsrf(req, res) {
+    if (!auth.checkCsrf(req, req.headers["x-csrf-token"])) {
+        error(res, 403, "csrf", "Sicherheits-Token ungültig oder abgelaufen. Bitte Seite neu laden.");
+        return false;
+    }
+    return true;
+}
+
+module.exports = { requireAdmin, requireCsrf };
