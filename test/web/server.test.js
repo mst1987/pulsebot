@@ -34,11 +34,15 @@ jest.mock("../../src/web/auth", () => ({
     getUser: jest.fn(() => null),
     parseCookies: jest.fn(() => ({})),
 }));
+jest.mock("../../src/web/apiRouter", () => ({ handle: jest.fn(() => true) }));
+jest.mock("../../src/web/staticClient", () => ({ serve: jest.fn(() => true) }));
 
 const http = require("http");
 const store = require("../../src/web/reportStore");
 const render = require("../../src/web/render");
 const auth = require("../../src/web/auth");
+const apiRouter = require("../../src/web/apiRouter");
+const staticClient = require("../../src/web/staticClient");
 const { webPort } = require("../../src/config/variables");
 const { startWebServer } = require("../../src/web/server.js");
 
@@ -186,6 +190,25 @@ describe("web/server", () => {
             expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({
                 "Set-Cookie": expect.stringContaining("Max-Age=0"),
             }));
+        });
+    });
+
+    describe("React admin client (src/web-client/)", () => {
+        it("delegates /api/* requests to apiRouter", async () => {
+            await request({ url: "/api/session", method: "GET", headers: {} });
+            expect(apiRouter.handle).toHaveBeenCalledWith("/api/session", expect.any(Object), expect.any(Object));
+        });
+
+        it("delegates /admin2 and /admin2/* requests to staticClient", async () => {
+            await request({ url: "/admin2/recruitment", method: "GET", headers: {} });
+            expect(staticClient.serve).toHaveBeenCalledWith(expect.any(Object), expect.any(Object), "/admin2/recruitment");
+        });
+
+        it("returns 404 when staticClient has no build to serve yet", async () => {
+            staticClient.serve.mockResolvedValueOnce(false);
+            const res = await request({ url: "/admin2", method: "GET", headers: {} });
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+            expect(res.end).toHaveBeenCalledWith("NOT_FOUND");
         });
     });
 
