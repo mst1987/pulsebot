@@ -3,6 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import Shell from "./components/Shell";
 import DashboardPage from "./pages/DashboardPage";
 import ChannelsPage from "./pages/ChannelsPage";
+import SettingsPage from "./pages/SettingsPage";
 import { getSession, type ApiError, type Session } from "./api";
 
 type LoadState =
@@ -47,6 +48,7 @@ export default function App() {
             <Route element={<Shell user={user} csrfToken={csrfToken} />}>
                 <Route index element={<DashboardPage />} />
                 <Route path="channels" element={<ChannelsPage />} />
+                <Route path="settings" element={<SettingsPage />} />
             </Route>
         </Routes>
     );

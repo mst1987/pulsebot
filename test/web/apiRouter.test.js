@@ -8,8 +8,12 @@ jest.mock("../../src/web/auth", () => ({
 jest.mock("../../src/web/reportStore", () => ({ listReports: jest.fn(() => []) }));
 jest.mock("../../src/web/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
+    saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
     listRecruitmentPosts: jest.fn(() => []),
+    listRaidsheets: jest.fn(() => []),
+    saveRaidsheet: jest.fn(),
+    deleteRaidsheet: jest.fn(),
 }));
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
 jest.mock("../../src/web/dashboardData", () => ({
@@ -19,6 +23,7 @@ jest.mock("../../src/web/dashboardData", () => ({
 jest.mock("../../src/web/discord", () => ({
     listCategories: jest.fn(() => []),
     listAllChannels: jest.fn(() => []),
+    listRoles: jest.fn(() => []),
     createChannel: jest.fn(),
     duplicateChannel: jest.fn(),
 }));
@@ -39,10 +44,10 @@ function body(res) {
     return JSON.parse(res.end.mock.calls[0][0]);
 }
 
-// Drive a POST /api/* request through the router with a JSON body.
-async function post(pathname, jsonBody, headers) {
+// Drive a mutating /api/* request through the router with a JSON body.
+async function request(method, pathname, jsonBody, headers) {
     const req = new EventEmitter();
-    req.method = "POST";
+    req.method = method;
     req.headers = { "x-csrf-token": "tok", ...headers };
     const res = mockRes();
     const p = handle(pathname, req, res);
@@ -51,6 +56,8 @@ async function post(pathname, jsonBody, headers) {
     await p;
     return res;
 }
+const post = (pathname, jsonBody, headers) => request("POST", pathname, jsonBody, headers);
+const patch = (pathname, jsonBody, headers) => request("PATCH", pathname, jsonBody, headers);
 
 describe("web/apiRouter", () => {
     describe("GET /api/session", () => {
@@ -226,6 +233,116 @@ describe("web/apiRouter", () => {
             expect(discord.duplicateChannel).toHaveBeenCalledWith("c1", "kara-signup-2");
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
             expect(body(res)).toEqual({ data: { id: "c10", name: "kara-signup-2" } });
+        });
+    });
+
+    describe("GET /api/settings", () => {
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = mockRes();
+            await handle("/api/settings", { method: "GET" }, res);
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+        });
+
+        it("returns config, raidsheets, roles, categories and the active guild for an admin", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            settingsStore.getConfig.mockReturnValue({ adminRoleIds: ["r1"] });
+            settingsStore.listRaidsheets.mockReturnValue([{ id: "s1", name: "Tier 4/5" }]);
+            discord.listRoles.mockReturnValue([{ id: "role1", name: "Raider" }]);
+            discord.listCategories.mockReturnValue([{ id: "cat1", name: "Raids" }]);
+
+            const res = mockRes();
+            await handle("/api/settings", { method: "GET" }, res);
+
+            expect(body(res)).toEqual({
+                data: {
+                    config: { adminRoleIds: ["r1"] },
+                    raidsheets: [{ id: "s1", name: "Tier 4/5" }],
+                    roles: [{ id: "role1", name: "Raider" }],
+                    categories: [{ id: "cat1", name: "Raids" }],
+                    activeGuildId: "guild-1",
+                },
+            });
+        });
+    });
+
+    describe("PATCH /api/settings", () => {
+        it("returns 403 when the CSRF token is invalid", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(false);
+            const res = await patch("/api/settings", { officerRoleId: "r1" });
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+        });
+
+        it("only forwards fields present in the body, trimmed/split as needed", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+
+            await patch("/api/settings", {
+                adminRoleIds: [" r1 ", "r2", ""],
+                officerRoleId: " off1 ",
+                categoryRoles: { cat1: ["role1"] },
+                blizzard: { clientSecret: "" },
+            });
+
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+                adminRoleIds: ["r1", "r2"],
+                officerRoleId: "off1",
+                categoryRoles: { cat1: ["role1"] },
+                blizzard: { clientSecret: "" },
+            });
+        });
+
+        it("omits blizzard entirely when not present in the body, keeping the stored secret", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+
+            await patch("/api/settings", { officerRoleId: "off1" });
+
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({ officerRoleId: "off1" });
+        });
+    });
+
+    describe("POST /api/settings/raidsheets", () => {
+        it("returns 400 when the name is missing", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/settings/raidsheets", { spreadsheetId: "abc" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(settingsStore.saveRaidsheet).not.toHaveBeenCalled();
+        });
+
+        it("saves the raidsheet and returns it", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.saveRaidsheet.mockReturnValue({ id: "s1", name: "Tier 4/5" });
+
+            const res = await post("/api/settings/raidsheets", { name: "Tier 4/5" });
+
+            expect(settingsStore.saveRaidsheet).toHaveBeenCalledWith({ name: "Tier 4/5" });
+            expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
+            expect(body(res)).toEqual({ data: { id: "s1", name: "Tier 4/5" } });
+        });
+    });
+
+    describe("POST /api/settings/raidsheets/delete", () => {
+        it("returns 404 when nothing was removed", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.deleteRaidsheet.mockReturnValue(false);
+            const res = await post("/api/settings/raidsheets/delete", { id: "s1" });
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+        });
+
+        it("deletes and returns the id on success", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.deleteRaidsheet.mockReturnValue(true);
+            const res = await post("/api/settings/raidsheets/delete", { id: "s1" });
+            expect(settingsStore.deleteRaidsheet).toHaveBeenCalledWith("s1");
+            expect(body(res)).toEqual({ data: { id: "s1" } });
         });
     });
 

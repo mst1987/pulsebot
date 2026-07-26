@@ -18,7 +18,7 @@ const TABS: { id: string; label: string; href: string; group: string; icon: Reac
     { id: "raids", label: "Raid-Events", href: "/admin/raids", group: "Verwaltung", icon: <RaidsIcon /> },
     { id: "history", label: "Historie & Loot", href: "/admin/history", group: "Verwaltung", icon: <HistoryIcon /> },
     { id: "channels", label: "Kanäle", href: "/channels", group: "Verwaltung", icon: <ChannelsIcon />, internal: true },
-    { id: "settings", label: "Einstellungen", href: "/admin/settings", group: "System", icon: <SettingsIcon /> },
+    { id: "settings", label: "Einstellungen", href: "/settings", group: "System", icon: <SettingsIcon />, internal: true },
 ];
 
 function crumbLabel(pathname: string): string {
