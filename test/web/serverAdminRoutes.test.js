@@ -961,6 +961,80 @@ describe("event history & loot routes", () => {
         expect(items[0]).toMatchObject({ source: "rclc", character: "Foo", itemId: 100 });
     });
 
+    describe("POST /admin/history/import — automatic date-matching (event=__auto__)", () => {
+        // GARGUL's dateTime (2026-07-12) normalizes to UTC midnight; an event
+        // starting the same evening in Europe/Berlin still falls on that day.
+        const sameDayStart = Math.floor(Date.UTC(2026, 6, 12, 18, 0, 0) / 1000);
+
+        it("assigns to the single Raid-Helper event on the export's date", async () => {
+            discord.getChannelCategoryMap.mockReturnValue({
+                c1: { name: "kara", categoryId: "cat", categoryName: "Raids" },
+            });
+            mockFetchEvents.mockResolvedValueOnce([
+                { id: "e1", channelId: "c1", title: "SSC/TK", startTime: sameDayStart, signUps: [] },
+            ]);
+            const res = await request("POST", "/admin/history/import", {
+                event: "__auto__", tool: "gargul", data: GARGUL,
+            });
+            const [eventId, , meta] = mockAddLootImport.mock.calls[0];
+            expect(eventId).toBe("e1");
+            expect(meta.eventLabel).toBe("SSC/TK");
+            expect(meta.categoryId).toBe("cat");
+            expect(redirectTo(res)).toContain("/admin/history?ok=");
+        });
+
+        it("lets an optional title override the label of the auto-matched event", async () => {
+            discord.getChannelCategoryMap.mockReturnValue({
+                c1: { name: "kara", categoryId: "cat", categoryName: "Raids" },
+            });
+            mockFetchEvents.mockResolvedValueOnce([
+                { id: "e1", channelId: "c1", title: "SSC/TK", startTime: sameDayStart, signUps: [] },
+            ]);
+            await request("POST", "/admin/history/import", {
+                event: "__auto__", manualLabel: "Custom Title", tool: "gargul", data: GARGUL,
+            });
+            const [eventId, , meta] = mockAddLootImport.mock.calls[0];
+            expect(eventId).toBe("e1");
+            expect(meta.eventLabel).toBe("Custom Title");
+        });
+
+        it("falls back to a date-based label when nothing matches and no title was given", async () => {
+            const res = await request("POST", "/admin/history/import", {
+                event: "__auto__", tool: "gargul", data: GARGUL,
+            });
+            const [eventId, , meta] = mockAddLootImport.mock.calls[0];
+            expect(eventId).toBe("manual-raid-vom-12-07-2026-2026-07-12");
+            expect(meta.eventLabel).toBe("Raid vom 12.07.2026");
+            expect(redirectTo(res)).toContain("/admin/history?ok=");
+        });
+
+        it("refuses to guess when two events share the detected day", async () => {
+            discord.getChannelCategoryMap.mockReturnValue({
+                c1: { name: "kara", categoryId: "cat", categoryName: "Raids" },
+            });
+            mockFetchEvents.mockResolvedValueOnce([
+                { id: "e1", channelId: "c1", title: "SSC/TK", startTime: sameDayStart, signUps: [] },
+                { id: "e2", channelId: "c1", title: "Kara", startTime: sameDayStart + 3600, signUps: [] },
+            ]);
+            const res = await request("POST", "/admin/history/import", {
+                event: "__auto__", tool: "gargul", data: GARGUL,
+            });
+            expect(mockAddLootImport).not.toHaveBeenCalled();
+            expect(decodeURIComponent(redirectTo(res))).toContain("12.07.2026");
+        });
+
+        it("treats a blank event field the same as __auto__", async () => {
+            discord.getChannelCategoryMap.mockReturnValue({
+                c1: { name: "kara", categoryId: "cat", categoryName: "Raids" },
+            });
+            mockFetchEvents.mockResolvedValueOnce([
+                { id: "e1", channelId: "c1", title: "SSC/TK", startTime: sameDayStart, signUps: [] },
+            ]);
+            await request("POST", "/admin/history/import", { event: "", tool: "gargul", data: GARGUL });
+            expect(mockAddLootImport.mock.calls[0][0]).toBe("e1");
+        });
+    });
+
     it("POST /admin/history/import rejects an empty paste", async () => {
         const res = await request("POST", "/admin/history/import", { event: "__manual__", manualLabel: "x", data: "" });
         expect(mockAddLootImport).not.toHaveBeenCalled();

@@ -2581,14 +2581,16 @@ function renderHistory(user, opts = {}) {
           <div class="field">
             <label>Event</label>
             <select name="event" id="lootEventSelect">
-              <option value="__manual__" data-tool="">— Anderes / vergangenes Event (manuell benennen) —</option>
+              <option value="__auto__" data-tool="" selected>— Automatisch anhand des Datums im Export zuordnen —</option>
               ${eventOptions}
+              <option value="__manual__" data-tool="">— Anderes / vergangenes Event (manuell benennen) —</option>
             </select>
-            <div class="hint">Aktuelle Events des Servers. Für ältere Raids „manuell benennen" wählen.</div>
+            <div class="hint">„Automatisch" ordnet dem Raid-Helper-Event des gleichen Tages zu; passt keins oder mehrere, muss unten manuell gewählt/benannt werden.</div>
           </div>
-          <div class="field" id="lootManualField" style="display:none">
-            <label>Event-Bezeichnung (manuell)</label>
+          <div class="field" id="lootManualField">
+            <label>Titel (optional)</label>
             <input type="text" name="manualLabel" placeholder="z.B. SSC/TK — 12.07.2026">
+            <div class="hint">Nur nötig, wenn kein Event automatisch gefunden wird oder ein eigener Titel gewünscht ist.</div>
           </div>
           <div class="field">
             <label>Loot-Tool</label>
@@ -2615,7 +2617,8 @@ function renderHistory(user, opts = {}) {
         var data=document.getElementById("lootData");
         function apply(){
           var o=sel.options[sel.selectedIndex];
-          if(manual) manual.style.display=(o&&o.value==="__manual__")?"":"none";
+          var v=o?o.value:"";
+          if(manual) manual.style.display=(v==="__auto__"||v==="__manual__")?"":"none";
           var t=o?o.getAttribute("data-tool"):"";
           if(t&&tool){for(var i=0;i<tool.options.length;i++){if(tool.options[i].value===t){tool.selectedIndex=i;break;}}}
         }

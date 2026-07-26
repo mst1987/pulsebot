@@ -1244,6 +1244,12 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("data-panel=\"chars\"");
         });
 
+        it("defaults the event picker to automatic date-matching", () => {
+            const html = renderHistory(user, { csrf: "x", nav: nav() });
+            expect(html).toContain("<option value=\"__auto__\" data-tool=\"\" selected>— Automatisch anhand des Datums im Export zuordnen —</option>");
+            expect(html).toContain("<option value=\"__manual__\" data-tool=\"\">— Anderes / vergangenes Event (manuell benennen) —</option>");
+        });
+
         it("shows empty states when there is no data", () => {
             const html = renderHistory(user, { csrf: "x", nav: nav() });
             expect(html).toContain("Noch kein Loot importiert");

@@ -23,7 +23,7 @@ const {
     resolveMissing: resolveCharacterInfo,
 } = require("./characterInfo");
 const { getCharacter } = require("./characterStore");
-const { parseLoot, LootParseError } = require("../utils/lootImport");
+const { parseLoot, detectImportDate, LootParseError } = require("../utils/lootImport");
 const Blizzard = require("../classes/blizzard");
 const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
@@ -36,6 +36,7 @@ const {
 const { buildReport, ReportError } = require("../utils/logcheck/report");
 const { listLogs, getLog, deleteLog, linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent } = require("./logStore");
 const { annotateMatches, autoMatches } = require("./logEventMatch");
+const { bestDayMatch, formatDayDisplay, dayKey } = require("./lootEventMatch");
 const { evaluateLog, scanLogChannels, backfillLogTitles } = require("./logChannel");
 const { getEventSheet, markEventSheetFilled } = require("./eventSheetStore");
 const { getEventSoftres, saveEventSoftres } = require("./eventSoftresStore");
@@ -346,6 +347,10 @@ function lootBackUrl(form) {
     return (form.origin === "raid" && eventId)
         ? `/admin/raids/detail?event=${encodeURIComponent(eventId)}`
         : "/admin/history";
+}
+// A manually-labelled loot bucket's synthetic event id: "manual-<slug>".
+function slugify(label) {
+    return String(label || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
 function withFlash(base, key, value) {
     return `${base}${base.includes("?") ? "&" : "?"}${key}=${encodeURIComponent(value)}`;
@@ -1382,14 +1387,48 @@ async function handle(req, res) {
         const data = String(form.data || "").trim();
         if (!data) return redirect(res, withFlash(back, "err", "Kein Loot-Text eingefügt."));
         const tool = (form.tool || "auto").trim();
+        let items;
+        try {
+            items = parseLoot(data, tool);
+        } catch (e) {
+            const msg = e instanceof LootParseError ? e.message : "Import fehlgeschlagen.";
+            return redirect(res, withFlash(back, "err", msg));
+        }
+        if (!items.length) return redirect(res, withFlash(back, "err", "Keine Loot-Einträge im Export gefunden."));
+
         let eventId = (form.event || "").trim();
+        const manualTitle = String(form.manualLabel || "").trim();
         let eventLabel = "";
         let categoryId = "";
-        if (eventId === "__manual__" || !eventId) {
-            const label = String(form.manualLabel || "").trim();
-            if (!label) return redirect(res, withFlash(back, "err", "Bitte ein Event wählen oder eine Bezeichnung eingeben."));
-            eventLabel = label;
-            eventId = "manual-" + label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+        if (eventId === "__manual__") {
+            if (!manualTitle) return redirect(res, withFlash(back, "err", "Bitte ein Event wählen oder eine Bezeichnung eingeben."));
+            eventLabel = manualTitle;
+            eventId = "manual-" + slugify(manualTitle);
+        } else if (eventId === "__auto__" || !eventId) {
+            // No event picked by hand — match the export's own date (Gargul date /
+            // RCLootcouncil servertime) against this guild's Raid-Helper events instead
+            // of making the admin look one up, same day-matching the log→event linking
+            // already does for Warcraft-Logs reports (see logEventMatch.js).
+            const detected = detectImportDate(items);
+            const { groups } = await loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
+            const allEvents = groups.flatMap((g) => g.events);
+            const { match, ambiguous } = detected ? bestDayMatch(detected, allEvents) : { match: null, ambiguous: false };
+            if (ambiguous) {
+                return redirect(res, withFlash(back, "err", `Mehrere Events am ${formatDayDisplay(detected)} gefunden — bitte unten das passende Event auswählen.`));
+            }
+            if (match) {
+                eventId = match.id;
+                eventLabel = manualTitle || match.title || eventId;
+                const g = groups.find((gr) => gr.events.includes(match));
+                categoryId = g ? (g.categoryId || "") : "";
+            } else {
+                const label = manualTitle || (detected ? `Raid vom ${formatDayDisplay(detected)}` : "");
+                if (!label) {
+                    return redirect(res, withFlash(back, "err", "Kein Event am erkannten Datum gefunden und kein Datum im Export erkannt — bitte Event wählen oder einen Titel eingeben."));
+                }
+                eventLabel = label;
+                eventId = "manual-" + slugify(label) + (detected ? "-" + dayKey(detected) : "");
+            }
         } else {
             // Loot is imported AFTER the raid, and the "Loot" tab sits on the event's
             // detail page — so the raid is usually already over and only shows up with
@@ -1400,14 +1439,6 @@ async function handle(req, res) {
             eventLabel = found ? (found.ev.title || eventId) : eventId;
             categoryId = found ? (found.g.categoryId || "") : "";
         }
-        let items;
-        try {
-            items = parseLoot(data, tool);
-        } catch (e) {
-            const msg = e instanceof LootParseError ? e.message : "Import fehlgeschlagen.";
-            return redirect(res, withFlash(back, "err", msg));
-        }
-        if (!items.length) return redirect(res, withFlash(back, "err", "Keine Loot-Einträge im Export gefunden."));
         const { added, skipped } = addLootImport(eventId, items, { categoryId, eventLabel });
         // RCLootcouncil exports carry the raider's class — keep it right away, so the
         // character list only has to fall back to the logs for what is still missing.

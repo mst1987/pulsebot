@@ -173,7 +173,20 @@ function parseLoot(text, tool = "auto") {
     return parseGargul(text);
 }
 
+// The moment a loot export belongs to, so the import can be matched to a
+// Raid-Helper event by date instead of asking the admin to pick one by hand.
+// Uses the earliest awarded timestamp (the raid's first kill) — a Gargul date
+// carries no time-of-day and normalizes to UTC midnight, which is still the
+// earliest value once real RCLootcouncil times are mixed in. Returns null
+// when no item has a usable timestamp.
+function detectImportDate(items) {
+    const times = (items || [])
+        .map((i) => Number(i && i.awardedAt) || 0)
+        .filter((t) => t > 0);
+    return times.length ? Math.min(...times) : null;
+}
+
 module.exports = {
-    parseLoot, parseRclc, parseGargul,
+    parseLoot, parseRclc, parseGargul, detectImportDate,
     splitPlayer, characterKey, itemLink, LootParseError,
 };

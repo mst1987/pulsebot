@@ -1,5 +1,6 @@
 const {
-    parseLoot, parseRclc, parseGargul, splitPlayer, characterKey, itemLink, LootParseError,
+    parseLoot, parseRclc, parseGargul, detectImportDate,
+    splitPlayer, characterKey, itemLink, LootParseError,
 } = require("../../src/utils/lootImport");
 
 // Real rows taken (trimmed) from the actual exports on the server.
@@ -142,6 +143,24 @@ describe("utils/lootImport", () => {
         it("auto-detects JSON as rclc and CSV as gargul", () => {
             expect(parseLoot(RCLC_JSON, "auto")[0].source).toBe("rclc");
             expect(parseLoot(GARGUL_CSV)[0].source).toBe("gargul");
+        });
+    });
+
+    describe("detectImportDate", () => {
+        it("picks the earliest awarded timestamp", () => {
+            const items = parseRclc(RCLC_JSON);
+            expect(detectImportDate(items)).toBe(1784574268 * 1000);
+        });
+
+        it("ignores items without a usable timestamp", () => {
+            const items = [{ awardedAt: 0 }, { awardedAt: 5000 }, {}];
+            expect(detectImportDate(items)).toBe(5000);
+        });
+
+        it("returns null when nothing has a timestamp", () => {
+            expect(detectImportDate([{ awardedAt: 0 }, {}])).toBeNull();
+            expect(detectImportDate([])).toBeNull();
+            expect(detectImportDate(null)).toBeNull();
         });
     });
 });
