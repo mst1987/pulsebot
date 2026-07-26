@@ -279,10 +279,11 @@ const ADMIN_STYLE = `<style>
   .tab-btn.active .tab-count { background:var(--accent-soft); color:var(--accent); border-color:var(--accent-soft); }
   .sheetcard { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:12px; }
   table.idx td.small { white-space:nowrap; color:var(--muted); font-size:12.5px; }
-  /* sortable table headers + pager */
-  a.sort-link { color:inherit; text-decoration:none; display:inline-flex; align-items:center; gap:2px; white-space:nowrap; }
-  a.sort-link:hover { color:var(--accent); }
-  a.sort-link.active { color:var(--accent); }
+  /* sortable table headers + pager — class-only (not "a.sort-link") since
+     lootTable() uses a <button> here, unlike claSortHeader()'s <a> */
+  .sort-link { background:none; border:0; margin:0; padding:0; font:inherit; color:inherit; text-decoration:none; display:inline-flex; align-items:center; gap:2px; white-space:nowrap; cursor:pointer; }
+  .sort-link:hover { color:var(--accent); }
+  .sort-link.active { color:var(--accent); }
   .pager { display:flex; align-items:center; gap:12px; margin-top:12px; flex-wrap:wrap; }
   .pager-info { font-size:13px; color:var(--muted); font-variant-numeric:tabular-nums; }
   .pager-btn { display:inline-block; padding:6px 12px; border:1px solid var(--line); border-radius:8px; background:var(--panel2); color:var(--text); text-decoration:none; font-size:13.5px; font-weight:600; }
