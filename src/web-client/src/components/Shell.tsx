@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
 import {
     CrestIcon, BurgerIcon, HomeIcon, RecruitmentIcon, ClaIcon, RaidsIcon, ChannelsIcon, SettingsIcon, HistoryIcon,
@@ -26,9 +26,20 @@ function matchesTab(tabHref: string, pathname: string): boolean {
     return pathname === tabHref || (tabHref !== "/" && pathname.startsWith(`${tabHref}/`));
 }
 
-function crumbLabel(pathname: string): string {
-    const tab = TABS.find((t) => t.internal && matchesTab(t.href, pathname));
-    return tab ? tab.label : "Übersicht";
+function crumbTab(pathname: string) {
+    return TABS.find((t) => t.internal && matchesTab(t.href, pathname));
+}
+
+// Optional third breadcrumb segment for a page nested one level under its tab
+// (e.g. the raid-create form under "Raid-Events", or the post-edit form under
+// "Recruitment" — mirrors the equivalent crumb in src/web/renderAdmin.js).
+function subCrumb(pathname: string, search: URLSearchParams): string | null {
+    if (pathname === "/raids/new") return "Neues Event";
+    if (pathname === "/history/event") return "Event-Loot";
+    if (pathname === "/recruitment" && (search.get("view") || "posts") === "posts" && search.get("editpost")) {
+        return "Nachricht bearbeiten";
+    }
+    return null;
 }
 
 function AdminNav() {
@@ -64,6 +75,10 @@ export default function Shell({ user, csrfToken }: ShellContext) {
     const location = useLocation();
     const initial = (user.name || "Admin").slice(0, 1).toUpperCase() || "A";
 
+    const tab = crumbTab(location.pathname);
+    const label = tab ? tab.label : "Übersicht";
+    const crumb = subCrumb(location.pathname, new URLSearchParams(location.search));
+
     return (
         <div className="app">
             <aside className={`side${menuOpen ? " open" : ""}`}>
@@ -89,7 +104,11 @@ export default function Shell({ user, csrfToken }: ShellContext) {
                     <button className="menu-toggle" type="button" aria-label="Menü" onClick={() => setMenuOpen((o) => !o)}>
                         <BurgerIcon />
                     </button>
-                    <div className="crumbs">Admin <span style={{ opacity: .45 }}>/</span> <b>{crumbLabel(location.pathname)}</b></div>
+                    <div className="crumbs">
+                        <Link to="/">Admin</Link> <span style={{ opacity: .45 }}>/</span>{" "}
+                        {crumb && tab ? <Link to={tab.href}>{label}</Link> : <b>{label}</b>}
+                        {crumb && <> <span style={{ opacity: .45 }}>/</span> <b>{crumb}</b></>}
+                    </div>
                     <div className="top-actions">
                         <ThemeToggle />
                     </div>
