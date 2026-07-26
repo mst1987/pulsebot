@@ -965,6 +965,22 @@ describe("web/renderAdmin", () => {
             expect(html).not.toContain("Softres erstellen");
         });
 
+        it("offers a manual-link form to point at a different softres.it list", () => {
+            const noneYet = renderEventDetail(user, { ...base, softresCatalogue: tbcCatalogue, softresSuggested: [] });
+            expect(noneYet).toContain("Schon eine Liste auf softres.it? Link manuell hinterlegen");
+            expect(noneYet).toContain("action=\"/admin/raids/softres/link\"");
+            expect(noneYet).toContain("name=\"softresUrl\"");
+
+            const withExisting = renderEventDetail(user, {
+                ...base,
+                softresCatalogue: tbcCatalogue,
+                eventSoftres: { url: "https://softres.it/raid/r1", editUrl: "https://softres.it/raid/r1/t1", amount: 2, instances: ["kara"] },
+            });
+            expect(withExisting).toContain("Anderen Softres-Link verwenden");
+            expect(withExisting).toContain("value=\"https://softres.it/raid/r1\"");
+            expect(withExisting).toContain("value=\"https://softres.it/raid/r1/t1\"");
+        });
+
         it("preselects Horde and offers only TBC instances in the softres form", () => {
             const html = renderEventDetail(user, { ...base, softresCatalogue: tbcCatalogue, softresSuggested: ["kara"] });
             expect(html).toContain("value=\"Horde\" selected");

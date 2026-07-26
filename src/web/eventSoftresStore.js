@@ -64,6 +64,30 @@ function saveEventSoftres(eventId, data = {}) {
     return saved;
 }
 
+/**
+ * Point an event at a manually chosen softres.it link instead of one created
+ * via the API — e.g. a list already set up directly on softres.it. Keeps any
+ * existing metadata (instances/amount/edition/hardReserveCount) and only
+ * overwrites the url/editUrl (+ the raidId/token parsed back out of them, so
+ * "Softres posten" and future edits still resolve to the new list).
+ */
+function setEventSoftresLink(eventId, { url, editUrl } = {}) {
+    const id = String(eventId || "").trim();
+    if (!id) return null;
+    const existing = getEventSoftres(id) || {};
+    const u = String(url || "").trim();
+    const eu = String(editUrl || "").trim() || u;
+    const raidMatch = u.match(/\/raid\/([a-zA-Z0-9]+)/);
+    const tokenMatch = eu.match(/\/raid\/[a-zA-Z0-9]+\/([a-zA-Z0-9]+)/);
+    return saveEventSoftres(id, {
+        ...existing,
+        raidId: raidMatch ? raidMatch[1] : existing.raidId,
+        token: tokenMatch ? tokenMatch[1] : existing.token,
+        url: u,
+        editUrl: eu,
+    });
+}
+
 /** Remove the record for an event id. Returns true if one was removed. */
 function deleteEventSoftres(eventId) {
     const id = String(eventId || "").trim();
@@ -74,4 +98,6 @@ function deleteEventSoftres(eventId) {
     return true;
 }
 
-module.exports = { listEventSoftres, getEventSoftres, saveEventSoftres, deleteEventSoftres };
+module.exports = {
+    listEventSoftres, getEventSoftres, saveEventSoftres, setEventSoftresLink, deleteEventSoftres,
+};

@@ -21,7 +21,7 @@ jest.mock("fs", () => {
 
 const fs = require("fs");
 const {
-    listEventSoftres, getEventSoftres, saveEventSoftres, deleteEventSoftres,
+    listEventSoftres, getEventSoftres, saveEventSoftres, setEventSoftresLink, deleteEventSoftres,
 } = require("../../src/web/eventSoftresStore.js");
 
 beforeEach(() => {
@@ -59,6 +59,37 @@ describe("web/eventSoftresStore", () => {
 
     it("ignores a blank event id", () => {
         expect(saveEventSoftres("", { raidId: "x" })).toBeNull();
+    });
+
+    it("sets a manual link on top of an existing record, keeping its metadata", () => {
+        saveEventSoftres("evt1", {
+            raidId: "abc", token: "tok", url: "https://softres.it/raid/abc",
+            editUrl: "https://softres.it/raid/abc/tok", edition: "tbc",
+            instances: ["kara"], amount: 2, hardReserveCount: 1,
+        });
+        const updated = setEventSoftresLink("evt1", {
+            url: "https://softres.it/raid/xyz", editUrl: "https://softres.it/raid/xyz/newtok",
+        });
+        expect(updated.raidId).toBe("xyz");
+        expect(updated.token).toBe("newtok");
+        expect(updated.url).toBe("https://softres.it/raid/xyz");
+        expect(updated.editUrl).toBe("https://softres.it/raid/xyz/newtok");
+        // unrelated metadata from the previous record survives the link swap
+        expect(updated.instances).toEqual(["kara"]);
+        expect(updated.amount).toBe(2);
+        expect(updated.hardReserveCount).toBe(1);
+    });
+
+    it("sets a manual link when no record exists yet", () => {
+        const created = setEventSoftresLink("evt2", { url: "https://softres.it/raid/xyz" });
+        expect(created.raidId).toBe("xyz");
+        expect(created.url).toBe("https://softres.it/raid/xyz");
+        expect(created.editUrl).toBe("https://softres.it/raid/xyz");
+        expect(created.instances).toEqual([]);
+    });
+
+    it("ignores a blank event id when setting a manual link", () => {
+        expect(setEventSoftresLink("", { url: "https://softres.it/raid/xyz" })).toBeNull();
     });
 
     it("deletes a record", () => {
