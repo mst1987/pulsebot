@@ -6,6 +6,7 @@ import ChannelsPage from "./pages/ChannelsPage";
 import SettingsPage from "./pages/SettingsPage";
 import RaidsPage from "./pages/RaidsPage";
 import RaidCreatePage from "./pages/RaidCreatePage";
+import RaidDetailPage from "./pages/RaidDetailPage";
 import RecruitmentPage from "./pages/RecruitmentPage";
 import HistoryPage from "./pages/HistoryPage";
 import HistoryEventPage from "./pages/HistoryEventPage";
@@ -58,6 +59,7 @@ export default function App() {
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="raids" element={<RaidsPage />} />
                 <Route path="raids/new" element={<RaidCreatePage />} />
+                <Route path="raids/detail" element={<RaidDetailPage />} />
                 <Route path="recruitment" element={<RecruitmentPage />} />
                 <Route path="history" element={<HistoryPage />} />
                 <Route path="history/event" element={<HistoryEventPage />} />
