@@ -34,7 +34,33 @@ jest.mock("../../src/web/dashboardData", () => ({
 jest.mock("../../src/web/logStore", () => ({
     listLogs: jest.fn(() => []),
     deleteLog: jest.fn(),
+    getLog: jest.fn(),
+    linkEvent: jest.fn(),
+    unlinkEvent: jest.fn(),
 }));
+jest.mock("../../src/web/reportList", () => ({
+    prepareReportList: jest.fn((reports, query) => ({
+        items: reports, sort: (query && query.sort) || "date", dir: (query && query.dir) || "desc", page: 1, totalPages: 1, total: reports.length, pageSize: 15,
+    })),
+    prepareLogList: jest.fn((logs, query) => ({
+        items: logs, sort: (query && query.sort) || "date", dir: (query && query.dir) || "desc", page: 1, totalPages: 1, total: logs.length, pageSize: 15,
+    })),
+    annotateLogCategories: jest.fn((items) => items),
+}));
+jest.mock("../../src/web/logEventMatch", () => ({
+    annotateMatches: jest.fn((items) => items),
+    autoMatches: jest.fn(() => []),
+}));
+jest.mock("../../src/web/logChannel", () => ({
+    evaluateLog: jest.fn(),
+    scanLogChannels: jest.fn(),
+    backfillLogTitles: jest.fn(() => Promise.resolve(0)),
+}));
+jest.mock("../../src/utils/logcheck/report", () => {
+    class ReportError extends Error {}
+    return { buildReport: jest.fn(), ReportError };
+});
+jest.mock("../../src/classes/warcraftlogs", () => jest.fn());
 jest.mock("../../src/web/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 0, skipped: 0 })),
     listByEvent: jest.fn(() => []),
@@ -91,6 +117,7 @@ jest.mock("../../src/web/discord", () => ({
     scanRecruitment: jest.fn(() => Promise.resolve([])),
     listApplications: jest.fn(() => Promise.resolve({ applications: [], error: null })),
     getClient: jest.fn(() => null),
+    getChannelCategoryMap: jest.fn(() => ({})),
 }));
 jest.mock("../../src/web/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
@@ -98,10 +125,12 @@ jest.mock("../../src/web/raidEventGroups", () => ({
 }));
 const mockGetTemplates = jest.fn(() => Promise.resolve([]));
 const mockCreateEvent = jest.fn(() => Promise.resolve({ id: "ev1" }));
+const mockGetPastEvents = jest.fn(() => Promise.resolve([]));
 jest.mock("../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({
         getTemplates: mockGetTemplates,
         createEvent: mockCreateEvent,
+        getPastEvents: mockGetPastEvents,
     })));
 
 const auth = require("../../src/web/auth");
@@ -117,6 +146,10 @@ const characterInfo = require("../../src/web/characterInfo");
 const characterStore = require("../../src/web/characterStore");
 const lootImport = require("../../src/utils/lootImport");
 const lootEventMatch = require("../../src/web/lootEventMatch");
+const reportList = require("../../src/web/reportList");
+const logEventMatch = require("../../src/web/logEventMatch");
+const logChannel = require("../../src/web/logChannel");
+const { buildReport, ReportError } = require("../../src/utils/logcheck/report");
 const { handle } = require("../../src/web/apiRouter");
 
 function mockRes() {
@@ -1268,6 +1301,357 @@ describe("web/apiRouter", () => {
             const res = await get("/api/history/char", { name: "Anna" });
 
             expect(body(res).data.gearError).toBe("Blizzard-API nicht erreichbar (Netzwerkfehler).");
+        });
+    });
+
+    describe("GET /api/cla", () => {
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("");
+            logStore.listLogs.mockReturnValue([]);
+            reportStore.listReports.mockReturnValue([]);
+            settingsStore.getConfig.mockReturnValue({});
+            discord.getChannelCategoryMap.mockReturnValue({});
+            mockGetPastEvents.mockResolvedValue([]);
+        });
+
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await get("/api/cla");
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+        });
+
+        it("defaults to the reports view: unfiltered report count, guild-filtered log count", async () => {
+            activeGuildFor.mockReturnValue("guild-1");
+            logStore.listLogs.mockReturnValue([
+                { id: "l1", guildId: "guild-1", eventId: "e1" },
+                { id: "l2", guildId: "guild-2" },
+                { id: "l3", guildId: "" },
+            ]);
+            reportStore.listReports.mockReturnValue([{ id: "r1" }, { id: "r2" }, { id: "r3" }]);
+
+            const res = await get("/api/cla");
+
+            expect(body(res).data.view).toBe("reports");
+            expect(body(res).data.reportPage).not.toBeNull();
+            expect(body(res).data.logPage).toBeNull();
+            expect(body(res).data.reportPage.items).toEqual([{ id: "r1" }, { id: "r2" }, { id: "r3" }]);
+            // counts.reports is unfiltered (reports carry no guildId); counts.logs is
+            // the guild-filtered count (l2 belongs to another guild and is excluded).
+            expect(body(res).data.counts).toEqual({ reports: 3, logs: 2 });
+            expect(body(res).data.unlinkedCount).toBe(1); // l1 is linked, l3 is not (l2 filtered out)
+            expect(body(res).data.matchEventsError).toBeNull();
+            expect(body(res).data.activeGuildId).toBe("guild-1");
+        });
+
+        it("passes sort/dir/page through to prepareReportList", async () => {
+            await get("/api/cla", { sort: "title", dir: "asc", page: "2" });
+            expect(reportList.prepareReportList).toHaveBeenCalledWith([], { sort: "title", dir: "asc", page: "2" });
+        });
+
+        it("only computes the active view (reports) — prepareLogList is not called", async () => {
+            await get("/api/cla");
+            expect(reportList.prepareLogList).not.toHaveBeenCalled();
+        });
+
+        it("logChannelsConfigured is false when no log channels are configured", async () => {
+            settingsStore.getConfig.mockReturnValue({ logChannelIds: [] });
+            const res = await get("/api/cla");
+            expect(body(res).data.logChannelsConfigured).toBe(false);
+        });
+
+        it("logChannelsConfigured is true when at least one log channel is configured", async () => {
+            settingsStore.getConfig.mockReturnValue({ logChannelIds: ["c1"] });
+            const res = await get("/api/cla");
+            expect(body(res).data.logChannelsConfigured).toBe(true);
+        });
+
+        describe("view=logs", () => {
+            it("computes only the logs view — prepareReportList is not called — and annotates/matches", async () => {
+                activeGuildFor.mockReturnValue("guild-1");
+                logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "guild-1", channelId: "c1" }]);
+                discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "log-chan", categoryId: "cat1", categoryName: "Raids" } });
+                mockGetPastEvents.mockResolvedValue([{ id: "e1", title: "Kara", startTime: 100, channelId: "c1" }]);
+
+                const res = await get("/api/cla", { view: "logs" });
+
+                expect(body(res).data.view).toBe("logs");
+                expect(body(res).data.reportPage).toBeNull();
+                expect(body(res).data.logPage).not.toBeNull();
+                expect(reportList.prepareReportList).not.toHaveBeenCalled();
+                expect(logChannel.backfillLogTitles).toHaveBeenCalledWith(body(res).data.logPage.items);
+                expect(reportList.annotateLogCategories).toHaveBeenCalledWith(
+                    expect.any(Array),
+                    { c1: { name: "log-chan", categoryId: "cat1", categoryName: "Raids" } },
+                );
+                expect(logEventMatch.annotateMatches).toHaveBeenCalledWith(
+                    expect.any(Array),
+                    [{ id: "e1", title: "Kara", startTime: 100, channelId: "c1", channelName: "log-chan", categoryId: "cat1", categoryName: "Raids" }],
+                );
+            });
+
+            it("passes sort/dir/page through to prepareLogList", async () => {
+                activeGuildFor.mockReturnValue("guild-1");
+                await get("/api/cla", { view: "logs", sort: "status", dir: "asc", page: "3" });
+                expect(reportList.prepareLogList).toHaveBeenCalledWith([], { sort: "status", dir: "asc", page: "3" });
+            });
+
+            it("surfaces the Raid-Helper error as matchEventsError", async () => {
+                activeGuildFor.mockReturnValue("guild-1");
+                mockGetPastEvents.mockRejectedValue(new Error("API down"));
+
+                const res = await get("/api/cla", { view: "logs" });
+
+                expect(body(res).data.matchEventsError).toBe("API down");
+            });
+        });
+    });
+
+    describe("POST /api/cla", () => {
+        it("creates a report and returns its id/url", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            buildReport.mockResolvedValue({ id: "abc123", url: "/r/abc123", report: {} });
+
+            const res = await post("/api/cla", { link: "https://classic.warcraftlogs.com/reports/abc123" });
+
+            expect(buildReport).toHaveBeenCalledWith("https://classic.warcraftlogs.com/reports/abc123");
+            expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
+            expect(body(res)).toEqual({ data: { id: "abc123", url: "/r/abc123" } });
+        });
+
+        it("returns 400 with the ReportError message on an expected failure", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            buildReport.mockRejectedValue(new ReportError("Konnte keine Report-ID aus dem Link lesen."));
+
+            const res = await post("/api/cla", { link: "not-a-link" });
+
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "build_failed", message: "Konnte keine Report-ID aus dem Link lesen." } });
+        });
+
+        it("returns a generic 500 message on an unexpected failure", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            buildReport.mockRejectedValue(new Error("boom"));
+
+            const res = await post("/api/cla", { link: "https://x" });
+
+            expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "build_failed", message: "Unerwarteter Fehler beim Erstellen der Auswertung." } });
+        });
+    });
+
+    describe("POST /api/cla/eval", () => {
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+        });
+
+        it("returns the new report's id/url on success", async () => {
+            logChannel.evaluateLog.mockResolvedValue({ ok: true, id: "abc", url: "/r/abc" });
+            const res = await post("/api/cla/eval", { logId: "l1" });
+            expect(logChannel.evaluateLog).toHaveBeenCalledWith("l1");
+            expect(body(res)).toEqual({ data: { id: "abc", url: "/r/abc" } });
+        });
+
+        it("returns alreadyEvaluated + url (200, not an error) when the log was already done", async () => {
+            logChannel.evaluateLog.mockResolvedValue({ ok: false, already: true, url: "/r/xyz", error: "Dieser Log wurde bereits ausgewertet." });
+            const res = await post("/api/cla/eval", { logId: "l1" });
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(body(res)).toEqual({ data: { alreadyEvaluated: true, url: "/r/xyz" } });
+        });
+
+        it("returns 400 with the failure message otherwise", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            logChannel.evaluateLog.mockResolvedValue({ ok: false, error: "Auswertung läuft bereits — bitte einen Moment warten." });
+            const res = await post("/api/cla/eval", { logId: "l1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "eval_failed", message: "Auswertung läuft bereits — bitte einen Moment warten." } });
+        });
+
+        it("falls back to a generic message when the failure carries none", async () => {
+            logChannel.evaluateLog.mockResolvedValue({ ok: false });
+            const res = await post("/api/cla/eval", { logId: "l1" });
+            expect(body(res)).toEqual({ error: { code: "eval_failed", message: "Auswertung fehlgeschlagen." } });
+        });
+    });
+
+    describe("POST /api/cla/scan", () => {
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+        });
+
+        it("scans and returns the found count + message", async () => {
+            activeGuildFor.mockReturnValue("guild-1");
+            logChannel.scanLogChannels.mockResolvedValue(3);
+            const res = await post("/api/cla/scan", {});
+            expect(logChannel.scanLogChannels).toHaveBeenCalledWith("guild-1");
+            expect(body(res)).toEqual({ data: { found: 3, message: "3 neue(r) Log(s) gefunden." } });
+        });
+
+        it("returns a 500 with the thrown message on failure", async () => {
+            logChannel.scanLogChannels.mockRejectedValue(new Error("timeout"));
+            const res = await post("/api/cla/scan", {});
+            expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "scan_failed", message: "timeout" } });
+        });
+    });
+
+    describe("POST /api/cla/log-delete", () => {
+        it("deletes the log and returns its id", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/cla/log-delete", { logId: "l1" });
+            expect(logStore.deleteLog).toHaveBeenCalledWith("l1");
+            expect(body(res)).toEqual({ data: { logId: "l1" } });
+        });
+    });
+
+    describe("POST /api/cla/log-link", () => {
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("");
+            discord.getChannelCategoryMap.mockReturnValue({});
+            mockGetPastEvents.mockResolvedValue([]);
+        });
+
+        it("returns 400 when the log is not found", async () => {
+            logStore.getLog.mockReturnValue(null);
+            const res = await post("/api/cla/log-link", { logId: "l1", eventId: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "not_found", message: "Log nicht gefunden." } });
+            expect(logStore.linkEvent).not.toHaveBeenCalled();
+        });
+
+        it("returns 400 when no event id is given", async () => {
+            logStore.getLog.mockReturnValue({ id: "l1" });
+            const res = await post("/api/cla/log-link", { logId: "l1", eventId: "" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "no_event", message: "Kein Event gewählt." } });
+        });
+
+        it("surfaces the Raid-Helper error when events cannot be loaded", async () => {
+            logStore.getLog.mockReturnValue({ id: "l1" });
+            activeGuildFor.mockReturnValue("guild-1");
+            mockGetPastEvents.mockRejectedValue(new Error("API down"));
+            const res = await post("/api/cla/log-link", { logId: "l1", eventId: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "events_unavailable", message: "API down" } });
+        });
+
+        it("returns 400 when the event id is not among the resolved events", async () => {
+            logStore.getLog.mockReturnValue({ id: "l1" });
+            activeGuildFor.mockReturnValue("guild-1");
+            discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "chan", categoryId: "cat1", categoryName: "Raids" } });
+            mockGetPastEvents.mockResolvedValue([{ id: "e2", title: "Other", startTime: 100, channelId: "c1" }]);
+
+            const res = await post("/api/cla/log-link", { logId: "l1", eventId: "e1" });
+
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "event_not_found", message: "Event nicht gefunden." } });
+        });
+
+        it("links the log to the re-resolved event on success", async () => {
+            logStore.getLog.mockReturnValue({ id: "l1" });
+            activeGuildFor.mockReturnValue("guild-1");
+            discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "chan", categoryId: "cat1", categoryName: "Raids" } });
+            mockGetPastEvents.mockResolvedValue([{ id: "e2", title: "Other", startTime: 100, channelId: "c1" }]);
+
+            const res = await post("/api/cla/log-link", { logId: "l1", eventId: "e2" });
+
+            expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e2", eventLabel: "Other", eventStartTime: 100, source: "manual" });
+            expect(body(res)).toEqual({
+                data: { logId: "l1", eventId: "e2", eventLabel: "Other", message: "Log „Other\" zugeordnet." },
+            });
+        });
+    });
+
+    describe("POST /api/cla/log-unlink", () => {
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+        });
+
+        it("returns 400 when the log was not linked", async () => {
+            logStore.unlinkEvent.mockReturnValue(null);
+            const res = await post("/api/cla/log-unlink", { logId: "l1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "not_linked", message: "Keine Zuordnung vorhanden." } });
+        });
+
+        it("removes the assignment on success", async () => {
+            logStore.unlinkEvent.mockReturnValue({ id: "l1" });
+            const res = await post("/api/cla/log-unlink", { logId: "l1" });
+            expect(logStore.unlinkEvent).toHaveBeenCalledWith("l1");
+            expect(body(res)).toEqual({ data: { logId: "l1", message: "Zuordnung entfernt." } });
+        });
+    });
+
+    describe("POST /api/cla/log-automatch", () => {
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("guild-1");
+            discord.getChannelCategoryMap.mockReturnValue({});
+            mockGetPastEvents.mockResolvedValue([]);
+            logStore.listLogs.mockReturnValue([]);
+        });
+
+        it("surfaces the Raid-Helper error when events cannot be loaded", async () => {
+            mockGetPastEvents.mockRejectedValue(new Error("API down"));
+            const res = await post("/api/cla/log-automatch", {});
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "events_unavailable", message: "API down" } });
+            expect(logStore.linkEvent).not.toHaveBeenCalled();
+        });
+
+        it("links every unambiguous match and reports the remainder", async () => {
+            logStore.listLogs.mockReturnValue([
+                { id: "l1", guildId: "guild-1" },
+                { id: "l2", guildId: "guild-1", eventId: "e5" }, // already linked — excluded
+                { id: "l3", guildId: "guild-1" },
+                { id: "l4", guildId: "other-guild" }, // different guild — excluded
+            ]);
+            discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "chan", categoryId: "cat1", categoryName: "Raids" } });
+            mockGetPastEvents.mockResolvedValue([{ id: "e9", title: "Match Event", startTime: 500, channelId: "c1" }]);
+            const matchedEvent = { id: "e9", title: "Match Event", startTime: 500, channelId: "c1", channelName: "chan", categoryId: "cat1", categoryName: "Raids" };
+            logEventMatch.autoMatches.mockReturnValue([{ log: { id: "l1" }, event: matchedEvent, diffMs: 1000 }]);
+
+            const res = await post("/api/cla/log-automatch", {});
+
+            expect(logEventMatch.autoMatches).toHaveBeenCalledWith(
+                [{ id: "l1", guildId: "guild-1" }, { id: "l3", guildId: "guild-1" }],
+                [matchedEvent],
+            );
+            expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e9", eventLabel: "Match Event", eventStartTime: 500, source: "auto" });
+            expect(body(res)).toEqual({
+                data: { matched: 1, remaining: 1, message: "1 Log(s) automatisch zugeordnet, 1 ohne eindeutiges Event." },
+            });
+        });
+
+        it("reports no remainder when every unlinked log gets matched", async () => {
+            logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "guild-1" }]);
+            const matchedEvent = { id: "e9", title: "Match Event", startTime: 500 };
+            logEventMatch.autoMatches.mockReturnValue([{ log: { id: "l1" }, event: matchedEvent, diffMs: 1000 }]);
+
+            const res = await post("/api/cla/log-automatch", {});
+
+            expect(body(res)).toEqual({
+                data: { matched: 1, remaining: 0, message: "1 Log(s) automatisch zugeordnet." },
+            });
+        });
+
+        it("uses the unfiltered log list when no guild is active", async () => {
+            activeGuildFor.mockReturnValue("");
+            logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "some-guild" }]);
+
+            await post("/api/cla/log-automatch", {});
+
+            expect(logEventMatch.autoMatches).toHaveBeenCalledWith([{ id: "l1", guildId: "some-guild" }], []);
         });
     });
 

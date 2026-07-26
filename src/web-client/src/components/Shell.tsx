@@ -14,7 +14,7 @@ export type ShellContext = { user: SessionUser; csrfToken: string | null };
 const TABS: { id: string; label: string; href: string; group: string; icon: ReactNode; internal?: boolean }[] = [
     { id: "home", label: "Übersicht", href: "/", group: "Verwaltung", icon: <HomeIcon />, internal: true },
     { id: "recruitment", label: "Recruitment", href: "/recruitment", group: "Verwaltung", icon: <RecruitmentIcon />, internal: true },
-    { id: "cla", label: "CLA / Logcheck", href: "/admin/cla", group: "Verwaltung", icon: <ClaIcon /> },
+    { id: "cla", label: "CLA / Logcheck", href: "/cla", group: "Verwaltung", icon: <ClaIcon />, internal: true },
     { id: "raids", label: "Raid-Events", href: "/raids", group: "Verwaltung", icon: <RaidsIcon />, internal: true },
     { id: "history", label: "Historie & Loot", href: "/history", group: "Verwaltung", icon: <HistoryIcon />, internal: true },
     { id: "channels", label: "Kanäle", href: "/channels", group: "Verwaltung", icon: <ChannelsIcon />, internal: true },

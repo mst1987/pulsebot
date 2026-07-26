@@ -21,6 +21,9 @@ const {
     getHistoryData, deleteHistoryLog, importLoot, saveCategoryLootTool, clearHistoryEvent, getHistoryEvent,
     resolveCharacters, getHistoryChar,
 } = require("./apiRoutes/history");
+const {
+    getClaData, createReport, evalLog, scanLogs, deleteLogHandler, linkLog, unlinkLog, autoMatchLogs,
+} = require("./apiRoutes/cla");
 
 /** Dispatches an /api/* request. `url` is only needed by routes that read query params. */
 async function handle(pathname, req, res, url) {
@@ -146,6 +149,38 @@ async function handle(pathname, req, res, url) {
     }
     if (pathname === "/api/history/char" && req.method === "GET") {
         await getHistoryChar(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/cla" && req.method === "GET") {
+        await getClaData(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/cla" && req.method === "POST") {
+        await createReport(req, res);
+        return true;
+    }
+    if (pathname === "/api/cla/eval" && req.method === "POST") {
+        await evalLog(req, res);
+        return true;
+    }
+    if (pathname === "/api/cla/scan" && req.method === "POST") {
+        await scanLogs(req, res);
+        return true;
+    }
+    if (pathname === "/api/cla/log-delete" && req.method === "POST") {
+        await deleteLogHandler(req, res);
+        return true;
+    }
+    if (pathname === "/api/cla/log-link" && req.method === "POST") {
+        await linkLog(req, res);
+        return true;
+    }
+    if (pathname === "/api/cla/log-unlink" && req.method === "POST") {
+        await unlinkLog(req, res);
+        return true;
+    }
+    if (pathname === "/api/cla/log-automatch" && req.method === "POST") {
+        await autoMatchLogs(req, res);
         return true;
     }
     error(res, 404, "not_found", "Unbekannter API-Endpunkt.");

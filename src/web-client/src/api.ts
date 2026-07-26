@@ -543,3 +543,117 @@ export type HistoryCharData = {
 export function getHistoryChar(name: string): Promise<HistoryCharData> {
     return get<HistoryCharData>(`/api/history/char?name=${encodeURIComponent(name)}`);
 }
+
+// ===== CLA / Logcheck =====
+// A generic sorted+paged slice from the backend — mirrors renderAdmin.js's
+// claSortHeader()/claPager() query-string contract (view/sort/dir/page).
+export type ClaPage<T> = {
+    items: T[];
+    sort: string;
+    dir: "asc" | "desc";
+    page: number;
+    totalPages: number;
+    total: number;
+    pageSize: number;
+};
+
+export type ReportSummary = {
+    id: string;
+    title: string;
+    zone: string;
+    generatedAt: number;
+    reportId: string;
+    reportUrl: string;
+    playerCount: number;
+    issueCount: number;
+};
+
+// A candidate raid event a detected log could belong to, ranked by how close
+// its start time is to the log's post time — mirrors matchOptionLabel()'s input.
+export type MatchCandidate = {
+    eventId: string;
+    title: string;
+    startTime: number;
+    categoryName: string;
+    diffMs: number;
+    sameCategory: boolean;
+};
+
+export type LogRow = {
+    id: string;
+    guildId: string;
+    channelId: string;
+    messageId: string;
+    reportId: string;
+    link: string;
+    title: string;
+    status: "open" | "done";
+    postedAt: number;
+    detectedAt: number;
+    categoryId: string;
+    categoryName: string;
+    channelName: string;
+    eventId: string;
+    eventLabel: string;
+    eventStartTime: number;
+    eventLinkSource: "manual" | "auto" | "";
+    reportUrl: string;
+    reportRefId: string;
+    candidates: MatchCandidate[];
+    matchAmbiguous: boolean;
+};
+
+export type ClaData = {
+    view: "reports" | "logs";
+    reportPage: ClaPage<ReportSummary> | null;
+    logPage: ClaPage<LogRow> | null;
+    matchEventsError: string | null;
+    unlinkedCount: number;
+    counts: { reports: number; logs: number };
+    logChannelsConfigured: boolean;
+    activeGuildId: string;
+};
+
+export function getClaData(view: "reports" | "logs", sort?: string, dir?: string, page?: number): Promise<ClaData> {
+    const qs = new URLSearchParams();
+    qs.set("view", view);
+    if (sort) qs.set("sort", sort);
+    if (dir) qs.set("dir", dir);
+    if (page) qs.set("page", String(page));
+    return get<ClaData>(`/api/cla?${qs.toString()}`);
+}
+
+export function createReport(csrfToken: string | null, link: string): Promise<{ id: string; url: string }> {
+    return send("POST", "/api/cla", csrfToken, { link });
+}
+
+export function evalLog(
+    csrfToken: string | null,
+    logId: string,
+): Promise<{ id?: string; url: string; alreadyEvaluated?: boolean }> {
+    return send("POST", "/api/cla/eval", csrfToken, { logId });
+}
+
+export function scanLogs(csrfToken: string | null): Promise<{ found: number; message: string }> {
+    return send("POST", "/api/cla/scan", csrfToken, {});
+}
+
+export function deleteLogEntry(csrfToken: string | null, logId: string): Promise<{ logId: string }> {
+    return send("POST", "/api/cla/log-delete", csrfToken, { logId });
+}
+
+export function linkLog(
+    csrfToken: string | null,
+    logId: string,
+    eventId: string,
+): Promise<{ logId: string; eventId: string; eventLabel: string; message: string }> {
+    return send("POST", "/api/cla/log-link", csrfToken, { logId, eventId });
+}
+
+export function unlinkLog(csrfToken: string | null, logId: string): Promise<{ logId: string; message: string }> {
+    return send("POST", "/api/cla/log-unlink", csrfToken, { logId });
+}
+
+export function autoMatchLogs(csrfToken: string | null): Promise<{ matched: number; remaining: number; message: string }> {
+    return send("POST", "/api/cla/log-automatch", csrfToken, {});
+}
