@@ -10,7 +10,13 @@ const {
     getSettings, updateSettings, saveRaidsheetHandler, deleteRaidsheetHandler,
 } = require("./apiRoutes/settings");
 const { getRaids, getRaidCreateContext, createRaid } = require("./apiRoutes/raids");
-const { getRaidDetail } = require("./apiRoutes/raidDetail");
+const {
+    getRaidDetail, postNotify, postPingMissing, postFill, postPostSheet, postPostSoftres,
+    getItemSearch, postSoftresCreate, postSoftresLink,
+} = require("./apiRoutes/raidDetail");
+const {
+    getNotifyTemplates, saveNotifyTemplate, deleteNotifyTemplate,
+} = require("./apiRoutes/notifyTemplates");
 const {
     getRaidTemplates, createRaidTemplate, deleteRaidTemplateHandler, importRaidTemplates,
 } = require("./apiRoutes/raidTemplates");
@@ -78,6 +84,50 @@ async function handle(pathname, req, res, url) {
     }
     if (pathname === "/api/raids/detail" && req.method === "GET") {
         await getRaidDetail(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/raids/notify" && req.method === "POST") {
+        await postNotify(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/ping-missing" && req.method === "POST") {
+        await postPingMissing(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/fill" && req.method === "POST") {
+        await postFill(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/post-sheet" && req.method === "POST") {
+        await postPostSheet(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/post-softres" && req.method === "POST") {
+        await postPostSoftres(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/softres/item-search" && req.method === "GET") {
+        await getItemSearch(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/raids/softres" && req.method === "POST") {
+        await postSoftresCreate(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/softres/link" && req.method === "POST") {
+        await postSoftresLink(req, res);
+        return true;
+    }
+    if (pathname === "/api/notify-templates" && req.method === "GET") {
+        getNotifyTemplates(req, res);
+        return true;
+    }
+    if (pathname === "/api/notify-templates" && req.method === "POST") {
+        await saveNotifyTemplate(req, res);
+        return true;
+    }
+    if (pathname === "/api/notify-templates/delete" && req.method === "POST") {
+        await deleteNotifyTemplate(req, res);
         return true;
     }
     if (pathname === "/api/raid-templates" && req.method === "GET") {

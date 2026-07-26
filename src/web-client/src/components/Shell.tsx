@@ -35,6 +35,7 @@ function crumbTab(pathname: string) {
 // "Recruitment" — mirrors the equivalent crumb in src/web/renderAdmin.js).
 function subCrumb(pathname: string, search: URLSearchParams): string | null {
     if (pathname === "/raids/new") return "Neues Event";
+    if (pathname === "/raids/templates") return "Aufruf-Vorlagen";
     if (pathname === "/history/event") return "Event-Loot";
     if (pathname === "/recruitment" && (search.get("view") || "posts") === "posts" && search.get("editpost")) {
         return "Nachricht bearbeiten";

@@ -211,9 +211,28 @@ export function getRaids(): Promise<RaidsData> {
 
 // ===== Raid detail (per-event page) =====
 // Part A (Setup/Anwesenheit/Loot, read-only) — see renderAdmin.js's renderEventDetail().
-// notifyTemplates/roles/raidsheets/matchedSheetId/tankCandidates/eventSheet/eventSoftres/
-// softresCatalogue/softresEdition/softresSuggested are all Part B's concern (the mutating
-// tabs + header quick-post buttons) and are typed loosely here on purpose.
+// Part B (this section's remainder): the mutating tabs (Anmeldung & Sheet, Softres) +
+// header quick-post buttons, plus the standalone Notify-Templates CRUD page.
+
+// Anmelde-Aufruf template — same shape src/web/settingsStore.js's listNotify()/saveNotify()
+// persist (id/name/title/body; createdAt/updatedAt are stored but not surfaced here).
+export type NotifyTemplate = { id: string; name: string; title: string; body: string };
+
+export function getNotifyTemplates(): Promise<{ templates: NotifyTemplate[] }> {
+    return get<{ templates: NotifyTemplate[] }>("/api/notify-templates");
+}
+
+export function saveNotifyTemplate(
+    csrfToken: string | null,
+    input: { id?: string; name: string; title: string; body: string },
+): Promise<{ template: NotifyTemplate }> {
+    return send("POST", "/api/notify-templates", csrfToken, input);
+}
+
+export function deleteNotifyTemplate(csrfToken: string | null, id: string): Promise<{ id: string }> {
+    return send("POST", "/api/notify-templates/delete", csrfToken, { id });
+}
+
 export type SetupPlayer = { name: string; classColor: string; specName: string; className: string; iconUrl: string };
 export type SetupGroup = { label: string; players: SetupPlayer[] };
 export type EventSetup = { total: number; groups: SetupGroup[] } | null;
@@ -234,20 +253,31 @@ export type RaidDetailEvent = {
 export type RaidDetailEventSheet = { url: string; eventTitle: string; deleteAfter: number } | null;
 export type EventSoftres = { url: string; editUrl: string; instances: unknown[]; amount: number; hardReserveCount: number } | null;
 
+// A raider in the current raidplan setup whose spec/class can tank — offered as
+// 3rd-tank candidates on the "Raidsheet füllen" form. Mirrors src/utils/setupView.js's
+// tankCandidates(): className is always a string there, but empty when unresolved.
+export type TankCandidate = { name: string; specName: string; className?: string };
+
+// A single softres.it raid instance, and its edition-grouped catalogue — mirrors
+// src/utils/softres.js's instancesForEdition()/catalogue() (an instance's `slots`
+// exists server-side too but isn't needed by this UI).
+export type SoftresInstance = { code: string; name: string; slots?: number };
+export type SoftresCatalogueGroup = { edition: string; label: string; instances: SoftresInstance[] };
+
 export type RaidDetailData = {
     event: RaidDetailEvent;
     categoryName: string;
     guildId: string;
-    notifyTemplates: unknown[];
-    roles: unknown[];
-    raidsheets: unknown[];
+    notifyTemplates: NotifyTemplate[];
+    roles: Role[];
+    raidsheets: Raidsheet[];
     matchedSheetId: string;
     setup: EventSetup;
     setupError: string | null;
-    tankCandidates: unknown[];
+    tankCandidates: TankCandidate[];
     eventSheet: RaidDetailEventSheet;
     eventSoftres: EventSoftres;
-    softresCatalogue: unknown[];
+    softresCatalogue: SoftresCatalogueGroup[];
     softresEdition: string;
     softresSuggested: string[];
     attendance: Attendance;
@@ -260,6 +290,71 @@ export type RaidDetailData = {
 
 export function getRaidDetail(eventId: string): Promise<RaidDetailData> {
     return get<RaidDetailData>(`/api/raids/detail?event=${encodeURIComponent(eventId)}`);
+}
+
+// ---- Raid detail Part B: mutating actions (Anmeldung & Sheet, Softres tabs, header quick-posts) ----
+
+export function notifyRaid(
+    csrfToken: string | null,
+    input: { event: string; templateId: string; channelId: string; roleIds: string[] },
+): Promise<{ message: string }> {
+    return send("POST", "/api/raids/notify", csrfToken, input);
+}
+
+export function pingMissingRaiders(
+    csrfToken: string | null,
+    input: { event: string; text: string },
+): Promise<{ message: string }> {
+    return send("POST", "/api/raids/ping-missing", csrfToken, input);
+}
+
+export function fillRaidsheet(
+    csrfToken: string | null,
+    input: { event: string; sheetId: string; tank3: string; eventTitle: string; eventStartTime: number },
+): Promise<{ message: string; playerCount: number }> {
+    return send("POST", "/api/raids/fill", csrfToken, input);
+}
+
+export function postRaidSheet(
+    csrfToken: string | null,
+    input: { event: string; message?: string },
+): Promise<{ message: string }> {
+    return send("POST", "/api/raids/post-sheet", csrfToken, input);
+}
+
+export function postRaidSoftres(
+    csrfToken: string | null,
+    input: { event: string; message?: string },
+): Promise<{ message: string }> {
+    return send("POST", "/api/raids/post-softres", csrfToken, input);
+}
+
+export type SoftresSearchItem = { id: number; name: string; iconUrl?: string };
+
+export function searchSoftresItems(edition: string, q: string): Promise<{ items: SoftresSearchItem[] }> {
+    const qs = new URLSearchParams({ edition, q });
+    return get<{ items: SoftresSearchItem[] }>(`/api/raids/softres/item-search?${qs.toString()}`);
+}
+
+export function createSoftres(
+    csrfToken: string | null,
+    input: {
+        event: string;
+        instanceCodes: string[];
+        amount: number;
+        faction: string;
+        hardReserves: Array<{ id: number; name: string }>;
+        hideReserves: boolean;
+    },
+): Promise<{ message: string }> {
+    return send("POST", "/api/raids/softres", csrfToken, input);
+}
+
+export function linkSoftres(
+    csrfToken: string | null,
+    input: { event: string; softresUrl: string; softresEditUrl: string },
+): Promise<{ message: string }> {
+    return send("POST", "/api/raids/softres/link", csrfToken, input);
 }
 
 export type RaidTemplate = { id: string; name: string };

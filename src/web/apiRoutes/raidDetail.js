@@ -1,23 +1,30 @@
-// JSON API for the Raid-Event-Detail page (Part A: the read-only overview —
-// meta header, Setup tab, Anwesenheit tab, Loot tab). Faithful JSON port of the
-// SSR GET /admin/raids/detail route in server.js, minus the HTML rendering.
-// Part B (Anmelde-Aufruf, Fehlende-Raider-pingen, Raidsheet füllen, Sheet/Softres
-// posten, Softres-Liste erstellen) is a separate, later PR — this file only
-// reads data, it never posts to Discord, writes to Sheets/Drive, or calls
-// softres.it.
+// JSON API for the Raid-Event-Detail page. Part A (below) is the read-only
+// overview — meta header, Setup tab, Anwesenheit tab, Loot tab. Part B (this
+// file's second half) is the mutating/external-integration actions: Anmelde-
+// Aufruf, Fehlende-Raider-pingen, Raidsheet füllen, Sheet/Softres posten,
+// Softres-Liste erstellen/verlinken. Both are faithful JSON ports of the SSR
+// routes in server.js, minus the HTML rendering/redirects.
 const { ok, error } = require("../apiResponse");
-const { requireAdmin } = require("../apiMiddleware");
+const { requireAdmin, requireCsrf } = require("../apiMiddleware");
+const { readJsonBody } = require("../apiBody");
 const { activeGuildFor } = require("../activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
-const { getConfig, listNotify, listRaidsheets } = require("../settingsStore");
+const {
+    getConfig, listNotify, listRaidsheets, getNotify, getRaidsheet,
+} = require("../settingsStore");
 const { matchRaidsheet } = require("../../utils/raidsheets");
 const { buildSetupView, tankCandidates } = require("../../utils/setupView");
 const { computeAttendance, buildSpecHistory, withSpecProfiles } = require("../../utils/attendance");
-const { getEventSheet } = require("../eventSheetStore");
-const { getEventSoftres } = require("../eventSoftresStore");
+const { getEventSheet, markEventSheetFilled } = require("../eventSheetStore");
+const { getEventSoftres, saveEventSoftres, setEventSoftresLink } = require("../eventSoftresStore");
 const softres = require("../../utils/softres");
+const wowhead = require("../../utils/wowhead");
 const { listByEvent: listLootByEvent } = require("../lootStore");
 const Raidhelper = require("../../classes/raidhelper");
+const Drive = require("../../classes/drive");
+const SheetsClient = require("../../classes/sheets");
+const { fillSetupSheet } = require("../../utils/fillSetup");
+const { formatTimestampToDateString } = require("../../utils/date");
 const discord = require("../discord");
 
 /**
@@ -120,4 +127,285 @@ async function getRaidDetail(req, res, url) {
     });
 }
 
-module.exports = { getRaidDetail };
+/**
+ * Resolve an event's channel + title server-side (never trust client-sent
+ * ids), the same "re-derive from Raid-Helper" pattern used by ping-missing and
+ * both post-* actions below.
+ * @returns {Promise<{ found: object|null, errorMessage: string|null }>}
+ */
+async function resolveEventForPost(req, eventId) {
+    const guildId = activeGuildFor(req);
+    const { groups, error: groupsError } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
+    if (groupsError) return { found: null, errorMessage: groupsError, code: "events_unavailable" };
+    const found = groups.flatMap((g) => g.events).find((e) => e.id === eventId);
+    if (!found) return { found: null, errorMessage: "Event nicht gefunden.", code: "not_found" };
+    return { found, errorMessage: null, code: null };
+}
+
+/** POST /api/raids/notify — post an Anmelde-Aufruf into the event channel, pinging the chosen roles. Body: { event, templateId, channelId, roleIds }. */
+async function postNotify(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const template = getNotify(String(body.templateId || "").trim());
+    const channelId = String(body.channelId || "").trim();
+    if (!template || !channelId) return error(res, 400, "missing_fields", "Vorlage oder Channel fehlt.");
+    try {
+        await discord.postAnnouncement(channelId, template, body.roleIds || []);
+        ok(res, { message: "Anmelde-Aufruf gepostet." });
+    } catch (e) {
+        console.error("notify post failed:", e.message);
+        error(res, 500, "post_failed", e.message || "Posten fehlgeschlagen.");
+    }
+}
+
+/**
+ * POST /api/raids/ping-missing — ping the raiders who have a role assigned to
+ * this event's category but have not reacted to the signup yet. Body: { event, text }.
+ * Missing raiders are re-derived server-side; the client never gets to supply
+ * the list of who to ping.
+ */
+async function postPingMissing(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const eventId = String(body.event || "").trim();
+    const guildId = activeGuildFor(req);
+    const { groups, error: groupsError } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
+    if (groupsError) return error(res, 400, "events_unavailable", groupsError);
+    const found = groups.flatMap((g) => g.events.map((e) => ({ e, g }))).find((x) => x.e.id === eventId);
+    if (!found) return error(res, 404, "not_found", "Event nicht gefunden.");
+    const categoryRoleIds = (getConfig().categoryRoles || {})[found.g.categoryId] || [];
+    if (!categoryRoleIds.length) {
+        return error(res, 400, "no_roles", "Dieser Kategorie sind keine Rollen zugeordnet (Einstellungen → Events).");
+    }
+    const { members, error: membersError } = await discord.listMembersWithRoles(guildId, categoryRoleIds);
+    if (membersError) return error(res, 400, "members_unavailable", membersError);
+    const { missing } = computeAttendance(members, found.e.signUps || []);
+    if (!missing.length) {
+        return ok(res, { message: "Niemand fehlt — es haben schon alle reagiert." });
+    }
+    try {
+        await discord.postMissingPing(found.e.channelId, missing.map((m) => m.id), body.text);
+        ok(res, { message: `${missing.length} fehlende Raider gepingt.` });
+    } catch (e) {
+        console.error("ping-missing failed:", e.message);
+        error(res, 500, "post_failed", e.message || "Posten fehlgeschlagen.");
+    }
+}
+
+/**
+ * POST /api/raids/fill — fill a raidsheet from the event's Raid-Helper setup.
+ * Each raid gets its OWN copy of the source raidsheet: copy it, share it by
+ * link, fill the copy, link it on the event page, and schedule its deletion 3
+ * days after the raid. The source raidsheet is never written to or deleted.
+ * Body: { event, sheetId, tank3, eventTitle, eventStartTime }.
+ */
+async function postFill(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const eventId = String(body.event || "").trim();
+    const sheet = getRaidsheet(String(body.sheetId || "").trim());
+    if (!sheet) return error(res, 400, "sheet_not_found", "Raidsheet nicht gefunden.");
+    if (!sheet.spreadsheetId) return error(res, 400, "no_spreadsheet_id", "Raidsheet hat keine Spreadsheet-ID (in den Einstellungen ergänzen).");
+    try {
+        // Event meta (title + start) is only needed for the copy name and the
+        // deletion schedule — take it from the request body (the detail page's
+        // already-loaded event) instead of a full getAllEvents round-trip. Both
+        // are cosmetic, so trusting the client here is fine; fall back to the
+        // sheet name / "now".
+        const startMs = (Number(body.eventStartTime) || 0) * 1000;
+        const raidDate = startMs ? formatTimestampToDateString(startMs).split(" - ")[0].trim() : "";
+        const copyName = `${String(body.eventTitle || "").trim() || sheet.name || "Raidsheet"}${raidDate ? ` — ${raidDate}` : ""}`;
+        // Delete 3 days after the raid (fallback: 3 days from now if start unknown).
+        const deleteAfter = (startMs || Date.now()) + 3 * 24 * 60 * 60 * 1000;
+
+        const rh = new Raidhelper();
+        const drive = new Drive();
+        const prev = getEventSheet(eventId);
+
+        // The Raid-Helper setup fetch and the Drive copy don't depend on each
+        // other — run them concurrently so the two biggest latencies overlap
+        // instead of summing. Don't touch the previous copy yet: if the setup
+        // turns out empty we keep it and only discard the fresh (orphan) copy.
+        const [result, copy] = await Promise.all([
+            rh.getSetup(eventId),
+            drive.copyFile(sheet.spreadsheetId, copyName),
+        ]);
+
+        if (!result || !result.setup || !result.setup.length) {
+            drive.deleteFile(copy.id).catch((e) => console.error("orphan copy cleanup failed:", e.message));
+            return error(res, 400, "empty_setup", "Setup nicht gefunden oder leer.");
+        }
+
+        // Commit to the new copy: record it (so a later failure still leaves a
+        // sweepable copy), share it so the service account can write, and delete
+        // the previous copy off the critical path (background, best-effort).
+        markEventSheetFilled(eventId, {
+            spreadsheetId: copy.id, url: copy.url,
+            sourceSheetId: sheet.spreadsheetId, deleteAfter,
+        });
+        if (prev && prev.spreadsheetId && prev.spreadsheetId !== copy.id) {
+            drive.deleteFile(prev.spreadsheetId).catch((e) => console.error("previous copy delete failed:", e.message));
+        }
+        await drive.shareAnyoneWriter(copy.id);
+        const client = new SheetsClient({ spreadsheetId: copy.id, sheetName: sheet.sheetName, gid: sheet.gid });
+        const summary = await fillSetupSheet(client, result.setup, { tab: sheet.sheetName || "Setup", tank3: String(body.tank3 || "").trim() });
+        markEventSheetFilled(eventId, { sheetId: sheet.id, sheetName: sheet.name, playerCount: summary.playerCount });
+        const delDate = formatTimestampToDateString(deleteAfter).split(" - ")[0].trim();
+        ok(res, {
+            message: `Neues Sheet erstellt & gefüllt: ${summary.playerCount} Spieler. Wird am ${delDate} automatisch gelöscht.`,
+            playerCount: summary.playerCount,
+        });
+    } catch (e) {
+        console.error("raidsheet fill failed:", e.message);
+        error(res, 500, "fill_failed", e.message || "Füllen fehlgeschlagen.");
+    }
+}
+
+/** POST /api/raids/post-sheet — post the filled raidsheet link into the event channel, with an optional message. Body: { event, message }. */
+async function postPostSheet(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const eventId = String(body.event || "").trim();
+    const es = getEventSheet(eventId);
+    if (!es || !es.url) return error(res, 400, "no_sheet", "Für dieses Event gibt es noch kein gefülltes Sheet.");
+    // Resolve the event's channel + title server-side; never trust posted ids.
+    // Past raids included — the detail page is reachable for them too.
+    const { found, errorMessage, code } = await resolveEventForPost(req, eventId);
+    if (errorMessage) return error(res, code === "not_found" ? 404 : 400, code, errorMessage);
+    try {
+        await discord.postLink(found.channelId, {
+            url: es.url,
+            title: found.title ? `Raidsheet – ${found.title}` : "Raidsheet",
+            message: body.message,
+            label: "Raidsheet öffnen",
+            emoji: "📄",
+        });
+        ok(res, { message: "Raidsheet in den Channel gepostet." });
+    } catch (e) {
+        console.error("post-sheet failed:", e.message);
+        error(res, 500, "post_failed", e.message || "Posten fehlgeschlagen.");
+    }
+}
+
+/** POST /api/raids/post-softres — post the softres list link into the event channel, with an optional message. Body: { event, message }. */
+async function postPostSoftres(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const eventId = String(body.event || "").trim();
+    const sr = getEventSoftres(eventId);
+    if (!sr || !sr.url) return error(res, 400, "no_softres", "Für dieses Event gibt es noch keine Softres-Liste.");
+    // Resolve the event's channel + title server-side; never trust posted ids.
+    // Past raids included — the detail page is reachable for them too.
+    const { found, errorMessage, code } = await resolveEventForPost(req, eventId);
+    if (errorMessage) return error(res, code === "not_found" ? 404 : 400, code, errorMessage);
+    try {
+        await discord.postLink(found.channelId, {
+            url: sr.url,
+            title: found.title ? `Softres – ${found.title}` : "Softres",
+            message: body.message,
+            label: "Softres öffnen",
+            emoji: "🎁",
+        });
+        ok(res, { message: "Softres-Link in den Channel gepostet." });
+    } catch (e) {
+        console.error("post-softres failed:", e.message);
+        error(res, 500, "post_failed", e.message || "Posten fehlgeschlagen.");
+    }
+}
+
+/** GET /api/raids/softres/item-search?q=&edition= — Wowhead item search for the softres hard-reserve picker. */
+async function getItemSearch(req, res, url) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    const q = url.searchParams.get("q") || "";
+    const edition = url.searchParams.get("edition") || "tbc";
+    const items = await wowhead.searchItems(q, { edition });
+    ok(res, { items });
+}
+
+/**
+ * POST /api/raids/softres — create a softres.it soft-reserve list for this
+ * event (instances derived from the title, but editable), with the chosen
+ * number of reserves and hard reserves.
+ * Body: { event, instanceCodes, amount, faction, hardReserves, hideReserves }.
+ */
+async function postSoftresCreate(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const eventId = String(body.event || "").trim();
+    const codes = Array.isArray(body.instanceCodes) ? body.instanceCodes : [];
+    if (!codes.length) return error(res, 400, "no_instances", "Mindestens eine Instanz wählen.");
+    // All chosen instances must belong to one edition (a softres list is single-edition).
+    const editions = [...new Set(codes.map((c) => softres.editionOf(c)).filter(Boolean))];
+    if (editions.length !== 1) {
+        return error(res, 400, "mixed_edition", "Alle gewählten Instanzen müssen zur selben Erweiterung gehören.");
+    }
+    const hardReserves = Array.isArray(body.hardReserves) ? body.hardReserves : [];
+    try {
+        const created = await softres.createRaid({
+            instances: codes,
+            edition: editions[0],
+            amount: body.amount,
+            faction: String(body.faction || "").trim(),
+            hardReserves,
+            hideReserves: body.hideReserves === true,
+        });
+        saveEventSoftres(eventId, {
+            raidId: created.raidId,
+            token: created.token,
+            url: created.url,
+            editUrl: created.editUrl,
+            edition: editions[0],
+            instances: codes,
+            amount: Number(body.amount) || 1,
+            hardReserveCount: hardReserves.length,
+        });
+        ok(res, { message: "Softres-Liste erstellt." }, 201);
+    } catch (e) {
+        console.error("softres create failed:", e.message);
+        error(res, 500, "softres_failed", e.message || "Softres-Erstellung fehlgeschlagen.");
+    }
+}
+
+/**
+ * POST /api/raids/softres/link — point the event at a manually chosen
+ * softres.it link (e.g. one already set up directly on softres.it) instead of
+ * one created via the API above. Body: { event, softresUrl, softresEditUrl }.
+ */
+async function postSoftresLink(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const eventId = String(body.event || "").trim();
+    const softresUrl = String(body.softresUrl || "").trim();
+    if (!/^https:\/\/(www\.)?softres\.it\/raid\/[a-zA-Z0-9]+/i.test(softresUrl)) {
+        return error(res, 400, "invalid_url", "Das muss ein softres.it-Raid-Link sein (https://softres.it/raid/...).");
+    }
+    setEventSoftresLink(eventId, { url: softresUrl, editUrl: String(body.softresEditUrl || "").trim() });
+    ok(res, { message: "Softres-Link aktualisiert." });
+}
+
+module.exports = {
+    getRaidDetail,
+    postNotify,
+    postPingMissing,
+    postFill,
+    postPostSheet,
+    postPostSoftres,
+    getItemSearch,
+    postSoftresCreate,
+    postSoftresLink,
+};

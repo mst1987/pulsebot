@@ -1,8 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     getRaidDetail, importLoot, clearHistoryEvent,
+    notifyRaid, pingMissingRaiders, fillRaidsheet, postRaidSheet, postRaidSoftres,
+    searchSoftresItems, createSoftres, linkSoftres,
     type ApiError, type RaidDetailData, type SetupPlayer, type AttendancePerson, type LootItem,
+    type SoftresSearchItem, type SoftresCatalogueGroup, type EventSoftres,
 } from "../api";
 import { formatEventTime, fmtMs } from "../lib/format";
 import { eventPostUrl, channelUrl, raidplanUrl } from "../lib/discordLinks";
@@ -10,7 +13,7 @@ import { CharacterLink } from "../components/ClassSpec";
 import type { ShellContext } from "../components/Shell";
 
 type Flash = { type: "ok" | "err"; text: string };
-type Tab = "setup" | "attendance" | "loot";
+type Tab = "setup" | "attendance" | "actions" | "loot" | "softres";
 
 const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil" };
 
@@ -102,9 +105,55 @@ function NameList({ people }: { people: AttendancePerson[] }) {
     );
 }
 
-// --- Anwesenheit tab: role-holder vs. signup reconciliation, read-only (the
-// "Fehlende Raider pingen" form is Part B). ---
-function AttendanceTab({ data }: { data: RaidDetailData }) {
+// Pings the raiders who have not reacted yet — mirrors renderAdmin.js's
+// pingForm (/admin/raids/ping-missing). A "0 missing" outcome from the backend
+// is still a normal success, shown the same as any other flash.
+function PingMissingForm({ eventId, missingCount, csrfToken, onDone }: {
+    eventId: string;
+    missingCount: number;
+    csrfToken: string | null;
+    onDone: (msg: string) => void;
+}) {
+    const [text, setText] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const submit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setBusy(true);
+        setError(null);
+        try {
+            const r = await pingMissingRaiders(csrfToken, { event: eventId, text });
+            onDone(r.message);
+            setText("");
+        } catch (err) {
+            setError((err as ApiError).message);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <form className="card-form" style={{ marginTop: 16 }} onSubmit={submit}>
+            {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
+            <div className="field">
+                <label>Nachricht (optional)</label>
+                <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder="Bitte meldet euch für den Raid an oder ab." />
+                <div className="hint">Wird im Event-Channel gepostet und pingt genau die {missingCount} fehlenden Raider.</div>
+            </div>
+            <div className="row-actions"><button className="btn" type="submit" disabled={busy}>Fehlende Raider pingen</button></div>
+        </form>
+    );
+}
+
+// --- Anwesenheit tab: role-holder vs. signup reconciliation, plus the
+// "Fehlende Raider pingen" form. ---
+function AttendanceTab({ data, eventId, csrfToken, onChanged }: {
+    data: RaidDetailData;
+    eventId: string;
+    csrfToken: string | null;
+    onChanged: (msg: string) => void;
+}) {
     const { attendance, attendanceRoleIds, membersError } = data;
     return (
         <>
@@ -130,8 +179,569 @@ function AttendanceTab({ data }: { data: RaidDetailData }) {
                     <NameList people={attendance.missing} />
                     <h4 style={{ margin: "14px 0 6px" }}>Reagiert (an- oder abgemeldet)</h4>
                     <NameList people={attendance.responded} />
+                    {attendance.missing.length
+                        ? <PingMissingForm eventId={eventId} missingCount={attendance.missing.length} csrfToken={csrfToken} onDone={onChanged} />
+                        : <p className="sub" style={{ marginTop: 12 }}>Es haben schon alle erwarteten Raider reagiert. 🎉</p>}
                 </>
             )}
+        </>
+    );
+}
+
+// Header quick-actions, top-right of the meta card: open/post the filled sheet,
+// open/post the softres list, or (when none exists yet) jump straight to the
+// Softres tab. Mirrors renderAdmin.js's headerBtns — errors from a quick-post
+// are shown the same way as a success (both just refresh the page via onDone),
+// matching how ClaPage's plain action buttons (scan/automatch) treat errors.
+function HeaderActions({ data, eventId, csrfToken, onSwitchTab, onDone }: {
+    data: RaidDetailData;
+    eventId: string;
+    csrfToken: string | null;
+    onSwitchTab: (t: Tab) => void;
+    onDone: (msg: string) => void;
+}) {
+    const [busy, setBusy] = useState(false);
+    const { eventSheet, eventSoftres, event: ev } = data;
+    const channelLabel = ev.channelName || ev.channelId;
+
+    const run = async (fn: () => Promise<{ message: string }>) => {
+        setBusy(true);
+        try {
+            const r = await fn();
+            onDone(r.message);
+        } catch (err) {
+            onDone((err as ApiError).message);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end" }}>
+            {!!eventSheet?.url && (
+                <>
+                    <a className="btn btn-ghost" href={eventSheet.url} target="_blank" rel="noopener noreferrer">📄 Sheet öffnen</a>
+                    <button
+                        className="btn btn-ghost" type="button" disabled={busy} title={`Sheet-Link in #${channelLabel} posten`}
+                        onClick={() => run(() => postRaidSheet(csrfToken, { event: eventId }))}
+                    >
+                        📤 Sheet posten
+                    </button>
+                </>
+            )}
+            {eventSoftres?.url ? (
+                <>
+                    <a className="btn btn-ghost" href={eventSoftres.url} target="_blank" rel="noopener noreferrer">🔗 Softres öffnen</a>
+                    <button
+                        className="btn btn-ghost" type="button" disabled={busy} title={`Softres-Link in #${channelLabel} posten`}
+                        onClick={() => run(() => postRaidSoftres(csrfToken, { event: eventId }))}
+                    >
+                        📤 Softres posten
+                    </button>
+                </>
+            ) : (
+                <button className="btn btn-ghost" type="button" onClick={() => onSwitchTab("softres")}>➕ Softres erstellen</button>
+            )}
+        </div>
+    );
+}
+
+// --- Anmeldung & Sheet tab: Anmelde-Aufruf (notify), Raidsheet füllen, Raidsheet posten. ---
+
+function NotifyForm({ data, eventId, csrfToken, onDone }: {
+    data: RaidDetailData;
+    eventId: string;
+    csrfToken: string | null;
+    onDone: (msg: string) => void;
+}) {
+    const { notifyTemplates, roles } = data;
+    const [templateId, setTemplateId] = useState(notifyTemplates[0]?.id ?? "");
+    const [roleIds, setRoleIds] = useState<Set<string>>(new Set());
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    if (!notifyTemplates.length) {
+        return (
+            <p className="sub">
+                Noch keine Aufruf-Vorlagen. Lege zuerst unter <Link className="mlink" to="/raids/templates">Aufruf-Vorlagen</Link> eine an.
+            </p>
+        );
+    }
+
+    const toggleRole = (id: string) => {
+        setRoleIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+
+    const submit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setBusy(true);
+        setError(null);
+        try {
+            const r = await notifyRaid(csrfToken, {
+                event: eventId, templateId, channelId: data.event.channelId, roleIds: [...roleIds],
+            });
+            onDone(r.message);
+        } catch (err) {
+            setError((err as ApiError).message);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <form className="card-form" onSubmit={submit}>
+            {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
+            <div className="field">
+                <label>Aufruf-Vorlage</label>
+                <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} required>
+                    {notifyTemplates.map((t) => <option key={t.id} value={t.id}>{t.name || "(ohne Name)"}</option>)}
+                </select>
+            </div>
+            <div className="field">
+                <label>Rollen pingen</label>
+                {roles.length
+                    ? (
+                        <div className="rolegrid">
+                            {roles.map((r) => (
+                                <label key={r.id} className="rolebox">
+                                    <input type="checkbox" checked={roleIds.has(r.id)} onChange={() => toggleRole(r.id)} /> @{r.name}
+                                </label>
+                            ))}
+                        </div>
+                    )
+                    : <p className="sub">Keine Rollen gefunden (Server gewählt?).</p>}
+                <div className="hint">Die ausgewählten Rollen werden im Event-Channel angepingt.</div>
+            </div>
+            <div className="row-actions"><button className="btn" type="submit" disabled={busy}>Anmelde-Aufruf posten</button></div>
+        </form>
+    );
+}
+
+function FillForm({ data, eventId, csrfToken, onDone }: {
+    data: RaidDetailData;
+    eventId: string;
+    csrfToken: string | null;
+    onDone: (msg: string) => void;
+}) {
+    const { raidsheets, matchedSheetId, tankCandidates, eventSheet, event: ev } = data;
+    const [sheetId, setSheetId] = useState(matchedSheetId || raidsheets[0]?.id || "");
+    const [tank3, setTank3] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    if (!raidsheets.length) {
+        return <p className="sub">Keine Raidsheets konfiguriert. Lege sie in den <Link className="mlink" to="/settings">Einstellungen</Link> an.</p>;
+    }
+
+    const submit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setBusy(true);
+        setError(null);
+        try {
+            const r = await fillRaidsheet(csrfToken, {
+                event: eventId, sheetId, tank3, eventTitle: ev.title, eventStartTime: ev.startTime,
+            });
+            onDone(r.message);
+        } catch (err) {
+            setError((err as ApiError).message);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const matchHint = matchedSheetId
+        ? "Automatisch anhand des Event-Titels vorausgewählt — bei Bedarf ändern."
+        : "Kein Raidsheet passte automatisch zum Titel — bitte manuell wählen.";
+
+    return (
+        <>
+            {!!eventSheet?.url && (
+                <div className="sheetcard">
+                    <div><strong>Gefülltes Sheet:</strong> <a className="mlink" href={eventSheet.url} target="_blank" rel="noopener noreferrer">{eventSheet.eventTitle || "Sheet öffnen"}</a></div>
+                    <div className="hint">
+                        {eventSheet.deleteAfter ? `Wird am ${fmtMs(eventSheet.deleteAfter, false)} automatisch gelöscht.` : "Kopie ist angelegt."} Erneutes Füllen ersetzt diese Kopie.
+                    </div>
+                </div>
+            )}
+            <form className="card-form" onSubmit={submit}>
+                {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
+                <div className="field">
+                    <label>Vorlage (Ausgangssheet)</label>
+                    <select value={sheetId} onChange={(e) => setSheetId(e.target.value)} required>
+                        {raidsheets.map((s) => <option key={s.id} value={s.id}>{s.name || s.id}</option>)}
+                    </select>
+                    <div className="hint">{matchHint}</div>
+                </div>
+                {tankCandidates.length
+                    ? (
+                        <div className="field">
+                            <label>Tank 3 (Off-Tank, optional)</label>
+                            <select value={tank3} onChange={(e) => setTank3(e.target.value)}>
+                                <option value="">— keiner —</option>
+                                {tankCandidates.map((c) => (
+                                    <option key={c.name} value={c.name}>{c.name}{c.specName ? ` — ${c.specName}` : ""}</option>
+                                ))}
+                            </select>
+                            <div className="hint">Auswahl aller tank-fähigen Raider im Setup. Wird in die 3. Tank-Zeile eingetragen.</div>
+                        </div>
+                    )
+                    : (
+                        <div className="field">
+                            <label>Tank 3 (optional)</label>
+                            <input type="text" value={tank3} onChange={(e) => setTank3(e.target.value)} placeholder="Name des 3. Tanks" />
+                            <div className="hint">Wird manuell in die Tank-Zeile eingetragen.</div>
+                        </div>
+                    )}
+                <div className="row-actions">
+                    <button className="btn" type="submit" disabled={busy}>{busy ? "Erstelle Sheet …" : "Neues Sheet erstellen & füllen"}</button>
+                </div>
+            </form>
+        </>
+    );
+}
+
+function PostSheetForm({ eventId, hasSheet, csrfToken, onDone }: {
+    eventId: string;
+    hasSheet: boolean;
+    csrfToken: string | null;
+    onDone: (msg: string) => void;
+}) {
+    const [message, setMessage] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    if (!hasSheet) {
+        return <p className="sub">Noch kein gefülltes Sheet vorhanden — fülle oben zuerst ein Raidsheet, dann kannst du den Link hier in den Channel posten.</p>;
+    }
+
+    const submit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setBusy(true);
+        setError(null);
+        try {
+            const r = await postRaidSheet(csrfToken, { event: eventId, message });
+            onDone(r.message);
+            setMessage("");
+        } catch (err) {
+            setError((err as ApiError).message);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <form className="card-form" onSubmit={submit}>
+            {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
+            <div className="field">
+                <label>Nachricht (optional)</label>
+                <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="z. B. Das Raidsheet für heute Abend – bitte eintragen!" />
+            </div>
+            <div className="row-actions"><button className="btn" type="submit" disabled={busy}>📄 Sheet in Channel posten</button></div>
+        </form>
+    );
+}
+
+function ActionsTab({ data, eventId, csrfToken, onChanged }: {
+    data: RaidDetailData;
+    eventId: string;
+    csrfToken: string | null;
+    onChanged: (msg: string) => void;
+}) {
+    return (
+        <>
+            <h2 style={{ marginTop: 0 }}>Anmelde-Aufruf</h2>
+            <p className="note">Postet eine Aufruf-Nachricht in den Event-Channel und pingt die gewählten Rollen.</p>
+            <NotifyForm data={data} eventId={eventId} csrfToken={csrfToken} onDone={onChanged} />
+            <h2>Raidsheet füllen</h2>
+            <p className="note">
+                Legt für diesen Raid eine eigene Kopie der Vorlage an, überträgt das Raid-Helper-Setup hinein und teilt sie per Link.
+                Die Kopie wird 3 Tage nach dem Raid automatisch gelöscht; die Vorlage bleibt unangetastet.
+            </p>
+            <FillForm data={data} eventId={eventId} csrfToken={csrfToken} onDone={onChanged} />
+            <h2>Raidsheet in Channel posten</h2>
+            <p className="note">Postet den Link zum gefüllten Raidsheet als Nachricht mit Button in den Event-Channel — optional mit eigener Nachricht.</p>
+            <PostSheetForm eventId={eventId} hasSheet={!!data.eventSheet?.url} csrfToken={csrfToken} onDone={onChanged} />
+        </>
+    );
+}
+
+// --- Softres tab: existing-list display, manual-link form, create form with a
+// live Wowhead hard-reserve item search. ---
+
+// Live item search dropdown for hard-reserved loot — same shape as EmojiPicker/
+// SpecPicker (debounced fetch, click-outside-to-close, add-to-list-on-pick).
+function HardReservePicker({ edition, onAdd }: {
+    edition: string;
+    onAdd: (item: { id: number; name: string }) => void;
+}) {
+    const [query, setQuery] = useState("");
+    const [results, setResults] = useState<SoftresSearchItem[]>([]);
+    const [open, setOpen] = useState(false);
+    const rootRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const q = query.trim();
+        if (q.length < 2) {
+            setResults([]);
+            setOpen(false);
+            return;
+        }
+        const handle = setTimeout(() => {
+            searchSoftresItems(edition, q)
+                .then((r) => {
+                    setResults(r.items || []);
+                    setOpen(true);
+                })
+                .catch(() => {
+                    setResults([]);
+                    setOpen(false);
+                });
+        }, 250);
+        return () => clearTimeout(handle);
+    }, [query, edition]);
+
+    useEffect(() => {
+        const onDocClick = (e: MouseEvent) => {
+            if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener("click", onDocClick);
+        return () => document.removeEventListener("click", onDocClick);
+    }, []);
+
+    const pick = (item: SoftresSearchItem) => {
+        onAdd({ id: item.id, name: item.name });
+        setQuery("");
+        setResults([]);
+        setOpen(false);
+    };
+
+    return (
+        <div className="hr-picker" ref={rootRef}>
+            <input
+                type="text" value={query} onChange={(e) => setQuery(e.target.value)}
+                placeholder="Item-Namen suchen (Wowhead) …" autoComplete="off"
+                onFocus={() => { if (results.length) setOpen(true); }}
+            />
+            <div className={`hr-panel${open ? " open" : ""}`}>
+                {results.map((it) => (
+                    <div key={it.id} className="hr-row" onMouseDown={(e) => { e.preventDefault(); pick(it); }}>
+                        {it.iconUrl && <img src={it.iconUrl} alt="" loading="lazy" />}
+                        <span>{it.name}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function SoftresLinkForm({ eventSoftres, eventId, csrfToken, onDone }: {
+    eventSoftres: EventSoftres;
+    eventId: string;
+    csrfToken: string | null;
+    onDone: (msg: string) => void;
+}) {
+    const [softresUrl, setSoftresUrl] = useState(eventSoftres?.url || "");
+    const [softresEditUrl, setSoftresEditUrl] = useState(eventSoftres?.editUrl || "");
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const submit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setBusy(true);
+        setError(null);
+        try {
+            const r = await linkSoftres(csrfToken, { event: eventId, softresUrl, softresEditUrl });
+            onDone(r.message);
+        } catch (err) {
+            setError((err as ApiError).message);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <details>
+            <summary style={{ cursor: "pointer" }}>
+                {eventSoftres?.url ? "Anderen Softres-Link verwenden" : "Schon eine Liste auf softres.it? Link manuell hinterlegen"}
+            </summary>
+            <form className="card-form" style={{ marginTop: 10 }} onSubmit={submit}>
+                {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
+                <div className="field">
+                    <label>Softres-Link (Ansehen)</label>
+                    <input type="url" value={softresUrl} onChange={(e) => setSoftresUrl(e.target.value)} placeholder="https://softres.it/raid/..." required />
+                </div>
+                <div className="field">
+                    <label>Softres-Link (Bearbeiten, optional)</label>
+                    <input type="url" value={softresEditUrl} onChange={(e) => setSoftresEditUrl(e.target.value)} placeholder="https://softres.it/raid/.../token" />
+                </div>
+                <div className="row-actions"><button className="btn" type="submit" disabled={busy}>Link speichern</button></div>
+            </form>
+        </details>
+    );
+}
+
+// Instance codes grouped by edition, so the single-edition constraint can be
+// checked without a DOM query (unlike the legacy inline vanilla-JS script):
+// checking a box from a different edition than what's already checked drops
+// every other edition's selections.
+function editionMap(catalogue: SoftresCatalogueGroup[]): Map<string, string> {
+    const m = new Map<string, string>();
+    for (const g of catalogue) for (const i of g.instances) m.set(i.code, g.edition);
+    return m;
+}
+
+function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
+    data: RaidDetailData;
+    eventId: string;
+    csrfToken: string | null;
+    onDone: (msg: string) => void;
+}) {
+    const { softresCatalogue, softresSuggested, softresEdition } = data;
+    const [selected, setSelected] = useState<Set<string>>(() => new Set(softresSuggested));
+    const [amount, setAmount] = useState(1);
+    const [faction, setFaction] = useState<"Horde" | "Alliance">("Horde");
+    const [hardReserves, setHardReserves] = useState<Array<{ id: number; name: string }>>([]);
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const codeEdition = useMemo(() => editionMap(softresCatalogue), [softresCatalogue]);
+    const currentEdition = useMemo(() => {
+        for (const code of selected) {
+            const ed = codeEdition.get(code);
+            if (ed) return ed;
+        }
+        return softresEdition || softresCatalogue[0]?.edition || "tbc";
+    }, [selected, codeEdition, softresEdition, softresCatalogue]);
+
+    const toggle = (code: string, edition: string) => {
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(code)) {
+                next.delete(code);
+            } else {
+                for (const c of next) if (codeEdition.get(c) !== edition) next.delete(c);
+                next.add(code);
+            }
+            return next;
+        });
+    };
+
+    const addHardReserve = (item: { id: number; name: string }) => {
+        setHardReserves((prev) => (prev.some((x) => x.id === item.id) ? prev : [...prev, item]));
+    };
+    const removeHardReserve = (id: number) => setHardReserves((prev) => prev.filter((x) => x.id !== id));
+
+    const submit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setBusy(true);
+        setError(null);
+        try {
+            const r = await createSoftres(csrfToken, {
+                event: eventId, instanceCodes: [...selected], amount, faction, hardReserves, hideReserves: false,
+            });
+            onDone(r.message);
+        } catch (err) {
+            setError((err as ApiError).message);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <form className="card-form" onSubmit={submit}>
+            {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
+            <div className="field">
+                <label>Instanzen (Raids)</label>
+                {softresCatalogue.map((g) => (
+                    <fieldset key={g.edition} className="softres-ed">
+                        <legend>{g.label}</legend>
+                        <div className="rolegrid">
+                            {g.instances.map((i) => (
+                                <label key={i.code} className="rolebox">
+                                    <input type="checkbox" checked={selected.has(i.code)} onChange={() => toggle(i.code, g.edition)} /> {i.name}
+                                </label>
+                            ))}
+                        </div>
+                    </fieldset>
+                ))}
+                <div className="hint">
+                    Aus dem Event-Titel vorausgewählt. Alle gewählten Instanzen müssen zur selben Erweiterung gehören —
+                    beim Ankreuzen wird die Auswahl automatisch auf eine Erweiterung beschränkt.
+                </div>
+            </div>
+            <div className="field" style={{ maxWidth: 220 }}>
+                <label>Softres pro Spieler</label>
+                <input
+                    type="number" min={1} max={6} value={amount}
+                    onChange={(e) => setAmount(Math.max(1, Math.min(6, Number(e.target.value) || 1)))}
+                />
+            </div>
+            <div className="field" style={{ maxWidth: 220 }}>
+                <label>Fraktion</label>
+                <select value={faction} onChange={(e) => setFaction(e.target.value as "Horde" | "Alliance")}>
+                    <option value="Horde">Horde</option>
+                    <option value="Alliance">Alliance</option>
+                </select>
+            </div>
+            <div className="field">
+                <label>Hardreserved Items (optional)</label>
+                <HardReservePicker edition={currentEdition} onAdd={addHardReserve} />
+                {hardReserves.length > 0 && (
+                    <ul className="hr-list">
+                        {hardReserves.map((hr) => (
+                            <li key={hr.id} className="rolebox hr-chip">
+                                <span>{hr.name} (#{hr.id})</span>
+                                <button type="button" className="btn btn-sm" onClick={() => removeHardReserve(hr.id)}>✕</button>
+                            </li>
+                        ))}
+                    </ul>
+                )}
+                <div className="hint">Diese Items werden auf softres.it als Hardreserve (gebannt für Softres) markiert.</div>
+            </div>
+            <div className="row-actions">
+                <button className="btn" type="submit" disabled={busy}>{busy ? "Erstelle Softres …" : "Softres-Liste erstellen"}</button>
+            </div>
+        </form>
+    );
+}
+
+function SoftresTab({ data, eventId, csrfToken, onChanged }: {
+    data: RaidDetailData;
+    eventId: string;
+    csrfToken: string | null;
+    onChanged: (msg: string) => void;
+}) {
+    const so = data.eventSoftres;
+    return (
+        <>
+            <h2 style={{ marginTop: 0 }}>Softres-Liste erstellen</h2>
+            <p className="note">
+                Legt eine Soft-Reserve-Liste auf softres.it an — die Instanzen sind aus dem Event-Titel vorausgewählt.
+                Wähle die Anzahl der Softres pro Spieler und markiere optional hardreservten Loot. Du bekommst danach einen
+                Ansehen- und einen Bearbeiten-Link.
+            </p>
+            {so?.url
+                ? (
+                    <div className="sheetcard">
+                        <div>
+                            <strong>Softres-Liste:</strong>{" "}
+                            <a className="mlink" href={so.url} target="_blank" rel="noopener noreferrer">Ansehen</a>
+                            {" · "}
+                            <a className="mlink" href={so.editUrl} target="_blank" rel="noopener noreferrer">Bearbeiten (mit Token)</a>
+                        </div>
+                        <div className="hint">
+                            {so.amount || 1} Softres/Spieler · {(so.instances || []).length} Instanz(en)
+                            {so.hardReserveCount ? ` · ${so.hardReserveCount} Hardreserve(s)` : ""}. Neu erstellen ersetzt den Link unten nicht automatisch auf softres.it.
+                        </div>
+                        <SoftresLinkForm eventSoftres={so} eventId={eventId} csrfToken={csrfToken} onDone={onChanged} />
+                    </div>
+                )
+                : <SoftresLinkForm eventSoftres={so} eventId={eventId} csrfToken={csrfToken} onDone={onChanged} />}
+            <SoftresCreateForm data={data} eventId={eventId} csrfToken={csrfToken} onDone={onChanged} />
         </>
     );
 }
@@ -297,7 +907,11 @@ export default function RaidDetailPage() {
         setSearchParams(next);
     };
 
-    const afterLootChange = (msg: string) => {
+    // Shared success handler for every mutating action on this page (header
+    // quick-posts, all Part B forms, and the loot tab): flash the message, then
+    // reload so the header/stats/tabs reflect the new state — same convention as
+    // ClaPage's/RecruitmentPage's afterChange.
+    const afterChange = (msg: string) => {
         setFlash({ type: "ok", text: msg });
         load();
     };
@@ -314,7 +928,10 @@ export default function RaidDetailPage() {
             {backLink}
 
             <div className="dash-card" style={{ marginBottom: 16 }}>
-                <div className="dash-card-head"><h3 style={{ margin: 0 }}>{ev.title || "(ohne Titel)"}</h3></div>
+                <div className="dash-card-head" style={{ flexWrap: "wrap", gap: 12, justifyContent: "space-between" }}>
+                    <h3 style={{ margin: 0 }}>{ev.title || "(ohne Titel)"}</h3>
+                    <HeaderActions data={data} eventId={eventId} csrfToken={csrfToken} onSwitchTab={switchTab} onDone={afterChange} />
+                </div>
                 <div style={{ padding: "14px 16px" }} className="small">
                     <div>Termin: <strong>{formatEventTime(ev.startTime) || "—"}</strong></div>
                     <div>Channel: #{ev.channelName || ev.channelId} · Kategorie: {data.categoryName || "—"}</div>
@@ -332,18 +949,21 @@ export default function RaidDetailPage() {
             <div className="tabs" role="tablist">
                 <button type="button" className={`tab-btn${tab === "setup" ? " active" : ""}`} role="tab" onClick={() => switchTab("setup")}>Setup</button>
                 <button type="button" className={`tab-btn${tab === "attendance" ? " active" : ""}`} role="tab" onClick={() => switchTab("attendance")}>Anwesenheit</button>
+                <button type="button" className={`tab-btn${tab === "actions" ? " active" : ""}`} role="tab" onClick={() => switchTab("actions")}>Anmeldung &amp; Sheet</button>
                 <button type="button" className={`tab-btn${tab === "loot" ? " active" : ""}`} role="tab" onClick={() => switchTab("loot")}>
                     Loot
                     {!!data.lootItems.length && <span className="tab-count">{data.lootItems.length}</span>}
                 </button>
-                {/* Part B: Anmeldung & Sheet, Softres tabs */}
+                <button type="button" className={`tab-btn${tab === "softres" ? " active" : ""}`} role="tab" onClick={() => switchTab("softres")}>Softres</button>
             </div>
 
             {flash && <p className="sub" style={{ color: flash.type === "err" ? "var(--high)" : "var(--good)" }}>{flash.text}</p>}
 
             {tab === "setup" && <SetupTab data={data} />}
-            {tab === "attendance" && <AttendanceTab data={data} />}
-            {tab === "loot" && <LootTab data={data} eventId={eventId} csrfToken={csrfToken} onChanged={afterLootChange} />}
+            {tab === "attendance" && <AttendanceTab data={data} eventId={eventId} csrfToken={csrfToken} onChanged={afterChange} />}
+            {tab === "actions" && <ActionsTab data={data} eventId={eventId} csrfToken={csrfToken} onChanged={afterChange} />}
+            {tab === "loot" && <LootTab data={data} eventId={eventId} csrfToken={csrfToken} onChanged={afterChange} />}
+            {tab === "softres" && <SoftresTab data={data} eventId={eventId} csrfToken={csrfToken} onChanged={afterChange} />}
         </>
     );
 }
