@@ -150,7 +150,7 @@ function TemplatesTab({ data, csrfToken, editing, onChanged, onCancelEdit, onEdi
                     </table>
                 )
                 : <p className="sub">Noch keine Vorlagen. Lege unten die erste an.</p>}
-            <TemplateForm data={data} csrfToken={csrfToken} editing={editing} onSaved={onChanged} onCancel={onCancelEdit} />
+            <TemplateForm key={editing?.id ?? "new"} data={data} csrfToken={csrfToken} editing={editing} onSaved={onChanged} onCancel={onCancelEdit} />
         </>
     );
 }
