@@ -91,7 +91,7 @@ export default function RaidsPage() {
             {flash && <p className="sub" style={{ color: flash.type === "err" ? "var(--high)" : "var(--good)" }}>{flash.text}</p>}
             <div className="row-actions" style={{ marginBottom: 16 }}>
                 <Link className="btn" to="/raids/new">＋ Neues Event</Link>
-                <a className="btn btn-ghost" href="/admin/raids/templates">Aufruf-Vorlagen</a>
+                <Link className="btn btn-ghost" to="/raids/templates">Aufruf-Vorlagen</Link>
             </div>
             {listing}
         </>

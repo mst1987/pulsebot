@@ -7,6 +7,7 @@ import SettingsPage from "./pages/SettingsPage";
 import RaidsPage from "./pages/RaidsPage";
 import RaidCreatePage from "./pages/RaidCreatePage";
 import RaidDetailPage from "./pages/RaidDetailPage";
+import NotifyTemplatesPage from "./pages/NotifyTemplatesPage";
 import RecruitmentPage from "./pages/RecruitmentPage";
 import HistoryPage from "./pages/HistoryPage";
 import HistoryEventPage from "./pages/HistoryEventPage";
@@ -60,6 +61,7 @@ export default function App() {
                 <Route path="raids" element={<RaidsPage />} />
                 <Route path="raids/new" element={<RaidCreatePage />} />
                 <Route path="raids/detail" element={<RaidDetailPage />} />
+                <Route path="raids/templates" element={<NotifyTemplatesPage />} />
                 <Route path="recruitment" element={<RecruitmentPage />} />
                 <Route path="history" element={<HistoryPage />} />
                 <Route path="history/event" element={<HistoryEventPage />} />

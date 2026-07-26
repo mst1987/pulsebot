@@ -25,6 +25,10 @@ jest.mock("../../src/web/settingsStore", () => ({
     saveRaidTemplates: jest.fn(),
     deleteRaidTemplate: jest.fn(),
     listNotify: jest.fn(() => []),
+    getNotify: jest.fn(),
+    saveNotify: jest.fn(),
+    deleteNotify: jest.fn(),
+    getRaidsheet: jest.fn(),
 }));
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
 jest.mock("../../src/web/dashboardData", () => ({
@@ -120,6 +124,9 @@ jest.mock("../../src/web/discord", () => ({
     getClient: jest.fn(() => null),
     getChannelCategoryMap: jest.fn(() => ({})),
     listMembersWithRoles: jest.fn(() => Promise.resolve({ members: [], error: null })),
+    postAnnouncement: jest.fn(),
+    postMissingPing: jest.fn(),
+    postLink: jest.fn(),
 }));
 jest.mock("../../src/web/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
@@ -138,17 +145,39 @@ jest.mock("../../src/classes/raidhelper", () =>
     })));
 jest.mock("../../src/web/eventSheetStore", () => ({
     getEventSheet: jest.fn(() => null),
+    markEventSheetFilled: jest.fn(),
 }));
 jest.mock("../../src/web/eventSoftresStore", () => ({
     getEventSoftres: jest.fn(() => null),
+    saveEventSoftres: jest.fn(),
+    setEventSoftresLink: jest.fn(),
 }));
 jest.mock("../../src/utils/softres", () => ({
     parseInstancesFromTitle: jest.fn(() => []),
     targetSizeForInstances: jest.fn(() => 0),
     catalogue: jest.fn(() => []),
+    editionOf: jest.fn(() => ""),
+    createRaid: jest.fn(),
 }));
 jest.mock("../../src/utils/raidsheets", () => ({
     matchRaidsheet: jest.fn(() => null),
+}));
+jest.mock("../../src/utils/wowhead", () => ({
+    searchItems: jest.fn(() => Promise.resolve([])),
+}));
+const mockDriveCopyFile = jest.fn();
+const mockDriveDeleteFile = jest.fn(() => Promise.resolve());
+const mockDriveShareAnyoneWriter = jest.fn(() => Promise.resolve());
+jest.mock("../../src/classes/drive", () =>
+    jest.fn().mockImplementation(() => ({
+        copyFile: mockDriveCopyFile,
+        deleteFile: mockDriveDeleteFile,
+        shareAnyoneWriter: mockDriveShareAnyoneWriter,
+    })));
+jest.mock("../../src/classes/sheets", () => jest.fn().mockImplementation(() => ({})));
+const mockFillSetupSheet = jest.fn();
+jest.mock("../../src/utils/fillSetup", () => ({
+    fillSetupSheet: (...args) => mockFillSetupSheet(...args),
 }));
 
 const auth = require("../../src/web/auth");
@@ -171,6 +200,7 @@ const { buildReport, ReportError } = require("../../src/utils/logcheck/report");
 const eventSheetStore = require("../../src/web/eventSheetStore");
 const eventSoftresStore = require("../../src/web/eventSoftresStore");
 const softres = require("../../src/utils/softres");
+const wowhead = require("../../src/utils/wowhead");
 const raidsheetsUtil = require("../../src/utils/raidsheets");
 const { handle } = require("../../src/web/apiRouter");
 
@@ -874,6 +904,524 @@ describe("web/apiRouter", () => {
             const res = await get("/api/raids/detail", { event: "e1" });
             const data = body(res).data;
             expect(data.attendance).toEqual({ responded: [], missing: [{ id: "1", displayName: "Anna" }] });
+        });
+    });
+
+    describe("POST /api/raids/notify", () => {
+        it("returns 400 when the template or channel is missing", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.getNotify.mockReturnValue(null);
+            const res = await post("/api/raids/notify", { event: "e1", templateId: "t1", channelId: "" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "missing_fields", message: "Vorlage oder Channel fehlt." } });
+            expect(discord.postAnnouncement).not.toHaveBeenCalled();
+        });
+
+        it("posts the announcement and returns the German success message", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.getNotify.mockReturnValue({ id: "t1", title: "Anmeldung", body: "Bitte anmelden" });
+            discord.postAnnouncement.mockResolvedValue({ guildId: "g1", channelId: "c1", messageId: "m1" });
+
+            const res = await post("/api/raids/notify", { event: "e1", templateId: "t1", channelId: "c1", roleIds: ["r1", "r2"] });
+
+            expect(discord.postAnnouncement).toHaveBeenCalledWith("c1", { id: "t1", title: "Anmeldung", body: "Bitte anmelden" }, ["r1", "r2"]);
+            expect(body(res)).toEqual({ data: { message: "Anmelde-Aufruf gepostet." } });
+        });
+
+        it("returns 500 with the Discord error message on failure", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.getNotify.mockReturnValue({ id: "t1" });
+            discord.postAnnouncement.mockRejectedValue(new Error("Channel nicht gefunden oder kein Textkanal."));
+
+            const res = await post("/api/raids/notify", { event: "e1", templateId: "t1", channelId: "c1" });
+
+            expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "post_failed", message: "Channel nicht gefunden oder kein Textkanal." } });
+        });
+    });
+
+    describe("POST /api/raids/ping-missing", () => {
+        const event1 = {
+            id: "e1", title: "GDKP Kara", channelId: "chan1", categoryId: "cat1",
+            signUps: [{ userId: "1" }],
+        };
+        const groupsFull = [{ categoryId: "cat1", categoryName: "Raids", events: [event1] }];
+
+        function setupDefaults() {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: groupsFull, error: null });
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["role1"] } });
+            discord.listMembersWithRoles.mockResolvedValue({
+                members: [{ id: "1", displayName: "Anna" }, { id: "2", displayName: "Bob" }],
+                error: null,
+            });
+        }
+
+        it("returns 400 when Raid-Helper events can't be loaded", async () => {
+            setupDefaults();
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: "Raid-Helper nicht erreichbar." });
+            const res = await post("/api/raids/ping-missing", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "events_unavailable", message: "Raid-Helper nicht erreichbar." } });
+        });
+
+        it("returns 404 when the event isn't found", async () => {
+            setupDefaults();
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
+            const res = await post("/api/raids/ping-missing", { event: "missing" });
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "not_found", message: "Event nicht gefunden." } });
+        });
+
+        it("returns 400 when the category has no roles assigned", async () => {
+            setupDefaults();
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: {} });
+            const res = await post("/api/raids/ping-missing", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({
+                error: { code: "no_roles", message: "Dieser Kategorie sind keine Rollen zugeordnet (Einstellungen → Events)." },
+            });
+            expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
+        });
+
+        it("returns 400 when Discord members can't be fetched", async () => {
+            setupDefaults();
+            discord.listMembersWithRoles.mockResolvedValue({ members: [], error: "GuildMembers-Intent fehlt." });
+            const res = await post("/api/raids/ping-missing", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "members_unavailable", message: "GuildMembers-Intent fehlt." } });
+        });
+
+        it("returns a success message without posting when nobody is missing", async () => {
+            setupDefaults();
+            discord.listMembersWithRoles.mockResolvedValue({
+                members: [{ id: "1", displayName: "Anna" }],
+                error: null,
+            });
+            const res = await post("/api/raids/ping-missing", { event: "e1" });
+            expect(discord.postMissingPing).not.toHaveBeenCalled();
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(body(res)).toEqual({ data: { message: "Niemand fehlt — es haben schon alle reagiert." } });
+        });
+
+        it("pings the missing raiders and reports the count", async () => {
+            setupDefaults();
+            discord.postMissingPing.mockResolvedValue({ channelId: "chan1", messageId: "m1" });
+
+            const res = await post("/api/raids/ping-missing", { event: "e1", text: "Bitte melden" });
+
+            expect(discord.postMissingPing).toHaveBeenCalledWith("chan1", ["2"], "Bitte melden");
+            expect(body(res)).toEqual({ data: { message: "1 fehlende Raider gepingt." } });
+        });
+
+        it("returns 500 with the Discord error message on post failure", async () => {
+            setupDefaults();
+            discord.postMissingPing.mockRejectedValue(new Error("Channel nicht gefunden."));
+            const res = await post("/api/raids/ping-missing", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "post_failed", message: "Channel nicht gefunden." } });
+        });
+    });
+
+    describe("POST /api/raids/fill", () => {
+        function setupDefaults() {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.getRaidsheet.mockReturnValue({
+                id: "sheet1", name: "Kara Sheet", spreadsheetId: "src-id", sheetName: "Setup", gid: "123",
+            });
+            eventSheetStore.getEventSheet.mockReturnValue(null);
+            mockGetSetup.mockResolvedValue({ setup: [{ name: "Tankulus", specName: "ProtPala", group: 1 }] });
+            mockDriveCopyFile.mockResolvedValue({ id: "copy-id", url: "https://docs.google.com/spreadsheets/d/copy-id/edit" });
+            mockFillSetupSheet.mockResolvedValue({ playerCount: 1 });
+            eventSheetStore.markEventSheetFilled.mockReturnValue({});
+        }
+
+        it("returns 400 when the raidsheet isn't found", async () => {
+            setupDefaults();
+            settingsStore.getRaidsheet.mockReturnValue(null);
+            const res = await post("/api/raids/fill", { event: "e1", sheetId: "missing" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "sheet_not_found", message: "Raidsheet nicht gefunden." } });
+        });
+
+        it("returns 400 when the raidsheet has no spreadsheetId", async () => {
+            setupDefaults();
+            settingsStore.getRaidsheet.mockReturnValue({ id: "sheet1", name: "Kara Sheet", spreadsheetId: "" });
+            const res = await post("/api/raids/fill", { event: "e1", sheetId: "sheet1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({
+                error: { code: "no_spreadsheet_id", message: "Raidsheet hat keine Spreadsheet-ID (in den Einstellungen ergänzen)." },
+            });
+        });
+
+        it("returns 400 when the Raid-Helper setup is empty, and cleans up the orphan copy", async () => {
+            setupDefaults();
+            mockGetSetup.mockResolvedValue({ setup: [] });
+            const res = await post("/api/raids/fill", { event: "e1", sheetId: "sheet1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "empty_setup", message: "Setup nicht gefunden oder leer." } });
+            // The orphan cleanup targets the FRESH copy just made, not any previous one.
+            expect(mockDriveDeleteFile).toHaveBeenCalledWith("copy-id");
+            expect(eventSheetStore.markEventSheetFilled).not.toHaveBeenCalled();
+        });
+
+        it("still returns empty_setup (logging, not throwing) when the orphan-copy cleanup itself fails", async () => {
+            setupDefaults();
+            mockGetSetup.mockResolvedValue({ setup: [] });
+            mockDriveDeleteFile.mockRejectedValueOnce(new Error("cleanup boom"));
+            const res = await post("/api/raids/fill", { event: "e1", sheetId: "sheet1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "empty_setup", message: "Setup nicht gefunden oder leer." } });
+        });
+
+        it("copies+fills concurrently, records the fill, and deletes the OLD copy (not the new one) in the background", async () => {
+            setupDefaults();
+            eventSheetStore.getEventSheet.mockReturnValue({ eventId: "e1", spreadsheetId: "old-copy-id", url: "https://old" });
+            let setupResolved = false;
+            let copyResolved = false;
+            mockGetSetup.mockImplementation(() => new Promise((resolve) => {
+                setImmediate(() => { setupResolved = true; resolve({ setup: [{ name: "Tankulus", specName: "ProtPala", group: 1 }] }); });
+            }));
+            mockDriveCopyFile.mockImplementation(() => new Promise((resolve) => {
+                setImmediate(() => { copyResolved = true; resolve({ id: "copy-id", url: "https://docs.google.com/spreadsheets/d/copy-id/edit" }); });
+            }));
+
+            const res = await post("/api/raids/fill", {
+                event: "e1", sheetId: "sheet1", tank3: "Bob", eventTitle: "GDKP Kara", eventStartTime: 1753500000,
+            });
+
+            // Both promises had to resolve — proves they ran concurrently via Promise.all,
+            // not one strictly after the other (a sequential check-then-copy would still
+            // pass this, but the explicit copyFile-args assertion below rules that out too).
+            expect(setupResolved).toBe(true);
+            expect(copyResolved).toBe(true);
+            expect(mockDriveCopyFile).toHaveBeenCalledWith("src-id", "GDKP Kara — 26.07.2025");
+            expect(mockGetSetup).toHaveBeenCalledWith("e1");
+
+            expect(eventSheetStore.markEventSheetFilled).toHaveBeenNthCalledWith(1, "e1", expect.objectContaining({
+                spreadsheetId: "copy-id",
+                url: "https://docs.google.com/spreadsheets/d/copy-id/edit",
+                sourceSheetId: "src-id",
+            }));
+            // The previous copy (old-copy-id) is deleted, never the fresh copy-id.
+            expect(mockDriveDeleteFile).toHaveBeenCalledWith("old-copy-id");
+            expect(mockDriveDeleteFile).not.toHaveBeenCalledWith("copy-id");
+            expect(mockDriveShareAnyoneWriter).toHaveBeenCalledWith("copy-id");
+            expect(mockFillSetupSheet).toHaveBeenCalledWith(
+                expect.any(Object),
+                [{ name: "Tankulus", specName: "ProtPala", group: 1 }],
+                { tab: "Setup", tank3: "Bob" },
+            );
+            expect(eventSheetStore.markEventSheetFilled).toHaveBeenNthCalledWith(2, "e1", {
+                sheetId: "sheet1", sheetName: "Kara Sheet", playerCount: 1,
+            });
+            expect(body(res).data.message).toMatch(/^Neues Sheet erstellt & gefüllt: 1 Spieler\. Wird am \d{2}\.\d{2}\.\d{4} automatisch gelöscht\.$/);
+            expect(body(res).data.playerCount).toBe(1);
+        });
+
+        it("does not try to delete the previous copy when there is none", async () => {
+            setupDefaults();
+            eventSheetStore.getEventSheet.mockReturnValue(null);
+            await post("/api/raids/fill", { event: "e1", sheetId: "sheet1" });
+            expect(mockDriveDeleteFile).not.toHaveBeenCalled();
+        });
+
+        it("still completes the fill (logging, not throwing) when deleting the previous copy fails", async () => {
+            setupDefaults();
+            eventSheetStore.getEventSheet.mockReturnValue({ eventId: "e1", spreadsheetId: "old-copy-id", url: "https://old" });
+            mockDriveDeleteFile.mockRejectedValueOnce(new Error("delete boom"));
+            const res = await post("/api/raids/fill", { event: "e1", sheetId: "sheet1" });
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(body(res).data.playerCount).toBe(1);
+        });
+
+        it("returns 500 with the error message on a generic failure", async () => {
+            setupDefaults();
+            mockDriveCopyFile.mockRejectedValue(new Error("Drive lieferte keine Datei-ID für die Kopie."));
+            const res = await post("/api/raids/fill", { event: "e1", sheetId: "sheet1" });
+            expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "fill_failed", message: "Drive lieferte keine Datei-ID für die Kopie." } });
+        });
+    });
+
+    describe("POST /api/raids/post-sheet", () => {
+        const event1 = { id: "e1", title: "GDKP Kara", channelId: "chan1" };
+
+        function setupDefaults() {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            eventSheetStore.getEventSheet.mockReturnValue({ eventId: "e1", url: "https://sheet.example/1" });
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [event1] }], error: null,
+            });
+        }
+
+        it("returns 400 when there is no filled sheet yet", async () => {
+            setupDefaults();
+            eventSheetStore.getEventSheet.mockReturnValue(null);
+            const res = await post("/api/raids/post-sheet", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "no_sheet", message: "Für dieses Event gibt es noch kein gefülltes Sheet." } });
+            expect(discord.postLink).not.toHaveBeenCalled();
+        });
+
+        it("returns 400 when Raid-Helper events can't be loaded", async () => {
+            setupDefaults();
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: "Raid-Helper nicht erreichbar." });
+            const res = await post("/api/raids/post-sheet", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "events_unavailable", message: "Raid-Helper nicht erreichbar." } });
+        });
+
+        it("returns 404 when the event isn't found", async () => {
+            setupDefaults();
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
+            const res = await post("/api/raids/post-sheet", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "not_found", message: "Event nicht gefunden." } });
+        });
+
+        it("posts the sheet link and returns the success message", async () => {
+            setupDefaults();
+            discord.postLink.mockResolvedValue({ channelId: "chan1", messageId: "m1" });
+            const res = await post("/api/raids/post-sheet", { event: "e1", message: "Bitte prüfen" });
+            expect(discord.postLink).toHaveBeenCalledWith("chan1", {
+                url: "https://sheet.example/1", title: "Raidsheet – GDKP Kara", message: "Bitte prüfen",
+                label: "Raidsheet öffnen", emoji: "📄",
+            });
+            expect(body(res)).toEqual({ data: { message: "Raidsheet in den Channel gepostet." } });
+        });
+
+        it("returns 500 with the Discord error message on post failure", async () => {
+            setupDefaults();
+            discord.postLink.mockRejectedValue(new Error("Channel nicht gefunden."));
+            const res = await post("/api/raids/post-sheet", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "post_failed", message: "Channel nicht gefunden." } });
+        });
+    });
+
+    describe("POST /api/raids/post-softres", () => {
+        const event1 = { id: "e1", title: "GDKP Kara", channelId: "chan1" };
+
+        function setupDefaults() {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            eventSoftresStore.getEventSoftres.mockReturnValue({ eventId: "e1", url: "https://softres.it/1" });
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [event1] }], error: null,
+            });
+        }
+
+        it("returns 400 when there is no softres list yet", async () => {
+            setupDefaults();
+            eventSoftresStore.getEventSoftres.mockReturnValue(null);
+            const res = await post("/api/raids/post-softres", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "no_softres", message: "Für dieses Event gibt es noch keine Softres-Liste." } });
+            expect(discord.postLink).not.toHaveBeenCalled();
+        });
+
+        it("returns 400 when Raid-Helper events can't be loaded", async () => {
+            setupDefaults();
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: "Raid-Helper nicht erreichbar." });
+            const res = await post("/api/raids/post-softres", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "events_unavailable", message: "Raid-Helper nicht erreichbar." } });
+        });
+
+        it("returns 404 when the event isn't found", async () => {
+            setupDefaults();
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
+            const res = await post("/api/raids/post-softres", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "not_found", message: "Event nicht gefunden." } });
+        });
+
+        it("posts the softres link and returns the success message", async () => {
+            setupDefaults();
+            discord.postLink.mockResolvedValue({ channelId: "chan1", messageId: "m1" });
+            const res = await post("/api/raids/post-softres", { event: "e1", message: "Bitte prüfen" });
+            expect(discord.postLink).toHaveBeenCalledWith("chan1", {
+                url: "https://softres.it/1", title: "Softres – GDKP Kara", message: "Bitte prüfen",
+                label: "Softres öffnen", emoji: "🎁",
+            });
+            expect(body(res)).toEqual({ data: { message: "Softres-Link in den Channel gepostet." } });
+        });
+
+        it("returns 500 with the Discord error message on post failure", async () => {
+            setupDefaults();
+            discord.postLink.mockRejectedValue(new Error("Channel nicht gefunden."));
+            const res = await post("/api/raids/post-softres", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "post_failed", message: "Channel nicht gefunden." } });
+        });
+    });
+
+    describe("GET /api/raids/softres/item-search", () => {
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await get("/api/raids/softres/item-search", { q: "thunder" });
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+            expect(wowhead.searchItems).not.toHaveBeenCalled();
+        });
+
+        it("proxies the search to wowhead.searchItems", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            wowhead.searchItems.mockResolvedValue([{ id: 123, name: "Thunderfury", icon: "thunderfury" }]);
+            const res = await get("/api/raids/softres/item-search", { q: "thunder", edition: "classic" });
+            expect(wowhead.searchItems).toHaveBeenCalledWith("thunder", { edition: "classic" });
+            expect(body(res)).toEqual({ data: { items: [{ id: 123, name: "Thunderfury", icon: "thunderfury" }] } });
+        });
+    });
+
+    describe("POST /api/raids/softres", () => {
+        function setupDefaults() {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            softres.editionOf.mockImplementation((code) => (code === "kara" ? "tbc" : ""));
+        }
+
+        it("returns 400 when no instances are selected", async () => {
+            setupDefaults();
+            const res = await post("/api/raids/softres", { event: "e1", instanceCodes: [] });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "no_instances", message: "Mindestens eine Instanz wählen." } });
+            expect(softres.createRaid).not.toHaveBeenCalled();
+        });
+
+        it("returns 400 when the chosen instances span multiple editions", async () => {
+            setupDefaults();
+            softres.editionOf.mockImplementation((code) => (code === "kara" ? "tbc" : "wotlk"));
+            const res = await post("/api/raids/softres", { event: "e1", instanceCodes: ["kara", "naxx"] });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({
+                error: { code: "mixed_edition", message: "Alle gewählten Instanzen müssen zur selben Erweiterung gehören." },
+            });
+        });
+
+        it("creates the list, saves it and returns 201 with the success message", async () => {
+            setupDefaults();
+            softres.createRaid.mockResolvedValue({
+                raidId: "r1", token: "tok1", url: "https://softres.it/raid/r1", editUrl: "https://softres.it/raid/r1/tok1",
+            });
+            eventSoftresStore.saveEventSoftres.mockReturnValue({ eventId: "e1" });
+
+            const res = await post("/api/raids/softres", {
+                event: "e1", instanceCodes: ["kara"], amount: 3, faction: "Horde",
+                hardReserves: [{ id: 123, raider: "Anna" }], hideReserves: true,
+            });
+
+            expect(softres.createRaid).toHaveBeenCalledWith({
+                instances: ["kara"], edition: "tbc", amount: 3, faction: "Horde",
+                hardReserves: [{ id: 123, raider: "Anna" }], hideReserves: true,
+            });
+            expect(eventSoftresStore.saveEventSoftres).toHaveBeenCalledWith("e1", {
+                raidId: "r1", token: "tok1", url: "https://softres.it/raid/r1", editUrl: "https://softres.it/raid/r1/tok1",
+                edition: "tbc", instances: ["kara"], amount: 3, hardReserveCount: 1,
+            });
+            expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
+            expect(body(res)).toEqual({ data: { message: "Softres-Liste erstellt." } });
+        });
+
+        it("defaults hardReserves to [] when it isn't an array, and returns 500 with the error message on failure", async () => {
+            setupDefaults();
+            softres.createRaid.mockRejectedValue(new Error("softres.it lehnte die Anfrage ab: unbekannter Fehler"));
+            const res = await post("/api/raids/softres", { event: "e1", instanceCodes: ["kara"], faction: "Horde", hardReserves: "not-an-array" });
+            expect(softres.createRaid).toHaveBeenCalledWith(expect.objectContaining({ hardReserves: [] }));
+            expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "softres_failed", message: "softres.it lehnte die Anfrage ab: unbekannter Fehler" } });
+        });
+    });
+
+    describe("POST /api/raids/softres/link", () => {
+        it("returns 400 for a URL that isn't a softres.it raid link", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/raids/softres/link", { event: "e1", softresUrl: "https://example.com/foo" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({
+                error: { code: "invalid_url", message: "Das muss ein softres.it-Raid-Link sein (https://softres.it/raid/...)." },
+            });
+            expect(eventSoftresStore.setEventSoftresLink).not.toHaveBeenCalled();
+        });
+
+        it("saves the link and returns the success message", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            eventSoftresStore.setEventSoftresLink.mockReturnValue({ eventId: "e1" });
+            const res = await post("/api/raids/softres/link", {
+                event: "e1", softresUrl: "https://softres.it/raid/abc123", softresEditUrl: "https://softres.it/raid/abc123/tok",
+            });
+            expect(eventSoftresStore.setEventSoftresLink).toHaveBeenCalledWith("e1", {
+                url: "https://softres.it/raid/abc123", editUrl: "https://softres.it/raid/abc123/tok",
+            });
+            expect(body(res)).toEqual({ data: { message: "Softres-Link aktualisiert." } });
+        });
+    });
+
+    describe("GET /api/notify-templates", () => {
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = mockRes();
+            await handle("/api/notify-templates", { method: "GET" }, res);
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+        });
+
+        it("returns the stored templates", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            settingsStore.listNotify.mockReturnValue([{ id: "tpl1", name: "Standard-Aufruf" }]);
+            const res = mockRes();
+            await handle("/api/notify-templates", { method: "GET" }, res);
+            expect(body(res)).toEqual({ data: { templates: [{ id: "tpl1", name: "Standard-Aufruf" }] } });
+        });
+    });
+
+    describe("POST /api/notify-templates (save template)", () => {
+        it("creates a new template", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.saveNotify.mockReturnValue({ id: "tpl1", name: "Standard-Aufruf", title: "Anmeldung", body: "Bitte anmelden" });
+
+            const res = await post("/api/notify-templates", { name: "Standard-Aufruf", title: "Anmeldung", body: "Bitte anmelden" });
+
+            expect(settingsStore.saveNotify).toHaveBeenCalledWith({ name: "Standard-Aufruf", title: "Anmeldung", body: "Bitte anmelden" });
+            expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
+            expect(body(res)).toEqual({ data: { template: { id: "tpl1", name: "Standard-Aufruf", title: "Anmeldung", body: "Bitte anmelden" } } });
+        });
+
+        it("updates an existing template by id", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.saveNotify.mockReturnValue({ id: "tpl1", name: "Renamed", title: "Anmeldung", body: "Neuer Text" });
+
+            const res = await post("/api/notify-templates", { id: "tpl1", name: "Renamed", title: "Anmeldung", body: "Neuer Text" });
+
+            expect(settingsStore.saveNotify).toHaveBeenCalledWith({ id: "tpl1", name: "Renamed", title: "Anmeldung", body: "Neuer Text" });
+            expect(body(res)).toEqual({ data: { template: { id: "tpl1", name: "Renamed", title: "Anmeldung", body: "Neuer Text" } } });
+        });
+    });
+
+    describe("POST /api/notify-templates/delete", () => {
+        it("returns 404 when nothing was removed", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.deleteNotify.mockReturnValue(false);
+            const res = await post("/api/notify-templates/delete", { id: "tpl1" });
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+        });
+
+        it("deletes and returns the id", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.deleteNotify.mockReturnValue(true);
+            const res = await post("/api/notify-templates/delete", { id: "tpl1" });
+            expect(body(res)).toEqual({ data: { id: "tpl1" } });
         });
     });
 

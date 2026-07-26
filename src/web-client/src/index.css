@@ -302,3 +302,20 @@ dl.app-meta dd { margin: 0; min-width: 0; word-break: break-word; }
 .spec-option:hover { background: var(--accent-soft); border-color: var(--accent-soft); }
 .spec-option img { width: 20px; height: 20px; border-radius: 4px; flex: 0 0 auto; }
 .spec-empty { color: var(--muted); font-size: 12.5px; padding: 6px 2px; }
+
+/* ===== raid detail: softres tab (instance groups + hardreserve item search) ===== */
+.softres-ed { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 0 0 10px; }
+.softres-ed legend { padding: 0 6px; font-size: 12.5px; color: var(--muted); }
+.hr-picker { position: relative; max-width: 440px; }
+.hr-panel {
+    display: none; position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px); background: var(--panel);
+    border: 1px solid var(--line); border-radius: 8px; max-height: 260px; overflow-y: auto;
+    box-shadow: 0 12px 32px -6px rgba(0, 0, 0, .4), 0 0 0 1px var(--line);
+}
+.hr-panel.open { display: block; }
+.hr-row { display: flex; align-items: center; gap: 8px; padding: 6px 10px; cursor: pointer; font-size: 13.5px; }
+.hr-row:hover { background: var(--accent-soft); }
+.hr-row img { width: 18px; height: 18px; border-radius: 3px; flex: 0 0 auto; }
+.hr-list { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px; max-width: 440px; }
+.hr-chip { display: flex; justify-content: space-between; align-items: center; cursor: default; }
+.hr-chip img { width: 18px; height: 18px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
