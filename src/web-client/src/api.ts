@@ -204,3 +204,58 @@ export type RaidsData = { groups: RaidEventGroup[]; error: string | null; active
 export function getRaids(): Promise<RaidsData> {
     return get<RaidsData>("/api/raids");
 }
+
+export type RaidTemplate = { id: string; name: string };
+
+export type ReusableEvent = {
+    id: string;
+    title: string;
+    templateId: string;
+    description: string;
+    channelId: string;
+    channelName: string;
+};
+
+export type RaidCreateContext = {
+    defaults: { templateId: string; channelId: string };
+    leaderId: string;
+    channels: Channel[];
+    templates: RaidTemplate[];
+    reusableEvents: ReusableEvent[];
+};
+
+export function getRaidCreateContext(): Promise<RaidCreateContext> {
+    return get<RaidCreateContext>("/api/raids/new");
+}
+
+export type CreateRaidInput = {
+    title: string;
+    date: string;
+    time: string;
+    templateId: string;
+    channelId?: string;
+    channelName?: string;
+    sourceEventId?: string;
+    leaderId: string;
+    description: string;
+};
+
+export function createRaid(csrfToken: string | null, input: CreateRaidInput): Promise<{ id?: string }> {
+    return send("POST", "/api/raids", csrfToken, input);
+}
+
+export function getRaidTemplates(): Promise<{ templates: RaidTemplate[] }> {
+    return get<{ templates: RaidTemplate[] }>("/api/raid-templates");
+}
+
+export function createRaidTemplate(csrfToken: string | null, input: { id: string; name: string }): Promise<RaidTemplate> {
+    return send("POST", "/api/raid-templates", csrfToken, input);
+}
+
+export function deleteRaidTemplate(csrfToken: string | null, id: string): Promise<{ id: string }> {
+    return send("POST", "/api/raid-templates/delete", csrfToken, { id });
+}
+
+export function importRaidTemplates(csrfToken: string | null): Promise<{ added: number; updated: number; templates: RaidTemplate[] }> {
+    return send("POST", "/api/raid-templates/import", csrfToken, {});
+}
