@@ -21,8 +21,13 @@ const TABS: { id: string; label: string; href: string; group: string; icon: Reac
     { id: "settings", label: "Einstellungen", href: "/settings", group: "System", icon: <SettingsIcon />, internal: true },
 ];
 
+// Matches a tab's own path or one of its sub-routes (e.g. "/raids/new" under "/raids").
+function matchesTab(tabHref: string, pathname: string): boolean {
+    return pathname === tabHref || (tabHref !== "/" && pathname.startsWith(`${tabHref}/`));
+}
+
 function crumbLabel(pathname: string): string {
-    const tab = TABS.find((t) => t.internal && t.href === pathname);
+    const tab = TABS.find((t) => t.internal && matchesTab(t.href, pathname));
     return tab ? tab.label : "Übersicht";
 }
 
@@ -37,7 +42,7 @@ function AdminNav() {
                     <div key={tab.id}>
                         {label && <div className="menu-label">{label}</div>}
                         {tab.internal ? (
-                            <NavLink to={tab.href} end className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+                            <NavLink to={tab.href} end={tab.href === "/"} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
                                 {tab.icon}
                                 <span>{tab.label}</span>
                             </NavLink>

@@ -9,7 +9,10 @@ const { getChannels, createChannel, duplicateChannel } = require("./apiRoutes/ch
 const {
     getSettings, updateSettings, saveRaidsheetHandler, deleteRaidsheetHandler,
 } = require("./apiRoutes/settings");
-const { getRaids } = require("./apiRoutes/raids");
+const { getRaids, getRaidCreateContext, createRaid } = require("./apiRoutes/raids");
+const {
+    getRaidTemplates, createRaidTemplate, deleteRaidTemplateHandler, importRaidTemplates,
+} = require("./apiRoutes/raidTemplates");
 
 /** Dispatches an /api/* request. Returns true if handled, false to fall through. */
 async function handle(pathname, req, res) {
@@ -51,6 +54,30 @@ async function handle(pathname, req, res) {
     }
     if (pathname === "/api/raids" && req.method === "GET") {
         await getRaids(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/new" && req.method === "GET") {
+        await getRaidCreateContext(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids" && req.method === "POST") {
+        await createRaid(req, res);
+        return true;
+    }
+    if (pathname === "/api/raid-templates" && req.method === "GET") {
+        getRaidTemplates(req, res);
+        return true;
+    }
+    if (pathname === "/api/raid-templates" && req.method === "POST") {
+        await createRaidTemplate(req, res);
+        return true;
+    }
+    if (pathname === "/api/raid-templates/delete" && req.method === "POST") {
+        await deleteRaidTemplateHandler(req, res);
+        return true;
+    }
+    if (pathname === "/api/raid-templates/import" && req.method === "POST") {
+        await importRaidTemplates(req, res);
         return true;
     }
     error(res, 404, "not_found", "Unbekannter API-Endpunkt.");

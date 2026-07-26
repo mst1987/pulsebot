@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { useOutletContext } from "react-router-dom";
+import { Link, useLocation, useOutletContext } from "react-router-dom";
 import { getRaids, type ApiError, type RaidEventGroup, type RaidEvent } from "../api";
 import { formatEventTime } from "../lib/format";
 import type { ShellContext } from "../components/Shell";
+
+type Flash = { type: "ok" | "err"; text: string };
 
 // Same URL helpers as src/web/renderAdmin.js (eventPostUrl/raidplanUrl) — the
 // event detail page (/admin/raids/detail) and create form (/admin/raids/new)
@@ -12,11 +14,11 @@ const eventPostUrl = (guildId: string, channelId: string, eventId: string) =>
 const raidplanUrl = (eventId: string) => `https://raid-helper.xyz/raidplan/${eventId}`;
 
 function CategoryTable({ group, guildId }: { group: RaidEventGroup; guildId: string }) {
-    const newHref = `/admin/raids/new${group.events[0] ? `?source=${group.events[0].id}` : ""}${group.categoryId ? `${group.events[0] ? "&" : "?"}category=${group.categoryId}` : ""}`;
+    const newHref = `/raids/new${group.events[0] ? `?source=${group.events[0].id}` : ""}`;
     return (
         <>
             <div className="row-actions" style={{ justifyContent: "flex-end", marginBottom: 12 }}>
-                <a className="btn btn-ghost btn-sm" href={newHref} title="Neues Event in dieser Kategorie anlegen (Format vorbelegt)">＋ Event</a>
+                <Link className="btn btn-ghost btn-sm" to={newHref} title="Neues Event in dieser Kategorie anlegen (Format vorbelegt)">＋ Event</Link>
             </div>
             <table className="idx" style={{ margin: 0 }}>
                 <thead><tr><th>Event</th><th>Termin</th><th>Anm.</th><th>Links</th><th /></tr></thead>
@@ -46,9 +48,12 @@ function CategoryTable({ group, guildId }: { group: RaidEventGroup; guildId: str
 
 export default function RaidsPage() {
     useOutletContext<ShellContext>();
+    const location = useLocation();
     const [data, setData] = useState<{ groups: RaidEventGroup[]; error: string | null; activeGuildId: string } | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [tab, setTab] = useState(0);
+    // Passed via navigate(..., { state: { flash } }) after creating an event (RaidCreatePage.tsx).
+    const [flash] = useState<Flash | null>((location.state as { flash?: Flash } | null)?.flash ?? null);
 
     useEffect(() => {
         getRaids()
@@ -89,8 +94,9 @@ export default function RaidsPage() {
         <>
             <h1 className="page-title">Raid-Events</h1>
             <p className="note">Alle anstehenden Events des Servers, gruppiert nach Discord-Kategorie. Über „Details" pro Event einen Anmelde-Aufruf posten oder das Raidsheet füllen.</p>
+            {flash && <p className="sub" style={{ color: flash.type === "err" ? "var(--high)" : "var(--good)" }}>{flash.text}</p>}
             <div className="row-actions" style={{ marginBottom: 16 }}>
-                <a className="btn" href="/admin/raids/new">＋ Neues Event</a>
+                <Link className="btn" to="/raids/new">＋ Neues Event</Link>
                 <a className="btn btn-ghost" href="/admin/raids/templates">Aufruf-Vorlagen</a>
             </div>
             {listing}

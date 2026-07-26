@@ -14,6 +14,10 @@ jest.mock("../../src/web/settingsStore", () => ({
     listRaidsheets: jest.fn(() => []),
     saveRaidsheet: jest.fn(),
     deleteRaidsheet: jest.fn(),
+    listRaidTemplates: jest.fn(() => []),
+    saveRaidTemplate: jest.fn(),
+    saveRaidTemplates: jest.fn(),
+    deleteRaidTemplate: jest.fn(),
 }));
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
 jest.mock("../../src/web/dashboardData", () => ({
@@ -23,6 +27,7 @@ jest.mock("../../src/web/dashboardData", () => ({
 jest.mock("../../src/web/discord", () => ({
     listCategories: jest.fn(() => []),
     listAllChannels: jest.fn(() => []),
+    listTextChannels: jest.fn(() => []),
     listRoles: jest.fn(() => []),
     createChannel: jest.fn(),
     duplicateChannel: jest.fn(),
@@ -30,6 +35,13 @@ jest.mock("../../src/web/discord", () => ({
 jest.mock("../../src/web/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
 }));
+const mockGetTemplates = jest.fn(() => Promise.resolve([]));
+const mockCreateEvent = jest.fn(() => Promise.resolve({ id: "ev1" }));
+jest.mock("../../src/classes/raidhelper", () =>
+    jest.fn().mockImplementation(() => ({
+        getTemplates: mockGetTemplates,
+        createEvent: mockCreateEvent,
+    })));
 
 const auth = require("../../src/web/auth");
 const reportStore = require("../../src/web/reportStore");
@@ -392,6 +404,170 @@ describe("web/apiRouter", () => {
             expect(body(res)).toEqual({
                 data: { groups: [], error: "Raid-Helper nicht erreichbar.", activeGuildId: "guild-1" },
             });
+        });
+    });
+
+    describe("GET /api/raids/new", () => {
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = mockRes();
+            await handle("/api/raids/new", { method: "GET" }, res);
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+        });
+
+        it("assembles defaults, leaderId, channels, templates and reusable events", async () => {
+            auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            settingsStore.getConfig.mockReturnValue({ raidDefaults: { templateId: "t1", channelId: "c1" } });
+            settingsStore.listRaidTemplates.mockReturnValue([{ id: "t1", name: "GDKP Kara" }]);
+            discord.listTextChannels.mockReturnValue([{ id: "c1", name: "kara", category: "Raids" }]);
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [
+                    { id: "e1", title: "Kara", templateId: "t1", description: "desc", channelId: "c1", channelName: "kara" },
+                ] }],
+                error: null,
+            });
+
+            const res = mockRes();
+            await handle("/api/raids/new", { method: "GET" }, res);
+
+            expect(body(res)).toEqual({
+                data: {
+                    defaults: { templateId: "t1", channelId: "c1" },
+                    leaderId: "42",
+                    channels: [{ id: "c1", name: "kara", category: "Raids" }],
+                    templates: [{ id: "t1", name: "GDKP Kara" }],
+                    reusableEvents: [{ id: "e1", title: "Kara", templateId: "t1", description: "desc", channelId: "c1", channelName: "kara" }],
+                },
+            });
+        });
+    });
+
+    describe("POST /api/raids", () => {
+        it("returns 400 for an invalid date", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/raids", { date: "not-a-date", channelId: "c1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "invalid_date", message: expect.any(String) } });
+            expect(mockCreateEvent).not.toHaveBeenCalled();
+        });
+
+        it("creates the event directly on the given channel", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            mockCreateEvent.mockResolvedValue({ id: "ev1" });
+
+            const res = await post("/api/raids", {
+                date: "2026-07-12", time: "20:00", title: "GDKP Kara", templateId: "t1", channelId: "c1", leaderId: "42",
+            });
+
+            expect(mockCreateEvent).toHaveBeenCalledWith({
+                channelId: "c1", leaderId: "42", templateId: "t1", date: "12-07-2026", time: "20:00", title: "GDKP Kara", description: "",
+            });
+            expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
+            expect(body(res)).toEqual({ data: { id: "ev1" } });
+        });
+
+        it("clones the source event's channel when sourceEventId is given", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("guild-1");
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", channelId: "c-old" }] }],
+                error: null,
+            });
+            discord.duplicateChannel.mockResolvedValue({ id: "c-new", name: "kara-clone" });
+            mockCreateEvent.mockResolvedValue({ id: "ev2" });
+
+            const res = await post("/api/raids", {
+                date: "2026-07-12", time: "20:00", title: "Kara", sourceEventId: "e1", channelName: "kara-clone",
+            });
+
+            expect(discord.duplicateChannel).toHaveBeenCalledWith("c-old", "kara-clone");
+            expect(mockCreateEvent).toHaveBeenCalledWith(expect.objectContaining({ channelId: "c-new" }));
+            expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
+        });
+
+        it("returns 400 with Raid-Helper's reason when it rejects the event", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            mockCreateEvent.mockResolvedValue({ status: "failed", reason: "invalid token" });
+
+            const res = await post("/api/raids", { date: "2026-07-12", time: "20:00", channelId: "c1" });
+
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "create_failed", message: "invalid token" } });
+        });
+    });
+
+    describe("GET /api/raid-templates", () => {
+        it("returns the stored templates", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            settingsStore.listRaidTemplates.mockReturnValue([{ id: "t1", name: "GDKP Kara" }]);
+            const res = mockRes();
+            await handle("/api/raid-templates", { method: "GET" }, res);
+            expect(body(res)).toEqual({ data: { templates: [{ id: "t1", name: "GDKP Kara" }] } });
+        });
+    });
+
+    describe("POST /api/raid-templates", () => {
+        it("returns 400 when saveRaidTemplate rejects a blank id", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.saveRaidTemplate.mockReturnValue(null);
+            const res = await post("/api/raid-templates", { name: "GDKP Kara" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+        });
+
+        it("saves and returns the template", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.saveRaidTemplate.mockReturnValue({ id: "t1", name: "GDKP Kara" });
+            const res = await post("/api/raid-templates", { id: "t1", name: "GDKP Kara" });
+            expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
+            expect(body(res)).toEqual({ data: { id: "t1", name: "GDKP Kara" } });
+        });
+    });
+
+    describe("POST /api/raid-templates/delete", () => {
+        it("returns 404 when nothing was removed", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.deleteRaidTemplate.mockReturnValue(false);
+            const res = await post("/api/raid-templates/delete", { id: "t1" });
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+        });
+
+        it("deletes and returns the id", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.deleteRaidTemplate.mockReturnValue(true);
+            const res = await post("/api/raid-templates/delete", { id: "t1" });
+            expect(body(res)).toEqual({ data: { id: "t1" } });
+        });
+    });
+
+    describe("POST /api/raid-templates/import", () => {
+        it("returns 400 when Raid-Helper has no templates", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            mockGetTemplates.mockResolvedValue([]);
+            const res = await post("/api/raid-templates/import", {});
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+        });
+
+        it("imports and returns added/updated counts plus the refreshed list", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            mockGetTemplates.mockResolvedValue([{ id: "t1", name: "GDKP Kara" }]);
+            settingsStore.saveRaidTemplates.mockReturnValue({ added: 1, updated: 0 });
+            settingsStore.listRaidTemplates.mockReturnValue([{ id: "t1", name: "GDKP Kara" }]);
+
+            const res = await post("/api/raid-templates/import", {});
+
+            expect(settingsStore.saveRaidTemplates).toHaveBeenCalledWith([{ id: "t1", name: "GDKP Kara" }]);
+            expect(body(res)).toEqual({ data: { added: 1, updated: 0, templates: [{ id: "t1", name: "GDKP Kara" }] } });
         });
     });
 

@@ -57,7 +57,12 @@ form.card-form { background: var(--panel); border: 1px solid var(--line); border
     width: 100%; max-width: 440px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
     padding: 9px 12px; font: inherit; transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
 }
-.field input:focus, .field select:focus {
+.field textarea {
+    width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px; font: inherit; min-height: 120px; resize: vertical;
+    transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
     border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--accent);
 }
 .field .hint, .hint { color: var(--muted); font-size: 12px; margin-top: 5px; line-height: 1.4; }
