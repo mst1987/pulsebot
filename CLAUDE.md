@@ -231,12 +231,26 @@ const raidInfos = await getRaidInfosFromChannel(interaction);
 // raidInfos.raidData, raidInfos.setupData
 ```
 
+## Web Admin (`src/web/`, `src/web-client/`)
+
+The bot ships an admin website that is **mid-migration from server-rendered HTML to a React SPA** — both stacks are live side by side on different URL prefixes, and an admin-facing fix usually has to land in **both** until a given page's migration is complete:
+
+- **Legacy (SSR), mounted at `/admin/*`:** `src/web/server.js` (routing + form-POST handlers) + `src/web/renderAdmin.js` (HTML string templates; one inline `<style>`/`<script>` block per page, no build step). Still the primary UI for most pages.
+- **React SPA, mounted at `/admin2/*`:** `src/web-client/` (Vite + TypeScript; run `npm run build` inside `src/web-client/` before it's reachable — the built `dist/` is served as static files). Talks to `src/web/apiRoutes/*.js` (`/api/*`, JSON) — a separate route layer from the legacy SSR routes.
+- Migration proceeds view by view (see PRs like "React-Raid-Event-Detailseite"). Before fixing an admin bug, check whether the affected page already has a React port — grep the route path in both `server.js`/`renderAdmin.js` **and** `apiRoutes/*.js`/`web-client/src/pages/*.tsx`. Fixing only one silently leaves the other UI broken.
+- The legacy admin's CSS lives in one inline `<style>` string in `renderAdmin.js` (`ADMIN_STYLE`). Some selectors are scoped by element *and* class (e.g. `a.sort-link`, written for `claSortHeader()`'s `<a>` tags) — reusing that class name on a differently-tagged element (e.g. a `<button>`) renders completely unstyled with no error, since the selector never matches. Prefer class-only selectors (`.sort-link`) for anything meant to be reused across element types.
+
+### Loot import (Gargul/RCLootcouncil)
+
+`src/utils/lootImport.js` normalizes both export formats to one loot-item shape (`parseLoot`/`parseGargul`/`parseRclc`). `enrichItemNames(items)` fills in `itemName`/`itemIconUrl` that an export didn't carry (Gargul gives neither, RCLootcouncil gives a name but no icon) via `src/utils/wowhead.js`'s `lookupItem(itemId)` (Wowhead's tooltip endpoint, in-memory cached, best-effort — mock it in tests, see `test/web/serverAdminRoutes.test.js`'s `wowhead` mock). Call it once, right after `parseLoot()`, in *every* place that parses an import — there are two independent import handlers today (see the dual-UI gotcha above): `apiRoutes/history.js`'s `importLoot` (JSON, React client) and `server.js`'s `/admin/history/import` (form POST, legacy admin). Both must call `enrichItemNames()` or one UI keeps showing "Item `<id>`".
+
 ## Known Issues and Gotchas
 
 - **`saveRaid` in classes/raidhelper.js:** Uses `https.request` to connect to port 3001 on pulse-gdkp.de — this should be `http.request` as port 3001 is not TLS.
 - **dotenv path:** `bot.js` uses `{ path: "../.env" }` (works when started from repo root via `npm start`). The `scripts/register-commands.js` uses plain `require("dotenv").config()` which uses CWD. Always run from project root.
 - **No validation on `interaction.channel.parent`:** Commands that need a category channel must guard against `parent` being null (top-level channels have no parent).
 - **`console.log(data)` in `raidhelper.js`:** `getAllEvents()` logs the raw API response to stdout on every call in legacy code paths.
+- **Past-event detail pages can lose an event once its Discord channel is gone:** `/admin/raids/detail` and `/api/raids/detail` resolve an event via `raidEventGroups.js`'s `loadEventGroups()`, which joins live Raid-Helper events against **live** Discord channels (`discord.getChannelCategoryMap()`). If a past raid's signup channel was later deleted/archived, the event silently drops out of that join (`if (!meta) continue;`) even though Raid-Helper's API still returns it — the detail page then redirects/404s with "Event nicht gefunden.". The "Vergangene Raids" **list** doesn't have this problem: it reads a separate persisted snapshot (`raidEventStore.js`, populated by `raidEventScan.js`) that keeps the channel/category name captured at scan time instead of re-joining live Discord state.
 
 ## What NOT To Do
 

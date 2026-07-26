@@ -41,10 +41,12 @@ async function getRaidDetail(req, res, url) {
     const guildId = activeGuildFor(req);
     const eventId = (url.searchParams.get("event") || "").trim();
     // Include past raids: the dashboard's "Latest Events" card links here.
-    const { groups, error: groupsError } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
-    if (groupsError) return error(res, 400, "events_unavailable", groupsError);
+    // A Raid-Helper hiccup no longer blocks the whole page — loadEventGroups()
+    // still finds the event via its cached/persisted fallback in that case, so
+    // only bail here when the event genuinely can't be resolved at all.
+    const { groups, error: groupsError, stale } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
     const found = groups.flatMap((g) => g.events.map((e) => ({ e, g }))).find((x) => x.e.id === eventId);
-    if (!found) return error(res, 404, "not_found", "Event nicht gefunden.");
+    if (!found) return error(res, groupsError ? 400 : 404, groupsError ? "events_unavailable" : "not_found", groupsError || "Event nicht gefunden.");
 
     const raidsheets = listRaidsheets();
     const matched = matchRaidsheet(raidsheets, found.e.title);
@@ -106,6 +108,7 @@ async function getRaidDetail(req, res, url) {
         },
         categoryName: found.g.categoryName,
         guildId,
+        eventsWarning: stale ? (groupsError || "Raid-Helper aktuell nicht erreichbar — zeige zwischengespeicherte Event-Daten.") : null,
         notifyTemplates: listNotify(),
         roles: discord.listRoles(guildId),
         raidsheets,
