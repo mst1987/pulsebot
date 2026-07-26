@@ -37,7 +37,9 @@ const ADMIN_STYLE = `<style>
   .main { display:flex; flex-direction:column; min-width:0; }
   .topbar { display:flex; align-items:center; gap:14px; padding:12px 24px; border-bottom:1px solid var(--line); background:var(--bg); position:sticky; top:0; z-index:5; flex-wrap:wrap; }
   .crumbs { font-size:13.5px; color:var(--muted); }
-  .crumbs b { color:var(--text); }
+  .crumbs b { color:var(--text); font-weight:700; }
+  .crumbs a { color:inherit; text-decoration:none; }
+  .crumbs a:hover { color:var(--accent); text-decoration:underline; }
   .top-actions { margin-left:auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
   .menu-toggle { display:none; }
   .content { padding:24px; max-width:1080px; width:100%; }
@@ -408,6 +410,20 @@ function tabLabel(active) {
     return t ? t.label : "Admin";
 }
 
+// Builds the clickable "Admin / Kategorie / Detail" trail in the topbar. `crumb`
+// is an optional label for a page nested under the tab (e.g. a single event or
+// character); when given, the tab segment becomes a link back to its list page,
+// so every page can get back to its category in one click.
+function breadcrumbTrail(active, crumb) {
+    const tab = TABS.find((t) => t.id === active);
+    const segments = [{ label: "Admin", href: "/" }];
+    segments.push(crumb ? { label: tabLabel(active), href: tab ? tab.href : "/" } : { label: tabLabel(active), href: null });
+    if (crumb) segments.push({ label: crumb, href: null });
+    return segments
+        .map((s) => (s.href ? `<a href="${s.href}">${esc(s.label)}</a>` : `<b>${esc(s.label)}</b>`))
+        .join(" <span style=\"opacity:.45\">/</span> ");
+}
+
 // Post-redirect ok/err feedback is shown as an auto-dismissing toast (top-right),
 // not as an inline banner. Inline, in-content errors still use the .flash-* classes.
 function flash(msg) {
@@ -532,6 +548,7 @@ function adminLayout(title, active, user, body, msg, nav, extra = {}) {
     const name = (user && user.name) || "Admin";
     const initial = esc(name.slice(0, 1).toUpperCase() || "A");
     const label = esc(tabLabel(active));
+    const crumbs = breadcrumbTrail(active, extra.crumb);
     const shell = `${ADMIN_STYLE}
       <div class="app">
         <aside class="side" id="adminSide">
@@ -549,7 +566,7 @@ function adminLayout(title, active, user, body, msg, nav, extra = {}) {
         <div class="main">
           <header class="topbar">
             <button class="menu-toggle" id="adminMenuToggle" type="button" aria-label="Menü">${BURGER_SVG}</button>
-            <div class="crumbs">Admin <span style="opacity:.45">/</span> <b>${label}</b></div>
+            <div class="crumbs">${crumbs}</div>
             <div class="top-actions">
               ${renderServerBar(nav)}
               ${themeToggleBtn()}
@@ -1226,7 +1243,8 @@ function renderRecruitmentFragment(opts = {}) {
 
 function renderRecruitment(user, opts = {}) {
     const title = opts.editingPost ? "Recruitment — Nachricht bearbeiten" : "Recruitment — Pulsebot Admin";
-    return adminLayout(title, "recruitment", user, renderRecruitmentFragment(opts), opts.msg, opts.nav);
+    const extra = opts.editingPost ? { crumb: "Nachricht bearbeiten" } : {};
+    return adminLayout(title, "recruitment", user, renderRecruitmentFragment(opts), opts.msg, opts.nav, extra);
 }
 
 // WCL report link for a detected log (prefer the stored link, else derive it).
@@ -1700,7 +1718,7 @@ function renderRaidCreate(user, opts = {}) {
         <div class="row-actions"><button class="btn" type="submit">Template speichern</button></div>
       </form>`;
 
-    return adminLayout("Raid-Events — Pulsebot Admin", "raids", user, `${createForm}${templateSection}`, opts.msg, opts.nav);
+    return adminLayout("Raid-Events — Pulsebot Admin", "raids", user, `${createForm}${templateSection}`, opts.msg, opts.nav, { crumb: "Neues Event" });
 }
 
 /**
@@ -2204,7 +2222,7 @@ function renderEventDetail(user, opts = {}) {
           panels.forEach(function(p){ p.classList.toggle("active", p.getAttribute("data-panel")===t); });
         }); });
       })();</script>`;
-    return adminLayout("Event-Details — Pulsebot Admin", "raids", user, body, opts.msg, opts.nav);
+    return adminLayout("Event-Details — Pulsebot Admin", "raids", user, body, opts.msg, opts.nav, { crumb: ev.title || ev.id || "Event-Details" });
 }
 
 /**
@@ -2266,7 +2284,7 @@ function renderNotifyTemplates(user, opts = {}) {
       <p class="note">Nachrichten-Vorlagen, die der Bot pro Event mit Rollen-Ping postet.</p>
       ${list}
       ${form}`;
-    return adminLayout("Aufruf-Vorlagen — Pulsebot Admin", "raids", user, body, opts.msg, opts.nav);
+    return adminLayout("Aufruf-Vorlagen — Pulsebot Admin", "raids", user, body, opts.msg, opts.nav, { crumb: "Aufruf-Vorlagen" });
 }
 
 /**
@@ -2807,7 +2825,7 @@ function renderHistoryEvent(user, opts = {}) {
         </div>
         ${table}
       </div>`;
-    return adminLayout("Event-Loot — Pulsebot Admin", "history", user, body, opts.msg, opts.nav, { wowheadIconize: true });
+    return adminLayout("Event-Loot — Pulsebot Admin", "history", user, body, opts.msg, opts.nav, { wowheadIconize: true, crumb: label });
 }
 
 /**
@@ -2895,7 +2913,7 @@ function renderHistoryChar(user, opts = {}) {
         { id: "gear", label: "Gear (Paperdoll)", content: gearTab, active: true },
         { id: "loot", label: `Loot-Historie${tabCount(items.length)}`, content: lootTab },
     ])}`;
-    return adminLayout(`${character || "Charakter"} — Pulsebot Admin`, "history", user, body, opts.msg, opts.nav, { wowheadIconize: true });
+    return adminLayout(`${character || "Charakter"} — Pulsebot Admin`, "history", user, body, opts.msg, opts.nav, { wowheadIconize: true, crumb: character || "Charakter" });
 }
 
 module.exports = {
