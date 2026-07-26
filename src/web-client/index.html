@@ -5,6 +5,16 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EventHelper Admin</title>
+    <script>
+      // Set the theme before first paint to avoid a flash — same "eh-theme"
+      // localStorage key as the classic SSR admin pages (src/web/render.js).
+      (function () {
+        try {
+          var t = localStorage.getItem("eh-theme");
+          if (t) document.documentElement.setAttribute("data-theme", t);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
