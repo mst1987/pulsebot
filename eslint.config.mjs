@@ -1,5 +1,9 @@
 export default [
   {
+    // The React client has its own toolchain/config (src/web-client/eslint.config.js).
+    ignores: ["src/web-client/**"],
+  },
+  {
     files: ["src/**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,

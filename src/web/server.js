@@ -52,6 +52,8 @@ const { toRaidHelperDate, formatTimestampToDateString } = require("../utils/date
 const { startSheetCleanup } = require("../utils/sheetCleanup");
 const discord = require("./discord");
 const auth = require("./auth");
+const apiRouter = require("./apiRouter");
+const staticClient = require("./staticClient");
 
 // Map a ?msg= query flag (set on post-redirect-get) to a flash object for the UI.
 const FLASH = {
@@ -387,6 +389,16 @@ async function handle(req, res) {
     const url = new URL(req.url, "http://localhost");
     let pathname = "/";
     try { pathname = decodeURIComponent(url.pathname); } catch { pathname = "/"; }
+
+    // --- new React admin client (see src/web-client/), migrated view by view ---
+    if (pathname.startsWith("/api/")) {
+        await apiRouter.handle(pathname, req, res);
+        return;
+    }
+    if (pathname === "/admin2" || pathname.startsWith("/admin2/")) {
+        if (await staticClient.serve(req, res, pathname)) return;
+        return send(res, 404, renderNotFound());
+    }
 
     // --- auth routes ---
     if (pathname === "/auth/login" && req.method === "GET") {
