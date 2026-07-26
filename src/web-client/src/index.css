@@ -37,7 +37,8 @@ body {
     transition: background .2s, color .2s;
 }
 a { color: inherit; }
-h1, h2, h3 { margin: 0; }
+h1, h3 { margin: 0; }
+h2 { font-size: 18px; margin: 24px 0 12px; }
 
 .sub { color: var(--muted); margin: 0 0 16px; font-size: 14px; }
 a.mlink { color: var(--accent); text-decoration: none; }
@@ -47,6 +48,28 @@ table.idx th, table.idx td { text-align: left; padding: 9px 12px; border-bottom:
 table.idx th { color: var(--muted); font-weight: 600; font-size: 13px; }
 table.idx tr:hover td { background: var(--panel2); }
 table.idx td.small { white-space: nowrap; color: var(--muted); font-size: 12.5px; }
+
+/* ===== forms/buttons ===== */
+form.card-form { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin: 0 0 16px; }
+.field { margin-bottom: 16px; }
+.field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 7px; font-weight: 600; line-height: 1.3; }
+.field input:not([type=checkbox]):not([type=radio]), .field select {
+    width: 100%; max-width: 440px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+    padding: 9px 12px; font: inherit; transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+.field input:focus, .field select:focus {
+    border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--accent);
+}
+.field .hint, .hint { color: var(--muted); font-size: 12px; margin-top: 5px; line-height: 1.4; }
+.btn {
+    display: inline-block; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 9px 18px;
+    font-weight: 700; font-size: 14px; cursor: pointer; text-decoration: none;
+    transition: filter .15s ease, box-shadow .2s ease, transform .1s ease;
+}
+.btn:hover { filter: brightness(1.08); box-shadow: 0 4px 22px -6px var(--accent); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+.btn:disabled { opacity: .6; cursor: not-allowed; filter: none; box-shadow: none; transform: none; }
+.row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .pill { display: inline-block; background: var(--high-bg); color: var(--high); border-radius: 10px; padding: 0 8px; font-size: 12px; font-weight: 700; }
 .pill.good { background: var(--good-bg); color: var(--good); }
 .empty { color: var(--muted); padding: 40px; text-align: center; }
