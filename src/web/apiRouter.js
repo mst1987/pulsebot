@@ -17,6 +17,9 @@ const {
     getRecruitmentData, saveRecruitmentTemplate, deleteRecruitmentTemplate, postRecruitmentTemplate,
     updateRecruitmentPost, deleteRecruitmentPostHandler, scanRecruitmentPosts,
 } = require("./apiRoutes/recruitment");
+const {
+    getHistoryData, deleteHistoryLog, importLoot, saveCategoryLootTool, clearHistoryEvent, getHistoryEvent,
+} = require("./apiRoutes/history");
 
 /** Dispatches an /api/* request. `url` is only needed by routes that read query params. */
 async function handle(pathname, req, res, url) {
@@ -110,6 +113,30 @@ async function handle(pathname, req, res, url) {
     }
     if (pathname === "/api/recruitment/scan" && req.method === "POST") {
         await scanRecruitmentPosts(req, res);
+        return true;
+    }
+    if (pathname === "/api/history" && req.method === "GET") {
+        await getHistoryData(req, res);
+        return true;
+    }
+    if (pathname === "/api/history/log-delete" && req.method === "POST") {
+        await deleteHistoryLog(req, res);
+        return true;
+    }
+    if (pathname === "/api/history/import" && req.method === "POST") {
+        await importLoot(req, res);
+        return true;
+    }
+    if (pathname === "/api/history/category-tool" && req.method === "POST") {
+        await saveCategoryLootTool(req, res);
+        return true;
+    }
+    if (pathname === "/api/history/clear" && req.method === "POST") {
+        await clearHistoryEvent(req, res);
+        return true;
+    }
+    if (pathname === "/api/history/event" && req.method === "GET") {
+        getHistoryEvent(req, res, url);
         return true;
     }
     error(res, 404, "not_found", "Unbekannter API-Endpunkt.");

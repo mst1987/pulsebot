@@ -29,6 +29,33 @@ jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => ""
 jest.mock("../../src/web/dashboardData", () => ({
     loadUpcomingSetups: jest.fn(() => Promise.resolve({ events: [], error: null })),
     loadRecentEvents: jest.fn(() => Promise.resolve({ events: [], error: null })),
+    annotateUpcomingExtras: jest.fn((events) => events),
+}));
+jest.mock("../../src/web/logStore", () => ({
+    listLogs: jest.fn(() => []),
+    deleteLog: jest.fn(),
+}));
+jest.mock("../../src/web/lootStore", () => ({
+    addImport: jest.fn(() => ({ added: 0, skipped: 0 })),
+    listByEvent: jest.fn(() => []),
+    eventsWithLoot: jest.fn(() => []),
+    clearEvent: jest.fn(() => 0),
+}));
+jest.mock("../../src/web/characterInfo", () => ({
+    rememberFromLoot: jest.fn(),
+}));
+jest.mock("../../src/utils/lootImport", () => {
+    class LootParseError extends Error {}
+    return {
+        parseLoot: jest.fn(() => []),
+        detectImportDate: jest.fn(() => null),
+        LootParseError,
+    };
+});
+jest.mock("../../src/web/lootEventMatch", () => ({
+    bestDayMatch: jest.fn(() => ({ match: null, ambiguous: false })),
+    formatDayDisplay: jest.fn(() => "12.07.2026"),
+    dayKey: jest.fn(() => "2026-07-12"),
 }));
 jest.mock("../../src/web/discord", () => ({
     listCategories: jest.fn(() => []),
@@ -46,6 +73,7 @@ jest.mock("../../src/web/discord", () => ({
 }));
 jest.mock("../../src/web/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
+    eventLookbackSince: jest.fn(() => 0),
 }));
 const mockGetTemplates = jest.fn(() => Promise.resolve([]));
 const mockCreateEvent = jest.fn(() => Promise.resolve({ id: "ev1" }));
@@ -62,6 +90,11 @@ const { activeGuildFor } = require("../../src/web/activeGuild");
 const dashboardData = require("../../src/web/dashboardData");
 const discord = require("../../src/web/discord");
 const raidEventGroups = require("../../src/web/raidEventGroups");
+const logStore = require("../../src/web/logStore");
+const lootStore = require("../../src/web/lootStore");
+const characterInfo = require("../../src/web/characterInfo");
+const lootImport = require("../../src/utils/lootImport");
+const lootEventMatch = require("../../src/web/lootEventMatch");
 const { handle } = require("../../src/web/apiRouter");
 
 function mockRes() {
@@ -784,6 +817,201 @@ describe("web/apiRouter", () => {
             expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledTimes(2);
             expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledWith(expect.objectContaining({ channelId: "c1", source: "scan" }));
             expect(body(res)).toEqual({ data: { count: 2 } });
+        });
+    });
+
+    describe("GET /api/history", () => {
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await get("/api/history");
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+        });
+
+        it("assembles events, raids, loot, logs and category tool config", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", title: "Kara", startTime: 100, categoryId: "cat1" }] }],
+                error: null,
+            });
+            dashboardData.annotateUpcomingExtras.mockReturnValue([{ id: "e1", title: "Kara", lootCount: 2 }]);
+            dashboardData.loadRecentEvents.mockResolvedValue({ events: [{ id: "e0", title: "Old Kara" }], error: null });
+            lootStore.eventsWithLoot.mockReturnValue([{ eventId: "e1", label: "Kara", count: 2 }]);
+            logStore.listLogs.mockReturnValue([{ id: "l1", title: "Log 1" }]);
+            discord.listCategories.mockReturnValue([{ id: "cat1", name: "Raids" }]);
+            settingsStore.getConfig.mockReturnValue({ categoryLootTool: { cat1: "gargul" } });
+
+            const res = await get("/api/history");
+
+            expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", Infinity);
+            expect(body(res).data).toEqual({
+                events: [{ id: "e1", title: "Kara", startTime: 100, categoryId: "cat1" }],
+                upcomingRaids: { events: [{ id: "e1", title: "Kara", lootCount: 2 }], error: null },
+                pastRaids: { events: [{ id: "e0", title: "Old Kara" }], error: null },
+                lootEvents: [{ eventId: "e1", label: "Kara", count: 2 }],
+                logs: [{ id: "l1", title: "Log 1" }],
+                categories: [{ id: "cat1", name: "Raids" }],
+                categoryLootTool: { cat1: "gargul" },
+                activeGuildId: "guild-1",
+            });
+        });
+    });
+
+    describe("POST /api/history/log-delete", () => {
+        it("deletes the log and returns its id", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/history/log-delete", { logId: "l1" });
+            expect(logStore.deleteLog).toHaveBeenCalledWith("l1");
+            expect(body(res)).toEqual({ data: { id: "l1" } });
+        });
+    });
+
+    describe("POST /api/history/import", () => {
+        it("returns 400 when the export text is empty", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/history/import", { data: "" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "no_data", message: expect.any(String) } });
+        });
+
+        it("returns 400 with the parser's message on a LootParseError", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            lootImport.parseLoot.mockImplementation(() => { throw new lootImport.LootParseError("Ungültiges Format."); });
+            const res = await post("/api/history/import", { data: "garbage" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "parse_failed", message: "Ungültiges Format." } });
+        });
+
+        it("returns 400 when parsing succeeds but finds no items", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            lootImport.parseLoot.mockReturnValue([]);
+            const res = await post("/api/history/import", { data: "text" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "empty", message: expect.any(String) } });
+        });
+
+        it("imports under a manual label when event is __manual__", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            lootImport.parseLoot.mockReturnValue([{ itemName: "Sword" }]);
+            lootStore.addImport.mockReturnValue({ added: 1, skipped: 0 });
+
+            const res = await post("/api/history/import", { data: "text", event: "__manual__", manualLabel: "SSC/TK — 12.07." });
+
+            expect(lootStore.addImport).toHaveBeenCalledWith(
+                "manual-ssc-tk-12-07",
+                [{ itemName: "Sword" }],
+                { categoryId: "", eventLabel: "SSC/TK — 12.07." },
+            );
+            expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
+            expect(body(res)).toEqual({ data: { eventId: "manual-ssc-tk-12-07", eventLabel: "SSC/TK — 12.07.", added: 1, skipped: 0 } });
+        });
+
+        it("returns 400 for __manual__ without a label", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            lootImport.parseLoot.mockReturnValue([{ itemName: "Sword" }]);
+            const res = await post("/api/history/import", { data: "text", event: "__manual__" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "no_label", message: expect.any(String) } });
+        });
+
+        it("returns 409 when the auto-matched date is ambiguous", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            lootImport.parseLoot.mockReturnValue([{ itemName: "Sword" }]);
+            lootImport.detectImportDate.mockReturnValue(123456);
+            lootEventMatch.bestDayMatch.mockReturnValue({ match: null, ambiguous: true });
+
+            const res = await post("/api/history/import", { data: "text", event: "__auto__" });
+
+            expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "ambiguous", message: expect.any(String) } });
+        });
+
+        it("auto-matches a known event and marks the category's loot tool", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            lootImport.parseLoot.mockReturnValue([{ itemName: "Sword" }]);
+            lootImport.detectImportDate.mockReturnValue(123456);
+            const matchedEvent = { id: "e1", title: "Kara" };
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", events: [matchedEvent] }],
+                error: null,
+            });
+            lootEventMatch.bestDayMatch.mockReturnValue({ match: matchedEvent, ambiguous: false });
+            lootStore.addImport.mockReturnValue({ added: 3, skipped: 1 });
+
+            const res = await post("/api/history/import", { data: "text", event: "__auto__", tool: "gargul" });
+
+            expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara" });
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryLootTool: { cat1: "gargul" } });
+            expect(body(res)).toEqual({ data: { eventId: "e1", eventLabel: "Kara", added: 3, skipped: 1 } });
+        });
+
+        it("imports directly against a given event id", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            lootImport.parseLoot.mockReturnValue([{ itemName: "Sword" }]);
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", events: [{ id: "e1", title: "Kara" }] }],
+                error: null,
+            });
+            lootStore.addImport.mockReturnValue({ added: 1, skipped: 0 });
+
+            const res = await post("/api/history/import", { data: "text", event: "e1" });
+
+            expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara" });
+            expect(body(res)).toEqual({ data: { eventId: "e1", eventLabel: "Kara", added: 1, skipped: 0 } });
+        });
+    });
+
+    describe("POST /api/history/category-tool", () => {
+        it("returns 400 when no category is given", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/history/category-tool", { tool: "gargul" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+        });
+
+        it("saves the category's loot tool", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/history/category-tool", { categoryId: "cat1", tool: "rclc" });
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryLootTool: { cat1: "rclc" } });
+            expect(body(res)).toEqual({ data: { categoryId: "cat1", tool: "rclc" } });
+        });
+
+        it("clears the tool for an invalid value", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            await post("/api/history/category-tool", { categoryId: "cat1", tool: "nonsense" });
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryLootTool: { cat1: "" } });
+        });
+    });
+
+    describe("POST /api/history/clear", () => {
+        it("clears the event's loot and returns the removed count", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            lootStore.clearEvent.mockReturnValue(4);
+            const res = await post("/api/history/clear", { event: "e1" });
+            expect(lootStore.clearEvent).toHaveBeenCalledWith("e1");
+            expect(body(res)).toEqual({ data: { removed: 4 } });
+        });
+    });
+
+    describe("GET /api/history/event", () => {
+        it("returns the loot items and label for an event", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            lootStore.listByEvent.mockReturnValue([{ eventLabel: "Kara", itemName: "Sword" }]);
+            const res = await get("/api/history/event", { event: "e1" });
+            expect(lootStore.listByEvent).toHaveBeenCalledWith("e1");
+            expect(body(res)).toEqual({ data: { eventId: "e1", label: "Kara", items: [{ eventLabel: "Kara", itemName: "Sword" }] } });
         });
     });
 
