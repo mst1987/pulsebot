@@ -2242,6 +2242,7 @@ function renderEventDetail(user, opts = {}) {
 
     const body = `
       <p class="note"><a class="mlink" href="/admin/raids">← Zurück zur Event-Übersicht</a></p>
+      ${opts.eventsWarning ? `<div class="flash flash-err">${esc(opts.eventsWarning)}</div>` : ""}
       ${meta}
       <div class="tabs" role="tablist">
         <button type="button" class="tab-btn active" data-tab="setup" role="tab">Setup</button>

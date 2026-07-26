@@ -722,10 +722,13 @@ async function handle(req, res) {
         const guildId = activeGuildFor(req);
         const eventId = (url.searchParams.get("event") || "").trim();
         // Include past raids: the dashboard's "Latest Events" card links here.
-        const { groups, error } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
-        if (error) return redirect(res, `/admin/raids?err=${encodeURIComponent(error)}`);
+        // A Raid-Helper hiccup no longer blocks the whole page — loadEventGroups()
+        // still finds the event via its cached/persisted fallback in that case, so
+        // only bail here when the event genuinely can't be resolved at all.
+        const { groups, error, stale } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
         const found = groups.flatMap((g) => g.events.map((e) => ({ e, g }))).find((x) => x.e.id === eventId);
-        if (!found) return redirect(res, `/admin/raids?err=${encodeURIComponent("Event nicht gefunden.")}`);
+        if (!found) return redirect(res, `/admin/raids?err=${encodeURIComponent(error || "Event nicht gefunden.")}`);
+        const eventsWarning = stale ? (error || "Raid-Helper aktuell nicht erreichbar — zeige zwischengespeicherte Event-Daten.") : null;
         const raidsheets = listRaidsheets();
         const matched = matchRaidsheet(raidsheets, found.e.title);
         // Pull the Raid-Helper raidplan setup so it can be shown inline (best-effort).
@@ -801,6 +804,7 @@ async function handle(req, res) {
             lootTool: (getConfig().categoryLootTool || {})[found.g.categoryId] || "",
             eventLogs,
             unlinkedLogs,
+            eventsWarning,
             csrf: auth.csrfToken(req),
             msg: flashFromQuery(url),
             nav: navFor(req),

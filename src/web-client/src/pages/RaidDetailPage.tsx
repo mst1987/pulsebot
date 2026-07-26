@@ -898,6 +898,7 @@ export default function RaidDetailPage() {
     return (
         <>
             {backLink}
+            {data.eventsWarning && <div className="flash flash-err">{data.eventsWarning}</div>}
 
             <div className="dash-card" style={{ marginBottom: 16 }}>
                 <div className="dash-card-head" style={{ flexWrap: "wrap", gap: 12, justifyContent: "space-between" }}>

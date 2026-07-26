@@ -204,6 +204,7 @@ const discord = require("../../src/web/discord");
 const auth = require("../../src/web/auth");
 const renderAdmin = require("../../src/web/renderAdmin");
 const logStore = require("../../src/web/logStore");
+const raidEventGroups = require("../../src/web/raidEventGroups");
 const { startWebServer } = require("../../src/web/server.js");
 
 startWebServer();
@@ -249,6 +250,10 @@ beforeEach(() => {
     auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
     auth.checkCsrf.mockReturnValue(true);
     auth.getActiveGuild.mockReturnValue("g1");
+    // loadEventGroups() caches the raw Raid-Helper event list across calls (see
+    // raidEventGroups.js) — without clearing it here, a later test could see an
+    // earlier test's mockFetchEvents() result instead of its own.
+    raidEventGroups._resetEventsCacheForTests();
     mockCreateEvent.mockReset();
     mockCreateEvent.mockResolvedValue({ status: "ok" });
     mockGetAllEvents.mockReset();
@@ -494,6 +499,36 @@ describe("event detail route (setup)", () => {
         mockFetchEvents.mockResolvedValueOnce([]);
         const res = await request("GET", "/admin/raids/detail?event=nope");
         expect(redirectTo(res)).toContain("/admin/raids?err=");
+    });
+
+    it("still opens the page with an eventsWarning when Raid-Helper fails but the event is in the persisted snapshot", async () => {
+        mockGetSetup.mockResolvedValueOnce({ setup: [] });
+        mockFetchEvents.mockRejectedValueOnce(new Error("Raid-Helper down"));
+        mockListRaidEvents.mockReturnValueOnce([
+            // Real (not arbitrary-small, unlike other fixtures here): loadEventGroups()
+            // only falls back to persisted events at or after the caller's sinceSeconds
+            // (~60 days ago in real unix time), unlike the live-events path which trusts
+            // Raid-Helper's own StartTimeFilter and does no client-side filtering.
+            { id: "e1", guildId: "g1", title: "GDKP Kara", channelId: "c1", channelName: "kara", categoryId: "cat", categoryName: "Raids", startTime: 2000000000 },
+        ]);
+        const res = await request("GET", "/admin/raids/detail?event=e1");
+        expect(res.end).toHaveBeenCalledWith("EVENTDETAIL");
+        const opts = renderAdmin.renderEventDetail.mock.calls[0][1];
+        expect(opts.event.id).toBe("e1");
+        expect(opts.eventsWarning).toBe("Raid-Helper down");
+    });
+
+    it("redirects with the Raid-Helper error when it fails and the event has no persisted snapshot either", async () => {
+        mockFetchEvents.mockRejectedValueOnce(new Error("Raid-Helper down"));
+        const res = await request("GET", "/admin/raids/detail?event=e1");
+        expect(redirectTo(res)).toContain("/admin/raids?err=Raid-Helper%20down");
+    });
+
+    it("omits eventsWarning when the data is fresh (not stale)", async () => {
+        mockGetSetup.mockResolvedValueOnce({ setup: [] });
+        await request("GET", "/admin/raids/detail?event=e1");
+        const opts = renderAdmin.renderEventDetail.mock.calls[0][1];
+        expect(opts.eventsWarning).toBeNull();
     });
 
     it("passes this event's already-imported loot and its category's loot tool to the detail view", async () => {

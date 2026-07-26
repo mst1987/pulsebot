@@ -784,6 +784,16 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("Keine Raidsheets konfiguriert");
         });
 
+        it("shows an eventsWarning banner when the event data came from a stale/persisted fallback", () => {
+            const html = renderEventDetail(user, { ...base, eventsWarning: "Raid-Helper down" });
+            expect(html).toContain("<div class=\"flash flash-err\">Raid-Helper down</div>");
+        });
+
+        it("shows no banner when there is no eventsWarning", () => {
+            const html = renderEventDetail(user, base);
+            expect(html).not.toContain("flash-err\">Raid-Helper");
+        });
+
         it("renders an attendance tab with missing raiders and a ping button", () => {
             const html = renderEventDetail(user, {
                 ...base,

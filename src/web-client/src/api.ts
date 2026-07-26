@@ -268,6 +268,7 @@ export type RaidDetailData = {
     event: RaidDetailEvent;
     categoryName: string;
     guildId: string;
+    eventsWarning: string | null;
     notifyTemplates: NotifyTemplate[];
     roles: Role[];
     raidsheets: Raidsheet[];

@@ -801,12 +801,28 @@ describe("web/apiRouter", () => {
             expect(body(res)).toEqual({ error: { code: "not_found", message: "Event nicht gefunden." } });
         });
 
-        it("returns 400 when Raid-Helper events can't be loaded", async () => {
+        it("returns 400 when Raid-Helper events can't be loaded and no fallback event was found either", async () => {
             setupDefaults();
-            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: "Raid-Helper nicht erreichbar." });
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: "Raid-Helper nicht erreichbar.", stale: true });
             const res = await get("/api/raids/detail", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
             expect(body(res)).toEqual({ error: { code: "events_unavailable", message: "Raid-Helper nicht erreichbar." } });
+        });
+
+        it("still opens the page with an eventsWarning when the event was found via the stale/persisted fallback", async () => {
+            setupDefaults();
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: groupsFull, error: "Raid-Helper nicht erreichbar.", stale: true,
+            });
+            const res = await get("/api/raids/detail", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(body(res).data.eventsWarning).toBe("Raid-Helper nicht erreichbar.");
+        });
+
+        it("omits eventsWarning when the data is fresh (not stale)", async () => {
+            setupDefaults();
+            const res = await get("/api/raids/detail", { event: "e1" });
+            expect(body(res).data.eventsWarning).toBeNull();
         });
 
         it("sets setupError when the Raid-Helper raidplan can't be loaded", async () => {
