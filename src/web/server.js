@@ -21,7 +21,7 @@ const {
     resolveMissing: resolveCharacterInfo,
 } = require("./characterInfo");
 const { getCharacter } = require("./characterStore");
-const { parseLoot, detectImportDate, LootParseError } = require("../utils/lootImport");
+const { parseLoot, detectImportDate, enrichItemNames, LootParseError } = require("../utils/lootImport");
 const Blizzard = require("../classes/blizzard");
 const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
@@ -1230,6 +1230,7 @@ async function handle(req, res) {
             return redirect(res, withFlash(back, "err", msg));
         }
         if (!items.length) return redirect(res, withFlash(back, "err", "Keine Loot-Einträge im Export gefunden."));
+        await enrichItemNames(items);
 
         let eventId = (form.event || "").trim();
         const manualTitle = String(form.manualLabel || "").trim();
