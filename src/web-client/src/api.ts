@@ -209,6 +209,59 @@ export function getRaids(): Promise<RaidsData> {
     return get<RaidsData>("/api/raids");
 }
 
+// ===== Raid detail (per-event page) =====
+// Part A (Setup/Anwesenheit/Loot, read-only) — see renderAdmin.js's renderEventDetail().
+// notifyTemplates/roles/raidsheets/matchedSheetId/tankCandidates/eventSheet/eventSoftres/
+// softresCatalogue/softresEdition/softresSuggested are all Part B's concern (the mutating
+// tabs + header quick-post buttons) and are typed loosely here on purpose.
+export type SetupPlayer = { name: string; classColor: string; specName: string; className: string; iconUrl: string };
+export type SetupGroup = { label: string; players: SetupPlayer[] };
+export type EventSetup = { total: number; groups: SetupGroup[] } | null;
+
+export type AttendanceProfile = { classColor: string; specName: string; className: string; iconUrl: string };
+export type AttendancePerson = { id: string; displayName: string; profile: AttendanceProfile | null };
+export type Attendance = { responded: AttendancePerson[]; missing: AttendancePerson[] };
+
+export type RaidDetailEvent = {
+    id: string;
+    title: string;
+    startTime: number;
+    channelId: string;
+    channelName: string;
+    signupCount: number;
+};
+
+export type RaidDetailEventSheet = { url: string; eventTitle: string; deleteAfter: number } | null;
+export type EventSoftres = { url: string; editUrl: string; instances: unknown[]; amount: number; hardReserveCount: number } | null;
+
+export type RaidDetailData = {
+    event: RaidDetailEvent;
+    categoryName: string;
+    guildId: string;
+    notifyTemplates: unknown[];
+    roles: unknown[];
+    raidsheets: unknown[];
+    matchedSheetId: string;
+    setup: EventSetup;
+    setupError: string | null;
+    tankCandidates: unknown[];
+    eventSheet: RaidDetailEventSheet;
+    eventSoftres: EventSoftres;
+    softresCatalogue: unknown[];
+    softresEdition: string;
+    softresSuggested: string[];
+    attendance: Attendance;
+    attendanceRoleIds: string[];
+    membersError: string | null;
+    signupTarget: number;
+    lootItems: LootItem[];
+    lootTool: string;
+};
+
+export function getRaidDetail(eventId: string): Promise<RaidDetailData> {
+    return get<RaidDetailData>(`/api/raids/detail?event=${encodeURIComponent(eventId)}`);
+}
+
 export type RaidTemplate = { id: string; name: string };
 
 export type ReusableEvent = {

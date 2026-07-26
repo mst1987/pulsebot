@@ -5,8 +5,6 @@ import { eventPostUrl, raidplanUrl } from "../lib/discordLinks";
 
 // Ported from renderAdmin.js's raidTable()/eventDetailLink()/logsCell()/lootCell()/
 // linksCell() — shared by the History page's "Alle Raids" tab (upcoming + past).
-// The event detail page (/admin/raids/detail) isn't migrated yet, so its link
-// stays a plain <a> to the classic SSR page.
 function LogsCell({ logs }: { logs: RaidRow["logs"] }) {
     if (!logs.length) return <span className="sub">—</span>;
     return (
@@ -66,7 +64,7 @@ export default function RaidTable({ events, guildId, error, emptyMessage }: {
                 {events.map((ev) => (
                     <tr key={ev.id}>
                         <td>
-                            <strong><a className="mlink" href={`/admin/raids/detail?event=${encodeURIComponent(ev.id)}`}>{ev.title || ev.id}</a></strong>
+                            <strong><Link className="mlink" to={`/raids/detail?event=${encodeURIComponent(ev.id)}`}>{ev.title || ev.id}</Link></strong>
                             {ev.channelName && <div className="small">#{ev.channelName}</div>}
                         </td>
                         <td className="small">{formatEventTime(ev.startTime)}</td>

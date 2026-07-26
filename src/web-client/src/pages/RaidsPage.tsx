@@ -29,7 +29,7 @@ function CategoryTable({ group, guildId }: { group: RaidEventGroup; guildId: str
                             </td>
                             <td className="cell-actions">
                                 <div className="row-actions" style={{ justifyContent: "flex-end" }}>
-                                    <a className="btn btn-ghost btn-sm" href={`/admin/raids/detail?event=${ev.id}`}>Details</a>
+                                    <Link className="btn btn-ghost btn-sm" to={`/raids/detail?event=${encodeURIComponent(ev.id)}`}>Details</Link>
                                 </div>
                             </td>
                         </tr>

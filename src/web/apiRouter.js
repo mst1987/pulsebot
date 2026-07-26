@@ -10,6 +10,7 @@ const {
     getSettings, updateSettings, saveRaidsheetHandler, deleteRaidsheetHandler,
 } = require("./apiRoutes/settings");
 const { getRaids, getRaidCreateContext, createRaid } = require("./apiRoutes/raids");
+const { getRaidDetail } = require("./apiRoutes/raidDetail");
 const {
     getRaidTemplates, createRaidTemplate, deleteRaidTemplateHandler, importRaidTemplates,
 } = require("./apiRoutes/raidTemplates");
@@ -73,6 +74,10 @@ async function handle(pathname, req, res, url) {
     }
     if (pathname === "/api/raids" && req.method === "POST") {
         await createRaid(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/detail" && req.method === "GET") {
+        await getRaidDetail(req, res, url);
         return true;
     }
     if (pathname === "/api/raid-templates" && req.method === "GET") {

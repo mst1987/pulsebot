@@ -24,6 +24,7 @@ jest.mock("../../src/web/settingsStore", () => ({
     saveRaidTemplate: jest.fn(),
     saveRaidTemplates: jest.fn(),
     deleteRaidTemplate: jest.fn(),
+    listNotify: jest.fn(() => []),
 }));
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
 jest.mock("../../src/web/dashboardData", () => ({
@@ -118,6 +119,7 @@ jest.mock("../../src/web/discord", () => ({
     listApplications: jest.fn(() => Promise.resolve({ applications: [], error: null })),
     getClient: jest.fn(() => null),
     getChannelCategoryMap: jest.fn(() => ({})),
+    listMembersWithRoles: jest.fn(() => Promise.resolve({ members: [], error: null })),
 }));
 jest.mock("../../src/web/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
@@ -126,12 +128,28 @@ jest.mock("../../src/web/raidEventGroups", () => ({
 const mockGetTemplates = jest.fn(() => Promise.resolve([]));
 const mockCreateEvent = jest.fn(() => Promise.resolve({ id: "ev1" }));
 const mockGetPastEvents = jest.fn(() => Promise.resolve([]));
+const mockGetSetup = jest.fn(() => Promise.resolve({ setup: [] }));
 jest.mock("../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({
         getTemplates: mockGetTemplates,
         createEvent: mockCreateEvent,
         getPastEvents: mockGetPastEvents,
+        getSetup: mockGetSetup,
     })));
+jest.mock("../../src/web/eventSheetStore", () => ({
+    getEventSheet: jest.fn(() => null),
+}));
+jest.mock("../../src/web/eventSoftresStore", () => ({
+    getEventSoftres: jest.fn(() => null),
+}));
+jest.mock("../../src/utils/softres", () => ({
+    parseInstancesFromTitle: jest.fn(() => []),
+    targetSizeForInstances: jest.fn(() => 0),
+    catalogue: jest.fn(() => []),
+}));
+jest.mock("../../src/utils/raidsheets", () => ({
+    matchRaidsheet: jest.fn(() => null),
+}));
 
 const auth = require("../../src/web/auth");
 const reportStore = require("../../src/web/reportStore");
@@ -150,6 +168,10 @@ const reportList = require("../../src/web/reportList");
 const logEventMatch = require("../../src/web/logEventMatch");
 const logChannel = require("../../src/web/logChannel");
 const { buildReport, ReportError } = require("../../src/utils/logcheck/report");
+const eventSheetStore = require("../../src/web/eventSheetStore");
+const eventSoftresStore = require("../../src/web/eventSoftresStore");
+const softres = require("../../src/utils/softres");
+const raidsheetsUtil = require("../../src/utils/raidsheets");
 const { handle } = require("../../src/web/apiRouter");
 
 function mockRes() {
@@ -609,6 +631,249 @@ describe("web/apiRouter", () => {
 
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
             expect(body(res)).toEqual({ error: { code: "create_failed", message: "invalid token" } });
+        });
+    });
+
+    describe("GET /api/raids/detail", () => {
+        // One event ("e1") in category "cat1", with a signup from user "1" only —
+        // user "2" is expected (holds the raider role) but hasn't reacted yet.
+        const event1 = {
+            id: "e1",
+            title: "GDKP Kara",
+            startTime: 1753500000,
+            channelId: "chan1",
+            channelName: "kara-channel",
+            categoryId: "cat1",
+            signupCount: 1,
+            signUps: [{ userId: "1", specName: "ProtPala" }],
+        };
+        const groupsFull = [{ categoryId: "cat1", categoryName: "Raids", events: [event1] }];
+
+        function setupDefaults() {
+            auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: groupsFull, error: null });
+            settingsStore.listRaidsheets.mockReturnValue([]);
+            raidsheetsUtil.matchRaidsheet.mockReturnValue(null);
+            mockGetSetup.mockResolvedValue({ setup: [] });
+            settingsStore.getConfig.mockReturnValue({});
+            discord.listMembersWithRoles.mockResolvedValue({ members: [], error: null });
+            discord.listRoles.mockReturnValue([]);
+            settingsStore.listNotify.mockReturnValue([]);
+            eventSheetStore.getEventSheet.mockReturnValue(null);
+            eventSoftresStore.getEventSoftres.mockReturnValue(null);
+            softres.parseInstancesFromTitle.mockReturnValue([]);
+            softres.targetSizeForInstances.mockReturnValue(0);
+            softres.catalogue.mockReturnValue([]);
+            lootStore.listByEvent.mockReturnValue([]);
+        }
+
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await get("/api/raids/detail", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+            expect(raidEventGroups.loadEventGroups).not.toHaveBeenCalled();
+        });
+
+        it("returns the full read-only overview: setup, attendance, sheet/softres links and loot", async () => {
+            setupDefaults();
+            settingsStore.listRaidsheets.mockReturnValue([{ id: "sheet1", name: "Kara Sheet", keywords: ["kara"] }]);
+            raidsheetsUtil.matchRaidsheet.mockReturnValue({ id: "sheet1", name: "Kara Sheet", keywords: ["kara"] });
+            mockGetSetup.mockResolvedValue({ setup: [{ name: "Tankulus", specName: "ProtPala", group: 1 }] });
+            settingsStore.getConfig.mockReturnValue({
+                categoryRoles: { cat1: ["role1"] },
+                categoryLootTool: { cat1: "gargul" },
+            });
+            discord.listMembersWithRoles.mockResolvedValue({
+                members: [{ id: "1", displayName: "Anna" }, { id: "2", displayName: "Bob" }],
+                error: null,
+            });
+            discord.listRoles.mockReturnValue([{ id: "role1", name: "Raider" }]);
+            settingsStore.listNotify.mockReturnValue([{ id: "tpl1", name: "Standard-Aufruf" }]);
+            eventSheetStore.getEventSheet.mockReturnValue({ eventId: "e1", url: "https://sheet.example/1", sheetName: "Kara" });
+            eventSoftresStore.getEventSoftres.mockReturnValue({ eventId: "e1", url: "https://softres.it/1", instances: ["kara"] });
+            softres.parseInstancesFromTitle.mockReturnValue([{ code: "kara", name: "Karazhan", edition: "tbc", slots: 10 }]);
+            softres.targetSizeForInstances.mockReturnValue(10);
+            softres.catalogue.mockReturnValue([
+                { edition: "tbc", label: "The Burning Crusade", instances: [{ code: "kara", name: "Karazhan", slots: 10 }] },
+                { edition: "classic", label: "Classic", instances: [] },
+            ]);
+            lootStore.listByEvent.mockReturnValue([{ eventId: "e1", itemName: "Sword", character: "Anna" }]);
+
+            const res = await get("/api/raids/detail", { event: "e1" });
+
+            expect(raidEventGroups.loadEventGroups).toHaveBeenCalledWith("guild-1", { sinceSeconds: 0 });
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            const data = body(res).data;
+            expect(data.event).toEqual({
+                id: "e1", title: "GDKP Kara", startTime: 1753500000,
+                channelId: "chan1", channelName: "kara-channel", signupCount: 1,
+            });
+            expect(data.categoryName).toBe("Raids");
+            expect(data.guildId).toBe("guild-1");
+            expect(data.notifyTemplates).toEqual([{ id: "tpl1", name: "Standard-Aufruf" }]);
+            expect(data.roles).toEqual([{ id: "role1", name: "Raider" }]);
+            expect(data.raidsheets).toEqual([{ id: "sheet1", name: "Kara Sheet", keywords: ["kara"] }]);
+            expect(data.matchedSheetId).toBe("sheet1");
+            expect(data.setup).toEqual({
+                total: 1,
+                groups: [{
+                    group: 1,
+                    label: "Gruppe 1",
+                    players: [{
+                        name: "Tankulus",
+                        spec: "ProtPala",
+                        specName: "Protection Pala",
+                        className: "Paladin",
+                        classColor: "#F58CBA",
+                        iconUrl: "https://wow.zamimg.com/images/wow/icons/large/spell_holy_devotionaura.jpg",
+                        role: "tank",
+                        group: 1,
+                    }],
+                }],
+                roleCounts: { tank: 1 },
+            });
+            expect(data.setupError).toBeNull();
+            expect(data.tankCandidates).toEqual([{ name: "Tankulus", specName: "Protection Pala", className: "Paladin" }]);
+            expect(data.eventSheet).toEqual({ eventId: "e1", url: "https://sheet.example/1", sheetName: "Kara" });
+            expect(data.eventSoftres).toEqual({ eventId: "e1", url: "https://softres.it/1", instances: ["kara"] });
+            expect(data.softresCatalogue).toEqual([
+                { edition: "tbc", label: "The Burning Crusade", instances: [{ code: "kara", name: "Karazhan", slots: 10 }] },
+            ]);
+            expect(data.softresEdition).toBe("tbc");
+            expect(data.softresSuggested).toEqual(["kara"]);
+            expect(data.attendance).toEqual({
+                responded: [{
+                    id: "1",
+                    displayName: "Anna",
+                    profile: {
+                        specName: "Protection Pala",
+                        className: "Paladin",
+                        classColor: "#F58CBA",
+                        iconUrl: "https://wow.zamimg.com/images/wow/icons/large/spell_holy_devotionaura.jpg",
+                    },
+                }],
+                missing: [{ id: "2", displayName: "Bob" }],
+            });
+            expect(data.attendanceRoleIds).toEqual(["role1"]);
+            expect(data.membersError).toBeNull();
+            expect(data.signupTarget).toBe(10);
+            expect(data.lootItems).toEqual([{ eventId: "e1", itemName: "Sword", character: "Anna" }]);
+            expect(data.lootTool).toBe("gargul");
+        });
+
+        it("returns 404 when the event isn't found in any group", async () => {
+            setupDefaults();
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
+            const res = await get("/api/raids/detail", { event: "missing" });
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "not_found", message: "Event nicht gefunden." } });
+        });
+
+        it("returns 400 when Raid-Helper events can't be loaded", async () => {
+            setupDefaults();
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: "Raid-Helper nicht erreichbar." });
+            const res = await get("/api/raids/detail", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "events_unavailable", message: "Raid-Helper nicht erreichbar." } });
+        });
+
+        it("sets setupError when the Raid-Helper raidplan can't be loaded", async () => {
+            setupDefaults();
+            mockGetSetup.mockRejectedValue(new Error("raidplan down"));
+            const res = await get("/api/raids/detail", { event: "e1" });
+            const data = body(res).data;
+            expect(data.setup).toBeNull();
+            expect(data.setupError).toBe("raidplan down");
+            expect(data.tankCandidates).toEqual([]);
+        });
+
+        it("returns an empty setup when no raidplan has been created yet", async () => {
+            setupDefaults();
+            mockGetSetup.mockResolvedValue({ setup: [] });
+            const res = await get("/api/raids/detail", { event: "e1" });
+            const data = body(res).data;
+            expect(data.setup).toEqual({ total: 0, groups: [], roleCounts: {} });
+            expect(data.setupError).toBeNull();
+        });
+
+        it("leaves attendance inactive when the category has no raider roles configured", async () => {
+            setupDefaults();
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: {} });
+            const res = await get("/api/raids/detail", { event: "e1" });
+            expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
+            const data = body(res).data;
+            expect(data.attendance).toEqual({ responded: [], missing: [] });
+            expect(data.attendanceRoleIds).toEqual([]);
+            expect(data.membersError).toBeNull();
+            expect(data.signupTarget).toBe(0);
+        });
+
+        it("reports membersError when Discord members can't be fetched", async () => {
+            setupDefaults();
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["role1"] } });
+            discord.listMembersWithRoles.mockResolvedValue({
+                members: [], error: "Mitglieder konnten nicht geladen werden (GuildMembers-Intent aktiv?).",
+            });
+            const res = await get("/api/raids/detail", { event: "e1" });
+            const data = body(res).data;
+            expect(data.membersError).toBe("Mitglieder konnten nicht geladen werden (GuildMembers-Intent aktiv?).");
+            expect(data.attendance).toEqual({ responded: [], missing: [] });
+            expect(data.attendanceRoleIds).toEqual(["role1"]);
+        });
+
+        it("returns null eventSheet/eventSoftres when neither has been created yet, falling back to attendance headcount", async () => {
+            setupDefaults();
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["role1"] } });
+            discord.listMembersWithRoles.mockResolvedValue({
+                members: [{ id: "1", displayName: "Anna" }, { id: "2", displayName: "Bob" }],
+                error: null,
+            });
+            const res = await get("/api/raids/detail", { event: "e1" });
+            const data = body(res).data;
+            expect(data.eventSheet).toBeNull();
+            expect(data.eventSoftres).toBeNull();
+            expect(data.signupTarget).toBe(2);
+        });
+
+        it("returns an empty lootItems array when nothing has been imported for the event", async () => {
+            setupDefaults();
+            lootStore.listByEvent.mockReturnValue([]);
+            const res = await get("/api/raids/detail", { event: "e1" });
+            expect(body(res).data.lootItems).toEqual([]);
+            expect(body(res).data.lootTool).toBe("");
+        });
+
+        it("returns 404 when no event id is given", async () => {
+            setupDefaults();
+            const res = await get("/api/raids/detail");
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+        });
+
+        it("treats a raidplan response without a setup array as empty", async () => {
+            setupDefaults();
+            mockGetSetup.mockResolvedValue({});
+            const res = await get("/api/raids/detail", { event: "e1" });
+            const data = body(res).data;
+            expect(data.setup).toEqual({ total: 0, groups: [], roleCounts: {} });
+            expect(data.tankCandidates).toEqual([]);
+        });
+
+        it("falls back to an empty signUps list when the event carries none", async () => {
+            setupDefaults();
+            const eventNoSignups = { ...event1, signUps: undefined };
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [eventNoSignups] }],
+                error: null,
+            });
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["role1"] } });
+            discord.listMembersWithRoles.mockResolvedValue({
+                members: [{ id: "1", displayName: "Anna" }],
+                error: null,
+            });
+            const res = await get("/api/raids/detail", { event: "e1" });
+            const data = body(res).data;
+            expect(data.attendance).toEqual({ responded: [], missing: [{ id: "1", displayName: "Anna" }] });
         });
     });
 
