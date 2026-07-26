@@ -1,35 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
-import { getHistoryEvent, clearHistoryEvent, type ApiError, type HistoryEventData, type LootItem } from "../api";
-import { fmtMs } from "../lib/format";
-import { CharacterLink } from "../components/ClassSpec";
+import { getHistoryEvent, clearHistoryEvent, type ApiError, type HistoryEventData } from "../api";
+import { LootTable } from "../components/LootTable";
 import type { ShellContext } from "../components/Shell";
-
-const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil" };
-
-function LootTable({ items }: { items: LootItem[] }) {
-    return (
-        <table className="idx">
-            <thead><tr><th>Item</th><th>Charakter</th><th>Response</th><th>Boss</th><th>Zeit</th><th>Quelle</th></tr></thead>
-            <tbody>
-                {items.map((it, i) => (
-                    <tr key={i}>
-                        <td>{it.itemLink ? <a className="mlink" href={it.itemLink} target="_blank" rel="noopener noreferrer">{it.itemName || `Item ${it.itemId}`}</a> : (it.itemName || `Item ${it.itemId}`)}</td>
-                        <td><CharacterLink character={it.character} /></td>
-                        <td className="small">
-                            {it.offspec
-                                ? <span className="lbadge lbadge-neutral">{it.response || "Off Spec"}</span>
-                                : <span className="lbadge lbadge-ok">{it.response || "Main Spec"}</span>}
-                        </td>
-                        <td className="small">{it.boss || ""}</td>
-                        <td className="small">{fmtMs(it.awardedAt)}</td>
-                        <td className="small">{LOOT_TOOL_LABELS[it.source] || it.source || "?"}</td>
-                    </tr>
-                ))}
-            </tbody>
-        </table>
-    );
-}
 
 export default function HistoryEventPage() {
     const { csrfToken } = useOutletContext<ShellContext>();

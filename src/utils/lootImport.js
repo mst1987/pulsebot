@@ -8,11 +8,16 @@
 //                    (date, char without realm, item id, offspec flag, unique id).
 //
 // Normalized loot item:
-//   { source, rawId, itemId, itemName, itemLink, player, character, characterKey,
-//     realm, class, response, offspec, boss, instance, note, replacedGear,
-//     awardedAt, awardedBy }
+//   { source, rawId, itemId, itemName, itemIconUrl, itemLink, player, character,
+//     characterKey, realm, class, response, offspec, boss, instance, note,
+//     replacedGear, awardedAt, awardedBy }
 //
 // `rawId` + `source` is the dedup key (stable across re-imports of the same log).
+//
+// `itemName`/`itemIconUrl` are only what the export itself carries — RCLootcouncil
+// gives a name but no icon, Gargul gives neither. enrichItemNames() fills in
+// what's missing via a Wowhead lookup; call it once at import time, not on every
+// read, since the same item ids repeat across a raid's loot.
 
 // Wowhead links for TBC (Burning Crusade). Item names resolve in the tooltip even
 // when an export (Gargul) only gives us the id.
@@ -62,6 +67,7 @@ function normalizeRclcRow(r) {
         rawId: String(r.id || `${itemId}-${r.servertime || ""}-${player}`),
         itemId,
         itemName: String(r.itemName || "").trim(),
+        itemIconUrl: "",
         itemLink: itemLink(itemId),
         player,
         character,
@@ -138,6 +144,7 @@ function parseGargul(text) {
             rawId: String(cols[idx.id] || `${itemId}-${dateStr}-${player}`),
             itemId,
             itemName: "",
+            itemIconUrl: "",
             itemLink: itemLink(itemId),
             player,
             character,
@@ -186,7 +193,37 @@ function detectImportDate(items) {
     return times.length ? Math.min(...times) : null;
 }
 
+// --- name/icon enrichment ------------------------------------------------------
+
+const wowhead = require("./wowhead");
+
+/**
+ * Fill in `itemName`/`itemIconUrl` for items an export didn't already carry
+ * (Gargul: neither, RCLootcouncil: name but no icon). Looks up each distinct
+ * item id at most once via Wowhead, then mutates every matching item in place.
+ * Best-effort: a failed lookup just leaves that item showing "Item <id>" (still
+ * clickable via itemLink). Call once at import time — the result is stored, so
+ * later reads never repeat the network round trip.
+ */
+async function enrichItemNames(items) {
+    const ids = [...new Set(
+        (items || [])
+            .filter((it) => it && it.itemId && (!it.itemName || !it.itemIconUrl))
+            .map((it) => it.itemId)
+    )];
+    if (!ids.length) return items;
+    const lookups = await Promise.all(ids.map((id) => wowhead.lookupItem(id)));
+    const byId = new Map(ids.map((id, i) => [id, lookups[i]]));
+    for (const it of items) {
+        const found = it && it.itemId ? byId.get(it.itemId) : null;
+        if (!found) continue;
+        if (!it.itemName) it.itemName = found.name;
+        if (!it.itemIconUrl) it.itemIconUrl = found.iconUrl;
+    }
+    return items;
+}
+
 module.exports = {
-    parseLoot, parseRclc, parseGargul, detectImportDate,
+    parseLoot, parseRclc, parseGargul, detectImportDate, enrichItemNames,
     splitPlayer, characterKey, itemLink, LootParseError,
 };

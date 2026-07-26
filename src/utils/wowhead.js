@@ -56,4 +56,43 @@ async function searchItems(query, { edition = "tbc", limit = 12 } = {}) {
     }
 }
 
-module.exports = { searchItems, iconUrl, itemLink, branchFor };
+// In-memory cache for lookupItem() — the same handful of boss-drop item ids
+// repeats across every raider's row in a loot import, and across re-imports.
+const itemCache = new Map();
+
+/**
+ * Resolve one item's name/icon by numeric id — used to fill in Gargul imports,
+ * which only carry the id. Wowhead's tooltip endpoint keys items by their
+ * database id directly (no game-version branch needed: TBC-era ids resolve to
+ * the same item there as on the classic site). Cached in-memory; returns null
+ * on a missing id or any error (best-effort, like searchItems — a lookup
+ * failure just means the item keeps showing as "Item <id>").
+ * @param {number|string} itemId
+ */
+async function lookupItem(itemId) {
+    const id = Number(itemId) || 0;
+    if (!id) return null;
+    if (itemCache.has(id)) return itemCache.get(id);
+    try {
+        const { data } = await axios.get(`https://nether.wowhead.com/tooltip/item/${id}`, {
+            httpsAgent,
+            timeout: 15000,
+            headers: { "User-Agent": "Mozilla/5.0 (EventHelper)" },
+        });
+        if (!data || !data.name) return null;
+        const result = {
+            id,
+            name: String(data.name || ""),
+            icon: data.icon || "",
+            iconUrl: iconUrl(data.icon),
+            quality: data.quality === undefined ? null : data.quality,
+        };
+        itemCache.set(id, result);
+        return result;
+    } catch (e) {
+        console.error("wowhead item lookup failed:", e.message);
+        return null;
+    }
+}
+
+module.exports = { searchItems, lookupItem, iconUrl, itemLink, branchFor };

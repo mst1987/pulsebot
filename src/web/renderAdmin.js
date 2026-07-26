@@ -2293,7 +2293,7 @@ function renderEventDetail(user, opts = {}) {
           panels.forEach(function(p){ p.classList.toggle("active", p.getAttribute("data-panel")===t); });
         }); });
       })();</script>`;
-    return adminLayout("Event-Details — Pulsebot Admin", "raids", user, body, opts.msg, opts.nav, { crumb: ev.title || ev.id || "Event-Details" });
+    return adminLayout("Event-Details — Pulsebot Admin", "raids", user, body, opts.msg, opts.nav, { crumb: ev.title || ev.id || "Event-Details", wowheadIconize: true });
 }
 
 /**
@@ -2849,27 +2849,66 @@ function renderHistory(user, opts = {}) {
     return adminLayout("Historie & Loot — Pulsebot Admin", "history", user, body, opts.msg, opts.nav);
 }
 
-// A shared loot table (item, player→char page, response, boss, time).
+// Click-to-sort headers for lootTable(), entirely client-side: this page's tabs
+// (setup/attendance/actions/loot/softres) toggle in the browser with no URL
+// state, so a claSortHeader()-style link that reloads the page would kick the
+// admin back to the first tab. Column defaults mirror the React port's
+// LootTable.tsx SORT_DEFAULTS.
+const LOOT_SORT_DEFAULTS = { item: "asc", character: "asc", response: "asc", boss: "asc", event: "asc", time: "desc", source: "asc" };
+function lootSortTh(key, label) {
+    return `<th data-default="${LOOT_SORT_DEFAULTS[key] || "asc"}"><button type="button" class="sort-link" data-label="${esc(label)}">${esc(label)}</button></th>`;
+}
+// Delegated (not per-row) so it keeps working after lootTable() re-renders;
+// reorders <tr> elements by each cell's data-sort attribute (raw, lowercased
+// value — not the formatted/markup cell content).
+const LOOT_SORT_SCRIPT = "<script>(function(){if(window.__lootSort)return;window.__lootSort=1;"
+    + "document.addEventListener('click',function(e){"
+    + "var btn=e.target.closest('table.idx.sortable .sort-link');if(!btn)return;"
+    + "var th=btn.closest('th');var table=btn.closest('table');var tbody=table.querySelector('tbody');"
+    + "var ths=[].slice.call(table.querySelectorAll('thead th'));var idx=ths.indexOf(th);"
+    + "var dir=th.hasAttribute('data-dir')?(th.getAttribute('data-dir')==='asc'?'desc':'asc'):(th.getAttribute('data-default')||'asc');"
+    + "ths.forEach(function(t){t.removeAttribute('data-dir');var b=t.querySelector('.sort-link');if(b){b.classList.remove('active');b.textContent=b.getAttribute('data-label');}});"
+    + "th.setAttribute('data-dir',dir);btn.classList.add('active');btn.textContent=btn.getAttribute('data-label')+(dir==='asc'?' ▲':' ▼');"
+    + "var rows=[].slice.call(tbody.querySelectorAll('tr'));"
+    + "rows.sort(function(a,b){"
+    + "var av=a.children[idx].getAttribute('data-sort')||'';var bv=b.children[idx].getAttribute('data-sort')||'';"
+    + "var an=parseFloat(av),bn=parseFloat(bv);var cmp;"
+    + "if(!isNaN(an)&&!isNaN(bn)&&String(an)===av&&String(bn)===bv)cmp=an-bn;else cmp=av<bv?-1:(av>bv?1:0);"
+    + "return dir==='asc'?cmp:-cmp;});"
+    + "rows.forEach(function(r){tbody.appendChild(r);});"
+    + "});"
+    + "})();</script>";
+
+// A shared loot table (item, player→char page, response, boss, time). Pre-sorted
+// by character on render — that's how a raid lead checks "who got what" right
+// after an import — then sortable by any column via LOOT_SORT_SCRIPT.
 function lootTable(items, { showEvent = false } = {}) {
-    const rows = items.map((it) => {
+    const sorted = [...items].sort((a, b) => String(a.character || "").localeCompare(String(b.character || "")));
+    const rows = sorted.map((it) => {
+        const itemName = it.itemName || ("Item " + it.itemId);
+        const icon = it.itemIconUrl
+            ? `<img src="${esc(it.itemIconUrl)}" alt="" width="20" height="20" loading="lazy" style="border-radius:4px;vertical-align:-5px;margin-right:6px">`
+            : "";
         const item = it.itemLink
-            ? `<a class="mlink" href="${esc(it.itemLink)}" target="_blank" rel="noopener">${esc(it.itemName || ("Item " + it.itemId))}</a>`
-            : esc(it.itemName || ("Item " + it.itemId));
+            ? `${icon}<a class="mlink" href="${esc(it.itemLink)}" target="_blank" rel="noopener">${esc(itemName)}</a>`
+            : `${icon}${esc(itemName)}`;
+        const respText = it.response || (it.offspec ? "Off Spec" : "Main Spec");
         const resp = it.offspec
-            ? `<span class="lbadge lbadge-neutral">${esc(it.response || "Off Spec")}</span>`
-            : `<span class="lbadge lbadge-ok">${esc(it.response || "Main Spec")}</span>`;
+            ? `<span class="lbadge lbadge-neutral">${esc(respText)}</span>`
+            : `<span class="lbadge lbadge-ok">${esc(respText)}</span>`;
+        const sourceLabel = LOOT_TOOL_LABELS[it.source] || it.source || "?";
         return `<tr>
-          <td>${item}</td>
-          <td><a class="mlink" href="/admin/history/char?name=${encodeURIComponent(it.character)}">${esc(it.character)}</a></td>
-          <td class="small">${resp}</td>
-          <td class="small">${esc(it.boss || "")}</td>
-          ${showEvent ? `<td class="small">${esc(it.eventLabel || it.eventId || "")}</td>` : ""}
-          <td class="small">${esc(fmtMs(it.awardedAt))}</td>
-          <td class="small">${sourceBadge(it.source)}</td>
+          <td data-sort="${esc(itemName.toLowerCase())}">${item}</td>
+          <td data-sort="${esc(String(it.character || "").toLowerCase())}"><a class="mlink" href="/admin/history/char?name=${encodeURIComponent(it.character)}">${esc(it.character)}</a></td>
+          <td class="small" data-sort="${esc(respText.toLowerCase())}">${resp}</td>
+          <td class="small" data-sort="${esc(String(it.boss || "").toLowerCase())}">${esc(it.boss || "")}</td>
+          ${showEvent ? `<td class="small" data-sort="${esc(String(it.eventLabel || it.eventId || "").toLowerCase())}">${esc(it.eventLabel || it.eventId || "")}</td>` : ""}
+          <td class="small" data-sort="${it.awardedAt || 0}">${esc(fmtMs(it.awardedAt))}</td>
+          <td class="small" data-sort="${esc(sourceLabel.toLowerCase())}">${sourceBadge(it.source)}</td>
         </tr>`;
     }).join("");
-    const head = `<tr><th>Item</th><th>Charakter</th><th>Response</th><th>Boss</th>${showEvent ? "<th>Event</th>" : ""}<th>Zeit</th><th>Quelle</th></tr>`;
-    return `<table class="idx" style="margin:0"><thead>${head}</thead><tbody>${rows}</tbody></table>`;
+    const head = `<tr>${lootSortTh("item", "Item")}${lootSortTh("character", "Charakter")}${lootSortTh("response", "Response")}${lootSortTh("boss", "Boss")}${showEvent ? lootSortTh("event", "Event") : ""}${lootSortTh("time", "Zeit")}${lootSortTh("source", "Quelle")}</tr>`;
+    return `<table class="idx sortable" style="margin:0"><thead>${head}</thead><tbody>${rows}</tbody></table>${LOOT_SORT_SCRIPT}`;
 }
 
 /**

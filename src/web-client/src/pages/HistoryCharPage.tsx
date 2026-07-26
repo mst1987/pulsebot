@@ -1,40 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { getHistoryChar, type ApiError, type HistoryCharData, type LootItem } from "../api";
+import { getHistoryChar, type ApiError, type HistoryCharData } from "../api";
 import { fmtMs } from "../lib/format";
-import { ClassSpecIcon, CharacterLink } from "../components/ClassSpec";
+import { ClassSpecIcon } from "../components/ClassSpec";
+import { LootTable } from "../components/LootTable";
 
 type CharTab = "gear" | "loot";
-
-const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil" };
-
-// Same as renderAdmin.js's lootTable({ showEvent: true }) — this page's items
-// span multiple events (unlike HistoryEventPage's single-event list), so an
-// Event column is added.
-function LootTable({ items }: { items: LootItem[] }) {
-    return (
-        <table className="idx" style={{ margin: 0 }}>
-            <thead><tr><th>Item</th><th>Charakter</th><th>Response</th><th>Boss</th><th>Event</th><th>Zeit</th><th>Quelle</th></tr></thead>
-            <tbody>
-                {items.map((it, i) => (
-                    <tr key={i}>
-                        <td>{it.itemLink ? <a className="mlink" href={it.itemLink} target="_blank" rel="noopener noreferrer">{it.itemName || `Item ${it.itemId}`}</a> : (it.itemName || `Item ${it.itemId}`)}</td>
-                        <td><CharacterLink character={it.character} /></td>
-                        <td className="small">
-                            {it.offspec
-                                ? <span className="lbadge lbadge-neutral">{it.response || "Off Spec"}</span>
-                                : <span className="lbadge lbadge-ok">{it.response || "Main Spec"}</span>}
-                        </td>
-                        <td className="small">{it.boss || ""}</td>
-                        <td className="small">{it.eventLabel || it.eventId || ""}</td>
-                        <td className="small">{fmtMs(it.awardedAt)}</td>
-                        <td className="small">{LOOT_TOOL_LABELS[it.source] || it.source || "?"}</td>
-                    </tr>
-                ))}
-            </tbody>
-        </table>
-    );
-}
 
 function GearTab({ data, onReload }: { data: HistoryCharData; onReload: () => void }) {
     const s = data.charSummary;
@@ -171,7 +142,7 @@ export default function HistoryCharPage() {
                     ? (
                         <div className="dash-card">
                             <div className="dash-card-head"><h3>Loot-Historie</h3><span className="small" style={{ marginLeft: "auto" }}>{data.items.length} Item(s)</span></div>
-                            <LootTable items={data.items} />
+                            <LootTable items={data.items} showEvent />
                         </div>
                     )
                     : <p className="sub">Kein Loot für diesen Charakter gespeichert.</p>

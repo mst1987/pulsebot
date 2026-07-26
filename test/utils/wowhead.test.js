@@ -48,4 +48,44 @@ describe("utils/wowhead", () => {
             expect(await wowhead.searchItems("dragon")).toEqual([]);
         });
     });
+
+    describe("lookupItem", () => {
+        it("resolves name/icon/quality by id from the tooltip endpoint", async () => {
+            axios.get.mockResolvedValue({ data: { name: "Sunhawk Leggings", icon: "inv_pants_plate_07", quality: 4 } });
+            expect(await wowhead.lookupItem(29991)).toEqual({
+                id: 29991,
+                name: "Sunhawk Leggings",
+                icon: "inv_pants_plate_07",
+                iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_pants_plate_07.jpg",
+                quality: 4,
+            });
+            expect(axios.get).toHaveBeenCalledWith(
+                "https://nether.wowhead.com/tooltip/item/29991",
+                expect.objectContaining({ httpsAgent: expect.anything() })
+            );
+        });
+
+        it("caches by id — a second lookup of the same item skips the network", async () => {
+            axios.get.mockResolvedValue({ data: { name: "Girdle of Fallen Stars", icon: "inv_belt_22" } });
+            await wowhead.lookupItem(30030);
+            await wowhead.lookupItem(30030);
+            expect(axios.get).toHaveBeenCalledTimes(1);
+        });
+
+        it("returns null without a request for a missing/zero id", async () => {
+            expect(await wowhead.lookupItem(0)).toBeNull();
+            expect(await wowhead.lookupItem(null)).toBeNull();
+            expect(axios.get).not.toHaveBeenCalled();
+        });
+
+        it("returns null when the response has no name", async () => {
+            axios.get.mockResolvedValue({ data: {} });
+            expect(await wowhead.lookupItem(99901)).toBeNull();
+        });
+
+        it("returns null on a network error (best-effort)", async () => {
+            axios.get.mockRejectedValue(new Error("boom"));
+            expect(await wowhead.lookupItem(99902)).toBeNull();
+        });
+    });
 });

@@ -101,6 +101,7 @@ jest.mock("../../src/utils/lootImport", () => {
     return {
         parseLoot: jest.fn(() => []),
         detectImportDate: jest.fn(() => null),
+        enrichItemNames: jest.fn((items) => Promise.resolve(items)),
         LootParseError,
     };
 });

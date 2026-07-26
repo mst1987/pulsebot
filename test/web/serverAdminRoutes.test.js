@@ -180,9 +180,11 @@ jest.mock("../../src/utils/softres", () => ({
     createRaid: mockCreateRaid,
 }));
 const mockSearchItems = jest.fn(async () => [{ id: 28830, name: "Dragonspine Trophy", icon: "x", iconUrl: "i", quality: 4 }]);
+const mockLookupItem = jest.fn(async () => null);
 jest.mock("../../src/utils/wowhead", () => ({
     ...jest.requireActual("../../src/utils/wowhead"),
     searchItems: mockSearchItems,
+    lookupItem: mockLookupItem,
 }));
 jest.mock("../../src/web/auth", () => ({
     configured: jest.fn(() => true),
