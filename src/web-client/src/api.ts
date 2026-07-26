@@ -185,3 +185,22 @@ export function saveRaidsheet(csrfToken: string | null, input: Partial<Raidsheet
 export function deleteRaidsheet(csrfToken: string | null, id: string): Promise<{ id: string }> {
     return send("POST", "/api/settings/raidsheets/delete", csrfToken, { id });
 }
+
+export type RaidEvent = {
+    id: string;
+    title: string;
+    startTime: number;
+    leaderId: string;
+    channelId: string;
+    channelName: string;
+    categoryId: string;
+    templateId: string;
+    description: string;
+    signupCount: number;
+};
+export type RaidEventGroup = { categoryId: string; categoryName: string; events: RaidEvent[] };
+export type RaidsData = { groups: RaidEventGroup[]; error: string | null; activeGuildId: string };
+
+export function getRaids(): Promise<RaidsData> {
+    return get<RaidsData>("/api/raids");
+}

@@ -4,6 +4,7 @@ import Shell from "./components/Shell";
 import DashboardPage from "./pages/DashboardPage";
 import ChannelsPage from "./pages/ChannelsPage";
 import SettingsPage from "./pages/SettingsPage";
+import RaidsPage from "./pages/RaidsPage";
 import { getSession, type ApiError, type Session } from "./api";
 
 type LoadState =
@@ -49,6 +50,7 @@ export default function App() {
                 <Route index element={<DashboardPage />} />
                 <Route path="channels" element={<ChannelsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
+                <Route path="raids" element={<RaidsPage />} />
             </Route>
         </Routes>
     );
