@@ -28,6 +28,8 @@ export type EventLog = {
     status?: string;
     reportUrl?: string;
     reportRefId?: string;
+    link?: string;
+    zone?: string;
 };
 
 export type RecentEvent = {
@@ -365,4 +367,91 @@ export function deleteRecruitmentPost(csrfToken: string | null, id: string): Pro
 
 export function scanRecruitmentPosts(csrfToken: string | null): Promise<{ count: number }> {
     return send("POST", "/api/recruitment/scan", csrfToken, {});
+}
+
+export type HistoryEvent = { id: string; title: string; startTime: number; categoryId: string };
+export type RaidRow = RecentEvent;
+
+export type LootSource = "gargul" | "rclc" | string;
+
+export type LootEventSummary = {
+    eventId: string;
+    label: string;
+    count: number;
+    importedAt?: number;
+    awardedAt?: number;
+    sources: LootSource[];
+};
+
+export type LootLog = {
+    id: string;
+    title?: string;
+    reportId?: string;
+    link?: string;
+    zone?: string;
+    status?: string;
+    reportUrl?: string;
+    reportRefId?: string;
+    eventId?: string;
+    eventLabel?: string;
+    eventStartTime?: number;
+};
+
+export type LootItem = {
+    itemId: number;
+    itemName: string;
+    itemLink: string;
+    character: string;
+    response: string;
+    offspec: boolean;
+    boss: string;
+    awardedAt: number;
+    source: LootSource;
+    eventId?: string;
+    eventLabel?: string;
+};
+
+export type HistoryData = {
+    events: HistoryEvent[];
+    upcomingRaids: { events: RaidRow[]; error: string | null };
+    pastRaids: { events: RaidRow[]; error: string | null };
+    lootEvents: LootEventSummary[];
+    logs: LootLog[];
+    categories: Category[];
+    categoryLootTool: Record<string, string>;
+    activeGuildId: string;
+};
+
+export function getHistoryData(): Promise<HistoryData> {
+    return get<HistoryData>("/api/history");
+}
+
+export function deleteHistoryLog(csrfToken: string | null, logId: string): Promise<{ id: string }> {
+    return send("POST", "/api/history/log-delete", csrfToken, { logId });
+}
+
+export type ImportLootInput = { data: string; tool: string; event: string; manualLabel: string };
+
+export function importLoot(
+    csrfToken: string | null,
+    input: ImportLootInput,
+): Promise<{ eventId: string; eventLabel: string; added: number; skipped: number }> {
+    return send("POST", "/api/history/import", csrfToken, input);
+}
+
+export function saveCategoryLootTool(
+    csrfToken: string | null,
+    input: { categoryId: string; tool: string },
+): Promise<{ categoryId: string; tool: string }> {
+    return send("POST", "/api/history/category-tool", csrfToken, input);
+}
+
+export function clearHistoryEvent(csrfToken: string | null, event: string): Promise<{ removed: number }> {
+    return send("POST", "/api/history/clear", csrfToken, { event });
+}
+
+export type HistoryEventData = { eventId: string; label: string; items: LootItem[] };
+
+export function getHistoryEvent(eventId: string): Promise<HistoryEventData> {
+    return get<HistoryEventData>(`/api/history/event?event=${encodeURIComponent(eventId)}`);
 }

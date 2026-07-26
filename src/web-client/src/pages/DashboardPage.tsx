@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { getDashboard, type ApiError, type DashboardData, type UpcomingEvent, type RecentEvent } from "../api";
 import { formatEventTime, formatDate } from "../lib/format";
 import { RecruitmentIcon, ClaIcon, RaidsIcon, ChannelsIcon, SettingsIcon } from "../components/icons";
@@ -131,7 +132,7 @@ export default function DashboardPage() {
             <div className="dash-card">
                 <div className="dash-card-head">
                     <h3>Latest Events</h3>
-                    <a className="mlink" href="/admin/history">Historie &amp; Loot →</a>
+                    <Link className="mlink" to="/history">Historie &amp; Loot →</Link>
                 </div>
                 <table className="idx">
                     <thead><tr><th>Event</th><th>Termin</th><th>Logs</th></tr></thead>

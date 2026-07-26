@@ -2,16 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useOutletContext } from "react-router-dom";
 import { getRaids, type ApiError, type RaidEventGroup, type RaidEvent } from "../api";
 import { formatEventTime } from "../lib/format";
+import { eventPostUrl, raidplanUrl } from "../lib/discordLinks";
 import type { ShellContext } from "../components/Shell";
 
 type Flash = { type: "ok" | "err"; text: string };
-
-// Same URL helpers as src/web/renderAdmin.js (eventPostUrl/raidplanUrl) — the
-// event detail page (/admin/raids/detail) and create form (/admin/raids/new)
-// aren't migrated yet, so those stay plain links to the classic SSR pages.
-const eventPostUrl = (guildId: string, channelId: string, eventId: string) =>
-    `https://discord.com/channels/${guildId}/${channelId}/${eventId}`;
-const raidplanUrl = (eventId: string) => `https://raid-helper.xyz/raidplan/${eventId}`;
 
 function CategoryTable({ group, guildId }: { group: RaidEventGroup; guildId: string }) {
     const newHref = `/raids/new${group.events[0] ? `?source=${group.events[0].id}` : ""}`;
