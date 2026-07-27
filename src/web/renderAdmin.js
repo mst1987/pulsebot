@@ -273,13 +273,18 @@ const ADMIN_STYLE = `<style>
   .setup-count { background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:4px 12px; font-size:13px; color:var(--muted); }
   .setup-count b { color:var(--text); font-variant-numeric:tabular-nums; }
   .setup-count.setup-total { border-color:var(--accent-soft); background:var(--accent-soft); }
-  /* raid-roster avatar stack (real signups, class-coloured initials) */
-  .avatar-stack { display:flex; align-items:center; }
+  /* raid-roster avatar row (real signups: spec icon + small name, initials as fallback) */
+  .avatar-stack { display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; }
+  .avatar-stack .av-item { display:flex; flex-direction:column; align-items:center; gap:3px; min-width:0; }
+  .avatar-stack .av-name {
+    font-size:9.5px; line-height:1; color:var(--muted); max-width:52px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
   .avatar-stack .av {
-    width:28px; height:28px; border-radius:50%; border:2px solid var(--panel); margin-left:-9px;
+    width:28px; height:28px; border-radius:50%; border:2px solid var(--panel);
     font-size:10.5px; font-weight:800; display:flex; align-items:center; justify-content:center; flex:0 0 auto;
   }
-  .avatar-stack .av:first-child { margin-left:0; }
+  .avatar-stack .av-ico { object-fit:cover; }
   .avatar-stack .av.more { background:var(--panel2); color:var(--muted); border-color:var(--line); }
   .setup-groups { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
   .setup-group { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
@@ -2003,17 +2008,21 @@ function renderEventDetail(user, opts = {}) {
     }
     const overviewStats = `<div class="setup-summary" style="margin-top:10px">${statSpans.join("")}</div>`;
 
-    // Raid-roster avatar stack: real signups from the current setup (raidplan),
-    // class-coloured initials, capped with a "+N" overflow chip.
+    // Raid-roster avatar row: real signups from the current setup (raidplan),
+    // spec icon per player (class-coloured initials as fallback) with the name
+    // in small print above, capped with a "+N" overflow chip.
     const rosterAvatars = (() => {
         if (!setup || !setup.total) return "";
         const players = setup.groups.flatMap((g) => g.players);
         const shown = players.slice(0, 10);
         const rest = players.length - shown.length;
         const chips = shown.map((p) => {
-            const initials = esc(String(p.name || "??").trim().slice(0, 2).toUpperCase());
             const color = p.classColor || "#9aa0aa";
-            return `<span class="av" style="background:${color}2e;color:${color};border-color:${color}" title="${esc(p.name)}${p.className ? ` · ${esc(p.className)}` : ""}">${initials}</span>`;
+            const title = `${esc(p.name)}${p.specName ? ` · ${esc(p.specName)}` : (p.className ? ` · ${esc(p.className)}` : "")}`;
+            const visual = p.iconUrl
+                ? `<img class="av av-ico" src="${esc(p.iconUrl)}" alt="${esc(p.specName || p.className || "")}" style="border-color:${color}" loading="lazy">`
+                : `<span class="av" style="background:${color}2e;color:${color};border-color:${color}">${esc(String(p.name || "??").trim().slice(0, 2).toUpperCase())}</span>`;
+            return `<span class="av-item" title="${title}"><span class="av-name">${esc(p.name)}</span>${visual}</span>`;
         }).join("");
         const more = rest > 0 ? `<span class="av more">+${esc(String(rest))}</span>` : "";
         return `<div class="avatar-stack" style="margin-top:10px">${chips}${more}</div>`;

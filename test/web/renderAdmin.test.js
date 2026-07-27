@@ -927,21 +927,42 @@ describe("web/renderAdmin", () => {
             expect(html).toContain(">2</b> Gruppen");
         });
 
-        it("shows a raid-roster avatar stack with class-coloured initials for the current setup", () => {
+        it("shows a raid-roster avatar row with spec icons and small names above", () => {
             const setup = {
                 total: 2,
                 roleCounts: { tank: 1, healer: 1 },
                 groups: [
-                    { group: 1, label: "Gruppe 1", players: [{ name: "Tankadin", specName: "Protection Pala", className: "Paladin", classColor: "#F58CBA", iconUrl: "", role: "tank" }] },
-                    { group: 2, label: "Gruppe 2", players: [{ name: "Healy", specName: "Holy Priest", className: "Priest", classColor: "#FFFFFF", iconUrl: "", role: "healer" }] },
+                    { group: 1, label: "Gruppe 1", players: [{ name: "Tankadin", specName: "Protection Pala", className: "Paladin", classColor: "#F58CBA", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/spell_holy_devotionaura.jpg", role: "tank" }] },
+                    { group: 2, label: "Gruppe 2", players: [{ name: "Healy", specName: "Holy Priest", className: "Priest", classColor: "#FFFFFF", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/spell_holy_guardianspirit.jpg", role: "healer" }] },
                 ],
             };
             const html = renderEventDetail(user, { ...base, setup });
             expect(html).toContain("class=\"avatar-stack\"");
-            expect(html).toContain(">TA<");
-            expect(html).toContain(">HE<");
+            // spec icon image with class-coloured border
+            expect(html).toContain("spell_holy_devotionaura.jpg");
+            expect(html).toContain("class=\"av av-ico\"");
             expect(html).toContain("border-color:#F58CBA");
+            // small name label above the icon
+            expect(html).toContain("class=\"av-name\">Tankadin<");
+            expect(html).toContain("class=\"av-name\">Healy<");
+            // spec kept as hover title on the chip
+            expect(html).toContain("title=\"Tankadin · Protection Pala\"");
             expect(html).not.toContain("av more"); // only 2 players, no overflow chip
+        });
+
+        it("falls back to class-coloured initials when a setup player has no spec icon", () => {
+            const setup = {
+                total: 1,
+                roleCounts: { tank: 1 },
+                groups: [
+                    { group: 1, label: "Gruppe 1", players: [{ name: "Tankadin", specName: "Protection Pala", className: "Paladin", classColor: "#F58CBA", iconUrl: "", role: "tank" }] },
+                ],
+            };
+            const html = renderEventDetail(user, { ...base, setup });
+            expect(html).toContain(">TA<");
+            expect(html).toContain("border-color:#F58CBA");
+            expect(html).toContain("class=\"av-name\">Tankadin<");
+            expect(html).not.toContain("class=\"av av-ico\"");
         });
 
         it("caps the roster avatar stack at 10 with a +N overflow chip", () => {

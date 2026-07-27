@@ -31,8 +31,9 @@ function OverviewStats({ data }: { data: RaidDetailData }) {
     );
 }
 
-// Raid-roster avatar stack: real signups from the current setup (raidplan),
-// class-coloured initials, capped with a "+N" overflow chip. Mirrors
+// Raid-roster avatar row: real signups from the current setup (raidplan),
+// spec icon per player (class-coloured initials as fallback) with the name in
+// small print above, capped with a "+N" overflow chip. Mirrors
 // renderAdmin.js's rosterAvatars().
 function RosterAvatars({ setup }: { setup: RaidDetailData["setup"] }) {
     if (!setup?.total) return null;
@@ -42,14 +43,19 @@ function RosterAvatars({ setup }: { setup: RaidDetailData["setup"] }) {
     return (
         <div className="avatar-stack" style={{ marginTop: 10 }}>
             {shown.map((p, i) => {
-                const initials = (p.name || "??").trim().slice(0, 2).toUpperCase();
                 const color = p.classColor || "#9aa0aa";
+                const sub = p.specName || p.className;
                 return (
-                    <span
-                        key={`${p.name}-${i}`} className="av"
-                        style={{ background: `${color}2e`, color, borderColor: color }}
-                        title={p.className ? `${p.name} · ${p.className}` : p.name}
-                    >{initials}</span>
+                    <span key={`${p.name}-${i}`} className="av-item" title={sub ? `${p.name} · ${sub}` : p.name}>
+                        <span className="av-name">{p.name}</span>
+                        {p.iconUrl
+                            ? <img className="av av-ico" src={p.iconUrl} alt={p.specName || p.className || ""} style={{ borderColor: color }} loading="lazy" />
+                            : (
+                                <span className="av" style={{ background: `${color}2e`, color, borderColor: color }}>
+                                    {(p.name || "??").trim().slice(0, 2).toUpperCase()}
+                                </span>
+                            )}
+                    </span>
                 );
             })}
             {rest > 0 && <span className="av more">+{rest}</span>}
