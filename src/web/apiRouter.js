@@ -1,7 +1,6 @@
-// JSON API layer for the React admin client (src/web-client/), built up alongside
-// the existing SSR routes in server.js — see CLAUDE.md / the migration plan for
-// context. Mounted under /api/* by server.js's handle(). Route handlers live in
-// apiRoutes/, grouped by domain the same way renderAdmin.js/server.js are.
+// JSON API layer for the React admin client (src/web-client/), the sole admin
+// UI (see CLAUDE.md's "Web Admin" section). Mounted under /api/* by server.js's
+// handle(). Route handlers live in apiRoutes/, grouped by domain.
 const { error } = require("./apiResponse");
 const { getSession, postActiveGuild } = require("./apiRoutes/session");
 const { getDashboard } = require("./apiRoutes/dashboard");

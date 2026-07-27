@@ -140,7 +140,7 @@ function GearTab({ data, onReload }: { data: HistoryCharData; onReload: () => vo
             </>
         );
     } else {
-        gearInner = <p className="sub">Für Live-Gear (Paperdoll) Battle.net-Zugang in den <a href="/admin/settings">Einstellungen</a> hinterlegen. Ohne Zugang steht der Armory-Link oben zur Verfügung.</p>;
+        gearInner = <p className="sub">Für Live-Gear (Paperdoll) Battle.net-Zugang in den <Link to="/settings">Einstellungen</Link> hinterlegen. Ohne Zugang steht der Armory-Link oben zur Verfügung.</p>;
     }
 
     const diagParts = [
@@ -156,7 +156,7 @@ function GearTab({ data, onReload }: { data: HistoryCharData; onReload: () => vo
             <div className="row-actions" style={{ marginBottom: 12, alignItems: "center" }}>
                 {data.gearConfigured
                     ? <a className="btn btn-ghost btn-sm" href="#" onClick={(e) => { e.preventDefault(); onReload(); }}>↻ Paperdoll neu laden</a>
-                    : <a className="btn btn-ghost btn-sm" href="/admin/settings">Battle.net einrichten</a>}
+                    : <Link className="btn btn-ghost btn-sm" to="/settings">Battle.net einrichten</Link>}
                 {data.gearConfigured && data.gearNamespace && <span className="lbadge" title="abgefragter Profile-Namespace">{data.gearNamespace}</span>}
             </div>
             {s && (
@@ -164,7 +164,7 @@ function GearTab({ data, onReload }: { data: HistoryCharData; onReload: () => vo
                     <div className="small">{diagParts.map((p, i) => <span key={i}>{i > 0 && " · "}{p}</span>)}</div>
                     {wrongLevel && (
                         <div className="flash flash-err" style={{ margin: "10px 0 0" }}>
-                            Die Blizzard-API meldet <strong>Level {s!.level}</strong> — wahrscheinlich der falsche Namespace/Char (nicht dein TBC-Char auf Level 70). Passe den Profile-Namespace in den <a href="/admin/settings">Einstellungen</a> an (z.B. profile-classicann-…).
+                            Die Blizzard-API meldet <strong>Level {s!.level}</strong> — wahrscheinlich der falsche Namespace/Char (nicht dein TBC-Char auf Level 70). Passe den Profile-Namespace in den <Link to="/settings">Einstellungen</Link> an (z.B. profile-classicann-…).
                         </div>
                     )}
                 </div>

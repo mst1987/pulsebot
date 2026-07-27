@@ -67,11 +67,11 @@ function RecentReportsTable({ reports }: { reports: DashboardData["recentReports
 }
 
 const QUICK_LINKS = [
-    { href: "/admin/recruitment", icon: <RecruitmentIcon />, label: "Recruitment verwalten" },
-    { href: "/admin/cla", icon: <ClaIcon />, label: "Neue Log-Auswertung" },
-    { href: "/admin/raids", icon: <RaidsIcon />, label: "Raid-Event anlegen" },
-    { href: "/admin/channels", icon: <ChannelsIcon />, label: "Kanäle verwalten" },
-    { href: "/admin/settings", icon: <SettingsIcon />, label: "Einstellungen" },
+    { href: "/recruitment", icon: <RecruitmentIcon />, label: "Recruitment verwalten" },
+    { href: "/cla", icon: <ClaIcon />, label: "Neue Log-Auswertung" },
+    { href: "/raids", icon: <RaidsIcon />, label: "Raid-Event anlegen" },
+    { href: "/channels", icon: <ChannelsIcon />, label: "Kanäle verwalten" },
+    { href: "/settings", icon: <SettingsIcon />, label: "Einstellungen" },
 ];
 
 export default function DashboardPage() {
@@ -112,7 +112,7 @@ export default function DashboardPage() {
             <div className="dash-card">
                 <div className="dash-card-head">
                     <h3>Upcoming Events</h3>
-                    <a className="mlink" href="/admin/raids">Alle →</a>
+                    <Link className="mlink" to="/raids">Alle →</Link>
                 </div>
                 <table className="idx">
                     <thead><tr><th>Event</th><th>Kanal</th><th>Termin</th><th>Sheet</th></tr></thead>
@@ -135,7 +135,7 @@ export default function DashboardPage() {
                 <div className="dash-card">
                     <div className="dash-card-head">
                         <h3>Letzte Auswertungen</h3>
-                        <a className="mlink" href="/admin/cla">Alle →</a>
+                        <Link className="mlink" to="/cla">Alle →</Link>
                     </div>
                     <table className="idx">
                         <thead><tr><th>Report</th><th>Zone</th><th>Erstellt</th><th>Probleme</th></tr></thead>
@@ -146,10 +146,10 @@ export default function DashboardPage() {
                     <div className="dash-card-head"><h3>Schnellzugriff</h3></div>
                     <div className="quick">
                         {QUICK_LINKS.map((q) => (
-                            <a key={q.href} href={q.href}>
+                            <Link key={q.href} to={q.href}>
                                 <span className="qi">{q.icon}</span>
                                 {q.label}
-                            </a>
+                            </Link>
                         ))}
                     </div>
                 </div>
