@@ -19,8 +19,11 @@ const SLOT_LABELS: Record<string, string> = {
     FINGER_1: "Ring 1", FINGER_2: "Ring 2", TRINKET_1: "Schmuck 1", TRINKET_2: "Schmuck 2",
     MAIN_HAND: "Haupthand", OFF_HAND: "Nebenhand", RANGED: "Fernkampf",
 };
+// Poor/Common map to theme text colors, not the game's raw grey/white — those
+// read fine on WoW's always-dark UI but a literal #ffffff is invisible against
+// this app's light-theme white panels.
 const QUALITY_COLOR: Record<string, string> = {
-    POOR: "#9d9d9d", COMMON: "#ffffff", UNCOMMON: "#1eff00", RARE: "#0070dd",
+    POOR: "var(--muted)", COMMON: "var(--text)", UNCOMMON: "#1eff00", RARE: "#0070dd",
     EPIC: "#a335ee", LEGENDARY: "#ff8000", ARTIFACT: "#e6cc80", HEIRLOOM: "#00ccff",
 };
 const GEM_COLOR: Record<string, string> = {
@@ -28,8 +31,6 @@ const GEM_COLOR: Record<string, string> = {
     PRISMATIC: "linear-gradient(135deg, #e05d5d, #e0c65d, #5d8ee0)",
 };
 const SOCKET_DE: Record<string, string> = { RED: "Rot", YELLOW: "Gelb", BLUE: "Blau", META: "Meta", PRISMATIC: "Prismatisch" };
-
-type TileSide = "left" | "right" | "bottom";
 
 // Wowhead item URL carrying the character's actual enchant + gems, so the
 // widget tooltip (power.js in index.html) shows them like the in-game tooltip.
@@ -41,76 +42,84 @@ function gearWowheadUrl(g: GearItem): string {
     return `https://www.wowhead.com/tbc/item=${g.itemId}${params.length ? `?${params.join("&")}` : ""}`;
 }
 
-// One equipment tile: icon with quality border, iLvl below, enchant marker +
-// real gem mini-icons on the icon. Hovering shows the full Wowhead tooltip via
-// the ?ench=&gems= link — the authentic item tooltip including the char's
-// actual gems and enchant. A missing item renders as a dimmed placeholder so
-// the sheet keeps its shape.
-function GearTile({ g, side }: { g?: GearItem; side: TileSide }) {
+// One equipment row: icon (quality border, iLvl + enchant badges on its
+// corners) followed by the item name in its quality color and a slot/socket
+// line — the name and slot are readable at a glance instead of only via the
+// Wowhead hover tooltip. A missing item renders as a dimmed placeholder row
+// so the two columns keep their shape.
+function GearRow({ g, slot }: { g?: GearItem; slot: string }) {
+    const label = SLOT_LABELS[slot] || slot;
     if (!g) {
-        return <div className={`gear-tile gear-tile-${side}`}><span className="gear-icon gear-empty-ph" /></div>;
+        return (
+            <div className="gear-row empty">
+                <span className="icon-wrap"><span className="ph" /></span>
+                <span className="body">
+                    <span className="item-name">— leer —</span>
+                    <span className="slot-line"><span className="slot-label">{label}</span></span>
+                </span>
+            </div>
+        );
     }
     const color = QUALITY_COLOR[g.quality] || "var(--line)";
-    const label = SLOT_LABELS[g.slot] || g.slot || "";
-    const iconInner = (
+    const inner = (
         <>
-            {g.iconUrl ? <img src={g.iconUrl} alt="" loading="lazy" /> : <span className="gear-icon-ph" />}
-            {!!g.enchants.length && <span className="gear-enchmark" title={g.enchants.join(" · ")}>+</span>}
-            {!!g.sockets.length && (
-                <span className="gear-gems">
+            <span className="icon-wrap">
+                {g.iconUrl ? <img src={g.iconUrl} alt="" loading="lazy" style={{ borderColor: color }} /> : <span className="ph" />}
+                {!!g.enchants.length && <span className="ench-badge" title={`Verzauberung: ${g.enchants.join(" · ")}`}>+</span>}
+                {!!g.level && <span className="ilvl-badge">{g.level}</span>}
+            </span>
+            <span className="body">
+                <span className="item-name" style={{ color }}>{g.name || label}</span>
+                <span className="slot-line">
+                    <span className="slot-label">{label}</span>
                     {g.sockets.map((s, i) => {
-                        const tip = s.gemName || s.gemText || (s.type ? `Leerer Sockel (${SOCKET_DE[s.type] || s.type})` : "Sockel");
-                        return s.gemIconUrl
-                            ? <img key={i} className="gear-gem-ico" src={s.gemIconUrl} alt="" title={tip} loading="lazy" />
-                            : (
-                                <span
-                                    key={i}
-                                    className="gear-gem"
-                                    title={tip}
-                                    style={{
-                                        background: s.gemName || s.gemText ? (GEM_COLOR[s.type] || "#888") : "transparent",
-                                        borderColor: GEM_COLOR[s.type] || "var(--muted)",
-                                    }}
-                                />
-                            );
+                        const filled = !!(s.gemName || s.gemText);
+                        const tip = filled ? (s.gemName || s.gemText) : `Leerer Sockel (${SOCKET_DE[s.type] || s.type || "?"})`;
+                        return (
+                            <span
+                                key={i}
+                                className="gem-dot"
+                                title={tip}
+                                style={{ background: filled ? (GEM_COLOR[s.type] || "#888") : "transparent", borderColor: GEM_COLOR[s.type] || "var(--muted)" }}
+                            />
+                        );
                     })}
                 </span>
-            )}
+            </span>
         </>
     );
-    return (
-        <div className={`gear-tile gear-tile-${side}`}>
-            {g.itemId
-                ? <a className="gear-icon" style={{ borderColor: color }} href={gearWowheadUrl(g)} target="_blank" rel="noopener noreferrer" title={g.name || label}>{iconInner}</a>
-                : <span className="gear-icon" style={{ borderColor: color }} title={g.name || label}>{iconInner}</span>}
-            <div className="gear-tile-ilvl">{g.level || ""}</div>
-        </div>
-    );
+    return g.itemId
+        ? <a className="gear-row" href={gearWowheadUrl(g)} target="_blank" rel="noopener noreferrer" title={g.name || label}>{inner}</a>
+        : <div className="gear-row" title={g.name || label}>{inner}</div>;
 }
 
-// The full paperdoll: left/right slot columns around a class portrait + Ø iLvl,
-// weapons row underneath — same shape as the logcheck player paperdoll.
+// The gear card: a compact summary strip (portrait, Ø iLvl, socket count)
+// above two columns of slot rows, weapons underneath — replaces the old
+// icon-only paperdoll grid, which spent most of its width on empty silhouette
+// space and needed a hover per item just to read its name.
 function GearPaperdoll({ gear, classIconUrl, itemLevel }: { gear: GearItem[]; classIconUrl: string; itemLevel: number }) {
     const bySlot = new Map(gear.map((g) => [g.slot, g]));
     const known = new Set([...GEAR_LEFT, ...GEAR_RIGHT, ...GEAR_BOTTOM]);
     const extras = gear.filter((g) => !known.has(g.slot));
     const ilvls = gear.map((g) => g.level || 0).filter((n) => n > 0);
     const avg = itemLevel || (ilvls.length ? Math.round(ilvls.reduce((a, b) => a + b, 0) / ilvls.length) : 0);
+    const socketCount = gear.reduce((n, g) => n + g.sockets.length, 0);
     return (
-        <div className="gear-doll">
-            <div className="gear-col gear-col-left">
-                {GEAR_LEFT.map((slot) => <GearTile key={slot} g={bySlot.get(slot)} side="left" />)}
-            </div>
-            <div className="gear-center">
+        <div className="gear-card-new">
+            <div className="gear-summary">
                 {!!classIconUrl && <img className="gear-portrait" src={classIconUrl} alt="" />}
-                {!!avg && <div className="gear-avg"><b>{avg}</b><span>Ø iLvl</span></div>}
+                <div className="gear-stats">
+                    {!!avg && <div className="stat"><b>{avg}</b><span>Ø iLvl</span></div>}
+                    {!!socketCount && <div className="stat"><b>{socketCount}</b><span>Sockel</span></div>}
+                </div>
             </div>
-            <div className="gear-col gear-col-right">
-                {GEAR_RIGHT.map((slot) => <GearTile key={slot} g={bySlot.get(slot)} side="right" />)}
+            <div className="gear-grid">
+                <div>{GEAR_LEFT.map((slot) => <GearRow key={slot} g={bySlot.get(slot)} slot={slot} />)}</div>
+                <div>{GEAR_RIGHT.map((slot) => <GearRow key={slot} g={bySlot.get(slot)} slot={slot} />)}</div>
             </div>
-            <div className="gear-doll-bottom">
-                {GEAR_BOTTOM.map((slot) => <GearTile key={slot} g={bySlot.get(slot)} side="bottom" />)}
-                {extras.map((g, i) => <GearTile key={`x${i}`} g={g} side="bottom" />)}
+            <div className="gear-weapons">
+                {GEAR_BOTTOM.map((slot) => <GearRow key={slot} g={bySlot.get(slot)} slot={slot} />)}
+                {extras.map((g, i) => <GearRow key={`x${i}`} g={g} slot={g.slot} />)}
             </div>
         </div>
     );
