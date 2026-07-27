@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     getHistoryData, importLoot, deleteHistoryLog, saveCategoryLootTool, resolveCharacters,
-    type ApiError, type HistoryData, type HistoryEvent, type LootEventSummary, type LootLog, type AnnotatedCharacter,
+    type ApiError, type HistoryData, type HistoryEvent, type LootEventSummary, type LootLog, type AnnotatedCharacter, type Category,
 } from "../api";
 import { formatEventTime, fmtMs, formatDate } from "../lib/format";
 import RaidTable from "../components/RaidTable";
@@ -273,8 +273,9 @@ function CharSortTh({ sortKey, label, sort, dir, onSort }: {
     );
 }
 
-function CharTable({ chars, sort, dir, onSort }: {
+function CharTable({ chars, categoryNameById, sort, dir, onSort }: {
     chars: AnnotatedCharacter[];
+    categoryNameById: Map<string, string>;
     sort: CharSortKey;
     dir: Dir;
     onSort: (key: CharSortKey) => void;
@@ -285,7 +286,7 @@ function CharTable({ chars, sort, dir, onSort }: {
                 <tr>
                     <CharSortTh sortKey="character" label="Charakter" sort={sort} dir={dir} onSort={onSort} />
                     <CharSortTh sortKey="classSpec" label="Klasse & Spec" sort={sort} dir={dir} onSort={onSort} />
-                    <th>Raids</th>
+                    <th>Kategorie</th>
                     <CharSortTh sortKey="count" label="Items" sort={sort} dir={dir} onSort={onSort} />
                     <CharSortTh sortKey="source" label="Quelle" sort={sort} dir={dir} onSort={onSort} />
                 </tr>
@@ -297,8 +298,8 @@ function CharTable({ chars, sort, dir, onSort }: {
                         <td><ClassSpecCell className={c.className} spec={c.spec} classColor={c.classColor} iconUrl={c.iconUrl} /></td>
                         <td className="small">
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                                {c.raids.length
-                                    ? c.raids.map((r) => <span key={r.eventId} className="lbadge lbadge-neutral">{r.eventLabel}</span>)
+                                {c.categoryIds.length
+                                    ? c.categoryIds.map((id) => <span key={id} className="lbadge lbadge-neutral">{categoryNameById.get(id) || id}</span>)
                                     : <span className="sub">—</span>}
                             </div>
                         </td>
@@ -313,14 +314,15 @@ function CharTable({ chars, sort, dir, onSort }: {
     );
 }
 
-function CharactersTab({ chars, csrfToken, onChanged }: {
+function CharactersTab({ chars, categories, csrfToken, onChanged }: {
     chars: AnnotatedCharacter[];
+    categories: Category[];
     csrfToken: string | null;
     onChanged: (msg: string) => void;
 }) {
     const [busy, setBusy] = useState(false);
     const [search, setSearch] = useState("");
-    const [raidFilter, setRaidFilter] = useState("");
+    const [categoryFilter, setCategoryFilter] = useState("");
     const [classFilter, setClassFilter] = useState("");
     const [sort, setSort] = useState<CharSortKey>("count");
     const [dir, setDir] = useState<Dir>(CHAR_SORT_DEFAULTS.count);
@@ -337,13 +339,21 @@ function CharactersTab({ chars, csrfToken, onChanged }: {
         }
     };
 
-    const raidOptions = useMemo(() => {
-        const byId = new Map<string, string>();
-        for (const c of chars) for (const r of c.raids) if (!byId.has(r.eventId)) byId.set(r.eventId, r.eventLabel);
-        return [...byId.entries()]
-            .map(([eventId, eventLabel]) => ({ eventId, eventLabel }))
-            .sort((a, b) => a.eventLabel.localeCompare(b.eventLabel));
-    }, [chars]);
+    // Discord category names (e.g. "Montagsraid", "Pug") — the raid *type* a
+    // character raids under, not the individual dated raid event.
+    const categoryNameById = useMemo(() => {
+        const m = new Map<string, string>();
+        for (const c of categories) m.set(c.id, c.name);
+        return m;
+    }, [categories]);
+
+    const categoryOptions = useMemo(() => {
+        const ids = new Set<string>();
+        for (const c of chars) for (const id of c.categoryIds) ids.add(id);
+        return [...ids]
+            .map((id) => ({ id, label: categoryNameById.get(id) || id }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+    }, [chars, categoryNameById]);
 
     const classOptions = useMemo(() => {
         const byKey = new Map<string, string>();
@@ -370,7 +380,7 @@ function CharactersTab({ chars, csrfToken, onChanged }: {
     const searchLower = search.trim().toLowerCase();
     const filtered = chars.filter((c) => {
         if (searchLower && !c.character.toLowerCase().includes(searchLower)) return false;
-        if (raidFilter && !c.raids.some((r) => r.eventId === raidFilter)) return false;
+        if (categoryFilter && !c.categoryIds.includes(categoryFilter)) return false;
         if (classFilter && `${c.className}||${c.spec}` !== classFilter) return false;
         return true;
     });
@@ -384,14 +394,15 @@ function CharactersTab({ chars, csrfToken, onChanged }: {
         return 0;
     });
 
-    // Group by raid — a character with loot in several raids shows up in each
-    // of them, so "nach Raid filtern" and "nach Raid gruppiert" are the same
-    // mechanism: picking a raid just narrows the groups down to one.
-    const groups = raidOptions
-        .filter((r) => !raidFilter || r.eventId === raidFilter)
-        .map((r) => ({ ...r, chars: sorted.filter((c) => c.raids.some((cr) => cr.eventId === r.eventId)) }))
+    // Group by raid category (Pug, Montagsraid, …), not by the individual dated
+    // raid — a character raiding under several categories shows up in each, so
+    // "nach Kategorie filtern" and "nach Kategorie gruppiert" are the same
+    // mechanism: picking one just narrows the groups down to it.
+    const groups = categoryOptions
+        .filter((o) => !categoryFilter || o.id === categoryFilter)
+        .map((o) => ({ ...o, chars: sorted.filter((c) => c.categoryIds.includes(o.id)) }))
         .filter((g) => g.chars.length);
-    const ungrouped = sorted.filter((c) => !c.raids.length);
+    const ungrouped = sorted.filter((c) => !c.categoryIds.length);
 
     return (
         <div className="dash-card">
@@ -409,37 +420,46 @@ function CharactersTab({ chars, csrfToken, onChanged }: {
                     </button>
                 </span>
             </div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
-                <input
-                    type="text"
-                    placeholder="Charakter suchen …"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    style={{ minWidth: 200 }}
-                />
-                <select value={raidFilter} onChange={(e) => setRaidFilter(e.target.value)}>
-                    <option value="">Alle Raids</option>
-                    {raidOptions.map((r) => <option key={r.eventId} value={r.eventId}>{r.eventLabel}</option>)}
-                </select>
-                <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>
-                    <option value="">Alle Klassen</option>
-                    {classOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
+            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", padding: "14px 16px", borderBottom: "1px solid var(--line)" }}>
+                <div className="field" style={{ margin: 0, minWidth: 220 }}>
+                    <label htmlFor="chars-search">Suche</label>
+                    <input
+                        id="chars-search"
+                        type="text"
+                        placeholder="Charaktername …"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </div>
+                <div className="field" style={{ margin: 0, minWidth: 180 }}>
+                    <label htmlFor="chars-category">Kategorie</label>
+                    <select id="chars-category" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                        <option value="">Alle Kategorien</option>
+                        {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
+                </div>
+                <div className="field" style={{ margin: 0, minWidth: 180 }}>
+                    <label htmlFor="chars-class">Klasse & Spec</label>
+                    <select id="chars-class" value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>
+                        <option value="">Alle Klassen</option>
+                        {classOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                </div>
             </div>
             {!sorted.length && <p className="sub" style={{ padding: "0 16px 14px" }}>Keine Charaktere gefunden.</p>}
             {groups.map((g) => (
-                <div key={g.eventId} style={{ marginBottom: 10 }}>
+                <div key={g.id} style={{ marginBottom: 10 }}>
                     <div className="dash-card-head" style={{ padding: "8px 16px" }}>
-                        <strong>{g.eventLabel}</strong>
+                        <strong>{g.label}</strong>
                         <span className="tab-count">{g.chars.length}</span>
                     </div>
-                    <CharTable chars={g.chars} sort={sort} dir={dir} onSort={onSort} />
+                    <CharTable chars={g.chars} categoryNameById={categoryNameById} sort={sort} dir={dir} onSort={onSort} />
                 </div>
             ))}
             {!!ungrouped.length && (
                 <div>
-                    <div className="dash-card-head" style={{ padding: "8px 16px" }}><strong>Ohne Raid-Zuordnung</strong></div>
-                    <CharTable chars={ungrouped} sort={sort} dir={dir} onSort={onSort} />
+                    <div className="dash-card-head" style={{ padding: "8px 16px" }}><strong>Ohne Kategorie</strong></div>
+                    <CharTable chars={ungrouped} categoryNameById={categoryNameById} sort={sort} dir={dir} onSort={onSort} />
                 </div>
             )}
         </div>
@@ -500,7 +520,7 @@ export default function HistoryPage() {
             {tab === "loot" && <LootEventsTab lootEvents={data.lootEvents} />}
             {tab === "logs" && <LogsTab logs={data.logs} csrfToken={csrfToken} onChanged={afterChange} />}
             {tab === "cats" && <CategoryToolsTab data={data} csrfToken={csrfToken} onChanged={afterChange} />}
-            {tab === "chars" && <CharactersTab chars={data.chars} csrfToken={csrfToken} onChanged={afterChange} />}
+            {tab === "chars" && <CharactersTab chars={data.chars} categories={data.categories} csrfToken={csrfToken} onChanged={afterChange} />}
         </>
     );
 }
