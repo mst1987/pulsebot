@@ -15,9 +15,15 @@ const { listRaidEvents } = require("./raidEventStore");
  * Each event is placed via a live Discord-channel join when possible; if its
  * channel is missing from the live join (deleted/archived after the raid), it
  * falls back to the snapshot raidEventScan.js keeps in raidEventStore.js — the
- * same fallback loadEventGroups() uses for the event detail page, so a past
- * raid whose channel is gone doesn't drop out here as "Event nicht gefunden"
- * while its detail page still resolves it fine.
+ * same per-event fallback loadEventGroups() uses for the event detail page.
+ *
+ * Beyond that, an event can be missing from Raid-Helper's own live response
+ * entirely (pruned on their side, or the channel-based join isn't even reached
+ * because the event id itself never came back) — so any persisted event within
+ * the lookback window that the live fetch didn't return is merged in too, the
+ * same way loadEventGroups() does for a lookback request. Without this, a raid
+ * whose detail page resolves fine (loadEventGroups() has the merge) could still
+ * fail to accept a log assignment here with "Event nicht gefunden".
  */
 async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
     if (!guildId) return { events: [], error: null };
@@ -28,6 +34,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
         const catMap = discord.getChannelCategoryMap(guildId);
         const persistedById = new Map(listRaidEvents(guildId).map((e) => [e.id, e]));
         const out = [];
+        const seen = new Set();
         for (const ev of events || []) {
             const meta = catMap[ev.channelId];
             const persisted = !meta ? persistedById.get(ev.id) : null;
@@ -40,6 +47,19 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
                 channelName: meta ? (meta.name || "") : (persisted.channelName || ""),
                 categoryId: meta ? (meta.categoryId || "") : (persisted.categoryId || ""),
                 categoryName: meta ? (meta.categoryName || "") : (persisted.categoryName || ""),
+            });
+            seen.add(ev.id);
+        }
+        for (const e of persistedById.values()) {
+            if (seen.has(e.id) || (e.startTime || 0) < from) continue;
+            out.push({
+                id: e.id,
+                title: e.title,
+                startTime: e.startTime,
+                channelId: e.channelId,
+                channelName: e.channelName || "",
+                categoryId: e.categoryId || "",
+                categoryName: e.categoryName || "",
             });
         }
         out.sort((a, b) => (Number(b.startTime) || 0) - (Number(a.startTime) || 0));
