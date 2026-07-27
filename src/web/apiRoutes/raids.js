@@ -5,7 +5,7 @@ const { activeGuildFor } = require("../activeGuild");
 const { loadEventGroups } = require("../raidEventGroups");
 const { getConfig, listRaidTemplates } = require("../settingsStore");
 const discord = require("../discord");
-const Raidhelper = require("../../classes/raidhelper");
+const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const { toRaidHelperDate } = require("../../utils/date");
 
 /** GET /api/raids — all upcoming Raid-Helper events of the active guild, grouped by Discord category. */
@@ -47,7 +47,7 @@ async function createRaid(req, res) {
     const date = toRaidHelperDate(body.date);
     if (!date) return error(res, 400, "invalid_date", "Ungültiges Datum.");
     try {
-        const rh = new Raidhelper();
+        const rh = createRaidhelperClient();
         let channelId = String(body.channelId || "").trim();
         const sourceEventId = String(body.sourceEventId || "").trim();
         // Reuse an existing event for a new date: clone its channel (name taken

@@ -6,6 +6,7 @@ const {
     highestBidsChannelId, highestBidsMessageId, categoryIds,
     googleSpreadsheetId, googleSheetName, googleSheetGid,
     blizzardClientId, blizzardClientSecret, blizzardRegion, blizzardRealmSlug, blizzardNamespace,
+    guildId, raidhelperServerId,
 } = require("../config/variables");
 
 // Editable bot settings live as JSON files under data/settings/.
@@ -34,6 +35,11 @@ const CONFIG_DEFAULTS = {
     // Discord role IDs that grant access to the admin menu (in addition to the
     // ADMIN_USER_ID bootstrap from .env, which can never be locked out).
     adminRoleIds: [],
+    // Home guild used to verify admin-role membership (resolveIsAdmin in auth.js).
+    guildId: guildId || "",
+    // Raid-Helper server id (raid-helper.xyz), used for all Raid-Helper API calls.
+    // RAIDHELPER_API_KEY stays in .env — it's a real secret, this id isn't.
+    raidhelperServerId: raidhelperServerId || "",
     // Officer role pinged when a new application arrives.
     officerRoleId: officerRoleId || "",
     // Channel new applications are posted to.

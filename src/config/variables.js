@@ -5,7 +5,10 @@ const API_BASE_URL =
 // Discord IDs
 const legendaryID = "1144865420386517053";
 const adminUserId = process.env.ADMIN_USER_ID || "233598324022837249";
+// Bootstrap defaults only — the admin menu can override both in the settings
+// store (kept out of .env on purpose, like the other editable config).
 const guildId = process.env.GUILD_ID || "";
+const raidhelperServerId = process.env.RAIDHELPER_SERVER_ID || "";
 const raidhelperBotId = "579155972115660803";
 const categoryIds = [
     "1115368280245420042",
@@ -82,6 +85,7 @@ module.exports = {
     legendaryID,
     adminUserId,
     guildId,
+    raidhelperServerId,
     raidhelperBotId,
     categoryIds,
     highestBidsChannelId,

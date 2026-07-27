@@ -1,6 +1,6 @@
 // Shared by server.js's SSR raid routes and apiRoutes/raids.js: the guild's
 // Raid-Helper events grouped by Discord category.
-const Raidhelper = require("../classes/raidhelper");
+const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const discord = require("./discord");
 const { listRaidEvents } = require("./raidEventStore");
 
@@ -43,7 +43,7 @@ async function fetchEventsCached(sinceSeconds) {
     const cached = cacheBySince.get(key);
     if (cached && now - cached.at < EVENTS_CACHE_TTL_MS) return { events: cached.events, stale: false };
     try {
-        const rh = new Raidhelper();
+        const rh = createRaidhelperClient();
         const events = sinceSeconds ? await rh.fetchEvents(sinceSeconds) : await rh.getAllEvents();
         const entry = { at: now, events };
         cacheBySince.set(key, entry);

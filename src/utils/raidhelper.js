@@ -1,4 +1,4 @@
-﻿const Raidhelper = require("../classes/raidhelper");
+﻿const { createRaidhelperClient } = require("./raidhelperClient");
 const { getCategoryEvents, getCharacterIcon, delay } = require("./helper");
 
 async function getAllSignUps(interaction, categoryId) {
@@ -51,7 +51,7 @@ function getSignUpsWithSpecs(events, interaction) {
 
 async function getCategorySetups(interaction, categoryId) {
   let events = [];
-  const raidhelper = new Raidhelper();
+  const raidhelper = createRaidhelperClient();
   var categoryEvents = await getCategoryEvents(interaction, categoryId);
   if (categoryEvents) {
     await Promise.all(
@@ -83,7 +83,7 @@ async function getCategorySetups(interaction, categoryId) {
 
 async function getSetupsFromEvents(client, interaction, events) {
   let myevents = [];
-  const raidhelper = new Raidhelper();
+  const raidhelper = createRaidhelperClient();
   await Promise.all(
     events.map(async (event) => {
       const setup = await raidhelper.getSetup(event.id);

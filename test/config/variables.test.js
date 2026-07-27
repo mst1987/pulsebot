@@ -3,6 +3,7 @@ describe("config/variables", () => {
         "API_BASE_URL",
         "legendaryID",
         "adminUserId",
+        "raidhelperServerId",
         "raidhelperBotId",
         "categoryIds",
         "highestBidsChannelId",

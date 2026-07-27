@@ -24,6 +24,8 @@ const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolea
 // fields — comma lists stay as raw text while being edited, split on save.
 type Draft = {
     adminRoleIdsText: string;
+    guildId: string;
+    raidhelperServerId: string;
     officerRoleId: string;
     applicationChannelId: string;
     highestBidsChannelId: string;
@@ -42,6 +44,8 @@ type Draft = {
 function toDraft(config: AdminConfig): Draft {
     return {
         adminRoleIdsText: config.adminRoleIds.join(", "),
+        guildId: config.guildId,
+        raidhelperServerId: config.raidhelperServerId,
         officerRoleId: config.officerRoleId,
         applicationChannelId: config.applicationChannelId,
         highestBidsChannelId: config.highestBidsChannelId,
@@ -360,6 +364,8 @@ export default function SettingsPage() {
         try {
             const { config } = await updateSettings(csrfToken, {
                 adminRoleIds: splitList(draft.adminRoleIdsText),
+                guildId: draft.guildId.trim(),
+                raidhelperServerId: draft.raidhelperServerId.trim(),
                 officerRoleId: draft.officerRoleId.trim(),
                 applicationChannelId: draft.applicationChannelId.trim(),
                 highestBidsChannelId: draft.highestBidsChannelId.trim(),
@@ -410,6 +416,16 @@ export default function SettingsPage() {
                         <label>Admin-Rollen (Discord-Rollen-IDs, kommagetrennt)</label>
                         <input type="text" value={draft.adminRoleIdsText} onChange={(e) => patch({ adminRoleIdsText: e.target.value })} placeholder="123456789012345678, 234567890123456789" />
                         <div className="hint">Mitglieder mit einer dieser Rollen erhalten Admin-Zugang. Die <code>ADMIN_USER_ID</code> aus der .env behält immer Zugang (Notfall-Zugang).</div>
+                    </div>
+                    <div className="field">
+                        <label>Discord-Server-ID (Guild-ID)</label>
+                        <input type="text" value={draft.guildId} onChange={(e) => patch({ guildId: e.target.value })} placeholder="Discord-Server-ID" />
+                        <div className="hint">Der Server, gegen den der Admin-Rollencheck oben läuft. Nicht zu verwechseln mit der Server-Auswahl im Menü.</div>
+                    </div>
+                    <div className="field">
+                        <label>Raid-Helper Server-ID</label>
+                        <input type="text" value={draft.raidhelperServerId} onChange={(e) => patch({ raidhelperServerId: e.target.value })} placeholder="Server-ID von raid-helper.xyz" />
+                        <div className="hint">Wird für alle Raid-Helper-API-Aufrufe verwendet (Events, Setups, Anmeldungen). Der API-Key selbst bleibt in der .env.</div>
                     </div>
                 </div>
 
