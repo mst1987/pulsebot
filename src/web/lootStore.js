@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { characterKey } = require("../utils/lootImport");
+const { characterKey, enrichItemNames } = require("../utils/lootImport");
 
 // Imported loot lives as a single JSON file next to the other editable settings.
 // Each entry is a normalized loot item (see utils/lootImport) tagged with the
@@ -127,6 +127,24 @@ function clearEvent(eventId) {
     return removed;
 }
 
+/**
+ * Backfill itemName/itemIconUrl on stored rows that never got them — records
+ * imported before icon enrichment existed still show as "Item <id>". Runs the
+ * same Wowhead lookup as import-time enrichment and persists what it resolves,
+ * so each missing id is fixed once instead of on every page view. Best-effort:
+ * ids Wowhead doesn't know simply stay as they are. Returns how many rows
+ * gained a name or icon.
+ */
+async function repairItemNames() {
+    const all = readAll();
+    const missing = all.filter((it) => it.itemId && (!it.itemName || !it.itemIconUrl));
+    if (!missing.length) return 0;
+    await enrichItemNames(missing); // mutates the rows in place
+    const repaired = missing.filter((it) => it.itemName && it.itemIconUrl).length;
+    if (repaired) writeAll(all);
+    return repaired;
+}
+
 module.exports = {
-    addImport, listByEvent, listByCharacter, eventsWithLoot, characters, clearEvent, LOOT_FILE,
+    addImport, listByEvent, listByCharacter, eventsWithLoot, characters, clearEvent, repairItemNames, LOOT_FILE,
 };

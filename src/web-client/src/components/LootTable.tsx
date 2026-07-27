@@ -71,7 +71,7 @@ export function LootTable({ items, showEvent = false }: { items: LootItem[]; sho
     }, [items, sort, dir]);
 
     return (
-        <table className="idx" style={{ margin: 0 }}>
+        <table className="idx loot-table" style={{ margin: 0 }}>
             <thead>
                 <tr>
                     <SortTh sortKey="item" label="Item" sort={sort} dir={dir} onSort={onSort} />
@@ -88,14 +88,7 @@ export function LootTable({ items, showEvent = false }: { items: LootItem[]; sho
                     <tr key={i}>
                         <td>
                             {it.itemIconUrl && (
-                                <img
-                                    src={it.itemIconUrl}
-                                    alt=""
-                                    width={20}
-                                    height={20}
-                                    loading="lazy"
-                                    style={{ borderRadius: 4, verticalAlign: "-5px", marginRight: 6 }}
-                                />
+                                <img className="loot-ico" src={it.itemIconUrl} alt="" loading="lazy" />
                             )}
                             {it.itemLink
                                 ? <a className="mlink" href={it.itemLink} target="_blank" rel="noopener noreferrer">{it.itemName || `Item ${it.itemId}`}</a>

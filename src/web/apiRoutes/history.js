@@ -9,6 +9,7 @@ const { listLogs, deleteLog } = require("../logStore");
 const { logPostedAt } = require("../reportList");
 const {
     addImport: addLootImport, listByEvent: listLootByEvent, listByCharacter: listLootByCharacter, eventsWithLoot, clearEvent: clearLootEvent,
+    repairItemNames: repairLootItemNames,
 } = require("../lootStore");
 const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../characterInfo");
 const { getCharacter } = require("../characterStore");
@@ -160,10 +161,13 @@ async function clearHistoryEvent(req, res) {
 }
 
 /** GET /api/history/event?event=<id> — the loot imported for one event. */
-function getHistoryEvent(req, res, url) {
+async function getHistoryEvent(req, res, url) {
     const user = requireAdmin(req, res);
     if (!user) return;
     const eventId = url.searchParams.get("event") || "";
+    // Backfill names/icons on rows imported before enrichment existed, so old
+    // records stop showing as "Item <id>" (persisted — a one-time repair).
+    await repairLootItemNames();
     const items = listLootByEvent(eventId);
     const label = (items[0] && items[0].eventLabel) || eventId;
     ok(res, { eventId, label, items });
@@ -198,6 +202,7 @@ async function getHistoryChar(req, res, url) {
     const user = requireAdmin(req, res);
     if (!user) return;
     const name = url.searchParams.get("name") || "";
+    await repairLootItemNames(); // see getHistoryEvent
     const items = listLootByCharacter(name);
     const cfg = getConfig();
     const bzCfg = cfg.blizzard || {};

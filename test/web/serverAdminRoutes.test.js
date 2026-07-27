@@ -54,6 +54,7 @@ jest.mock("../../src/web/lootStore", () => ({
     eventsWithLoot: (...a) => mockEventsWithLoot(...a),
     characters: (...a) => mockLootCharacters(...a),
     clearEvent: (...a) => mockClearLootEvent(...a),
+    repairItemNames: async () => 0,
 }));
 const mockAnnotatedCharacters = jest.fn(() => []);
 const mockRememberFromLoot = jest.fn(() => 0);
