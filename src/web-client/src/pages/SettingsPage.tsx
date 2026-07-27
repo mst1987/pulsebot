@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import {
     getSettings, updateSettings, saveRaidsheet, deleteRaidsheet,
+    getRaiderCharacters, saveRaiderCharacters,
     type ApiError, type SettingsData, type AdminConfig, type Category, type Role, type Raidsheet,
+    type RaiderCharactersData,
 } from "../api";
 import { useOutletContext } from "react-router-dom";
 import type { ShellContext } from "../components/Shell";
@@ -11,6 +13,7 @@ const TABS = [
     { id: "recruitment", label: "Recruitment" },
     { id: "auktionen", label: "Auktionen" },
     { id: "events", label: "Events" },
+    { id: "raidchars", label: "Raider-Chars" },
     { id: "logs", label: "Logs" },
     { id: "raidsheets", label: "Raidsheets" },
 ];
@@ -103,6 +106,110 @@ function CategoryRoleMatrix({ categories, roles, categoryIds, categoryRoles, onT
                 );
             })}
             {!raidRoles.length && <div className="hint">Keine Raid-/Raider-Rollen gefunden. Es werden nur Rollen angeboten, deren Name „Raid" enthält.</div>}
+        </>
+    );
+}
+
+// Manual raider->character assignment per category (see raiderCharactersStore.js):
+// overrides the automatic "last known spec" guess on the Raid-Detail attendance
+// tab, since raiders often play a different character on a different raid
+// day/type. Self-contained (own fetch/save cycle scoped to the chosen category),
+// same shape as the Raidsheets tab below.
+function RaiderCharactersTab({ categories, csrfToken }: { categories: Category[]; csrfToken: string | null }) {
+    const [categoryId, setCategoryId] = useState(categories[0]?.id ?? "");
+    const [info, setInfo] = useState<RaiderCharactersData | null>(null);
+    const [draftMap, setDraftMap] = useState<Record<string, string>>({});
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [saveError, setSaveError] = useState<string | null>(null);
+    const [flash, setFlash] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
+
+    const load = () => {
+        setInfo(null);
+        setLoadError(null);
+        setFlash(null);
+        if (!categoryId) return;
+        getRaiderCharacters(categoryId)
+            .then((d) => {
+                setInfo(d);
+                setDraftMap(d.assignments);
+            })
+            .catch((err: ApiError) => setLoadError(err.message));
+    };
+
+    useEffect(load, [categoryId]);
+
+    if (!categories.length) {
+        return <p className="hint">Keine Kategorien geladen (Server gewählt und Bot online?). Die Auswahl ist verfügbar, sobald der Bot verbunden ist.</p>;
+    }
+
+    const submit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setSaving(true);
+        setSaveError(null);
+        try {
+            const { assignments } = await saveRaiderCharacters(csrfToken, categoryId, draftMap);
+            setDraftMap(assignments);
+            setInfo((prev) => (prev ? { ...prev, assignments } : prev));
+            setFlash("Gespeichert.");
+        } catch (err) {
+            setSaveError((err as ApiError).message);
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <>
+            <p className="hint">
+                Raider spielen je nach Raidtag/-typ oft unterschiedliche Charaktere. Hier lässt sich pro Kategorie
+                (siehe Tab „Events") festlegen, welchen Charakter ein Raider dort spielt — das überschreibt auf der
+                Event-Detailseite die automatische Erkennung aus vergangenen Anmeldungen.
+            </p>
+            <div className="field">
+                <label>Kategorie</label>
+                <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+            </div>
+            {loadError && <p className="sub" style={{ color: "var(--high)" }}>{loadError}</p>}
+            {!loadError && !info && <p className="sub">Lade…</p>}
+            {info && !info.roleIds.length && (
+                <p className="hint">Dieser Kategorie sind noch keine Raider-Rollen zugeordnet (siehe Tab „Events").</p>
+            )}
+            {info && info.membersError && (
+                <p className="sub" style={{ color: "var(--high)" }}>Mitglieder konnten nicht geladen werden: {info.membersError}</p>
+            )}
+            {info && !!info.roleIds.length && !info.membersError && (
+                <form className="card-form" onSubmit={submit}>
+                    {saveError && <p className="sub" style={{ color: "var(--high)" }}>{saveError}</p>}
+                    {flash && <p className="sub" style={{ color: "var(--good)" }}>{flash}</p>}
+                    {!info.members.length ? (
+                        <p className="sub">Keine Mitglieder mit den zugeordneten Rollen gefunden.</p>
+                    ) : (
+                        <>
+                            {info.members.map((m) => (
+                                <div className="field" key={m.id}>
+                                    <label>{m.displayName}</label>
+                                    <input
+                                        type="text"
+                                        list="raider-characters-known"
+                                        value={draftMap[m.id] || ""}
+                                        onChange={(e) => setDraftMap({ ...draftMap, [m.id]: e.target.value })}
+                                        placeholder="Charname (leer = keine feste Zuordnung)"
+                                    />
+                                </div>
+                            ))}
+                            <datalist id="raider-characters-known">
+                                {info.knownCharacters.map((c) => <option key={c} value={c} />)}
+                            </datalist>
+                            <div className="row-actions">
+                                <button className="btn" type="submit" disabled={saving}>{saving ? "Speichert…" : "Speichern"}</button>
+                            </div>
+                        </>
+                    )}
+                </form>
+            )}
         </>
     );
 }
@@ -385,12 +492,19 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                {tab !== "raidsheets" && (
+                {tab !== "raidsheets" && tab !== "raidchars" && (
                     <div className="row-actions">
                         <button className="btn" type="submit" disabled={saving}>{saving ? "Speichert…" : "Speichern"}</button>
                     </div>
                 )}
             </form>
+
+            {tab === "raidchars" && (
+                <div className="tab-panel active" role="tabpanel">
+                    <h2 style={{ marginTop: 0 }}>Raider → Charakter je Kategorie</h2>
+                    <RaiderCharactersTab categories={data.categories} csrfToken={csrfToken} />
+                </div>
+            )}
 
             {tab === "raidsheets" && (
                 <div className="tab-panel active" role="tabpanel">

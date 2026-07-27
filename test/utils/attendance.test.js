@@ -1,4 +1,6 @@
-const { computeAttendance, buildSpecHistory, withSpecProfiles } = require("../../src/utils/attendance");
+const {
+    computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
+} = require("../../src/utils/attendance");
 
 describe("utils/attendance computeAttendance", () => {
     const members = [
@@ -94,5 +96,33 @@ describe("utils/attendance withSpecProfiles", () => {
     it("passes through malformed entries and defaults specHistory to {}", () => {
         expect(withSpecProfiles([null, { displayName: "NoId" }])).toEqual([null, { displayName: "NoId" }]);
         expect(withSpecProfiles()).toEqual([]);
+    });
+});
+
+describe("utils/attendance withCharacterAssignments", () => {
+    it("attaches the assigned character name and an overriding profile", () => {
+        const people = [{ id: "1", displayName: "Sedroc", profile: { specName: "Fury Warrior", className: "Warrior" } }];
+        const assignments = { 1: { character: "Elesham", className: "Shaman", spec: "Elemental" } };
+        const [sedroc] = withCharacterAssignments(people, assignments);
+        expect(sedroc.character).toBe("Elesham");
+        expect(sedroc.profile).toMatchObject({ specName: "Elemental", className: "Shaman" });
+    });
+
+    it("keeps the character name but falls back to the old profile when the class is unknown", () => {
+        const people = [{ id: "1", displayName: "Sedroc", profile: { specName: "Fury Warrior", className: "Warrior" } }];
+        const assignments = { 1: { character: "Elesham" } };
+        const [sedroc] = withCharacterAssignments(people, assignments);
+        expect(sedroc.character).toBe("Elesham");
+        expect(sedroc.profile).toMatchObject({ className: "Warrior" });
+    });
+
+    it("leaves members without an assignment unchanged", () => {
+        const people = [{ id: "2", displayName: "Bob" }];
+        expect(withCharacterAssignments(people, { 1: { character: "Elesham", className: "Shaman" } })).toEqual(people);
+    });
+
+    it("passes through malformed entries and defaults assignmentProfiles to {}", () => {
+        expect(withCharacterAssignments([null, { displayName: "NoId" }])).toEqual([null, { displayName: "NoId" }]);
+        expect(withCharacterAssignments()).toEqual([]);
     });
 });

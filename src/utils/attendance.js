@@ -3,7 +3,7 @@
 // event's signUps at all — signing up OR off (Absence/Tentative/Bench all count).
 // Only members who have not reacted at all are considered "missing".
 
-const { specProfile } = require("./setupView");
+const { specProfile, characterProfile } = require("./setupView");
 
 // specName values that mark a non-attendance reaction (signed off), not a real
 // class/spec — must not be looked up as one when building spec history.
@@ -67,4 +67,26 @@ function withSpecProfiles(people, specHistory = {}) {
     });
 }
 
-module.exports = { computeAttendance, buildSpecHistory, withSpecProfiles };
+/**
+ * Attach a `.character` (name) and, when its class is known, an overriding
+ * `.profile` to each member with a manual raider->character assignment for
+ * this raid category (see raiderCharactersStore.js) — takes priority over
+ * the guessed `.profile` from withSpecProfiles() since it's admin-confirmed.
+ * Members without an assignment are left untouched.
+ * @param {{id:string, profile?:object}[]} people
+ * @param {Object<string,{character:string, className?:string, spec?:string}>} assignmentProfiles
+ *   userId -> already-resolved assignment (the character name plus its class/spec, if known)
+ */
+function withCharacterAssignments(people, assignmentProfiles = {}) {
+    return (people || []).map((p) => {
+        if (!p || !p.id) return p;
+        const a = assignmentProfiles[p.id];
+        if (!a) return p;
+        const profile = a.className ? characterProfile(a.className, a.spec) : null;
+        return { ...p, character: a.character, profile: profile || p.profile || null };
+    });
+}
+
+module.exports = {
+    computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
+};

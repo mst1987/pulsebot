@@ -82,6 +82,12 @@ jest.mock("../../src/web/characterInfo", () => ({
 }));
 jest.mock("../../src/web/characterStore", () => ({
     getCharacter: jest.fn(() => null),
+    listCharacters: jest.fn(() => []),
+}));
+jest.mock("../../src/web/raiderCharactersStore", () => ({
+    getCategoryAssignments: jest.fn(() => ({})),
+    setCategoryAssignments: jest.fn(),
+    resolveAssignmentProfiles: jest.fn(() => ({})),
 }));
 const mockIsConfigured = jest.fn(() => false);
 const mockGetCharacterSummary = jest.fn(() => Promise.resolve(null));
@@ -192,6 +198,7 @@ const logStore = require("../../src/web/logStore");
 const lootStore = require("../../src/web/lootStore");
 const characterInfo = require("../../src/web/characterInfo");
 const characterStore = require("../../src/web/characterStore");
+const raiderCharactersStore = require("../../src/web/raiderCharactersStore");
 const lootImport = require("../../src/utils/lootImport");
 const lootEventMatch = require("../../src/web/lootEventMatch");
 const reportList = require("../../src/web/reportList");
@@ -523,6 +530,88 @@ describe("web/apiRouter", () => {
             const res = await post("/api/settings/raidsheets/delete", { id: "s1" });
             expect(settingsStore.deleteRaidsheet).toHaveBeenCalledWith("s1");
             expect(body(res)).toEqual({ data: { id: "s1" } });
+        });
+    });
+
+    describe("GET /api/raider-characters", () => {
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await get("/api/raider-characters", { category: "cat1" });
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+        });
+
+        it("returns 400 when no category is given", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            const res = await get("/api/raider-characters", {});
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+        });
+
+        it("returns the category's expected members, their assignments and known characters", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["role1"] } });
+            discord.listMembersWithRoles.mockResolvedValue({
+                members: [{ id: "u1", displayName: "Sedroc" }],
+                error: null,
+            });
+            raiderCharactersStore.getCategoryAssignments.mockReturnValue({ u1: "Elesham" });
+            characterStore.listCharacters.mockReturnValue([{ character: "Elesham" }, { character: "Mage" }]);
+
+            const res = await get("/api/raider-characters", { category: "cat1" });
+
+            expect(discord.listMembersWithRoles).toHaveBeenCalledWith("guild-1", ["role1"]);
+            expect(body(res)).toEqual({
+                data: {
+                    members: [{ id: "u1", displayName: "Sedroc" }],
+                    membersError: null,
+                    roleIds: ["role1"],
+                    assignments: { u1: "Elesham" },
+                    knownCharacters: ["Elesham", "Mage"],
+                },
+            });
+        });
+
+        it("skips the member lookup when the category has no roles assigned yet", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: {} });
+            const res = await get("/api/raider-characters", { category: "cat1" });
+            expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
+            expect(body(res).data.members).toEqual([]);
+        });
+    });
+
+    describe("POST /api/raider-characters", () => {
+        it("returns 403 when the CSRF token is invalid", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(false);
+            const res = await post("/api/raider-characters", { categoryId: "cat1", assignments: {} });
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(raiderCharactersStore.setCategoryAssignments).not.toHaveBeenCalled();
+        });
+
+        it("returns 400 when categoryId is missing", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/raider-characters", { assignments: { u1: "Elesham" } });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+        });
+
+        it("returns 400 when assignments is missing/not an object", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/raider-characters", { categoryId: "cat1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+        });
+
+        it("saves the whole category map and returns it", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            raiderCharactersStore.setCategoryAssignments.mockReturnValue({ u1: "Elesham" });
+
+            const res = await post("/api/raider-characters", { categoryId: "cat1", assignments: { u1: "Elesham", u2: "" } });
+
+            expect(raiderCharactersStore.setCategoryAssignments).toHaveBeenCalledWith("cat1", { u1: "Elesham", u2: "" });
+            expect(body(res)).toEqual({ data: { assignments: { u1: "Elesham" } } });
         });
     });
 
@@ -921,6 +1010,55 @@ describe("web/apiRouter", () => {
             const res = await get("/api/raids/detail", { event: "e1" });
             const data = body(res).data;
             expect(data.attendance).toEqual({ responded: [], missing: [{ id: "1", displayName: "Anna" }] });
+        });
+
+        it("guesses a missing raider's class only from this event's own category, not a more recent signup in another category", async () => {
+            setupDefaults();
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["role1"] } });
+            discord.listMembersWithRoles.mockResolvedValue({
+                members: [{ id: "2", displayName: "Sedroc" }],
+                error: null,
+            });
+            // "2" hasn't reacted to e1 yet, but signed up Fury Warrior in an older
+            // event of the SAME category, and Destro Warlock in a NEWER event of a
+            // DIFFERENT category — the guess must ignore the other category.
+            const sameCategoryPastEvent = { id: "past1", startTime: 100, signUps: [{ userId: "2", specName: "Fury" }] };
+            const otherCategoryEvent = { id: "other1", startTime: 200, signUps: [{ userId: "2", specName: "Destro" }] };
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [
+                    { categoryId: "cat1", categoryName: "Raids", events: [event1, sameCategoryPastEvent] },
+                    { categoryId: "cat2", categoryName: "Other Raids", events: [otherCategoryEvent] },
+                ],
+                error: null,
+            });
+            const res = await get("/api/raids/detail", { event: "e1" });
+            const data = body(res).data;
+            expect(data.attendance.missing).toEqual([{
+                id: "2",
+                displayName: "Sedroc",
+                profile: expect.objectContaining({ className: "Warrior", specName: "Fury Warrior" }),
+            }]);
+        });
+
+        it("shows a manually assigned character for a missing raider, overriding the guessed class", async () => {
+            setupDefaults();
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["role1"] } });
+            discord.listMembersWithRoles.mockResolvedValue({
+                members: [{ id: "2", displayName: "Sedroc" }],
+                error: null,
+            });
+            raiderCharactersStore.resolveAssignmentProfiles.mockReturnValue({
+                2: { character: "Elesham", className: "Shaman", spec: "Elemental" },
+            });
+            const res = await get("/api/raids/detail", { event: "e1" });
+            expect(raiderCharactersStore.resolveAssignmentProfiles).toHaveBeenCalledWith("cat1");
+            const data = body(res).data;
+            expect(data.attendance.missing).toEqual([{
+                id: "2",
+                displayName: "Sedroc",
+                character: "Elesham",
+                profile: { specName: "Elemental", className: "Shaman", classColor: "#0070DE", iconUrl: expect.any(String) },
+            }]);
         });
     });
 

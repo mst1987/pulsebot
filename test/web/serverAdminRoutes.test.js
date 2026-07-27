@@ -68,6 +68,12 @@ const mockGetCharacterInfo = jest.fn(() => null);
 jest.mock("../../src/web/characterStore", () => ({
     getCharacter: (...a) => mockGetCharacterInfo(...a),
 }));
+const mockResolveAssignmentProfiles = jest.fn(() => ({}));
+jest.mock("../../src/web/raiderCharactersStore", () => ({
+    getCategoryAssignments: jest.fn(() => ({})),
+    setCategoryAssignments: jest.fn(),
+    resolveAssignmentProfiles: (...a) => mockResolveAssignmentProfiles(...a),
+}));
 const mockBlizzardEquip = jest.fn(() => Promise.resolve(null));
 const mockBlizzardSummary = jest.fn(() => Promise.resolve(null));
 let mockBlizzardConfigured = false;
@@ -1297,6 +1303,37 @@ describe("attendance on the event detail route", () => {
         const opts = renderAdmin.renderEventDetail.mock.calls.at(-1)[1];
         const bob = opts.attendance.missing.find((m) => m.id === "u2");
         expect(bob.profile).toMatchObject({ className: "Priest", specName: "Shadow Priest" });
+    });
+
+    it("ignores a more recent signup in a different category when guessing a missing raider's class", async () => {
+        mockGetAllEvents.mockResolvedValue([
+            // "u2" hasn't reacted to e1, but signed up Shadow Priest in an OLDER event
+            // of the SAME category ("cat"), and Warrior in a NEWER event of a
+            // DIFFERENT category ("other") — the guess must ignore "other".
+            { id: "e0", channelId: "c1", title: "Kara letzte Woche", startTime: 50, signUps: [{ userId: "u2", specName: "Shadow" }] },
+            { id: "e1", channelId: "c1", title: "Kara", startTime: 100, signUps: [{ userId: "u1", specName: "Warrior" }] },
+            { id: "e2", channelId: "c2", title: "Mittwochsraid", startTime: 200, signUps: [{ userId: "u2", specName: "Fury" }] },
+        ]);
+        discord.getChannelCategoryMap.mockReturnValue({
+            c1: { name: "kara", categoryId: "cat", categoryName: "Raids" },
+            c2: { name: "midweek", categoryId: "other", categoryName: "Mittwochsraid" },
+        });
+        await request("GET", "/admin/raids/detail?event=e1");
+        const opts = renderAdmin.renderEventDetail.mock.calls.at(-1)[1];
+        const bob = opts.attendance.missing.find((m) => m.id === "u2");
+        expect(bob.profile).toMatchObject({ className: "Priest", specName: "Shadow Priest" });
+    });
+
+    it("shows a manually assigned character for a missing raider, overriding the guessed class", async () => {
+        mockResolveAssignmentProfiles.mockReturnValue({
+            u2: { character: "Elesham", className: "Shaman", spec: "Elemental" },
+        });
+        await request("GET", "/admin/raids/detail?event=e1");
+        expect(mockResolveAssignmentProfiles).toHaveBeenCalledWith("cat");
+        const opts = renderAdmin.renderEventDetail.mock.calls.at(-1)[1];
+        const bob = opts.attendance.missing.find((m) => m.id === "u2");
+        expect(bob.character).toBe("Elesham");
+        expect(bob.profile).toMatchObject({ className: "Shaman", specName: "Elemental" });
     });
 
     it("computes the signup target from the created softres list when present", async () => {

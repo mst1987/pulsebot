@@ -1978,7 +1978,7 @@ function renderEventDetail(user, opts = {}) {
     const nameList = (people) => people.length
         ? `<div class="rolegrid">${people.map((p) => {
             const prof = p.profile;
-            const label = esc(p.displayName || p.id);
+            const label = esc(p.displayName || p.id) + (p.character ? ` (${esc(p.character)})` : "");
             if (!prof) return `<span class="rolebox">${label}</span>`;
             return `<span class="rolebox setup-player" style="border-left-color:${esc(prof.classColor || "var(--line)")}" title="${esc(prof.specName || "")}">
               ${prof.iconUrl ? `<img class="setup-ico" src="${esc(prof.iconUrl)}" alt="${esc(prof.className || "")}" loading="lazy">` : "<span class=\"setup-ico setup-ico-blank\"></span>"}
