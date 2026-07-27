@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     getHistoryData, importLoot, deleteHistoryLog, saveCategoryLootTool, resolveCharacters,
@@ -240,12 +240,90 @@ function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: s
     );
 }
 
+type CharSortKey = "character" | "classSpec" | "count" | "source";
+type Dir = "asc" | "desc";
+
+const CHAR_SORT_DEFAULTS: Record<CharSortKey, Dir> = { character: "asc", classSpec: "asc", count: "desc", source: "asc" };
+
+function charSortValue(c: AnnotatedCharacter, key: CharSortKey): string | number {
+    switch (key) {
+        case "character": return c.character.toLowerCase();
+        case "classSpec": return `${c.className} ${c.spec}`.toLowerCase().trim();
+        case "count": return c.count;
+        case "source": return (CLASS_SOURCE_LABELS[c.source] || c.source || "").toLowerCase();
+        default: return "";
+    }
+}
+
+function CharSortTh({ sortKey, label, sort, dir, onSort }: {
+    sortKey: CharSortKey;
+    label: string;
+    sort: CharSortKey;
+    dir: Dir;
+    onSort: (key: CharSortKey) => void;
+}) {
+    const active = sort === sortKey;
+    const arrow = active ? (dir === "asc" ? " ▲" : " ▼") : "";
+    return (
+        <th>
+            <button type="button" className={`sort-link${active ? " active" : ""}`} onClick={() => onSort(sortKey)}>
+                {label}{arrow}
+            </button>
+        </th>
+    );
+}
+
+function CharTable({ chars, sort, dir, onSort }: {
+    chars: AnnotatedCharacter[];
+    sort: CharSortKey;
+    dir: Dir;
+    onSort: (key: CharSortKey) => void;
+}) {
+    return (
+        <table className="idx" style={{ margin: 0 }}>
+            <thead>
+                <tr>
+                    <CharSortTh sortKey="character" label="Charakter" sort={sort} dir={dir} onSort={onSort} />
+                    <CharSortTh sortKey="classSpec" label="Klasse & Spec" sort={sort} dir={dir} onSort={onSort} />
+                    <th>Raids</th>
+                    <CharSortTh sortKey="count" label="Items" sort={sort} dir={dir} onSort={onSort} />
+                    <CharSortTh sortKey="source" label="Quelle" sort={sort} dir={dir} onSort={onSort} />
+                </tr>
+            </thead>
+            <tbody>
+                {chars.map((c) => (
+                    <tr key={c.key}>
+                        <td><CharacterLink character={c.character} classColor={c.classColor} /></td>
+                        <td><ClassSpecCell className={c.className} spec={c.spec} classColor={c.classColor} iconUrl={c.iconUrl} /></td>
+                        <td className="small">
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                                {c.raids.length
+                                    ? c.raids.map((r) => <span key={r.eventId} className="lbadge lbadge-neutral">{r.eventLabel}</span>)
+                                    : <span className="sub">—</span>}
+                            </div>
+                        </td>
+                        <td className="small">{c.count}</td>
+                        <td className="small">{CLASS_SOURCE_LABELS[c.source]
+                            ? <span className="lbadge">{CLASS_SOURCE_LABELS[c.source]}</span>
+                            : <span className="sub">—</span>}</td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    );
+}
+
 function CharactersTab({ chars, csrfToken, onChanged }: {
     chars: AnnotatedCharacter[];
     csrfToken: string | null;
     onChanged: (msg: string) => void;
 }) {
     const [busy, setBusy] = useState(false);
+    const [search, setSearch] = useState("");
+    const [raidFilter, setRaidFilter] = useState("");
+    const [classFilter, setClassFilter] = useState("");
+    const [sort, setSort] = useState<CharSortKey>("count");
+    const [dir, setDir] = useState<Dir>(CHAR_SORT_DEFAULTS.count);
 
     const resolve = async () => {
         setBusy(true);
@@ -259,9 +337,61 @@ function CharactersTab({ chars, csrfToken, onChanged }: {
         }
     };
 
+    const raidOptions = useMemo(() => {
+        const byId = new Map<string, string>();
+        for (const c of chars) for (const r of c.raids) if (!byId.has(r.eventId)) byId.set(r.eventId, r.eventLabel);
+        return [...byId.entries()]
+            .map(([eventId, eventLabel]) => ({ eventId, eventLabel }))
+            .sort((a, b) => a.eventLabel.localeCompare(b.eventLabel));
+    }, [chars]);
+
+    const classOptions = useMemo(() => {
+        const byKey = new Map<string, string>();
+        for (const c of chars) {
+            if (!c.className) continue;
+            const key = `${c.className}||${c.spec}`;
+            if (!byKey.has(key)) byKey.set(key, c.spec ? `${c.spec} ${c.className}` : c.className);
+        }
+        return [...byKey.entries()]
+            .map(([value, label]) => ({ value, label }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+    }, [chars]);
+
+    const onSort = (key: CharSortKey) => {
+        if (key === sort) { setDir((d) => (d === "asc" ? "desc" : "asc")); return; }
+        setSort(key);
+        setDir(CHAR_SORT_DEFAULTS[key]);
+    };
+
     if (!chars.length) return <p className="sub">Noch keine Charaktere mit Loot.</p>;
 
     const missing = chars.filter((c) => !c.className || !c.spec).length;
+
+    const searchLower = search.trim().toLowerCase();
+    const filtered = chars.filter((c) => {
+        if (searchLower && !c.character.toLowerCase().includes(searchLower)) return false;
+        if (raidFilter && !c.raids.some((r) => r.eventId === raidFilter)) return false;
+        if (classFilter && `${c.className}||${c.spec}` !== classFilter) return false;
+        return true;
+    });
+
+    const mul = dir === "asc" ? 1 : -1;
+    const sorted = [...filtered].sort((a, b) => {
+        const va = charSortValue(a, sort);
+        const vb = charSortValue(b, sort);
+        if (va < vb) return -1 * mul;
+        if (va > vb) return 1 * mul;
+        return 0;
+    });
+
+    // Group by raid — a character with loot in several raids shows up in each
+    // of them, so "nach Raid filtern" and "nach Raid gruppiert" are the same
+    // mechanism: picking a raid just narrows the groups down to one.
+    const groups = raidOptions
+        .filter((r) => !raidFilter || r.eventId === raidFilter)
+        .map((r) => ({ ...r, chars: sorted.filter((c) => c.raids.some((cr) => cr.eventId === r.eventId)) }))
+        .filter((g) => g.chars.length);
+    const ungrouped = sorted.filter((c) => !c.raids.length);
 
     return (
         <div className="dash-card">
@@ -279,21 +409,39 @@ function CharactersTab({ chars, csrfToken, onChanged }: {
                     </button>
                 </span>
             </div>
-            <table className="idx" style={{ margin: 0 }}>
-                <thead><tr><th>Charakter</th><th>Klasse &amp; Spec</th><th>Items</th><th>Quelle</th></tr></thead>
-                <tbody>
-                    {chars.map((c) => (
-                        <tr key={c.key}>
-                            <td><CharacterLink character={c.character} classColor={c.classColor} /></td>
-                            <td><ClassSpecCell className={c.className} spec={c.spec} classColor={c.classColor} iconUrl={c.iconUrl} /></td>
-                            <td className="small">{c.count}</td>
-                            <td className="small">{CLASS_SOURCE_LABELS[c.source]
-                                ? <span className="lbadge">{CLASS_SOURCE_LABELS[c.source]}</span>
-                                : <span className="sub">—</span>}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
+                <input
+                    type="text"
+                    placeholder="Charakter suchen …"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    style={{ minWidth: 200 }}
+                />
+                <select value={raidFilter} onChange={(e) => setRaidFilter(e.target.value)}>
+                    <option value="">Alle Raids</option>
+                    {raidOptions.map((r) => <option key={r.eventId} value={r.eventId}>{r.eventLabel}</option>)}
+                </select>
+                <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>
+                    <option value="">Alle Klassen</option>
+                    {classOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+            </div>
+            {!sorted.length && <p className="sub" style={{ padding: "0 16px 14px" }}>Keine Charaktere gefunden.</p>}
+            {groups.map((g) => (
+                <div key={g.eventId} style={{ marginBottom: 10 }}>
+                    <div className="dash-card-head" style={{ padding: "8px 16px" }}>
+                        <strong>{g.eventLabel}</strong>
+                        <span className="tab-count">{g.chars.length}</span>
+                    </div>
+                    <CharTable chars={g.chars} sort={sort} dir={dir} onSort={onSort} />
+                </div>
+            ))}
+            {!!ungrouped.length && (
+                <div>
+                    <div className="dash-card-head" style={{ padding: "8px 16px" }}><strong>Ohne Raid-Zuordnung</strong></div>
+                    <CharTable chars={ungrouped} sort={sort} dir={dir} onSort={onSort} />
+                </div>
+            )}
         </div>
     );
 }
