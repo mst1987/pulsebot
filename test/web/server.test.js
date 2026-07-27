@@ -10,21 +10,12 @@ jest.mock("http", () => {
 jest.mock("../../src/web/reportStore", () => ({
     getReport: jest.fn(),
     deleteReport: jest.fn(),
-    listReports: jest.fn(() => []),
 }));
 jest.mock("../../src/web/render", () => ({
     renderReportPage: jest.fn(() => "REPORT_PAGE"),
     renderPlayerPage: jest.fn(() => "PLAYER_PAGE"),
     renderNotFound: jest.fn(() => "NOT_FOUND"),
     renderError: jest.fn(() => "ERROR_PAGE"),
-}));
-jest.mock("../../src/web/renderAdmin", () => ({
-    renderDashboard: jest.fn(() => "DASHBOARD"),
-    renderAdminDenied: jest.fn(() => "DENIED"),
-    renderRecruitment: jest.fn(() => "RECRUITMENT"),
-    renderCla: jest.fn(() => "CLA"),
-    renderRaids: jest.fn(() => "RAIDS"),
-    renderSettings: jest.fn(() => "SETTINGS"),
 }));
 jest.mock("../../src/web/auth", () => ({
     configured: jest.fn(() => true),
@@ -91,13 +82,10 @@ describe("web/server", () => {
             expect(res.end).toHaveBeenCalledWith("ok");
         });
 
-        it("GET / is admin-only: anonymous visitors get the login/denied page", async () => {
+        it("GET / redirects to the admin SPA regardless of auth state (client-side gated there)", async () => {
             auth.getUser.mockReturnValue(null);
             const res = await request({ url: "/", method: "GET", headers: {} });
-            expect(res.writeHead).toHaveBeenCalledWith(401, expect.objectContaining({
-                "Content-Type": "text/html; charset=utf-8",
-            }));
-            expect(res.end).toHaveBeenCalledWith("DENIED");
+            expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({ Location: "/admin" }));
         });
 
         it("GET /r/<id> renders the report when it exists", async () => {
@@ -214,16 +202,27 @@ describe("web/server", () => {
             expect(apiRouter.handle).toHaveBeenCalledWith("/api/session", expect.any(Object), expect.any(Object), expect.any(URL));
         });
 
-        it("delegates /admin2 and /admin2/* requests to staticClient", async () => {
-            await request({ url: "/admin2/recruitment", method: "GET", headers: {} });
-            expect(staticClient.serve).toHaveBeenCalledWith(expect.any(Object), expect.any(Object), "/admin2/recruitment");
+        it("delegates /admin and /admin/* requests to staticClient", async () => {
+            await request({ url: "/admin/recruitment", method: "GET", headers: {} });
+            expect(staticClient.serve).toHaveBeenCalledWith(expect.any(Object), expect.any(Object), "/admin/recruitment");
         });
 
         it("returns 404 when staticClient has no build to serve yet", async () => {
             staticClient.serve.mockResolvedValueOnce(false);
-            const res = await request({ url: "/admin2", method: "GET", headers: {} });
+            const res = await request({ url: "/admin", method: "GET", headers: {} });
             expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
             expect(res.end).toHaveBeenCalledWith("NOT_FOUND");
+        });
+
+        it("redirects /admin2 and /admin2/* to the equivalent /admin path (old bookmarks)", async () => {
+            const res = await request({ url: "/admin2/recruitment?view=posts", method: "GET", headers: {} });
+            expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({ Location: "/admin/recruitment?view=posts" }));
+            expect(staticClient.serve).not.toHaveBeenCalled();
+        });
+
+        it("redirects bare /admin2 to bare /admin", async () => {
+            const res = await request({ url: "/admin2", method: "GET", headers: {} });
+            expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({ Location: "/admin" }));
         });
     });
 

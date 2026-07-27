@@ -1,10 +1,10 @@
 // Serves the built React admin client (src/web-client/, built to dist/) under
-// /admin2/* in production. In dev the client runs on its own Vite dev server
+// /admin/* in production. In dev the client runs on its own Vite dev server
 // (see src/web-client/vite.config.ts) and never hits this module.
 const fs = require("fs/promises");
 const path = require("path");
 
-const PREFIX = "/admin2";
+const PREFIX = "/admin";
 const DIST_DIR = path.join(__dirname, "..", "web-client", "dist");
 
 const CONTENT_TYPES = {
@@ -27,7 +27,7 @@ async function readFromDist(relPath) {
     }
 }
 
-/** Serves a request under /admin2/* from the built SPA. Returns true if handled. */
+/** Serves a request under /admin/* from the built SPA. Returns true if handled. */
 async function serve(req, res, pathname) {
     if (req.method !== "GET" || (pathname !== PREFIX && !pathname.startsWith(`${PREFIX}/`))) return false;
 
@@ -36,7 +36,7 @@ async function serve(req, res, pathname) {
     let data = rel ? await readFromDist(rel) : null;
     let contentType = CONTENT_TYPES[ext];
 
-    // SPA fallback: no file for this path (a react-router route, or "/admin2" itself) -> index.html.
+    // SPA fallback: no file for this path (a react-router route, or "/admin" itself) -> index.html.
     if (!data) {
         data = await readFromDist("index.html");
         contentType = CONTENT_TYPES[".html"];

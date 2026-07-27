@@ -28,6 +28,9 @@ fi
 echo "$LOG_TAG Installing dependencies..."
 npm ci --omit=dev
 
+echo "$LOG_TAG Building web admin client..."
+(cd src/web-client && npm ci && npm run build)
+
 echo "$LOG_TAG Checking required environment variables..."
 REQUIRED_VARS=("DISCORDJS_BOT_TOKEN" "CLIENT_ID" "GUILD_ID" "RAIDHELPER_API_KEY" "RAIDHELPER_SERVER_ID")
 ENV_FILE="$APP_DIR/.env"

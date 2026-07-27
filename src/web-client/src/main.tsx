@@ -6,9 +6,9 @@ import App from "./App.tsx";
 
 createRoot(document.getElementById("root")!).render(
     <StrictMode>
-        {/* Production is served under /admin2/ (see src/web/staticClient.js); the Vite
+        {/* Production is served under /admin/ (see src/web/staticClient.js); the Vite
             dev server serves the app at its own root, so no basename is needed there. */}
-        <BrowserRouter basename={import.meta.env.DEV ? "/" : "/admin2"}>
+        <BrowserRouter basename={import.meta.env.DEV ? "/" : "/admin"}>
             <App />
         </BrowserRouter>
     </StrictMode>,

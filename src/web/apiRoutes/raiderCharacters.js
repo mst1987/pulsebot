@@ -1,7 +1,6 @@
 // Admin UI for the manual raider->character-per-category assignment (see
 // raiderCharactersStore.js) consumed by apiRoutes/raidDetail.js's attendance
-// enrichment. Management lives only in the React admin (/admin2) — no legacy
-// SSR counterpart, per the feature's scope.
+// enrichment.
 const { ok, error } = require("../apiResponse");
 const { requireAdmin, requireCsrf } = require("../apiMiddleware");
 const { readJsonBody } = require("../apiBody");
