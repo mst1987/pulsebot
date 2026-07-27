@@ -3,6 +3,7 @@ const {
 } = require("discord.js");
 const { checkForPermission } = require("../../utils/helper");
 const { listRecruitment, saveRecruitmentPost } = require("../../web/settingsStore");
+const { embedAccentColor } = require("../../config/variables");
 
 module.exports = {
     name: "recruitment",
@@ -31,7 +32,7 @@ module.exports = {
             return interaction.editReply("Diese Vorlage hat weder Titel noch Text — bitte im Admin-Menü ausfüllen.");
         }
 
-        const embed = new EmbedBuilder().setColor(0x5865F2);
+        const embed = new EmbedBuilder().setColor(embedAccentColor);
         if (template.title) embed.setTitle(template.title);
         if (template.body) embed.setDescription(template.body);
 

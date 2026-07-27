@@ -18,6 +18,10 @@ const categoryIds = [
 const highestBidsChannelId = "1145659881362313248";
 const highestBidsMessageId = "1147062559036416191";
 
+// Visual identity: accent used for the colour bar on bot embeds, matching the
+// admin web UI's --accent token (violet/cyan redesign, 2026-07).
+const embedAccentColor = 0x8a7cff;
+
 // Auction Settings
 const maxBidAmount = 5000000;
 const defaultTimeout = 60000;
@@ -90,6 +94,7 @@ module.exports = {
     categoryIds,
     highestBidsChannelId,
     highestBidsMessageId,
+    embedAccentColor,
     googleSpreadsheetId,
     googleSheetName,
     googleSheetGid,

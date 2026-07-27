@@ -5,6 +5,7 @@
 const {
     ChannelType, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, PermissionsBitField,
 } = require("discord.js");
+const { embedAccentColor } = require("../config/variables");
 
 let client = null;
 function setClient(c) {
@@ -94,7 +95,7 @@ async function postAnnouncement(channelId, template, roleIds = []) {
     const payload = { allowedMentions: { roles } };
 
     if (template.title || template.body) {
-        const embed = new EmbedBuilder().setColor(0x5865F2);
+        const embed = new EmbedBuilder().setColor(embedAccentColor);
         if (template.title) embed.setTitle(template.title);
         if (template.body) embed.setDescription(template.body);
         payload.embeds = [embed];
