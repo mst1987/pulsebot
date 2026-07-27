@@ -854,6 +854,14 @@ export function linkLog(
     return send("POST", "/api/cla/log-link", csrfToken, { logId, eventId });
 }
 
+export function linkLogUrl(
+    csrfToken: string | null,
+    link: string,
+    eventId: string,
+): Promise<{ logId: string; eventId: string; eventLabel: string; message: string }> {
+    return send("POST", "/api/cla/log-link-url", csrfToken, { link, eventId });
+}
+
 export function unlinkLog(csrfToken: string | null, logId: string): Promise<{ logId: string; message: string }> {
     return send("POST", "/api/cla/log-unlink", csrfToken, { logId });
 }

@@ -95,6 +95,7 @@ jest.mock("../../src/web/logStore", () => ({
     linkEvent: jest.fn((id, data) => ({ id, ...data })),
     unlinkEvent: jest.fn((id) => ({ id })),
 }));
+jest.mock("../../src/web/manualLog", () => ({ linkLogByUrl: jest.fn() }));
 jest.mock("../../src/web/settingsStore", () => ({
     listRecruitment: jest.fn(() => []), getRecruitment: jest.fn(), saveRecruitment: jest.fn(),
     deleteRecruitment: jest.fn(),
@@ -215,6 +216,7 @@ const discord = require("../../src/web/discord");
 const auth = require("../../src/web/auth");
 const renderAdmin = require("../../src/web/renderAdmin");
 const logStore = require("../../src/web/logStore");
+const manualLog = require("../../src/web/manualLog");
 const raidEventGroups = require("../../src/web/raidEventGroups");
 const { startWebServer } = require("../../src/web/server.js");
 
@@ -1854,6 +1856,41 @@ describe("log → event assignment routes", () => {
     it("POST /admin/cla/log-link rejects an empty event selection", async () => {
         const res = await request("POST", "/admin/cla/log-link", { logId: "l1", eventId: "" });
         expect(logStore.linkEvent).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("err=");
+    });
+
+    it("POST /admin/cla/log-link-url registers + links the pasted URL and returns to the raid detail page", async () => {
+        manualLog.linkLogByUrl.mockReturnValue({ log: { id: "l9", reportId: "AAA" }, created: true });
+        const res = await request("POST", "/admin/cla/log-link-url", {
+            link: "https://classic.warcraftlogs.com/reports/AAA", eventId: "e1",
+        });
+        expect(manualLog.linkLogByUrl).toHaveBeenCalledWith(
+            "https://classic.warcraftlogs.com/reports/AAA",
+            expect.objectContaining({ id: "e1", title: "SSC/TK" }),
+            expect.anything(),
+        );
+        expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&ok=");
+    });
+
+    it("POST /admin/cla/log-link-url surfaces an invalid link as an error", async () => {
+        manualLog.linkLogByUrl.mockReturnValue({ error: "Kein gültiger Warcraft-Logs-Link." });
+        const res = await request("POST", "/admin/cla/log-link-url", { link: "nope", eventId: "e1" });
+        expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&err=");
+    });
+
+    it("POST /admin/cla/log-link-url rejects a missing event selection", async () => {
+        const res = await request("POST", "/admin/cla/log-link-url", {
+            link: "https://classic.warcraftlogs.com/reports/AAA", eventId: "",
+        });
+        expect(manualLog.linkLogByUrl).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("/admin/cla?view=logs&err=");
+    });
+
+    it("POST /admin/cla/log-link-url rejects an unknown event", async () => {
+        const res = await request("POST", "/admin/cla/log-link-url", {
+            link: "https://classic.warcraftlogs.com/reports/AAA", eventId: "e999",
+        });
+        expect(manualLog.linkLogByUrl).not.toHaveBeenCalled();
         expect(redirectTo(res)).toContain("err=");
     });
 

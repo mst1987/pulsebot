@@ -63,6 +63,7 @@ jest.mock("../../src/web/logChannel", () => ({
     scanLogChannels: jest.fn(),
     backfillLogTitles: jest.fn(() => Promise.resolve(0)),
 }));
+jest.mock("../../src/web/manualLog", () => ({ linkLogByUrl: jest.fn() }));
 jest.mock("../../src/utils/logcheck/report", () => {
     class ReportError extends Error {}
     return { buildReport: jest.fn(), ReportError };
@@ -209,6 +210,7 @@ const lootEventMatch = require("../../src/web/lootEventMatch");
 const reportList = require("../../src/web/reportList");
 const logEventMatch = require("../../src/web/logEventMatch");
 const logChannel = require("../../src/web/logChannel");
+const manualLog = require("../../src/web/manualLog");
 const { buildReport, ReportError } = require("../../src/utils/logcheck/report");
 const eventSheetStore = require("../../src/web/eventSheetStore");
 const eventSoftresStore = require("../../src/web/eventSoftresStore");
@@ -2602,6 +2604,54 @@ describe("web/apiRouter", () => {
             expect(logStore.linkEvent).toHaveBeenCalledWith("l1", { eventId: "e2", eventLabel: "Other", eventStartTime: 100, source: "manual" });
             expect(body(res)).toEqual({
                 data: { logId: "l1", eventId: "e2", eventLabel: "Other", message: "Log „Other\" zugeordnet." },
+            });
+        });
+    });
+
+    describe("POST /api/cla/log-link-url", () => {
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("guild-1");
+            discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "chan", categoryId: "cat1", categoryName: "Raids" } });
+            mockGetPastEvents.mockResolvedValue([{ id: "e2", title: "Other", startTime: 100, channelId: "c1" }]);
+        });
+
+        it("returns 400 when no event id is given", async () => {
+            const res = await post("/api/cla/log-link-url", { link: "https://classic.warcraftlogs.com/reports/AAA", eventId: "" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "no_event", message: "Kein Event gewählt." } });
+            expect(manualLog.linkLogByUrl).not.toHaveBeenCalled();
+        });
+
+        it("returns 400 when the event id is not among the resolved events", async () => {
+            const res = await post("/api/cla/log-link-url", { link: "https://classic.warcraftlogs.com/reports/AAA", eventId: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "event_not_found", message: "Event nicht gefunden." } });
+            expect(manualLog.linkLogByUrl).not.toHaveBeenCalled();
+        });
+
+        it("surfaces an invalid-link failure from the helper", async () => {
+            manualLog.linkLogByUrl.mockReturnValue({ error: "Kein gültiger Warcraft-Logs-Link." });
+            const res = await post("/api/cla/log-link-url", { link: "nope", eventId: "e2" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "invalid_link", message: "Kein gültiger Warcraft-Logs-Link." } });
+        });
+
+        it("registers + links the pasted URL and backfills the title", async () => {
+            const log = { id: "l9", reportId: "AAA" };
+            manualLog.linkLogByUrl.mockReturnValue({ log, created: true });
+
+            const res = await post("/api/cla/log-link-url", { link: "https://classic.warcraftlogs.com/reports/AAA", eventId: "e2" });
+
+            expect(manualLog.linkLogByUrl).toHaveBeenCalledWith(
+                "https://classic.warcraftlogs.com/reports/AAA",
+                expect.objectContaining({ id: "e2", title: "Other" }),
+                "guild-1",
+            );
+            expect(logChannel.backfillLogTitles).toHaveBeenCalledWith([log]);
+            expect(body(res)).toEqual({
+                data: { logId: "l9", eventId: "e2", eventLabel: "Other", message: "WCL-Link „Other\" zugeordnet." },
             });
         });
     });

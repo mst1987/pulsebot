@@ -1099,6 +1099,15 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("Keine noch nicht zugeordneten Logs vorhanden.");
         });
 
+        it("always offers pasting a WCL link directly, even without unassigned logs", () => {
+            for (const unlinkedLogs of [[], [{ id: "l3", title: "SSC Woche 1", reportId: "RPT3" }]]) {
+                const html = renderEventDetail(user, { ...base, unlinkedLogs });
+                expect(html).toContain("action=\"/admin/cla/log-link-url\"");
+                expect(html).toContain("name=\"link\"");
+                expect(html).toContain("WCL-Link zuordnen");
+            }
+        });
+
         it("falls back to a free-text Tank-3 field when no candidates exist", () => {
             const html = renderEventDetail(user, {
                 ...base,

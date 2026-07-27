@@ -2419,11 +2419,19 @@ function renderEventDetail(user, opts = {}) {
              <button class="btn btn-ghost btn-sm" type="submit">Log zuordnen</button>
            </form>`
         : "<p class=\"sub\">Keine noch nicht zugeordneten Logs vorhanden.</p>";
+    const linkUrlForm = `<form method="POST" action="/admin/cla/log-link-url" class="row-actions" style="gap:8px;margin-top:12px;flex-wrap:wrap">
+         ${csrfField}
+         <input type="hidden" name="eventId" value="${esc(ev.id)}">
+         <input type="text" name="link" style="min-width:320px;flex:1;max-width:520px" required
+                placeholder="https://classic.warcraftlogs.com/reports/abc123…" aria-label="Warcraft-Logs-Link">
+         <button class="btn btn-ghost btn-sm" type="submit">WCL-Link zuordnen</button>
+       </form>`;
     const logsSection = `
       ${eventLogs.length ? eventLogs.map(eventLogRow).join("") : "<p class=\"sub\">Für dieses Event ist noch kein Log zugeordnet.</p>"}
       <h2>Log zuordnen</h2>
-      <p class="note">Ordnet ein bereits erkanntes, aber noch keinem Event zugeordnetes Log diesem Raid zu.</p>
-      ${linkLogForm}`;
+      <p class="note">Ordnet ein bereits erkanntes, aber noch keinem Event zugeordnetes Log diesem Raid zu — oder füge direkt einen Warcraft-Logs-Link ein, der noch nirgends gepostet wurde.</p>
+      ${linkLogForm}
+      ${linkUrlForm}`;
 
     const body = `
       <p class="note"><a class="mlink" href="/admin/raids">← Zurück zur Event-Übersicht</a></p>
