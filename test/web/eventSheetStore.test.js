@@ -20,7 +20,9 @@ jest.mock("fs", () => {
 });
 
 const fs = require("fs");
-const { listEventSheets, getEventSheet, markEventSheetFilled, deleteEventSheet } = require("../../src/web/eventSheetStore.js");
+const {
+    listEventSheets, getEventSheet, markEventSheetFilled, markEventSheetPosted, deleteEventSheet,
+} = require("../../src/web/eventSheetStore.js");
 
 beforeEach(() => {
     fs.__store.clear();
@@ -98,6 +100,29 @@ describe("web/eventSheetStore", () => {
             const second = markEventSheetFilled("evt1", { sheetId: "tier45", playerCount: 25 });
             // second call keeps the copy fields from the first
             expect(second).toMatchObject({ spreadsheetId: "copy-1", url: "u", deleteAfter: 999, playerCount: 25 });
+        });
+    });
+
+    describe("markEventSheetPosted", () => {
+        it("returns null for an event with no fill record", () => {
+            expect(markEventSheetPosted("evt1", { channelId: "c1", messageId: "m1" })).toBeNull();
+        });
+
+        it("records the posted message on top of an existing fill record", () => {
+            markEventSheetFilled("evt1", { sheetId: "s1" });
+            const saved = markEventSheetPosted("evt1", { channelId: "c1", messageId: "m1", message: "Bitte eintragen!" });
+            expect(saved).toMatchObject({
+                eventId: "evt1", sheetId: "s1", postedChannelId: "c1", postedMessageId: "m1", postedMessage: "Bitte eintragen!",
+            });
+            expect(typeof saved.postedAt).toBe("number");
+            expect(getEventSheet("evt1")).toMatchObject({ postedChannelId: "c1", postedMessageId: "m1" });
+        });
+
+        it("survives a later re-fill (posted state isn't wiped by regenerating the sheet)", () => {
+            markEventSheetFilled("evt1", { sheetId: "s1" });
+            markEventSheetPosted("evt1", { channelId: "c1", messageId: "m1", message: "Hi" });
+            markEventSheetFilled("evt1", { sheetId: "s1", playerCount: 25 });
+            expect(getEventSheet("evt1")).toMatchObject({ postedChannelId: "c1", postedMessageId: "m1", playerCount: 25 });
         });
     });
 

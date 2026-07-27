@@ -57,11 +57,37 @@ function saveEventSoftres(eventId, data = {}) {
         instances: Array.isArray(data.instances) ? data.instances.map(String) : [],
         amount: Number(data.amount || 1),
         hardReserveCount: Number(data.hardReserveCount || 0),
+        postedChannelId: String(data.postedChannelId || "").trim(),
+        postedMessageId: String(data.postedMessageId || "").trim(),
+        postedMessage: String(data.postedMessage || "").trim(),
+        postedAt: Number(data.postedAt || 0),
         createdAt: Date.now(),
     };
     events.push(saved);
     writeJson(SOFTRES_FILE, { events });
     return saved;
+}
+
+/**
+ * Record that the softres link was posted (or re-posted) as a Discord
+ * message, so the event page can later edit that same message in place
+ * instead of posting a new one every time. Called after
+ * `discord.postLink`/`editLink`.
+ */
+function markEventSoftresPosted(eventId, { channelId, messageId, message } = {}) {
+    const id = String(eventId || "").trim();
+    if (!id) return null;
+    const events = listEventSoftres();
+    const match = events.find((e) => e.eventId === id);
+    if (!match) return null;
+    Object.assign(match, {
+        postedChannelId: String(channelId || "").trim(),
+        postedMessageId: String(messageId || "").trim(),
+        postedMessage: String(message || "").trim(),
+        postedAt: Date.now(),
+    });
+    writeJson(SOFTRES_FILE, { events });
+    return match;
 }
 
 /**
@@ -99,5 +125,6 @@ function deleteEventSoftres(eventId) {
 }
 
 module.exports = {
-    listEventSoftres, getEventSoftres, saveEventSoftres, setEventSoftresLink, deleteEventSoftres,
+    listEventSoftres, getEventSoftres, saveEventSoftres, setEventSoftresLink,
+    markEventSoftresPosted, deleteEventSoftres,
 };

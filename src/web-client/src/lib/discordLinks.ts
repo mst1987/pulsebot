@@ -8,3 +8,6 @@ export const channelUrl = (guildId: string, channelId: string) =>
     `https://discord.com/channels/${guildId}/${channelId}`;
 
 export const raidplanUrl = (eventId: string) => `https://raid-helper.xyz/raidplan/${eventId}`;
+
+export const messageLink = (guildId: string, channelId: string, messageId: string) =>
+    `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
