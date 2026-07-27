@@ -4,6 +4,7 @@ jest.mock("../../src/web/auth", () => ({
     getUser: jest.fn(),
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(),
+    setActiveGuild: jest.fn(),
 }));
 jest.mock("../../src/web/reportStore", () => ({ listReports: jest.fn(() => []) }));
 jest.mock("../../src/web/settingsStore", () => ({
@@ -120,6 +121,7 @@ jest.mock("../../src/web/lootEventMatch", () => ({
     dayKey: jest.fn(() => "2026-07-12"),
 }));
 jest.mock("../../src/web/discord", () => ({
+    listGuilds: jest.fn(() => []),
     listCategories: jest.fn(() => []),
     listAllChannels: jest.fn(() => []),
     listTextChannels: jest.fn(() => []),
@@ -255,24 +257,83 @@ async function get(pathname, query) {
 
 describe("web/apiRouter", () => {
     describe("GET /api/session", () => {
-        it("returns user + csrfToken for a logged-in caller", async () => {
+        it("returns user + csrfToken + guilds + activeGuildId for a logged-in admin", async () => {
             auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
             auth.csrfToken.mockReturnValue("csrf-abc");
+            discord.listGuilds.mockReturnValue([{ id: "g1", name: "Meine Gilde" }]);
+            activeGuildFor.mockReturnValue("g1");
             const res = mockRes();
             const handled = await handle("/api/session", { method: "GET" }, res);
             expect(handled).toBe(true);
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
             expect(body(res)).toEqual({
-                data: { user: { id: "42", name: "Anna", isAdmin: true }, csrfToken: "csrf-abc" },
+                data: {
+                    user: { id: "42", name: "Anna", isAdmin: true }, csrfToken: "csrf-abc",
+                    guilds: [{ id: "g1", name: "Meine Gilde" }], activeGuildId: "g1",
+                },
             });
         });
 
-        it("returns user: null and no csrfToken for an anonymous caller", async () => {
+        it("returns user: null, no csrfToken, and no guilds for an anonymous caller", async () => {
             auth.getUser.mockReturnValue(null);
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
             expect(auth.csrfToken).not.toHaveBeenCalled();
-            expect(body(res)).toEqual({ data: { user: null, csrfToken: null } });
+            expect(body(res)).toEqual({ data: { user: null, csrfToken: null, guilds: [], activeGuildId: "" } });
+        });
+
+        it("returns no guilds for a logged-in caller who isn't an admin", async () => {
+            auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false });
+            auth.csrfToken.mockReturnValue("csrf-bob");
+            discord.listGuilds.mockReturnValue([{ id: "g1", name: "Meine Gilde" }]);
+            const res = mockRes();
+            await handle("/api/session", { method: "GET" }, res);
+            expect(body(res)).toEqual({
+                data: {
+                    user: { id: "7", name: "Bob", isAdmin: false }, csrfToken: "csrf-bob",
+                    guilds: [], activeGuildId: "",
+                },
+            });
+        });
+    });
+
+    describe("POST /api/session/guild", () => {
+        it("returns 403 when the CSRF token is invalid", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(false);
+            const res = await post("/api/session/guild", { guildId: "g1" });
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "csrf", message: expect.any(String) } });
+            expect(auth.setActiveGuild).not.toHaveBeenCalled();
+        });
+
+        it("returns 400 for an unknown guildId", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            discord.listGuilds.mockReturnValue([{ id: "g1", name: "Meine Gilde" }]);
+            const res = await post("/api/session/guild", { guildId: "does-not-exist" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "unknown_guild", message: expect.any(String) } });
+            expect(auth.setActiveGuild).not.toHaveBeenCalled();
+        });
+
+        it("switches to the given guild on success", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            discord.listGuilds.mockReturnValue([{ id: "g1", name: "Meine Gilde" }]);
+            const res = await post("/api/session/guild", { guildId: "g1" });
+            expect(auth.setActiveGuild).toHaveBeenCalledWith(expect.any(Object), "g1");
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(body(res)).toEqual({ data: { activeGuildId: "g1" } });
+        });
+
+        it("clears the selection when guildId is empty", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            discord.listGuilds.mockReturnValue([{ id: "g1", name: "Meine Gilde" }]);
+            const res = await post("/api/session/guild", { guildId: "" });
+            expect(auth.setActiveGuild).toHaveBeenCalledWith(expect.any(Object), "");
+            expect(body(res)).toEqual({ data: { activeGuildId: "" } });
         });
     });
 

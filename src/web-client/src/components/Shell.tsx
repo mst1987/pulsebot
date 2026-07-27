@@ -1,24 +1,23 @@
 import { useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
+import GuildSwitcher from "./GuildSwitcher";
 import {
     CrestIcon, BurgerIcon, HomeIcon, RecruitmentIcon, ClaIcon, RaidsIcon, ChannelsIcon, SettingsIcon, HistoryIcon,
 } from "./icons";
-import type { SessionUser } from "../api";
+import type { SessionUser, SessionGuild } from "../api";
 
 export type ShellContext = { user: SessionUser; csrfToken: string | null };
 
-// Same tab list/grouping as src/web/renderAdmin.js's TABS — migrated pages use an
-// internal <NavLink>, the rest still point back at the classic SSR pages (plain
-// <a>, a full page navigation out of the SPA).
-const TABS: { id: string; label: string; href: string; group: string; icon: ReactNode; internal?: boolean }[] = [
-    { id: "home", label: "Übersicht", href: "/", group: "Verwaltung", icon: <HomeIcon />, internal: true },
-    { id: "recruitment", label: "Recruitment", href: "/recruitment", group: "Verwaltung", icon: <RecruitmentIcon />, internal: true },
-    { id: "cla", label: "CLA / Logcheck", href: "/cla", group: "Verwaltung", icon: <ClaIcon />, internal: true },
-    { id: "raids", label: "Raid-Events", href: "/raids", group: "Verwaltung", icon: <RaidsIcon />, internal: true },
-    { id: "history", label: "Historie & Loot", href: "/history", group: "Verwaltung", icon: <HistoryIcon />, internal: true },
-    { id: "channels", label: "Kanäle", href: "/channels", group: "Verwaltung", icon: <ChannelsIcon />, internal: true },
-    { id: "settings", label: "Einstellungen", href: "/settings", group: "System", icon: <SettingsIcon />, internal: true },
+// Same tab list/grouping as src/web/renderAdmin.js's TABS.
+const TABS: { id: string; label: string; href: string; group: string; icon: ReactNode }[] = [
+    { id: "home", label: "Übersicht", href: "/", group: "Verwaltung", icon: <HomeIcon /> },
+    { id: "recruitment", label: "Recruitment", href: "/recruitment", group: "Verwaltung", icon: <RecruitmentIcon /> },
+    { id: "cla", label: "CLA / Logcheck", href: "/cla", group: "Verwaltung", icon: <ClaIcon /> },
+    { id: "raids", label: "Raid-Events", href: "/raids", group: "Verwaltung", icon: <RaidsIcon /> },
+    { id: "history", label: "Historie & Loot", href: "/history", group: "Verwaltung", icon: <HistoryIcon /> },
+    { id: "channels", label: "Kanäle", href: "/channels", group: "Verwaltung", icon: <ChannelsIcon /> },
+    { id: "settings", label: "Einstellungen", href: "/settings", group: "System", icon: <SettingsIcon /> },
 ];
 
 // Matches a tab's own path or one of its sub-routes (e.g. "/raids/new" under "/raids").
@@ -27,7 +26,7 @@ function matchesTab(tabHref: string, pathname: string): boolean {
 }
 
 function crumbTab(pathname: string) {
-    return TABS.find((t) => t.internal && matchesTab(t.href, pathname));
+    return TABS.find((t) => matchesTab(t.href, pathname));
 }
 
 // Optional third breadcrumb segment for a page nested one level under its tab
@@ -53,17 +52,10 @@ function AdminNav() {
                 return (
                     <div key={tab.id}>
                         {label && <div className="menu-label">{label}</div>}
-                        {tab.internal ? (
-                            <NavLink to={tab.href} end={tab.href === "/"} className={({ isActive }) => `nav-item area-${tab.id}${isActive ? " active" : ""}`}>
-                                {tab.icon}
-                                <span>{tab.label}</span>
-                            </NavLink>
-                        ) : (
-                            <a className={`nav-item area-${tab.id}`} href={tab.href}>
-                                {tab.icon}
-                                <span>{tab.label}</span>
-                            </a>
-                        )}
+                        <NavLink to={tab.href} end={tab.href === "/"} className={({ isActive }) => `nav-item area-${tab.id}${isActive ? " active" : ""}`}>
+                            {tab.icon}
+                            <span>{tab.label}</span>
+                        </NavLink>
                     </div>
                 );
             })}
@@ -71,7 +63,10 @@ function AdminNav() {
     );
 }
 
-export default function Shell({ user, csrfToken }: ShellContext) {
+export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellContext & {
+    guilds: SessionGuild[];
+    activeGuildId: string;
+}) {
     const [menuOpen, setMenuOpen] = useState(false);
     const location = useLocation();
     const initial = (user.name || "Admin").slice(0, 1).toUpperCase() || "A";
@@ -111,6 +106,7 @@ export default function Shell({ user, csrfToken }: ShellContext) {
                         {crumb && <> <span style={{ opacity: .45 }}>/</span> <b>{crumb}</b></>}
                     </div>
                     <div className="top-actions">
+                        <GuildSwitcher guilds={guilds} activeGuildId={activeGuildId} csrfToken={csrfToken} />
                         <ThemeToggle />
                     </div>
                 </header>

@@ -40,7 +40,7 @@ export default function App() {
         return <div className="empty">Fehler beim Laden der Session: {state.error.message}</div>;
     }
 
-    const { user, csrfToken } = state.session;
+    const { user, csrfToken, guilds, activeGuildId } = state.session;
     if (!user || !user.isAdmin) {
         return (
             <div className="empty" style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center", paddingTop: 80 }}>
@@ -54,7 +54,7 @@ export default function App() {
 
     return (
         <Routes>
-            <Route element={<Shell user={user} csrfToken={csrfToken} />}>
+            <Route element={<Shell user={user} csrfToken={csrfToken} guilds={guilds} activeGuildId={activeGuildId} />}>
                 <Route index element={<DashboardPage />} />
                 <Route path="channels" element={<ChannelsPage />} />
                 <Route path="settings" element={<SettingsPage />} />
