@@ -51,9 +51,9 @@ describe("web/renderAdmin", () => {
 
         it("marks the active nav item", () => {
             const html = renderRecruitment(user, { nav: nav() });
-            expect(html).toContain("class=\"nav-item active\" href=\"/admin/recruitment\"");
+            expect(html).toContain("class=\"nav-item area-recruitment active\" href=\"/admin/recruitment\"");
             // a non-active item stays plain
-            expect(html).toContain("class=\"nav-item\" href=\"/admin/cla\"");
+            expect(html).toContain("class=\"nav-item area-cla\" href=\"/admin/cla\"");
         });
 
         it("renders an ok/err message as a toast when provided", () => {
@@ -927,6 +927,37 @@ describe("web/renderAdmin", () => {
             expect(html).toContain(">2</b> Gruppen");
         });
 
+        it("shows a raid-roster avatar stack with class-coloured initials for the current setup", () => {
+            const setup = {
+                total: 2,
+                roleCounts: { tank: 1, healer: 1 },
+                groups: [
+                    { group: 1, label: "Gruppe 1", players: [{ name: "Tankadin", specName: "Protection Pala", className: "Paladin", classColor: "#F58CBA", iconUrl: "", role: "tank" }] },
+                    { group: 2, label: "Gruppe 2", players: [{ name: "Healy", specName: "Holy Priest", className: "Priest", classColor: "#FFFFFF", iconUrl: "", role: "healer" }] },
+                ],
+            };
+            const html = renderEventDetail(user, { ...base, setup });
+            expect(html).toContain("class=\"avatar-stack\"");
+            expect(html).toContain(">TA<");
+            expect(html).toContain(">HE<");
+            expect(html).toContain("border-color:#F58CBA");
+            expect(html).not.toContain("av more"); // only 2 players, no overflow chip
+        });
+
+        it("caps the roster avatar stack at 10 with a +N overflow chip", () => {
+            const players = Array.from({ length: 13 }, (_, i) => ({
+                name: `Raider${i}`, specName: "x", className: "Mage", classColor: "#69CCF0", iconUrl: "", role: "dps",
+            }));
+            const setup = { total: players.length, roleCounts: { dps: players.length }, groups: [{ group: 1, label: "Gruppe 1", players }] };
+            const html = renderEventDetail(user, { ...base, setup });
+            expect(html).toContain("class=\"av more\">+3<");
+        });
+
+        it("renders no roster avatar stack when there's no setup yet", () => {
+            const html = renderEventDetail(user, { ...base, setup: null });
+            expect(html).not.toContain("class=\"avatar-stack\"");
+        });
+
         it("offers tank-capable raiders as a Tank-3 dropdown on the fill form", () => {
             const html = renderEventDetail(user, {
                 ...base,
@@ -1192,7 +1223,7 @@ describe("web/renderAdmin", () => {
 
         it("marks the channels nav item active", () => {
             const html = renderChannels(user, { activeGuildId: "g1", categories: [], channels: [], csrf: "x", nav: nav() });
-            expect(html).toContain("class=\"nav-item active\" href=\"/admin/channels\"");
+            expect(html).toContain("class=\"nav-item area-channels active\" href=\"/admin/channels\"");
         });
     });
 
