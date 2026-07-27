@@ -687,6 +687,8 @@ export function resolveCharacters(csrfToken: string | null): Promise<ResolveChar
 export type GearSocket = {
     type: string;
     gemName: string | null;
+    gemId: number | null;
+    gemIconUrl: string;
 };
 
 export type GearItem = {

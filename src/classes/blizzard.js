@@ -126,15 +126,15 @@ class Blizzard {
     /**
      * A character's equipped items, normalized to { slot, itemId, name, quality,
      * level, enchants, sockets, iconUrl }. `enchants` is a list of display
-     * strings; `sockets` is one entry per socket ({ type, gemName }, gemName
-     * null when the socket is empty) so the caller can render a paperdoll with
-     * per-socket color coding instead of just a leftover count. `iconUrl` comes
-     * from Wowhead (the Blizzard equipment endpoint has no media URLs), looked
-     * up per distinct item id the same way loot-import icon enrichment works
-     * (utils/lootImport.js's enrichItemNames) — best-effort, "" on a miss.
-     * Returns null on any problem (not configured, auth failure, 403/404,
-     * empty/unknown character, network error) so the caller can fall back to a
-     * classic-armory.org link.
+     * strings; `sockets` is one entry per socket ({ type, gemName, gemId,
+     * gemIconUrl }, gemName/gemId null when the socket is empty) so the caller
+     * can render a paperdoll with per-socket color coding instead of just a
+     * leftover count. `iconUrl`/`gemIconUrl` come from Wowhead (the Blizzard
+     * equipment endpoint has no media URLs), looked up per distinct item id the
+     * same way loot-import icon enrichment works (utils/lootImport.js's
+     * enrichItemNames) — best-effort, "" on a miss. Returns null on any problem
+     * (not configured, auth failure, 403/404, empty/unknown character, network
+     * error) so the caller can fall back to a classic-armory.org link.
      */
     async getEquipment(characterName, opts = {}) {
         const data = await this._getCharacter(characterName, "/equipment", opts);
@@ -154,17 +154,26 @@ class Blizzard {
                 sockets: sockets.map((s) => ({
                     type: (s.socket_type && s.socket_type.type) || "",
                     gemName: (s.item && s.item.name) || null,
+                    gemId: (s.item && s.item.id) || null,
+                    gemIconUrl: "",
                 })),
                 iconUrl: "",
             };
         });
-        const ids = [...new Set(gear.filter((g) => g.itemId).map((g) => g.itemId))];
+        const ids = [...new Set([
+            ...gear.filter((g) => g.itemId).map((g) => g.itemId),
+            ...gear.flatMap((g) => g.sockets.map((s) => s.gemId).filter(Boolean)),
+        ])];
         if (ids.length) {
             const lookups = await Promise.all(ids.map((id) => wowhead.lookupItem(id)));
             const byId = new Map(ids.map((id, i) => [id, lookups[i]]));
             for (const g of gear) {
                 const found = g.itemId ? byId.get(g.itemId) : null;
                 if (found && found.iconUrl) g.iconUrl = found.iconUrl;
+                for (const s of g.sockets) {
+                    const gem = s.gemId ? byId.get(s.gemId) : null;
+                    if (gem && gem.iconUrl) s.gemIconUrl = gem.iconUrl;
+                }
             }
         }
         return gear;

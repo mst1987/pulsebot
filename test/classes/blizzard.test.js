@@ -95,9 +95,28 @@ describe("classes/Blizzard", () => {
             const [item] = await configured().getEquipment("Foo");
             expect(item.enchants).toEqual(["Enchanted: +150 Mana"]);
             expect(item.sockets).toEqual([
-                { type: "META", gemName: "Chaotic Skyfire Diamond" },
-                { type: "RED", gemName: null },
+                { type: "META", gemName: "Chaotic Skyfire Diamond", gemId: null, gemIconUrl: "" },
+                { type: "RED", gemName: null, gemId: null, gemIconUrl: "" },
             ]);
+        });
+
+        it("resolves gem icons via Wowhead when the socket carries a gem item id", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+            axios.get.mockImplementation((url) => {
+                if (url.includes("nether.wowhead.com/tooltip/item/32409")) {
+                    return Promise.resolve({ data: { name: "Relentless Earthstorm Diamond", icon: "inv_misc_gem_diamond_06", quality: 3 } });
+                }
+                if (url.includes("nether.wowhead.com")) {
+                    return Promise.resolve({ data: {} }); // unknown item id → no name → null
+                }
+                return Promise.resolve({ data: { equipped_items: [{
+                    slot: { type: "HEAD" }, item: { id: 999901 }, name: "Helm",
+                    sockets: [{ socket_type: { type: "META" }, item: { id: 32409, name: "Relentless Earthstorm Diamond" } }],
+                }] } });
+            });
+            const [item] = await configured().getEquipment("Foo");
+            expect(item.sockets[0].gemId).toBe(32409);
+            expect(item.sockets[0].gemIconUrl).toBe("https://wow.zamimg.com/images/wow/icons/large/inv_misc_gem_diamond_06.jpg");
         });
 
         it("resolves the item icon via Wowhead, keyed by item id (best-effort, empty on a miss)", async () => {
