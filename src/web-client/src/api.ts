@@ -146,6 +146,8 @@ export type BlizzardConfig = {
 
 export type AdminConfig = {
     adminRoleIds: string[];
+    guildId: string;
+    raidhelperServerId: string;
     officerRoleId: string;
     applicationChannelId: string;
     highestBidsChannelId: string;

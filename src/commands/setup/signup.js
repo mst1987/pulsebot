@@ -1,4 +1,4 @@
-﻿const Raidhelper = require("../../classes/raidhelper");
+﻿const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const messages = require("../../config/messages");
 const { botReply, formatSpecs, formatSignUps } = require("../../utils/helper");
 
@@ -6,7 +6,7 @@ module.exports = {
     name: "signup",
     description: "Signup",
     async execute(interaction, client) {
-        const raidhelper = new Raidhelper();
+        const raidhelper = createRaidhelperClient();
 
         let raidId;
         let raid;

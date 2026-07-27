@@ -1,4 +1,4 @@
-﻿const Raidhelper = require("../../classes/raidhelper");
+﻿const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const messages = require("../../config/messages");
 const {
     checkForPermission,
@@ -10,7 +10,7 @@ module.exports = {
     name: "saveraid",
     description: "Save Raid to pulse gdkp",
     async execute(interaction, client) {
-        const raidhelper = new Raidhelper();
+        const raidhelper = createRaidhelperClient();
         if (!checkForPermission(interaction)) return;
         const raidInfos = await getRaidInfosFromChannel(interaction);
         const response = await raidhelper.saveRaid(raidInfos);

@@ -9,7 +9,7 @@ const { getEventSoftres } = require("./eventSoftresStore");
 const { listLogs } = require("./logStore");
 const { buildRecentEvents, matchLogsForEvent } = require("./recentEvents");
 const { logPostedAt } = require("./reportList");
-const Raidhelper = require("../classes/raidhelper");
+const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const discord = require("./discord");
 
 // Find the next few upcoming events that already have a Raid-Helper setup
@@ -19,7 +19,7 @@ const discord = require("./discord");
 async function loadUpcomingSetups(guildId, limit = 3, maxChecks = 8) {
     if (!guildId) return { events: [], error: null };
     try {
-        const rh = new Raidhelper();
+        const rh = createRaidhelperClient();
         const events = await rh.getAllEvents(); // sorted ascending by startTime
         const catMap = discord.getChannelCategoryMap(guildId);
         const inGuild = events.filter((ev) => catMap[ev.channelId]);

@@ -1,6 +1,6 @@
 ﻿const { getSetupsFromEvents } = require("../../utils/raidhelper");
 const { botEditReply } = require("../../utils/helper");
-const Raidhelper = require("../../classes/raidhelper");
+const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const { setupResponse } = require("../../utils/responses");
 const messages = require("../../config/messages");
 
@@ -8,7 +8,7 @@ module.exports = {
     name: "show-allsetups",
     description: "Show all setups",
     async execute(interaction, client) {
-        const raidhelper = new Raidhelper();
+        const raidhelper = createRaidhelperClient();
         await interaction.deferReply({ ephemeral: true });
         const events = await raidhelper.getUserSignUps(interaction.user.id);
         const setups = await getSetupsFromEvents(client, interaction, events);

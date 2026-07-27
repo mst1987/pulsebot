@@ -37,6 +37,8 @@ async function updateSettings(req, res) {
     const body = await readJsonBody(req);
     const partial = {};
     if (body.adminRoleIds !== undefined) partial.adminRoleIds = asStringArray(body.adminRoleIds);
+    if (body.guildId !== undefined) partial.guildId = String(body.guildId).trim();
+    if (body.raidhelperServerId !== undefined) partial.raidhelperServerId = String(body.raidhelperServerId).trim();
     if (body.officerRoleId !== undefined) partial.officerRoleId = String(body.officerRoleId).trim();
     if (body.applicationChannelId !== undefined) partial.applicationChannelId = String(body.applicationChannelId).trim();
     if (body.highestBidsChannelId !== undefined) partial.highestBidsChannelId = String(body.highestBidsChannelId).trim();

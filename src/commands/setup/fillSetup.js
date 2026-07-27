@@ -1,4 +1,4 @@
-const Raidhelper = require("../../classes/raidhelper");
+const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const SheetsClient = require("../../classes/sheets");
 const { fillSetupSheet } = require("../../utils/fillSetup");
 const { botEditReply } = require("../../utils/helper");
@@ -15,7 +15,7 @@ module.exports = {
         // ---- Fetch Raidhelper setup ----
         let slots;
         try {
-            const rh = new Raidhelper();
+            const rh = createRaidhelperClient();
             const result = await rh.getSetup(setupId);
             if (!result?.setup?.length) {
                 return botEditReply(interaction, "Fehler", "Setup nicht gefunden oder leer. Setup-ID prüfen.");

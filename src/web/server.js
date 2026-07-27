@@ -44,7 +44,7 @@ const {
 } = require("./eventSoftresStore");
 const softres = require("../utils/softres");
 const wowhead = require("../utils/wowhead");
-const Raidhelper = require("../classes/raidhelper");
+const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const SheetsClient = require("../classes/sheets");
 const Drive = require("../classes/drive");
 const { fillSetupSheet } = require("../utils/fillSetup");
@@ -597,7 +597,7 @@ async function handle(req, res) {
             const date = toRaidHelperDate(form.date);
             if (!date) return redirect(res, `/admin/raids/new?err=${encodeURIComponent("Ungültiges Datum.")}`);
             try {
-                const rh = new Raidhelper();
+                const rh = createRaidhelperClient();
                 let channelId = (form.channelId || "").trim();
                 const sourceEventId = (form.sourceEventId || "").trim();
                 // Reuse an existing event for a new date: clone its channel (name
@@ -658,7 +658,7 @@ async function handle(req, res) {
         const form = await readFormBody(req);
         if (!auth.checkCsrf(req, form._csrf)) return redirect(res, "/admin/raids/new?msg=csrf");
         try {
-            const rh = new Raidhelper();
+            const rh = createRaidhelperClient();
             const templates = await rh.getTemplates();
             if (!templates.length) {
                 return redirect(res, "/admin/raids/new?err=" + encodeURIComponent("Keine Templates in den aktuellen Events gefunden."));
@@ -741,7 +741,7 @@ async function handle(req, res) {
         let setupError = null;
         let tankCands = [];
         try {
-            const rh = new Raidhelper();
+            const rh = createRaidhelperClient();
             const result = await rh.getSetup(eventId);
             const slots = result && result.setup ? result.setup : [];
             setup = buildSetupView(slots);
@@ -905,7 +905,7 @@ async function handle(req, res) {
             // Delete 3 days after the raid (fallback: 3 days from now if start unknown).
             const deleteAfter = (startMs || Date.now()) + 3 * 24 * 60 * 60 * 1000;
 
-            const rh = new Raidhelper();
+            const rh = createRaidhelperClient();
             const drive = new Drive();
             const prev = getEventSheet(eventId);
 
@@ -1199,6 +1199,8 @@ async function handle(req, res) {
             }
             saveConfig({
                 adminRoleIds: list("adminRoleIds"),
+                guildId: trim("guildId"),
+                raidhelperServerId: trim("raidhelperServerId"),
                 officerRoleId: trim("officerRoleId"),
                 applicationChannelId: trim("applicationChannelId"),
                 highestBidsChannelId: trim("highestBidsChannelId"),
