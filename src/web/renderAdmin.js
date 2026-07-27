@@ -362,6 +362,31 @@ const ADMIN_STYLE = `<style>
   @media (prefers-reduced-motion:reduce) {
     .pl-rune .r1,.pl-rune .r2,.pl-rune .r3,.pl-dots::after,.page-loader.show { animation-duration:.001ms; animation-iteration-count:1; }
   }
+  /* history char: gear paperdoll tiles */
+  /* .dash-card clips overflow for rounded table corners; the tile tooltips are
+     absolutely positioned and need to escape that clip to stay visible. */
+  .gear-card { overflow:visible; }
+  .gear-grid { display:flex; flex-wrap:wrap; gap:16px 14px; padding:16px; }
+  .gear-tile { position:relative; width:74px; text-align:center; }
+  .gear-icon { position:relative; width:52px; height:52px; margin:0 auto; border:2px solid var(--line); border-radius:8px; overflow:hidden; background:var(--panel2); box-shadow:0 0 8px rgba(0,0,0,.25); }
+  .gear-icon img { width:100%; height:100%; display:block; }
+  .gear-icon-ph { width:100%; height:100%; background:var(--panel3); }
+  .gear-ilvl { position:absolute; left:2px; bottom:2px; background:rgba(0,0,0,.72); color:#fff; font-size:10px; font-weight:800; line-height:1; padding:2px 4px; border-radius:4px; }
+  .gear-gems { position:absolute; right:2px; bottom:2px; display:flex; gap:2px; }
+  .gear-gem { width:7px; height:7px; border-radius:2px; border:1px solid rgba(0,0,0,.5); display:inline-block; }
+  .gear-slotlabel { margin-top:5px; font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .gear-tip {
+    display:none; position:absolute; z-index:15; left:50%; bottom:calc(100% + 8px); transform:translateX(-50%);
+    width:220px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px;
+    box-shadow:0 12px 32px -6px rgba(0,0,0,.4), 0 0 0 1px var(--line); text-align:left;
+  }
+  .gear-tile:hover .gear-tip { display:block; }
+  .gear-tip-name { display:block; font-weight:700; font-size:13.5px; text-decoration:none; margin-bottom:2px; }
+  .gear-tip-meta { color:var(--muted); font-size:11.5px; margin-bottom:6px; }
+  .gear-tip-ench { font-size:12px; color:var(--good); margin-bottom:2px; }
+  .gear-tip-socket { display:flex; align-items:center; gap:6px; font-size:12px; margin-top:2px; color:var(--text); }
+  .gear-tip-socket.empty { color:var(--muted); }
+  .gear-gem-dot { width:9px; height:9px; border-radius:2px; border:1px solid var(--muted); flex:0 0 auto; }
 </style>`;
 
 // inline nav icons (stroke = currentColor)
@@ -2971,6 +2996,55 @@ function renderHistoryEvent(user, opts = {}) {
     return adminLayout("Event-Loot — Pulsebot Admin", "history", user, body, opts.msg, opts.nav, { wowheadIconize: true, crumb: label });
 }
 
+// Blizzard's equipment-slot enum, in the order a character sheet lists them.
+const GEAR_SLOT_ORDER = [
+    "HEAD", "NECK", "SHOULDER", "BACK", "CHEST", "SHIRT", "TABARD", "WRIST",
+    "HANDS", "WAIST", "LEGS", "FEET", "FINGER_1", "FINGER_2", "TRINKET_1", "TRINKET_2",
+    "MAIN_HAND", "OFF_HAND", "RANGED",
+];
+const GEAR_SLOT_LABELS = {
+    HEAD: "Kopf", NECK: "Hals", SHOULDER: "Schulter", BACK: "Rücken", CHEST: "Brust", SHIRT: "Hemd", TABARD: "Wappenrock",
+    WRIST: "Handgelenk", HANDS: "Hände", WAIST: "Taille", LEGS: "Beine", FEET: "Füße",
+    FINGER_1: "Ring 1", FINGER_2: "Ring 2", TRINKET_1: "Schmuck 1", TRINKET_2: "Schmuck 2",
+    MAIN_HAND: "Haupthand", OFF_HAND: "Nebenhand", RANGED: "Fernkampf",
+};
+const GEAR_QUALITY_COLOR = {
+    POOR: "#9d9d9d", COMMON: "#ffffff", UNCOMMON: "#1eff00", RARE: "#0070dd",
+    EPIC: "#a335ee", LEGENDARY: "#ff8000", ARTIFACT: "#e6cc80", HEIRLOOM: "#00ccff",
+};
+const GEAR_GEM_COLOR = {
+    RED: "#c0392b", YELLOW: "#e0b73a", BLUE: "#3d7dd6", META: "#d8d8d8",
+    PRISMATIC: "linear-gradient(135deg, #e05d5d, #e0c65d, #5d8ee0)",
+};
+
+// one equipment tile in the gear paperdoll grid (icon + ilvl badge + socket dots,
+// full detail — name/enchants/sockets — in a hover tooltip)
+function gearTile(g) {
+    const color = GEAR_QUALITY_COLOR[g.quality] || "var(--line)";
+    const label = GEAR_SLOT_LABELS[g.slot] || g.slot || "";
+    const icon = g.iconUrl
+        ? `<img src="${esc(g.iconUrl)}" alt="" loading="lazy">`
+        : "<div class=\"gear-icon-ph\"></div>";
+    const ilvl = g.level ? `<span class="gear-ilvl">${esc(String(g.level))}</span>` : "";
+    const gemDot = (s) => `<span class="gear-gem" style="background:${s.gemName ? (GEAR_GEM_COLOR[s.type] || "#888") : "transparent"};border-color:${GEAR_GEM_COLOR[s.type] || "var(--muted)"}"></span>`;
+    const gems = (g.sockets && g.sockets.length) ? `<span class="gear-gems">${g.sockets.map(gemDot).join("")}</span>` : "";
+    const tipName = g.itemId
+        ? `<a class="gear-tip-name" style="color:${color}" href="https://www.wowhead.com/tbc/item=${esc(String(g.itemId))}" target="_blank" rel="noopener">${esc(g.name || ("Item " + g.itemId))}</a>`
+        : `<span class="gear-tip-name" style="color:${color}">${esc(g.name || label)}</span>`;
+    const tipMeta = `<div class="gear-tip-meta">${esc(label)}${g.level ? ` · iLvl ${esc(String(g.level))}` : ""}</div>`;
+    const tipEnch = (g.enchants || []).map((e) => `<div class="gear-tip-ench">${esc(e)}</div>`).join("");
+    const tipSockets = (g.sockets || []).map((s) => {
+        const dot = `<span class="gear-gem-dot" style="background:${s.gemName ? (GEAR_GEM_COLOR[s.type] || "#888") : "transparent"};border-color:${GEAR_GEM_COLOR[s.type] || "var(--muted)"}"></span>`;
+        const text = s.gemName ? esc(s.gemName) : `leerer Sockel (${esc(s.type || "?")})`;
+        return `<div class="gear-tip-socket${s.gemName ? "" : " empty"}">${dot}${text}</div>`;
+    }).join("");
+    return `<div class="gear-tile">
+      <div class="gear-icon" style="border-color:${color}">${icon}${ilvl}${gems}</div>
+      <div class="gear-slotlabel">${esc(label)}</div>
+      <div class="gear-tip">${tipName}${tipMeta}${tipEnch}${tipSockets}</div>
+    </div>`;
+}
+
 /**
  * A character's loot history + armory/WCL links + optional live gear (paperdoll).
  * @param {object} opts { character, realm, items, armoryUrl, wclUrl, gear,
@@ -2988,24 +3062,13 @@ function renderHistoryChar(user, opts = {}) {
     const reloadBtn = `<a class="btn btn-ghost btn-sm" href="/admin/history/char?name=${encodeURIComponent(character)}">↻ Paperdoll neu laden</a>`;
     let gearInner;
     if (Array.isArray(opts.gear) && opts.gear.length) {
-        const gearRows = opts.gear.map((g) => {
-            const enchant = (g.enchants && g.enchants.length)
-                ? esc(g.enchants.join(", "))
-                : "<span class=\"sub\">—</span>";
-            const gems = (g.gems && g.gems.length) ? esc(g.gems.join(", ")) : "";
-            const empty = g.emptySockets ? `<span class="lbadge lbadge-warn">${g.emptySockets} leer</span>` : "";
-            const socketCell = (gems || empty) ? `${gems}${gems && empty ? " " : ""}${empty}` : "<span class=\"sub\">—</span>";
-            return `<tr>
-            <td class="small">${esc(g.slot || "")}</td>
-            <td>${g.itemId ? `<a class="mlink" href="https://www.wowhead.com/tbc/item=${esc(String(g.itemId))}" target="_blank" rel="noopener">${esc(g.name || ("Item " + g.itemId))}</a>` : esc(g.name || "")}</td>
-            <td class="small">${g.level ? esc(String(g.level)) : ""}</td>
-            <td class="small">${enchant}</td>
-            <td class="small">${socketCell}</td>
-          </tr>`;
-        }).join("");
-        gearInner = `<div class="dash-card">
+        const bySlot = new Map(opts.gear.map((g) => [g.slot, g]));
+        const ordered = GEAR_SLOT_ORDER.map((slot) => bySlot.get(slot)).filter(Boolean);
+        const extra = opts.gear.filter((g) => !GEAR_SLOT_ORDER.includes(g.slot));
+        const tiles = [...ordered, ...extra].map(gearTile).join("");
+        gearInner = `<div class="dash-card gear-card">
             <div class="dash-card-head"><h3>Aktuelles Gear (Paperdoll)</h3><span class="small" style="margin-left:auto">Battle.net API</span></div>
-            <table class="idx" style="margin:0"><thead><tr><th>Slot</th><th>Item</th><th>iLvl</th><th>Verzauberung</th><th>Sockel</th></tr></thead><tbody>${gearRows}</tbody></table>
+            <div class="gear-grid">${tiles}</div>
           </div>`;
     } else if (opts.gearConfigured) {
         gearInner = `<div class="flash flash-err" style="margin:0 0 12px">${esc(opts.gearError || "Kein Live-Gear von der Battle.net-API verfügbar.")}</div>

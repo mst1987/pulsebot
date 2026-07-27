@@ -684,6 +684,11 @@ export function resolveCharacters(csrfToken: string | null): Promise<ResolveChar
     return send("POST", "/api/history/characters-resolve", csrfToken, {});
 }
 
+export type GearSocket = {
+    type: string;
+    gemName: string | null;
+};
+
 export type GearItem = {
     slot: string;
     itemId: number | null;
@@ -691,8 +696,8 @@ export type GearItem = {
     quality: string;
     level: number | null;
     enchants: string[];
-    gems: string[];
-    emptySockets: number;
+    sockets: GearSocket[];
+    iconUrl: string;
 };
 
 export type CharSummary = {
