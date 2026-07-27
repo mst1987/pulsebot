@@ -77,16 +77,16 @@ describe("classes/Blizzard", () => {
             expect(cfg.headers.Authorization).toBe("Bearer tok");
 
             expect(result).toEqual([
-                { slot: "HEAD", itemId: 29011, name: "Cursed Vision", quality: "EPIC", level: 120, enchants: [], sockets: [], iconUrl: "" },
-                { slot: "NECK", itemId: 28530, name: "Adornment", quality: "RARE", level: 115, enchants: [], sockets: [], iconUrl: "" },
+                { slot: "HEAD", itemId: 29011, name: "Cursed Vision", quality: "EPIC", level: 120, enchants: [], enchantIds: [], sockets: [], iconUrl: "" },
+                { slot: "NECK", itemId: 28530, name: "Adornment", quality: "RARE", level: 115, enchants: [], enchantIds: [], sockets: [], iconUrl: "" },
             ]);
         });
 
-        it("extracts enchants and sockets (gem name null for an empty socket) from an item", async () => {
+        it("extracts enchants (with id) and sockets (gem name null for an empty socket) from an item", async () => {
             axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
             axios.get.mockResolvedValue({ data: { equipped_items: [{
                 slot: { type: "HEAD" }, item: { id: 29011 }, name: "Helm",
-                enchantments: [{ display_string: "Enchanted: +150 Mana" }],
+                enchantments: [{ display_string: "Enchanted: +150 Mana", enchantment_id: 3002 }],
                 sockets: [
                     { socket_type: { type: "META" }, item: { name: "Chaotic Skyfire Diamond" } },
                     { socket_type: { type: "RED" } },
@@ -94,9 +94,10 @@ describe("classes/Blizzard", () => {
             }] } });
             const [item] = await configured().getEquipment("Foo");
             expect(item.enchants).toEqual(["Enchanted: +150 Mana"]);
+            expect(item.enchantIds).toEqual([3002]);
             expect(item.sockets).toEqual([
-                { type: "META", gemName: "Chaotic Skyfire Diamond", gemId: null, gemIconUrl: "" },
-                { type: "RED", gemName: null, gemId: null, gemIconUrl: "" },
+                { type: "META", gemName: "Chaotic Skyfire Diamond", gemId: null, gemIconUrl: "", gemText: "" },
+                { type: "RED", gemName: null, gemId: null, gemIconUrl: "", gemText: "" },
             ]);
         });
 
@@ -117,6 +118,74 @@ describe("classes/Blizzard", () => {
             const [item] = await configured().getEquipment("Foo");
             expect(item.sockets[0].gemId).toBe(32409);
             expect(item.sockets[0].gemIconUrl).toBe("https://wow.zamimg.com/images/wow/icons/large/inv_misc_gem_diamond_06.jpg");
+        });
+
+        it("classifies plain-stat enchantment entries as gems (real Thunderstrike shape: no sockets array)", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+            axios.get.mockImplementation((url) => {
+                if (url.includes("wowhead.com") && url.includes("search/suggestions-template")) {
+                    return Promise.resolve({ data: { results: [
+                        { typeName: "Item", id: 24033, name: "Delicate Living Ruby", icon: "inv_jewelcrafting_livingruby_03", quality: 3 },
+                    ] } });
+                }
+                if (url.includes("nether.wowhead.com")) return Promise.resolve({ data: {} });
+                return Promise.resolve({ data: { equipped_items: [{
+                    slot: { type: "SHOULDER" }, item: { id: 30055 }, name: "Shoulderpads",
+                    enchantments: [
+                        { display_string: "Enchanted: +26 Attack Power", enchantment_id: 2721, enchantment_slot: { type: "PERMANENT" } },
+                        { display_string: "+8 Agility" },
+                    ],
+                }] } });
+            });
+            const [item] = await configured().getEquipment("Foo");
+            // the "Enchanted:" entry stays an enchant, the stat text becomes a resolved gem
+            expect(item.enchants).toEqual(["Enchanted: +26 Attack Power"]);
+            expect(item.enchantIds).toEqual([2721]);
+            expect(item.sockets).toHaveLength(1);
+            expect(item.sockets[0]).toMatchObject({
+                gemId: 24033,
+                gemName: "Delicate Living Ruby",
+                gemIconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_jewelcrafting_livingruby_03.jpg",
+                gemText: "+8 Agility",
+            });
+        });
+
+        it("uses the gem's source_item when the enchantment entry carries one", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+            axios.get.mockImplementation((url) => {
+                if (url.includes("nether.wowhead.com/tooltip/item/24027")) {
+                    return Promise.resolve({ data: { name: "Bold Living Ruby", icon: "inv_jewelcrafting_livingruby_01", quality: 3 } });
+                }
+                if (url.includes("nether.wowhead.com")) return Promise.resolve({ data: {} });
+                return Promise.resolve({ data: { equipped_items: [{
+                    slot: { type: "CHEST" }, item: { id: 999902 }, name: "Chest",
+                    enchantments: [
+                        { display_string: "+8 Strength", source_item: { id: 24027, name: "Bold Living Ruby" } },
+                    ],
+                }] } });
+            });
+            const [item] = await configured().getEquipment("Foo");
+            expect(item.enchants).toEqual([]);
+            expect(item.sockets[0]).toMatchObject({
+                gemId: 24027,
+                gemName: "Bold Living Ruby",
+                gemIconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_jewelcrafting_livingruby_01.jpg",
+            });
+        });
+
+        it("keeps an unmappable stat text as enchant line rather than dropping it", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+            axios.get.mockImplementation((url) => {
+                if (url.includes("nether.wowhead.com")) return Promise.resolve({ data: {} });
+                return Promise.resolve({ data: { equipped_items: [{
+                    slot: { type: "LEGS" }, item: { id: 999903 }, name: "Legs",
+                    enchantments: [{ display_string: "+40 Attack Power and +10 Critical Strike Rating" }],
+                }] } });
+            });
+            const [item] = await configured().getEquipment("Foo");
+            // no "Enchanted:" prefix, but no gem match either → surfaced as enchant text
+            expect(item.enchants).toEqual(["+40 Attack Power and +10 Critical Strike Rating"]);
+            expect(item.sockets).toEqual([]);
         });
 
         it("resolves the item icon via Wowhead, keyed by item id (best-effort, empty on a miss)", async () => {

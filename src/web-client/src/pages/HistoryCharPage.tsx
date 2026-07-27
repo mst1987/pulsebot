@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getHistoryChar, type ApiError, type GearItem, type HistoryCharData } from "../api";
 import { fmtMs } from "../lib/format";
+import { refreshWowheadLinks } from "../lib/wowheadTooltips";
 import { ClassSpecIcon } from "../components/ClassSpec";
 import { LootTable } from "../components/LootTable";
 
@@ -30,10 +31,21 @@ const SOCKET_DE: Record<string, string> = { RED: "Rot", YELLOW: "Gelb", BLUE: "B
 
 type TileSide = "left" | "right" | "bottom";
 
-// One equipment tile: icon with quality border, iLvl below, socket dots +
-// enchant marker on the icon, and a WoW-style dark hover tooltip. `side` picks
-// which way the tooltip opens so it stays inside the card; a missing item
-// renders as a dimmed placeholder so the sheet keeps its shape.
+// Wowhead item URL carrying the character's actual enchant + gems, so the
+// widget tooltip (power.js in index.html) shows them like the in-game tooltip.
+function gearWowheadUrl(g: GearItem): string {
+    const params: string[] = [];
+    if (g.enchantIds.length) params.push(`ench=${g.enchantIds[0]}`);
+    const gemIds = g.sockets.map((s) => s.gemId).filter((id): id is number => !!id);
+    if (gemIds.length) params.push(`gems=${gemIds.join(":")}`);
+    return `https://www.wowhead.com/tbc/item=${g.itemId}${params.length ? `?${params.join("&")}` : ""}`;
+}
+
+// One equipment tile: icon with quality border, iLvl below, enchant marker +
+// real gem mini-icons on the icon. Hovering shows the full Wowhead tooltip via
+// the ?ench=&gems= link — the authentic item tooltip including the char's
+// actual gems and enchant. A missing item renders as a dimmed placeholder so
+// the sheet keeps its shape.
 function GearTile({ g, side }: { g?: GearItem; side: TileSide }) {
     if (!g) {
         return <div className={`gear-tile gear-tile-${side}`}><span className="gear-icon gear-empty-ph" /></div>;
@@ -43,53 +55,35 @@ function GearTile({ g, side }: { g?: GearItem; side: TileSide }) {
     const iconInner = (
         <>
             {g.iconUrl ? <img src={g.iconUrl} alt="" loading="lazy" /> : <span className="gear-icon-ph" />}
-            {!!g.enchants.length && <span className="gear-enchmark">+</span>}
+            {!!g.enchants.length && <span className="gear-enchmark" title={g.enchants.join(" · ")}>+</span>}
             {!!g.sockets.length && (
                 <span className="gear-gems">
-                    {g.sockets.map((s, i) => (
-                        <span
-                            key={i}
-                            className="gear-gem"
-                            style={{
-                                background: s.gemName ? (GEM_COLOR[s.type] || "#888") : "transparent",
-                                borderColor: GEM_COLOR[s.type] || "var(--muted)",
-                            }}
-                        />
-                    ))}
+                    {g.sockets.map((s, i) => {
+                        const tip = s.gemName || s.gemText || (s.type ? `Leerer Sockel (${SOCKET_DE[s.type] || s.type})` : "Sockel");
+                        return s.gemIconUrl
+                            ? <img key={i} className="gear-gem-ico" src={s.gemIconUrl} alt="" title={tip} loading="lazy" />
+                            : (
+                                <span
+                                    key={i}
+                                    className="gear-gem"
+                                    title={tip}
+                                    style={{
+                                        background: s.gemName || s.gemText ? (GEM_COLOR[s.type] || "#888") : "transparent",
+                                        borderColor: GEM_COLOR[s.type] || "var(--muted)",
+                                    }}
+                                />
+                            );
+                    })}
                 </span>
             )}
         </>
     );
     return (
         <div className={`gear-tile gear-tile-${side}`}>
-            {/* span, not a Wowhead <a> — mirrors the legacy admin, where the
-                Wowhead widget would rewrite tile links; the link lives on the
-                tooltip's item name instead */}
-            <span className="gear-icon" style={{ borderColor: color }}>{iconInner}</span>
+            {g.itemId
+                ? <a className="gear-icon" style={{ borderColor: color }} href={gearWowheadUrl(g)} target="_blank" rel="noopener noreferrer" title={g.name || label}>{iconInner}</a>
+                : <span className="gear-icon" style={{ borderColor: color }} title={g.name || label}>{iconInner}</span>}
             <div className="gear-tile-ilvl">{g.level || ""}</div>
-            <div className="gear-tip">
-                {g.itemId
-                    ? <a className="gt-name" style={{ color }} href={`https://www.wowhead.com/tbc/item=${g.itemId}`} target="_blank" rel="noopener noreferrer">{g.name || `Item ${g.itemId}`}</a>
-                    : <span className="gt-name" style={{ color }}>{g.name || label}</span>}
-                <div className="gt-meta">{label}{g.level ? ` · Gegenstandsstufe ${g.level}` : ""}</div>
-                {g.enchants.map((e, i) => <div key={i} className="gt-ench">{e}</div>)}
-                {g.sockets.map((s, i) => (
-                    <div key={i} className={`gt-gem${s.gemName ? "" : " gt-empty"}`}>
-                        {s.gemIconUrl
-                            ? <img className="gt-gemicon" src={s.gemIconUrl} alt="" loading="lazy" />
-                            : (
-                                <span
-                                    className="gear-gem-dot"
-                                    style={{
-                                        background: s.gemName ? (GEM_COLOR[s.type] || "#888") : "transparent",
-                                        borderColor: GEM_COLOR[s.type] || "var(--muted)",
-                                    }}
-                                />
-                            )}
-                        {s.gemName || `Leerer Sockel (${SOCKET_DE[s.type] || s.type || "?"})`}
-                    </div>
-                ))}
-            </div>
         </div>
     );
 }
@@ -193,6 +187,10 @@ export default function HistoryCharPage() {
     };
 
     useEffect(load, [name]);
+
+    // Attach Wowhead tooltips to the freshly rendered item links (gear tiles +
+    // loot table) — the widget's own scan ran before React rendered them.
+    useEffect(() => { refreshWowheadLinks(); }, [data, tab]);
 
     const switchTab = (t: CharTab) => {
         const next = new URLSearchParams(searchParams);

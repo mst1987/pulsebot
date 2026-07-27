@@ -1,6 +1,93 @@
 const axios = require("axios");
 const wowhead = require("../utils/wowhead");
 
+// Normalize a Blizzard gem stat text for table lookup: lowercase, "&" → "and",
+// collapsed whitespace, no trailing period ("+8 Agility" → "+8 agility").
+function normalizeGemText(text) {
+    return String(text || "")
+        .toLowerCase()
+        .replace(/&/g, "and")
+        .replace(/\s+/g, " ")
+        .replace(/\.$/, "")
+        .trim();
+}
+
+// Stat text → TBC gem cut, for profiles where the API reports gems only as
+// display strings (no item reference). Covers the standard uncommon/rare/epic
+// cuts and the common metas; resolution to id/icon then goes through Wowhead's
+// name search, so a wrong/missing entry degrades to showing the raw stat text
+// rather than a wrong gem. Locale is en_GB (the client's fixed API locale).
+const TBC_GEM_NAME_BY_TEXT = {
+    // red — strength / agility / spell damage / attack power
+    "+6 strength": "Bold Blood Garnet",
+    "+8 strength": "Bold Living Ruby",
+    "+10 strength": "Bold Crimson Spinel",
+    "+6 agility": "Delicate Blood Garnet",
+    "+8 agility": "Delicate Living Ruby",
+    "+10 agility": "Delicate Crimson Spinel",
+    "+7 spell damage": "Runed Blood Garnet",
+    "+9 spell damage": "Runed Living Ruby",
+    "+12 spell damage": "Runed Crimson Spinel",
+    "+12 attack power": "Bright Blood Garnet",
+    "+16 attack power": "Bright Living Ruby",
+    "+20 attack power": "Bright Crimson Spinel",
+    // yellow — intellect / crit / hit / resilience / defense
+    "+6 intellect": "Brilliant Golden Draenite",
+    "+8 intellect": "Brilliant Dawnstone",
+    "+10 intellect": "Brilliant Lionseye",
+    "+6 critical strike rating": "Smooth Golden Draenite",
+    "+8 critical strike rating": "Smooth Dawnstone",
+    "+10 critical strike rating": "Smooth Lionseye",
+    "+6 hit rating": "Rigid Golden Draenite",
+    "+8 hit rating": "Rigid Dawnstone",
+    "+10 hit rating": "Rigid Lionseye",
+    "+6 spell critical strike rating": "Gleaming Golden Draenite",
+    "+8 spell critical strike rating": "Gleaming Dawnstone",
+    "+10 spell critical strike rating": "Gleaming Lionseye",
+    "+8 spell hit rating": "Great Dawnstone",
+    "+10 spell hit rating": "Great Lionseye",
+    "+8 resilience rating": "Mystic Dawnstone",
+    "+10 resilience rating": "Mystic Lionseye",
+    "+8 defense rating": "Thick Dawnstone",
+    "+10 defense rating": "Thick Lionseye",
+    // blue — stamina / spirit / spell penetration
+    "+9 stamina": "Solid Azure Moonstone",
+    "+12 stamina": "Solid Star of Elune",
+    "+15 stamina": "Solid Empyrean Sapphire",
+    "+8 spirit": "Sparkling Star of Elune",
+    "+10 spirit": "Sparkling Empyrean Sapphire",
+    "+10 spell penetration": "Stormy Star of Elune",
+    "+13 spell penetration": "Stormy Empyrean Sapphire",
+    // orange hybrids (rare +4/+4, epic +5/+5)
+    "+4 strength and +4 critical strike rating": "Inscribed Noble Topaz",
+    "+5 strength and +5 critical strike rating": "Inscribed Pyrestone",
+    "+4 agility and +4 hit rating": "Glinting Noble Topaz",
+    "+5 agility and +5 hit rating": "Glinting Pyrestone",
+    "+5 spell damage and +4 spell critical strike rating": "Potent Noble Topaz",
+    "+6 spell damage and +5 spell critical strike rating": "Potent Pyrestone",
+    "+8 attack power and +4 critical strike rating": "Wicked Noble Topaz",
+    "+10 attack power and +5 critical strike rating": "Wicked Pyrestone",
+    // purple hybrids
+    "+4 strength and +6 stamina": "Sovereign Nightseye",
+    "+5 strength and +7 stamina": "Sovereign Shadowsong Amethyst",
+    "+4 agility and +6 stamina": "Shifting Nightseye",
+    "+5 agility and +7 stamina": "Shifting Shadowsong Amethyst",
+    "+5 spell damage and +6 stamina": "Glowing Nightseye",
+    "+6 spell damage and +7 stamina": "Glowing Shadowsong Amethyst",
+    "+8 attack power and +6 stamina": "Balanced Nightseye",
+    // green hybrids
+    "+4 critical strike rating and +6 stamina": "Jagged Talasite",
+    "+5 critical strike rating and +7 stamina": "Jagged Seaspray Emerald",
+    "+4 defense rating and +6 stamina": "Enduring Talasite",
+    // metas (unique effect texts)
+    "+12 agility and 3% increased critical damage": "Relentless Earthstorm Diamond",
+    "+24 attack power and minor run speed increase": "Swift Skyfire Diamond",
+    "+12 intellect and chance to restore mana on spellcast": "Insightful Earthstorm Diamond",
+    "+18 stamina and 5% stun resistance": "Powerful Earthstorm Diamond",
+    "+12 spell critical strike rating and 3% increased critical damage": "Chaotic Skyfire Diamond",
+    "+12 spell critical strike rating and 3% increased critical spell damage": "Chaotic Skyfire Diamond",
+};
+
 // Blizzard Battle.net API client for reading a character's equipped gear
 // (paperdoll) on the WoW Classic Anniversary realms (default: Thunderstrike EU,
 // namespace profile-classicann-eu — confirmed correct for the Anniversary realms;
@@ -125,44 +212,96 @@ class Blizzard {
 
     /**
      * A character's equipped items, normalized to { slot, itemId, name, quality,
-     * level, enchants, sockets, iconUrl }. `enchants` is a list of display
-     * strings; `sockets` is one entry per socket ({ type, gemName, gemId,
-     * gemIconUrl }, gemName/gemId null when the socket is empty) so the caller
-     * can render a paperdoll with per-socket color coding instead of just a
-     * leftover count. `iconUrl`/`gemIconUrl` come from Wowhead (the Blizzard
-     * equipment endpoint has no media URLs), looked up per distinct item id the
-     * same way loot-import icon enrichment works (utils/lootImport.js's
-     * enrichItemNames) — best-effort, "" on a miss. Returns null on any problem
-     * (not configured, auth failure, 403/404, empty/unknown character, network
-     * error) so the caller can fall back to a classic-armory.org link.
+     * level, enchants, enchantIds, sockets, iconUrl }.
+     *
+     * The classic profile API reports socketed gems in TWO possible places, and
+     * real Thunderstrike data has shown the `sockets` array to be absent while
+     * the gems appear as extra entries in `enchantments[]` (plain stat texts
+     * like "+8 Agility" next to the real enchant's "Enchanted: ..." entry). We
+     * therefore classify each enchantment entry:
+     *   - permanent enchant: slot type PERMANENT, or display starting
+     *     "Enchanted:" → goes to `enchants` (display strings) + `enchantIds`
+     *     (Blizzard enchantment ids, usable for Wowhead's ?ench= tooltip param)
+     *   - gem entry: has a `source_item` (the gem item), a SOCKET-ish slot
+     *     type, or a stat text that matches a known TBC gem cut → becomes a
+     *     socket entry
+     * Socket entries are { type, gemId, gemName, gemIconUrl, gemText }; gem
+     * identity resolves in order of trust: explicit item ref from the API →
+     * static stat-text → gem-name table (TBC_GEM_NAME_BY_TEXT) + Wowhead
+     * name search. Unresolvable gems keep their stat text so the information
+     * is never dropped. Icons come from Wowhead (the Blizzard endpoint has no
+     * media URLs), like utils/lootImport.js's enrichItemNames — best-effort.
+     * Returns null on any problem (not configured, auth failure, 403/404,
+     * unknown character, network error) so the caller can fall back to a
+     * classic-armory.org link.
      */
     async getEquipment(characterName, opts = {}) {
         const data = await this._getCharacter(characterName, "/equipment", opts);
         if (!data) return null;
         const items = data.equipped_items || [];
         const gear = items.map((it) => {
-            const sockets = it.sockets || [];
+            const enchants = [];
+            const enchantIds = [];
+            const sockets = (it.sockets || []).map((s) => ({
+                type: (s.socket_type && s.socket_type.type) || "",
+                gemId: (s.item && s.item.id) || null,
+                gemName: (s.item && s.item.name) || null,
+                gemIconUrl: "",
+                gemText: s.display_string || "",
+            }));
+            for (const e of it.enchantments || []) {
+                const text = e.display_string || (e.source_item && e.source_item.name) || "";
+                if (!text) continue;
+                const slotType = (e.enchantment_slot && e.enchantment_slot.type) || "";
+                const isPermanent = slotType === "PERMANENT" || /^Enchanted:/i.test(text);
+                const looksLikeGem = Boolean(e.source_item)
+                    || slotType.includes("SOCKET")
+                    || Boolean(TBC_GEM_NAME_BY_TEXT[normalizeGemText(text)]);
+                if (!isPermanent && looksLikeGem) {
+                    // Gems reported via enchantments only appear when the API
+                    // sent no sockets array — don't duplicate existing entries.
+                    sockets.push({
+                        type: "",
+                        gemId: (e.source_item && e.source_item.id) || null,
+                        gemName: (e.source_item && e.source_item.name) || null,
+                        gemIconUrl: "",
+                        gemText: e.display_string || "",
+                    });
+                } else {
+                    enchants.push(text);
+                    if (e.enchantment_id) enchantIds.push(e.enchantment_id);
+                }
+            }
             return {
                 slot: (it.slot && it.slot.type) || "",
                 itemId: (it.item && it.item.id) || null,
                 name: it.name || "",
                 quality: (it.quality && it.quality.type) || "",
                 level: (it.level && it.level.value) || null,
-                enchants: (it.enchantments || [])
-                    .map((e) => e.display_string || (e.source_item && e.source_item.name) || "")
-                    .filter(Boolean),
-                sockets: sockets.map((s) => ({
-                    type: (s.socket_type && s.socket_type.type) || "",
-                    gemName: (s.item && s.item.name) || null,
-                    gemId: (s.item && s.item.id) || null,
-                    gemIconUrl: "",
-                })),
+                enchants,
+                enchantIds,
+                sockets,
                 iconUrl: "",
             };
         });
+        // Text-only gems: map the stat text to a known TBC gem cut and resolve
+        // its id/icon via Wowhead's name search (cached in utils/wowhead).
+        for (const g of gear) {
+            for (const s of g.sockets) {
+                if (s.gemId || (!s.gemName && !s.gemText)) continue;
+                const mappedName = s.gemName || TBC_GEM_NAME_BY_TEXT[normalizeGemText(s.gemText)];
+                if (!mappedName) continue;
+                const found = await wowhead.findItemByName(mappedName);
+                if (found) {
+                    s.gemId = found.id;
+                    s.gemName = found.name;
+                    s.gemIconUrl = found.iconUrl || "";
+                }
+            }
+        }
         const ids = [...new Set([
             ...gear.filter((g) => g.itemId).map((g) => g.itemId),
-            ...gear.flatMap((g) => g.sockets.map((s) => s.gemId).filter(Boolean)),
+            ...gear.flatMap((g) => g.sockets.filter((s) => s.gemId && !s.gemIconUrl).map((s) => s.gemId)),
         ])];
         if (ids.length) {
             const lookups = await Promise.all(ids.map((id) => wowhead.lookupItem(id)));
@@ -172,7 +311,8 @@ class Blizzard {
                 if (found && found.iconUrl) g.iconUrl = found.iconUrl;
                 for (const s of g.sockets) {
                     const gem = s.gemId ? byId.get(s.gemId) : null;
-                    if (gem && gem.iconUrl) s.gemIconUrl = gem.iconUrl;
+                    if (gem && !s.gemIconUrl && gem.iconUrl) s.gemIconUrl = gem.iconUrl;
+                    if (gem && !s.gemName) s.gemName = gem.name;
                 }
             }
         }

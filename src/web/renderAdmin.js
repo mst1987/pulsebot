@@ -405,9 +405,8 @@ const ADMIN_STYLE = `<style>
     .pl-rune .r1,.pl-rune .r2,.pl-rune .r3,.pl-dots::after,.page-loader.show { animation-duration:.001ms; animation-iteration-count:1; }
   }
   /* history char: gear paperdoll (character-sheet layout: slot columns left/right,
-     class portrait center, weapons below; WoW-style dark hover tooltips) */
-  /* .dash-card clips overflow for rounded table corners; the tile tooltips are
-     absolutely positioned and need to escape that clip to stay visible. */
+     class portrait center, weapons below; item tooltips come from the Wowhead
+     widget via the tiles' ?ench=&gems= links) */
   .gear-card { overflow:visible; }
   .gear-doll { display:grid; grid-template-columns:auto 1fr auto; gap:14px 20px; padding:18px; }
   .gear-col { display:flex; flex-direction:column; gap:9px; }
@@ -424,32 +423,12 @@ const ADMIN_STYLE = `<style>
   .gear-icon-ph { display:block; width:100%; height:100%; background:var(--panel3); }
   .gear-empty-ph { border-style:dashed; opacity:.45; }
   .gear-enchmark { position:absolute; top:1px; left:1px; width:13px; height:13px; line-height:13px; text-align:center; background:rgba(0,0,0,.68); color:#1eff00; font-size:11px; font-weight:800; border-radius:3px; }
-  .gear-gems { position:absolute; right:2px; bottom:2px; display:flex; gap:2px; }
+  .gear-gems { position:absolute; right:2px; bottom:2px; display:flex; gap:2px; align-items:flex-end; }
   .gear-gem { width:7px; height:7px; border-radius:2px; border:1px solid rgba(0,0,0,.5); display:inline-block; }
+  /* .gear-icon img sets 100% size for the item art — the gem minis inside the
+     same container need the more specific selector to win over it */
+  .gear-icon img.gear-gem-ico { width:14px; height:14px; border-radius:3px; border:1px solid rgba(0,0,0,.6); display:block; }
   .gear-tile-ilvl { margin-top:2px; text-align:center; font-size:11px; font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums; min-height:14px; }
-  /* WoW-style tooltip: always dark, item name in quality color, green enchant
-     lines, gem icons — opens sideways per column so it stays inside the card */
-  .gear-tip {
-    display:none; position:absolute; z-index:40; top:0; width:252px;
-    background:rgba(9,9,20,.97); border:1px solid #50506a; border-radius:8px; padding:10px 12px;
-    box-shadow:0 14px 34px rgba(0,0,0,.55); color:#e8e8f0; font-size:12.5px; text-align:left;
-  }
-  .gear-tile:hover .gear-tip { display:block; }
-  .gear-tile-left .gear-tip { left:calc(100% + 10px); }
-  .gear-tile-right .gear-tip { right:calc(100% + 10px); }
-  .gear-tile-bottom .gear-tip { top:auto; bottom:calc(100% + 10px); left:50%; transform:translateX(-50%); }
-  /* invisible bridge over the gap so the tooltip stays open while moving the
-     mouse into it (the item name inside is a link) */
-  .gear-tile-left .gear-tip::before { content:""; position:absolute; right:100%; top:0; height:100%; width:12px; }
-  .gear-tile-right .gear-tip::before { content:""; position:absolute; left:100%; top:0; height:100%; width:12px; }
-  .gear-tile-bottom .gear-tip::before { content:""; position:absolute; top:100%; left:0; width:100%; height:12px; }
-  .gt-name { display:block; font-weight:700; font-size:13.5px; text-decoration:none; margin-bottom:2px; }
-  .gt-meta { color:#9a9ab0; font-size:11.5px; margin-bottom:6px; }
-  .gt-ench { color:#1eff00; margin-top:2px; }
-  .gt-gem { display:flex; align-items:center; gap:6px; margin-top:3px; color:#e8e8f0; }
-  .gt-gem.gt-empty { color:#8a8a9a; }
-  .gt-gemicon { width:16px; height:16px; border-radius:3px; border:1px solid rgba(0,0,0,.6); flex:0 0 auto; }
-  .gear-gem-dot { width:9px; height:9px; border-radius:2px; border:1px solid var(--muted); flex:0 0 auto; }
   @media (max-width:640px) {
     .gear-doll { grid-template-columns:auto 1fr auto; gap:10px 8px; padding:12px; }
     .gear-portrait { width:64px; height:64px; }
@@ -3173,11 +3152,23 @@ const GEAR_GEM_COLOR = {
 };
 const GEAR_SOCKET_DE = { RED: "Rot", YELLOW: "Gelb", BLUE: "Blau", META: "Meta", PRISMATIC: "Prismatisch" };
 
+// Wowhead item URL carrying the character's actual enchant + gems, so the
+// widget tooltip shows them exactly like the in-game tooltip (same pattern as
+// render.js's logcheck paperdoll). Requires the page to run the widget with
+// iconize/rename OFF — those modes rewrite icon-only anchors into a mess.
+function gearWowheadUrl(g) {
+    const params = [];
+    if (g.enchantIds && g.enchantIds.length) params.push(`ench=${encodeURIComponent(g.enchantIds[0])}`);
+    const gemIds = (g.sockets || []).map((s) => s.gemId).filter(Boolean);
+    if (gemIds.length) params.push(`gems=${gemIds.join(":")}`);
+    return `https://www.wowhead.com/tbc/item=${esc(String(g.itemId))}${params.length ? `?${params.join("&")}` : ""}`;
+}
+
 // One equipment tile in the paperdoll: icon with quality border, iLvl below,
-// socket dots + enchant marker on the icon, and a WoW-style dark hover tooltip
-// (item name in quality color, green enchant lines, gem icons). `side` picks
-// which way the tooltip opens so it stays inside the card; a missing item
-// renders as a dimmed placeholder so the sheet keeps its shape.
+// enchant marker + real gem mini-icons on the icon. Hovering shows the full
+// Wowhead tooltip (via the ?ench=&gems= link), i.e. the authentic in-game item
+// tooltip including the char's actual gems and enchant. A missing item renders
+// as a dimmed placeholder so the sheet keeps its shape.
 function gearTile(g, side) {
     if (!g) return `<div class="gear-tile gear-tile-${side}"><span class="gear-icon gear-empty-ph"></span></div>`;
     const color = GEAR_QUALITY_COLOR[g.quality] || "var(--line)";
@@ -3187,30 +3178,21 @@ function gearTile(g, side) {
     const iconImg = g.iconUrl
         ? `<img src="${esc(g.iconUrl)}" alt="" loading="lazy">`
         : "<span class=\"gear-icon-ph\"></span>";
-    const enchMark = enchants.length ? "<span class=\"gear-enchmark\">+</span>" : "";
-    const gemDot = (s) => `<span class="gear-gem" style="background:${s.gemName ? (GEAR_GEM_COLOR[s.type] || "#888") : "transparent"};border-color:${GEAR_GEM_COLOR[s.type] || "var(--muted)"}"></span>`;
-    const gems = sockets.length ? `<span class="gear-gems">${sockets.map(gemDot).join("")}</span>` : "";
-    // Deliberately a <span>, not a Wowhead <a>: the page's Wowhead widget
-    // (power.js, loaded for the loot tab) rewrites wowhead links — injecting
-    // its own repeated icon into the tile and stacking its tooltip over ours.
-    // The Wowhead link lives on the item name inside the tooltip instead.
-    const icon = `<span class="gear-icon" style="border-color:${color}">${iconImg}${enchMark}${gems}</span>`;
-    const tipName = g.itemId
-        ? `<a class="gt-name" style="color:${color}" href="https://www.wowhead.com/tbc/item=${esc(String(g.itemId))}" target="_blank" rel="noopener">${esc(g.name || ("Item " + g.itemId))}</a>`
-        : `<span class="gt-name" style="color:${color}">${esc(g.name || label)}</span>`;
-    const tipMeta = `<div class="gt-meta">${esc(label)}${g.level ? ` · Gegenstandsstufe ${esc(String(g.level))}` : ""}</div>`;
-    const tipEnch = enchants.map((e) => `<div class="gt-ench">${esc(e)}</div>`).join("");
-    const tipSockets = sockets.map((s) => {
-        const gemIcon = s.gemIconUrl
-            ? `<img class="gt-gemicon" src="${esc(s.gemIconUrl)}" alt="" loading="lazy">`
-            : `<span class="gear-gem-dot" style="background:${s.gemName ? (GEAR_GEM_COLOR[s.type] || "#888") : "transparent"};border-color:${GEAR_GEM_COLOR[s.type] || "var(--muted)"}"></span>`;
-        const text = s.gemName ? esc(s.gemName) : `Leerer Sockel (${esc(GEAR_SOCKET_DE[s.type] || s.type || "?")})`;
-        return `<div class="gt-gem${s.gemName ? "" : " gt-empty"}">${gemIcon}${text}</div>`;
-    }).join("");
+    const enchMark = enchants.length ? `<span class="gear-enchmark" title="${esc(enchants.join(" · "))}">+</span>` : "";
+    const gemBadge = (s) => {
+        const tip = s.gemName || s.gemText || (s.type ? `Leerer Sockel (${GEAR_SOCKET_DE[s.type] || s.type})` : "Sockel");
+        if (s.gemIconUrl) return `<img class="gear-gem-ico" src="${esc(s.gemIconUrl)}" alt="" title="${esc(tip)}" loading="lazy">`;
+        return `<span class="gear-gem" title="${esc(tip)}" style="background:${s.gemName || s.gemText ? (GEAR_GEM_COLOR[s.type] || "#888") : "transparent"};border-color:${GEAR_GEM_COLOR[s.type] || "var(--muted)"}"></span>`;
+    };
+    const gems = sockets.length ? `<span class="gear-gems">${sockets.map(gemBadge).join("")}</span>` : "";
+    const iconInner = `${iconImg}${enchMark}${gems}`;
+    const title = ` title="${esc(g.name || label)}"`;
+    const icon = g.itemId
+        ? `<a class="gear-icon" style="border-color:${color}" href="${gearWowheadUrl(g)}" target="_blank" rel="noopener"${title}>${iconInner}</a>`
+        : `<span class="gear-icon" style="border-color:${color}"${title}>${iconInner}</span>`;
     return `<div class="gear-tile gear-tile-${side}">
       ${icon}
       <div class="gear-tile-ilvl">${g.level ? esc(String(g.level)) : ""}</div>
-      <div class="gear-tip">${tipName}${tipMeta}${tipEnch}${tipSockets}</div>
     </div>`;
 }
 
@@ -3312,7 +3294,12 @@ function renderHistoryChar(user, opts = {}) {
         { id: "gear", label: "Gear (Paperdoll)", content: gearTab, active: true },
         { id: "loot", label: `Loot-Historie${tabCount(items.length)}`, content: lootTab },
     ])}`;
-    return adminLayout(`${character || "Charakter"} — Pulsebot Admin`, "history", user, body, opts.msg, opts.nav, { wowheadIconize: true, crumb: character || "Charakter" });
+    // wowheadIconize deliberately OFF: iconize/rename would rewrite the gear
+    // tiles' icon-only anchors (injected repeat-icons + name text). Tooltips
+    // themselves don't depend on it — power.js always loads (see render.js) —
+    // so the paperdoll's ?ench=&gems= links still get the full item tooltip;
+    // the loot tab keeps its stored icons/names from import-time enrichment.
+    return adminLayout(`${character || "Charakter"} — Pulsebot Admin`, "history", user, body, opts.msg, opts.nav, { wowheadIconize: false, crumb: character || "Charakter" });
 }
 
 module.exports = {
