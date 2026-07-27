@@ -100,6 +100,43 @@ describe("web/raidEventGroups", () => {
         }]);
     });
 
+    it("merges in a persisted event Raid-Helper no longer returns live, when a lookback window was requested", async () => {
+        // Raid-Helper's own lookback response simply omits the event (pruned on
+        // their side, not a deleted channel) — the live fetch itself succeeds.
+        mockFetchEvents.mockResolvedValue([]);
+        discord.getChannelCategoryMap.mockReturnValue({});
+        listRaidEvents.mockReturnValue([{
+            id: "e2", guildId: "g1", title: "SSC", channelId: "chan2", channelName: "ssc",
+            categoryId: "cat2", categoryName: "Raids", startTime: 2000000000,
+        }]);
+
+        const { groups, error, stale } = await loadEventGroups("g1", { sinceSeconds: 1 });
+
+        expect(error).toBeNull();
+        expect(stale).toBe(false);
+        expect(groups).toEqual([{
+            categoryId: "cat2", categoryName: "Raids",
+            events: [{
+                id: "e2", title: "SSC", startTime: 2000000000, leaderId: "",
+                channelId: "chan2", channelName: "ssc", categoryId: "cat2",
+                templateId: "", description: "", signupCount: 0, signUps: [],
+            }],
+        }]);
+    });
+
+    it("does not resurrect old persisted events into a plain upcoming (no sinceSeconds) call", async () => {
+        mockGetAllEvents.mockResolvedValue([]);
+        discord.getChannelCategoryMap.mockReturnValue({});
+        listRaidEvents.mockReturnValue([{
+            id: "e2", guildId: "g1", title: "SSC", channelId: "chan2", channelName: "ssc",
+            categoryId: "cat2", categoryName: "Raids", startTime: 2000000000,
+        }]);
+
+        const { groups } = await loadEventGroups("g1");
+
+        expect(groups).toEqual([]);
+    });
+
     it("drops an event that is neither in the live channel map nor ever persisted", async () => {
         mockGetAllEvents.mockResolvedValue([event()]);
         discord.getChannelCategoryMap.mockReturnValue({});
