@@ -126,7 +126,7 @@ ${body}
     --high:#e0524f; --high-bg:rgba(224,82,79,.16);
     --medium:#e0a23a; --medium-bg:rgba(224,162,58,.16);
     --good:#7fd17f; --good-bg:rgba(120,200,120,.16);
-    --accent:#7ab7ff; --accent-2:#4d92e6; --accent-soft:rgba(122,183,255,.15); --accent-ink:#0b1522;
+    --accent:#8a7cff; --accent-2:#35d6c4; --accent-soft:rgba(138,124,255,.16); --accent-ink:#130f26;
     --portrait-1:#1a1d24; --portrait-2:#14161b;
     /* ---- "Spektrum" area accents: one hue per admin section (nav icons, dashboard tiles) ---- */
     --area-recruitment:#34d399; --area-recruitment-soft:rgba(52,211,153,.16);
@@ -142,7 +142,7 @@ ${body}
       --high:#cf3b37; --high-bg:rgba(207,59,55,.12);
       --medium:#9a6c12; --medium-bg:rgba(154,108,18,.14);
       --good:#2b9440; --good-bg:rgba(43,148,64,.12);
-      --accent:#2f6fd6; --accent-2:#2559b0; --accent-soft:rgba(47,111,214,.12); --accent-ink:#ffffff;
+      --accent:#6a4fe0; --accent-2:#0f8f82; --accent-soft:rgba(106,79,224,.10); --accent-ink:#ffffff;
       --portrait-1:#e9edf4; --portrait-2:#dce2ec;
       --area-recruitment:#1f9d6c; --area-recruitment-soft:rgba(31,157,108,.12);
       --area-cla:#d95f39; --area-cla-soft:rgba(217,95,57,.12);
@@ -157,7 +157,7 @@ ${body}
     --high:#cf3b37; --high-bg:rgba(207,59,55,.12);
     --medium:#9a6c12; --medium-bg:rgba(154,108,18,.14);
     --good:#2b9440; --good-bg:rgba(43,148,64,.12);
-    --accent:#2f6fd6; --accent-2:#2559b0; --accent-soft:rgba(47,111,214,.12); --accent-ink:#ffffff;
+    --accent:#6a4fe0; --accent-2:#0f8f82; --accent-soft:rgba(106,79,224,.10); --accent-ink:#ffffff;
     --portrait-1:#e9edf4; --portrait-2:#dce2ec;
     --area-recruitment:#1f9d6c; --area-recruitment-soft:rgba(31,157,108,.12);
     --area-cla:#d95f39; --area-cla-soft:rgba(217,95,57,.12);

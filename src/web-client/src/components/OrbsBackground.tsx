@@ -21,7 +21,7 @@ export default function OrbsBackground() {
         if (!canvas) return;
         const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
         const cs = getComputedStyle(document.documentElement);
-        const colors = AREA_VARS.map((v) => cs.getPropertyValue(v).trim() || "#7ab7ff");
+        const colors = AREA_VARS.map((v) => cs.getPropertyValue(v).trim() || "#8a7cff");
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
         let raf = 0;

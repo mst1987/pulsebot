@@ -5,6 +5,7 @@ const {
     adminUserId,
     raidhelperBotId,
     defaultTimeout,
+    embedAccentColor,
 } = require("../config/variables");
 
 function isNumber(value) {
@@ -43,6 +44,7 @@ async function botReply(
             embeds: [{
                 title: title,
                 description: message,
+                color: embedAccentColor,
             }, ],
             ephemeral: ephemeral,
             components,
@@ -69,6 +71,7 @@ async function botEditReply(
             embeds: [{
                 title: title,
                 description: message,
+                color: embedAccentColor,
             }, ],
             ephemeral: ephemeral,
             components,

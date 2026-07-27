@@ -8,6 +8,7 @@ describe("config/variables", () => {
         "categoryIds",
         "highestBidsChannelId",
         "highestBidsMessageId",
+        "embedAccentColor",
         "googleSpreadsheetId",
         "googleSheetName",
         "googleSheetGid",
