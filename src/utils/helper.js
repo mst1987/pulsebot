@@ -1,4 +1,4 @@
-﻿const Raidhelper = require("../classes/raidhelper.js");
+﻿const { createRaidhelperClient } = require("./raidhelperClient");
 const extendedClassList = require("../config/classlist.js");
 const { formatTimestampToDateString } = require("./date.js");
 const {
@@ -166,7 +166,7 @@ function checkForPermission(interaction) {
 }
 
 async function getRaidInfosFromChannel(interaction) {
-    const raidhelper = new Raidhelper();
+    const raidhelper = createRaidhelperClient();
     const channelMessages = await interaction.channel.messages.fetch();
     const botMessages = channelMessages.filter(
         (msg) => msg.author.id === raidhelperBotId
@@ -226,7 +226,7 @@ async function delay(ms) {
 }
 
 async function getCategoryEvents(interaction, categoryId) {
-    const raidhelper = new Raidhelper();
+    const raidhelper = createRaidhelperClient();
     const allEvents = await raidhelper.getAllEvents();
     const channelsInCategory = getChannelsFromCategories(interaction.guild, [
         categoryId,

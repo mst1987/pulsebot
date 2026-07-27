@@ -27,7 +27,7 @@ const wowhead = require("../../utils/wowhead");
 const { listByEvent: listLootByEvent } = require("../lootStore");
 const { listLogs, listLogsForEvent } = require("../logStore");
 const { backfillLogTitles } = require("../logChannel");
-const Raidhelper = require("../../classes/raidhelper");
+const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const Drive = require("../../classes/drive");
 const SheetsClient = require("../../classes/sheets");
 const { fillSetupSheet } = require("../../utils/fillSetup");
@@ -63,7 +63,7 @@ async function getRaidDetail(req, res, url) {
     let setupError = null;
     let tankCands = [];
     try {
-        const rh = new Raidhelper();
+        const rh = createRaidhelperClient();
         const result = await rh.getSetup(eventId);
         const slots = result && result.setup ? result.setup : [];
         setup = buildSetupView(slots);
@@ -251,7 +251,7 @@ async function postFill(req, res) {
         // Delete 3 days after the raid (fallback: 3 days from now if start unknown).
         const deleteAfter = (startMs || Date.now()) + 3 * 24 * 60 * 60 * 1000;
 
-        const rh = new Raidhelper();
+        const rh = createRaidhelperClient();
         const drive = new Drive();
         const prev = getEventSheet(eventId);
 

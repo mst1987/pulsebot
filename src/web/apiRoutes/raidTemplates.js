@@ -4,7 +4,7 @@ const { readJsonBody } = require("../apiBody");
 const {
     listRaidTemplates, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
 } = require("../settingsStore");
-const Raidhelper = require("../../classes/raidhelper");
+const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 
 /** GET /api/raid-templates — the manually curated Raid-Helper template list (feeds the create form). */
 function getRaidTemplates(req, res) {
@@ -41,7 +41,7 @@ async function importRaidTemplates(req, res) {
     if (!user) return;
     if (!requireCsrf(req, res)) return;
     try {
-        const rh = new Raidhelper();
+        const rh = createRaidhelperClient();
         const templates = await rh.getTemplates();
         if (!templates.length) return error(res, 400, "empty", "Keine Templates in den aktuellen Events gefunden.");
         const { added, updated } = saveRaidTemplates(templates);

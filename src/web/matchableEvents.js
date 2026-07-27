@@ -3,7 +3,7 @@
 // dropdown / auto-match), and the fields stored when a log is linked to one.
 // Extracted out of server.js so both call sites re-resolve events the same
 // way (never trust a client-supplied event label — always look it up here).
-const Raidhelper = require("../classes/raidhelper");
+const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const discord = require("./discord");
 const { EVENT_LOOKBACK_DAYS } = require("./raidEventGroups");
 
@@ -14,7 +14,7 @@ const { EVENT_LOOKBACK_DAYS } = require("./raidEventGroups");
 async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
     if (!guildId) return { events: [], error: null };
     try {
-        const rh = new Raidhelper();
+        const rh = createRaidhelperClient();
         const from = Math.floor(Date.now() / 1000) - days * 24 * 60 * 60;
         const events = await rh.getPastEvents(from);
         const catMap = discord.getChannelCategoryMap(guildId);

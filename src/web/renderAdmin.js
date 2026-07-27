@@ -2639,6 +2639,16 @@ function renderSettings(user, opts = {}) {
             <input type="text" name="adminRoleIds" value="${esc((config.adminRoleIds || []).join(", "))}" placeholder="123456789012345678, 234567890123456789">
             <div class="hint">Mitglieder mit einer dieser Rollen erhalten Admin-Zugang. Änderungen greifen für bereits angemeldete Nutzer innerhalb von ca. 5 Minuten, ohne erneuten Login. Die <code>ADMIN_USER_ID</code> aus der .env behält immer Zugang (Notfall-Zugang).</div>
           </div>
+          <div class="field">
+            <label>Discord-Server-ID (Guild-ID)</label>
+            <input type="text" name="guildId" value="${esc(config.guildId || "")}" placeholder="Discord-Server-ID">
+            <div class="hint">Der Server, gegen den der Admin-Rollencheck oben läuft. Nicht zu verwechseln mit der Server-Auswahl im Menü.</div>
+          </div>
+          <div class="field">
+            <label>Raid-Helper Server-ID</label>
+            <input type="text" name="raidhelperServerId" value="${esc(config.raidhelperServerId || "")}" placeholder="Server-ID von raid-helper.xyz">
+            <div class="hint">Wird für alle Raid-Helper-API-Aufrufe verwendet (Events, Setups, Anmeldungen). Der API-Key selbst bleibt in der .env.</div>
+          </div>
         </div>
 
         <div class="tab-panel" data-panel="recruitment" role="tabpanel">

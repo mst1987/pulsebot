@@ -1,9 +1,12 @@
 ﻿const https = require("https");
 
 class Raidhelper {
-  constructor() {
+  // opts.serverId lets callers override the raid-helper.xyz server id from the
+  // admin-editable settings store (see utils/raidhelperClient.js); apiKey stays
+  // env-only since it's a real secret.
+  constructor(opts = {}) {
     this.apiKey = process.env.RAIDHELPER_API_KEY;
-    this.serverId = process.env.RAIDHELPER_SERVER_ID;
+    this.serverId = opts.serverId || process.env.RAIDHELPER_SERVER_ID;
   }
 
   getEventOptions(timestamp) {

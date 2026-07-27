@@ -4,7 +4,7 @@ const path = require("path");
 const axios = require("axios");
 const {
     discordClientId, discordClientSecret, publicBaseUrl, logcheckAdminIds,
-    adminRoleIds: envAdminRoleIds, guildId, devAutoLogin,
+    adminRoleIds: envAdminRoleIds, guildId: envGuildId, devAutoLogin,
 } = require("../config/variables");
 const { getConfig } = require("./settingsStore");
 
@@ -191,6 +191,8 @@ async function computeIsAdmin(userId) {
     // with any .env ADMIN_ROLE_IDS merged in as an optional fallback.
     const roleIds = [...new Set([...(getConfig().adminRoleIds || []), ...(envAdminRoleIds || [])])];
     if (!roleIds.length) return false;
+    // guildId is likewise admin-editable (data/settings/config.json), .env is only the bootstrap fallback.
+    const guildId = getConfig().guildId || envGuildId;
     if (!botClient || !guildId) throw new Error("bot client or guild id not available");
     const guild = botClient.guilds.cache.get(guildId) || await botClient.guilds.fetch(guildId);
     let member;
