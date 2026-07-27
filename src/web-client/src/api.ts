@@ -618,6 +618,8 @@ export type LootItem = {
     eventLabel?: string;
 };
 
+export type CharacterRaid = { eventId: string; eventLabel: string };
+
 // A loot character with its resolved WoW class/spec (or blank if unresolved
 // yet). classColor/iconUrl are computed server-side from config/classlist.js
 // — never duplicated client-side, same rule as lib/recruitmentSpecs.ts's
@@ -627,6 +629,7 @@ export type AnnotatedCharacter = {
     character: string;
     realm: string;
     count: number;
+    raids: CharacterRaid[];
     className: string;
     spec: string;
     source: string;

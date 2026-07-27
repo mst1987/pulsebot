@@ -106,10 +106,22 @@ describe("web/lootStore", () => {
                 item({ rawId: "a", character: "Foo", characterKey: "foo" }),
                 item({ rawId: "b", character: "Foo", characterKey: "foo" }),
                 item({ rawId: "c", character: "Bar", characterKey: "bar" }),
-            ]);
+            ], { eventLabel: "Raid A" });
             const chars = characters();
             expect(chars[0]).toMatchObject({ character: "Foo", count: 2 });
             expect(chars[1]).toMatchObject({ character: "Bar", count: 1 });
+        });
+
+        it("collects the distinct raids each character got loot in, sorted by label", () => {
+            addImport("e1", [item({ rawId: "a", character: "Foo", characterKey: "foo" })], { eventLabel: "Raid B" });
+            addImport("e2", [item({ rawId: "b", character: "Foo", characterKey: "foo" })], { eventLabel: "Raid A" });
+            addImport("e1", [item({ rawId: "c", character: "Foo", characterKey: "foo" })], { eventLabel: "Raid B" }); // same raid again — no duplicate
+            const foo = characters().find((c) => c.key === "foo");
+            expect(foo.count).toBe(3);
+            expect(foo.raids).toEqual([
+                { eventId: "e2", eventLabel: "Raid A" },
+                { eventId: "e1", eventLabel: "Raid B" },
+            ]);
         });
     });
 

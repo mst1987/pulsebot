@@ -43,7 +43,7 @@ function rememberFromLoot(items) {
 
 /**
  * The loot characters plus what is known about their class/spec.
- * @returns [{ key, character, realm, count, className, spec, source, reportId }]
+ * @returns [{ key, character, realm, count, raids, className, spec, source, reportId }]
  */
 function annotatedCharacters() {
     const known = charStore.characterMap();

@@ -105,16 +105,29 @@ function eventsWithLoot() {
         .sort((a, b) => (b.importedAt || 0) - (a.importedAt || 0));
 }
 
-/** Distinct characters that received loot, with a count, most loot first. */
+/**
+ * Distinct characters that received loot, with a count, most loot first, plus
+ * the distinct raids (eventId/eventLabel) each got loot in — the join key for
+ * grouping/filtering the "Charaktere" tab by raid.
+ */
 function characters() {
     const byChar = new Map();
     for (const it of readAll()) {
         const key = it.characterKey;
         if (!key) continue;
-        if (!byChar.has(key)) byChar.set(key, { key, character: it.character, realm: it.realm || "", count: 0 });
-        byChar.get(key).count += 1;
+        if (!byChar.has(key)) byChar.set(key, { key, character: it.character, realm: it.realm || "", count: 0, raids: new Map() });
+        const c = byChar.get(key);
+        c.count += 1;
+        if (it.eventId && !c.raids.has(it.eventId)) c.raids.set(it.eventId, it.eventLabel || it.eventId);
     }
-    return [...byChar.values()].sort((a, b) => b.count - a.count || a.character.localeCompare(b.character));
+    return [...byChar.values()]
+        .map((c) => ({
+            ...c,
+            raids: [...c.raids.entries()]
+                .map(([eventId, eventLabel]) => ({ eventId, eventLabel }))
+                .sort((a, b) => a.eventLabel.localeCompare(b.eventLabel)),
+        }))
+        .sort((a, b) => b.count - a.count || a.character.localeCompare(b.character));
 }
 
 /** Remove all loot stored for an event. Returns how many rows were removed. */
