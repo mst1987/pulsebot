@@ -125,11 +125,17 @@ async function loadEventGroups(guildId, { sinceSeconds } = {}) {
         seen.add(ev.id);
     }
 
-    // The live fetch failed outright and even the cache was empty — fall back
-    // fully to the persisted snapshot so past events can still be found (title,
-    // channel, category). Setup/Anwesenheit degrade via their own existing
-    // best-effort handling; Loot is unaffected since it's keyed by event id.
-    if (error) {
+    // Merge in persisted events the live fetch didn't return, so past raids stay
+    // reachable via their detail page even when Raid-Helper itself no longer
+    // lists them (not just a deleted Discord channel, which the per-event
+    // fallback above already covers) — e.g. Raid-Helper prunes old events on its
+    // side, or a caller-supplied `sinceSeconds` cutoff (the event detail page
+    // uses EVENT_LOOKBACK_DAYS) excludes an event the dashboard's unbounded
+    // "Latest Events" list still surfaces from the local snapshot. Runs whenever
+    // a lookback window is requested (that's the shape callers use to look up a
+    // specific past event) or the live fetch failed outright; skipped for a
+    // bare "upcoming" call so old persisted raids don't pollute that list.
+    if (error || sinceSeconds) {
         for (const e of persistedById.values()) {
             if (seen.has(e.id) || (sinceSeconds && (e.startTime || 0) < sinceSeconds)) continue;
             place(e.categoryId, e.categoryName, {
