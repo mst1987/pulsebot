@@ -227,25 +227,29 @@ describe("web/discord channel management", () => {
     });
 
     describe("postLink", () => {
-        it("posts an embed with a link button and no content when no message is given", async () => {
+        it("posts plain content with a link button and no embed", async () => {
             const send = jest.fn(async () => ({ id: "m9", url: "https://d/m9" }));
             setClientWithGuild(makeGuild([]), jest.fn(async () => ({ id: "chan", isTextBased: () => true, send })));
             const res = await discord.postLink("chan", { url: "https://sheet/1", title: "Raidsheet – MC", label: "Sheet öffnen" });
             expect(res).toEqual({ channelId: "chan", messageId: "m9", url: "https://d/m9" });
             const payload = send.mock.calls[0][0];
-            expect(payload.content).toBeUndefined();
-            expect(payload.embeds).toHaveLength(1);
+            expect(payload.embeds).toEqual([]);
             expect(payload.components).toHaveLength(1);
-            const embedJson = payload.embeds[0].toJSON();
-            expect(embedJson.title).toContain("Raidsheet – MC");
-            expect(embedJson.url).toBe("https://sheet/1");
+            expect(payload.content).toContain("Raidsheet – MC");
         });
 
-        it("includes the optional message as content", async () => {
+        it("includes the optional message under the title heading", async () => {
             const send = jest.fn(async () => ({ id: "m1", url: "u" }));
             setClientWithGuild(makeGuild([]), jest.fn(async () => ({ id: "chan", isTextBased: () => true, send })));
             await discord.postLink("chan", { url: "https://sheet/1", title: "X", message: "  Bitte eintragen!  " });
-            expect(send.mock.calls[0][0].content).toBe("Bitte eintragen!");
+            expect(send.mock.calls[0][0].content).toBe("📄 **X**\nBitte eintragen!");
+        });
+
+        it("posts only the heading when no message is given", async () => {
+            const send = jest.fn(async () => ({ id: "m1", url: "u" }));
+            setClientWithGuild(makeGuild([]), jest.fn(async () => ({ id: "chan", isTextBased: () => true, send })));
+            await discord.postLink("chan", { url: "https://sheet/1", title: "X" });
+            expect(send.mock.calls[0][0].content).toBe("📄 **X**");
         });
 
         it("throws without a url", async () => {
@@ -256,6 +260,42 @@ describe("web/discord channel management", () => {
         it("throws when the bot is not connected", async () => {
             discord.setClient(null);
             await expect(discord.postLink("chan", { url: "https://x" })).rejects.toThrow("Bot nicht verbunden");
+        });
+    });
+
+    describe("editLink", () => {
+        function botMessage(overrides = {}) {
+            return { id: "m9", url: "https://d/m9", author: { id: "bot" }, edit: jest.fn(async () => {}), ...overrides };
+        }
+
+        it("edits the message in place with the rebuilt payload", async () => {
+            const message = botMessage();
+            const fetchMessages = jest.fn(async () => message);
+            setClientWithGuild(makeGuild([]), jest.fn(async () => ({
+                id: "chan", isTextBased: () => true, messages: { fetch: fetchMessages },
+            })));
+            const res = await discord.editLink("chan", "m9", { url: "https://sheet/1", title: "X", message: "Neu!" });
+            expect(res).toEqual({ channelId: "chan", messageId: "m9", url: "https://d/m9" });
+            expect(fetchMessages).toHaveBeenCalledWith("m9");
+            expect(message.edit).toHaveBeenCalledWith(expect.objectContaining({ content: "📄 **X**\nNeu!", embeds: [] }));
+        });
+
+        it("throws when the message wasn't posted by the bot", async () => {
+            const message = botMessage({ author: { id: "someoneelse" } });
+            setClientWithGuild(makeGuild([]), jest.fn(async () => ({
+                id: "chan", isTextBased: () => true, messages: { fetch: jest.fn(async () => message) },
+            })));
+            await expect(discord.editLink("chan", "m9", { url: "https://sheet/1" })).rejects.toThrow("stammt nicht vom Bot");
+        });
+
+        it("throws without a url", async () => {
+            setClientWithGuild(makeGuild([]), jest.fn());
+            await expect(discord.editLink("chan", "m9", { url: "" })).rejects.toThrow("Kein Link");
+        });
+
+        it("throws when the bot is not connected", async () => {
+            discord.setClient(null);
+            await expect(discord.editLink("chan", "m9", { url: "https://x" })).rejects.toThrow("Bot nicht verbunden");
         });
     });
 

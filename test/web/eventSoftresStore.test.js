@@ -21,7 +21,8 @@ jest.mock("fs", () => {
 
 const fs = require("fs");
 const {
-    listEventSoftres, getEventSoftres, saveEventSoftres, setEventSoftresLink, deleteEventSoftres,
+    listEventSoftres, getEventSoftres, saveEventSoftres, setEventSoftresLink,
+    markEventSoftresPosted, deleteEventSoftres,
 } = require("../../src/web/eventSoftresStore.js");
 
 beforeEach(() => {
@@ -90,6 +91,22 @@ describe("web/eventSoftresStore", () => {
 
     it("ignores a blank event id when setting a manual link", () => {
         expect(setEventSoftresLink("", { url: "https://softres.it/raid/xyz" })).toBeNull();
+    });
+
+    describe("markEventSoftresPosted", () => {
+        it("returns null for an event with no softres record", () => {
+            expect(markEventSoftresPosted("evt1", { channelId: "c1", messageId: "m1" })).toBeNull();
+        });
+
+        it("records the posted message on top of an existing softres record", () => {
+            saveEventSoftres("evt1", { raidId: "abc" });
+            const saved = markEventSoftresPosted("evt1", { channelId: "c1", messageId: "m1", message: "Bitte eintragen!" });
+            expect(saved).toMatchObject({
+                eventId: "evt1", raidId: "abc", postedChannelId: "c1", postedMessageId: "m1", postedMessage: "Bitte eintragen!",
+            });
+            expect(typeof saved.postedAt).toBe("number");
+            expect(getEventSoftres("evt1")).toMatchObject({ postedChannelId: "c1", postedMessageId: "m1" });
+        });
     });
 
     it("deletes a record", () => {

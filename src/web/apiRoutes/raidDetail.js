@@ -18,8 +18,10 @@ const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
 } = require("../../utils/attendance");
 const { resolveAssignmentProfiles } = require("../raiderCharactersStore");
-const { getEventSheet, markEventSheetFilled } = require("../eventSheetStore");
-const { getEventSoftres, saveEventSoftres, setEventSoftresLink } = require("../eventSoftresStore");
+const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("../eventSheetStore");
+const {
+    getEventSoftres, saveEventSoftres, setEventSoftresLink, markEventSoftresPosted,
+} = require("../eventSoftresStore");
 const softres = require("../../utils/softres");
 const wowhead = require("../../utils/wowhead");
 const { listByEvent: listLootByEvent } = require("../lootStore");
@@ -305,15 +307,30 @@ async function postPostSheet(req, res) {
     // Past raids included — the detail page is reachable for them too.
     const { found, errorMessage, code } = await resolveEventForPost(req, eventId);
     if (errorMessage) return error(res, code === "not_found" ? 404 : 400, code, errorMessage);
+    // "message" present (even "") means the caller set it explicitly; otherwise
+    // (quick re-post with no edit) keep whatever text was posted last time.
+    const message = body.message !== undefined ? body.message : (es.postedMessage || "");
+    const linkOpts = {
+        url: es.url,
+        title: found.title ? `Raidsheet – ${found.title}` : "Raidsheet",
+        message,
+        label: "Raidsheet öffnen",
+        emoji: "📄",
+    };
+    const alreadyPosted = Boolean(es.postedChannelId && es.postedMessageId);
     try {
-        await discord.postLink(found.channelId, {
-            url: es.url,
-            title: found.title ? `Raidsheet – ${found.title}` : "Raidsheet",
-            message: body.message,
-            label: "Raidsheet öffnen",
-            emoji: "📄",
-        });
-        ok(res, { message: "Raidsheet in den Channel gepostet." });
+        let posted;
+        if (alreadyPosted) {
+            try {
+                posted = await discord.editLink(es.postedChannelId, es.postedMessageId, linkOpts);
+            } catch {
+                posted = await discord.postLink(found.channelId, linkOpts);
+            }
+        } else {
+            posted = await discord.postLink(found.channelId, linkOpts);
+        }
+        markEventSheetPosted(eventId, { channelId: posted.channelId, messageId: posted.messageId, message });
+        ok(res, { message: alreadyPosted ? "Raidsheet-Nachricht aktualisiert." : "Raidsheet in den Channel gepostet." });
     } catch (e) {
         console.error("post-sheet failed:", e.message);
         error(res, 500, "post_failed", e.message || "Posten fehlgeschlagen.");
@@ -333,15 +350,28 @@ async function postPostSoftres(req, res) {
     // Past raids included — the detail page is reachable for them too.
     const { found, errorMessage, code } = await resolveEventForPost(req, eventId);
     if (errorMessage) return error(res, code === "not_found" ? 404 : 400, code, errorMessage);
+    const message = body.message !== undefined ? body.message : (sr.postedMessage || "");
+    const linkOpts = {
+        url: sr.url,
+        title: found.title ? `Softres – ${found.title}` : "Softres",
+        message,
+        label: "Softres öffnen",
+        emoji: "🎁",
+    };
+    const alreadyPosted = Boolean(sr.postedChannelId && sr.postedMessageId);
     try {
-        await discord.postLink(found.channelId, {
-            url: sr.url,
-            title: found.title ? `Softres – ${found.title}` : "Softres",
-            message: body.message,
-            label: "Softres öffnen",
-            emoji: "🎁",
-        });
-        ok(res, { message: "Softres-Link in den Channel gepostet." });
+        let posted;
+        if (alreadyPosted) {
+            try {
+                posted = await discord.editLink(sr.postedChannelId, sr.postedMessageId, linkOpts);
+            } catch {
+                posted = await discord.postLink(found.channelId, linkOpts);
+            }
+        } else {
+            posted = await discord.postLink(found.channelId, linkOpts);
+        }
+        markEventSoftresPosted(eventId, { channelId: posted.channelId, messageId: posted.messageId, message });
+        ok(res, { message: alreadyPosted ? "Softres-Nachricht aktualisiert." : "Softres-Link in den Channel gepostet." });
     } catch (e) {
         console.error("post-softres failed:", e.message);
         error(res, 500, "post_failed", e.message || "Posten fehlgeschlagen.");

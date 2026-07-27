@@ -305,12 +305,18 @@ const ADMIN_STYLE = `<style>
   dl.app-meta dt { color:var(--muted); font-weight:600; white-space:nowrap; }
   dl.app-meta dd { margin:0; min-width:0; word-break:break-word; }
   /* dashboard */
-  .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
-  .tile { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:15px 16px; }
+  .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px; }
+  .tile { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px 22px;
+    transition:transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease, border-color .18s ease; }
+  .tile:hover { transform:translateY(-3px); border-color:var(--accent); box-shadow:0 14px 32px -14px var(--accent); }
   .tile.accent { border-top:2px solid var(--accent); }
+  .tile .t-icon { width:36px; height:36px; border-radius:10px; background:var(--accent-soft); color:var(--accent);
+    display:flex; align-items:center; justify-content:center; margin-bottom:14px; }
+  .tile .t-icon svg { width:18px; height:18px; }
   .tile .t-label { font-size:12.5px; color:var(--muted); font-weight:600; }
-  .tile .t-value { font-size:28px; font-weight:800; letter-spacing:-.5px; margin-top:6px; line-height:1; font-variant-numeric:tabular-nums; }
+  .tile .t-value { font-size:32px; font-weight:800; letter-spacing:-.5px; margin-top:6px; line-height:1; font-variant-numeric:tabular-nums; }
   .tile .t-sub { font-size:12.5px; color:var(--muted); margin-top:6px; }
+  @media (prefers-reduced-motion:reduce) { .tile { transition:none; } .tile:hover { transform:none; } }
   .dash-grid { display:grid; grid-template-columns:1.5fr 1fr; gap:16px; }
   .dash-card { background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
   .dash-card-head { display:flex; align-items:center; gap:10px; padding:13px 16px; border-bottom:1px solid var(--line-soft); }
@@ -725,13 +731,13 @@ function renderDashboard(user, opts = {}) {
               </tr>`).join("")
             : "<tr><td colspan=\"4\" class=\"sub\" style=\"padding:16px\">Keine anstehenden Events mit fertigem Setup.</td></tr>");
 
-    const tile = (label, value, sub, accent) =>
-        `<div class="tile${accent ? " accent" : ""}"><div class="t-label">${esc(label)}</div><div class="t-value">${n(value)}</div><div class="t-sub">${sub}</div></div>`;
+    const tile = (icon, label, value, sub, accent) =>
+        `<div class="tile${accent ? " accent" : ""}"><div class="t-icon">${NAV_ICONS[icon]}</div><div class="t-label">${esc(label)}</div><div class="t-value">${n(value)}</div><div class="t-sub">${sub}</div></div>`;
     const tiles = `<div class="tiles">
-        ${tile("Log-Check-Auswertungen", s.reportsTotal, `${n(s.reportsWithIssues)} mit Problemen`, true)}
-        ${tile("Recruitment-Vorlagen", s.templates, `${n(s.posts)} gepostete Nachrichten`)}
-        ${tile("Event-Kategorien", s.categories, "in den Einstellungen gepflegt")}
-        ${tile("Admin-Rollen", s.adminRoles, s.adminRoles ? "konfiguriert" : "noch keine gesetzt")}
+        ${tile("cla", "Log-Check-Auswertungen", s.reportsTotal, `${n(s.reportsWithIssues)} mit Problemen`, true)}
+        ${tile("recruitment", "Recruitment-Vorlagen", s.templates, `${n(s.posts)} gepostete Nachrichten`)}
+        ${tile("channels", "Event-Kategorien", s.categories, "in den Einstellungen gepflegt")}
+        ${tile("settings", "Admin-Rollen", s.adminRoles, s.adminRoles ? "konfiguriert" : "noch keine gesetzt")}
       </div>`;
 
     const recentRows = recent.length
@@ -2018,18 +2024,24 @@ function renderEventDetail(user, opts = {}) {
     }
 
     // --- Post the filled raidsheet link into the event channel (shown whenever a
-    // sheet exists, independent of whether raidsheet templates are configured) ---
+    // sheet exists, independent of whether raidsheet templates are configured).
+    // Once a message was posted, its channelId/messageId are tracked in
+    // eventSheetStore.js — re-submitting then edits that message in place
+    // instead of posting a new one (see /admin/raids/post-sheet in server.js). ---
     const evSheet = opts.eventSheet;
+    const sheetPosted = Boolean(evSheet && evSheet.postedChannelId && evSheet.postedMessageId);
     const postSheetSection = evSheet && evSheet.url
         ? `<form class="card-form" method="POST" action="/admin/raids/post-sheet" data-loader="Wird gepostet" style="margin-top:8px" onsubmit="this.querySelector('button').disabled=true">
         ${csrfField}
         <input type="hidden" name="event" value="${esc(ev.id)}">
         <div class="field">
           <label>Nachricht (optional)</label>
-          <input type="text" name="message" placeholder="z. B. Das Raidsheet für heute Abend – bitte eintragen!">
-          <div class="hint">Postet den Sheet-Link (📄 mit Button) in #${esc(opts.channelName || ev.channelId)}.</div>
+          <input type="text" name="message" value="${esc(evSheet.postedMessage || "")}" placeholder="z. B. Das Raidsheet für heute Abend – bitte eintragen!">
+          <div class="hint">${sheetPosted
+        ? `Bereits gepostet in #${esc(opts.channelName || ev.channelId)} — <a class="mlink" href="${messageUrl({ guildId, channelId: evSheet.postedChannelId, messageId: evSheet.postedMessageId })}" target="_blank" rel="noopener">Nachricht öffnen</a>. Speichern aktualisiert diese Nachricht.`
+        : `Postet den Sheet-Link (📄 mit Button) in #${esc(opts.channelName || ev.channelId)}.`}</div>
         </div>
-        <div class="row-actions"><button class="btn" type="submit">📄 Sheet in Channel posten</button></div>
+        <div class="row-actions"><button class="btn" type="submit">${sheetPosted ? "🔄 Nachricht aktualisieren" : "📄 Sheet in Channel posten"}</button></div>
       </form>`
         : "<p class=\"sub\">Noch kein gefülltes Sheet vorhanden — fülle oben zuerst ein Raidsheet, dann kannst du den Link hier in den Channel posten.</p>";
 
@@ -2048,6 +2060,23 @@ function renderEventDetail(user, opts = {}) {
           <div class="row-actions"><button class="btn" type="submit">Link speichern</button></div>
         </form>
       </details>`;
+    // Once posted, channelId/messageId are tracked in eventSoftresStore.js —
+    // re-submitting then edits that message in place (mirrors the sheet form above).
+    const softresPosted = Boolean(so && so.postedChannelId && so.postedMessageId);
+    const postSoftresSection = so && so.url
+        ? `<form class="card-form" method="POST" action="/admin/raids/post-softres" data-loader="Wird gepostet" style="margin-top:12px" onsubmit="this.querySelector('button').disabled=true">
+        ${csrfField}
+        <input type="hidden" name="event" value="${esc(ev.id)}">
+        <div class="field">
+          <label>Nachricht (optional)</label>
+          <input type="text" name="message" value="${esc(so.postedMessage || "")}" placeholder="z. B. Bitte bis Raidbeginn eintragen!">
+          <div class="hint">${softresPosted
+        ? `Bereits gepostet in #${esc(opts.channelName || ev.channelId)} — <a class="mlink" href="${messageUrl({ guildId, channelId: so.postedChannelId, messageId: so.postedMessageId })}" target="_blank" rel="noopener">Nachricht öffnen</a>. Speichern aktualisiert diese Nachricht.`
+        : `Postet den Softres-Link (🎁 mit Button) in #${esc(opts.channelName || ev.channelId)}.`}</div>
+        </div>
+        <div class="row-actions"><button class="btn" type="submit">${softresPosted ? "🔄 Nachricht aktualisieren" : "📤 Softres in Channel posten"}</button></div>
+      </form>`
+        : "";
     const existingSoftres = so && so.url
         ? `<div class="sheetcard" id="softres-existing">
           <div><strong>Softres-Liste:</strong>
@@ -2056,6 +2085,7 @@ function renderEventDetail(user, opts = {}) {
           </div>
           <div class="hint">${esc(String(so.amount || 1))} Softres/Spieler · ${esc(String((so.instances || []).length))} Instanz(en)${so.hardReserveCount ? ` · ${esc(String(so.hardReserveCount))} Hardreserve(s)` : ""}. Neu erstellen ersetzt den Link unten nicht automatisch auf softres.it.</div>
           ${softresLinkForm}
+          ${postSoftresSection}
         </div>`
         : softresLinkForm;
     const instGroups = catalogue.map((g) => `

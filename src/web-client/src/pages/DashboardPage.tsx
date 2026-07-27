@@ -4,10 +4,12 @@ import { getDashboard, type ApiError, type DashboardData, type UpcomingEvent } f
 import { formatEventTime, formatDate } from "../lib/format";
 import { RecruitmentIcon, ClaIcon, RaidsIcon, ChannelsIcon, SettingsIcon } from "../components/icons";
 import RaidTable from "../components/RaidTable";
+import type { ReactNode } from "react";
 
-function Tile({ label, value, sub, accent }: { label: string; value: number; sub: string; accent?: boolean }) {
+function Tile({ icon, label, value, sub, accent }: { icon: ReactNode; label: string; value: number; sub: string; accent?: boolean }) {
     return (
         <div className={`tile${accent ? " accent" : ""}`}>
+            <div className="t-icon">{icon}</div>
             <div className="t-label">{label}</div>
             <div className="t-value">{value || 0}</div>
             <div className="t-sub">{sub}</div>
@@ -93,10 +95,10 @@ export default function DashboardPage() {
             <h1 className="page-title">Übersicht</h1>
 
             <div className="tiles">
-                <Tile label="Log-Check-Auswertungen" value={stats.reportsTotal} sub={`${stats.reportsWithIssues} mit Problemen`} accent />
-                <Tile label="Recruitment-Vorlagen" value={stats.templates} sub={`${stats.posts} gepostete Nachrichten`} />
-                <Tile label="Event-Kategorien" value={stats.categories} sub="in den Einstellungen gepflegt" />
-                <Tile label="Admin-Rollen" value={stats.adminRoles} sub={stats.adminRoles ? "konfiguriert" : "noch keine gesetzt"} />
+                <Tile icon={<ClaIcon />} label="Log-Check-Auswertungen" value={stats.reportsTotal} sub={`${stats.reportsWithIssues} mit Problemen`} accent />
+                <Tile icon={<RecruitmentIcon />} label="Recruitment-Vorlagen" value={stats.templates} sub={`${stats.posts} gepostete Nachrichten`} />
+                <Tile icon={<ChannelsIcon />} label="Event-Kategorien" value={stats.categories} sub="in den Einstellungen gepflegt" />
+                <Tile icon={<SettingsIcon />} label="Admin-Rollen" value={stats.adminRoles} sub={stats.adminRoles ? "konfiguriert" : "noch keine gesetzt"} />
             </div>
 
             <div className="dash-card">
