@@ -691,6 +691,7 @@ export type GearSocket = {
     gemName: string | null;
     gemId: number | null;
     gemIconUrl: string;
+    gemText: string;
 };
 
 export type GearItem = {
@@ -700,6 +701,7 @@ export type GearItem = {
     quality: string;
     level: number | null;
     enchants: string[];
+    enchantIds: number[];
     sockets: GearSocket[];
     iconUrl: string;
 };

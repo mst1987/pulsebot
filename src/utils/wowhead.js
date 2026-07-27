@@ -95,4 +95,28 @@ async function lookupItem(itemId) {
     }
 }
 
-module.exports = { searchItems, lookupItem, iconUrl, itemLink, branchFor };
+// In-memory cache for findItemByName() — the same gem cuts repeat across every
+// slot of every character, so each distinct name is searched at most once.
+const nameCache = new Map();
+
+/**
+ * Resolve an item by its exact (case-insensitive) name via the search
+ * suggestions, e.g. to turn a known TBC gem name into its id + icon. Cached;
+ * returns { id, name, icon, iconUrl, quality } or null when no exact match
+ * (best-effort like the other lookups).
+ * @param {string} name
+ * @param {object} [opts] { edition }
+ */
+async function findItemByName(name, { edition = "tbc" } = {}) {
+    const key = String(name || "").trim().toLowerCase();
+    if (!key) return null;
+    if (nameCache.has(key)) return nameCache.get(key);
+    const results = await searchItems(key, { edition, limit: 8 });
+    const exact = results.find((r) => r.name.toLowerCase() === key) || null;
+    // Cache misses too — a name that resolves to nothing will not start
+    // resolving mid-process, and re-searching it per page view is wasted I/O.
+    nameCache.set(key, exact);
+    return exact;
+}
+
+module.exports = { searchItems, lookupItem, findItemByName, iconUrl, itemLink, branchFor };

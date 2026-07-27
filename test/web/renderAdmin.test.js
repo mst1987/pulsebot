@@ -1553,29 +1553,51 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("Off Spec");
         });
 
-        it("renders the live gear paperdoll with enchants and sockets (filled + empty)", () => {
+        it("renders the live gear paperdoll with enchant marker, gem mini-icons and a Wowhead tooltip link carrying ench+gems", () => {
             const html = renderHistoryChar(user, {
                 character: "Foo", csrf: "x", nav: nav(), items: [],
                 gearConfigured: true,
                 gear: [{
                     slot: "HEAD", itemId: 29011, name: "Cursed Vision", quality: "EPIC", level: 120,
                     iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_helmet_naxxramas.jpg",
-                    enchants: ["Enchanted: +150 Mana"],
+                    enchants: ["Enchanted: +150 Mana"], enchantIds: [3002],
                     sockets: [
-                        { type: "META", gemName: "Chaotic Skyfire Diamond", gemId: 34220, gemIconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_misc_gem_diamond_07.jpg" },
-                        { type: "RED", gemName: null, gemId: null, gemIconUrl: "" },
+                        { type: "META", gemName: "Chaotic Skyfire Diamond", gemId: 34220, gemIconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_misc_gem_diamond_07.jpg", gemText: "" },
+                        { type: "RED", gemName: null, gemId: null, gemIconUrl: "", gemText: "" },
                     ],
                 }],
             });
             expect(html).toContain("Aktuelles Gear (Paperdoll)");
             expect(html).toContain("gear-doll");
             expect(html).toContain("Cursed Vision");
-            expect(html).toContain("wowhead.com/tbc/item=29011");
+            // tile links to Wowhead with the char's actual enchant + gems so the
+            // widget tooltip shows them (full in-game item tooltip on hover)
+            expect(html).toContain("https://www.wowhead.com/tbc/item=29011?ench=3002&gems=34220");
             expect(html).toContain("inv_helmet_naxxramas.jpg");
+            // enchant marker + real gem mini-icon on the tile
+            expect(html).toContain("gear-enchmark");
             expect(html).toContain("Enchanted: +150 Mana");
-            expect(html).toContain("Chaotic Skyfire Diamond");
+            expect(html).toContain("gear-gem-ico");
             expect(html).toContain("inv_misc_gem_diamond_07.jpg");
+            expect(html).toContain("Chaotic Skyfire Diamond");
             expect(html).toContain("Leerer Sockel (Rot)");
+            // the widget must run with iconize/rename off, or it rewrites the tiles
+            expect(html).toContain("iconizeLinks:false");
+        });
+
+        it("shows a stat-text-only gem (unresolved) as colored dot with the text as title", () => {
+            const html = renderHistoryChar(user, {
+                character: "Foo", csrf: "x", nav: nav(), items: [],
+                gearConfigured: true,
+                gear: [{
+                    slot: "CHEST", itemId: 1, name: "Chest", quality: "EPIC", level: 110,
+                    enchants: [], enchantIds: [],
+                    sockets: [{ type: "", gemName: null, gemId: null, gemIconUrl: "", gemText: "+8 Agility" }],
+                }],
+            });
+            expect(html).toContain("title=\"+8 Agility\"");
+            // no gem id → no gems= param on the link
+            expect(html).toContain("https://www.wowhead.com/tbc/item=1\"");
         });
 
         it("lays the paperdoll out as character-sheet columns (left/right/bottom) with placeholders", () => {

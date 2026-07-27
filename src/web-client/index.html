@@ -19,5 +19,12 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <!-- Wowhead tooltip widget: full item tooltips on wowhead item links
+         (gear paperdoll + loot tables). iconize/rename stay OFF — they would
+         rewrite icon-only anchors; tooltips work without them. After SPA
+         renders, pages call window.$WowheadPower.refreshLinks() (see
+         lib/wowheadTooltips.ts). -->
+    <script>const whTooltips = { colorLinks: false, iconizeLinks: false, renameLinks: false };</script>
+    <script src="https://wow.zamimg.com/widgets/power.js" defer></script>
   </body>
 </html>
