@@ -15,6 +15,7 @@ const { evaluateLog, scanLogChannels, backfillLogTitles } = require("../logChann
 const { getConfig } = require("../settingsStore");
 const { buildReport, ReportError } = require("../../utils/logcheck/report");
 const { loadMatchableEvents, eventLinkFields } = require("../matchableEvents");
+const { linkLogByUrl } = require("../manualLog");
 const discord = require("../discord");
 
 /** GET /api/cla?view=reports|logs&sort=&dir=&page= */
@@ -131,6 +132,34 @@ async function linkLog(req, res) {
     });
 }
 
+/**
+ * POST /api/cla/log-link-url — body: { link, eventId }. Registers a pasted
+ * Warcraft-Logs URL (if not already tracked) and assigns it to the event in one
+ * step — for logs that were never posted in a tracked log channel.
+ */
+async function linkLogUrl(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const eventId = String(body.eventId || "").trim();
+    if (!eventId) return error(res, 400, "no_event", "Kein Event gewählt.");
+    // Re-resolve the event server-side, same as linkLog above.
+    const { events, error: loadError } = await loadMatchableEvents(activeGuildFor(req));
+    if (loadError) return error(res, 400, "events_unavailable", loadError);
+    const event = events.find((e) => e.id === eventId);
+    if (!event) return error(res, 400, "event_not_found", "Event nicht gefunden.");
+    const result = linkLogByUrl(String(body.link || ""), event, activeGuildFor(req));
+    if (result.error) return error(res, 400, "invalid_link", result.error);
+    await backfillLogTitles([result.log]); // best-effort report name for the row
+    ok(res, {
+        logId: result.log.id,
+        eventId,
+        eventLabel: event.title || event.id,
+        message: `WCL-Link „${event.title || event.id}" zugeordnet.`,
+    });
+}
+
 /** POST /api/cla/log-unlink — body: { logId }. Removes a log's event assignment. */
 async function unlinkLog(req, res) {
     const user = requireAdmin(req, res);
@@ -161,5 +190,5 @@ async function autoMatchLogs(req, res) {
 }
 
 module.exports = {
-    getClaData, createReport, evalLog, scanLogs, deleteLogHandler, linkLog, unlinkLog, autoMatchLogs,
+    getClaData, createReport, evalLog, scanLogs, deleteLogHandler, linkLog, linkLogUrl, unlinkLog, autoMatchLogs,
 };

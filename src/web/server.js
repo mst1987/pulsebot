@@ -62,6 +62,7 @@ const { activeGuildFor } = require("./activeGuild");
 const { loadUpcomingSetups, loadRecentEvents, annotateUpcomingExtras } = require("./dashboardData");
 const { eventLookbackSince, loadEventGroups } = require("./raidEventGroups");
 const { loadMatchableEvents, eventLinkFields } = require("./matchableEvents");
+const { linkLogByUrl } = require("./manualLog");
 const apiRouter = require("./apiRouter");
 const staticClient = require("./staticClient");
 
@@ -509,6 +510,28 @@ async function handle(req, res) {
         if (!event) return redirect(res, `${back}&err=${encodeURIComponent("Event nicht gefunden.")}`);
         linkLogEvent(logId, eventLinkFields(event, "manual"));
         return redirect(res, `${back}&ok=${encodeURIComponent(`Log „${event.title || event.id}" zugeordnet.`)}`);
+    }
+    // register a pasted Warcraft-Logs URL and assign it to an event in one step
+    // (raid detail page — for logs never posted in a tracked log channel)
+    if (pathname === "/admin/cla/log-link-url" && req.method === "POST") {
+        const user = requireAdmin(req, res);
+        if (!user) return;
+        const form = await readFormBody(req);
+        const eventId = (form.eventId || "").trim();
+        const back = eventId
+            ? `/admin/raids/detail?event=${encodeURIComponent(eventId)}`
+            : "/admin/cla?view=logs";
+        if (!auth.checkCsrf(req, form._csrf)) return redirect(res, `${back}&msg=csrf`);
+        if (!eventId) return redirect(res, `${back}&err=${encodeURIComponent("Kein Event gewählt.")}`);
+        // Re-resolve the event server-side, same as log-link above.
+        const { events, error } = await loadMatchableEvents(activeGuildFor(req));
+        if (error) return redirect(res, `${back}&err=${encodeURIComponent(error)}`);
+        const event = events.find((e) => e.id === eventId);
+        if (!event) return redirect(res, `${back}&err=${encodeURIComponent("Event nicht gefunden.")}`);
+        const result = linkLogByUrl(form.link || "", event, activeGuildFor(req));
+        if (result.error) return redirect(res, `${back}&err=${encodeURIComponent(result.error)}`);
+        await backfillLogTitles([result.log]); // best-effort report name for the row
+        return redirect(res, `${back}&ok=${encodeURIComponent(`WCL-Link „${event.title || event.id}" zugeordnet.`)}`);
     }
     // remove a log's event assignment (the log itself stays tracked)
     if (pathname === "/admin/cla/log-unlink" && req.method === "POST") {

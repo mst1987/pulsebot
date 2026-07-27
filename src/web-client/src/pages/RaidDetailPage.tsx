@@ -3,7 +3,7 @@ import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     getRaidDetail, importLoot, clearHistoryEvent,
     notifyRaid, pingMissingRaiders, fillRaidsheet, postRaidSheet, postRaidSoftres,
-    searchSoftresItems, createSoftres, linkSoftres, evalLog, linkLog, unlinkLog,
+    searchSoftresItems, createSoftres, linkSoftres, evalLog, linkLog, linkLogUrl, unlinkLog,
     type ApiError, type RaidDetailData, type SetupPlayer, type AttendancePerson,
     type SoftresSearchItem, type SoftresCatalogueGroup, type EventSoftres, type RaidLogRow,
     type RaidDetailEventSheet,
@@ -1041,6 +1041,23 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
         }
     };
 
+    const [wclUrl, setWclUrl] = useState("");
+    const [urlBusy, setUrlBusy] = useState(false);
+    const assignUrl = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!wclUrl.trim()) return;
+        setUrlBusy(true);
+        try {
+            const r = await linkLogUrl(csrfToken, wclUrl.trim(), eventId);
+            onChanged(r.message);
+            setWclUrl("");
+        } catch (err) {
+            onChanged((err as ApiError).message);
+        } finally {
+            setUrlBusy(false);
+        }
+    };
+
     return (
         <>
             <h2 style={{ marginTop: 0 }}>Zugeordnete Logs</h2>
@@ -1053,7 +1070,7 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
                 ))
                 : <p className="sub">Für dieses Event ist noch kein Log zugeordnet.</p>}
             <h2>Log zuordnen</h2>
-            <p className="note">Ordnet ein bereits erkanntes, aber noch keinem Event zugeordnetes Log diesem Raid zu.</p>
+            <p className="note">Ordnet ein bereits erkanntes, aber noch keinem Event zugeordnetes Log diesem Raid zu — oder füge direkt einen Warcraft-Logs-Link ein, der noch nirgends gepostet wurde.</p>
             {unlinked.length
                 ? (
                     <form className="row-actions" style={{ gap: 8, flexWrap: "wrap" }} onSubmit={assign}>
@@ -1064,6 +1081,14 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
                     </form>
                 )
                 : <p className="sub">Keine noch nicht zugeordneten Logs vorhanden.</p>}
+            <form className="row-actions" style={{ gap: 8, flexWrap: "wrap", marginTop: 12 }} onSubmit={assignUrl}>
+                <input
+                    type="text" value={wclUrl} onChange={(e) => setWclUrl(e.target.value)} required
+                    style={{ minWidth: 320, flex: 1, maxWidth: 520 }}
+                    placeholder="https://classic.warcraftlogs.com/reports/abc123…" aria-label="Warcraft-Logs-Link"
+                />
+                <button className="btn btn-ghost btn-sm" type="submit" disabled={urlBusy}>WCL-Link zuordnen</button>
+            </form>
         </>
     );
 }
