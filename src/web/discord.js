@@ -536,33 +536,50 @@ async function finishLogButton(channelId, messageId, { reportUrl, title } = {}) 
 }
 
 /**
+ * Build a raidsheet/softres link message payload: plain message text
+ * (`content`, heading with emoji+title followed by the optional custom
+ * message) plus a link button. No embed — mirrors `buildRecruitmentMessage`,
+ * which dropped the embed for exactly the same reason (Discord otherwise
+ * renders `content` and the embed as two stacked blocks in one message,
+ * reading as a duplicate post). `embeds: []` also clears any embed a message
+ * still had from before this was the case.
+ */
+function buildLinkMessage({ url, title, message, label = "Öffnen", emoji = "📄" } = {}) {
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setLabel(label).setStyle(ButtonStyle.Link).setURL(url)
+    );
+    const heading = title ? `${emoji} **${title}**` : "";
+    const text = String(message || "").trim();
+    const content = [heading, text].filter(Boolean).join("\n");
+    return { content, embeds: [], components: [row] };
+}
+
+/**
  * Post a raidsheet / softres link into a channel, optionally preceded by a
- * custom message. Renders an embed with a link button so raiders can open the
- * sheet in one click. Used by the event-detail "in Channel posten" buttons.
+ * custom message. Used by the event-detail "in Channel posten" buttons.
  * @param {string} channelId target text channel
  * @param {object} opts { url, title, message, label, emoji }
  * @returns {Promise<{channelId: string, messageId: string, url: string}>}
  */
-async function postLink(channelId, { url, title, message, label = "Öffnen", emoji = "📄" } = {}) {
+async function postLink(channelId, opts = {}) {
     if (!client) throw new Error("Bot nicht verbunden.");
-    if (!url) throw new Error("Kein Link vorhanden.");
+    if (!opts.url) throw new Error("Kein Link vorhanden.");
     const channel = await client.channels.fetch(channelId);
     if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden oder kein Textkanal.");
-
-    const embed = new EmbedBuilder()
-        .setColor(0x1f9d55)
-        .setTitle(`${emoji} ${title || "Link"}`)
-        .setURL(url)
-        .setDescription(`[${label}](${url})`);
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setLabel(label).setStyle(ButtonStyle.Link).setURL(url)
-    );
-    const payload = { embeds: [embed], components: [row] };
-    const text = String(message || "").trim();
-    if (text) payload.content = text;
-
-    const posted = await channel.send(payload);
+    const posted = await channel.send(buildLinkMessage(opts));
     return { channelId: channel.id, messageId: posted.id, url: posted.url };
+}
+
+/** Edit an already-posted raidsheet/softres link message in place. */
+async function editLink(channelId, messageId, opts = {}) {
+    if (!client) throw new Error("Bot nicht verbunden.");
+    if (!opts.url) throw new Error("Kein Link vorhanden.");
+    const channel = await client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden.");
+    const message = await channel.messages.fetch(messageId);
+    if (message.author.id !== client.user.id) throw new Error("Diese Nachricht stammt nicht vom Bot.");
+    await message.edit(buildLinkMessage(opts));
+    return { channelId, messageId, url: message.url };
 }
 
 module.exports = {
@@ -574,5 +591,5 @@ module.exports = {
     isRecruitmentMessage, extractTemplate,
     listApplications, parseApplicationEmbed,
     postLogButton, finishLogButton, LOG_EVAL_PREFIX,
-    postLink,
+    postLink, editLink,
 };

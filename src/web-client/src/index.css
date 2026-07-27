@@ -99,6 +99,7 @@ td.cell-actions { text-align: right; white-space: nowrap; vertical-align: middle
 
 /* ===== category/role assignment matrix ===== */
 .rolegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 6px; max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: var(--bg); }
+.rolegrid.rolegrid-flat { max-height: none; overflow-y: visible; }
 .rolebox { display: flex; align-items: flex-start; gap: 8px; font-size: 13.5px; color: var(--text); font-weight: 500; cursor: pointer; padding: 5px 7px; border-radius: 7px; border: 1px solid transparent; transition: background-color .12s, border-color .12s; }
 .rolebox input[type=checkbox] { margin-top: 1px; }
 .rolebox:hover { background: var(--panel2); }
@@ -180,12 +181,18 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 .page-title { font-size: 24px; font-weight: 800; letter-spacing: -.3px; margin: 0 0 18px; }
 
 /* ===== dashboard ===== */
-.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
-.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 15px 16px; }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px;
+    transition: transform .18s cubic-bezier(.34, 1.56, .64, 1), box-shadow .18s ease, border-color .18s ease; }
+.tile:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 14px 32px -14px var(--accent); }
 .tile.accent { border-top: 2px solid var(--accent); }
+.tile .t-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); color: var(--accent);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+.tile .t-icon svg { width: 18px; height: 18px; }
 .tile .t-label { font-size: 12.5px; color: var(--muted); font-weight: 600; }
-.tile .t-value { font-size: 28px; font-weight: 800; letter-spacing: -.5px; margin-top: 6px; line-height: 1; font-variant-numeric: tabular-nums; }
+.tile .t-value { font-size: 32px; font-weight: 800; letter-spacing: -.5px; margin-top: 6px; line-height: 1; font-variant-numeric: tabular-nums; }
 .tile .t-sub { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+@media (prefers-reduced-motion: reduce) { .tile { transition: none; } .tile:hover { transform: none; } }
 .dash-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
 .dash-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
 .dash-card-head { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-bottom: 1px solid var(--line-soft); }
@@ -318,6 +325,47 @@ dl.app-meta dd { margin: 0; min-width: 0; word-break: break-word; }
 .hr-row img { width: 18px; height: 18px; border-radius: 3px; flex: 0 0 auto; }
 .hr-list { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px; max-width: 440px; }
 .hr-chip { display: flex; justify-content: space-between; align-items: center; cursor: default; }
+
+/* ===== toast + full-page loader, ported 1:1 from ADMIN_STYLE (renderAdmin.js) —
+   the legacy admin's auto-dismissing post-action feedback and long-operation
+   overlay, previously missing from this React admin (which fell back to inline
+   .flash banners and disabled buttons). ===== */
+.toast-wrap { position: fixed; top: 16px; right: 16px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; max-width: min(360px, calc(100vw - 32px)); pointer-events: none; }
+.toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 10px; font-size: 14px; line-height: 1.4; box-shadow: 0 8px 28px rgba(0, 0, 0, .35); background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--line); color: var(--text); animation: toast-in .22s ease; }
+.toast-ok { border-left-color: var(--good); }
+.toast-ok .toast-ico { color: var(--good); }
+.toast-err { border-left-color: var(--high); }
+.toast-err .toast-ico { color: var(--high); }
+.toast-ico { flex: 0 0 auto; font-weight: 800; }
+.toast-msg { flex: 1; }
+.toast-x { background: none; border: 0; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; opacity: .7; padding: 0; margin: -2px -2px 0 0; }
+.toast-x:hover { opacity: 1; }
+.toast.hide { animation: toast-out .22s ease forwards; }
+@keyframes toast-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: none; } }
+@keyframes toast-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(20px); } }
+@media (prefers-reduced-motion: reduce) { .toast, .toast.hide { animation: none; } }
+
+.page-loader { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center;
+    background: rgba(9, 11, 18, .66); backdrop-filter: blur(5px) saturate(1.1); -webkit-backdrop-filter: blur(5px) saturate(1.1);
+    animation: pl-fade .18s ease both; }
+@keyframes pl-fade { from { opacity: 0 } to { opacity: 1 } }
+.pl-box { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 8px; }
+.pl-rune { position: relative; width: 96px; height: 96px; }
+.pl-rune span { position: absolute; border-radius: 50%; }
+.pl-rune .r1 { inset: 0; border: 3px solid transparent; border-top-color: var(--accent); border-right-color: var(--accent);
+    animation: pl-spin 1s cubic-bezier(.6, .2, .4, .8) infinite; }
+.pl-rune .r2 { inset: 13px; border: 3px solid transparent; border-bottom-color: var(--accent); opacity: .6;
+    animation: pl-spin 1.5s linear infinite reverse; }
+.pl-rune .r3 { inset: 32px; background: radial-gradient(circle at 50% 40%, #fff, var(--accent) 70%); box-shadow: 0 0 26px 2px var(--accent);
+    animation: pl-pulse 1.2s ease-in-out infinite; }
+@keyframes pl-spin { to { transform: rotate(360deg) } }
+@keyframes pl-pulse { 0%, 100% { transform: scale(.55); opacity: .55 } 50% { transform: scale(1); opacity: 1 } }
+.pl-text { color: #fff; font-weight: 800; letter-spacing: .4px; font-size: 15px; text-shadow: 0 1px 8px rgba(0, 0, 0, .5); }
+.pl-dots::after { content: ""; animation: pl-dots 1.4s steps(4, end) infinite; }
+@keyframes pl-dots { 0% { content: "" } 25% { content: "." } 50% { content: ".." } 75% { content: "..." } 100% { content: "" } }
+@media (prefers-reduced-motion: reduce) {
+    .pl-rune .r1, .pl-rune .r2, .pl-rune .r3, .pl-dots::after, .page-loader { animation-duration: .001ms; animation-iteration-count: 1; }
+}
 .hr-chip img { width: 18px; height: 18px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
 
 /* ===== history char: gear paperdoll tiles ===== */

@@ -38,8 +38,10 @@ const {
 const { annotateMatches, autoMatches } = require("./logEventMatch");
 const { bestDayMatch, formatDayDisplay, dayKey } = require("./lootEventMatch");
 const { evaluateLog, scanLogChannels, backfillLogTitles } = require("./logChannel");
-const { getEventSheet, markEventSheetFilled } = require("./eventSheetStore");
-const { getEventSoftres, saveEventSoftres, setEventSoftresLink } = require("./eventSoftresStore");
+const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("./eventSheetStore");
+const {
+    getEventSoftres, saveEventSoftres, setEventSoftresLink, markEventSoftresPosted,
+} = require("./eventSoftresStore");
 const softres = require("../utils/softres");
 const wowhead = require("../utils/wowhead");
 const Raidhelper = require("../classes/raidhelper");
@@ -959,15 +961,33 @@ async function handle(req, res) {
         if (error) return redirect(res, `${back}&err=${encodeURIComponent(error)}`);
         const found = groups.flatMap((g) => g.events).find((e) => e.id === eventId);
         if (!found) return redirect(res, `${back}&err=${encodeURIComponent("Event nicht gefunden.")}`);
+        // A "message" field means the form was submitted explicitly (even blank,
+        // to clear it); the header quick-post button has no message input at all
+        // (undefined), so it keeps whatever text was posted last time.
+        const message = form.message !== undefined ? form.message : (es.postedMessage || "");
+        const linkOpts = {
+            url: es.url,
+            title: found.title ? `Raidsheet – ${found.title}` : "Raidsheet",
+            message,
+            label: "Raidsheet öffnen",
+            emoji: "📄",
+        };
+        const alreadyPosted = Boolean(es.postedChannelId && es.postedMessageId);
         try {
-            await discord.postLink(found.channelId, {
-                url: es.url,
-                title: found.title ? `Raidsheet – ${found.title}` : "Raidsheet",
-                message: form.message,
-                label: "Raidsheet öffnen",
-                emoji: "📄",
-            });
-            return redirect(res, `${back}&ok=${encodeURIComponent("Raidsheet in den Channel gepostet.")}`);
+            let posted;
+            if (alreadyPosted) {
+                try {
+                    posted = await discord.editLink(es.postedChannelId, es.postedMessageId, linkOpts);
+                } catch {
+                    // message was deleted/edited by hand since — fall back to a fresh post
+                    posted = await discord.postLink(found.channelId, linkOpts);
+                }
+            } else {
+                posted = await discord.postLink(found.channelId, linkOpts);
+            }
+            markEventSheetPosted(eventId, { channelId: posted.channelId, messageId: posted.messageId, message });
+            const okMsg = alreadyPosted ? "Raidsheet-Nachricht aktualisiert." : "Raidsheet in den Channel gepostet.";
+            return redirect(res, `${back}&ok=${encodeURIComponent(okMsg)}`);
         } catch (e) {
             console.error("post-sheet failed:", e.message);
             return redirect(res, `${back}&err=${encodeURIComponent(e.message || "Posten fehlgeschlagen.")}`);
@@ -990,15 +1010,29 @@ async function handle(req, res) {
         if (error) return redirect(res, `${back}&err=${encodeURIComponent(error)}`);
         const found = groups.flatMap((g) => g.events).find((e) => e.id === eventId);
         if (!found) return redirect(res, `${back}&err=${encodeURIComponent("Event nicht gefunden.")}`);
+        const message = form.message !== undefined ? form.message : (sr.postedMessage || "");
+        const linkOpts = {
+            url: sr.url,
+            title: found.title ? `Softres – ${found.title}` : "Softres",
+            message,
+            label: "Softres öffnen",
+            emoji: "🎁",
+        };
+        const alreadyPosted = Boolean(sr.postedChannelId && sr.postedMessageId);
         try {
-            await discord.postLink(found.channelId, {
-                url: sr.url,
-                title: found.title ? `Softres – ${found.title}` : "Softres",
-                message: form.message,
-                label: "Softres öffnen",
-                emoji: "🎁",
-            });
-            return redirect(res, `${back}&ok=${encodeURIComponent("Softres-Link in den Channel gepostet.")}`);
+            let posted;
+            if (alreadyPosted) {
+                try {
+                    posted = await discord.editLink(sr.postedChannelId, sr.postedMessageId, linkOpts);
+                } catch {
+                    posted = await discord.postLink(found.channelId, linkOpts);
+                }
+            } else {
+                posted = await discord.postLink(found.channelId, linkOpts);
+            }
+            markEventSoftresPosted(eventId, { channelId: posted.channelId, messageId: posted.messageId, message });
+            const okMsg = alreadyPosted ? "Softres-Nachricht aktualisiert." : "Softres-Link in den Channel gepostet.";
+            return redirect(res, `${back}&ok=${encodeURIComponent(okMsg)}`);
         } catch (e) {
             console.error("post-softres failed:", e.message);
             return redirect(res, `${back}&err=${encodeURIComponent(e.message || "Posten fehlgeschlagen.")}`);

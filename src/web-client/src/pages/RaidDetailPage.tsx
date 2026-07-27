@@ -6,11 +6,14 @@ import {
     searchSoftresItems, createSoftres, linkSoftres, evalLog, linkLog, unlinkLog,
     type ApiError, type RaidDetailData, type SetupPlayer, type AttendancePerson,
     type SoftresSearchItem, type SoftresCatalogueGroup, type EventSoftres, type RaidLogRow,
+    type RaidDetailEventSheet,
 } from "../api";
 import { formatEventTime, fmtMs } from "../lib/format";
-import { eventPostUrl, channelUrl, raidplanUrl } from "../lib/discordLinks";
+import { eventPostUrl, channelUrl, raidplanUrl, messageLink } from "../lib/discordLinks";
 import { LootTable } from "../components/LootTable";
 import type { ShellContext } from "../components/Shell";
+import Toast from "../components/Toast";
+import PageLoader from "../components/PageLoader";
 
 type Flash = { type: "ok" | "err"; text: string };
 type Tab = "setup" | "attendance" | "actions" | "loot" | "softres" | "logs";
@@ -88,7 +91,7 @@ function SetupTab({ data }: { data: RaidDetailData }) {
 function NameList({ people }: { people: AttendancePerson[] }) {
     if (!people.length) return <p className="sub">—</p>;
     return (
-        <div className="rolegrid">
+        <div className="rolegrid rolegrid-flat">
             {people.map((p) => {
                 const prof = p.profile;
                 const label = (p.displayName || p.id) + (p.character ? ` (${p.character})` : "");
@@ -216,6 +219,7 @@ function HeaderActions({ data, eventId, csrfToken, onSwitchTab, onDone }: {
 
     return (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end" }}>
+            <PageLoader show={busy} text="Wird gepostet" />
             {!!eventSheet?.url && (
                 <>
                     <a className="btn btn-ghost" href={eventSheet.url} target="_blank" rel="noopener noreferrer">📄 Sheet öffnen</a>
@@ -402,19 +406,22 @@ function FillForm({ data, eventId, csrfToken, onDone }: {
     );
 }
 
-function PostSheetForm({ eventId, hasSheet, csrfToken, onDone }: {
+function PostSheetForm({ eventId, eventSheet, guildId, channelLabel, csrfToken, onDone }: {
     eventId: string;
-    hasSheet: boolean;
+    eventSheet: RaidDetailEventSheet;
+    guildId: string;
+    channelLabel: string;
     csrfToken: string | null;
     onDone: (msg: string) => void;
 }) {
-    const [message, setMessage] = useState("");
+    const [message, setMessage] = useState(eventSheet?.postedMessage || "");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    if (!hasSheet) {
+    if (!eventSheet?.url) {
         return <p className="sub">Noch kein gefülltes Sheet vorhanden — fülle oben zuerst ein Raidsheet, dann kannst du den Link hier in den Channel posten.</p>;
     }
+    const posted = !!(eventSheet.postedChannelId && eventSheet.postedMessageId);
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -423,7 +430,6 @@ function PostSheetForm({ eventId, hasSheet, csrfToken, onDone }: {
         try {
             const r = await postRaidSheet(csrfToken, { event: eventId, message });
             onDone(r.message);
-            setMessage("");
         } catch (err) {
             setError((err as ApiError).message);
         } finally {
@@ -433,12 +439,18 @@ function PostSheetForm({ eventId, hasSheet, csrfToken, onDone }: {
 
     return (
         <form className="card-form" onSubmit={submit}>
+            <PageLoader show={busy} text="Wird gepostet" />
             {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
             <div className="field">
                 <label>Nachricht (optional)</label>
                 <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="z. B. Das Raidsheet für heute Abend – bitte eintragen!" />
+                <div className="hint">
+                    {posted
+                        ? <>Bereits gepostet in #{channelLabel} — <a className="mlink" href={messageLink(guildId, eventSheet.postedChannelId!, eventSheet.postedMessageId!)} target="_blank" rel="noopener noreferrer">Nachricht öffnen</a>. Speichern aktualisiert diese Nachricht.</>
+                        : <>Postet den Sheet-Link (📄 mit Button) in #{channelLabel}.</>}
+                </div>
             </div>
-            <div className="row-actions"><button className="btn" type="submit" disabled={busy}>📄 Sheet in Channel posten</button></div>
+            <div className="row-actions"><button className="btn" type="submit" disabled={busy}>{posted ? "🔄 Nachricht aktualisieren" : "📄 Sheet in Channel posten"}</button></div>
         </form>
     );
 }
@@ -462,7 +474,10 @@ function ActionsTab({ data, eventId, csrfToken, onChanged }: {
             <FillForm data={data} eventId={eventId} csrfToken={csrfToken} onDone={onChanged} />
             <h2>Raidsheet in Channel posten</h2>
             <p className="note">Postet den Link zum gefüllten Raidsheet als Nachricht mit Button in den Event-Channel — optional mit eigener Nachricht.</p>
-            <PostSheetForm eventId={eventId} hasSheet={!!data.eventSheet?.url} csrfToken={csrfToken} onDone={onChanged} />
+            <PostSheetForm
+                eventId={eventId} eventSheet={data.eventSheet} guildId={data.guildId}
+                channelLabel={data.event.channelName || data.event.channelId} csrfToken={csrfToken} onDone={onChanged}
+            />
         </>
     );
 }
@@ -707,6 +722,53 @@ function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
     );
 }
 
+function PostSoftresForm({ eventId, eventSoftres, guildId, channelLabel, csrfToken, onDone }: {
+    eventId: string;
+    eventSoftres: EventSoftres;
+    guildId: string;
+    channelLabel: string;
+    csrfToken: string | null;
+    onDone: (msg: string) => void;
+}) {
+    const [message, setMessage] = useState(eventSoftres?.postedMessage || "");
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    if (!eventSoftres?.url) return null;
+    const posted = !!(eventSoftres.postedChannelId && eventSoftres.postedMessageId);
+
+    const submit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setBusy(true);
+        setError(null);
+        try {
+            const r = await postRaidSoftres(csrfToken, { event: eventId, message });
+            onDone(r.message);
+        } catch (err) {
+            setError((err as ApiError).message);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <form className="card-form" style={{ marginTop: 12 }} onSubmit={submit}>
+            <PageLoader show={busy} text="Wird gepostet" />
+            {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
+            <div className="field">
+                <label>Nachricht (optional)</label>
+                <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="z. B. Bitte bis Raidbeginn eintragen!" />
+                <div className="hint">
+                    {posted
+                        ? <>Bereits gepostet in #{channelLabel} — <a className="mlink" href={messageLink(guildId, eventSoftres.postedChannelId!, eventSoftres.postedMessageId!)} target="_blank" rel="noopener noreferrer">Nachricht öffnen</a>. Speichern aktualisiert diese Nachricht.</>
+                        : <>Postet den Softres-Link (🎁 mit Button) in #{channelLabel}.</>}
+                </div>
+            </div>
+            <div className="row-actions"><button className="btn" type="submit" disabled={busy}>{posted ? "🔄 Nachricht aktualisieren" : "📤 Softres in Channel posten"}</button></div>
+        </form>
+    );
+}
+
 function SoftresTab({ data, eventId, csrfToken, onChanged }: {
     data: RaidDetailData;
     eventId: string;
@@ -736,6 +798,10 @@ function SoftresTab({ data, eventId, csrfToken, onChanged }: {
                             {so.hardReserveCount ? ` · ${so.hardReserveCount} Hardreserve(s)` : ""}. Neu erstellen ersetzt den Link unten nicht automatisch auf softres.it.
                         </div>
                         <SoftresLinkForm eventSoftres={so} eventId={eventId} csrfToken={csrfToken} onDone={onChanged} />
+                        <PostSoftresForm
+                            eventId={eventId} eventSoftres={so} guildId={data.guildId}
+                            channelLabel={data.event.channelName || data.event.channelId} csrfToken={csrfToken} onDone={onChanged}
+                        />
                     </div>
                 )
                 : <SoftresLinkForm eventSoftres={so} eventId={eventId} csrfToken={csrfToken} onDone={onChanged} />}
@@ -1053,7 +1119,7 @@ export default function RaidDetailPage() {
                 </button>
             </div>
 
-            {flash && <p className="sub" style={{ color: flash.type === "err" ? "var(--high)" : "var(--good)" }}>{flash.text}</p>}
+            <Toast flash={flash} onClose={() => setFlash(null)} />
 
             {tab === "setup" && <SetupTab data={data} />}
             {tab === "attendance" && <AttendanceTab data={data} eventId={eventId} csrfToken={csrfToken} onChanged={afterChange} />}

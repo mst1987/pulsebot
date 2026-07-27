@@ -72,6 +72,27 @@ function markEventSheetFilled(eventId, data = {}) {
     return saved;
 }
 
+/**
+ * Record that the sheet link was posted (or re-posted) as a Discord message,
+ * so the event page can later edit that same message in place instead of
+ * posting a new one every time. Called after `discord.postLink`/`editLink`.
+ */
+function markEventSheetPosted(eventId, { channelId, messageId, message } = {}) {
+    const id = String(eventId || "").trim();
+    if (!id) return null;
+    const events = listEventSheets();
+    const match = events.find((e) => e.eventId === id);
+    if (!match) return null;
+    Object.assign(match, {
+        postedChannelId: String(channelId || "").trim(),
+        postedMessageId: String(messageId || "").trim(),
+        postedMessage: String(message || "").trim(),
+        postedAt: Date.now(),
+    });
+    writeJson(EVENT_SHEETS_FILE, { events });
+    return match;
+}
+
 /** Remove the record for an event id. Returns true if one was removed. */
 function deleteEventSheet(eventId) {
     const id = String(eventId || "").trim();
@@ -82,4 +103,6 @@ function deleteEventSheet(eventId) {
     return true;
 }
 
-module.exports = { listEventSheets, getEventSheet, markEventSheetFilled, deleteEventSheet };
+module.exports = {
+    listEventSheets, getEventSheet, markEventSheetFilled, markEventSheetPosted, deleteEventSheet,
+};

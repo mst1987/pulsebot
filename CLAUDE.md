@@ -26,6 +26,8 @@ node src/discordcommands/raidhelper.js  # Legacy command registration script
 
 `main` is the integration branch and always reflects the production-ready state. `main` and `dev` are kept in sync; new work does **not** branch off `dev`.
 
+**⚠️ Worktree-only, no exceptions — every agent must follow this.** All code changes (by any agent, on any task, however small) happen inside a feature worktree, never as edits to the primary checkout's working tree. The primary checkout at `d:/programming/eventhelper` stays on `main` with a clean working tree at all times — no uncommitted edits, no ad-hoc commits there. If you find yourself about to `Edit`/`Write` a file while the cwd is the primary checkout, stop and create/switch to a worktree first (see step 2). This holds even for "just a quick fix."
+
 0. **Sync `main` first — always, before touching anything.** Every unit of work starts by fetching and fast-forwarding `main` so the branch is cut from the current production state: `git fetch origin && git checkout main && git pull --ff-only origin main`. Never start editing on a stale `main` or a branch whose base has moved on.
 1. **Branch off `main`** for every new feature or fix: `git switch main && git pull && git switch -c feature/<name>`.
 2. **Use a git worktree** so the feature is developed in its own directory without disturbing the main checkout:
@@ -35,9 +37,9 @@ node src/discordcommands/raidhelper.js  # Legacy command registration script
    Work happens in `../eventhelper-<name>/`; the primary checkout stays on `main`.
 3. **Write and run tests** for the change (`npm test` must pass) and keep `npm run lint` clean before opening a PR.
 4. **Spin up a local test instance on its own port** so the change can be verified live, isolated from every other running instance (see “Local test instances” below). Every agent-made change must be runnable this way, and the agent hands the reviewer the local URL to click.
-5. **Re-sync `main` into the branch before opening or updating the PR.** `main` may have moved while you worked, so `git fetch origin && git merge origin/main` (or rebase) on the feature branch, resolve any conflicts **locally**, and re-run `npm test` + `npm run lint` on the merged result. A PR must never be opened or left in a conflicting state — resolve it before handing it over.
-6. **Open a PR targeting `main` as soon as the feature is finished — proactively, without waiting to be asked.** Summarize what changed and how it was verified in the PR body (including the local test URL/port used). Merge to `main` only via PR.
-7. **Clean up the worktree** after the PR is merged — see “Cleanup after merges” below. Always **stop its test instance first**, then remove the worktree.
+5. **Keep the worktree's branch current with `main` regularly while working, not just before the PR** — `main` moves as other features merge, and a long-lived worktree drifts. Periodically run `git fetch origin && git merge origin/main` (or rebase) inside the worktree, resolve any conflicts **locally**, and re-run `npm test` + `npm run lint` on the merged result. Do this again right before opening or updating the PR. A PR must never be opened or left in a conflicting state.
+6. **Open a PR targeting `main` as soon as the feature is finished — proactively, without waiting to be asked.** Summarize what changed and how it was verified in the PR body (including the local test URL/port used). Merge to `main` only via PR. Opening the PR is not optional and is not the end of the task — it is not "done" until the PR is merged and step 7 has run.
+7. **Watch the PR until it merges, then immediately clean up everything belonging to that unit of work** — this is the last step of every task, not a separate chore for later. Poll the PR's merge status periodically (every ~5 minutes is a reasonable cadence for a background check; e.g. `gh pr view <number> --json state,mergedAt`) until it shows merged. The moment it merges: **stop the local test instance first**, then **remove the worktree** (see “Cleanup after merges” below). Only report the task fully finished once both are gone — a merged PR with its worktree/instance still lying around is an unfinished task, not a finished one.
 
 Every change must ship with tests (see the Testing section). Do not merge a feature branch that lowers coverage of the modules it touches.
 

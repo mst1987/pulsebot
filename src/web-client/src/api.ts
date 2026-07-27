@@ -273,8 +273,14 @@ export type RaidDetailEvent = {
     signupCount: number;
 };
 
-export type RaidDetailEventSheet = { url: string; eventTitle: string; deleteAfter: number } | null;
-export type EventSoftres = { url: string; editUrl: string; instances: unknown[]; amount: number; hardReserveCount: number } | null;
+export type RaidDetailEventSheet = {
+    url: string; eventTitle: string; deleteAfter: number;
+    postedChannelId?: string; postedMessageId?: string; postedMessage?: string;
+} | null;
+export type EventSoftres = {
+    url: string; editUrl: string; instances: unknown[]; amount: number; hardReserveCount: number;
+    postedChannelId?: string; postedMessageId?: string; postedMessage?: string;
+} | null;
 
 // A raider in the current raidplan setup whose spec/class can tank — offered as
 // 3rd-tank candidates on the "Raidsheet füllen" form. Mirrors src/utils/setupView.js's

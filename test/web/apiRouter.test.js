@@ -136,6 +136,7 @@ jest.mock("../../src/web/discord", () => ({
     postAnnouncement: jest.fn(),
     postMissingPing: jest.fn(),
     postLink: jest.fn(),
+    editLink: jest.fn(),
 }));
 jest.mock("../../src/web/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
@@ -155,11 +156,13 @@ jest.mock("../../src/classes/raidhelper", () =>
 jest.mock("../../src/web/eventSheetStore", () => ({
     getEventSheet: jest.fn(() => null),
     markEventSheetFilled: jest.fn(),
+    markEventSheetPosted: jest.fn(),
 }));
 jest.mock("../../src/web/eventSoftresStore", () => ({
     getEventSoftres: jest.fn(() => null),
     saveEventSoftres: jest.fn(),
     setEventSoftresLink: jest.fn(),
+    markEventSoftresPosted: jest.fn(),
 }));
 jest.mock("../../src/utils/softres", () => ({
     parseInstancesFromTitle: jest.fn(() => []),
@@ -1366,7 +1369,33 @@ describe("web/apiRouter", () => {
                 url: "https://sheet.example/1", title: "Raidsheet – GDKP Kara", message: "Bitte prüfen",
                 label: "Raidsheet öffnen", emoji: "📄",
             });
+            expect(discord.editLink).not.toHaveBeenCalled();
+            expect(eventSheetStore.markEventSheetPosted).toHaveBeenCalledWith("e1", { channelId: "chan1", messageId: "m1", message: "Bitte prüfen" });
             expect(body(res)).toEqual({ data: { message: "Raidsheet in den Channel gepostet." } });
+        });
+
+        it("edits the already-posted message in place instead of posting a new one", async () => {
+            setupDefaults();
+            eventSheetStore.getEventSheet.mockReturnValue({
+                eventId: "e1", url: "https://sheet.example/1", postedChannelId: "chan1", postedMessageId: "old-m1",
+            });
+            discord.editLink.mockResolvedValue({ channelId: "chan1", messageId: "old-m1" });
+            const res = await post("/api/raids/post-sheet", { event: "e1", message: "Neuer Text" });
+            expect(discord.editLink).toHaveBeenCalledWith("chan1", "old-m1", expect.objectContaining({ message: "Neuer Text" }));
+            expect(discord.postLink).not.toHaveBeenCalled();
+            expect(body(res)).toEqual({ data: { message: "Raidsheet-Nachricht aktualisiert." } });
+        });
+
+        it("falls back to posting fresh when editing the tracked message fails", async () => {
+            setupDefaults();
+            eventSheetStore.getEventSheet.mockReturnValue({
+                eventId: "e1", url: "https://sheet.example/1", postedChannelId: "chan1", postedMessageId: "old-m1",
+            });
+            discord.editLink.mockRejectedValue(new Error("Unknown Message"));
+            discord.postLink.mockResolvedValue({ channelId: "chan1", messageId: "m2" });
+            const res = await post("/api/raids/post-sheet", { event: "e1", message: "Neuer Text" });
+            expect(discord.postLink).toHaveBeenCalledWith("chan1", expect.objectContaining({ message: "Neuer Text" }));
+            expect(body(res)).toEqual({ data: { message: "Raidsheet-Nachricht aktualisiert." } });
         });
 
         it("returns 500 with the Discord error message on post failure", async () => {
@@ -1423,7 +1452,20 @@ describe("web/apiRouter", () => {
                 url: "https://softres.it/1", title: "Softres – GDKP Kara", message: "Bitte prüfen",
                 label: "Softres öffnen", emoji: "🎁",
             });
+            expect(eventSoftresStore.markEventSoftresPosted).toHaveBeenCalledWith("e1", { channelId: "chan1", messageId: "m1", message: "Bitte prüfen" });
             expect(body(res)).toEqual({ data: { message: "Softres-Link in den Channel gepostet." } });
+        });
+
+        it("edits the already-posted softres message in place instead of posting a new one", async () => {
+            setupDefaults();
+            eventSoftresStore.getEventSoftres.mockReturnValue({
+                eventId: "e1", url: "https://softres.it/1", postedChannelId: "chan1", postedMessageId: "old-m1",
+            });
+            discord.editLink.mockResolvedValue({ channelId: "chan1", messageId: "old-m1" });
+            const res = await post("/api/raids/post-softres", { event: "e1", message: "Neuer Text" });
+            expect(discord.editLink).toHaveBeenCalledWith("chan1", "old-m1", expect.objectContaining({ message: "Neuer Text" }));
+            expect(discord.postLink).not.toHaveBeenCalled();
+            expect(body(res)).toEqual({ data: { message: "Softres-Nachricht aktualisiert." } });
         });
 
         it("returns 500 with the Discord error message on post failure", async () => {

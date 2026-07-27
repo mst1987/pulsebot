@@ -10,6 +10,8 @@ const mockFetchEvents = jest.fn();
 const mockCreateEvent = jest.fn();
 const mockGetEventSheet = jest.fn(() => null);
 const mockMarkEventSheetFilled = jest.fn();
+const mockMarkEventSheetPosted = jest.fn();
+const mockMarkEventSoftresPosted = jest.fn();
 
 jest.mock("http", () => {
     const fakeServer = { on: jest.fn(), listen: jest.fn() };
@@ -145,6 +147,7 @@ jest.mock("../../src/web/discord", () => ({
     listEmojis: jest.fn(() => []),
     listApplications: jest.fn(async () => ({ applications: [], error: null })),
     postLink: jest.fn(async () => ({ channelId: "c1", messageId: "m1", url: "u" })),
+    editLink: jest.fn(async () => ({ channelId: "c1", messageId: "m1", url: "u" })),
     getClient: jest.fn(() => null),
     postRecruitment: jest.fn(async () => ({ guildId: "g1", channelId: "c1", messageId: "m1" })),
     editRecruitment: jest.fn(async () => {}),
@@ -165,6 +168,7 @@ jest.mock("../../src/utils/fillSetup", () => ({ fillSetupSheet: mockFillSetupShe
 jest.mock("../../src/web/eventSheetStore", () => ({
     getEventSheet: mockGetEventSheet,
     markEventSheetFilled: mockMarkEventSheetFilled,
+    markEventSheetPosted: mockMarkEventSheetPosted,
     listEventSheets: jest.fn(() => []),
 }));
 const mockGetEventSoftres = jest.fn(() => null);
@@ -174,6 +178,7 @@ jest.mock("../../src/web/eventSoftresStore", () => ({
     getEventSoftres: mockGetEventSoftres,
     saveEventSoftres: mockSaveEventSoftres,
     setEventSoftresLink: mockSetEventSoftresLink,
+    markEventSoftresPosted: mockMarkEventSoftresPosted,
     listEventSoftres: jest.fn(() => []),
 }));
 const mockCreateRaid = jest.fn(async () => ({
@@ -1586,7 +1591,37 @@ describe("raidsheet post-to-channel route", () => {
             message: "Bitte eintragen",
             title: expect.stringContaining("GDKP Kara"),
         }));
+        expect(discord.editLink).not.toHaveBeenCalled();
+        expect(mockMarkEventSheetPosted).toHaveBeenCalledWith("e1", { channelId: "c1", messageId: "m1", message: "Bitte eintragen" });
         expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&ok=");
+    });
+
+    it("edits the already-posted message in place instead of posting a new one", async () => {
+        mockGetEventSheet.mockReturnValue({
+            eventId: "e1", url: "https://docs.google.com/x", postedChannelId: "c1", postedMessageId: "old-m1",
+        });
+        const res = await request("POST", "/admin/raids/post-sheet", { event: "e1", message: "Neuer Text" });
+        expect(discord.editLink).toHaveBeenCalledWith("c1", "old-m1", expect.objectContaining({ message: "Neuer Text" }));
+        expect(discord.postLink).not.toHaveBeenCalled();
+        expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&ok=");
+    });
+
+    it("falls back to posting fresh when editing the tracked message fails (e.g. deleted by hand)", async () => {
+        mockGetEventSheet.mockReturnValue({
+            eventId: "e1", url: "https://docs.google.com/x", postedChannelId: "c1", postedMessageId: "old-m1",
+        });
+        discord.editLink.mockRejectedValueOnce(new Error("Unknown Message"));
+        const res = await request("POST", "/admin/raids/post-sheet", { event: "e1", message: "Neuer Text" });
+        expect(discord.postLink).toHaveBeenCalledWith("c1", expect.objectContaining({ message: "Neuer Text" }));
+        expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&ok=");
+    });
+
+    it("keeps the last posted message when re-posting without an explicit message field (header quick-post)", async () => {
+        mockGetEventSheet.mockReturnValue({
+            eventId: "e1", url: "https://docs.google.com/x", postedChannelId: "c1", postedMessageId: "old-m1", postedMessage: "Alter Text",
+        });
+        await request("POST", "/admin/raids/post-sheet", { event: "e1" });
+        expect(discord.editLink).toHaveBeenCalledWith("c1", "old-m1", expect.objectContaining({ message: "Alter Text" }));
     });
 
     it("errors when no sheet has been created yet", async () => {
@@ -1627,6 +1662,17 @@ describe("softres post-to-channel route", () => {
             title: expect.stringContaining("SSC&TK&Gruul"),
             label: "Softres öffnen",
         }));
+        expect(mockMarkEventSoftresPosted).toHaveBeenCalledWith("e1", { channelId: "c1", messageId: "m1", message: "SR eintragen" });
+        expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&ok=");
+    });
+
+    it("edits the already-posted softres message in place instead of posting a new one", async () => {
+        mockGetEventSoftres.mockReturnValue({
+            eventId: "e1", url: "https://softres.it/raid/r1", postedChannelId: "c1", postedMessageId: "old-m1",
+        });
+        const res = await request("POST", "/admin/raids/post-softres", { event: "e1", message: "Neuer Text" });
+        expect(discord.editLink).toHaveBeenCalledWith("c1", "old-m1", expect.objectContaining({ message: "Neuer Text" }));
+        expect(discord.postLink).not.toHaveBeenCalled();
         expect(redirectTo(res)).toContain("/admin/raids/detail?event=e1&ok=");
     });
 
