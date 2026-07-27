@@ -155,6 +155,9 @@ const ADMIN_STYLE = `<style>
   }
   /* compact inline select for in-table forms (e.g. the log→event assignment) */
   .sel-sm { max-width:270px; background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:6px 8px; font:inherit; font-size:13px; }
+  /* compact inline text input for the same forms, outside a .field wrapper */
+  .inp-sm { background:var(--bg); color:var(--text); border:1px solid var(--line); border-radius:8px; padding:6px 8px; font:inherit; font-size:13px; }
+  .inp-sm:focus { border-color:var(--accent); outline:none; box-shadow:0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--accent); }
   .row-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   /* action cell stays a real table-cell so its row divider aligns with the rest */
   td.cell-actions { text-align:right; white-space:nowrap; vertical-align:middle; }
@@ -2431,7 +2434,7 @@ function renderEventDetail(user, opts = {}) {
     const linkUrlForm = `<form method="POST" action="/admin/cla/log-link-url" class="row-actions" style="gap:8px;margin-top:12px;flex-wrap:wrap">
          ${csrfField}
          <input type="hidden" name="eventId" value="${esc(ev.id)}">
-         <input type="text" name="link" style="min-width:320px;flex:1;max-width:520px" required
+         <input type="text" name="link" class="inp-sm" style="min-width:320px;flex:1;max-width:520px" required
                 placeholder="https://classic.warcraftlogs.com/reports/abc123…" aria-label="Warcraft-Logs-Link">
          <button class="btn btn-ghost btn-sm" type="submit">WCL-Link zuordnen</button>
        </form>`;
