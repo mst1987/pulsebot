@@ -4,7 +4,7 @@ import {
     getHistoryData, importLoot, deleteHistoryLog, saveCategoryLootTool, resolveCharacters,
     type ApiError, type HistoryData, type HistoryEvent, type LootEventSummary, type LootLog, type AnnotatedCharacter,
 } from "../api";
-import { formatEventTime, fmtMs } from "../lib/format";
+import { formatEventTime, fmtMs, formatDate } from "../lib/format";
 import RaidTable from "../components/RaidTable";
 import { ClassSpecCell, CharacterLink } from "../components/ClassSpec";
 import type { ShellContext } from "../components/Shell";
@@ -219,7 +219,7 @@ function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: s
                                 <td>{wclUrl
                                     ? <a className="mlink" href={wclUrl} target="_blank" rel="noopener noreferrer">{l.title || l.reportId || "(Log)"} ↗</a>
                                     : (l.title || "(Log)")}</td>
-                                <td className="small" />
+                                <td className="small">{formatDate(l.postedAt || 0)}</td>
                                 <td className="small">{l.zone || ""}</td>
                                 <td className="small">{l.eventId ? <span className="pill" title={l.eventStartTime ? formatEventTime(l.eventStartTime) : ""}>{l.eventLabel || l.eventId}</span> : <span className="sub">—</span>}</td>
                                 <td>{l.status === "done" ? <span className="pill good">ausgewertet</span> : <span className="pill">offen</span>}</td>

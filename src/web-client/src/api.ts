@@ -287,6 +287,21 @@ export type RaidDetailData = {
     signupTarget: number;
     lootItems: LootItem[];
     lootTool: string;
+    eventLogs: RaidLogRow[];
+    unlinkedLogs: RaidLogRow[];
+};
+
+// Trimmed-down LogRow (see below) for the raid detail page's Logs tab — same
+// shape as what the CLA logs list uses, minus the match-candidate fields that
+// only apply there.
+export type RaidLogRow = {
+    id: string;
+    title: string;
+    reportId: string;
+    link: string;
+    status: "open" | "done";
+    reportUrl: string;
+    reportRefId: string;
 };
 
 export function getRaidDetail(eventId: string): Promise<RaidDetailData> {
@@ -544,6 +559,7 @@ export type LootLog = {
     eventId?: string;
     eventLabel?: string;
     eventStartTime?: number;
+    postedAt?: number;
 };
 
 export type LootItem = {

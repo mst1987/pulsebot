@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getDashboard, type ApiError, type DashboardData, type UpcomingEvent, type RecentEvent } from "../api";
+import { getDashboard, type ApiError, type DashboardData, type UpcomingEvent } from "../api";
 import { formatEventTime, formatDate } from "../lib/format";
 import { RecruitmentIcon, ClaIcon, RaidsIcon, ChannelsIcon, SettingsIcon } from "../components/icons";
+import RaidTable from "../components/RaidTable";
 
 function Tile({ label, value, sub, accent }: { label: string; value: number; sub: string; accent?: boolean }) {
     return (
@@ -32,30 +33,10 @@ function UpcomingTable({ upcoming }: { upcoming: DashboardData["upcoming"] }) {
         <>
             {upcoming.events.map((ev) => (
                 <tr key={ev.id}>
-                    <td>{ev.title}</td>
+                    <td><Link className="mlink" to={`/raids/detail?event=${encodeURIComponent(ev.id)}`}>{ev.title}</Link></td>
                     <td className="small">{ev.channelName}</td>
                     <td className="small">{formatEventTime(ev.startTime)}</td>
                     <td><SheetBadge sheet={ev.sheet} /></td>
-                </tr>
-            ))}
-        </>
-    );
-}
-
-function LatestEventsTable({ recentEvents }: { recentEvents: DashboardData["recentEvents"] }) {
-    if (recentEvents.error) {
-        return <tr><td colSpan={3} className="sub" style={{ padding: 16, color: "var(--high)" }}>{recentEvents.error}</td></tr>;
-    }
-    if (!recentEvents.events.length) {
-        return <tr><td colSpan={3} className="sub" style={{ padding: 16 }}>Keine vergangenen Events gefunden.</td></tr>;
-    }
-    return (
-        <>
-            {recentEvents.events.map((ev: RecentEvent) => (
-                <tr key={ev.id}>
-                    <td><strong>{ev.title}</strong>{ev.channelName && <div className="small">#{ev.channelName}</div>}</td>
-                    <td className="small">{formatEventTime(ev.startTime)}</td>
-                    <td className="small">{ev.logs.length ? `${ev.logs.length} Log(s)` : "—"}</td>
                 </tr>
             ))}
         </>
@@ -134,10 +115,10 @@ export default function DashboardPage() {
                     <h3>Latest Events</h3>
                     <Link className="mlink" to="/history">Historie &amp; Loot →</Link>
                 </div>
-                <table className="idx">
-                    <thead><tr><th>Event</th><th>Termin</th><th>Logs</th></tr></thead>
-                    <tbody><LatestEventsTable recentEvents={data.recentEvents} /></tbody>
-                </table>
+                <RaidTable
+                    events={data.recentEvents.events} guildId={data.activeGuildId}
+                    error={data.recentEvents.error} emptyMessage="Keine vergangenen Events gefunden."
+                />
             </div>
 
             <div className="dash-grid">
