@@ -6,10 +6,18 @@
 const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const discord = require("./discord");
 const { EVENT_LOOKBACK_DAYS } = require("./raidEventGroups");
+const { listRaidEvents } = require("./raidEventStore");
 
 /**
  * Flat list of the guild's already started raids that a detected log could
  * belong to, newest start first. Returns { events, error }.
+ *
+ * Each event is placed via a live Discord-channel join when possible; if its
+ * channel is missing from the live join (deleted/archived after the raid), it
+ * falls back to the snapshot raidEventScan.js keeps in raidEventStore.js — the
+ * same fallback loadEventGroups() uses for the event detail page, so a past
+ * raid whose channel is gone doesn't drop out here as "Event nicht gefunden"
+ * while its detail page still resolves it fine.
  */
 async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
     if (!guildId) return { events: [], error: null };
@@ -18,18 +26,20 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
         const from = Math.floor(Date.now() / 1000) - days * 24 * 60 * 60;
         const events = await rh.getPastEvents(from);
         const catMap = discord.getChannelCategoryMap(guildId);
+        const persistedById = new Map(listRaidEvents(guildId).map((e) => [e.id, e]));
         const out = [];
         for (const ev of events || []) {
             const meta = catMap[ev.channelId];
-            if (!meta) continue; // event channel not in this guild
+            const persisted = !meta ? persistedById.get(ev.id) : null;
+            if (!meta && !persisted) continue; // channel gone from Discord AND never scanned — nowhere to place it
             out.push({
                 id: ev.id,
                 title: ev.title,
                 startTime: ev.startTime,
                 channelId: ev.channelId,
-                channelName: meta.name || "",
-                categoryId: meta.categoryId || "",
-                categoryName: meta.categoryName || "",
+                channelName: meta ? (meta.name || "") : (persisted.channelName || ""),
+                categoryId: meta ? (meta.categoryId || "") : (persisted.categoryId || ""),
+                categoryName: meta ? (meta.categoryName || "") : (persisted.categoryName || ""),
             });
         }
         out.sort((a, b) => (Number(b.startTime) || 0) - (Number(a.startTime) || 0));

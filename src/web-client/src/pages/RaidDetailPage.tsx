@@ -1090,7 +1090,7 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
             <form className="row-actions" style={{ gap: 8, flexWrap: "wrap", marginTop: 12 }} onSubmit={assignUrl}>
                 <input
                     type="text" value={wclUrl} onChange={(e) => setWclUrl(e.target.value)} required
-                    style={{ minWidth: 320, flex: 1, maxWidth: 520 }}
+                    className="inp-sm" style={{ minWidth: 320, flex: 1, maxWidth: 520 }}
                     placeholder="https://classic.warcraftlogs.com/reports/abc123…" aria-label="Warcraft-Logs-Link"
                 />
                 <button className="btn btn-ghost btn-sm" type="submit" disabled={urlBusy}>WCL-Link zuordnen</button>

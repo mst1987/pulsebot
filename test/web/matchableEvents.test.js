@@ -1,0 +1,114 @@
+const mockGetPastEvents = jest.fn();
+jest.mock("../../src/classes/raidhelper", () =>
+    jest.fn().mockImplementation(() => ({ getPastEvents: mockGetPastEvents })));
+jest.mock("../../src/web/discord", () => ({ getChannelCategoryMap: jest.fn() }));
+jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: jest.fn() }));
+
+const discord = require("../../src/web/discord");
+const { listRaidEvents } = require("../../src/web/raidEventStore");
+const { loadMatchableEvents, eventLinkFields } = require("../../src/web/matchableEvents");
+
+const event = (over = {}) => ({
+    id: "e1", title: "Kara", startTime: 2000000000, channelId: "chan1",
+    ...over,
+});
+
+describe("web/matchableEvents", () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        discord.getChannelCategoryMap.mockReturnValue({});
+        listRaidEvents.mockReturnValue([]);
+        mockGetPastEvents.mockResolvedValue([]);
+    });
+
+    it("returns empty result without any network call when there is no guild", async () => {
+        const result = await loadMatchableEvents("");
+        expect(result).toEqual({ events: [], error: null });
+        expect(mockGetPastEvents).not.toHaveBeenCalled();
+    });
+
+    it("places a live event via its Discord channel's category", async () => {
+        mockGetPastEvents.mockResolvedValue([event()]);
+        discord.getChannelCategoryMap.mockReturnValue({
+            chan1: { name: "kara-signup", categoryId: "cat1", categoryName: "Raids" },
+        });
+
+        const { events, error } = await loadMatchableEvents("g1");
+
+        expect(error).toBeNull();
+        expect(events).toEqual([{
+            id: "e1", title: "Kara", startTime: 2000000000, channelId: "chan1",
+            channelName: "kara-signup", categoryId: "cat1", categoryName: "Raids",
+        }]);
+    });
+
+    // Regression test: a past raid's signup channel getting deleted/archived
+    // after the fact used to make loadMatchableEvents() silently drop the
+    // event, so assigning a detected log or a pasted WCL link to it always
+    // failed with "Event nicht gefunden" — even though the event detail page
+    // (loadEventGroups(), which has this same fallback) resolved it fine.
+    it("falls back to the persisted snapshot for an event whose Discord channel is gone", async () => {
+        mockGetPastEvents.mockResolvedValue([event()]);
+        discord.getChannelCategoryMap.mockReturnValue({}); // channel deleted — not in the live map
+        listRaidEvents.mockReturnValue([{
+            id: "e1", guildId: "g1", title: "Kara", channelId: "chan1", channelName: "kara-signup (gone)",
+            categoryId: "cat1", categoryName: "Raids", startTime: 2000000000,
+        }]);
+
+        const { events, error } = await loadMatchableEvents("g1");
+
+        expect(error).toBeNull();
+        expect(events).toEqual([{
+            id: "e1", title: "Kara", startTime: 2000000000, channelId: "chan1",
+            channelName: "kara-signup (gone)", categoryId: "cat1", categoryName: "Raids",
+        }]);
+    });
+
+    it("drops an event that is neither in the live channel map nor ever persisted", async () => {
+        mockGetPastEvents.mockResolvedValue([event()]);
+        discord.getChannelCategoryMap.mockReturnValue({});
+        listRaidEvents.mockReturnValue([]);
+
+        const { events } = await loadMatchableEvents("g1");
+
+        expect(events).toEqual([]);
+    });
+
+    it("sorts events newest start first", async () => {
+        mockGetPastEvents.mockResolvedValue([
+            event({ id: "old", startTime: 100, channelId: "c-old" }),
+            event({ id: "new", startTime: 999999, channelId: "c-new" }),
+        ]);
+        discord.getChannelCategoryMap.mockReturnValue({
+            "c-old": { name: "old", categoryId: "cat1", categoryName: "Raids" },
+            "c-new": { name: "new", categoryId: "cat1", categoryName: "Raids" },
+        });
+
+        const { events } = await loadMatchableEvents("g1");
+
+        expect(events.map((e) => e.id)).toEqual(["new", "old"]);
+    });
+
+    it("returns an empty result with the error when Raid-Helper fails", async () => {
+        mockGetPastEvents.mockRejectedValue(new Error("Raid-Helper down"));
+
+        const { events, error } = await loadMatchableEvents("g1");
+
+        expect(events).toEqual([]);
+        expect(error).toBe("Raid-Helper down");
+    });
+});
+
+describe("web/matchableEvents eventLinkFields", () => {
+    it("builds the stored link fields from an event, preferring its title over its id", () => {
+        expect(eventLinkFields({ id: "e1", title: "Kara", startTime: "123" }, "manual")).toEqual({
+            eventId: "e1", eventLabel: "Kara", eventStartTime: 123, source: "manual",
+        });
+    });
+
+    it("falls back to the event id as the label when it has no title", () => {
+        expect(eventLinkFields({ id: "e1", startTime: 0 }, "auto")).toEqual({
+            eventId: "e1", eventLabel: "e1", eventStartTime: 0, source: "auto",
+        });
+    });
+});
