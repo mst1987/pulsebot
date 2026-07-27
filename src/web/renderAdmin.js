@@ -185,6 +185,7 @@ const ADMIN_STYLE = `<style>
   a.mlink { color:var(--accent); text-decoration:none; }
   a.mlink:hover { text-decoration:underline; }
   .rolegrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:6px; max-height:220px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:10px; background:var(--bg); }
+  .rolegrid.rolegrid-flat { max-height:none; overflow-y:visible; }
   .rolebox {
     display:flex; align-items:flex-start; gap:8px; font-size:13.5px; color:var(--text); font-weight:500; cursor:pointer;
     padding:5px 7px; border-radius:7px; border:1px solid transparent; transition:background-color .12s, border-color .12s; }
@@ -1976,7 +1977,7 @@ function renderEventDetail(user, opts = {}) {
     // Members with a known class/spec (from a past signup, see buildSpecHistory
     // in utils/attendance.js) get the same icon + class-colour chip as the setup. ---
     const nameList = (people) => people.length
-        ? `<div class="rolegrid">${people.map((p) => {
+        ? `<div class="rolegrid rolegrid-flat">${people.map((p) => {
             const prof = p.profile;
             const label = esc(p.displayName || p.id) + (p.character ? ` (${esc(p.character)})` : "");
             if (!prof) return `<span class="rolebox">${label}</span>`;
