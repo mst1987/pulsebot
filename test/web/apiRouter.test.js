@@ -76,6 +76,7 @@ jest.mock("../../src/web/lootStore", () => ({
     listByCharacter: jest.fn(() => []),
     eventsWithLoot: jest.fn(() => []),
     clearEvent: jest.fn(() => 0),
+    repairItemNames: jest.fn(() => Promise.resolve(0)),
 }));
 jest.mock("../../src/web/characterInfo", () => ({
     rememberFromLoot: jest.fn(),

@@ -411,7 +411,9 @@ const ADMIN_STYLE = `<style>
      class portrait center, weapons below; item tooltips come from the Wowhead
      widget via the tiles' ?ench=&gems= links) */
   .gear-card { overflow:visible; }
-  .gear-doll { display:grid; grid-template-columns:auto 1fr auto; gap:14px 20px; padding:18px; }
+  /* compact sheet: fixed-width columns centered in the card instead of
+     stretching the center over the full card width */
+  .gear-doll { display:grid; grid-template-columns:auto minmax(150px, 210px) auto; justify-content:center; gap:14px 28px; padding:18px; }
   .gear-col { display:flex; flex-direction:column; gap:9px; }
   .gear-col-right { align-items:flex-end; }
   .gear-center { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; }
@@ -432,6 +434,9 @@ const ADMIN_STYLE = `<style>
      same container need the more specific selector to win over it */
   .gear-icon img.gear-gem-ico { width:14px; height:14px; border-radius:3px; border:1px solid rgba(0,0,0,.6); display:block; }
   .gear-tile-ilvl { margin-top:2px; text-align:center; font-size:11px; font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums; min-height:14px; }
+  /* loot history: roomier rows with a proper item icon */
+  .loot-table td { padding-top:12px; padding-bottom:12px; }
+  .loot-ico { width:30px; height:30px; border-radius:6px; vertical-align:middle; margin-right:9px; }
   @media (max-width:640px) {
     .gear-doll { grid-template-columns:auto 1fr auto; gap:10px 8px; padding:12px; }
     .gear-portrait { width:64px; height:64px; }
@@ -2683,7 +2688,7 @@ function renderSettings(user, opts = {}) {
           ${categoryRolesSection}
 
           <h2>Armory / Battle.net API</h2>
-          <p class="hint" style="margin:-6px 0 12px">Optional: Mit Battle.net-API-Zugang zeigt die Char-Historie das Live-Gear (Paperdoll) direkt an. Ohne Zugang wird pro Char auf classic-armory.org verlinkt. Client anlegen unter <code>develop.battle.net</code>. Hinweis: Die Classic-Profile-API ist nur teilweise verfügbar — bei fehlenden Daten wird automatisch auf den Armory-Link zurückgefallen.</p>
+          <p class="hint" style="margin:-6px 0 12px">Optional: Mit Battle.net-API-Zugang zeigt die Char-Historie das Live-Gear direkt an. Ohne Zugang wird pro Char auf classic-armory.org verlinkt. Client anlegen unter <code>develop.battle.net</code>. Hinweis: Die Classic-Profile-API ist nur teilweise verfügbar — bei fehlenden Daten wird automatisch auf den Armory-Link zurückgefallen.</p>
           <div class="field">
             <label>Battle.net Client-ID</label>
             <input type="text" name="blizzardClientId" value="${esc(bz.clientId || "")}" placeholder="Client-ID von develop.battle.net" autocomplete="off">
@@ -3083,7 +3088,7 @@ function lootTable(items, { showEvent = false } = {}) {
     const rows = sorted.map((it) => {
         const itemName = it.itemName || ("Item " + it.itemId);
         const icon = it.itemIconUrl
-            ? `<img src="${esc(it.itemIconUrl)}" alt="" width="20" height="20" loading="lazy" style="border-radius:4px;vertical-align:-5px;margin-right:6px">`
+            ? `<img class="loot-ico" src="${esc(it.itemIconUrl)}" alt="" loading="lazy">`
             : "";
         const item = it.itemLink
             ? `${icon}<a class="mlink" href="${esc(it.itemLink)}" target="_blank" rel="noopener">${esc(itemName)}</a>`
@@ -3104,7 +3109,7 @@ function lootTable(items, { showEvent = false } = {}) {
         </tr>`;
     }).join("");
     const head = `<tr>${lootSortTh("item", "Item")}${lootSortTh("character", "Charakter")}${lootSortTh("response", "Response")}${lootSortTh("boss", "Boss")}${showEvent ? lootSortTh("event", "Event") : ""}${lootSortTh("time", "Zeit")}${lootSortTh("source", "Quelle")}</tr>`;
-    return `<table class="idx sortable" style="margin:0"><thead>${head}</thead><tbody>${rows}</tbody></table>${LOOT_SORT_SCRIPT}`;
+    return `<table class="idx sortable loot-table" style="margin:0"><thead>${head}</thead><tbody>${rows}</tbody></table>${LOOT_SORT_SCRIPT}`;
 }
 
 /**
@@ -3236,7 +3241,7 @@ function renderHistoryChar(user, opts = {}) {
         ${opts.wclUrl ? `<a class="btn btn-ghost btn-sm" href="${esc(opts.wclUrl)}" target="_blank" rel="noopener">Warcraft Logs ↗</a>` : ""}
       </div>`;
 
-    const reloadBtn = `<a class="btn btn-ghost btn-sm" href="/admin/history/char?name=${encodeURIComponent(character)}">↻ Paperdoll neu laden</a>`;
+    const reloadBtn = `<a class="btn btn-ghost btn-sm" href="/admin/history/char?name=${encodeURIComponent(character)}">↻ Neu laden</a>`;
     let gearInner;
     if (Array.isArray(opts.gear) && opts.gear.length) {
         const info = opts.info || {};
@@ -3245,14 +3250,14 @@ function renderHistoryChar(user, opts = {}) {
             itemLevel: (opts.charSummary && opts.charSummary.itemLevel) || 0,
         });
         gearInner = `<div class="dash-card gear-card">
-            <div class="dash-card-head"><h3>Aktuelles Gear (Paperdoll)</h3><span class="small" style="margin-left:auto">Battle.net API</span></div>
+            <div class="dash-card-head"><h3>Aktuelles Gear</h3><span class="small" style="margin-left:auto">Battle.net API</span></div>
             ${doll}
           </div>`;
     } else if (opts.gearConfigured) {
         gearInner = `<div class="flash flash-err" style="margin:0 0 12px">${esc(opts.gearError || "Kein Live-Gear von der Battle.net-API verfügbar.")}</div>
-          <p class="sub">Nutze solange den Armory-Link oben. „Paperdoll neu laden" fragt erneut ab.</p>`;
+          <p class="sub">Nutze solange den Armory-Link oben. „Neu laden" fragt erneut ab.</p>`;
     } else {
-        gearInner = "<p class=\"sub\">Für Live-Gear (Paperdoll) Battle.net-Zugang in den <a href=\"/admin/settings\">Einstellungen</a> hinterlegen. Ohne Zugang steht der Armory-Link oben zur Verfügung.</p>";
+        gearInner = "<p class=\"sub\">Für Live-Gear Battle.net-Zugang in den <a href=\"/admin/settings\">Einstellungen</a> hinterlegen. Ohne Zugang steht der Armory-Link oben zur Verfügung.</p>";
     }
     // Diagnostics strip: character level / iLvl / last-login / realm + the queried
     // namespace. Reveals a wrong-namespace hit (e.g. a level 60/80 result on a
@@ -3294,7 +3299,7 @@ function renderHistoryChar(user, opts = {}) {
       ${links}
       <div style="height:14px"></div>
       ${tabGroup("charTabs", [
-        { id: "gear", label: "Gear (Paperdoll)", content: gearTab, active: true },
+        { id: "gear", label: "Gear", content: gearTab, active: true },
         { id: "loot", label: `Loot-Historie${tabCount(items.length)}`, content: lootTab },
     ])}`;
     // wowheadIconize deliberately OFF: iconize/rename would rewrite the gear

@@ -14,7 +14,7 @@ const {
 const {
     addImport: addLootImport, listByEvent: listLootByEvent,
     listByCharacter: listLootByCharacter, eventsWithLoot,
-    clearEvent: clearLootEvent,
+    clearEvent: clearLootEvent, repairItemNames: repairLootItemNames,
 } = require("./lootStore");
 const {
     annotatedCharacters, rememberFromLoot: rememberClassesFromLoot,
@@ -1425,6 +1425,9 @@ async function handle(req, res) {
         const user = requireAdmin(req, res);
         if (!user) return;
         const eventId = url.searchParams.get("event") || "";
+        // Backfill names/icons on rows imported before enrichment existed, so
+        // old records stop showing as "Item <id>" (persisted, one-time repair).
+        await repairLootItemNames();
         const items = listLootByEvent(eventId);
         const label = (items[0] && items[0].eventLabel) || eventId;
         return send(res, 200, renderHistoryEvent(user, {
@@ -1436,6 +1439,7 @@ async function handle(req, res) {
         const user = requireAdmin(req, res);
         if (!user) return;
         const name = url.searchParams.get("name") || "";
+        await repairLootItemNames(); // see /admin/history/event
         const items = listLootByCharacter(name);
         const cfg = getConfig();
         const bzCfg = cfg.blizzard || {};

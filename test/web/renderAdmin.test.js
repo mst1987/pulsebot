@@ -1567,7 +1567,9 @@ describe("web/renderAdmin", () => {
                     ],
                 }],
             });
-            expect(html).toContain("Aktuelles Gear (Paperdoll)");
+            expect(html).toContain("Aktuelles Gear");
+            // no "Paperdoll" jargon in the UI
+            expect(html).not.toContain("Paperdoll");
             expect(html).toContain("gear-doll");
             expect(html).toContain("Cursed Vision");
             // tile links to Wowhead with the char's actual enchant + gems so the
@@ -1622,14 +1624,14 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("<b>126</b>");
         });
 
-        it("organizes gear/loot as tabs and offers a manual paperdoll reload", () => {
+        it("organizes gear/loot as tabs and offers a manual gear reload", () => {
             const html = renderHistoryChar(user, {
                 character: "Foo", csrf: "x", nav: nav(), items: [],
                 gearConfigured: true, gear: null,
             });
             expect(html).toContain("data-tab=\"gear\"");
             expect(html).toContain("data-tab=\"loot\"");
-            expect(html).toContain("Paperdoll neu laden");
+            expect(html).toContain("Neu laden");
             expect(html).toContain("/admin/history/char?name=Foo");
         });
 
