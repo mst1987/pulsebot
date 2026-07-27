@@ -304,6 +304,10 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 /* compact inline text input for the same forms, outside a .field wrapper */
 .inp-sm { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13px; }
 .inp-sm:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--accent); }
+.serverbar { display: flex; align-items: center; gap: 8px; margin: 0; flex-wrap: wrap; }
+.serverbar label { color: var(--muted); font-size: 13px; font-weight: 600; margin: 0; }
+.serverbar .hint { color: var(--medium); font-size: 12.5px; }
+.serverbar-single { color: var(--muted); font-size: 13px; font-weight: 600; }
 
 .applist { display: flex; flex-direction: column; gap: 12px; }
 .app-card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }

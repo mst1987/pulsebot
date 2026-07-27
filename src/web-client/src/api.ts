@@ -7,7 +7,13 @@ import type { SpecCatalogEntry } from "./lib/recruitmentSpecs";
 export type ApiError = { code: string; message: string };
 
 export type SessionUser = { id: string; name: string; isAdmin: boolean };
-export type Session = { user: SessionUser | null; csrfToken: string | null };
+export type SessionGuild = { id: string; name: string };
+export type Session = {
+    user: SessionUser | null;
+    csrfToken: string | null;
+    guilds: SessionGuild[];
+    activeGuildId: string;
+};
 
 export type EventSheet = { filledAt: string; playerCount?: number } | null;
 
@@ -110,6 +116,10 @@ async function send<T>(method: string, path: string, csrfToken: string | null, j
 
 export function getSession(): Promise<Session> {
     return get<Session>("/api/session");
+}
+
+export function switchGuild(csrfToken: string | null, guildId: string): Promise<{ activeGuildId: string }> {
+    return send("POST", "/api/session/guild", csrfToken, { guildId });
 }
 
 export function getDashboard(): Promise<DashboardData> {

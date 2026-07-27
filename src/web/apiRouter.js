@@ -3,7 +3,7 @@
 // context. Mounted under /api/* by server.js's handle(). Route handlers live in
 // apiRoutes/, grouped by domain the same way renderAdmin.js/server.js are.
 const { error } = require("./apiResponse");
-const { getSession } = require("./apiRoutes/session");
+const { getSession, postActiveGuild } = require("./apiRoutes/session");
 const { getDashboard } = require("./apiRoutes/dashboard");
 const { getChannels, createChannel, duplicateChannel } = require("./apiRoutes/channels");
 const {
@@ -37,6 +37,10 @@ const {
 async function handle(pathname, req, res, url) {
     if (pathname === "/api/session" && req.method === "GET") {
         getSession(req, res);
+        return true;
+    }
+    if (pathname === "/api/session/guild" && req.method === "POST") {
+        await postActiveGuild(req, res);
         return true;
     }
     if (pathname === "/api/dashboard" && req.method === "GET") {
