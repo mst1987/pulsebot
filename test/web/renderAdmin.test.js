@@ -1501,19 +1501,42 @@ describe("web/renderAdmin", () => {
                     iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_helmet_naxxramas.jpg",
                     enchants: ["Enchanted: +150 Mana"],
                     sockets: [
-                        { type: "META", gemName: "Chaotic Skyfire Diamond" },
-                        { type: "RED", gemName: null },
+                        { type: "META", gemName: "Chaotic Skyfire Diamond", gemId: 34220, gemIconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_misc_gem_diamond_07.jpg" },
+                        { type: "RED", gemName: null, gemId: null, gemIconUrl: "" },
                     ],
                 }],
             });
             expect(html).toContain("Aktuelles Gear (Paperdoll)");
-            expect(html).toContain("gear-grid");
+            expect(html).toContain("gear-doll");
             expect(html).toContain("Cursed Vision");
             expect(html).toContain("wowhead.com/tbc/item=29011");
             expect(html).toContain("inv_helmet_naxxramas.jpg");
             expect(html).toContain("Enchanted: +150 Mana");
             expect(html).toContain("Chaotic Skyfire Diamond");
-            expect(html).toContain("leerer Sockel (RED)");
+            expect(html).toContain("inv_misc_gem_diamond_07.jpg");
+            expect(html).toContain("Leerer Sockel (Rot)");
+        });
+
+        it("lays the paperdoll out as character-sheet columns (left/right/bottom) with placeholders", () => {
+            const html = renderHistoryChar(user, {
+                character: "Foo", csrf: "x", nav: nav(), items: [],
+                gearConfigured: true,
+                charSummary: { level: 70, itemLevel: 126, className: "Paladin" },
+                info: { className: "Paladin", spec: "" },
+                gear: [
+                    { slot: "HEAD", itemId: 1, name: "Helm", quality: "EPIC", level: 120, enchants: [], sockets: [], iconUrl: "" },
+                    { slot: "HANDS", itemId: 2, name: "Gloves", quality: "RARE", level: 110, enchants: [], sockets: [], iconUrl: "" },
+                    { slot: "MAIN_HAND", itemId: 3, name: "Sword", quality: "EPIC", level: 115, enchants: [], sockets: [], iconUrl: "" },
+                ],
+            });
+            expect(html).toContain("gear-col-left");
+            expect(html).toContain("gear-col-right");
+            expect(html).toContain("gear-doll-bottom");
+            // empty slots keep the sheet's shape as dimmed placeholders
+            expect(html).toContain("gear-empty-ph");
+            // center shows Ø iLvl from the Blizzard summary
+            expect(html).toContain("Ø iLvl");
+            expect(html).toContain("<b>126</b>");
         });
 
         it("organizes gear/loot as tabs and offers a manual paperdoll reload", () => {
