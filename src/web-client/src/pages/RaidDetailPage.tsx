@@ -91,7 +91,7 @@ function SetupTab({ data }: { data: RaidDetailData }) {
 function NameList({ people }: { people: AttendancePerson[] }) {
     if (!people.length) return <p className="sub">—</p>;
     return (
-        <div className="rolegrid">
+        <div className="rolegrid rolegrid-flat">
             {people.map((p) => {
                 const prof = p.profile;
                 const label = (p.displayName || p.id) + (p.character ? ` (${p.character})` : "");
