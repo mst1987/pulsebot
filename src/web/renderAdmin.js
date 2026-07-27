@@ -27,6 +27,22 @@ const ADMIN_STYLE = `<style>
   .nav-item.active { background:var(--accent-soft); color:var(--text); border-color:var(--accent-soft); position:relative; }
   .nav-item.active::before { content:""; position:absolute; left:-10px; top:8px; bottom:8px; width:3px; border-radius:3px; background:var(--accent); }
   .nav-item.active svg { color:var(--accent); }
+  /* "Spektrum": each section keeps its own accent for the active state, not just the default blue */
+  .nav-item.area-recruitment.active { background:var(--area-recruitment-soft); border-color:var(--area-recruitment-soft); }
+  .nav-item.area-recruitment.active::before { background:var(--area-recruitment); }
+  .nav-item.area-recruitment.active svg { color:var(--area-recruitment); }
+  .nav-item.area-cla.active { background:var(--area-cla-soft); border-color:var(--area-cla-soft); }
+  .nav-item.area-cla.active::before { background:var(--area-cla); }
+  .nav-item.area-cla.active svg { color:var(--area-cla); }
+  .nav-item.area-history.active { background:var(--area-history-soft); border-color:var(--area-history-soft); }
+  .nav-item.area-history.active::before { background:var(--area-history); }
+  .nav-item.area-history.active svg { color:var(--area-history); }
+  .nav-item.area-channels.active { background:var(--area-channels-soft); border-color:var(--area-channels-soft); }
+  .nav-item.area-channels.active::before { background:var(--area-channels); }
+  .nav-item.area-channels.active svg { color:var(--area-channels); }
+  .nav-item.area-settings.active { background:var(--area-settings-soft); border-color:var(--area-settings-soft); }
+  .nav-item.area-settings.active::before { background:var(--area-settings); }
+  .nav-item.area-settings.active svg { color:var(--area-settings); }
   .side-foot { padding:12px 14px; border-top:1px solid var(--line-soft); display:flex; align-items:center; gap:10px; }
   .avatar { width:34px; height:34px; border-radius:50%; background:var(--panel2); display:grid; place-items:center; font-weight:800; color:var(--accent); border:1px solid var(--line); flex:0 0 auto; }
   .ub-meta { min-width:0; flex:1; }
@@ -257,6 +273,14 @@ const ADMIN_STYLE = `<style>
   .setup-count { background:var(--panel2); border:1px solid var(--line); border-radius:999px; padding:4px 12px; font-size:13px; color:var(--muted); }
   .setup-count b { color:var(--text); font-variant-numeric:tabular-nums; }
   .setup-count.setup-total { border-color:var(--accent-soft); background:var(--accent-soft); }
+  /* raid-roster avatar stack (real signups, class-coloured initials) */
+  .avatar-stack { display:flex; align-items:center; }
+  .avatar-stack .av {
+    width:28px; height:28px; border-radius:50%; border:2px solid var(--panel); margin-left:-9px;
+    font-size:10.5px; font-weight:800; display:flex; align-items:center; justify-content:center; flex:0 0 auto;
+  }
+  .avatar-stack .av:first-child { margin-left:0; }
+  .avatar-stack .av.more { background:var(--panel2); color:var(--muted); border-color:var(--line); }
   .setup-groups { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; }
   .setup-group { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
   .setup-group-head { font-size:12.5px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted); margin:0 0 8px; display:flex; justify-content:space-between; align-items:center; }
@@ -306,6 +330,9 @@ const ADMIN_STYLE = `<style>
   dl.app-meta dt { color:var(--muted); font-weight:600; white-space:nowrap; }
   dl.app-meta dd { margin:0; min-width:0; word-break:break-word; }
   /* dashboard */
+  .dash-hero { position:relative; }
+  .fx-orbs { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; opacity:.6; }
+  .dash-hero-content { position:relative; z-index:1; }
   .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:20px; }
   .tile { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:20px 22px;
     transition:transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease, border-color .18s ease; }
@@ -318,6 +345,16 @@ const ADMIN_STYLE = `<style>
   .tile .t-value { font-size:32px; font-weight:800; letter-spacing:-.5px; margin-top:6px; line-height:1; font-variant-numeric:tabular-nums; }
   .tile .t-sub { font-size:12.5px; color:var(--muted); margin-top:6px; }
   @media (prefers-reduced-motion:reduce) { .tile { transition:none; } .tile:hover { transform:none; } }
+  /* "Spektrum": each dashboard tile picks up its section's accent for icon + hover glow */
+  .tile.area-recruitment .t-icon { background:var(--area-recruitment-soft); color:var(--area-recruitment); }
+  .tile.area-recruitment:hover { border-color:var(--area-recruitment); box-shadow:0 14px 32px -14px var(--area-recruitment); }
+  .tile.area-cla .t-icon { background:var(--area-cla-soft); color:var(--area-cla); }
+  .tile.area-cla:hover { border-color:var(--area-cla); box-shadow:0 14px 32px -14px var(--area-cla); }
+  .tile.accent.area-cla { border-top-color:var(--area-cla); }
+  .tile.area-channels .t-icon { background:var(--area-channels-soft); color:var(--area-channels); }
+  .tile.area-channels:hover { border-color:var(--area-channels); box-shadow:0 14px 32px -14px var(--area-channels); }
+  .tile.area-settings .t-icon { background:var(--area-settings-soft); color:var(--area-settings); }
+  .tile.area-settings:hover { border-color:var(--area-settings); box-shadow:0 14px 32px -14px var(--area-settings); }
   .dash-grid { display:grid; grid-template-columns:1.5fr 1fr; gap:16px; }
   .dash-card { background:var(--panel); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
   .dash-card-head { display:flex; align-items:center; gap:10px; padding:13px 16px; border-bottom:1px solid var(--line-soft); }
@@ -433,7 +470,7 @@ function adminNav(active) {
             out += `<div class="menu-label">${esc(t.group)}</div>`;
             lastGroup = t.group;
         }
-        out += `<a class="nav-item${t.id === active ? " active" : ""}" href="${t.href}">${NAV_ICONS[t.id] || ""}<span>${esc(t.label)}</span></a>`;
+        out += `<a class="nav-item area-${t.id}${t.id === active ? " active" : ""}" href="${t.href}">${NAV_ICONS[t.id] || ""}<span>${esc(t.label)}</span></a>`;
     }
     return `<nav class="menu">${out}</nav>`;
 }
@@ -758,7 +795,7 @@ function renderDashboard(user, opts = {}) {
             : "<tr><td colspan=\"4\" class=\"sub\" style=\"padding:16px\">Keine anstehenden Events mit fertigem Setup.</td></tr>");
 
     const tile = (icon, label, value, sub, accent) =>
-        `<div class="tile${accent ? " accent" : ""}"><div class="t-icon">${NAV_ICONS[icon]}</div><div class="t-label">${esc(label)}</div><div class="t-value">${n(value)}</div><div class="t-sub">${sub}</div></div>`;
+        `<div class="tile area-${icon}${accent ? " accent" : ""}"><div class="t-icon">${NAV_ICONS[icon]}</div><div class="t-label">${esc(label)}</div><div class="t-value">${n(value)}</div><div class="t-sub">${sub}</div></div>`;
     const tiles = `<div class="tiles">
         ${tile("cla", "Log-Check-Auswertungen", s.reportsTotal, `${n(s.reportsWithIssues)} mit Problemen`, true)}
         ${tile("recruitment", "Recruitment-Vorlagen", s.templates, `${n(s.posts)} gepostete Nachrichten`)}
@@ -782,7 +819,10 @@ function renderDashboard(user, opts = {}) {
         `<a href="${href}"><span class="qi">${icon}</span>${esc(label)}</a>`;
 
     const body = `
-      ${tiles}
+      <div class="dash-hero">
+        <canvas class="fx-orbs" aria-hidden="true"></canvas>
+        <div class="dash-hero-content">${tiles}</div>
+      </div>
       <div class="dash-card" style="margin-bottom:16px">
         <div class="dash-card-head"><h3>Upcoming Events</h3><a class="mlink" href="/admin/raids">Alle →</a></div>
         <table class="idx">
@@ -809,9 +849,56 @@ function renderDashboard(user, opts = {}) {
             ${quick("/admin/settings", NAV_ICONS.settings, "Einstellungen")}
           </div>
         </div>
-      </div>`;
+      </div>
+      ${DASH_ORBS_SCRIPT}`;
     return adminLayout("Übersicht — EventHelper Admin", "home", user, body, opts.msg, opts.nav);
 }
+
+// Soft drifting colour-orb background behind the dashboard tiles ("Spektrum"
+// design). Reads the --area-* tokens so the colours always match the current
+// theme; a single static frame is drawn under prefers-reduced-motion.
+const DASH_ORBS_SCRIPT = `<script>(function(){
+  var canvas = document.querySelector(".fx-orbs");
+  if (!canvas) return;
+  var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var cs = getComputedStyle(document.documentElement);
+  var colors = ["--area-cla","--area-recruitment","--area-channels","--area-settings"].map(function(v){
+    return cs.getPropertyValue(v).trim() || "#7ab7ff";
+  });
+  var ctx = canvas.getContext("2d");
+  function resize(){ canvas.width = canvas.clientWidth; canvas.height = canvas.clientHeight; }
+  resize();
+  var orbs = colors.map(function(c){ return {
+    x: Math.random()*canvas.width, y: Math.random()*canvas.height,
+    r: 70+Math.random()*50, c: c, vx: (Math.random()-.5)*.15, vy: (Math.random()-.5)*.15,
+  };});
+  function toRgba(hex, a){
+    var h = hex.replace("#","");
+    if (h.length === 3) h = h.split("").map(function(x){ return x+x; }).join("");
+    var r = parseInt(h.substr(0,2),16), g = parseInt(h.substr(2,2),16), b = parseInt(h.substr(4,2),16);
+    return "rgba("+r+","+g+","+b+","+a+")";
+  }
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    orbs.forEach(function(o){
+      var g = ctx.createRadialGradient(o.x,o.y,0,o.x,o.y,o.r);
+      g.addColorStop(0, toRgba(o.c,.28)); g.addColorStop(1, toRgba(o.c,0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(o.x,o.y,o.r,0,7); ctx.fill();
+    });
+  }
+  if (reduce) { draw(); return; }
+  function frame(){
+    orbs.forEach(function(o){
+      o.x += o.vx; o.y += o.vy;
+      if (o.x < -o.r || o.x > canvas.width+o.r) o.vx *= -1;
+      if (o.y < -o.r || o.y > canvas.height+o.r) o.vy *= -1;
+    });
+    draw();
+    requestAnimationFrame(frame);
+  }
+  frame();
+  window.addEventListener("resize", resize, { passive:true });
+})();</script>`;
 
 function hiddenCsrf(csrf) {
     return `<input type="hidden" name="_csrf" value="${esc(csrf)}">`;
@@ -1891,6 +1978,22 @@ function renderEventDetail(user, opts = {}) {
     }
     const overviewStats = `<div class="setup-summary" style="margin-top:10px">${statSpans.join("")}</div>`;
 
+    // Raid-roster avatar stack: real signups from the current setup (raidplan),
+    // class-coloured initials, capped with a "+N" overflow chip.
+    const rosterAvatars = (() => {
+        if (!setup || !setup.total) return "";
+        const players = setup.groups.flatMap((g) => g.players);
+        const shown = players.slice(0, 10);
+        const rest = players.length - shown.length;
+        const chips = shown.map((p) => {
+            const initials = esc(String(p.name || "??").trim().slice(0, 2).toUpperCase());
+            const color = p.classColor || "#9aa0aa";
+            return `<span class="av" style="background:${color}2e;color:${color};border-color:${color}" title="${esc(p.name)}${p.className ? ` · ${esc(p.className)}` : ""}">${initials}</span>`;
+        }).join("");
+        const more = rest > 0 ? `<span class="av more">+${esc(String(rest))}</span>` : "";
+        return `<div class="avatar-stack" style="margin-top:10px">${chips}${more}</div>`;
+    })();
+
     const meta = `
       <div class="dash-card" style="margin-bottom:16px">
         <div class="dash-card-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -1906,6 +2009,7 @@ function renderEventDetail(user, opts = {}) {
             <a class="mlink" href="${raidplanUrl(ev.id)}" target="_blank" rel="noopener">Setup / Comp</a>
           </div>
           ${overviewStats}
+          ${rosterAvatars}
         </div>
       </div>`;
 

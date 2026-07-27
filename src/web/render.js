@@ -128,6 +128,12 @@ ${body}
     --good:#7fd17f; --good-bg:rgba(120,200,120,.16);
     --accent:#7ab7ff; --accent-2:#4d92e6; --accent-soft:rgba(122,183,255,.15); --accent-ink:#0b1522;
     --portrait-1:#1a1d24; --portrait-2:#14161b;
+    /* ---- "Spektrum" area accents: one hue per admin section (nav icons, dashboard tiles) ---- */
+    --area-recruitment:#34d399; --area-recruitment-soft:rgba(52,211,153,.16);
+    --area-cla:#ff8a65; --area-cla-soft:rgba(255,138,101,.16);
+    --area-history:#f472b6; --area-history-soft:rgba(244,114,182,.16);
+    --area-channels:#4dd0c8; --area-channels-soft:rgba(77,208,200,.16);
+    --area-settings:#b083f0; --area-settings-soft:rgba(176,131,240,.16);
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
@@ -138,6 +144,11 @@ ${body}
       --good:#2b9440; --good-bg:rgba(43,148,64,.12);
       --accent:#2f6fd6; --accent-2:#2559b0; --accent-soft:rgba(47,111,214,.12); --accent-ink:#ffffff;
       --portrait-1:#e9edf4; --portrait-2:#dce2ec;
+      --area-recruitment:#1f9d6c; --area-recruitment-soft:rgba(31,157,108,.12);
+      --area-cla:#d95f39; --area-cla-soft:rgba(217,95,57,.12);
+      --area-history:#c23f8f; --area-history-soft:rgba(194,63,143,.12);
+      --area-channels:#1f978c; --area-channels-soft:rgba(31,151,140,.12);
+      --area-settings:#7c4fd6; --area-settings-soft:rgba(124,79,214,.12);
     }
   }
   :root[data-theme="light"] {
@@ -148,6 +159,11 @@ ${body}
     --good:#2b9440; --good-bg:rgba(43,148,64,.12);
     --accent:#2f6fd6; --accent-2:#2559b0; --accent-soft:rgba(47,111,214,.12); --accent-ink:#ffffff;
     --portrait-1:#e9edf4; --portrait-2:#dce2ec;
+    --area-recruitment:#1f9d6c; --area-recruitment-soft:rgba(31,157,108,.12);
+    --area-cla:#d95f39; --area-cla-soft:rgba(217,95,57,.12);
+    --area-history:#c23f8f; --area-history-soft:rgba(194,63,143,.12);
+    --area-channels:#1f978c; --area-channels-soft:rgba(31,151,140,.12);
+    --area-settings:#7c4fd6; --area-settings-soft:rgba(124,79,214,.12);
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; transition:background .2s, color .2s; }

@@ -54,12 +54,12 @@ function AdminNav() {
                     <div key={tab.id}>
                         {label && <div className="menu-label">{label}</div>}
                         {tab.internal ? (
-                            <NavLink to={tab.href} end={tab.href === "/"} className={({ isActive }) => `nav-item${isActive ? " active" : ""}`}>
+                            <NavLink to={tab.href} end={tab.href === "/"} className={({ isActive }) => `nav-item area-${tab.id}${isActive ? " active" : ""}`}>
                                 {tab.icon}
                                 <span>{tab.label}</span>
                             </NavLink>
                         ) : (
-                            <a className="nav-item" href={tab.href}>
+                            <a className={`nav-item area-${tab.id}`} href={tab.href}>
                                 {tab.icon}
                                 <span>{tab.label}</span>
                             </a>

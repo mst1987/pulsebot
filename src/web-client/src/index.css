@@ -10,6 +10,12 @@
     --good: #7fd17f; --good-bg: rgba(120, 200, 120, .16);
     --accent: #7ab7ff; --accent-2: #4d92e6; --accent-soft: rgba(122, 183, 255, .15); --accent-ink: #0b1522;
     color-scheme: light dark;
+    /* ---- "Spektrum" area accents: one hue per admin section (nav icons, dashboard tiles) ---- */
+    --area-recruitment: #34d399; --area-recruitment-soft: rgba(52, 211, 153, .16);
+    --area-cla: #ff8a65; --area-cla-soft: rgba(255, 138, 101, .16);
+    --area-history: #f472b6; --area-history-soft: rgba(244, 114, 182, .16);
+    --area-channels: #4dd0c8; --area-channels-soft: rgba(77, 208, 200, .16);
+    --area-settings: #b083f0; --area-settings-soft: rgba(176, 131, 240, .16);
 }
 @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
@@ -19,6 +25,11 @@
         --medium: #9a6c12; --medium-bg: rgba(154, 108, 18, .14);
         --good: #2b9440; --good-bg: rgba(43, 148, 64, .12);
         --accent: #2f6fd6; --accent-2: #2559b0; --accent-soft: rgba(47, 111, 214, .12); --accent-ink: #ffffff;
+        --area-recruitment: #1f9d6c; --area-recruitment-soft: rgba(31, 157, 108, .12);
+        --area-cla: #d95f39; --area-cla-soft: rgba(217, 95, 57, .12);
+        --area-history: #c23f8f; --area-history-soft: rgba(194, 63, 143, .12);
+        --area-channels: #1f978c; --area-channels-soft: rgba(31, 151, 140, .12);
+        --area-settings: #7c4fd6; --area-settings-soft: rgba(124, 79, 214, .12);
     }
 }
 :root[data-theme="light"] {
@@ -28,6 +39,11 @@
     --medium: #9a6c12; --medium-bg: rgba(154, 108, 18, .14);
     --good: #2b9440; --good-bg: rgba(43, 148, 64, .12);
     --accent: #2f6fd6; --accent-2: #2559b0; --accent-soft: rgba(47, 111, 214, .12); --accent-ink: #ffffff;
+    --area-recruitment: #1f9d6c; --area-recruitment-soft: rgba(31, 157, 108, .12);
+    --area-cla: #d95f39; --area-cla-soft: rgba(217, 95, 57, .12);
+    --area-history: #c23f8f; --area-history-soft: rgba(194, 63, 143, .12);
+    --area-channels: #1f978c; --area-channels-soft: rgba(31, 151, 140, .12);
+    --area-settings: #7c4fd6; --area-settings-soft: rgba(124, 79, 214, .12);
 }
 
 * { box-sizing: border-box; }
@@ -110,6 +126,14 @@ td.cell-actions { text-align: right; white-space: nowrap; vertical-align: middle
 .setup-count { background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 13px; color: var(--muted); }
 .setup-count b { color: var(--text); font-variant-numeric: tabular-nums; }
 .setup-count.setup-total { border-color: var(--accent-soft); background: var(--accent-soft); }
+/* raid-roster avatar stack (real signups, class-coloured initials) */
+.avatar-stack { display: flex; align-items: center; }
+.avatar-stack .av {
+    width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--panel); margin-left: -9px;
+    font-size: 10.5px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex: 0 0 auto;
+}
+.avatar-stack .av:first-child { margin-left: 0; }
+.avatar-stack .av.more { background: var(--panel2); color: var(--muted); border-color: var(--line); }
 .setup-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 .setup-group { background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
 .setup-group-head { font-size: 12.5px; text-transform: uppercase; letter-spacing: .7px; color: var(--muted); margin: 0 0 8px; display: flex; justify-content: space-between; align-items: center; }
@@ -162,6 +186,22 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 .nav-item.active { background: var(--accent-soft); color: var(--text); border-color: var(--accent-soft); position: relative; }
 .nav-item.active::before { content: ""; position: absolute; left: -10px; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--accent); }
 .nav-item.active svg { color: var(--accent); }
+/* "Spektrum": each section keeps its own accent for the active state, not just the default blue */
+.nav-item.area-recruitment.active { background: var(--area-recruitment-soft); border-color: var(--area-recruitment-soft); }
+.nav-item.area-recruitment.active::before { background: var(--area-recruitment); }
+.nav-item.area-recruitment.active svg { color: var(--area-recruitment); }
+.nav-item.area-cla.active { background: var(--area-cla-soft); border-color: var(--area-cla-soft); }
+.nav-item.area-cla.active::before { background: var(--area-cla); }
+.nav-item.area-cla.active svg { color: var(--area-cla); }
+.nav-item.area-history.active { background: var(--area-history-soft); border-color: var(--area-history-soft); }
+.nav-item.area-history.active::before { background: var(--area-history); }
+.nav-item.area-history.active svg { color: var(--area-history); }
+.nav-item.area-channels.active { background: var(--area-channels-soft); border-color: var(--area-channels-soft); }
+.nav-item.area-channels.active::before { background: var(--area-channels); }
+.nav-item.area-channels.active svg { color: var(--area-channels); }
+.nav-item.area-settings.active { background: var(--area-settings-soft); border-color: var(--area-settings-soft); }
+.nav-item.area-settings.active::before { background: var(--area-settings); }
+.nav-item.area-settings.active svg { color: var(--area-settings); }
 .side-foot { padding: 12px 14px; border-top: 1px solid var(--line-soft); display: flex; align-items: center; gap: 10px; }
 .avatar { width: 34px; height: 34px; border-radius: 50%; background: var(--panel2); display: grid; place-items: center; font-weight: 800; color: var(--accent); border: 1px solid var(--line); flex: 0 0 auto; }
 .ub-meta { min-width: 0; flex: 1; }
@@ -181,6 +221,9 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 .page-title { font-size: 24px; font-weight: 800; letter-spacing: -.3px; margin: 0 0 18px; }
 
 /* ===== dashboard ===== */
+.dash-hero { position: relative; }
+.fx-orbs { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: .6; }
+.dash-hero-content { position: relative; z-index: 1; }
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
 .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px;
     transition: transform .18s cubic-bezier(.34, 1.56, .64, 1), box-shadow .18s ease, border-color .18s ease; }
@@ -192,6 +235,16 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 .tile .t-label { font-size: 12.5px; color: var(--muted); font-weight: 600; }
 .tile .t-value { font-size: 32px; font-weight: 800; letter-spacing: -.5px; margin-top: 6px; line-height: 1; font-variant-numeric: tabular-nums; }
 .tile .t-sub { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+/* "Spektrum": each dashboard tile picks up its section's accent for icon + hover glow */
+.tile.area-recruitment .t-icon { background: var(--area-recruitment-soft); color: var(--area-recruitment); }
+.tile.area-recruitment:hover { border-color: var(--area-recruitment); box-shadow: 0 14px 32px -14px var(--area-recruitment); }
+.tile.area-cla .t-icon { background: var(--area-cla-soft); color: var(--area-cla); }
+.tile.area-cla:hover { border-color: var(--area-cla); box-shadow: 0 14px 32px -14px var(--area-cla); }
+.tile.accent.area-cla { border-top-color: var(--area-cla); }
+.tile.area-channels .t-icon { background: var(--area-channels-soft); color: var(--area-channels); }
+.tile.area-channels:hover { border-color: var(--area-channels); box-shadow: 0 14px 32px -14px var(--area-channels); }
+.tile.area-settings .t-icon { background: var(--area-settings-soft); color: var(--area-settings); }
+.tile.area-settings:hover { border-color: var(--area-settings); box-shadow: 0 14px 32px -14px var(--area-settings); }
 @media (prefers-reduced-motion: reduce) { .tile { transition: none; } .tile:hover { transform: none; } }
 .dash-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
 .dash-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
