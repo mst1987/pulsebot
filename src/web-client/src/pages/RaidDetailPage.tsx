@@ -3,9 +3,9 @@ import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     getRaidDetail, importLoot, clearHistoryEvent,
     notifyRaid, pingMissingRaiders, fillRaidsheet, postRaidSheet, postRaidSoftres,
-    searchSoftresItems, createSoftres, linkSoftres,
+    searchSoftresItems, createSoftres, linkSoftres, evalLog, linkLog, unlinkLog,
     type ApiError, type RaidDetailData, type SetupPlayer, type AttendancePerson,
-    type SoftresSearchItem, type SoftresCatalogueGroup, type EventSoftres,
+    type SoftresSearchItem, type SoftresCatalogueGroup, type EventSoftres, type RaidLogRow,
 } from "../api";
 import { formatEventTime, fmtMs } from "../lib/format";
 import { eventPostUrl, channelUrl, raidplanUrl } from "../lib/discordLinks";
@@ -13,7 +13,7 @@ import { LootTable } from "../components/LootTable";
 import type { ShellContext } from "../components/Shell";
 
 type Flash = { type: "ok" | "err"; text: string };
-type Tab = "setup" | "attendance" | "actions" | "loot" | "softres";
+type Tab = "setup" | "attendance" | "actions" | "loot" | "softres" | "logs";
 
 // Ported from renderAdmin.js's renderEventDetail() overview stat spans (statSpans).
 function OverviewStats({ data }: { data: RaidDetailData }) {
@@ -857,6 +857,125 @@ function LootTab({ data, eventId, csrfToken, onChanged }: {
     );
 }
 
+// --- Logs tab: Warcraft-Logs already assigned to this raid (evaluate/unlink),
+// plus a picker to assign a still-unassigned detected log to this raid. Reuses
+// the same /api/cla/eval, /api/cla/log-link, /api/cla/log-unlink endpoints as
+// the CLA page's "Erkannte Logs" tab, just scoped to a single event here. ---
+function LogRow({ l, evalBusy, unlinkBusy, onEvaluate, onUnlink }: {
+    l: RaidLogRow;
+    evalBusy: boolean;
+    unlinkBusy: boolean;
+    onEvaluate: () => void;
+    onUnlink: () => void;
+}) {
+    const wclUrl = l.link || (l.reportId ? `https://classic.warcraftlogs.com/reports/${l.reportId}` : "");
+    const name = l.title || l.reportId || "(unbekannt)";
+    return (
+        <div className="row-actions" style={{ justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--line-soft)" }}>
+            <div>
+                {wclUrl
+                    ? <a className="mlink" href={wclUrl} target="_blank" rel="noopener noreferrer">{name} ↗</a>
+                    : name}
+                {" "}
+                {l.status === "done" ? <span className="pill good">ausgewertet</span> : <span className="pill">offen</span>}
+            </div>
+            <div className="row-actions" style={{ gap: 6 }}>
+                {l.status === "done"
+                    ? ((l.reportUrl || l.reportRefId)
+                        ? <a className="btn btn-ghost btn-sm" href={l.reportUrl || `/r/${l.reportRefId}`}>Öffnen</a>
+                        : null)
+                    : (
+                        <button className="btn btn-sm" type="button" disabled={evalBusy} onClick={onEvaluate}>
+                            {evalBusy ? "Läuft …" : "Auswerten"}
+                        </button>
+                    )}
+                <button className="btn btn-ghost btn-sm" type="button" disabled={unlinkBusy} title="Zuordnung entfernen" onClick={onUnlink}>✕</button>
+            </div>
+        </div>
+    );
+}
+
+function LogsTab({ data, eventId, csrfToken, onChanged }: {
+    data: RaidDetailData;
+    eventId: string;
+    csrfToken: string | null;
+    onChanged: (msg: string) => void;
+}) {
+    const [evalBusyId, setEvalBusyId] = useState<string | null>(null);
+    const [unlinkBusyId, setUnlinkBusyId] = useState<string | null>(null);
+    const [pickedLogId, setPickedLogId] = useState("");
+    const [linkBusy, setLinkBusy] = useState(false);
+
+    const evaluate = async (l: RaidLogRow) => {
+        setEvalBusyId(l.id);
+        try {
+            const r = await evalLog(csrfToken, l.id);
+            window.open(r.url, "_blank", "noopener");
+            onChanged(r.alreadyEvaluated ? "Bereits ausgewertet." : "Auswertung erstellt.");
+        } catch (err) {
+            onChanged((err as ApiError).message);
+        } finally {
+            setEvalBusyId(null);
+        }
+    };
+
+    const unlink = async (l: RaidLogRow) => {
+        if (!confirm("Zuordnung zu diesem Raid entfernen?")) return;
+        setUnlinkBusyId(l.id);
+        try {
+            const r = await unlinkLog(csrfToken, l.id);
+            onChanged(r.message);
+        } catch (err) {
+            onChanged((err as ApiError).message);
+        } finally {
+            setUnlinkBusyId(null);
+        }
+    };
+
+    const unlinked = data.unlinkedLogs;
+    const assign = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const logId = pickedLogId || unlinked[0]?.id;
+        if (!logId) return;
+        setLinkBusy(true);
+        try {
+            const r = await linkLog(csrfToken, logId, eventId);
+            onChanged(r.message);
+            setPickedLogId("");
+        } catch (err) {
+            onChanged((err as ApiError).message);
+        } finally {
+            setLinkBusy(false);
+        }
+    };
+
+    return (
+        <>
+            <h2 style={{ marginTop: 0 }}>Zugeordnete Logs</h2>
+            {data.eventLogs.length
+                ? data.eventLogs.map((l) => (
+                    <LogRow
+                        key={l.id} l={l} evalBusy={evalBusyId === l.id} unlinkBusy={unlinkBusyId === l.id}
+                        onEvaluate={() => evaluate(l)} onUnlink={() => unlink(l)}
+                    />
+                ))
+                : <p className="sub">Für dieses Event ist noch kein Log zugeordnet.</p>}
+            <h2>Log zuordnen</h2>
+            <p className="note">Ordnet ein bereits erkanntes, aber noch keinem Event zugeordnetes Log diesem Raid zu.</p>
+            {unlinked.length
+                ? (
+                    <form className="row-actions" style={{ gap: 8, flexWrap: "wrap" }} onSubmit={assign}>
+                        <select className="sel-sm" value={pickedLogId || unlinked[0].id} onChange={(e) => setPickedLogId(e.target.value)}>
+                            {unlinked.map((l) => <option key={l.id} value={l.id}>{l.title || l.reportId || "(unbekannt)"}</option>)}
+                        </select>
+                        <button className="btn btn-ghost btn-sm" type="submit" disabled={linkBusy}>Log zuordnen</button>
+                    </form>
+                )
+                : <p className="sub">Keine noch nicht zugeordneten Logs vorhanden.</p>}
+        </>
+    );
+}
+
 export default function RaidDetailPage() {
     const { csrfToken } = useOutletContext<ShellContext>();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -928,6 +1047,10 @@ export default function RaidDetailPage() {
                     {!!data.lootItems.length && <span className="tab-count">{data.lootItems.length}</span>}
                 </button>
                 <button type="button" className={`tab-btn${tab === "softres" ? " active" : ""}`} role="tab" onClick={() => switchTab("softres")}>Softres</button>
+                <button type="button" className={`tab-btn${tab === "logs" ? " active" : ""}`} role="tab" onClick={() => switchTab("logs")}>
+                    Logs
+                    {!!data.eventLogs.length && <span className="tab-count">{data.eventLogs.length}</span>}
+                </button>
             </div>
 
             {flash && <p className="sub" style={{ color: flash.type === "err" ? "var(--high)" : "var(--good)" }}>{flash.text}</p>}
@@ -937,6 +1060,7 @@ export default function RaidDetailPage() {
             {tab === "actions" && <ActionsTab data={data} eventId={eventId} csrfToken={csrfToken} onChanged={afterChange} />}
             {tab === "loot" && <LootTab data={data} eventId={eventId} csrfToken={csrfToken} onChanged={afterChange} />}
             {tab === "softres" && <SoftresTab data={data} eventId={eventId} csrfToken={csrfToken} onChanged={afterChange} />}
+            {tab === "logs" && <LogsTab data={data} eventId={eventId} csrfToken={csrfToken} onChanged={afterChange} />}
         </>
     );
 }

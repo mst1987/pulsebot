@@ -8,7 +8,11 @@ import type { ShellContext } from "../components/Shell";
 type Flash = { type: "ok" | "err"; text: string };
 
 function CategoryTable({ group, guildId }: { group: RaidEventGroup; guildId: string }) {
-    const newHref = `/raids/new${group.events[0] ? `?source=${group.events[0].id}` : ""}`;
+    // Pre-fill the "＋ Event" form from this category's most recently started
+    // event — mirrors renderAdmin.js's `g.events.slice().sort(...)[0]`, not just
+    // whichever event happens to be first in the (not necessarily sorted) list.
+    const latest = group.events.slice().sort((a, b) => (b.startTime || 0) - (a.startTime || 0))[0];
+    const newHref = `/raids/new${latest ? `?source=${latest.id}` : ""}`;
     return (
         <>
             <div className="row-actions" style={{ justifyContent: "flex-end", marginBottom: 12 }}>

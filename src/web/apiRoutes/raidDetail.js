@@ -23,6 +23,8 @@ const { getEventSoftres, saveEventSoftres, setEventSoftresLink } = require("../e
 const softres = require("../../utils/softres");
 const wowhead = require("../../utils/wowhead");
 const { listByEvent: listLootByEvent } = require("../lootStore");
+const { listLogs, listLogsForEvent } = require("../logStore");
+const { backfillLogTitles } = require("../logChannel");
 const Raidhelper = require("../../classes/raidhelper");
 const Drive = require("../../classes/drive");
 const SheetsClient = require("../../classes/sheets");
@@ -109,6 +111,12 @@ async function getRaidDetail(req, res, url) {
         ? softres.targetSizeForInstances(eventSoftres.instances)
         : (categoryRoleIds.length ? (attendance.responded.length + attendance.missing.length) : 0);
 
+    // Logs: already assigned to this event, plus the still-unassigned ones from
+    // this guild (candidates for the "Log zuordnen" picker).
+    const eventLogs = listLogsForEvent(eventId);
+    const unlinkedLogs = listLogs().filter((l) => (!l.guildId || l.guildId === guildId) && !l.eventId);
+    await backfillLogTitles([...eventLogs, ...unlinkedLogs]);
+
     ok(res, {
         event: {
             id: found.e.id,
@@ -139,6 +147,8 @@ async function getRaidDetail(req, res, url) {
         signupTarget,
         lootItems: listLootByEvent(eventId),
         lootTool: (getConfig().categoryLootTool || {})[found.g.categoryId] || "",
+        eventLogs,
+        unlinkedLogs,
     });
 }
 

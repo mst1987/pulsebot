@@ -6,6 +6,7 @@ const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
 const { loadRecentEvents, annotateUpcomingExtras } = require("../dashboardData");
 const { getConfig, saveConfig } = require("../settingsStore");
 const { listLogs, deleteLog } = require("../logStore");
+const { logPostedAt } = require("../reportList");
 const {
     addImport: addLootImport, listByEvent: listLootByEvent, listByCharacter: listLootByCharacter, eventsWithLoot, clearEvent: clearLootEvent,
 } = require("../lootStore");
@@ -41,7 +42,10 @@ async function getHistoryData(req, res) {
         upcomingRaids,
         pastRaids,
         lootEvents: eventsWithLoot(),
-        logs: listLogs(),
+        // postedAt: when the WCL link was actually posted in the channel (falls
+        // back through the message-id snowflake to detectedAt) — same field the
+        // legacy SSR page and the dashboard's "Latest Events" card show.
+        logs: listLogs().map((l) => ({ ...l, postedAt: logPostedAt(l) })),
         categories: guildId ? discord.listCategories(guildId) : [],
         categoryLootTool: cfg.categoryLootTool || {},
         activeGuildId: guildId,

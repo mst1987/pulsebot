@@ -280,10 +280,19 @@ function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
                     </div>
                     <div className="field">
                         <label>Ziel-Channel</label>
-                        <select value={channelId} onChange={(e) => setChannelId(e.target.value)} required>
-                            <option value="">— Channel wählen —</option>
-                            {data.channels.map((c) => <option key={c.id} value={c.id}>#{c.name}{c.category ? ` · ${c.category}` : ""}</option>)}
-                        </select>
+                        {data.channels.length
+                            ? (
+                                <select value={channelId} onChange={(e) => setChannelId(e.target.value)} required>
+                                    <option value="">— Channel wählen —</option>
+                                    {data.channels.map((c) => <option key={c.id} value={c.id}>#{c.name}{c.category ? ` · ${c.category}` : ""}</option>)}
+                                </select>
+                            )
+                            : (
+                                <input
+                                    type="text" value={channelId} onChange={(e) => setChannelId(e.target.value)}
+                                    placeholder="Channel-ID (kein Server gewählt)" required
+                                />
+                            )}
                     </div>
                     <div className="row-actions"><button className="btn" type="submit" disabled={posting}>{posting ? "Wird gepostet…" : "In Channel posten"}</button></div>
                 </form>

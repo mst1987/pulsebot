@@ -38,6 +38,7 @@ jest.mock("../../src/web/dashboardData", () => ({
 }));
 jest.mock("../../src/web/logStore", () => ({
     listLogs: jest.fn(() => []),
+    listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
     getLog: jest.fn(),
     linkEvent: jest.fn(),
@@ -51,6 +52,7 @@ jest.mock("../../src/web/reportList", () => ({
         items: logs, sort: (query && query.sort) || "date", dir: (query && query.dir) || "desc", page: 1, totalPages: 1, total: logs.length, pageSize: 15,
     })),
     annotateLogCategories: jest.fn((items) => items),
+    logPostedAt: jest.fn((l) => (l && l.postedAt) || 0),
 }));
 jest.mock("../../src/web/logEventMatch", () => ({
     annotateMatches: jest.fn((items) => items),
@@ -880,6 +882,21 @@ describe("web/apiRouter", () => {
             expect(data.signupTarget).toBe(10);
             expect(data.lootItems).toEqual([{ eventId: "e1", itemName: "Sword", character: "Anna" }]);
             expect(data.lootTool).toBe("gargul");
+        });
+
+        it("returns the logs already assigned to this event and the guild's still-unassigned ones", async () => {
+            setupDefaults();
+            logStore.listLogsForEvent.mockReturnValue([{ id: "l1", eventId: "e1", title: "Kara" }]);
+            logStore.listLogs.mockReturnValue([
+                { id: "l1", eventId: "e1", guildId: "guild-1" },
+                { id: "l2", guildId: "guild-1" },
+                { id: "l3", guildId: "other-guild" },
+            ]);
+            const res = await get("/api/raids/detail", { event: "e1" });
+            expect(logStore.listLogsForEvent).toHaveBeenCalledWith("e1");
+            const data = body(res).data;
+            expect(data.eventLogs).toEqual([{ id: "l1", eventId: "e1", title: "Kara" }]);
+            expect(data.unlinkedLogs.map((l) => l.id)).toEqual(["l2"]);
         });
 
         it("returns 404 when the event isn't found in any group", async () => {
@@ -1872,12 +1889,21 @@ describe("web/apiRouter", () => {
                 upcomingRaids: { events: [{ id: "e1", title: "Kara", lootCount: 2 }], error: null },
                 pastRaids: { events: [{ id: "e0", title: "Old Kara" }], error: null },
                 lootEvents: [{ eventId: "e1", label: "Kara", count: 2 }],
-                logs: [{ id: "l1", title: "Log 1" }],
+                logs: [{ id: "l1", title: "Log 1", postedAt: 0 }],
                 categories: [{ id: "cat1", name: "Raids" }],
                 categoryLootTool: { cat1: "gargul" },
                 activeGuildId: "guild-1",
                 chars: [],
             });
+        });
+
+        it("computes each log's posted-date via logPostedAt (falls back through messageId/detectedAt)", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            logStore.listLogs.mockReturnValue([{ id: "l1", title: "Log 1", detectedAt: 555 }]);
+            reportList.logPostedAt.mockReturnValueOnce(555);
+            const res = await get("/api/history");
+            expect(reportList.logPostedAt).toHaveBeenCalledWith({ id: "l1", title: "Log 1", detectedAt: 555 });
+            expect(body(res).data.logs).toEqual([{ id: "l1", title: "Log 1", detectedAt: 555, postedAt: 555 }]);
         });
 
         it("annotates loot characters with their class color and spec icon", async () => {
