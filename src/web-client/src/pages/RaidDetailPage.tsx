@@ -91,7 +91,7 @@ function NameList({ people }: { people: AttendancePerson[] }) {
         <div className="rolegrid">
             {people.map((p) => {
                 const prof = p.profile;
-                const label = p.displayName || p.id;
+                const label = (p.displayName || p.id) + (p.character ? ` (${p.character})` : "");
                 if (!prof) return <span key={p.id} className="rolebox">{label}</span>;
                 return (
                     <span key={p.id} className="rolebox setup-player" style={{ borderLeftColor: prof.classColor || "var(--line)" }} title={prof.specName || ""}>

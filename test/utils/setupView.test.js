@@ -1,6 +1,6 @@
 const {
     buildSetupView, tankCandidates, isTankSpec, groupOf,
-    enrichSlot, realClass, roleOf, classIconUrl, specProfile, classSpecIconUrl,
+    enrichSlot, realClass, roleOf, classIconUrl, specProfile, classSpecIconUrl, characterProfile,
 } = require("../../src/utils/setupView.js");
 
 describe("utils/setupView", () => {
@@ -69,6 +69,24 @@ describe("utils/setupView", () => {
             expect(specProfile("Nonsense")).toBeNull();
             expect(specProfile("")).toBeNull();
             expect(specProfile()).toBeNull();
+        });
+    });
+
+    describe("characterProfile", () => {
+        it("builds display data from an already-known class + WCL-style spec", () => {
+            expect(characterProfile("Warlock", "Destruction")).toMatchObject({
+                specName: "Destruction", className: "Warlock", classColor: "#9482C9",
+            });
+            expect(characterProfile("Warlock", "Destruction").iconUrl).toContain("spell_shadow_rainoffire");
+        });
+
+        it("falls back to the class name when spec is unknown/blank", () => {
+            expect(characterProfile("Paladin", "")).toMatchObject({ specName: "Paladin", className: "Paladin" });
+        });
+
+        it("returns null without a class name", () => {
+            expect(characterProfile("", "Destruction")).toBeNull();
+            expect(characterProfile()).toBeNull();
         });
     });
 

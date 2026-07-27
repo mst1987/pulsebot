@@ -9,6 +9,7 @@ const { getChannels, createChannel, duplicateChannel } = require("./apiRoutes/ch
 const {
     getSettings, updateSettings, saveRaidsheetHandler, deleteRaidsheetHandler,
 } = require("./apiRoutes/settings");
+const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raiderCharacters");
 const { getRaids, getRaidCreateContext, createRaid } = require("./apiRoutes/raids");
 const {
     getRaidDetail, postNotify, postPingMissing, postFill, postPostSheet, postPostSoftres,
@@ -68,6 +69,14 @@ async function handle(pathname, req, res, url) {
     }
     if (pathname === "/api/settings/raidsheets/delete" && req.method === "POST") {
         await deleteRaidsheetHandler(req, res);
+        return true;
+    }
+    if (pathname === "/api/raider-characters" && req.method === "GET") {
+        await getRaiderCharacters(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/raider-characters" && req.method === "POST") {
+        await saveRaiderCharacters(req, res);
         return true;
     }
     if (pathname === "/api/raids" && req.method === "GET") {

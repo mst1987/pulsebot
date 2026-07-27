@@ -190,6 +190,29 @@ export function deleteRaidsheet(csrfToken: string | null, id: string): Promise<{
     return send("POST", "/api/settings/raidsheets/delete", csrfToken, { id });
 }
 
+// Manual raider->character-per-category assignments (see raiderCharactersStore.js
+// on the backend). Used to enrich the Raid-Detail attendance tab's "missing" list
+// with the character a raider actually plays for that raid category.
+export type RaiderCharactersData = {
+    members: { id: string; displayName: string }[];
+    membersError: string | null;
+    roleIds: string[];
+    assignments: Record<string, string>;
+    knownCharacters: string[];
+};
+
+export function getRaiderCharacters(categoryId: string): Promise<RaiderCharactersData> {
+    return get<RaiderCharactersData>(`/api/raider-characters?category=${encodeURIComponent(categoryId)}`);
+}
+
+export function saveRaiderCharacters(
+    csrfToken: string | null,
+    categoryId: string,
+    assignments: Record<string, string>,
+): Promise<{ assignments: Record<string, string> }> {
+    return send("POST", "/api/raider-characters", csrfToken, { categoryId, assignments });
+}
+
 export type RaidEvent = {
     id: string;
     title: string;
@@ -238,7 +261,7 @@ export type SetupGroup = { label: string; players: SetupPlayer[] };
 export type EventSetup = { total: number; groups: SetupGroup[] } | null;
 
 export type AttendanceProfile = { classColor: string; specName: string; className: string; iconUrl: string };
-export type AttendancePerson = { id: string; displayName: string; profile: AttendanceProfile | null };
+export type AttendancePerson = { id: string; displayName: string; character?: string; profile: AttendanceProfile | null };
 export type Attendance = { responded: AttendancePerson[]; missing: AttendancePerson[] };
 
 export type RaidDetailEvent = {

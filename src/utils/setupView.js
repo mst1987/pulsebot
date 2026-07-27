@@ -250,8 +250,28 @@ function specProfile(spec) {
     };
 }
 
+/**
+ * Class/spec display data for a character whose class/spec is already known
+ * (e.g. from characterStore.js, keyed by character name rather than a
+ * classlist spec) — used for the manual raider->character assignment feature
+ * in utils/attendance.js. `spec` is a Warcraft-Logs-style spec name
+ * ("Destruction"), unlike specProfile()'s classlist-key input.
+ * @returns {{ specName:string, className:string, classColor:string, iconUrl:string }|null}
+ */
+function characterProfile(className, spec) {
+    const cls = String(className || "").trim();
+    if (!cls) return null;
+    return {
+        specName: String(spec || "").trim() || cls,
+        className: cls,
+        classColor: CLASS_COLORS[cls] || "",
+        iconUrl: classSpecIconUrl(cls, spec),
+    };
+}
+
 module.exports = {
     buildSetupView, tankCandidates, isTankSpec, groupOf,
     enrichSlot, realClass, roleOf, classIconUrl, specIconUrl, specProfile, classSpecIconUrl,
+    characterProfile,
     CLASS_COLORS, ROLE_LABELS,
 };

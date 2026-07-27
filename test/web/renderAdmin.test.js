@@ -833,6 +833,23 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("<span class=\"rolebox\">Alice</span>");
         });
 
+        it("shows a manually assigned character name next to a missing raider", () => {
+            const html = renderEventDetail(user, {
+                ...base,
+                attendanceRoleIds: ["r1"],
+                attendance: {
+                    responded: [],
+                    missing: [{
+                        id: "2",
+                        displayName: "Sedroc",
+                        character: "Elesham",
+                        profile: { specName: "Elemental", className: "Shaman", classColor: "#0070DE", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/spell_nature_lightning.jpg" },
+                    }],
+                },
+            });
+            expect(html).toContain("Sedroc (Elesham)");
+        });
+
         it("shows an overview stats row with a signup counter next to the header buttons", () => {
             const html = renderEventDetail(user, {
                 ...base,

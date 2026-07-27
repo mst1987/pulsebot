@@ -14,7 +14,10 @@ const {
 } = require("../settingsStore");
 const { matchRaidsheet } = require("../../utils/raidsheets");
 const { buildSetupView, tankCandidates } = require("../../utils/setupView");
-const { computeAttendance, buildSpecHistory, withSpecProfiles } = require("../../utils/attendance");
+const {
+    computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
+} = require("../../utils/attendance");
+const { resolveAssignmentProfiles } = require("../raiderCharactersStore");
 const { getEventSheet, markEventSheetFilled } = require("../eventSheetStore");
 const { getEventSoftres, saveEventSoftres, setEventSoftresLink } = require("../eventSoftresStore");
 const softres = require("../../utils/softres");
@@ -76,12 +79,21 @@ async function getRaidDetail(req, res, url) {
         membersError = membersResult.error;
         attendance = computeAttendance(membersResult.members, found.e.signUps || []);
         // Enrich with class/spec/colour from each member's most recent signup in
-        // another event (within the same lookback window) so raiders who haven't
-        // reacted here yet can still be shown with their known class.
-        const specHistory = buildSpecHistory(groups.flatMap((g) => g.events));
+        // *this same category* (raiders often play a different character on a
+        // different raid day/type, so history from other categories would guess
+        // wrong) so raiders who haven't reacted here yet can still be shown with
+        // their known class.
+        const specHistory = buildSpecHistory(found.g.events);
         attendance = {
             responded: withSpecProfiles(attendance.responded, specHistory),
             missing: withSpecProfiles(attendance.missing, specHistory),
+        };
+        // A manual raider->character assignment for this category (see
+        // raiderCharactersStore.js) is admin-confirmed and overrides the guess above.
+        const assignmentProfiles = resolveAssignmentProfiles(found.g.categoryId);
+        attendance = {
+            responded: withCharacterAssignments(attendance.responded, assignmentProfiles),
+            missing: withCharacterAssignments(attendance.missing, assignmentProfiles),
         };
     }
 
