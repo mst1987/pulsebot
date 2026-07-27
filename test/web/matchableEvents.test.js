@@ -64,6 +64,42 @@ describe("web/matchableEvents", () => {
         }]);
     });
 
+    // Regression test: an event Raid-Helper's own past-events response simply
+    // omits (pruned on their side, not a deleted Discord channel — the live
+    // fetch itself succeeds and returns other events) used to make this event
+    // unassignable ("Event nicht gefunden") even though the event detail page
+    // (loadEventGroups(), which already merges in persisted-but-not-live
+    // events for a lookback query) resolved it fine.
+    it("merges in a persisted event Raid-Helper no longer returns live", async () => {
+        mockGetPastEvents.mockResolvedValue([]); // live fetch succeeds but omits the event
+        discord.getChannelCategoryMap.mockReturnValue({});
+        listRaidEvents.mockReturnValue([{
+            id: "e2", guildId: "g1", title: "SSC", channelId: "chan2", channelName: "ssc",
+            categoryId: "cat2", categoryName: "Raids", startTime: 2000000000,
+        }]);
+
+        const { events, error } = await loadMatchableEvents("g1");
+
+        expect(error).toBeNull();
+        expect(events).toEqual([{
+            id: "e2", title: "SSC", startTime: 2000000000, channelId: "chan2",
+            channelName: "ssc", categoryId: "cat2", categoryName: "Raids",
+        }]);
+    });
+
+    it("does not resurrect a persisted event that is older than the lookback window", async () => {
+        mockGetPastEvents.mockResolvedValue([]);
+        discord.getChannelCategoryMap.mockReturnValue({});
+        listRaidEvents.mockReturnValue([{
+            id: "e2", guildId: "g1", title: "Old raid", channelId: "chan2", channelName: "ssc",
+            categoryId: "cat2", categoryName: "Raids", startTime: 1,
+        }]);
+
+        const { events } = await loadMatchableEvents("g1", 1);
+
+        expect(events).toEqual([]);
+    });
+
     it("drops an event that is neither in the live channel map nor ever persisted", async () => {
         mockGetPastEvents.mockResolvedValue([event()]);
         discord.getChannelCategoryMap.mockReturnValue({});
