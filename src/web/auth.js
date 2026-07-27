@@ -9,9 +9,13 @@ const {
 const { getConfig } = require("./settingsStore");
 
 // Sessions are persisted to disk so a bot/PM2 restart does not log everyone out.
-// sid -> { id, name, isAdmin, csrf, createdAt }
+// sid -> { id, name, isAdmin, csrf, createdAt, adminCheckedAt }
 const SESSIONS_FILE = path.join(__dirname, "..", "..", "data", "sessions.json");
 const SESSION_TTL = 604800000; // 7 days, matches the cookie Max-Age
+// How long a session's isAdmin flag is trusted before it is re-checked against
+// the current role config — so admin roles added/removed in the settings take
+// effect for already-logged-in users without a re-login.
+const ADMIN_REFRESH_MS = 300000; // 5 minutes
 const sessions = new Map();
 const REDIRECT_URI = `${publicBaseUrl}/auth/callback`;
 
@@ -82,9 +86,38 @@ function devSession() {
 function sessionFor(req) {
     const sid = parseCookies(req).sid;
     const s = sid && sessions.get(sid);
-    if (s && (Date.now() - (s.createdAt || 0)) < SESSION_TTL) return s;
+    if (s && (Date.now() - (s.createdAt || 0)) < SESSION_TTL) {
+        maybeRefreshAdmin(sid, s);
+        return s;
+    }
     if (s) { sessions.delete(sid); saveSessions(); }
     return devSession();
+}
+
+// Sids with a role re-check currently in flight (kept out of the session
+// objects so the flag is never persisted to disk).
+const refreshingSids = new Set();
+
+/**
+ * Re-check a session's admin status against the current role config once its
+ * cached value is older than ADMIN_REFRESH_MS. Runs in the background — the
+ * current request keeps the cached status, the next one sees the result.
+ * A failed lookup (bot offline, Discord unreachable) keeps the last known
+ * status instead of demoting a working admin session.
+ */
+function maybeRefreshAdmin(sid, s) {
+    if (sid === DEV_SID) return; // dev auto-login session is always admin
+    const checkedAt = s.adminCheckedAt || s.createdAt || 0;
+    if (Date.now() - checkedAt < ADMIN_REFRESH_MS || refreshingSids.has(sid)) return;
+    refreshingSids.add(sid);
+    computeIsAdmin(s.id)
+        .then((isAdmin) => { s.isAdmin = isAdmin; })
+        .catch((e) => console.warn(`Admin re-check failed for ${s.id}:`, e.message))
+        .finally(() => {
+            s.adminCheckedAt = Date.now();
+            refreshingSids.delete(sid);
+            saveSessions();
+        });
 }
 
 /** Resolve the logged-in user (or null) from the request. */
@@ -140,24 +173,42 @@ function loginUrl(state) {
     return `https://discord.com/api/oauth2/authorize?${params.toString()}`;
 }
 
+// Discord API error codes that mean "this user is definitively not a guild
+// member" (as opposed to a transient lookup failure).
+const UNKNOWN_MEMBER = 10007;
+const UNKNOWN_USER = 10013;
+
 /**
- * Whether the given Discord user id has admin access. True if the id is in the
- * static admin list, or (via the bot) the guild member has one of the admin roles.
- * Falls back to the static list if the guild/member can't be read.
+ * Whether the given Discord user id currently has admin access. True if the id
+ * is in the static admin list, or (via the bot) the guild member has one of
+ * the admin roles. Throws when the lookup itself fails (bot not logged in,
+ * Discord unreachable), so callers can distinguish "no admin" from "unknown".
  */
-async function resolveIsAdmin(userId) {
+async function computeIsAdmin(userId) {
     // ADMIN_USER_ID (+ optional LOGCHECK_ADMIN_IDS) is the bootstrap admin from .env.
     if (logcheckAdminIds.includes(String(userId))) return true;
     // Role IDs are configured in the admin menu (data/settings/config.json),
     // with any .env ADMIN_ROLE_IDS merged in as an optional fallback.
     const roleIds = [...new Set([...(getConfig().adminRoleIds || []), ...(envAdminRoleIds || [])])];
+    if (!roleIds.length) return false;
     // guildId is likewise admin-editable (data/settings/config.json), .env is only the bootstrap fallback.
     const guildId = getConfig().guildId || envGuildId;
-    if (!roleIds.length || !botClient || !guildId) return false;
+    if (!botClient || !guildId) throw new Error("bot client or guild id not available");
+    const guild = botClient.guilds.cache.get(guildId) || await botClient.guilds.fetch(guildId);
+    let member;
     try {
-        const guild = botClient.guilds.cache.get(guildId) || await botClient.guilds.fetch(guildId);
-        const member = await guild.members.fetch(userId);
-        return roleIds.some((rid) => member.roles.cache.has(rid));
+        member = await guild.members.fetch(userId);
+    } catch (e) {
+        if (e && (e.code === UNKNOWN_MEMBER || e.code === UNKNOWN_USER)) return false;
+        throw e;
+    }
+    return roleIds.some((rid) => member.roles.cache.has(rid));
+}
+
+/** computeIsAdmin(), treating a failed lookup as "no admin" (login-time default). */
+async function resolveIsAdmin(userId) {
+    try {
+        return await computeIsAdmin(userId);
     } catch (e) {
         console.warn(`Role lookup failed for ${userId}:`, e.message);
         return false;
@@ -185,6 +236,7 @@ async function completeLogin(code) {
         isAdmin: await resolveIsAdmin(me.data.id),
         csrf: crypto.randomBytes(18).toString("hex"),
         createdAt: Date.now(),
+        adminCheckedAt: Date.now(),
     };
     const sid = crypto.randomBytes(18).toString("hex");
     sessions.set(sid, user);
