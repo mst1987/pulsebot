@@ -17,9 +17,18 @@ jest.mock("fs", () => {
     };
 });
 
+// repairItemNames() runs the import-time Wowhead enrichment — mock the lookup
+// so no test ever hits the network (id 100 resolves, everything else misses).
+jest.mock("../../src/utils/wowhead", () => ({
+    ...jest.requireActual("../../src/utils/wowhead"),
+    lookupItem: jest.fn(async (id) => (Number(id) === 100
+        ? { id: 100, name: "Thing", icon: "inv_thing", iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_thing.jpg", quality: 4 }
+        : null)),
+}));
+
 const fs = require("fs");
 const {
-    addImport, listByEvent, listByCharacter, eventsWithLoot, characters, clearEvent,
+    addImport, listByEvent, listByCharacter, eventsWithLoot, characters, clearEvent, repairItemNames,
 } = require("../../src/web/lootStore.js");
 
 beforeEach(() => {
@@ -111,6 +120,24 @@ describe("web/lootStore", () => {
             expect(clearEvent("e1")).toBe(1);
             expect(listByEvent("e1")).toHaveLength(0);
             expect(listByEvent("e2")).toHaveLength(1);
+        });
+    });
+
+    describe("repairItemNames", () => {
+        it("backfills missing names/icons via Wowhead and persists them", async () => {
+            addImport("e1", [item({ itemName: "" })]); // pre-enrichment row: id only
+            expect(await repairItemNames()).toBe(1);
+            const [row] = listByEvent("e1");
+            expect(row.itemName).toBe("Thing");
+            expect(row.itemIconUrl).toBe("https://wow.zamimg.com/images/wow/icons/large/inv_thing.jpg");
+            // persisted — a second run finds nothing left to repair
+            expect(await repairItemNames()).toBe(0);
+        });
+
+        it("leaves rows untouched when Wowhead does not know the id", async () => {
+            addImport("e1", [item({ itemName: "", itemId: 999 })]);
+            expect(await repairItemNames()).toBe(0);
+            expect(listByEvent("e1")[0].itemName).toBe("");
         });
     });
 });

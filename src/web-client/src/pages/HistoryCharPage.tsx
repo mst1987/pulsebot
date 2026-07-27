@@ -124,7 +124,7 @@ function GearTab({ data, onReload }: { data: HistoryCharData; onReload: () => vo
     if (Array.isArray(data.gear) && data.gear.length) {
         gearInner = (
             <div className="dash-card gear-card">
-                <div className="dash-card-head"><h3>Aktuelles Gear (Paperdoll)</h3><span className="small" style={{ marginLeft: "auto" }}>Battle.net API</span></div>
+                <div className="dash-card-head"><h3>Aktuelles Gear</h3><span className="small" style={{ marginLeft: "auto" }}>Battle.net API</span></div>
                 <GearPaperdoll
                     gear={data.gear}
                     classIconUrl={data.info?.iconUrl || ""}
@@ -136,11 +136,11 @@ function GearTab({ data, onReload }: { data: HistoryCharData; onReload: () => vo
         gearInner = (
             <>
                 <div className="flash flash-err" style={{ margin: "0 0 12px" }}>{data.gearError || "Kein Live-Gear von der Battle.net-API verfügbar."}</div>
-                <p className="sub">Nutze solange den Armory-Link oben. „Paperdoll neu laden" fragt erneut ab.</p>
+                <p className="sub">Nutze solange den Armory-Link oben. „Neu laden" fragt erneut ab.</p>
             </>
         );
     } else {
-        gearInner = <p className="sub">Für Live-Gear (Paperdoll) Battle.net-Zugang in den <Link to="/settings">Einstellungen</Link> hinterlegen. Ohne Zugang steht der Armory-Link oben zur Verfügung.</p>;
+        gearInner = <p className="sub">Für Live-Gear Battle.net-Zugang in den <Link to="/settings">Einstellungen</Link> hinterlegen. Ohne Zugang steht der Armory-Link oben zur Verfügung.</p>;
     }
 
     const diagParts = [
@@ -155,7 +155,7 @@ function GearTab({ data, onReload }: { data: HistoryCharData; onReload: () => vo
         <>
             <div className="row-actions" style={{ marginBottom: 12, alignItems: "center" }}>
                 {data.gearConfigured
-                    ? <a className="btn btn-ghost btn-sm" href="#" onClick={(e) => { e.preventDefault(); onReload(); }}>↻ Paperdoll neu laden</a>
+                    ? <a className="btn btn-ghost btn-sm" href="#" onClick={(e) => { e.preventDefault(); onReload(); }}>↻ Neu laden</a>
                     : <Link className="btn btn-ghost btn-sm" to="/settings">Battle.net einrichten</Link>}
                 {data.gearConfigured && data.gearNamespace && <span className="lbadge" title="abgefragter Profile-Namespace">{data.gearNamespace}</span>}
             </div>
@@ -222,7 +222,7 @@ export default function HistoryCharPage() {
 
             <div className="tabs" role="tablist">
                 <button type="button" className={`tab-btn${tab === "gear" ? " active" : ""}`} role="tab" onClick={() => switchTab("gear")}>
-                    Gear (Paperdoll)
+                    Gear
                 </button>
                 <button type="button" className={`tab-btn${tab === "loot" ? " active" : ""}`} role="tab" onClick={() => switchTab("loot")}>
                     Loot-Historie

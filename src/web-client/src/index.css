@@ -437,7 +437,9 @@ dl.app-meta dd { margin: 0; min-width: 0; word-break: break-word; }
    left/right, class portrait center, weapons below; item tooltips come from
    the Wowhead widget via the tiles' ?ench=&gems= links) ===== */
 .gear-card { overflow: visible; }
-.gear-doll { display: grid; grid-template-columns: auto 1fr auto; gap: 14px 20px; padding: 18px; }
+/* compact sheet: fixed-width columns centered in the card instead of
+   stretching the center over the full card width */
+.gear-doll { display: grid; grid-template-columns: auto minmax(150px, 210px) auto; justify-content: center; gap: 14px 28px; padding: 18px; }
 .gear-col { display: flex; flex-direction: column; gap: 9px; }
 .gear-col-right { align-items: flex-end; }
 .gear-center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
@@ -458,6 +460,9 @@ dl.app-meta dd { margin: 0; min-width: 0; word-break: break-word; }
    same container need the more specific selector to win over it */
 .gear-icon img.gear-gem-ico { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0, 0, 0, .6); display: block; }
 .gear-tile-ilvl { margin-top: 2px; text-align: center; font-size: 11px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; min-height: 14px; }
+/* loot history: roomier rows with a proper item icon */
+.loot-table td { padding-top: 12px; padding-bottom: 12px; }
+.loot-ico { width: 30px; height: 30px; border-radius: 6px; vertical-align: middle; margin-right: 9px; }
 @media (max-width: 640px) {
     .gear-doll { gap: 10px 8px; padding: 12px; }
     .gear-portrait { width: 64px; height: 64px; }
