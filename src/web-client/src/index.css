@@ -319,3 +319,29 @@ dl.app-meta dd { margin: 0; min-width: 0; word-break: break-word; }
 .hr-list { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px; max-width: 440px; }
 .hr-chip { display: flex; justify-content: space-between; align-items: center; cursor: default; }
 .hr-chip img { width: 18px; height: 18px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
+
+/* ===== history char: gear paperdoll tiles ===== */
+/* .dash-card clips overflow for rounded table corners; the tile tooltips are
+   absolutely positioned and need to escape that clip to stay visible. */
+.gear-card { overflow: visible; }
+.gear-grid { display: flex; flex-wrap: wrap; gap: 16px 14px; padding: 16px; }
+.gear-tile { position: relative; width: 74px; text-align: center; }
+.gear-icon { position: relative; width: 52px; height: 52px; margin: 0 auto; border: 2px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--panel2); box-shadow: 0 0 8px rgba(0, 0, 0, .25); }
+.gear-icon img { width: 100%; height: 100%; display: block; }
+.gear-icon-ph { width: 100%; height: 100%; background: var(--panel3); }
+.gear-ilvl { position: absolute; left: 2px; bottom: 2px; background: rgba(0, 0, 0, .72); color: #fff; font-size: 10px; font-weight: 800; line-height: 1; padding: 2px 4px; border-radius: 4px; }
+.gear-gems { position: absolute; right: 2px; bottom: 2px; display: flex; gap: 2px; }
+.gear-gem { width: 7px; height: 7px; border-radius: 2px; border: 1px solid rgba(0, 0, 0, .5); display: inline-block; }
+.gear-slotlabel { margin-top: 5px; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.gear-tip {
+    display: none; position: absolute; z-index: 15; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%);
+    width: 220px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+    box-shadow: 0 12px 32px -6px rgba(0, 0, 0, .4), 0 0 0 1px var(--line); text-align: left;
+}
+.gear-tile:hover .gear-tip { display: block; }
+.gear-tip-name { display: block; font-weight: 700; font-size: 13.5px; text-decoration: none; margin-bottom: 2px; }
+.gear-tip-meta { color: var(--muted); font-size: 11.5px; margin-bottom: 6px; }
+.gear-tip-ench { font-size: 12px; color: var(--good); margin-bottom: 2px; }
+.gear-tip-socket { display: flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 2px; color: var(--text); }
+.gear-tip-socket.empty { color: var(--muted); }
+.gear-gem-dot { width: 9px; height: 9px; border-radius: 2px; border: 1px solid var(--muted); flex: 0 0 auto; }

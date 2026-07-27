@@ -1492,22 +1492,28 @@ describe("web/renderAdmin", () => {
             expect(html).toContain("Off Spec");
         });
 
-        it("renders the live gear paperdoll with enchants, gems and empty sockets", () => {
+        it("renders the live gear paperdoll with enchants and sockets (filled + empty)", () => {
             const html = renderHistoryChar(user, {
                 character: "Foo", csrf: "x", nav: nav(), items: [],
                 gearConfigured: true,
                 gear: [{
                     slot: "HEAD", itemId: 29011, name: "Cursed Vision", quality: "EPIC", level: 120,
-                    enchants: ["Enchanted: +150 Mana"], gems: ["Chaotic Skyfire Diamond"], emptySockets: 1,
+                    iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_helmet_naxxramas.jpg",
+                    enchants: ["Enchanted: +150 Mana"],
+                    sockets: [
+                        { type: "META", gemName: "Chaotic Skyfire Diamond" },
+                        { type: "RED", gemName: null },
+                    ],
                 }],
             });
             expect(html).toContain("Aktuelles Gear (Paperdoll)");
+            expect(html).toContain("gear-grid");
             expect(html).toContain("Cursed Vision");
             expect(html).toContain("wowhead.com/tbc/item=29011");
-            expect(html).toContain("Verzauberung");
+            expect(html).toContain("inv_helmet_naxxramas.jpg");
             expect(html).toContain("Enchanted: +150 Mana");
             expect(html).toContain("Chaotic Skyfire Diamond");
-            expect(html).toContain("1 leer");
+            expect(html).toContain("leerer Sockel (RED)");
         });
 
         it("organizes gear/loot as tabs and offers a manual paperdoll reload", () => {

@@ -1,4 +1,5 @@
 const axios = require("axios");
+const wowhead = require("../utils/wowhead");
 
 // Blizzard Battle.net API client for reading a character's equipped gear
 // (paperdoll) on the WoW Classic Anniversary realms (default: Thunderstrike EU,
@@ -124,16 +125,22 @@ class Blizzard {
 
     /**
      * A character's equipped items, normalized to { slot, itemId, name, quality,
-     * level, enchants, gems, emptySockets }. `enchants`/`gems` are display strings;
-     * `emptySockets` counts sockets without a gem. Returns null on any problem
-     * (not configured, auth failure, 403/404, empty/unknown character, network
-     * error) so the caller can fall back to a classic-armory.org link.
+     * level, enchants, sockets, iconUrl }. `enchants` is a list of display
+     * strings; `sockets` is one entry per socket ({ type, gemName }, gemName
+     * null when the socket is empty) so the caller can render a paperdoll with
+     * per-socket color coding instead of just a leftover count. `iconUrl` comes
+     * from Wowhead (the Blizzard equipment endpoint has no media URLs), looked
+     * up per distinct item id the same way loot-import icon enrichment works
+     * (utils/lootImport.js's enrichItemNames) — best-effort, "" on a miss.
+     * Returns null on any problem (not configured, auth failure, 403/404,
+     * empty/unknown character, network error) so the caller can fall back to a
+     * classic-armory.org link.
      */
     async getEquipment(characterName, opts = {}) {
         const data = await this._getCharacter(characterName, "/equipment", opts);
         if (!data) return null;
         const items = data.equipped_items || [];
-        return items.map((it) => {
+        const gear = items.map((it) => {
             const sockets = it.sockets || [];
             return {
                 slot: (it.slot && it.slot.type) || "",
@@ -144,12 +151,23 @@ class Blizzard {
                 enchants: (it.enchantments || [])
                     .map((e) => e.display_string || (e.source_item && e.source_item.name) || "")
                     .filter(Boolean),
-                gems: sockets
-                    .map((s) => (s.item && s.item.name) || "")
-                    .filter(Boolean),
-                emptySockets: sockets.filter((s) => !s.item).length,
+                sockets: sockets.map((s) => ({
+                    type: (s.socket_type && s.socket_type.type) || "",
+                    gemName: (s.item && s.item.name) || null,
+                })),
+                iconUrl: "",
             };
         });
+        const ids = [...new Set(gear.filter((g) => g.itemId).map((g) => g.itemId))];
+        if (ids.length) {
+            const lookups = await Promise.all(ids.map((id) => wowhead.lookupItem(id)));
+            const byId = new Map(ids.map((id, i) => [id, lookups[i]]));
+            for (const g of gear) {
+                const found = g.itemId ? byId.get(g.itemId) : null;
+                if (found && found.iconUrl) g.iconUrl = found.iconUrl;
+            }
+        }
+        return gear;
     }
 
     /**

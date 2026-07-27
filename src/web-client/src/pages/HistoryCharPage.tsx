@@ -1,11 +1,81 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { getHistoryChar, type ApiError, type HistoryCharData } from "../api";
+import { getHistoryChar, type ApiError, type GearItem, type HistoryCharData } from "../api";
 import { fmtMs } from "../lib/format";
 import { ClassSpecIcon } from "../components/ClassSpec";
 import { LootTable } from "../components/LootTable";
 
 type CharTab = "gear" | "loot";
+
+// Blizzard's equipment-slot enum, in the order a character sheet lists them.
+const SLOT_ORDER = [
+    "HEAD", "NECK", "SHOULDER", "BACK", "CHEST", "SHIRT", "TABARD", "WRIST",
+    "HANDS", "WAIST", "LEGS", "FEET", "FINGER_1", "FINGER_2", "TRINKET_1", "TRINKET_2",
+    "MAIN_HAND", "OFF_HAND", "RANGED",
+];
+const SLOT_LABELS: Record<string, string> = {
+    HEAD: "Kopf", NECK: "Hals", SHOULDER: "Schulter", BACK: "Rücken", CHEST: "Brust", SHIRT: "Hemd", TABARD: "Wappenrock",
+    WRIST: "Handgelenk", HANDS: "Hände", WAIST: "Taille", LEGS: "Beine", FEET: "Füße",
+    FINGER_1: "Ring 1", FINGER_2: "Ring 2", TRINKET_1: "Schmuck 1", TRINKET_2: "Schmuck 2",
+    MAIN_HAND: "Haupthand", OFF_HAND: "Nebenhand", RANGED: "Fernkampf",
+};
+const QUALITY_COLOR: Record<string, string> = {
+    POOR: "#9d9d9d", COMMON: "#ffffff", UNCOMMON: "#1eff00", RARE: "#0070dd",
+    EPIC: "#a335ee", LEGENDARY: "#ff8000", ARTIFACT: "#e6cc80", HEIRLOOM: "#00ccff",
+};
+const GEM_COLOR: Record<string, string> = {
+    RED: "#c0392b", YELLOW: "#e0b73a", BLUE: "#3d7dd6", META: "#d8d8d8",
+    PRISMATIC: "linear-gradient(135deg, #e05d5d, #e0c65d, #5d8ee0)",
+};
+
+function GearTile({ g }: { g: GearItem }) {
+    const color = QUALITY_COLOR[g.quality] || "var(--line)";
+    const label = SLOT_LABELS[g.slot] || g.slot || "";
+    return (
+        <div className="gear-tile">
+            <div className="gear-icon" style={{ borderColor: color }}>
+                {g.iconUrl
+                    ? <img src={g.iconUrl} alt="" loading="lazy" />
+                    : <div className="gear-icon-ph" />}
+                {!!g.level && <span className="gear-ilvl">{g.level}</span>}
+                {!!g.sockets.length && (
+                    <span className="gear-gems">
+                        {g.sockets.map((s, i) => (
+                            <span
+                                key={i}
+                                className="gear-gem"
+                                style={{
+                                    background: s.gemName ? (GEM_COLOR[s.type] || "#888") : "transparent",
+                                    borderColor: GEM_COLOR[s.type] || "var(--muted)",
+                                }}
+                            />
+                        ))}
+                    </span>
+                )}
+            </div>
+            <div className="gear-slotlabel">{label}</div>
+            <div className="gear-tip">
+                {g.itemId
+                    ? <a className="gear-tip-name" style={{ color }} href={`https://www.wowhead.com/tbc/item=${g.itemId}`} target="_blank" rel="noopener noreferrer">{g.name || `Item ${g.itemId}`}</a>
+                    : <span className="gear-tip-name" style={{ color }}>{g.name || label}</span>}
+                <div className="gear-tip-meta">{label}{g.level ? ` · iLvl ${g.level}` : ""}</div>
+                {g.enchants.map((e, i) => <div key={i} className="gear-tip-ench">{e}</div>)}
+                {g.sockets.map((s, i) => (
+                    <div key={i} className={`gear-tip-socket${s.gemName ? "" : " empty"}`}>
+                        <span
+                            className="gear-gem-dot"
+                            style={{
+                                background: s.gemName ? (GEM_COLOR[s.type] || "#888") : "transparent",
+                                borderColor: GEM_COLOR[s.type] || "var(--muted)",
+                            }}
+                        />
+                        {s.gemName || `leerer Sockel (${s.type || "?"})`}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
 
 function GearTab({ data, onReload }: { data: HistoryCharData; onReload: () => void }) {
     const s = data.charSummary;
@@ -13,33 +83,16 @@ function GearTab({ data, onReload }: { data: HistoryCharData; onReload: () => vo
 
     let gearInner: ReactNode;
     if (Array.isArray(data.gear) && data.gear.length) {
+        const bySlot = new Map(data.gear.map((g) => [g.slot, g]));
+        const ordered = SLOT_ORDER.map((slot) => bySlot.get(slot)).filter((g): g is GearItem => !!g);
+        const extra = data.gear.filter((g) => !SLOT_ORDER.includes(g.slot));
         gearInner = (
-            <div className="dash-card">
+            <div className="dash-card gear-card">
                 <div className="dash-card-head"><h3>Aktuelles Gear (Paperdoll)</h3><span className="small" style={{ marginLeft: "auto" }}>Battle.net API</span></div>
-                <table className="idx" style={{ margin: 0 }}>
-                    <thead><tr><th>Slot</th><th>Item</th><th>iLvl</th><th>Verzauberung</th><th>Sockel</th></tr></thead>
-                    <tbody>
-                        {data.gear.map((g, i) => {
-                            const hasGems = g.gems.length > 0;
-                            const hasEmpty = g.emptySockets > 0;
-                            return (
-                                <tr key={i}>
-                                    <td className="small">{g.slot || ""}</td>
-                                    <td>{g.itemId
-                                        ? <a className="mlink" href={`https://www.wowhead.com/tbc/item=${g.itemId}`} target="_blank" rel="noopener noreferrer">{g.name || `Item ${g.itemId}`}</a>
-                                        : (g.name || "")}</td>
-                                    <td className="small">{g.level || ""}</td>
-                                    <td className="small">{g.enchants.length ? g.enchants.join(", ") : <span className="sub">—</span>}</td>
-                                    <td className="small">
-                                        {hasGems || hasEmpty
-                                            ? <>{g.gems.join(", ")}{hasGems && hasEmpty ? " " : ""}{hasEmpty && <span className="lbadge lbadge-warn">{g.emptySockets} leer</span>}</>
-                                            : <span className="sub">—</span>}
-                                    </td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
+                <div className="gear-grid">
+                    {ordered.map((g, i) => <GearTile key={i} g={g} />)}
+                    {extra.map((g, i) => <GearTile key={`x${i}`} g={g} />)}
+                </div>
             </div>
         );
     } else if (data.gearConfigured) {

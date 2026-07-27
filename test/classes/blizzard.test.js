@@ -77,12 +77,12 @@ describe("classes/Blizzard", () => {
             expect(cfg.headers.Authorization).toBe("Bearer tok");
 
             expect(result).toEqual([
-                { slot: "HEAD", itemId: 29011, name: "Cursed Vision", quality: "EPIC", level: 120, enchants: [], gems: [], emptySockets: 0 },
-                { slot: "NECK", itemId: 28530, name: "Adornment", quality: "RARE", level: 115, enchants: [], gems: [], emptySockets: 0 },
+                { slot: "HEAD", itemId: 29011, name: "Cursed Vision", quality: "EPIC", level: 120, enchants: [], sockets: [], iconUrl: "" },
+                { slot: "NECK", itemId: 28530, name: "Adornment", quality: "RARE", level: 115, enchants: [], sockets: [], iconUrl: "" },
             ]);
         });
 
-        it("extracts enchants, gems and empty sockets from an item", async () => {
+        it("extracts enchants and sockets (gem name null for an empty socket) from an item", async () => {
             axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
             axios.get.mockResolvedValue({ data: { equipped_items: [{
                 slot: { type: "HEAD" }, item: { id: 29011 }, name: "Helm",
@@ -94,8 +94,24 @@ describe("classes/Blizzard", () => {
             }] } });
             const [item] = await configured().getEquipment("Foo");
             expect(item.enchants).toEqual(["Enchanted: +150 Mana"]);
-            expect(item.gems).toEqual(["Chaotic Skyfire Diamond"]);
-            expect(item.emptySockets).toBe(1);
+            expect(item.sockets).toEqual([
+                { type: "META", gemName: "Chaotic Skyfire Diamond" },
+                { type: "RED", gemName: null },
+            ]);
+        });
+
+        it("resolves the item icon via Wowhead, keyed by item id (best-effort, empty on a miss)", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+            axios.get.mockImplementation((url) => {
+                if (url.includes("nether.wowhead.com")) {
+                    return Promise.resolve({ data: { name: "Cursed Vision", icon: "inv_helmet_naxxramas", quality: 4 } });
+                }
+                return Promise.resolve({ data: { equipped_items: [
+                    { slot: { type: "HEAD" }, item: { id: 29011 }, name: "Cursed Vision" },
+                ] } });
+            });
+            const [item] = await configured().getEquipment("Foo");
+            expect(item.iconUrl).toBe("https://wow.zamimg.com/images/wow/icons/large/inv_helmet_naxxramas.jpg");
         });
 
         it("caches the token across calls", async () => {
