@@ -117,15 +117,20 @@ async function unlinkReport(req, res) {
     ok(res, { reportId, logId: log.id, message: "Zuordnung entfernt." });
 }
 
-/** POST /api/cla/eval — body: { logId }. Evaluates a tracked log exactly once. */
+/**
+ * POST /api/cla/eval — body: { logId, section }. Evaluates one half of a tracked
+ * log ("cla" or "rpb", default "cla"); each half runs at most once and both merge
+ * into the same report page.
+ */
 async function evalLog(req, res) {
     const user = requireAdmin(req, res);
     if (!user) return;
     if (!requireCsrf(req, res)) return;
     const body = await readJsonBody(req);
-    const result = await evaluateLog(String(body.logId || "").trim());
-    if (result.ok) return ok(res, { id: result.id, url: result.url });
-    if (result.already) return ok(res, { alreadyEvaluated: true, url: result.url });
+    const section = String(body.section || "cla").trim() === "rpb" ? "rpb" : "cla";
+    const result = await evaluateLog(String(body.logId || "").trim(), section);
+    if (result.ok) return ok(res, { id: result.id, url: result.url, section: result.section });
+    if (result.already) return ok(res, { alreadyEvaluated: true, url: result.url, section });
     error(res, 400, "eval_failed", result.error || "Auswertung fehlgeschlagen.");
 }
 

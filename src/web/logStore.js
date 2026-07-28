@@ -95,8 +95,19 @@ function setButtonMessage(id, { buttonChannelId, buttonMessageId }) {
     return log;
 }
 
-/** Mark a log as evaluated and attach the generated report. Returns the saved log. */
-function markEvaluated(id, { reportRefId, reportUrl, title, zone } = {}) {
+/**
+ * Mark a log as evaluated and attach the generated report.
+ *
+ * A log can be evaluated twice — once for the CLA half and once for the RPB half
+ * — and both write into the same report page. `sections` records which halves are
+ * done so each button can be offered (and retired) on its own. `status` stays
+ * "done" as soon as any half exists, which is what the admin list reads.
+ *
+ * @param {string} id
+ * @param {object} opts
+ * @param {string[]} [opts.sections]  the halves this run produced
+ */
+function markEvaluated(id, { reportRefId, reportUrl, title, zone, sections } = {}) {
     const logs = readAll();
     const log = logs.find((l) => l.id === id);
     if (!log) return null;
@@ -105,6 +116,9 @@ function markEvaluated(id, { reportRefId, reportUrl, title, zone } = {}) {
     log.reportUrl = reportUrl || "";
     if (title) log.title = title;
     if (zone) log.zone = zone;
+    const done = new Set(log.sections || []);
+    for (const s of sections || []) done.add(s);
+    log.sections = [...done];
     log.evaluatedAt = Date.now();
     log.updatedAt = Date.now();
     writeAll(logs);
@@ -121,8 +135,9 @@ function getByReportRefId(reportRefId) {
 /**
  * Undo a log's evaluation: back to status "open", report reference dropped. Used
  * when the generated report is deleted — the log itself (and its event
- * assignment) stays, so it can simply be evaluated again. Returns the saved log,
- * or null for an unknown id.
+ * assignment) stays, so it can simply be evaluated again. Both halves are reset,
+ * because CLA and RPB write into the one report page that just went away.
+ * Returns the saved log, or null for an unknown id.
  */
 function clearEvaluation(id) {
     const logs = readAll();
@@ -131,10 +146,24 @@ function clearEvaluation(id) {
     log.status = "open";
     log.reportRefId = "";
     log.reportUrl = "";
+    delete log.sections;
     delete log.evaluatedAt;
     log.updatedAt = Date.now();
     writeAll(logs);
     return log;
+}
+
+/**
+ * Which halves of a log have already been evaluated.
+ *
+ * Logs written before the CLA/RPB split have no `sections` field; a "done" one of
+ * those was a full evaluation of everything that existed at the time, which is
+ * exactly the CLA half.
+ */
+function evaluatedSections(log) {
+    if (!log) return [];
+    if (Array.isArray(log.sections) && log.sections.length) return log.sections;
+    return log.status === "done" ? ["cla"] : [];
 }
 
 /**
@@ -214,6 +243,6 @@ function deleteLog(id) {
 
 module.exports = {
     listLogs, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
-    markEvaluated, clearEvaluation, setLogTitle, deleteLog, LOGS_FILE,
+    markEvaluated, evaluatedSections, clearEvaluation, setLogTitle, deleteLog, LOGS_FILE,
     linkEvent, unlinkEvent, listLogsForEvent,
 };

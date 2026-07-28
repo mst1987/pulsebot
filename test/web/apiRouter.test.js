@@ -2755,18 +2755,30 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
         });
 
-        it("returns the new report's id/url on success", async () => {
-            logChannel.evaluateLog.mockResolvedValue({ ok: true, id: "abc", url: "/r/abc" });
+        it("returns the new report's id/url on success and defaults to the CLA half", async () => {
+            logChannel.evaluateLog.mockResolvedValue({ ok: true, id: "abc", url: "/r/abc", section: "cla" });
             const res = await post("/api/cla/eval", { logId: "l1" });
-            expect(logChannel.evaluateLog).toHaveBeenCalledWith("l1");
-            expect(body(res)).toEqual({ data: { id: "abc", url: "/r/abc" } });
+            expect(logChannel.evaluateLog).toHaveBeenCalledWith("l1", "cla");
+            expect(body(res)).toEqual({ data: { id: "abc", url: "/r/abc", section: "cla" } });
         });
 
-        it("returns alreadyEvaluated + url (200, not an error) when the log was already done", async () => {
-            logChannel.evaluateLog.mockResolvedValue({ ok: false, already: true, url: "/r/xyz", error: "Dieser Log wurde bereits ausgewertet." });
+        it("passes the requested section through", async () => {
+            logChannel.evaluateLog.mockResolvedValue({ ok: true, id: "abc", url: "/r/abc", section: "rpb" });
+            await post("/api/cla/eval", { logId: "l1", section: "rpb" });
+            expect(logChannel.evaluateLog).toHaveBeenCalledWith("l1", "rpb");
+        });
+
+        it("falls back to the CLA half for an unknown section", async () => {
+            logChannel.evaluateLog.mockResolvedValue({ ok: true, id: "abc", url: "/r/abc", section: "cla" });
+            await post("/api/cla/eval", { logId: "l1", section: "nonsense" });
+            expect(logChannel.evaluateLog).toHaveBeenCalledWith("l1", "cla");
+        });
+
+        it("returns alreadyEvaluated + url (200, not an error) when that half was already done", async () => {
+            logChannel.evaluateLog.mockResolvedValue({ ok: false, already: true, url: "/r/xyz", error: "Die CLA-Auswertung liegt für diesen Log bereits vor." });
             const res = await post("/api/cla/eval", { logId: "l1" });
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-            expect(body(res)).toEqual({ data: { alreadyEvaluated: true, url: "/r/xyz" } });
+            expect(body(res)).toEqual({ data: { alreadyEvaluated: true, url: "/r/xyz", section: "cla" } });
         });
 
         it("returns 400 with the failure message otherwise", async () => {

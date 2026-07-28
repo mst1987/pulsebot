@@ -4,4 +4,5 @@ node_modules
 logs/
 data/
 reference/cla/appsscript/
+reference/rpb/appsscript/
 service-account.json

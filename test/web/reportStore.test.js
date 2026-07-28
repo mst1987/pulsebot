@@ -57,6 +57,21 @@ describe("web/reportStore", () => {
             const stored = getReport(id);
             expect(stored.generatedAt).toBe(12345);
         });
+
+        it("overwrites in place when an explicit id is passed", () => {
+            const first = saveReport({ title: "CLA only", consumables: { players: [] } });
+            const again = saveReport({ title: "CLA + RPB", rpb: { roles: {} } }, first);
+            expect(again).toBe(first);
+            const stored = getReport(first);
+            expect(stored.title).toBe("CLA + RPB");
+            expect(stored.rpb).toEqual({ roles: {} });
+        });
+
+        it("ignores a malformed id and generates a fresh one", () => {
+            const id = saveReport({ title: "T" }, "../../etc/passwd");
+            expect(id).toMatch(/^[a-f0-9]{6,}$/);
+            expect(id).not.toBe("../../etc/passwd");
+        });
     });
 
     describe("getReport", () => {

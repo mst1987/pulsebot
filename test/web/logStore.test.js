@@ -22,7 +22,7 @@ jest.mock("fs", () => {
 const fs = require("fs");
 const {
     listLogs, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
-    markEvaluated, clearEvaluation, setLogTitle, deleteLog,
+    markEvaluated, evaluatedSections, clearEvaluation, setLogTitle, deleteLog,
     linkEvent, unlinkEvent, listLogsForEvent,
 } = require("../../src/web/logStore.js");
 
@@ -122,6 +122,38 @@ describe("web/logStore", () => {
         it("returns null for an unknown id", () => {
             expect(markEvaluated("nope", {})).toBeNull();
         });
+
+        it("accumulates the evaluated sections across both halves", () => {
+            const a = saveLog(base());
+            const afterCla = markEvaluated(a.id, { reportRefId: "r1", sections: ["cla"] });
+            expect(afterCla.sections).toEqual(["cla"]);
+
+            const afterRpb = markEvaluated(a.id, { reportRefId: "r1", sections: ["rpb"] });
+            expect(afterRpb.sections).toEqual(expect.arrayContaining(["cla", "rpb"]));
+            expect(afterRpb.sections).toHaveLength(2);
+        });
+
+        it("does not duplicate a section that ran twice", () => {
+            const a = saveLog(base());
+            markEvaluated(a.id, { sections: ["cla"] });
+            const again = markEvaluated(a.id, { sections: ["cla"] });
+            expect(again.sections).toEqual(["cla"]);
+        });
+    });
+
+    describe("evaluatedSections", () => {
+        it("returns the explicit sections when present", () => {
+            expect(evaluatedSections({ status: "done", sections: ["rpb"] })).toEqual(["rpb"]);
+        });
+
+        it("treats a legacy done log (no sections field) as CLA-evaluated", () => {
+            expect(evaluatedSections({ status: "done" })).toEqual(["cla"]);
+        });
+
+        it("returns nothing for an open or missing log", () => {
+            expect(evaluatedSections({ status: "open" })).toEqual([]);
+            expect(evaluatedSections(null)).toEqual([]);
+        });
     });
 
     describe("getByReportRefId / clearEvaluation", () => {
@@ -150,6 +182,18 @@ describe("web/logStore", () => {
             expect(cleared.title).toBe("SSC"); // title stays — it's the WCL report name
             expect(getByReportRefId("abc123")).toBeNull();
             expect(getLog(a.id).status).toBe("open"); // persisted
+        });
+
+        it("resets both halves — CLA and RPB shared the report that was deleted", () => {
+            const a = saveLog(base());
+            markEvaluated(a.id, { reportRefId: "abc123", reportUrl: "/r/abc123", sections: ["cla"] });
+            markEvaluated(a.id, { reportRefId: "abc123", reportUrl: "/r/abc123", sections: ["rpb"] });
+            expect(evaluatedSections(getLog(a.id))).toEqual(["cla", "rpb"]);
+
+            const cleared = clearEvaluation(a.id);
+
+            expect(cleared.sections).toBeUndefined();
+            expect(evaluatedSections(cleared)).toEqual([]); // both buttons on offer again
         });
 
         it("keeps the event assignment when the evaluation is cleared", () => {
