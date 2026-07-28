@@ -1,9 +1,9 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { getHistoryChar, type ApiError, type CharGearReport, type GearItem, type HistoryCharData } from "../api";
 import { fmtMs } from "../lib/format";
 import { refreshWowheadLinks } from "../lib/wowheadTooltips";
-import { ClassSpecIcon } from "../components/ClassSpec";
+import { CLASS_SOURCE_LABELS } from "../components/ClassSpec";
 import { LootTable } from "../components/LootTable";
 
 type CharTab = "gear" | "loot";
@@ -93,26 +93,17 @@ function GearRow({ g, slot }: { g?: GearItem; slot: string }) {
         : <div className="gear-row" title={g.name || label}>{inner}</div>;
 }
 
-// The gear card: a compact summary strip (portrait, Ø iLvl, socket count)
-// above two columns of slot rows, weapons underneath — replaces the old
-// icon-only paperdoll grid, which spent most of its width on empty silhouette
-// space and needed a hover per item just to read its name.
-function GearPaperdoll({ gear, classIconUrl, itemLevel }: { gear: GearItem[]; classIconUrl: string; itemLevel: number }) {
+// The gear card: two columns of slot rows with the weapons underneath —
+// replaces the old icon-only paperdoll grid, which spent most of its width on
+// empty silhouette space and needed a hover per item just to read its name.
+// The portrait and the Ø iLvl / socket figures that used to sit on top live in
+// the page hero now, so they are not repeated here.
+function GearPaperdoll({ gear }: { gear: GearItem[] }) {
     const bySlot = new Map(gear.map((g) => [g.slot, g]));
     const known = new Set([...GEAR_LEFT, ...GEAR_RIGHT, ...GEAR_BOTTOM]);
     const extras = gear.filter((g) => !known.has(g.slot));
-    const ilvls = gear.map((g) => g.level || 0).filter((n) => n > 0);
-    const avg = itemLevel || (ilvls.length ? Math.round(ilvls.reduce((a, b) => a + b, 0) / ilvls.length) : 0);
-    const socketCount = gear.reduce((n, g) => n + g.sockets.length, 0);
     return (
         <div className="gear-card-new">
-            <div className="gear-summary">
-                {!!classIconUrl && <img className="gear-portrait" src={classIconUrl} alt="" />}
-                <div className="gear-stats">
-                    {!!avg && <div className="stat"><b>{avg}</b><span>Ø iLvl</span></div>}
-                    {!!socketCount && <div className="stat"><b>{socketCount}</b><span>Sockel</span></div>}
-                </div>
-            </div>
             <div className="gear-grid">
                 <div>{GEAR_LEFT.map((slot) => <GearRow key={slot} g={bySlot.get(slot)} slot={slot} />)}</div>
                 <div>{GEAR_RIGHT.map((slot) => <GearRow key={slot} g={bySlot.get(slot)} slot={slot} />)}</div>
@@ -126,40 +117,188 @@ function GearPaperdoll({ gear, classIconUrl, itemLevel }: { gear: GearItem[]; cl
 }
 
 // The gear findings of the character's newest CLA evaluation — the detail
-// behind the roster overview's issue count. Sits next to the live Battle.net
-// paperdoll on purpose: the paperdoll says what is equipped, this says what
+// behind the roster overview's issue count. Sits above the live Battle.net
+// paperdoll on purpose: the paperdoll says what is equipped now, this says what
 // was wrong with it the last time the raid was logged.
+//
+// One card per finding (not a wrapped badge row): the item keeps its own line,
+// slot and verdict read underneath, and the severity is a coloured rule down
+// the left, so "kein Item" is separable from a gem nit at a glance.
 function GearIssuesCard({ gear }: { gear: CharGearReport }) {
     const when = gear.generatedAt ? fmtMs(gear.generatedAt, false) : "";
+    const high = gear.issues.filter((i) => i.severity === "high").length;
     return (
-        <div className="dash-card" style={{ marginBottom: 12 }}>
+        <div className="dash-card" style={{ marginBottom: 16 }}>
             <div className="dash-card-head">
                 <h3>Gear-Issues</h3>
-                <span className="small" style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
-                    {[gear.reportTitle, gear.zone, when].filter(Boolean).join(" · ")}
+                {!!gear.issueCount && (
+                    <>
+                        <span className="lbadge lbadge-warn">{high} kritisch</span>
+                        <span className="lbadge lbadge-medium">{gear.issueCount - high} weitere</span>
+                    </>
+                )}
+                <span className="small" style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <span className="sub">{[gear.reportTitle, gear.zone, when].filter(Boolean).join(" · ")}</span>
                     {!!gear.reportRefId && <a className="mlink" href={`/r/${gear.reportRefId}`} target="_blank" rel="noopener noreferrer">Auswertung ↗</a>}
                     {!!gear.reportUrl && <a className="mlink" href={gear.reportUrl} target="_blank" rel="noopener noreferrer">Log ↗</a>}
                 </span>
             </div>
             {gear.issueCount
                 ? (
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "12px 16px" }}>
+                    <div className="gi-list">
                         {gear.issues.map((issue, i) => (
-                            <span key={`${issue.itemId}-${issue.kind}-${i}`} className="lbadge" style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
-                                {!!issue.iconUrl && <img src={issue.iconUrl} alt="" width={18} height={18} style={{ borderRadius: 4 }} loading="lazy" />}
-                                <span>{issue.itemName || "—"}</span>
-                                <span className={`lbadge${issue.severity === "high" ? " lbadge-warn" : ""}`}>{issue.label}</span>
-                            </span>
+                            <div className={`gi-row${issue.severity === "high" ? " is-high" : ""}`} key={`${issue.itemId}-${issue.kind}-${i}`}>
+                                {issue.iconUrl
+                                    ? <img className="gi-ico" src={issue.iconUrl} alt="" loading="lazy" />
+                                    : <span className="gi-ico gi-ico-ph" />}
+                                <div className="gi-body">
+                                    <span className="gi-item" title={issue.itemName}>{issue.itemName || "—"}</span>
+                                    <span className="gi-meta">
+                                        <span className="gi-label">{issue.label}</span>
+                                        {!!issue.slotName && <span className="gi-slot">{issue.slotName}</span>}
+                                    </span>
+                                </div>
+                            </div>
                         ))}
                     </div>
                 )
-                : <p className="sub" style={{ padding: "0 16px 14px" }}>Keine Gear-Probleme in der letzten Auswertung.</p>}
+                : <p className="sub" style={{ padding: "2px 16px 14px" }}>Keine Gear-Probleme in der letzten Auswertung.</p>}
         </div>
     );
 }
 
-function GearTab({ data, onReload }: { data: HistoryCharData; onReload: () => void }) {
+// Ø item level: what the Battle.net summary reports, else the average over the
+// equipped items we actually got back.
+function averageItemLevel(data: HistoryCharData): number {
+    if (data.charSummary?.itemLevel) return data.charSummary.itemLevel;
+    const levels = (data.gear || []).map((g) => g.level || 0).filter((n) => n > 0);
+    if (!levels.length) return 0;
+    return Math.round(levels.reduce((a, b) => a + b, 0) / levels.length);
+}
+
+function HeroStat({ label, value, tone, title }: {
+    label: string;
+    value: number | string;
+    tone?: "total" | "warn" | "ok";
+    title?: string;
+}) {
+    return (
+        <div className={`hero-stat${tone ? ` is-${tone}` : ""}`} title={title}>
+            <span className="hero-stat-label">{label}</span>
+            <span className="hero-stat-value">{value}</span>
+        </div>
+    );
+}
+
+// The character's identity band above the tabs — same three-band hero the raid
+// detail page uses, with a class portrait instead of the calendar badge. It
+// absorbs what used to be scattered around the Gear tab (the reload button, the
+// namespace badge, the "Level 70 · Warrior · Ø iLvl …" diagnostics line), so
+// the page opens with one block that answers "wer ist das und wie steht er da".
+function CharHero({ data, onReload }: { data: HistoryCharData; onReload: () => void }) {
+    const info = data.info;
+    const summary = data.charSummary;
+    const gear = data.gearIssues;
+    const classColor = info?.classColor || "";
+    const avgIlvl = averageItemLevel(data);
+    const sockets = (data.gear || []).reduce((n, g) => n + g.sockets.length, 0);
+    const realm = data.realm || summary?.realm || "";
+
+    return (
+        <header className="page-hero char-hero" style={{ "--class-color": classColor || undefined } as CSSProperties}>
+            <div className="hero-main">
+                <div className="hero-portrait">
+                    <span className="hero-portrait-ring" />
+                    {info?.iconUrl
+                        ? <img src={info.iconUrl} alt="" />
+                        : <span className="hero-portrait-ph">{(data.character || "?").slice(0, 1).toUpperCase()}</span>}
+                    {!!summary?.level && <span className="hero-portrait-level" title="Level laut Battle.net-API">{summary.level}</span>}
+                </div>
+                <div className="hero-ident">
+                    <div className="hero-eyebrow">
+                        <span className="hero-kicker">Charakter</span>
+                        {!!info?.source && (
+                            <span className="lbadge" title="Woher Klasse und Spec bekannt sind">
+                                {CLASS_SOURCE_LABELS[info.source] || info.source}
+                            </span>
+                        )}
+                    </div>
+                    {/* The name stays in the text colour — a class colour at
+                        title size is unreadable on the light theme's white
+                        panels (Priest is literally #ffffff). The class colour
+                        carries on the line below, the ring and the top rule. */}
+                    <h1 className="hero-title">{data.character}</h1>
+                    <div className="hero-sub">
+                        {info?.className
+                            ? (
+                                <span className="hero-class">
+                                    {!!info.iconUrl && <img src={info.iconUrl} alt="" />}
+                                    {info.spec ? `${info.spec} ${info.className}` : info.className}
+                                </span>
+                            )
+                            : <span className="sub">Klasse noch nicht aufgelöst</span>}
+                        {!!realm && <><span className="hero-dot">·</span><span>{realm}</span></>}
+                    </div>
+                </div>
+                <div className="hero-actions">
+                    <div className="hero-actions-row">
+                        {!!data.wclUrl && <a className="btn btn-ghost btn-sm" href={data.wclUrl} target="_blank" rel="noopener noreferrer">Warcraft Logs ↗</a>}
+                        {!!data.armoryUrl && <a className="btn btn-ghost btn-sm" href={data.armoryUrl} target="_blank" rel="noopener noreferrer">Armory ↗</a>}
+                        {data.gearConfigured
+                            ? <button className="btn btn-ghost btn-sm" type="button" onClick={onReload}>↻ Gear neu laden</button>
+                            : <Link className="btn btn-ghost btn-sm" to="/settings">Battle.net einrichten</Link>}
+                    </div>
+                </div>
+            </div>
+
+            <dl className="hero-meta">
+                {!!summary?.faction && (
+                    <div className="hero-meta-item"><dt>Fraktion</dt><dd>{summary.faction}</dd></div>
+                )}
+                <div className="hero-meta-item">
+                    <dt>Zuletzt online</dt>
+                    <dd>{summary?.lastLogin ? fmtMs(summary.lastLogin, false) : <span className="sub">unbekannt</span>}</dd>
+                </div>
+                <div className="hero-meta-item">
+                    <dt>Letzte Auswertung</dt>
+                    <dd>{gear?.generatedAt
+                        ? (gear.reportRefId
+                            ? <a className="mlink" href={`/r/${gear.reportRefId}`} target="_blank" rel="noopener noreferrer">{fmtMs(gear.generatedAt, false)}</a>
+                            : fmtMs(gear.generatedAt, false))
+                        : <span className="sub">keine</span>}</dd>
+                </div>
+                {data.gearConfigured && !!data.gearNamespace && (
+                    <div className="hero-meta-item">
+                        <dt>Profile-Namespace</dt>
+                        <dd><span className="lbadge" title="abgefragter Battle.net Profile-Namespace">{data.gearNamespace}</span></dd>
+                    </div>
+                )}
+            </dl>
+
+            <div className="hero-foot">
+                <div className="hero-stats">
+                    <HeroStat label="Ø iLvl" value={avgIlvl || "—"} tone="total" title="Durchschnittliches Item-Level des aktuellen Gears" />
+                    {!!sockets && <HeroStat label="Sockel" value={sockets} title="Sockel im aktuellen Gear" />}
+                    <HeroStat label="Loot" value={data.items.length} title="Importierte Items dieses Charakters" />
+                    {gear
+                        ? (
+                            <HeroStat
+                                label="Gear-Issues" value={gear.issueCount}
+                                tone={gear.issueCount ? "warn" : "ok"}
+                                title={gear.issueCount ? `${gear.issueCount} Befund(e) in der letzten Auswertung` : "Letzte Auswertung ohne Befund"}
+                            />
+                        )
+                        : <HeroStat label="Gear-Issues" value="—" title="In keiner der letzten Auswertungen enthalten" />}
+                </div>
+            </div>
+        </header>
+    );
+}
+
+function GearTab({ data }: { data: HistoryCharData }) {
     const s = data.charSummary;
+    // A level that isn't 70 means the profile lookup hit a different era's
+    // character — the gear shown would then be the wrong one entirely.
     const wrongLevel = !!(s && s.level && s.level !== 70);
 
     let gearInner: ReactNode;
@@ -167,48 +306,32 @@ function GearTab({ data, onReload }: { data: HistoryCharData; onReload: () => vo
         gearInner = (
             <div className="dash-card gear-card">
                 <div className="dash-card-head"><h3>Aktuelles Gear</h3><span className="small" style={{ marginLeft: "auto" }}>Battle.net API</span></div>
-                <GearPaperdoll
-                    gear={data.gear}
-                    classIconUrl={data.info?.iconUrl || ""}
-                    itemLevel={s?.itemLevel || 0}
-                />
+                <GearPaperdoll gear={data.gear} />
             </div>
         );
     } else if (data.gearConfigured) {
         gearInner = (
             <>
                 <div className="flash flash-err" style={{ margin: "0 0 12px" }}>{data.gearError || "Kein Live-Gear von der Battle.net-API verfügbar."}</div>
-                <p className="sub">Nutze solange den Armory-Link oben. „Neu laden" fragt erneut ab.</p>
+                <p className="sub">Nutze solange den Armory-Link oben. „Gear neu laden" fragt erneut ab.</p>
             </>
         );
     } else {
-        gearInner = <p className="sub">Für Live-Gear Battle.net-Zugang in den <Link to="/settings">Einstellungen</Link> hinterlegen. Ohne Zugang steht der Armory-Link oben zur Verfügung.</p>;
+        gearInner = (
+            <div className="sheetcard">
+                <p className="sub" style={{ margin: 0 }}>
+                    Für Live-Gear Battle.net-Zugang in den <Link to="/settings">Einstellungen</Link> hinterlegen.
+                    Ohne Zugang steht der Armory-Link oben zur Verfügung.
+                </p>
+            </div>
+        );
     }
-
-    const diagParts = [
-        s?.level ? <strong key="level">Level {s.level}</strong> : null,
-        s?.className || null,
-        s?.itemLevel ? `Ø iLvl ${s.itemLevel}` : null,
-        s?.realm ? `Realm: ${s.realm}` : null,
-        s?.lastLogin ? `zuletzt online ${fmtMs(s.lastLogin, false)}` : null,
-    ].filter((p): p is NonNullable<typeof p> => p !== null);
 
     return (
         <>
-            <div className="row-actions" style={{ marginBottom: 12, alignItems: "center" }}>
-                {data.gearConfigured
-                    ? <a className="btn btn-ghost btn-sm" href="#" onClick={(e) => { e.preventDefault(); onReload(); }}>↻ Neu laden</a>
-                    : <Link className="btn btn-ghost btn-sm" to="/settings">Battle.net einrichten</Link>}
-                {data.gearConfigured && data.gearNamespace && <span className="lbadge" title="abgefragter Profile-Namespace">{data.gearNamespace}</span>}
-            </div>
-            {s && (
-                <div className="sheetcard" style={{ marginBottom: 12 }}>
-                    <div className="small">{diagParts.map((p, i) => <span key={i}>{i > 0 && " · "}{p}</span>)}</div>
-                    {wrongLevel && (
-                        <div className="flash flash-err" style={{ margin: "10px 0 0" }}>
-                            Die Blizzard-API meldet <strong>Level {s!.level}</strong> — wahrscheinlich der falsche Namespace/Char (nicht dein TBC-Char auf Level 70). Passe den Profile-Namespace in den <Link to="/settings">Einstellungen</Link> an (z.B. profile-classicann-…).
-                        </div>
-                    )}
+            {wrongLevel && (
+                <div className="flash flash-err" style={{ margin: "0 0 16px" }}>
+                    Die Blizzard-API meldet <strong>Level {s!.level}</strong> — wahrscheinlich der falsche Namespace/Char (nicht dein TBC-Char auf Level 70). Passe den Profile-Namespace in den <Link to="/settings">Einstellungen</Link> an (z.B. profile-classicann-…).
                 </div>
             )}
             {data.gearIssues && <GearIssuesCard gear={data.gearIssues} />}
@@ -250,24 +373,11 @@ export default function HistoryCharPage() {
     if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
     if (!data) return <div className="empty">Lade…</div>;
 
-    const info = data.info;
-
     return (
         <>
             <p className="note"><Link className="mlink" to={from.href}>{from.label}</Link></p>
-            <h1 className="page-title">
-                {data.character}
-                {data.realm && <span className="sub"> · {data.realm}</span>}
-                {info?.className && (
-                    <span style={{ fontWeight: 700, color: info.classColor || undefined }}>
-                        {" "}· <ClassSpecIcon iconUrl={info.iconUrl || ""} />{info.spec ? `${info.spec} ${info.className}` : info.className}
-                    </span>
-                )}
-            </h1>
-            <div className="row-actions" style={{ marginBottom: 16 }}>
-                {data.armoryUrl && <a className="btn btn-ghost btn-sm" href={data.armoryUrl} target="_blank" rel="noopener noreferrer">Armory ↗</a>}
-                {data.wclUrl && <a className="btn btn-ghost btn-sm" href={data.wclUrl} target="_blank" rel="noopener noreferrer">Warcraft Logs ↗</a>}
-            </div>
+
+            <CharHero data={data} onReload={load} />
 
             <div className="tabs" role="tablist">
                 <button type="button" className={`tab-btn${tab === "gear" ? " active" : ""}`} role="tab" onClick={() => switchTab("gear")}>
@@ -279,7 +389,7 @@ export default function HistoryCharPage() {
                 </button>
             </div>
 
-            {tab === "gear" && <GearTab data={data} onReload={load} />}
+            {tab === "gear" && <GearTab data={data} />}
             {tab === "loot" && (
                 data.items.length
                     ? (

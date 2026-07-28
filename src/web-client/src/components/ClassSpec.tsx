@@ -5,6 +5,16 @@
 // catalog, see lib/recruitmentSpecs.ts's header comment).
 import { Link } from "react-router-dom";
 
+// Where a stored class/spec came from, so a wrong entry can be traced back —
+// mirrors renderAdmin.js's CLASS_SOURCE_LABELS. Shared by the Charaktere table
+// and the character page's hero.
+export const CLASS_SOURCE_LABELS: Record<string, string> = {
+    export: "Loot-Export",
+    report: "Auswertung",
+    wcl: "Warcraft Log",
+    manual: "manuell",
+};
+
 export function ClassSpecIcon({ iconUrl }: { iconUrl: string }) {
     if (!iconUrl) return null;
     return (

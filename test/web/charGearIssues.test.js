@@ -90,8 +90,48 @@ describe("web/charGearIssues", () => {
             severity: "high",
             itemId: "28963",
             itemName: "Spellstrike Hood",
+            slotName: "Kopf",
             iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_helmet_21.jpg",
         }]);
+    });
+
+    it("leaves slotName empty when the report carried no usable slot", () => {
+        mockListReports.mockReturnValue([meta("a1", 200)]);
+        mockGetReport.mockReturnValue({ roster: [{ name: "Anna", issues: [issue({ slot: undefined })] }] });
+        expect(load().latestIssuesByCharacter().anna.issues[0].slotName).toBe("");
+    });
+
+    it("puts high findings before medium ones", () => {
+        mockListReports.mockReturnValue([meta("a1", 200)]);
+        mockGetReport.mockReturnValue({
+            roster: [{
+                name: "Anna",
+                issues: [
+                    issue({ kind: "badGem", label: "blauer Edelstein", severity: "medium", slot: 10 }),
+                    issue({ kind: "noItem", label: "kein Item", severity: "high", slot: 12 }),
+                    issue({ kind: "emptySocket", label: "leerer Sockel", severity: "medium", slot: 14 }),
+                ],
+            }],
+        });
+
+        // Stable within a severity: the two medium findings keep report order.
+        expect(load().latestIssuesByCharacter().anna.issues.map((i) => i.label))
+            .toEqual(["kein Item", "blauer Edelstein", "leerer Sockel"]);
+    });
+
+    it("caps after sorting, so a high finding is never dropped for a medium one", () => {
+        const many = [
+            ...Array.from({ length: 30 }, () => issue({ label: "leerer Sockel", severity: "medium" })),
+            issue({ label: "kein Item", severity: "high" }),
+        ];
+        mockListReports.mockReturnValue([meta("a1", 200)]);
+        mockGetReport.mockReturnValue({ roster: [{ name: "Anna", issues: many }] });
+
+        const entry = load().latestIssuesByCharacter().anna;
+
+        expect(entry.issueCount).toBe(31); // the count itself is never capped
+        expect(entry.issues).toHaveLength(25);
+        expect(entry.issues[0].label).toBe("kein Item");
     });
 
     it("normalises an unknown severity to medium", () => {

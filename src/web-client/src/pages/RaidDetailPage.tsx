@@ -31,14 +31,14 @@ function HeroStat({ label, value, of, tone, fill, title }: {
     title?: string;
 }) {
     return (
-        <div className={`rh-stat${tone ? ` is-${tone}` : ""}`} title={title}>
-            <span className="rh-stat-label">{label}</span>
-            <span className="rh-stat-value">
+        <div className={`hero-stat${tone ? ` is-${tone}` : ""}`} title={title}>
+            <span className="hero-stat-label">{label}</span>
+            <span className="hero-stat-value">
                 {value}
-                {of ? <span className="rh-stat-of">/ {of}</span> : null}
+                {of ? <span className="hero-stat-of">/ {of}</span> : null}
             </span>
             {typeof fill === "number" && (
-                <span className="rh-bar"><i style={{ width: `${Math.min(100, Math.max(0, fill * 100))}%` }} /></span>
+                <span className="hero-bar"><i style={{ width: `${Math.min(100, Math.max(0, fill * 100))}%` }} /></span>
             )}
         </div>
     );
@@ -54,7 +54,7 @@ function OverviewStats({ data }: { data: RaidDetailData }) {
     const signups = ev.signupCount || 0;
     const missing = attendance.missing.length;
     return (
-        <div className="rh-stats">
+        <div className="hero-stats">
             {rosterKnown
                 ? (
                     <HeroStat
@@ -95,7 +95,7 @@ function RosterAvatars({ setup }: { setup: RaidDetailData["setup"] }) {
     const rest = players.length - shown.length;
     return (
         <div className="avatar-stack">
-            <span className="rh-stat-label rh-roster-label">Roster</span>
+            <span className="hero-stat-label hero-roster-label">Roster</span>
             {shown.map((p, i) => {
                 const color = p.classColor || "#9aa0aa";
                 const sub = p.specName || p.className;
@@ -324,7 +324,7 @@ function HeaderActions({ data, eventId, csrfToken, onSwitchTab, onDone }: {
     };
 
     return (
-        <div className="rh-actions-row">
+        <div className="hero-actions-row">
             <PageLoader show={busy} text="Wird gepostet" />
             {!!eventSheet?.url && (
                 <>
@@ -1245,33 +1245,33 @@ export default function RaidDetailPage() {
             {backLink}
             {data.eventsWarning && <div className="flash flash-err">{data.eventsWarning}</div>}
 
-            <header className="raid-hero">
-                <div className="rh-main">
-                    <div className="rh-date" title={when?.full || undefined}>
-                        <span className="rh-date-dow">{when?.weekday || "—"}</span>
-                        <span className="rh-date-day">{when?.day || "··"}</span>
-                        <span className="rh-date-mon">{when ? `${when.month} ${when.year}` : ""}</span>
+            <header className="page-hero">
+                <div className="hero-main">
+                    <div className="hero-date" title={when?.full || undefined}>
+                        <span className="hero-date-dow">{when?.weekday || "—"}</span>
+                        <span className="hero-date-day">{when?.day || "··"}</span>
+                        <span className="hero-date-mon">{when ? `${when.month} ${when.year}` : ""}</span>
                     </div>
-                    <div className="rh-ident">
-                        <div className="rh-eyebrow">
-                            <span className="rh-kicker">Raid-Event</span>
+                    <div className="hero-ident">
+                        <div className="hero-eyebrow">
+                            <span className="hero-kicker">Raid-Event</span>
                             {data.categoryName && <span className="cat-badge">{data.categoryName}</span>}
                         </div>
-                        <h1 className="rh-title">{ev.title || "(ohne Titel)"}</h1>
-                        <div className="rh-when">
+                        <h1 className="hero-title">{ev.title || "(ohne Titel)"}</h1>
+                        <div className="hero-when">
                             <ClockIcon />
-                            <span className="rh-time">{when?.time || "—"}</span>
-                            <span className="rh-time-unit">Uhr</span>
-                            {relDay && <span className={`rh-rel${isPast ? " is-past" : isSoon ? " is-soon" : ""}`}>{relDay}</span>}
+                            <span className="hero-time">{when?.time || "—"}</span>
+                            <span className="hero-time-unit">Uhr</span>
+                            {relDay && <span className={`hero-rel${isPast ? " is-past" : isSoon ? " is-soon" : ""}`}>{relDay}</span>}
                         </div>
                     </div>
-                    <div className="rh-actions">
+                    <div className="hero-actions">
                         <HeaderActions data={data} eventId={eventId} csrfToken={csrfToken} onSwitchTab={switchTab} onDone={afterChange} />
                     </div>
                 </div>
 
-                <dl className="rh-meta">
-                    <div className="rh-meta-item">
+                <dl className="hero-meta">
+                    <div className="hero-meta-item">
                         <dt>Channel</dt>
                         <dd>
                             <a className="mlink" href={channelUrl(data.guildId, ev.channelId)} target="_blank" rel="noopener noreferrer">
@@ -1279,7 +1279,7 @@ export default function RaidDetailPage() {
                             </a>
                         </dd>
                     </div>
-                    <div className="rh-meta-item">
+                    <div className="hero-meta-item">
                         <dt>Discord</dt>
                         <dd>
                             <a className="mlink" href={eventPostUrl(data.guildId, ev.channelId, ev.id)} target="_blank" rel="noopener noreferrer">
@@ -1287,7 +1287,7 @@ export default function RaidDetailPage() {
                             </a>
                         </dd>
                     </div>
-                    <div className="rh-meta-item">
+                    <div className="hero-meta-item">
                         <dt>Raid-Helper</dt>
                         <dd>
                             <a className="mlink" href={raidplanUrl(ev.id)} target="_blank" rel="noopener noreferrer">Setup / Comp</a>
@@ -1295,7 +1295,7 @@ export default function RaidDetailPage() {
                     </div>
                 </dl>
 
-                <div className="rh-foot">
+                <div className="hero-foot">
                     <OverviewStats data={data} />
                     <RosterAvatars setup={data.setup} />
                 </div>

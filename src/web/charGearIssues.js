@@ -11,6 +11,7 @@
 // so a report's "Keslight" lines up with the loot history's "keslight".
 const { listReports, getReport } = require("./reportStore");
 const { characterKey: lootCharacterKey, splitPlayer } = require("../utils/lootImport");
+const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 
 // How many of the newest evaluations are read. Same bound (and reason) as
 // characterInfo.js's MAX_LOCAL_REPORTS: far enough back to cover everyone who
@@ -35,14 +36,25 @@ function issueIconUrl(icon) {
 }
 
 function trimIssue(issue) {
+    const slot = Number(issue.slot);
     return {
         kind: issue.kind || "",
         label: issue.label || "",
         severity: issue.severity === "high" ? "high" : "medium",
         itemId: issue.itemId ? String(issue.itemId) : "",
         itemName: issue.itemName || "",
+        // "Ring 1" reads better than a bare slot index, and two findings on two
+        // different rings are otherwise indistinguishable in the list.
+        slotName: Number.isFinite(slot) ? (SLOT_NAMES[slot] || "") : "",
         iconUrl: issueIconUrl(issue.icon),
     };
+}
+
+// High findings (a missing item/enchant) before the medium ones (a gem nit),
+// so a long list opens with what actually costs the raid something.
+function bySeverity(a, b) {
+    if (a.severity === b.severity) return 0;
+    return a.severity === "high" ? -1 : 1;
 }
 
 // A report's own file never changes once written (saveReport() always mints a
@@ -73,7 +85,9 @@ function condenseReport(meta) {
             character: splitPlayer(row.name).character,
             className: row.type || "",
             issueCount: issues.length,
-            issues: issues.slice(0, MAX_ISSUES).map(trimIssue),
+            // Sort first, cap second — a capped list must not drop a high
+            // finding in favour of a medium one that happened to come first.
+            issues: issues.map(trimIssue).sort(bySeverity).slice(0, MAX_ISSUES),
         });
     }
     const condensed = { id: meta.id, entries };
