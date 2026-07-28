@@ -16,9 +16,11 @@ const { matchRaidsheet } = require("../../utils/raidsheets");
 const { buildSetupView, tankCandidates } = require("../../utils/setupView");
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
+    hasStarted, isRosterKnown,
 } = require("../../utils/attendance");
 const { resolveAssignmentProfiles } = require("../raiderCharactersStore");
 const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("../eventSheetStore");
+const { getRaidEvent } = require("../raidEventStore");
 const {
     getEventSoftres, saveEventSoftres, setEventSoftresLink, markEventSoftresPosted,
 } = require("../eventSoftresStore");
@@ -59,29 +61,55 @@ async function getRaidDetail(req, res, url) {
     const matched = matchRaidsheet(raidsheets, found.e.title);
 
     // Pull the Raid-Helper raidplan setup so it can be shown inline (best-effort).
+    // Once a raid is over, Raid-Helper eventually answers with an empty raidplan;
+    // the snapshot raidEventScan.js froze while it was still there then stands in,
+    // so a past raid keeps showing the setup it actually ran with.
     let setup = null;
     let setupError = null;
     let tankCands = [];
+    let setupFromSnapshot = false;
+    const snapshot = getRaidEvent(eventId);
+    const snapshotSetup = (snapshot && snapshot.setup) || [];
     try {
         const rh = createRaidhelperClient();
         const result = await rh.getSetup(eventId);
-        const slots = result && result.setup ? result.setup : [];
+        let slots = result && result.setup ? result.setup : [];
+        if (!slots.length && snapshotSetup.length) {
+            slots = snapshotSetup;
+            setupFromSnapshot = true;
+        }
         setup = buildSetupView(slots);
         tankCands = tankCandidates(slots);
     } catch (e) {
-        console.error("event setup load failed:", e.message);
-        setupError = e.message || "Setup konnte nicht geladen werden.";
+        if (snapshotSetup.length) {
+            setup = buildSetupView(snapshotSetup);
+            tankCands = tankCandidates(snapshotSetup);
+            setupFromSnapshot = true;
+        } else {
+            console.error("event setup load failed:", e.message);
+            setupError = e.message || "Setup konnte nicht geladen werden.";
+        }
     }
+
+    // A raid that is over and whose signups Raid-Helper no longer returns (and
+    // that was never snapshotted) has an UNKNOWN roster — not an empty one.
+    // Reporting it as "0 Anmeldungen, alle fehlen" is what made past raids look
+    // like nobody had ever reacted.
+    const isPast = hasStarted(found.e);
+    const signUps = found.e.signUps || [];
+    const signupsKnown = isRosterKnown(found.e);
 
     // Attendance: who (holding a role assigned to this event's category) has not
     // reacted to the signup yet. Empty roleIds → feature simply stays inactive.
+    // Skipped entirely when the roster is unknown: every expected raider would
+    // land in "missing" and the page would invite a pointless mass ping.
     const categoryRoleIds = (getConfig().categoryRoles || {})[found.g.categoryId] || [];
     let attendance = { responded: [], missing: [] };
     let membersError = null;
-    if (categoryRoleIds.length) {
+    if (categoryRoleIds.length && signupsKnown) {
         const membersResult = await discord.listMembersWithRoles(guildId, categoryRoleIds);
         membersError = membersResult.error;
-        attendance = computeAttendance(membersResult.members, found.e.signUps || []);
+        attendance = computeAttendance(membersResult.members, signUps);
         // Enrich with class/spec/colour from each member's most recent signup in
         // *this same category* (raiders often play a different character on a
         // different raid day/type, so history from other categories would guess
@@ -127,7 +155,13 @@ async function getRaidDetail(req, res, url) {
             channelId: found.e.channelId,
             channelName: found.e.channelName,
             signupCount: found.e.signupCount,
+            isPast,
+            // false → the roster is unknown (past raid, Raid-Helper dropped it and
+            // nothing was snapshotted); the UI must not render it as "0".
+            signupsKnown,
+            signUpsFromSnapshot: Boolean(found.e.signUpsFromSnapshot),
         },
+        setupFromSnapshot,
         categoryName: found.g.categoryName,
         guildId,
         eventsWarning: stale ? (groupsError || "Raid-Helper aktuell nicht erreichbar — zeige zwischengespeicherte Event-Daten.") : null,
@@ -207,6 +241,12 @@ async function postPingMissing(req, res) {
     const categoryRoleIds = (getConfig().categoryRoles || {})[found.g.categoryId] || [];
     if (!categoryRoleIds.length) {
         return error(res, 400, "no_roles", "Dieser Kategorie sind keine Rollen zugeordnet (Einstellungen → Events).");
+    }
+    // A raid that already started expects no further signups — and once
+    // Raid-Helper drops its roster, everyone would count as "missing" and get
+    // pinged. Refuse instead of firing a pointless mass ping.
+    if (hasStarted(found.e)) {
+        return error(res, 400, "event_past", "Der Raid hat bereits begonnen — fehlende Raider zu pingen ergibt hier keinen Sinn mehr.");
     }
     const { members, error: membersError } = await discord.listMembersWithRoles(guildId, categoryRoleIds);
     if (membersError) return error(res, 400, "members_unavailable", membersError);

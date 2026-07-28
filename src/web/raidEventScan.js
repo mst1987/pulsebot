@@ -7,13 +7,24 @@
 
 const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const discord = require("./discord");
-const { saveRaidEvents } = require("./raidEventStore");
+const { saveRaidEvents, getRaidEvent } = require("./raidEventStore");
 const { RECENT_WINDOW_DAYS } = require("./recentEvents");
+
+// A finished raid's raidplan costs one extra HTTP call, so only events without a
+// setup snapshot are probed, and at most this many per scan — a backlog is worked
+// off over a few sweeps instead of firing dozens of requests at once.
+const MAX_SETUP_FETCHES_PER_SCAN = 3;
 
 /**
  * Scan one guild's recently finished events and upsert them into the store.
  * Best-effort: a Raid-Helper failure is reported, never thrown, so neither the
  * dashboard request nor the background timer ever crash on it.
+ *
+ * Besides the event meta this captures the state that only exists WHILE
+ * Raid-Helper still knows the event: its signup roster and its raidplan. Both
+ * vanish from Raid-Helper's answers some time after the raid, and without a
+ * snapshot a past raid's detail page falls back to "0 Anmeldungen" and counts
+ * every expected raider as missing.
  * @returns {{ scanned: number, error: string|null }}
  */
 async function scanRaidEvents(guildId, { windowDays = RECENT_WINDOW_DAYS } = {}) {
@@ -24,9 +35,24 @@ async function scanRaidEvents(guildId, { windowDays = RECENT_WINDOW_DAYS } = {})
         const events = await rh.getPastEvents(sinceSeconds);
         const catMap = discord.getChannelCategoryMap(guildId);
         const toSave = [];
+        let setupFetches = 0;
         for (const ev of events || []) {
             const meta = catMap[ev.channelId];
             if (!meta) continue; // event channel not in this guild (or unknown to Discord)
+            // Freeze the raidplan once; an event we already captured is never
+            // re-fetched. saveRaidEvents keeps the stored setup when the incoming
+            // one is empty, so passing nothing here is safe.
+            let setup = [];
+            const stored = getRaidEvent(ev.id);
+            if (!(stored && (stored.setup || []).length) && setupFetches < MAX_SETUP_FETCHES_PER_SCAN) {
+                setupFetches += 1;
+                try {
+                    const result = await rh.getSetup(ev.id);
+                    setup = (result && result.setup) || [];
+                } catch {
+                    // raidplan gone / API hiccup — retried on a later sweep
+                }
+            }
             toSave.push({
                 id: ev.id,
                 guildId,
@@ -36,6 +62,8 @@ async function scanRaidEvents(guildId, { windowDays = RECENT_WINDOW_DAYS } = {})
                 categoryId: meta.categoryId || "",
                 categoryName: meta.categoryName || "",
                 startTime: ev.startTime,
+                signUps: (ev.signUps || []).map((s) => ({ userId: s.userId, specName: s.specName })),
+                setup,
             });
         }
         saveRaidEvents(toSave);

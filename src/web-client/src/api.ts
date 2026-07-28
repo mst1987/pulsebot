@@ -283,6 +283,13 @@ export type RaidDetailEvent = {
     channelId: string;
     channelName: string;
     signupCount: number;
+    // The raid already started.
+    isPast?: boolean;
+    // false → the signup roster is UNKNOWN (a past raid whose signups Raid-Helper
+    // dropped and that was never snapshotted), not empty. Never render it as 0.
+    signupsKnown?: boolean;
+    // The roster shown was restored from the local snapshot, not answered live.
+    signUpsFromSnapshot?: boolean;
 };
 
 export type RaidDetailEventSheet = {
@@ -316,6 +323,9 @@ export type RaidDetailData = {
     matchedSheetId: string;
     setup: EventSetup;
     setupError: string | null;
+    // The setup shown was restored from the local snapshot (Raid-Helper no longer
+    // serves the raidplan of this finished raid).
+    setupFromSnapshot?: boolean;
     tankCandidates: TankCandidate[];
     eventSheet: RaidDetailEventSheet;
     eventSoftres: EventSoftres;

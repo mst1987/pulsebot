@@ -21,11 +21,16 @@ type Tab = "setup" | "attendance" | "actions" | "loot" | "softres" | "logs";
 // Ported from renderAdmin.js's renderEventDetail() overview stat spans (statSpans).
 function OverviewStats({ data }: { data: RaidDetailData }) {
     const { event: ev, setup, attendance, attendanceRoleIds, eventSoftres, signupTarget } = data;
+    // A past raid whose roster Raid-Helper no longer serves has an UNKNOWN signup
+    // count, not zero — and "everyone is missing" would be nonsense for it.
+    const rosterKnown = ev.signupsKnown !== false;
     return (
         <div className="setup-summary" style={{ marginTop: 10 }}>
-            <span className="setup-count setup-total"><b>{ev.signupCount || 0}{signupTarget ? ` / ${signupTarget}` : ""}</b> Anmeldungen</span>
+            {rosterKnown
+                ? <span className="setup-count setup-total"><b>{ev.signupCount || 0}{signupTarget ? ` / ${signupTarget}` : ""}</b> Anmeldungen</span>
+                : <span className="setup-count setup-total" title="Raid-Helper liefert für diesen vergangenen Raid keine Anmeldungen mehr"><b>—</b> Anmeldungen</span>}
             {!!setup?.total && <span className="setup-count"><b>{setup.total}</b> im Setup</span>}
-            {!!attendanceRoleIds.length && <span className="setup-count"><b>{attendance.missing.length}</b> fehlt</span>}
+            {rosterKnown && !!attendanceRoleIds.length && <span className="setup-count"><b>{attendance.missing.length}</b> fehlt</span>}
             {!!eventSoftres?.instances?.length && <span className="setup-count"><b>{eventSoftres.instances.length}</b> Softres-Instanz(en)</span>}
         </div>
     );
@@ -84,7 +89,7 @@ function PlayerChip({ iconUrl, className, imgTitle, name }: {
 
 // --- Setup (Raidplan comp) tab: read-only display of the raid groups. ---
 function SetupTab({ data }: { data: RaidDetailData }) {
-    const { setup, setupError } = data;
+    const { setup, setupError, setupFromSnapshot } = data;
     return (
         <>
             <p className="note">Aktueller Raidplan dieses Events, in Raid-Gruppen 1–5 wie im Raid-Helper. Icons und Farben richten sich nach der WoW-Spec.</p>
@@ -98,6 +103,11 @@ function SetupTab({ data }: { data: RaidDetailData }) {
                         <span className="setup-count setup-total"><b>{setup.total}</b> Raider</span>
                         <span className="setup-count"><b>{setup.groups.length}</b> Gruppen</span>
                     </div>
+                    {setupFromSnapshot && (
+                        <p className="sub" style={{ marginTop: 10 }}>
+                            Stand vom Raidtag (lokal gespeichert) — Raid-Helper liefert den Raidplan dieses Raids nicht mehr.
+                        </p>
+                    )}
                     <div className="setup-groups">
                         {setup.groups.map((g, gi) => (
                             <div className="setup-group" key={gi}>
@@ -187,7 +197,8 @@ function AttendanceTab({ data, eventId, csrfToken, onChanged }: {
     csrfToken: string | null;
     onChanged: (msg: string) => void;
 }) {
-    const { attendance, attendanceRoleIds, membersError } = data;
+    const { attendance, attendanceRoleIds, membersError, event: ev } = data;
+    const rosterKnown = ev.signupsKnown !== false;
     return (
         <>
             <p className="note">Abgleich der Raider-Rollen dieser Kategorie mit den Raid-Helper-Anmeldungen: wer sich an- oder abgemeldet hat und wer noch gar nicht reagiert hat.</p>
@@ -195,6 +206,12 @@ function AttendanceTab({ data, eventId, csrfToken, onChanged }: {
                 <p className="sub">
                     Dieser Kategorie sind noch keine Raider-Rollen zugeordnet. Lege sie in den{" "}
                     <Link className="mlink" to="/settings">Einstellungen → Events</Link> fest, um zu sehen, wer noch fehlt.
+                </p>
+            ) : !rosterKnown ? (
+                <p className="sub">
+                    Für diesen vergangenen Raid liefert Raid-Helper keine Anmeldungen mehr, und es wurde keine
+                    gespeichert. Der Abgleich ist daher nicht möglich — ohne diese Daten würden schlicht alle
+                    erwarteten Raider als „fehlt“ gelten.
                 </p>
             ) : membersError ? (
                 <>
@@ -208,13 +225,21 @@ function AttendanceTab({ data, eventId, csrfToken, onChanged }: {
                         <span className="setup-count"><b>{attendance.responded.length}</b> reagiert</span>
                         <span className="setup-count"><b>{attendance.missing.length}</b> fehlt</span>
                     </div>
+                    {ev.signUpsFromSnapshot && (
+                        <p className="sub" style={{ marginTop: 10 }}>
+                            Stand vom Raidtag (lokal gespeichert) — Raid-Helper liefert die Anmeldungen dieses Raids nicht mehr.
+                        </p>
+                    )}
                     <h4 style={{ margin: "14px 0 6px" }}>Fehlt (noch keine Reaktion)</h4>
                     <NameList people={attendance.missing} />
                     <h4 style={{ margin: "14px 0 6px" }}>Reagiert (an- oder abgemeldet)</h4>
                     <NameList people={attendance.responded} />
-                    {attendance.missing.length
-                        ? <PingMissingForm eventId={eventId} missingCount={attendance.missing.length} csrfToken={csrfToken} onDone={onChanged} />
-                        : <p className="sub" style={{ marginTop: 12 }}>Es haben schon alle erwarteten Raider reagiert. 🎉</p>}
+                    {/* Pinging is pointless once the raid has started — the backend refuses it too. */}
+                    {ev.isPast
+                        ? null
+                        : attendance.missing.length
+                            ? <PingMissingForm eventId={eventId} missingCount={attendance.missing.length} csrfToken={csrfToken} onDone={onChanged} />
+                            : <p className="sub" style={{ marginTop: 12 }}>Es haben schon alle erwarteten Raider reagiert. 🎉</p>}
                 </>
             )}
         </>
