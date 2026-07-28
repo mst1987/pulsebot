@@ -1,5 +1,12 @@
 // HTML rendering for the logcheck report website.
 // Uses the Wowhead tooltip widget (power.js) + zamimg icon CDN — no local assets.
+//
+// Report pages are public (their links are posted to Discord), so they stay
+// server-rendered. Visitors with admin rights get the same sidebar/topbar chrome
+// as the React admin around them (see adminChrome.js) so a log-check is a normal
+// stop inside the admin menu instead of a dead end.
+
+const { renderAdminChrome, CHROME_STYLE, ICONS } = require("./adminChrome");
 
 const CLASS_COLORS = {
     Druid: "#FF7D0A", Hunter: "#ABD473", Mage: "#69CCF0", Paladin: "#F58CBA",
@@ -95,17 +102,17 @@ function themeToggleBtn() {
 }
 
 /**
- * Full HTML page shell. Shared by the log-check pages and the admin menu so both
+ * Full HTML page shell. Shared by the log-check pages and the admin chrome so both
  * get the same tokens + light/dark theming.
- * @param {object} opts { bare } — bare:true drops the centered .wrap + footer + floating
- *   toggle so a page (e.g. the admin sidebar shell) can supply its own outer structure.
+ * @param {object} opts { bare, extraStyle } — bare:true drops the centered .wrap +
+ *   footer so a page (e.g. the admin sidebar chrome from adminChrome.js) can supply
+ *   its own outer structure; extraStyle appends CSS to the page's style block.
  */
 function layout(title, body, opts = {}) {
     const bare = !!opts.bare;
     const inner = bare
         ? body
-        : `<div class="float-toggle">${themeToggleBtn()}</div>
-<div class="wrap">
+        : `<div class="wrap">
 ${body}
 <footer>EventHelper · Log-Check · Tooltips by Wowhead</footer>
 </div>`;
@@ -128,6 +135,8 @@ ${body}
     --good:#7fd17f; --good-bg:rgba(120,200,120,.16);
     --accent:#8a7cff; --accent-2:#35d6c4; --accent-soft:rgba(138,124,255,.16); --accent-ink:#130f26;
     --portrait-1:#1a1d24; --portrait-2:#14161b;
+    --font-mono: ui-monospace, "Cascadia Code", Consolas, "SFMono-Regular", Menlo, monospace;
+    color-scheme: light dark;
     /* ---- "Spektrum" area accents: one hue per admin section (nav icons, dashboard tiles) ---- */
     --area-recruitment:#34d399; --area-recruitment-soft:rgba(52,211,153,.16);
     --area-cla:#ff8a65; --area-cla-soft:rgba(255,138,101,.16);
@@ -168,21 +177,66 @@ ${body}
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; transition:background .2s, color .2s; }
   a { color:inherit; }
-  .wrap { max-width:1100px; margin:0 auto; padding:24px 16px 64px; }
+  .wrap { max-width:1100px; margin:0 auto; padding:20px 16px 64px; }
   h1 { font-size:22px; margin:0 0 4px; }
   h2 { font-size:18px; margin:24px 0 12px; }
   .sub { color:var(--muted); margin:0 0 16px; font-size:14px; }
   .sub a { color:var(--accent); text-decoration:none; }
+  a.mlink { color:var(--accent); text-decoration:none; }
+  a.mlink:hover { text-decoration:underline; }
+  /* page head + buttons (same vocabulary as the React admin's .page-title/.btn) */
+  .page-head { display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; margin:0 0 18px; }
+  .page-head-main { min-width:0; flex:1; }
+  .page-title { font-size:24px; font-weight:800; letter-spacing:-.3px; margin:0 0 8px; }
+  .page-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .btn { display:inline-flex; align-items:center; gap:7px; background:var(--accent); color:var(--accent-ink); border:0; border-radius:8px;
+    padding:9px 18px; font-weight:700; font-size:14px; cursor:pointer; text-decoration:none;
+    transition:filter .15s ease, box-shadow .2s ease, transform .1s ease; }
+  .btn:hover { filter:brightness(1.08); box-shadow:0 4px 22px -6px var(--accent); transform:translateY(-1px); }
+  .btn-ghost { background:var(--panel2); color:var(--text); border:1px solid var(--line); }
+  .btn-ghost:hover { filter:none; background:var(--panel3); border-color:var(--accent); box-shadow:none; }
+  .btn-sm { padding:6px 12px; font-size:13px; }
   /* theme toggle */
   .theme-toggle { width:36px; height:36px; display:inline-grid; place-items:center; padding:0; border-radius:8px; border:1px solid var(--line); background:var(--panel2); color:var(--muted); cursor:pointer; transition:color .12s, border-color .12s; }
   .theme-toggle:hover { color:var(--text); border-color:var(--muted); }
   .theme-toggle svg { width:17px; height:17px; }
-  .float-toggle { position:fixed; top:14px; right:16px; z-index:50; }
-  .summary { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 16px; margin-bottom:16px; }
+  /* public top bar (anonymous/non-admin visitors; admins get the sidebar chrome) */
+  .pubbar { display:flex; align-items:center; gap:12px; padding:12px 0 16px; margin-bottom:6px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .pubbar .crest { width:36px; height:36px; border-radius:9px; flex:0 0 auto; display:grid; place-items:center;
+    background:linear-gradient(150deg, var(--accent), var(--accent-2)); color:var(--accent-ink); }
+  .pubbar .crest svg { width:20px; height:20px; }
+  .pubbar-name { font-weight:800; font-size:15px; line-height:1.15; }
+  .pubbar-sub { font-size:10.5px; font-family:var(--font-mono); color:var(--muted); text-transform:uppercase; letter-spacing:1.2px; }
+  .pubbar-actions { margin-left:auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .summary { background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--area-cla); padding:12px 16px; margin-bottom:16px; }
+  .summary strong { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+  /* ---- stat tiles + clipped panel geometry: the 2026-07 admin design signature ---- */
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin:0 0 20px; }
+  .tile { background:var(--panel); border:1px solid var(--line); border-top:2px solid var(--area-cla); padding:16px 18px; position:relative;
+    clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+    transition:transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease, border-color .18s ease; }
+  .tile::after { content:""; position:absolute; top:0; right:0; width:14px; height:14px;
+    background:linear-gradient(135deg, var(--area-cla) 0%, var(--area-cla) 42%, transparent 44%); opacity:.85; pointer-events:none; }
+  .tile:hover { transform:translateY(-3px); border-color:var(--area-cla); box-shadow:0 14px 32px -14px var(--area-cla); }
+  .tile .t-label { font-size:11.5px; color:var(--muted); font-weight:600; font-family:var(--font-mono); text-transform:uppercase; letter-spacing:.04em; }
+  .tile .t-value { font-size:30px; font-weight:700; letter-spacing:-.02em; margin-top:6px; line-height:1; font-variant-numeric:tabular-nums; font-family:var(--font-mono); }
+  .tile .t-value.warn { color:var(--high); }
+  .tile .t-value.good { color:var(--good); }
+  .tile .t-sub { font-size:12.5px; color:var(--muted); margin-top:6px; }
+  .panel-box { background:var(--panel); border:1px solid var(--line); overflow:hidden; position:relative;
+    clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%); }
+  .panel-box::after { content:""; position:absolute; top:0; right:0; width:14px; height:14px;
+    background:linear-gradient(135deg, var(--area-cla) 0%, var(--area-cla) 42%, transparent 44%); opacity:.85; pointer-events:none; }
+  .panel-box table.idx th, .panel-box table.idx td { padding:10px 16px; }
+  .panel-box table.idx th { background:var(--panel2); text-transform:uppercase; letter-spacing:.04em; font-family:var(--font-mono); font-size:11.5px; }
+  .panel-box table.idx tr:last-child td { border-bottom:0; }
+  @media (prefers-reduced-motion: reduce) { .tile { transition:none; } .tile:hover { transform:none; } }
   /* masonry-style columns: short cards fill the vertical space, no row gaps */
   .grid { column-width:330px; column-gap:14px; }
   .grid .card { break-inside:avoid; -webkit-column-break-inside:avoid; margin:0 0 14px; }
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:hidden; border-left:3px solid var(--line); }
+  .card { background:var(--panel); border:1px solid var(--line); overflow:hidden; border-left:3px solid var(--line);
+    clip-path:polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%); transition:border-color .15s ease, box-shadow .15s ease; }
+  .card:hover { box-shadow:0 10px 26px -18px #000; }
   .card.sev-high { border-left-color:var(--high); }
   .card.sev-med { border-left-color:var(--medium); }
   .card.sev-ok { border-left-color:var(--good); }
@@ -193,7 +247,9 @@ ${body}
   a.player:hover { background:var(--panel3); }
   .classicon { width:24px; height:24px; border-radius:4px; }
   .pname { font-weight:700; font-size:16px; flex:1; }
-  .count { background:var(--high-bg); color:var(--high); font-weight:700; border-radius:12px; padding:1px 9px; font-size:13px; }
+  .count { background:var(--high-bg); color:var(--high); font-weight:700; border-radius:12px; padding:1px 9px; font-size:13px;
+    font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+  .card.sev-ok .count { background:var(--good-bg); color:var(--good); }
   ul.issues { list-style:none; margin:0; padding:8px 12px; }
   ul.issues li { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid var(--line-soft); }
   ul.issues li:last-child { border-bottom:0; }
@@ -209,20 +265,27 @@ ${body}
   table.idx th { color:var(--muted); font-weight:600; font-size:13px; }
   table.idx tr:hover td { background:var(--panel2); }
   .pill { display:inline-block; background:var(--high-bg); color:var(--high); border-radius:10px; padding:0 8px; font-size:12px; font-weight:700; }
-  .pct { font-weight:700; border-radius:6px; padding:1px 8px; font-size:13px; display:inline-block; min-width:46px; text-align:center; }
+  .pct { font-weight:700; border-radius:6px; padding:1px 8px; font-size:13px; display:inline-block; min-width:46px; text-align:center;
+    font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
   .pct-full { background:var(--good-bg); color:var(--good); }
   .pct-part { background:var(--medium-bg); color:var(--medium); }
   .pct-none { background:var(--high-bg); color:var(--high); }
   .pname-cell { display:inline-flex; align-items:center; gap:8px; text-decoration:none; }
   .pname-cell img { width:20px; height:20px; border-radius:4px; }
-  .srval { font-weight:700; }
+  .srval { font-weight:700; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
   .sritems { color:var(--muted); font-size:12.5px; }
   .sritems a, a.pname-cell:hover span { text-decoration:underline; }
   .note { color:var(--muted); font-size:12.5px; margin:-6px 0 12px; }
+  /* tabs: same shape as the React admin's .tabs/.tab-btn/.tab-count */
   nav.tabs { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 20px; border-bottom:1px solid var(--line); }
-  nav.tabs button { background:none; border:0; border-bottom:2px solid transparent; color:var(--muted); padding:9px 14px; font-size:14px; cursor:pointer; border-radius:6px 6px 0 0; }
-  nav.tabs button:hover { color:var(--text); background:var(--panel2); }
-  nav.tabs button.active { color:var(--text); border-bottom-color:var(--accent); font-weight:700; }
+  nav.tabs .tab-btn { appearance:none; background:transparent; border:1px solid transparent; border-bottom:none; color:var(--muted);
+    font:inherit; font-weight:600; padding:9px 16px; border-radius:9px 9px 0 0; cursor:pointer; margin-bottom:-1px;
+    display:inline-flex; align-items:center; gap:7px; }
+  nav.tabs .tab-btn:hover { color:var(--text); background:var(--panel2); }
+  nav.tabs .tab-btn.active { color:var(--text); background:var(--panel); border-color:var(--line); border-bottom-color:var(--panel); }
+  .tab-count { display:inline-block; padding:0 7px; border-radius:999px; font-size:11.5px; font-weight:700; font-family:var(--font-mono);
+    background:var(--panel2); color:var(--muted); border:1px solid var(--line); font-variant-numeric:tabular-nums; }
+  nav.tabs .tab-btn.active .tab-count { background:var(--area-cla-soft); color:var(--area-cla); border-color:var(--area-cla-soft); }
   .tabpanel { display:none; }
   .tabpanel.active { display:block; }
   .armory { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:8px; }
@@ -238,7 +301,11 @@ ${body}
   .hicon { width:18px; height:18px; border-radius:3px; vertical-align:-4px; margin-right:5px; }
   th .hicon { margin-right:4px; }
   /* hero header */
-  .hero { position:relative; overflow:hidden; border-radius:14px; border:1px solid var(--line); background:var(--panel); padding:18px 20px; margin:6px 0 22px; display:flex; align-items:center; gap:16px; }
+  .hero { position:relative; overflow:hidden; border:1px solid var(--line); border-top:2px solid var(--cc); background:var(--panel);
+    padding:18px 20px; margin:6px 0 22px; display:flex; align-items:center; gap:16px;
+    clip-path:polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%); }
+  .hero::after { content:""; position:absolute; top:0; right:0; width:16px; height:16px;
+    background:linear-gradient(135deg, var(--cc) 0%, var(--cc) 42%, transparent 44%); opacity:.85; pointer-events:none; }
   .hero-bg { position:absolute; inset:0; background:radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--cc) 28%, transparent), transparent 60%); pointer-events:none; }
   .hero-class { width:64px; height:64px; border-radius:12px; border:2px solid var(--cc); position:relative; z-index:1; }
   .hero-main { position:relative; z-index:1; }
@@ -246,7 +313,7 @@ ${body}
   .hero-sub { color:var(--muted); margin-bottom:8px; }
   .chips { display:flex; flex-wrap:wrap; gap:8px; }
   .chip { background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:3px 11px; font-size:13px; display:inline-flex; align-items:center; gap:2px; }
-  .chip b { margin-right:4px; }
+  .chip b { margin-right:4px; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
   .chip-warn { color:var(--high); border-color:rgba(224,82,79,.4); }
   .chip-ok { color:var(--good); border-color:rgba(120,200,120,.4); }
   /* paperdoll (armory-style) */
@@ -261,8 +328,8 @@ ${body}
   .portrait img { width:96px; height:96px; border-radius:14px; opacity:.92; filter:drop-shadow(0 6px 18px rgba(0,0,0,.6)); }
   .ilvl-badge { display:flex; flex-direction:column; align-items:center; justify-content:center; width:96px; height:96px; border-radius:50%;
     border:3px solid var(--cc); background:var(--panel); }
-  .ilvl-badge b { font-size:30px; font-weight:800; line-height:1; }
-  .ilvl-badge span { color:var(--muted); font-size:11px; margin-top:3px; }
+  .ilvl-badge b { font-size:30px; font-weight:800; line-height:1; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+  .ilvl-badge span { color:var(--muted); font-size:11px; margin-top:3px; font-family:var(--font-mono); text-transform:uppercase; letter-spacing:.05em; }
   .pd-col-left, .pd-col-right { align-items:stretch; }
   .doll-bottom { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; margin-bottom:12px; }
   .slot { display:flex; align-items:center; gap:11px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:8px 11px; width:100%; transition:background .12s; }
@@ -299,6 +366,7 @@ ${body}
   .discord-btn:hover { background:#4752C4; }
   .discord-btn svg { display:block; }
   footer { color:var(--muted); font-size:12px; margin-top:40px; text-align:center; }
+${opts.extraStyle || ""}
 </style>
 </head>
 <body${opts.bodyClass ? ` class="${opts.bodyClass}"` : ""}>
@@ -326,6 +394,52 @@ document.addEventListener("click",function(e){
 </html>`;
 }
 
+// Slim public header for anonymous/non-admin visitors — admins get the sidebar chrome instead.
+function publicBar(user) {
+    return `<header class="pubbar">
+      <div class="crest">${ICONS.crest}</div>
+      <div>
+        <div class="pubbar-name">EventHelper</div>
+        <div class="pubbar-sub">Log-Check</div>
+      </div>
+      <div class="pubbar-actions">${authBar(user)}${themeToggleBtn()}</div>
+    </header>`;
+}
+
+/**
+ * Wraps a report/player body in the right shell: the admin sidebar + topbar for
+ * admins, the public header + centered column for everyone else.
+ * @param {object} opts { user, body, crumbs } — crumbs are only used by the admin chrome.
+ */
+function shellPage(title, { user, body, crumbs = [] }) {
+    if (user && user.isAdmin) {
+        const chrome = renderAdminChrome({
+            user,
+            activeTab: "cla",
+            crumbs: [{ label: "Admin", href: "/admin" }, { label: "CLA / Logcheck", href: "/admin/cla" }, ...crumbs],
+            body,
+            actions: themeToggleBtn(),
+            esc,
+        });
+        return layout(title, chrome, { bare: true, extraStyle: CHROME_STYLE });
+    }
+    return layout(title, `${publicBar(user)}${body}`);
+}
+
+// A stat tile for the report header (same shape as the admin dashboard's tiles).
+function tile(label, value, sub, tone) {
+    return `<div class="tile">
+      <div class="t-label">${esc(label)}</div>
+      <div class="t-value${tone ? ` ${tone}` : ""}">${esc(value)}</div>
+      ${sub ? `<div class="t-sub">${sub}</div>` : ""}
+    </div>`;
+}
+
+// Table panels sit on a panel card; the gear grid brings its own cards.
+function panelBox(html) {
+    return `<div class="panel-box">${html}</div>`;
+}
+
 function renderGearPanel(players, linkFor) {
     if (!players || players.length === 0) {
         return "<div class=\"empty\">✅ Keine Gear-Probleme gefunden!</div>";
@@ -348,10 +462,10 @@ function renderConsumablesPanel(consumables, linkFor) {
       <td>${yesNo(p.weaponOiled)}</td>
     </tr>`).join("");
     return `<p class="note">Abdeckung in % der Boss-Kämpfe. Flask &amp; Elixiere schließen sich aus — „Flask/Elixiere" = Flask <em>oder</em> beide Elixiere aktiv.</p>
-    <table class="idx">
+    ${panelBox(`<table class="idx">
       <tr><th>Spieler</th><th>${colHead(ic.flask, "Flask")}</th><th>${colHead(ic.battle, "Elixiere")}</th><th>Flask/Elixiere</th><th>${colHead(ic.food, "Food")}</th><th>Waffe geölt</th></tr>
       ${body}
-    </table>`;
+    </table>`)}`;
 }
 
 function renderPotionsPanel(potions, linkFor) {
@@ -365,10 +479,10 @@ function renderPotionsPanel(potions, linkFor) {
       <td class="srval">${esc(p.mana)}</td>
       <td class="srval">${esc(p.total)}</td>
     </tr>`).join("");
-    return `<table class="idx">
+    return panelBox(`<table class="idx">
       <tr><th>Spieler</th><th>${colHead(ic.destruction, "Destruction")}</th><th>${colHead(ic.haste, "Haste")}</th><th>${colHead(ic.mana, "Mana")}</th><th>Gesamt</th></tr>
       ${body}
-    </table>`;
+    </table>`);
 }
 
 function renderShadowResiPanel(sr, linkFor) {
@@ -380,10 +494,10 @@ function renderShadowResiPanel(sr, linkFor) {
         return `<tr><td>${classCell(p, linkFor(p.name))}</td><td class="srval">${esc(p.sr)}</td><td class="sritems">${items || "—"}</td></tr>`;
     }).join("");
     return `<p class="note">${esc(sr.note)}</p>
-    <table class="idx">
+    ${panelBox(`<table class="idx">
       <tr><th>Spieler</th><th>SR (Gear)</th><th>Quellen</th></tr>
       ${body}
-    </table>`;
+    </table>`)}`;
 }
 
 function renderDrumsPanel(drums, linkFor) {
@@ -393,10 +507,10 @@ function renderDrumsPanel(drums, linkFor) {
         const parts = Object.entries(p.byType).map(([k, v]) => `${k}: ${v}`).join(", ");
         return `<tr><td>${classCell(p, linkFor(p.name))}</td><td class="srval">${esc(p.total)}</td><td class="sritems">${esc(parts)}</td></tr>`;
     }).join("");
-    return `<table class="idx">
+    return panelBox(`<table class="idx">
       <tr><th>Spieler</th><th>${colHead(drums && drums.icon, "Drums gesamt")}</th><th>Aufschlüsselung</th></tr>
       ${body}
-    </table>`;
+    </table>`);
 }
 
 function issueCountCell(n) {
@@ -419,13 +533,13 @@ function renderRosterPanel(report, linkFor) {
           <td>${classCell(p, linkFor(p.name))}</td>
           <td>${issueCountCell((p.issues || []).length)}</td>
           <td><span class="potions">${potionCells(ic, pot)}</span></td>
-          <td><a class="sub" href="${esc(linkFor(p.name))}">Details →</a></td>
+          <td><a class="mlink" href="${esc(linkFor(p.name))}">Details →</a></td>
         </tr>`;
     }).join("");
-    return `<table class="idx">
+    return panelBox(`<table class="idx">
       <tr><th>Spieler</th><th>Gear-Probleme</th><th>${hicon(ic.destruction)}${hicon(ic.haste)}${hicon(ic.mana)} Potions</th><th></th></tr>
       ${body}
-    </table>`;
+    </table>`);
 }
 
 function renderSunderPanel(rows, linkFor) {
@@ -439,10 +553,10 @@ function renderSunderPanel(rows, linkFor) {
         </tr>`;
     }).join("");
     return `<p class="note">„&lt; 5 Stacks" = Sunder, die angewandt wurden, während der Boss noch keine 5 Stacks hatte (Stack-Aufbau).</p>
-    <table class="idx">
+    ${panelBox(`<table class="idx">
       <tr><th>Spieler</th><th>Sunder gesamt</th><th>davon bei &lt; 5 Stacks</th></tr>
       ${body}
-    </table>`;
+    </table>`)}`;
 }
 
 function uptimeCell(v) {
@@ -459,10 +573,32 @@ function renderBossUptimesPanel(data) {
         return `<tr><td>${boss}</td>${cells}</tr>`;
     }).join("");
     return `<p class="note">Debuff-Uptime pro Boss-Kampf (in % der Kampfdauer).</p>
-    <table class="idx">
+    ${panelBox(`<table class="idx">
       <tr><th>Boss</th>${head}</tr>
       ${body}
-    </table>`;
+    </table>`)}`;
+}
+
+// Headline numbers for a report: raiders, gear issues, boss fights, consumable coverage.
+function reportTiles(report) {
+    const players = report.players || [];
+    const roster = report.roster || [];
+    const gearIssues = players.reduce((n, p) => n + (p.issues || []).length, 0);
+    const tiles = [];
+    if (roster.length) tiles.push(tile("Raider", String(roster.length), esc(report.zone || "")));
+    tiles.push(tile("Gear-Probleme", String(gearIssues), `bei ${players.length} Spieler(n)`, gearIssues ? "warn" : "good"));
+    const rows = (report.bossUptimes && report.bossUptimes.rows) || [];
+    if (rows.length) {
+        const kills = rows.filter((r) => r.kill).length;
+        tiles.push(tile("Boss-Kämpfe", String(rows.length), `${kills} Kill(s) · ${rows.length - kills} Wipe(s)`));
+    }
+    const cons = (report.consumables && report.consumables.players) || [];
+    if (cons.length) {
+        const avg = (key) => Math.round(cons.reduce((n, p) => n + (p[key] || 0), 0) / cons.length);
+        const buffed = avg("buffed");
+        tiles.push(tile("Ø Flask/Elixiere", `${buffed}%`, `Ø Food ${avg("food")}%`, buffed >= 90 ? "good" : buffed < 50 ? "warn" : ""));
+    }
+    return `<div class="tiles">${tiles.join("")}</div>`;
 }
 
 function renderReportPage(report, user) {
@@ -471,7 +607,6 @@ function renderReportPage(report, user) {
     const sub = [
         report.zone ? `Zone: ${esc(report.zone)}` : "",
         dateStr,
-        report.reportUrl ? `<a href="${esc(report.reportUrl)}" target="_blank" rel="noopener">→ Warcraft Logs</a>` : "",
     ].filter(Boolean).join(" · ");
 
     // map player name -> detail page url
@@ -488,29 +623,44 @@ function renderReportPage(report, user) {
     const hasBoss = report.bossUptimes && report.bossUptimes.rows && report.bossUptimes.rows.length;
 
     const tabDefs = [
-        { id: "roster", label: "👥 Raider", show: hasRoster, html: renderRosterPanel(report, linkFor) },
-        { id: "gear", label: "🛡️ Gear Issues", show: true, html: renderGearPanel(players, linkFor) },
-        { id: "consumables", label: "🧪 Consumables", show: hasConsum, html: renderConsumablesPanel(report.consumables, linkFor) },
-        { id: "potions", label: "⚗️ Potions", show: hasPotions, html: renderPotionsPanel(report.potions, linkFor) },
-        { id: "drums", label: "🥁 Drums", show: hasDrums, html: renderDrumsPanel(report.drums, linkFor) },
-        { id: "sunder", label: "🪓 Sunder Armor", show: hasSunder, html: renderSunderPanel(report.sunder, linkFor) },
-        { id: "bosses", label: "📊 Bosse", show: hasBoss, html: renderBossUptimesPanel(report.bossUptimes) },
-        { id: "shadowresi", label: "🌑 Shadow-Resi", show: hasShadow, html: renderShadowResiPanel(report.shadowResi, linkFor) },
+        { id: "roster", label: "👥 Raider", show: hasRoster, count: (report.roster || []).length, html: renderRosterPanel(report, linkFor) },
+        { id: "gear", label: "🛡️ Gear Issues", show: true, count: players.reduce((n, p) => n + (p.issues || []).length, 0), html: renderGearPanel(players, linkFor) },
+        { id: "consumables", label: "🧪 Consumables", show: hasConsum, count: hasConsum, html: renderConsumablesPanel(report.consumables, linkFor) },
+        { id: "potions", label: "⚗️ Potions", show: hasPotions, count: hasPotions, html: renderPotionsPanel(report.potions, linkFor) },
+        { id: "drums", label: "🥁 Drums", show: hasDrums, count: hasDrums, html: renderDrumsPanel(report.drums, linkFor) },
+        { id: "sunder", label: "🪓 Sunder Armor", show: hasSunder, count: hasSunder, html: renderSunderPanel(report.sunder, linkFor) },
+        { id: "bosses", label: "📊 Bosse", show: hasBoss, count: hasBoss, html: renderBossUptimesPanel(report.bossUptimes) },
+        { id: "shadowresi", label: "🌑 Shadow-Resi", show: hasShadow, count: hasShadow, html: renderShadowResiPanel(report.shadowResi, linkFor) },
     ].filter((t) => t.show);
 
     const buttons = tabDefs.map((t, i) =>
-        `<button data-tab="${t.id}"${i === 0 ? " class=\"active\"" : ""}>${t.label}</button>`).join("");
+        `<button class="tab-btn${i === 0 ? " active" : ""}" data-tab="${t.id}"><span>${t.label}</span><span class="tab-count">${esc(t.count || 0)}</span></button>`).join("");
     const panels = tabDefs.map((t, i) =>
         `<div id="tab-${t.id}" class="tabpanel${i === 0 ? " active" : ""}">${t.html}</div>`).join("");
 
+    const isAdmin = !!(user && user.isAdmin);
+    const actions = [
+        report.reportUrl ? `<a class="btn btn-ghost btn-sm" href="${esc(report.reportUrl)}" target="_blank" rel="noopener">→ Warcraft Logs</a>` : "",
+        isAdmin ? "<a class=\"btn btn-ghost btn-sm\" href=\"/admin/cla\">Alle Auswertungen</a>" : "",
+    ].filter(Boolean).join("");
+
     const body = `
-      <div style="text-align:right;margin-bottom:8px">${authBar(user)}</div>
-      <h1>${esc(report.title || "Log-Check")}</h1>
-      <p class="sub">${sub} · <a href="/">alle Auswertungen</a></p>
+      <div class="page-head">
+        <div class="page-head-main">
+          <h1 class="page-title">${esc(report.title || "Log-Check")}</h1>
+          ${sub ? `<p class="sub" style="margin:0">${sub}</p>` : ""}
+        </div>
+        ${actions ? `<div class="page-actions">${actions}</div>` : ""}
+      </div>
+      ${reportTiles(report)}
       <nav class="tabs">${buttons}</nav>
       ${panels}`;
 
-    return layout(report.title ? `Log-Check: ${report.title}` : "Log-Check", body);
+    return shellPage(report.title ? `Log-Check: ${report.title}` : "Log-Check", {
+        user,
+        body,
+        crumbs: [{ label: report.title || "Log-Check" }],
+    });
 }
 
 const QUALITY_COLOR = { 0: "#9d9d9d", 1: "#ffffff", 2: "#1eff00", 3: "#0070dd", 4: "#a335ee", 5: "#ff8000" };
@@ -582,12 +732,16 @@ function renderPlayerPage(report, idx, user) {
     const potChip = (icon, label, n) => `<span class="chip">${hicon(icon, label)}<b>${esc(n || 0)}</b> ${esc(label)}</span>`;
 
     const issues = issueCount
-        ? `<ul class="issues" style="background:var(--panel);border:1px solid #2c313b;border-radius:10px">${p.issues.map(issueRow).join("")}</ul>`
+        ? panelBox(`<ul class="issues" style="padding:8px 16px">${p.issues.map(issueRow).join("")}</ul>`)
         : "<div class=\"empty\">Keine Gear-Probleme 🎉</div>";
 
     const body = `
-      <div style="text-align:right;margin-bottom:8px">${authBar(user)}</div>
-      <p class="sub"><a href="/r/${esc(report.id)}">← zurück zum Report</a> · ${esc(report.title || "")}</p>
+      <div class="page-head">
+        <div class="page-head-main">
+          <p class="sub" style="margin:0">${esc(report.title || "")}</p>
+        </div>
+        <div class="page-actions"><a class="btn btn-ghost btn-sm" href="/r/${esc(report.id)}">← zurück zum Report</a></div>
+      </div>
       <div class="hero" style="--cc:${color}">
         <div class="hero-bg"></div>
         <img class="hero-class" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}">
@@ -616,23 +770,32 @@ function renderPlayerPage(report, idx, user) {
       <h2>Gear-Probleme</h2>
       ${issues}`;
 
-    return layout(`${p.name} — ${report.title || ""}`, body);
+    return shellPage(`${p.name} — ${report.title || ""}`, {
+        user,
+        body,
+        crumbs: [
+            { label: report.title || "Log-Check", href: `/r/${report.id}` },
+            { label: p.name },
+        ],
+    });
 }
 
+// Login state for the public header. Admins never see this — they get the admin
+// chrome (sidebar + user footer) around the page instead.
 function authBar(user) {
     if (user && user.name) {
-        const admin = user.isAdmin ? " · <a href=\"/admin\" style=\"color:var(--accent);text-decoration:none\">Admin-Menü</a>" : "";
-        return `<span class="sub">Eingeloggt als <strong>${esc(user.name)}</strong>${admin} · <a href="/auth/logout">Logout</a></span>`;
+        const admin = user.isAdmin ? " · <a class=\"mlink\" href=\"/admin\">Admin-Menü</a>" : "";
+        return `<span class="sub" style="margin:0">Eingeloggt als <strong>${esc(user.name)}</strong>${admin} · <a class="mlink" href="/auth/logout">Logout</a></span>`;
     }
     return `<a class="discord-btn" href="/auth/login">${DISCORD_LOGO}<span>Mit Discord einloggen</span></a>`;
 }
 
 function renderNotFound() {
-    return layout("Nicht gefunden", "<h1>404</h1><p class=\"sub\">Diese Seite existiert nicht (mehr). <a href=\"/\">Zur Übersicht</a></p>");
+    return layout("Nicht gefunden", `${publicBar(null)}<h1 class="page-title" style="margin-top:24px">404</h1><p class="sub">Diese Seite existiert nicht (mehr). <a class="mlink" href="/">Zur Übersicht</a></p>`);
 }
 
 function renderError(title, message) {
-    return layout(title, `<h1>${esc(title)}</h1><p class="sub">${esc(message)}</p><p class="sub"><a href="/">Zur Übersicht</a> · <a href="/auth/login">Erneut einloggen</a></p>`);
+    return layout(title, `${publicBar(null)}<h1 class="page-title" style="margin-top:24px">${esc(title)}</h1><p class="sub">${esc(message)}</p><p class="sub"><a class="mlink" href="/">Zur Übersicht</a> · <a class="mlink" href="/auth/login">Erneut einloggen</a></p>`);
 }
 
 module.exports = { renderReportPage, renderPlayerPage, renderNotFound, renderError, layout, esc, authBar, themeToggleBtn };
