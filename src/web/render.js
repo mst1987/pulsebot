@@ -96,6 +96,57 @@ function colHead(icon, label) {
     return `${hicon(icon, label)}<span>${esc(label)}</span>`;
 }
 
+// --- icon tiles + nested tabs (shared by the RPB panels) ------------------
+
+/** Wowhead target for a tracked thing — item pages win over spell pages. */
+function wowheadHref(o) {
+    if (o.itemId) return `https://www.wowhead.com/tbc/item=${o.itemId}`;
+    if (o.spellId) return `https://www.wowhead.com/tbc/spell=${o.spellId}`;
+    return "";
+}
+
+/**
+ * One square icon with an optional count badge. Links to Wowhead when the id is
+ * known, so hovering gives the authoritative tooltip instead of our own label.
+ * @param {object} o { icon, label, count, itemId, spellId, tone, note }
+ */
+function iconTile(o) {
+    const parts = [o.label];
+    if (o.count !== undefined && o.count !== null) parts.push(`×${o.count}`);
+    if (o.note) parts.push(`— ${o.note}`);
+    const title = parts.join(" ");
+    const img = `<img src="${esc(iconUrl(o.icon))}" loading="lazy" alt="">`;
+    const badge = (o.count === undefined || o.count === null) ? "" : `<span class="n">${esc(o.count)}</span>`;
+    const cls = `itile${o.tone ? ` ${o.tone}` : ""}`;
+    const href = wowheadHref(o);
+    return href
+        ? `<a class="${cls}" href="${esc(href)}" target="_blank" rel="noopener" title="${esc(title)}">${img}${badge}</a>`
+        : `<span class="${cls}" title="${esc(title)}">${img}${badge}</span>`;
+}
+
+/** A wrapping row of icon tiles, or an em dash when there is nothing to show. */
+function iconRow(tiles) {
+    if (!tiles.length) return "<span class=\"sritems\">–</span>";
+    return `<div class="iconrow">${tiles.join("")}</div>`;
+}
+
+/**
+ * Build a tab bar + its panels. Panels are emitted as siblings of the nav, which
+ * is what the click handler scopes on, so these nest safely inside a panel.
+ * @param {Array<{id,label,icon?,count?,html}>} items
+ */
+function tabbed(items, extraClass) {
+    if (items.length === 0) return "";
+    if (items.length === 1) return items[0].html;
+    const buttons = items.map((t, i) => {
+        const count = (t.count === undefined || t.count === null) ? "" : `<span class="tab-count">${esc(t.count)}</span>`;
+        return `<button class="tab-btn${i === 0 ? " active" : ""}" data-tab="${esc(t.id)}">${hicon(t.icon, t.label)}<span>${esc(t.label)}</span>${count}</button>`;
+    }).join("");
+    const panels = items.map((t, i) =>
+        `<div id="tab-${esc(t.id)}" class="tabpanel${i === 0 ? " active" : ""}">${t.html}</div>`).join("");
+    return `<nav class="tabs${extraClass ? ` ${extraClass}` : ""}">${buttons}</nav>${panels}`;
+}
+
 // A theme-toggle button. The shared script (below) paints its icon and wires the click.
 function themeToggleBtn() {
     return "<button class=\"theme-toggle\" id=\"themeBtn\" type=\"button\" aria-label=\"Design umschalten\" title=\"Hell/Dunkel\"></button>";
@@ -291,6 +342,46 @@ ${body}
   .rolehead { font-size:14px; margin:20px 0 8px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
   .rolehead:first-child { margin-top:0; }
   .scrollx { overflow-x:auto; }
+  /* ---- RPB panels: one shared geometry so every table lines up ---- */
+  nav.tabs.sub { border-bottom:0; margin:2px 0 14px; gap:4px; }
+  nav.tabs.sub .tab-btn { padding:6px 12px; font-size:13.5px; border-radius:8px; border:1px solid transparent; }
+  nav.tabs.sub .tab-btn.active { background:var(--panel2); border-color:var(--line); }
+  table.idx.rpb th { white-space:nowrap; vertical-align:bottom; }
+  table.idx.rpb td.n, table.idx.rpb th.n { text-align:right; font-family:var(--font-mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  /* the player column stays put while the ability columns scroll */
+  table.idx.rpb th.pcol, table.idx.rpb td.pcol { position:sticky; left:0; z-index:2; background:var(--panel); min-width:172px; }
+  table.idx.rpb th.pcol { background:var(--panel2); }
+  table.idx.rpb tr:hover td.pcol { background:var(--panel2); }
+  /* transposed view: one column per raider */
+  th.rcol { min-width:74px; text-align:center; }
+  th.rcol .rcol-in { display:flex; flex-direction:column; align-items:center; gap:3px; }
+  th.rcol img { width:22px; height:22px; border-radius:4px; }
+  th.rcol span { font-size:11px; font-weight:600; max-width:72px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; }
+  /* icon tiles (trinkets, cooldowns, spells) */
+  .iconrow { display:flex; flex-wrap:wrap; gap:8px 9px; align-items:flex-start; padding:2px 0 4px; }
+  .itile { position:relative; width:34px; height:34px; flex:0 0 auto; border-radius:7px; border:1px solid var(--line);
+    display:block; line-height:0; text-decoration:none; transition:transform .12s ease, border-color .12s ease; }
+  .itile img { width:100%; height:100%; display:block; border-radius:6px; }
+  .itile:hover { transform:translateY(-2px); border-color:var(--accent); }
+  .itile .n { position:absolute; right:-5px; bottom:-6px; min-width:17px; padding:0 4px; border-radius:9px;
+    background:var(--panel3); border:1px solid var(--line); color:var(--text);
+    font:700 11px/15px var(--font-mono); font-variant-numeric:tabular-nums; text-align:center; }
+  .itile.warn { border-color:var(--high); box-shadow:0 0 0 1px var(--high-bg); }
+  .itile.warn .n { background:var(--high); border-color:var(--high); color:#fff; }
+  .itile.good .n { background:var(--good-bg); color:var(--good); border-color:var(--good-bg); }
+  /* table-orientation switch */
+  .tblswitch { display:inline-flex; margin:0 0 12px; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
+  .tblswitch button { appearance:none; background:var(--panel); border:0; color:var(--muted); font:inherit; font-size:13px; font-weight:600;
+    padding:7px 14px; cursor:pointer; }
+  .tblswitch button + button { border-left:1px solid var(--line); }
+  .tblswitch button.active { background:var(--accent-soft); color:var(--accent); }
+  .viewroot .tview-a { display:none; }
+  .viewroot.va .tview-p { display:none; }
+  .viewroot.va .tview-a { display:block; }
+  .legend { display:flex; flex-wrap:wrap; gap:6px 16px; margin:0 0 12px; color:var(--muted); font-size:12.5px; align-items:center; }
+  .legend .lg { display:inline-flex; align-items:center; gap:6px; }
+  .legend .sw { width:15px; height:15px; border-radius:4px; border:1px solid var(--line); flex:0 0 auto; }
+  .legend .sw.warn { border-color:var(--high); background:var(--high-bg); }
   .armory { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:8px; }
   .arow { display:flex; align-items:center; gap:10px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
   .aslot { width:80px; flex:0 0 auto; color:var(--muted); font-size:12px; }
@@ -303,6 +394,7 @@ ${body}
   .gem-empty { opacity:.7; }
   .hicon { width:18px; height:18px; border-radius:3px; vertical-align:-4px; margin-right:5px; }
   th .hicon { margin-right:4px; }
+  nav.tabs .tab-btn .hicon { margin-right:0; }
   /* hero header */
   .hero { position:relative; overflow:hidden; border:1px solid var(--line); border-top:2px solid var(--cc); background:var(--panel);
     padding:18px 20px; margin:6px 0 22px; display:flex; align-items:center; gap:16px;
@@ -375,11 +467,23 @@ ${opts.extraStyle || ""}
 <body${opts.bodyClass ? ` class="${opts.bodyClass}"` : ""}>
 ${inner}
 <script>
+/* Tabs are nested (report section > role), so a click may only touch the panels
+   that belong to the clicked nav — i.e. its own siblings, not every .tabpanel. */
 document.addEventListener("click",function(e){
   var b=e.target.closest("[data-tab]"); if(!b) return;
-  document.querySelectorAll("nav.tabs [data-tab]").forEach(function(x){x.classList.toggle("active",x===b);});
-  var t=b.getAttribute("data-tab");
-  document.querySelectorAll(".tabpanel").forEach(function(p){p.classList.toggle("active",p.id==="tab-"+t);});
+  var nav=b.closest("nav.tabs"); if(!nav) return;
+  nav.querySelectorAll("[data-tab]").forEach(function(x){x.classList.toggle("active",x===b);});
+  var t=b.getAttribute("data-tab"), scope=nav.parentElement; if(!scope) return;
+  Array.prototype.forEach.call(scope.children,function(p){
+    if(p.classList&&p.classList.contains("tabpanel")) p.classList.toggle("active",p.id==="tab-"+t);
+  });
+});
+/* Orientation switch for the damage table (players as rows <-> abilities as rows). */
+document.addEventListener("click",function(e){
+  var b=e.target.closest("[data-view]"); if(!b) return;
+  var root=b.closest(".viewroot"); if(!root) return;
+  root.querySelectorAll("[data-view]").forEach(function(x){x.classList.toggle("active",x===b);});
+  root.classList.toggle("va",b.getAttribute("data-view")==="a");
 });
 (function(){
   var root=document.documentElement, btn=document.getElementById("themeBtn"); if(!btn) return;
@@ -475,17 +579,44 @@ function renderPotionsPanel(potions, linkFor) {
     const rows = (potions && potions.players) || [];
     if (rows.length === 0) return "<div class=\"empty\">Keine Tränke gefunden.</div>";
     const ic = (potions && potions.icons) || {};
-    const body = rows.map((p) => `<tr>
-      <td>${classCell(p, linkFor(p.name))}</td>
-      <td class="srval">${esc(p.destruction)}</td>
-      <td class="srval">${esc(p.haste)}</td>
-      <td class="srval">${esc(p.mana)}</td>
-      <td class="srval">${esc(p.total)}</td>
-    </tr>`).join("");
-    return panelBox(`<table class="idx">
-      <tr><th>Spieler</th><th>${colHead(ic.destruction, "Destruction")}</th><th>${colHead(ic.haste, "Haste")}</th><th>${colHead(ic.mana, "Mana")}</th><th>Gesamt</th></tr>
+    // Every mana source that actually turned up in this raid gets its own column,
+    // so "Mana" is not one opaque number any more.
+    const manaTypes = ((potions && potions.types) || []).filter((t) => t.group === "mana");
+    const manaHead = manaTypes.map((t) => `<th class="n" title="${esc(t.label)}">${hicon(t.icon, t.label)}</th>`).join("");
+
+    const body = rows.map((p) => {
+        const byType = p.byType || {};
+        const manaCells = manaTypes.map((t) => {
+            const n = byType[t.key] || 0;
+            return `<td class="n">${n ? esc(n) : "<span class=\"sritems\">·</span>"}</td>`;
+        }).join("");
+        return `<tr>
+          <td class="pcol">${classCell(p, linkFor(p.name))}</td>
+          <td class="n">${esc(p.destruction)}</td>
+          <td class="n">${esc(p.haste)}</td>
+          <td class="n"><strong>${esc(p.mana)}</strong></td>
+          ${manaCells}
+          <td class="n">${esc(p.total)}</td>
+        </tr>`;
+    }).join("");
+
+    const legend = manaTypes.length
+        ? `<div class="legend">${manaTypes.map((t) => `<span class="lg">${iconTile({ ...t, label: t.label })}${esc(t.label)}</span>`).join("")}</div>`
+        : "";
+
+    return `<p class="note">Anzahl getrunkener Tränke. „Mana" ist die Summe aller Manaquellen; die Spalten dahinter schlüsseln auf, <em>welche</em> — inklusive der zoneneigenen Gratis-Items und der Runen.</p>
+    ${legend}
+    ${panelBox(`<div class="scrollx"><table class="idx rpb">
+      <tr>
+        <th class="pcol">Spieler</th>
+        <th class="n">${colHead(ic.destruction, "Zerstörung")}</th>
+        <th class="n">${colHead(ic.haste, "Hast")}</th>
+        <th class="n">${colHead(ic.mana, "Mana")}</th>
+        ${manaHead}
+        <th class="n">Gesamt</th>
+      </tr>
       ${body}
-    </table>`);
+    </table></div>`)}`;
 }
 
 function renderShadowResiPanel(sr, linkFor) {
@@ -623,63 +754,201 @@ function groupByRole(rows, roles) {
     return [...groups.entries()].filter(([, list]) => list.length);
 }
 
+// German label + icon per RPB role, for the role tab bars.
+const ROLE_META = {
+    Tank: { label: "Tanks", icon: "inv_shield_06" },
+    Healer: { label: "Heiler", icon: "spell_holy_flashheal" },
+    Caster: { label: "Caster", icon: "spell_fire_flamebolt" },
+    Physical: { label: "Nahkampf", icon: "inv_sword_27" },
+};
+
+/**
+ * Turn the role groups of a panel into tab items. Roles differ enough (a tank's
+ * numbers say nothing about a healer's) that stacking them in one table only made
+ * them harder to compare — one tab per role keeps each table homogeneous.
+ * @param {function(Array, string): string} renderGroup
+ */
+function roleTabs(prefix, rows, roles, renderGroup) {
+    return groupByRole(rows, roles).map(([role, list]) => {
+        const meta = ROLE_META[role] || { label: role, icon: "" };
+        return {
+            id: `${prefix}-${role.toLowerCase()}`,
+            label: meta.label,
+            icon: meta.icon,
+            count: list.length,
+            html: renderGroup(list, role),
+        };
+    });
+}
+
+/** Zero renders as a faint dot so the numbers that matter stand out. */
+function dmgCell(v) {
+    return v > 0 ? num(v) : "<span class=\"sritems\">·</span>";
+}
+
+/** Column head for one avoidable ability: its icon plus the NPCs that cast it. */
+function abilityHead(a) {
+    const title = a.sources && a.sources.length ? `${a.label} — ${a.sources.join(", ")}` : a.label;
+    const icon = a.icon
+        ? `<img class="hicon" src="${esc(iconUrl(a.icon))}" alt="" loading="lazy">`
+        : "";
+    return `<th class="n" title="${esc(title)}">${icon}${esc(a.label)}</th>`;
+}
+
+/** Players as rows, abilities as columns (the classic orientation). */
+function damageByPlayer(abilities, list, linkFor) {
+    const head = abilities.map(abilityHead).join("");
+    const body = list.map((p) => {
+        const cells = abilities.map((a, i) => `<td class="n">${dmgCell(p.perAbility[i])}</td>`).join("");
+        return `<tr>
+          <td class="pcol">${classCell(p, linkFor(p.name))}</td>
+          ${cells}
+          <td class="n"><strong>${num(p.avoidableTotal)}</strong></td>
+          <td class="n">${dmgCell(p.reflected)}</td>
+          <td class="n">${dmgCell(p.hostile)}</td>
+          <td class="n"><span class="pct ${p.deaths > 0 ? "pct-none" : "pct-full"}">${esc(p.deaths)}</span></td>
+        </tr>`;
+    }).join("");
+    return `<div class="scrollx"><table class="idx rpb">
+      <tr><th class="pcol">Spieler</th>${head}<th class="n">Summe</th><th class="n">Reflektiert</th><th class="n">Auf Spieler</th><th class="n">Tode</th></tr>
+      ${body}
+    </table></div>`;
+}
+
+/** Abilities as rows, one column per raider — the transposed view. */
+function damageByAbility(abilities, list, linkFor) {
+    const head = list.map((p) => {
+        const href = linkFor(p.name);
+        const inner = `<span class="rcol-in"><img src="${esc(classIconUrl(p.type))}" alt="" title="${esc(p.type)}"><span>${esc(p.name)}</span></span>`;
+        return `<th class="rcol" title="${esc(p.name)}">${href ? `<a href="${esc(href)}" style="text-decoration:none">${inner}</a>` : inner}</th>`;
+    }).join("");
+
+    const abilityRows = abilities.map((a, i) => {
+        const cells = list.map((p) => `<td class="n">${dmgCell(p.perAbility[i])}</td>`).join("");
+        const src = a.sources && a.sources.length ? ` title="${esc(a.sources.join(", "))}"` : "";
+        const icon = a.icon ? `<img class="hicon" src="${esc(iconUrl(a.icon))}" alt="" loading="lazy">` : "";
+        return `<tr><td class="pcol"${src}>${icon}${esc(a.label)}</td>${cells}</tr>`;
+    }).join("");
+
+    const sumRow = (label, pick, strong) => {
+        const cells = list.map((p) => `<td class="n">${strong ? `<strong>${num(pick(p))}</strong>` : dmgCell(pick(p))}</td>`).join("");
+        return `<tr><td class="pcol"><strong>${esc(label)}</strong></td>${cells}</tr>`;
+    };
+    const deathRow = `<tr><td class="pcol"><strong>Tode</strong></td>${
+        list.map((p) => `<td class="n"><span class="pct ${p.deaths > 0 ? "pct-none" : "pct-full"}">${esc(p.deaths)}</span></td>`).join("")
+    }</tr>`;
+
+    return `<div class="scrollx"><table class="idx rpb">
+      <tr><th class="pcol">Fähigkeit</th>${head}</tr>
+      ${abilityRows}
+      ${sumRow("Summe", (p) => p.avoidableTotal, true)}
+      ${sumRow("Reflektiert", (p) => p.reflected)}
+      ${sumRow("Auf Spieler", (p) => p.hostile)}
+      ${deathRow}
+    </table></div>`;
+}
+
 function renderRpbDamagePanel(damage, roles, linkFor) {
     if (!damage || !damage.players || damage.players.length === 0) {
         return "<div class=\"empty\">Keine Schadensdaten gefunden.</div>";
     }
     const abilities = damage.abilities || [];
-    const head = abilities.map((a) => {
-        const src = a.sources && a.sources.length ? ` title="${esc(a.sources.join(", "))}"` : "";
-        return `<th${src}>${esc(a.label)}</th>`;
-    }).join("");
+    const items = roleTabs("rpbdmg", damage.players, roles, (list) =>
+        `<div class="tview tview-p">${damageByPlayer(abilities, list, linkFor)}</div>
+         <div class="tview tview-a">${damageByAbility(abilities, list, linkFor)}</div>`);
 
-    const groups = groupByRole(damage.players, roles).map(([role, list]) => {
-        const body = list.map((p) => {
-            const cells = abilities.map((a, i) => `<td>${num(p.perAbility[i])}</td>`).join("");
-            return `<tr>
-              <td>${classCell(p, linkFor(p.name))}</td>
-              ${cells}
-              <td class="srval">${num(p.avoidableTotal)}</td>
-              <td>${num(p.reflected)}</td>
-              <td>${num(p.hostile)}</td>
-              <td><span class="pct ${p.deaths > 0 ? "pct-none" : "pct-full"}">${esc(p.deaths)}</span></td>
-            </tr>`;
-        }).join("");
-        return `<h3 class="rolehead">${esc(role)}</h3>
-        <div class="scrollx"><table class="idx">
-          <tr><th>Spieler</th>${head}<th>Summe</th><th>Reflektiert</th><th>Auf Spieler</th><th>Tode</th></tr>
-          ${body}
-        </table></div>`;
-    }).join("");
-
-    return `<p class="note">${esc(damage.heading || "Vermeidbarer erhaltener Schaden")}. Spaltenüberschriften zeigen beim Überfahren die verursachenden Gegner.</p>${groups}`;
+    return `<p class="note">${esc(damage.heading || "Vermeidbarer erhaltener Schaden")}. Überschriften zeigen beim Überfahren die verursachenden Gegner.</p>
+    <div class="viewroot">
+      <div class="tblswitch">
+        <button type="button" data-view="p" class="active">Spieler als Zeilen</button>
+        <button type="button" data-view="a">Fähigkeiten als Zeilen</button>
+      </div>
+      ${tabbed(items, "sub")}
+    </div>`;
 }
 
 function renderRpbActivityPanel(activity, roles, linkFor) {
     if (!activity || !activity.players || activity.players.length === 0) {
         return "<div class=\"empty\">Keine Aktivitätsdaten gefunden.</div>";
     }
-    const groups = groupByRole(activity.players, roles).map(([role, list]) => {
+    const items = roleTabs("rpbact", activity.players, roles, (list) => {
         const body = list.map((p) => {
             const haste = p.gearSpellHaste ? ` title="Zaubertempo aus Ausrüstung: ${p.gearSpellHaste}"` : "";
             return `<tr>
-              <td${haste}>${classCell(p, linkFor(p.name))}</td>
-              <td class="srval">${esc(p.secondsActive)}s</td>
-              <td>${uptimeCell(p.relativeTotal)}</td>
-              <td>${esc(p.secondsActiveST)}s</td>
-              <td>${esc(p.secondsActiveAoe)}s</td>
-              <td title="Abzug für Tempo-Effekte">${esc(p.hasteSecondsSubtracted)}s</td>
+              <td class="pcol"${haste}>${classCell(p, linkFor(p.name))}</td>
+              <td class="n"><strong>${esc(p.secondsActive)}s</strong></td>
+              <td class="n">${uptimeCell(p.relativeTotal)}</td>
+              <td class="n">${esc(p.secondsActiveST)}s</td>
+              <td class="n">${esc(p.secondsActiveAoe)}s</td>
+              <td class="n" title="Abzug für Tempo-Effekte">${esc(p.hasteSecondsSubtracted)}s</td>
             </tr>`;
         }).join("");
-        return `<h3 class="rolehead">${esc(role)}</h3>
-        <table class="idx">
-          <tr><th>Spieler</th><th>Aktiv gesamt</th><th>Anteil Raidzeit</th><th>Einzelziel</th><th>Fläche</th><th>Tempo-Abzug</th></tr>
+        return `<div class="scrollx"><table class="idx rpb">
+          <tr><th class="pcol">Spieler</th><th class="n">Aktiv gesamt</th><th class="n">Anteil Raidzeit</th><th class="n">Einzelziel</th><th class="n">Fläche</th><th class="n">Tempo-Abzug</th></tr>
           ${body}
-        </table>`;
-    }).join("");
+        </table></div>`;
+    });
 
     return `<p class="note">Rekonstruierte Aktivität: getrackte Zauber × Zauberzeit, abzüglich Tempo-Effekten, geteilt durch die Kampfzeit des Raids (${esc(activity.raidSeconds)}s).
-    <strong>Für Nahkämpfer ungenau</strong> — Autoattacks werden vom Combat Log nicht erfasst.</p>${groups}`;
+    <strong>Für Nahkämpfer ungenau</strong> — Autoattacks werden vom Combat Log nicht erfasst.</p>${tabbed(items, "sub")}`;
+}
+
+/**
+ * Which spells each raider actually cast, as icons with their cast count.
+ *
+ * The data for this already fell out of the activity analysis (it has to count
+ * every tracked cast to reconstruct active time) — it was simply never shown.
+ * The interesting part is the rank: the config sheet knows every rank of every
+ * tracked spell, so a cast on anything but the highest rank can be flagged.
+ */
+function spellTiles(rows) {
+    return rows.filter((r) => r.amount > 0).map((r) => {
+        const notes = [];
+        if (r.uptimePercent !== undefined) notes.push(`Uptime ${r.uptimePercent}%`);
+        if (r.lowerRankPercent) notes.push(`${r.lowerRankPercent}% niedriger Rang (${r.lowerRankCasts}×)`);
+        return iconTile({
+            icon: r.icon,
+            spellId: r.spellId,
+            label: r.label || r.name,
+            count: r.amount,
+            note: notes.join(" · "),
+            tone: r.mostlyLowerRank ? "warn" : "",
+        });
+    });
+}
+
+function renderRpbSpellsPanel(activity, roles, linkFor) {
+    const players = (activity && activity.players) || [];
+    const withSpells = players.filter((p) => (p.singleTargetCasts || []).length || (p.aoeCasts || []).length);
+    if (withSpells.length === 0) return "<div class=\"empty\">Keine getrackten Zauber gefunden.</div>";
+
+    const items = roleTabs("rpbspells", withSpells, roles, (list) => {
+        const body = list.map((p) => {
+            const st = p.singleTargetCasts || [];
+            const aoe = p.aoeCasts || [];
+            const downranked = [...st, ...aoe].filter((r) => r.mostlyLowerRank);
+            const rankCell = downranked.length
+                ? `<span class="pct pct-none" title="${esc(downranked.map((r) => r.label || r.name).join(", "))}">${downranked.length}</span>`
+                : "<span class=\"pct pct-full\">0</span>";
+            return `<tr>
+              <td class="pcol">${classCell(p, linkFor(p.name))}</td>
+              <td>${iconRow(spellTiles(st))}</td>
+              <td>${iconRow(spellTiles(aoe))}</td>
+              <td class="n">${rankCell}</td>
+            </tr>`;
+        }).join("");
+        return `<div class="scrollx"><table class="idx rpb">
+          <tr><th class="pcol">Spieler</th><th>Einzelziel</th><th>Fläche</th><th class="n">Rang-Warnungen</th></tr>
+          ${body}
+        </table></div>`;
+    });
+
+    return `<p class="note">Jedes Icon ist ein getrackter Zauber, die Zahl daran die Anzahl der Casts. Überfahren zeigt Name, Anzahl und ggf. die Uptime; ein Klick öffnet Wowhead.</p>
+    <div class="legend">
+      <span class="lg"><span class="sw warn"></span>rot umrandet = überwiegend in einem <strong>niedrigeren Rang</strong> gecastet</span>
+      <span class="lg">„Rang-Warnungen" = Anzahl solcher Zauber pro Spieler</span>
+    </div>
+    ${tabbed(items, "sub")}`;
 }
 
 function renderRpbInterruptsPanel(interrupts, linkFor) {
@@ -687,17 +956,22 @@ function renderRpbInterruptsPanel(interrupts, linkFor) {
         return "<div class=\"empty\">Keine Unterbrechungen gefunden.</div>";
     }
     const body = interrupts.players.map((p) => {
-        const spells = (p.spells || []).map((s) => `${esc(s.name)} ×${s.count}`).join(", ");
+        const spells = (p.spells || []).map((s) => iconTile({
+            icon: s.icon, spellId: s.spellId, label: s.name, count: s.count,
+        }));
+        const kicks = (p.kicks || []).map((k) => `${esc(k.name)} ×${k.count}`).join(", ");
         return `<tr>
-          <td>${classCell(p, linkFor(p.name))}</td>
-          <td class="srval">${esc(p.count)}</td>
-          <td class="sritems">${spells}</td>
+          <td class="pcol">${classCell(p, linkFor(p.name))}</td>
+          <td class="n"><strong>${esc(p.count)}</strong></td>
+          <td>${iconRow(spells)}</td>
+          <td class="sritems">${kicks || "–"}</td>
         </tr>`;
     }).join("");
-    return `<table class="idx">
-      <tr><th>Spieler</th><th>Unterbrechungen</th><th>Zauber</th></tr>
+    return `<p class="note">Welche gegnerischen Zauber wer unterbrochen hat — und womit.</p>
+    ${panelBox(`<div class="scrollx"><table class="idx rpb">
+      <tr><th class="pcol">Spieler</th><th class="n">Unterbrechungen</th><th>Unterbrochene Zauber</th><th>Eingesetzt mit</th></tr>
       ${body}
-    </table>`;
+    </table></div>`)}`;
 }
 
 function renderRpbValidationPanel(v) {
@@ -709,11 +983,11 @@ function renderRpbValidationPanel(v) {
         return `${header}<div class="empty">${esc(v.note || "Keine Trash-Anforderungen hinterlegt.")}</div>`;
     }
     const body = v.requirements.map((r) => `<tr>
-      <td>${esc(r.label)}</td>
+      <td class="pcol">${esc(r.label)}</td>
       <td>${esc(r.zone)}</td>
-      <td class="srval">${esc(r.killed)}</td>
-      <td>${esc(r.minimum)}</td>
-      <td><span class="pct ${r.ok ? "pct-full" : "pct-none"}">${r.ok ? "ok" : "zu wenig"}</span></td>
+      <td class="n"><strong>${esc(r.killed)}</strong></td>
+      <td class="n">${esc(r.minimum)}</td>
+      <td class="n"><span class="pct ${r.ok ? "pct-full" : "pct-none"}">${r.ok ? "ok" : "zu wenig"}</span></td>
     </tr>`).join("");
 
     const verdict = v.valid
@@ -721,40 +995,57 @@ function renderRpbValidationPanel(v) {
         : "<p class=\"note\">⚠️ Der Log erfüllt die Trash-Anforderungen <strong>nicht</strong>.</p>";
 
     return `${header}${verdict}
-    <table class="idx">
-      <tr><th>Trash</th><th>Zone</th><th>Gelegt</th><th>Nötig</th><th></th></tr>
+    ${panelBox(`<div class="scrollx"><table class="idx rpb">
+      <tr><th class="pcol">Trash</th><th>Zone</th><th class="n">Gelegt</th><th class="n">Nötig</th><th class="n"></th></tr>
       ${body}
-    </table>`;
+    </table></div>`)}`;
 }
 
 function renderRpbUsagePanel(usage, roles, linkFor) {
     if (!usage || usage.length === 0) return "<div class=\"empty\">Keine Nutzungsdaten gefunden.</div>";
-    const withData = usage.filter((u) => (u.classCooldowns || []).length || (u.trinketsAndRacials || []).length);
+    const withData = usage.filter((u) => (u.classCooldowns || []).length || (u.trinketsAndRacials || []).length
+        || (u.engineering || []).length || (u.absorbs || []).length);
     if (withData.length === 0) return "<div class=\"empty\">Keine Cooldowns oder Schmuckstücke erfasst.</div>";
 
-    const groups = groupByRole(withData, roles).map(([role, list]) => {
+    const items = roleTabs("rpbuse", withData, roles, (list) => {
         const body = list.map((p) => {
             const cds = (p.classCooldowns || []).map((c) => {
-                const possible = c.possibleUses ? ` / ${c.possibleUses}` : "";
-                const cls = c.possibleUses && c.total < c.possibleUses / 2 ? "pct-none" : "pct-full";
-                return `<span class="pct ${cls}">${esc(c.label)}: ${esc(c.total)}${possible}</span>`;
-            }).join(" ");
-            const trinkets = (p.trinketsAndRacials || []).slice(0, 6)
-                .map((t) => `${esc(t.label)} ×${t.total}`).join(", ");
+                // fewer than half the theoretically possible uses reads as "sat on it"
+                const under = c.possibleUses && c.total < c.possibleUses / 2;
+                return iconTile({
+                    icon: c.icon,
+                    spellId: c.spellId,
+                    label: c.label,
+                    count: c.total,
+                    note: c.possibleUses ? `${c.total} von ~${c.possibleUses} möglichen` : "",
+                    tone: under ? "warn" : "good",
+                });
+            });
+            const trinkets = (p.trinketsAndRacials || []).map((t) => iconTile({
+                icon: t.icon, spellId: t.spellId, label: t.label, count: t.total,
+            }));
+            const consumables = [...(p.engineering || []), ...(p.absorbs || [])].map((t) => iconTile({
+                icon: t.icon, spellId: t.spellId, label: t.label, count: t.total,
+            }));
             return `<tr>
-              <td>${classCell(p, linkFor(p.name))}</td>
-              <td>${cds || "<span class=\"sritems\">–</span>"}</td>
-              <td class="sritems">${trinkets || "–"}</td>
+              <td class="pcol">${classCell(p, linkFor(p.name))}</td>
+              <td>${iconRow(cds)}</td>
+              <td>${iconRow(trinkets)}</td>
+              <td>${iconRow(consumables)}</td>
             </tr>`;
         }).join("");
-        return `<h3 class="rolehead">${esc(role)}</h3>
-        <table class="idx">
-          <tr><th>Spieler</th><th>Klassen-Cooldowns (genutzt / möglich)</th><th>Schmuckstücke &amp; Rassenfertigkeiten</th></tr>
+        return `<div class="scrollx"><table class="idx rpb">
+          <tr><th class="pcol">Spieler</th><th>Klassen-Cooldowns</th><th>Schmuckstücke &amp; Rassenfertigkeiten</th><th>Ingenieurskunst &amp; Schilde</th></tr>
           ${body}
-        </table>`;
-    }).join("");
+        </table></div>`;
+    });
 
-    return `<p class="note">„möglich" = Kampfzeit auf Bossen geteilt durch die Abklingzeit — eine grobe Obergrenze, kein Sollwert.</p>${groups}`;
+    return `<p class="note">Die Zahl am Icon ist die Anzahl der Einsätze; beim Überfahren steht bei Cooldowns dahinter, wie viele in der Bosskampfzeit theoretisch möglich gewesen wären.</p>
+    <div class="legend">
+      <span class="lg"><span class="sw warn"></span>rot = weniger als die Hälfte der möglichen Einsätze</span>
+      <span class="lg">„möglich" = Bosskampfzeit ÷ Abklingzeit — eine grobe Obergrenze, kein Sollwert</span>
+    </div>
+    ${tabbed(items, "sub")}`;
 }
 
 function renderReportPage(report, user) {
@@ -790,26 +1081,36 @@ function renderReportPage(report, user) {
         ? (rpb.validation.requirements || []).filter((r) => !r.ok).length
         : 0;
 
+    // Spell usage rides on the activity data — it counts every tracked cast anyway.
+    const hasRpbSpells = hasRpbActivity
+        && rpb.activity.players.some((p) => (p.singleTargetCasts || []).length || (p.aoeCasts || []).length);
+    const rpbDownranks = hasRpbSpells
+        ? rpb.activity.players.reduce((n, p) =>
+            n + [...(p.singleTargetCasts || []), ...(p.aoeCasts || [])].filter((r) => r.mostlyLowerRank).length, 0)
+        : 0;
+
     const tabDefs = [
-        { id: "roster", label: "👥 Raider", show: hasRoster, count: (report.roster || []).length, html: renderRosterPanel(report, linkFor) },
-        { id: "gear", label: "🛡️ Gear Issues", show: true, count: players.reduce((n, p) => n + (p.issues || []).length, 0), html: renderGearPanel(players, linkFor) },
-        { id: "consumables", label: "🧪 Consumables", show: hasConsum, count: hasConsum, html: renderConsumablesPanel(report.consumables, linkFor) },
-        { id: "potions", label: "⚗️ Potions", show: hasPotions, count: hasPotions, html: renderPotionsPanel(report.potions, linkFor) },
-        { id: "drums", label: "🥁 Drums", show: hasDrums, count: hasDrums, html: renderDrumsPanel(report.drums, linkFor) },
-        { id: "sunder", label: "🪓 Sunder Armor", show: hasSunder, count: hasSunder, html: renderSunderPanel(report.sunder, linkFor) },
-        { id: "bosses", label: "📊 Bosse", show: hasBoss, count: hasBoss, html: renderBossUptimesPanel(report.bossUptimes) },
-        { id: "shadowresi", label: "🌑 Shadow-Resi", show: hasShadow, count: hasShadow, html: renderShadowResiPanel(report.shadowResi, linkFor) },
-        // RPB sections. The damage tab counts deaths and the log check counts unmet
-        // requirements, so both badges show the number that actually needs attention.
-        { id: "rpbdamage", label: "💥 Schaden & Tode", show: hasRpbDamage, count: rpbDeaths, html: hasRpbDamage ? renderRpbDamagePanel(rpb.damage, rpbRoles, linkFor) : "" },
-        { id: "rpbactivity", label: "⏱️ Aktivität", show: hasRpbActivity, count: hasRpbActivity, html: hasRpbActivity ? renderRpbActivityPanel(rpb.activity, rpbRoles, linkFor) : "" },
-        { id: "rpbusage", label: "🎯 Cooldowns", show: hasRpbUsage, count: hasRpbUsage, html: hasRpbUsage ? renderRpbUsagePanel(rpb.usage, rpbRoles, linkFor) : "" },
-        { id: "rpbinterrupts", label: "🛑 Interrupts", show: hasRpbInterrupts, count: hasRpbInterrupts, html: hasRpbInterrupts ? renderRpbInterruptsPanel(rpb.interrupts, linkFor) : "" },
-        { id: "rpbvalidate", label: "📋 Log-Prüfung", show: hasRpbValidation, count: rpbUnmet, html: hasRpbValidation ? renderRpbValidationPanel(rpb.validation) : "" },
+        { id: "roster", icon: "inv_misc_grouplooking", label: "Raider", show: hasRoster, count: (report.roster || []).length, html: renderRosterPanel(report, linkFor) },
+        { id: "gear", icon: "inv_shield_06", label: "Gear Issues", show: true, count: players.reduce((n, p) => n + (p.issues || []).length, 0), html: renderGearPanel(players, linkFor) },
+        { id: "consumables", icon: "inv_alchemy_endlessflask_05", label: "Consumables", show: hasConsum, count: hasConsum, html: renderConsumablesPanel(report.consumables, linkFor) },
+        { id: "potions", icon: "inv_potion_137", label: "Tränke", show: hasPotions, count: hasPotions, html: renderPotionsPanel(report.potions, linkFor) },
+        { id: "drums", icon: "inv_misc_drum_01", label: "Drums", show: hasDrums, count: hasDrums, html: renderDrumsPanel(report.drums, linkFor) },
+        { id: "sunder", icon: "ability_warrior_sunder", label: "Sunder Armor", show: hasSunder, count: hasSunder, html: renderSunderPanel(report.sunder, linkFor) },
+        { id: "bosses", icon: "achievement_boss_illidan", label: "Bosse", show: hasBoss, count: hasBoss, html: renderBossUptimesPanel(report.bossUptimes) },
+        { id: "shadowresi", icon: "spell_shadow_antishadow", label: "Shadow-Resi", show: hasShadow, count: hasShadow, html: renderShadowResiPanel(report.shadowResi, linkFor) },
+        // RPB sections. The damage tab counts deaths, the spell tab counts downrank
+        // warnings and the log check counts unmet requirements, so every badge shows
+        // the number that actually needs attention.
+        { id: "rpbdamage", icon: "ability_creature_cursed_05", label: "Schaden & Tode", show: hasRpbDamage, count: rpbDeaths, html: hasRpbDamage ? renderRpbDamagePanel(rpb.damage, rpbRoles, linkFor) : "" },
+        { id: "rpbactivity", icon: "inv_misc_pocketwatch_02", label: "Aktivität", show: hasRpbActivity, count: hasRpbActivity, html: hasRpbActivity ? renderRpbActivityPanel(rpb.activity, rpbRoles, linkFor) : "" },
+        { id: "rpbspells", icon: "inv_misc_book_11", label: "Zauber", show: hasRpbSpells, count: rpbDownranks, html: hasRpbSpells ? renderRpbSpellsPanel(rpb.activity, rpbRoles, linkFor) : "" },
+        { id: "rpbusage", icon: "ability_rogue_preparation", label: "Cooldowns", show: hasRpbUsage, count: hasRpbUsage, html: hasRpbUsage ? renderRpbUsagePanel(rpb.usage, rpbRoles, linkFor) : "" },
+        { id: "rpbinterrupts", icon: "spell_frost_iceshock", label: "Interrupts", show: hasRpbInterrupts, count: hasRpbInterrupts, html: hasRpbInterrupts ? renderRpbInterruptsPanel(rpb.interrupts, linkFor) : "" },
+        { id: "rpbvalidate", icon: "inv_misc_note_02", label: "Log-Prüfung", show: hasRpbValidation, count: rpbUnmet, html: hasRpbValidation ? renderRpbValidationPanel(rpb.validation) : "" },
     ].filter((t) => t.show);
 
     const buttons = tabDefs.map((t, i) =>
-        `<button class="tab-btn${i === 0 ? " active" : ""}" data-tab="${t.id}"><span>${t.label}</span><span class="tab-count">${esc(t.count || 0)}</span></button>`).join("");
+        `<button class="tab-btn${i === 0 ? " active" : ""}" data-tab="${t.id}">${hicon(t.icon, t.label)}<span>${esc(t.label)}</span><span class="tab-count">${esc(t.count || 0)}</span></button>`).join("");
     const panels = tabDefs.map((t, i) =>
         `<div id="tab-${t.id}" class="tabpanel${i === 0 ? " active" : ""}">${t.html}</div>`).join("");
 
@@ -905,6 +1206,11 @@ function renderPlayerPage(report, idx, user) {
     const bottom = BOTTOM.map((s) => paperdollSlot(bySlot[s], "bottom")).join("");
 
     const potChip = (icon, label, n) => `<span class="chip">${hicon(icon, label)}<b>${esc(n || 0)}</b> ${esc(label)}</span>`;
+    // which mana sources this raider actually used — the aggregate alone hides that
+    const byType = pot.byType || {};
+    const manaTiles = ((report.potions && report.potions.types) || [])
+        .filter((t) => t.group === "mana" && byType[t.key])
+        .map((t) => iconTile({ ...t, count: byType[t.key] }));
 
     const issues = issueCount
         ? panelBox(`<ul class="issues" style="padding:8px 16px">${p.issues.map(issueRow).join("")}</ul>`)
@@ -925,10 +1231,11 @@ function renderPlayerPage(report, idx, user) {
           <div class="hero-sub">Stufe 70 · ${esc(p.type)}</div>
           <div class="chips">
             <span class="chip ${issueCount ? "chip-warn" : "chip-ok"}"><b>${issueCount}</b> Gear-Probleme</span>
-            ${potChip(ic.destruction, "Destruction", pot.destruction)}
-            ${potChip(ic.haste, "Haste", pot.haste)}
+            ${potChip(ic.destruction, "Zerstörung", pot.destruction)}
+            ${potChip(ic.haste, "Hast", pot.haste)}
             ${potChip(ic.mana, "Mana", pot.mana)}
           </div>
+          ${manaTiles.length ? `<div class="iconrow" style="margin-top:10px">${manaTiles.join("")}</div>` : ""}
         </div>
       </div>
       <div class="doll" style="--cc:${color}">
