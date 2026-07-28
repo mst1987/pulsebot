@@ -22,7 +22,7 @@ jest.mock("fs", () => {
 const fs = require("fs");
 const {
     listLogs, getLog, getByReportId, saveLog, setButtonMessage,
-    markEvaluated, setLogTitle, deleteLog,
+    markEvaluated, evaluatedSections, setLogTitle, deleteLog,
     linkEvent, unlinkEvent, listLogsForEvent,
 } = require("../../src/web/logStore.js");
 
@@ -121,6 +121,38 @@ describe("web/logStore", () => {
 
         it("returns null for an unknown id", () => {
             expect(markEvaluated("nope", {})).toBeNull();
+        });
+
+        it("accumulates the evaluated sections across both halves", () => {
+            const a = saveLog(base());
+            const afterCla = markEvaluated(a.id, { reportRefId: "r1", sections: ["cla"] });
+            expect(afterCla.sections).toEqual(["cla"]);
+
+            const afterRpb = markEvaluated(a.id, { reportRefId: "r1", sections: ["rpb"] });
+            expect(afterRpb.sections).toEqual(expect.arrayContaining(["cla", "rpb"]));
+            expect(afterRpb.sections).toHaveLength(2);
+        });
+
+        it("does not duplicate a section that ran twice", () => {
+            const a = saveLog(base());
+            markEvaluated(a.id, { sections: ["cla"] });
+            const again = markEvaluated(a.id, { sections: ["cla"] });
+            expect(again.sections).toEqual(["cla"]);
+        });
+    });
+
+    describe("evaluatedSections", () => {
+        it("returns the explicit sections when present", () => {
+            expect(evaluatedSections({ status: "done", sections: ["rpb"] })).toEqual(["rpb"]);
+        });
+
+        it("treats a legacy done log (no sections field) as CLA-evaluated", () => {
+            expect(evaluatedSections({ status: "done" })).toEqual(["cla"]);
+        });
+
+        it("returns nothing for an open or missing log", () => {
+            expect(evaluatedSections({ status: "open" })).toEqual([]);
+            expect(evaluatedSections(null)).toEqual([]);
         });
     });
 

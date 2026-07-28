@@ -56,7 +56,9 @@ async function handleLogMessage(message) {
     let registered = 0;
     for (const { link, reportId } of links) {
         const existing = logStore.getByReportId(reportId);
-        if (existing && existing.status === "done") continue;      // never a second time
+        // Only skip once *both* analyses are done — a log whose CLA already ran
+        // should still offer its RPB button.
+        if (existing && logStore.evaluatedSections(existing).length >= 2) continue;
         if (existing && existing.buttonMessageId) continue;        // already has a live button
 
         const log = logStore.saveLog({
@@ -70,7 +72,11 @@ async function handleLogMessage(message) {
         });
         registered += 1;
         try {
-            const btn = await discord.postLogButton(message, { logId: log.id });
+            // a half that already ran keeps its button off the fresh message
+            const btn = await discord.postLogButton(message, {
+                logId: log.id,
+                doneSections: logStore.evaluatedSections(log),
+            });
             logStore.setButtonMessage(log.id, btn);
         } catch (e) {
             console.error("postLogButton failed:", e.message);
@@ -88,25 +94,52 @@ async function handleLogMessage(message) {
     }
 }
 
+// The two analysis halves. Defined here rather than imported from report.js so
+// this module keeps working independently of that module's shape.
+const SECTION_CLA = "cla";
+const SECTION_RPB = "rpb";
+
+/** Human label for a section, used in the button replies. */
+const SECTION_LABEL = { [SECTION_CLA]: "CLA", [SECTION_RPB]: "RPB" };
+
 /**
- * Evaluate a tracked log exactly once. Returns a result object:
- *   { ok: true, id, url, report, log }
- *   { ok: false, error, already?, url? }
+ * Evaluate one half of a tracked log — the CLA (gear/consumables) or the RPB
+ * (performance) analysis. Each half runs at most once; the second one merges into
+ * the page the first one created, so the link stays the same and just gains tabs.
+ *
+ * @param {string} logId
+ * @param {string} [section]  "cla" or "rpb" (default: "cla")
+ * @returns {Promise<{ok:true,id,url,report,log,section} | {ok:false,error,already?,url?}>}
  */
-async function evaluateLog(logId) {
+async function evaluateLog(logId, section = SECTION_CLA) {
+    const kind = section === SECTION_RPB ? SECTION_RPB : SECTION_CLA;
     const log = logStore.getLog(logId);
     if (!log) return { ok: false, error: "Log nicht gefunden." };
-    if (log.status === "done") {
-        return { ok: false, already: true, url: log.reportUrl, error: "Dieser Log wurde bereits ausgewertet." };
+
+    const done = logStore.evaluatedSections(log);
+    if (done.includes(kind)) {
+        return {
+            ok: false,
+            already: true,
+            url: log.reportUrl,
+            error: `Die ${SECTION_LABEL[kind]}-Auswertung liegt für diesen Log bereits vor.`,
+        };
     }
-    if (running.has(logId)) {
+
+    // Guard per log *and* half, so CLA and RPB can run side by side.
+    const guardKey = `${logId}:${kind}`;
+    if (running.has(guardKey)) {
         return { ok: false, error: "Auswertung läuft bereits — bitte einen Moment warten." };
     }
-    running.add(logId);
+    running.add(guardKey);
     try {
         let result;
         try {
-            result = await buildReport(log.link);
+            result = await buildReport(log.link, {
+                sections: [kind],
+                // fold into the page the other half already created, if there is one
+                mergeIntoId: log.reportRefId || undefined,
+            });
         } catch (e) {
             const msg = e instanceof ReportError ? e.message : "Unerwarteter Fehler beim Erstellen der Auswertung.";
             if (!(e instanceof ReportError)) console.error("evaluateLog build failed:", e);
@@ -117,10 +150,11 @@ async function evaluateLog(logId) {
             reportUrl: result.url,
             title: result.report.title,
             zone: result.report.zone,
+            sections: [kind],
         });
-        return { ok: true, id: result.id, url: result.url, report: result.report, log: saved || log };
+        return { ok: true, id: result.id, url: result.url, report: result.report, log: saved || log, section: kind };
     } finally {
-        running.delete(logId);
+        running.delete(guardKey);
     }
 }
 
@@ -212,4 +246,7 @@ async function backfillLogTitles(logs) {
     return filled;
 }
 
-module.exports = { handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles, messageText, isLogChannel };
+module.exports = {
+    handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles,
+    messageText, isLogChannel, SECTION_LABEL, SECTION_CLA, SECTION_RPB,
+};

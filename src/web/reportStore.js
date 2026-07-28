@@ -20,14 +20,22 @@ function filePath(id) {
 
 /**
  * Persist a report and return its id.
+ *
+ * Passing an existing `id` overwrites that report instead of creating a new one.
+ * That is what lets the CLA and the RPB evaluation of the same log share a single
+ * page: the second one loads the first, merges its sections in and writes back
+ * under the same id, so the link posted to Discord stays valid and simply gains
+ * more tabs.
+ *
  * @param {object} report  the full report payload (meta + players)
+ * @param {string} [id]    reuse this id instead of generating a fresh one
  */
-function saveReport(report) {
+function saveReport(report, id) {
     ensureDir();
-    const id = newId();
-    const payload = { ...report, id, generatedAt: report.generatedAt || Date.now() };
-    fs.writeFileSync(filePath(id), JSON.stringify(payload));
-    return id;
+    const reportId = id && /^[a-f0-9]{6,}$/i.test(id) ? id : newId();
+    const payload = { ...report, id: reportId, generatedAt: report.generatedAt || Date.now() };
+    fs.writeFileSync(filePath(reportId), JSON.stringify(payload));
+    return reportId;
 }
 
 /** Load a report by id, or null if it does not exist / is unreadable. */
