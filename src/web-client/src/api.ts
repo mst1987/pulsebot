@@ -819,6 +819,12 @@ export type ReportSummary = {
     reportUrl: string;
     playerCount: number;
     issueCount: number;
+    // Raid assignment, resolved via the tracked log this report came from
+    // (annotateReportEvents). All empty when there is no log / no raid.
+    logId: string;
+    eventId: string;
+    eventLabel: string;
+    eventStartTime: number;
 };
 
 // A candidate raid event a detected log could belong to, ranked by how close
@@ -884,6 +890,20 @@ export function getClaData(view: "reports" | "logs", sort?: string, dir?: string
 
 export function createReport(csrfToken: string | null, link: string): Promise<{ id: string; url: string }> {
     return send("POST", "/api/cla", csrfToken, { link });
+}
+
+export function deleteReport(
+    csrfToken: string | null,
+    reportId: string,
+): Promise<{ reportId: string; logId: string; message: string }> {
+    return send("POST", "/api/cla/report-delete", csrfToken, { reportId });
+}
+
+export function unlinkReport(
+    csrfToken: string | null,
+    reportId: string,
+): Promise<{ reportId: string; logId: string; message: string }> {
+    return send("POST", "/api/cla/report-unlink", csrfToken, { reportId });
 }
 
 /**

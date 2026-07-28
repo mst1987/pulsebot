@@ -30,6 +30,7 @@ const {
 } = require("./apiRoutes/history");
 const {
     getClaData, createReport, evalLog, scanLogs, deleteLogHandler, linkLog, linkLogUrl, unlinkLog, autoMatchLogs,
+    deleteReportHandler, unlinkReport,
 } = require("./apiRoutes/cla");
 
 /** Dispatches an /api/* request. `url` is only needed by routes that read query params. */
@@ -224,6 +225,14 @@ async function handle(pathname, req, res, url) {
     }
     if (pathname === "/api/cla" && req.method === "POST") {
         await createReport(req, res);
+        return true;
+    }
+    if (pathname === "/api/cla/report-delete" && req.method === "POST") {
+        await deleteReportHandler(req, res);
+        return true;
+    }
+    if (pathname === "/api/cla/report-unlink" && req.method === "POST") {
+        await unlinkReport(req, res);
         return true;
     }
     if (pathname === "/api/cla/eval" && req.method === "POST") {
