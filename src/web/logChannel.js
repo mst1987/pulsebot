@@ -8,6 +8,7 @@ const discord = require("./discord");
 const { extractWclLinks } = require("../utils/logcheck/logLinks");
 const { buildReport, ReportError } = require("../utils/logcheck/report");
 const WarcraftLogs = require("../classes/warcraftlogs");
+const { autoLinkLogs } = require("./logAutoLink");
 
 // In-process guard so a double click (or a click racing the web button) cannot
 // start two evaluations of the same log before the first marks it done.
@@ -52,6 +53,7 @@ async function handleLogMessage(message) {
     if (!isLogChannel(message.channelId)) return;
 
     const links = extractWclLinks(messageText(message));
+    let registered = 0;
     for (const { link, reportId } of links) {
         const existing = logStore.getByReportId(reportId);
         if (existing && existing.status === "done") continue;      // never a second time
@@ -66,11 +68,22 @@ async function handleLogMessage(message) {
             source: "listener",
             postedAt: message.createdTimestamp,
         });
+        registered += 1;
         try {
             const btn = await discord.postLogButton(message, { logId: log.id });
             logStore.setButtonMessage(log.id, btn);
         } catch (e) {
             console.error("postLogButton failed:", e.message);
+        }
+    }
+    // Assign the fresh log to its raid straight away (best-effort) instead of
+    // waiting for the periodic sweep, so it is already linked by the time anyone
+    // opens the raid list or the event's detail page.
+    if (registered) {
+        try {
+            await autoLinkLogs(message.guildId);
+        } catch (e) {
+            console.error("autoLinkLogs after detection failed:", e.message);
         }
     }
 }
@@ -114,7 +127,9 @@ async function evaluateLog(logId) {
 /**
  * Scan the configured log channels for WCL links posted while the bot was down /
  * before the channel was configured, and register any new ones (status "open").
- * Optionally restrict to a single guild. Returns the number of new logs found.
+ * Optionally restrict to a single guild. Newly found logs are assigned to their
+ * raid right away (best-effort) so a backfilled log behaves exactly like one that
+ * was picked up live. Returns the number of new logs found.
  */
 async function scanLogChannels(guildId, { perChannel = 50 } = {}) {
     const client = discord.getClient();
@@ -150,6 +165,13 @@ async function scanLogChannels(guildId, { perChannel = 50 } = {}) {
                 });
                 count++;
             }
+        }
+    }
+    if (count && guildId) {
+        try {
+            await autoLinkLogs(guildId);
+        } catch (e) {
+            console.error("autoLinkLogs after scan failed:", e.message);
         }
     }
     return count;

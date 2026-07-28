@@ -5,8 +5,21 @@ import { eventPostUrl, raidplanUrl } from "../lib/discordLinks";
 
 // Ported from renderAdmin.js's raidTable()/eventDetailLink()/logsCell()/lootCell()/
 // linksCell() — shared by the History page's "Alle Raids" tab (upcoming + past).
-function LogsCell({ logs }: { logs: RaidRow["logs"] }) {
-    if (!logs.length) return <span className="sub">—</span>;
+// Only logs actually ASSIGNED to the raid are listed — the same stored
+// assignment the event detail page reads, so the two can never disagree. A log
+// that fits time-wise but stayed unassigned (two raids the same evening) shows
+// up as an open decision instead, linking to the detail page's Logs tab.
+function LogsCell({ ev }: { ev: RaidRow }) {
+    const { logs } = ev;
+    const pending = ev.pendingLogCount || 0;
+    const pendingHint = pending ? (
+        <div className="small">
+            <Link className="mlink" to={`/raids/detail?event=${encodeURIComponent(ev.id)}&tab=logs`}>
+                {pending} Log{pending === 1 ? "" : "s"} offen
+            </Link>
+        </div>
+    ) : null;
+    if (!logs.length) return pendingHint || <span className="sub">—</span>;
     return (
         <>
             {logs.map((l, i) => {
@@ -23,6 +36,7 @@ function LogsCell({ logs }: { logs: RaidRow["logs"] }) {
                     </div>
                 );
             })}
+            {pendingHint}
         </>
     );
 }
@@ -68,7 +82,7 @@ export default function RaidTable({ events, guildId, error, emptyMessage }: {
                             {ev.channelName && <div className="small">#{ev.channelName}</div>}
                         </td>
                         <td className="small">{formatEventTime(ev.startTime)}</td>
-                        <td className="small"><LogsCell logs={ev.logs} /></td>
+                        <td className="small"><LogsCell ev={ev} /></td>
                         <td className="small"><LootCell ev={ev} /></td>
                         <td className="small"><LinksCell ev={ev} guildId={guildId} /></td>
                     </tr>

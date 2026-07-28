@@ -46,6 +46,9 @@ export type RecentEvent = {
     channelName: string;
     categoryName: string;
     logs: EventLog[];
+    // Logs that fit this raid time-wise but stayed unassigned (the automatic
+    // match was ambiguous) — an open decision, never one of the raid's logs.
+    pendingLogCount?: number;
     lootCount: number;
     softres: { url?: string } | null;
 };

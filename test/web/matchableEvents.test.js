@@ -125,13 +125,47 @@ describe("web/matchableEvents", () => {
         expect(events.map((e) => e.id)).toEqual(["new", "old"]);
     });
 
-    it("returns an empty result with the error when Raid-Helper fails", async () => {
+    it("returns an empty result with the error when Raid-Helper fails and nothing is persisted", async () => {
         mockGetPastEvents.mockRejectedValue(new Error("Raid-Helper down"));
 
         const { events, error } = await loadMatchableEvents("g1");
 
         expect(events).toEqual([]);
         expect(error).toBe("Raid-Helper down");
+    });
+
+    // The automatic log->event assignment (logAutoLink.js) runs off this list.
+    // Returning nothing during an outage would stall it until Raid-Helper is
+    // back, even though the snapshot holds everything a time match needs.
+    it("serves the persisted snapshot when Raid-Helper fails, keeping the error", async () => {
+        mockGetPastEvents.mockRejectedValue(new Error("Raid-Helper down"));
+        listRaidEvents.mockReturnValue([
+            { id: "e1", guildId: "g1", title: "Kara", channelId: "chan1", channelName: "kara",
+                categoryId: "cat1", categoryName: "Raids", startTime: 2000000000 },
+            { id: "e2", guildId: "g1", title: "SSC", channelId: "chan2", channelName: "ssc",
+                categoryId: "cat1", categoryName: "Raids", startTime: 2000009999 },
+        ]);
+
+        const { events, error } = await loadMatchableEvents("g1");
+
+        expect(error).toBe("Raid-Helper down");
+        expect(events.map((e) => e.id)).toEqual(["e2", "e1"]); // newest first
+        expect(events[1]).toEqual({
+            id: "e1", title: "Kara", startTime: 2000000000, channelId: "chan1",
+            channelName: "kara", categoryId: "cat1", categoryName: "Raids",
+        });
+    });
+
+    it("does not serve snapshot events older than the lookback window during an outage", async () => {
+        mockGetPastEvents.mockRejectedValue(new Error("Raid-Helper down"));
+        listRaidEvents.mockReturnValue([{
+            id: "old", guildId: "g1", title: "Ancient", channelId: "c", channelName: "c",
+            categoryId: "cat1", categoryName: "Raids", startTime: 1,
+        }]);
+
+        const { events } = await loadMatchableEvents("g1", 1);
+
+        expect(events).toEqual([]);
     });
 });
 
