@@ -15,6 +15,7 @@ const {
 } = require("../logStore");
 const { annotateMatches, autoMatches } = require("../logEventMatch");
 const { evaluateLog, scanLogChannels, backfillLogTitles } = require("../logChannel");
+const { startJob, getJob } = require("../evalJobs");
 const { getConfig } = require("../settingsStore");
 const { buildReport, ReportError } = require("../../utils/logcheck/report");
 const { loadMatchableEvents, eventLinkFields } = require("../matchableEvents");
@@ -120,9 +121,13 @@ async function unlinkReport(req, res) {
 }
 
 /**
- * POST /api/cla/eval — body: { logId, section }. Evaluates one half of a tracked
- * log ("cla" or "rpb", default "cla"); each half runs at most once and both merge
- * into the same report page.
+ * POST /api/cla/eval — body: { logId, section }. Starts one half of a tracked
+ * log's analysis ("cla" or "rpb", default "cla") and answers immediately.
+ *
+ * The work runs in the background (see evalJobs.js) because an RPB evaluation
+ * takes ~50s — long enough for a reverse proxy to cut the connection at its 60s
+ * timeout, which reached the client as a gateway error instead of a result. The
+ * caller polls GET /api/cla/eval-status for the outcome.
  */
 async function evalLog(req, res) {
     const user = requireAdmin(req, res);
@@ -130,10 +135,49 @@ async function evalLog(req, res) {
     if (!requireCsrf(req, res)) return;
     const body = await readJsonBody(req);
     const section = String(body.section || "cla").trim() === "rpb" ? "rpb" : "cla";
-    const result = await evaluateLog(String(body.logId || "").trim(), section);
-    if (result.ok) return ok(res, { id: result.id, url: result.url, section: result.section });
-    if (result.already) return ok(res, { alreadyEvaluated: true, url: result.url, section });
-    error(res, 400, "eval_failed", result.error || "Auswertung fehlgeschlagen.");
+    const logId = String(body.logId || "").trim();
+    if (!logId) return error(res, 400, "eval_failed", "Kein Log angegeben.");
+
+    // Reject the obvious cases up front so the client gets a straight answer
+    // instead of having to poll for a failure that is already known.
+    const log = getLog(logId);
+    if (!log) return error(res, 400, "eval_failed", "Log nicht gefunden.");
+    if (evaluatedSections(log).includes(section)) {
+        return ok(res, {
+            alreadyEvaluated: true, url: log.reportUrl, section, status: "done",
+        });
+    }
+
+    const { alreadyRunning } = startJob(logId, section, () => evaluateLog(logId, section));
+    ok(res, { status: "running", section, logId, alreadyRunning }, 202);
+}
+
+/**
+ * GET /api/cla/eval-status?logId=&section= — outcome of a started evaluation.
+ *
+ * A job that is gone (server restarted, or it finished long ago) is answered from
+ * the persisted state instead, so the UI still resolves to the right result.
+ */
+function evalStatus(req, res, url) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    const logId = String(url.searchParams.get("logId") || "").trim();
+    const section = String(url.searchParams.get("section") || "cla").trim() === "rpb" ? "rpb" : "cla";
+
+    const job = getJob(logId, section);
+    if (job) {
+        return ok(res, {
+            status: job.status, url: job.url, id: job.id,
+            error: job.error, section, runningMs: job.runningMs,
+        });
+    }
+
+    // no live job — fall back to what was persisted
+    const log = getLog(logId);
+    if (log && evaluatedSections(log).includes(section)) {
+        return ok(res, { status: "done", url: log.reportUrl, id: log.reportRefId, section });
+    }
+    ok(res, { status: "unknown", section });
 }
 
 /** POST /api/cla/scan — scans the configured log channels for new logs. */
@@ -243,6 +287,7 @@ async function autoMatchLogs(req, res) {
 }
 
 module.exports = {
-    getClaData, createReport, evalLog, scanLogs, deleteLogHandler, linkLog, linkLogUrl, unlinkLog, autoMatchLogs,
+    getClaData, createReport, evalLog, evalStatus, scanLogs, deleteLogHandler,
+    linkLog, linkLogUrl, unlinkLog, autoMatchLogs,
     deleteReportHandler, unlinkReport,
 };

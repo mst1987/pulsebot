@@ -994,12 +994,89 @@ export function unlinkReport(
  * (performance). Each half runs at most once; both write into the same report
  * page, so the returned url is stable across the two calls.
  */
-export function evalLog(
+export type EvalStart = {
+    status?: "running" | "done";
+    section?: LogSection;
+    logId?: string;
+    alreadyRunning?: boolean;
+    alreadyEvaluated?: boolean;
+    url?: string;
+};
+
+export type EvalStatus = {
+    status: "running" | "done" | "error" | "unknown";
+    url?: string;
+    id?: string;
+    error?: string;
+    section?: LogSection;
+    runningMs?: number;
+};
+
+/** Kick off one half of a log's analysis. Returns as soon as the job is queued. */
+export function startEval(
     csrfToken: string | null,
     logId: string,
     section: LogSection = "cla",
-): Promise<{ id?: string; url: string; alreadyEvaluated?: boolean; section?: LogSection }> {
+): Promise<EvalStart> {
     return send("POST", "/api/cla/eval", csrfToken, { logId, section });
+}
+
+/** Current state of a started evaluation. */
+export function getEvalStatus(logId: string, section: LogSection): Promise<EvalStatus> {
+    const qs = new URLSearchParams({ logId, section });
+    return get<EvalStatus>(`/api/cla/eval-status?${qs.toString()}`);
+}
+
+/**
+ * Run one half of a log's analysis to completion.
+ *
+ * The request only starts the job — an RPB evaluation runs ~50s, far past the
+ * point where a reverse proxy would drop a held-open connection — so the result
+ * is collected by polling. Resolves with the finished report's url.
+ *
+ * @param onTick called with the elapsed seconds, for a progress label
+ */
+export async function evalLog(
+    csrfToken: string | null,
+    logId: string,
+    section: LogSection = "cla",
+    onTick?: (seconds: number) => void,
+): Promise<{ url: string; id?: string; alreadyEvaluated?: boolean; section?: LogSection }> {
+    const started = await startEval(csrfToken, logId, section);
+    if (started.alreadyEvaluated) {
+        return { url: started.url || "", alreadyEvaluated: true, section };
+    }
+
+    const startedAt = Date.now();
+    const POLL_MS = 2000;
+    // Generous ceiling: well past a slow RPB run, but not infinite.
+    const TIMEOUT_MS = 10 * 60 * 1000;
+
+    for (;;) {
+        await new Promise((r) => setTimeout(r, POLL_MS));
+        if (onTick) onTick(Math.round((Date.now() - startedAt) / 1000));
+
+        const state = await getEvalStatus(logId, section);
+        if (state.status === "done") {
+            return { url: state.url || "", id: state.id, section };
+        }
+        if (state.status === "error") {
+            throw { code: "eval_failed", message: state.error || "Auswertung fehlgeschlagen." } as ApiError;
+        }
+        if (state.status === "unknown") {
+            // the job vanished without leaving a result (server restart mid-run)
+            throw {
+                code: "eval_lost",
+                message: "Die Auswertung wurde unterbrochen. Bitte erneut starten.",
+            } as ApiError;
+        }
+        if (Date.now() - startedAt > TIMEOUT_MS) {
+            throw {
+                code: "eval_timeout",
+                message: "Die Auswertung dauert ungewöhnlich lange. Sie läuft im Hintergrund weiter — lade die Seite später neu.",
+            } as ApiError;
+        }
+    }
 }
 
 export function scanLogs(csrfToken: string | null): Promise<{ found: number; message: string }> {

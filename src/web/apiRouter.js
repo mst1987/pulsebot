@@ -30,7 +30,8 @@ const {
     resolveCharacters, getHistoryChar,
 } = require("./apiRoutes/history");
 const {
-    getClaData, createReport, evalLog, scanLogs, deleteLogHandler, linkLog, linkLogUrl, unlinkLog, autoMatchLogs,
+    getClaData, createReport, evalLog, evalStatus, scanLogs, deleteLogHandler,
+    linkLog, linkLogUrl, unlinkLog, autoMatchLogs,
     deleteReportHandler, unlinkReport,
 } = require("./apiRoutes/cla");
 
@@ -263,6 +264,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/cla/eval" && req.method === "POST") {
         await evalLog(req, res);
+        return true;
+    }
+    if (pathname === "/api/cla/eval-status" && req.method === "GET") {
+        evalStatus(req, res, url);
         return true;
     }
     if (pathname === "/api/cla/scan" && req.method === "POST") {
