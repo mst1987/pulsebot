@@ -225,6 +225,9 @@ ${body}
   nav.tabs button.active { color:var(--text); border-bottom-color:var(--accent); font-weight:700; }
   .tabpanel { display:none; }
   .tabpanel.active { display:block; }
+  .rolehead { font-size:14px; margin:20px 0 8px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+  .rolehead:first-child { margin-top:0; }
+  .scrollx { overflow-x:auto; }
   .armory { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:8px; }
   .arow { display:flex; align-items:center; gap:10px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
   .aslot { width:80px; flex:0 0 auto; color:var(--muted); font-size:12px; }
@@ -465,6 +468,159 @@ function renderBossUptimesPanel(data) {
     </table>`;
 }
 
+// --- RPB (Role Performance Breakdown) panels ------------------------------
+
+/** Thousands-separated number for the damage tables. */
+function num(n) {
+    return Math.round(n || 0).toLocaleString("de-DE");
+}
+
+/** Group rows by the role the RPB assigned, in the sheet's own role order. */
+function groupByRole(rows, roles) {
+    const order = ["Tank", "Healer", "Caster", "Physical"];
+    const groups = new Map(order.map((r) => [r, []]));
+    for (const row of rows) {
+        const role = (roles && roles[row.name]) || "Physical";
+        if (!groups.has(role)) groups.set(role, []);
+        groups.get(role).push(row);
+    }
+    return [...groups.entries()].filter(([, list]) => list.length);
+}
+
+function renderRpbDamagePanel(damage, roles, linkFor) {
+    if (!damage || !damage.players || damage.players.length === 0) {
+        return "<div class=\"empty\">Keine Schadensdaten gefunden.</div>";
+    }
+    const abilities = damage.abilities || [];
+    const head = abilities.map((a) => {
+        const src = a.sources && a.sources.length ? ` title="${esc(a.sources.join(", "))}"` : "";
+        return `<th${src}>${esc(a.label)}</th>`;
+    }).join("");
+
+    const groups = groupByRole(damage.players, roles).map(([role, list]) => {
+        const body = list.map((p) => {
+            const cells = abilities.map((a, i) => `<td>${num(p.perAbility[i])}</td>`).join("");
+            return `<tr>
+              <td>${classCell(p, linkFor(p.name))}</td>
+              ${cells}
+              <td class="srval">${num(p.avoidableTotal)}</td>
+              <td>${num(p.reflected)}</td>
+              <td>${num(p.hostile)}</td>
+              <td><span class="pct ${p.deaths > 0 ? "pct-none" : "pct-full"}">${esc(p.deaths)}</span></td>
+            </tr>`;
+        }).join("");
+        return `<h3 class="rolehead">${esc(role)}</h3>
+        <div class="scrollx"><table class="idx">
+          <tr><th>Spieler</th>${head}<th>Summe</th><th>Reflektiert</th><th>Auf Spieler</th><th>Tode</th></tr>
+          ${body}
+        </table></div>`;
+    }).join("");
+
+    return `<p class="note">${esc(damage.heading || "Vermeidbarer erhaltener Schaden")}. Spaltenüberschriften zeigen beim Überfahren die verursachenden Gegner.</p>${groups}`;
+}
+
+function renderRpbActivityPanel(activity, roles, linkFor) {
+    if (!activity || !activity.players || activity.players.length === 0) {
+        return "<div class=\"empty\">Keine Aktivitätsdaten gefunden.</div>";
+    }
+    const groups = groupByRole(activity.players, roles).map(([role, list]) => {
+        const body = list.map((p) => {
+            const haste = p.gearSpellHaste ? ` title="Zaubertempo aus Ausrüstung: ${p.gearSpellHaste}"` : "";
+            return `<tr>
+              <td${haste}>${classCell(p, linkFor(p.name))}</td>
+              <td class="srval">${esc(p.secondsActive)}s</td>
+              <td>${uptimeCell(p.relativeTotal)}</td>
+              <td>${esc(p.secondsActiveST)}s</td>
+              <td>${esc(p.secondsActiveAoe)}s</td>
+              <td title="Abzug für Tempo-Effekte">${esc(p.hasteSecondsSubtracted)}s</td>
+            </tr>`;
+        }).join("");
+        return `<h3 class="rolehead">${esc(role)}</h3>
+        <table class="idx">
+          <tr><th>Spieler</th><th>Aktiv gesamt</th><th>Anteil Raidzeit</th><th>Einzelziel</th><th>Fläche</th><th>Tempo-Abzug</th></tr>
+          ${body}
+        </table>`;
+    }).join("");
+
+    return `<p class="note">Rekonstruierte Aktivität: getrackte Zauber × Zauberzeit, abzüglich Tempo-Effekten, geteilt durch die Kampfzeit des Raids (${esc(activity.raidSeconds)}s).
+    <strong>Für Nahkämpfer ungenau</strong> — Autoattacks werden vom Combat Log nicht erfasst.</p>${groups}`;
+}
+
+function renderRpbInterruptsPanel(interrupts, linkFor) {
+    if (!interrupts || !interrupts.players || interrupts.players.length === 0) {
+        return "<div class=\"empty\">Keine Unterbrechungen gefunden.</div>";
+    }
+    const body = interrupts.players.map((p) => {
+        const spells = (p.spells || []).map((s) => `${esc(s.name)} ×${s.count}`).join(", ");
+        return `<tr>
+          <td>${classCell(p, linkFor(p.name))}</td>
+          <td class="srval">${esc(p.count)}</td>
+          <td class="sritems">${spells}</td>
+        </tr>`;
+    }).join("");
+    return `<table class="idx">
+      <tr><th>Spieler</th><th>Unterbrechungen</th><th>Zauber</th></tr>
+      ${body}
+    </table>`;
+}
+
+function renderRpbValidationPanel(v) {
+    if (!v) return "<div class=\"empty\">Keine Validierungsdaten.</div>";
+    const zones = (v.zones || []).join(", ") || "unbekannt";
+    const header = `<p class="note">Zone(n): <strong>${esc(zones)}</strong> · Bosse gelegt: <strong>${esc(v.bossesKilled)}</strong> von ${esc(v.bossesTotal)}</p>`;
+
+    if (!v.requirements || v.requirements.length === 0) {
+        return `${header}<div class="empty">${esc(v.note || "Keine Trash-Anforderungen hinterlegt.")}</div>`;
+    }
+    const body = v.requirements.map((r) => `<tr>
+      <td>${esc(r.label)}</td>
+      <td>${esc(r.zone)}</td>
+      <td class="srval">${esc(r.killed)}</td>
+      <td>${esc(r.minimum)}</td>
+      <td><span class="pct ${r.ok ? "pct-full" : "pct-none"}">${r.ok ? "ok" : "zu wenig"}</span></td>
+    </tr>`).join("");
+
+    const verdict = v.valid
+        ? "<p class=\"note\">✅ Der Log erfüllt alle hinterlegten Trash-Anforderungen.</p>"
+        : "<p class=\"note\">⚠️ Der Log erfüllt die Trash-Anforderungen <strong>nicht</strong>.</p>";
+
+    return `${header}${verdict}
+    <table class="idx">
+      <tr><th>Trash</th><th>Zone</th><th>Gelegt</th><th>Nötig</th><th></th></tr>
+      ${body}
+    </table>`;
+}
+
+function renderRpbUsagePanel(usage, roles, linkFor) {
+    if (!usage || usage.length === 0) return "<div class=\"empty\">Keine Nutzungsdaten gefunden.</div>";
+    const withData = usage.filter((u) => (u.classCooldowns || []).length || (u.trinketsAndRacials || []).length);
+    if (withData.length === 0) return "<div class=\"empty\">Keine Cooldowns oder Schmuckstücke erfasst.</div>";
+
+    const groups = groupByRole(withData, roles).map(([role, list]) => {
+        const body = list.map((p) => {
+            const cds = (p.classCooldowns || []).map((c) => {
+                const possible = c.possibleUses ? ` / ${c.possibleUses}` : "";
+                const cls = c.possibleUses && c.total < c.possibleUses / 2 ? "pct-none" : "pct-full";
+                return `<span class="pct ${cls}">${esc(c.label)}: ${esc(c.total)}${possible}</span>`;
+            }).join(" ");
+            const trinkets = (p.trinketsAndRacials || []).slice(0, 6)
+                .map((t) => `${esc(t.label)} ×${t.total}`).join(", ");
+            return `<tr>
+              <td>${classCell(p, linkFor(p.name))}</td>
+              <td>${cds || "<span class=\"sritems\">–</span>"}</td>
+              <td class="sritems">${trinkets || "–"}</td>
+            </tr>`;
+        }).join("");
+        return `<h3 class="rolehead">${esc(role)}</h3>
+        <table class="idx">
+          <tr><th>Spieler</th><th>Klassen-Cooldowns (genutzt / möglich)</th><th>Schmuckstücke &amp; Rassenfertigkeiten</th></tr>
+          ${body}
+        </table>`;
+    }).join("");
+
+    return `<p class="note">„möglich" = Kampfzeit auf Bossen geteilt durch die Abklingzeit — eine grobe Obergrenze, kein Sollwert.</p>${groups}`;
+}
+
 function renderReportPage(report, user) {
     const players = report.players || [];
     const dateStr = report.date ? esc(report.date) : "";
@@ -487,6 +643,14 @@ function renderReportPage(report, user) {
     const hasSunder = report.sunder && report.sunder.length;
     const hasBoss = report.bossUptimes && report.bossUptimes.rows && report.bossUptimes.rows.length;
 
+    const rpb = report.rpb || null;
+    const rpbRoles = rpb && rpb.roles;
+    const hasRpbDamage = rpb && rpb.damage && rpb.damage.players && rpb.damage.players.length;
+    const hasRpbActivity = rpb && rpb.activity && rpb.activity.players && rpb.activity.players.length;
+    const hasRpbInterrupts = rpb && rpb.interrupts && rpb.interrupts.players && rpb.interrupts.players.length;
+    const hasRpbUsage = rpb && rpb.usage && rpb.usage.length;
+    const hasRpbValidation = rpb && rpb.validation;
+
     const tabDefs = [
         { id: "roster", label: "👥 Raider", show: hasRoster, html: renderRosterPanel(report, linkFor) },
         { id: "gear", label: "🛡️ Gear Issues", show: true, html: renderGearPanel(players, linkFor) },
@@ -496,6 +660,12 @@ function renderReportPage(report, user) {
         { id: "sunder", label: "🪓 Sunder Armor", show: hasSunder, html: renderSunderPanel(report.sunder, linkFor) },
         { id: "bosses", label: "📊 Bosse", show: hasBoss, html: renderBossUptimesPanel(report.bossUptimes) },
         { id: "shadowresi", label: "🌑 Shadow-Resi", show: hasShadow, html: renderShadowResiPanel(report.shadowResi, linkFor) },
+        // RPB sections
+        { id: "rpbdamage", label: "💥 Schaden & Tode", show: hasRpbDamage, html: hasRpbDamage ? renderRpbDamagePanel(rpb.damage, rpbRoles, linkFor) : "" },
+        { id: "rpbactivity", label: "⏱️ Aktivität", show: hasRpbActivity, html: hasRpbActivity ? renderRpbActivityPanel(rpb.activity, rpbRoles, linkFor) : "" },
+        { id: "rpbusage", label: "🎯 Cooldowns", show: hasRpbUsage, html: hasRpbUsage ? renderRpbUsagePanel(rpb.usage, rpbRoles, linkFor) : "" },
+        { id: "rpbinterrupts", label: "🛑 Interrupts", show: hasRpbInterrupts, html: hasRpbInterrupts ? renderRpbInterruptsPanel(rpb.interrupts, linkFor) : "" },
+        { id: "rpbvalidate", label: "📋 Log-Prüfung", show: hasRpbValidation, html: hasRpbValidation ? renderRpbValidationPanel(rpb.validation) : "" },
     ].filter((t) => t.show);
 
     const buttons = tabDefs.map((t, i) =>

@@ -6,6 +6,7 @@ const { analyzeDrums } = require("./drums");
 const { analyzePotions, potionsByName } = require("./potions");
 const { analyzeSunder } = require("./sunder");
 const { analyzeBossUptimes } = require("./bossUptimes");
+const { analyzeRpb, rpbSummaryLines } = require("./rpb");
 const { selectPlayers } = require("./common");
 const { saveReport } = require("../../web/reportStore");
 const { publicBaseUrl } = require("../../config/variables");
@@ -72,6 +73,12 @@ async function buildReportForId(reportId) {
     try { sunder = await analyzeSunder(wcl, reportId, fights, idToPlayer); } catch (e) { console.error("sunder failed:", e.message); }
     try { bossUptimes = await analyzeBossUptimes(wcl, reportId, fights); } catch (e) { console.error("bossUptimes failed:", e.message); }
 
+    // RPB (Role Performance Breakdown) — the performance half of the analysis.
+    // Considerably more API calls than the CLA sections, so it runs last and its
+    // failure leaves the rest of the report intact.
+    let rpb = null;
+    try { rpb = await analyzeRpb(wcl, reportId, fights, playerEntries); } catch (e) { console.error("rpb failed:", e.message); }
+
     // aggregate the icons captured from the API (for headers / detail page)
     const icons = {
         ...(consumables && consumables.icons),
@@ -107,6 +114,7 @@ async function buildReportForId(reportId) {
         potions,
         sunder,
         bossUptimes,
+        rpb,
         roster,
         icons,
     };
@@ -130,6 +138,7 @@ function reportSummaryLines(report) {
         report.drums ? `🥁 Drums: ${report.drums.players.length}` : "",
         report.sunder ? `🪓 Sunder: ${report.sunder.length} Spieler` : "",
         report.bossUptimes ? `📊 Boss-Uptimes: ${report.bossUptimes.rows.length} Kämpfe` : "",
+        ...rpbSummaryLines(report.rpb),
     ].filter(Boolean);
 }
 
