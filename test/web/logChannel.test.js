@@ -38,8 +38,20 @@ beforeEach(() => {
     discord.getClient.mockReturnValue(CLIENT);
     getConfig.mockReturnValue({ logChannelIds: ["logch"] });
     logStore.getByReportId.mockReturnValue(null);
-    logStore.saveLog.mockImplementation((d) => ({ id: "log1", status: "open", ...d }));
+    // the real saveLog dedups by reportId and keeps the existing entry's state,
+    // so a refresh of an already-evaluated log carries its sections along
+    logStore.saveLog.mockImplementation((d) => {
+        const existing = logStore.getByReportId(d.reportId);
+        return { id: "log1", status: "open", ...(existing || {}), ...d };
+    });
     logStore.setButtonMessage.mockReturnValue(null);
+    // mirror the real implementation: explicit sections win, a legacy "done" log
+    // counts as having had its CLA half evaluated
+    logStore.evaluatedSections.mockImplementation((log) => {
+        if (!log) return [];
+        if (Array.isArray(log.sections) && log.sections.length) return log.sections;
+        return log.status === "done" ? ["cla"] : [];
+    });
     discord.postLogButton.mockResolvedValue({ channelId: "logch", messageId: "btn1" });
 });
 
@@ -58,10 +70,10 @@ describe("web/logChannel — messageText", () => {
 });
 
 describe("web/logChannel — handleLogMessage", () => {
-    it("registers a fresh log and posts an evaluate button", async () => {
+    it("registers a fresh log and posts the evaluate buttons", async () => {
         await handleLogMessage(msg({ content: "log https://classic.warcraftlogs.com/reports/RPT1" }));
         expect(logStore.saveLog).toHaveBeenCalledWith(expect.objectContaining({ reportId: "RPT1", channelId: "logch", source: "listener", postedAt: 111000 }));
-        expect(discord.postLogButton).toHaveBeenCalledWith(expect.any(Object), { logId: "log1" });
+        expect(discord.postLogButton).toHaveBeenCalledWith(expect.any(Object), { logId: "log1", doneSections: [] });
         expect(logStore.setButtonMessage).toHaveBeenCalledWith("log1", { channelId: "logch", messageId: "btn1" });
     });
 
@@ -76,8 +88,15 @@ describe("web/logChannel — handleLogMessage", () => {
         expect(logStore.saveLog).not.toHaveBeenCalled();
     });
 
-    it("does not re-post for an already-evaluated report", async () => {
-        logStore.getByReportId.mockReturnValue({ id: "log1", status: "done" });
+    it("still offers the RPB button for a report whose CLA already ran", async () => {
+        logStore.getByReportId.mockReturnValue({ id: "log1", status: "done", sections: ["cla"] });
+        await handleLogMessage(msg({ content: "https://classic.warcraftlogs.com/reports/RPT1" }));
+        expect(logStore.saveLog).toHaveBeenCalled();
+        expect(discord.postLogButton).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({ doneSections: ["cla"] }));
+    });
+
+    it("does not re-post once both analyses are done", async () => {
+        logStore.getByReportId.mockReturnValue({ id: "log1", status: "done", sections: ["cla", "rpb"] });
         await handleLogMessage(msg({ content: "https://classic.warcraftlogs.com/reports/RPT1" }));
         expect(logStore.saveLog).not.toHaveBeenCalled();
         expect(discord.postLogButton).not.toHaveBeenCalled();
@@ -110,22 +129,47 @@ describe("web/logChannel — evaluateLog", () => {
         expect(buildReport).not.toHaveBeenCalled();
     });
 
-    it("refuses to evaluate a done log and surfaces the existing url", async () => {
-        logStore.getLog.mockReturnValue({ id: "l1", status: "done", reportUrl: "/r/xy" });
-        const res = await evaluateLog("l1");
+    it("refuses to run the same half twice and surfaces the existing url", async () => {
+        logStore.getLog.mockReturnValue({ id: "l1", status: "done", sections: ["cla"], reportUrl: "/r/xy" });
+        const res = await evaluateLog("l1", "cla");
         expect(res).toMatchObject({ ok: false, already: true, url: "/r/xy" });
+        expect(res.error).toContain("CLA");
         expect(buildReport).not.toHaveBeenCalled();
+    });
+
+    it("still runs the RPB half when only the CLA half is done", async () => {
+        logStore.getLog.mockReturnValue({ id: "l1", status: "done", sections: ["cla"], reportRefId: "abc123", link: "x" });
+        logStore.markEvaluated.mockReturnValue({ id: "l1", sections: ["cla", "rpb"] });
+        buildReport.mockResolvedValue({ id: "abc123", url: "/r/abc123", report: { title: "T", zone: "Z" } });
+
+        const res = await evaluateLog("l1", "rpb");
+        expect(res).toMatchObject({ ok: true, section: "rpb" });
+        // merges into the page the CLA run created rather than making a second one
+        expect(buildReport).toHaveBeenCalledWith("x", { sections: ["rpb"], mergeIntoId: "abc123" });
     });
 
     it("builds, marks evaluated and returns the url on success", async () => {
         logStore.getLog.mockReturnValue({ id: "l1", status: "open", link: "https://classic.warcraftlogs.com/reports/RPT1" });
-        logStore.markEvaluated.mockReturnValue({ id: "l1", status: "done", buttonMessageId: "btn1" });
+        logStore.markEvaluated.mockReturnValue({ id: "l1", status: "done", sections: ["cla"], buttonMessageId: "btn1" });
         buildReport.mockResolvedValue({ id: "abc123", url: "/r/abc123", report: { title: "SSC + TK", zone: "SSC" } });
 
         const res = await evaluateLog("l1");
-        expect(buildReport).toHaveBeenCalledWith("https://classic.warcraftlogs.com/reports/RPT1");
-        expect(logStore.markEvaluated).toHaveBeenCalledWith("l1", expect.objectContaining({ reportRefId: "abc123", reportUrl: "/r/abc123", title: "SSC + TK" }));
-        expect(res).toMatchObject({ ok: true, id: "abc123", url: "/r/abc123" });
+        expect(buildReport).toHaveBeenCalledWith(
+            "https://classic.warcraftlogs.com/reports/RPT1",
+            { sections: ["cla"], mergeIntoId: undefined },
+        );
+        expect(logStore.markEvaluated).toHaveBeenCalledWith("l1", expect.objectContaining({
+            reportRefId: "abc123", reportUrl: "/r/abc123", title: "SSC + TK", sections: ["cla"],
+        }));
+        expect(res).toMatchObject({ ok: true, id: "abc123", url: "/r/abc123", section: "cla" });
+    });
+
+    it("defaults to the CLA half when no section is given", async () => {
+        logStore.getLog.mockReturnValue({ id: "l1", status: "open", link: "x" });
+        logStore.markEvaluated.mockReturnValue({ id: "l1", sections: ["cla"] });
+        buildReport.mockResolvedValue({ id: "a", url: "/r/a", report: { title: "T" } });
+        const res = await evaluateLog("l1");
+        expect(res.section).toBe("cla");
     });
 
     it("surfaces a ReportError message and does not mark evaluated", async () => {

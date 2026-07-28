@@ -76,6 +76,31 @@ class WarcraftLogs {
         return this.#get(`report/tables/debuffs/${reportId}`, { start, end, ...extra });
     }
 
+    /** report/tables/damage-taken/{id} (extra: e.g. { by: "ability", sourceid, options }) */
+    getDamageTaken(reportId, start, end, extra = {}) {
+        return this.#get(`report/tables/damage-taken/${reportId}`, { start, end, ...extra });
+    }
+
+    /** report/tables/damage-done/{id} (extra: e.g. { by: "source", sourceid, abilityid }) */
+    getDamageDone(reportId, start, end, extra = {}) {
+        return this.#get(`report/tables/damage-done/${reportId}`, { start, end, ...extra });
+    }
+
+    /** report/tables/healing/{id} for a time window */
+    getHealing(reportId, start, end, extra = {}) {
+        return this.#get(`report/tables/healing/${reportId}`, { start, end, ...extra });
+    }
+
+    /** report/tables/deaths/{id} for a time window */
+    getDeaths(reportId, start, end, extra = {}) {
+        return this.#get(`report/tables/deaths/${reportId}`, { start, end, ...extra });
+    }
+
+    /** report/tables/interrupts/{id} for a time window */
+    getInterrupts(reportId, start, end, extra = {}) {
+        return this.#get(`report/tables/interrupts/${reportId}`, { start, end, ...extra });
+    }
+
     /** One page of report/events/{view}/{id} (use nextPageTimestamp for paging). */
     getEvents(reportId, view, start, end, extra = {}) {
         return this.#get(`report/events/${view}/${reportId}`, { start, end, ...extra });

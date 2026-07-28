@@ -152,6 +152,62 @@ function sampleReport() {
     };
 }
 
+/** A report carrying a populated RPB section on top of the CLA sections. */
+function reportWithRpb() {
+    return {
+        ...sampleReport(),
+        rpb: {
+            roles: { Alice: "Caster", Bob: "Tank" },
+            byRole: { Tank: [{ name: "Bob", type: "Warrior", trinkets: [] }], Healer: [], Caster: [], Physical: [] },
+            raidSeconds: 300,
+            bossSeconds: 200,
+            damage: {
+                heading: "Vermeidbarer erhaltener Schaden",
+                abilities: [{ label: "Feuerregen", name: "Rain of Fire", sources: ["Boss"], total: 5000 }],
+                players: [
+                    { name: "Alice", type: "Mage", perAbility: { 0: 1200 }, avoidableTotal: 1200, reflected: 30, hostile: 0, deaths: 1 },
+                    { name: "Bob", type: "Warrior", perAbility: { 0: 800 }, avoidableTotal: 800, reflected: 0, hostile: 12, deaths: 0 },
+                ],
+            },
+            activity: {
+                raidSeconds: 300,
+                headings: {},
+                players: [
+                    {
+                        name: "Alice", type: "Mage", gearSpellHaste: 60, hasteSecondsSubtracted: 18,
+                        hasteBuffsUsed: {}, secondsActive: 240, secondsActiveST: 200, secondsActiveAoe: 40,
+                        relativeST: 66, relativeAoe: 13, relativeTotal: 80,
+                        singleTargetCasts: [], aoeCasts: [],
+                    },
+                ],
+            },
+            interrupts: {
+                heading: "Unterbrochene Zauber",
+                players: [{ name: "Bob", type: "Warrior", count: 4, spells: [{ name: "Heilung", count: 4 }] }],
+            },
+            validation: {
+                zones: ["SSC"],
+                bossesKilled: 3,
+                bossesTotal: 4,
+                requirements: [
+                    { zone: "SSC", label: "Tiefensumpfkoloss", name: "Underbog Colossus", minimum: 6, killed: 6, ok: true },
+                    { zone: "SSC", label: "Tiefenhexe", name: "Coilfang Fathom-Witch", minimum: 6, killed: 2, ok: false },
+                ],
+                valid: false,
+            },
+            usage: [
+                {
+                    name: "Alice", type: "Mage",
+                    classCooldowns: [{ label: "Eisige Adern", name: "Icy Veins", total: 3, trash: 1, bosses: 2, cooldown: 180, possibleUses: 4 }],
+                    trinketsAndRacials: [{ label: "Schädel", name: "Skull", total: 2, trash: 0, bosses: 2 }],
+                    consumables: [], engineering: [], absorbs: [],
+                },
+            ],
+            headings: {},
+        },
+    };
+}
+
 describe("web/render", () => {
     describe("renderReportPage", () => {
         it("produces a full HTML document with the report title", () => {
@@ -200,6 +256,58 @@ describe("web/render", () => {
             const html = renderReportPage(sampleReport());
             // roster is the first defined tab and should carry the active class
             expect(html).toContain("class=\"tab-btn active\" data-tab=\"roster\"");
+        });
+
+        it("hides every RPB tab when the report has no RPB section", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html).not.toContain("data-tab=\"rpbdamage\"");
+            expect(html).not.toContain("data-tab=\"rpbactivity\"");
+            expect(html).not.toContain("data-tab=\"rpbvalidate\"");
+        });
+
+        it("shows the RPB tabs when the section is populated", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("data-tab=\"rpbdamage\"");
+            expect(html).toContain("data-tab=\"rpbactivity\"");
+            expect(html).toContain("data-tab=\"rpbusage\"");
+            expect(html).toContain("data-tab=\"rpbinterrupts\"");
+            expect(html).toContain("data-tab=\"rpbvalidate\"");
+        });
+
+        it("groups the damage table by role", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("class=\"rolehead\">Tank<");
+            expect(html).toContain("class=\"rolehead\">Caster<");
+            expect(html).toContain("Feuerregen");
+            // thousands separator for the German locale
+            expect(html).toContain("1.200");
+        });
+
+        it("names the sources of an avoidable ability in the column title", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("title=\"Boss\"");
+        });
+
+        it("warns that melee activity is inaccurate", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("Für Nahkämpfer ungenau");
+        });
+
+        it("renders the interrupted spells", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("Heilung ×4");
+        });
+
+        it("flags a log that misses its trash requirements", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("Bosse gelegt");
+            expect(html).toContain("zu wenig");
+            expect(html).toContain("nicht");
+        });
+
+        it("shows cooldown usage against the possible number of uses", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("Eisige Adern: 3 / 4");
         });
 
         it("includes player names and issue details", () => {

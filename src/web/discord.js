@@ -491,42 +491,86 @@ async function listApplications(channelId, { limit = 10, maxAgeWeeks = 6, archiv
     return { applications, error: null };
 }
 
+// The two analyses offered under a detected log. Kept here (rather than imported)
+// so the Discord layer stays free of the analysis modules.
+const LOG_SECTIONS = [
+    { key: "cla", label: "CLA auswerten", emoji: "🛡️", done: "CLA", what: "Gear, Verzauberungen, Sockel, Consumables, Drums, Potions & Shadow-Resi" },
+    { key: "rpb", label: "RPB auswerten", emoji: "💥", done: "RPB", what: "vermeidbarer Schaden, Tode, Aktivität, Cooldowns, Interrupts & Log-Prüfung" },
+];
+
 /**
- * Post a "Log auswerten" button as a reply under a detected log message.
+ * Build the button row for a detected log, leaving out the analyses that already
+ * ran. Returns an empty array once both are done.
+ */
+function logButtonRow(logId, doneSections = []) {
+    const open = LOG_SECTIONS.filter((s) => !doneSections.includes(s.key));
+    if (!open.length) return [];
+    return [new ActionRowBuilder().addComponents(
+        ...open.map((s) => new ButtonBuilder()
+            .setCustomId(`${LOG_EVAL_PREFIX}:${logId}:${s.key}`)
+            .setLabel(s.label)
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji(s.emoji)),
+    )];
+}
+
+/** The message body under a detected log, describing what each button does. */
+function logButtonContent(title, doneSections = [], reportUrl = "") {
+    const open = LOG_SECTIONS.filter((s) => !doneSections.includes(s.key));
+    const done = LOG_SECTIONS.filter((s) => doneSections.includes(s.key));
+
+    if (!open.length) {
+        return `✅ **Vollständig ausgewertet**${title ? ` – ${title}` : ""}`
+            + `\nCLA und RPB liegen vor${reportUrl ? " — beide auf derselben Seite" : ""}.`;
+    }
+
+    const head = done.length
+        ? `✅ **${done.map((s) => s.done).join(" & ")} ausgewertet**${title ? ` – ${title}` : ""}`
+        : `📊 **Warcraft-Logs-Report erkannt**${title ? ` – ${title}` : ""}`;
+    const lines = open.map((s) => `**${s.label}** → ${s.what}`);
+    const hint = done.length
+        ? "\nDie zweite Auswertung landet auf derselben Seite."
+        : "";
+    return `${head}\n${lines.join("\n")}${hint}`;
+}
+
+/**
+ * Post the CLA/RPB evaluation buttons as a reply under a detected log message.
  * @param {import("discord.js").Message} message the message that contained the log link
- * @param {object} opts { logId, title }
+ * @param {object} opts { logId, title, doneSections }
  * @returns {Promise<{channelId: string, messageId: string}>}
  */
-async function postLogButton(message, { logId, title } = {}) {
+async function postLogButton(message, { logId, title, doneSections = [] } = {}) {
     if (!client) throw new Error("Bot nicht verbunden.");
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId(`${LOG_EVAL_PREFIX}:${logId}`)
-            .setLabel("Log auswerten")
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji("📊")
-    );
-    const content = `📊 **Warcraft-Logs-Report erkannt**${title ? ` – ${title}` : ""}.\n`
-        + "Klicke auf **Log auswerten**, um Gear, Consumables, Drums, Potions & Shadow-Resi zu prüfen.";
-    const sent = await message.reply({ content, components: [row], allowedMentions: { repliedUser: false } });
+    const sent = await message.reply({
+        content: logButtonContent(title, doneSections),
+        components: logButtonRow(logId, doneSections),
+        allowedMentions: { repliedUser: false },
+    });
     return { channelId: sent.channelId, messageId: sent.id };
 }
 
 /**
- * Turn a previously-posted log button message into the "done" state: replace the
- * button with a link to the finished report. Best-effort — returns false on error.
+ * Update a previously-posted log button message after one half was evaluated:
+ * the finished analysis loses its button and gains a link, the other one stays
+ * clickable. Best-effort — returns false on error.
+ *
+ * @param {object} opts { reportUrl, title, logId, doneSections }
  */
-async function finishLogButton(channelId, messageId, { reportUrl, title } = {}) {
+async function finishLogButton(channelId, messageId, { reportUrl, title, logId, doneSections = [] } = {}) {
     if (!client || !channelId || !messageId) return false;
     try {
         const channel = await client.channels.fetch(channelId);
         const message = await channel.messages.fetch(messageId);
-        const components = reportUrl
-            ? [new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setLabel("Auswertung öffnen").setStyle(ButtonStyle.Link).setURL(reportUrl))]
-            : [];
+
+        const components = logId ? logButtonRow(logId, doneSections) : [];
+        if (reportUrl) {
+            const linkRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder().setLabel("Auswertung öffnen").setStyle(ButtonStyle.Link).setURL(reportUrl));
+            components.push(linkRow);
+        }
         await message.edit({
-            content: `✅ **Ausgewertet**${title ? ` – ${title}` : ""}`,
+            content: logButtonContent(title, doneSections, reportUrl),
             components,
         });
         return true;
@@ -592,5 +636,6 @@ module.exports = {
     isRecruitmentMessage, extractTemplate,
     listApplications, parseApplicationEmbed,
     postLogButton, finishLogButton, LOG_EVAL_PREFIX,
+    LOG_SECTIONS, logButtonRow, logButtonContent,
     postLink, editLink,
 };
