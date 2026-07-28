@@ -49,6 +49,29 @@ describe("rpb/damage topAvoidableAbilities", () => {
         expect(ability.sources).toEqual(["Boss", "Mob A"]);
     });
 
+    test("carries the ability's icon and id through to the column head", () => {
+        const byAbility = {
+            entries: [{
+                guid: Number(tracked[0].ids[0]),
+                total: 10,
+                abilityIcon: "spell_fire_selfdestruct.jpg",
+                sources: [{ name: "Mob A" }],
+            }],
+        };
+        const [ability] = topAvoidableAbilities(byAbility);
+        expect(ability.icon).toBe("spell_fire_selfdestruct.jpg");
+        expect(ability.spellId).toBe(Number(tracked[0].ids[0]));
+    });
+
+    test("an ability the log carried no icon for stays empty instead of guessing one", () => {
+        const byAbility = {
+            entries: [{ guid: Number(tracked[0].ids[0]), total: 10, sources: [] }],
+        };
+        const [ability] = topAvoidableAbilities(byAbility);
+        expect(ability.icon).toBe("");
+        expect(ability.spellId).toBeNull();
+    });
+
     test("caps the list at MAX_ABILITIES", () => {
         const entries = rpbData.DAMAGE_TAKEN.map((t, i) => ({
             guid: Number(t.ids[0]),

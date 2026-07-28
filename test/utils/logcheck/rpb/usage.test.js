@@ -36,6 +36,29 @@ describe("rpb/usage countUsage", () => {
         expect(rows[0].cooldown).toBe(60);
     });
 
+    test("carries the icon and spell id so the report can render a real WoW icon", () => {
+        const all = [{ guid: 10, total: 3, abilityIcon: "spell_frost_frostbolt02.jpg" }];
+        const [row] = countUsage(all, [], tracked);
+        expect(row.icon).toBe("spell_frost_frostbolt02.jpg");
+        expect(row.spellId).toBe(10);
+    });
+
+    test("picks the most-used rank as the row's icon when several ids matched", () => {
+        const all = [
+            { guid: 10, total: 2, abilityIcon: "low.jpg" },
+            { guid: 11, total: 9, abilityIcon: "high.jpg" },
+        ];
+        const [row] = countUsage(all, [], tracked);
+        expect(row.icon).toBe("high.jpg");
+        expect(row.spellId).toBe(11);
+    });
+
+    test("an entry without an icon simply has none — no placeholder is invented", () => {
+        const [row] = countUsage([{ guid: 10, total: 1 }], [], tracked);
+        expect(row.icon).toBeUndefined();
+        expect(row.spellId).toBe(10);
+    });
+
     test("boss usage never goes negative when trash exceeds the total", () => {
         const [row] = countUsage([{ guid: 10, total: 2 }], [{ guid: 10, total: 5 }], tracked);
         expect(row.bosses).toBe(0);
@@ -96,9 +119,53 @@ describe("rpb/usage analyzeInterrupts", () => {
         expect(willijem.count).toBe(4);
         expect(willijem.type).toBe("Rogue");
         expect(willijem.spells).toEqual([
-            { name: "Fireball", count: 3 },
-            { name: "Frostbolt", count: 1 },
+            { name: "Fireball", count: 3, spellId: 36805, icon: "" },
+            { name: "Frostbolt", count: 1, spellId: 36990, icon: "" },
         ]);
+    });
+
+    test("carries the interrupted spell's icon so the report can show it", async () => {
+        const wcl = {
+            getInterrupts: jest.fn(async () => nested([{
+                name: "Lightning Bolt",
+                guid: 25449,
+                abilityIcon: "spell_nature_lightning.jpg",
+                details: [{ name: "Gnomigon", type: "Mage", total: 1 }],
+            }])),
+        };
+        const result = await analyzeInterrupts(wcl, "rep", fights);
+        expect(result.players[0].spells[0]).toEqual({
+            name: "Lightning Bolt", count: 1, spellId: 25449, icon: "spell_nature_lightning.jpg",
+        });
+    });
+
+    test("records which ability a player interrupted with", async () => {
+        const wcl = {
+            getInterrupts: jest.fn(async () => nested([
+                {
+                    name: "Fireball",
+                    guid: 36805,
+                    details: [{ name: "Gnomigon", type: "Mage", total: 2, abilities: [{ name: "Counterspell", total: 2 }] }],
+                },
+                {
+                    name: "Frostbolt",
+                    guid: 36990,
+                    details: [{ name: "Gnomigon", type: "Mage", total: 1, abilities: [{ name: "Counterspell", total: 1 }] }],
+                },
+            ])),
+        };
+        const result = await analyzeInterrupts(wcl, "rep", fights);
+        expect(result.players[0].kicks).toEqual([{ name: "Counterspell", count: 3 }]);
+    });
+
+    test("a player without ability details still gets an empty kick list", async () => {
+        const wcl = {
+            getInterrupts: jest.fn(async () => nested([
+                { name: "Fireball", guid: 1, details: [{ name: "Silent", type: "Rogue", total: 1 }] },
+            ])),
+        };
+        const result = await analyzeInterrupts(wcl, "rep", fights);
+        expect(result.players[0].kicks).toEqual([]);
     });
 
     test("also accepts a flat (un-nested) entries shape", async () => {

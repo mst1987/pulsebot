@@ -30,18 +30,36 @@ function sumCastSection(entries, tracked) {
         let amount = 0;
         let lowerRankUsed = 0;
         let uptime = 0;
+        let best = null;      // most-used rank overall — falls back as the row's icon
+        let bestMax = null;   // most-used *max* rank; preferred, so the icon shows the real spell
         for (const id of spell.ids) {
             const hit = byGuid.get(String(id));
             if (!hit) continue;
             amount += hit.total || 0;
             uptime += hit.uptime || 0;
-            if ((spell.lowerRankIds || []).includes(String(id))) lowerRankUsed += hit.total || 0;
+            if (!best || (hit.total || 0) > (best.total || 0)) best = hit;
+            if ((spell.lowerRankIds || []).includes(String(id))) {
+                lowerRankUsed += hit.total || 0;
+            } else if (!bestMax || (hit.total || 0) > (bestMax.total || 0)) {
+                bestMax = hit;
+            }
         }
         if (amount === 0 && uptime === 0) continue;
 
         const row = { label: spell.label, name: spell.name, amount };
-        // "mostly lower rank used" — the sheet flags this in bold red
-        if (amount > 0 && Math.round((lowerRankUsed * 100) / amount) > 50) row.mostlyLowerRank = true;
+        const src = bestMax || best;
+        if (src) {
+            if (Number(src.guid)) row.spellId = Number(src.guid);
+            if (src.abilityIcon) row.icon = src.abilityIcon;
+        }
+        // How much of the usage was a downrank. The sheet only flags "mostly"; the exact
+        // share is what tells a raider whether it was a slip or a habit.
+        if (amount > 0 && lowerRankUsed > 0) {
+            row.lowerRankCasts = lowerRankUsed;
+            row.lowerRankPercent = Math.round((lowerRankUsed * 100) / amount);
+            // "mostly lower rank used" — the sheet flags this in bold red
+            if (row.lowerRankPercent > 50) row.mostlyLowerRank = true;
+        }
         if (spell.isUptime && amount > 0) row.uptimePercent = Math.round(uptime / amount);
         rows.push(row);
 

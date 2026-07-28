@@ -15,7 +15,7 @@ const { EXCLUDE_KALECGOS, bossFights } = require("./common");
  * @param {Array<object>} allEntries    casts over the whole report
  * @param {Array<object>} trashEntries  casts restricted to trash (encounter=0)
  * @param {Array<object>} tracked       an rpbData section
- * @returns {Array<{label,name,trash,bosses,total,cooldown?,possibleUses?}>}
+ * @returns {Array<{label,name,trash,bosses,total,spellId?,icon?,cooldown?,possibleUses?}>}
  */
 function countUsage(allEntries, trashEntries, tracked) {
     const total = new Map();
@@ -31,9 +31,14 @@ function countUsage(allEntries, trashEntries, tracked) {
     for (const entry of tracked) {
         let all = 0;
         let onTrash = 0;
+        let hit = null;
         for (const id of entry.ids) {
             const t = total.get(String(id));
-            if (t) all += t.total || 0;
+            if (t) {
+                all += t.total || 0;
+                // remember the most-used rank: its icon + id represent the row in the UI
+                if (!hit || (t.total || 0) > (hit.total || 0)) hit = t;
+            }
             const tr = trash.get(String(id));
             if (tr) onTrash += tr.total || 0;
         }
@@ -45,6 +50,10 @@ function countUsage(allEntries, trashEntries, tracked) {
             bosses: Math.max(0, all - onTrash),
             total: all,
         };
+        if (hit) {
+            if (Number(hit.guid)) row.spellId = Number(hit.guid);
+            if (hit.abilityIcon) row.icon = hit.abilityIcon;
+        }
         if (entry.cooldown) row.cooldown = entry.cooldown;
         rows.push(row);
     }
@@ -106,10 +115,19 @@ async function analyzeInterrupts(wcl, reportId, fights) {
         const spellName = spell.name || `Spell ${spell.guid}`;
         for (const detail of spell.details || []) {
             if (!detail || !detail.name) continue;
-            const rec = byPlayer.get(detail.name) || { name: detail.name, type: detail.type, count: 0, spells: {} };
+            const rec = byPlayer.get(detail.name)
+                || { name: detail.name, type: detail.type, count: 0, spells: new Map(), kicks: new Map() };
             const n = detail.total || 1;
             rec.count += n;
-            rec.spells[spellName] = (rec.spells[spellName] || 0) + n;
+            const prev = rec.spells.get(spellName)
+                || { name: spellName, count: 0, spellId: Number(spell.guid) || null, icon: spell.abilityIcon || "" };
+            prev.count += n;
+            rec.spells.set(spellName, prev);
+            // the abilities the player interrupted *with* (Counterspell, Kick, ...)
+            for (const ab of detail.abilities || []) {
+                if (!ab || !ab.name) continue;
+                rec.kicks.set(ab.name, (rec.kicks.get(ab.name) || 0) + (ab.total || 0));
+            }
             byPlayer.set(detail.name, rec);
         }
     }
@@ -120,7 +138,8 @@ async function analyzeInterrupts(wcl, reportId, fights) {
             name: p.name,
             type: p.type,
             count: p.count,
-            spells: Object.entries(p.spells)
+            spells: [...p.spells.values()].sort((a, b) => b.count - a.count),
+            kicks: [...p.kicks.entries()]
                 .sort((a, b) => b[1] - a[1])
                 .map(([name, count]) => ({ name, count })),
         }));

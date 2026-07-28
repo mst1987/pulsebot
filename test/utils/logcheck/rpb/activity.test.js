@@ -50,6 +50,39 @@ describe("rpb/activity sumCastSection", () => {
         expect(row.mostlyLowerRank).toBeUndefined();
     });
 
+    test("reports the exact downrank share, not just the 'mostly' flag", () => {
+        const entries = [{ guid: 100, total: 3 }, { guid: 101, total: 7 }];
+        const [row] = sumCastSection(entries, tracked).rows;
+        expect(row.lowerRankCasts).toBe(3);
+        expect(row.lowerRankPercent).toBe(30);
+        expect(row.mostlyLowerRank).toBeUndefined();   // 30% is not "mostly"
+    });
+
+    test("an ability cast only at max rank carries no downrank fields at all", () => {
+        const entries = [{ guid: 101, total: 5 }];
+        const [row] = sumCastSection(entries, tracked).rows;
+        expect(row.lowerRankCasts).toBeUndefined();
+        expect(row.lowerRankPercent).toBeUndefined();
+    });
+
+    test("prefers the max rank's icon even when a lower rank was cast more often", () => {
+        const entries = [
+            { guid: 100, total: 9, abilityIcon: "rank1.jpg" },
+            { guid: 101, total: 1, abilityIcon: "rankmax.jpg" },
+        ];
+        const [row] = sumCastSection(entries, tracked).rows;
+        expect(row.icon).toBe("rankmax.jpg");
+        expect(row.spellId).toBe(101);
+        expect(row.mostlyLowerRank).toBe(true);
+    });
+
+    test("falls back to the used rank's icon when no max rank was cast", () => {
+        const entries = [{ guid: 100, total: 4, abilityIcon: "rank1.jpg" }];
+        const [row] = sumCastSection(entries, tracked).rows;
+        expect(row.icon).toBe("rank1.jpg");
+        expect(row.spellId).toBe(100);
+    });
+
     test("uptime abilities report an average uptime percentage", () => {
         const entries = [{ guid: 300, total: 4, uptime: 320 }];
         const rows = sumCastSection(entries, tracked).rows;

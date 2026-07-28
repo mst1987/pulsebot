@@ -48,10 +48,14 @@ function topAvoidableAbilities(byAbility) {
     for (const tracked of rpbData.DAMAGE_TAKEN) {
         let total = 0;
         const sources = new Set();
+        let icon = "";
+        let spellId = null;
         for (const id of tracked.ids) {
             const hit = byGuid.get(String(id));
             if (!hit) continue;
             total += hit.total || 0;
+            // the hardest-hitting id represents the ability in the UI
+            if (!icon && hit.abilityIcon) { icon = hit.abilityIcon; spellId = Number(hit.guid) || null; }
             for (const src of hit.sources || []) {
                 if (!src || !src.name) continue;
                 // the sheet strips "[...]" markers and the UNUSED suffix from npc names
@@ -66,6 +70,8 @@ function topAvoidableAbilities(byAbility) {
                 ids: tracked.ids,
                 total,
                 sources: [...sources],
+                icon,
+                spellId,
             });
         }
     }
@@ -154,7 +160,9 @@ async function analyzeDamage(wcl, reportId, fights, players) {
     rows.sort((a, b) => b.avoidableTotal - a.avoidableTotal);
     return {
         heading: rpbData.HEADINGS.damageTaken,
-        abilities: abilities.map((a) => ({ label: a.label, name: a.name, sources: a.sources, total: a.total })),
+        abilities: abilities.map((a) => ({
+            label: a.label, name: a.name, sources: a.sources, total: a.total, icon: a.icon, spellId: a.spellId,
+        })),
         players: rows,
     };
 }

@@ -109,9 +109,15 @@ function sampleReport() {
                     type: "Mage",
                     destruction: 1,
                     haste: 2,
-                    mana: 0,
-                    total: 3,
+                    mana: 7,
+                    total: 10,
+                    byType: { destruction: 1, haste: 2, superMana: 5, darkRune: 2 },
                 },
+            ],
+            types: [
+                { key: "destruction", group: "destruction", label: "Zerstörungstrank", icon: "inv_potion_107", itemId: 22839, spellId: null },
+                { key: "superMana", group: "mana", label: "Super-Manatrank", icon: "inv_potion_137", itemId: 22832, spellId: null },
+                { key: "darkRune", group: "mana", label: "Dunkle Rune", icon: "inv_misc_rune_04", itemId: 20520, spellId: null },
             ],
             icons: {
                 destruction: "spell_destruction",
@@ -163,7 +169,10 @@ function reportWithRpb() {
             bossSeconds: 200,
             damage: {
                 heading: "Vermeidbarer erhaltener Schaden",
-                abilities: [{ label: "Feuerregen", name: "Rain of Fire", sources: ["Boss"], total: 5000 }],
+                abilities: [{
+                    label: "Feuerregen", name: "Rain of Fire", sources: ["Boss"], total: 5000,
+                    icon: "spell_shadow_rainoffire.jpg", spellId: 42223,
+                }],
                 players: [
                     { name: "Alice", type: "Mage", perAbility: { 0: 1200 }, avoidableTotal: 1200, reflected: 30, hostile: 0, deaths: 1 },
                     { name: "Bob", type: "Warrior", perAbility: { 0: 800 }, avoidableTotal: 800, reflected: 0, hostile: 12, deaths: 0 },
@@ -177,13 +186,27 @@ function reportWithRpb() {
                         name: "Alice", type: "Mage", gearSpellHaste: 60, hasteSecondsSubtracted: 18,
                         hasteBuffsUsed: {}, secondsActive: 240, secondsActiveST: 200, secondsActiveAoe: 40,
                         relativeST: 66, relativeAoe: 13, relativeTotal: 80,
-                        singleTargetCasts: [], aoeCasts: [],
+                        singleTargetCasts: [
+                            {
+                                label: "Feuerball", name: "Fireball", amount: 42,
+                                icon: "spell_fire_flamebolt.jpg", spellId: 38692,
+                                lowerRankCasts: 30, lowerRankPercent: 71, mostlyLowerRank: true,
+                            },
+                            { label: "Frostblitz", name: "Frostbolt", amount: 10, icon: "spell_frost_frostbolt02.jpg", spellId: 27072 },
+                        ],
+                        aoeCasts: [
+                            { label: "Blizzard", name: "Blizzard", amount: 5, icon: "spell_frost_icestorm.jpg", spellId: 27085 },
+                        ],
                     },
                 ],
             },
             interrupts: {
                 heading: "Unterbrochene Zauber",
-                players: [{ name: "Bob", type: "Warrior", count: 4, spells: [{ name: "Heilung", count: 4 }] }],
+                players: [{
+                    name: "Bob", type: "Warrior", count: 4,
+                    spells: [{ name: "Heilung", count: 4, icon: "spell_holy_heal.jpg", spellId: 25314 }],
+                    kicks: [{ name: "Schildhieb", count: 4 }],
+                }],
             },
             validation: {
                 zones: ["SSC"],
@@ -198,8 +221,14 @@ function reportWithRpb() {
             usage: [
                 {
                     name: "Alice", type: "Mage",
-                    classCooldowns: [{ label: "Eisige Adern", name: "Icy Veins", total: 3, trash: 1, bosses: 2, cooldown: 180, possibleUses: 4 }],
-                    trinketsAndRacials: [{ label: "Schädel", name: "Skull", total: 2, trash: 0, bosses: 2 }],
+                    classCooldowns: [{
+                        label: "Eisige Adern", name: "Icy Veins", total: 3, trash: 1, bosses: 2,
+                        cooldown: 180, possibleUses: 4, icon: "spell_frost_coldhearted.jpg", spellId: 12472,
+                    }],
+                    trinketsAndRacials: [{
+                        label: "Schädel", name: "Skull", total: 2, trash: 0, bosses: 2,
+                        icon: "inv_misc_bone_elfskull_01.jpg", spellId: 40396,
+                    }],
                     consumables: [], engineering: [], absorbs: [],
                 },
             ],
@@ -252,6 +281,22 @@ describe("web/render", () => {
             expect(html).toContain("data-tab=\"shadowresi\"");
         });
 
+        it("breaks the mana total down into one column per source", () => {
+            const html = renderReportPage(sampleReport());
+            // the aggregate stays, the sources are spelled out behind it
+            expect(html).toContain("inv_potion_137.jpg");   // Super Mana Potion
+            expect(html).toContain("inv_misc_rune_04.jpg"); // Dark Rune
+            expect(html).toContain("Super-Manatrank");
+            expect(html).toContain("Dunkle Rune");
+            expect(html).toContain("https://www.wowhead.com/tbc/item=22832");
+        });
+
+        it("only shows mana columns, not the destruction/haste types, in the breakdown", () => {
+            const html = renderReportPage(sampleReport());
+            const legend = html.slice(html.indexOf("class=\"legend\""), html.indexOf("</table>"));
+            expect(legend).not.toContain("Zerstörungstrank");
+        });
+
         it("marks the first tab active", () => {
             const html = renderReportPage(sampleReport());
             // roster is the first defined tab and should carry the active class
@@ -274,13 +319,28 @@ describe("web/render", () => {
             expect(html).toContain("data-tab=\"rpbvalidate\"");
         });
 
-        it("groups the damage table by role", () => {
+        it("splits the damage table into one tab per role", () => {
             const html = renderReportPage(reportWithRpb());
-            expect(html).toContain("class=\"rolehead\">Tank<");
-            expect(html).toContain("class=\"rolehead\">Caster<");
+            expect(html).toContain("data-tab=\"rpbdmg-tank\"");
+            expect(html).toContain("data-tab=\"rpbdmg-caster\"");
             expect(html).toContain("Feuerregen");
             // thousands separator for the German locale
             expect(html).toContain("1.200");
+        });
+
+        it("offers both table orientations, players first", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("data-view=\"p\" class=\"active\"");
+            expect(html).toContain("data-view=\"a\"");
+            expect(html).toContain("Spieler als Zeilen");
+            expect(html).toContain("Fähigkeiten als Zeilen");
+            // the transposed view puts every raider in a column head
+            expect(html).toContain("class=\"rcol\"");
+        });
+
+        it("shows the avoidable ability's own WoW icon in the table head", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("spell_shadow_rainoffire.jpg");
         });
 
         it("names the sources of an avoidable ability in the column title", () => {
@@ -293,9 +353,12 @@ describe("web/render", () => {
             expect(html).toContain("Für Nahkämpfer ungenau");
         });
 
-        it("renders the interrupted spells", () => {
+        it("renders the interrupted spells as icons, plus what they were kicked with", () => {
             const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("spell_holy_heal.jpg");
             expect(html).toContain("Heilung ×4");
+            expect(html).toContain("https://www.wowhead.com/tbc/spell=25314");
+            expect(html).toContain("Schildhieb ×4");
         });
 
         it("flags a log that misses its trash requirements", () => {
@@ -305,9 +368,63 @@ describe("web/render", () => {
             expect(html).toContain("nicht");
         });
 
-        it("shows cooldown usage against the possible number of uses", () => {
+        it("shows cooldown usage as an icon with its count and the possible uses", () => {
             const html = renderReportPage(reportWithRpb());
-            expect(html).toContain("Eisige Adern: 3 / 4");
+            expect(html).toContain("spell_frost_coldhearted.jpg");
+            expect(html).toContain("Eisige Adern ×3 — 3 von ~4 möglichen");
+            expect(html).toContain("https://www.wowhead.com/tbc/spell=12472");
+        });
+
+        it("marks a cooldown used less than half as often as possible", () => {
+            const report = reportWithRpb();
+            report.rpb.usage[0].classCooldowns[0].total = 1;   // 1 of 4 possible
+            const html = renderReportPage(report);
+            expect(html).toContain("class=\"itile warn\"");
+        });
+
+        it("renders trinkets as icons instead of a text list", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("inv_misc_bone_elfskull_01.jpg");
+            expect(html).toContain("Schädel ×2");
+        });
+
+        it("shows a spell tab listing each raider's tracked casts", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("data-tab=\"rpbspells\"");
+            expect(html).toContain("spell_fire_flamebolt.jpg");
+            expect(html).toContain("spell_frost_icestorm.jpg");
+            expect(html).toContain("Frostblitz ×10");
+        });
+
+        it("flags a spell that was mostly cast at a lower rank", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("Feuerball ×42 — 71% niedriger Rang (30×)");
+            expect(html).toContain("class=\"itile warn\"");
+        });
+
+        it("counts the downrank warnings in the spell tab's badge", () => {
+            const html = renderReportPage(reportWithRpb());
+            // exactly one flagged spell in the fixture
+            expect(html).toContain("data-tab=\"rpbspells\"><img class=\"hicon\"");
+            expect(html).toMatch(/data-tab="rpbspells">[\s\S]*?<span class="tab-count">1<\/span>/);
+        });
+
+        it("hides the spell tab when no tracked casts were recorded", () => {
+            const report = reportWithRpb();
+            report.rpb.activity.players[0].singleTargetCasts = [];
+            report.rpb.activity.players[0].aoeCasts = [];
+            const html = renderReportPage(report);
+            expect(html).not.toContain("data-tab=\"rpbspells\"");
+            expect(html).toContain("data-tab=\"rpbactivity\"");   // activity itself stays
+        });
+
+        it("labels the main tabs with WoW icons rather than emoji", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("data-tab=\"roster\"><img class=\"hicon\"");
+            expect(html).toContain("inv_misc_grouplooking.jpg");
+            expect(html).not.toContain("👥");
+            expect(html).not.toContain("🛡️");
+            expect(html).not.toContain("💥");
         });
 
         it("includes player names and issue details", () => {
