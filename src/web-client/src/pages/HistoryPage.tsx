@@ -9,7 +9,7 @@ import { formatEventTime, fmtMs, formatDate } from "../lib/format";
 import { usePersistedState } from "../lib/persistedState";
 import RaidTable from "../components/RaidTable";
 import { CharLootHover } from "../components/CharLootHover";
-import { ClassSpecCell, CharacterLink } from "../components/ClassSpec";
+import { ClassSpecCell, CharacterLink, CLASS_SOURCE_LABELS } from "../components/ClassSpec";
 import type { ShellContext } from "../components/Shell";
 
 type Flash = { type: "ok" | "err"; text: string };
@@ -25,14 +25,6 @@ const TABS: { id: Tab; label: string; count?: (d: HistoryData) => number }[] = [
 ];
 
 const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil" };
-// Where a stored class/spec came from, so a wrong entry can be traced back —
-// mirrors renderAdmin.js's CLASS_SOURCE_LABELS.
-const CLASS_SOURCE_LABELS: Record<string, string> = {
-    export: "Loot-Export",
-    report: "Auswertung",
-    wcl: "Warcraft Log",
-    manual: "manuell",
-};
 
 function ImportForm({ data, csrfToken, onImported }: {
     data: HistoryData;

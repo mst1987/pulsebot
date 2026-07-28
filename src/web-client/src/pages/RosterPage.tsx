@@ -83,7 +83,8 @@ function GearIssuesCell({ gear }: { gear: CharGearReport | null }) {
                     <div className="loot-pop-body">
                         <div className="loot-pop-name" title={issue.itemName}>{issue.itemName || "—"}</div>
                         <div className="loot-pop-meta">
-                            <span className={`lbadge${issue.severity === "high" ? " lbadge-warn" : ""}`}>{issue.label}</span>
+                            <span className={`lbadge ${issue.severity === "high" ? "lbadge-warn" : "lbadge-medium"}`}>{issue.label}</span>
+                            {!!issue.slotName && <span className="sub">{issue.slotName}</span>}
                         </div>
                     </div>
                 </div>
