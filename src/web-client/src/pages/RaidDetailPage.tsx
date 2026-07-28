@@ -8,7 +8,8 @@ import {
     type SoftresSearchItem, type SoftresCatalogueGroup, type EventSoftres, type RaidLogRow,
     type RaidDetailEventSheet,
 } from "../api";
-import { formatEventTime, fmtMs } from "../lib/format";
+import { eventTimeParts, relativeDayLabel, fmtMs } from "../lib/format";
+import { ClockIcon } from "../components/icons";
 import { eventPostUrl, channelUrl, raidplanUrl, messageLink } from "../lib/discordLinks";
 import { LootTable } from "../components/LootTable";
 import type { ShellContext } from "../components/Shell";
@@ -18,20 +19,67 @@ import PageLoader from "../components/PageLoader";
 type Flash = { type: "ok" | "err"; text: string };
 type Tab = "setup" | "attendance" | "actions" | "loot" | "softres" | "logs";
 
-// Ported from renderAdmin.js's renderEventDetail() overview stat spans (statSpans).
+// One KPI cell of the hero header's stat strip: mono label on top, the number
+// below in display size, optionally a hairline bar showing it against the
+// signup target. Replaces the flat pill row the stats used to be rendered as.
+function HeroStat({ label, value, of, tone, fill, title }: {
+    label: string;
+    value: number | string;
+    of?: number;
+    tone?: "total" | "warn" | "ok";
+    fill?: number;
+    title?: string;
+}) {
+    return (
+        <div className={`rh-stat${tone ? ` is-${tone}` : ""}`} title={title}>
+            <span className="rh-stat-label">{label}</span>
+            <span className="rh-stat-value">
+                {value}
+                {of ? <span className="rh-stat-of">/ {of}</span> : null}
+            </span>
+            {typeof fill === "number" && (
+                <span className="rh-bar"><i style={{ width: `${Math.min(100, Math.max(0, fill * 100))}%` }} /></span>
+            )}
+        </div>
+    );
+}
+
+// Ported from renderAdmin.js's renderEventDetail() overview stat spans (statSpans),
+// re-typeset as the hero header's KPI strip.
 function OverviewStats({ data }: { data: RaidDetailData }) {
     const { event: ev, setup, attendance, attendanceRoleIds, eventSoftres, signupTarget } = data;
     // A past raid whose roster Raid-Helper no longer serves has an UNKNOWN signup
     // count, not zero — and "everyone is missing" would be nonsense for it.
     const rosterKnown = ev.signupsKnown !== false;
+    const signups = ev.signupCount || 0;
+    const missing = attendance.missing.length;
     return (
-        <div className="setup-summary" style={{ marginTop: 10 }}>
+        <div className="rh-stats">
             {rosterKnown
-                ? <span className="setup-count setup-total"><b>{ev.signupCount || 0}{signupTarget ? ` / ${signupTarget}` : ""}</b> Anmeldungen</span>
-                : <span className="setup-count setup-total" title="Raid-Helper liefert für diesen vergangenen Raid keine Anmeldungen mehr"><b>—</b> Anmeldungen</span>}
-            {!!setup?.total && <span className="setup-count"><b>{setup.total}</b> im Setup</span>}
-            {rosterKnown && !!attendanceRoleIds.length && <span className="setup-count"><b>{attendance.missing.length}</b> fehlt</span>}
-            {!!eventSoftres?.instances?.length && <span className="setup-count"><b>{eventSoftres.instances.length}</b> Softres-Instanz(en)</span>}
+                ? (
+                    <HeroStat
+                        label="Anmeldungen" value={signups} of={signupTarget || undefined} tone="total"
+                        fill={signupTarget ? signups / signupTarget : undefined}
+                    />
+                )
+                : (
+                    <HeroStat
+                        label="Anmeldungen" value="—" tone="total"
+                        title="Raid-Helper liefert für diesen vergangenen Raid keine Anmeldungen mehr"
+                    />
+                )}
+            {!!setup?.total && (
+                <HeroStat
+                    label="Im Setup" value={setup.total} of={signupTarget || undefined}
+                    fill={signupTarget ? setup.total / signupTarget : undefined}
+                />
+            )}
+            {rosterKnown && !!attendanceRoleIds.length && (
+                <HeroStat label="Fehlt" value={missing} tone={missing ? "warn" : "ok"} />
+            )}
+            {!!eventSoftres?.instances?.length && (
+                <HeroStat label="Softres" value={eventSoftres.instances.length} title="Softres-Instanzen" />
+            )}
         </div>
     );
 }
@@ -46,7 +94,8 @@ function RosterAvatars({ setup }: { setup: RaidDetailData["setup"] }) {
     const shown = players.slice(0, 10);
     const rest = players.length - shown.length;
     return (
-        <div className="avatar-stack" style={{ marginTop: 10 }}>
+        <div className="avatar-stack">
+            <span className="rh-stat-label rh-roster-label">Roster</span>
             {shown.map((p, i) => {
                 const color = p.classColor || "#9aa0aa";
                 const sub = p.specName || p.className;
@@ -275,7 +324,7 @@ function HeaderActions({ data, eventId, csrfToken, onSwitchTab, onDone }: {
     };
 
     return (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", justifyContent: "flex-end" }}>
+        <div className="rh-actions-row">
             <PageLoader show={busy} text="Wird gepostet" />
             {!!eventSheet?.url && (
                 <>
@@ -1161,31 +1210,71 @@ export default function RaidDetailPage() {
     if (!data) return <div className="empty">Lade…</div>;
 
     const ev = data.event;
+    const when = eventTimeParts(ev.startTime);
+    const relDay = relativeDayLabel(ev.startTime);
+    const isPast = !!ev.startTime && ev.startTime * 1000 < Date.now();
+    const isSoon = relDay === "heute" || relDay === "morgen";
 
     return (
         <>
             {backLink}
             {data.eventsWarning && <div className="flash flash-err">{data.eventsWarning}</div>}
 
-            <div className="dash-card" style={{ marginBottom: 16 }}>
-                <div className="dash-card-head" style={{ flexWrap: "wrap", gap: 12, justifyContent: "space-between" }}>
-                    <h3 style={{ margin: 0 }}>{ev.title || "(ohne Titel)"}</h3>
-                    <HeaderActions data={data} eventId={eventId} csrfToken={csrfToken} onSwitchTab={switchTab} onDone={afterChange} />
-                </div>
-                <div style={{ padding: "14px 16px" }} className="small">
-                    <div>Termin: <strong>{formatEventTime(ev.startTime) || "—"}</strong></div>
-                    <div>Channel: #{ev.channelName || ev.channelId} · Kategorie: {data.categoryName || "—"}</div>
-                    <div style={{ marginTop: 8 }}>
-                        <a className="mlink" href={eventPostUrl(data.guildId, ev.channelId, ev.id)} target="_blank" rel="noopener noreferrer">Discord-Post</a>
-                        {" · "}
-                        <a className="mlink" href={channelUrl(data.guildId, ev.channelId)} target="_blank" rel="noopener noreferrer">Channel</a>
-                        {" · "}
-                        <a className="mlink" href={raidplanUrl(ev.id)} target="_blank" rel="noopener noreferrer">Setup / Comp</a>
+            <header className="raid-hero">
+                <div className="rh-main">
+                    <div className="rh-date" title={when?.full || undefined}>
+                        <span className="rh-date-dow">{when?.weekday || "—"}</span>
+                        <span className="rh-date-day">{when?.day || "··"}</span>
+                        <span className="rh-date-mon">{when ? `${when.month} ${when.year}` : ""}</span>
                     </div>
+                    <div className="rh-ident">
+                        <div className="rh-eyebrow">
+                            <span className="rh-kicker">Raid-Event</span>
+                            {data.categoryName && <span className="cat-badge">{data.categoryName}</span>}
+                        </div>
+                        <h1 className="rh-title">{ev.title || "(ohne Titel)"}</h1>
+                        <div className="rh-when">
+                            <ClockIcon />
+                            <span className="rh-time">{when?.time || "—"}</span>
+                            <span className="rh-time-unit">Uhr</span>
+                            {relDay && <span className={`rh-rel${isPast ? " is-past" : isSoon ? " is-soon" : ""}`}>{relDay}</span>}
+                        </div>
+                    </div>
+                    <div className="rh-actions">
+                        <HeaderActions data={data} eventId={eventId} csrfToken={csrfToken} onSwitchTab={switchTab} onDone={afterChange} />
+                    </div>
+                </div>
+
+                <dl className="rh-meta">
+                    <div className="rh-meta-item">
+                        <dt>Channel</dt>
+                        <dd>
+                            <a className="mlink" href={channelUrl(data.guildId, ev.channelId)} target="_blank" rel="noopener noreferrer">
+                                #{ev.channelName || ev.channelId}
+                            </a>
+                        </dd>
+                    </div>
+                    <div className="rh-meta-item">
+                        <dt>Discord</dt>
+                        <dd>
+                            <a className="mlink" href={eventPostUrl(data.guildId, ev.channelId, ev.id)} target="_blank" rel="noopener noreferrer">
+                                Event-Post öffnen
+                            </a>
+                        </dd>
+                    </div>
+                    <div className="rh-meta-item">
+                        <dt>Raid-Helper</dt>
+                        <dd>
+                            <a className="mlink" href={raidplanUrl(ev.id)} target="_blank" rel="noopener noreferrer">Setup / Comp</a>
+                        </dd>
+                    </div>
+                </dl>
+
+                <div className="rh-foot">
                     <OverviewStats data={data} />
                     <RosterAvatars setup={data.setup} />
                 </div>
-            </div>
+            </header>
 
             <div className="tabs" role="tablist">
                 <button type="button" className={`tab-btn${tab === "setup" ? " active" : ""}`} role="tab" onClick={() => switchTab("setup")}>Setup</button>

@@ -122,6 +122,63 @@ td.cell-actions { text-align: right; white-space: nowrap; vertical-align: middle
 .rolebox:hover { background: var(--panel2); }
 .rolebox:has(input:checked) { background: var(--accent-soft); border-color: var(--accent-soft); }
 
+/* ===== raid detail: hero header =====
+   The event identity block above the tabs. Instead of one flat "Termin: …" text
+   column it stacks three bands — identity (calendar badge + title + time), a
+   labelled meta row, and a tinted footer with the KPIs and the roster — so the
+   date, the numbers and the links each read at their own type size. */
+.raid-hero { background: var(--panel); border: 1px solid var(--line); border-top: 2px solid var(--accent); margin-bottom: 16px; }
+.rh-main { display: flex; align-items: flex-start; gap: 18px; padding: 18px 20px 14px; flex-wrap: wrap; }
+/* calendar-style date badge: weekday / day / month+year on three levels */
+.rh-date {
+    flex: 0 0 auto; width: 82px; display: grid; justify-items: center; gap: 2px; padding: 9px 6px 10px;
+    background: var(--accent-soft); border: 1px solid var(--accent-soft); border-radius: 12px; text-align: center;
+}
+.rh-date-dow { font-size: 11px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: var(--accent); }
+.rh-date-day { font-size: 30px; line-height: 1; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+.rh-date-mon { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.rh-ident { min-width: 0; flex: 1 1 240px; }
+.rh-eyebrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 5px; }
+.rh-kicker { font-size: 10.5px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase; letter-spacing: .14em; color: var(--muted); }
+.rh-title { font-size: 25px; font-weight: 800; letter-spacing: -.02em; line-height: 1.15; margin: 0; overflow-wrap: anywhere; }
+.rh-when { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; color: var(--muted); }
+.rh-when svg { width: 15px; height: 15px; flex: 0 0 auto; color: var(--accent-2); }
+.rh-time { font-size: 18px; font-weight: 700; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+.rh-time-unit { font-size: 12.5px; }
+.rh-rel { font-size: 11.5px; font-weight: 700; border-radius: 999px; padding: 2px 10px; background: var(--panel2); border: 1px solid var(--line); color: var(--muted); }
+.rh-rel.is-soon { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--accent); }
+.rh-rel.is-past { opacity: .75; }
+.rh-actions { margin-left: auto; }
+.rh-actions-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.rh-meta { display: flex; flex-wrap: wrap; gap: 12px 34px; margin: 0; padding: 0 20px 16px; }
+.rh-meta-item { min-width: 0; }
+.rh-meta dt, .rh-stat-label {
+    font-size: 10.5px; font-family: var(--font-mono); font-weight: 700;
+    text-transform: uppercase; letter-spacing: .12em; color: var(--muted);
+}
+.rh-meta dt { margin-bottom: 4px; }
+.rh-meta dd { margin: 0; font-size: 13.5px; font-weight: 600; }
+.rh-foot { border-top: 1px solid var(--line-soft); background: var(--panel2); padding: 14px 20px; display: flex; flex-direction: column; gap: 15px; }
+.rh-stats { display: flex; flex-wrap: wrap; gap: 12px 26px; }
+.rh-stat { display: grid; align-content: start; gap: 5px; min-width: 92px; padding-left: 13px; border-left: 2px solid var(--line); }
+.rh-stat-value { font-size: 22px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+.rh-stat-of { font-size: 12.5px; font-weight: 600; color: var(--muted); margin-left: 4px; }
+.rh-stat.is-total { border-left-color: var(--accent); }
+.rh-stat.is-ok { border-left-color: var(--good); }
+.rh-stat.is-warn { border-left-color: var(--high); }
+.rh-stat.is-warn .rh-stat-value { color: var(--high); }
+.rh-bar { display: block; width: 100%; max-width: 118px; height: 3px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.rh-bar i { display: block; height: 100%; border-radius: inherit; background: var(--accent-2); }
+.rh-stat.is-total .rh-bar i { background: var(--accent); }
+.rh-roster-label { align-self: center; padding-bottom: 2px; }
+/* the avatar rings are cut against the footer's tint, not the panel behind it */
+.rh-foot .avatar-stack .av { border-color: var(--panel2); }
+@media (max-width: 700px) {
+    .rh-title { font-size: 21px; }
+    .rh-actions { margin-left: 0; width: 100%; }
+    .rh-actions-row { justify-content: flex-start; }
+}
+
 /* ===== raid detail: setup/attendance summary + roster chips (ported from renderAdmin.js's ADMIN_STYLE) ===== */
 .setup-summary { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
 .setup-count { background: var(--panel2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 13px; color: var(--muted); }
@@ -229,11 +286,11 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 /* ===== panel geometry: clipped top-right corner + accent tick, the signature
    shape of the 2026-07 redesign, replacing plain rounded corners on the main
    structural panels (stat tiles, dashboard cards, forms, sheet cards) ===== */
-.tile, .dash-card, form.card-form, .sheetcard {
+.tile, .dash-card, form.card-form, .sheetcard, .raid-hero {
     position: relative;
     clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
-.tile::after, .dash-card::after, form.card-form::after, .sheetcard::after {
+.tile::after, .dash-card::after, form.card-form::after, .sheetcard::after, .raid-hero::after {
     content: ""; position: absolute; top: 0; right: 0; width: 14px; height: 14px;
     background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 42%, transparent 44%);
     opacity: .85; pointer-events: none;
