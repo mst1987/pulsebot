@@ -6,7 +6,7 @@ import {
     searchSoftresItems, createSoftres, linkSoftres, evalLog, linkLog, linkLogUrl, unlinkLog,
     type ApiError, type RaidDetailData, type SetupPlayer, type AttendancePerson,
     type SoftresSearchItem, type SoftresCatalogueGroup, type EventSoftres, type RaidLogRow,
-    type RaidDetailEventSheet,
+    type RaidDetailEventSheet, type LogSection,
 } from "../api";
 import { eventTimeParts, relativeDayLabel, fmtMs } from "../lib/format";
 import { ClockIcon } from "../components/icons";
@@ -1033,15 +1033,25 @@ function LootTab({ data, eventId, csrfToken, onChanged }: {
 // plus a picker to assign a still-unassigned detected log to this raid. Reuses
 // the same /api/cla/eval, /api/cla/log-link, /api/cla/log-unlink endpoints as
 // the CLA page's "Erkannte Logs" tab, just scoped to a single event here. ---
-function LogRow({ l, evalBusy, unlinkBusy, onEvaluate, onUnlink }: {
+// The two analyses a log can be run through, each on its own button. Both write
+// into the same report page, so a log can be completed in two steps.
+const LOG_ANALYSES: { key: LogSection; label: string; title: string }[] = [
+    { key: "cla", label: "CLA", title: "Gear, Verzauberungen, Sockel, Consumables, Drums, Potions & Shadow-Resi" },
+    { key: "rpb", label: "RPB", title: "Vermeidbarer Schaden, Tode, Aktivität, Cooldowns, Interrupts & Log-Prüfung" },
+];
+
+function LogRow({ l, evalBusySection, unlinkBusy, onEvaluate, onUnlink }: {
     l: RaidLogRow;
-    evalBusy: boolean;
+    evalBusySection: LogSection | null;
     unlinkBusy: boolean;
-    onEvaluate: () => void;
+    onEvaluate: (section: LogSection) => void;
     onUnlink: () => void;
 }) {
     const wclUrl = l.link || (l.reportId ? `https://classic.warcraftlogs.com/reports/${l.reportId}` : "");
     const name = l.title || l.reportId || "(unbekannt)";
+    const done = l.sections || [];
+    const reportHref = l.reportUrl || (l.reportRefId ? `/r/${l.reportRefId}` : "");
+
     return (
         <div className="row-actions" style={{ justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid var(--line-soft)" }}>
             <div>
@@ -1049,18 +1059,25 @@ function LogRow({ l, evalBusy, unlinkBusy, onEvaluate, onUnlink }: {
                     ? <a className="mlink" href={wclUrl} target="_blank" rel="noopener noreferrer">{name} ↗</a>
                     : name}
                 {" "}
-                {l.status === "done" ? <span className="pill good">ausgewertet</span> : <span className="pill">offen</span>}
+                {done.length
+                    ? LOG_ANALYSES.filter((a) => done.includes(a.key))
+                        .map((a) => <span key={a.key} className="pill good" style={{ marginRight: 4 }}>{a.label}</span>)
+                    : <span className="pill">offen</span>}
             </div>
             <div className="row-actions" style={{ gap: 6 }}>
-                {l.status === "done"
-                    ? ((l.reportUrl || l.reportRefId)
-                        ? <a className="btn btn-ghost btn-sm" href={l.reportUrl || `/r/${l.reportRefId}`}>Öffnen</a>
-                        : null)
-                    : (
-                        <button className="btn btn-sm" type="button" disabled={evalBusy} onClick={onEvaluate}>
-                            {evalBusy ? "Läuft …" : "Auswerten"}
-                        </button>
-                    )}
+                {LOG_ANALYSES.filter((a) => !done.includes(a.key)).map((a) => (
+                    <button
+                        key={a.key}
+                        className="btn btn-sm"
+                        type="button"
+                        title={a.title}
+                        disabled={evalBusySection !== null}
+                        onClick={() => onEvaluate(a.key)}
+                    >
+                        {evalBusySection === a.key ? "Läuft …" : `${a.label} auswerten`}
+                    </button>
+                ))}
+                {reportHref ? <a className="btn btn-ghost btn-sm" href={reportHref}>Öffnen</a> : null}
                 <button className="btn btn-ghost btn-sm" type="button" disabled={unlinkBusy} title="Zuordnung entfernen" onClick={onUnlink}>✕</button>
             </div>
         </div>
@@ -1073,21 +1090,25 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
     csrfToken: string | null;
     onChanged: (msg: string) => void;
 }) {
-    const [evalBusyId, setEvalBusyId] = useState<string | null>(null);
+    // which log + which half is currently running, so only that button spins
+    const [evalBusy, setEvalBusy] = useState<{ id: string; section: LogSection } | null>(null);
     const [unlinkBusyId, setUnlinkBusyId] = useState<string | null>(null);
     const [pickedLogId, setPickedLogId] = useState("");
     const [linkBusy, setLinkBusy] = useState(false);
 
-    const evaluate = async (l: RaidLogRow) => {
-        setEvalBusyId(l.id);
+    const evaluate = async (l: RaidLogRow, section: LogSection) => {
+        const label = section.toUpperCase();
+        setEvalBusy({ id: l.id, section });
         try {
-            const r = await evalLog(csrfToken, l.id);
+            const r = await evalLog(csrfToken, l.id, section);
             window.open(r.url, "_blank", "noopener");
-            onChanged(r.alreadyEvaluated ? "Bereits ausgewertet." : "Auswertung erstellt.");
+            onChanged(r.alreadyEvaluated
+                ? `${label}-Auswertung lag bereits vor.`
+                : `${label}-Auswertung erstellt.`);
         } catch (err) {
             onChanged((err as ApiError).message);
         } finally {
-            setEvalBusyId(null);
+            setEvalBusy(null);
         }
     };
 
@@ -1144,8 +1165,12 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
             {data.eventLogs.length
                 ? data.eventLogs.map((l) => (
                     <LogRow
-                        key={l.id} l={l} evalBusy={evalBusyId === l.id} unlinkBusy={unlinkBusyId === l.id}
-                        onEvaluate={() => evaluate(l)} onUnlink={() => unlink(l)}
+                        key={l.id}
+                        l={l}
+                        evalBusySection={evalBusy && evalBusy.id === l.id ? evalBusy.section : null}
+                        unlinkBusy={unlinkBusyId === l.id}
+                        onEvaluate={(section) => evaluate(l, section)}
+                        onUnlink={() => unlink(l)}
                     />
                 ))
                 : <p className="sub">Für dieses Event ist noch kein Log zugeordnet.</p>}

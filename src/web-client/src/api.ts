@@ -356,7 +356,12 @@ export type RaidLogRow = {
     status: "open" | "done";
     reportUrl: string;
     reportRefId: string;
+    /** Which analyses already ran for this log ("cla" / "rpb"). */
+    sections?: string[];
 };
+
+/** The two analysis halves a log can be evaluated for. */
+export type LogSection = "cla" | "rpb";
 
 export function getRaidDetail(eventId: string): Promise<RaidDetailData> {
     return get<RaidDetailData>(`/api/raids/detail?event=${encodeURIComponent(eventId)}`);
@@ -847,8 +852,14 @@ export type LogRow = {
     eventLinkSource: "manual" | "auto" | "";
     reportUrl: string;
     reportRefId: string;
-    candidates: MatchCandidate[];
-    matchAmbiguous: boolean;
+    /**
+     * Time-matched event candidates. Absent for logs that are already linked —
+     * the backend's annotateMatches() skips those, so this must stay optional.
+     */
+    candidates?: MatchCandidate[];
+    matchAmbiguous?: boolean;
+    /** Which analyses already ran for this log ("cla" / "rpb"). */
+    sections?: string[];
 };
 
 export type ClaData = {
@@ -875,11 +886,17 @@ export function createReport(csrfToken: string | null, link: string): Promise<{ 
     return send("POST", "/api/cla", csrfToken, { link });
 }
 
+/**
+ * Run one half of a log's analysis — "cla" (gear/consumables) or "rpb"
+ * (performance). Each half runs at most once; both write into the same report
+ * page, so the returned url is stable across the two calls.
+ */
 export function evalLog(
     csrfToken: string | null,
     logId: string,
-): Promise<{ id?: string; url: string; alreadyEvaluated?: boolean }> {
-    return send("POST", "/api/cla/eval", csrfToken, { logId });
+    section: LogSection = "cla",
+): Promise<{ id?: string; url: string; alreadyEvaluated?: boolean; section?: LogSection }> {
+    return send("POST", "/api/cla/eval", csrfToken, { logId, section });
 }
 
 export function scanLogs(csrfToken: string | null): Promise<{ found: number; message: string }> {

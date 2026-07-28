@@ -27,7 +27,7 @@ const {
 const softres = require("../../utils/softres");
 const wowhead = require("../../utils/wowhead");
 const { listByEvent: listLootByEvent } = require("../lootStore");
-const { listLogs, listLogsForEvent } = require("../logStore");
+const { listLogs, listLogsForEvent, evaluatedSections } = require("../logStore");
 const { backfillLogTitles } = require("../logChannel");
 const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const Drive = require("../../classes/drive");
@@ -146,6 +146,9 @@ async function getRaidDetail(req, res, url) {
     const eventLogs = listLogsForEvent(eventId);
     const unlinkedLogs = listLogs().filter((l) => (!l.guildId || l.guildId === guildId) && !l.eventId);
     await backfillLogTitles([...eventLogs, ...unlinkedLogs]);
+    // Normalise which analyses already ran, so the UI can offer the CLA and RPB
+    // buttons independently without having to know about legacy log entries.
+    for (const l of [...eventLogs, ...unlinkedLogs]) l.sections = evaluatedSections(l);
 
     ok(res, {
         event: {
