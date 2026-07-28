@@ -49,7 +49,9 @@ function issueRow(issue) {
 
 function nameInner(p) {
     const color = CLASS_COLORS[p.type] || "#ddd";
-    return `<img src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}" title="${esc(p.type)}"><span style="color:${color};font-weight:700">${esc(p.name)}</span>`;
+    // no tooltip on the class icon: the class already shows in the icon and in the
+    // name's colour, and a box popping up on every row hover is pure noise
+    return `<img src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}"><span style="color:${color};font-weight:700">${esc(p.name)}</span>`;
 }
 
 function classCell(p, href) {
@@ -71,7 +73,7 @@ function playerCard(p, href) {
     return `
     <section class="card ${sev}">
       ${head}
-        <img class="classicon" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}" title="${esc(p.type)}">
+        <img class="classicon" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}" data-tip="${esc(p.type)}">
         <span class="pname" style="color:${color}">${esc(p.name)}</span>
         <span class="count">${issues.length}</span>
       ${headEnd}
@@ -91,10 +93,11 @@ function yesNo(v) {
 // small inline icon for table headers / labels
 function hicon(icon, title) {
     if (!icon) return "";
-    return `<img class="hicon" src="${esc(iconUrl(icon))}" alt="" title="${esc(title || "")}">`;
+    const tip = title ? ` data-tip="${esc(title)}"` : "";
+    return `<img class="hicon" src="${esc(iconUrl(icon))}" alt=""${tip}>`;
 }
 function colHead(icon, label) {
-    return `${hicon(icon, label)}<span>${esc(label)}</span>`;
+    return `${hicon(icon, "")}<span>${esc(label)}</span>`;
 }
 
 // --- icon tiles + nested tabs (shared by the RPB panels) ------------------
@@ -173,7 +176,7 @@ function tabbed(items, extraClass) {
     if (items.length === 1) return items[0].html;
     const buttons = items.map((t, i) => {
         const count = (t.count === undefined || t.count === null) ? "" : `<span class="tab-count">${esc(t.count)}</span>`;
-        return `<button class="tab-btn${i === 0 ? " active" : ""}" data-tab="${esc(t.id)}">${hicon(t.icon, t.label)}<span>${esc(t.label)}</span>${count}</button>`;
+        return `<button class="tab-btn${i === 0 ? " active" : ""}" data-tab="${esc(t.id)}">${hicon(t.icon, "")}<span>${esc(t.label)}</span>${count}</button>`;
     }).join("");
     const panels = items.map((t, i) =>
         `<div id="tab-${esc(t.id)}" class="tabpanel${i === 0 ? " active" : ""}">${t.html}</div>`).join("");
@@ -676,7 +679,7 @@ function renderPotionsPanel(potions, linkFor) {
     // Every mana source that actually turned up in this raid gets its own column,
     // so "Mana" is not one opaque number any more.
     const manaTypes = ((potions && potions.types) || []).filter((t) => t.group === "mana");
-    const manaHead = manaTypes.map((t) => `<th class="n" data-tip="${esc(t.label)}">${hicon(t.icon, t.label)}</th>`).join("");
+    const manaHead = manaTypes.map((t) => `<th class="n" data-tip="${esc(t.label)}">${hicon(t.icon, "")}</th>`).join("");
 
     const body = rows.map((p) => {
         const byType = p.byType || {};
@@ -1237,7 +1240,7 @@ function renderReportPage(report, user) {
     ].filter((t) => t.show);
 
     const buttons = tabDefs.map((t, i) =>
-        `<button class="tab-btn${i === 0 ? " active" : ""}" data-tab="${t.id}">${hicon(t.icon, t.label)}<span>${esc(t.label)}</span><span class="tab-count">${esc(t.count || 0)}</span></button>`).join("");
+        `<button class="tab-btn${i === 0 ? " active" : ""}" data-tab="${t.id}">${hicon(t.icon, "")}<span>${esc(t.label)}</span><span class="tab-count">${esc(t.count || 0)}</span></button>`).join("");
     const panels = tabDefs.map((t, i) =>
         `<div id="tab-${t.id}" class="tabpanel${i === 0 ? " active" : ""}">${t.html}</div>`).join("");
 
@@ -1332,7 +1335,7 @@ function renderPlayerPage(report, idx, user) {
     const right = RIGHT.map((s) => paperdollSlot(bySlot[s], "right")).join("");
     const bottom = BOTTOM.map((s) => paperdollSlot(bySlot[s], "bottom")).join("");
 
-    const potChip = (icon, label, n) => `<span class="chip">${hicon(icon, label)}<b>${esc(n || 0)}</b> ${esc(label)}</span>`;
+    const potChip = (icon, label, n) => `<span class="chip">${hicon(icon, "")}<b>${esc(n || 0)}</b> ${esc(label)}</span>`;
     // which mana sources this raider actually used — the aggregate alone hides that
     const byType = pot.byType || {};
     const manaTiles = ((report.potions && report.potions.types) || [])
