@@ -4,6 +4,7 @@ const {
     renderNotFound,
     renderError,
 } = require("../../src/web/render.js");
+const rpbData = require("../../src/config/rpbData.js");
 
 function sampleReport() {
     return {
@@ -343,9 +344,28 @@ describe("web/render", () => {
             expect(html).toContain("spell_shadow_rainoffire.jpg");
         });
 
-        it("names the sources of an avoidable ability in the column title", () => {
+        it("names the sources of an avoidable ability in its tooltip", () => {
             const html = renderReportPage(reportWithRpb());
-            expect(html).toContain("title=\"Boss\"");
+            expect(html).toContain("data-tip=\"Feuerregen\" data-tip-sub=\"Boss\"");
+        });
+
+        it("uses its own tooltips instead of the native title box", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("data-tip=");
+            // and suppresses Wowhead's competing tooltip on the icon links
+            expect(html).toContain("data-disable-wowhead-tooltip=\"true\"");
+        });
+
+        it("colours damage values by their share of the raid's worst in that column", () => {
+            const html = renderReportPage(reportWithRpb());
+            // Alice took 1200 of the column's 1200 max -> top bucket; Bob 800 -> 66%
+            expect(html).toContain("<span class=\"dv dv-4\">1.200</span>");
+            expect(html).toContain("<span class=\"dv dv-3\">800</span>");
+        });
+
+        it("gives the numeric tables a fixed geometry so every role tab lines up", () => {
+            const html = renderReportPage(reportWithRpb());
+            expect(html).toContain("class=\"idx rpb fixed\"");
         });
 
         it("warns that melee activity is inaccurate", () => {
@@ -371,7 +391,7 @@ describe("web/render", () => {
         it("shows cooldown usage as an icon with its count and the possible uses", () => {
             const html = renderReportPage(reportWithRpb());
             expect(html).toContain("spell_frost_coldhearted.jpg");
-            expect(html).toContain("Eisige Adern ×3 — 3 von ~4 möglichen");
+            expect(html).toContain("data-tip=\"Eisige Adern ×3\" data-tip-sub=\"3 von ~4 möglichen\"");
             expect(html).toContain("https://www.wowhead.com/tbc/spell=12472");
         });
 
@@ -398,8 +418,28 @@ describe("web/render", () => {
 
         it("flags a spell that was mostly cast at a lower rank", () => {
             const html = renderReportPage(reportWithRpb());
-            expect(html).toContain("Feuerball ×42 — 71% niedriger Rang (30×)");
+            expect(html).toContain("data-tip=\"Feuerball ×42\" data-tip-sub=\"71% niedriger Rang (30×)\"");
             expect(html).toContain("class=\"itile warn\"");
+        });
+
+        it("recovers icons for older reports from the config, by the entry's name", () => {
+            const report = reportWithRpb();
+            // a report saved before icons were recorded: no icon on the row, but the
+            // config knows this ability by name (Icy Veins)
+            delete report.rpb.usage[0].classCooldowns[0].icon;
+            const html = renderReportPage(report);
+            expect(html).toContain(`icons/large/${rpbData.CLASS_COOLDOWNS.Mage.find((c) => c.name === "Icy Veins").icon}.jpg`);
+            expect(html).not.toContain("inv_misc_questionmark");
+        });
+
+        it("falls back to a labelled pill when nothing resolves an icon at all", () => {
+            const report = reportWithRpb();
+            delete report.rpb.usage[0].trinketsAndRacials[0].icon;
+            report.rpb.usage[0].trinketsAndRacials[0].name = "Nicht in der Config";
+            const html = renderReportPage(report);
+            expect(html).toContain("class=\"ipill\"");
+            expect(html).toContain("<span>Schädel</span>");
+            expect(html).not.toContain("inv_misc_questionmark");
         });
 
         it("counts the downrank warnings in the spell tab's badge", () => {

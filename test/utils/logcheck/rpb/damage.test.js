@@ -63,13 +63,15 @@ describe("rpb/damage topAvoidableAbilities", () => {
         expect(ability.spellId).toBe(Number(tracked[0].ids[0]));
     });
 
-    test("an ability the log carried no icon for stays empty instead of guessing one", () => {
+    test("falls back to the config icon when the log carried none", () => {
         const byAbility = {
             entries: [{ guid: Number(tracked[0].ids[0]), total: 10, sources: [] }],
         };
         const [ability] = topAvoidableAbilities(byAbility);
-        expect(ability.icon).toBe("");
-        expect(ability.spellId).toBeNull();
+        // resolved from the spell id when rpbData was generated
+        expect(ability.icon).toBe(tracked[0].icon);
+        expect(ability.icon).toBeTruthy();
+        expect(ability.spellId).toBe(Number(tracked[0].ids[0]));
     });
 
     test("caps the list at MAX_ABILITIES", () => {

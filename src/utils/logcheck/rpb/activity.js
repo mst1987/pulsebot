@@ -48,10 +48,11 @@ function sumCastSection(entries, tracked) {
 
         const row = { label: spell.label, name: spell.name, amount };
         const src = bestMax || best;
-        if (src) {
-            if (Number(src.guid)) row.spellId = Number(src.guid);
-            if (src.abilityIcon) row.icon = src.abilityIcon;
-        }
+        if (src && Number(src.guid)) row.spellId = Number(src.guid);
+        // The log's own icon wins (it is the exact rank cast); the config icon —
+        // resolved from the spell id at build time — covers rows sent without one.
+        const icon = (src && src.abilityIcon) || spell.icon;
+        if (icon) row.icon = icon;
         // How much of the usage was a downrank. The sheet only flags "mostly"; the exact
         // share is what tells a raider whether it was a slip or a habit.
         if (amount > 0 && lowerRankUsed > 0) {

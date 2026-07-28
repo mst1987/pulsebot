@@ -50,10 +50,12 @@ function countUsage(allEntries, trashEntries, tracked) {
             bosses: Math.max(0, all - onTrash),
             total: all,
         };
-        if (hit) {
-            if (Number(hit.guid)) row.spellId = Number(hit.guid);
-            if (hit.abilityIcon) row.icon = hit.abilityIcon;
-        }
+        if (hit && Number(hit.guid)) row.spellId = Number(hit.guid);
+        // The log's own icon wins (it is the exact rank that was cast); the config
+        // icon — resolved from the spell id at build time — covers the rows Warcraft
+        // Logs sends without one.
+        const icon = (hit && hit.abilityIcon) || entry.icon;
+        if (icon) row.icon = icon;
         if (entry.cooldown) row.cooldown = entry.cooldown;
         rows.push(row);
     }
