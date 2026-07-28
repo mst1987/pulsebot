@@ -125,6 +125,34 @@ function markEvaluated(id, { reportRefId, reportUrl, title, zone, sections } = {
     return log;
 }
 
+/** A tracked log by the id of the report it was evaluated into, or null. */
+function getByReportRefId(reportRefId) {
+    const ref = String(reportRefId || "").trim();
+    if (!ref) return null;
+    return readAll().find((l) => l.reportRefId === ref) || null;
+}
+
+/**
+ * Undo a log's evaluation: back to status "open", report reference dropped. Used
+ * when the generated report is deleted — the log itself (and its event
+ * assignment) stays, so it can simply be evaluated again. Both halves are reset,
+ * because CLA and RPB write into the one report page that just went away.
+ * Returns the saved log, or null for an unknown id.
+ */
+function clearEvaluation(id) {
+    const logs = readAll();
+    const log = logs.find((l) => l.id === id);
+    if (!log) return null;
+    log.status = "open";
+    log.reportRefId = "";
+    log.reportUrl = "";
+    delete log.sections;
+    delete log.evaluatedAt;
+    log.updatedAt = Date.now();
+    writeAll(logs);
+    return log;
+}
+
 /**
  * Which halves of a log have already been evaluated.
  *
@@ -214,7 +242,7 @@ function deleteLog(id) {
 }
 
 module.exports = {
-    listLogs, getLog, getByReportId, saveLog, setButtonMessage,
-    markEvaluated, evaluatedSections, setLogTitle, deleteLog, LOGS_FILE,
+    listLogs, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
+    markEvaluated, evaluatedSections, clearEvaluation, setLogTitle, deleteLog, LOGS_FILE,
     linkEvent, unlinkEvent, listLogsForEvent,
 };

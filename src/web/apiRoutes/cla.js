@@ -7,9 +7,12 @@ const { ok, error } = require("../apiResponse");
 const { requireAdmin, requireCsrf } = require("../apiMiddleware");
 const { readJsonBody } = require("../apiBody");
 const { activeGuildFor } = require("../activeGuild");
-const { listReports } = require("../reportStore");
-const { prepareReportList, prepareLogList, annotateLogCategories } = require("../reportList");
-const { listLogs, getLog, deleteLog, linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent } = require("../logStore");
+const { listReports, deleteReport } = require("../reportStore");
+const { prepareReportList, prepareLogList, annotateLogCategories, annotateReportEvents } = require("../reportList");
+const {
+    listLogs, getLog, getByReportRefId, deleteLog, clearEvaluation,
+    linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent,
+} = require("../logStore");
 const { annotateMatches, autoMatches } = require("../logEventMatch");
 const { evaluateLog, scanLogChannels, backfillLogTitles } = require("../logChannel");
 const { getConfig } = require("../settingsStore");
@@ -23,8 +26,11 @@ async function getClaData(req, res, url) {
     const user = requireAdmin(req, res);
     if (!user) return;
     const guildId = activeGuildFor(req);
-    const logs = guildId ? listLogs().filter((l) => !l.guildId || l.guildId === guildId) : listLogs();
-    const reports = listReports();
+    const allLogs = listLogs();
+    const logs = guildId ? allLogs.filter((l) => !l.guildId || l.guildId === guildId) : allLogs;
+    // Reports are not guild-scoped, so annotate them from ALL logs — otherwise a
+    // report would look unassigned just because the guild switcher is elsewhere.
+    const reports = annotateReportEvents(listReports(), allLogs);
     const view = url.searchParams.get("view") === "logs" ? "logs" : "reports";
     const sortQuery = {
         sort: url.searchParams.get("sort"),
@@ -69,6 +75,46 @@ async function createReport(req, res) {
         console.error("CLA web build failed:", e);
         error(res, 500, "build_failed", "Unerwarteter Fehler beim Erstellen der Auswertung.");
     }
+}
+
+/**
+ * POST /api/cla/report-delete — body: { reportId }. Deletes a generated report.
+ * The log it came from is kept but falls back to "offen", so the same log can be
+ * evaluated again; its raid assignment is untouched.
+ */
+async function deleteReportHandler(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const reportId = String(body.reportId || "").trim();
+    const log = getByReportRefId(reportId);
+    const removed = deleteReport(reportId);
+    if (!removed && !log) return error(res, 400, "not_found", "Auswertung nicht gefunden.");
+    if (log) clearEvaluation(log.id);
+    ok(res, {
+        reportId,
+        logId: log ? log.id : "",
+        message: log
+            ? "Auswertung gelöscht — das Log steht wieder auf „offen“."
+            : "Auswertung gelöscht.",
+    });
+}
+
+/**
+ * POST /api/cla/report-unlink — body: { reportId }. Removes the raid assignment
+ * of the log this report was generated from. The report itself stays.
+ */
+async function unlinkReport(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const reportId = String(body.reportId || "").trim();
+    const log = getByReportRefId(reportId);
+    if (!log) return error(res, 400, "not_found", "Zu dieser Auswertung gibt es kein Log.");
+    if (!unlinkLogEvent(log.id)) return error(res, 400, "not_linked", "Keine Zuordnung vorhanden.");
+    ok(res, { reportId, logId: log.id, message: "Zuordnung entfernt." });
 }
 
 /**
@@ -196,4 +242,5 @@ async function autoMatchLogs(req, res) {
 
 module.exports = {
     getClaData, createReport, evalLog, scanLogs, deleteLogHandler, linkLog, linkLogUrl, unlinkLog, autoMatchLogs,
+    deleteReportHandler, unlinkReport,
 };

@@ -6,7 +6,10 @@ jest.mock("../../src/web/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../src/web/reportStore", () => ({ listReports: jest.fn(() => []) }));
+jest.mock("../../src/web/reportStore", () => ({
+    listReports: jest.fn(() => []),
+    deleteReport: jest.fn(() => true),
+}));
 jest.mock("../../src/web/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
@@ -47,6 +50,8 @@ jest.mock("../../src/web/logStore", () => ({
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
     getLog: jest.fn(),
+    getByReportRefId: jest.fn(),
+    clearEvaluation: jest.fn(),
     linkEvent: jest.fn(),
     unlinkEvent: jest.fn(),
 }));
@@ -58,6 +63,7 @@ jest.mock("../../src/web/reportList", () => ({
         items: logs, sort: (query && query.sort) || "date", dir: (query && query.dir) || "desc", page: 1, totalPages: 1, total: logs.length, pageSize: 15,
     })),
     annotateLogCategories: jest.fn((items) => items),
+    annotateReportEvents: jest.fn((reports) => reports),
     logPostedAt: jest.fn((l) => (l && l.postedAt) || 0),
 }));
 jest.mock("../../src/web/logEventMatch", () => ({
@@ -2622,6 +2628,17 @@ describe("web/apiRouter", () => {
             expect(body(res).data.activeGuildId).toBe("guild-1");
         });
 
+        it("annotates the reports with their raid assignment from ALL logs, not just the active guild's", async () => {
+            activeGuildFor.mockReturnValue("guild-1");
+            const logs = [{ id: "l1", guildId: "guild-1" }, { id: "l2", guildId: "guild-2", reportRefId: "r1" }];
+            logStore.listLogs.mockReturnValue(logs);
+            reportStore.listReports.mockReturnValue([{ id: "r1" }]);
+
+            await get("/api/cla");
+
+            expect(reportList.annotateReportEvents).toHaveBeenCalledWith([{ id: "r1" }], logs);
+        });
+
         it("passes sort/dir/page through to prepareReportList", async () => {
             await get("/api/cla", { sort: "title", dir: "asc", page: "2" });
             expect(reportList.prepareReportList).toHaveBeenCalledWith([], { sort: "title", dir: "asc", page: "2" });
@@ -2718,6 +2735,102 @@ describe("web/apiRouter", () => {
 
             expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
             expect(body(res)).toEqual({ error: { code: "build_failed", message: "Unerwarteter Fehler beim Erstellen der Auswertung." } });
+        });
+    });
+
+    describe("POST /api/cla/report-delete", () => {
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            logStore.getByReportRefId.mockReturnValue(null);
+            reportStore.deleteReport.mockReturnValue(true);
+        });
+
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await post("/api/cla/report-delete", { reportId: "abc" });
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+            expect(reportStore.deleteReport).not.toHaveBeenCalled();
+        });
+
+        it("deletes the report and resets the log it was generated from", async () => {
+            logStore.getByReportRefId.mockReturnValue({ id: "l1", reportRefId: "abc" });
+
+            const res = await post("/api/cla/report-delete", { reportId: "abc" });
+
+            expect(logStore.getByReportRefId).toHaveBeenCalledWith("abc");
+            expect(reportStore.deleteReport).toHaveBeenCalledWith("abc");
+            expect(logStore.clearEvaluation).toHaveBeenCalledWith("l1");
+            expect(body(res).data).toMatchObject({ reportId: "abc", logId: "l1" });
+            expect(body(res).data.message).toMatch(/offen/);
+        });
+
+        it("deletes a report that has no tracked log without touching the log store", async () => {
+            const res = await post("/api/cla/report-delete", { reportId: "abc" });
+
+            expect(reportStore.deleteReport).toHaveBeenCalledWith("abc");
+            expect(logStore.clearEvaluation).not.toHaveBeenCalled();
+            expect(body(res).data).toEqual({ reportId: "abc", logId: "", message: "Auswertung gelöscht." });
+        });
+
+        it("returns 400 when neither a report file nor a log exists for the id", async () => {
+            reportStore.deleteReport.mockReturnValue(false);
+
+            const res = await post("/api/cla/report-delete", { reportId: "nope" });
+
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "not_found", message: "Auswertung nicht gefunden." } });
+            expect(logStore.clearEvaluation).not.toHaveBeenCalled();
+        });
+
+        it("still resets the log when the report file was already gone", async () => {
+            reportStore.deleteReport.mockReturnValue(false);
+            logStore.getByReportRefId.mockReturnValue({ id: "l1", reportRefId: "abc" });
+
+            const res = await post("/api/cla/report-delete", { reportId: "abc" });
+
+            expect(logStore.clearEvaluation).toHaveBeenCalledWith("l1");
+            expect(body(res).data.logId).toBe("l1");
+        });
+    });
+
+    describe("POST /api/cla/report-unlink", () => {
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            logStore.getByReportRefId.mockReturnValue({ id: "l1", reportRefId: "abc", eventId: "e1" });
+            logStore.unlinkEvent.mockReturnValue({ id: "l1" });
+        });
+
+        it("unlinks the raid assignment of the log behind the report", async () => {
+            const res = await post("/api/cla/report-unlink", { reportId: "abc" });
+
+            expect(logStore.unlinkEvent).toHaveBeenCalledWith("l1");
+            expect(body(res)).toEqual({ data: { reportId: "abc", logId: "l1", message: "Zuordnung entfernt." } });
+        });
+
+        it("leaves the report itself alone", async () => {
+            await post("/api/cla/report-unlink", { reportId: "abc" });
+            expect(reportStore.deleteReport).not.toHaveBeenCalled();
+        });
+
+        it("returns 400 when no log belongs to the report", async () => {
+            logStore.getByReportRefId.mockReturnValue(null);
+
+            const res = await post("/api/cla/report-unlink", { reportId: "abc" });
+
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "not_found", message: "Zu dieser Auswertung gibt es kein Log." } });
+            expect(logStore.unlinkEvent).not.toHaveBeenCalled();
+        });
+
+        it("returns 400 when the log was not assigned to a raid", async () => {
+            logStore.unlinkEvent.mockReturnValue(null);
+
+            const res = await post("/api/cla/report-unlink", { reportId: "abc" });
+
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "not_linked", message: "Keine Zuordnung vorhanden." } });
         });
     });
 
