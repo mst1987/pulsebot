@@ -10,7 +10,7 @@ const { activeGuildFor } = require("../activeGuild");
 const { listReports, deleteReport } = require("../reportStore");
 const { prepareReportList, prepareLogList, annotateLogCategories, annotateReportEvents } = require("../reportList");
 const {
-    listLogs, getLog, getByReportRefId, deleteLog, clearEvaluation,
+    listLogs, getLog, getByReportRefId, deleteLog, clearEvaluation, evaluatedSections,
     linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent,
 } = require("../logStore");
 const { annotateMatches, autoMatches } = require("../logEventMatch");
@@ -47,6 +47,8 @@ async function getClaData(req, res, url) {
         annotateLogCategories(logPage.items, discord.getChannelCategoryMap(guildId));
         matchEvents = await loadMatchableEvents(guildId);
         annotateMatches(logPage.items, matchEvents.events);
+        // which analyses already ran, normalised for legacy entries
+        for (const l of logPage.items) l.sections = evaluatedSections(l);
     }
 
     ok(res, {

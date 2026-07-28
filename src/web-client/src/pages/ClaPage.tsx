@@ -4,6 +4,7 @@ import {
     getClaData, createReport, evalLog, scanLogs, deleteLogEntry, linkLog, unlinkLog, autoMatchLogs,
     deleteReport, unlinkReport,
     type ApiError, type ClaData, type ClaPage, type ReportSummary, type LogRow, type MatchCandidate,
+    type LogSection,
 } from "../api";
 import { formatEventTime, fmtMs } from "../lib/format";
 import type { ShellContext } from "../components/Shell";
@@ -246,18 +247,27 @@ function EventCell({ log, selectedEventId, onSelectChange, onLink, onUnlink }: {
     );
 }
 
-function LogTableRow({ l, evalBusy, selectedEventId, onSelectChange, onEvaluate, onDelete, onLink, onUnlink }: {
+// The two analyses a log can be run through, each on its own button. Both write
+// into the same report page, so a log can be completed in two steps.
+const LOG_ANALYSES: { key: LogSection; label: string; title: string }[] = [
+    { key: "cla", label: "CLA", title: "Gear, Verzauberungen, Sockel, Consumables, Drums, Potions & Shadow-Resi" },
+    { key: "rpb", label: "RPB", title: "Vermeidbarer Schaden, Tode, Aktivität, Cooldowns, Interrupts & Log-Prüfung" },
+];
+
+function LogTableRow({ l, evalBusySection, selectedEventId, onSelectChange, onEvaluate, onDelete, onLink, onUnlink }: {
     l: LogRow;
-    evalBusy: boolean;
+    evalBusySection: LogSection | null;
     selectedEventId: string;
     onSelectChange: (eventId: string) => void;
-    onEvaluate: () => void;
+    onEvaluate: (section: LogSection) => void;
     onDelete: () => void;
     onLink: () => void;
     onUnlink: () => void;
 }) {
     const wclUrl = logWclUrl(l);
     const name = l.title || l.reportId || "(unbekannt)";
+    const done = l.sections || [];
+    const reportHref = l.reportUrl || (l.reportRefId ? `/r/${l.reportRefId}` : "");
     return (
         <tr>
             <td>{wclUrl
@@ -270,15 +280,26 @@ function LogTableRow({ l, evalBusy, selectedEventId, onSelectChange, onEvaluate,
             <td>{l.guildId && l.channelId && l.messageId
                 ? <a className="mlink" href={`https://discord.com/channels/${l.guildId}/${l.channelId}/${l.messageId}`} target="_blank" rel="noopener noreferrer">Nachricht</a>
                 : <span className="sub">—</span>}</td>
-            <td>{l.status === "done" ? <span className="pill good">ausgewertet</span> : <span className="pill">offen</span>}</td>
+            <td>{done.length
+                ? LOG_ANALYSES.filter((a) => done.includes(a.key))
+                    .map((a) => <span key={a.key} className="pill good" style={{ marginRight: 4 }}>{a.label}</span>)
+                : <span className="pill">offen</span>}</td>
             <td className="small">{fmtMs(l.postedAt)}</td>
             <td className="cell-actions">
                 <div className="row-actions" style={{ justifyContent: "flex-end" }}>
-                    {l.status === "done"
-                        ? ((l.reportUrl || l.reportRefId)
-                            ? <a className="btn btn-ghost btn-sm" href={l.reportUrl || `/r/${l.reportRefId}`}>Öffnen</a>
-                            : null)
-                        : <button className="btn btn-sm" type="button" disabled={evalBusy} onClick={onEvaluate}>{evalBusy ? "Läuft …" : "Auswerten"}</button>}
+                    {LOG_ANALYSES.filter((a) => !done.includes(a.key)).map((a) => (
+                        <button
+                            key={a.key}
+                            className="btn btn-sm"
+                            type="button"
+                            title={a.title}
+                            disabled={evalBusySection !== null}
+                            onClick={() => onEvaluate(a.key)}
+                        >
+                            {evalBusySection === a.key ? "Läuft …" : a.label}
+                        </button>
+                    ))}
+                    {reportHref ? <a className="btn btn-ghost btn-sm" href={reportHref}>Öffnen</a> : null}
                     <button className="btn btn-danger btn-sm" type="button" onClick={onDelete}>Löschen</button>
                 </div>
             </td>
@@ -295,7 +316,8 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
 }) {
     const [scanning, setScanning] = useState(false);
     const [automatching, setAutomatching] = useState(false);
-    const [evalBusyId, setEvalBusyId] = useState<string | null>(null);
+    // which log + which half is currently running, so only that button spins
+    const [evalBusy, setEvalBusy] = useState<{ id: string; section: LogSection } | null>(null);
     const [selected, setSelected] = useState<Record<string, string>>({});
 
     if (!data.logChannelsConfigured) {
@@ -333,22 +355,23 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
         }
     };
 
-    const evaluate = async (l: LogRow) => {
-        setEvalBusyId(l.id);
+    const evaluate = async (l: LogRow, section: LogSection) => {
+        const label = section.toUpperCase();
+        setEvalBusy({ id: l.id, section });
         try {
-            const r = await evalLog(csrfToken, l.id);
+            const r = await evalLog(csrfToken, l.id, section);
             // Both the fresh-evaluation and the already-evaluated-before response mean
             // "here's the report" — mirrors the legacy inline form, which redirects
             // straight to the report; here we open it in a new tab (so the admin keeps
             // the SPA list open) and refresh the row via onChanged.
             window.open(r.url, "_blank", "noopener");
             onChanged(r.alreadyEvaluated
-                ? <>Bereits ausgewertet. <a href={r.url} target="_blank" rel="noopener noreferrer">Report ansehen ↗</a></>
-                : <>Auswertung erstellt. <a href={r.url} target="_blank" rel="noopener noreferrer">Report ansehen ↗</a></>);
+                ? <>{label}-Auswertung lag bereits vor. <a href={r.url} target="_blank" rel="noopener noreferrer">Report ansehen ↗</a></>
+                : <>{label}-Auswertung erstellt. <a href={r.url} target="_blank" rel="noopener noreferrer">Report ansehen ↗</a></>);
         } catch (err) {
             onChanged((err as ApiError).message);
         } finally {
-            setEvalBusyId(null);
+            setEvalBusy(null);
         }
     };
 
@@ -363,7 +386,9 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
     };
 
     const doLink = async (l: LogRow) => {
-        const eventId = selected[l.id] || l.candidates[0]?.eventId;
+        // Logs that are already linked carry no candidates (annotateMatches skips
+        // them), so this has to stay optional.
+        const eventId = selected[l.id] || l.candidates?.[0]?.eventId;
         if (!eventId) return;
         try {
             const r = await linkLog(csrfToken, l.id, eventId);
@@ -428,10 +453,10 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
                                     <LogTableRow
                                         key={l.id}
                                         l={l}
-                                        evalBusy={evalBusyId === l.id}
-                                        selectedEventId={selected[l.id] ?? l.candidates[0]?.eventId ?? ""}
+                                        evalBusySection={evalBusy && evalBusy.id === l.id ? evalBusy.section : null}
+                                        selectedEventId={selected[l.id] ?? l.candidates?.[0]?.eventId ?? ""}
                                         onSelectChange={(v) => setSelected((s) => ({ ...s, [l.id]: v }))}
-                                        onEvaluate={() => evaluate(l)}
+                                        onEvaluate={(section) => evaluate(l, section)}
                                         onDelete={() => remove(l)}
                                         onLink={() => doLink(l)}
                                         onUnlink={() => doUnlink(l)}

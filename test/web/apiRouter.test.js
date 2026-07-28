@@ -54,6 +54,12 @@ jest.mock("../../src/web/logStore", () => ({
     clearEvaluation: jest.fn(),
     linkEvent: jest.fn(),
     unlinkEvent: jest.fn(),
+    // mirrors the real implementation (explicit sections win, legacy done = cla)
+    evaluatedSections: jest.fn((log) => {
+        if (!log) return [];
+        if (Array.isArray(log.sections) && log.sections.length) return log.sections;
+        return log.status === "done" ? ["cla"] : [];
+    }),
 }));
 jest.mock("../../src/web/reportList", () => ({
     prepareReportList: jest.fn((reports, query) => ({
@@ -1047,8 +1053,23 @@ describe("web/apiRouter", () => {
             const res = await get("/api/raids/detail", { event: "e1" });
             expect(logStore.listLogsForEvent).toHaveBeenCalledWith("e1");
             const data = body(res).data;
-            expect(data.eventLogs).toEqual([{ id: "l1", eventId: "e1", title: "Kara" }]);
+            // each row carries which analyses already ran, so the UI can offer the
+            // CLA and RPB buttons independently
+            expect(data.eventLogs).toEqual([{ id: "l1", eventId: "e1", title: "Kara", sections: [] }]);
             expect(data.unlinkedLogs.map((l) => l.id)).toEqual(["l2"]);
+        });
+
+        it("reports the already-evaluated analyses per log", async () => {
+            setupDefaults();
+            logStore.listLogsForEvent.mockReturnValue([
+                { id: "l1", eventId: "e1", status: "done", sections: ["cla"] },
+                { id: "l4", eventId: "e1", status: "done" },   // legacy: counts as cla
+            ]);
+            logStore.listLogs.mockReturnValue([]);
+            const res = await get("/api/raids/detail", { event: "e1" });
+            const logs = body(res).data.eventLogs;
+            expect(logs[0].sections).toEqual(["cla"]);
+            expect(logs[1].sections).toEqual(["cla"]);
         });
 
         it("returns 404 when the event isn't found in any group", async () => {
