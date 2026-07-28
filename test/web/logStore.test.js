@@ -22,7 +22,7 @@ jest.mock("fs", () => {
 const fs = require("fs");
 const {
     listLogs, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
-    markEvaluated, evaluatedSections, clearEvaluation, setLogTitle, deleteLog,
+    markEvaluated, evaluatedSections, clearEvaluation, clearSection, setLogTitle, deleteLog,
     linkEvent, unlinkEvent, listLogsForEvent,
 } = require("../../src/web/logStore.js");
 
@@ -138,6 +138,62 @@ describe("web/logStore", () => {
             markEvaluated(a.id, { sections: ["cla"] });
             const again = markEvaluated(a.id, { sections: ["cla"] });
             expect(again.sections).toEqual(["cla"]);
+        });
+    });
+
+    describe("clearSection", () => {
+        it("drops one half and keeps the other, along with the report reference", () => {
+            const a = saveLog(base());
+            markEvaluated(a.id, { reportRefId: "abc", reportUrl: "/r/abc", sections: ["cla"] });
+            markEvaluated(a.id, { reportRefId: "abc", reportUrl: "/r/abc", sections: ["rpb"] });
+
+            const res = clearSection(a.id, "rpb");
+            expect(res).toMatchObject({ remaining: ["cla"], wasLast: false });
+            const stored = getLog(a.id);
+            expect(stored.sections).toEqual(["cla"]);
+            expect(stored.status).toBe("done");
+            expect(stored.reportRefId).toBe("abc");   // the page still holds the CLA half
+        });
+
+        it("falls back to open when the last half is dropped", () => {
+            const a = saveLog(base());
+            markEvaluated(a.id, { reportRefId: "abc", reportUrl: "/r/abc", sections: ["rpb"] });
+
+            const res = clearSection(a.id, "rpb");
+            expect(res).toMatchObject({ remaining: [], wasLast: true });
+            const stored = getLog(a.id);
+            expect(stored.status).toBe("open");
+            expect(stored.reportRefId).toBe("");
+            expect(stored.reportUrl).toBe("");
+            expect(stored.sections).toBeUndefined();
+            expect(stored.evaluatedAt).toBeUndefined();
+        });
+
+        it("keeps the raid assignment when a half is dropped", () => {
+            const a = saveLog(base());
+            markEvaluated(a.id, { reportRefId: "abc", sections: ["rpb"] });
+            linkEvent(a.id, { eventId: "e1", eventLabel: "Raid" });
+            clearSection(a.id, "rpb");
+            expect(getLog(a.id).eventId).toBe("e1");
+        });
+
+        it("treats a legacy done log as having a CLA half", () => {
+            const a = saveLog(base());
+            markEvaluated(a.id, { reportRefId: "abc" });   // no sections field
+            const res = clearSection(a.id, "cla");
+            expect(res).toMatchObject({ wasLast: true });
+            expect(getLog(a.id).status).toBe("open");
+        });
+
+        it("returns null for a half that was never evaluated", () => {
+            const a = saveLog(base());
+            markEvaluated(a.id, { reportRefId: "abc", sections: ["cla"] });
+            expect(clearSection(a.id, "rpb")).toBeNull();
+            expect(getLog(a.id).sections).toEqual(["cla"]); // untouched
+        });
+
+        it("returns null for an unknown id", () => {
+            expect(clearSection("nope", "cla")).toBeNull();
         });
     });
 

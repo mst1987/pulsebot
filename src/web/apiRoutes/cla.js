@@ -7,17 +7,17 @@ const { ok, error } = require("../apiResponse");
 const { requireAdmin, requireCsrf } = require("../apiMiddleware");
 const { readJsonBody } = require("../apiBody");
 const { activeGuildFor } = require("../activeGuild");
-const { listReports, deleteReport } = require("../reportStore");
+const { listReports, deleteReport, getReport, saveReport } = require("../reportStore");
 const { prepareReportList, prepareLogList, annotateLogCategories, annotateReportEvents } = require("../reportList");
 const {
-    listLogs, getLog, getByReportRefId, deleteLog, clearEvaluation, evaluatedSections,
+    listLogs, getLog, getByReportRefId, deleteLog, clearEvaluation, clearSection, evaluatedSections,
     linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent,
 } = require("../logStore");
 const { annotateMatches, autoMatches } = require("../logEventMatch");
 const { evaluateLog, scanLogChannels, backfillLogTitles } = require("../logChannel");
 const { startJob, getJob } = require("../evalJobs");
 const { getConfig } = require("../settingsStore");
-const { buildReport, ReportError } = require("../../utils/logcheck/report");
+const { buildReport, stripSection, ReportError } = require("../../utils/logcheck/report");
 const { loadMatchableEvents, eventLinkFields } = require("../matchableEvents");
 const { linkLogByUrl } = require("../manualLog");
 const discord = require("../discord");
@@ -150,6 +150,54 @@ async function evalLog(req, res) {
 
     const { alreadyRunning } = startJob(logId, section, () => evaluateLog(logId, section));
     ok(res, { status: "running", section, logId, alreadyRunning }, 202);
+}
+
+/**
+ * POST /api/cla/eval-reset — body: { logId, section }. Discards one half of a
+ * log's evaluation so it can be run again, keeping the other half.
+ *
+ * The typical case is an RPB run that was cut short and left partial numbers on
+ * the page: dropping just that half re-arms its button without touching the CLA
+ * result next to it. Was it the last half, the report page goes away entirely
+ * and the log falls back to "offen".
+ */
+async function resetEval(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const section = String(body.section || "").trim() === "rpb" ? "rpb" : "cla";
+    const logId = String(body.logId || "").trim();
+
+    const log = getLog(logId);
+    if (!log) return error(res, 400, "not_found", "Log nicht gefunden.");
+    if (!evaluatedSections(log).includes(section)) {
+        return error(res, 400, "not_evaluated", `Für dieses Log gibt es keine ${section.toUpperCase()}-Auswertung.`);
+    }
+
+    const reportRefId = log.reportRefId;
+    const cleared = clearSection(logId, section);
+    if (!cleared) return error(res, 400, "not_evaluated", "Auswertung nicht gefunden.");
+
+    // Mirror the change on the stored report: drop that half's data, or remove
+    // the whole page when nothing is left on it.
+    if (reportRefId) {
+        if (cleared.wasLast) {
+            deleteReport(reportRefId);
+        } else {
+            const report = getReport(reportRefId);
+            if (report) saveReport(stripSection(report, section).report, reportRefId);
+        }
+    }
+
+    ok(res, {
+        logId,
+        section,
+        remaining: cleared.remaining,
+        message: cleared.wasLast
+            ? `${section.toUpperCase()}-Auswertung verworfen — das Log steht wieder auf „offen“.`
+            : `${section.toUpperCase()}-Auswertung verworfen und kann neu gestartet werden.`,
+    });
 }
 
 /**
@@ -287,7 +335,7 @@ async function autoMatchLogs(req, res) {
 }
 
 module.exports = {
-    getClaData, createReport, evalLog, evalStatus, scanLogs, deleteLogHandler,
+    getClaData, createReport, evalLog, evalStatus, resetEval, scanLogs, deleteLogHandler,
     linkLog, linkLogUrl, unlinkLog, autoMatchLogs,
     deleteReportHandler, unlinkReport,
 };

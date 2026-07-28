@@ -186,6 +186,33 @@ function mergeReports(existing, fresh, sections) {
     return merged;
 }
 
+// Report fields each half owns. Only these are dropped when a half is discarded;
+// the shared meta (title, players, roster, ...) belongs to the page itself.
+const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes"];
+const RPB_FIELDS = ["rpb"];
+
+/**
+ * Remove one half's data from a report, keeping the other half intact.
+ *
+ * Used when an evaluation is discarded — typically an RPB run that was cut short
+ * and produced partial numbers — so it can be re-run without also throwing away
+ * the CLA result sitting on the same page.
+ *
+ * @returns {{ report: object, remaining: string[] }}
+ */
+function stripSection(report, section) {
+    const stripped = { ...report };
+    for (const key of section === SECTION_RPB ? RPB_FIELDS : CLA_FIELDS) {
+        stripped[key] = null;
+    }
+    const before = Array.isArray(report.sections) && report.sections.length
+        ? report.sections
+        : [...ALL_SECTIONS].filter((s) => (s === SECTION_RPB ? report.rpb : report.consumables));
+    const remaining = before.filter((s) => s !== section);
+    stripped.sections = remaining;
+    return { report: stripped, remaining };
+}
+
 /**
  * Short human-readable summary lines for a built report (Discord/UI).
  *
@@ -221,6 +248,7 @@ module.exports = {
     buildReport,
     reportSummaryLines,
     normalizeSections,
+    stripSection,
     ReportError,
     SECTION_CLA,
     SECTION_RPB,
