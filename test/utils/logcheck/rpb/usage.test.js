@@ -53,10 +53,30 @@ describe("rpb/usage countUsage", () => {
         expect(row.spellId).toBe(11);
     });
 
-    test("an entry without an icon simply has none — no placeholder is invented", () => {
+    test("an entry with neither a log icon nor a config icon simply has none", () => {
         const [row] = countUsage([{ guid: 10, total: 1 }], [], tracked);
         expect(row.icon).toBeUndefined();
         expect(row.spellId).toBe(10);
+    });
+
+    test("falls back to the config icon when the log row carried none", () => {
+        const withIcon = [{ name: "Potion", label: "Trank", ids: ["10"], icon: "inv_potion_137" }];
+        const [row] = countUsage([{ guid: 10, total: 1 }], [], withIcon);
+        expect(row.icon).toBe("inv_potion_137");
+    });
+
+    test("the log's own icon wins over the config one — it is the rank actually cast", () => {
+        const withIcon = [{ name: "Potion", label: "Trank", ids: ["10"], icon: "config_icon" }];
+        const [row] = countUsage([{ guid: 10, total: 1, abilityIcon: "log_icon.jpg" }], [], withIcon);
+        expect(row.icon).toBe("log_icon.jpg");
+    });
+
+    test("every tracked class cooldown in the real config carries a baked-in icon", () => {
+        const missing = [];
+        for (const [cls, list] of Object.entries(rpbData.CLASS_COOLDOWNS)) {
+            for (const e of list) if (!e.icon) missing.push(`${cls}/${e.name}`);
+        }
+        expect(missing).toEqual([]);
     });
 
     test("boss usage never goes negative when trash exceeds the total", () => {
