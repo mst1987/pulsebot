@@ -21,7 +21,7 @@ jest.mock("fs", () => {
 
 const fs = require("fs");
 const {
-    getCategoryAssignments, setCategoryAssignments, resolveAssignmentProfiles,
+    getCategoryAssignments, listAllAssignments, setCategoryAssignments, resolveAssignmentProfiles,
 } = require("../../src/web/raiderCharactersStore");
 const { saveCharacter } = require("../../src/web/characterStore");
 
@@ -72,6 +72,27 @@ describe("web/raiderCharactersStore", () => {
 
     it("tolerates a missing/corrupt file", () => {
         expect(getCategoryAssignments("cat1")).toEqual({});
+    });
+
+    describe("listAllAssignments", () => {
+        it("returns every category's map in one read", () => {
+            setCategoryAssignments("monday", { sedroc: "Elesham" });
+            setCategoryAssignments("wednesday", { sedroc: "Mage", anna: "Priest" });
+            expect(listAllAssignments()).toEqual({
+                monday: { sedroc: "Elesham" },
+                wednesday: { sedroc: "Mage", anna: "Priest" },
+            });
+        });
+
+        it("returns {} when nothing is assigned yet", () => {
+            expect(listAllAssignments()).toEqual({});
+        });
+
+        it("hands out copies, so a caller cannot mutate the stored state", () => {
+            setCategoryAssignments("monday", { sedroc: "Elesham" });
+            listAllAssignments().monday.sedroc = "Hacked";
+            expect(getCategoryAssignments("monday")).toEqual({ sedroc: "Elesham" });
+        });
     });
 
     describe("resolveAssignmentProfiles", () => {

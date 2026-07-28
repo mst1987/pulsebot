@@ -12,6 +12,7 @@ import RecruitmentPage from "./pages/RecruitmentPage";
 import HistoryPage from "./pages/HistoryPage";
 import HistoryEventPage from "./pages/HistoryEventPage";
 import HistoryCharPage from "./pages/HistoryCharPage";
+import RosterPage from "./pages/RosterPage";
 import ClaPage from "./pages/ClaPage";
 import { getSession, type ApiError, type Session } from "./api";
 
@@ -66,6 +67,10 @@ export default function App() {
                 <Route path="history" element={<HistoryPage />} />
                 <Route path="history/event" element={<HistoryEventPage />} />
                 <Route path="history/char" element={<HistoryCharPage />} />
+                <Route path="roster" element={<RosterPage />} />
+                {/* Same character page, reached from the roster — the page keeps
+                    its back-link pointing at wherever it was opened from. */}
+                <Route path="roster/char" element={<HistoryCharPage />} />
                 <Route path="cla" element={<ClaPage />} />
             </Route>
         </Routes>

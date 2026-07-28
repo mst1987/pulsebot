@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     getHistoryData, importLoot, deleteHistoryLog, saveCategoryLootTool, resolveCharacters,
     type ApiError, type HistoryData, type HistoryEvent, type LootEventSummary, type LootLog, type AnnotatedCharacter,
-    type CharLootPreview, type Category,
+    type Category,
 } from "../api";
 import { formatEventTime, fmtMs, formatDate } from "../lib/format";
 import { usePersistedState } from "../lib/persistedState";
 import RaidTable from "../components/RaidTable";
-import { LootResponseBadge } from "../components/LootTable";
+import { CharLootHover } from "../components/CharLootHover";
 import { ClassSpecCell, CharacterLink } from "../components/ClassSpec";
 import type { ShellContext } from "../components/Shell";
 
@@ -281,148 +280,6 @@ function CharSortTh({ sortKey, label, sort, dir, onSort }: {
     );
 }
 
-const POP_WIDTH = 340;
-const POP_MAX_HEIGHT = 340;
-
-// Where the hover panel goes for a given trigger. Fixed coordinates, because
-// the panel is portalled to <body> — .dash-card carries the redesign's notched
-// clip-path, and a clip-path cuts off positioned descendants no matter what
-// their overflow/z-index says, so an in-card panel would be sliced at the card
-// edge. Anchored to the trigger's right (the Items column sits near the right
-// of a wide card), flipped above it when there is more room up there.
-function popoverStyle(rect: DOMRect): React.CSSProperties {
-    const width = Math.min(POP_WIDTH, window.innerWidth - 16);
-    const left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8));
-    const below = window.innerHeight - rect.bottom - 14;
-    const above = rect.top - 14;
-    return above > below && below < POP_MAX_HEIGHT
-        ? { left, width, bottom: window.innerHeight - rect.top + 6, maxHeight: Math.min(POP_MAX_HEIGHT, above) }
-        : { left, width, top: rect.bottom + 6, maxHeight: Math.min(POP_MAX_HEIGHT, below) };
-}
-
-// The Items count with the actual loot behind it: hovering (or tabbing to) the
-// number opens a list of every piece the character won — icon, name and the
-// award reason from the loot tool ("BiS", "Mainspec", …) — so "5 Items" can be
-// checked without opening the character page. The list is already in the
-// /api/history payload (lootStore's characters()), so no request happens here.
-// The category badge only shows for characters that raid under more than one
-// category, where the count alone would not say which raid a piece came from.
-function CharItemsCell({ items, count, categoryNameById, showCategory }: {
-    items: CharLootPreview[];
-    count: number;
-    categoryNameById: Map<string, string>;
-    showCategory: boolean;
-}) {
-    const ref = useRef<HTMLSpanElement>(null);
-    const popRef = useRef<HTMLDivElement>(null);
-    const [rect, setRect] = useState<DOMRect | null>(null);
-    // Moving the pointer from the number into the panel briefly leaves both
-    // (they are separate DOM subtrees) — a short grace period keeps a long,
-    // scrollable list reachable instead of snapping shut in the gap.
-    const closeTimer = useRef<number | undefined>(undefined);
-    // Whether the pointer currently sits on the number or inside the panel.
-    // Clicking the panel's scrollbar blurs the trigger, and blur must not close
-    // a panel the pointer is still in — otherwise the list cannot be scrolled
-    // by dragging its scrollbar at all.
-    const pointerInside = useRef(false);
-    const open = () => {
-        window.clearTimeout(closeTimer.current);
-        if (ref.current) setRect(ref.current.getBoundingClientRect());
-    };
-    const close = () => {
-        window.clearTimeout(closeTimer.current);
-        closeTimer.current = window.setTimeout(() => setRect(null), 140);
-    };
-    const enter = () => {
-        pointerInside.current = true;
-        open();
-    };
-    const leave = (e: React.MouseEvent) => {
-        // A scrollbar drag that wanders past the panel edge keeps the button
-        // held down — the pointer is still operating the panel, so keep it up
-        // and let the mouseup handler below decide.
-        if (e.buttons !== 0) return;
-        pointerInside.current = false;
-        close();
-    };
-    const blur = () => {
-        if (pointerInside.current) return;
-        close();
-    };
-
-    // Fixed coordinates go stale the moment the page moves under them — but the
-    // panel's own list scrolls too, and that must not count as the page moving.
-    useEffect(() => {
-        if (!rect) return;
-        const hide = (e: Event) => {
-            const target = e.target;
-            if (popRef.current && target instanceof Node && popRef.current.contains(target)) return;
-            setRect(null);
-        };
-        const onResize = () => setRect(null);
-        // Ends a scrollbar drag: if the pointer left the panel meanwhile, the
-        // deferred close from leave() never ran — do it now.
-        const onMouseUp = () => {
-            if (popRef.current?.matches(":hover") || ref.current?.matches(":hover")) return;
-            pointerInside.current = false;
-            close();
-        };
-        window.addEventListener("scroll", hide, true);
-        window.addEventListener("resize", onResize);
-        window.addEventListener("mouseup", onMouseUp);
-        return () => {
-            window.removeEventListener("scroll", hide, true);
-            window.removeEventListener("resize", onResize);
-            window.removeEventListener("mouseup", onMouseUp);
-        };
-    }, [rect]);
-
-    useEffect(() => () => window.clearTimeout(closeTimer.current), []);
-
-    if (!items.length) return <>{count}</>;
-
-    return (
-        <>
-            <span
-                ref={ref}
-                className="loot-pop-wrap"
-                tabIndex={0}
-                onMouseEnter={enter}
-                onMouseLeave={leave}
-                onFocus={open}
-                onBlur={blur}
-            >
-                <span className="loot-pop-trigger">{count}</span>
-            </span>
-            {rect && createPortal(
-                <div ref={popRef} className="loot-pop" role="tooltip" style={popoverStyle(rect)} onMouseEnter={enter} onMouseLeave={leave}>
-                    <div className="loot-pop-head">{items.length} Item{items.length === 1 ? "" : "s"}</div>
-                    <div className="loot-pop-list">
-                        {items.map((it, i) => (
-                            <div className="loot-pop-row" key={`${it.itemId}-${it.awardedAt}-${i}`}>
-                                {it.itemIconUrl
-                                    ? <img className="loot-pop-ico" src={it.itemIconUrl} alt="" loading="lazy" />
-                                    : <span className="loot-pop-ico loot-pop-ico-ph" />}
-                                <div className="loot-pop-body">
-                                    <div className="loot-pop-name" title={it.itemName || `Item ${it.itemId}`}>{it.itemName || `Item ${it.itemId}`}</div>
-                                    <div className="loot-pop-meta">
-                                        <LootResponseBadge response={it.response} offspec={it.offspec} />
-                                        {showCategory && !!it.categoryId && (
-                                            <span className="lbadge lbadge-neutral">{categoryNameById.get(it.categoryId) || it.categoryId}</span>
-                                        )}
-                                        {!!it.awardedAt && <span className="sub">{fmtMs(it.awardedAt, false)}</span>}
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>,
-                document.body,
-            )}
-        </>
-    );
-}
-
 function CharTable({ chars, categoryNameById, sort, dir, onSort }: {
     chars: AnnotatedCharacter[];
     categoryNameById: Map<string, string>;
@@ -454,7 +311,7 @@ function CharTable({ chars, categoryNameById, sort, dir, onSort }: {
                             </div>
                         </td>
                         <td className="small">
-                            <CharItemsCell
+                            <CharLootHover
                                 items={c.items || []}
                                 count={c.count}
                                 categoryNameById={categoryNameById}

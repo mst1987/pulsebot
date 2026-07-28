@@ -228,6 +228,65 @@ export function saveRaiderCharacters(
     return send("POST", "/api/raider-characters", csrfToken, { categoryId, assignments });
 }
 
+// ===== Roster (all characters per raid category) =====
+// Assembled server-side by src/web/roster.js from the manual per-category
+// assignments plus the imported loot; gear issues come from the newest CLA
+// evaluation that contains the character (src/web/charGearIssues.js). Colours,
+// icons and links are computed server-side, same rule as AnnotatedCharacter.
+
+// One gear finding from a CLA evaluation ("kein Item", "keine Verzauberung",
+// "leerer Sockel", …) — mirrors utils/logcheck/gearIssues.js's issue objects.
+export type GearIssue = {
+    kind: string;
+    label: string;
+    severity: "high" | "medium";
+    itemId: string;
+    itemName: string;
+    iconUrl: string;
+};
+
+// The newest evaluation a character appears in, plus its findings for them.
+// `reportRefId` addresses the locally stored report (/r/<id>), `reportUrl` the
+// Warcraft-Logs report it was built from.
+export type CharGearReport = {
+    character: string;
+    className: string;
+    issues: GearIssue[];
+    issueCount: number;
+    reportRefId: string;
+    reportId: string;
+    reportUrl: string;
+    reportTitle: string;
+    zone: string;
+    generatedAt: number;
+};
+
+export type RosterChar = {
+    key: string;
+    character: string;
+    realm: string;
+    categoryIds: string[];
+    /** Has a manual raider->character assignment (vs. only known from loot). */
+    assigned: boolean;
+    raiderIds: string[];
+    lootCount: number;
+    items: CharLootPreview[];
+    className: string;
+    spec: string;
+    source: string;
+    classColor: string;
+    iconUrl: string;
+    armoryUrl: string;
+    wclUrl: string;
+    gear: CharGearReport | null;
+};
+
+export type RosterData = { chars: RosterChar[]; categories: Category[]; activeGuildId: string };
+
+export function getRoster(): Promise<RosterData> {
+    return get<RosterData>("/api/roster");
+}
+
 export type RaidEvent = {
     id: string;
     title: string;
@@ -786,6 +845,9 @@ export type HistoryCharData = {
     charSummary: CharSummary | null;
     gearNamespace: string;
     info: CharInfo | null;
+    /** The newest CLA evaluation's gear findings, or null if the character
+     *  isn't in any of the stored evaluations. */
+    gearIssues: CharGearReport | null;
 };
 
 export function getHistoryChar(name: string): Promise<HistoryCharData> {
