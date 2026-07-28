@@ -87,14 +87,38 @@ export type Channel = {
 };
 export type ChannelsData = { categories: Category[]; channels: Channel[]; activeGuildId: string };
 
+/**
+ * Read a response body as JSON without letting a non-JSON body escape as a bare
+ * "Unexpected token". Anything that is not JSON — a gateway timeout page from a
+ * reverse proxy in front of a slow route, an HTML error page — is turned into a
+ * readable ApiError that names the status instead of the parser's complaint.
+ */
+async function parseJson(res: Response): Promise<Record<string, unknown> | null> {
+    const text = await res.text();
+    if (!text) return null;
+    try {
+        return JSON.parse(text) as Record<string, unknown>;
+    } catch {
+        const snippet = text.trim().slice(0, 120);
+        throw {
+            code: "bad_response",
+            message: res.ok
+                ? `Unerwartete Antwort vom Server (kein JSON): ${snippet}`
+                : `Serverfehler (HTTP ${res.status}). Antwort: ${snippet}`,
+        } as ApiError;
+    }
+}
+
+function errorFrom(body: Record<string, unknown> | null, res: Response): ApiError {
+    const err = body && (body.error as ApiError | undefined);
+    return err || { code: "unknown", message: `HTTP ${res.status}` };
+}
+
 async function get<T>(path: string): Promise<T> {
     const res = await fetch(path, { credentials: "include" });
-    const body = await res.json();
-    if (!res.ok) {
-        const err: ApiError = body?.error || { code: "unknown", message: `HTTP ${res.status}` };
-        throw err;
-    }
-    return body.data as T;
+    const body = await parseJson(res);
+    if (!res.ok) throw errorFrom(body, res);
+    return (body?.data ?? null) as T;
 }
 
 // Mutating requests carry the CSRF token from GET /api/session as a header
@@ -109,12 +133,9 @@ async function send<T>(method: string, path: string, csrfToken: string | null, j
         },
         body: JSON.stringify(jsonBody ?? {}),
     });
-    const body = await res.json();
-    if (!res.ok) {
-        const err: ApiError = body?.error || { code: "unknown", message: `HTTP ${res.status}` };
-        throw err;
-    }
-    return body.data as T;
+    const body = await parseJson(res);
+    if (!res.ok) throw errorFrom(body, res);
+    return (body?.data ?? null) as T;
 }
 
 export function getSession(): Promise<Session> {

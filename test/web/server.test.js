@@ -226,6 +226,45 @@ describe("web/server", () => {
         });
     });
 
+    // The client parses every /api/* body as JSON, so answering a failure with
+    // plain text surfaces as a bare "Unexpected token" instead of the real error.
+    describe("catch-all failures", () => {
+        it("answers a failing /api/* request with a JSON error, not plain text", async () => {
+            apiRouter.handle.mockRejectedValueOnce(new Error("RPB-Auswertung geplatzt"));
+            const res = mockRes();
+            res.headersSent = false;
+            await capturedHandler({ url: "/api/cla/eval", method: "POST", headers: {} }, res);
+            await flush();
+            expect(res.writeHead).toHaveBeenCalledWith(500, expect.objectContaining({
+                "Content-Type": "application/json; charset=utf-8",
+            }));
+            const payload = JSON.parse(res.end.mock.calls[0][0]);
+            expect(payload.error).toEqual({
+                code: "internal_error", message: "RPB-Auswertung geplatzt",
+            });
+        });
+
+        it("keeps the plain-text fallback for non-API routes", async () => {
+            staticClient.serve.mockRejectedValueOnce(new Error("kaputt"));
+            const res = mockRes();
+            res.headersSent = false;
+            await capturedHandler({ url: "/admin", method: "GET", headers: {} }, res);
+            await flush();
+            expect(res.writeHead).toHaveBeenCalledWith(500);
+            expect(res.end).toHaveBeenCalledWith("error");
+        });
+
+        it("does not write again when the response already started", async () => {
+            apiRouter.handle.mockRejectedValueOnce(new Error("zu spät"));
+            const res = mockRes();
+            res.headersSent = true;
+            await capturedHandler({ url: "/api/cla/eval", method: "POST", headers: {} }, res);
+            await flush();
+            expect(res.writeHead).not.toHaveBeenCalled();
+            expect(res.end).not.toHaveBeenCalled();
+        });
+    });
+
     describe("delete route", () => {
         it("DELETE /r/<id> is forbidden without an admin session", async () => {
             auth.getUser.mockReturnValue(null);
