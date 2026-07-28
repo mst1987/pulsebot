@@ -34,8 +34,29 @@ const {
     deleteReportHandler, unlinkReport,
 } = require("./apiRoutes/cla");
 
-/** Dispatches an /api/* request. `url` is only needed by routes that read query params. */
+/**
+ * Dispatches an /api/* request, turning any escaping exception into a JSON error.
+ *
+ * Without this the failure bubbles up to server.js's catch-all, which answers
+ * with the plain-text body "error" — the client then chokes on `res.json()` with
+ * a bare "Unexpected token" and the real cause stays invisible. The long-running
+ * routes (CLA/RPB evaluation) are the likeliest source of such errors, so they
+ * are exactly the ones that need a readable message.
+ */
 async function handle(pathname, req, res, url) {
+    try {
+        return await route(pathname, req, res, url);
+    } catch (e) {
+        console.error(`API ${req.method} ${pathname} failed:`, (e && e.stack) || e);
+        if (!res.headersSent) {
+            error(res, 500, "internal_error", (e && e.message) || "Unerwarteter Serverfehler.");
+        }
+        return true;
+    }
+}
+
+/** The route table itself. `url` is only needed by routes that read query params. */
+async function route(pathname, req, res, url) {
     if (pathname === "/api/session" && req.method === "GET") {
         getSession(req, res);
         return true;

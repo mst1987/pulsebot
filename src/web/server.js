@@ -125,8 +125,21 @@ function startWebServer(client) {
     if (server) return server;
     server = http.createServer((req, res) => {
         Promise.resolve(handle(req, res)).catch((err) => {
-            console.error("Logcheck web server handler error:", err.message);
-            try { res.writeHead(500); res.end("error"); } catch { /* already sent */ }
+            console.error("Logcheck web server handler error:", (err && err.stack) || err);
+            try {
+                if (res.headersSent) return;
+                // /api/* callers parse the body as JSON — answering with plain text
+                // here would surface as a bare "Unexpected token" in the admin UI
+                // instead of the actual failure.
+                if ((req.url || "").startsWith("/api/")) {
+                    const message = (err && err.message) || "Unerwarteter Serverfehler.";
+                    res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+                    res.end(JSON.stringify({ error: { code: "internal_error", message } }));
+                } else {
+                    res.writeHead(500);
+                    res.end("error");
+                }
+            } catch { /* already sent */ }
         });
     });
     server.on("error", (err) => {
