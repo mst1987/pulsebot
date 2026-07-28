@@ -500,6 +500,8 @@ export function createSoftres(
         faction: string;
         hardReserves: Array<{ id: number; name: string }>;
         hideReserves: boolean;
+        /** Discord-Login-Pflicht auf softres.it; ohne Angabe aktiv. */
+        discord?: boolean;
     },
 ): Promise<{ message: string }> {
     return send("POST", "/api/raids/softres", csrfToken, input);

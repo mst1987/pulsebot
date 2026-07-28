@@ -1837,7 +1837,7 @@ describe("web/apiRouter", () => {
 
             expect(softres.createRaid).toHaveBeenCalledWith({
                 instances: ["kara"], edition: "tbc", amount: 3, faction: "Horde",
-                hardReserves: [{ id: 123, raider: "Anna" }], hideReserves: true,
+                hardReserves: [{ id: 123, raider: "Anna" }], hideReserves: true, discord: true,
             });
             expect(eventSoftresStore.saveEventSoftres).toHaveBeenCalledWith("e1", {
                 raidId: "r1", token: "tok1", url: "https://softres.it/raid/r1", editUrl: "https://softres.it/raid/r1/tok1",
@@ -1845,6 +1845,13 @@ describe("web/apiRouter", () => {
             });
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
             expect(body(res)).toEqual({ data: { message: "Softres-Liste erstellt." } });
+        });
+
+        it("passes discord: false through when the caller opts out", async () => {
+            setupDefaults();
+            softres.createRaid.mockResolvedValue({ raidId: "r1", token: "tok1", url: "u", editUrl: "e" });
+            await post("/api/raids/softres", { event: "e1", instanceCodes: ["kara"], faction: "Horde", discord: false });
+            expect(softres.createRaid).toHaveBeenCalledWith(expect.objectContaining({ discord: false }));
         });
 
         it("defaults hardReserves to [] when it isn't an array, and returns 500 with the error message on failure", async () => {
