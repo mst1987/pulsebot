@@ -724,6 +724,8 @@ function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
     const [amount, setAmount] = useState(1);
     const [faction, setFaction] = useState<"Horde" | "Alliance">("Horde");
     const [hardReserves, setHardReserves] = useState<Array<{ id: number; name: string }>>([]);
+    // Discord-Login-Pflicht ist der Standard für neue Listen.
+    const [discord, setDiscord] = useState(true);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -760,7 +762,7 @@ function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
         setError(null);
         try {
             const r = await createSoftres(csrfToken, {
-                event: eventId, instanceCodes: [...selected], amount, faction, hardReserves, hideReserves: false,
+                event: eventId, instanceCodes: [...selected], amount, faction, hardReserves, hideReserves: false, discord,
             });
             onDone(r.message);
         } catch (err) {
@@ -805,6 +807,13 @@ function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
                     <option value="Horde">Horde</option>
                     <option value="Alliance">Alliance</option>
                 </select>
+            </div>
+            <div className="field">
+                <label>Discord-Authentifizierung</label>
+                <label className="rolebox">
+                    <input type="checkbox" checked={discord} onChange={(e) => setDiscord(e.target.checked)} /> Discord-Login zum Reservieren verlangen
+                </label>
+                <div className="hint">Standard: an. Spieler müssen sich auf softres.it mit Discord einloggen, ihre Reserves sind damit einem Discord-Account zugeordnet.</div>
             </div>
             <div className="field">
                 <label>Hardreserved Items (optional)</label>

@@ -99,6 +99,12 @@ describe("utils/softres", () => {
             expect(softres.buildCreatePayload({ instances: ["kara"], faction: "Horde" }).amount).toBe(1);
         });
 
+        it("requires Discord authentication by default and lets the caller opt out", () => {
+            expect(softres.buildCreatePayload({ instances: ["kara"], faction: "Horde" }).discord).toBe(true);
+            expect(softres.buildCreatePayload({ instances: ["kara"], faction: "Horde", discord: true }).discord).toBe(true);
+            expect(softres.buildCreatePayload({ instances: ["kara"], faction: "Horde", discord: false }).discord).toBe(false);
+        });
+
         it("rejects an empty instance list", () => {
             expect(() => softres.buildCreatePayload({ instances: [], faction: "Alliance" })).toThrow("Instanz");
         });

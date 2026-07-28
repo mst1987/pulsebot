@@ -121,8 +121,12 @@ function buildItemNotes(hardReserves = []) {
 /**
  * Build the payload softres.it's POST /api/raid/create expects. Kept pure and
  * exported so it can be unit-tested without hitting the network.
+ *
+ * `discord` (softres.it's "Discord authentication") defaults to **true**: raiders
+ * have to sign in with Discord before they can reserve, which ties every reserve
+ * to a known Discord account. Pass `discord: false` to opt out for a single list.
  */
-function buildCreatePayload({ instances, edition, amount, faction, hardReserves, note, hideReserves } = {}) {
+function buildCreatePayload({ instances, edition, amount, faction, hardReserves, note, hideReserves, discord } = {}) {
     const codes = [...new Set((instances || []).map((c) => String(c).trim()).filter(Boolean))];
     if (!codes.length) throw new Error("Mindestens eine Instanz wählen.");
     if (!VALID_FACTIONS.includes(faction)) throw new Error("Fraktion muss \"Alliance\" oder \"Horde\" sein.");
@@ -140,7 +144,7 @@ function buildCreatePayload({ instances, edition, amount, faction, hardReserves,
         plusModifier: 1,
         plusType: 0,
         lock: false,
-        discord: false,
+        discord: discord === undefined ? true : Boolean(discord),
         note: String(note || "").trim(),
         itemNotes: buildItemNotes(hardReserves),
         reserved: [],

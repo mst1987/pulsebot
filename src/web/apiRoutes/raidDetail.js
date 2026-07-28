@@ -435,7 +435,8 @@ async function getItemSearch(req, res, url) {
  * POST /api/raids/softres — create a softres.it soft-reserve list for this
  * event (instances derived from the title, but editable), with the chosen
  * number of reserves and hard reserves.
- * Body: { event, instanceCodes, amount, faction, hardReserves, hideReserves }.
+ * Body: { event, instanceCodes, amount, faction, hardReserves, hideReserves, discord }.
+ * `discord` (Discord-Login-Pflicht auf softres.it) is on unless explicitly false.
  */
 async function postSoftresCreate(req, res) {
     const user = requireAdmin(req, res);
@@ -459,6 +460,7 @@ async function postSoftresCreate(req, res) {
             faction: String(body.faction || "").trim(),
             hardReserves,
             hideReserves: body.hideReserves === true,
+            discord: body.discord !== false,
         });
         saveEventSoftres(eventId, {
             raidId: created.raidId,
