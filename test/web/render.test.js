@@ -158,7 +158,7 @@ describe("web/render", () => {
             const html = renderReportPage(sampleReport());
             expect(html.startsWith("<!DOCTYPE html>")).toBe(true);
             expect(html).toContain("<title>Log-Check: Test Raid</title>");
-            expect(html).toContain("<h1>Test Raid</h1>");
+            expect(html).toContain("<h1 class=\"page-title\">Test Raid</h1>");
         });
 
         it("renders the sub line with zone, date and the WCL link", () => {
@@ -167,6 +167,21 @@ describe("web/render", () => {
             expect(html).toContain("2026-07-24");
             expect(html).toContain("https://www.warcraftlogs.com/reports/xyz");
             expect(html).toContain("→ Warcraft Logs");
+        });
+
+        it("shows headline tiles for raiders, gear issues, bosses and consumables", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html).toContain("class=\"tiles\"");
+            expect(html).toContain("Raider");
+            expect(html).toContain("Gear-Probleme");
+            expect(html).toContain("Boss-Kämpfe");
+            expect(html).toContain("1 Kill(s) · 1 Wipe(s)"); // 2 rows, one of them a wipe
+            expect(html).toContain("Ø Flask/Elixiere");
+        });
+
+        it("labels every tab with a count badge", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html).toContain("<span class=\"tab-count\">2</span>"); // 2 raiders
         });
 
         it("shows a tab for every populated section", () => {
@@ -184,7 +199,7 @@ describe("web/render", () => {
         it("marks the first tab active", () => {
             const html = renderReportPage(sampleReport());
             // roster is the first defined tab and should carry the active class
-            expect(html).toContain("data-tab=\"roster\" class=\"active\"");
+            expect(html).toContain("class=\"tab-btn active\" data-tab=\"roster\"");
         });
 
         it("includes player names and issue details", () => {
@@ -217,7 +232,7 @@ describe("web/render", () => {
         it("falls back to a generic title and hides empty sections", () => {
             const html = renderReportPage({ id: "x1", players: [] });
             expect(html).toContain("<title>Log-Check</title>");
-            expect(html).toContain("<h1>Log-Check</h1>");
+            expect(html).toContain("<h1 class=\"page-title\">Log-Check</h1>");
             // gear tab is always shown; empty-gear message appears
             expect(html).toContain("Keine Gear-Probleme gefunden");
             // optional sections absent
@@ -225,23 +240,35 @@ describe("web/render", () => {
             expect(html).not.toContain("data-tab=\"sunder\"");
         });
 
-        it("shows the admin-menu link for a logged-in admin", () => {
+        it("wraps the report in the admin menu chrome for a logged-in admin", () => {
             const html = renderReportPage(sampleReport(), { name: "Admin", isAdmin: true });
-            expect(html).toContain("Eingeloggt als");
-            expect(html).toContain("<strong>Admin</strong>");
-            expect(html).toContain("href=\"/admin\"");
-            expect(html).toContain("Admin-Menü");
+            expect(html).toContain("class=\"app\"");
+            expect(html).toContain("id=\"sideNav\"");
+            // full admin navigation, with the CLA section highlighted
+            expect(html).toContain("href=\"/admin/cla\"");
+            expect(html).toContain("href=\"/admin/raids\"");
+            expect(html).toContain("href=\"/admin/settings\"");
+            expect(html).toContain("nav-item area-cla active");
+            // breadcrumbs down to the report + the user footer
+            expect(html).toContain("CLA / Logcheck");
+            expect(html).toContain("<b>Test Raid</b>");
+            expect(html).toContain("<div class=\"u-name\">Admin</div>");
+            expect(html).toContain("href=\"/auth/logout\"");
+            // no public login bar in the admin view
+            expect(html).not.toContain("Mit Discord einloggen");
         });
 
-        it("shows a Discord login button for an anonymous visitor, no admin-menu link", () => {
+        it("shows a Discord login button for an anonymous visitor, no admin chrome", () => {
             const html = renderReportPage(sampleReport());
             expect(html).toContain("Mit Discord einloggen");
-            expect(html).not.toContain("Admin-Menü");
+            expect(html).toContain("class=\"pubbar\"");
+            expect(html).not.toContain("id=\"sideNav\"");
         });
 
-        it("shows no admin-menu link for a logged-in non-admin", () => {
+        it("shows no admin chrome for a logged-in non-admin", () => {
             const html = renderReportPage(sampleReport(), { name: "Bob", isAdmin: false });
             expect(html).toContain("Eingeloggt als");
+            expect(html).not.toContain("id=\"sideNav\"");
             expect(html).not.toContain("Admin-Menü");
         });
     });
@@ -280,15 +307,19 @@ describe("web/render", () => {
             expect(html).toContain("<title>Nicht gefunden</title>");
         });
 
-        it("shows the admin-menu link for a logged-in admin", () => {
+        it("wraps the detail page in the admin menu chrome for a logged-in admin", () => {
             const html = renderPlayerPage(sampleReport(), 0, { name: "Admin", isAdmin: true });
-            expect(html).toContain("Admin-Menü");
+            expect(html).toContain("id=\"sideNav\"");
+            expect(html).toContain("nav-item area-cla active");
+            // breadcrumb links back to the report, player name as the leaf
+            expect(html).toContain("href=\"/r/abc123def456\"");
+            expect(html).toContain("<b>Alice</b>");
         });
 
-        it("shows no admin-menu link for an anonymous visitor", () => {
+        it("shows no admin chrome for an anonymous visitor", () => {
             const html = renderPlayerPage(sampleReport(), 0);
             expect(html).toContain("Mit Discord einloggen");
-            expect(html).not.toContain("Admin-Menü");
+            expect(html).not.toContain("id=\"sideNav\"");
         });
     });
 
@@ -302,7 +333,7 @@ describe("web/render", () => {
         it("renderError shows the title and message escaped", () => {
             const html = renderError("Kaputt", "Details <b>hier</b>");
             expect(html).toContain("<title>Kaputt</title>");
-            expect(html).toContain("<h1>Kaputt</h1>");
+            expect(html).toContain(">Kaputt</h1>");
             expect(html).toContain("Details &lt;b&gt;hier&lt;/b&gt;");
         });
     });
