@@ -289,6 +289,54 @@ async function get(pathname, query) {
 }
 
 describe("web/apiRouter", () => {
+    // A route that throws must not escape to server.js's catch-all, which answers
+    // with the plain-text body "error" — the client then fails on res.json() with
+    // a bare "Unexpected token" instead of showing what actually broke.
+    describe("error handling", () => {
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+        });
+
+        it("turns an escaping exception into a JSON error carrying the real message", async () => {
+            logChannel.evaluateLog.mockRejectedValue(new Error("WCL API kaputt"));
+            const res = await post("/api/cla/eval", { logId: "l1" });
+            expect(res.writeHead).toHaveBeenCalledWith(500, expect.objectContaining({
+                "Content-Type": "application/json; charset=utf-8",
+            }));
+            expect(body(res)).toEqual({
+                error: { code: "internal_error", message: "WCL API kaputt" },
+            });
+        });
+
+        it("falls back to a generic message when the failure carries none", async () => {
+            logChannel.evaluateLog.mockRejectedValue(new Error(""));
+            const res = await post("/api/cla/eval", { logId: "l1" });
+            expect(body(res).error).toEqual({
+                code: "internal_error", message: "Unerwarteter Serverfehler.",
+            });
+        });
+
+        it("reports the request as handled so nothing falls through", async () => {
+            logChannel.evaluateLog.mockRejectedValue(new Error("boom"));
+            const req = new EventEmitter();
+            req.method = "POST";
+            req.headers = { "x-csrf-token": "tok" };
+            const res = mockRes();
+            const p = handle("/api/cla/eval", req, res);
+            req.emit("data", "{}");
+            req.emit("end");
+            expect(await p).toBe(true);
+        });
+
+        it("keeps the 404 JSON shape for unknown endpoints", async () => {
+            const res = await get("/api/does-not-exist");
+            expect(body(res)).toEqual({
+                error: { code: "not_found", message: "Unbekannter API-Endpunkt." },
+            });
+        });
+    });
+
     describe("GET /api/session", () => {
         it("returns user + csrfToken + guilds + activeGuildId for a logged-in admin", async () => {
             auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
