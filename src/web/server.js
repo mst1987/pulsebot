@@ -3,6 +3,7 @@ const crypto = require("crypto");
 const { webPort } = require("../config/variables");
 const { getReport, deleteReport } = require("./reportStore");
 const { startRaidEventScan } = require("./raidEventScan");
+const { startLogAutoLink } = require("./logAutoLink");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
 const { startSheetCleanup } = require("../utils/sheetCleanup");
 const discord = require("./discord");
@@ -140,6 +141,10 @@ function startWebServer(client) {
     // loadRecentEvents), so a raid shows up on the dashboard even if nobody opens
     // it right after the raid ends.
     startRaidEventScan();
+    // Assign detected Warcraft-Logs to their raid in the background, so a log the
+    // listener could not place at detection time (Raid-Helper unreachable, event
+    // not yet known) still ends up linked without an admin clicking anything.
+    startLogAutoLink();
     return server;
 }
 

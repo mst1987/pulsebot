@@ -27,12 +27,23 @@ const { listRaidEvents } = require("./raidEventStore");
  */
 async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
     if (!guildId) return { events: [], error: null };
+    const from = Math.floor(Date.now() / 1000) - days * 24 * 60 * 60;
+    const persistedById = new Map(listRaidEvents(guildId).map((e) => [e.id, e]));
+    // Snapshot rows, shaped like the live ones. Used both to fill gaps in a
+    // successful fetch and as the whole answer when the fetch fails.
+    const fromPersisted = (e) => ({
+        id: e.id,
+        title: e.title,
+        startTime: e.startTime,
+        channelId: e.channelId,
+        channelName: e.channelName || "",
+        categoryId: e.categoryId || "",
+        categoryName: e.categoryName || "",
+    });
     try {
         const rh = createRaidhelperClient();
-        const from = Math.floor(Date.now() / 1000) - days * 24 * 60 * 60;
         const events = await rh.getPastEvents(from);
         const catMap = discord.getChannelCategoryMap(guildId);
-        const persistedById = new Map(listRaidEvents(guildId).map((e) => [e.id, e]));
         const out = [];
         const seen = new Set();
         for (const ev of events || []) {
@@ -52,20 +63,22 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
         }
         for (const e of persistedById.values()) {
             if (seen.has(e.id) || (e.startTime || 0) < from) continue;
-            out.push({
-                id: e.id,
-                title: e.title,
-                startTime: e.startTime,
-                channelId: e.channelId,
-                channelName: e.channelName || "",
-                categoryId: e.categoryId || "",
-                categoryName: e.categoryName || "",
-            });
+            out.push(fromPersisted(e));
         }
         out.sort((a, b) => (Number(b.startTime) || 0) - (Number(a.startTime) || 0));
         return { events: out, error: null };
     } catch (e) {
-        return { events: [], error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
+        // Raid-Helper unreachable: serve the local snapshot rather than nothing.
+        // A time-based match only needs id/title/startTime/categoryId, all of
+        // which raidEventScan.js already persisted — so the automatic log
+        // assignment keeps working through an outage instead of stalling until
+        // Raid-Helper is back. `error` stays set, so callers that need live data
+        // (the CLA assignment UI) can still say so.
+        const fallback = [...persistedById.values()]
+            .filter((e) => (e.startTime || 0) >= from)
+            .map(fromPersisted)
+            .sort((a, b) => (Number(b.startTime) || 0) - (Number(a.startTime) || 0));
+        return { events: fallback, error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
     }
 }
 

@@ -7,7 +7,8 @@ const { listByEvent: listLootByEvent } = require("./lootStore");
 const { getEventSheet } = require("./eventSheetStore");
 const { getEventSoftres } = require("./eventSoftresStore");
 const { listLogs } = require("./logStore");
-const { buildRecentEvents, matchLogsForEvent } = require("./recentEvents");
+const { buildRecentEvents, matchLogsForEvent, pendingLogsForEvent } = require("./recentEvents");
+const { autoLinkLogs } = require("./logAutoLink");
 const { logPostedAt } = require("./reportList");
 const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const discord = require("./discord");
@@ -49,9 +50,9 @@ async function loadUpcomingSetups(guildId, limit = 3, maxChecks = 8) {
 }
 
 // Find the raids that already took place, annotated with everything the
-// dashboard links to: their Warcraft-Logs (matched by post time, see
-// recentEvents.js), the CLA evaluation of those logs, imported loot and the
-// soft-reserve list.
+// dashboard links to: their Warcraft-Logs (the ones assigned to them, see
+// logAutoLink.js/recentEvents.js), the CLA evaluation of those logs, imported
+// loot and the soft-reserve list.
 //
 // Reads from the locally persisted raidEventStore (see raidEventScan.js)
 // instead of a live, windowed Raid-Helper call, so a raid stays listed once it
@@ -63,6 +64,10 @@ async function loadUpcomingSetups(guildId, limit = 3, maxChecks = 8) {
 async function loadRecentEvents(guildId, limit = 5) {
     if (!guildId) return { events: [], error: null };
     const { error: scanError } = await scanRaidEvents(guildId);
+    // Assign freshly detected logs to their raid before reading them back, so a
+    // log posted since the last sweep already shows up under its event here (and,
+    // because the assignment is persisted, on that event's detail page too).
+    await autoLinkLogs(guildId);
     const stored = listRaidEvents(guildId);
     // Only logs from this guild can belong to one of its raids.
     const logs = listLogs()
@@ -78,6 +83,7 @@ async function loadRecentEvents(guildId, limit = 5) {
             channelName: ev.channelName || "",
             categoryName: ev.categoryName || "",
             logs: ev.logs,
+            pendingLogCount: ev.pendingLogs.length,
             lootCount: listLootByEvent(ev.id).length,
             softres: getEventSoftres(ev.id),
         })),
@@ -97,6 +103,7 @@ function annotateUpcomingExtras(events, guildId) {
     return (events || []).map((ev) => ({
         ...ev,
         logs: matchLogsForEvent(ev, logs),
+        pendingLogCount: pendingLogsForEvent(ev, logs).length,
         lootCount: listLootByEvent(ev.id).length,
         softres: getEventSoftres(ev.id),
     }));

@@ -1,5 +1,5 @@
 const {
-    matchLogsForEvent, buildRecentEvents,
+    matchLogsForEvent, pendingLogsForEvent, buildRecentEvents,
     LOG_WINDOW_BEFORE_MS, LOG_WINDOW_AFTER_MS, RECENT_WINDOW_DAYS,
 } = require("../../src/web/recentEvents");
 
@@ -17,14 +17,57 @@ describe("web/recentEvents", () => {
         const event = { id: "e1", startTime: startSecs(3 * HOUR) };
         const startMs = event.startTime * 1000;
 
-        it("matches logs posted within the window around the event start", () => {
+        it("lists the logs assigned to this event, newest post first", () => {
+            const logs = [
+                log("during", startMs + 2 * HOUR, { eventId: "e1" }),
+                log("nextMorning", startMs + 12 * HOUR, { eventId: "e1" }),
+                log("justBefore", startMs - HOUR, { eventId: "e1" }),
+            ];
+            expect(matchLogsForEvent(event, logs).map((l) => l.id))
+                .toEqual(["nextMorning", "during", "justBefore"]);
+        });
+
+        it("keeps an assigned log whatever the time — the assignment decides, not the window", () => {
+            const logs = [log("assigned", startMs + 5 * DAY, { eventId: "e1" })];
+            expect(matchLogsForEvent(event, logs).map((l) => l.id)).toEqual(["assigned"]);
+        });
+
+        it("never claims an unassigned log, even when the time fits perfectly", () => {
+            // This is the whole point: the raid list must not show a log the
+            // event's detail page reports as unassigned.
+            expect(matchLogsForEvent(event, [log("unassigned", startMs + HOUR)])).toEqual([]);
+        });
+
+        it("drops a log assigned to a DIFFERENT event even when the time fits", () => {
+            const logs = [
+                log("otherEvent", startMs + 2 * HOUR, { eventId: "e2" }),
+                log("mine", startMs + HOUR, { eventId: "e1" }),
+            ];
+            expect(matchLogsForEvent(event, logs).map((l) => l.id)).toEqual(["mine"]);
+        });
+
+        it("returns nothing for an event without an id", () => {
+            expect(matchLogsForEvent({ startTime: startSecs(HOUR) }, [log("x", NOW, { eventId: "e1" })])).toEqual([]);
+            expect(matchLogsForEvent(null, [log("x", NOW)])).toEqual([]);
+        });
+
+        it("tolerates a missing log list", () => {
+            expect(matchLogsForEvent(event)).toEqual([]);
+        });
+    });
+
+    describe("pendingLogsForEvent", () => {
+        const event = { id: "e1", startTime: startSecs(3 * HOUR) };
+        const startMs = event.startTime * 1000;
+
+        it("reports unassigned logs posted within the window, newest first", () => {
             const logs = [
                 log("during", startMs + 2 * HOUR),
                 log("nextMorning", startMs + 12 * HOUR),
                 log("justBefore", startMs - HOUR),
             ];
-            expect(matchLogsForEvent(event, logs).map((l) => l.id))
-                .toEqual(["nextMorning", "during", "justBefore"]); // newest post first
+            expect(pendingLogsForEvent(event, logs).map((l) => l.id))
+                .toEqual(["nextMorning", "during", "justBefore"]);
         });
 
         it("ignores logs posted before or after the window", () => {
@@ -32,7 +75,7 @@ describe("web/recentEvents", () => {
                 log("tooEarly", startMs - LOG_WINDOW_BEFORE_MS - 1),
                 log("tooLate", startMs + LOG_WINDOW_AFTER_MS + 1),
             ];
-            expect(matchLogsForEvent(event, logs)).toEqual([]);
+            expect(pendingLogsForEvent(event, logs)).toEqual([]);
         });
 
         it("includes logs exactly on the window edges", () => {
@@ -40,29 +83,20 @@ describe("web/recentEvents", () => {
                 log("edgeBefore", startMs - LOG_WINDOW_BEFORE_MS),
                 log("edgeAfter", startMs + LOG_WINDOW_AFTER_MS),
             ];
-            expect(matchLogsForEvent(event, logs)).toHaveLength(2);
+            expect(pendingLogsForEvent(event, logs)).toHaveLength(2);
         });
 
-        it("keeps a log that is explicitly assigned to this event, whatever the time", () => {
-            const logs = [log("assigned", startMs + 5 * DAY, { eventId: "e1" })];
-            expect(matchLogsForEvent(event, logs).map((l) => l.id)).toEqual(["assigned"]);
-        });
-
-        it("drops a log assigned to a DIFFERENT event even when the time fits", () => {
+        it("skips logs that already carry an assignment — to this event or any other", () => {
             const logs = [
-                log("otherEvent", startMs + 2 * HOUR, { eventId: "e2" }),
-                log("unassigned", startMs + HOUR),
+                log("mine", startMs + HOUR, { eventId: "e1" }),
+                log("other", startMs + HOUR, { eventId: "e2" }),
             ];
-            expect(matchLogsForEvent(event, logs).map((l) => l.id)).toEqual(["unassigned"]);
+            expect(pendingLogsForEvent(event, logs)).toEqual([]);
         });
 
-        it("returns nothing for an event without a start time", () => {
-            expect(matchLogsForEvent({ id: "e1" }, [log("x", NOW)])).toEqual([]);
-            expect(matchLogsForEvent(null, [log("x", NOW)])).toEqual([]);
-        });
-
-        it("tolerates a missing log list", () => {
-            expect(matchLogsForEvent(event)).toEqual([]);
+        it("returns nothing without a start time and tolerates a missing log list", () => {
+            expect(pendingLogsForEvent({ id: "e1" }, [log("x", NOW)])).toEqual([]);
+            expect(pendingLogsForEvent(event)).toEqual([]);
         });
     });
 
@@ -104,14 +138,14 @@ describe("web/recentEvents", () => {
             expect(buildRecentEvents(events, { now: NOW, minAgeMs: 0 })).toHaveLength(1);
         });
 
-        it("attaches each event's matched logs and leaves the event fields intact", () => {
+        it("attaches each event's assigned logs and leaves the event fields intact", () => {
             const events = [
                 { id: "e1", title: "Kara", startTime: startSecs(2 * DAY), channelId: "c1" },
                 { id: "e2", title: "Gruul", startTime: startSecs(9 * DAY), channelId: "c2" },
             ];
             const logs = [
-                log("kara", (NOW - 2 * DAY) + 3 * HOUR),
-                log("gruul", (NOW - 9 * DAY) + HOUR),
+                log("kara", (NOW - 2 * DAY) + 3 * HOUR, { eventId: "e1" }),
+                log("gruul", (NOW - 9 * DAY) + HOUR, { eventId: "e2" }),
                 log("stray", NOW - 5 * DAY),
             ];
             const [kara, gruul] = buildRecentEvents(events, { now: NOW, logs });
@@ -120,9 +154,19 @@ describe("web/recentEvents", () => {
             expect(gruul.logs.map((l) => l.id)).toEqual(["gruul"]);
         });
 
-        it("gives an event without logs an empty array", () => {
+        it("reports a time-matching but unassigned log as pending, not as the event's log", () => {
+            const events = [{ id: "e1", startTime: startSecs(2 * DAY) }];
+            const logs = [log("undecided", (NOW - 2 * DAY) + 3 * HOUR)];
+            const [ev] = buildRecentEvents(events, { now: NOW, logs });
+            expect(ev.logs).toEqual([]);
+            expect(ev.pendingLogs.map((l) => l.id)).toEqual(["undecided"]);
+        });
+
+        it("gives an event without logs empty arrays", () => {
             const events = [{ id: "e1", startTime: startSecs(DAY) }];
-            expect(buildRecentEvents(events, { now: NOW, logs: [] })[0].logs).toEqual([]);
+            const [ev] = buildRecentEvents(events, { now: NOW, logs: [] });
+            expect(ev.logs).toEqual([]);
+            expect(ev.pendingLogs).toEqual([]);
         });
 
         it("ignores events without a start time and tolerates no input", () => {
