@@ -758,12 +758,18 @@ function renderRosterPanel(report, linkFor) {
     const roster = report.roster || [];
     if (roster.length === 0) return "<div class=\"empty\">Keine Raider gefunden.</div>";
     const ic = report.icons || {};
+    // Without the CLA half there are no potion numbers at all — printing three
+    // zeros would read as "drank nothing" rather than "not evaluated yet".
+    const hasPotionData = !!(report.potions && report.potions.players && report.potions.players.length);
     const body = roster.map((p) => {
         const pot = p.potions || {};
+        const potions = hasPotionData
+            ? `<span class="potions">${potionCells(ic, pot)}</span>`
+            : "<span class=\"sritems\" data-tip=\"Noch keine CLA-Auswertung für diesen Log\">nicht ausgewertet</span>";
         return `<tr>
           <td>${classCell(p, linkFor(p.name))}</td>
           <td>${issueCountCell((p.issues || []).length)}</td>
-          <td><span class="potions">${potionCells(ic, pot)}</span></td>
+          <td>${potions}</td>
           <td><a class="mlink" href="${esc(linkFor(p.name))}">Details →</a></td>
         </tr>`;
     }).join("");

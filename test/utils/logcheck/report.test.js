@@ -42,7 +42,7 @@ jest.mock("../../../src/config/variables.js", () => ({ publicBaseUrl: "http://lo
 const { analyzeConsumables } = require("../../../src/utils/logcheck/consumables.js");
 const { analyzeRpb } = require("../../../src/utils/logcheck/rpb/index.js");
 const {
-    buildReport, reportSummaryLines, normalizeSections, stripSection, ReportError,
+    buildReport, mergeRoster, reportSummaryLines, normalizeSections, stripSection, ReportError,
 } = require("../../../src/utils/logcheck/report.js");
 
 beforeEach(() => {
@@ -154,6 +154,20 @@ describe("logcheck/report — merging the two halves", () => {
         expect(report.sections).toEqual(expect.arrayContaining(["cla", "rpb"]));
     });
 
+    it("does not blank the roster's potion counts when the RPB half is added", async () => {
+        // the regression: the Tränke tab kept its numbers while the Raider tab
+        // showed nothing but zeros, because the RPB run rebuilt the roster without
+        // any potion data and that roster overwrote the CLA's
+        mockGetReport.mockReturnValue({
+            id: "old1",
+            sections: ["cla"],
+            roster: [{ name: "Alice", type: "Mage", potions: { destruction: 2, haste: 0, mana: 5 } }],
+            potions: { players: [{ name: "Alice", destruction: 2, haste: 0, mana: 5, total: 7 }] },
+        });
+        const { report } = await buildReport("RPT1", { sections: ["rpb"], mergeIntoId: "old1" });
+        expect(report.roster.find((p) => p.name === "Alice").potions).toEqual({ destruction: 2, haste: 0, mana: 5 });
+    });
+
     it("creates a new page when the id to merge into no longer exists", async () => {
         mockGetReport.mockReturnValue(null);
         await buildReport("RPT1", { sections: ["rpb"], mergeIntoId: "gone" });
@@ -164,6 +178,50 @@ describe("logcheck/report — merging the two halves", () => {
         mockGetReport.mockReturnValue({ id: "old1", sections: ["cla"], icons: { flask: "a.jpg" } });
         const { report } = await buildReport("RPT1", { sections: ["cla"], mergeIntoId: "old1" });
         expect(report.icons).toEqual(expect.objectContaining({ flask: "a.jpg" }));
+    });
+});
+
+describe("logcheck/report — mergeRoster", () => {
+    const withPotions = [
+        { name: "Alice", type: "Mage", issues: [], potions: { destruction: 3, haste: 1, mana: 8 } },
+        { name: "Bob", type: "Warrior", issues: [], potions: { destruction: 0, haste: 0, mana: 2 } },
+    ];
+    // what an RPB-only run builds: potions were never analyzed, so all zero
+    const zeroed = [
+        { name: "Alice", type: "Mage", issues: [{ x: 1 }], potions: { destruction: 0, haste: 0, mana: 0 } },
+        { name: "Bob", type: "Warrior", issues: [], potions: { destruction: 0, haste: 0, mana: 0 } },
+    ];
+
+    it("keeps the CLA potion counts when only the RPB half was re-run", () => {
+        const merged = mergeRoster(withPotions, zeroed, ["rpb"]);
+        expect(merged[0].potions).toEqual({ destruction: 3, haste: 1, mana: 8 });
+        expect(merged[1].potions).toEqual({ destruction: 0, haste: 0, mana: 2 });
+    });
+
+    it("still takes the fresh gear issues from the RPB run", () => {
+        const merged = mergeRoster(withPotions, zeroed, ["rpb"]);
+        expect(merged[0].issues).toEqual([{ x: 1 }]);
+    });
+
+    it("lets the CLA half overwrite the potion counts — it owns them", () => {
+        const fresh = [{ name: "Alice", type: "Mage", issues: [], potions: { destruction: 9, haste: 9, mana: 9 } }];
+        expect(mergeRoster(withPotions, fresh, ["cla"])[0].potions).toEqual({ destruction: 9, haste: 9, mana: 9 });
+    });
+
+    it("carries nothing over for a raider who was not in the previous roster", () => {
+        const fresh = [{ name: "Newcomer", type: "Rogue", issues: [], potions: { destruction: 0, haste: 0, mana: 0 } }];
+        expect(mergeRoster(withPotions, fresh, ["rpb"])[0].potions).toEqual({ destruction: 0, haste: 0, mana: 0 });
+    });
+
+    it("falls back to the existing roster when the fresh run produced none", () => {
+        expect(mergeRoster(withPotions, null, ["rpb"])).toEqual(withPotions);
+        expect(mergeRoster(withPotions, [], ["rpb"])).toEqual(withPotions);
+        // even for the CLA half — an empty roster is a failed run, not an empty raid
+        expect(mergeRoster(withPotions, [], ["cla"])).toEqual(withPotions);
+    });
+
+    it("tolerates an existing report that had no roster at all", () => {
+        expect(mergeRoster(undefined, zeroed, ["rpb"])).toEqual(zeroed);
     });
 });
 
