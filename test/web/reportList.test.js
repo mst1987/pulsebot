@@ -1,4 +1,7 @@
-const { prepareReportList, prepareLogList, annotateLogCategories, DEFAULT_PAGE_SIZE, logPostedAt, snowflakeTimestamp } = require("../../src/web/reportList.js");
+const {
+    prepareReportList, prepareLogList, annotateLogCategories, annotateReportEvents,
+    DEFAULT_PAGE_SIZE, logPostedAt, snowflakeTimestamp,
+} = require("../../src/web/reportList.js");
 
 // Build n reports with ascending generatedAt (id0 oldest … id{n-1} newest).
 function makeReports(n) {
@@ -166,5 +169,48 @@ describe("web/reportList prepareLogList", () => {
             annotateLogCategories(items, null);
             expect(items[0].categoryName).toBeUndefined();
         });
+    });
+});
+
+describe("web/reportList annotateReportEvents", () => {
+    const logs = [
+        { id: "l1", reportRefId: "r1", eventId: "e1", eventLabel: "Gruul", eventStartTime: 500 },
+        { id: "l2", reportRefId: "r2" }, // evaluated, but not assigned to a raid
+        { id: "l3", eventId: "e9", eventLabel: "SSC" }, // assigned, but never evaluated
+    ];
+
+    it("carries the raid over from the log the report was generated from", () => {
+        const reports = [{ id: "r1" }];
+        annotateReportEvents(reports, logs);
+        expect(reports[0]).toMatchObject({ logId: "l1", eventId: "e1", eventLabel: "Gruul", eventStartTime: 500 });
+    });
+
+    it("leaves the raid fields empty for a log without an assignment", () => {
+        const reports = [{ id: "r2" }];
+        annotateReportEvents(reports, logs);
+        expect(reports[0]).toMatchObject({ logId: "l2", eventId: "", eventLabel: "", eventStartTime: 0 });
+    });
+
+    it("leaves everything empty for a report with no tracked log", () => {
+        const reports = [{ id: "unknown" }];
+        annotateReportEvents(reports, logs);
+        expect(reports[0]).toMatchObject({ logId: "", eventId: "", eventLabel: "", eventStartTime: 0 });
+    });
+
+    it("returns the same array and tolerates missing input", () => {
+        const reports = [{ id: "r1" }];
+        expect(annotateReportEvents(reports, logs)).toBe(reports);
+        expect(() => annotateReportEvents(undefined, undefined)).not.toThrow();
+        expect(() => annotateReportEvents([{ id: "r1" }], null)).not.toThrow();
+    });
+
+    it("makes the reports sortable by raid, grouping the unassigned ones", () => {
+        const reports = [{ id: "r1", generatedAt: 3 }, { id: "r2", generatedAt: 2 }, { id: "x", generatedAt: 1 }];
+        annotateReportEvents(reports, logs);
+        const asc = prepareReportList(reports, { sort: "event", dir: "asc" });
+        expect(asc.sort).toBe("event");
+        // "" sorts before "gruul" → the two unassigned reports first (newest first among them)
+        expect(asc.items.map((r) => r.id)).toEqual(["r2", "x", "r1"]);
+        expect(prepareReportList(reports, { sort: "event", dir: "desc" }).items[0].id).toBe("r1");
     });
 });
