@@ -104,6 +104,11 @@ client.on("interactionCreate", async(interaction) => {
 // the token is missing/invalid or Discord is unreachable — a failed login only
 // disables the Discord-backed features, it never takes the process down.
 function start() {
+    // PM2 spawns the app with the Node binary of its own daemon, not with
+    // whatever `node --version` says on the shell — so this line is the only
+    // reliable way to see which version the bot actually runs on after an
+    // upgrade. Keep it first, before anything can fail.
+    console.log(`PulseBot starting on Node ${process.version} (${process.env.NODE_ENV || "development"})`);
     loadCommands(path.join(__dirname, "commands"));
     startWebServer(client);
 

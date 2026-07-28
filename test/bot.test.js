@@ -27,11 +27,13 @@ beforeEach(() => {
     jest.clearAllMocks();
     mockLogin.mockResolvedValue("ok");
     process.env.DISCORDJS_BOT_TOKEN = "tok";
+    jest.spyOn(console, "log").mockImplementation(() => {});
     jest.spyOn(console, "warn").mockImplementation(() => {});
     jest.spyOn(console, "error").mockImplementation(() => {});
 });
 
 afterEach(() => {
+    console.log.mockRestore();
     console.warn.mockRestore();
     console.error.mockRestore();
     if (OLD_TOKEN === undefined) delete process.env.DISCORDJS_BOT_TOKEN;
@@ -64,6 +66,13 @@ describe("bot start()", () => {
         // let the caught rejection settle so it doesn't surface as unhandled
         await new Promise((r) => setImmediate(r));
         expect(console.error).toHaveBeenCalled();
+    });
+
+    it("logs the Node version it actually runs on", () => {
+        // PM2 spawns the app with its daemon's Node, so the startup log is the
+        // only trustworthy record of the runtime version after an upgrade.
+        bot.start();
+        expect(console.log).toHaveBeenCalledWith(expect.stringContaining(`Node ${process.version}`));
     });
 
     it("starts the web server but skips login when no token is set", () => {

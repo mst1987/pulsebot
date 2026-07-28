@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:22-alpine
 
 # German timezone so any bare Date/logging renders in CET/CEST. The web UI
 # formatters pin the zone explicitly (full-ICU, always correct), but tzdata +
