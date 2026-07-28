@@ -1049,9 +1049,10 @@ const LOG_ANALYSES: { key: LogSection; label: string; title: string }[] = [
     { key: "rpb", label: "RPB", title: "Vermeidbarer Schaden, Tode, Aktivität, Cooldowns, Interrupts & Log-Prüfung" },
 ];
 
-function LogRow({ l, evalBusySection, unlinkBusy, onEvaluate, onUnlink }: {
+function LogRow({ l, evalBusySection, evalSeconds, unlinkBusy, onEvaluate, onUnlink }: {
     l: RaidLogRow;
     evalBusySection: LogSection | null;
+    evalSeconds: number;
     unlinkBusy: boolean;
     onEvaluate: (section: LogSection) => void;
     onUnlink: () => void;
@@ -1083,7 +1084,9 @@ function LogRow({ l, evalBusySection, unlinkBusy, onEvaluate, onUnlink }: {
                         disabled={evalBusySection !== null}
                         onClick={() => onEvaluate(a.key)}
                     >
-                        {evalBusySection === a.key ? "Läuft …" : `${a.label} auswerten`}
+                        {evalBusySection === a.key
+                            ? (evalSeconds ? `Läuft … ${evalSeconds}s` : "Läuft …")
+                            : `${a.label} auswerten`}
                     </button>
                 ))}
                 {reportHref ? <a className="btn btn-ghost btn-sm" href={reportHref}>Öffnen</a> : null}
@@ -1099,17 +1102,21 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
     csrfToken: string | null;
     onChanged: (msg: string) => void;
 }) {
-    // which log + which half is currently running, so only that button spins
-    const [evalBusy, setEvalBusy] = useState<{ id: string; section: LogSection } | null>(null);
+    // which log + which half is currently running (plus how long already), so only
+    // that button spins and can show progress
+    const [evalBusy, setEvalBusy] = useState<{ id: string; section: LogSection; seconds: number } | null>(null);
     const [unlinkBusyId, setUnlinkBusyId] = useState<string | null>(null);
     const [pickedLogId, setPickedLogId] = useState("");
     const [linkBusy, setLinkBusy] = useState(false);
 
     const evaluate = async (l: RaidLogRow, section: LogSection) => {
         const label = section.toUpperCase();
-        setEvalBusy({ id: l.id, section });
+        setEvalBusy({ id: l.id, section, seconds: 0 });
         try {
-            const r = await evalLog(csrfToken, l.id, section);
+            // Runs server-side in the background; resolves once polling says done
+            // (an RPB evaluation takes ~50s).
+            const r = await evalLog(csrfToken, l.id, section, (seconds) =>
+                setEvalBusy((b) => (b && b.id === l.id && b.section === section ? { ...b, seconds } : b)));
             window.open(r.url, "_blank", "noopener");
             onChanged(r.alreadyEvaluated
                 ? `${label}-Auswertung lag bereits vor.`
@@ -1177,6 +1184,7 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
                         key={l.id}
                         l={l}
                         evalBusySection={evalBusy && evalBusy.id === l.id ? evalBusy.section : null}
+                        evalSeconds={evalBusy && evalBusy.id === l.id ? evalBusy.seconds : 0}
                         unlinkBusy={unlinkBusyId === l.id}
                         onEvaluate={(section) => evaluate(l, section)}
                         onUnlink={() => unlink(l)}

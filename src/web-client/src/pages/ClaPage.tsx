@@ -254,9 +254,10 @@ const LOG_ANALYSES: { key: LogSection; label: string; title: string }[] = [
     { key: "rpb", label: "RPB", title: "Vermeidbarer Schaden, Tode, Aktivität, Cooldowns, Interrupts & Log-Prüfung" },
 ];
 
-function LogTableRow({ l, evalBusySection, selectedEventId, onSelectChange, onEvaluate, onDelete, onLink, onUnlink }: {
+function LogTableRow({ l, evalBusySection, evalSeconds, selectedEventId, onSelectChange, onEvaluate, onDelete, onLink, onUnlink }: {
     l: LogRow;
     evalBusySection: LogSection | null;
+    evalSeconds: number;
     selectedEventId: string;
     onSelectChange: (eventId: string) => void;
     onEvaluate: (section: LogSection) => void;
@@ -296,7 +297,9 @@ function LogTableRow({ l, evalBusySection, selectedEventId, onSelectChange, onEv
                             disabled={evalBusySection !== null}
                             onClick={() => onEvaluate(a.key)}
                         >
-                            {evalBusySection === a.key ? "Läuft …" : a.label}
+                            {evalBusySection === a.key
+                                ? (evalSeconds ? `Läuft … ${evalSeconds}s` : "Läuft …")
+                                : a.label}
                         </button>
                     ))}
                     {reportHref ? <a className="btn btn-ghost btn-sm" href={reportHref}>Öffnen</a> : null}
@@ -316,8 +319,9 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
 }) {
     const [scanning, setScanning] = useState(false);
     const [automatching, setAutomatching] = useState(false);
-    // which log + which half is currently running, so only that button spins
-    const [evalBusy, setEvalBusy] = useState<{ id: string; section: LogSection } | null>(null);
+    // which log + which half is currently running (plus how long already), so only
+    // that button spins and can show progress
+    const [evalBusy, setEvalBusy] = useState<{ id: string; section: LogSection; seconds: number } | null>(null);
     const [selected, setSelected] = useState<Record<string, string>>({});
 
     if (!data.logChannelsConfigured) {
@@ -357,9 +361,12 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
 
     const evaluate = async (l: LogRow, section: LogSection) => {
         const label = section.toUpperCase();
-        setEvalBusy({ id: l.id, section });
+        setEvalBusy({ id: l.id, section, seconds: 0 });
         try {
-            const r = await evalLog(csrfToken, l.id, section);
+            // The evaluation runs server-side in the background; this resolves once
+            // polling reports it done (RPB takes ~50s).
+            const r = await evalLog(csrfToken, l.id, section, (seconds) =>
+                setEvalBusy((b) => (b && b.id === l.id && b.section === section ? { ...b, seconds } : b)));
             // Both the fresh-evaluation and the already-evaluated-before response mean
             // "here's the report" — mirrors the legacy inline form, which redirects
             // straight to the report; here we open it in a new tab (so the admin keeps
@@ -454,6 +461,7 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
                                         key={l.id}
                                         l={l}
                                         evalBusySection={evalBusy && evalBusy.id === l.id ? evalBusy.section : null}
+                                        evalSeconds={evalBusy && evalBusy.id === l.id ? evalBusy.seconds : 0}
                                         selectedEventId={selected[l.id] ?? l.candidates?.[0]?.eventId ?? ""}
                                         onSelectChange={(v) => setSelected((s) => ({ ...s, [l.id]: v }))}
                                         onEvaluate={(section) => evaluate(l, section)}

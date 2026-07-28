@@ -245,6 +245,9 @@ const lootEventMatch = require("../../src/web/lootEventMatch");
 const reportList = require("../../src/web/reportList");
 const logEventMatch = require("../../src/web/logEventMatch");
 const logChannel = require("../../src/web/logChannel");
+const evalJobs = require("../../src/web/evalJobs");
+// Background jobs settle a microtask after they are queued.
+const flushJobs = () => new Promise((r) => setImmediate(r));
 const manualLog = require("../../src/web/manualLog");
 const { buildReport, ReportError } = require("../../src/utils/logcheck/report");
 const eventSheetStore = require("../../src/web/eventSheetStore");
@@ -299,18 +302,18 @@ describe("web/apiRouter", () => {
         });
 
         it("turns an escaping exception into a JSON error carrying the real message", async () => {
-            logChannel.evaluateLog.mockRejectedValue(new Error("WCL API kaputt"));
+            logStore.getLog.mockImplementation(() => { throw new Error("Datenspeicher kaputt"); });
             const res = await post("/api/cla/eval", { logId: "l1" });
             expect(res.writeHead).toHaveBeenCalledWith(500, expect.objectContaining({
                 "Content-Type": "application/json; charset=utf-8",
             }));
             expect(body(res)).toEqual({
-                error: { code: "internal_error", message: "WCL API kaputt" },
+                error: { code: "internal_error", message: "Datenspeicher kaputt" },
             });
         });
 
         it("falls back to a generic message when the failure carries none", async () => {
-            logChannel.evaluateLog.mockRejectedValue(new Error(""));
+            logStore.getLog.mockImplementation(() => { throw new Error(""); });
             const res = await post("/api/cla/eval", { logId: "l1" });
             expect(body(res).error).toEqual({
                 code: "internal_error", message: "Unerwarteter Serverfehler.",
@@ -318,13 +321,13 @@ describe("web/apiRouter", () => {
         });
 
         it("reports the request as handled so nothing falls through", async () => {
-            logChannel.evaluateLog.mockRejectedValue(new Error("boom"));
+            logStore.getLog.mockImplementation(() => { throw new Error("boom"); });
             const req = new EventEmitter();
             req.method = "POST";
             req.headers = { "x-csrf-token": "tok" };
             const res = mockRes();
             const p = handle("/api/cla/eval", req, res);
-            req.emit("data", "{}");
+            req.emit("data", JSON.stringify({ logId: "l1" }));
             req.emit("end");
             expect(await p).toBe(true);
         });
@@ -2910,50 +2913,131 @@ describe("web/apiRouter", () => {
         });
     });
 
+    // The evaluation runs in the background (evalJobs.js): POST only queues it and
+    // answers at once, because holding the response open for an ~50s RPB run dies
+    // at a reverse proxy's 60s timeout. The result is collected via eval-status.
     describe("POST /api/cla/eval", () => {
         beforeEach(() => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             auth.checkCsrf.mockReturnValue(true);
+            evalJobs.reset();
+            logStore.getLog.mockReturnValue({ id: "l1", status: "open" });
         });
 
-        it("returns the new report's id/url on success and defaults to the CLA half", async () => {
-            logChannel.evaluateLog.mockResolvedValue({ ok: true, id: "abc", url: "/r/abc", section: "cla" });
+        it("answers 202 running without waiting for the evaluation", async () => {
+            let finish;
+            logChannel.evaluateLog.mockReturnValue(new Promise((r) => { finish = r; }));
             const res = await post("/api/cla/eval", { logId: "l1" });
-            expect(logChannel.evaluateLog).toHaveBeenCalledWith("l1", "cla");
-            expect(body(res)).toEqual({ data: { id: "abc", url: "/r/abc", section: "cla" } });
+            expect(res.writeHead).toHaveBeenCalledWith(202, expect.any(Object));
+            expect(body(res)).toEqual({
+                data: { status: "running", section: "cla", logId: "l1", alreadyRunning: false },
+            });
+            finish({ ok: true, url: "/r/abc" });
         });
 
-        it("passes the requested section through", async () => {
-            logChannel.evaluateLog.mockResolvedValue({ ok: true, id: "abc", url: "/r/abc", section: "rpb" });
+        it("starts the requested section", async () => {
+            logChannel.evaluateLog.mockResolvedValue({ ok: true, id: "abc", url: "/r/abc" });
             await post("/api/cla/eval", { logId: "l1", section: "rpb" });
+            await flushJobs();
             expect(logChannel.evaluateLog).toHaveBeenCalledWith("l1", "rpb");
         });
 
         it("falls back to the CLA half for an unknown section", async () => {
-            logChannel.evaluateLog.mockResolvedValue({ ok: true, id: "abc", url: "/r/abc", section: "cla" });
+            logChannel.evaluateLog.mockResolvedValue({ ok: true, id: "abc", url: "/r/abc" });
             await post("/api/cla/eval", { logId: "l1", section: "nonsense" });
+            await flushJobs();
             expect(logChannel.evaluateLog).toHaveBeenCalledWith("l1", "cla");
         });
 
-        it("returns alreadyEvaluated + url (200, not an error) when that half was already done", async () => {
-            logChannel.evaluateLog.mockResolvedValue({ ok: false, already: true, url: "/r/xyz", error: "Die CLA-Auswertung liegt für diesen Log bereits vor." });
-            const res = await post("/api/cla/eval", { logId: "l1" });
+        it("reports a half that already ran without starting a job", async () => {
+            logStore.getLog.mockReturnValue({ id: "l1", status: "done", sections: ["cla"], reportUrl: "/r/xyz" });
+            const res = await post("/api/cla/eval", { logId: "l1", section: "cla" });
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-            expect(body(res)).toEqual({ data: { alreadyEvaluated: true, url: "/r/xyz", section: "cla" } });
+            expect(body(res)).toEqual({
+                data: { alreadyEvaluated: true, url: "/r/xyz", section: "cla", status: "done" },
+            });
+            expect(logChannel.evaluateLog).not.toHaveBeenCalled();
         });
 
-        it("returns 400 with the failure message otherwise", async () => {
-            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
-            logChannel.evaluateLog.mockResolvedValue({ ok: false, error: "Auswertung läuft bereits — bitte einen Moment warten." });
-            const res = await post("/api/cla/eval", { logId: "l1" });
+        it("still starts the other half of an already half-evaluated log", async () => {
+            logStore.getLog.mockReturnValue({ id: "l1", status: "done", sections: ["cla"], reportUrl: "/r/xyz" });
+            logChannel.evaluateLog.mockResolvedValue({ ok: true, url: "/r/xyz" });
+            const res = await post("/api/cla/eval", { logId: "l1", section: "rpb" });
+            expect(res.writeHead).toHaveBeenCalledWith(202, expect.any(Object));
+            await flushJobs();
+            expect(logChannel.evaluateLog).toHaveBeenCalledWith("l1", "rpb");
+        });
+
+        it("rejects an unknown log up front", async () => {
+            logStore.getLog.mockReturnValue(null);
+            const res = await post("/api/cla/eval", { logId: "nope" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "eval_failed", message: "Auswertung läuft bereits — bitte einen Moment warten." } });
+            expect(body(res)).toEqual({ error: { code: "eval_failed", message: "Log nicht gefunden." } });
+            expect(logChannel.evaluateLog).not.toHaveBeenCalled();
         });
 
-        it("falls back to a generic message when the failure carries none", async () => {
-            logChannel.evaluateLog.mockResolvedValue({ ok: false });
-            const res = await post("/api/cla/eval", { logId: "l1" });
-            expect(body(res)).toEqual({ error: { code: "eval_failed", message: "Auswertung fehlgeschlagen." } });
+        it("rejects a request without a log id", async () => {
+            const res = await post("/api/cla/eval", {});
+            expect(body(res)).toEqual({ error: { code: "eval_failed", message: "Kein Log angegeben." } });
+        });
+
+        it("flags a second start while the first is still running", async () => {
+            logChannel.evaluateLog.mockReturnValue(new Promise(() => {}));
+            await post("/api/cla/eval", { logId: "l1", section: "rpb" });
+            const res = await post("/api/cla/eval", { logId: "l1", section: "rpb" });
+            expect(body(res).data.alreadyRunning).toBe(true);
+        });
+    });
+
+    describe("GET /api/cla/eval-status", () => {
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            evalJobs.reset();
+            logStore.getLog.mockReturnValue({ id: "l1", status: "open" });
+        });
+
+        it("reports a running evaluation", async () => {
+            logChannel.evaluateLog.mockReturnValue(new Promise(() => {}));
+            await post("/api/cla/eval", { logId: "l1", section: "rpb" });
+            const res = await get("/api/cla/eval-status", { logId: "l1", section: "rpb" });
+            expect(body(res).data.status).toBe("running");
+        });
+
+        it("reports the finished report's url", async () => {
+            logChannel.evaluateLog.mockResolvedValue({ ok: true, id: "abc", url: "/r/abc" });
+            await post("/api/cla/eval", { logId: "l1", section: "rpb" });
+            await flushJobs();
+            const res = await get("/api/cla/eval-status", { logId: "l1", section: "rpb" });
+            expect(body(res).data).toMatchObject({ status: "done", url: "/r/abc", id: "abc" });
+        });
+
+        it("surfaces a failed evaluation with its message", async () => {
+            logChannel.evaluateLog.mockResolvedValue({ ok: false, error: "Report ist privat." });
+            await post("/api/cla/eval", { logId: "l1", section: "rpb" });
+            await flushJobs();
+            const res = await get("/api/cla/eval-status", { logId: "l1", section: "rpb" });
+            expect(body(res).data).toMatchObject({ status: "error", error: "Report ist privat." });
+        });
+
+        it("answers from the persisted state when no job is tracked (after a restart)", async () => {
+            logStore.getLog.mockReturnValue({
+                id: "l1", status: "done", sections: ["rpb"], reportUrl: "/r/old", reportRefId: "old",
+            });
+            const res = await get("/api/cla/eval-status", { logId: "l1", section: "rpb" });
+            expect(body(res).data).toMatchObject({ status: "done", url: "/r/old", id: "old" });
+        });
+
+        it("reports unknown when neither a job nor a result exists", async () => {
+            logStore.getLog.mockReturnValue({ id: "l1", status: "open" });
+            const res = await get("/api/cla/eval-status", { logId: "l1", section: "rpb" });
+            expect(body(res).data.status).toBe("unknown");
+        });
+
+        it("requires an admin session", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await get("/api/cla/eval-status", { logId: "l1", section: "rpb" });
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
         });
     });
 
