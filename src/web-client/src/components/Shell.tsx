@@ -4,6 +4,7 @@ import ThemeToggle from "./ThemeToggle";
 import GuildSwitcher from "./GuildSwitcher";
 import {
     CrestIcon, BurgerIcon, HomeIcon, RecruitmentIcon, ClaIcon, RaidsIcon, ChannelsIcon, SettingsIcon, HistoryIcon,
+    RosterIcon,
 } from "./icons";
 import type { SessionUser, SessionGuild } from "../api";
 
@@ -15,6 +16,7 @@ const TABS: { id: string; label: string; href: string; group: string; icon: Reac
     { id: "recruitment", label: "Recruitment", href: "/recruitment", group: "Verwaltung", icon: <RecruitmentIcon /> },
     { id: "cla", label: "CLA / Logcheck", href: "/cla", group: "Verwaltung", icon: <ClaIcon /> },
     { id: "raids", label: "Raid-Events", href: "/raids", group: "Verwaltung", icon: <RaidsIcon /> },
+    { id: "roster", label: "Roster", href: "/roster", group: "Verwaltung", icon: <RosterIcon /> },
     { id: "history", label: "Historie & Loot", href: "/history", group: "Verwaltung", icon: <HistoryIcon /> },
     { id: "channels", label: "Kanäle", href: "/channels", group: "Verwaltung", icon: <ChannelsIcon /> },
     { id: "settings", label: "Einstellungen", href: "/settings", group: "System", icon: <SettingsIcon /> },
@@ -36,6 +38,7 @@ function subCrumb(pathname: string, search: URLSearchParams): string | null {
     if (pathname === "/raids/new") return "Neues Event";
     if (pathname === "/raids/templates") return "Aufruf-Vorlagen";
     if (pathname === "/history/event") return "Event-Loot";
+    if (pathname === "/history/char" || pathname === "/roster/char") return search.get("name") || "Charakter";
     if (pathname === "/recruitment" && (search.get("view") || "posts") === "posts" && search.get("editpost")) {
         return "Nachricht bearbeiten";
     }

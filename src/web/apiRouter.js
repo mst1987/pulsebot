@@ -9,6 +9,7 @@ const {
     getSettings, updateSettings, saveRaidsheetHandler, deleteRaidsheetHandler,
 } = require("./apiRoutes/settings");
 const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raiderCharacters");
+const { getRoster } = require("./apiRoutes/roster");
 const { getRaids, getRaidCreateContext, createRaid } = require("./apiRoutes/raids");
 const {
     getRaidDetail, postNotify, postPingMissing, postFill, postPostSheet, postPostSoftres,
@@ -80,6 +81,10 @@ async function handle(pathname, req, res, url) {
     }
     if (pathname === "/api/raider-characters" && req.method === "POST") {
         await saveRaiderCharacters(req, res);
+        return true;
+    }
+    if (pathname === "/api/roster" && req.method === "GET") {
+        await getRoster(req, res);
         return true;
     }
     if (pathname === "/api/raids" && req.method === "GET") {

@@ -101,6 +101,17 @@ export function ClockIcon() {
     );
 }
 
+export function RosterIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+            <path d="M2.5 20a6.5 6.5 0 0 1 13 0" />
+            <path d="M17 4.6a3.5 3.5 0 0 1 0 6.8" />
+            <path d="M18.5 14.2A6.5 6.5 0 0 1 21.5 20" />
+        </svg>
+    );
+}
+
 export function HistoryIcon() {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

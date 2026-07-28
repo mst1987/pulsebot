@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { getHistoryChar, type ApiError, type GearItem, type HistoryCharData } from "../api";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { getHistoryChar, type ApiError, type CharGearReport, type GearItem, type HistoryCharData } from "../api";
 import { fmtMs } from "../lib/format";
 import { refreshWowheadLinks } from "../lib/wowheadTooltips";
 import { ClassSpecIcon } from "../components/ClassSpec";
@@ -125,6 +125,39 @@ function GearPaperdoll({ gear, classIconUrl, itemLevel }: { gear: GearItem[]; cl
     );
 }
 
+// The gear findings of the character's newest CLA evaluation — the detail
+// behind the roster overview's issue count. Sits next to the live Battle.net
+// paperdoll on purpose: the paperdoll says what is equipped, this says what
+// was wrong with it the last time the raid was logged.
+function GearIssuesCard({ gear }: { gear: CharGearReport }) {
+    const when = gear.generatedAt ? fmtMs(gear.generatedAt, false) : "";
+    return (
+        <div className="dash-card" style={{ marginBottom: 12 }}>
+            <div className="dash-card-head">
+                <h3>Gear-Issues</h3>
+                <span className="small" style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
+                    {[gear.reportTitle, gear.zone, when].filter(Boolean).join(" · ")}
+                    {!!gear.reportRefId && <a className="mlink" href={`/r/${gear.reportRefId}`} target="_blank" rel="noopener noreferrer">Auswertung ↗</a>}
+                    {!!gear.reportUrl && <a className="mlink" href={gear.reportUrl} target="_blank" rel="noopener noreferrer">Log ↗</a>}
+                </span>
+            </div>
+            {gear.issueCount
+                ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "12px 16px" }}>
+                        {gear.issues.map((issue, i) => (
+                            <span key={`${issue.itemId}-${issue.kind}-${i}`} className="lbadge" style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+                                {!!issue.iconUrl && <img src={issue.iconUrl} alt="" width={18} height={18} style={{ borderRadius: 4 }} loading="lazy" />}
+                                <span>{issue.itemName || "—"}</span>
+                                <span className={`lbadge${issue.severity === "high" ? " lbadge-warn" : ""}`}>{issue.label}</span>
+                            </span>
+                        ))}
+                    </div>
+                )
+                : <p className="sub" style={{ padding: "0 16px 14px" }}>Keine Gear-Probleme in der letzten Auswertung.</p>}
+        </div>
+    );
+}
+
 function GearTab({ data, onReload }: { data: HistoryCharData; onReload: () => void }) {
     const s = data.charSummary;
     const wrongLevel = !!(s && s.level && s.level !== 70);
@@ -178,6 +211,7 @@ function GearTab({ data, onReload }: { data: HistoryCharData; onReload: () => vo
                     )}
                 </div>
             )}
+            {data.gearIssues && <GearIssuesCard gear={data.gearIssues} />}
             {gearInner}
         </>
     );
@@ -185,7 +219,13 @@ function GearTab({ data, onReload }: { data: HistoryCharData; onReload: () => vo
 
 export default function HistoryCharPage() {
     const [searchParams, setSearchParams] = useSearchParams();
+    const location = useLocation();
     const name = searchParams.get("name") || "";
+    // The same page is mounted under /history/char and /roster/char — the back
+    // link has to lead where the visitor came from, not always to the history.
+    const from = location.pathname.startsWith("/roster")
+        ? { href: "/roster", label: "← Zurück zum Roster" }
+        : { href: "/history?tab=chars", label: "← Zurück zur Historie" };
     const tab: CharTab = searchParams.get("tab") === "loot" ? "loot" : "gear";
 
     const [data, setData] = useState<HistoryCharData | null>(null);
@@ -214,7 +254,7 @@ export default function HistoryCharPage() {
 
     return (
         <>
-            <p className="note"><Link className="mlink" to="/history">← Zurück zur Historie</Link></p>
+            <p className="note"><Link className="mlink" to={from.href}>{from.label}</Link></p>
             <h1 className="page-title">
                 {data.character}
                 {data.realm && <span className="sub"> · {data.realm}</span>}

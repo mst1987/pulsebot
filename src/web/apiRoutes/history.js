@@ -13,6 +13,7 @@ const {
 } = require("../lootStore");
 const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../characterInfo");
 const { getCharacter } = require("../characterStore");
+const { issuesForCharacter } = require("../charGearIssues");
 const { parseLoot, detectImportDate, enrichItemNames, LootParseError } = require("../../utils/lootImport");
 const { bestDayMatch, formatDayDisplay, dayKey } = require("../lootEventMatch");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setupView");
@@ -242,6 +243,9 @@ async function getHistoryChar(req, res, url) {
         charSummary,
         gearNamespace,
         info: enrichCharInfo(getCharacter(name)),
+        // What the last CLA evaluation found on this character's gear — the
+        // detail behind the roster overview's issue count.
+        gearIssues: issuesForCharacter(name),
     });
 }
 

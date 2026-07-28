@@ -39,6 +39,21 @@ function getCategoryAssignments(categoryId) {
 }
 
 /**
+ * Every category's assignments at once: { [categoryId]: { [userId]: character } }.
+ * The roster overview needs all of them to answer "welche Chars gehören zu
+ * welchem Raid" without one read per configured category.
+ */
+function listAllAssignments() {
+    const all = readAll();
+    const out = {};
+    for (const [categoryId, map] of Object.entries(all)) {
+        if (!map || typeof map !== "object" || Array.isArray(map)) continue;
+        out[categoryId] = { ...map };
+    }
+    return out;
+}
+
+/**
  * Replace the whole raider->character map of one category. Entries with a
  * blank character name are dropped (that's how an assignment is removed).
  * Returns the normalized, saved map.
@@ -79,5 +94,6 @@ function resolveAssignmentProfiles(categoryId) {
 }
 
 module.exports = {
-    getCategoryAssignments, setCategoryAssignments, resolveAssignmentProfiles, RAIDER_CHARACTERS_FILE,
+    getCategoryAssignments, listAllAssignments, setCategoryAssignments, resolveAssignmentProfiles,
+    RAIDER_CHARACTERS_FILE,
 };

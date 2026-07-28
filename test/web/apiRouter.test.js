@@ -93,11 +93,19 @@ jest.mock("../../src/web/characterInfo", () => ({
 jest.mock("../../src/web/characterStore", () => ({
     getCharacter: jest.fn(() => null),
     listCharacters: jest.fn(() => []),
+    characterMap: jest.fn(() => ({})),
 }));
 jest.mock("../../src/web/raiderCharactersStore", () => ({
     getCategoryAssignments: jest.fn(() => ({})),
+    listAllAssignments: jest.fn(() => ({})),
     setCategoryAssignments: jest.fn(),
     resolveAssignmentProfiles: jest.fn(() => ({})),
+}));
+// The report-file scan behind the gear-issue column has its own test
+// (charGearIssues.test.js) — here it is only an input to the roster join.
+jest.mock("../../src/web/charGearIssues", () => ({
+    latestIssuesByCharacter: jest.fn(() => ({})),
+    issuesForCharacter: jest.fn(() => null),
 }));
 const mockIsConfigured = jest.fn(() => false);
 const mockGetCharacterSummary = jest.fn(() => Promise.resolve(null));
@@ -114,10 +122,15 @@ jest.mock("../../src/classes/blizzard", () =>
     })));
 jest.mock("../../src/utils/lootImport", () => {
     class LootParseError extends Error {}
+    const actual = jest.requireActual("../../src/utils/lootImport");
     return {
         parseLoot: jest.fn(() => []),
         detectImportDate: jest.fn(() => null),
         enrichItemNames: jest.fn((items) => Promise.resolve(items)),
+        // Pure name normalisation (realm suffix, lowercasing) — the roster keys
+        // its rows with it, so a stub would silently change the join.
+        characterKey: actual.characterKey,
+        splitPlayer: actual.splitPlayer,
         LootParseError,
     };
 });
@@ -214,6 +227,7 @@ const lootStore = require("../../src/web/lootStore");
 const characterInfo = require("../../src/web/characterInfo");
 const characterStore = require("../../src/web/characterStore");
 const raiderCharactersStore = require("../../src/web/raiderCharactersStore");
+const charGearIssues = require("../../src/web/charGearIssues");
 const lootImport = require("../../src/utils/lootImport");
 const lootEventMatch = require("../../src/web/lootEventMatch");
 const reportList = require("../../src/web/reportList");
@@ -687,6 +701,64 @@ describe("web/apiRouter", () => {
 
             expect(raiderCharactersStore.setCategoryAssignments).toHaveBeenCalledWith("cat1", { u1: "Elesham", u2: "" });
             expect(body(res)).toEqual({ data: { assignments: { u1: "Elesham" } } });
+        });
+    });
+
+    describe("GET /api/roster", () => {
+        // These mocks are shared with the history tests further down (no global
+        // clearAllMocks in this suite), so put the defaults back afterwards.
+        afterEach(() => {
+            characterInfo.annotatedCharacters.mockReturnValue([]);
+            raiderCharactersStore.listAllAssignments.mockReturnValue({});
+            characterStore.characterMap.mockReturnValue({});
+            charGearIssues.latestIssuesByCharacter.mockReturnValue({});
+        });
+
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await get("/api/roster");
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+            expect(characterInfo.annotatedCharacters).not.toHaveBeenCalled();
+        });
+
+        it("joins loot characters, manual assignments and gear issues into one roster", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            characterInfo.annotatedCharacters.mockReturnValue([{
+                key: "anna", character: "Anna", realm: "Thunderstrike", count: 3,
+                categoryIds: ["cat1"], items: [{ itemId: 1, itemName: "Sword" }],
+                className: "Priest", spec: "Shadow", source: "wcl",
+            }]);
+            raiderCharactersStore.listAllAssignments.mockReturnValue({ cat2: { u1: "Bob" } });
+            characterStore.characterMap.mockReturnValue({ bob: { className: "Warrior", spec: "Fury", source: "manual" } });
+            charGearIssues.latestIssuesByCharacter.mockReturnValue({
+                anna: { issueCount: 1, issues: [{ label: "kein Item" }], reportRefId: "r1", generatedAt: 500 },
+            });
+            discord.listCategories.mockReturnValue([
+                { id: "cat1", name: "Montagsraid" }, { id: "cat2", name: "Pug" },
+            ]);
+
+            const res = await get("/api/roster");
+
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            const data = body(res).data;
+            expect(data.activeGuildId).toBe("guild-1");
+            expect(data.categories).toEqual([{ id: "cat1", name: "Montagsraid" }, { id: "cat2", name: "Pug" }]);
+            expect(data.chars.map((c) => c.character)).toEqual(["Anna", "Bob"]);
+            expect(data.chars[0]).toMatchObject({
+                categoryIds: ["cat1"], lootCount: 3, className: "Priest", spec: "Shadow", assigned: false,
+                gear: { issueCount: 1, reportRefId: "r1" },
+            });
+            expect(data.chars[0].wclUrl).toContain("Anna");
+            expect(data.chars[1]).toMatchObject({
+                categoryIds: ["cat2"], lootCount: 0, className: "Warrior", assigned: true, raiderIds: ["u1"], gear: null,
+            });
+        });
+
+        it("backfills missing loot item names before answering", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            await get("/api/roster");
+            expect(lootStore.repairItemNames).toHaveBeenCalled();
         });
     });
 
@@ -2395,7 +2467,20 @@ describe("web/apiRouter", () => {
                 charSummary: null,
                 gearNamespace: "profile-classicann-eu",
                 info: null,
+                gearIssues: null,
             });
+        });
+
+        it("passes the character's latest gear findings through", async () => {
+            charGearIssues.issuesForCharacter.mockReturnValue({
+                issueCount: 2, issues: [{ label: "kein Item" }], reportRefId: "r1", generatedAt: 500,
+            });
+
+            const res = await get("/api/history/char", { name: "Anna" });
+
+            expect(charGearIssues.issuesForCharacter).toHaveBeenCalledWith("Anna");
+            expect(body(res).data.gearIssues).toMatchObject({ issueCount: 2, reportRefId: "r1" });
+            charGearIssues.issuesForCharacter.mockReturnValue(null);
         });
 
         it("falls back to the configured realm slug when no loot item carries a realm", async () => {
