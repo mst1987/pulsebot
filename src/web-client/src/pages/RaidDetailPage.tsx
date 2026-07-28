@@ -3,7 +3,7 @@ import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     getRaidDetail, importLoot, clearHistoryEvent,
     notifyRaid, pingMissingRaiders, fillRaidsheet, postRaidSheet, postRaidSoftres,
-    searchSoftresItems, createSoftres, linkSoftres, evalLog, linkLog, linkLogUrl, unlinkLog,
+    searchSoftresItems, createSoftres, linkSoftres, evalLog, resetEval, linkLog, linkLogUrl, unlinkLog,
     type ApiError, type RaidDetailData, type SetupPlayer, type AttendancePerson,
     type SoftresSearchItem, type SoftresCatalogueGroup, type EventSoftres, type RaidLogRow,
     type RaidDetailEventSheet, type LogSection,
@@ -1049,12 +1049,13 @@ const LOG_ANALYSES: { key: LogSection; label: string; title: string }[] = [
     { key: "rpb", label: "RPB", title: "Vermeidbarer Schaden, Tode, Aktivität, Cooldowns, Interrupts & Log-Prüfung" },
 ];
 
-function LogRow({ l, evalBusySection, evalSeconds, unlinkBusy, onEvaluate, onUnlink }: {
+function LogRow({ l, evalBusySection, evalSeconds, unlinkBusy, onEvaluate, onReset, onUnlink }: {
     l: RaidLogRow;
     evalBusySection: LogSection | null;
     evalSeconds: number;
     unlinkBusy: boolean;
     onEvaluate: (section: LogSection) => void;
+    onReset: (section: LogSection) => void;
     onUnlink: () => void;
 }) {
     const wclUrl = l.link || (l.reportId ? `https://classic.warcraftlogs.com/reports/${l.reportId}` : "");
@@ -1070,8 +1071,19 @@ function LogRow({ l, evalBusySection, evalSeconds, unlinkBusy, onEvaluate, onUnl
                     : name}
                 {" "}
                 {done.length
-                    ? LOG_ANALYSES.filter((a) => done.includes(a.key))
-                        .map((a) => <span key={a.key} className="pill good" style={{ marginRight: 4 }}>{a.label}</span>)
+                    ? LOG_ANALYSES.filter((a) => done.includes(a.key)).map((a) => (
+                        // the ✕ discards just this half, so an incomplete run can be repeated
+                        <span key={a.key} className="pill good" style={{ marginRight: 4 }}>
+                            {a.label}
+                            <button
+                                type="button"
+                                className="pill-x"
+                                title={`${a.label}-Auswertung verwerfen (kann danach neu gestartet werden)`}
+                                aria-label={`${a.label}-Auswertung verwerfen`}
+                                onClick={() => onReset(a.key)}
+                            >×</button>
+                        </span>
+                    ))
                     : <span className="pill">offen</span>}
             </div>
             <div className="row-actions" style={{ gap: 6 }}>
@@ -1125,6 +1137,17 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
             onChanged((err as ApiError).message);
         } finally {
             setEvalBusy(null);
+        }
+    };
+
+    const reset = async (l: RaidLogRow, section: LogSection) => {
+        const label = section.toUpperCase();
+        if (!confirm(`${label}-Auswertung dieses Logs verwerfen? Sie kann danach neu gestartet werden.`)) return;
+        try {
+            const r = await resetEval(csrfToken, l.id, section);
+            onChanged(r.message);
+        } catch (err) {
+            onChanged((err as ApiError).message);
         }
     };
 
@@ -1187,6 +1210,7 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
                         evalSeconds={evalBusy && evalBusy.id === l.id ? evalBusy.seconds : 0}
                         unlinkBusy={unlinkBusyId === l.id}
                         onEvaluate={(section) => evaluate(l, section)}
+                        onReset={(section) => reset(l, section)}
                         onUnlink={() => unlink(l)}
                     />
                 ))

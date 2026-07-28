@@ -41,7 +41,9 @@ jest.mock("../../../src/config/variables.js", () => ({ publicBaseUrl: "http://lo
 
 const { analyzeConsumables } = require("../../../src/utils/logcheck/consumables.js");
 const { analyzeRpb } = require("../../../src/utils/logcheck/rpb/index.js");
-const { buildReport, reportSummaryLines, normalizeSections, ReportError } = require("../../../src/utils/logcheck/report.js");
+const {
+    buildReport, reportSummaryLines, normalizeSections, stripSection, ReportError,
+} = require("../../../src/utils/logcheck/report.js");
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -162,6 +164,66 @@ describe("logcheck/report — merging the two halves", () => {
         mockGetReport.mockReturnValue({ id: "old1", sections: ["cla"], icons: { flask: "a.jpg" } });
         const { report } = await buildReport("RPT1", { sections: ["cla"], mergeIntoId: "old1" });
         expect(report.icons).toEqual(expect.objectContaining({ flask: "a.jpg" }));
+    });
+});
+
+describe("logcheck/report — stripSection", () => {
+    const full = {
+        title: "SSC + TK",
+        players: [{ name: "A" }],
+        roster: [{ name: "A" }],
+        sections: ["cla", "rpb"],
+        consumables: { players: [1] },
+        drums: { players: [1] },
+        potions: { players: [1] },
+        sunder: [1],
+        bossUptimes: { rows: [1] },
+        shadowResi: { players: [1] },
+        rpb: { roles: {} },
+    };
+
+    it("drops the RPB half and leaves the CLA data alone", () => {
+        const { report, remaining } = stripSection(full, "rpb");
+        expect(remaining).toEqual(["cla"]);
+        expect(report.rpb).toBeNull();
+        expect(report.consumables).toEqual({ players: [1] });
+        expect(report.drums).toEqual({ players: [1] });
+        expect(report.sections).toEqual(["cla"]);
+    });
+
+    it("drops the CLA half and leaves the RPB data alone", () => {
+        const { report, remaining } = stripSection(full, "cla");
+        expect(remaining).toEqual(["rpb"]);
+        expect(report.rpb).toEqual({ roles: {} });
+        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "shadowResi"]) {
+            expect(report[key]).toBeNull();
+        }
+    });
+
+    it("keeps the shared meta in both cases", () => {
+        for (const section of ["cla", "rpb"]) {
+            const { report } = stripSection(full, section);
+            expect(report.title).toBe("SSC + TK");
+            expect(report.players).toEqual([{ name: "A" }]);
+            expect(report.roster).toEqual([{ name: "A" }]);
+        }
+    });
+
+    it("does not mutate the input", () => {
+        stripSection(full, "rpb");
+        expect(full.rpb).toEqual({ roles: {} });
+        expect(full.sections).toEqual(["cla", "rpb"]);
+    });
+
+    it("infers the sections of an older report that has no sections field", () => {
+        const legacy = { consumables: { players: [1] }, rpb: { roles: {} } };
+        const { remaining } = stripSection(legacy, "rpb");
+        expect(remaining).toEqual(["cla"]);
+    });
+
+    it("reports nothing remaining when the only half is dropped", () => {
+        const rpbOnly = { sections: ["rpb"], rpb: { roles: {} } };
+        expect(stripSection(rpbOnly, "rpb").remaining).toEqual([]);
     });
 });
 

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import {
-    getClaData, createReport, evalLog, scanLogs, deleteLogEntry, linkLog, unlinkLog, autoMatchLogs,
+    getClaData, createReport, evalLog, resetEval, scanLogs, deleteLogEntry, linkLog, unlinkLog, autoMatchLogs,
     deleteReport, unlinkReport,
     type ApiError, type ClaData, type ClaPage, type ReportSummary, type LogRow, type MatchCandidate,
     type LogSection,
@@ -254,13 +254,14 @@ const LOG_ANALYSES: { key: LogSection; label: string; title: string }[] = [
     { key: "rpb", label: "RPB", title: "Vermeidbarer Schaden, Tode, Aktivität, Cooldowns, Interrupts & Log-Prüfung" },
 ];
 
-function LogTableRow({ l, evalBusySection, evalSeconds, selectedEventId, onSelectChange, onEvaluate, onDelete, onLink, onUnlink }: {
+function LogTableRow({ l, evalBusySection, evalSeconds, selectedEventId, onSelectChange, onEvaluate, onReset, onDelete, onLink, onUnlink }: {
     l: LogRow;
     evalBusySection: LogSection | null;
     evalSeconds: number;
     selectedEventId: string;
     onSelectChange: (eventId: string) => void;
     onEvaluate: (section: LogSection) => void;
+    onReset: (section: LogSection) => void;
     onDelete: () => void;
     onLink: () => void;
     onUnlink: () => void;
@@ -282,8 +283,19 @@ function LogTableRow({ l, evalBusySection, evalSeconds, selectedEventId, onSelec
                 ? <a className="mlink" href={`https://discord.com/channels/${l.guildId}/${l.channelId}/${l.messageId}`} target="_blank" rel="noopener noreferrer">Nachricht</a>
                 : <span className="sub">—</span>}</td>
             <td>{done.length
-                ? LOG_ANALYSES.filter((a) => done.includes(a.key))
-                    .map((a) => <span key={a.key} className="pill good" style={{ marginRight: 4 }}>{a.label}</span>)
+                ? LOG_ANALYSES.filter((a) => done.includes(a.key)).map((a) => (
+                    // the ✕ discards just this half, so an incomplete run can be repeated
+                    <span key={a.key} className="pill good" style={{ marginRight: 4 }}>
+                        {a.label}
+                        <button
+                            type="button"
+                            className="pill-x"
+                            title={`${a.label}-Auswertung verwerfen (kann danach neu gestartet werden)`}
+                            aria-label={`${a.label}-Auswertung verwerfen`}
+                            onClick={() => onReset(a.key)}
+                        >×</button>
+                    </span>
+                ))
                 : <span className="pill">offen</span>}</td>
             <td className="small">{fmtMs(l.postedAt)}</td>
             <td className="cell-actions">
@@ -382,6 +394,17 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
         }
     };
 
+    const reset = async (l: LogRow, section: LogSection) => {
+        const label = section.toUpperCase();
+        if (!confirm(`${label}-Auswertung dieses Logs verwerfen? Sie kann danach neu gestartet werden.`)) return;
+        try {
+            const r = await resetEval(csrfToken, l.id, section);
+            onChanged(r.message);
+        } catch (err) {
+            onChanged((err as ApiError).message);
+        }
+    };
+
     const remove = async (l: LogRow) => {
         if (!confirm("Log aus der Liste entfernen?")) return;
         try {
@@ -465,6 +488,7 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
                                         selectedEventId={selected[l.id] ?? l.candidates?.[0]?.eventId ?? ""}
                                         onSelectChange={(v) => setSelected((s) => ({ ...s, [l.id]: v }))}
                                         onEvaluate={(section) => evaluate(l, section)}
+                                        onReset={(section) => reset(l, section)}
                                         onDelete={() => remove(l)}
                                         onLink={() => doLink(l)}
                                         onUnlink={() => doUnlink(l)}

@@ -167,6 +167,40 @@ function evaluatedSections(log) {
 }
 
 /**
+ * Discard a single half of a log's evaluation, keeping the other one. This is
+ * what makes a half that came out wrong — an RPB that was cut short, say —
+ * repeatable without throwing away the CLA result next to it.
+ *
+ * Was it the last remaining half, the log falls back to "open" and loses its
+ * report reference (same end state as clearEvaluation).
+ *
+ * @returns {null | { log, remaining: string[], wasLast: boolean }}
+ *   null when the id is unknown or that half was not evaluated at all
+ */
+function clearSection(id, section) {
+    const logs = readAll();
+    const log = logs.find((l) => l.id === id);
+    if (!log) return null;
+
+    const done = evaluatedSections(log);
+    if (!done.includes(section)) return null;
+
+    const remaining = done.filter((s) => s !== section);
+    if (remaining.length === 0) {
+        log.status = "open";
+        log.reportRefId = "";
+        log.reportUrl = "";
+        delete log.sections;
+        delete log.evaluatedAt;
+    } else {
+        log.sections = remaining;
+    }
+    log.updatedAt = Date.now();
+    writeAll(logs);
+    return { log, remaining, wasLast: remaining.length === 0 };
+}
+
+/**
  * Set a log's display title (the Warcraft-Logs report name), backfilled lazily
  * when the CLA logs list is viewed. No-op for a blank title or unknown id.
  * Returns the saved log, or null.
@@ -243,6 +277,6 @@ function deleteLog(id) {
 
 module.exports = {
     listLogs, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
-    markEvaluated, evaluatedSections, clearEvaluation, setLogTitle, deleteLog, LOGS_FILE,
+    markEvaluated, evaluatedSections, clearEvaluation, clearSection, setLogTitle, deleteLog, LOGS_FILE,
     linkEvent, unlinkEvent, listLogsForEvent,
 };

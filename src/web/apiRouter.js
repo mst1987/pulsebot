@@ -30,7 +30,7 @@ const {
     resolveCharacters, getHistoryChar,
 } = require("./apiRoutes/history");
 const {
-    getClaData, createReport, evalLog, evalStatus, scanLogs, deleteLogHandler,
+    getClaData, createReport, evalLog, evalStatus, resetEval, scanLogs, deleteLogHandler,
     linkLog, linkLogUrl, unlinkLog, autoMatchLogs,
     deleteReportHandler, unlinkReport,
 } = require("./apiRoutes/cla");
@@ -268,6 +268,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/cla/eval-status" && req.method === "GET") {
         evalStatus(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/cla/eval-reset" && req.method === "POST") {
+        await resetEval(req, res);
         return true;
     }
     if (pathname === "/api/cla/scan" && req.method === "POST") {

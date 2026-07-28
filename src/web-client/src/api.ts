@@ -1034,6 +1034,19 @@ export function getEvalStatus(logId: string, section: LogSection): Promise<EvalS
 }
 
 /**
+ * Discard one half of a log's evaluation so it can be run again — for a run that
+ * came out incomplete, say. The other half stays; if this was the last one, the
+ * report page goes away and the log falls back to "offen".
+ */
+export function resetEval(
+    csrfToken: string | null,
+    logId: string,
+    section: LogSection,
+): Promise<{ logId: string; section: LogSection; remaining: string[]; message: string }> {
+    return send("POST", "/api/cla/eval-reset", csrfToken, { logId, section });
+}
+
+/**
  * Run one half of a log's analysis to completion.
  *
  * The request only starts the job — an RPB evaluation runs ~50s, far past the

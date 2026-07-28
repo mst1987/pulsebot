@@ -99,6 +99,9 @@ form.card-form { background: var(--panel); border: 1px solid var(--line); border
 .row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .pill { display: inline-block; background: var(--high-bg); color: var(--high); border-radius: 10px; padding: 0 8px; font-size: 12px; font-weight: 700; }
 .pill.good { background: var(--good-bg); color: var(--good); }
+/* discard button inside a status pill — drops just that one analysis */
+.pill-x { background: none; border: 0; color: inherit; opacity: .55; cursor: pointer; font: inherit; line-height: 1; padding: 0 0 0 5px; }
+.pill-x:hover { opacity: 1; }
 .empty { color: var(--muted); padding: 40px; text-align: center; }
 .note { color: var(--muted); font-size: 12.5px; margin: -6px 0 12px; }
 code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; padding: 2px 6px; border-radius: 4px; background: var(--panel2); color: var(--text); }

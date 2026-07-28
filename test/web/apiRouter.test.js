@@ -9,6 +9,8 @@ jest.mock("../../src/web/auth", () => ({
 jest.mock("../../src/web/reportStore", () => ({
     listReports: jest.fn(() => []),
     deleteReport: jest.fn(() => true),
+    getReport: jest.fn(() => null),
+    saveReport: jest.fn((report, id) => id || "new-id"),
 }));
 jest.mock("../../src/web/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
@@ -54,6 +56,8 @@ jest.mock("../../src/web/logStore", () => ({
     clearEvaluation: jest.fn(),
     linkEvent: jest.fn(),
     unlinkEvent: jest.fn(),
+    clearEvaluation: jest.fn(),
+    clearSection: jest.fn(),
     // mirrors the real implementation (explicit sections win, legacy done = cla)
     evaluatedSections: jest.fn((log) => {
         if (!log) return [];
@@ -84,7 +88,19 @@ jest.mock("../../src/web/logChannel", () => ({
 jest.mock("../../src/web/manualLog", () => ({ linkLogByUrl: jest.fn() }));
 jest.mock("../../src/utils/logcheck/report", () => {
     class ReportError extends Error {}
-    return { buildReport: jest.fn(), ReportError };
+    const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes"];
+    return {
+        buildReport: jest.fn(),
+        ReportError,
+        // mirrors the real implementation closely enough for the route tests
+        stripSection: jest.fn((report, section) => {
+            const stripped = { ...report };
+            for (const key of section === "rpb" ? ["rpb"] : CLA_FIELDS) stripped[key] = null;
+            const remaining = (report.sections || []).filter((s) => s !== section);
+            stripped.sections = remaining;
+            return { report: stripped, remaining };
+        }),
+    };
 });
 jest.mock("../../src/classes/warcraftlogs", () => jest.fn());
 jest.mock("../../src/web/lootStore", () => ({
@@ -2986,6 +3002,82 @@ describe("web/apiRouter", () => {
             await post("/api/cla/eval", { logId: "l1", section: "rpb" });
             const res = await post("/api/cla/eval", { logId: "l1", section: "rpb" });
             expect(body(res).data.alreadyRunning).toBe(true);
+        });
+    });
+
+    // Discarding a single half is what makes an incomplete run repeatable without
+    // losing the other analysis on the same report page.
+    describe("POST /api/cla/eval-reset", () => {
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+        });
+
+        it("drops one half, strips it from the report and keeps the page", async () => {
+            logStore.getLog.mockReturnValue({
+                id: "l1", status: "done", sections: ["cla", "rpb"], reportRefId: "rep1",
+            });
+            logStore.clearSection.mockReturnValue({ remaining: ["cla"], wasLast: false });
+            reportStore.getReport.mockReturnValue({ id: "rep1", sections: ["cla", "rpb"], rpb: { roles: {} } });
+
+            const res = await post("/api/cla/eval-reset", { logId: "l1", section: "rpb" });
+            expect(logStore.clearSection).toHaveBeenCalledWith("l1", "rpb");
+            // the page is rewritten without the RPB half, not deleted
+            expect(reportStore.saveReport).toHaveBeenCalledWith(
+                expect.objectContaining({ rpb: null, sections: ["cla"] }), "rep1",
+            );
+            expect(reportStore.deleteReport).not.toHaveBeenCalled();
+            expect(body(res).data).toMatchObject({ logId: "l1", section: "rpb", remaining: ["cla"] });
+        });
+
+        it("deletes the whole report when the last half is dropped", async () => {
+            logStore.getLog.mockReturnValue({
+                id: "l1", status: "done", sections: ["rpb"], reportRefId: "rep1",
+            });
+            logStore.clearSection.mockReturnValue({ remaining: [], wasLast: true });
+
+            const res = await post("/api/cla/eval-reset", { logId: "l1", section: "rpb" });
+            expect(reportStore.deleteReport).toHaveBeenCalledWith("rep1");
+            expect(reportStore.saveReport).not.toHaveBeenCalled();
+            expect(body(res).data.message).toMatch(/offen/i);
+        });
+
+        it("rejects a half that was never evaluated", async () => {
+            logStore.getLog.mockReturnValue({ id: "l1", status: "done", sections: ["cla"] });
+            const res = await post("/api/cla/eval-reset", { logId: "l1", section: "rpb" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res).error.code).toBe("not_evaluated");
+            expect(logStore.clearSection).not.toHaveBeenCalled();
+        });
+
+        it("rejects an unknown log", async () => {
+            logStore.getLog.mockReturnValue(null);
+            const res = await post("/api/cla/eval-reset", { logId: "nope", section: "cla" });
+            expect(body(res).error).toEqual({ code: "not_found", message: "Log nicht gefunden." });
+        });
+
+        it("defaults to the CLA half for an unknown section", async () => {
+            logStore.getLog.mockReturnValue({ id: "l1", status: "done", sections: ["cla"] });
+            logStore.clearSection.mockReturnValue({ remaining: [], wasLast: true });
+            await post("/api/cla/eval-reset", { logId: "l1", section: "nonsense" });
+            expect(logStore.clearSection).toHaveBeenCalledWith("l1", "cla");
+        });
+
+        it("survives a log whose report file is already gone", async () => {
+            logStore.getLog.mockReturnValue({
+                id: "l1", status: "done", sections: ["cla", "rpb"], reportRefId: "rep1",
+            });
+            logStore.clearSection.mockReturnValue({ remaining: ["cla"], wasLast: false });
+            reportStore.getReport.mockReturnValue(null);
+            const res = await post("/api/cla/eval-reset", { logId: "l1", section: "rpb" });
+            expect(reportStore.saveReport).not.toHaveBeenCalled();
+            expect(body(res).data.remaining).toEqual(["cla"]);
+        });
+
+        it("requires a csrf token", async () => {
+            auth.checkCsrf.mockReturnValue(false);
+            const res = await post("/api/cla/eval-reset", { logId: "l1", section: "rpb" });
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
         });
     });
 
