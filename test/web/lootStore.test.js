@@ -125,6 +125,34 @@ describe("web/lootStore", () => {
             addImport("e1", [item({ rawId: "a", character: "Foo", characterKey: "foo" })]);
             expect(characters().find((c) => c.key === "foo").categoryIds).toEqual([]);
         });
+
+        it("carries each character's items for the hover preview, newest award first", () => {
+            addImport("e1", [
+                item({ rawId: "a", character: "Foo", characterKey: "foo", itemId: 100, itemName: "Thing", response: "BiS", awardedAt: 100 }),
+                item({ rawId: "b", character: "Foo", characterKey: "foo", itemId: 200, itemName: "Other", response: "Offspec", offspec: true, awardedAt: 500 }),
+                item({ rawId: "c", character: "Bar", characterKey: "bar" }),
+            ], { categoryId: "cat-pug", eventLabel: "Raid A" });
+            const foo = characters().find((c) => c.key === "foo");
+            expect(foo.items).toHaveLength(2);
+            expect(foo.items[0]).toMatchObject({
+                itemId: 200, itemName: "Other", response: "Offspec", offspec: true,
+                categoryId: "cat-pug", eventLabel: "Raid A", awardedAt: 500,
+            });
+            expect(foo.items[1]).toMatchObject({ itemId: 100, response: "BiS", offspec: false });
+            // the preview stays trimmed — no raw importer bookkeeping rides along
+            expect(foo.items[0]).not.toHaveProperty("rawId");
+            expect(foo.items[0]).not.toHaveProperty("player");
+        });
+
+        it("spans events in a character's item list and defaults the fields an export left out", () => {
+            addImport("e1", [item({ rawId: "a", character: "Foo", characterKey: "foo", response: "", itemName: "" })], { categoryId: "cat-pug" });
+            addImport("e2", [item({ rawId: "b", character: "Foo", characterKey: "foo" })], { categoryId: "cat-montag" });
+            const foo = characters().find((c) => c.key === "foo");
+            expect(foo.items).toHaveLength(2);
+            expect(foo.items.map((i) => i.categoryId).sort()).toEqual(["cat-montag", "cat-pug"]);
+            const bare = foo.items.find((i) => !i.itemName);
+            expect(bare).toMatchObject({ itemName: "", itemIconUrl: "", itemLink: "", response: "", offspec: false });
+        });
     });
 
     describe("clearEvent", () => {

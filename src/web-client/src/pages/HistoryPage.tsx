@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     getHistoryData, importLoot, deleteHistoryLog, saveCategoryLootTool, resolveCharacters,
-    type ApiError, type HistoryData, type HistoryEvent, type LootEventSummary, type LootLog, type AnnotatedCharacter, type Category,
+    type ApiError, type HistoryData, type HistoryEvent, type LootEventSummary, type LootLog, type AnnotatedCharacter,
+    type CharLootPreview, type Category,
 } from "../api";
 import { formatEventTime, fmtMs, formatDate } from "../lib/format";
+import { usePersistedState } from "../lib/persistedState";
 import RaidTable from "../components/RaidTable";
+import { LootResponseBadge } from "../components/LootTable";
 import { ClassSpecCell, CharacterLink } from "../components/ClassSpec";
 import type { ShellContext } from "../components/Shell";
 
@@ -245,6 +249,10 @@ type Dir = "asc" | "desc";
 
 const CHAR_SORT_DEFAULTS: Record<CharSortKey, Dir> = { character: "asc", classSpec: "asc", count: "desc", source: "asc" };
 
+// Everything the Charaktere tab remembers between visits (see usePersistedState).
+type CharView = { search: string; category: string; classSpec: string; sort: CharSortKey; dir: Dir };
+const CHAR_VIEW_DEFAULT: CharView = { search: "", category: "", classSpec: "", sort: "count", dir: CHAR_SORT_DEFAULTS.count };
+
 function charSortValue(c: AnnotatedCharacter, key: CharSortKey): string | number {
     switch (key) {
         case "character": return c.character.toLowerCase();
@@ -270,6 +278,111 @@ function CharSortTh({ sortKey, label, sort, dir, onSort }: {
                 {label}{arrow}
             </button>
         </th>
+    );
+}
+
+const POP_WIDTH = 340;
+const POP_MAX_HEIGHT = 340;
+
+// Where the hover panel goes for a given trigger. Fixed coordinates, because
+// the panel is portalled to <body> — .dash-card carries the redesign's notched
+// clip-path, and a clip-path cuts off positioned descendants no matter what
+// their overflow/z-index says, so an in-card panel would be sliced at the card
+// edge. Anchored to the trigger's right (the Items column sits near the right
+// of a wide card), flipped above it when there is more room up there.
+function popoverStyle(rect: DOMRect): React.CSSProperties {
+    const width = Math.min(POP_WIDTH, window.innerWidth - 16);
+    const left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8));
+    const below = window.innerHeight - rect.bottom - 14;
+    const above = rect.top - 14;
+    return above > below && below < POP_MAX_HEIGHT
+        ? { left, width, bottom: window.innerHeight - rect.top + 6, maxHeight: Math.min(POP_MAX_HEIGHT, above) }
+        : { left, width, top: rect.bottom + 6, maxHeight: Math.min(POP_MAX_HEIGHT, below) };
+}
+
+// The Items count with the actual loot behind it: hovering (or tabbing to) the
+// number opens a list of every piece the character won — icon, name and the
+// award reason from the loot tool ("BiS", "Mainspec", …) — so "5 Items" can be
+// checked without opening the character page. The list is already in the
+// /api/history payload (lootStore's characters()), so no request happens here.
+// The category badge only shows for characters that raid under more than one
+// category, where the count alone would not say which raid a piece came from.
+function CharItemsCell({ items, count, categoryNameById, showCategory }: {
+    items: CharLootPreview[];
+    count: number;
+    categoryNameById: Map<string, string>;
+    showCategory: boolean;
+}) {
+    const ref = useRef<HTMLSpanElement>(null);
+    const [rect, setRect] = useState<DOMRect | null>(null);
+    // Moving the pointer from the number into the panel briefly leaves both
+    // (they are separate DOM subtrees) — a short grace period keeps a long,
+    // scrollable list reachable instead of snapping shut in the gap.
+    const closeTimer = useRef<number | undefined>(undefined);
+    const open = () => {
+        window.clearTimeout(closeTimer.current);
+        if (ref.current) setRect(ref.current.getBoundingClientRect());
+    };
+    const close = () => {
+        window.clearTimeout(closeTimer.current);
+        closeTimer.current = window.setTimeout(() => setRect(null), 140);
+    };
+
+    // Fixed coordinates go stale the moment the page moves under them.
+    useEffect(() => {
+        if (!rect) return;
+        const hide = () => setRect(null);
+        window.addEventListener("scroll", hide, true);
+        window.addEventListener("resize", hide);
+        return () => {
+            window.removeEventListener("scroll", hide, true);
+            window.removeEventListener("resize", hide);
+        };
+    }, [rect]);
+
+    useEffect(() => () => window.clearTimeout(closeTimer.current), []);
+
+    if (!items.length) return <>{count}</>;
+
+    return (
+        <>
+            <span
+                ref={ref}
+                className="loot-pop-wrap"
+                tabIndex={0}
+                onMouseEnter={open}
+                onMouseLeave={close}
+                onFocus={open}
+                onBlur={close}
+            >
+                <span className="loot-pop-trigger">{count}</span>
+            </span>
+            {rect && createPortal(
+                <div className="loot-pop" role="tooltip" style={popoverStyle(rect)} onMouseEnter={open} onMouseLeave={close}>
+                    <div className="loot-pop-head">{items.length} Item{items.length === 1 ? "" : "s"}</div>
+                    <div className="loot-pop-list">
+                        {items.map((it, i) => (
+                            <div className="loot-pop-row" key={`${it.itemId}-${it.awardedAt}-${i}`}>
+                                {it.itemIconUrl
+                                    ? <img className="loot-pop-ico" src={it.itemIconUrl} alt="" loading="lazy" />
+                                    : <span className="loot-pop-ico loot-pop-ico-ph" />}
+                                <div className="loot-pop-body">
+                                    <div className="loot-pop-name" title={it.itemName || `Item ${it.itemId}`}>{it.itemName || `Item ${it.itemId}`}</div>
+                                    <div className="loot-pop-meta">
+                                        <LootResponseBadge response={it.response} offspec={it.offspec} />
+                                        {showCategory && !!it.categoryId && (
+                                            <span className="lbadge lbadge-neutral">{categoryNameById.get(it.categoryId) || it.categoryId}</span>
+                                        )}
+                                        {!!it.awardedAt && <span className="sub">{fmtMs(it.awardedAt, false)}</span>}
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>,
+                document.body,
+            )}
+        </>
     );
 }
 
@@ -303,7 +416,14 @@ function CharTable({ chars, categoryNameById, sort, dir, onSort }: {
                                     : <span className="sub">—</span>}
                             </div>
                         </td>
-                        <td className="small">{c.count}</td>
+                        <td className="small">
+                            <CharItemsCell
+                                items={c.items || []}
+                                count={c.count}
+                                categoryNameById={categoryNameById}
+                                showCategory={c.categoryIds.length > 1}
+                            />
+                        </td>
                         <td className="small">{CLASS_SOURCE_LABELS[c.source]
                             ? <span className="lbadge">{CLASS_SOURCE_LABELS[c.source]}</span>
                             : <span className="sub">—</span>}</td>
@@ -321,11 +441,17 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
     onChanged: (msg: string) => void;
 }) {
     const [busy, setBusy] = useState(false);
-    const [search, setSearch] = useState("");
-    const [categoryFilter, setCategoryFilter] = useState("");
-    const [classFilter, setClassFilter] = useState("");
-    const [sort, setSort] = useState<CharSortKey>("count");
-    const [dir, setDir] = useState<Dir>(CHAR_SORT_DEFAULTS.count);
+    // Search, filters, grouping and sort live in localStorage, so they survive a
+    // reload and switching away to another tab (which unmounts this component).
+    // Stored values are treated as untrusted: a sort key from an older build
+    // falls back to the default instead of sorting by nothing.
+    const [view, setView] = usePersistedState<CharView>("history-chars-view", CHAR_VIEW_DEFAULT);
+    const search = view.search;
+    const categoryFilter = view.category;
+    const classFilter = view.classSpec;
+    const sort: CharSortKey = CHAR_SORT_DEFAULTS[view.sort] ? view.sort : CHAR_VIEW_DEFAULT.sort;
+    const dir: Dir = view.dir === "asc" ? "asc" : "desc";
+    const patch = (p: Partial<CharView>) => setView((v) => ({ ...v, ...p }));
 
     const resolve = async () => {
         setBusy(true);
@@ -368,9 +494,8 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
     }, [chars]);
 
     const onSort = (key: CharSortKey) => {
-        if (key === sort) { setDir((d) => (d === "asc" ? "desc" : "asc")); return; }
-        setSort(key);
-        setDir(CHAR_SORT_DEFAULTS[key]);
+        if (key === sort) { patch({ dir: dir === "asc" ? "desc" : "asc" }); return; }
+        patch({ sort: key, dir: CHAR_SORT_DEFAULTS[key] });
     };
 
     if (!chars.length) return <p className="sub">Noch keine Charaktere mit Loot.</p>;
@@ -404,6 +529,10 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
         .filter((g) => g.chars.length);
     const ungrouped = sorted.filter((c) => !c.categoryIds.length);
 
+    // A filter that outlives the visit needs a visible way back — otherwise a
+    // search typed last week silently hides half the roster on the next one.
+    const hasFilters = !!(search || categoryFilter || classFilter);
+
     return (
         <div className="dash-card">
             <div className="dash-card-head">
@@ -428,23 +557,35 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
                         type="text"
                         placeholder="Charaktername …"
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => patch({ search: e.target.value })}
                     />
                 </div>
                 <div className="field" style={{ margin: 0, minWidth: 180 }}>
                     <label htmlFor="chars-category">Kategorie</label>
-                    <select id="chars-category" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
+                    <select id="chars-category" value={categoryFilter} onChange={(e) => patch({ category: e.target.value })}>
                         <option value="">Alle Kategorien</option>
                         {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                     </select>
                 </div>
                 <div className="field" style={{ margin: 0, minWidth: 180 }}>
                     <label htmlFor="chars-class">Klasse & Spec</label>
-                    <select id="chars-class" value={classFilter} onChange={(e) => setClassFilter(e.target.value)}>
+                    <select id="chars-class" value={classFilter} onChange={(e) => patch({ classSpec: e.target.value })}>
                         <option value="">Alle Klassen</option>
                         {classOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                 </div>
+                {hasFilters && (
+                    <div className="field" style={{ margin: 0, justifyContent: "flex-end" }}>
+                        <button
+                            className="btn btn-ghost btn-sm"
+                            type="button"
+                            title="Suche und Filter zurücksetzen (werden lokal im Browser gespeichert)"
+                            onClick={() => patch({ search: "", category: "", classSpec: "" })}
+                        >
+                            Filter zurücksetzen
+                        </button>
+                    </div>
+                )}
             </div>
             {!sorted.length && <p className="sub" style={{ padding: "0 16px 14px" }}>Keine Charaktere gefunden.</p>}
             {groups.map((g) => (

@@ -105,6 +105,24 @@ function eventsWithLoot() {
         .sort((a, b) => (b.importedAt || 0) - (a.importedAt || 0));
 }
 
+// The per-item fields the "Charaktere" tab's hover preview needs: enough to
+// render icon + name + the award reason ("BiS", "Mainspec", …) without pulling
+// the whole stored row (raw export payload, importer bookkeeping, …) into the
+// /api/history response for every character.
+function charLootPreview(it) {
+    return {
+        itemId: it.itemId || 0,
+        itemName: it.itemName || "",
+        itemIconUrl: it.itemIconUrl || "",
+        itemLink: it.itemLink || "",
+        response: it.response || "",
+        offspec: !!it.offspec,
+        categoryId: it.categoryId || "",
+        eventLabel: it.eventLabel || "",
+        awardedAt: it.awardedAt || 0,
+    };
+}
+
 /**
  * Distinct characters that received loot, with a count, most loot first, plus
  * the distinct raid categories (Discord category id, e.g. "Montagsraid",
@@ -112,19 +130,28 @@ function eventsWithLoot() {
  * "Charaktere" tab by raid type. Category names are resolved from live
  * Discord state by the caller (see apiRoutes/history.js), same as
  * discord.listCategories() elsewhere — this store only ever sees ids.
+ *
+ * `items` carries each character's loot (newest award first) in the trimmed
+ * shape above, so the tab can show what someone actually won on hover instead
+ * of only how many pieces — no extra round trip per row.
  */
 function characters() {
     const byChar = new Map();
     for (const it of readAll()) {
         const key = it.characterKey;
         if (!key) continue;
-        if (!byChar.has(key)) byChar.set(key, { key, character: it.character, realm: it.realm || "", count: 0, categoryIds: new Set() });
+        if (!byChar.has(key)) byChar.set(key, { key, character: it.character, realm: it.realm || "", count: 0, categoryIds: new Set(), items: [] });
         const c = byChar.get(key);
         c.count += 1;
+        c.items.push(charLootPreview(it));
         if (it.categoryId) c.categoryIds.add(it.categoryId);
     }
     return [...byChar.values()]
-        .map((c) => ({ ...c, categoryIds: [...c.categoryIds] }))
+        .map((c) => ({
+            ...c,
+            categoryIds: [...c.categoryIds],
+            items: c.items.sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0)),
+        }))
         .sort((a, b) => b.count - a.count || a.character.localeCompare(b.character));
 }
 

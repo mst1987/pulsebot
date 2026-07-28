@@ -487,6 +487,36 @@ a.gear-row:hover { background: var(--panel2); }
 /* loot history: roomier rows with a proper item icon */
 .loot-table td { padding-top: 12px; padding-bottom: 12px; }
 .loot-ico { width: 30px; height: 30px; border-radius: 6px; vertical-align: middle; margin-right: 9px; }
+
+/* ===== Charaktere tab: the Items count opens the character's loot on hover =====
+   The panel is portalled to <body> and positioned from JS (see HistoryPage's
+   popoverStyle) — .dash-card's notched clip-path would otherwise slice it off
+   at the card edge, which no overflow/z-index can undo. */
+.loot-pop-wrap { display: inline-block; outline: none; }
+.loot-pop-trigger {
+    display: inline-block; min-width: 26px; padding: 1px 7px; border-radius: 999px;
+    background: var(--panel2); border: 1px dashed var(--line); color: var(--text);
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700;
+    text-align: center; cursor: help;
+}
+.loot-pop-wrap:hover .loot-pop-trigger,
+.loot-pop-wrap:focus-visible .loot-pop-trigger { border-color: var(--accent); color: var(--accent); }
+.loot-pop {
+    position: fixed; z-index: 60; overflow-y: auto;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: 0 12px 30px rgb(0 0 0 / .28); padding: 8px; cursor: default;
+}
+.loot-pop-head { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 2px 6px 8px; }
+.loot-pop-list { display: flex; flex-direction: column; gap: 2px; }
+.loot-pop-row { display: flex; align-items: center; gap: 9px; padding: 5px 6px; border-radius: 7px; }
+.loot-pop-row:hover { background: var(--panel2); }
+.loot-pop-ico { width: 28px; height: 28px; border-radius: 6px; flex: 0 0 auto; }
+.loot-pop-ico-ph { background: var(--panel2); border: 1px solid var(--line); }
+.loot-pop-body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.loot-pop-name { font-size: 13.5px; font-weight: 700; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.loot-pop-meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 11.5px; }
+.loot-pop-meta .lbadge { font-size: 11px; padding: 1px 7px; }
+
 @media (max-width: 640px) {
     .gear-summary { padding: 12px; gap: 12px; }
     .gear-portrait { width: 44px; height: 44px; }

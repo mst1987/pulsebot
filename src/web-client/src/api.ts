@@ -637,13 +637,28 @@ export type LootItem = {
 // specCatalog. categoryIds are the Discord raid categories (e.g. "Montagsraid",
 // "Pug") the character got loot in — names are resolved client-side against
 // HistoryData.categories, same live Discord list the "Loot-Tool je Kategorie"
-// tab already uses.
+// tab already uses. `items` is the character's loot in a trimmed shape (see
+// lootStore.js's charLootPreview) — just enough for the Items-column hover to
+// show icon, name and the award reason ("BiS", "Mainspec", …).
+export type CharLootPreview = {
+    itemId: number;
+    itemName: string;
+    itemIconUrl: string;
+    itemLink: string;
+    response: string;
+    offspec: boolean;
+    categoryId: string;
+    eventLabel: string;
+    awardedAt: number;
+};
+
 export type AnnotatedCharacter = {
     key: string;
     character: string;
     realm: string;
     count: number;
     categoryIds: string[];
+    items: CharLootPreview[];
     className: string;
     spec: string;
     source: string;

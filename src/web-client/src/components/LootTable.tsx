@@ -31,6 +31,16 @@ function sortValue(it: LootItem, key: SortKey): string | number {
     }
 }
 
+// The award reason as it came out of the loot tool ("BiS", "Mainspec",
+// "Upgrade", …) — RCLootcouncil ships free text, Gargul only knows the offspec
+// flag, so both fall back to a plain Main/Off Spec label. Shared with the
+// Charaktere tab's Items hover so a response reads the same everywhere.
+export function LootResponseBadge({ response, offspec }: { response?: string; offspec?: boolean }) {
+    return offspec
+        ? <span className="lbadge lbadge-neutral">{response || "Off Spec"}</span>
+        : <span className="lbadge lbadge-ok">{response || "Main Spec"}</span>;
+}
+
 function SortTh({ sortKey, label, sort, dir, onSort }: {
     sortKey: SortKey;
     label: string;
@@ -95,11 +105,7 @@ export function LootTable({ items, showEvent = false }: { items: LootItem[]; sho
                                 : (it.itemName || `Item ${it.itemId}`)}
                         </td>
                         <td><CharacterLink character={it.character} /></td>
-                        <td className="small">
-                            {it.offspec
-                                ? <span className="lbadge lbadge-neutral">{it.response || "Off Spec"}</span>
-                                : <span className="lbadge lbadge-ok">{it.response || "Main Spec"}</span>}
-                        </td>
+                        <td className="small"><LootResponseBadge response={it.response} offspec={it.offspec} /></td>
                         <td className="small">{it.boss || ""}</td>
                         {showEvent && <td className="small">{it.eventLabel || it.eventId || ""}</td>}
                         <td className="small">{fmtMs(it.awardedAt)}</td>
