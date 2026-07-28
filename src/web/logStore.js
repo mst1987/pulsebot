@@ -111,6 +111,32 @@ function markEvaluated(id, { reportRefId, reportUrl, title, zone } = {}) {
     return log;
 }
 
+/** A tracked log by the id of the report it was evaluated into, or null. */
+function getByReportRefId(reportRefId) {
+    const ref = String(reportRefId || "").trim();
+    if (!ref) return null;
+    return readAll().find((l) => l.reportRefId === ref) || null;
+}
+
+/**
+ * Undo a log's evaluation: back to status "open", report reference dropped. Used
+ * when the generated report is deleted — the log itself (and its event
+ * assignment) stays, so it can simply be evaluated again. Returns the saved log,
+ * or null for an unknown id.
+ */
+function clearEvaluation(id) {
+    const logs = readAll();
+    const log = logs.find((l) => l.id === id);
+    if (!log) return null;
+    log.status = "open";
+    log.reportRefId = "";
+    log.reportUrl = "";
+    delete log.evaluatedAt;
+    log.updatedAt = Date.now();
+    writeAll(logs);
+    return log;
+}
+
 /**
  * Set a log's display title (the Warcraft-Logs report name), backfilled lazily
  * when the CLA logs list is viewed. No-op for a blank title or unknown id.
@@ -187,7 +213,7 @@ function deleteLog(id) {
 }
 
 module.exports = {
-    listLogs, getLog, getByReportId, saveLog, setButtonMessage,
-    markEvaluated, setLogTitle, deleteLog, LOGS_FILE,
+    listLogs, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
+    markEvaluated, clearEvaluation, setLogTitle, deleteLog, LOGS_FILE,
     linkEvent, unlinkEvent, listLogsForEvent,
 };

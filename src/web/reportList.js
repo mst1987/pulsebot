@@ -56,6 +56,9 @@ const REPORT_SORT_KEYS = {
     zone: (r) => String(r.zone || "").toLowerCase(),
     players: (r) => r.playerCount || 0,
     issues: (r) => r.issueCount || 0,
+    // Raid the report's log is assigned to (see annotateReportEvents); reports
+    // without an assignment carry an empty label and group together.
+    event: (r) => String(r.eventLabel || "").toLowerCase(),
 };
 
 function prepareReportList(reports, query = {}, opts = {}) {
@@ -119,8 +122,31 @@ function annotateLogCategories(items, catMap) {
     return items;
 }
 
+/**
+ * Attach the tracked log a report was generated from — and through it the raid
+ * event that log is assigned to — to each report. A report is only ever tied to
+ * a raid indirectly: report.id === log.reportRefId, log.eventId === the raid.
+ * Mutates the items in place (render-only, not persisted) and returns them.
+ * @param {object[]} reports  report metadata (listReports())
+ * @param {object[]} logs     tracked logs (listLogs())
+ */
+function annotateReportEvents(reports, logs) {
+    const byRef = new Map();
+    for (const l of logs || []) {
+        if (l && l.reportRefId) byRef.set(l.reportRefId, l);
+    }
+    for (const r of reports || []) {
+        const log = r && byRef.get(r.id);
+        r.logId = log ? log.id : "";
+        r.eventId = (log && log.eventId) || "";
+        r.eventLabel = (log && log.eventLabel) || "";
+        r.eventStartTime = (log && log.eventStartTime) || 0;
+    }
+    return reports;
+}
+
 module.exports = {
-    prepareReportList, prepareLogList, sortAndPaginate, annotateLogCategories,
+    prepareReportList, prepareLogList, sortAndPaginate, annotateLogCategories, annotateReportEvents,
     DEFAULT_PAGE_SIZE, REPORT_SORT_KEYS, LOG_SORT_KEYS,
     logPostedAt, snowflakeTimestamp,
 };

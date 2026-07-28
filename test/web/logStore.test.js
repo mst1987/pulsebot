@@ -21,8 +21,8 @@ jest.mock("fs", () => {
 
 const fs = require("fs");
 const {
-    listLogs, getLog, getByReportId, saveLog, setButtonMessage,
-    markEvaluated, setLogTitle, deleteLog,
+    listLogs, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
+    markEvaluated, clearEvaluation, setLogTitle, deleteLog,
     linkEvent, unlinkEvent, listLogsForEvent,
 } = require("../../src/web/logStore.js");
 
@@ -121,6 +121,48 @@ describe("web/logStore", () => {
 
         it("returns null for an unknown id", () => {
             expect(markEvaluated("nope", {})).toBeNull();
+        });
+    });
+
+    describe("getByReportRefId / clearEvaluation", () => {
+        it("finds the log a report was generated from", () => {
+            const a = saveLog(base());
+            saveLog(base({ reportId: "RPT2", messageId: "m2" }));
+            markEvaluated(a.id, { reportRefId: "abc123", reportUrl: "/r/abc123" });
+            expect(getByReportRefId("abc123")).toMatchObject({ id: a.id });
+        });
+
+        it("returns null for a blank or unknown report ref", () => {
+            saveLog(base());
+            expect(getByReportRefId("")).toBeNull();
+            expect(getByReportRefId(null)).toBeNull();
+            expect(getByReportRefId("nope")).toBeNull();
+        });
+
+        it("puts an evaluated log back to open and drops the report reference", () => {
+            const a = saveLog(base());
+            markEvaluated(a.id, { reportRefId: "abc123", reportUrl: "/r/abc123", title: "SSC" });
+            const cleared = clearEvaluation(a.id);
+            expect(cleared.status).toBe("open");
+            expect(cleared.reportRefId).toBe("");
+            expect(cleared.reportUrl).toBe("");
+            expect(cleared.evaluatedAt).toBeUndefined();
+            expect(cleared.title).toBe("SSC"); // title stays — it's the WCL report name
+            expect(getByReportRefId("abc123")).toBeNull();
+            expect(getLog(a.id).status).toBe("open"); // persisted
+        });
+
+        it("keeps the event assignment when the evaluation is cleared", () => {
+            const a = saveLog(base());
+            linkEvent(a.id, { eventId: "e1", eventLabel: "Gruul", eventStartTime: 42, source: "manual" });
+            markEvaluated(a.id, { reportRefId: "abc123", reportUrl: "/r/abc123" });
+            const cleared = clearEvaluation(a.id);
+            expect(cleared.eventId).toBe("e1");
+            expect(cleared.eventLabel).toBe("Gruul");
+        });
+
+        it("returns null for an unknown id", () => {
+            expect(clearEvaluation("nope")).toBeNull();
         });
     });
 

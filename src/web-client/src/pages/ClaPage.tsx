@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import {
     getClaData, createReport, evalLog, scanLogs, deleteLogEntry, linkLog, unlinkLog, autoMatchLogs,
+    deleteReport, unlinkReport,
     type ApiError, type ClaData, type ClaPage, type ReportSummary, type LogRow, type MatchCandidate,
 } from "../api";
 import { formatEventTime, fmtMs } from "../lib/format";
@@ -13,7 +14,7 @@ type Dir = "asc" | "desc";
 
 // Default sort direction per column — mirrors renderAdmin.js's REPORT_DIR/LOG_DIR
 // maps used by claSortHeader().
-const REPORT_SORT_DEFAULTS: Record<string, Dir> = { title: "asc", zone: "asc", date: "desc", players: "desc", issues: "desc" };
+const REPORT_SORT_DEFAULTS: Record<string, Dir> = { title: "asc", zone: "asc", event: "asc", date: "desc", players: "desc", issues: "desc" };
 const LOG_SORT_DEFAULTS: Record<string, Dir> = { title: "asc", status: "asc", date: "desc" };
 
 // "vor/nach Start" hint for a candidate event — mirrors formatMatchOffset() in
@@ -73,6 +74,24 @@ function Pager({ page, onPage }: { page: { page: number; totalPages: number; tot
     );
 }
 
+// The "Raid" cell of a report row: the raid its log is assigned to, with a
+// button to remove that assignment. A report is never linked to a raid directly
+// — the link lives on the log it was generated from, so unassigning here means
+// unassigning that log. Reports without a log (or without an assignment) show a
+// dash; assigning is done in the logs tab / on the raid page.
+function ReportEventCell({ r, busy, onUnlink }: { r: ReportSummary; busy: boolean; onUnlink: () => void }) {
+    if (!r.eventId) {
+        return <span className="sub" title={r.logId ? "Das zugehörige Log ist keinem Raid zugeordnet" : "Zu dieser Auswertung gibt es kein erkanntes Log"}>—</span>;
+    }
+    const when = r.eventStartTime ? formatEventTime(r.eventStartTime) : "";
+    return (
+        <div className="row-actions" style={{ flexWrap: "nowrap", gap: 6 }}>
+            <span className="pill" title={`${r.eventLabel || r.eventId}${when ? ` — ${when}` : ""}`}>{r.eventLabel || r.eventId}</span>
+            <button className="btn btn-ghost btn-sm" type="button" title="Zuordnung entfernen" disabled={busy} onClick={onUnlink}>×</button>
+        </div>
+    );
+}
+
 function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
     reportPage: ClaPage<ReportSummary> | null;
     csrfToken: string | null;
@@ -83,6 +102,7 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
     const [link, setLink] = useState("");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [rowBusyId, setRowBusyId] = useState<string | null>(null);
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -96,6 +116,34 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
             setError((err as ApiError).message);
         } finally {
             setBusy(false);
+        }
+    };
+
+    // Deleting a report also resets its log back to "offen", so it can be
+    // evaluated again — say so, the admin doesn't see the logs tab from here.
+    const remove = async (r: ReportSummary) => {
+        if (!confirm(`Auswertung „${r.title || r.id}“ löschen? Das zugehörige Log bleibt erhalten und kann neu ausgewertet werden.`)) return;
+        setRowBusyId(r.id);
+        try {
+            const res = await deleteReport(csrfToken, r.id);
+            onChanged(res.message);
+        } catch (err) {
+            onChanged((err as ApiError).message);
+        } finally {
+            setRowBusyId(null);
+        }
+    };
+
+    const unlink = async (r: ReportSummary) => {
+        if (!confirm(`Zuordnung zum Raid „${r.eventLabel || r.eventId}“ entfernen? Die Auswertung selbst bleibt bestehen.`)) return;
+        setRowBusyId(r.id);
+        try {
+            const res = await unlinkReport(csrfToken, r.id);
+            onChanged(res.message);
+        } catch (err) {
+            onChanged((err as ApiError).message);
+        } finally {
+            setRowBusyId(null);
         }
     };
 
@@ -125,10 +173,12 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
                                 <tr>
                                     <SortTh sortKey="title" label="Report" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
                                     <SortTh sortKey="zone" label="Zone" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
+                                    <SortTh sortKey="event" label="Raid" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
                                     <SortTh sortKey="date" label="Erstellt" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
                                     <SortTh sortKey="players" label="Spieler" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
                                     <SortTh sortKey="issues" label="Probleme" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
                                     <th>WCL</th>
+                                    <th />
                                 </tr>
                             </thead>
                             <tbody>
@@ -136,12 +186,21 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
                                     <tr key={r.id}>
                                         <td><a href={`/r/${r.id}`}>{r.title || r.id}</a></td>
                                         <td>{r.zone || ""}</td>
+                                        <td><ReportEventCell r={r} busy={rowBusyId === r.id} onUnlink={() => unlink(r)} /></td>
                                         <td className="small">{fmtMs(r.generatedAt)}</td>
                                         <td>{r.playerCount}</td>
                                         <td><span className="pill">{r.issueCount}</span></td>
                                         <td>{r.reportUrl
                                             ? <a className="mlink" href={r.reportUrl} target="_blank" rel="noopener noreferrer">WCL ↗</a>
                                             : <span className="sub">—</span>}</td>
+                                        <td className="cell-actions">
+                                            <div className="row-actions" style={{ justifyContent: "flex-end" }}>
+                                                <button
+                                                    className="btn btn-danger btn-sm" type="button"
+                                                    disabled={rowBusyId === r.id} onClick={() => remove(r)}
+                                                >Löschen</button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>
