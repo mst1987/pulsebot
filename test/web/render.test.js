@@ -282,6 +282,19 @@ describe("web/render", () => {
             expect(html).toContain("data-tab=\"shadowresi\"");
         });
 
+        it("says so in the Raider tab when the CLA half has not run yet", () => {
+            const report = reportWithRpb();
+            delete report.potions;      // RPB evaluated, CLA not — zeros would mislead
+            const html = renderReportPage(report);
+            expect(html).toContain("nicht ausgewertet");
+        });
+
+        it("shows the potion counts in the Raider tab once the CLA half is there", () => {
+            const html = renderReportPage(sampleReport());
+            expect(html).not.toContain("nicht ausgewertet");
+            expect(html).toContain("class=\"potions\"");
+        });
+
         it("breaks the mana total down into one column per source", () => {
             const html = renderReportPage(sampleReport());
             // the aggregate stays, the sources are spelled out behind it

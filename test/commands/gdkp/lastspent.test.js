@@ -17,8 +17,18 @@ function stubItems(items) {
 }
 
 describe("commands/gdkp/lastspent", () => {
+    // The window runs from the Wednesday two weeks back to the Wednesday one week
+    // back — so when the suite runs *on* a Wednesday it ends today, and the "too
+    // new" item lands inside the window instead of after it. Freezing the clock on
+    // a Friday keeps the window in the past on every day of the week.
     beforeEach(() => {
         jest.clearAllMocks();
+        jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate"] });
+        jest.setSystemTime(new Date(2026, 6, 24, 12, 0, 0));   // Friday, 24 July 2026
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
     });
 
     it("exports the command contract with the correct name", () => {

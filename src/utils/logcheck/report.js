@@ -170,9 +170,10 @@ async function buildReportForId(reportId, sections, mergeIntoId) {
 function mergeReports(existing, fresh, sections) {
     const merged = { ...existing };
     // shared meta always follows the newer run
-    for (const key of ["title", "zone", "date", "reportId", "reportUrl", "generatedAt", "players", "roster"]) {
+    for (const key of ["title", "zone", "date", "reportId", "reportUrl", "generatedAt", "players"]) {
         if (fresh[key] !== undefined && fresh[key] !== null) merged[key] = fresh[key];
     }
+    merged.roster = mergeRoster(existing.roster, fresh.roster, sections);
     if (sections.includes(SECTION_CLA)) {
         for (const key of ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes"]) {
             merged[key] = fresh[key];
@@ -184,6 +185,27 @@ function mergeReports(existing, fresh, sections) {
     }
     merged.sections = [...new Set([...(existing.sections || []), ...sections])];
     return merged;
+}
+
+/**
+ * The roster is shared by both halves, but not every field in it is.
+ *
+ * Armory and gear issues are computed on every run, so the fresh roster is the
+ * right base. The potion counts are not: they come from the CLA analyzers, so an
+ * RPB-only run builds them as zeros. Taking that roster wholesale used to blank
+ * the Potions column of an already-evaluated CLA half — the Tränke tab kept its
+ * numbers (it reads report.potions) while the Raider tab showed nothing but 0s.
+ */
+function mergeRoster(existingRoster, freshRoster, sections) {
+    // An empty fresh roster means the run could not resolve the raid at all; the
+    // roster already on the page is better than none.
+    const fresh = (freshRoster && freshRoster.length) ? freshRoster : (existingRoster || []);
+    if (sections.includes(SECTION_CLA)) return fresh;
+    const byName = new Map((existingRoster || []).map((p) => [p.name, p]));
+    return fresh.map((p) => {
+        const previous = byName.get(p.name);
+        return previous && previous.potions ? { ...p, potions: previous.potions } : p;
+    });
 }
 
 // Report fields each half owns. Only these are dropped when a half is discarded;
@@ -246,6 +268,7 @@ function reportSummaryLines(report, only) {
 
 module.exports = {
     buildReport,
+    mergeRoster,
     reportSummaryLines,
     normalizeSections,
     stripSection,
