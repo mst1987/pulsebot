@@ -618,18 +618,19 @@ export type LootItem = {
     eventLabel?: string;
 };
 
-export type CharacterRaid = { eventId: string; eventLabel: string };
-
 // A loot character with its resolved WoW class/spec (or blank if unresolved
 // yet). classColor/iconUrl are computed server-side from config/classlist.js
 // — never duplicated client-side, same rule as lib/recruitmentSpecs.ts's
-// specCatalog.
+// specCatalog. categoryIds are the Discord raid categories (e.g. "Montagsraid",
+// "Pug") the character got loot in — names are resolved client-side against
+// HistoryData.categories, same live Discord list the "Loot-Tool je Kategorie"
+// tab already uses.
 export type AnnotatedCharacter = {
     key: string;
     character: string;
     realm: string;
     count: number;
-    raids: CharacterRaid[];
+    categoryIds: string[];
     className: string;
     spec: string;
     source: string;

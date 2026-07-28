@@ -107,26 +107,24 @@ function eventsWithLoot() {
 
 /**
  * Distinct characters that received loot, with a count, most loot first, plus
- * the distinct raids (eventId/eventLabel) each got loot in — the join key for
- * grouping/filtering the "Charaktere" tab by raid.
+ * the distinct raid categories (Discord category id, e.g. "Montagsraid",
+ * "Pug") each got loot in — the join key for grouping/filtering the
+ * "Charaktere" tab by raid type. Category names are resolved from live
+ * Discord state by the caller (see apiRoutes/history.js), same as
+ * discord.listCategories() elsewhere — this store only ever sees ids.
  */
 function characters() {
     const byChar = new Map();
     for (const it of readAll()) {
         const key = it.characterKey;
         if (!key) continue;
-        if (!byChar.has(key)) byChar.set(key, { key, character: it.character, realm: it.realm || "", count: 0, raids: new Map() });
+        if (!byChar.has(key)) byChar.set(key, { key, character: it.character, realm: it.realm || "", count: 0, categoryIds: new Set() });
         const c = byChar.get(key);
         c.count += 1;
-        if (it.eventId && !c.raids.has(it.eventId)) c.raids.set(it.eventId, it.eventLabel || it.eventId);
+        if (it.categoryId) c.categoryIds.add(it.categoryId);
     }
     return [...byChar.values()]
-        .map((c) => ({
-            ...c,
-            raids: [...c.raids.entries()]
-                .map(([eventId, eventLabel]) => ({ eventId, eventLabel }))
-                .sort((a, b) => a.eventLabel.localeCompare(b.eventLabel)),
-        }))
+        .map((c) => ({ ...c, categoryIds: [...c.categoryIds] }))
         .sort((a, b) => b.count - a.count || a.character.localeCompare(b.character));
 }
 
