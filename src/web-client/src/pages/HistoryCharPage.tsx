@@ -31,6 +31,31 @@ const GEM_COLOR: Record<string, string> = {
     PRISMATIC: "linear-gradient(135deg, #e05d5d, #e0c65d, #5d8ee0)",
 };
 const SOCKET_DE: Record<string, string> = { RED: "Rot", YELLOW: "Gelb", BLUE: "Blau", META: "Meta", PRISMATIC: "Prismatisch" };
+// The game's own empty-socket art (same files Wowhead's tooltips use), so an
+// unfilled socket looks like it does in the item tooltip instead of a coloured
+// square. Unknown/blank types fall back to the prismatic frame.
+const SOCKET_ICON: Record<string, string> = {
+    RED: "socket-red", YELLOW: "socket-yellow", BLUE: "socket-blue", META: "socket-meta", PRISMATIC: "socket-prismatic",
+};
+function socketIconUrl(type: string): string {
+    return `https://wow.zamimg.com/images/icons/${SOCKET_ICON[type] || SOCKET_ICON.PRISMATIC}.gif`;
+}
+
+// Slots that can carry a permanent enchant in TBC — same set as the CLA's
+// gear audit (config/claData.js ENCHANTABLE_SLOTS), translated from WCL slot
+// indices to the Blizzard slot keys this page works with. Rings/neck/trinkets
+// are left out on purpose: they are enchanter-only or not enchantable at all,
+// so a red cross there would be a false alarm.
+const ENCHANTABLE_SLOTS = new Set(["HEAD", "SHOULDER", "CHEST", "LEGS", "FEET", "WRIST", "HANDS", "BACK", "MAIN_HAND", "OFF_HAND"]);
+
+// An off-hand *held* item (tome, orb, idol) sits in OFF_HAND but takes no
+// enchant — only shields and off-hand weapons do. Same heuristic the CLA uses
+// (gearIssues.js's isShieldMisc): those items' icons are the "_misc_" ones.
+function isEnchantable(g: GearItem, slot: string): boolean {
+    if (!ENCHANTABLE_SLOTS.has(slot)) return false;
+    if (slot === "OFF_HAND" && g.iconUrl.indexOf("_misc_") > -1) return false;
+    return true;
+}
 
 // Wowhead item URL carrying the character's actual enchant + gems, so the
 // widget tooltip (power.js in index.html) shows them like the in-game tooltip.
@@ -65,7 +90,9 @@ function GearRow({ g, slot }: { g?: GearItem; slot: string }) {
         <>
             <span className="icon-wrap">
                 {g.iconUrl ? <img src={g.iconUrl} alt="" loading="lazy" style={{ borderColor: color }} /> : <span className="ph" />}
-                {!!g.enchants.length && <span className="ench-badge" title={`Verzauberung: ${g.enchants.join(" · ")}`}>+</span>}
+                {g.enchants.length
+                    ? <span className="ench-badge ok" title={`Verzauberung: ${g.enchants.join(" · ")}`} aria-label="verzaubert">✓</span>
+                    : isEnchantable(g, slot) && <span className="ench-badge bad" title="Keine Verzauberung" aria-label="nicht verzaubert">✕</span>}
                 {!!g.level && <span className="ilvl-badge">{g.level}</span>}
             </span>
             <span className="body">
@@ -75,12 +102,28 @@ function GearRow({ g, slot }: { g?: GearItem; slot: string }) {
                     {g.sockets.map((s, i) => {
                         const filled = !!(s.gemName || s.gemText);
                         const tip = filled ? (s.gemName || s.gemText) : `Leerer Sockel (${SOCKET_DE[s.type] || s.type || "?"})`;
+                        // Socketed: the gem's own item icon. Empty: the game's
+                        // empty-socket frame in the socket's colour. A gem we
+                        // could not resolve an icon for keeps the coloured dot,
+                        // so it still reads as "filled" rather than as a hole.
+                        if (filled && !s.gemIconUrl) {
+                            return (
+                                <span
+                                    key={i}
+                                    className="gem-dot"
+                                    title={tip}
+                                    style={{ background: GEM_COLOR[s.type] || "#888", borderColor: GEM_COLOR[s.type] || "var(--muted)" }}
+                                />
+                            );
+                        }
                         return (
-                            <span
+                            <img
                                 key={i}
-                                className="gem-dot"
+                                className={`gem-ico${filled ? " filled" : ""}`}
+                                src={filled ? s.gemIconUrl : socketIconUrl(s.type)}
+                                alt=""
+                                loading="lazy"
                                 title={tip}
-                                style={{ background: filled ? (GEM_COLOR[s.type] || "#888") : "transparent", borderColor: GEM_COLOR[s.type] || "var(--muted)" }}
                             />
                         );
                     })}

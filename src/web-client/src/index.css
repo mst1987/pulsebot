@@ -586,16 +586,28 @@ a.gear-row:hover { background: var(--panel2); }
     text-align: center; font-size: 10px; font-weight: 800; font-family: var(--font-mono); border-radius: 5px;
     background: var(--panel); border: 1px solid var(--line); color: var(--text);
 }
+/* Enchant state at a glance: green check = enchanted, red cross = an
+   enchantable slot left bare. Slots that take no enchant carry no badge at
+   all, so an empty corner never reads as "missing". */
 .gear-row .ench-badge {
     position: absolute; left: -4px; top: -4px; width: 15px; height: 15px; border-radius: 4px;
-    background: var(--good-bg); color: var(--good); font-size: 10px; font-weight: 900; line-height: 15px; text-align: center;
-    border: 1px solid var(--good);
+    font-size: 9px; font-weight: 900; line-height: 14px; text-align: center;
+    background: var(--panel); border: 1px solid var(--line); color: var(--text);
 }
+/* The tint tokens are translucent and the badge sits on top of the item icon —
+   layer them over --panel so the item art never shows through the badge. */
+.gear-row .ench-badge.ok { background: linear-gradient(var(--good-bg), var(--good-bg)), var(--panel); border-color: var(--good); color: var(--good); }
+.gear-row .ench-badge.bad { background: linear-gradient(var(--high-bg), var(--high-bg)), var(--panel); border-color: var(--high); color: var(--high); }
 .gear-row .body { min-width: 0; flex: 1; }
 .gear-row .item-name { display: block; font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .gear-row .slot-line { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
 .gear-row .slot-label { font-size: 10.5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+/* Sockets: the gem's item icon when socketed, the game's empty-socket frame
+   when not. .gem-dot stays as the fallback for a gem whose icon we could not
+   resolve (see HistoryCharPage's GearRow). */
 .gear-row .gem-dot { width: 8px; height: 8px; border-radius: 2px; border: 1px solid rgba(0, 0, 0, .5); flex: none; }
+.gear-row .gem-ico { width: 13px; height: 13px; flex: none; display: block; image-rendering: pixelated; }
+.gear-row .gem-ico.filled { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--line); image-rendering: auto; }
 .gear-row.empty { opacity: .5; }
 .gear-row.empty .item-name { color: var(--muted); font-weight: 500; }
 .gear-weapons { display: flex; gap: 20px; margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--line-soft); flex-wrap: wrap; }
