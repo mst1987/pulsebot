@@ -54,8 +54,9 @@ function topAvoidableAbilities(byAbility) {
             const hit = byGuid.get(String(id));
             if (!hit) continue;
             total += hit.total || 0;
-            // the hardest-hitting id represents the ability in the UI
-            if (!icon && hit.abilityIcon) { icon = hit.abilityIcon; spellId = Number(hit.guid) || null; }
+            // the first matching id represents the ability in the UI
+            if (!spellId) spellId = Number(hit.guid) || null;
+            if (!icon && hit.abilityIcon) icon = hit.abilityIcon;
             for (const src of hit.sources || []) {
                 if (!src || !src.name) continue;
                 // the sheet strips "[...]" markers and the UNUSED suffix from npc names
@@ -70,7 +71,9 @@ function topAvoidableAbilities(byAbility) {
                 ids: tracked.ids,
                 total,
                 sources: [...sources],
-                icon,
+                // config icon (resolved from the spell id at build time) covers the
+                // abilities Warcraft Logs reports without one
+                icon: icon || tracked.icon || "",
                 spellId,
             });
         }

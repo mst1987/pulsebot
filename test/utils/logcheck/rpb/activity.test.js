@@ -83,6 +83,23 @@ describe("rpb/activity sumCastSection", () => {
         expect(row.spellId).toBe(100);
     });
 
+    test("uses the config icon when the log row carried none", () => {
+        const withIcon = [{ name: "Fireball", label: "Feuerball", ids: ["100"], icon: "spell_fire_flamebolt", castTime: 3 }];
+        const [row] = sumCastSection([{ guid: 100, total: 2 }], withIcon).rows;
+        expect(row.icon).toBe("spell_fire_flamebolt");
+    });
+
+    test("the real config carries an icon for practically every tracked cast", () => {
+        const all = [];
+        for (const section of [rpbData.SINGLE_TARGET_CASTS, rpbData.AOE_CASTS]) {
+            for (const list of Object.values(section)) all.push(...list);
+        }
+        const withIcon = all.filter((e) => e.icon).length;
+        expect(all.length).toBeGreaterThan(300);
+        // one entry is a retail-only spell id that no TBC database knows
+        expect(all.length - withIcon).toBeLessThanOrEqual(1);
+    });
+
     test("uptime abilities report an average uptime percentage", () => {
         const entries = [{ guid: 300, total: 4, uptime: 320 }];
         const rows = sumCastSection(entries, tracked).rows;

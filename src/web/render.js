@@ -7,6 +7,7 @@
 // stop inside the admin menu instead of a dead end.
 
 const { renderAdminChrome, CHROME_STYLE, ICONS } = require("./adminChrome");
+const rpbData = require("../config/rpbData");
 
 const CLASS_COLORS = {
     Druid: "#FF7D0A", Hunter: "#ABD473", Mage: "#69CCF0", Paladin: "#F58CBA",
@@ -48,7 +49,9 @@ function issueRow(issue) {
 
 function nameInner(p) {
     const color = CLASS_COLORS[p.type] || "#ddd";
-    return `<img src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}" title="${esc(p.type)}"><span style="color:${color};font-weight:700">${esc(p.name)}</span>`;
+    // no tooltip on the class icon: the class already shows in the icon and in the
+    // name's colour, and a box popping up on every row hover is pure noise
+    return `<img src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}"><span style="color:${color};font-weight:700">${esc(p.name)}</span>`;
 }
 
 function classCell(p, href) {
@@ -70,7 +73,7 @@ function playerCard(p, href) {
     return `
     <section class="card ${sev}">
       ${head}
-        <img class="classicon" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}" title="${esc(p.type)}">
+        <img class="classicon" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}" data-tip="${esc(p.type)}">
         <span class="pname" style="color:${color}">${esc(p.name)}</span>
         <span class="count">${issues.length}</span>
       ${headEnd}
@@ -90,13 +93,35 @@ function yesNo(v) {
 // small inline icon for table headers / labels
 function hicon(icon, title) {
     if (!icon) return "";
-    return `<img class="hicon" src="${esc(iconUrl(icon))}" alt="" title="${esc(title || "")}">`;
+    const tip = title ? ` data-tip="${esc(title)}"` : "";
+    return `<img class="hicon" src="${esc(iconUrl(icon))}" alt=""${tip}>`;
 }
 function colHead(icon, label) {
-    return `${hicon(icon, label)}<span>${esc(label)}</span>`;
+    return `${hicon(icon, "")}<span>${esc(label)}</span>`;
 }
 
 // --- icon tiles + nested tabs (shared by the RPB panels) ------------------
+
+/**
+ * Config name -> icon, built once from the generated RPB reference data.
+ *
+ * Reports saved before icons were recorded carry none on their rows, but they do
+ * carry the config's own `name`. Looking the icon up here means those older
+ * reports show real icons too, without having to be evaluated again.
+ */
+const ICON_BY_NAME = (() => {
+    const map = {};
+    const add = (list) => {
+        for (const e of list || []) if (e && e.name && e.icon && !map[e.name]) map[e.name] = e.icon;
+    };
+    for (const key of ["DAMAGE_TAKEN", "DEBUFFS", "TRINKETS_AND_RACIALS", "ENGINEERING", "OTHER_CASTS", "ABSORBS"]) {
+        add(rpbData[key]);
+    }
+    for (const key of ["SINGLE_TARGET_CASTS", "AOE_CASTS", "CLASS_COOLDOWNS"]) {
+        for (const list of Object.values(rpbData[key] || {})) add(list);
+    }
+    return map;
+})();
 
 /** Wowhead target for a tracked thing — item pages win over spell pages. */
 function wowheadHref(o) {
@@ -111,17 +136,28 @@ function wowheadHref(o) {
  * @param {object} o { icon, label, count, itemId, spellId, tone, note }
  */
 function iconTile(o) {
-    const parts = [o.label];
-    if (o.count !== undefined && o.count !== null) parts.push(`×${o.count}`);
-    if (o.note) parts.push(`— ${o.note}`);
-    const title = parts.join(" ");
-    const img = `<img src="${esc(iconUrl(o.icon))}" loading="lazy" alt="">`;
-    const badge = (o.count === undefined || o.count === null) ? "" : `<span class="n">${esc(o.count)}</span>`;
-    const cls = `itile${o.tone ? ` ${o.tone}` : ""}`;
+    const icon = o.icon || ICON_BY_NAME[o.name] || "";
+    const hasCount = o.count !== undefined && o.count !== null;
+    const head = hasCount ? `${o.label} ×${o.count}` : o.label;
+    const badge = hasCount ? `<span class="n">${esc(o.count)}</span>` : "";
     const href = wowheadHref(o);
+    // Wowhead's power.js would attach a second tooltip to these links; its own
+    // opt-out attribute keeps the link clickable but leaves the hover to us, since
+    // only we know the cast count and the downrank note.
+    const tip = ` data-tip="${esc(head)}"${o.note ? ` data-tip-sub="${esc(o.note)}"` : ""} data-disable-wowhead-tooltip="true"`;
+    // Nothing resolved at all — the label reads better than a question mark.
+    if (!icon) {
+        const cls = `ipill${o.tone ? ` ${o.tone}` : ""}`;
+        const inner = `<span>${esc(o.label)}</span>${badge}`;
+        return href
+            ? `<a class="${cls}" href="${esc(href)}" target="_blank" rel="noopener"${tip}>${inner}</a>`
+            : `<span class="${cls}"${tip}>${inner}</span>`;
+    }
+    const img = `<img src="${esc(iconUrl(icon))}" loading="lazy" alt="">`;
+    const cls = `itile${o.tone ? ` ${o.tone}` : ""}`;
     return href
-        ? `<a class="${cls}" href="${esc(href)}" target="_blank" rel="noopener" title="${esc(title)}">${img}${badge}</a>`
-        : `<span class="${cls}" title="${esc(title)}">${img}${badge}</span>`;
+        ? `<a class="${cls}" href="${esc(href)}" target="_blank" rel="noopener"${tip}>${img}${badge}</a>`
+        : `<span class="${cls}"${tip}>${img}${badge}</span>`;
 }
 
 /** A wrapping row of icon tiles, or an em dash when there is nothing to show. */
@@ -140,7 +176,7 @@ function tabbed(items, extraClass) {
     if (items.length === 1) return items[0].html;
     const buttons = items.map((t, i) => {
         const count = (t.count === undefined || t.count === null) ? "" : `<span class="tab-count">${esc(t.count)}</span>`;
-        return `<button class="tab-btn${i === 0 ? " active" : ""}" data-tab="${esc(t.id)}">${hicon(t.icon, t.label)}<span>${esc(t.label)}</span>${count}</button>`;
+        return `<button class="tab-btn${i === 0 ? " active" : ""}" data-tab="${esc(t.id)}">${hicon(t.icon, "")}<span>${esc(t.label)}</span>${count}</button>`;
     }).join("");
     const panels = items.map((t, i) =>
         `<div id="tab-${esc(t.id)}" class="tabpanel${i === 0 ? " active" : ""}">${t.html}</div>`).join("");
@@ -349,11 +385,25 @@ ${body}
   table.idx.rpb th { white-space:nowrap; vertical-align:bottom; }
   table.idx.rpb td.n, table.idx.rpb th.n { text-align:right; font-family:var(--font-mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
   /* the player column stays put while the ability columns scroll */
-  table.idx.rpb th.pcol, table.idx.rpb td.pcol { position:sticky; left:0; z-index:2; background:var(--panel); min-width:172px; }
+  table.idx.rpb th.pcol, table.idx.rpb td.pcol { position:sticky; left:0; z-index:2; background:var(--panel);
+    width:200px; min-width:200px; max-width:200px; overflow:hidden; text-overflow:ellipsis; }
   table.idx.rpb th.pcol { background:var(--panel2); }
   table.idx.rpb tr:hover td.pcol { background:var(--panel2); }
+  /* Numeric tables get a fixed geometry, so a role with two raiders looks exactly
+     like one with twelve instead of stretching its few columns across the page. */
+  table.idx.rpb.fixed { table-layout:fixed; width:auto; }
+  table.idx.rpb.fixed th.n, table.idx.rpb.fixed td.n { width:106px; }
+  table.idx.rpb.fixed td { height:42px; }
+  table.idx.rpb.fixed th { height:54px; }
+  /* damage severity scale — share of the highest value in that column raid-wide */
+  td.n .dv { display:inline-block; min-width:74px; padding:2px 8px; border-radius:6px; text-align:right; }
+  .dv-1 { background:var(--good-bg); color:var(--good); }
+  .dv-2 { background:rgba(214,196,60,.18); color:#c9ac26; }
+  .dv-3 { background:var(--medium-bg); color:var(--medium); }
+  .dv-4 { background:var(--high-bg); color:var(--high); font-weight:700; }
+  :root[data-theme="dark"] .dv-2, :root:not([data-theme="light"]) .dv-2 { color:#dfc84a; }
   /* transposed view: one column per raider */
-  th.rcol { min-width:74px; text-align:center; }
+  th.rcol { width:96px; min-width:96px; text-align:center; }
   th.rcol .rcol-in { display:flex; flex-direction:column; align-items:center; gap:3px; }
   th.rcol img { width:22px; height:22px; border-radius:4px; }
   th.rcol span { font-size:11px; font-weight:600; max-width:72px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; display:block; }
@@ -369,6 +419,23 @@ ${body}
   .itile.warn { border-color:var(--high); box-shadow:0 0 0 1px var(--high-bg); }
   .itile.warn .n { background:var(--high); border-color:var(--high); color:#fff; }
   .itile.good .n { background:var(--good-bg); color:var(--good); border-color:var(--good-bg); }
+  /* fallback for rows with no icon at all (reports saved before icons existed) */
+  .ipill { display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border-radius:7px; border:1px solid var(--line);
+    background:var(--panel2); color:var(--text); font-size:12.5px; text-decoration:none; max-width:200px; }
+  .ipill > span:first-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ipill .n { font:700 11px/15px var(--font-mono); font-variant-numeric:tabular-nums; color:var(--muted); }
+  .ipill.warn { border-color:var(--high); color:var(--high); }
+  .ipill:hover { border-color:var(--accent); }
+  /* custom tooltip — the native title box is slow to appear and cannot be styled */
+  #tip { position:fixed; z-index:9999; pointer-events:none; opacity:0; transform:translateY(5px); max-width:330px;
+    background:var(--panel); color:var(--text); border:1px solid var(--line); border-left:3px solid var(--accent);
+    padding:8px 12px; font-size:12.5px; line-height:1.45; box-shadow:0 14px 38px -12px rgba(0,0,0,.65);
+    clip-path:polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
+    transition:opacity .11s ease, transform .11s ease; }
+  #tip.on { opacity:1; transform:translateY(0); }
+  #tip b { display:block; font-size:13.5px; margin-bottom:3px; }
+  #tip i { display:block; font-style:normal; color:var(--muted); }
+  @media (prefers-reduced-motion: reduce) { #tip { transition:none; } }
   /* table-orientation switch */
   .tblswitch { display:inline-flex; margin:0 0 12px; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
   .tblswitch button { appearance:none; background:var(--panel); border:0; color:var(--muted); font:inherit; font-size:13px; font-weight:600;
@@ -478,6 +545,36 @@ document.addEventListener("click",function(e){
     if(p.classList&&p.classList.contains("tabpanel")) p.classList.toggle("active",p.id==="tab-"+t);
   });
 });
+/* Tooltips. One floating box for the whole page, driven by data-tip/data-tip-sub —
+   the native title box takes a second to appear and cannot be styled. */
+(function(){
+  var el=null, cur=null;
+  function box(){ if(!el){ el=document.createElement("div"); el.id="tip"; document.body.appendChild(el);} return el; }
+  function place(t){
+    var b=box(), r=t.getBoundingClientRect(), tb=b.getBoundingClientRect();
+    var x=r.left+r.width/2-tb.width/2, y=r.top-tb.height-9;
+    if(y<8){ y=r.bottom+9; }
+    b.style.left=Math.max(8,Math.min(x,window.innerWidth-tb.width-8))+"px";
+    b.style.top=y+"px";
+  }
+  function show(t){
+    if(cur===t) return;
+    cur=t; var b=box();
+    var sub=t.getAttribute("data-tip-sub");
+    b.innerHTML="<b></b>"+(sub?"<i></i>":"");
+    b.querySelector("b").textContent=t.getAttribute("data-tip")||"";
+    if(sub) b.querySelector("i").textContent=sub;
+    b.classList.add("on"); place(t);
+  }
+  function hide(){ cur=null; if(el) el.classList.remove("on"); }
+  document.addEventListener("mouseover",function(e){
+    var t=e.target.closest("[data-tip]"); if(t) show(t); else if(cur&&!e.target.closest("#tip")) hide();
+  });
+  document.addEventListener("mouseout",function(e){ if(cur&&!e.relatedTarget) hide(); });
+  document.addEventListener("focusin",function(e){ var t=e.target.closest("[data-tip]"); if(t) show(t); });
+  document.addEventListener("focusout",hide);
+  window.addEventListener("scroll",function(){ if(cur) place(cur); },true);
+})();
 /* Orientation switch for the damage table (players as rows <-> abilities as rows). */
 document.addEventListener("click",function(e){
   var b=e.target.closest("[data-view]"); if(!b) return;
@@ -582,7 +679,7 @@ function renderPotionsPanel(potions, linkFor) {
     // Every mana source that actually turned up in this raid gets its own column,
     // so "Mana" is not one opaque number any more.
     const manaTypes = ((potions && potions.types) || []).filter((t) => t.group === "mana");
-    const manaHead = manaTypes.map((t) => `<th class="n" title="${esc(t.label)}">${hicon(t.icon, t.label)}</th>`).join("");
+    const manaHead = manaTypes.map((t) => `<th class="n" data-tip="${esc(t.label)}">${hicon(t.icon, "")}</th>`).join("");
 
     const body = rows.map((p) => {
         const byType = p.byType || {};
@@ -781,69 +878,91 @@ function roleTabs(prefix, rows, roles, renderGroup) {
     });
 }
 
-/** Zero renders as a faint dot so the numbers that matter stand out. */
-function dmgCell(v) {
-    return v > 0 ? num(v) : "<span class=\"sritems\">·</span>";
+/**
+ * Colour a damage number by how it compares to the worst value in the same column
+ * raid-wide (not just within the role tab, so a tank tab with two rows does not
+ * paint one of them red for a harmless difference).
+ */
+function dmgCell(v, max) {
+    if (!(v > 0)) return "<span class=\"sritems\">·</span>";
+    const share = max > 0 ? v / max : 0;
+    const step = share > 0.75 ? 4 : share > 0.5 ? 3 : share > 0.25 ? 2 : 1;
+    return `<span class="dv dv-${step}">${num(v)}</span>`;
 }
 
 /** Column head for one avoidable ability: its icon plus the NPCs that cast it. */
 function abilityHead(a) {
-    const title = a.sources && a.sources.length ? `${a.label} — ${a.sources.join(", ")}` : a.label;
-    const icon = a.icon
-        ? `<img class="hicon" src="${esc(iconUrl(a.icon))}" alt="" loading="lazy">`
-        : "";
-    return `<th class="n" title="${esc(title)}">${icon}${esc(a.label)}</th>`;
+    const sub = a.sources && a.sources.length ? ` data-tip-sub="${esc(a.sources.join(", "))}"` : "";
+    return `<th class="n" data-tip="${esc(a.label)}"${sub}>${abilityIcon(a)}${esc(a.label)}</th>`;
+}
+
+/** Small inline icon for an avoidable ability, config icon as the fallback. */
+function abilityIcon(a) {
+    const icon = a.icon || ICON_BY_NAME[a.name];
+    return icon ? `<img class="hicon" src="${esc(iconUrl(icon))}" alt="" loading="lazy">` : "";
+}
+
+/** Highest value per ability column (and per summary column) across the whole raid. */
+function damageScale(damage) {
+    const abilities = damage.abilities || [];
+    const players = damage.players || [];
+    const perAbility = abilities.map((a, i) => Math.max(0, ...players.map((p) => p.perAbility[i] || 0)));
+    return {
+        perAbility,
+        total: Math.max(0, ...players.map((p) => p.avoidableTotal || 0)),
+        reflected: Math.max(0, ...players.map((p) => p.reflected || 0)),
+        hostile: Math.max(0, ...players.map((p) => p.hostile || 0)),
+    };
 }
 
 /** Players as rows, abilities as columns (the classic orientation). */
-function damageByPlayer(abilities, list, linkFor) {
+function damageByPlayer(abilities, list, linkFor, scale) {
     const head = abilities.map(abilityHead).join("");
     const body = list.map((p) => {
-        const cells = abilities.map((a, i) => `<td class="n">${dmgCell(p.perAbility[i])}</td>`).join("");
+        const cells = abilities.map((a, i) => `<td class="n">${dmgCell(p.perAbility[i], scale.perAbility[i])}</td>`).join("");
         return `<tr>
           <td class="pcol">${classCell(p, linkFor(p.name))}</td>
           ${cells}
-          <td class="n"><strong>${num(p.avoidableTotal)}</strong></td>
-          <td class="n">${dmgCell(p.reflected)}</td>
-          <td class="n">${dmgCell(p.hostile)}</td>
+          <td class="n">${dmgCell(p.avoidableTotal, scale.total)}</td>
+          <td class="n">${dmgCell(p.reflected, scale.reflected)}</td>
+          <td class="n">${dmgCell(p.hostile, scale.hostile)}</td>
           <td class="n"><span class="pct ${p.deaths > 0 ? "pct-none" : "pct-full"}">${esc(p.deaths)}</span></td>
         </tr>`;
     }).join("");
-    return `<div class="scrollx"><table class="idx rpb">
+    return `<div class="scrollx"><table class="idx rpb fixed">
       <tr><th class="pcol">Spieler</th>${head}<th class="n">Summe</th><th class="n">Reflektiert</th><th class="n">Auf Spieler</th><th class="n">Tode</th></tr>
       ${body}
     </table></div>`;
 }
 
 /** Abilities as rows, one column per raider — the transposed view. */
-function damageByAbility(abilities, list, linkFor) {
+function damageByAbility(abilities, list, linkFor, scale) {
     const head = list.map((p) => {
         const href = linkFor(p.name);
-        const inner = `<span class="rcol-in"><img src="${esc(classIconUrl(p.type))}" alt="" title="${esc(p.type)}"><span>${esc(p.name)}</span></span>`;
-        return `<th class="rcol" title="${esc(p.name)}">${href ? `<a href="${esc(href)}" style="text-decoration:none">${inner}</a>` : inner}</th>`;
+        const inner = `<span class="rcol-in"><img src="${esc(classIconUrl(p.type))}" alt=""><span>${esc(p.name)}</span></span>`;
+        return `<th class="rcol" data-tip="${esc(p.name)}" data-tip-sub="${esc(p.type)}">${href ? `<a href="${esc(href)}" style="text-decoration:none">${inner}</a>` : inner}</th>`;
     }).join("");
 
     const abilityRows = abilities.map((a, i) => {
-        const cells = list.map((p) => `<td class="n">${dmgCell(p.perAbility[i])}</td>`).join("");
-        const src = a.sources && a.sources.length ? ` title="${esc(a.sources.join(", "))}"` : "";
-        const icon = a.icon ? `<img class="hicon" src="${esc(iconUrl(a.icon))}" alt="" loading="lazy">` : "";
-        return `<tr><td class="pcol"${src}>${icon}${esc(a.label)}</td>${cells}</tr>`;
+        const cells = list.map((p) => `<td class="n">${dmgCell(p.perAbility[i], scale.perAbility[i])}</td>`).join("");
+        const sub = a.sources && a.sources.length ? ` data-tip-sub="${esc(a.sources.join(", "))}"` : "";
+        return `<tr><td class="pcol" data-tip="${esc(a.label)}"${sub}>${abilityIcon(a)}${esc(a.label)}</td>${cells}</tr>`;
     }).join("");
 
-    const sumRow = (label, pick, strong) => {
-        const cells = list.map((p) => `<td class="n">${strong ? `<strong>${num(pick(p))}</strong>` : dmgCell(pick(p))}</td>`).join("");
+    const sumRow = (label, pick, max) => {
+        const cells = list.map((p) => `<td class="n">${dmgCell(pick(p), max)}</td>`).join("");
         return `<tr><td class="pcol"><strong>${esc(label)}</strong></td>${cells}</tr>`;
     };
     const deathRow = `<tr><td class="pcol"><strong>Tode</strong></td>${
         list.map((p) => `<td class="n"><span class="pct ${p.deaths > 0 ? "pct-none" : "pct-full"}">${esc(p.deaths)}</span></td>`).join("")
     }</tr>`;
 
-    return `<div class="scrollx"><table class="idx rpb">
+    return `<div class="scrollx"><table class="idx rpb fixed">
       <tr><th class="pcol">Fähigkeit</th>${head}</tr>
       ${abilityRows}
-      ${sumRow("Summe", (p) => p.avoidableTotal, true)}
-      ${sumRow("Reflektiert", (p) => p.reflected)}
-      ${sumRow("Auf Spieler", (p) => p.hostile)}
+      ${sumRow("Summe", (p) => p.avoidableTotal, scale.total)}
+      ${sumRow("Reflektiert", (p) => p.reflected, scale.reflected)}
+      ${sumRow("Auf Spieler", (p) => p.hostile, scale.hostile)}
       ${deathRow}
     </table></div>`;
 }
@@ -853,11 +972,18 @@ function renderRpbDamagePanel(damage, roles, linkFor) {
         return "<div class=\"empty\">Keine Schadensdaten gefunden.</div>";
     }
     const abilities = damage.abilities || [];
+    const scale = damageScale(damage);
     const items = roleTabs("rpbdmg", damage.players, roles, (list) =>
-        `<div class="tview tview-p">${damageByPlayer(abilities, list, linkFor)}</div>
-         <div class="tview tview-a">${damageByAbility(abilities, list, linkFor)}</div>`);
+        `<div class="tview tview-p">${damageByPlayer(abilities, list, linkFor, scale)}</div>
+         <div class="tview tview-a">${damageByAbility(abilities, list, linkFor, scale)}</div>`);
 
-    return `<p class="note">${esc(damage.heading || "Vermeidbarer erhaltener Schaden")}. Überschriften zeigen beim Überfahren die verursachenden Gegner.</p>
+    return `<p class="note">${esc(damage.heading || "Vermeidbarer erhaltener Schaden")}. Die Farbe zeigt den Anteil am höchsten Wert derselben Spalte im gesamten Raid — sie ist also über alle Rollen-Tabs hinweg vergleichbar.</p>
+    <div class="legend">
+      <span class="lg"><span class="dv dv-1" style="min-width:0">bis 25%</span></span>
+      <span class="lg"><span class="dv dv-2" style="min-width:0">bis 50%</span></span>
+      <span class="lg"><span class="dv dv-3" style="min-width:0">bis 75%</span></span>
+      <span class="lg"><span class="dv dv-4" style="min-width:0">darüber</span></span>
+    </div>
     <div class="viewroot">
       <div class="tblswitch">
         <button type="button" data-view="p" class="active">Spieler als Zeilen</button>
@@ -873,17 +999,19 @@ function renderRpbActivityPanel(activity, roles, linkFor) {
     }
     const items = roleTabs("rpbact", activity.players, roles, (list) => {
         const body = list.map((p) => {
-            const haste = p.gearSpellHaste ? ` title="Zaubertempo aus Ausrüstung: ${p.gearSpellHaste}"` : "";
+            const haste = p.gearSpellHaste
+                ? ` data-tip="${esc(p.name)}" data-tip-sub="Zaubertempo aus Ausrüstung: ${esc(p.gearSpellHaste)}"`
+                : "";
             return `<tr>
               <td class="pcol"${haste}>${classCell(p, linkFor(p.name))}</td>
               <td class="n"><strong>${esc(p.secondsActive)}s</strong></td>
               <td class="n">${uptimeCell(p.relativeTotal)}</td>
               <td class="n">${esc(p.secondsActiveST)}s</td>
               <td class="n">${esc(p.secondsActiveAoe)}s</td>
-              <td class="n" title="Abzug für Tempo-Effekte">${esc(p.hasteSecondsSubtracted)}s</td>
+              <td class="n" data-tip="Tempo-Abzug" data-tip-sub="Abzug für Tempo-Effekte">${esc(p.hasteSecondsSubtracted)}s</td>
             </tr>`;
         }).join("");
-        return `<div class="scrollx"><table class="idx rpb">
+        return `<div class="scrollx"><table class="idx rpb fixed">
           <tr><th class="pcol">Spieler</th><th class="n">Aktiv gesamt</th><th class="n">Anteil Raidzeit</th><th class="n">Einzelziel</th><th class="n">Fläche</th><th class="n">Tempo-Abzug</th></tr>
           ${body}
         </table></div>`;
@@ -908,6 +1036,7 @@ function spellTiles(rows) {
         if (r.lowerRankPercent) notes.push(`${r.lowerRankPercent}% niedriger Rang (${r.lowerRankCasts}×)`);
         return iconTile({
             icon: r.icon,
+            name: r.name,
             spellId: r.spellId,
             label: r.label || r.name,
             count: r.amount,
@@ -928,7 +1057,7 @@ function renderRpbSpellsPanel(activity, roles, linkFor) {
             const aoe = p.aoeCasts || [];
             const downranked = [...st, ...aoe].filter((r) => r.mostlyLowerRank);
             const rankCell = downranked.length
-                ? `<span class="pct pct-none" title="${esc(downranked.map((r) => r.label || r.name).join(", "))}">${downranked.length}</span>`
+                ? `<span class="pct pct-none" data-tip="Nicht im höchsten Rang" data-tip-sub="${esc(downranked.map((r) => r.label || r.name).join(", "))}">${downranked.length}</span>`
                 : "<span class=\"pct pct-full\">0</span>";
             return `<tr>
               <td class="pcol">${classCell(p, linkFor(p.name))}</td>
@@ -1014,6 +1143,7 @@ function renderRpbUsagePanel(usage, roles, linkFor) {
                 const under = c.possibleUses && c.total < c.possibleUses / 2;
                 return iconTile({
                     icon: c.icon,
+                    name: c.name,
                     spellId: c.spellId,
                     label: c.label,
                     count: c.total,
@@ -1022,10 +1152,10 @@ function renderRpbUsagePanel(usage, roles, linkFor) {
                 });
             });
             const trinkets = (p.trinketsAndRacials || []).map((t) => iconTile({
-                icon: t.icon, spellId: t.spellId, label: t.label, count: t.total,
+                icon: t.icon, name: t.name, spellId: t.spellId, label: t.label, count: t.total,
             }));
             const consumables = [...(p.engineering || []), ...(p.absorbs || [])].map((t) => iconTile({
-                icon: t.icon, spellId: t.spellId, label: t.label, count: t.total,
+                icon: t.icon, name: t.name, spellId: t.spellId, label: t.label, count: t.total,
             }));
             return `<tr>
               <td class="pcol">${classCell(p, linkFor(p.name))}</td>
@@ -1110,7 +1240,7 @@ function renderReportPage(report, user) {
     ].filter((t) => t.show);
 
     const buttons = tabDefs.map((t, i) =>
-        `<button class="tab-btn${i === 0 ? " active" : ""}" data-tab="${t.id}">${hicon(t.icon, t.label)}<span>${esc(t.label)}</span><span class="tab-count">${esc(t.count || 0)}</span></button>`).join("");
+        `<button class="tab-btn${i === 0 ? " active" : ""}" data-tab="${t.id}">${hicon(t.icon, "")}<span>${esc(t.label)}</span><span class="tab-count">${esc(t.count || 0)}</span></button>`).join("");
     const panels = tabDefs.map((t, i) =>
         `<div id="tab-${t.id}" class="tabpanel${i === 0 ? " active" : ""}">${t.html}</div>`).join("");
 
@@ -1205,7 +1335,7 @@ function renderPlayerPage(report, idx, user) {
     const right = RIGHT.map((s) => paperdollSlot(bySlot[s], "right")).join("");
     const bottom = BOTTOM.map((s) => paperdollSlot(bySlot[s], "bottom")).join("");
 
-    const potChip = (icon, label, n) => `<span class="chip">${hicon(icon, label)}<b>${esc(n || 0)}</b> ${esc(label)}</span>`;
+    const potChip = (icon, label, n) => `<span class="chip">${hicon(icon, "")}<b>${esc(n || 0)}</b> ${esc(label)}</span>`;
     // which mana sources this raider actually used — the aggregate alone hides that
     const byType = pot.byType || {};
     const manaTiles = ((report.potions && report.potions.types) || [])
