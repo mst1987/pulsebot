@@ -558,8 +558,11 @@ a.gear-row:hover { background: var(--panel2); }
 }
 .loot-pop-wrap:hover .loot-pop-trigger,
 .loot-pop-wrap:focus-visible .loot-pop-trigger { border-color: var(--accent); color: var(--accent); }
+/* overscroll-behavior: contain — without it a wheel scroll that reaches the end
+   of the list chains through to the page, and a scrolling page moves the
+   panel's anchor out from under it (see the scroll handler in HistoryPage). */
 .loot-pop {
-    position: fixed; z-index: 60; overflow-y: auto;
+    position: fixed; z-index: 60; overflow-y: auto; overscroll-behavior: contain;
     background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
     box-shadow: 0 12px 30px rgb(0 0 0 / .28); padding: 8px; cursor: default;
 }

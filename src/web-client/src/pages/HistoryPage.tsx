@@ -314,11 +314,17 @@ function CharItemsCell({ items, count, categoryNameById, showCategory }: {
     showCategory: boolean;
 }) {
     const ref = useRef<HTMLSpanElement>(null);
+    const popRef = useRef<HTMLDivElement>(null);
     const [rect, setRect] = useState<DOMRect | null>(null);
     // Moving the pointer from the number into the panel briefly leaves both
     // (they are separate DOM subtrees) — a short grace period keeps a long,
     // scrollable list reachable instead of snapping shut in the gap.
     const closeTimer = useRef<number | undefined>(undefined);
+    // Whether the pointer currently sits on the number or inside the panel.
+    // Clicking the panel's scrollbar blurs the trigger, and blur must not close
+    // a panel the pointer is still in — otherwise the list cannot be scrolled
+    // by dragging its scrollbar at all.
+    const pointerInside = useRef(false);
     const open = () => {
         window.clearTimeout(closeTimer.current);
         if (ref.current) setRect(ref.current.getBoundingClientRect());
@@ -327,16 +333,47 @@ function CharItemsCell({ items, count, categoryNameById, showCategory }: {
         window.clearTimeout(closeTimer.current);
         closeTimer.current = window.setTimeout(() => setRect(null), 140);
     };
+    const enter = () => {
+        pointerInside.current = true;
+        open();
+    };
+    const leave = (e: React.MouseEvent) => {
+        // A scrollbar drag that wanders past the panel edge keeps the button
+        // held down — the pointer is still operating the panel, so keep it up
+        // and let the mouseup handler below decide.
+        if (e.buttons !== 0) return;
+        pointerInside.current = false;
+        close();
+    };
+    const blur = () => {
+        if (pointerInside.current) return;
+        close();
+    };
 
-    // Fixed coordinates go stale the moment the page moves under them.
+    // Fixed coordinates go stale the moment the page moves under them — but the
+    // panel's own list scrolls too, and that must not count as the page moving.
     useEffect(() => {
         if (!rect) return;
-        const hide = () => setRect(null);
+        const hide = (e: Event) => {
+            const target = e.target;
+            if (popRef.current && target instanceof Node && popRef.current.contains(target)) return;
+            setRect(null);
+        };
+        const onResize = () => setRect(null);
+        // Ends a scrollbar drag: if the pointer left the panel meanwhile, the
+        // deferred close from leave() never ran — do it now.
+        const onMouseUp = () => {
+            if (popRef.current?.matches(":hover") || ref.current?.matches(":hover")) return;
+            pointerInside.current = false;
+            close();
+        };
         window.addEventListener("scroll", hide, true);
-        window.addEventListener("resize", hide);
+        window.addEventListener("resize", onResize);
+        window.addEventListener("mouseup", onMouseUp);
         return () => {
             window.removeEventListener("scroll", hide, true);
-            window.removeEventListener("resize", hide);
+            window.removeEventListener("resize", onResize);
+            window.removeEventListener("mouseup", onMouseUp);
         };
     }, [rect]);
 
@@ -350,15 +387,15 @@ function CharItemsCell({ items, count, categoryNameById, showCategory }: {
                 ref={ref}
                 className="loot-pop-wrap"
                 tabIndex={0}
-                onMouseEnter={open}
-                onMouseLeave={close}
+                onMouseEnter={enter}
+                onMouseLeave={leave}
                 onFocus={open}
-                onBlur={close}
+                onBlur={blur}
             >
                 <span className="loot-pop-trigger">{count}</span>
             </span>
             {rect && createPortal(
-                <div className="loot-pop" role="tooltip" style={popoverStyle(rect)} onMouseEnter={open} onMouseLeave={close}>
+                <div ref={popRef} className="loot-pop" role="tooltip" style={popoverStyle(rect)} onMouseEnter={enter} onMouseLeave={leave}>
                     <div className="loot-pop-head">{items.length} Item{items.length === 1 ? "" : "s"}</div>
                     <div className="loot-pop-list">
                         {items.map((it, i) => (
