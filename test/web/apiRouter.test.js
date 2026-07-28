@@ -37,6 +37,11 @@ jest.mock("../../src/web/dashboardData", () => ({
     loadRecentEvents: jest.fn(() => Promise.resolve({ events: [], error: null })),
     annotateUpcomingExtras: jest.fn((events) => events),
 }));
+jest.mock("../../src/web/raidEventStore", () => ({
+    getRaidEvent: jest.fn(() => null),
+    listRaidEvents: jest.fn(() => []),
+    saveRaidEvents: jest.fn(),
+}));
 jest.mock("../../src/web/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
@@ -203,6 +208,7 @@ const { activeGuildFor } = require("../../src/web/activeGuild");
 const dashboardData = require("../../src/web/dashboardData");
 const discord = require("../../src/web/discord");
 const raidEventGroups = require("../../src/web/raidEventGroups");
+const raidEventStore = require("../../src/web/raidEventStore");
 const logStore = require("../../src/web/logStore");
 const lootStore = require("../../src/web/lootStore");
 const characterInfo = require("../../src/web/characterInfo");
@@ -897,6 +903,7 @@ describe("web/apiRouter", () => {
             expect(data.event).toEqual({
                 id: "e1", title: "GDKP Kara", startTime: 1753500000,
                 channelId: "chan1", channelName: "kara-channel", signupCount: 1,
+                isPast: true, signupsKnown: true, signUpsFromSnapshot: false,
             });
             expect(data.categoryName).toBe("Raids");
             expect(data.guildId).toBe("guild-1");
@@ -1077,9 +1084,55 @@ describe("web/apiRouter", () => {
             const data = body(res).data;
             expect(data.setup).toEqual({ total: 0, groups: [], roleCounts: {} });
             expect(data.tankCandidates).toEqual([]);
+            expect(data.setupFromSnapshot).toBe(false);
         });
 
-        it("falls back to an empty signUps list when the event carries none", async () => {
+        // Raid-Helper serves no raidplan for a finished raid any more; the
+        // snapshot taken while it still did stands in, so the Setup tab of a past
+        // raid keeps showing the comp it actually ran with.
+        it("falls back to the stored raidplan snapshot when Raid-Helper returns none", async () => {
+            setupDefaults();
+            mockGetSetup.mockResolvedValue({ setup: [] });
+            raidEventStore.getRaidEvent.mockReturnValue({
+                id: "e1", setup: [{ name: "Sedroc", specName: "Protection Warrior", groupNumber: 1 }],
+            });
+
+            const res = await get("/api/raids/detail", { event: "e1" });
+            const data = body(res).data;
+
+            expect(data.setup.total).toBe(1);
+            expect(data.setupFromSnapshot).toBe(true);
+        });
+
+        it("uses the snapshot raidplan when the raidplan request fails outright", async () => {
+            setupDefaults();
+            mockGetSetup.mockRejectedValue(new Error("Raid-Helper down"));
+            raidEventStore.getRaidEvent.mockReturnValue({
+                id: "e1", setup: [{ name: "Sedroc", specName: "Protection Warrior", groupNumber: 1 }],
+            });
+
+            const res = await get("/api/raids/detail", { event: "e1" });
+            const data = body(res).data;
+
+            expect(data.setupError).toBeNull();
+            expect(data.setup.total).toBe(1);
+            expect(data.setupFromSnapshot).toBe(true);
+        });
+
+        it("still reports a raidplan error when there is no snapshot to fall back to", async () => {
+            setupDefaults();
+            mockGetSetup.mockRejectedValue(new Error("Raid-Helper down"));
+            raidEventStore.getRaidEvent.mockReturnValue(null);
+
+            const res = await get("/api/raids/detail", { event: "e1" });
+
+            expect(body(res).data.setupError).toBe("Raid-Helper down");
+        });
+
+        // A PAST raid without signups: Raid-Helper has dropped them, so the
+        // roster is unknown. Reporting every expected raider as "missing" (which
+        // is what used to happen) is wrong — the page must say "no data".
+        it("reports an unknown roster for a past event that carries no signUps", async () => {
             setupDefaults();
             const eventNoSignups = { ...event1, signUps: undefined };
             raidEventGroups.loadEventGroups.mockResolvedValue({
@@ -1093,6 +1146,27 @@ describe("web/apiRouter", () => {
             });
             const res = await get("/api/raids/detail", { event: "e1" });
             const data = body(res).data;
+            expect(data.event.signupsKnown).toBe(false);
+            expect(data.event.isPast).toBe(true);
+            expect(data.attendance).toEqual({ responded: [], missing: [] });
+        });
+
+        // An UPCOMING raid without signups is a real "nobody reacted yet".
+        it("still reconciles attendance for an upcoming event without signUps", async () => {
+            setupDefaults();
+            const upcoming = { ...event1, signUps: undefined, startTime: Math.floor(Date.now() / 1000) + 86400 };
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [upcoming] }],
+                error: null,
+            });
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["role1"] } });
+            discord.listMembersWithRoles.mockResolvedValue({
+                members: [{ id: "1", displayName: "Anna" }],
+                error: null,
+            });
+            const res = await get("/api/raids/detail", { event: "e1" });
+            const data = body(res).data;
+            expect(data.event.signupsKnown).toBe(true);
             expect(data.attendance).toEqual({ responded: [], missing: [{ id: "1", displayName: "Anna" }] });
         });
 
@@ -1233,6 +1307,25 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raids/ping-missing", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
             expect(body(res)).toEqual({ error: { code: "members_unavailable", message: "GuildMembers-Intent fehlt." } });
+        });
+
+        // Once a raid has started, "missing" raiders are not missing — and if
+        // Raid-Helper already dropped the roster, EVERY expected raider would be
+        // pinged. Refuse rather than fire a pointless mass ping.
+        it("refuses to ping for a raid that already started", async () => {
+            setupDefaults();
+            const started = { ...event1, startTime: Math.floor(Date.now() / 1000) - 3600 };
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [started] }],
+                error: null,
+            });
+
+            const res = await post("/api/raids/ping-missing", { event: "e1" });
+
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res).error.code).toBe("event_past");
+            expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
+            expect(discord.postMissingPing).not.toHaveBeenCalled();
         });
 
         it("returns a success message without posting when nobody is missing", async () => {

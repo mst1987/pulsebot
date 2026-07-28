@@ -1,6 +1,7 @@
 const mockGetPastEvents = jest.fn();
+const mockGetSetup = jest.fn();
 jest.mock("../../src/classes/raidhelper", () =>
-    jest.fn().mockImplementation(() => ({ getPastEvents: mockGetPastEvents })));
+    jest.fn().mockImplementation(() => ({ getPastEvents: mockGetPastEvents, getSetup: mockGetSetup })));
 
 const mockGetChannelCategoryMap = jest.fn(() => ({}));
 const mockListGuilds = jest.fn(() => []);
@@ -10,7 +11,11 @@ jest.mock("../../src/web/discord", () => ({
 }));
 
 const mockSaveRaidEvents = jest.fn(() => 0);
-jest.mock("../../src/web/raidEventStore", () => ({ saveRaidEvents: (...a) => mockSaveRaidEvents(...a) }));
+const mockGetRaidEvent = jest.fn(() => null);
+jest.mock("../../src/web/raidEventStore", () => ({
+    saveRaidEvents: (...a) => mockSaveRaidEvents(...a),
+    getRaidEvent: (...a) => mockGetRaidEvent(...a),
+}));
 
 const { scanRaidEvents, scanAllGuilds, startRaidEventScan } = require("../../src/web/raidEventScan.js");
 const { RECENT_WINDOW_DAYS } = require("../../src/web/recentEvents.js");
@@ -22,9 +27,11 @@ describe("web/raidEventScan", () => {
     beforeEach(() => {
         nowSpy = jest.spyOn(Date, "now").mockReturnValue(NOW);
         mockGetPastEvents.mockReset().mockResolvedValue([]);
+        mockGetSetup.mockReset().mockResolvedValue({ setup: [] });
         mockGetChannelCategoryMap.mockReset().mockReturnValue({});
         mockListGuilds.mockReset().mockReturnValue([]);
         mockSaveRaidEvents.mockReset().mockReturnValue(0);
+        mockGetRaidEvent.mockReset().mockReturnValue(null);
     });
     afterEach(() => nowSpy.mockRestore());
 
@@ -55,8 +62,69 @@ describe("web/raidEventScan", () => {
             expect(mockSaveRaidEvents).toHaveBeenCalledWith([{
                 id: "e1", guildId: "g1", title: "Kara",
                 channelId: "c1", channelName: "kara", categoryId: "cat", categoryName: "Raids", startTime: 100,
+                signUps: [], setup: [],
             }]);
             expect(result).toEqual({ scanned: 1, error: null });
+        });
+
+        // Raid-Helper drops an event's signups a while after the raid, so the
+        // roster has to be captured while it is still being served — otherwise the
+        // event's detail page later shows "0 Anmeldungen" and everyone as missing.
+        it("captures the signup roster, dropping fields the store does not need", async () => {
+            mockGetPastEvents.mockResolvedValue([{
+                id: "e1", channelId: "c1", title: "Kara", startTime: 100,
+                signUps: [
+                    { userId: "u1", specName: "Fury", extra: "ignored" },
+                    { userId: "u2", specName: "Absence" },
+                ],
+            }]);
+            mockGetChannelCategoryMap.mockReturnValue({ c1: { name: "kara" } });
+
+            await scanRaidEvents("g1");
+
+            expect(mockSaveRaidEvents.mock.calls[0][0][0].signUps).toEqual([
+                { userId: "u1", specName: "Fury" },
+                { userId: "u2", specName: "Absence" },
+            ]);
+        });
+
+        it("captures the raidplan once and never re-fetches it for that event", async () => {
+            mockGetPastEvents.mockResolvedValue([{ id: "e1", channelId: "c1", title: "Kara", startTime: 100 }]);
+            mockGetChannelCategoryMap.mockReturnValue({ c1: { name: "kara" } });
+            mockGetSetup.mockResolvedValue({ setup: [{ name: "Tank", class: "Warrior" }] });
+
+            await scanRaidEvents("g1");
+            expect(mockGetSetup).toHaveBeenCalledWith("e1");
+            expect(mockSaveRaidEvents.mock.calls[0][0][0].setup).toEqual([{ name: "Tank", class: "Warrior" }]);
+
+            // Second sweep: the event already has a stored setup -> no further call.
+            mockGetSetup.mockClear();
+            mockGetRaidEvent.mockReturnValue({ id: "e1", setup: [{ name: "Tank", class: "Warrior" }] });
+            await scanRaidEvents("g1");
+            expect(mockGetSetup).not.toHaveBeenCalled();
+        });
+
+        it("caps how many raidplans one scan fetches", async () => {
+            mockGetPastEvents.mockResolvedValue(
+                Array.from({ length: 6 }, (_, i) => ({ id: `e${i}`, channelId: "c1", title: `R${i}`, startTime: 100 }))
+            );
+            mockGetChannelCategoryMap.mockReturnValue({ c1: { name: "kara" } });
+
+            await scanRaidEvents("g1");
+
+            expect(mockGetSetup).toHaveBeenCalledTimes(3);
+            expect(mockSaveRaidEvents.mock.calls[0][0]).toHaveLength(6); // all still stored
+        });
+
+        it("keeps scanning when a raidplan fetch fails", async () => {
+            mockGetPastEvents.mockResolvedValue([{ id: "e1", channelId: "c1", title: "Kara", startTime: 100 }]);
+            mockGetChannelCategoryMap.mockReturnValue({ c1: { name: "kara" } });
+            mockGetSetup.mockRejectedValue(new Error("raidplan weg"));
+
+            const result = await scanRaidEvents("g1");
+
+            expect(result).toEqual({ scanned: 1, error: null });
+            expect(mockSaveRaidEvents.mock.calls[0][0][0].setup).toEqual([]);
         });
 
         it("drops events whose channel is not in this guild", async () => {

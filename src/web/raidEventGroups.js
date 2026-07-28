@@ -105,10 +105,17 @@ async function loadEventGroups(guildId, { sinceSeconds } = {}) {
     const seen = new Set();
     for (const ev of liveEvents) {
         const meta = catMap[ev.channelId];
-        const persisted = !meta ? persistedById.get(ev.id) : null;
+        const snapshot = persistedById.get(ev.id);
+        const persisted = !meta ? snapshot : null;
         if (!meta && !persisted) continue; // channel gone from Discord AND never scanned — nowhere to place it
         const categoryId = meta ? (meta.categoryId || "") : (persisted.categoryId || "");
         const categoryName = meta ? (meta.categoryName || "Ohne Kategorie") : (persisted.categoryName || "Ohne Kategorie");
+        // Raid-Helper drops an event's signups some time after the raid: the event
+        // is still listed, just with an empty roster. Falling back to the snapshot
+        // raidEventScan.js took while they were still there keeps a past raid's
+        // detail page from reporting "0 Anmeldungen" and everyone as missing.
+        const liveSignUps = (ev.signUps || []).map((s) => ({ userId: s.userId, specName: s.specName }));
+        const signUps = liveSignUps.length ? liveSignUps : ((snapshot && snapshot.signUps) || []);
         place(categoryId, categoryName, {
             id: ev.id,
             title: ev.title,
@@ -119,8 +126,9 @@ async function loadEventGroups(guildId, { sinceSeconds } = {}) {
             categoryId,
             templateId: (ev.templateId !== null && ev.templateId !== undefined) ? String(ev.templateId) : "",
             description: ev.description || "",
-            signupCount: (ev.signUps || []).filter((s) => s.specName !== "Absence").length,
-            signUps: (ev.signUps || []).map((s) => ({ userId: s.userId, specName: s.specName })),
+            signupCount: signUps.filter((s) => s.specName !== "Absence").length,
+            signUps,
+            signUpsFromSnapshot: !liveSignUps.length && signUps.length > 0,
         });
         seen.add(ev.id);
     }
@@ -138,10 +146,14 @@ async function loadEventGroups(guildId, { sinceSeconds } = {}) {
     if (error || sinceSeconds) {
         for (const e of persistedById.values()) {
             if (seen.has(e.id) || (sinceSeconds && (e.startTime || 0) < sinceSeconds)) continue;
+            const signUps = e.signUps || [];
             place(e.categoryId, e.categoryName, {
                 id: e.id, title: e.title, startTime: e.startTime, leaderId: "",
                 channelId: e.channelId, channelName: e.channelName, categoryId: e.categoryId || "",
-                templateId: "", description: "", signupCount: 0, signUps: [],
+                templateId: "", description: "",
+                signupCount: signUps.filter((s) => s && s.specName !== "Absence").length,
+                signUps,
+                signUpsFromSnapshot: signUps.length > 0,
             });
         }
     }

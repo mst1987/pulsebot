@@ -49,6 +49,14 @@ function getRaidEvent(id) {
  * first-seen timestamp is preserved across re-scans, everything else (title,
  * channel/category name, start time) is refreshed from the latest scan. Blank
  * ids are skipped. Returns how many were newly seen for the first time.
+ *
+ * The signup roster (`signUps`) and the raidplan (`setup`) are treated
+ * differently from the meta fields: they are only ever replaced by a NON-EMPTY
+ * incoming value. Raid-Helper stops returning an event's signups some time after
+ * the raid, and a later scan handing us an empty list must not wipe the roster
+ * captured while it was still there — that emptiness means "we no longer know",
+ * not "nobody signed up". This is what lets a past raid's detail page show the
+ * roster as it was at raid time instead of "0 Anmeldungen, alle fehlen".
  */
 function saveRaidEvents(list) {
     const events = readAll();
@@ -59,6 +67,8 @@ function saveRaidEvents(list) {
         const id = String((data && data.id) || "").trim();
         if (!id) continue;
         const existing = byId.get(id);
+        const keepNonEmpty = (incoming, current) =>
+            (Array.isArray(incoming) && incoming.length ? incoming : (current || []));
         const merged = {
             id,
             guildId: data.guildId || (existing && existing.guildId) || "",
@@ -68,6 +78,8 @@ function saveRaidEvents(list) {
             categoryId: data.categoryId || (existing && existing.categoryId) || "",
             categoryName: data.categoryName || (existing && existing.categoryName) || "",
             startTime: Number(data.startTime) || (existing && existing.startTime) || 0,
+            signUps: keepNonEmpty(data.signUps, existing && existing.signUps),
+            setup: keepNonEmpty(data.setup, existing && existing.setup),
             firstSeenAt: (existing && existing.firstSeenAt) || now,
             updatedAt: now,
         };

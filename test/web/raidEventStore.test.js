@@ -55,6 +55,47 @@ describe("web/raidEventStore", () => {
         expect(listRaidEvents("g1")).toHaveLength(1);
     });
 
+    it("stores the signup roster and the raidplan snapshot", () => {
+        saveRaidEvents([event({
+            signUps: [{ userId: "u1", specName: "Fury" }],
+            setup: [{ name: "Tank", class: "Warrior" }],
+        })]);
+
+        expect(getRaidEvent("e1")).toMatchObject({
+            signUps: [{ userId: "u1", specName: "Fury" }],
+            setup: [{ name: "Tank", class: "Warrior" }],
+        });
+    });
+
+    it("defaults roster and raidplan to empty arrays", () => {
+        saveRaidEvents([event()]);
+        expect(getRaidEvent("e1")).toMatchObject({ signUps: [], setup: [] });
+    });
+
+    // The crucial one: Raid-Helper stops returning an event's signups a while
+    // after the raid. A rescan handing us an empty roster must not erase what was
+    // captured at raid time — "we no longer know" is not "nobody signed up".
+    it("never lets an empty rescan wipe a captured roster or raidplan", () => {
+        saveRaidEvents([event({
+            signUps: [{ userId: "u1", specName: "Fury" }],
+            setup: [{ name: "Tank", class: "Warrior" }],
+        })]);
+
+        saveRaidEvents([event({ signUps: [], setup: [] })]);
+
+        expect(getRaidEvent("e1")).toMatchObject({
+            signUps: [{ userId: "u1", specName: "Fury" }],
+            setup: [{ name: "Tank", class: "Warrior" }],
+        });
+    });
+
+    it("does replace the roster when a rescan brings a non-empty one", () => {
+        saveRaidEvents([event({ signUps: [{ userId: "u1", specName: "Fury" }] })]);
+        saveRaidEvents([event({ signUps: [{ userId: "u2", specName: "Frost" }] })]);
+
+        expect(getRaidEvent("e1").signUps).toEqual([{ userId: "u2", specName: "Frost" }]);
+    });
+
     it("upserts by id: refreshes fields but preserves the first-seen timestamp", () => {
         saveRaidEvents([event({ title: "Kara" })]);
         const firstSeenAt = getRaidEvent("e1").firstSeenAt;

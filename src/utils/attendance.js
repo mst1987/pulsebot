@@ -87,6 +87,28 @@ function withCharacterAssignments(people, assignmentProfiles = {}) {
     });
 }
 
+/** Has this event's start time passed? Events without a start count as upcoming. */
+function hasStarted(event, now = Date.now()) {
+    const startMs = (Number(event && event.startTime) || 0) * 1000;
+    return startMs > 0 && startMs < now;
+}
+
+/**
+ * Whether an event's signup roster is actually KNOWN.
+ *
+ * Raid-Helper stops returning the signups of a finished raid, so an empty roster
+ * on a past event means "we no longer know", not "nobody signed up" — and
+ * treating it as the latter is what made past raids report "0 Anmeldungen" with
+ * every expected raider counted as missing. For an upcoming raid an empty roster
+ * is a real answer: nobody has reacted yet.
+ * @param {{startTime?:number, signUps?:object[]}} event
+ */
+function isRosterKnown(event, now = Date.now()) {
+    if (((event && event.signUps) || []).length > 0) return true;
+    return !hasStarted(event, now);
+}
+
 module.exports = {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
+    hasStarted, isRosterKnown,
 };

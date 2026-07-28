@@ -1,6 +1,40 @@
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
+    hasStarted, isRosterKnown,
 } = require("../../src/utils/attendance");
+
+describe("utils/attendance hasStarted / isRosterKnown", () => {
+    const NOW = 1_700_000_000_000;
+    const secs = (ms) => Math.floor(ms / 1000);
+    const past = { startTime: secs(NOW - 3 * 3600000) };
+    const upcoming = { startTime: secs(NOW + 3 * 3600000) };
+
+    it("recognises a started raid, and treats a missing start as upcoming", () => {
+        expect(hasStarted(past, NOW)).toBe(true);
+        expect(hasStarted(upcoming, NOW)).toBe(false);
+        expect(hasStarted({}, NOW)).toBe(false);
+        expect(hasStarted(null, NOW)).toBe(false);
+    });
+
+    it("treats an empty roster on an UPCOMING raid as a real answer", () => {
+        // Nobody has reacted yet — that is knowledge, not a gap.
+        expect(isRosterKnown({ ...upcoming, signUps: [] }, NOW)).toBe(true);
+    });
+
+    // The regression this exists for: Raid-Helper drops a finished raid's
+    // signups, and the detail page then reported "0 Anmeldungen" plus every
+    // expected raider as missing.
+    it("treats an empty roster on a PAST raid as unknown", () => {
+        expect(isRosterKnown({ ...past, signUps: [] }, NOW)).toBe(false);
+        expect(isRosterKnown(past, NOW)).toBe(false);
+    });
+
+    it("counts any roster as known, past or not", () => {
+        const signUps = [{ userId: "1", specName: "Fury" }];
+        expect(isRosterKnown({ ...past, signUps }, NOW)).toBe(true);
+        expect(isRosterKnown({ ...upcoming, signUps }, NOW)).toBe(true);
+    });
+});
 
 describe("utils/attendance computeAttendance", () => {
     const members = [

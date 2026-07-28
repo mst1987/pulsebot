@@ -60,7 +60,7 @@ describe("web/raidEventGroups", () => {
                 id: "e1", title: "Kara", startTime: 2000000000, leaderId: "u1",
                 channelId: "chan1", channelName: "kara-signup", categoryId: "cat1",
                 templateId: "3", description: "desc", signupCount: 1,
-                signUps: [{ userId: "1", specName: "Fire" }],
+                signUps: [{ userId: "1", specName: "Fire" }], signUpsFromSnapshot: false,
             }],
         }]);
     });
@@ -95,7 +95,7 @@ describe("web/raidEventGroups", () => {
                 id: "e1", title: "Kara", startTime: 2000000000, leaderId: "u1",
                 channelId: "chan1", channelName: "kara-signup (gone)", categoryId: "cat1",
                 templateId: "3", description: "desc", signupCount: 1,
-                signUps: [{ userId: "1", specName: "Fire" }],
+                signUps: [{ userId: "1", specName: "Fire" }], signUpsFromSnapshot: false,
             }],
         }]);
     });
@@ -119,9 +119,65 @@ describe("web/raidEventGroups", () => {
             events: [{
                 id: "e2", title: "SSC", startTime: 2000000000, leaderId: "",
                 channelId: "chan2", channelName: "ssc", categoryId: "cat2",
-                templateId: "", description: "", signupCount: 0, signUps: [],
+                templateId: "", description: "", signupCount: 0, signUps: [], signUpsFromSnapshot: false,
             }],
         }]);
+    });
+
+    // Raid-Helper keeps listing a finished raid but eventually answers with an
+    // empty signup list. Without this fallback the event detail page showed
+    // "0 / N Anmeldungen" and counted every expected raider as missing.
+    it("restores the roster from the snapshot when the live event lost its signups", async () => {
+        mockFetchEvents.mockResolvedValue([event({ signUps: [] })]);
+        discord.getChannelCategoryMap.mockReturnValue({
+            chan1: { name: "kara-signup", categoryId: "cat1", categoryName: "Raids" },
+        });
+        listRaidEvents.mockReturnValue([{
+            id: "e1", guildId: "g1", title: "Kara", channelId: "chan1", channelName: "kara-signup",
+            categoryId: "cat1", categoryName: "Raids", startTime: 2000000000,
+            signUps: [{ userId: "1", specName: "Fire" }, { userId: "2", specName: "Absence" }],
+        }]);
+
+        const { groups } = await loadEventGroups("g1", { sinceSeconds: 1 });
+        const ev = groups[0].events[0];
+
+        expect(ev.signUps).toEqual([{ userId: "1", specName: "Fire" }, { userId: "2", specName: "Absence" }]);
+        expect(ev.signupCount).toBe(1); // Absence doesn't count as a signup
+        expect(ev.signUpsFromSnapshot).toBe(true);
+    });
+
+    it("prefers the live roster over the snapshot", async () => {
+        mockFetchEvents.mockResolvedValue([event({ signUps: [{ userId: "9", specName: "Frost" }] })]);
+        discord.getChannelCategoryMap.mockReturnValue({
+            chan1: { name: "kara-signup", categoryId: "cat1", categoryName: "Raids" },
+        });
+        listRaidEvents.mockReturnValue([{
+            id: "e1", guildId: "g1", title: "Kara", channelId: "chan1", channelName: "kara-signup",
+            categoryId: "cat1", categoryName: "Raids", startTime: 2000000000,
+            signUps: [{ userId: "1", specName: "Fire" }],
+        }]);
+
+        const { groups } = await loadEventGroups("g1", { sinceSeconds: 1 });
+        const ev = groups[0].events[0];
+
+        expect(ev.signUps).toEqual([{ userId: "9", specName: "Frost" }]);
+        expect(ev.signUpsFromSnapshot).toBe(false);
+    });
+
+    it("carries the snapshot roster into a persisted-only event", async () => {
+        mockFetchEvents.mockResolvedValue([]);
+        discord.getChannelCategoryMap.mockReturnValue({});
+        listRaidEvents.mockReturnValue([{
+            id: "e2", guildId: "g1", title: "SSC", channelId: "chan2", channelName: "ssc",
+            categoryId: "cat2", categoryName: "Raids", startTime: 2000000000,
+            signUps: [{ userId: "1", specName: "Fire" }, { userId: "2", specName: "Absence" }],
+        }]);
+
+        const { groups } = await loadEventGroups("g1", { sinceSeconds: 1 });
+        const ev = groups[0].events[0];
+
+        expect(ev.signupCount).toBe(1);
+        expect(ev.signUpsFromSnapshot).toBe(true);
     });
 
     it("does not resurrect old persisted events into a plain upcoming (no sinceSeconds) call", async () => {
@@ -203,7 +259,7 @@ describe("web/raidEventGroups", () => {
             events: [{
                 id: "e2", title: "SSC", startTime: 2000000000, leaderId: "",
                 channelId: "chan2", channelName: "ssc", categoryId: "cat2",
-                templateId: "", description: "", signupCount: 0, signUps: [],
+                templateId: "", description: "", signupCount: 0, signUps: [], signUpsFromSnapshot: false,
             }],
         }]);
     });
