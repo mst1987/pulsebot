@@ -6,14 +6,31 @@ import type { SpecCatalogEntry } from "./lib/recruitmentSpecs";
 
 export type ApiError = { code: string; message: string };
 
-export type SessionUser = { id: string; name: string; isAdmin: boolean };
+// One admin-menu section a role can be given access to (src/config/permissions.js).
+export type Area = { id: string; tab: string; label: string; description: string };
+// What a user may do per area. Full admins hold every area at write level.
+export type AreaAccess = { read: boolean; write: boolean };
+export type Access = Record<string, AreaAccess | undefined>;
+export type RolePermissions = Record<string, Record<string, AreaAccess>>;
+
+export type SessionUser = { id: string; name: string; isAdmin: boolean; access: Access };
 export type SessionGuild = { id: string; name: string };
 export type Session = {
     user: SessionUser | null;
     csrfToken: string | null;
+    areas: Area[];
     guilds: SessionGuild[];
     activeGuildId: string;
 };
+
+/** Whether the session user may read (or write) the given area. */
+export function canAccess(user: SessionUser | null, area: string, level: "read" | "write" = "read"): boolean {
+    if (!user) return false;
+    if (user.isAdmin) return true;
+    const entry = user.access && user.access[area];
+    if (!entry) return false;
+    return level === "write" ? !!entry.write : !!(entry.read || entry.write);
+}
 
 export type EventSheet = { filledAt: string; playerCount?: number } | null;
 
@@ -180,6 +197,8 @@ export type BlizzardConfig = {
 
 export type AdminConfig = {
     adminRoleIds: string[];
+    // Per-role area rights; only sent to (and savable by) full admins.
+    rolePermissions?: RolePermissions;
     guildId: string;
     raidhelperServerId: string;
     officerRoleId: string;
@@ -204,6 +223,10 @@ export type Raidsheet = {
 
 export type SettingsData = {
     config: AdminConfig;
+    // False for a non-admin who only holds write access to "Einstellungen":
+    // the "Zugang"/"Berechtigungen" tabs stay hidden and the server rejects them.
+    canManageAccess: boolean;
+    areas: Area[];
     raidsheets: Raidsheet[];
     roles: Role[];
     categories: Category[];

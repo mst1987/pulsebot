@@ -2,6 +2,8 @@
 // UI (see CLAUDE.md's "Web Admin" section). Mounted under /api/* by server.js's
 // handle(). Route handlers live in apiRoutes/, grouped by domain.
 const { error } = require("./apiResponse");
+const auth = require("./auth");
+const { checkAccess } = require("./apiAccess");
 const { getSession, postActiveGuild } = require("./apiRoutes/session");
 const { getDashboard } = require("./apiRoutes/dashboard");
 const { getChannels, createChannel, duplicateChannel } = require("./apiRoutes/channels");
@@ -43,9 +45,17 @@ const {
  * a bare "Unexpected token" and the real cause stays invisible. The long-running
  * routes (CLA/RPB evaluation) are the likeliest source of such errors, so they
  * are exactly the ones that need a readable message.
+ *
+ * Every request first passes the area gate (apiAccess.js), so a handler never
+ * has to know which permission its endpoint needs.
  */
 async function handle(pathname, req, res, url) {
     try {
+        const denied = checkAccess(pathname, req.method, auth.getUser(req));
+        if (denied) {
+            error(res, denied.status, denied.code, denied.message);
+            return true;
+        }
         return await route(pathname, req, res, url);
     } catch (e) {
         console.error(`API ${req.method} ${pathname} failed:`, (e && e.stack) || e);

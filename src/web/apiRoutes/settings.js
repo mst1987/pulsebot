@@ -1,26 +1,42 @@
 const { ok, error } = require("../apiResponse");
-const { requireAdmin, requireCsrf } = require("../apiMiddleware");
+const { requireAdmin, requireFullAdmin, requireCsrf } = require("../apiMiddleware");
 const { readJsonBody } = require("../apiBody");
 const { activeGuildFor } = require("../activeGuild");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet,
 } = require("../settingsStore");
 const discord = require("../discord");
+const { AREAS, normalizeRolePermissions } = require("../../config/permissions");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
+
+// Config keys that decide who gets into the menu — only full admins may change
+// them, so a role with write access to "Einstellungen" can't grant itself more.
+const ACCESS_KEYS = ["adminRoleIds", "rolePermissions"];
 
 /** GET /api/settings — config + raidsheets + the active guild's roles/categories. */
 function getSettings(req, res) {
     const user = requireAdmin(req, res);
     if (!user) return;
     const guildId = activeGuildFor(req);
+    const config = getConfig();
     ok(res, {
-        config: getConfig(),
+        // The access config is admin-only; a limited settings user never sees
+        // (nor can save) it.
+        config: user.isAdmin ? config : omit(config, ACCESS_KEYS),
+        canManageAccess: !!user.isAdmin,
+        areas: AREAS,
         raidsheets: listRaidsheets(),
         roles: discord.listRoles(guildId),
         categories: discord.listCategories(guildId),
         activeGuildId: guildId,
     });
+}
+
+function omit(obj, keys) {
+    const out = { ...obj };
+    for (const k of keys) delete out[k];
+    return out;
 }
 
 /**
@@ -29,14 +45,18 @@ function getSettings(req, res) {
  * blizzard.clientSecret: omit to keep the stored secret, send "" to clear it,
  * send a value to replace it (the client only includes it when the admin
  * actually chose to change it — see ChangeSecretField in SettingsPage.tsx).
+ * adminRoleIds/rolePermissions are full-admin-only (see ACCESS_KEYS).
  */
 async function updateSettings(req, res) {
     const user = requireAdmin(req, res);
     if (!user) return;
     if (!requireCsrf(req, res)) return;
     const body = await readJsonBody(req);
+    const touchesAccess = ACCESS_KEYS.some((k) => body[k] !== undefined);
+    if (touchesAccess && !requireFullAdmin(req, res)) return;
     const partial = {};
     if (body.adminRoleIds !== undefined) partial.adminRoleIds = asStringArray(body.adminRoleIds);
+    if (body.rolePermissions !== undefined) partial.rolePermissions = normalizeRolePermissions(body.rolePermissions);
     if (body.guildId !== undefined) partial.guildId = String(body.guildId).trim();
     if (body.raidhelperServerId !== undefined) partial.raidhelperServerId = String(body.raidhelperServerId).trim();
     if (body.officerRoleId !== undefined) partial.officerRoleId = String(body.officerRoleId).trim();

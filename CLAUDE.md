@@ -242,6 +242,16 @@ The bot ships an admin website as a **single React SPA** — `src/web-client/` (
 - Page components live in `src/web-client/src/pages/*.tsx`, one per admin section (`DashboardPage`, `RecruitmentPage`, `ClaPage`, `RaidsPage`/`RaidCreatePage`/`RaidDetailPage`/`NotifyTemplatesPage`, `ChannelsPage`, `SettingsPage`, `HistoryPage`/`HistoryEventPage`/`HistoryCharPage`), routed in `App.tsx`, shelled by `components/Shell.tsx` (sidebar nav + topbar with the server/guild switcher and theme toggle).
 - Backend route handlers live in `src/web/apiRoutes/*.js`, grouped by domain the same way the pages are; `apiMiddleware.js`'s `requireAdmin`/`requireCsrf` gate every mutating call.
 
+### Role permissions (who may see/do what)
+
+Access is **per area** (one admin-menu section) and **per level** (`read` = open it, `write` = act in it; write implies read). The area list and all the pure logic live in `src/config/permissions.js` — the single source of truth shared by server and client (the client gets the list from `/api/session` and `/api/settings`).
+
+- **Configured** in Einstellungen → *Berechtigungen*: per Discord role, a read and a write toggle per area, stored as `config.rolePermissions = { [roleId]: { [areaId]: { read, write } } }` (settingsStore). A member's rights are the **union** over all their roles.
+- **Resolved** in `auth.js`'s `computeAccess(userId)`: `ADMIN_USER_ID` and the admin roles from the *Zugang* tab are full admins (every area at write); everyone else gets `accessForRoles(...)`. The session carries `{ isAdmin, access }` and is re-checked in the background every 5 minutes, so permission changes apply without a re-login.
+- **Enforced** centrally in `src/web/apiAccess.js`: one table maps every `/api/*` endpoint to its area, `apiRouter.handle()` checks it *before* dispatching, and the level follows the HTTP method (GET = read, else write). **The table is fail-closed** — an endpoint that isn't listed is admin-only, so a new route can never leak. `test/web/apiAccess.test.js` asserts the table covers every route the router serves; add your endpoint there when you add a route.
+- **Escalation guard:** `adminRoleIds` and `rolePermissions` are full-admin-only (`ACCESS_KEYS` in `apiRoutes/settings.js`, `requireFullAdmin`). A role with write access to "Einstellungen" can edit the bot config but neither sees nor saves who has access.
+- The client mirrors this cosmetically: `Shell.tsx` hides tabs, `App.tsx`'s `Guard` hides pages, and the SettingsPage hides the *Zugang*/*Berechtigungen* tabs. It is never the actual gate — the API is.
+
 ### Loot import (Gargul/RCLootcouncil)
 
 `src/utils/lootImport.js` normalizes both export formats to one loot-item shape (`parseLoot`/`parseGargul`/`parseRclc`). `enrichItemNames(items)` fills in `itemName`/`itemIconUrl` that an export didn't carry (Gargul gives neither, RCLootcouncil gives a name but no icon) via `src/utils/wowhead.js`'s `lookupItem(itemId)` (Wowhead's tooltip endpoint, in-memory cached, best-effort — mock it in tests). Call it once, right after `parseLoot()` — the one import handler is `apiRoutes/history.js`'s `importLoot` (JSON, called from the React client's Historie-&-Loot and Raid-Detail Loot-tab imports).

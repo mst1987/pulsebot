@@ -272,6 +272,7 @@ const softres = require("../../src/utils/softres");
 const wowhead = require("../../src/utils/wowhead");
 const raidsheetsUtil = require("../../src/utils/raidsheets");
 const { handle } = require("../../src/web/apiRouter");
+const { AREA_IDS, emptyAccess, fullAccess } = require("../../src/config/permissions");
 
 function mockRes() {
     return { writeHead: jest.fn(), end: jest.fn() };
@@ -366,12 +367,12 @@ describe("web/apiRouter", () => {
             const handled = await handle("/api/session", { method: "GET" }, res);
             expect(handled).toBe(true);
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
-            expect(body(res)).toEqual({
-                data: {
-                    user: { id: "42", name: "Anna", isAdmin: true }, csrfToken: "csrf-abc",
-                    guilds: [{ id: "g1", name: "Meine Gilde" }], activeGuildId: "g1",
-                },
-            });
+            const data = body(res).data;
+            expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, access: fullAccess() });
+            expect(data.csrfToken).toBe("csrf-abc");
+            expect(data.guilds).toEqual([{ id: "g1", name: "Meine Gilde" }]);
+            expect(data.activeGuildId).toBe("g1");
+            expect(data.areas.map((a) => a.id)).toEqual(AREA_IDS);
         });
 
         it("returns user: null, no csrfToken, and no guilds for an anonymous caller", async () => {
@@ -379,21 +380,36 @@ describe("web/apiRouter", () => {
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
             expect(auth.csrfToken).not.toHaveBeenCalled();
-            expect(body(res)).toEqual({ data: { user: null, csrfToken: null, guilds: [], activeGuildId: "" } });
+            const data = body(res).data;
+            expect(data).toMatchObject({ user: null, csrfToken: null, guilds: [], activeGuildId: "" });
         });
 
-        it("returns no guilds for a logged-in caller who isn't an admin", async () => {
+        it("returns no guilds for a logged-in caller with no area at all", async () => {
             auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false });
             auth.csrfToken.mockReturnValue("csrf-bob");
             discord.listGuilds.mockReturnValue([{ id: "g1", name: "Meine Gilde" }]);
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
-            expect(body(res)).toEqual({
-                data: {
-                    user: { id: "7", name: "Bob", isAdmin: false }, csrfToken: "csrf-bob",
-                    guilds: [], activeGuildId: "",
-                },
+            const data = body(res).data;
+            expect(data.user).toEqual({ id: "7", name: "Bob", isAdmin: false, access: emptyAccess() });
+            expect(data.guilds).toEqual([]);
+            expect(data.activeGuildId).toBe("");
+        });
+
+        // A limited user still needs the guild switcher to load anything.
+        it("returns the guilds for a non-admin who holds at least one area", async () => {
+            auth.getUser.mockReturnValue({
+                id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), raids: { read: true, write: false } },
             });
+            auth.csrfToken.mockReturnValue("csrf-bob");
+            discord.listGuilds.mockReturnValue([{ id: "g1", name: "Meine Gilde" }]);
+            activeGuildFor.mockReturnValue("g1");
+            const res = mockRes();
+            await handle("/api/session", { method: "GET" }, res);
+            const data = body(res).data;
+            expect(data.guilds).toEqual([{ id: "g1", name: "Meine Gilde" }]);
+            expect(data.activeGuildId).toBe("g1");
+            expect(data.user.access.raids).toEqual({ read: true, write: false });
         });
     });
 
@@ -610,15 +626,35 @@ describe("web/apiRouter", () => {
             const res = mockRes();
             await handle("/api/settings", { method: "GET" }, res);
 
-            expect(body(res)).toEqual({
-                data: {
-                    config: { adminRoleIds: ["r1"] },
-                    raidsheets: [{ id: "s1", name: "Tier 4/5" }],
-                    roles: [{ id: "role1", name: "Raider" }],
-                    categories: [{ id: "cat1", name: "Raids" }],
-                    activeGuildId: "guild-1",
-                },
+            const data = body(res).data;
+            expect(data).toMatchObject({
+                config: { adminRoleIds: ["r1"] },
+                canManageAccess: true,
+                raidsheets: [{ id: "s1", name: "Tier 4/5" }],
+                roles: [{ id: "role1", name: "Raider" }],
+                categories: [{ id: "cat1", name: "Raids" }],
+                activeGuildId: "guild-1",
             });
+            expect(data.areas.map((a) => a.id)).toEqual(AREA_IDS);
+        });
+
+        // A role with write on "Einstellungen" may edit the bot config, but must
+        // not see (nor save) who has access — that would let it escalate itself.
+        it("hides the access config from a non-admin settings user", async () => {
+            auth.getUser.mockReturnValue({
+                id: "7", name: "Bob", isAdmin: false,
+                access: { ...emptyAccess(), settings: { read: true, write: true } },
+            });
+            settingsStore.getConfig.mockReturnValue({
+                adminRoleIds: ["r1"], rolePermissions: { role1: { raids: { read: true, write: false } } }, guildId: "g1",
+            });
+
+            const res = mockRes();
+            await handle("/api/settings", { method: "GET" }, res);
+
+            const data = body(res).data;
+            expect(data.config).toEqual({ guildId: "g1" });
+            expect(data.canManageAccess).toBe(false);
         });
     });
 
@@ -657,6 +693,91 @@ describe("web/apiRouter", () => {
             await patch("/api/settings", { officerRoleId: "off1" });
 
             expect(settingsStore.saveConfig).toHaveBeenCalledWith({ officerRoleId: "off1" });
+        });
+
+        it("normalises rolePermissions before saving them", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+
+            await patch("/api/settings", {
+                rolePermissions: {
+                    role1: { raids: { write: true }, unknownArea: { read: true } },
+                    role2: { cla: { read: false, write: false } },
+                },
+            });
+
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+                // write implied read, the unknown area and the empty role dropped
+                rolePermissions: { role1: { raids: { read: true, write: true } } },
+            });
+        });
+
+        // Otherwise a role with write access to "Einstellungen" could grant
+        // itself (or anyone) full admin.
+        it("refuses adminRoleIds/rolePermissions from a non-admin settings user", async () => {
+            auth.getUser.mockReturnValue({
+                id: "7", name: "Bob", isAdmin: false,
+                access: { ...emptyAccess(), settings: { read: true, write: true } },
+            });
+            auth.checkCsrf.mockReturnValue(true);
+
+            const res = await patch("/api/settings", { rolePermissions: { role1: { raids: { write: true } } } });
+
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+        });
+
+        it("still lets that user save ordinary settings", async () => {
+            auth.getUser.mockReturnValue({
+                id: "7", name: "Bob", isAdmin: false,
+                access: { ...emptyAccess(), settings: { read: true, write: true } },
+            });
+            auth.checkCsrf.mockReturnValue(true);
+
+            await patch("/api/settings", { officerRoleId: "off1" });
+
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({ officerRoleId: "off1" });
+        });
+    });
+
+    // End-to-end proof that the central gate (src/web/apiAccess.js) runs before
+    // any handler — the per-endpoint rules themselves live in apiAccess.test.js.
+    describe("area gate", () => {
+        const readOnlyRaider = {
+            id: "7", name: "Bob", isAdmin: false,
+            access: { ...emptyAccess(), raids: { read: true, write: false } },
+        };
+
+        it("lets a read-only role load its area", async () => {
+            auth.getUser.mockReturnValue(readOnlyRaider);
+            activeGuildFor.mockReturnValue("guild-1");
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
+
+            const res = mockRes();
+            await handle("/api/raids", { method: "GET" }, res);
+
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        });
+
+        it("blocks the same role from acting in it, before the handler runs", async () => {
+            auth.getUser.mockReturnValue(readOnlyRaider);
+            auth.checkCsrf.mockReturnValue(true);
+
+            const res = await post("/api/raids/notify", { eventId: "e1" });
+
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(body(res).error.code).toBe("forbidden");
+            expect(discord.postAnnouncement).not.toHaveBeenCalled();
+        });
+
+        it("blocks an area the role was not given at all", async () => {
+            auth.getUser.mockReturnValue(readOnlyRaider);
+
+            const res = mockRes();
+            await handle("/api/cla", { method: "GET" }, res, urlFor("/api/cla"));
+
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(reportStore.listReports).not.toHaveBeenCalled();
         });
     });
 

@@ -3,13 +3,20 @@ import {
     getSettings, updateSettings, saveRaidsheet, deleteRaidsheet,
     getRaiderCharacters, saveRaiderCharacters,
     type ApiError, type SettingsData, type AdminConfig, type Category, type Role, type Raidsheet,
-    type RaiderCharactersData,
+    type RaiderCharactersData, type RolePermissions,
 } from "../api";
 import { useOutletContext } from "react-router-dom";
 import type { ShellContext } from "../components/Shell";
+import RolePermissionsEditor from "../components/RolePermissions";
+
+// "Zugang" and "Berechtigungen" decide who gets into the menu, so they are shown
+// to full admins only (the API rejects them for anyone else — see ACCESS_KEYS in
+// src/web/apiRoutes/settings.js).
+const ADMIN_ONLY_TABS = ["zugang", "berechtigungen"];
 
 const TABS = [
     { id: "zugang", label: "Zugang" },
+    { id: "berechtigungen", label: "Berechtigungen" },
     { id: "recruitment", label: "Recruitment" },
     { id: "auktionen", label: "Auktionen" },
     { id: "events", label: "Events" },
@@ -24,6 +31,7 @@ const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolea
 // fields — comma lists stay as raw text while being edited, split on save.
 type Draft = {
     adminRoleIdsText: string;
+    rolePermissions: RolePermissions;
     guildId: string;
     raidhelperServerId: string;
     officerRoleId: string;
@@ -43,7 +51,9 @@ type Draft = {
 
 function toDraft(config: AdminConfig): Draft {
     return {
-        adminRoleIdsText: config.adminRoleIds.join(", "),
+        // Both are absent for a non-admin who only holds write on "Einstellungen".
+        adminRoleIdsText: (config.adminRoleIds || []).join(", "),
+        rolePermissions: config.rolePermissions || {},
         guildId: config.guildId,
         raidhelperServerId: config.raidhelperServerId,
         officerRoleId: config.officerRoleId,
@@ -336,6 +346,9 @@ export default function SettingsPage() {
                 setData(d);
                 setDraft(toDraft(d.config));
                 setSecretChange(undefined);
+                // A limited settings user never sees the access tabs — start them
+                // on the first tab they can actually use.
+                if (!d.canManageAccess) setTab((t) => (ADMIN_ONLY_TABS.includes(t) ? "recruitment" : t));
             })
             .catch((err: ApiError) => setError(err));
     };
@@ -344,6 +357,8 @@ export default function SettingsPage() {
 
     if (error) return <div className="empty">Fehler beim Laden der Einstellungen: {error.message}</div>;
     if (!data || !draft) return <div className="empty">Lade…</div>;
+
+    const tabs = data.canManageAccess ? TABS : TABS.filter((t) => !ADMIN_ONLY_TABS.includes(t.id));
 
     const patch = (fields: Partial<Draft>) => setDraft({ ...draft, ...fields });
 
@@ -363,7 +378,12 @@ export default function SettingsPage() {
         setSaveError(null);
         try {
             const { config } = await updateSettings(csrfToken, {
-                adminRoleIds: splitList(draft.adminRoleIdsText),
+                // Access config is full-admin-only; sending it as anyone else
+                // would (rightly) be rejected with a 403.
+                ...(data.canManageAccess ? {
+                    adminRoleIds: splitList(draft.adminRoleIdsText),
+                    rolePermissions: draft.rolePermissions,
+                } : {}),
                 guildId: draft.guildId.trim(),
                 raidhelperServerId: draft.raidhelperServerId.trim(),
                 officerRoleId: draft.officerRoleId.trim(),
@@ -400,7 +420,7 @@ export default function SettingsPage() {
             {flash && <p className="sub" style={{ color: "var(--good)" }}>{flash}</p>}
 
             <div className="tabs" role="tablist">
-                {TABS.map((t) => (
+                {tabs.map((t) => (
                     <button key={t.id} type="button" className={`tab-btn${tab === t.id ? " active" : ""}`} role="tab" onClick={() => setTab(t.id)}>
                         {t.label}
                     </button>
@@ -428,6 +448,19 @@ export default function SettingsPage() {
                         <div className="hint">Wird für alle Raid-Helper-API-Aufrufe verwendet (Events, Setups, Anmeldungen). Der API-Key selbst bleibt in der .env.</div>
                     </div>
                 </div>
+
+                {data.canManageAccess && (
+                    <div className={`tab-panel${tab === "berechtigungen" ? " active" : ""}`} role="tabpanel">
+                        <h2 style={{ marginTop: 0 }}>Rollen-Berechtigungen</h2>
+                        <RolePermissionsEditor
+                            areas={data.areas}
+                            roles={data.roles}
+                            adminRoleIds={splitList(draft.adminRoleIdsText)}
+                            value={draft.rolePermissions}
+                            onChange={(rolePermissions) => patch({ rolePermissions })}
+                        />
+                    </div>
+                )}
 
                 <div className={`tab-panel${tab === "recruitment" ? " active" : ""}`} role="tabpanel">
                     <h2 style={{ marginTop: 0 }}>Recruitment</h2>

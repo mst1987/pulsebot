@@ -6,21 +6,30 @@ import {
     CrestIcon, BurgerIcon, HomeIcon, RecruitmentIcon, ClaIcon, RaidsIcon, ChannelsIcon, SettingsIcon, HistoryIcon,
     RosterIcon,
 } from "./icons";
-import type { SessionUser, SessionGuild } from "../api";
+import { canAccess, type SessionUser, type SessionGuild } from "../api";
 
 export type ShellContext = { user: SessionUser; csrfToken: string | null };
 
-// Same tab list/grouping as src/web/renderAdmin.js's TABS.
-const TABS: { id: string; label: string; href: string; group: string; icon: ReactNode }[] = [
-    { id: "home", label: "Übersicht", href: "/", group: "Verwaltung", icon: <HomeIcon /> },
-    { id: "recruitment", label: "Recruitment", href: "/recruitment", group: "Verwaltung", icon: <RecruitmentIcon /> },
-    { id: "cla", label: "CLA / Logcheck", href: "/cla", group: "Verwaltung", icon: <ClaIcon /> },
-    { id: "raids", label: "Raid-Events", href: "/raids", group: "Verwaltung", icon: <RaidsIcon /> },
-    { id: "roster", label: "Roster", href: "/roster", group: "Verwaltung", icon: <RosterIcon /> },
-    { id: "history", label: "Historie & Loot", href: "/history", group: "Verwaltung", icon: <HistoryIcon /> },
-    { id: "channels", label: "Kanäle", href: "/channels", group: "Verwaltung", icon: <ChannelsIcon /> },
-    { id: "settings", label: "Einstellungen", href: "/settings", group: "System", icon: <SettingsIcon /> },
+// Same tab list/grouping as src/web/renderAdmin.js's TABS. `area` is the
+// permission area from src/config/permissions.js: a tab only appears when the
+// user's roles grant read access to it (the API enforces it for real, see
+// src/web/apiAccess.js).
+type Tab = { id: string; area: string; label: string; href: string; group: string; icon: ReactNode };
+export const TABS: Tab[] = [
+    { id: "home", area: "dashboard", label: "Übersicht", href: "/", group: "Verwaltung", icon: <HomeIcon /> },
+    { id: "recruitment", area: "recruitment", label: "Recruitment", href: "/recruitment", group: "Verwaltung", icon: <RecruitmentIcon /> },
+    { id: "cla", area: "cla", label: "CLA / Logcheck", href: "/cla", group: "Verwaltung", icon: <ClaIcon /> },
+    { id: "raids", area: "raids", label: "Raid-Events", href: "/raids", group: "Verwaltung", icon: <RaidsIcon /> },
+    { id: "roster", area: "roster", label: "Roster", href: "/roster", group: "Verwaltung", icon: <RosterIcon /> },
+    { id: "history", area: "history", label: "Historie & Loot", href: "/history", group: "Verwaltung", icon: <HistoryIcon /> },
+    { id: "channels", area: "channels", label: "Kanäle", href: "/channels", group: "Verwaltung", icon: <ChannelsIcon /> },
+    { id: "settings", area: "settings", label: "Einstellungen", href: "/settings", group: "System", icon: <SettingsIcon /> },
 ];
+
+/** The first tab the user may open — where a limited user lands instead of "/". */
+export function firstAllowedTab(user: SessionUser): Tab | null {
+    return TABS.find((t) => canAccess(user, t.area)) || null;
+}
 
 // Matches a tab's own path or one of its sub-routes (e.g. "/raids/new" under "/raids").
 function matchesTab(tabHref: string, pathname: string): boolean {
@@ -45,11 +54,11 @@ function subCrumb(pathname: string, search: URLSearchParams): string | null {
     return null;
 }
 
-function AdminNav() {
+function AdminNav({ user }: { user: SessionUser }) {
     let lastGroup: string | null = null;
     return (
         <nav className="menu">
-            {TABS.map((tab) => {
+            {TABS.filter((tab) => canAccess(user, tab.area)).map((tab) => {
                 const label = tab.group !== lastGroup ? tab.group : null;
                 lastGroup = tab.group;
                 return (
@@ -88,12 +97,12 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
                         <div className="brand-sub">Gilden-Admin</div>
                     </div>
                 </div>
-                <AdminNav />
+                <AdminNav user={user} />
                 <div className="side-foot">
                     <div className="avatar">{initial}</div>
                     <div className="ub-meta">
                         <div className="u-name">{user.name}</div>
-                        <div className="u-role">Administrator</div>
+                        <div className="u-role">{user.isAdmin ? "Administrator" : "Eingeschränkter Zugang"}</div>
                     </div>
                     <a className="u-logout" href="/auth/logout">Logout</a>
                 </div>
