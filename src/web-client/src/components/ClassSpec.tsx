@@ -15,6 +15,20 @@ export const CLASS_SOURCE_LABELS: Record<string, string> = {
     manual: "manuell",
 };
 
+/**
+ * How a class colour is applied to text. Not as `color:` directly: WoW's
+ * palette is built for a black game UI, and Priest white / Rogue yellow are
+ * invisible on the light theme's white panels. Handing the colour over as the
+ * custom property `--cc` lets the stylesheet decide what to do with it per
+ * theme (see .class-colored in index.css, which darkens it for light mode).
+ * Returns nothing when the class is unknown, so the element keeps whatever
+ * colour it had (a link stays accent-coloured).
+ */
+export function classColorProps(classColor?: string): { className?: string; style?: React.CSSProperties } {
+    if (!classColor) return {};
+    return { className: "class-colored", style: { "--cc": classColor } as React.CSSProperties };
+}
+
 export function ClassSpecIcon({ iconUrl }: { iconUrl: string }) {
     if (!iconUrl) return null;
     return (
@@ -29,8 +43,9 @@ export function ClassSpecIcon({ iconUrl }: { iconUrl: string }) {
 }
 
 export function ClassSpecLabel({ className, spec, classColor }: { className: string; spec: string; classColor?: string }) {
+    const colored = classColorProps(classColor);
     return (
-        <span style={{ fontWeight: 700, color: classColor || undefined }}>
+        <span className={colored.className} style={{ fontWeight: 700, ...colored.style }}>
             {spec ? `${spec} ${className}` : className}
         </span>
     );
@@ -54,8 +69,9 @@ export function ClassSpecCell({ className, spec, classColor, iconUrl }: {
 
 // A character's name linking to their history page, class-coloured when known.
 export function CharacterLink({ character, classColor }: { character: string; classColor?: string }) {
+    const colored = classColorProps(classColor);
     return (
-        <Link className="mlink" to={`/history/char?name=${encodeURIComponent(character)}`} style={{ color: classColor || undefined }}>
+        <Link className={`mlink${colored.className ? ` ${colored.className}` : ""}`} to={`/history/char?name=${encodeURIComponent(character)}`} style={colored.style}>
             {character}
         </Link>
     );

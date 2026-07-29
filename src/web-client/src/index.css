@@ -17,6 +17,16 @@
     --area-history: #f472b6; --area-history-soft: rgba(244, 114, 182, .16);
     --area-channels: #4dd0c8; --area-channels-soft: rgba(77, 208, 200, .16);
     --area-settings: #b083f0; --area-settings-soft: rgba(176, 131, 240, .16);
+    /* ---- loot award reasons: a green→yellow→orange→red scale, see .rbadge ---- */
+    --reason-bis: #35d6a4; --reason-bis-bg: rgba(53, 214, 164, .16);
+    --reason-mainspec: #7fd17f; --reason-mainspec-bg: rgba(127, 209, 127, .16);
+    --reason-upgrade: #b9d96a; --reason-upgrade-bg: rgba(185, 217, 106, .16);
+    --reason-minor: #e3cf5c; --reason-minor-bg: rgba(227, 207, 92, .16);
+    --reason-offspec: #eb9440; --reason-offspec-bg: rgba(235, 148, 64, .16);
+    --reason-pvp: #e0524f; --reason-pvp-bg: rgba(224, 82, 79, .16);
+    --reason-greed: #6fa8dc; --reason-greed-bg: rgba(111, 168, 220, .16);
+    --reason-disenchant: #b083f0; --reason-disenchant-bg: rgba(176, 131, 240, .16);
+    --reason-bank: #9aa0aa; --reason-bank-bg: rgba(154, 160, 170, .16);
 }
 @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
@@ -31,6 +41,15 @@
         --area-history: #c23f8f; --area-history-soft: rgba(194, 63, 143, .12);
         --area-channels: #1f978c; --area-channels-soft: rgba(31, 151, 140, .12);
         --area-settings: #7c4fd6; --area-settings-soft: rgba(124, 79, 214, .12);
+        --reason-bis: #0f8f72; --reason-bis-bg: rgba(15, 143, 114, .12);
+        --reason-mainspec: #2b9440; --reason-mainspec-bg: rgba(43, 148, 64, .12);
+        --reason-upgrade: #6d8f19; --reason-upgrade-bg: rgba(109, 143, 25, .12);
+        --reason-minor: #9a6c12; --reason-minor-bg: rgba(154, 108, 18, .14);
+        --reason-offspec: #c26414; --reason-offspec-bg: rgba(194, 100, 20, .12);
+        --reason-pvp: #cf3b37; --reason-pvp-bg: rgba(207, 59, 55, .12);
+        --reason-greed: #2b6ca3; --reason-greed-bg: rgba(43, 108, 163, .12);
+        --reason-disenchant: #7c4fd6; --reason-disenchant-bg: rgba(124, 79, 214, .12);
+        --reason-bank: #5b616e; --reason-bank-bg: rgba(91, 97, 110, .12);
     }
 }
 :root[data-theme="light"] {
@@ -45,6 +64,15 @@
     --area-history: #c23f8f; --area-history-soft: rgba(194, 63, 143, .12);
     --area-channels: #1f978c; --area-channels-soft: rgba(31, 151, 140, .12);
     --area-settings: #7c4fd6; --area-settings-soft: rgba(124, 79, 214, .12);
+    --reason-bis: #0f8f72; --reason-bis-bg: rgba(15, 143, 114, .12);
+    --reason-mainspec: #2b9440; --reason-mainspec-bg: rgba(43, 148, 64, .12);
+    --reason-upgrade: #6d8f19; --reason-upgrade-bg: rgba(109, 143, 25, .12);
+    --reason-minor: #9a6c12; --reason-minor-bg: rgba(154, 108, 18, .14);
+    --reason-offspec: #c26414; --reason-offspec-bg: rgba(194, 100, 20, .12);
+    --reason-pvp: #cf3b37; --reason-pvp-bg: rgba(207, 59, 55, .12);
+    --reason-greed: #2b6ca3; --reason-greed-bg: rgba(43, 108, 163, .12);
+    --reason-disenchant: #7c4fd6; --reason-disenchant-bg: rgba(124, 79, 214, .12);
+    --reason-bank: #5b616e; --reason-bank-bg: rgba(91, 97, 110, .12);
 }
 
 * { box-sizing: border-box; }
@@ -429,6 +457,78 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 /* One step below lbadge-warn: a finding worth fixing, not a blocker (a gem
    quality nit next to a missing enchant). */
 .lbadge-medium { background: var(--medium-bg); color: var(--medium); border-color: var(--medium); }
+
+/* ===== loot award reasons =====
+   One colour per reason bucket (utils/lootReasons.js hands the tone down with
+   every loot row), running from "this was their mainspec gain" to "nobody
+   wanted it": green for BiS/Mainspec, fading over lime and yellow for the
+   weaker upgrades, orange for offspec, red for PvP, cool tones for greed,
+   sharding and the guild bank. The scale is the point — a row of badges has to
+   show at a glance whether someone's loot was mostly mainspec. The tone
+   colours themselves sit with the other palettes in :root, so light mode can
+   restate them without touching these rules. */
+.rbadge {
+    display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; line-height: 1.6; white-space: nowrap;
+    border: 1px solid var(--reason-line, var(--line)); background: var(--reason-bg, var(--panel2)); color: var(--reason-fg, var(--muted));
+}
+.rbadge-count { font-family: var(--font-mono); font-variant-numeric: tabular-nums; opacity: .85; }
+.rbadge-bis { --reason-fg: var(--reason-bis); --reason-bg: var(--reason-bis-bg); --reason-line: var(--reason-bis); }
+.rbadge-mainspec { --reason-fg: var(--reason-mainspec); --reason-bg: var(--reason-mainspec-bg); --reason-line: var(--reason-mainspec); }
+.rbadge-upgrade { --reason-fg: var(--reason-upgrade); --reason-bg: var(--reason-upgrade-bg); --reason-line: var(--reason-upgrade); }
+.rbadge-minor { --reason-fg: var(--reason-minor); --reason-bg: var(--reason-minor-bg); --reason-line: var(--reason-minor); }
+.rbadge-offspec { --reason-fg: var(--reason-offspec); --reason-bg: var(--reason-offspec-bg); --reason-line: var(--reason-offspec); }
+.rbadge-pvp { --reason-fg: var(--reason-pvp); --reason-bg: var(--reason-pvp-bg); --reason-line: var(--reason-pvp); }
+.rbadge-greed { --reason-fg: var(--reason-greed); --reason-bg: var(--reason-greed-bg); --reason-line: var(--reason-greed); }
+.rbadge-disenchant { --reason-fg: var(--reason-disenchant); --reason-bg: var(--reason-disenchant-bg); --reason-line: var(--reason-disenchant); }
+.rbadge-bank { --reason-fg: var(--reason-bank); --reason-bg: var(--reason-bank-bg); --reason-line: var(--reason-bank); }
+.rbadge-other { --reason-fg: var(--muted); --reason-bg: var(--panel2); --reason-line: var(--line); }
+/* A raider chip: spec icon + class-coloured name, for wherever a list of people
+   has to stay scannable (the item table's recipients). */
+.raider-badge {
+    display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px 2px 3px; border-radius: 999px;
+    font-size: 12.5px; font-weight: 700; line-height: 1.6; white-space: nowrap;
+    border: 1px solid var(--line); background: var(--panel2); color: var(--text); text-decoration: none;
+}
+.raider-badge-ico { width: 18px; height: 18px; border-radius: 999px; flex: 0 0 auto; }
+.raider-badge-ico-ph { background: var(--panel3); border: 1px solid var(--line); }
+
+/* Both badges double as HoverPanel triggers, and .loot-pop-trigger's own look
+   (dashed pill, mono, centred) would otherwise win on source order — restate
+   the badge look at trigger specificity instead of reordering the file. */
+.loot-pop-trigger.rbadge, .loot-pop-trigger.raider-badge {
+    display: inline-flex; min-width: 0; text-align: left; font-family: inherit; cursor: help;
+}
+.loot-pop-trigger.rbadge {
+    padding: 2px 9px; border: 1px solid var(--reason-line, var(--line));
+    background: var(--reason-bg, var(--panel2)); color: var(--reason-fg, var(--muted));
+}
+.loot-pop-trigger.raider-badge {
+    padding: 2px 9px 2px 3px; border: 1px solid var(--line); background: var(--panel2); color: var(--text);
+}
+.loot-pop-wrap:hover .loot-pop-trigger.rbadge,
+.loot-pop-wrap:focus-visible .loot-pop-trigger.rbadge {
+    color: var(--reason-fg, var(--muted)); border-color: var(--reason-line, var(--line)); filter: brightness(1.14);
+}
+.loot-pop-wrap:hover .loot-pop-trigger.raider-badge,
+.loot-pop-wrap:focus-visible .loot-pop-trigger.raider-badge { color: var(--text); border-color: var(--accent); }
+.badge-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+/* Filter bar shared by the Gründe and Items tabs. */
+.filter-bar { display: flex; gap: 14px; flex-wrap: wrap; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+
+/* Class-coloured text. WoW's palette is built for a black game UI — Priest
+   white (#FFFFFF) and Rogue yellow (#FFF569) are unreadable on the light
+   theme's white panels — so light mode darkens whatever colour it was handed
+   instead of showing it raw. That is only possible because the colour arrives
+   as the custom property --cc rather than as `color:` (see classColorProps in
+   ClassSpec.tsx); the hue survives, the luminance is pulled down far enough to
+   read. Dark mode uses the game colours unchanged. */
+.class-colored { color: var(--cc); }
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .class-colored { color: color-mix(in srgb, var(--cc) 55%, #0d0f14); }
+}
+:root[data-theme="light"] .class-colored { color: color-mix(in srgb, var(--cc) 55%, #0d0f14); }
+
 .flash { border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 14px; }
 .flash-ok { background: var(--good-bg); color: var(--good); border: 1px solid var(--good); }
 .flash-err { background: var(--high-bg); color: var(--high); border: 1px solid var(--high); }

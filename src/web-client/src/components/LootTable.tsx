@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import type { LootItem } from "../api";
 import { fmtMs } from "../lib/format";
 import { CharacterLink } from "./ClassSpec";
+import { reasonToneClass } from "./LootBadges";
 
 const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil" };
 
@@ -31,14 +32,27 @@ function sortValue(it: LootItem, key: SortKey): string | number {
     }
 }
 
-// The award reason as it came out of the loot tool ("BiS", "Mainspec",
-// "Upgrade", …) — RCLootcouncil ships free text, Gargul only knows the offspec
-// flag, so both fall back to a plain Main/Off Spec label. Shared with the
-// Charaktere tab's Items hover so a response reads the same everywhere.
-export function LootResponseBadge({ response, offspec }: { response?: string; offspec?: boolean }) {
-    return offspec
-        ? <span className="lbadge lbadge-neutral">{response || "Off Spec"}</span>
-        : <span className="lbadge lbadge-ok">{response || "Main Spec"}</span>;
+// The award reason, coloured by its bucket. The label stays the addon's own
+// wording ("BiS", "Zweitspec", "Upgrade" — RCLootcouncil ships free text,
+// Gargul only an offspec flag); what the server adds is which reason bucket
+// that wording belongs to, and that picks the colour (utils/lootReasons.js).
+// Shared with the Charaktere tab's Items hover and the raid-detail loot tab, so
+// a response reads the same everywhere.
+export function LootResponseBadge({ response, offspec, reasonLabel, reasonTone }: {
+    response?: string;
+    offspec?: boolean;
+    reasonLabel?: string;
+    reasonTone?: string;
+}) {
+    const label = response || reasonLabel || (offspec ? "Off Spec" : "Main Spec");
+    return (
+        <span
+            className={reasonToneClass(reasonTone)}
+            title={reasonLabel && reasonLabel !== label ? reasonLabel : undefined}
+        >
+            {label}
+        </span>
+    );
 }
 
 function SortTh({ sortKey, label, sort, dir, onSort }: {
@@ -105,7 +119,7 @@ export function LootTable({ items, showEvent = false }: { items: LootItem[]; sho
                                 : (it.itemName || `Item ${it.itemId}`)}
                         </td>
                         <td><CharacterLink character={it.character} /></td>
-                        <td className="small"><LootResponseBadge response={it.response} offspec={it.offspec} /></td>
+                        <td className="small"><LootResponseBadge response={it.response} offspec={it.offspec} reasonLabel={it.reasonLabel} reasonTone={it.reasonTone} /></td>
                         <td className="small">{it.boss || ""}</td>
                         {showEvent && <td className="small">{it.eventLabel || it.eventId || ""}</td>}
                         <td className="small">{fmtMs(it.awardedAt)}</td>

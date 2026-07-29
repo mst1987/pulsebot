@@ -256,6 +256,17 @@ Access is **per area** (one admin-menu section) and **per level** (`read` = open
 
 `src/utils/lootImport.js` normalizes both export formats to one loot-item shape (`parseLoot`/`parseGargul`/`parseRclc`). `enrichItemNames(items)` fills in `itemName`/`itemIconUrl` that an export didn't carry (Gargul gives neither, RCLootcouncil gives a name but no icon) via `src/utils/wowhead.js`'s `lookupItem(itemId)` (Wowhead's tooltip endpoint, in-memory cached, best-effort — mock it in tests). Call it once, right after `parseLoot()` — the one import handler is `apiRoutes/history.js`'s `importLoot` (JSON, called from the React client's Historie-&-Loot and Raid-Detail Loot-tab imports).
 
+### Award reason and raid content (the "Loot-Gründe"/"Items" overviews)
+
+Two things a loot export does not state usably are derived on **every read** in `lootStore.js`'s `decorate()`, never stored — so old imports profit from a grown table without a re-import:
+
+- **Why** someone got an item — `src/utils/lootReasons.js` maps the addon's free-text `response` ("BiS", "Off-Spec", "Zweitspec", "Entzaubern", …) onto one of the `REASONS` buckets and adds `reason`/`reasonLabel`/`reasonTone` to the row. The raw `response` is kept untouched next to it. `tone` is the badge colour (`.rbadge-*` in `index.css`); an unrecognised response becomes `other`, never a guessed mainspec.
+- **Where from** — `src/config/tbcContent.js` maps every TBC raid drop to its content (`ssc`, `tk`, `gruul`, …), tier (`t4`/`t5`/`t6`/`t65`) and boss **by item id**, which is the only key a Gargul row has. The `RAID_LOOT` block is generated — run `node scripts/fetch-tbc-loot.js` to refresh it from Wowhead's zone drop tables; don't hand-edit it. The export's own instance string is only the fallback, and an unknown item keeps `contentId: ""` instead of being filed into a wrong raid.
+
+`src/web/lootStats.js` aggregates both into what `GET /api/history/loot-stats` serves (`reasonsByCharacter()` + `itemCatalog()`), rendered by `LootReasonsTab.tsx`/`LootItemsTab.tsx`.
+
+**Class colours in the client:** hand them to the DOM via `classColorProps()` (`ClassSpec.tsx`), not as `style={{ color }}` — it sets the `--cc` custom property so `.class-colored` can darken WoW's game palette for the light theme (Priest white and Rogue yellow are invisible on white otherwise).
+
 ## Known Issues and Gotchas
 
 - **`saveRaid` in classes/raidhelper.js:** Uses `https.request` to connect to port 3001 on pulse-gdkp.de — this should be `http.request` as port 3001 is not TLS.

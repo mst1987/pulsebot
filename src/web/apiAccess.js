@@ -49,6 +49,7 @@ const AREA_BY_PATH = {
     "/api/recruitment/scan": "recruitment",
 
     "/api/history": "history",
+    "/api/history/loot-stats": "history",
     "/api/history/log-delete": "history",
     "/api/history/import": "history",
     "/api/history/category-tool": "history",

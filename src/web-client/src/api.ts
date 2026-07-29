@@ -730,6 +730,12 @@ export type LootLog = {
     postedAt?: number;
 };
 
+// `reason`/`reasonLabel`/`reasonTone` are the normalized award reason the server
+// derived from the addon's free-text `response` (see utils/lootReasons.js) — the
+// tone picks the badge colour, the raw response stays visible on hover.
+// `contentId` is the raid the item drops in, resolved by item id
+// (config/tbcContent.js) and therefore also present for Gargul rows, which carry
+// no instance at all.
 export type LootItem = {
     itemId: number;
     itemName: string;
@@ -738,6 +744,11 @@ export type LootItem = {
     character: string;
     response: string;
     offspec: boolean;
+    reason: string;
+    reasonLabel: string;
+    reasonTone: string;
+    contentId: string;
+    tokenTier: string;
     boss: string;
     awardedAt: number;
     source: LootSource;
@@ -761,7 +772,12 @@ export type CharLootPreview = {
     itemLink: string;
     response: string;
     offspec: boolean;
+    reason: string;
+    reasonLabel: string;
+    reasonTone: string;
+    contentId: string;
     categoryId: string;
+    eventId: string;
     eventLabel: string;
     awardedAt: number;
 };
@@ -795,6 +811,86 @@ export type HistoryData = {
 
 export function getHistoryData(): Promise<HistoryData> {
     return get<HistoryData>("/api/history");
+}
+
+// ---- Loot overviews (Gründe / Items) ----------------------------------------
+// Labels, colours (tone) and the raid/tier catalogs all come from the server
+// (utils/lootReasons.js, config/tbcContent.js) — the client only maps a tone
+// onto a CSS class, so a new reason or a new raid never needs a client change.
+
+export type LootReason = { id: string; label: string; tone: string; order: number };
+export type LootContent = { id: string; label: string; short: string; tier: string; zoneId: number };
+export type LootTier = { id: string; label: string };
+
+/** One reason bucket of one raider, with the items behind it (hover list). */
+export type CharReasonBucket = {
+    reason: string;
+    label: string;
+    tone: string;
+    order: number;
+    count: number;
+    items: CharLootPreview[];
+};
+
+export type CharReasonRow = {
+    key: string;
+    character: string;
+    realm: string;
+    className: string;
+    spec: string;
+    classColor: string;
+    iconUrl: string;
+    categoryIds: string[];
+    count: number;
+    reasons: CharReasonBucket[];
+};
+
+/** One award of an item: who got it, when, in which raid and for what reason. */
+export type LootAward = {
+    character: string;
+    characterKey: string;
+    className: string;
+    spec: string;
+    classColor: string;
+    iconUrl: string;
+    reason: string;
+    reasonLabel: string;
+    reasonTone: string;
+    response: string;
+    eventId: string;
+    eventLabel: string;
+    categoryId: string;
+    awardedAt: number;
+    source: LootSource;
+};
+
+export type LootCatalogItem = {
+    itemId: number;
+    itemName: string;
+    itemIconUrl: string;
+    itemLink: string;
+    /** "" when the content table doesn't know the item — shown as "Unbekannt". */
+    contentId: string;
+    tier: string;
+    boss: string;
+    /** "t4"/"t5"/"t6" on a tier-set token, "" otherwise. */
+    tokenTier: string;
+    count: number;
+    lastAwardedAt: number;
+    awards: LootAward[];
+};
+
+export type LootStats = {
+    reasons: LootReason[];
+    contents: LootContent[];
+    tiers: LootTier[];
+    characters: CharReasonRow[];
+    items: LootCatalogItem[];
+    unknownContentCount: number;
+};
+
+export function getLootStats(): Promise<LootStats> {
+    return get<LootStats>("/api/history/loot-stats");
 }
 
 export function deleteHistoryLog(csrfToken: string | null, logId: string): Promise<{ id: string }> {

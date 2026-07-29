@@ -2,6 +2,8 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const { characterKey, enrichItemNames } = require("../utils/lootImport");
+const { describeReason } = require("../utils/lootReasons");
+const { contentForLoot, tokenTier } = require("../config/tbcContent");
 
 // Imported loot lives as a single JSON file next to the other editable settings.
 // Each entry is a normalized loot item (see utils/lootImport) tagged with the
@@ -69,12 +71,39 @@ function addImport(eventId, items, meta = {}) {
     return { added, skipped };
 }
 
+/**
+ * What is derived from a stored row rather than stored on it, added on every
+ * read so no consumer has to redo it:
+ *   - the award reason bucket (see utils/lootReasons) — the raw `response` text
+ *     stays untouched next to it,
+ *   - the raid the item comes from, resolved by item id and therefore also
+ *     available for Gargul rows, which carry no instance at all
+ *     (see config/tbcContent),
+ *   - `boss`, filled in from the same table when the export didn't name one,
+ *   - `tokenTier`, set on the tier-set tokens ("t4"/"t5"/"t6"), else "".
+ * Derived on read and not at import time on purpose: the content table grows
+ * with every patch, and old imports have to profit from that without a
+ * re-import.
+ */
+function decorate(it) {
+    const { contentId, boss } = contentForLoot(it);
+    return { ...it, ...describeReason(it), contentId, boss, tokenTier: tokenTier(it.itemName) };
+}
+
+const byAwardedDesc = (a, b) => (b.awardedAt || 0) - (a.awardedAt || 0);
+
+/** Every stored loot row, newest award first. */
+function listAll() {
+    return readAll().map(decorate).sort(byAwardedDesc);
+}
+
 /** All loot for one event, newest award first. */
 function listByEvent(eventId) {
     const id = String(eventId || "").trim();
     return readAll()
         .filter((it) => it.eventId === id)
-        .sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0));
+        .map(decorate)
+        .sort(byAwardedDesc);
 }
 
 /** All loot a character received (matched case-insensitively, realm-independent). */
@@ -83,7 +112,8 @@ function listByCharacter(character) {
     if (!key) return [];
     return readAll()
         .filter((it) => it.characterKey === key)
-        .sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0));
+        .map(decorate)
+        .sort(byAwardedDesc);
 }
 
 /** Distinct events that have loot, with a count and the latest import time. */
@@ -117,7 +147,12 @@ function charLootPreview(it) {
         itemLink: it.itemLink || "",
         response: it.response || "",
         offspec: !!it.offspec,
+        reason: it.reason || "",
+        reasonLabel: it.reasonLabel || "",
+        reasonTone: it.reasonTone || "",
+        contentId: it.contentId || "",
         categoryId: it.categoryId || "",
+        eventId: it.eventId || "",
         eventLabel: it.eventLabel || "",
         awardedAt: it.awardedAt || 0,
     };
@@ -137,7 +172,7 @@ function charLootPreview(it) {
  */
 function characters() {
     const byChar = new Map();
-    for (const it of readAll()) {
+    for (const it of listAll()) {
         const key = it.characterKey;
         if (!key) continue;
         if (!byChar.has(key)) byChar.set(key, { key, character: it.character, realm: it.realm || "", count: 0, categoryIds: new Set(), items: [] });
@@ -184,5 +219,6 @@ async function repairItemNames() {
 }
 
 module.exports = {
-    addImport, listByEvent, listByCharacter, eventsWithLoot, characters, clearEvent, repairItemNames, LOOT_FILE,
+    addImport, listAll, listByEvent, listByCharacter, eventsWithLoot, characters, clearEvent, repairItemNames,
+    charLootPreview, LOOT_FILE,
 };

@@ -11,6 +11,7 @@ const {
     addImport: addLootImport, listByEvent: listLootByEvent, listByCharacter: listLootByCharacter, eventsWithLoot, clearEvent: clearLootEvent,
     repairItemNames: repairLootItemNames,
 } = require("../lootStore");
+const { lootStats } = require("../lootStats");
 const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../characterInfo");
 const { getCharacter } = require("../characterStore");
 const { issuesForCharacter } = require("../charGearIssues");
@@ -26,6 +27,15 @@ const slugify = (label) => String(label || "").toLowerCase().replace(/[^a-z0-9]+
 
 // Fill a {char} URL template (armory / WCL) for a character name.
 const fillCharTemplate = (tpl, character) => String(tpl || "").replace("{char}", encodeURIComponent(String(character || "").trim()));
+
+// Class colour + spec icon for anything that renders a raider's name. Computed
+// server-side like every other class colour in the app (see ClassSpec.tsx's
+// header comment), so the client never owns a second copy of the palette.
+const withClassLook = (c) => ({
+    ...c,
+    classColor: CLASS_COLORS[c.className] || "",
+    iconUrl: c.className ? classSpecIconUrl(c.className, c.spec) : "",
+});
 
 /** GET /api/history — everything the "Alle Raids/Import/Loot/Logs/Loot-Tools" tabs need. */
 async function getHistoryData(req, res) {
@@ -51,11 +61,27 @@ async function getHistoryData(req, res) {
         categories: guildId ? discord.listCategories(guildId) : [],
         categoryLootTool: cfg.categoryLootTool || {},
         activeGuildId: guildId,
-        chars: annotatedCharacters().map((c) => ({
-            ...c,
-            classColor: CLASS_COLORS[c.className] || "",
-            iconUrl: c.className ? classSpecIconUrl(c.className, c.spec) : "",
-        })),
+        chars: annotatedCharacters().map(withClassLook),
+    });
+}
+
+/**
+ * GET /api/history/loot-stats — the two cross-raid overviews: loot per raider
+ * broken down by award reason, and every looted item with its recipients.
+ * Own endpoint rather than part of /api/history: it carries every loot row that
+ * was ever imported, which the five older tabs have no use for.
+ */
+async function getLootStats(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    // Same one-time backfill the event/character pages do — an item without a
+    // name is unusable in a table that is sorted and filtered by name.
+    await repairLootItemNames();
+    const stats = lootStats();
+    ok(res, {
+        ...stats,
+        characters: stats.characters.map(withClassLook),
+        items: stats.items.map((it) => ({ ...it, awards: it.awards.map(withClassLook) })),
     });
 }
 
@@ -261,6 +287,6 @@ function enrichCharInfo(info) {
 }
 
 module.exports = {
-    getHistoryData, deleteHistoryLog, importLoot, saveCategoryLootTool, clearHistoryEvent, getHistoryEvent,
+    getHistoryData, getLootStats, deleteHistoryLog, importLoot, saveCategoryLootTool, clearHistoryEvent, getHistoryEvent,
     resolveCharacters, getHistoryChar,
 };

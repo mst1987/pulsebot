@@ -28,7 +28,7 @@ jest.mock("../../src/utils/wowhead", () => ({
 
 const fs = require("fs");
 const {
-    addImport, listByEvent, listByCharacter, eventsWithLoot, characters, clearEvent, repairItemNames,
+    addImport, listAll, listByEvent, listByCharacter, eventsWithLoot, characters, clearEvent, repairItemNames,
 } = require("../../src/web/lootStore.js");
 
 beforeEach(() => {
@@ -43,6 +43,38 @@ const item = (over = {}) => ({
 });
 
 describe("web/lootStore", () => {
+    // Reason, raid and tier are derived on every read rather than stored, so
+    // rows imported before those tables existed profit from them too.
+    describe("read-time enrichment", () => {
+        it("adds the award reason to every row without touching the raw response", () => {
+            addImport("e1", [item({ response: "Off Spec", offspec: true })]);
+            expect(listByEvent("e1")[0]).toMatchObject({
+                response: "Off Spec", reason: "offspec", reasonLabel: "Offspec", reasonTone: "offspec",
+            });
+        });
+
+        it("resolves the raid and boss from the item id (30105 = SSC / Lady Vashj)", () => {
+            addImport("e1", [item({ itemId: 30105, boss: "" })]);
+            expect(listByEvent("e1")[0]).toMatchObject({ contentId: "ssc", boss: "Lady Vashj" });
+        });
+
+        it("leaves an unknown item without a raid rather than guessing", () => {
+            addImport("e1", [item({ itemId: 100, boss: "" })]);
+            expect(listByEvent("e1")[0]).toMatchObject({ contentId: "", boss: "" });
+        });
+
+        it("applies to listAll and listByCharacter the same way", () => {
+            addImport("e1", [item({ itemId: 30105 })]);
+            expect(listAll()[0].contentId).toBe("ssc");
+            expect(listByCharacter("Foo")[0].reason).toBe("bis");
+        });
+
+        it("carries the reason into the per-character preview items", () => {
+            addImport("e1", [item({ response: "PvP" })]);
+            expect(characters()[0].items[0]).toMatchObject({ reason: "pvp", reasonTone: "pvp" });
+        });
+    });
+
     describe("addImport", () => {
         it("stores items against an event and reports the added count", () => {
             const res = addImport("e1", [item(), item({ rawId: "r2", character: "Bar", characterKey: "bar" })], { categoryId: "cat1" });
