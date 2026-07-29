@@ -29,7 +29,7 @@ export function CharLootHover({ items, count, categoryNameById, showCategory }: 
                     <div className="loot-pop-body">
                         <div className="loot-pop-name" title={it.itemName || `Item ${it.itemId}`}>{it.itemName || `Item ${it.itemId}`}</div>
                         <div className="loot-pop-meta">
-                            <LootResponseBadge response={it.response} offspec={it.offspec} />
+                            <LootResponseBadge response={it.response} offspec={it.offspec} reasonLabel={it.reasonLabel} reasonTone={it.reasonTone} />
                             {showCategory && !!it.categoryId && (
                                 <span className="lbadge lbadge-neutral">{categoryNameById.get(it.categoryId) || it.categoryId}</span>
                             )}

@@ -1,28 +1,36 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
-    getHistoryData, importLoot, deleteHistoryLog, saveCategoryLootTool, resolveCharacters,
+    getHistoryData, getLootStats, importLoot, deleteHistoryLog, saveCategoryLootTool, resolveCharacters,
     type ApiError, type HistoryData, type HistoryEvent, type LootEventSummary, type LootLog, type AnnotatedCharacter,
-    type Category,
+    type Category, type LootStats,
 } from "../api";
 import { formatEventTime, fmtMs, formatDate } from "../lib/format";
 import { usePersistedState } from "../lib/persistedState";
 import RaidTable from "../components/RaidTable";
 import { CharLootHover } from "../components/CharLootHover";
 import { ClassSpecCell, CharacterLink, CLASS_SOURCE_LABELS } from "../components/ClassSpec";
+import { LootReasonsTab } from "../components/LootReasonsTab";
+import { LootItemsTab } from "../components/LootItemsTab";
 import type { ShellContext } from "../components/Shell";
 
 type Flash = { type: "ok" | "err"; text: string };
-type Tab = "raids" | "import" | "loot" | "logs" | "cats" | "chars";
+type Tab = "raids" | "import" | "loot" | "reasons" | "items" | "logs" | "cats" | "chars";
 
 const TABS: { id: Tab; label: string; count?: (d: HistoryData) => number }[] = [
     { id: "raids", label: "Alle Raids", count: (d) => d.upcomingRaids.events.length + d.pastRaids.events.length },
     { id: "import", label: "Import" },
     { id: "loot", label: "Importierter Loot", count: (d) => d.lootEvents.length },
+    { id: "reasons", label: "Loot-Gründe" },
+    { id: "items", label: "Items" },
     { id: "logs", label: "Warcraft Logs", count: (d) => d.logs.length },
     { id: "cats", label: "Loot-Tools" },
     { id: "chars", label: "Charaktere", count: (d) => d.chars.length },
 ];
+
+// The two overview tabs carry every loot row ever imported, so they load on
+// demand instead of with the page — opening "Alle Raids" must not pay for them.
+const STATS_TABS: Tab[] = ["reasons", "items"];
 
 const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil" };
 
@@ -501,12 +509,32 @@ export default function HistoryPage() {
     const [data, setData] = useState<HistoryData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [flash, setFlash] = useState<Flash | null>(null);
+    const [stats, setStats] = useState<LootStats | null>(null);
+    const [statsError, setStatsError] = useState<ApiError | null>(null);
+
+    // Whether the overviews were ever asked for. A ref, not the state above:
+    // after a failed load there is nothing in `stats`, and retrying on every
+    // render would hammer the endpoint.
+    const statsRequested = useRef(false);
+
+    const loadStats = () => {
+        statsRequested.current = true;
+        getLootStats().then((s) => { setStats(s); setStatsError(null); }).catch((err: ApiError) => setStatsError(err));
+    };
 
     const load = () => {
         getHistoryData().then(setData).catch((err: ApiError) => setError(err));
+        // Only refresh the overviews once they have been opened — before that
+        // there is nothing on screen that could go stale after an import.
+        if (statsRequested.current) loadStats();
     };
 
     useEffect(load, []);
+
+    // Fetched on the first visit to one of the overview tabs, then kept.
+    useEffect(() => {
+        if (STATS_TABS.includes(tab) && !statsRequested.current) loadStats();
+    }, [tab]);
 
     const afterChange = (msg: string) => {
         setFlash({ type: "ok", text: msg });
@@ -519,7 +547,7 @@ export default function HistoryPage() {
     return (
         <>
             <h1 className="page-title">Historie &amp; Loot</h1>
-            <p className="note">Loot pro Event importieren (RCLootcouncil-JSON oder Gargul-CSV), Warcraft-Logs verlinken und pro Charakter die Loot-Historie samt Armory einsehen.</p>
+            <p className="note">Loot pro Event importieren (RCLootcouncil-JSON oder Gargul-CSV), Warcraft-Logs verlinken und pro Charakter die Loot-Historie samt Armory einsehen. „Loot-Gründe" zeigt je Raider, wofür er Items bekommen hat, „Items" alle Items mit ihren Empfängern — filterbar nach Raid und Tier.</p>
             {flash && <p className="sub" style={{ color: flash.type === "err" ? "var(--high)" : "var(--good)" }}>{flash.text}</p>}
 
             <div className="tabs" role="tablist">
@@ -545,6 +573,23 @@ export default function HistoryPage() {
             )}
             {tab === "import" && <ImportForm data={data} csrfToken={csrfToken} onImported={afterChange} />}
             {tab === "loot" && <LootEventsTab lootEvents={data.lootEvents} />}
+            {STATS_TABS.includes(tab) && (
+                statsError
+                    ? <div className="empty">Fehler beim Laden: {statsError.message}</div>
+                    : !stats
+                        ? <div className="empty">Lade…</div>
+                        : tab === "reasons"
+                            ? <LootReasonsTab characters={stats.characters} reasons={stats.reasons} categories={data.categories} />
+                            : (
+                                <LootItemsTab
+                                    items={stats.items}
+                                    contents={stats.contents}
+                                    tiers={stats.tiers}
+                                    reasons={stats.reasons}
+                                    unknownContentCount={stats.unknownContentCount}
+                                />
+                            )
+            )}
             {tab === "logs" && <LogsTab logs={data.logs} csrfToken={csrfToken} onChanged={afterChange} />}
             {tab === "cats" && <CategoryToolsTab data={data} csrfToken={csrfToken} onChanged={afterChange} />}
             {tab === "chars" && <CharactersTab chars={data.chars} categories={data.categories} csrfToken={csrfToken} onChanged={afterChange} />}
