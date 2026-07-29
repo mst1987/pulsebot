@@ -164,19 +164,6 @@ async function importLoot(req, res) {
     ok(res, { eventId, eventLabel, added, skipped }, 201);
 }
 
-/** POST /api/history/category-tool — body: { categoryId, tool }. */
-async function saveCategoryLootTool(req, res) {
-    const user = requireAdmin(req, res);
-    if (!user) return;
-    if (!requireCsrf(req, res)) return;
-    const body = await readJsonBody(req);
-    const categoryId = String(body.categoryId || "").trim();
-    const tool = String(body.tool || "").trim();
-    if (!categoryId) return error(res, 400, "no_category", "Keine Kategorie angegeben.");
-    saveConfig({ categoryLootTool: { [categoryId]: (tool === "gargul" || tool === "rclc") ? tool : "" } });
-    ok(res, { categoryId, tool });
-}
-
 /** POST /api/history/clear — body: { event }. Deletes all loot stored for one event. */
 async function clearHistoryEvent(req, res) {
     const user = requireAdmin(req, res);
@@ -287,6 +274,6 @@ function enrichCharInfo(info) {
 }
 
 module.exports = {
-    getHistoryData, getLootStats, deleteHistoryLog, importLoot, saveCategoryLootTool, clearHistoryEvent, getHistoryEvent,
+    getHistoryData, getLootStats, deleteHistoryLog, importLoot, clearHistoryEvent, getHistoryEvent,
     resolveCharacters, getHistoryChar,
 };

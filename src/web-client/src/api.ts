@@ -210,6 +210,10 @@ export type AdminConfig = {
     logChannelIds: string[];
     raidDefaults: { templateId: string; channelId: string };
     blizzard: BlizzardConfig;
+    // Which loot addon a Discord category raids with ("gargul" | "rclc" | ""),
+    // keyed by category id — preselects the parser on the loot import and tells
+    // the raid-detail loot tab which export to ask for.
+    categoryLootTool: Record<string, string>;
 };
 
 export type Raidsheet = {
@@ -825,7 +829,11 @@ export type LootTier = { id: string; label: string };
 /** One reason bucket of one raider, with the items behind it (hover list). */
 export type CharReasonBucket = {
     reason: string;
+    /** What the badge says: the guild's own response wording when every item in
+     *  the bucket carries the same one, else the bucket name. */
     label: string;
+    /** The bucket name itself, for the tooltip and the filter. */
+    reasonLabel: string;
     tone: string;
     order: number;
     count: number;
@@ -904,13 +912,6 @@ export function importLoot(
     input: ImportLootInput,
 ): Promise<{ eventId: string; eventLabel: string; added: number; skipped: number }> {
     return send("POST", "/api/history/import", csrfToken, input);
-}
-
-export function saveCategoryLootTool(
-    csrfToken: string | null,
-    input: { categoryId: string; tool: string },
-): Promise<{ categoryId: string; tool: string }> {
-    return send("POST", "/api/history/category-tool", csrfToken, input);
 }
 
 export function clearHistoryEvent(csrfToken: string | null, event: string): Promise<{ removed: number }> {

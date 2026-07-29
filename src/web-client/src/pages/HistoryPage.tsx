@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
-    getHistoryData, getLootStats, importLoot, deleteHistoryLog, saveCategoryLootTool, resolveCharacters,
+    getHistoryData, getLootStats, importLoot, deleteHistoryLog, resolveCharacters,
     type ApiError, type HistoryData, type HistoryEvent, type LootEventSummary, type LootLog, type AnnotatedCharacter,
     type Category, type LootStats,
 } from "../api";
@@ -15,7 +15,7 @@ import { LootItemsTab } from "../components/LootItemsTab";
 import type { ShellContext } from "../components/Shell";
 
 type Flash = { type: "ok" | "err"; text: string };
-type Tab = "raids" | "import" | "loot" | "reasons" | "items" | "logs" | "cats" | "chars";
+type Tab = "raids" | "import" | "loot" | "reasons" | "items" | "logs" | "chars";
 
 const TABS: { id: Tab; label: string; count?: (d: HistoryData) => number }[] = [
     { id: "raids", label: "Alle Raids", count: (d) => d.upcomingRaids.events.length + d.pastRaids.events.length },
@@ -24,7 +24,6 @@ const TABS: { id: Tab; label: string; count?: (d: HistoryData) => number }[] = [
     { id: "reasons", label: "Loot-Gründe" },
     { id: "items", label: "Items" },
     { id: "logs", label: "Warcraft Logs", count: (d) => d.logs.length },
-    { id: "cats", label: "Loot-Tools" },
     { id: "chars", label: "Charaktere", count: (d) => d.chars.length },
 ];
 
@@ -125,46 +124,6 @@ function ImportForm({ data, csrfToken, onImported }: {
                 </div>
                 <div className="row-actions"><button className="btn" type="submit" disabled={busy}>{busy ? "Importiert…" : "Loot importieren"}</button></div>
             </form>
-        </div>
-    );
-}
-
-function CategoryToolsTab({ data, csrfToken, onChanged }: { data: HistoryData; csrfToken: string | null; onChanged: (msg: string) => void }) {
-    const [saving, setSaving] = useState<string | null>(null);
-
-    const save = async (categoryId: string, tool: string) => {
-        setSaving(categoryId);
-        try {
-            await saveCategoryLootTool(csrfToken, { categoryId, tool });
-            onChanged("Gespeichert.");
-        } catch (err) {
-            onChanged((err as ApiError).message);
-        } finally {
-            setSaving(null);
-        }
-    };
-
-    return (
-        <div className="dash-card">
-            <div className="dash-card-head"><h3>Loot-Tool je Kategorie</h3></div>
-            <table className="idx" style={{ margin: 0 }}>
-                <tbody>
-                    {data.categories.length
-                        ? data.categories.map((c) => (
-                            <tr key={c.id}>
-                                <td><strong>{c.name}</strong></td>
-                                <td className="row-actions">
-                                    <select value={data.categoryLootTool[c.id] || ""} disabled={saving === c.id} onChange={(e) => save(c.id, e.target.value)}>
-                                        <option value="">— nicht gesetzt —</option>
-                                        <option value="gargul">Gargul</option>
-                                        <option value="rclc">RCLootcouncil</option>
-                                    </select>
-                                </td>
-                            </tr>
-                        ))
-                        : <tr><td colSpan={2} className="sub">Keine Kategorien gefunden (Server gewählt?).</td></tr>}
-                </tbody>
-            </table>
         </div>
     );
 }
@@ -591,7 +550,6 @@ export default function HistoryPage() {
                             )
             )}
             {tab === "logs" && <LogsTab logs={data.logs} csrfToken={csrfToken} onChanged={afterChange} />}
-            {tab === "cats" && <CategoryToolsTab data={data} csrfToken={csrfToken} onChanged={afterChange} />}
             {tab === "chars" && <CharactersTab chars={data.chars} categories={data.categories} csrfToken={csrfToken} onChanged={afterChange} />}
         </>
     );

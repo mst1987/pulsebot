@@ -48,8 +48,11 @@ export function ReasonBadge({ label, tone, count, title }: {
  * point: "8× Offspec" is only useful if it can be unfolded into which eight
  * pieces those were.
  */
-export function ReasonBadgeHover({ label, tone, count, items }: {
+export function ReasonBadgeHover({ label, reasonLabel, tone, count, items }: {
+    /** The guild's own wording where it is unambiguous (see lootStats.js). */
     label: string;
+    /** The bucket this belongs to — only shown when it differs from the label. */
+    reasonLabel?: string;
     tone?: string;
     count: number;
     items: CharLootPreview[];
@@ -60,10 +63,13 @@ export function ReasonBadgeHover({ label, tone, count, items }: {
             <span className="rbadge-count">{count}</span>
         </>
     );
+    const head = reasonLabel && reasonLabel !== label
+        ? `${label} (${reasonLabel}) · ${count} Item${count === 1 ? "" : "s"}`
+        : `${label} · ${count} Item${count === 1 ? "" : "s"}`;
     return (
         <HoverPanel
             trigger={trigger}
-            head={`${label} · ${count} Item${count === 1 ? "" : "s"}`}
+            head={head}
             className={reasonToneClass(tone)}
         >
             {items.map((it, i) => (
@@ -125,18 +131,20 @@ export function AwardBadge({ award }: { award: LootAward }) {
                 <div className="loot-pop-body" style={{ gap: 5 }}>
                     <div className={`loot-pop-name${colored.className ? ` ${colored.className}` : ""}`} style={colored.style}>{award.character}</div>
                     <div className="loot-pop-meta">
-                        <ReasonBadge label={award.reasonLabel} tone={award.reasonTone} title={award.response} />
+                        {/* The addon's own wording, coloured by the bucket it
+                            belongs to — the bucket name is only spelled out in
+                            the tooltip, and only when it says something else. */}
+                        <ReasonBadge
+                            label={award.response || award.reasonLabel}
+                            tone={award.reasonTone}
+                            title={award.response && award.response !== award.reasonLabel ? award.reasonLabel : undefined}
+                        />
                     </div>
                     <div className="loot-pop-meta">
                         <span className="sub" style={{ margin: 0 }}>{award.eventLabel || award.eventId || "Unbekannter Raid"}</span>
                     </div>
                     {!!award.awardedAt && (
                         <div className="loot-pop-meta"><span className="sub" style={{ margin: 0 }}>{fmtMs(award.awardedAt)}</span></div>
-                    )}
-                    {/* Only worth showing when it differs from the bucket label —
-                        otherwise it just repeats the badge above. */}
-                    {!!award.response && award.response !== award.reasonLabel && (
-                        <div className="loot-pop-meta"><span className="sub" style={{ margin: 0 }}>Response: „{award.response}"</span></div>
                     )}
                 </div>
             </div>

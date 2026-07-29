@@ -263,7 +263,9 @@ Two things a loot export does not state usably are derived on **every read** in 
 - **Why** someone got an item — `src/utils/lootReasons.js` maps the addon's free-text `response` ("BiS", "Off-Spec", "Zweitspec", "Entzaubern", …) onto one of the `REASONS` buckets and adds `reason`/`reasonLabel`/`reasonTone` to the row. The raw `response` is kept untouched next to it. `tone` is the badge colour (`.rbadge-*` in `index.css`); an unrecognised response becomes `other`, never a guessed mainspec.
 - **Where from** — `src/config/tbcContent.js` maps every TBC raid drop to its content (`ssc`, `tk`, `gruul`, …), tier (`t4`/`t5`/`t6`/`t65`) and boss **by item id**, which is the only key a Gargul row has. The `RAID_LOOT` block is generated — run `node scripts/fetch-tbc-loot.js` to refresh it from Wowhead's zone drop tables; don't hand-edit it. The export's own instance string is only the fallback, and an unknown item keeps `contentId: ""` instead of being filed into a wrong raid.
 
-`src/web/lootStats.js` aggregates both into what `GET /api/history/loot-stats` serves (`reasonsByCharacter()` + `itemCatalog()`), rendered by `LootReasonsTab.tsx`/`LootItemsTab.tsx`.
+`src/web/lootStats.js` aggregates both into what `GET /api/history/loot-stats` serves (`reasonsByCharacter()` + `itemCatalog()`), rendered by `LootReasonsTab.tsx`/`LootItemsTab.tsx`. A reason badge is labelled with the guild's **own** response wording whenever every item in that bucket carries the same one ("Zweitspec" rather than the internal "Offspec"); the bucket only decides the colour and the filter.
+
+Which loot addon a category uses (`config.categoryLootTool`) is a **setting**: it is edited in Einstellungen → *Loot* and saved with the rest of the config through `PATCH /api/settings`. There is no separate endpoint for it (the old `/api/history/category-tool` is gone).
 
 **Class colours in the client:** hand them to the DOM via `classColorProps()` (`ClassSpec.tsx`), not as `style={{ color }}` — it sets the `--cc` custom property so `.class-colored` can darken WoW's game palette for the light theme (Priest white and Rogue yellow are invisible on white otherwise).
 

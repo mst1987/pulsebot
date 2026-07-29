@@ -58,7 +58,7 @@ export function LootReasonsTab({ characters, reasons, categories }: {
     const categoryNameById = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
 
     // Guild-wide totals per reason, in the catalog's order. Only reasons that
-    // actually occur get a chip — an empty "Gildenbank 0" says nothing.
+    // actually occur get a chip — an empty "Bank 0" says nothing.
     const totals = useMemo(() => {
         const byReason = new Map<string, number>();
         for (const c of characters) for (const b of c.reasons) byReason.set(b.reason, (byReason.get(b.reason) || 0) + b.count);
@@ -156,7 +156,7 @@ export function LootReasonsTab({ characters, reasons, categories }: {
                                     <td>
                                         <div className="badge-row">
                                             {c.reasons.map((b) => (
-                                                <ReasonBadgeHover key={b.reason} label={b.label} tone={b.tone} count={b.count} items={b.items} />
+                                                <ReasonBadgeHover key={b.reason} label={b.label} reasonLabel={b.reasonLabel} tone={b.tone} count={b.count} items={b.items} />
                                             ))}
                                         </div>
                                     </td>

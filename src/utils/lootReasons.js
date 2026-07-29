@@ -24,7 +24,7 @@ const REASONS = [
     { id: "pvp", label: "PvP", tone: "pvp" },
     { id: "greed", label: "Greed", tone: "greed" },
     { id: "disenchant", label: "Entzaubert", tone: "disenchant" },
-    { id: "bank", label: "Gildenbank", tone: "bank" },
+    { id: "bank", label: "Bank", tone: "bank" },
     { id: "other", label: "Sonstiges", tone: "other" },
 ];
 

@@ -20,6 +20,7 @@ const TABS = [
     { id: "recruitment", label: "Recruitment" },
     { id: "auktionen", label: "Auktionen" },
     { id: "events", label: "Events" },
+    { id: "loot", label: "Loot" },
     { id: "raidchars", label: "Raider-Chars" },
     { id: "logs", label: "Logs" },
     { id: "raidsheets", label: "Raidsheets" },
@@ -47,6 +48,7 @@ type Draft = {
     blizzardRegion: string;
     blizzardRealmSlug: string;
     blizzardNamespace: string;
+    categoryLootTool: Record<string, string>;
 };
 
 function toDraft(config: AdminConfig): Draft {
@@ -69,7 +71,36 @@ function toDraft(config: AdminConfig): Draft {
         blizzardRegion: config.blizzard.region,
         blizzardRealmSlug: config.blizzard.realmSlug,
         blizzardNamespace: config.blizzard.namespace,
+        categoryLootTool: config.categoryLootTool || {},
     };
+}
+
+// Which loot addon each raid category uses. Steers which parser the loot import
+// preselects and which export the Raid-Detail loot tab asks for — a setting, not
+// something you do while importing, so it lives here and no longer in the
+// Historie tab.
+function LootToolTable({ categories, value, onChange }: {
+    categories: Category[];
+    value: Record<string, string>;
+    onChange: (categoryId: string, tool: string) => void;
+}) {
+    if (!categories.length) {
+        return <p className="hint">Keine Kategorien geladen (Server gewählt und Bot online?). Die Auswahl ist verfügbar, sobald der Bot verbunden ist.</p>;
+    }
+    return (
+        <>
+            {categories.map((c) => (
+                <div className="field" key={c.id}>
+                    <label htmlFor={`loottool-${c.id}`}>{c.name}</label>
+                    <select id={`loottool-${c.id}`} value={value[c.id] || ""} onChange={(e) => onChange(c.id, e.target.value)}>
+                        <option value="">— nicht gesetzt —</option>
+                        <option value="gargul">Gargul</option>
+                        <option value="rclc">RCLootcouncil</option>
+                    </select>
+                </div>
+            ))}
+        </>
+    );
 }
 
 function CategoryRoleMatrix({ categories, roles, categoryIds, categoryRoles, onToggleCategory, onToggleRole }: {
@@ -401,6 +432,7 @@ export default function SettingsPage() {
                     namespace: draft.blizzardNamespace.trim().toLowerCase(),
                     ...(secretChange !== undefined ? { clientSecret: secretChange } : {}),
                 },
+                categoryLootTool: draft.categoryLootTool,
             });
             setData({ ...data, config });
             setDraft(toDraft(config));
@@ -530,6 +562,20 @@ export default function SettingsPage() {
                         <label>Standard-Channel-ID</label>
                         <input type="text" value={draft.raidChannelId} onChange={(e) => patch({ raidChannelId: e.target.value })} placeholder="Discord-Channel-ID" />
                     </div>
+                </div>
+
+                <div className={`tab-panel${tab === "loot" ? " active" : ""}`} role="tabpanel">
+                    <h2 style={{ marginTop: 0 }}>Loot-Tool je Kategorie</h2>
+                    <p className="hint">
+                        Womit wird in dieser Kategorie gelootet? Der Import in „Historie &amp; Loot" wählt den passenden
+                        Parser dann von selbst vor, und der Loot-Tab eines Raids weiß, welchen Export er verlangen muss.
+                        „Nicht gesetzt" heißt nur, dass beim Import selbst gewählt (oder automatisch erkannt) wird.
+                    </p>
+                    <LootToolTable
+                        categories={data.categories}
+                        value={draft.categoryLootTool}
+                        onChange={(categoryId, tool) => patch({ categoryLootTool: { ...draft.categoryLootTool, [categoryId]: tool } })}
+                    />
                 </div>
 
                 <div className={`tab-panel${tab === "logs" ? " active" : ""}`} role="tabpanel">
