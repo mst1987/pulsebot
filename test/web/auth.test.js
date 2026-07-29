@@ -30,7 +30,7 @@ function fakeClient(memberFetch) {
 
 /** A fake guild member holding exactly the given role ids. */
 function memberWithRoles(...roleIds) {
-    return { roles: { cache: { has: (id) => roleIds.includes(id) } } };
+    return { roles: { cache: { has: (id) => roleIds.includes(id), keys: () => roleIds[Symbol.iterator]() } } };
 }
 
 describe("web/auth", () => {
@@ -244,6 +244,107 @@ describe("web/auth", () => {
             auth.getUser(req);
             await flush();
             expect(auth.getUser(req).isAdmin).toBe(false);
+        });
+    });
+
+    // Roles that are not admin roles can still be given single areas of the menu
+    // (Einstellungen → Berechtigungen, see src/config/permissions.js).
+    describe("role permissions", () => {
+        let nowSpy;
+        let now;
+
+        beforeEach(() => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok" } });
+            now = Date.now();
+            nowSpy = jest.spyOn(Date, "now").mockImplementation(() => now);
+        });
+
+        afterEach(() => {
+            nowSpy.mockRestore();
+            auth.setClient(null);
+            getConfig.mockImplementation(() => ({ adminRoleIds: [] }));
+        });
+
+        async function loginAs(id) {
+            axios.get.mockResolvedValue({ data: { id, username: `user-${id}` } });
+            const sid = await auth.completeLogin(`code-${id}`);
+            return { sid, req: { headers: { cookie: `sid=${sid}` } } };
+        }
+
+        it("resolves the union of the member's role permissions, without admin", async () => {
+            getConfig.mockImplementation(() => ({
+                adminRoleIds: [],
+                rolePermissions: {
+                    "role-a": { raids: { read: true, write: false }, cla: { read: true, write: false } },
+                    "role-b": { raids: { read: true, write: true } },
+                },
+            }));
+            auth.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-a", "role-b"))).client);
+
+            const { req } = await loginAs("601");
+            const user = auth.getUser(req);
+
+            expect(user.isAdmin).toBe(false);
+            expect(user.access.raids).toEqual({ read: true, write: true });
+            expect(user.access.cla).toEqual({ read: true, write: false });
+            expect(user.access.settings).toEqual({ read: false, write: false });
+        });
+
+        it("gives a full admin every area regardless of role permissions", async () => {
+            getConfig.mockImplementation(() => ({
+                adminRoleIds: ["role-admin"],
+                rolePermissions: { "role-a": { raids: { read: true, write: false } } },
+            }));
+            auth.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-admin", "role-a"))).client);
+
+            const { req } = await loginAs("602");
+            const user = auth.getUser(req);
+
+            expect(user.isAdmin).toBe(true);
+            expect(user.access.settings).toEqual({ read: true, write: true });
+        });
+
+        it("grants nothing when the member holds no configured role", async () => {
+            getConfig.mockImplementation(() => ({
+                adminRoleIds: [],
+                rolePermissions: { "role-a": { raids: { read: true, write: false } } },
+            }));
+            auth.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-other"))).client);
+
+            const { req } = await loginAs("603");
+            const user = auth.getUser(req);
+
+            expect(user.isAdmin).toBe(false);
+            expect(user.access.raids).toEqual({ read: false, write: false });
+        });
+
+        it("skips the Discord lookup entirely when nothing is configured", async () => {
+            getConfig.mockImplementation(() => ({ adminRoleIds: [], rolePermissions: {} }));
+            const fetch = jest.fn();
+            auth.setClient(fakeClient(fetch).client);
+
+            const { req } = await loginAs("604");
+
+            expect(fetch).not.toHaveBeenCalled();
+            expect(auth.getUser(req).isAdmin).toBe(false);
+        });
+
+        it("picks up permissions added after login once the cache expires", async () => {
+            getConfig.mockImplementation(() => ({ adminRoleIds: [], rolePermissions: {} }));
+            const { req } = await loginAs("605");
+            expect(auth.getUser(req).access.history).toEqual({ read: false, write: false });
+
+            getConfig.mockImplementation(() => ({
+                adminRoleIds: [],
+                rolePermissions: { "role-a": { history: { read: true, write: true } } },
+            }));
+            auth.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-a"))).client);
+
+            now += 300000 + 1000;
+            auth.getUser(req); // triggers the background re-check
+            await flush();
+
+            expect(auth.getUser(req).access.history).toEqual({ read: true, write: true });
         });
     });
 

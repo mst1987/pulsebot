@@ -4,17 +4,29 @@ const { activeGuildFor } = require("../activeGuild");
 const { ok, error } = require("../apiResponse");
 const { requireAdmin, requireCsrf } = require("../apiMiddleware");
 const { readJsonBody } = require("../apiBody");
+const { AREAS, emptyAccess, fullAccess, userHasMenuAccess } = require("../../config/permissions");
 
-/** GET /api/session — who the caller is (if anyone), their CSRF token, and —
- * for admins — the guilds the bot is in plus which one they're managing. */
+/** GET /api/session — who the caller is (if anyone), their CSRF token, what the
+ * caller may see (per-area access) and — for menu users — the guilds the bot is
+ * in plus which one they're managing. */
 function getSession(req, res) {
     const user = auth.getUser(req);
-    const isAdmin = !!(user && user.isAdmin);
+    const hasMenu = userHasMenuAccess(user);
     ok(res, {
-        user: user ? { id: user.id, name: user.name, isAdmin: !!user.isAdmin } : null,
+        user: user
+            ? {
+                id: user.id,
+                name: user.name,
+                isAdmin: !!user.isAdmin,
+                // The client hides areas/actions accordingly; the server gates
+                // them for real in apiAccess.js.
+                access: user.isAdmin ? fullAccess() : { ...emptyAccess(), ...(user.access || {}) },
+            }
+            : null,
         csrfToken: user ? auth.csrfToken(req) : null,
-        guilds: isAdmin ? discord.listGuilds() : [],
-        activeGuildId: isAdmin ? activeGuildFor(req) : "",
+        areas: AREAS,
+        guilds: hasMenu ? discord.listGuilds() : [],
+        activeGuildId: hasMenu ? activeGuildFor(req) : "",
     });
 }
 

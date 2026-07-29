@@ -8,6 +8,7 @@ const {
     blizzardClientId, blizzardClientSecret, blizzardRegion, blizzardRealmSlug, blizzardNamespace,
     guildId, raidhelperServerId,
 } = require("../config/variables");
+const { normalizeRolePermissions } = require("../config/permissions");
 
 // Editable bot settings live as JSON files under data/settings/.
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
@@ -35,6 +36,10 @@ const CONFIG_DEFAULTS = {
     // Discord role IDs that grant access to the admin menu (in addition to the
     // ADMIN_USER_ID bootstrap from .env, which can never be locked out).
     adminRoleIds: [],
+    // Fine-grained rights for roles that are NOT full admins:
+    // { [roleId]: { [areaId]: { read, write } } } — see config/permissions.js.
+    // A member's rights are the union over all the roles they hold.
+    rolePermissions: {},
     // Home guild used to verify admin-role membership (resolveIsAdmin in auth.js).
     guildId: guildId || "",
     // Raid-Helper server id (raid-helper.xyz), used for all Raid-Helper API calls.
@@ -381,6 +386,7 @@ function getConfig() {
         ...stored,
         raidDefaults: { ...CONFIG_DEFAULTS.raidDefaults, ...(stored.raidDefaults || {}) },
         adminRoleIds: Array.isArray(stored.adminRoleIds) ? stored.adminRoleIds : CONFIG_DEFAULTS.adminRoleIds,
+        rolePermissions: normalizeRolePermissions(stored.rolePermissions),
         categoryIds: Array.isArray(stored.categoryIds) ? stored.categoryIds : CONFIG_DEFAULTS.categoryIds,
         categoryRoles: normalizeCategoryRoles(stored.categoryRoles),
         logChannelIds: Array.isArray(stored.logChannelIds) ? stored.logChannelIds : CONFIG_DEFAULTS.logChannelIds,
