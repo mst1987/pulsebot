@@ -61,6 +61,32 @@ describe("web/lootStats", () => {
             expect(row.reasons[1].items[0].itemName).toBe("Serpent Spine Longbow");
         });
 
+        it("labels a bucket with the guild's own wording when it is unambiguous", () => {
+            addImport("ev1", [
+                item({ rawId: "a", response: "Zweitspec", offspec: true }),
+                item({ rawId: "b", response: "Zweitspec", offspec: true }),
+            ], {});
+            const [bucket] = reasonsByCharacter()[0].reasons;
+            expect(bucket).toMatchObject({ reason: "offspec", label: "Zweitspec", reasonLabel: "Offspec" });
+        });
+
+        it("falls back to the bucket name when the wordings differ", () => {
+            addImport("ev1", [
+                item({ rawId: "a", response: "Zweitspec", offspec: true }),
+                item({ rawId: "b", response: "Off Spec", offspec: true }),
+            ], {});
+            const [bucket] = reasonsByCharacter()[0].reasons;
+            expect(bucket).toMatchObject({ label: "Offspec", reasonLabel: "Offspec" });
+        });
+
+        it("falls back to the bucket name when an item carries no wording at all", () => {
+            addImport("ev1", [
+                item({ rawId: "a", response: "Zweitspec", offspec: true }),
+                item({ rawId: "b", response: "", offspec: true }),
+            ], {});
+            expect(reasonsByCharacter()[0].reasons[0].label).toBe("Offspec");
+        });
+
         it("keeps raiders whose class is still unknown", () => {
             addImport("ev1", [item()], {});
             const [row] = reasonsByCharacter();

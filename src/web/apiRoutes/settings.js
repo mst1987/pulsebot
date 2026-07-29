@@ -10,6 +10,21 @@ const { AREAS, normalizeRolePermissions } = require("../../config/permissions");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
 
+// Which loot addon a Discord category uses. Only the two known tools are
+// stored; anything else becomes "" (= not set), so a stray value can never end
+// up steering the import parser.
+const LOOT_TOOLS = ["gargul", "rclc"];
+function normalizeCategoryLootTool(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [categoryId, tool] of Object.entries(raw)) {
+        const id = String(categoryId).trim();
+        if (!id) continue;
+        out[id] = LOOT_TOOLS.includes(String(tool)) ? String(tool) : "";
+    }
+    return out;
+}
+
 // Config keys that decide who gets into the menu — only full admins may change
 // them, so a role with write access to "Einstellungen" can't grant itself more.
 const ACCESS_KEYS = ["adminRoleIds", "rolePermissions"];
@@ -68,6 +83,7 @@ async function updateSettings(req, res) {
     if (body.logChannelIds !== undefined) partial.logChannelIds = asStringArray(body.logChannelIds);
     if (body.raidDefaults !== undefined && typeof body.raidDefaults === "object") partial.raidDefaults = body.raidDefaults;
     if (body.blizzard !== undefined && typeof body.blizzard === "object") partial.blizzard = body.blizzard;
+    if (body.categoryLootTool !== undefined) partial.categoryLootTool = normalizeCategoryLootTool(body.categoryLootTool);
     ok(res, { config: saveConfig(partial) });
 }
 

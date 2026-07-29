@@ -22,6 +22,7 @@ describe("lootReasons", () => {
             ["Disenchant", "disenchant"],
             ["Entzaubern", "disenchant"],
             ["Gildenbank", "bank"],
+            ["Bank", "bank"],
         ])("maps the response %p to %p", (response, expected) => {
             expect(reasonIdFor({ response })).toBe(expected);
         });

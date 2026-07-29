@@ -11,6 +11,17 @@ const { annotatedCharacters } = require("./characterInfo");
 const { reasonCatalog, reasonMeta } = require("../utils/lootReasons");
 const { CONTENTS, TIERS, content: contentMeta } = require("../config/tbcContent");
 
+// The one response wording shared by every item of a bucket, or "" when they
+// differ (or none carries one).
+function soleResponse(items) {
+    const responses = items.map((it) => String(it.response || "").trim());
+    // One item without a wording is enough to fall back — the label has to
+    // cover every item in the bucket, not most of them.
+    if (!responses.length || responses.some((r) => !r)) return "";
+    const distinct = new Set(responses);
+    return distinct.size === 1 ? responses[0] : "";
+}
+
 /**
  * Per raider: how their loot splits across the award reasons, with the items
  * behind every bucket so the badge can list them on hover.
@@ -60,7 +71,20 @@ function reasonsByCharacter() {
             reasons: [...c.buckets.entries()]
                 .map(([reason, items]) => {
                     const meta = reasonMeta(reason);
-                    return { reason: meta.id, label: meta.label, tone: meta.tone, order: meta.order, count: items.length, items };
+                    return {
+                        reason: meta.id,
+                        // Labelled with the guild's own wording when the bucket
+                        // has exactly one — a guild that named its button
+                        // "Zweitspec" should read "Zweitspec", not the internal
+                        // "Offspec". Mixed wordings fall back to the bucket
+                        // name, the only thing they have in common.
+                        label: soleResponse(items) || meta.label,
+                        reasonLabel: meta.label,
+                        tone: meta.tone,
+                        order: meta.order,
+                        count: items.length,
+                        items,
+                    };
                 })
                 // Strongest reason first, so the green badges lead the row and
                 // the leftovers trail it — same order everywhere (see REASONS).

@@ -686,6 +686,26 @@ describe("web/apiRouter", () => {
             });
         });
 
+        it("stores the loot tool per category, dropping anything but the two known tools", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+
+            await patch("/api/settings", {
+                categoryLootTool: { cat1: "gargul", cat2: "rclc", cat3: "", cat4: "nonsense", "  ": "gargul" },
+            });
+
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+                categoryLootTool: { cat1: "gargul", cat2: "rclc", cat3: "", cat4: "" },
+            });
+        });
+
+        it("ignores a malformed categoryLootTool instead of storing it", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            await patch("/api/settings", { categoryLootTool: "nope" });
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryLootTool: {} });
+        });
+
         it("omits blizzard entirely when not present in the body, keeping the stored secret", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             auth.checkCsrf.mockReturnValue(true);
@@ -2536,28 +2556,14 @@ describe("web/apiRouter", () => {
         });
     });
 
-    describe("POST /api/history/category-tool", () => {
-        it("returns 400 when no category is given", async () => {
-            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
-            auth.checkCsrf.mockReturnValue(true);
-            const res = await post("/api/history/category-tool", { tool: "gargul" });
-            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-        });
-
-        it("saves the category's loot tool", async () => {
-            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
-            auth.checkCsrf.mockReturnValue(true);
-            const res = await post("/api/history/category-tool", { categoryId: "cat1", tool: "rclc" });
-            expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryLootTool: { cat1: "rclc" } });
-            expect(body(res)).toEqual({ data: { categoryId: "cat1", tool: "rclc" } });
-        });
-
-        it("clears the tool for an invalid value", async () => {
-            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
-            auth.checkCsrf.mockReturnValue(true);
-            await post("/api/history/category-tool", { categoryId: "cat1", tool: "nonsense" });
-            expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryLootTool: { cat1: "" } });
-        });
+    // The loot tool per category moved to Einstellungen → Loot, where it is
+    // saved with the rest of the config; the old endpoint is gone.
+    it("no longer serves POST /api/history/category-tool", async () => {
+        auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+        auth.checkCsrf.mockReturnValue(true);
+        const res = await post("/api/history/category-tool", { categoryId: "cat1", tool: "rclc" });
+        expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
     });
 
     describe("POST /api/history/clear", () => {
