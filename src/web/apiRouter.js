@@ -28,7 +28,7 @@ const {
     updateRecruitmentPost, deleteRecruitmentPostHandler, scanRecruitmentPosts,
 } = require("./apiRoutes/recruitment");
 const {
-    getHistoryData, getLootStats, deleteHistoryLog, importLoot, clearHistoryEvent, getHistoryEvent,
+    getHistoryData, getLootStats, deleteHistoryLog, importLoot, setLootCategory, clearHistoryEvent, getHistoryEvent,
     resolveCharacters, getHistoryChar,
 } = require("./apiRoutes/history");
 const {
@@ -238,6 +238,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/history/import" && req.method === "POST") {
         await importLoot(req, res);
+        return true;
+    }
+    if (pathname === "/api/history/loot-category" && req.method === "POST") {
+        await setLootCategory(req, res);
         return true;
     }
     if (pathname === "/api/history/clear" && req.method === "POST") {

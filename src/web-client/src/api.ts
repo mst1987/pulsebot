@@ -713,6 +713,12 @@ export type LootSource = "gargul" | "rclc" | string;
 export type LootEventSummary = {
     eventId: string;
     label: string;
+    /**
+     * Discord raid category the bucket is filed under, "" when it has none —
+     * the normal case for loot imported without a Raid-Helper event, which
+     * setLootCategory() assigns after the fact.
+     */
+    categoryId: string;
     count: number;
     importedAt?: number;
     awardedAt?: number;
@@ -905,13 +911,24 @@ export function deleteHistoryLog(csrfToken: string | null, logId: string): Promi
     return send("POST", "/api/history/log-delete", csrfToken, { logId });
 }
 
-export type ImportLootInput = { data: string; tool: string; event: string; manualLabel: string };
+// `categoryId` only takes effect when the import ends up without a Raid-Helper
+// event (manual title / no match) — an event brings its own Discord category,
+// which always wins. See apiRoutes/history.js's importLoot.
+export type ImportLootInput = { data: string; tool: string; event: string; manualLabel: string; categoryId?: string };
 
 export function importLoot(
     csrfToken: string | null,
     input: ImportLootInput,
-): Promise<{ eventId: string; eventLabel: string; added: number; skipped: number }> {
+): Promise<{ eventId: string; eventLabel: string; categoryId: string; added: number; skipped: number }> {
     return send("POST", "/api/history/import", csrfToken, input);
+}
+
+/** File an already-imported loot bucket under a raid category ("" clears it). */
+export function setLootCategory(
+    csrfToken: string | null,
+    input: { event: string; categoryId: string },
+): Promise<{ eventId: string; categoryId: string; updated: number }> {
+    return send("POST", "/api/history/loot-category", csrfToken, input);
 }
 
 export function clearHistoryEvent(csrfToken: string | null, event: string): Promise<{ removed: number }> {

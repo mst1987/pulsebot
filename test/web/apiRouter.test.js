@@ -108,6 +108,7 @@ jest.mock("../../src/web/lootStore", () => ({
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
     eventsWithLoot: jest.fn(() => []),
+    setEventCategory: jest.fn(() => 0),
     clearEvent: jest.fn(() => 0),
     repairItemNames: jest.fn(() => Promise.resolve(0)),
 }));
@@ -2454,6 +2455,13 @@ describe("web/apiRouter", () => {
     });
 
     describe("POST /api/history/import", () => {
+        // Mock return values survive a test (jest clearMocks only drops calls),
+        // so put the guild/category defaults back for the suites further down.
+        afterEach(() => {
+            activeGuildFor.mockReturnValue("");
+            discord.listCategories.mockReturnValue([]);
+        });
+
         it("returns 400 when the export text is empty", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             auth.checkCsrf.mockReturnValue(true);
@@ -2494,7 +2502,59 @@ describe("web/apiRouter", () => {
                 { categoryId: "", eventLabel: "SSC/TK — 12.07." },
             );
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
-            expect(body(res)).toEqual({ data: { eventId: "manual-ssc-tk-12-07", eventLabel: "SSC/TK — 12.07.", added: 1, skipped: 0 } });
+            expect(body(res)).toEqual({ data: { eventId: "manual-ssc-tk-12-07", eventLabel: "SSC/TK — 12.07.", categoryId: "", added: 1, skipped: 0 } });
+        });
+
+        // A manual import has no event to take a category from, so the one the
+        // admin picked in the form is the only thing that can file it under a
+        // raid category — without it the loot misses every grouped overview.
+        it("files a manual import under the category picked in the form", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("guild-1");
+            discord.listCategories.mockReturnValue([{ id: "cat-pug", name: "Pug" }]);
+            lootImport.parseLoot.mockReturnValue([{ itemName: "Sword" }]);
+            lootStore.addImport.mockReturnValue({ added: 1, skipped: 0 });
+
+            const res = await post("/api/history/import", { data: "text", event: "__manual__", manualLabel: "Pug-Raid", categoryId: "cat-pug" });
+
+            expect(lootStore.addImport).toHaveBeenCalledWith(
+                "manual-pug-raid",
+                [{ itemName: "Sword" }],
+                { categoryId: "cat-pug", eventLabel: "Pug-Raid" },
+            );
+            expect(body(res).data).toMatchObject({ eventId: "manual-pug-raid", categoryId: "cat-pug" });
+        });
+
+        it("refuses a category the guild does not have", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("guild-1");
+            discord.listCategories.mockReturnValue([{ id: "cat-pug", name: "Pug" }]);
+            lootImport.parseLoot.mockReturnValue([{ itemName: "Sword" }]);
+
+            const res = await post("/api/history/import", { data: "text", event: "__manual__", manualLabel: "Pug-Raid", categoryId: "nope" });
+
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "bad_category", message: expect.any(String) } });
+            expect(lootStore.addImport).not.toHaveBeenCalled();
+        });
+
+        // Without a reachable Discord (local instance, no token) the category
+        // list is empty — assigning one must still work there.
+        it("accepts a category when Discord has no list to check against", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("guild-1");
+            discord.listCategories.mockReturnValue([]);
+            lootImport.parseLoot.mockReturnValue([{ itemName: "Sword" }]);
+            lootStore.addImport.mockReturnValue({ added: 1, skipped: 0 });
+
+            await post("/api/history/import", { data: "text", event: "__manual__", manualLabel: "Pug-Raid", categoryId: "cat-pug" });
+
+            expect(lootStore.addImport).toHaveBeenCalledWith(
+                "manual-pug-raid", [{ itemName: "Sword" }], { categoryId: "cat-pug", eventLabel: "Pug-Raid" },
+            );
         });
 
         it("returns 400 for __manual__ without a label", async () => {
@@ -2536,7 +2596,27 @@ describe("web/apiRouter", () => {
 
             expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara" });
             expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryLootTool: { cat1: "gargul" } });
-            expect(body(res)).toEqual({ data: { eventId: "e1", eventLabel: "Kara", added: 3, skipped: 1 } });
+            expect(body(res)).toEqual({ data: { eventId: "e1", eventLabel: "Kara", categoryId: "cat1", added: 3, skipped: 1 } });
+        });
+
+        // The event's own Discord category is the truth — a category picked in
+        // the form only fills the gap when no event supplied one.
+        it("keeps the matched event's category over a hand-picked one", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("guild-1");
+            discord.listCategories.mockReturnValue([{ id: "cat1", name: "Montagsraid" }, { id: "cat-pug", name: "Pug" }]);
+            lootImport.parseLoot.mockReturnValue([{ itemName: "Sword" }]);
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", events: [{ id: "e1", title: "Kara" }] }],
+                error: null,
+            });
+            lootStore.addImport.mockReturnValue({ added: 1, skipped: 0 });
+
+            const res = await post("/api/history/import", { data: "text", event: "e1", categoryId: "cat-pug" });
+
+            expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara" });
+            expect(body(res).data.categoryId).toBe("cat1");
         });
 
         it("imports directly against a given event id", async () => {
@@ -2552,7 +2632,67 @@ describe("web/apiRouter", () => {
             const res = await post("/api/history/import", { data: "text", event: "e1" });
 
             expect(lootStore.addImport).toHaveBeenCalledWith("e1", [{ itemName: "Sword" }], { categoryId: "cat1", eventLabel: "Kara" });
-            expect(body(res)).toEqual({ data: { eventId: "e1", eventLabel: "Kara", added: 1, skipped: 0 } });
+            expect(body(res)).toEqual({ data: { eventId: "e1", eventLabel: "Kara", categoryId: "cat1", added: 1, skipped: 0 } });
+        });
+    });
+
+    describe("POST /api/history/loot-category", () => {
+        afterEach(() => {
+            activeGuildFor.mockReturnValue("");
+            discord.listCategories.mockReturnValue([]);
+        });
+
+        it("files an already-imported bucket under a category", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("guild-1");
+            discord.listCategories.mockReturnValue([{ id: "cat-pug", name: "Pug" }]);
+            lootStore.setEventCategory.mockReturnValue(7);
+
+            const res = await post("/api/history/loot-category", { event: "manual-pug-raid", categoryId: "cat-pug" });
+
+            expect(lootStore.setEventCategory).toHaveBeenCalledWith("manual-pug-raid", "cat-pug");
+            expect(body(res)).toEqual({ data: { eventId: "manual-pug-raid", categoryId: "cat-pug", updated: 7 } });
+        });
+
+        it("clears the category for an empty id", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            lootStore.setEventCategory.mockReturnValue(2);
+
+            const res = await post("/api/history/loot-category", { event: "e1", categoryId: "" });
+
+            expect(lootStore.setEventCategory).toHaveBeenCalledWith("e1", "");
+            expect(body(res).data).toMatchObject({ categoryId: "", updated: 2 });
+        });
+
+        it("returns 400 without an event", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/history/loot-category", { categoryId: "cat-pug" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "no_event", message: expect.any(String) } });
+            expect(lootStore.setEventCategory).not.toHaveBeenCalled();
+        });
+
+        it("returns 400 for a category the guild does not have", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("guild-1");
+            discord.listCategories.mockReturnValue([{ id: "cat-pug", name: "Pug" }]);
+
+            const res = await post("/api/history/loot-category", { event: "e1", categoryId: "nope" });
+
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "bad_category", message: expect.any(String) } });
+            expect(lootStore.setEventCategory).not.toHaveBeenCalled();
+        });
+
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await post("/api/history/loot-category", { event: "e1", categoryId: "cat-pug" });
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+            expect(lootStore.setEventCategory).not.toHaveBeenCalled();
         });
     });
 

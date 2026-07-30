@@ -116,18 +116,24 @@ function listByCharacter(character) {
         .sort(byAwardedDesc);
 }
 
-/** Distinct events that have loot, with a count and the latest import time. */
+/**
+ * Distinct events that have loot, with a count and the latest import time.
+ * `categoryId` is the raid category the bucket is filed under — the first
+ * non-empty one of its rows, same rule as `label`. It is "" for loot imported
+ * without a Raid-Helper event, which is what setEventCategory() fixes.
+ */
 function eventsWithLoot() {
     const byEvent = new Map();
     for (const it of readAll()) {
         if (!byEvent.has(it.eventId)) {
-            byEvent.set(it.eventId, { eventId: it.eventId, label: "", count: 0, importedAt: 0, awardedAt: 0, sources: new Set() });
+            byEvent.set(it.eventId, { eventId: it.eventId, label: "", categoryId: "", count: 0, importedAt: 0, awardedAt: 0, sources: new Set() });
         }
         const e = byEvent.get(it.eventId);
         e.count += 1;
         e.importedAt = Math.max(e.importedAt, it.importedAt || 0);
         e.awardedAt = Math.max(e.awardedAt, it.awardedAt || 0);
         if (it.eventLabel && !e.label) e.label = it.eventLabel;
+        if (it.categoryId && !e.categoryId) e.categoryId = it.categoryId;
         if (it.source) e.sources.add(it.source);
     }
     return [...byEvent.values()]
@@ -190,6 +196,32 @@ function characters() {
         .sort((a, b) => b.count - a.count || a.character.localeCompare(b.character));
 }
 
+/**
+ * File every row of one loot bucket under a raid category (Discord category id),
+ * or clear it again with an empty id. Returns how many rows changed.
+ *
+ * At import time the category comes from the Raid-Helper event's Discord
+ * category — loot imported *without* an event (a manual bucket, see
+ * apiRoutes/history.js) has none and is therefore absent from every
+ * category-grouped overview ("Charaktere", "Loot-Gründe"). This is how such a
+ * bucket gets assigned afterwards. Stored on the rows rather than derived,
+ * because there is no event to derive it from.
+ */
+function setEventCategory(eventId, categoryId) {
+    const id = String(eventId || "").trim();
+    if (!id) return 0;
+    const category = String(categoryId || "").trim();
+    const all = readAll();
+    let updated = 0;
+    for (const it of all) {
+        if (it.eventId !== id || (it.categoryId || "") === category) continue;
+        it.categoryId = category;
+        updated += 1;
+    }
+    if (updated) writeAll(all);
+    return updated;
+}
+
 /** Remove all loot stored for an event. Returns how many rows were removed. */
 function clearEvent(eventId) {
     const id = String(eventId || "").trim();
@@ -219,6 +251,6 @@ async function repairItemNames() {
 }
 
 module.exports = {
-    addImport, listAll, listByEvent, listByCharacter, eventsWithLoot, characters, clearEvent, repairItemNames,
+    addImport, listAll, listByEvent, listByCharacter, eventsWithLoot, characters, setEventCategory, clearEvent, repairItemNames,
     charLootPreview, LOOT_FILE,
 };

@@ -28,7 +28,7 @@ jest.mock("../../src/utils/wowhead", () => ({
 
 const fs = require("fs");
 const {
-    addImport, listAll, listByEvent, listByCharacter, eventsWithLoot, characters, clearEvent, repairItemNames,
+    addImport, listAll, listByEvent, listByCharacter, eventsWithLoot, characters, setEventCategory, clearEvent, repairItemNames,
 } = require("../../src/web/lootStore.js");
 
 beforeEach(() => {
@@ -129,6 +129,48 @@ describe("web/lootStore", () => {
             const e1 = events.find((e) => e.eventId === "e1");
             expect(e1.count).toBe(2);
             expect(e1.sources.sort()).toEqual(["gargul", "rclc"]);
+        });
+
+        it("reports the bucket's category, empty for a manual import without one", () => {
+            addImport("e1", [item({ rawId: "a" })], { categoryId: "cat-pug" });
+            addImport("manual-raid", [item({ rawId: "b" })]);
+            const events = eventsWithLoot();
+            expect(events.find((e) => e.eventId === "e1").categoryId).toBe("cat-pug");
+            expect(events.find((e) => e.eventId === "manual-raid").categoryId).toBe("");
+        });
+    });
+
+    describe("setEventCategory", () => {
+        it("files every row of one bucket under a category and reports the count", () => {
+            addImport("manual-raid", [item({ rawId: "a" }), item({ rawId: "b" })]);
+            addImport("e2", [item({ rawId: "c" })], { categoryId: "cat-montag" });
+
+            expect(setEventCategory("manual-raid", "cat-pug")).toBe(2);
+            expect(listByEvent("manual-raid").map((i) => i.categoryId)).toEqual(["cat-pug", "cat-pug"]);
+            // untouched — the assignment is per bucket, not global
+            expect(listByEvent("e2")[0].categoryId).toBe("cat-montag");
+            // and it is what the overviews group by from now on
+            expect(characters().find((c) => c.key === "foo").categoryIds.sort()).toEqual(["cat-montag", "cat-pug"]);
+        });
+
+        it("clears the category again for an empty id", () => {
+            addImport("e1", [item()], { categoryId: "cat-pug" });
+            expect(setEventCategory("e1", "")).toBe(1);
+            expect(listByEvent("e1")[0].categoryId).toBe("");
+        });
+
+        it("changes nothing when the category already matches or the event is unknown", () => {
+            addImport("e1", [item()], { categoryId: "cat-pug" });
+            expect(setEventCategory("e1", "cat-pug")).toBe(0);
+            expect(setEventCategory("nope", "cat-pug")).toBe(0);
+            expect(setEventCategory("", "cat-pug")).toBe(0);
+        });
+
+        it("persists the assignment", () => {
+            addImport("manual-raid", [item()]);
+            setEventCategory("manual-raid", "cat-pug");
+            const written = JSON.parse(fs.__store.get([...fs.__store.keys()].find((k) => k.endsWith("loot.json"))));
+            expect(written.items[0].categoryId).toBe("cat-pug");
         });
     });
 
