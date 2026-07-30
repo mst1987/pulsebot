@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
-    getHistoryData, getLootStats, importLoot, deleteHistoryLog, resolveCharacters,
+    getHistoryData, getLootStats, importLoot, setLootCategory, deleteHistoryLog, resolveCharacters,
     type ApiError, type HistoryData, type HistoryEvent, type LootEventSummary, type LootLog, type AnnotatedCharacter,
     type Category, type LootStats,
 } from "../api";
@@ -40,6 +40,9 @@ function ImportForm({ data, csrfToken, onImported }: {
 }) {
     const [eventId, setEventId] = useState("__auto__");
     const [manualLabel, setManualLabel] = useState("");
+    // Only used when the import lands without a Raid-Helper event: a real event
+    // brings its own Discord category along (see api.ts's ImportLootInput).
+    const [categoryId, setCategoryId] = useState("");
     const [tool, setTool] = useState("auto");
     const [text, setText] = useState("");
     const [busy, setBusy] = useState(false);
@@ -66,7 +69,7 @@ function ImportForm({ data, csrfToken, onImported }: {
         setBusy(true);
         setError(null);
         try {
-            const r = await importLoot(csrfToken, { data: text, tool, event: eventId, manualLabel });
+            const r = await importLoot(csrfToken, { data: text, tool, event: eventId, manualLabel, categoryId });
             onImported(`${r.added} Item(s) importiert${r.skipped ? `, ${r.skipped} Duplikat(e) übersprungen` : ""}.`);
             setText("");
             setManualLabel("");
@@ -98,11 +101,24 @@ function ImportForm({ data, csrfToken, onImported }: {
                     <div className="hint">„Automatisch" ordnet dem Raid-Helper-Event des gleichen Tages zu; passt keins oder mehrere, muss unten manuell gewählt/benannt werden.</div>
                 </div>
                 {showManual && (
-                    <div className="field">
-                        <label>Titel (optional)</label>
-                        <input type="text" value={manualLabel} onChange={(e) => setManualLabel(e.target.value)} placeholder="z.B. SSC/TK — 12.07.2026" />
-                        <div className="hint">Nur nötig, wenn kein Event automatisch gefunden wird oder ein eigener Titel gewünscht ist.</div>
-                    </div>
+                    <>
+                        <div className="field">
+                            <label>Titel (optional)</label>
+                            <input type="text" value={manualLabel} onChange={(e) => setManualLabel(e.target.value)} placeholder="z.B. SSC/TK — 12.07.2026" />
+                            <div className="hint">Nur nötig, wenn kein Event automatisch gefunden wird oder ein eigener Titel gewünscht ist.</div>
+                        </div>
+                        <div className="field">
+                            <label>Kategorie (optional)</label>
+                            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                                <option value="">— keine —</option>
+                                {data.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                            </select>
+                            <div className="hint">
+                                Nur wirksam, wenn kein Event zugeordnet wird — dann fehlt dem Loot sonst die Kategorie (Pug, Montagsraid, …)
+                                und er taucht in den nach Kategorie gruppierten Übersichten nicht auf. Wird ein Event gefunden, gilt dessen eigene Kategorie.
+                            </div>
+                        </div>
+                    </>
                 )}
                 <div className="field">
                     <label>Loot-Tool</label>
@@ -128,18 +144,57 @@ function ImportForm({ data, csrfToken, onImported }: {
     );
 }
 
-function LootEventsTab({ lootEvents }: { lootEvents: LootEventSummary[] }) {
+function LootEventsTab({ lootEvents, categories, csrfToken, onChanged }: {
+    lootEvents: LootEventSummary[];
+    categories: Category[];
+    csrfToken: string | null;
+    onChanged: (msg: string) => void;
+}) {
+    const [saving, setSaving] = useState<string | null>(null);
+
+    // Assigning a category is what makes loot imported without a Raid-Helper
+    // event show up in the category-grouped overviews at all; changing it on a
+    // bucket that came from an event is allowed too, but a re-import of that
+    // event writes its own category back onto the new rows.
+    const save = async (eventId: string, categoryId: string) => {
+        setSaving(eventId);
+        try {
+            const r = await setLootCategory(csrfToken, { event: eventId, categoryId });
+            onChanged(`Kategorie gesetzt (${r.updated} Item(s)).`);
+        } catch (err) {
+            onChanged((err as ApiError).message);
+        } finally {
+            setSaving(null);
+        }
+    };
+
     if (!lootEvents.length) return <p className="sub">Noch kein Loot importiert.</p>;
     return (
         <div className="dash-card">
             <div className="dash-card-head"><h3>Importierter Loot</h3><span className="small" style={{ marginLeft: "auto" }}>{lootEvents.length} Event(s)</span></div>
             <table className="idx" style={{ margin: 0 }}>
-                <thead><tr><th>Event</th><th>Datum</th><th>Items</th><th>Quelle</th><th /></tr></thead>
+                <thead><tr><th>Event</th><th>Datum</th><th>Kategorie</th><th>Items</th><th>Quelle</th><th /></tr></thead>
                 <tbody>
                     {lootEvents.map((e) => (
                         <tr key={e.eventId}>
                             <td><strong>{e.label || e.eventId}</strong></td>
                             <td className="small">{fmtMs(e.awardedAt || e.importedAt, false)}</td>
+                            <td className="small">
+                                <select
+                                    value={e.categoryId || ""}
+                                    disabled={saving === e.eventId}
+                                    title="Raid-Kategorie, unter der dieser Loot geführt wird — nötig für Loot ohne Event"
+                                    onChange={(ev) => save(e.eventId, ev.target.value)}
+                                >
+                                    <option value="">— ohne Kategorie —</option>
+                                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                    {/* A category the bot can't see right now (channel gone / Discord offline)
+                                        must stay selectable, else opening the tab silently reassigns it. */}
+                                    {e.categoryId && !categories.some((c) => c.id === e.categoryId) && (
+                                        <option value={e.categoryId}>{e.categoryId} (unbekannt)</option>
+                                    )}
+                                </select>
+                            </td>
                             <td className="small">{e.count}</td>
                             <td className="small">{(e.sources || []).map((s) => <span key={s} className="lbadge">{LOOT_TOOL_LABELS[s] || s}</span>)}</td>
                             <td className="cell-actions">
@@ -531,7 +586,7 @@ export default function HistoryPage() {
                 </>
             )}
             {tab === "import" && <ImportForm data={data} csrfToken={csrfToken} onImported={afterChange} />}
-            {tab === "loot" && <LootEventsTab lootEvents={data.lootEvents} />}
+            {tab === "loot" && <LootEventsTab lootEvents={data.lootEvents} categories={data.categories} csrfToken={csrfToken} onChanged={afterChange} />}
             {STATS_TABS.includes(tab) && (
                 statsError
                     ? <div className="empty">Fehler beim Laden: {statsError.message}</div>

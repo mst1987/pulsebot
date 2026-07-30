@@ -9,7 +9,7 @@ const { listLogs, deleteLog } = require("../logStore");
 const { logPostedAt } = require("../reportList");
 const {
     addImport: addLootImport, listByEvent: listLootByEvent, listByCharacter: listLootByCharacter, eventsWithLoot, clearEvent: clearLootEvent,
-    repairItemNames: repairLootItemNames,
+    setEventCategory: setLootEventCategory, repairItemNames: repairLootItemNames,
 } = require("../lootStore");
 const { lootStats } = require("../lootStats");
 const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../characterInfo");
@@ -96,9 +96,29 @@ async function deleteHistoryLog(req, res) {
 }
 
 /**
- * POST /api/history/import — body: { data, tool, event, manualLabel }.
+ * A raid category picked by hand (import form / loot list), checked against the
+ * guild's live Discord categories so a stale or typo'd id can't file loot under
+ * a category that does not exist. Only checked when that list is actually
+ * available: with the Discord gateway offline it comes back empty, and a local
+ * instance must stay able to assign one. "" (= no category) is always allowed.
+ * @returns {{id: string}|{error: string}}
+ */
+function pickedCategory(req, requested) {
+    const id = String(requested || "").trim();
+    if (!id) return { id: "" };
+    const guildId = activeGuildFor(req);
+    const known = guildId ? discord.listCategories(guildId) : [];
+    if (known.length && !known.some((c) => c.id === id)) return { error: "Unbekannte Kategorie." };
+    return { id };
+}
+
+/**
+ * POST /api/history/import — body: { data, tool, event, manualLabel, categoryId }.
  * `event` is a real event id, "__auto__" (match by the export's own date) or
  * "__manual__" (a hand-typed label, no Raid-Helper event involved).
+ * `categoryId` is the raid category to file the loot under; it only applies when
+ * no event supplied one (manual import / no match) — an event's own Discord
+ * category always wins over a hand-picked one.
  */
 async function importLoot(req, res) {
     const user = requireAdmin(req, res);
@@ -116,6 +136,8 @@ async function importLoot(req, res) {
         return error(res, 400, "parse_failed", e instanceof LootParseError ? e.message : "Import fehlgeschlagen.");
     }
     if (!items.length) return error(res, 400, "empty", "Keine Loot-Einträge im Export gefunden.");
+    const picked = pickedCategory(req, body.categoryId);
+    if (picked.error) return error(res, 400, "bad_category", picked.error);
     await enrichItemNames(items);
 
     let eventId = String(body.event || "").trim();
@@ -154,6 +176,9 @@ async function importLoot(req, res) {
         categoryId = found ? (found.g.categoryId || "") : "";
     }
 
+    // Only where the event left a gap — see the header comment.
+    if (!categoryId) categoryId = picked.id;
+
     const { added, skipped } = addLootImport(eventId, items, { categoryId, eventLabel });
     // RCLootcouncil exports carry the raider's class — keep it right away, so the
     // character list only has to fall back to the logs for what is still missing.
@@ -161,7 +186,27 @@ async function importLoot(req, res) {
     if (categoryId && (tool === "gargul" || tool === "rclc")) {
         saveConfig({ categoryLootTool: { [categoryId]: tool } });
     }
-    ok(res, { eventId, eventLabel, added, skipped }, 201);
+    ok(res, { eventId, eventLabel, categoryId, added, skipped }, 201);
+}
+
+/**
+ * POST /api/history/loot-category — body: { event, categoryId }.
+ * Files an already-imported loot bucket under a raid category, or clears it with
+ * an empty id. The point of it: loot imported without a Raid-Helper event has no
+ * category at all and is therefore missing from every category-grouped overview
+ * ("Charaktere", "Loot-Gründe") — this assigns one after the fact.
+ */
+async function setLootCategory(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const eventId = String(body.event || "").trim();
+    if (!eventId) return error(res, 400, "no_event", "Kein Event angegeben.");
+    const picked = pickedCategory(req, body.categoryId);
+    if (picked.error) return error(res, 400, "bad_category", picked.error);
+    const updated = setLootEventCategory(eventId, picked.id);
+    ok(res, { eventId, categoryId: picked.id, updated });
 }
 
 /** POST /api/history/clear — body: { event }. Deletes all loot stored for one event. */
@@ -274,6 +319,6 @@ function enrichCharInfo(info) {
 }
 
 module.exports = {
-    getHistoryData, getLootStats, deleteHistoryLog, importLoot, clearHistoryEvent, getHistoryEvent,
+    getHistoryData, getLootStats, deleteHistoryLog, importLoot, setLootCategory, clearHistoryEvent, getHistoryEvent,
     resolveCharacters, getHistoryChar,
 };
