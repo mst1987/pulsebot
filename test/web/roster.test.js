@@ -20,9 +20,12 @@ jest.mock("../../src/web/charGearIssues", () => ({
     latestIssuesByCharacter: (...a) => mockLatestIssues(...a),
 }));
 
+// The roster labels its category ids through categoryNames.js, not through the
+// live Discord list — see that module for why (categoryNames.test.js covers the
+// resolution itself).
 const mockListCategories = jest.fn(() => []);
-jest.mock("../../src/web/discord", () => ({
-    listCategories: (...a) => mockListCategories(...a),
+jest.mock("../../src/web/categoryNames", () => ({
+    listKnownCategories: (...a) => mockListCategories(...a),
 }));
 
 const { buildRoster } = require("../../src/web/roster");
@@ -146,9 +149,13 @@ describe("web/roster buildRoster", () => {
         expect(mockListCategories).toHaveBeenCalledWith("guild-1");
     });
 
-    it("skips the Discord lookup when no guild is active", () => {
-        expect(buildRoster("").categories).toEqual([]);
-        expect(mockListCategories).not.toHaveBeenCalled();
+    // Without a guild the roster still asks for names: with the gateway down
+    // there is no guild to select, and the remembered names are then the only
+    // thing that keeps the table from showing raw category ids.
+    it("still resolves category names when no guild is active", () => {
+        mockListCategories.mockReturnValue([{ id: "cat1", name: "Montagsraid" }]);
+        expect(buildRoster("").categories).toEqual([{ id: "cat1", name: "Montagsraid" }]);
+        expect(mockListCategories).toHaveBeenCalledWith("");
     });
 
     it("ignores a blank character name in the assignments", () => {

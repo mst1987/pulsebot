@@ -51,6 +51,14 @@ jest.mock("../../src/web/raidEventStore", () => ({
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
 }));
+// The routes label category ids through categoryNames.js, which merges the live
+// Discord list with the names it snapshots to disk. Reduced here to the live
+// list, so these route tests keep asserting against the discord mock alone and
+// touch no files; the merging itself is covered by categoryNames.test.js.
+jest.mock("../../src/web/categoryNames", () => ({
+    listKnownCategories: (guildId) => (guildId ? require("../../src/web/discord").listCategories(guildId) : []),
+    rememberCategories: jest.fn(),
+}));
 jest.mock("../../src/web/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),

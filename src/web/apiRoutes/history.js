@@ -21,6 +21,7 @@ const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setupView");
 const { applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../../config/variables");
 const Blizzard = require("../../classes/blizzard");
 const discord = require("../discord");
+const { listKnownCategories } = require("../categoryNames");
 
 // A manually-labelled loot bucket's synthetic event id: "manual-<slug>".
 const slugify = (label) => String(label || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -58,7 +59,10 @@ async function getHistoryData(req, res) {
         // back through the message-id snowflake to detectedAt) — same field the
         // legacy SSR page and the dashboard's "Latest Events" card show.
         logs: listLogs().map((l) => ({ ...l, postedAt: logPostedAt(l) })),
-        categories: guildId ? discord.listCategories(guildId) : [],
+        // For labelling the loot rows' category ids, so one that Discord no
+        // longer lists keeps its name (categoryNames.js). The import form's
+        // validation stays on the live list — see pickedCategory().
+        categories: listKnownCategories(guildId),
         categoryLootTool: cfg.categoryLootTool || {},
         activeGuildId: guildId,
         chars: annotatedCharacters().map(withClassLook),
