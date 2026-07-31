@@ -120,8 +120,13 @@ function award(it, known) {
  * RCLootcouncil one. Items the content table doesn't know keep contentId "" and
  * show up under "Unbekannt" instead of being filed into a wrong raid.
  *
+ * `categoryIds` are the raid categories (Mainraid, Twinkraid, …) the item was
+ * ever handed out in — the Items tab filters by them the same way the
+ * Loot-Gründe tab does.
+ *
  * @returns [{ itemId, itemName, itemIconUrl, itemQuality, itemLink, contentId,
- *             tier, boss, tokenTier, count, lastAwardedAt, awards: [...] }]
+ *             tier, boss, tokenTier, categoryIds, count, lastAwardedAt,
+ *             awards: [...] }]
  */
 function itemCatalog() {
     const info = new Map(annotatedCharacters().map((c) => [c.key, c]));
@@ -141,6 +146,7 @@ function itemCatalog() {
                 tier: (contentMeta(it.contentId) || {}).tier || "",
                 boss: it.boss || "",
                 tokenTier: it.tokenTier || "",
+                categoryIds: new Set(),
                 count: 0,
                 lastAwardedAt: 0,
                 awards: [],
@@ -154,12 +160,17 @@ function itemCatalog() {
         if (!entry.itemIconUrl && it.itemIconUrl) entry.itemIconUrl = it.itemIconUrl;
         if (entry.itemQuality === null && typeof it.itemQuality === "number") entry.itemQuality = it.itemQuality;
         if (!entry.boss && it.boss) entry.boss = it.boss;
+        if (it.categoryId) entry.categoryIds.add(it.categoryId);
         entry.count += 1;
         entry.lastAwardedAt = Math.max(entry.lastAwardedAt, it.awardedAt || 0);
         entry.awards.push(award(it, info.get(it.characterKey) || {}));
     }
     return [...byItem.values()]
-        .map((e) => ({ ...e, awards: e.awards.sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0)) }))
+        .map((e) => ({
+            ...e,
+            categoryIds: [...e.categoryIds],
+            awards: e.awards.sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0)),
+        }))
         .sort((a, b) => b.count - a.count || (a.itemName || "").localeCompare(b.itemName || ""));
 }
 

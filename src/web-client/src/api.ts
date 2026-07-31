@@ -973,6 +973,8 @@ export type LootCatalogItem = {
     boss: string;
     /** "t4"/"t5"/"t6" on a tier-set token, "" otherwise. */
     tokenTier: string;
+    /** The raid categories this item was ever awarded in. */
+    categoryIds: string[];
     count: number;
     lastAwardedAt: number;
     awards: LootAward[];
