@@ -9,6 +9,7 @@ import {
     type RaidDetailEventSheet, type LogSection,
 } from "../api";
 import { eventTimeParts, relativeDayLabel, fmtMs } from "../lib/format";
+import { usePersistedSearchParam, useDraftState } from "../lib/persistedState";
 import ItemSearchPicker from "../components/ItemSearchPicker";
 import {
     ClockIcon, RunIcon, TrashIcon, ExternalIcon, SheetIcon, SendIcon, RefreshIcon, LinkIcon,
@@ -20,6 +21,7 @@ import { useJobs } from "../components/Jobs";
 import PageLoader from "../components/PageLoader";
 
 type Tab = "setup" | "attendance" | "actions" | "loot" | "softres" | "logs";
+const TABS: Tab[] = ["setup", "attendance", "actions", "loot", "softres", "logs"];
 
 // Rough runtimes for the job toasts' progress bar — same numbers as ClaPage.
 const EVAL_SECONDS: Record<LogSection, number> = { cla: 25, rpb: 55 };
@@ -699,6 +701,16 @@ function editionMap(catalogue: SoftresCatalogueGroup[]): Map<string, string> {
     return m;
 }
 
+// What the create form holds. Instance codes are an array, not a Set, because
+// the draft has to round-trip through JSON — the Set is rebuilt on read.
+type SoftresDraft = {
+    codes: string[];
+    amount: number;
+    faction: "Horde" | "Alliance";
+    hardReserves: Array<{ id: number; name: string }>;
+    discord: boolean;
+};
+
 function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
     data: RaidDetailData;
     eventId: string;
@@ -706,12 +718,14 @@ function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
     onDone: (msg: string) => void;
 }) {
     const { softresCatalogue, softresSuggested, softresEdition } = data;
-    const [selected, setSelected] = useState<Set<string>>(() => new Set(softresSuggested));
-    const [amount, setAmount] = useState(1);
-    const [faction, setFaction] = useState<"Horde" | "Alliance">("Horde");
-    const [hardReserves, setHardReserves] = useState<Array<{ id: number; name: string }>>([]);
+    // Draft per event: picking instances and searching hard-reserve items is real
+    // work, and the softres tab is one click away from the loot/logs tabs.
     // Discord-Login-Pflicht ist der Standard für neue Listen.
-    const [discord, setDiscord] = useState(true);
+    const [draft, patch, clearDraft] = useDraftState<SoftresDraft>(`raid-softres:${eventId}`, {
+        codes: softresSuggested || [], amount: 1, faction: "Horde", hardReserves: [], discord: true,
+    });
+    const { amount, faction, hardReserves, discord } = draft;
+    const selected = useMemo(() => new Set(draft.codes), [draft.codes]);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -725,22 +739,21 @@ function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
     }, [selected, codeEdition, softresEdition, softresCatalogue]);
 
     const toggle = (code: string, edition: string) => {
-        setSelected((prev) => {
-            const next = new Set(prev);
-            if (next.has(code)) {
-                next.delete(code);
-            } else {
-                for (const c of next) if (codeEdition.get(c) !== edition) next.delete(c);
-                next.add(code);
-            }
-            return next;
-        });
+        const next = new Set(selected);
+        if (next.has(code)) {
+            next.delete(code);
+        } else {
+            for (const c of next) if (codeEdition.get(c) !== edition) next.delete(c);
+            next.add(code);
+        }
+        patch({ codes: [...next] });
     };
 
     const addHardReserve = (item: { id: number; name: string }) => {
-        setHardReserves((prev) => (prev.some((x) => x.id === item.id) ? prev : [...prev, item]));
+        if (hardReserves.some((x) => x.id === item.id)) return;
+        patch({ hardReserves: [...hardReserves, item] });
     };
-    const removeHardReserve = (id: number) => setHardReserves((prev) => prev.filter((x) => x.id !== id));
+    const removeHardReserve = (id: number) => patch({ hardReserves: hardReserves.filter((x) => x.id !== id) });
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -750,6 +763,9 @@ function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
             const r = await createSoftres(csrfToken, {
                 event: eventId, instanceCodes: [...selected], amount, faction, hardReserves, hideReserves: false, discord,
             });
+            // The list exists now — keeping the draft would only offer to build a
+            // second one from the same picks.
+            clearDraft();
             onDone(r.message);
         } catch (err) {
             setError((err as ApiError).message);
@@ -784,12 +800,12 @@ function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
                 <label>Softres pro Spieler</label>
                 <input
                     type="number" min={1} max={6} value={amount}
-                    onChange={(e) => setAmount(Math.max(1, Math.min(6, Number(e.target.value) || 1)))}
+                    onChange={(e) => patch({ amount: Math.max(1, Math.min(6, Number(e.target.value) || 1)) })}
                 />
             </div>
             <div className="field" style={{ maxWidth: 220 }}>
                 <label>Fraktion</label>
-                <select value={faction} onChange={(e) => setFaction(e.target.value as "Horde" | "Alliance")}>
+                <select value={faction} onChange={(e) => patch({ faction: e.target.value as "Horde" | "Alliance" })}>
                     <option value="Horde">Horde</option>
                     <option value="Alliance">Alliance</option>
                 </select>
@@ -797,7 +813,7 @@ function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
             <div className="field">
                 <label>Discord-Authentifizierung</label>
                 <label className="rolebox">
-                    <input type="checkbox" checked={discord} onChange={(e) => setDiscord(e.target.checked)} /> Discord-Login zum Reservieren verlangen
+                    <input type="checkbox" checked={discord} onChange={(e) => patch({ discord: e.target.checked })} /> Discord-Login zum Reservieren verlangen
                 </label>
                 <div className="hint">Standard: an. Spieler müssen sich auf softres.it mit Discord einloggen, ihre Reserves sind damit einem Discord-Account zugeordnet.</div>
             </div>
@@ -924,8 +940,10 @@ function LootImportForm({ eventId, defaultTool, csrfToken, onImported }: {
     csrfToken: string | null;
     onImported: (msg: string) => void;
 }) {
-    const [tool, setTool] = useState(defaultTool || "auto");
-    const [text, setText] = useState("");
+    // Draft per event: a pasted export belongs to exactly this raid, so it must
+    // never reappear in another raid's import form.
+    const [draft, patch] = useDraftState(`raid-loot-import:${eventId}`, { tool: defaultTool || "auto", text: "" });
+    const { tool, text } = draft;
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
@@ -934,7 +952,7 @@ function LootImportForm({ eventId, defaultTool, csrfToken, onImported }: {
         const file = e.target.files?.[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = () => setText(String(reader.result || ""));
+        reader.onload = () => patch({ text: String(reader.result || "") });
         reader.readAsText(file);
     };
 
@@ -945,7 +963,7 @@ function LootImportForm({ eventId, defaultTool, csrfToken, onImported }: {
         try {
             const r = await importLoot(csrfToken, { data: text, tool, event: eventId, manualLabel: "" });
             onImported(`${r.added} Item(s) importiert${r.skipped ? `, ${r.skipped} Duplikat(e) übersprungen` : ""}.`);
-            setText("");
+            patch({ text: "" });
             if (fileRef.current) fileRef.current.value = "";
         } catch (err) {
             setError((err as ApiError).message);
@@ -961,7 +979,7 @@ function LootImportForm({ eventId, defaultTool, csrfToken, onImported }: {
                 {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
                 <div className="field">
                     <label>Loot-Tool</label>
-                    <select value={tool} onChange={(e) => setTool(e.target.value)}>
+                    <select value={tool} onChange={(e) => patch({ tool: e.target.value })}>
                         <option value="auto">Auto-Erkennung</option>
                         <option value="gargul">Gargul</option>
                         <option value="rclc">RCLootcouncil</option>
@@ -970,7 +988,7 @@ function LootImportForm({ eventId, defaultTool, csrfToken, onImported }: {
                 </div>
                 <div className="field">
                     <label>Export einfügen</label>
-                    <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder="RCLootcouncil-JSON oder Gargul-CSV hier einfügen …" />
+                    <textarea value={text} onChange={(e) => patch({ text: e.target.value })} rows={6} placeholder="RCLootcouncil-JSON oder Gargul-CSV hier einfügen …" />
                 </div>
                 <div className="field">
                     <label>… oder Datei hochladen</label>
@@ -1174,7 +1192,10 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
         }
     };
 
-    const [wclUrl, setWclUrl] = useState("");
+    // Kept as a draft per event: a link pasted from Warcraft Logs shouldn't be
+    // gone after a look at the loot tab.
+    const [urlDraft, patchUrlDraft] = useDraftState(`raid-log-url:${eventId}`, { wclUrl: "" });
+    const wclUrl = urlDraft.wclUrl;
     const [urlBusy, setUrlBusy] = useState(false);
     const assignUrl = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -1183,7 +1204,7 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
         try {
             const r = await linkLogUrl(csrfToken, wclUrl.trim(), eventId);
             onChanged(r.message);
-            setWclUrl("");
+            patchUrlDraft({ wclUrl: "" });
         } catch (err) {
             onChanged((err as ApiError).message);
         } finally {
@@ -1221,7 +1242,7 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
                 : <p className="sub">Keine noch nicht zugeordneten Logs vorhanden.</p>}
             <form className="row-actions" style={{ gap: 8, flexWrap: "wrap", marginTop: 12 }} onSubmit={assignUrl}>
                 <input
-                    type="text" value={wclUrl} onChange={(e) => setWclUrl(e.target.value)} required
+                    type="text" value={wclUrl} onChange={(e) => patchUrlDraft({ wclUrl: e.target.value })} required
                     className="inp-sm" style={{ minWidth: 320, flex: 1, maxWidth: 520 }}
                     placeholder="https://classic.warcraftlogs.com/reports/abc123…" aria-label="Warcraft-Logs-Link"
                 />
@@ -1233,9 +1254,11 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
 
 export default function RaidDetailPage() {
     const { csrfToken } = useOutletContext<ShellContext>();
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [searchParams] = useSearchParams();
     const eventId = searchParams.get("event") || "";
-    const tab: Tab = (searchParams.get("tab") as Tab) || "setup";
+    // Remembered across raids: opening the next event lands on the tab that was
+    // worked in last (the ?event= param is kept by the hook).
+    const [tab, switchTab] = usePersistedSearchParam<Tab>("raid-detail-tab", "tab", "setup", TABS);
 
     const jobs = useJobs();
     const [data, setData] = useState<RaidDetailData | null>(null);
@@ -1246,12 +1269,6 @@ export default function RaidDetailPage() {
     };
 
     useEffect(load, [eventId]);
-
-    const switchTab = (t: Tab) => {
-        const next = new URLSearchParams(searchParams);
-        if (t === "setup") next.delete("tab"); else next.set("tab", t);
-        setSearchParams(next);
-    };
 
     // Shared success handler for every mutating action on this page (header
     // quick-posts, all Part B forms, and the loot tab): toast the message, then

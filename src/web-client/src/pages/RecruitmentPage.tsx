@@ -5,6 +5,7 @@ import {
     postRecruitmentTemplate, updateRecruitmentPost, deleteRecruitmentPost, scanRecruitmentPosts,
     type ApiError, type RecruitmentData, type RecruitmentTemplate, type RecruitmentPost,
 } from "../api";
+import { usePersistedSearchParam, useDraftState } from "../lib/persistedState";
 import EmojiPicker from "../components/EmojiPicker";
 import SpecPicker from "../components/SpecPicker";
 import type { ShellContext } from "../components/Shell";
@@ -12,6 +13,7 @@ import { TrashIcon } from "../components/icons";
 
 type Flash = { type: "ok" | "err"; text: string };
 type View = "posts" | "templates" | "applications";
+const VIEWS: View[] = ["posts", "templates", "applications"];
 
 function textPreview(s: string, max = 60): string {
     const clean = String(s || "").replace(/\s+/g, " ").trim();
@@ -50,9 +52,13 @@ function TemplateForm({ data, csrfToken, editing, onSaved, onCancel }: {
     onSaved: (msg: string) => void;
     onCancel: () => void;
 }) {
-    const [name, setName] = useState(editing?.name ?? "");
-    const [content, setContent] = useState(editing?.content ?? "");
-    const [buttonLabel, setButtonLabel] = useState(editing?.buttonLabel ?? "");
+    // A recruitment text is written, not filled in — so it is kept as a draft,
+    // per template (the "new" form and each edited template have their own).
+    const [draft, patch, clearDraft] = useDraftState(`recruitment-template:${editing?.id ?? "new"}`, {
+        name: editing?.name ?? "", content: editing?.content ?? "", buttonLabel: editing?.buttonLabel ?? "",
+    });
+    const { name, content, buttonLabel } = draft;
+    const setContent = (v: string) => patch({ content: v });
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const contentRef = useRef<HTMLTextAreaElement>(null);
@@ -63,12 +69,10 @@ function TemplateForm({ data, csrfToken, editing, onSaved, onCancel }: {
         setError(null);
         try {
             await saveRecruitmentTemplate(csrfToken, { id: editing?.id, name, content, buttonLabel });
-            onSaved(editing ? "Gespeichert." : "Vorlage angelegt.");
             // Mirrors the SSR page: after any save (create or edit) it lands back on a
             // blank "Neue Vorlage anlegen" form, since the edit id is dropped either way.
-            setName("");
-            setContent("");
-            setButtonLabel("");
+            clearDraft();
+            onSaved(editing ? "Gespeichert." : "Vorlage angelegt.");
         } catch (err) {
             setError((err as ApiError).message);
         } finally {
@@ -83,7 +87,7 @@ function TemplateForm({ data, csrfToken, editing, onSaved, onCancel }: {
                 {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
                 <div className="field">
                     <label>Name (interne Bezeichnung)</label>
-                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="z.B. Heiler-Recruitment" required />
+                    <input type="text" value={name} onChange={(e) => patch({ name: e.target.value })} placeholder="z.B. Heiler-Recruitment" required />
                     <div className="hint">Nur zur Auswahl — nicht Teil der geposteten Nachricht.</div>
                 </div>
                 <div className="field">
@@ -99,11 +103,11 @@ function TemplateForm({ data, csrfToken, editing, onSaved, onCancel }: {
                 </div>
                 <div className="field">
                     <label>Button-Beschriftung (optional)</label>
-                    <input type="text" value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} placeholder="Jetzt bewerben" />
+                    <input type="text" value={buttonLabel} onChange={(e) => patch({ buttonLabel: e.target.value })} placeholder="Jetzt bewerben" />
                 </div>
                 <div className="row-actions">
                     <button className="btn" type="submit" disabled={busy}>{editing ? "Speichern" : "Vorlage anlegen"}</button>
-                    {editing && <button className="btn btn-ghost" type="button" onClick={onCancel}>Abbrechen</button>}
+                    {editing && <button className="btn btn-ghost" type="button" onClick={() => { clearDraft(); onCancel(); }}>Abbrechen</button>}
                 </div>
             </form>
         </>
@@ -163,8 +167,12 @@ function PostEditForm({ data, csrfToken, post, onSaved, onCancel }: {
     onSaved: (msg: string) => void;
     onCancel: () => void;
 }) {
-    const [content, setContent] = useState(post.content);
-    const [buttonLabel, setButtonLabel] = useState(post.buttonLabel);
+    // Draft per post, so edits to a live message survive a detour to another tab.
+    const [draft, patch, clearDraft] = useDraftState(`recruitment-post:${post.id}`, {
+        content: post.content, buttonLabel: post.buttonLabel,
+    });
+    const { content, buttonLabel } = draft;
+    const setContent = (v: string) => patch({ content: v });
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const contentRef = useRef<HTMLTextAreaElement>(null);
@@ -175,6 +183,7 @@ function PostEditForm({ data, csrfToken, post, onSaved, onCancel }: {
         setError(null);
         try {
             await updateRecruitmentPost(csrfToken, { id: post.id, content, buttonLabel });
+            clearDraft();
             onSaved("Nachricht aktualisiert.");
         } catch (err) {
             setError((err as ApiError).message);
@@ -206,11 +215,11 @@ function PostEditForm({ data, csrfToken, post, onSaved, onCancel }: {
                 </div>
                 <div className="field">
                     <label>Button-Beschriftung</label>
-                    <input type="text" value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} placeholder="Jetzt bewerben" />
+                    <input type="text" value={buttonLabel} onChange={(e) => patch({ buttonLabel: e.target.value })} placeholder="Jetzt bewerben" />
                 </div>
                 <div className="row-actions">
                     <button className="btn" type="submit" disabled={busy}>Speichern &amp; in Discord aktualisieren</button>
-                    <button className="btn btn-ghost" type="button" onClick={onCancel}>Abbrechen</button>
+                    <button className="btn btn-ghost" type="button" onClick={() => { clearDraft(); onCancel(); }}>Abbrechen</button>
                 </div>
             </form>
         </>
@@ -223,8 +232,10 @@ function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
     onChanged: (msg: string) => void;
     onEditPost: (id: string) => void;
 }) {
-    const [templateId, setTemplateId] = useState(data.templates[0]?.id ?? "");
-    const [channelId, setChannelId] = useState("");
+    const [target, patchTarget] = useDraftState("recruitment-post-target", {
+        templateId: data.templates[0]?.id ?? "", channelId: "",
+    });
+    const { templateId, channelId } = target;
     const [posting, setPosting] = useState(false);
     const [postError, setPostError] = useState<string | null>(null);
     const [scanning, setScanning] = useState(false);
@@ -275,7 +286,7 @@ function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
                     {postError && <p className="sub" style={{ color: "var(--high)" }}>{postError}</p>}
                     <div className="field">
                         <label>Vorlage</label>
-                        <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} required>
+                        <select value={templateId} onChange={(e) => patchTarget({ templateId: e.target.value })} required>
                             {data.templates.map((t) => <option key={t.id} value={t.id}>{t.name || "(ohne Name)"}</option>)}
                         </select>
                     </div>
@@ -283,14 +294,14 @@ function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
                         <label>Ziel-Channel</label>
                         {data.channels.length
                             ? (
-                                <select value={channelId} onChange={(e) => setChannelId(e.target.value)} required>
+                                <select value={channelId} onChange={(e) => patchTarget({ channelId: e.target.value })} required>
                                     <option value="">— Channel wählen —</option>
                                     {data.channels.map((c) => <option key={c.id} value={c.id}>#{c.name}{c.category ? ` · ${c.category}` : ""}</option>)}
                                 </select>
                             )
                             : (
                                 <input
-                                    type="text" value={channelId} onChange={(e) => setChannelId(e.target.value)}
+                                    type="text" value={channelId} onChange={(e) => patchTarget({ channelId: e.target.value })}
                                     placeholder="Channel-ID (kein Server gewählt)" required
                                 />
                             )}
@@ -392,8 +403,9 @@ export default function RecruitmentPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const editId = searchParams.get("edit") || "";
     const editPostId = searchParams.get("editpost") || "";
+    const [storedView, setStoredView] = usePersistedSearchParam<View>("recruitment-view", "view", "posts", VIEWS);
     // Editing a template always forces the templates view, mirroring the SSR page.
-    const view: View = editId ? "templates" : ((searchParams.get("view") as View) || "posts");
+    const view: View = editId ? "templates" : storedView;
 
     const [data, setData] = useState<RecruitmentData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
@@ -407,17 +419,20 @@ export default function RecruitmentPage() {
 
     useEffect(load, [view, editId, editPostId]);
 
-    const switchView = (v: View) => setSearchParams(v === "posts" ? {} : { view: v });
+    // Switching the tab always leaves whichever edit form was open — otherwise the
+    // edit id would keep forcing its own view back on.
+    const switchView = (v: View) => setStoredView(v, (p) => { p.delete("edit"); p.delete("editpost"); });
     const startEdit = (id: string) => setSearchParams({ edit: id });
     const startEditPost = (id: string) => setSearchParams({ editpost: id });
-    const cancelEdit = () => setSearchParams({ view: "templates" });
-    const cancelEditPost = () => setSearchParams({ view: "posts" });
+    const leaveEdit = (v: View) => setStoredView(v, (p) => { p.delete("edit"); p.delete("editpost"); });
+    const cancelEdit = () => leaveEdit("templates");
+    const cancelEditPost = () => leaveEdit("posts");
 
     const afterChange = (msg: string) => {
         setFlash({ type: "ok", text: msg });
         // Leave whichever edit form we were on back to the plain list, then reload.
-        if (editId) setSearchParams({ view: "templates" });
-        else if (editPostId) setSearchParams({ view: "posts" });
+        if (editId) leaveEdit("templates");
+        else if (editPostId) leaveEdit("posts");
         else load();
     };
 

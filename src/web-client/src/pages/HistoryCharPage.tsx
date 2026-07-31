@@ -3,6 +3,7 @@ import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { getHistoryChar, type ApiError, type CharGearReport, type GearItem, type HistoryCharData } from "../api";
 import { fmtMs } from "../lib/format";
 import { itemQualityColor, itemQualityProps } from "../lib/itemQuality";
+import { usePersistedSearchParam } from "../lib/persistedState";
 import { refreshWowheadLinks } from "../lib/wowheadTooltips";
 import { CLASS_SOURCE_LABELS } from "../components/ClassSpec";
 import { LootTable } from "../components/LootTable";
@@ -378,7 +379,7 @@ function GearTab({ data }: { data: HistoryCharData }) {
 }
 
 export default function HistoryCharPage() {
-    const [searchParams, setSearchParams] = useSearchParams();
+    const [searchParams] = useSearchParams();
     const location = useLocation();
     const name = searchParams.get("name") || "";
     // The same page is mounted under /history/char and /roster/char — the back
@@ -386,7 +387,9 @@ export default function HistoryCharPage() {
     const from = location.pathname.startsWith("/roster")
         ? { href: "/roster", label: "← Zurück zum Roster" }
         : { href: "/history?tab=chars", label: "← Zurück zur Historie" };
-    const tab: CharTab = searchParams.get("tab") === "loot" ? "loot" : "gear";
+    // Remembered across characters: whoever is comparing loot histories keeps
+    // that tab when opening the next raider (?name= is kept by the hook).
+    const [tab, switchTab] = usePersistedSearchParam<CharTab>("history-char-tab", "tab", "gear", ["gear", "loot"]);
 
     const [data, setData] = useState<HistoryCharData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
@@ -400,12 +403,6 @@ export default function HistoryCharPage() {
     // Attach Wowhead tooltips to the freshly rendered item links (gear tiles +
     // loot table) — the widget's own scan ran before React rendered them.
     useEffect(() => { refreshWowheadLinks(); }, [data, tab]);
-
-    const switchTab = (t: CharTab) => {
-        const next = new URLSearchParams(searchParams);
-        if (t === "gear") next.delete("tab"); else next.set("tab", t);
-        setSearchParams(next);
-    };
 
     if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
     if (!data) return <div className="empty">Lade…</div>;

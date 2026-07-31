@@ -6,6 +6,7 @@ import {
     type RaiderCharactersData, type RolePermissions, type TopItem,
 } from "../api";
 import { useOutletContext } from "react-router-dom";
+import { usePersistedState } from "../lib/persistedState";
 import type { ShellContext } from "../components/Shell";
 import RolePermissionsEditor from "../components/RolePermissions";
 import ItemSearchPicker from "../components/ItemSearchPicker";
@@ -496,7 +497,7 @@ export default function SettingsPage() {
     const [flash, setFlash] = useState<string | null>(null);
     const [saveError, setSaveError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
-    const [tab, setTab] = useState("zugang");
+    const [tab, setTab] = usePersistedState("settings-tab", "zugang");
 
     const load = () => {
         getSettings()
@@ -511,12 +512,18 @@ export default function SettingsPage() {
             .catch((err: ApiError) => setError(err));
     };
 
+    // load() only ever runs once; setTab is a setState function and stable, the
+    // rule just can't see that through the persisted-state hook.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(load, []);
 
     if (error) return <div className="empty">Fehler beim Laden der Einstellungen: {error.message}</div>;
     if (!data || !draft) return <div className="empty">Lade…</div>;
 
     const tabs = data.canManageAccess ? TABS : TABS.filter((t) => !ADMIN_ONLY_TABS.includes(t.id));
+    // The open tab is remembered between visits; one that no longer exists (older
+    // build, renamed section) must not leave every panel hidden.
+    const activeTab = tabs.some((t) => t.id === tab) ? tab : tabs[0].id;
 
     const patch = (fields: Partial<Draft>) => setDraft({ ...draft, ...fields });
 
@@ -581,7 +588,7 @@ export default function SettingsPage() {
 
             <div className="tabs" role="tablist">
                 {tabs.map((t) => (
-                    <button key={t.id} type="button" className={`tab-btn${tab === t.id ? " active" : ""}`} role="tab" onClick={() => setTab(t.id)}>
+                    <button key={t.id} type="button" className={`tab-btn${activeTab === t.id ? " active" : ""}`} role="tab" onClick={() => setTab(t.id)}>
                         {t.label}
                     </button>
                 ))}
@@ -590,7 +597,7 @@ export default function SettingsPage() {
             <form className="card-form" onSubmit={submit}>
                 {saveError && <p className="sub" style={{ color: "var(--high)" }}>{saveError}</p>}
 
-                <div className={`tab-panel${tab === "zugang" ? " active" : ""}`} role="tabpanel">
+                <div className={`tab-panel${activeTab === "zugang" ? " active" : ""}`} role="tabpanel">
                     <h2 style={{ marginTop: 0 }}>Admin-Zugang</h2>
                     <div className="field">
                         <label>Admin-Rollen (Discord-Rollen-IDs, kommagetrennt)</label>
@@ -610,7 +617,7 @@ export default function SettingsPage() {
                 </div>
 
                 {data.canManageAccess && (
-                    <div className={`tab-panel${tab === "berechtigungen" ? " active" : ""}`} role="tabpanel">
+                    <div className={`tab-panel${activeTab === "berechtigungen" ? " active" : ""}`} role="tabpanel">
                         <h2 style={{ marginTop: 0 }}>Rollen-Berechtigungen</h2>
                         <RolePermissionsEditor
                             areas={data.areas}
@@ -622,7 +629,7 @@ export default function SettingsPage() {
                     </div>
                 )}
 
-                <div className={`tab-panel${tab === "recruitment" ? " active" : ""}`} role="tabpanel">
+                <div className={`tab-panel${activeTab === "recruitment" ? " active" : ""}`} role="tabpanel">
                     <h2 style={{ marginTop: 0 }}>Recruitment</h2>
                     <div className="field">
                         <label>Bewerbungs-Channel-ID</label>
@@ -636,7 +643,7 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                <div className={`tab-panel${tab === "auktionen" ? " active" : ""}`} role="tabpanel">
+                <div className={`tab-panel${activeTab === "auktionen" ? " active" : ""}`} role="tabpanel">
                     <h2 style={{ marginTop: 0 }}>Auktionen</h2>
                     <div className="field">
                         <label>Höchstgebote-Channel-ID</label>
@@ -649,7 +656,7 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                <div className={`tab-panel${tab === "events" ? " active" : ""}`} role="tabpanel">
+                <div className={`tab-panel${activeTab === "events" ? " active" : ""}`} role="tabpanel">
                     <h2 style={{ marginTop: 0 }}>Event-Kategorien &amp; Raider-Rollen</h2>
                     <p className="hint">Wähle die Kategorien, deren Channels Raid-Events enthalten, und ordne jeder die erwarteten Raider-Rollen zu.</p>
                     <CategoryRoleMatrix
@@ -692,7 +699,7 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                <div className={`tab-panel${tab === "loot" ? " active" : ""}`} role="tabpanel">
+                <div className={`tab-panel${activeTab === "loot" ? " active" : ""}`} role="tabpanel">
                     <h2 style={{ marginTop: 0 }}>Loot-Tool je Kategorie</h2>
                     <p className="hint">
                         Womit wird in dieser Kategorie gelootet? Der Import in „Historie &amp; Loot" wählt den passenden
@@ -713,7 +720,7 @@ export default function SettingsPage() {
                     <TopItemsField items={draft.topItems} onChange={(topItems) => patch({ topItems })} />
                 </div>
 
-                <div className={`tab-panel${tab === "logs" ? " active" : ""}`} role="tabpanel">
+                <div className={`tab-panel${activeTab === "logs" ? " active" : ""}`} role="tabpanel">
                     <h2 style={{ marginTop: 0 }}>Log-Auswertung</h2>
                     <div className="field">
                         <label>Log-Channel-IDs (kommagetrennt)</label>
@@ -729,14 +736,14 @@ export default function SettingsPage() {
                 )}
             </form>
 
-            {tab === "raidchars" && (
+            {activeTab === "raidchars" && (
                 <div className="tab-panel active" role="tabpanel">
                     <h2 style={{ marginTop: 0 }}>Raider → Charakter je Kategorie</h2>
                     <RaiderCharactersTab categories={data.categories} csrfToken={csrfToken} />
                 </div>
             )}
 
-            {tab === "raidsheets" && (
+            {activeTab === "raidsheets" && (
                 <div className="tab-panel active" role="tabpanel">
                     <h2 style={{ marginTop: 0 }}>Festes Sheet je Raidkategorie</h2>
                     <p className="note">

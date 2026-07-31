@@ -4,9 +4,10 @@
 // no server round trip needed like ClaPage's server-side SortTh. Defaults to
 // sorting by character, since that's how a raid lead checks "who got what"
 // right after an import.
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { LootItem } from "../api";
 import { fmtMs } from "../lib/format";
+import { usePersistedState } from "../lib/persistedState";
 import { itemQualityProps } from "../lib/itemQuality";
 import { CharacterLink } from "./ClassSpec";
 import { reasonToneClass } from "./LootBadges";
@@ -75,13 +76,19 @@ function SortTh({ sortKey, label, sort, dir, onSort }: {
 }
 
 export function LootTable({ items, showEvent = false }: { items: LootItem[]; showEvent?: boolean }) {
-    const [sort, setSort] = useState<SortKey>("character");
-    const [dir, setDir] = useState<Dir>(SORT_DEFAULTS.character);
+    // One shared memory for every place this table shows up (raid detail, event
+    // loot, character history): it is the same table, so whoever sorts it by item
+    // wants it that way in the next raid too. A stored key from an older build
+    // falls back to the default instead of sorting by nothing.
+    const [view, setView] = usePersistedState<{ sort: SortKey; dir: Dir }>("loot-table-sort", {
+        sort: "character", dir: SORT_DEFAULTS.character,
+    });
+    const sort: SortKey = SORT_DEFAULTS[view.sort] ? view.sort : "character";
+    const dir: Dir = view.dir === "desc" ? "desc" : "asc";
 
     const onSort = (key: SortKey) => {
-        if (key === sort) { setDir((d) => (d === "asc" ? "desc" : "asc")); return; }
-        setSort(key);
-        setDir(SORT_DEFAULTS[key]);
+        if (key === sort) { setView({ sort, dir: dir === "asc" ? "desc" : "asc" }); return; }
+        setView({ sort: key, dir: SORT_DEFAULTS[key] });
     };
 
     const sorted = useMemo(() => {

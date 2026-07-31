@@ -4,6 +4,7 @@ import {
     getNotifyTemplates, saveNotifyTemplate, deleteNotifyTemplate,
     type ApiError, type NotifyTemplate,
 } from "../api";
+import { useDraftState } from "../lib/persistedState";
 import type { ShellContext } from "../components/Shell";
 import { TrashIcon } from "../components/icons";
 
@@ -20,9 +21,12 @@ function NotifyTemplateForm({ csrfToken, editing, onSaved, onCancel }: {
     onSaved: (msg: string) => void;
     onCancel: () => void;
 }) {
-    const [name, setName] = useState(editing?.name ?? "");
-    const [title, setTitle] = useState(editing?.title ?? "");
-    const [body, setBody] = useState(editing?.body ?? "");
+    // A written text, kept as a draft per template, so leaving the page (or a
+    // detour into a raid) doesn't throw it away.
+    const [draft, patch, clearDraft] = useDraftState(`notify-template:${editing?.id ?? "new"}`, {
+        name: editing?.name ?? "", title: editing?.title ?? "", body: editing?.body ?? "",
+    });
+    const { name, title, body } = draft;
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -32,12 +36,10 @@ function NotifyTemplateForm({ csrfToken, editing, onSaved, onCancel }: {
         setError(null);
         try {
             await saveNotifyTemplate(csrfToken, { id: editing?.id, name, title, body });
-            onSaved(editing ? "Gespeichert." : "Vorlage angelegt.");
             // Mirrors the SSR page: after any save (create or edit) it lands back on a
             // blank "Neue Aufruf-Vorlage anlegen" form, since the edit id is dropped either way.
-            setName("");
-            setTitle("");
-            setBody("");
+            clearDraft();
+            onSaved(editing ? "Gespeichert." : "Vorlage angelegt.");
         } catch (err) {
             setError((err as ApiError).message);
         } finally {
@@ -52,21 +54,21 @@ function NotifyTemplateForm({ csrfToken, editing, onSaved, onCancel }: {
                 {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
                 <div className="field">
                     <label>Name (interne Bezeichnung)</label>
-                    <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="z.B. Kara-Reminder" required />
+                    <input type="text" value={name} onChange={(e) => patch({ name: e.target.value })} placeholder="z.B. Kara-Reminder" required />
                     <div className="hint">Nur zur Auswahl — nicht Teil der geposteten Nachricht.</div>
                 </div>
                 <div className="field">
                     <label>Titel der Nachricht (optional)</label>
-                    <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Anmeldung offen!" />
+                    <input type="text" value={title} onChange={(e) => patch({ title: e.target.value })} placeholder="Anmeldung offen!" />
                 </div>
                 <div className="field">
                     <label>Text</label>
-                    <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Bitte tragt euch für den Raid ein …" />
+                    <textarea value={body} onChange={(e) => patch({ body: e.target.value })} placeholder="Bitte tragt euch für den Raid ein …" />
                     <div className="hint">Discord-Markdown erlaubt. Die Rollen-Pings werden beim Posten pro Event ausgewählt.</div>
                 </div>
                 <div className="row-actions">
                     <button className="btn" type="submit" disabled={busy}>{editing ? "Speichern" : "Vorlage anlegen"}</button>
-                    {editing && <button className="btn btn-ghost" type="button" onClick={onCancel}>Abbrechen</button>}
+                    {editing && <button className="btn btn-ghost" type="button" onClick={() => { clearDraft(); onCancel(); }}>Abbrechen</button>}
                 </div>
             </form>
         </>
