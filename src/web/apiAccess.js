@@ -59,6 +59,7 @@ const AREA_BY_PATH = {
     "/api/history/char": "history",
 
     "/api/cla": "cla",
+    "/api/cla/report-status": "cla",
     "/api/cla/report-delete": "cla",
     "/api/cla/report-unlink": "cla",
     "/api/cla/eval": "cla",

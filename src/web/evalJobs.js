@@ -1,4 +1,8 @@
-// Background jobs for the CLA/RPB log evaluations.
+// Background jobs for the CLA/RPB log evaluations, and for a report built from
+// a pasted Warcraft-Logs link — that is the same analysis, so it is tracked here
+// too, keyed by a fresh job id under the pseudo-section "report" (see
+// apiRoutes/cla.js). The key is just (subject, section); nothing here reads the
+// log store, so a subject that is not a log id works fine.
 //
 // An RPB evaluation takes ~50s. Holding an HTTP response open that long dies at
 // the 60s timeout of a typical reverse proxy, and the admin client then sees a

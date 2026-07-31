@@ -111,11 +111,19 @@ form.card-form { background: var(--panel); border: 1px solid var(--line); border
     border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--accent);
 }
 .field .hint, .hint { color: var(--muted); font-size: 12px; margin-top: 5px; line-height: 1.4; }
+/* One button system for the whole admin. The variants are a hierarchy, not a
+   palette: .btn = the one primary action of a form/section, .btn-ghost = every
+   secondary action next to it, .btn-run = "start this analysis" (CLA/RPB — an
+   action that then takes a while and reports back through a job toast),
+   .btn-danger = destructive. Icons come from components/icons.tsx and are sized
+   here, so a button never has to hard-code one (and never carries an emoji). */
 .btn {
-    display: inline-block; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 9px 18px;
-    font-weight: 700; font-size: 14px; cursor: pointer; text-decoration: none;
-    transition: filter .15s ease, box-shadow .2s ease, transform .1s ease;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 9px 18px;
+    font-weight: 700; font-size: 14px; cursor: pointer; text-decoration: none; vertical-align: middle;
+    transition: filter .15s ease, box-shadow .2s ease, transform .1s ease, background-color .15s ease, border-color .15s ease;
 }
+.btn svg { width: 15px; height: 15px; flex: 0 0 auto; }
 .btn:hover { filter: brightness(1.08); box-shadow: 0 4px 22px -6px var(--accent); transform: translateY(-1px); }
 .btn:active { transform: translateY(0); }
 .btn:disabled { opacity: .6; cursor: not-allowed; filter: none; box-shadow: none; transform: none; }
@@ -123,7 +131,21 @@ form.card-form { background: var(--panel); border: 1px solid var(--line); border
 .btn-ghost:hover { filter: none; background: var(--panel3); border-color: var(--accent); box-shadow: none; }
 .btn-danger { background: var(--high-bg); color: var(--high); border: 1px solid var(--high); }
 .btn-danger:hover { filter: none; background: var(--high); color: #fff; box-shadow: 0 4px 22px -8px var(--high); transform: translateY(-1px); }
+/* Analysis starters (CLA/RPB): accent-tinted so they read as "run this", but
+   outlined so a table row full of them never looks like a row of submits. */
+.btn-run { background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent-soft); letter-spacing: .02em; }
+.btn-run:hover { filter: none; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); box-shadow: 0 4px 18px -8px var(--accent); }
+/* While its job runs the button stays clickable-looking but inert, and swaps
+   its icon for a spinner (the real progress lives in the toast). */
+.btn.is-running { cursor: progress; }
+.btn-spin {
+    width: 13px; height: 13px; flex: 0 0 auto; border-radius: 50%;
+    border: 2px solid currentColor; border-top-color: transparent; opacity: .8;
+    animation: toast-spin .8s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) { .btn-spin { animation: none; } }
 .btn-sm { padding: 6px 12px; font-size: 13px; }
+.btn-sm svg { width: 13px; height: 13px; }
 .row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .pill { display: inline-block; background: var(--high-bg); color: var(--high); border-radius: 10px; padding: 0 8px; font-size: 12px; font-weight: 700; }
 .pill.good { background: var(--good-bg); color: var(--good); }
@@ -649,14 +671,21 @@ dl.app-meta dd { margin: 0; min-width: 0; word-break: break-word; }
 /* ===== toast + full-page loader, ported 1:1 from ADMIN_STYLE (renderAdmin.js) —
    the legacy admin's auto-dismissing post-action feedback and long-operation
    overlay, previously missing from this React admin (which fell back to inline
-   .flash banners and disabled buttons). ===== */
+   .flash banners and disabled buttons).
+
+   Extended by the background-job variant (.toast-run, see components/Jobs.tsx):
+   a running job's toast IS its whole UI, so it carries the action name, what it
+   runs on, the elapsed time and a progress bar — and never auto-dismisses while
+   the job is still going. ===== */
 .toast-wrap { position: fixed; top: 16px; right: 16px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; max-width: min(360px, calc(100vw - 32px)); pointer-events: none; }
 .toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 10px; font-size: 14px; line-height: 1.4; box-shadow: 0 8px 28px rgba(0, 0, 0, .35); background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--line); color: var(--text); animation: toast-in .22s ease; }
 .toast-ok { border-left-color: var(--good); }
 .toast-ok .toast-ico { color: var(--good); }
 .toast-err { border-left-color: var(--high); }
 .toast-err .toast-ico { color: var(--high); }
+.toast-run { border-left-color: var(--accent); }
 .toast-ico { flex: 0 0 auto; font-weight: 800; }
+.toast-body { flex: 1; min-width: 0; }
 .toast-msg { flex: 1; }
 .toast-x { background: none; border: 0; color: inherit; font-size: 18px; line-height: 1; cursor: pointer; opacity: .7; padding: 0; margin: -2px -2px 0 0; }
 .toast-x:hover { opacity: 1; }
@@ -664,6 +693,20 @@ dl.app-meta dd { margin: 0; min-width: 0; word-break: break-word; }
 @keyframes toast-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: none; } }
 @keyframes toast-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateX(20px); } }
 @media (prefers-reduced-motion: reduce) { .toast, .toast.hide { animation: none; } }
+
+.toast-title { display: flex; align-items: baseline; gap: 8px; font-weight: 700; }
+.toast-elapsed { margin-left: auto; font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.toast-detail { font-size: 12.5px; color: var(--muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.toast-link { display: inline-block; margin-top: 6px; color: var(--accent); font-weight: 700; font-size: 13px; text-decoration: none; }
+.toast-link:hover { text-decoration: underline; }
+.toast-bar { margin-top: 9px; height: 3px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.toast-bar i { display: block; height: 100%; border-radius: inherit; background: var(--accent); transition: width .9s linear; }
+/* No expected duration → a sliding sliver rather than a made-up percentage. */
+.toast-bar.is-indeterminate i { width: 40%; animation: toast-slide 1.3s ease-in-out infinite; }
+@keyframes toast-slide { 0% { transform: translateX(-100%) } 100% { transform: translateX(250%) } }
+.toast-spin { display: block; width: 13px; height: 13px; margin-top: 3px; border-radius: 50%; border: 2px solid var(--accent-soft); border-top-color: var(--accent); animation: toast-spin .8s linear infinite; }
+@keyframes toast-spin { to { transform: rotate(360deg) } }
+@media (prefers-reduced-motion: reduce) { .toast-spin, .toast-bar.is-indeterminate i { animation: none; } }
 
 .page-loader { position: fixed; inset: 0; z-index: 9999; display: flex; align-items: center; justify-content: center;
     background: rgba(9, 11, 18, .66); backdrop-filter: blur(5px) saturate(1.1); -webkit-backdrop-filter: blur(5px) saturate(1.1);

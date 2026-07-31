@@ -13,6 +13,7 @@ import { ClassSpecCell, CharacterLink, CLASS_SOURCE_LABELS } from "../components
 import { LootReasonsTab } from "../components/LootReasonsTab";
 import { LootItemsTab } from "../components/LootItemsTab";
 import type { ShellContext } from "../components/Shell";
+import { TrashIcon } from "../components/icons";
 
 type Flash = { type: "ok" | "err"; text: string };
 type Tab = "raids" | "import" | "loot" | "reasons" | "items" | "logs" | "chars";
@@ -245,7 +246,7 @@ function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: s
                                         {l.status === "done" && (l.reportUrl || l.reportRefId) && (
                                             <a className="btn btn-ghost btn-sm" href={l.reportUrl || `/r/${l.reportRefId}`}>Öffnen</a>
                                         )}
-                                        <button className="btn btn-danger btn-sm" type="button" onClick={() => remove(l)}>Löschen</button>
+                                        <button className="btn btn-danger btn-sm" type="button" onClick={() => remove(l)}><TrashIcon />Löschen</button>
                                     </div>
                                 </td>
                             </tr>
