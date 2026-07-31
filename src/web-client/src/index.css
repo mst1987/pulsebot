@@ -216,6 +216,20 @@ select:focus { background-image: var(--ctl-arrow-hi); }
 /* discard button inside a status pill — drops just that one analysis */
 .pill-x { background: none; border: 0; color: inherit; opacity: .55; cursor: pointer; font: inherit; line-height: 1; padding: 0 0 0 5px; }
 .pill-x:hover { opacity: 1; }
+/* A pill whose assignment can be removed: label and ✕ are one chip, not a pill
+   with a full-size ghost button parked beside it (which read as a second, equally
+   important action). The ✕ only gains weight on hover/focus. */
+.pill-chip { display: inline-flex; align-items: center; gap: 2px; padding-right: 3px; line-height: 1.7; vertical-align: middle; }
+.chip-x {
+    display: inline-grid; place-items: center; flex: 0 0 auto;
+    width: 16px; height: 16px; padding: 0; border: 0; border-radius: 50%;
+    background: none; color: inherit; opacity: .5; cursor: pointer;
+    transition: opacity .12s ease, background-color .12s ease;
+}
+.chip-x svg { width: 9px; height: 9px; }
+.chip-x:hover:not(:disabled) { opacity: 1; background: color-mix(in srgb, currentColor 20%, transparent); }
+.chip-x:focus-visible { opacity: 1; outline: 2px solid currentColor; outline-offset: 1px; }
+.chip-x:disabled { opacity: .25; cursor: not-allowed; }
 .empty { color: var(--muted); padding: 40px; text-align: center; }
 .note { color: var(--muted); font-size: 12.5px; margin: -6px 0 12px; }
 code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; padding: 2px 6px; border-radius: 4px; background: var(--panel2); color: var(--text); }
