@@ -10,7 +10,17 @@
     --good: #7fd17f; --good-bg: rgba(120, 200, 120, .16);
     --accent: #8a7cff; --accent-2: #35d6c4; --accent-soft: rgba(138, 124, 255, .16); --accent-ink: #130f26;
     --font-mono: ui-monospace, "Cascadia Code", Consolas, "SFMono-Regular", Menlo, monospace;
-    color-scheme: light dark;
+    /* ---- control metrics: one height for everything that shares a line ---- */
+    --ctl-h: 38px; --ctl-h-sm: 32px; --ctl-radius: 8px;
+    /* The select chevron, drawn by us instead of by the OS widget (see the form
+       controls section). It has to be restated per theme because a data URI
+       cannot read a custom property. */
+    --ctl-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239aa0aa' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a7cff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    /* Pinned instead of "light dark": the theme toggle can put the app in dark
+       mode on a light OS, and the native select popup + scrollbars have to
+       follow the app, not the OS. */
+    color-scheme: dark;
     /* ---- "Spektrum" area accents: one hue per admin section (nav icons, dashboard tiles) ---- */
     --area-recruitment: #34d399; --area-recruitment-soft: rgba(52, 211, 153, .16);
     --area-cla: #ff8a65; --area-cla-soft: rgba(255, 138, 101, .16);
@@ -36,6 +46,9 @@
         --medium: #9a6c12; --medium-bg: rgba(154, 108, 18, .14);
         --good: #2b9440; --good-bg: rgba(43, 148, 64, .12);
         --accent: #6a4fe0; --accent-2: #0f8f82; --accent-soft: rgba(106, 79, 224, .10); --accent-ink: #ffffff;
+        --ctl-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b616e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a4fe0' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+        color-scheme: light;
         --area-recruitment: #1f9d6c; --area-recruitment-soft: rgba(31, 157, 108, .12);
         --area-cla: #d95f39; --area-cla-soft: rgba(217, 95, 57, .12);
         --area-history: #c23f8f; --area-history-soft: rgba(194, 63, 143, .12);
@@ -59,6 +72,9 @@
     --medium: #9a6c12; --medium-bg: rgba(154, 108, 18, .14);
     --good: #2b9440; --good-bg: rgba(43, 148, 64, .12);
     --accent: #6a4fe0; --accent-2: #0f8f82; --accent-soft: rgba(106, 79, 224, .10); --accent-ink: #ffffff;
+    --ctl-arrow: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235b616e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    --ctl-arrow-hi: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236a4fe0' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    color-scheme: light;
     --area-recruitment: #1f9d6c; --area-recruitment-soft: rgba(31, 157, 108, .12);
     --area-cla: #d95f39; --area-cla-soft: rgba(217, 95, 57, .12);
     --area-history: #c23f8f; --area-history-soft: rgba(194, 63, 143, .12);
@@ -93,23 +109,70 @@ table.idx th, table.idx td { text-align: left; padding: 9px 12px; border-bottom:
 table.idx th { color: var(--muted); font-weight: 600; font-size: 13px; }
 table.idx tr:hover td { background: var(--panel2); }
 table.idx td.small { white-space: nowrap; color: var(--muted); font-size: 12.5px; }
+/* A cell holding a control is taller than one holding text, and baseline
+   alignment would then drop the plain-text cells of that row out of line with
+   it — centre every cell instead, and take the row's own padding back down so
+   the control's height doesn't stack on top of it. */
+table.idx td { vertical-align: middle; }
+table.idx td:has(select), table.idx td:has(input:not([type=checkbox]):not([type=radio])),
+table.idx td:has(.btn), table.idx td:has(.row-actions) {
+    padding-top: 5px; padding-bottom: 5px;
+}
+/* controls inside a row stay compact so a table of them doesn't turn into a
+   column of 50px rows */
+table.idx td select, table.idx td input:not([type=checkbox]):not([type=radio]) {
+    min-height: var(--ctl-h-sm); font-size: 13.5px; padding: 5px 30px 5px 10px; background-position: right 9px center; background-size: 14px 14px;
+}
+table.idx td input:not([type=checkbox]):not([type=radio]) { padding: 5px 10px; }
+table.idx td .btn { min-height: var(--ctl-h-sm); }
 
 /* ===== forms/buttons ===== */
 form.card-form { background: var(--panel); border: 1px solid var(--line); border-radius: 0; padding: 18px; margin: 0 0 16px; }
 .field { margin-bottom: 16px; }
 .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 7px; font-weight: 600; line-height: 1.3; }
-.field input:not([type=checkbox]):not([type=radio]), .field select {
-    width: 100%; max-width: 440px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
-    padding: 9px 12px; font: inherit; transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
-}
-.field textarea {
-    width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
-    padding: 10px 12px; font: inherit; min-height: 120px; resize: vertical;
+/* --- the control base: every text input, select and textarea shares one look
+   and, more importantly, one height (--ctl-h). Anything that lands on the same
+   line — a filter row, a table cell, the topbar — then lines up on its own
+   without per-place height patches. The vertical padding is sized so the
+   computed height lands on --ctl-h; the min-height is the floor that keeps it
+   there when a shorter font is used. --- */
+select,
+.field input:not([type=checkbox]):not([type=radio]), .field textarea, .inp-sm, .sel-sm {
+    /* background-color, not the shorthand: the shorthand would reset the chevron
+       image below, and it does so at a higher specificity than the `select`
+       rule can win back — .sel-sm would silently lose its arrow. */
+    background-color: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: var(--ctl-radius);
+    font: inherit; line-height: 1.35;
     transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
 }
-.field input:focus, .field select:focus, .field textarea:focus {
+.field input:not([type=checkbox]):not([type=radio]) { width: 100%; max-width: 440px; min-height: var(--ctl-h); padding: 8px 12px; }
+.field textarea { width: 100%; padding: 10px 12px; min-height: 120px; resize: vertical; }
+.field select { width: 100%; max-width: 440px; }
+/* --- selects: the OS widget is dropped (appearance: none) because its grey
+   Windows triangle and system-blue focus ring ignore the palette entirely; the
+   chevron is drawn as a background image instead, which is the one decoration a
+   <select> can carry (it takes no pseudo-elements). It tints to the accent on
+   hover and focus, so the control answers the pointer the way the buttons do. --- */
+select {
+    appearance: none; -webkit-appearance: none;
+    min-height: var(--ctl-h); padding: 8px 34px 8px 12px; max-width: 100%; cursor: pointer;
+    background-image: var(--ctl-arrow); background-repeat: no-repeat;
+    background-position: right 11px center; background-size: 15px 15px;
+}
+select:hover:not(:disabled) { border-color: var(--muted); background-image: var(--ctl-arrow-hi); }
+select:disabled, .field input:disabled, .inp-sm:disabled {
+    opacity: .55; cursor: not-allowed; background-color: var(--panel2); background-image: var(--ctl-arrow);
+}
+/* The popup list is native, so it can only be tinted through the options
+   themselves (plus the pinned color-scheme in :root). */
+select option { background: var(--panel); color: var(--text); }
+select:focus, .field input:focus, .field textarea:focus, .inp-sm:focus, .sel-sm:focus {
     border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--accent);
 }
+select:focus { background-image: var(--ctl-arrow-hi); }
+/* compact variants for dense places (table cells, the topbar's neighbours) */
+.sel-sm { max-width: 270px; font-size: 13px; min-height: var(--ctl-h-sm); padding: 6px 30px 6px 10px; background-position: right 9px center; background-size: 14px 14px; }
+.inp-sm { font-size: 13px; min-height: var(--ctl-h-sm); padding: 6px 10px; }
 .field .hint, .hint { color: var(--muted); font-size: 12px; margin-top: 5px; line-height: 1.4; }
 /* One button system for the whole admin. The variants are a hierarchy, not a
    palette: .btn = the one primary action of a form/section, .btn-ghost = every
@@ -119,8 +182,9 @@ form.card-form { background: var(--panel); border: 1px solid var(--line); border
    here, so a button never has to hard-code one (and never carries an emoji). */
 .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-    background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 9px 18px;
-    font-weight: 700; font-size: 14px; cursor: pointer; text-decoration: none; vertical-align: middle;
+    background: var(--accent); color: var(--accent-ink); border: 0; border-radius: var(--ctl-radius);
+    min-height: var(--ctl-h); padding: 8px 18px; line-height: 1.25;
+    font-weight: 700; font-size: 14px; cursor: pointer; text-decoration: none; white-space: nowrap; vertical-align: middle;
     transition: filter .15s ease, box-shadow .2s ease, transform .1s ease, background-color .15s ease, border-color .15s ease;
 }
 .btn svg { width: 15px; height: 15px; flex: 0 0 auto; }
@@ -144,7 +208,7 @@ form.card-form { background: var(--panel); border: 1px solid var(--line); border
     animation: toast-spin .8s linear infinite;
 }
 @media (prefers-reduced-motion: reduce) { .btn-spin { animation: none; } }
-.btn-sm { padding: 6px 12px; font-size: 13px; }
+.btn-sm { min-height: var(--ctl-h-sm); padding: 5px 12px; font-size: 13px; }
 .btn-sm svg { width: 13px; height: 13px; }
 .row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .pill { display: inline-block; background: var(--high-bg); color: var(--high); border-radius: 10px; padding: 0 8px; font-size: 12px; font-weight: 700; }
@@ -433,7 +497,7 @@ input[type=checkbox]:checked::after {
 }
 
 /* theme toggle */
-.theme-toggle { width: 36px; height: 36px; display: inline-grid; place-items: center; padding: 0; border-radius: 8px; border: 1px solid var(--line); background: var(--panel2); color: var(--muted); cursor: pointer; transition: color .12s, border-color .12s; }
+.theme-toggle { width: var(--ctl-h); height: var(--ctl-h); display: inline-grid; place-items: center; padding: 0; border-radius: var(--ctl-radius); border: 1px solid var(--line); background: var(--panel2); color: var(--muted); cursor: pointer; transition: color .12s, border-color .12s; }
 .theme-toggle:hover { color: var(--text); border-color: var(--muted); }
 .theme-toggle svg { width: 17px; height: 17px; }
 
@@ -532,7 +596,9 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 .dash-card-head h3 { font-size: 15px; margin: 0; }
 .dash-card-head .mlink { margin-left: auto; font-size: 13px; }
 .dash-card table.idx { margin: 0; }
-.dash-card table.idx th, .dash-card table.idx td { padding: 9px 16px; }
+/* Only the inset — the vertical padding stays with the table rules above, so a
+   row holding a control can still take itself back down inside a card. */
+.dash-card table.idx th, .dash-card table.idx td { padding-left: 16px; padding-right: 16px; }
 .quick { display: flex; flex-direction: column; }
 .quick a { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--line-soft); color: var(--text); text-decoration: none; font-weight: 600; font-size: 14px; }
 .quick a:first-child { border-top: 0; }
@@ -544,7 +610,7 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
     .app { grid-template-columns: 1fr; }
     .side { position: fixed; z-index: 30; width: 264px; transform: translateX(-102%); transition: transform .2s; box-shadow: 0 8px 28px rgba(0, 0, 0, .35); }
     .side.open { transform: none; }
-    .menu-toggle { display: inline-grid; place-items: center; width: 38px; height: 38px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); cursor: pointer; }
+    .menu-toggle { display: inline-grid; place-items: center; width: var(--ctl-h); height: var(--ctl-h); border-radius: var(--ctl-radius); border: 1px solid var(--line); background: var(--panel2); color: var(--text); cursor: pointer; }
     .content { padding: 18px 14px; }
     .tiles { grid-template-columns: repeat(2, 1fr); }
     .dash-grid { grid-template-columns: 1fr; }
@@ -621,8 +687,19 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 .loot-pop-wrap:hover .loot-pop-trigger.raider-badge,
 .loot-pop-wrap:focus-visible .loot-pop-trigger.raider-badge { color: var(--text); border-color: var(--accent); }
 .badge-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
-/* Filter bar shared by the Gründe and Items tabs. */
-.filter-bar { display: flex; gap: 14px; flex-wrap: wrap; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+/* Filter bar above a table (Gründe, Items, Charaktere, Roster).
+   The cells are label-over-control stacks of differing height — a wrapped
+   two-line label, or none at all on a button/checkbox cell — so they are
+   bottom-aligned: what has to line up across the row is the controls, not the
+   tops of the labels. A cell without a label gets the control height as its own
+   floor, which puts its button or checkbox on exactly the line the selects sit on. */
+.filter-bar { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.filter-bar .field { margin: 0; display: flex; flex-direction: column; justify-content: flex-end; }
+.filter-bar .field > :only-child { margin-bottom: 0; }
+.filter-bar .field > label:only-child {
+    display: flex; align-items: center; gap: 7px; min-height: var(--ctl-h);
+    font-size: 14px; font-weight: 600; color: var(--text); cursor: pointer;
+}
 
 /* Class-coloured text. WoW's palette is built for a black game UI — Priest
    white (#FFFFFF) and Rogue yellow (#FFF569) are unreadable on the light
@@ -647,14 +724,15 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 .sort-link.active { color: var(--accent); }
 .pager { display: flex; align-items: center; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
 .pager-info { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
-.pager-btn { display: inline-block; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--text); text-decoration: none; font-size: 13.5px; font-weight: 600; cursor: pointer; font: inherit; }
+.pager-btn { display: inline-flex; align-items: center; min-height: var(--ctl-h-sm); padding: 5px 12px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); color: var(--text); text-decoration: none; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
 .pager-btn:hover { border-color: var(--accent); color: var(--accent); }
 .pager-btn.disabled, .pager-btn:disabled { opacity: .45; pointer-events: none; cursor: default; }
-.sel-sm { max-width: 270px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13px; }
-/* compact inline text input for the same forms, outside a .field wrapper */
-.inp-sm { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: inherit; font-size: 13px; }
-.inp-sm:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--accent); }
+/* .sel-sm / .inp-sm — the compact input pair used outside a .field wrapper —
+   live with the other controls in the form section above. */
 .serverbar { display: flex; align-items: center; gap: 8px; margin: 0; flex-wrap: wrap; }
+/* the topbar is a row of full-height controls (switcher, theme toggle), so its
+   select opts out of the compact height it carries elsewhere */
+.serverbar .sel-sm { min-height: var(--ctl-h); max-width: 300px; }
 .serverbar label { color: var(--muted); font-size: 13px; font-weight: 600; margin: 0; }
 .serverbar .hint { color: var(--medium); font-size: 12.5px; }
 .serverbar-single { color: var(--muted); font-size: 13px; font-weight: 600; }

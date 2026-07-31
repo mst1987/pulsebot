@@ -168,7 +168,7 @@ export default function RolePermissionsEditor({ areas, roles, adminRoleIds, valu
                         <option value="">— Rolle wählen —</option>
                         {addable.map((r) => <option key={r.id} value={r.id}>@{r.name}</option>)}
                     </select>
-                    <button type="button" className="btn btn-sm" onClick={addRole} disabled={!picked}>Hinzufügen</button>
+                    <button type="button" className="btn" onClick={addRole} disabled={!picked}>Hinzufügen</button>
                 </div>
                 {!addable.length && <div className="hint">Alle Rollen sind bereits konfiguriert oder sind Admin-Rollen.</div>}
             </div>

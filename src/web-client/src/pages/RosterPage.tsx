@@ -279,8 +279,8 @@ export default function RosterPage() {
                             : `${chars.length} Charakter(e)`}
                     </span>
                 </div>
-                <div style={{ display: "flex", gap: 14, flexWrap: "wrap", padding: "14px 16px", borderBottom: "1px solid var(--line)" }}>
-                    <div className="field" style={{ margin: 0, minWidth: 220 }}>
+                <div className="filter-bar">
+                    <div className="field" style={{ minWidth: 220 }}>
                         <label htmlFor="roster-search">Suche</label>
                         <input
                             id="roster-search"
@@ -290,22 +290,22 @@ export default function RosterPage() {
                             onChange={(e) => patch({ search: e.target.value })}
                         />
                     </div>
-                    <div className="field" style={{ margin: 0, minWidth: 180 }}>
+                    <div className="field" style={{ minWidth: 180 }}>
                         <label htmlFor="roster-category">Kategorie</label>
                         <select id="roster-category" value={view.category} onChange={(e) => patch({ category: e.target.value })}>
                             <option value="">Alle Kategorien</option>
                             {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                         </select>
                     </div>
-                    <div className="field" style={{ margin: 0, minWidth: 180 }}>
+                    <div className="field" style={{ minWidth: 180 }}>
                         <label htmlFor="roster-class">Klasse & Spec</label>
                         <select id="roster-class" value={view.classSpec} onChange={(e) => patch({ classSpec: e.target.value, className: "" })}>
                             <option value="">Alle Klassen</option>
                             {classOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                     </div>
-                    <div className="field" style={{ margin: 0, justifyContent: "flex-end" }}>
-                        <label style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <div className="field">
+                        <label>
                             <input
                                 type="checkbox"
                                 checked={view.onlyIssues}
@@ -315,9 +315,9 @@ export default function RosterPage() {
                         </label>
                     </div>
                     {hasFilters && (
-                        <div className="field" style={{ margin: 0, justifyContent: "flex-end" }}>
+                        <div className="field">
                             <button
-                                className="btn btn-ghost btn-sm"
+                                className="btn btn-ghost"
                                 type="button"
                                 title="Suche und Filter zurücksetzen (werden lokal im Browser gespeichert)"
                                 onClick={() => patch({ search: "", category: "", className: "", classSpec: "", onlyIssues: false })}
