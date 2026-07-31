@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { getHistoryChar, type ApiError, type CharGearReport, type GearItem, type HistoryCharData } from "../api";
 import { fmtMs } from "../lib/format";
+import { itemQualityColor, itemQualityProps } from "../lib/itemQuality";
 import { refreshWowheadLinks } from "../lib/wowheadTooltips";
 import { CLASS_SOURCE_LABELS } from "../components/ClassSpec";
 import { LootTable } from "../components/LootTable";
@@ -18,13 +19,6 @@ const SLOT_LABELS: Record<string, string> = {
     WRIST: "Handgelenk", HANDS: "Hände", WAIST: "Taille", LEGS: "Beine", FEET: "Füße",
     FINGER_1: "Ring 1", FINGER_2: "Ring 2", TRINKET_1: "Schmuck 1", TRINKET_2: "Schmuck 2",
     MAIN_HAND: "Haupthand", OFF_HAND: "Nebenhand", RANGED: "Fernkampf",
-};
-// Poor/Common map to theme text colors, not the game's raw grey/white — those
-// read fine on WoW's always-dark UI but a literal #ffffff is invisible against
-// this app's light-theme white panels.
-const QUALITY_COLOR: Record<string, string> = {
-    POOR: "var(--muted)", COMMON: "var(--text)", UNCOMMON: "#1eff00", RARE: "#0070dd",
-    EPIC: "#a335ee", LEGENDARY: "#ff8000", ARTIFACT: "#e6cc80", HEIRLOOM: "#00ccff",
 };
 const GEM_COLOR: Record<string, string> = {
     RED: "#c0392b", YELLOW: "#e0b73a", BLUE: "#3d7dd6", META: "#d8d8d8",
@@ -85,7 +79,7 @@ function GearRow({ g, slot }: { g?: GearItem; slot: string }) {
             </div>
         );
     }
-    const color = QUALITY_COLOR[g.quality] || "var(--line)";
+    const color = itemQualityColor(g.quality) || "var(--line)";
     const inner = (
         <>
             <span className="icon-wrap">
@@ -96,7 +90,7 @@ function GearRow({ g, slot }: { g?: GearItem; slot: string }) {
                 {!!g.level && <span className="ilvl-badge">{g.level}</span>}
             </span>
             <span className="body">
-                <span className="item-name" style={{ color }}>{g.name || label}</span>
+                <span {...itemQualityProps(g.quality, "item-name")}>{g.name || label}</span>
                 <span className="slot-line">
                     <span className="slot-label">{label}</span>
                     {g.sockets.map((s, i) => {

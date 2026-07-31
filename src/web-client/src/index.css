@@ -529,6 +529,19 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 }
 :root[data-theme="light"] .class-colored { color: color-mix(in srgb, var(--cc) 55%, #0d0f14); }
 
+/* Item names in their WoW quality colour (epic purple, rare blue, legendary
+   orange, …), handed in as --iq by lib/itemQuality.ts — same mechanism and the
+   same light-theme darkening as the class colours above, for the same reason:
+   raw #1eff00 or #ff8000 washes out on a white panel. The doubled base selector
+   only exists so a name inside a hover popover — which sets its own colour —
+   still wins. An item whose quality was never resolved gets no class at all and
+   keeps the surrounding text colour instead of a guessed rarity. */
+.item-quality, .loot-pop-name.item-quality { color: var(--iq); }
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .item-quality { color: color-mix(in srgb, var(--iq) 62%, #0d0f14); }
+}
+:root[data-theme="light"] .item-quality { color: color-mix(in srgb, var(--iq) 62%, #0d0f14); }
+
 .flash { border-radius: 8px; padding: 10px 14px; margin-bottom: 16px; font-size: 14px; }
 .flash-ok { background: var(--good-bg); color: var(--good); border: 1px solid var(--good); }
 .flash-err { background: var(--high-bg); color: var(--high); border: 1px solid var(--high); }

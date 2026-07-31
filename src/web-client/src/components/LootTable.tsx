@@ -7,6 +7,7 @@
 import { useMemo, useState } from "react";
 import type { LootItem } from "../api";
 import { fmtMs } from "../lib/format";
+import { itemQualityProps } from "../lib/itemQuality";
 import { CharacterLink } from "./ClassSpec";
 import { reasonToneClass } from "./LootBadges";
 
@@ -115,8 +116,8 @@ export function LootTable({ items, showEvent = false }: { items: LootItem[]; sho
                                 <img className="loot-ico" src={it.itemIconUrl} alt="" loading="lazy" />
                             )}
                             {it.itemLink
-                                ? <a className="mlink" href={it.itemLink} target="_blank" rel="noopener noreferrer">{it.itemName || `Item ${it.itemId}`}</a>
-                                : (it.itemName || `Item ${it.itemId}`)}
+                                ? <a {...itemQualityProps(it.itemQuality, "mlink")} href={it.itemLink} target="_blank" rel="noopener noreferrer">{it.itemName || `Item ${it.itemId}`}</a>
+                                : <span {...itemQualityProps(it.itemQuality)}>{it.itemName || `Item ${it.itemId}`}</span>}
                         </td>
                         <td><CharacterLink character={it.character} /></td>
                         <td className="small"><LootResponseBadge response={it.response} offspec={it.offspec} reasonLabel={it.reasonLabel} reasonTone={it.reasonTone} /></td>

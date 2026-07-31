@@ -240,14 +240,23 @@ describe("web/lootStore", () => {
     });
 
     describe("repairItemNames", () => {
-        it("backfills missing names/icons via Wowhead and persists them", async () => {
+        it("backfills missing names/icons/qualities via Wowhead and persists them", async () => {
             addImport("e1", [item({ itemName: "" })]); // pre-enrichment row: id only
             expect(await repairItemNames()).toBe(1);
             const [row] = listByEvent("e1");
             expect(row.itemName).toBe("Thing");
             expect(row.itemIconUrl).toBe("https://wow.zamimg.com/images/wow/icons/large/inv_thing.jpg");
+            expect(row.itemQuality).toBe(4);
             // persisted — a second run finds nothing left to repair
             expect(await repairItemNames()).toBe(0);
+        });
+
+        // Rows imported before the quality was stored have name and icon but no
+        // colour to render the item name in — the backfill has to pick them up.
+        it("backfills the quality alone on rows that already have name and icon", async () => {
+            addImport("e1", [item()]); // name + icon-less legacy row, no quality
+            expect(await repairItemNames()).toBe(1);
+            expect(listByEvent("e1")[0].itemQuality).toBe(4);
         });
 
         it("leaves rows untouched when Wowhead does not know the id", async () => {

@@ -120,8 +120,8 @@ function award(it, known) {
  * RCLootcouncil one. Items the content table doesn't know keep contentId "" and
  * show up under "Unbekannt" instead of being filed into a wrong raid.
  *
- * @returns [{ itemId, itemName, itemIconUrl, itemLink, contentId, tier, boss,
- *             tokenTier, count, lastAwardedAt, awards: [...] }]
+ * @returns [{ itemId, itemName, itemIconUrl, itemQuality, itemLink, contentId,
+ *             tier, boss, tokenTier, count, lastAwardedAt, awards: [...] }]
  */
 function itemCatalog() {
     const info = new Map(annotatedCharacters().map((c) => [c.key, c]));
@@ -134,6 +134,8 @@ function itemCatalog() {
                 itemId: id,
                 itemName: it.itemName || "",
                 itemIconUrl: it.itemIconUrl || "",
+                // null (not 0) when Wowhead never resolved it — 0 is "poor".
+                itemQuality: typeof it.itemQuality === "number" ? it.itemQuality : null,
                 itemLink: it.itemLink || "",
                 contentId: it.contentId || "",
                 tier: (contentMeta(it.contentId) || {}).tier || "",
@@ -150,6 +152,7 @@ function itemCatalog() {
         // there rather than whichever row happened to come first.
         if (!entry.itemName && it.itemName) entry.itemName = it.itemName;
         if (!entry.itemIconUrl && it.itemIconUrl) entry.itemIconUrl = it.itemIconUrl;
+        if (entry.itemQuality === null && typeof it.itemQuality === "number") entry.itemQuality = it.itemQuality;
         if (!entry.boss && it.boss) entry.boss = it.boss;
         entry.count += 1;
         entry.lastAwardedAt = Math.max(entry.lastAwardedAt, it.awardedAt || 0);
