@@ -107,11 +107,11 @@ export function LootReasonsTab({ characters, reasons, categories }: {
                 {totals.map((r) => <ReasonBadge key={r.id} label={r.label} tone={r.tone} count={r.count} />)}
             </div>
             <div className="filter-bar">
-                <div className="field" style={{ margin: 0, minWidth: 220 }}>
+                <div className="field" style={{ minWidth: 220 }}>
                     <label htmlFor="reasons-search">Suche</label>
                     <input id="reasons-search" type="text" placeholder="Charaktername …" value={view.search} onChange={(e) => patch({ search: e.target.value })} />
                 </div>
-                <div className="field" style={{ margin: 0, minWidth: 180 }}>
+                <div className="field" style={{ minWidth: 180 }}>
                     <label htmlFor="reasons-reason">Grund</label>
                     <select id="reasons-reason" value={view.reason} onChange={(e) => patch({ reason: e.target.value })}>
                         <option value="">Alle Gründe</option>
@@ -119,7 +119,7 @@ export function LootReasonsTab({ characters, reasons, categories }: {
                     </select>
                 </div>
                 {categoryOptions.length > 1 && (
-                    <div className="field" style={{ margin: 0, minWidth: 180 }}>
+                    <div className="field" style={{ minWidth: 180 }}>
                         <label htmlFor="reasons-category">Kategorie</label>
                         <select id="reasons-category" value={view.category} onChange={(e) => patch({ category: e.target.value })}>
                             <option value="">Alle Kategorien</option>
@@ -128,8 +128,8 @@ export function LootReasonsTab({ characters, reasons, categories }: {
                     </div>
                 )}
                 {hasFilters && (
-                    <div className="field" style={{ margin: 0, justifyContent: "flex-end" }}>
-                        <button className="btn btn-ghost btn-sm" type="button" onClick={() => patch({ search: "", reason: "", category: "" })}>
+                    <div className="field">
+                        <button className="btn btn-ghost" type="button" onClick={() => patch({ search: "", reason: "", category: "" })}>
                             Filter zurücksetzen
                         </button>
                     </div>

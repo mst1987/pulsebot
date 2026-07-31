@@ -457,8 +457,8 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
                     </button>
                 </span>
             </div>
-            <div style={{ display: "flex", gap: 14, flexWrap: "wrap", padding: "14px 16px", borderBottom: "1px solid var(--line)" }}>
-                <div className="field" style={{ margin: 0, minWidth: 220 }}>
+            <div className="filter-bar">
+                <div className="field" style={{ minWidth: 220 }}>
                     <label htmlFor="chars-search">Suche</label>
                     <input
                         id="chars-search"
@@ -468,14 +468,14 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
                         onChange={(e) => patch({ search: e.target.value })}
                     />
                 </div>
-                <div className="field" style={{ margin: 0, minWidth: 180 }}>
+                <div className="field" style={{ minWidth: 180 }}>
                     <label htmlFor="chars-category">Kategorie</label>
                     <select id="chars-category" value={categoryFilter} onChange={(e) => patch({ category: e.target.value })}>
                         <option value="">Alle Kategorien</option>
                         {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
                     </select>
                 </div>
-                <div className="field" style={{ margin: 0, minWidth: 180 }}>
+                <div className="field" style={{ minWidth: 180 }}>
                     <label htmlFor="chars-class">Klasse & Spec</label>
                     <select id="chars-class" value={classFilter} onChange={(e) => patch({ classSpec: e.target.value })}>
                         <option value="">Alle Klassen</option>
@@ -483,9 +483,9 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
                     </select>
                 </div>
                 {hasFilters && (
-                    <div className="field" style={{ margin: 0, justifyContent: "flex-end" }}>
+                    <div className="field">
                         <button
-                            className="btn btn-ghost btn-sm"
+                            className="btn btn-ghost"
                             type="button"
                             title="Suche und Filter zurücksetzen (werden lokal im Browser gespeichert)"
                             onClick={() => patch({ search: "", category: "", classSpec: "" })}

@@ -108,11 +108,11 @@ export function LootItemsTab({ items, contents, tiers, reasons, unknownContentCo
                 <span className="small" style={{ marginLeft: "auto" }}>{sorted.length} Item(s) · {awardCount} Vergabe(n)</span>
             </div>
             <div className="filter-bar">
-                <div className="field" style={{ margin: 0, minWidth: 220 }}>
+                <div className="field" style={{ minWidth: 220 }}>
                     <label htmlFor="items-search">Suche</label>
                     <input id="items-search" type="text" placeholder="Itemname oder ID …" value={view.search} onChange={(e) => patch({ search: e.target.value })} />
                 </div>
-                <div className="field" style={{ margin: 0, minWidth: 150 }}>
+                <div className="field" style={{ minWidth: 150 }}>
                     <label htmlFor="items-tier">Tier</label>
                     <select
                         id="items-tier"
@@ -130,7 +130,7 @@ export function LootItemsTab({ items, contents, tiers, reasons, unknownContentCo
                         {tiers.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
                     </select>
                 </div>
-                <div className="field" style={{ margin: 0, minWidth: 200 }}>
+                <div className="field" style={{ minWidth: 200 }}>
                     <label htmlFor="items-content">Content</label>
                     <select id="items-content" value={view.content} onChange={(e) => patch({ content: e.target.value })}>
                         <option value="">Alle Raids</option>
@@ -138,22 +138,22 @@ export function LootItemsTab({ items, contents, tiers, reasons, unknownContentCo
                         {!!unknownContentCount && !view.tier && <option value={UNKNOWN}>Unbekannt ({unknownContentCount})</option>}
                     </select>
                 </div>
-                <div className="field" style={{ margin: 0, minWidth: 170 }}>
+                <div className="field" style={{ minWidth: 170 }}>
                     <label htmlFor="items-reason">Grund</label>
                     <select id="items-reason" value={view.reason} onChange={(e) => patch({ reason: e.target.value })}>
                         <option value="">Alle Gründe</option>
                         {reasonOptions.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
                     </select>
                 </div>
-                <div className="field" style={{ margin: 0, alignSelf: "flex-end" }}>
-                    <label style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 9 }}>
+                <div className="field">
+                    <label>
                         <input type="checkbox" checked={view.tokensOnly} onChange={(e) => patch({ tokensOnly: e.target.checked })} />
                         Nur Tier-Token
                     </label>
                 </div>
                 {hasFilters && (
-                    <div className="field" style={{ margin: 0, justifyContent: "flex-end" }}>
-                        <button className="btn btn-ghost btn-sm" type="button" onClick={() => patch({ search: "", content: "", tier: "", reason: "", tokensOnly: false })}>
+                    <div className="field">
+                        <button className="btn btn-ghost" type="button" onClick={() => patch({ search: "", content: "", tier: "", reason: "", tokensOnly: false })}>
                             Filter zurücksetzen
                         </button>
                     </div>
