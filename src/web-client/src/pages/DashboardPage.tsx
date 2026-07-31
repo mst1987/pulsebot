@@ -88,7 +88,13 @@ function RecentReportsTable({ reports }: { reports: DashboardData["recentReports
 
 // The awards of items the guild flagged as "top" in Einstellungen → Loot. Every
 // row is a highlight by definition — the card only ever holds top items — so it
-// gets the star + accent treatment rather than a plain table row.
+// gets the accent rail rather than a plain table row.
+//
+// The whole row leads to that raid's loot: the link is an overlay stretched
+// across the row (.toploot-hit) instead of a wrapper, so the item link and the
+// character link stay real links inside it instead of becoming nested anchors.
+// Which raid the loot came from is therefore the row's target and not a badge —
+// only the boss and the date are shown.
 function TopLootList({ topLoot }: { topLoot: DashboardData["topLoot"] }) {
     if (!topLoot.items.length) {
         return (
@@ -103,7 +109,11 @@ function TopLootList({ topLoot }: { topLoot: DashboardData["topLoot"] }) {
         <ul className="toploot">
             {topLoot.items.map((it) => (
                 <li className="toploot-row" key={`${it.eventId}-${it.itemId}-${it.character}-${it.awardedAt}`}>
-                    <span className="toploot-star" aria-hidden="true">★</span>
+                    <Link
+                        className="toploot-hit"
+                        to={it.eventId ? `/history/event?event=${encodeURIComponent(it.eventId)}` : "/history"}
+                        aria-label={`Loot von ${it.eventLabel || "diesem Raid"} öffnen`}
+                    />
                     {it.itemIconUrl && (
                         <img
                             className="toploot-ico" src={it.itemIconUrl} alt="" loading="lazy"
@@ -114,10 +124,9 @@ function TopLootList({ topLoot }: { topLoot: DashboardData["topLoot"] }) {
                         {it.itemLink
                             ? <a {...itemQualityProps(it.itemQuality, "mlink")} href={it.itemLink} target="_blank" rel="noopener noreferrer">{it.itemName || `Item ${it.itemId}`}</a>
                             : <span {...itemQualityProps(it.itemQuality)}>{it.itemName || `Item ${it.itemId}`}</span>}
-                        <span className="toploot-meta small">
-                            {[it.eventLabel, it.boss].filter(Boolean).join(" · ")}
-                            {(it.eventLabel || it.boss) && " · "}
-                            {fmtMs(it.awardedAt, false)}
+                        <span className="toploot-meta">
+                            {it.boss && <span className="toploot-badge">{it.boss}</span>}
+                            <span className="toploot-badge">{fmtMs(it.awardedAt, false)}</span>
                         </span>
                     </span>
                     <span className="toploot-who">
@@ -125,12 +134,7 @@ function TopLootList({ topLoot }: { topLoot: DashboardData["topLoot"] }) {
                             <ClassSpecIcon iconUrl={it.specIconUrl} />
                             <CharacterLink character={it.character} classColor={it.classColor} />
                         </span>
-                        <span className="toploot-tags">
-                            {it.className && (
-                                <span className="toploot-spec small">{[it.spec, it.className].filter(Boolean).join(" ")}</span>
-                            )}
-                            <LootResponseBadge response={it.response} offspec={it.offspec} reasonLabel={it.reasonLabel} reasonTone={it.reasonTone} />
-                        </span>
+                        <LootResponseBadge response={it.response} offspec={it.offspec} reasonLabel={it.reasonLabel} reasonTone={it.reasonTone} />
                     </span>
                 </li>
             ))}
