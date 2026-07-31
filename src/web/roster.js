@@ -19,7 +19,7 @@ const { latestIssuesByCharacter } = require("./charGearIssues");
 const { characterKey: lootCharacterKey, splitPlayer } = require("../utils/lootImport");
 const { CLASS_COLORS, classSpecIconUrl } = require("../utils/setupView");
 const { applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../config/variables");
-const discord = require("./discord");
+const { listKnownCategories } = require("./categoryNames");
 
 // How much loot a roster row carries for its hover panel. The overview shows
 // the newest pieces, not a full history — the character page has that.
@@ -121,7 +121,10 @@ function buildRoster(guildId) {
     });
     chars.sort((a, b) => a.character.localeCompare(b.character));
 
-    return { chars, categories: guildId ? discord.listCategories(guildId) : [] };
+    // Names, not a pick list: a category that Discord no longer offers (gateway
+    // offline, category deleted) still has to label the rows it owns instead of
+    // leaving a raw snowflake in the table — see categoryNames.js.
+    return { chars, categories: listKnownCategories(guildId) };
 }
 
 module.exports = { buildRoster, MAX_LOOT_PREVIEW };
