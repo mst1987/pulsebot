@@ -8,6 +8,7 @@ import {
 import EmojiPicker from "../components/EmojiPicker";
 import SpecPicker from "../components/SpecPicker";
 import type { ShellContext } from "../components/Shell";
+import { TrashIcon } from "../components/icons";
 
 type Flash = { type: "ok" | "err"; text: string };
 type View = "posts" | "templates" | "applications";
@@ -142,7 +143,7 @@ function TemplatesTab({ data, csrfToken, editing, onChanged, onCancelEdit, onEdi
                                     <td className="sub" style={{ margin: 0 }}>{textPreview(t.content || t.title)}</td>
                                     <td className="row-actions">
                                         <button className="btn btn-ghost" type="button" onClick={() => onEdit(t.id)}>Bearbeiten</button>
-                                        <button className="btn btn-danger" type="button" onClick={() => remove(t)}>Löschen</button>
+                                        <button className="btn btn-danger" type="button" onClick={() => remove(t)}><TrashIcon />Löschen</button>
                                     </td>
                                 </tr>
                             ))}
@@ -321,7 +322,7 @@ function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
                                     <td className="small">{p.source}</td>
                                     <td className="row-actions">
                                         <button className="btn btn-ghost" type="button" onClick={() => onEditPost(p.id)}>Bearbeiten</button>
-                                        <button className="btn btn-danger" type="button" onClick={() => removePost(p)}>Entfernen</button>
+                                        <button className="btn btn-danger" type="button" onClick={() => removePost(p)}><TrashIcon />Entfernen</button>
                                     </td>
                                 </tr>
                             ))}

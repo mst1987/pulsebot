@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import {
     getClaData, createReport, evalLog, resetEval, scanLogs, deleteLogEntry, linkLog, unlinkLog, autoMatchLogs,
@@ -8,10 +8,17 @@ import {
 } from "../api";
 import { formatEventTime, fmtMs } from "../lib/format";
 import type { ShellContext } from "../components/Shell";
+import { useJobs } from "../components/Jobs";
+import { RunIcon, SearchIcon, LinkIcon, TrashIcon, ExternalIcon } from "../components/icons";
 
-type Flash = { type: "ok" | "err"; text: ReactNode };
 type View = "reports" | "logs";
 type Dir = "asc" | "desc";
+
+// Rough runtimes, used only to give the progress toast a bar to fill. RPB walks
+// the whole fight timeline and is the slow half; a report built from a pasted
+// link is a full CLA run.
+const EVAL_SECONDS: Record<LogSection, number> = { cla: 25, rpb: 55 };
+const REPORT_SECONDS = 30;
 
 // Default sort direction per column — mirrors renderAdmin.js's REPORT_DIR/LOG_DIR
 // maps used by claSortHeader().
@@ -98,26 +105,29 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
     csrfToken: string | null;
     onSort: (key: string, dir: Dir) => void;
     onPage: (p: number) => void;
-    onChanged: (msg: ReactNode) => void;
+    onChanged: () => void;
 }) {
+    const jobs = useJobs();
     const [link, setLink] = useState("");
-    const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
     const [rowBusyId, setRowBusyId] = useState<string | null>(null);
 
-    const submit = async (e: React.FormEvent) => {
+    // The build runs as a background job: the form clears immediately and the
+    // toast reports progress and the finished report, so the admin can carry on
+    // (even on another page) while it runs.
+    const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        setBusy(true);
-        setError(null);
-        try {
-            const r = await createReport(csrfToken, link);
-            onChanged(<>Auswertung erstellt. <a href={r.url} target="_blank" rel="noopener noreferrer">Report ansehen ↗</a></>);
-            setLink("");
-        } catch (err) {
-            setError((err as ApiError).message);
-        } finally {
-            setBusy(false);
-        }
+        const target = link.trim();
+        if (!target) return;
+        setLink("");
+        jobs.run({
+            label: "Auswertung erstellen",
+            detail: target,
+            expectedSeconds: REPORT_SECONDS,
+            describe: (r) => ({
+                message: "Auswertung erstellt.",
+                link: { href: r.url, label: "Report ansehen ↗", external: true },
+            }),
+        }, () => createReport(csrfToken, target)).then(onChanged);
     };
 
     // Deleting a report also resets its log back to "offen", so it can be
@@ -127,11 +137,12 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
         setRowBusyId(r.id);
         try {
             const res = await deleteReport(csrfToken, r.id);
-            onChanged(res.message);
+            jobs.notify(res.message);
         } catch (err) {
-            onChanged((err as ApiError).message);
+            jobs.notify((err as ApiError).message, "err");
         } finally {
             setRowBusyId(null);
+            onChanged();
         }
     };
 
@@ -140,11 +151,12 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
         setRowBusyId(r.id);
         try {
             const res = await unlinkReport(csrfToken, r.id);
-            onChanged(res.message);
+            jobs.notify(res.message);
         } catch (err) {
-            onChanged((err as ApiError).message);
+            jobs.notify((err as ApiError).message, "err");
         } finally {
             setRowBusyId(null);
+            onChanged();
         }
     };
 
@@ -152,17 +164,16 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
         <>
             <h2>Neue Auswertung</h2>
             <form className="card-form" onSubmit={submit}>
-                {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
                 <div className="field">
                     <label>Warcraft-Logs-Report-Link oder Report-ID</label>
                     <input
                         type="text" value={link} onChange={(e) => setLink(e.target.value)}
                         placeholder="https://classic.warcraftlogs.com/reports/abc123…" required
                     />
-                    <div className="hint">Die Auswertung kann einige Sekunden dauern — nach dem Absenden bitte kurz warten.</div>
+                    <div className="hint">Läuft im Hintergrund — der Fortschritt steht im Hinweis oben rechts, die Seite bleibt nutzbar.</div>
                 </div>
                 <div className="row-actions">
-                    <button className="btn" type="submit" disabled={busy}>{busy ? "Erstelle Auswertung …" : "Auswertung erstellen"}</button>
+                    <button className="btn" type="submit"><RunIcon />Auswertung erstellen</button>
                 </div>
             </form>
             <h2>Auswertungen</h2>
@@ -199,7 +210,7 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
                                                 <button
                                                     className="btn btn-danger btn-sm" type="button"
                                                     disabled={rowBusyId === r.id} onClick={() => remove(r)}
-                                                >Löschen</button>
+                                                ><TrashIcon />Löschen</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -254,10 +265,10 @@ const LOG_ANALYSES: { key: LogSection; label: string; title: string }[] = [
     { key: "rpb", label: "RPB", title: "Vermeidbarer Schaden, Tode, Aktivität, Cooldowns, Interrupts & Log-Prüfung" },
 ];
 
-function LogTableRow({ l, evalBusySection, evalSeconds, selectedEventId, onSelectChange, onEvaluate, onReset, onDelete, onLink, onUnlink }: {
+function LogTableRow({ l, runningSections, selectedEventId, onSelectChange, onEvaluate, onReset, onDelete, onLink, onUnlink }: {
     l: LogRow;
-    evalBusySection: LogSection | null;
-    evalSeconds: number;
+    /** Analyses of this log started from this page and not finished yet. */
+    runningSections: LogSection[];
     selectedEventId: string;
     onSelectChange: (eventId: string) => void;
     onEvaluate: (section: LogSection) => void;
@@ -300,22 +311,24 @@ function LogTableRow({ l, evalBusySection, evalSeconds, selectedEventId, onSelec
             <td className="small">{fmtMs(l.postedAt)}</td>
             <td className="cell-actions">
                 <div className="row-actions" style={{ justifyContent: "flex-end" }}>
-                    {LOG_ANALYSES.filter((a) => !done.includes(a.key)).map((a) => (
-                        <button
-                            key={a.key}
-                            className="btn btn-sm"
-                            type="button"
-                            title={a.title}
-                            disabled={evalBusySection !== null}
-                            onClick={() => onEvaluate(a.key)}
-                        >
-                            {evalBusySection === a.key
-                                ? (evalSeconds ? `Läuft … ${evalSeconds}s` : "Läuft …")
-                                : a.label}
-                        </button>
-                    ))}
-                    {reportHref ? <a className="btn btn-ghost btn-sm" href={reportHref}>Öffnen</a> : null}
-                    <button className="btn btn-danger btn-sm" type="button" onClick={onDelete}>Löschen</button>
+                    {LOG_ANALYSES.filter((a) => !done.includes(a.key)).map((a) => {
+                        const running = runningSections.includes(a.key);
+                        return (
+                            <button
+                                key={a.key}
+                                className={`btn btn-run btn-sm${running ? " is-running" : ""}`}
+                                type="button"
+                                title={running ? `${a.label}-Auswertung läuft im Hintergrund` : a.title}
+                                disabled={running}
+                                onClick={() => onEvaluate(a.key)}
+                            >
+                                {running ? <span className="btn-spin" /> : <RunIcon />}
+                                {a.label}
+                            </button>
+                        );
+                    })}
+                    {reportHref ? <a className="btn btn-ghost btn-sm" href={reportHref}><ExternalIcon />Öffnen</a> : null}
+                    <button className="btn btn-danger btn-sm" type="button" onClick={onDelete}><TrashIcon />Löschen</button>
                 </div>
             </td>
         </tr>
@@ -327,13 +340,15 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
     csrfToken: string | null;
     onSort: (key: string, dir: Dir) => void;
     onPage: (p: number) => void;
-    onChanged: (msg: ReactNode) => void;
+    onChanged: () => void;
 }) {
+    const jobs = useJobs();
     const [scanning, setScanning] = useState(false);
     const [automatching, setAutomatching] = useState(false);
-    // which log + which half is currently running (plus how long already), so only
-    // that button spins and can show progress
-    const [evalBusy, setEvalBusy] = useState<{ id: string; section: LogSection; seconds: number } | null>(null);
+    // "<logId>:<section>" for every analysis started here that is still going, so
+    // the row can show it. Purely cosmetic and page-local — the job itself lives
+    // in JobsProvider and keeps running if this page goes away.
+    const [running, setRunning] = useState<string[]>([]);
     const [selected, setSelected] = useState<Record<string, string>>({});
 
     if (!data.logChannelsConfigured) {
@@ -347,72 +362,58 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
 
     const logPage = data.logPage;
 
-    const scan = async () => {
-        setScanning(true);
+    /** Run a short action, report its outcome as a toast, then refresh the list. */
+    const quick = async (fn: () => Promise<{ message: string }>, setBusy?: (b: boolean) => void) => {
+        if (setBusy) setBusy(true);
         try {
-            const r = await scanLogs(csrfToken);
-            onChanged(r.message);
+            const r = await fn();
+            jobs.notify(r.message);
         } catch (err) {
-            onChanged((err as ApiError).message);
+            jobs.notify((err as ApiError).message, "err");
         } finally {
-            setScanning(false);
+            if (setBusy) setBusy(false);
+            onChanged();
         }
     };
 
-    const automatch = async () => {
-        setAutomatching(true);
-        try {
-            const r = await autoMatchLogs(csrfToken);
-            onChanged(r.message);
-        } catch (err) {
-            onChanged((err as ApiError).message);
-        } finally {
-            setAutomatching(false);
-        }
-    };
+    const scan = () => quick(() => scanLogs(csrfToken), setScanning);
+    const automatch = () => quick(() => autoMatchLogs(csrfToken), setAutomatching);
 
-    const evaluate = async (l: LogRow, section: LogSection) => {
+    // Hands the evaluation to JobsProvider: it runs server-side either way, but
+    // owning the promise up there is what lets the admin leave this page (or this
+    // tab of it) while the toast keeps reporting.
+    const evaluate = (l: LogRow, section: LogSection) => {
         const label = section.toUpperCase();
-        setEvalBusy({ id: l.id, section, seconds: 0 });
-        try {
-            // The evaluation runs server-side in the background; this resolves once
-            // polling reports it done (RPB takes ~50s).
-            const r = await evalLog(csrfToken, l.id, section, (seconds) =>
-                setEvalBusy((b) => (b && b.id === l.id && b.section === section ? { ...b, seconds } : b)));
-            // Both the fresh-evaluation and the already-evaluated-before response mean
-            // "here's the report" — mirrors the legacy inline form, which redirects
-            // straight to the report; here we open it in a new tab (so the admin keeps
-            // the SPA list open) and refresh the row via onChanged.
-            window.open(r.url, "_blank", "noopener");
-            onChanged(r.alreadyEvaluated
-                ? <>{label}-Auswertung lag bereits vor. <a href={r.url} target="_blank" rel="noopener noreferrer">Report ansehen ↗</a></>
-                : <>{label}-Auswertung erstellt. <a href={r.url} target="_blank" rel="noopener noreferrer">Report ansehen ↗</a></>);
-        } catch (err) {
-            onChanged((err as ApiError).message);
-        } finally {
-            setEvalBusy(null);
-        }
+        const key = `${l.id}:${section}`;
+        setRunning((keys) => [...keys, key]);
+        jobs.run({
+            label: `${label}-Auswertung`,
+            detail: l.title || l.reportId || "",
+            expectedSeconds: EVAL_SECONDS[section],
+            describe: (r) => ({
+                message: r.alreadyEvaluated
+                    ? `${label}-Auswertung lag bereits vor.`
+                    : `${label}-Auswertung erstellt.`,
+                link: r.url ? { href: r.url, label: "Report ansehen ↗", external: true } : undefined,
+            }),
+        }, () => evalLog(csrfToken, l.id, section)).then(() => {
+            setRunning((keys) => keys.filter((k) => k !== key));
+            onChanged();
+        });
     };
 
     const reset = async (l: LogRow, section: LogSection) => {
         const label = section.toUpperCase();
         if (!confirm(`${label}-Auswertung dieses Logs verwerfen? Sie kann danach neu gestartet werden.`)) return;
-        try {
-            const r = await resetEval(csrfToken, l.id, section);
-            onChanged(r.message);
-        } catch (err) {
-            onChanged((err as ApiError).message);
-        }
+        await quick(() => resetEval(csrfToken, l.id, section));
     };
 
     const remove = async (l: LogRow) => {
         if (!confirm("Log aus der Liste entfernen?")) return;
-        try {
+        await quick(async () => {
             await deleteLogEntry(csrfToken, l.id);
-            onChanged("Gelöscht.");
-        } catch (err) {
-            onChanged((err as ApiError).message);
-        }
+            return { message: "Gelöscht." };
+        });
     };
 
     const doLink = async (l: LogRow) => {
@@ -420,22 +421,12 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
         // them), so this has to stay optional.
         const eventId = selected[l.id] || l.candidates?.[0]?.eventId;
         if (!eventId) return;
-        try {
-            const r = await linkLog(csrfToken, l.id, eventId);
-            onChanged(r.message);
-        } catch (err) {
-            onChanged((err as ApiError).message);
-        }
+        await quick(() => linkLog(csrfToken, l.id, eventId));
     };
 
     const doUnlink = async (l: LogRow) => {
         if (!confirm("Zuordnung zu diesem Event entfernen?")) return;
-        try {
-            const r = await unlinkLog(csrfToken, l.id);
-            onChanged(r.message);
-        } catch (err) {
-            onChanged((err as ApiError).message);
-        }
+        await quick(() => unlinkLog(csrfToken, l.id));
     };
 
     // Closest client-side equivalent of the legacy `unlinkedCount && matchEvents.length`
@@ -450,14 +441,16 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
             <p className="note">Vom Bot automatisch erkannte Warcraft-Logs, neueste zuerst (nach Post-Zeit im Channel). Über den WCL-Link vorab prüfen, dann „Auswerten" — jeder Report nur einmal.</p>
             <p className="note">In der Spalte <strong>Event</strong> wird jedes Log dem Raid zugeordnet, dessen Startzeit zur Post-Zeit passt (Vorschlag vorausgewählt, Zuordnung jederzeit über „×" wieder entfernbar).</p>
             <div className="row-actions" style={{ margin: "0 0 14px" }}>
-                <button className="btn btn-ghost" type="button" disabled={scanning} onClick={scan}>
+                <button className={`btn btn-ghost${scanning ? " is-running" : ""}`} type="button" disabled={scanning} onClick={scan}>
+                    {scanning ? <span className="btn-spin" /> : <SearchIcon />}
                     {scanning ? "Suche läuft …" : "Log-Channels nach neuen Logs durchsuchen"}
                 </button>
                 {showAutomatch && (
                     <button
-                        className="btn btn-ghost" type="button" disabled={automatching}
+                        className={`btn btn-ghost${automatching ? " is-running" : ""}`} type="button" disabled={automatching}
                         title="Ordnet jedes offene Log dem Event zu, dessen Startzeit eindeutig passt" onClick={automatch}
                     >
+                        {automatching ? <span className="btn-spin" /> : <LinkIcon />}
                         {automatching ? "Ordne zu …" : "Logs automatisch Events zuordnen"}
                     </button>
                 )}
@@ -483,8 +476,9 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
                                     <LogTableRow
                                         key={l.id}
                                         l={l}
-                                        evalBusySection={evalBusy && evalBusy.id === l.id ? evalBusy.section : null}
-                                        evalSeconds={evalBusy && evalBusy.id === l.id ? evalBusy.seconds : 0}
+                                        runningSections={LOG_ANALYSES
+                                            .map((a) => a.key)
+                                            .filter((s) => running.includes(`${l.id}:${s}`))}
                                         selectedEventId={selected[l.id] ?? l.candidates?.[0]?.eventId ?? ""}
                                         onSelectChange={(v) => setSelected((s) => ({ ...s, [l.id]: v }))}
                                         onEvaluate={(section) => evaluate(l, section)}
@@ -514,18 +508,12 @@ export default function ClaPage() {
 
     const [data, setData] = useState<ClaData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
-    const [flash, setFlash] = useState<Flash | null>(null);
 
     const load = () => {
         getClaData(view, sort, dir, page).then(setData).catch((err: ApiError) => setError(err));
     };
 
     useEffect(load, [view, sort, dir, page]);
-
-    const afterChange = (msg: ReactNode) => {
-        setFlash({ type: "ok", text: msg });
-        load();
-    };
 
     // Mirrors the legacy <a href="/admin/cla?view=id">: switching tabs does NOT
     // carry over the other tab's sort/dir/page.
@@ -552,7 +540,6 @@ export default function ClaPage() {
     return (
         <>
             <h1 className="page-title">CLA / Logcheck</h1>
-            {flash && <p className="sub" style={{ color: flash.type === "err" ? "var(--high)" : "var(--good)" }}>{flash.text}</p>}
             <div className="subnav" role="tablist">
                 <button type="button" className={`subnav-item${view === "reports" ? " active" : ""}`} onClick={() => switchView("reports")}>
                     Auswertungen
@@ -564,8 +551,8 @@ export default function ClaPage() {
                 </button>
             </div>
             {view === "reports"
-                ? <ReportsTab reportPage={data.reportPage} csrfToken={csrfToken} onSort={sortBy} onPage={goToPage} onChanged={afterChange} />
-                : <LogsTab data={data} csrfToken={csrfToken} onSort={sortBy} onPage={goToPage} onChanged={afterChange} />}
+                ? <ReportsTab reportPage={data.reportPage} csrfToken={csrfToken} onSort={sortBy} onPage={goToPage} onChanged={load} />
+                : <LogsTab data={data} csrfToken={csrfToken} onSort={sortBy} onPage={goToPage} onChanged={load} />}
         </>
     );
 }

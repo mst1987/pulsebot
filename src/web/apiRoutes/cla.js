@@ -3,6 +3,7 @@
 // logs, their event assignment, auto-match). Faithful JSON port of the SSR
 // routes in server.js (see the "CLA / logcheck" block there) — same guards,
 // same German strings, same data shapes, minus the HTML rendering.
+const crypto = require("crypto");
 const { ok, error } = require("../apiResponse");
 const { requireAdmin, requireCsrf } = require("../apiMiddleware");
 const { readJsonBody } = require("../apiBody");
@@ -64,20 +65,52 @@ async function getClaData(req, res, url) {
     });
 }
 
-/** POST /api/cla — body: { link }. Builds a report from a WCL link/id. */
+// Job "section" under which a report built from a pasted link is tracked. The
+// job key is a fresh id rather than a log id, since such a report has no log.
+const REPORT_SECTION = "report";
+
+/**
+ * POST /api/cla — body: { link }. Builds a report from a WCL link/id.
+ *
+ * Runs in the background for the same reason the log evaluations do: a build is
+ * the full CLA analysis and takes far longer than a reverse proxy keeps a
+ * connection open. Answers with a job id; the client polls report-status and
+ * can navigate away in the meantime.
+ */
 async function createReport(req, res) {
     const user = requireAdmin(req, res);
     if (!user) return;
     if (!requireCsrf(req, res)) return;
     const body = await readJsonBody(req);
-    try {
-        const result = await buildReport(body.link || "");
-        ok(res, { id: result.id, url: result.url }, 201);
-    } catch (e) {
-        if (e instanceof ReportError) return error(res, 400, "build_failed", e.message);
-        console.error("CLA web build failed:", e);
-        error(res, 500, "build_failed", "Unerwarteter Fehler beim Erstellen der Auswertung.");
-    }
+    const link = String(body.link || "").trim();
+    if (!link) return error(res, 400, "build_failed", "Kein Report-Link angegeben.");
+
+    const jobId = crypto.randomBytes(8).toString("hex");
+    startJob(jobId, REPORT_SECTION, async () => {
+        try {
+            const result = await buildReport(link);
+            return { ok: true, id: result.id, url: result.url };
+        } catch (e) {
+            if (e instanceof ReportError) return { ok: false, error: e.message };
+            console.error("CLA web build failed:", e);
+            return { ok: false, error: "Unerwarteter Fehler beim Erstellen der Auswertung." };
+        }
+    });
+    ok(res, { jobId, status: "running" }, 202);
+}
+
+/**
+ * GET /api/cla/report-status?jobId= — outcome of a started report build.
+ * "unknown" means the job is gone (server restart, or collected long ago); the
+ * report itself, if it was written, shows up in the regular list either way.
+ */
+function reportStatus(req, res, url) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    const jobId = String(url.searchParams.get("jobId") || "").trim();
+    const job = getJob(jobId, REPORT_SECTION);
+    if (!job) return ok(res, { status: "unknown" });
+    ok(res, { status: job.status, url: job.url, id: job.id, error: job.error, runningMs: job.runningMs });
 }
 
 /**
@@ -335,7 +368,7 @@ async function autoMatchLogs(req, res) {
 }
 
 module.exports = {
-    getClaData, createReport, evalLog, evalStatus, resetEval, scanLogs, deleteLogHandler,
+    getClaData, createReport, reportStatus, evalLog, evalStatus, resetEval, scanLogs, deleteLogHandler,
     linkLog, linkLogUrl, unlinkLog, autoMatchLogs,
     deleteReportHandler, unlinkReport,
 };

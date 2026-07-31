@@ -76,12 +76,24 @@ function markEventSheetFilled(eventId, data = {}) {
  * Record that the sheet link was posted (or re-posted) as a Discord message,
  * so the event page can later edit that same message in place instead of
  * posting a new one every time. Called after `discord.postLink`/`editLink`.
+ *
+ * `createIfMissing` covers the raid that links the fixed sheet assigned to its
+ * category (settingsStore's categorySheets) instead of an app-made copy: there
+ * is no fill record to hang the message ids on, but the posted message still
+ * has to be editable next time. The record it creates carries no sheet itself.
  */
-function markEventSheetPosted(eventId, { channelId, messageId, message } = {}) {
+function markEventSheetPosted(eventId, { channelId, messageId, message, createIfMissing } = {}) {
     const id = String(eventId || "").trim();
     if (!id) return null;
     const events = listEventSheets();
-    const match = events.find((e) => e.eventId === id);
+    let match = events.find((e) => e.eventId === id);
+    if (!match && createIfMissing) {
+        match = {
+            eventId: id, sheetId: "", sheetName: "", playerCount: 0,
+            spreadsheetId: "", url: "", sourceSheetId: "", deleteAfter: 0, filledAt: 0,
+        };
+        events.push(match);
+    }
     if (!match) return null;
     Object.assign(match, {
         postedChannelId: String(channelId || "").trim(),

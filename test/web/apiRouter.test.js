@@ -35,6 +35,10 @@ jest.mock("../../src/web/settingsStore", () => ({
     saveNotify: jest.fn(),
     deleteNotify: jest.fn(),
     getRaidsheet: jest.fn(),
+    // Default: no category sheet configured, so a raid links only its own copy.
+    resolveEventSheetLink: jest.fn((eventSheet) => (eventSheet && eventSheet.url
+        ? { url: eventSheet.url, name: eventSheet.sheetName || "", source: "event" }
+        : null)),
 }));
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
 jest.mock("../../src/web/dashboardData", () => ({
@@ -705,6 +709,38 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
             await patch("/api/settings", { categoryLootTool: "nope" });
             expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryLootTool: {} });
+        });
+
+        // A category sheet is rendered as an <a href> and posted to Discord, so
+        // only a real http(s) link survives; everything else is stored as "",
+        // which the settings store then drops (= no sheet assigned).
+        it("stores a category sheet only when its url is an http(s) link", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+
+            await patch("/api/settings", {
+                categorySheets: {
+                    cat1: { url: " https://docs.google.com/spreadsheets/d/x ", name: " SSC/TK " },
+                    cat2: { url: "javascript:alert(1)", name: "böse" },
+                    cat3: { url: "", name: "" },
+                    "  ": { url: "https://x", name: "" },
+                },
+            });
+
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+                categorySheets: {
+                    cat1: { url: "https://docs.google.com/spreadsheets/d/x", name: "SSC/TK" },
+                    cat2: { url: "", name: "böse" },
+                    cat3: { url: "", name: "" },
+                },
+            });
+        });
+
+        it("ignores a malformed categorySheets instead of storing it", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            await patch("/api/settings", { categorySheets: "nope" });
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categorySheets: {} });
         });
 
         it("omits blizzard entirely when not present in the body, keeping the stored secret", async () => {
@@ -1796,18 +1832,46 @@ describe("web/apiRouter", () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             auth.checkCsrf.mockReturnValue(true);
             eventSheetStore.getEventSheet.mockReturnValue({ eventId: "e1", url: "https://sheet.example/1" });
+            // Back to "the raid's own copy wins" — individual cases below override
+            // this to exercise the category-sheet fallback.
+            settingsStore.resolveEventSheetLink.mockImplementation((eventSheet) => (eventSheet && eventSheet.url
+                ? { url: eventSheet.url, name: eventSheet.sheetName || "", source: "event" }
+                : null));
             raidEventGroups.loadEventGroups.mockResolvedValue({
                 groups: [{ categoryId: "cat1", categoryName: "Raids", events: [event1] }], error: null,
             });
         }
 
-        it("returns 400 when there is no filled sheet yet", async () => {
+        it("returns 400 when neither a filled nor a category sheet exists", async () => {
             setupDefaults();
             eventSheetStore.getEventSheet.mockReturnValue(null);
+            settingsStore.resolveEventSheetLink.mockReturnValue(null);
             const res = await post("/api/raids/post-sheet", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "no_sheet", message: "Für dieses Event gibt es noch kein gefülltes Sheet." } });
+            expect(body(res).error.code).toBe("no_sheet");
             expect(discord.postLink).not.toHaveBeenCalled();
+        });
+
+        // With a fixed sheet assigned to the raid's category there is no fill
+        // record to hang the posted message ids on, so one is created.
+        it("posts the category's fixed sheet when the raid has no copy of its own", async () => {
+            setupDefaults();
+            eventSheetStore.getEventSheet.mockReturnValue(null);
+            settingsStore.resolveEventSheetLink.mockReturnValue({
+                url: "https://sheet.example/fix", name: "SSC/TK Setup", source: "category",
+            });
+            discord.postLink.mockResolvedValue({ channelId: "chan1", messageId: "m1" });
+
+            const res = await post("/api/raids/post-sheet", { event: "e1", message: "Bitte eintragen" });
+
+            expect(settingsStore.resolveEventSheetLink).toHaveBeenCalledWith(null, "cat1");
+            expect(discord.postLink).toHaveBeenCalledWith("chan1", expect.objectContaining({
+                url: "https://sheet.example/fix",
+            }));
+            expect(eventSheetStore.markEventSheetPosted).toHaveBeenCalledWith("e1", {
+                channelId: "chan1", messageId: "m1", message: "Bitte eintragen", createIfMissing: true,
+            });
+            expect(body(res)).toEqual({ data: { message: "Raidsheet in den Channel gepostet." } });
         });
 
         it("returns 400 when Raid-Helper events can't be loaded", async () => {
@@ -1835,7 +1899,9 @@ describe("web/apiRouter", () => {
                 label: "Raidsheet öffnen", emoji: "📄",
             });
             expect(discord.editLink).not.toHaveBeenCalled();
-            expect(eventSheetStore.markEventSheetPosted).toHaveBeenCalledWith("e1", { channelId: "chan1", messageId: "m1", message: "Bitte prüfen" });
+            expect(eventSheetStore.markEventSheetPosted).toHaveBeenCalledWith("e1", {
+                channelId: "chan1", messageId: "m1", message: "Bitte prüfen", createIfMissing: true,
+            });
             expect(body(res)).toEqual({ data: { message: "Raidsheet in den Channel gepostet." } });
         });
 
@@ -3064,39 +3130,74 @@ describe("web/apiRouter", () => {
         });
     });
 
+    // Building a report from a pasted link is the full CLA analysis, so it runs
+    // in the background exactly like a log evaluation: POST queues it and answers
+    // with a job id, the outcome is collected from report-status.
     describe("POST /api/cla", () => {
-        it("creates a report and returns its id/url", async () => {
+        beforeEach(() => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             auth.checkCsrf.mockReturnValue(true);
-            buildReport.mockResolvedValue({ id: "abc123", url: "/r/abc123", report: {} });
+            evalJobs.reset();
+        });
+
+        it("answers 202 with a job id without waiting for the build", async () => {
+            buildReport.mockReturnValue(new Promise(() => {}));
 
             const res = await post("/api/cla", { link: "https://classic.warcraftlogs.com/reports/abc123" });
 
+            expect(res.writeHead).toHaveBeenCalledWith(202, expect.any(Object));
+            expect(body(res).data.status).toBe("running");
+            expect(body(res).data.jobId).toEqual(expect.any(String));
+            await flushJobs();
             expect(buildReport).toHaveBeenCalledWith("https://classic.warcraftlogs.com/reports/abc123");
-            expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
-            expect(body(res)).toEqual({ data: { id: "abc123", url: "/r/abc123" } });
         });
 
-        it("returns 400 with the ReportError message on an expected failure", async () => {
-            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
-            auth.checkCsrf.mockReturnValue(true);
-            buildReport.mockRejectedValue(new ReportError("Konnte keine Report-ID aus dem Link lesen."));
-
-            const res = await post("/api/cla", { link: "not-a-link" });
+        it("rejects an empty link outright instead of queueing a doomed job", async () => {
+            const res = await post("/api/cla", { link: "  " });
 
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "build_failed", message: "Konnte keine Report-ID aus dem Link lesen." } });
+            expect(body(res).error.code).toBe("build_failed");
+            expect(buildReport).not.toHaveBeenCalled();
         });
 
-        it("returns a generic 500 message on an unexpected failure", async () => {
-            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
-            auth.checkCsrf.mockReturnValue(true);
+        it("reports the finished report's id/url through report-status", async () => {
+            buildReport.mockResolvedValue({ id: "abc123", url: "/r/abc123", report: {} });
+
+            const started = await post("/api/cla", { link: "https://x/reports/abc123" });
+            await flushJobs();
+            const res = await get("/api/cla/report-status", { jobId: body(started).data.jobId });
+
+            expect(body(res).data).toMatchObject({ status: "done", id: "abc123", url: "/r/abc123" });
+        });
+
+        it("reports a ReportError as the job's error message", async () => {
+            buildReport.mockRejectedValue(new ReportError("Konnte keine Report-ID aus dem Link lesen."));
+
+            const started = await post("/api/cla", { link: "not-a-link" });
+            await flushJobs();
+            const res = await get("/api/cla/report-status", { jobId: body(started).data.jobId });
+
+            expect(body(res).data).toMatchObject({
+                status: "error", error: "Konnte keine Report-ID aus dem Link lesen.",
+            });
+        });
+
+        it("reports a generic message for an unexpected failure", async () => {
+            jest.spyOn(console, "error").mockImplementation(() => {});
             buildReport.mockRejectedValue(new Error("boom"));
 
-            const res = await post("/api/cla", { link: "https://x" });
+            const started = await post("/api/cla", { link: "https://x" });
+            await flushJobs();
+            const res = await get("/api/cla/report-status", { jobId: body(started).data.jobId });
 
-            expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
-            expect(body(res)).toEqual({ error: { code: "build_failed", message: "Unerwarteter Fehler beim Erstellen der Auswertung." } });
+            expect(body(res).data).toMatchObject({
+                status: "error", error: "Unerwarteter Fehler beim Erstellen der Auswertung.",
+            });
+        });
+
+        it("answers unknown for a job id nobody started", async () => {
+            const res = await get("/api/cla/report-status", { jobId: "nope" });
+            expect(body(res).data).toEqual({ status: "unknown" });
         });
     });
 
