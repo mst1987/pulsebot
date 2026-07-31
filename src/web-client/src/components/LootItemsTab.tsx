@@ -4,9 +4,10 @@
 //
 // Filterable by content (Gruul, SSC, TK, …) and by tier, both resolved from the
 // item id on the server (config/tbcContent.js), so a Gargul export — which
-// carries nothing but that id — filters exactly like an RCLootcouncil one.
+// carries nothing but that id — filters exactly like an RCLootcouncil one, and
+// by raid category (Mainraid, Twinkraid, …) like the Loot-Gründe tab.
 import { useMemo } from "react";
-import type { LootCatalogItem, LootContent, LootReason, LootTier } from "../api";
+import type { Category, LootCatalogItem, LootContent, LootReason, LootTier } from "../api";
 import { itemQualityProps } from "../lib/itemQuality";
 import { usePersistedState } from "../lib/persistedState";
 import { AwardBadge } from "./LootBadges";
@@ -18,8 +19,8 @@ type SortKey = "item" | "content" | "count";
 type Dir = "asc" | "desc";
 const SORT_DEFAULTS: Record<SortKey, Dir> = { item: "asc", content: "asc", count: "desc" };
 
-type View = { search: string; content: string; tier: string; reason: string; tokensOnly: boolean; sort: SortKey; dir: Dir };
-const VIEW_DEFAULT: View = { search: "", content: "", tier: "", reason: "", tokensOnly: false, sort: "count", dir: "desc" };
+type View = { search: string; content: string; tier: string; reason: string; category: string; tokensOnly: boolean; sort: SortKey; dir: Dir };
+const VIEW_DEFAULT: View = { search: "", content: "", tier: "", reason: "", category: "", tokensOnly: false, sort: "count", dir: "desc" };
 
 // The bucket for items the content table doesn't know (a world drop, a badge
 // item, a raid added in a later patch). Never silently filed into a raid — an
@@ -39,11 +40,12 @@ function SortTh({ sortKey, label, sort, dir, onSort }: {
     );
 }
 
-export function LootItemsTab({ items, contents, tiers, reasons, unknownContentCount }: {
+export function LootItemsTab({ items, contents, tiers, reasons, categories, unknownContentCount }: {
     items: LootCatalogItem[];
     contents: LootContent[];
     tiers: LootTier[];
     reasons: LootReason[];
+    categories: Category[];
     unknownContentCount: number;
 }) {
     const [view, setView] = usePersistedState<View>("history-items-view", VIEW_DEFAULT);
@@ -57,17 +59,39 @@ export function LootItemsTab({ items, contents, tiers, reasons, unknownContentCo
     };
 
     const contentById = useMemo(() => new Map(contents.map((c) => [c.id, c])), [contents]);
+    const categoryNameById = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
 
     // The content dropdown follows the tier filter, so picking "Tier 5" and then
     // a Tier-4 raid can't produce an empty table.
     const contentOptions = view.tier ? contents.filter((c) => c.tier === view.tier) : contents;
+    const categoryOptions = useMemo(() => {
+        const ids = new Set<string>();
+        for (const it of items) for (const id of it.categoryIds) ids.add(id);
+        return [...ids]
+            .map((id) => ({ id, label: categoryNameById.get(id) || id }))
+            .sort((a, b) => a.label.localeCompare(b.label));
+    }, [items, categoryNameById]);
+
+    // A raid category narrows the awards themselves, not just which items are
+    // listed: "was ist im Twinkraid gefallen" must neither count the Mainraid's
+    // handouts nor show its raiders as recipients.
+    const scoped = useMemo(() => {
+        if (!view.category) return items;
+        return items
+            .map((it) => {
+                const awards = it.awards.filter((a) => a.categoryId === view.category);
+                return awards.length === it.awards.length ? it : { ...it, awards, count: awards.length };
+            })
+            .filter((it) => it.count > 0);
+    }, [items, view.category]);
+
     const reasonOptions = useMemo(() => {
-        const used = new Set(items.flatMap((i) => i.awards.map((a) => a.reason)));
+        const used = new Set(scoped.flatMap((i) => i.awards.map((a) => a.reason)));
         return reasons.filter((r) => used.has(r.id));
-    }, [items, reasons]);
+    }, [scoped, reasons]);
 
     const searchLower = view.search.trim().toLowerCase();
-    const filtered = items.filter((it) => {
+    const filtered = scoped.filter((it) => {
         if (searchLower) {
             const name = (it.itemName || `Item ${it.itemId}`).toLowerCase();
             if (!name.includes(searchLower) && String(it.itemId) !== searchLower) return false;
@@ -98,8 +122,11 @@ export function LootItemsTab({ items, contents, tiers, reasons, unknownContentCo
         });
     }, [filtered, sort, mul, contentById]);
 
-    const hasFilters = !!(view.search || view.content || view.tier || view.reason || view.tokensOnly);
+    const hasFilters = !!(view.search || view.content || view.tier || view.reason || view.category || view.tokensOnly);
     const awardCount = sorted.reduce((n, i) => n + i.count, 0);
+    // The server counts the unknown-content items over all raids; inside a
+    // category the option has to say how many are left there.
+    const unknownCount = view.category ? scoped.filter((i) => !i.contentId).length : unknownContentCount;
 
     if (!items.length) return <p className="sub">Noch kein Loot importiert.</p>;
 
@@ -137,9 +164,18 @@ export function LootItemsTab({ items, contents, tiers, reasons, unknownContentCo
                     <select id="items-content" value={view.content} onChange={(e) => patch({ content: e.target.value })}>
                         <option value="">Alle Raids</option>
                         {contentOptions.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-                        {!!unknownContentCount && !view.tier && <option value={UNKNOWN}>Unbekannt ({unknownContentCount})</option>}
+                        {!!unknownCount && !view.tier && <option value={UNKNOWN}>Unbekannt ({unknownCount})</option>}
                     </select>
                 </div>
+                {categoryOptions.length > 1 && (
+                    <div className="field" style={{ minWidth: 180 }}>
+                        <label htmlFor="items-category">Kategorie</label>
+                        <select id="items-category" value={view.category} onChange={(e) => patch({ category: e.target.value })}>
+                            <option value="">Alle Kategorien</option>
+                            {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                        </select>
+                    </div>
+                )}
                 <div className="field" style={{ minWidth: 170 }}>
                     <label htmlFor="items-reason">Grund</label>
                     <select id="items-reason" value={view.reason} onChange={(e) => patch({ reason: e.target.value })}>
@@ -155,7 +191,7 @@ export function LootItemsTab({ items, contents, tiers, reasons, unknownContentCo
                 </div>
                 {hasFilters && (
                     <div className="field">
-                        <button className="btn btn-ghost" type="button" onClick={() => patch({ search: "", content: "", tier: "", reason: "", tokensOnly: false })}>
+                        <button className="btn btn-ghost" type="button" onClick={() => patch({ search: "", content: "", tier: "", reason: "", category: "", tokensOnly: false })}>
                             Filter zurücksetzen
                         </button>
                     </div>

@@ -607,6 +607,7 @@ export default function HistoryPage() {
                                     contents={stats.contents}
                                     tiers={stats.tiers}
                                     reasons={stats.reasons}
+                                    categories={data.categories}
                                     unknownContentCount={stats.unknownContentCount}
                                 />
                             )

@@ -160,6 +160,24 @@ describe("web/lootStats", () => {
             expect(itemCatalog()[0].tokenTier).toBe("t5");
         });
 
+        // The Items tab filters by raid category (Mainraid, Twinkraid, …), so
+        // every item has to carry the categories it was handed out in.
+        it("collects the raid categories an item was awarded in, without duplicates", () => {
+            addImport("ev1", [item({ rawId: "a" }), item({ rawId: "b" })], { categoryId: "cat-main" });
+            addImport("ev2", [item({ rawId: "c" })], { categoryId: "cat-twink" });
+            const [entry] = itemCatalog();
+            expect(entry.count).toBe(3);
+            expect([...entry.categoryIds].sort()).toEqual(["cat-main", "cat-twink"]);
+            // The category travels with every single award too — that is what
+            // the tab filters the recipient badges by.
+            expect(entry.awards.map((a) => a.categoryId).sort()).toEqual(["cat-main", "cat-main", "cat-twink"]);
+        });
+
+        it("leaves the categories empty for an import that was never filed under one", () => {
+            addImport("ev1", [item()], {});
+            expect(itemCatalog()[0].categoryIds).toEqual([]);
+        });
+
         it("sorts the most-awarded item first", () => {
             addImport("ev1", [
                 item({ rawId: "a" }),

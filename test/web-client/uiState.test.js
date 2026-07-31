@@ -43,7 +43,9 @@ describe("persistedState hooks", () => {
         const viewHook = persistedState.match(/export function usePersistedState[\s\S]*?\n}/)[0];
         expect(viewHook).not.toContain("true)");
         // ...and useDraftState always does (read/write/remove all pass session=true).
-        const draftHook = persistedState.match(/export function useDraftState[\s\S]*?\n}\n/)[0];
+        // \r?\n throughout: the checkout's line endings are left to core.autocrlf,
+        // so a hard \n only matches on the CI's LF checkout, not on a Windows one.
+        const draftHook = persistedState.match(/export function useDraftState[\s\S]*?\r?\n}\r?\n/)[0];
         expect(draftHook).toMatch(/read\(fullKey, initial, true\)/);
         expect(draftHook).toMatch(/write\(fullKey, value, true\)/);
         expect(draftHook).toMatch(/remove\(fullKey, true\)/);
@@ -75,7 +77,7 @@ describe("persistedState hooks", () => {
 
     it("only accepts a remembered view that still exists", () => {
         // A tab id from an older build would otherwise select nothing at all.
-        const hook = persistedState.match(/export function usePersistedSearchParam[\s\S]*?\n}\n/)[0];
+        const hook = persistedState.match(/export function usePersistedSearchParam[\s\S]*?\r?\n}\r?\n/)[0];
         expect(hook).toContain("allowed as readonly string[]).includes(v)");
         expect(hook).toMatch(/pick\(searchParams\.get\(param\)\) \?\? pick\(read<string>\(fullKey, ""\)\) \?\? fallback/);
     });
