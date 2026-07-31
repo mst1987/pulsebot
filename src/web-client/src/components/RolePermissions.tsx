@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Area, AreaAccess, Role, RolePermissions } from "../api";
+import { TrashIcon } from "./icons";
 
 // Editor for the "Berechtigungen" settings tab: per Discord role, per area, a
 // read and a write toggle. The stored shape is
@@ -56,7 +57,7 @@ function RoleCard({ role, areas, grants, onSet, onSetAll, onRemove }: {
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => onSetAll("read", true)}>Alles lesen</button>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => onSetAll("write", true)}>Alles schreiben</button>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => onSetAll("read", false)}>Alles abwählen</button>
-                <button type="button" className="btn btn-danger btn-sm" onClick={onRemove}>Rolle entfernen</button>
+                <button type="button" className="btn btn-danger btn-sm" onClick={onRemove}><TrashIcon />Rolle entfernen</button>
             </div>
             <table className="perm-table">
                 <thead>

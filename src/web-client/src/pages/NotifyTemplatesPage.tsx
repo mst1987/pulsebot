@@ -5,6 +5,7 @@ import {
     type ApiError, type NotifyTemplate,
 } from "../api";
 import type { ShellContext } from "../components/Shell";
+import { TrashIcon } from "../components/icons";
 
 type Flash = { type: "ok" | "err"; text: string };
 
@@ -128,7 +129,7 @@ export default function NotifyTemplatesPage() {
                                     <td className="sub" style={{ margin: 0 }}>{t.title || ""}</td>
                                     <td className="row-actions">
                                         <button className="btn btn-ghost" type="button" onClick={() => startEdit(t.id)}>Bearbeiten</button>
-                                        <button className="btn btn-danger" type="button" onClick={() => remove(t)}>Löschen</button>
+                                        <button className="btn btn-danger" type="button" onClick={() => remove(t)}><TrashIcon />Löschen</button>
                                     </td>
                                 </tr>
                             ))}

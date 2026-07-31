@@ -14,6 +14,7 @@ import HistoryEventPage from "./pages/HistoryEventPage";
 import HistoryCharPage from "./pages/HistoryCharPage";
 import RosterPage from "./pages/RosterPage";
 import ClaPage from "./pages/ClaPage";
+import { JobsProvider } from "./components/Jobs";
 import { canAccess, getSession, type ApiError, type Session, type SessionUser } from "./api";
 
 /** Whether the user may open the menu at all (full admin or any granted area). */
@@ -84,26 +85,30 @@ export default function App() {
     // send them to the first section they may actually open instead.
     const home = canAccess(user, "dashboard") ? null : firstAllowedTab(user);
 
+    // JobsProvider wraps the router, not a page: that is what lets a running
+    // CLA/RPB evaluation survive navigating to another section.
     return (
-        <Routes>
-            <Route element={<Shell user={user} csrfToken={csrfToken} guilds={guilds} activeGuildId={activeGuildId} />}>
-                <Route index element={home ? <Navigate to={home.href} replace /> : <DashboardPage />} />
-                <Route path="channels" element={<Guard user={user} area="channels"><ChannelsPage /></Guard>} />
-                <Route path="settings" element={<Guard user={user} area="settings"><SettingsPage /></Guard>} />
-                <Route path="raids" element={<Guard user={user} area="raids"><RaidsPage /></Guard>} />
-                <Route path="raids/new" element={<Guard user={user} area="raids" level="write"><RaidCreatePage /></Guard>} />
-                <Route path="raids/detail" element={<Guard user={user} area="raids"><RaidDetailPage /></Guard>} />
-                <Route path="raids/templates" element={<Guard user={user} area="raids"><NotifyTemplatesPage /></Guard>} />
-                <Route path="recruitment" element={<Guard user={user} area="recruitment"><RecruitmentPage /></Guard>} />
-                <Route path="history" element={<Guard user={user} area="history"><HistoryPage /></Guard>} />
-                <Route path="history/event" element={<Guard user={user} area="history"><HistoryEventPage /></Guard>} />
-                <Route path="history/char" element={<Guard user={user} area="history"><HistoryCharPage /></Guard>} />
-                <Route path="roster" element={<Guard user={user} area="roster"><RosterPage /></Guard>} />
-                {/* Same character page, reached from the roster — the page keeps
-                    its back-link pointing at wherever it was opened from. */}
-                <Route path="roster/char" element={<Guard user={user} area="roster"><HistoryCharPage /></Guard>} />
-                <Route path="cla" element={<Guard user={user} area="cla"><ClaPage /></Guard>} />
-            </Route>
-        </Routes>
+        <JobsProvider>
+            <Routes>
+                <Route element={<Shell user={user} csrfToken={csrfToken} guilds={guilds} activeGuildId={activeGuildId} />}>
+                    <Route index element={home ? <Navigate to={home.href} replace /> : <DashboardPage />} />
+                    <Route path="channels" element={<Guard user={user} area="channels"><ChannelsPage /></Guard>} />
+                    <Route path="settings" element={<Guard user={user} area="settings"><SettingsPage /></Guard>} />
+                    <Route path="raids" element={<Guard user={user} area="raids"><RaidsPage /></Guard>} />
+                    <Route path="raids/new" element={<Guard user={user} area="raids" level="write"><RaidCreatePage /></Guard>} />
+                    <Route path="raids/detail" element={<Guard user={user} area="raids"><RaidDetailPage /></Guard>} />
+                    <Route path="raids/templates" element={<Guard user={user} area="raids"><NotifyTemplatesPage /></Guard>} />
+                    <Route path="recruitment" element={<Guard user={user} area="recruitment"><RecruitmentPage /></Guard>} />
+                    <Route path="history" element={<Guard user={user} area="history"><HistoryPage /></Guard>} />
+                    <Route path="history/event" element={<Guard user={user} area="history"><HistoryEventPage /></Guard>} />
+                    <Route path="history/char" element={<Guard user={user} area="history"><HistoryCharPage /></Guard>} />
+                    <Route path="roster" element={<Guard user={user} area="roster"><RosterPage /></Guard>} />
+                    {/* Same character page, reached from the roster — the page keeps
+                        its back-link pointing at wherever it was opened from. */}
+                    <Route path="roster/char" element={<Guard user={user} area="roster"><HistoryCharPage /></Guard>} />
+                    <Route path="cla" element={<Guard user={user} area="cla"><ClaPage /></Guard>} />
+                </Route>
+            </Routes>
+        </JobsProvider>
     );
 }

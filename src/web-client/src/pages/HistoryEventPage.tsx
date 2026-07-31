@@ -3,6 +3,7 @@ import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { getHistoryEvent, clearHistoryEvent, type ApiError, type HistoryEventData } from "../api";
 import { LootTable } from "../components/LootTable";
 import type { ShellContext } from "../components/Shell";
+import { TrashIcon } from "../components/icons";
 
 export default function HistoryEventPage() {
     const { csrfToken } = useOutletContext<ShellContext>();
@@ -43,7 +44,7 @@ export default function HistoryEventPage() {
             <div className="row-actions" style={{ marginBottom: 16 }}>
                 <span className="sub" style={{ margin: 0 }}>{data.items.length} Item(s)</span>
                 {data.items.length > 0 && (
-                    <button className="btn btn-danger" type="button" disabled={busy} onClick={clear}>Loot löschen</button>
+                    <button className="btn btn-danger" type="button" disabled={busy} onClick={clear}><TrashIcon />Loot löschen</button>
                 )}
             </div>
             {data.items.length ? <LootTable items={data.items} /> : <p className="sub">Kein Loot (mehr) für dieses Event.</p>}
