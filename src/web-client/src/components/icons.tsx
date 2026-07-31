@@ -195,6 +195,15 @@ export function SendIcon() {
     );
 }
 
+/** Remove/dismiss — the ✕ of a removable chip, sized by its button. */
+export function XIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 6l12 12M18 6 6 18" />
+        </svg>
+    );
+}
+
 /** Update something that already exists — replaces the 🔄. */
 export function RefreshIcon() {
     return (

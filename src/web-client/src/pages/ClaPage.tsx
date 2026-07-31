@@ -9,7 +9,7 @@ import {
 import { formatEventTime, fmtMs } from "../lib/format";
 import type { ShellContext } from "../components/Shell";
 import { useJobs } from "../components/Jobs";
-import { RunIcon, SearchIcon, LinkIcon, TrashIcon, ExternalIcon } from "../components/icons";
+import { RunIcon, SearchIcon, LinkIcon, TrashIcon, ExternalIcon, XIcon } from "../components/icons";
 
 type View = "reports" | "logs";
 type Dir = "asc" | "desc";
@@ -92,11 +92,16 @@ function ReportEventCell({ r, busy, onUnlink }: { r: ReportSummary; busy: boolea
         return <span className="sub" title={r.logId ? "Das zugehörige Log ist keinem Raid zugeordnet" : "Zu dieser Auswertung gibt es kein erkanntes Log"}>—</span>;
     }
     const when = r.eventStartTime ? formatEventTime(r.eventStartTime) : "";
+    const label = r.eventLabel || r.eventId;
     return (
-        <div className="row-actions" style={{ flexWrap: "nowrap", gap: 6 }}>
-            <span className="pill" title={`${r.eventLabel || r.eventId}${when ? ` — ${when}` : ""}`}>{r.eventLabel || r.eventId}</span>
-            <button className="btn btn-ghost btn-sm" type="button" title="Zuordnung entfernen" disabled={busy} onClick={onUnlink}>×</button>
-        </div>
+        <span className="pill pill-chip" title={`${label}${when ? ` — ${when}` : ""}`}>
+            {label}
+            <button
+                className="chip-x" type="button"
+                title="Zuordnung entfernen" aria-label={`Zuordnung zu „${label}“ entfernen`}
+                disabled={busy} onClick={onUnlink}
+            ><XIcon /></button>
+        </span>
     );
 }
 
@@ -237,12 +242,17 @@ function EventCell({ log, selectedEventId, onSelectChange, onLink, onUnlink }: {
     if (log.eventId) {
         const when = log.eventStartTime ? formatEventTime(log.eventStartTime) : "";
         const auto = log.eventLinkSource === "auto" ? " · automatisch zugeordnet" : "";
-        const title = `${log.eventLabel || log.eventId}${when ? ` — ${when}` : ""}${auto}`;
+        const label = log.eventLabel || log.eventId;
+        const title = `${label}${when ? ` — ${when}` : ""}${auto}`;
         return (
-            <div className="row-actions" style={{ flexWrap: "nowrap", gap: 6 }}>
-                <span className="pill" title={title}>{log.eventLabel || log.eventId}</span>
-                <button className="btn btn-ghost btn-sm" type="button" title="Zuordnung entfernen" onClick={onUnlink}>×</button>
-            </div>
+            <span className="pill pill-chip" title={title}>
+                {label}
+                <button
+                    className="chip-x" type="button"
+                    title="Zuordnung entfernen" aria-label={`Zuordnung zu „${label}“ entfernen`}
+                    onClick={onUnlink}
+                ><XIcon /></button>
+            </span>
         );
     }
     const cands = log.candidates || [];
