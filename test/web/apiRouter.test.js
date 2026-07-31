@@ -125,6 +125,13 @@ jest.mock("../../src/web/lootStore", () => ({
     clearEvent: jest.fn(() => 0),
     repairItemNames: jest.fn(() => Promise.resolve(0)),
 }));
+jest.mock("../../src/web/lootAwards", () => ({
+    listAwards: jest.fn(() => ({
+        items: [], page: 1, pageSize: 25, total: 0, totalPages: 1,
+        topItemCount: 0, contents: [], reasons: [], unknownContentCount: 0,
+    })),
+    PAGE_SIZE: 25,
+}));
 jest.mock("../../src/web/characterInfo", () => ({
     rememberFromLoot: jest.fn(),
     annotatedCharacters: jest.fn(() => []),
@@ -266,6 +273,7 @@ const raidEventGroups = require("../../src/web/raidEventGroups");
 const raidEventStore = require("../../src/web/raidEventStore");
 const logStore = require("../../src/web/logStore");
 const lootStore = require("../../src/web/lootStore");
+const lootAwards = require("../../src/web/lootAwards");
 const characterInfo = require("../../src/web/characterInfo");
 const characterStore = require("../../src/web/characterStore");
 const raiderCharactersStore = require("../../src/web/raiderCharactersStore");
@@ -2840,6 +2848,51 @@ describe("web/apiRouter", () => {
             const res = await get("/api/history/event", { event: "e1" });
             expect(lootStore.listByEvent).toHaveBeenCalledWith("e1");
             expect(body(res)).toEqual({ data: { eventId: "e1", label: "Kara", items: [{ eventLabel: "Kara", itemName: "Sword" }] } });
+        });
+    });
+
+    describe("GET /api/history/loot-awards", () => {
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await get("/api/history/loot-awards", {});
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+            expect(lootAwards.listAwards).not.toHaveBeenCalled();
+        });
+
+        it("defaults to the top items on page 1 without any query", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            await get("/api/history/loot-awards", {});
+            expect(lootAwards.listAwards).toHaveBeenCalledWith({
+                topOnly: true, search: "", categoryId: "", contentId: "", reason: "", page: 1,
+            });
+        });
+
+        it("passes the filters and the page through, and widens the scope on top=0", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            await get("/api/history/loot-awards", {
+                top: "0", q: "vashj", category: "cat1", content: "ssc", reason: "offspec", page: "3",
+            });
+            expect(lootAwards.listAwards).toHaveBeenCalledWith({
+                topOnly: false, search: "vashj", categoryId: "cat1", contentId: "ssc", reason: "offspec", page: 3,
+            });
+        });
+
+        it("serves the page the store returns", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            lootAwards.listAwards.mockReturnValue({
+                items: [{ itemId: 30883, character: "Kilrogg" }], page: 2, pageSize: 25, total: 30,
+                totalPages: 2, topItemCount: 4, contents: [], reasons: [], unknownContentCount: 0,
+            });
+            const res = await get("/api/history/loot-awards", { page: "2" });
+            expect(body(res).data).toMatchObject({ page: 2, total: 30, totalPages: 2, topItemCount: 4 });
+        });
+
+        // Rows imported before name enrichment existed would show as "Item <id>"
+        // in a list that is searched by name.
+        it("backfills missing item names first", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            await get("/api/history/loot-awards", {});
+            expect(lootStore.repairItemNames).toHaveBeenCalled();
         });
     });
 

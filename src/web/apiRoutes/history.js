@@ -12,6 +12,7 @@ const {
     setEventCategory: setLootEventCategory, repairItemNames: repairLootItemNames,
 } = require("../lootStore");
 const { lootStats } = require("../lootStats");
+const { listAwards } = require("../lootAwards");
 const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../characterInfo");
 const { getCharacter } = require("../characterStore");
 const { issuesForCharacter } = require("../charGearIssues");
@@ -87,6 +88,33 @@ async function getLootStats(req, res) {
         characters: stats.characters.map(withClassLook),
         items: stats.items.map((it) => ({ ...it, awards: it.awards.map(withClassLook) })),
     });
+}
+
+/**
+ * GET /api/history/loot-awards — one page of the "Latest Loot" tab: awards
+ * newest first, filtered and cut into pages of 25 (see lootAwards.js).
+ *
+ * Query: page, top ("0" widens the list from the configured top items to all
+ * loot), q (item name/id or character), category, content, reason.
+ *
+ * Paged on the server rather than in the browser: the loot store holds every row
+ * ever imported, and the tab only ever shows one page of it.
+ */
+async function getLootAwards(req, res, url) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    // Same one-time backfill as the other loot views — a row without a name is
+    // unusable in a list that is searched by name.
+    await repairLootItemNames();
+    const q = url.searchParams;
+    ok(res, listAwards({
+        topOnly: q.get("top") !== "0",
+        search: q.get("q") || "",
+        categoryId: q.get("category") || "",
+        contentId: q.get("content") || "",
+        reason: q.get("reason") || "",
+        page: Number(q.get("page")) || 1,
+    }));
 }
 
 /** POST /api/history/log-delete — body: { logId }. */
@@ -323,6 +351,6 @@ function enrichCharInfo(info) {
 }
 
 module.exports = {
-    getHistoryData, getLootStats, deleteHistoryLog, importLoot, setLootCategory, clearHistoryEvent, getHistoryEvent,
+    getHistoryData, getLootStats, getLootAwards, deleteHistoryLog, importLoot, setLootCategory, clearHistoryEvent, getHistoryEvent,
     resolveCharacters, getHistoryChar,
 };

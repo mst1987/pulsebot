@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getDashboard, type ApiError, type DashboardData, type UpcomingEvent } from "../api";
-import { formatEventTime, formatDate, fmtMs } from "../lib/format";
+import { formatEventTime, formatDate } from "../lib/format";
 import {
     RecruitmentIcon, ClaIcon, RaidsIcon, ChannelsIcon, SettingsIcon, ClockIcon, LootIcon, BoltIcon,
 } from "../components/icons";
 import RaidTable from "../components/RaidTable";
 import OrbsBackground from "../components/OrbsBackground";
-import { CharacterLink, ClassSpecIcon } from "../components/ClassSpec";
-import { LootResponseBadge } from "../components/LootTable";
-import { itemQualityProps, itemQualityColor } from "../lib/itemQuality";
+import TopLootList from "../components/TopLootList";
 import type { ReactNode } from "react";
 
 // Every dashboard card wears the same head: an accented icon tile, the title,
@@ -86,16 +84,10 @@ function RecentReportsTable({ reports }: { reports: DashboardData["recentReports
     );
 }
 
-// The awards of items the guild flagged as "top" in Einstellungen → Loot. Every
-// row is a highlight by definition — the card only ever holds top items — so it
-// gets the accent rail rather than a plain table row.
-//
-// The whole row leads to that raid's loot: the link is an overlay stretched
-// across the row (.toploot-hit) instead of a wrapper, so the item link and the
-// character link stay real links inside it instead of becoming nested anchors.
-// Which raid the loot came from is therefore the row's target and not a badge —
-// only the boss and the date are shown.
-function TopLootList({ topLoot }: { topLoot: DashboardData["topLoot"] }) {
+// The card's body: the newest top-item awards, rendered by the same list the
+// Historie tab uses (components/TopLootList) — only the empty states are the
+// card's own, since they point at where top items are defined.
+function TopLootCard({ topLoot }: { topLoot: DashboardData["topLoot"] }) {
     if (!topLoot.items.length) {
         return (
             <p className="sub" style={{ padding: 16, margin: 0 }}>
@@ -105,41 +97,7 @@ function TopLootList({ topLoot }: { topLoot: DashboardData["topLoot"] }) {
             </p>
         );
     }
-    return (
-        <ul className="toploot">
-            {topLoot.items.map((it) => (
-                <li className="toploot-row" key={`${it.eventId}-${it.itemId}-${it.character}-${it.awardedAt}`}>
-                    <Link
-                        className="toploot-hit"
-                        to={it.eventId ? `/history/event?event=${encodeURIComponent(it.eventId)}` : "/history"}
-                        aria-label={`Loot von ${it.eventLabel || "diesem Raid"} öffnen`}
-                    />
-                    {it.itemIconUrl && (
-                        <img
-                            className="toploot-ico" src={it.itemIconUrl} alt="" loading="lazy"
-                            style={{ borderColor: itemQualityColor(it.itemQuality) || "var(--line)" }}
-                        />
-                    )}
-                    <span className="toploot-main">
-                        {it.itemLink
-                            ? <a {...itemQualityProps(it.itemQuality, "mlink")} href={it.itemLink} target="_blank" rel="noopener noreferrer">{it.itemName || `Item ${it.itemId}`}</a>
-                            : <span {...itemQualityProps(it.itemQuality)}>{it.itemName || `Item ${it.itemId}`}</span>}
-                        <span className="toploot-meta">
-                            {it.boss && <span className="toploot-badge">{it.boss}</span>}
-                            <span className="toploot-badge">{fmtMs(it.awardedAt, false)}</span>
-                        </span>
-                    </span>
-                    <span className="toploot-who">
-                        <span className="toploot-char" title={it.className ? [it.spec, it.className].filter(Boolean).join(" ") : undefined}>
-                            <ClassSpecIcon iconUrl={it.specIconUrl} />
-                            <CharacterLink character={it.character} classColor={it.classColor} />
-                        </span>
-                        <LootResponseBadge response={it.response} offspec={it.offspec} reasonLabel={it.reasonLabel} reasonTone={it.reasonTone} />
-                    </span>
-                </li>
-            ))}
-        </ul>
-    );
+    return <TopLootList items={topLoot.items} />;
 }
 
 const QUICK_LINKS = [
@@ -190,7 +148,7 @@ export default function DashboardPage() {
 
                 <div className="dash-card dash-loot">
                     <CardHead icon={<LootIcon />} title="Latest Loot" kicker="Top-Items" link="/history" linkLabel="Historie & Loot" />
-                    <TopLootList topLoot={data.topLoot} />
+                    <TopLootCard topLoot={data.topLoot} />
                 </div>
             </div>
 
