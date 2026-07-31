@@ -71,9 +71,20 @@ describe("tbcContent", () => {
             expect(contentForLoot({ itemId: 30105 })).toEqual({ contentId: "ssc", boss: "Lady Vashj" });
         });
 
-        it("keeps the boss the export named", () => {
-            expect(contentForLoot({ itemId: 30105, boss: "Lady Vashj (Hardmode)" }))
-                .toEqual({ contentId: "ssc", boss: "Lady Vashj (Hardmode)" });
+        // RCLootcouncil names the encounter that was current when the item was
+        // *awarded* — an item handed out from the bag after the next pull
+        // carries the wrong boss, and a whole raid night ends up filed under its
+        // last kill. The item id says where it actually dropped.
+        it("overrides the boss the export named", () => {
+            // Leggings of Murderous Intent, awarded during the Vashj fight.
+            expect(contentForLoot({ itemId: 29995, boss: "Lady Vashj", instance: "Serpentshrine Cavern-25 Player" }))
+                .toEqual({ contentId: "tk", boss: "Kael'thas Sunstrider" });
+        });
+
+        it("keeps the export's boss for a drop the table has no npc for", () => {
+            // 32232 is Black Temple trash — in the table, but under "".
+            expect(contentForLoot({ itemId: 32232, boss: "Illidari Council" }))
+                .toEqual({ contentId: "bt", boss: "Illidari Council" });
         });
 
         it("falls back to the instance string for an unknown item", () => {
