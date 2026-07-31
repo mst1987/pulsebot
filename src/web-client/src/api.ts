@@ -79,7 +79,9 @@ export type RecentReport = {
 };
 
 // One awarded top item on the dashboard's "Latest Loot" card: the loot row's
-// trimmed shape (see lootStore.js's charLootPreview) plus who got it.
+// trimmed shape (see lootStore.js's charLootPreview) plus who got it, including
+// that character's class/spec look (colour + spec icon, resolved server-side
+// from the character store — empty when nobody resolved the class yet).
 export type TopLootAward = {
     itemId: number;
     itemName: string;
@@ -100,6 +102,10 @@ export type TopLootAward = {
     eventId: string;
     eventLabel: string;
     awardedAt: number;
+    className: string;
+    spec: string;
+    classColor: string;
+    specIconUrl: string;
 };
 
 export type DashboardData = {

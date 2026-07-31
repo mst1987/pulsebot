@@ -582,6 +582,12 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 .dash-hero { position: relative; }
 .fx-orbs { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: .6; }
 .dash-hero-content { position: relative; z-index: 1; }
+/* Top row: key figures (2x2) on the left, the Latest-Loot card beside them.
+   The hero column keeps the tiles square-ish; the loot card is the taller one,
+   so it sets the row height and the tiles stretch to match it. */
+.dash-top { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
+.dash-top .tiles { grid-template-columns: repeat(2, 1fr); margin-bottom: 16px; }
+.dash-top .dash-loot { margin-bottom: 16px; }
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
 .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 0; padding: 20px 22px;
     transition: transform .18s cubic-bezier(.34, 1.56, .64, 1), box-shadow .18s ease, border-color .18s ease; }
@@ -606,9 +612,22 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 @media (prefers-reduced-motion: reduce) { .tile { transition: none; } .tile:hover { transform: none; } }
 .dash-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
 .dash-card { background: var(--panel); border: 1px solid var(--line); border-radius: 0; overflow: hidden; margin-bottom: 16px; }
-.dash-card-head { display: flex; align-items: center; gap: 10px; padding: 13px 16px; border-bottom: 1px solid var(--line-soft); }
-.dash-card-head h3 { font-size: 15px; margin: 0; }
-.dash-card-head .mlink { margin-left: auto; font-size: 13px; }
+/* Card head: an accented icon tile (same idiom as the stat tiles' .t-icon and
+   the quick-links' .qi), the title at heading size, an optional kicker, and the
+   "go there" link pushed right. */
+.dash-card-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line-soft); }
+.dash-card-head h3 { font-size: 19px; margin: 0; letter-spacing: -.01em; }
+.dash-card-head .dch-icon {
+    width: 34px; height: 34px; border-radius: 9px; flex: 0 0 auto;
+    background: var(--accent-soft); color: var(--accent); display: grid; place-items: center;
+}
+.dash-card-head .dch-icon svg { width: 18px; height: 18px; }
+.dash-card-head .dch-kicker {
+    font-size: 11.5px; font-weight: 700; font-family: var(--font-mono); color: var(--accent);
+    text-transform: uppercase; letter-spacing: .06em; border: 1px solid var(--accent-soft);
+    background: var(--accent-soft); border-radius: 999px; padding: 2px 9px;
+}
+.dash-card-head .mlink { margin-left: auto; font-size: 13px; white-space: nowrap; }
 .dash-card table.idx { margin: 0; }
 /* Only the inset — the vertical padding stays with the table rules above, so a
    row holding a control can still take itself back down inside a card. */
@@ -618,23 +637,30 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
    items (Einstellungen → Loot). Every row IS the highlight — the card holds
    nothing else — so each carries the star, the accent rail and the item's own
    quality colour on the icon border. ===== */
-.dash-card-head .dash-card-sub { margin-left: 8px; font-size: 12px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: .06em; }
 .toploot { list-style: none; margin: 0; padding: 0; }
 .toploot-row {
-    display: flex; align-items: center; gap: 12px; padding: 11px 16px;
+    display: flex; align-items: center; gap: 11px; padding: 10px 14px;
     border-top: 1px solid var(--line-soft); border-left: 3px solid var(--accent);
-    background: linear-gradient(90deg, var(--accent-soft), transparent 55%);
+    background: linear-gradient(90deg, var(--accent-soft), transparent 60%);
 }
 .toploot-row:first-child { border-top: 0; }
 .toploot-star { color: var(--accent); font-size: 14px; line-height: 1; flex: 0 0 auto; }
 .toploot-ico { width: 34px; height: 34px; border-radius: 7px; border: 1px solid var(--line); flex: 0 0 auto; }
 .toploot-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .toploot-main > a, .toploot-main > span:first-child { font-weight: 600; }
+/* Half-width card: the item name gets an ellipsis instead of pushing the winner
+   out of the row. */
+.toploot-main > a, .toploot-main > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .toploot-meta { color: var(--muted); }
-.toploot-who { margin-left: auto; display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+/* The winner: name (class-coloured, with their spec icon) over spec + response. */
+.toploot-who { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex: 0 0 auto; max-width: 45%; }
+.toploot-char { display: inline-flex; align-items: center; font-weight: 600; white-space: nowrap; }
+.toploot-char img { margin-right: 5px; }
+.toploot-tags { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.toploot-spec { color: var(--muted); white-space: nowrap; }
 @media (max-width: 700px) {
     .toploot-row { flex-wrap: wrap; }
-    .toploot-who { margin-left: 46px; }
+    .toploot-who { margin-left: 46px; align-items: flex-start; max-width: none; }
 }
 
 .quick { display: flex; flex-direction: column; }
@@ -644,14 +670,22 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 .quick a .qi { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); flex: 0 0 auto; }
 .quick a .qi svg { width: 17px; height: 17px; }
 
+/* Not enough room for two columns side by side: loot moves below the figures,
+   which then spread back out into one row. */
+@media (max-width: 1200px) {
+    .dash-top { grid-template-columns: 1fr; }
+    .dash-top .tiles { grid-template-columns: repeat(4, 1fr); }
+}
+
 @media (max-width: 900px) {
     .app { grid-template-columns: 1fr; }
     .side { position: fixed; z-index: 30; width: 264px; transform: translateX(-102%); transition: transform .2s; box-shadow: 0 8px 28px rgba(0, 0, 0, .35); }
     .side.open { transform: none; }
     .menu-toggle { display: inline-grid; place-items: center; width: var(--ctl-h); height: var(--ctl-h); border-radius: var(--ctl-radius); border: 1px solid var(--line); background: var(--panel2); color: var(--text); cursor: pointer; }
     .content { padding: 18px 14px; }
-    .tiles { grid-template-columns: repeat(2, 1fr); }
+    .tiles, .dash-top .tiles { grid-template-columns: repeat(2, 1fr); }
     .dash-grid { grid-template-columns: 1fr; }
+    .dash-card-head h3 { font-size: 17px; }
 }
 
 /* ===== recruitment: sub-nav, emoji picker, spec picker, application cards ===== */

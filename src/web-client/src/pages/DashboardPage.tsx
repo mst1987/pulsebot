@@ -2,13 +2,30 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getDashboard, type ApiError, type DashboardData, type UpcomingEvent } from "../api";
 import { formatEventTime, formatDate, fmtMs } from "../lib/format";
-import { RecruitmentIcon, ClaIcon, RaidsIcon, ChannelsIcon, SettingsIcon } from "../components/icons";
+import {
+    RecruitmentIcon, ClaIcon, RaidsIcon, ChannelsIcon, SettingsIcon, ClockIcon, LootIcon, BoltIcon,
+} from "../components/icons";
 import RaidTable from "../components/RaidTable";
 import OrbsBackground from "../components/OrbsBackground";
-import { CharacterLink } from "../components/ClassSpec";
+import { CharacterLink, ClassSpecIcon } from "../components/ClassSpec";
 import { LootResponseBadge } from "../components/LootTable";
 import { itemQualityProps, itemQualityColor } from "../lib/itemQuality";
 import type { ReactNode } from "react";
+
+// Every dashboard card wears the same head: an accented icon tile, the title,
+// an optional kicker next to it, and the "go there" link pushed to the right.
+function CardHead({ icon, title, kicker, link, linkLabel }: {
+    icon: ReactNode; title: string; kicker?: string; link?: string; linkLabel?: string;
+}) {
+    return (
+        <div className="dash-card-head">
+            <span className="dch-icon">{icon}</span>
+            <h3>{title}</h3>
+            {kicker && <span className="dch-kicker">{kicker}</span>}
+            {link && <Link className="mlink" to={link}>{linkLabel || "Alle"} →</Link>}
+        </div>
+    );
+}
 
 function Tile({ area, icon, label, value, sub, accent }: {
     area: string; icon: ReactNode; label: string; value: number; sub: string; accent?: boolean;
@@ -104,8 +121,16 @@ function TopLootList({ topLoot }: { topLoot: DashboardData["topLoot"] }) {
                         </span>
                     </span>
                     <span className="toploot-who">
-                        <CharacterLink character={it.character} />
-                        <LootResponseBadge response={it.response} offspec={it.offspec} reasonLabel={it.reasonLabel} reasonTone={it.reasonTone} />
+                        <span className="toploot-char" title={it.className ? [it.spec, it.className].filter(Boolean).join(" ") : undefined}>
+                            <ClassSpecIcon iconUrl={it.specIconUrl} />
+                            <CharacterLink character={it.character} classColor={it.classColor} />
+                        </span>
+                        <span className="toploot-tags">
+                            {it.className && (
+                                <span className="toploot-spec small">{[it.spec, it.className].filter(Boolean).join(" ")}</span>
+                            )}
+                            <LootResponseBadge response={it.response} offspec={it.offspec} reasonLabel={it.reasonLabel} reasonTone={it.reasonTone} />
+                        </span>
                     </span>
                 </li>
             ))}
@@ -144,23 +169,29 @@ export default function DashboardPage() {
         <>
             <h1 className="page-title">Übersicht</h1>
 
-            <div className="dash-hero">
-                <OrbsBackground />
-                <div className="dash-hero-content">
-                    <div className="tiles">
-                        <Tile area="cla" icon={<ClaIcon />} label="Log-Check-Auswertungen" value={stats.reportsTotal} sub={`${stats.reportsWithIssues} mit Problemen`} accent />
-                        <Tile area="recruitment" icon={<RecruitmentIcon />} label="Recruitment-Vorlagen" value={stats.templates} sub={`${stats.posts} gepostete Nachrichten`} />
-                        <Tile area="channels" icon={<ChannelsIcon />} label="Event-Kategorien" value={stats.categories} sub="in den Einstellungen gepflegt" />
-                        <Tile area="settings" icon={<SettingsIcon />} label="Admin-Rollen" value={stats.adminRoles} sub={stats.adminRoles ? "konfiguriert" : "noch keine gesetzt"} />
+            {/* Top row: the four key figures as a 2x2 block on the left, the
+                latest top-item awards next to them on the right. */}
+            <div className="dash-top">
+                <div className="dash-hero">
+                    <OrbsBackground />
+                    <div className="dash-hero-content">
+                        <div className="tiles">
+                            <Tile area="cla" icon={<ClaIcon />} label="Log-Check-Auswertungen" value={stats.reportsTotal} sub={`${stats.reportsWithIssues} mit Problemen`} accent />
+                            <Tile area="recruitment" icon={<RecruitmentIcon />} label="Recruitment-Vorlagen" value={stats.templates} sub={`${stats.posts} gepostete Nachrichten`} />
+                            <Tile area="channels" icon={<ChannelsIcon />} label="Event-Kategorien" value={stats.categories} sub="in den Einstellungen gepflegt" />
+                            <Tile area="settings" icon={<SettingsIcon />} label="Admin-Rollen" value={stats.adminRoles} sub={stats.adminRoles ? "konfiguriert" : "noch keine gesetzt"} />
+                        </div>
                     </div>
+                </div>
+
+                <div className="dash-card dash-loot">
+                    <CardHead icon={<LootIcon />} title="Latest Loot" kicker="Top-Items" link="/history" linkLabel="Historie & Loot" />
+                    <TopLootList topLoot={data.topLoot} />
                 </div>
             </div>
 
             <div className="dash-card">
-                <div className="dash-card-head">
-                    <h3>Upcoming Events</h3>
-                    <Link className="mlink" to="/raids">Alle →</Link>
-                </div>
+                <CardHead icon={<ClockIcon />} title="Upcoming Events" link="/raids" />
                 <table className="idx">
                     <thead><tr><th>Event</th><th>Kanal</th><th>Termin</th><th>Sheet</th></tr></thead>
                     <tbody><UpcomingTable upcoming={data.upcoming} /></tbody>
@@ -168,37 +199,23 @@ export default function DashboardPage() {
             </div>
 
             <div className="dash-card">
-                <div className="dash-card-head">
-                    <h3>Latest Events</h3>
-                    <Link className="mlink" to="/history">Historie &amp; Loot →</Link>
-                </div>
+                <CardHead icon={<RaidsIcon />} title="Latest Events" link="/history" linkLabel="Historie & Loot" />
                 <RaidTable
                     events={data.recentEvents.events} guildId={data.activeGuildId}
                     error={data.recentEvents.error} emptyMessage="Keine vergangenen Events gefunden."
                 />
             </div>
 
-            <div className="dash-card">
-                <div className="dash-card-head">
-                    <h3>Latest Loot <span className="dash-card-sub">Top-Items</span></h3>
-                    <Link className="mlink" to="/history">Historie &amp; Loot →</Link>
-                </div>
-                <TopLootList topLoot={data.topLoot} />
-            </div>
-
             <div className="dash-grid">
                 <div className="dash-card">
-                    <div className="dash-card-head">
-                        <h3>Letzte Auswertungen</h3>
-                        <Link className="mlink" to="/cla">Alle →</Link>
-                    </div>
+                    <CardHead icon={<ClaIcon />} title="Letzte Auswertungen" link="/cla" />
                     <table className="idx">
                         <thead><tr><th>Report</th><th>Zone</th><th>Erstellt</th><th>Probleme</th></tr></thead>
                         <tbody><RecentReportsTable reports={data.recentReports} /></tbody>
                     </table>
                 </div>
                 <div className="dash-card">
-                    <div className="dash-card-head"><h3>Schnellzugriff</h3></div>
+                    <CardHead icon={<BoltIcon />} title="Schnellzugriff" />
                     <div className="quick">
                         {QUICK_LINKS.map((q) => (
                             <Link key={q.href} to={q.href}>

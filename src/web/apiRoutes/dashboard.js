@@ -31,7 +31,7 @@ async function getDashboard(req, res) {
         })),
         upcoming,
         recentEvents,
-        topLoot: loadTopLoot(6),
+        topLoot: loadTopLoot(5),
         activeGuildId: guildId,
     });
 }
