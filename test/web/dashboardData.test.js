@@ -24,17 +24,20 @@ jest.mock("../../src/web/recentEvents", () => ({
 }));
 jest.mock("../../src/web/logAutoLink", () => ({ autoLinkLogs: jest.fn(() => Promise.resolve()) }));
 jest.mock("../../src/web/reportList", () => ({ logPostedAt: jest.fn(() => 0) }));
+jest.mock("../../src/web/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
 jest.mock("../../src/utils/raidhelperClient", () => ({ createRaidhelperClient: jest.fn() }));
 jest.mock("../../src/web/discord", () => ({ getChannelCategoryMap: jest.fn(() => ({})) }));
 
 const lootStore = require("../../src/web/lootStore");
 const settingsStore = require("../../src/web/settingsStore");
+const charStore = require("../../src/web/characterStore");
 const { loadTopLoot } = require("../../src/web/dashboardData");
 
 // A loot row as lootStore.listAll() hands it out (already decorated).
 const lootRow = (over = {}) => ({
     itemId: 30883, itemName: "Kalter Fels", itemIconUrl: "https://x/i.jpg", itemQuality: 4,
-    itemLink: "https://www.wowhead.com/tbc/item=30883", character: "Kilrogg", realm: "Thunderstrike",
+    itemLink: "https://www.wowhead.com/tbc/item=30883", character: "Kilrogg", characterKey: "kilrogg",
+    realm: "Thunderstrike",
     response: "BiS", offspec: false, reason: "bis", reasonLabel: "BiS", reasonTone: "good",
     contentId: "ssc", boss: "Hydross", categoryId: "cat1", eventId: "e1", eventLabel: "Montagsraid",
     awardedAt: 1000, source: "gargul", ...over,
@@ -44,6 +47,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     settingsStore.getConfig.mockReturnValue({});
     lootStore.listAll.mockReturnValue([]);
+    charStore.characterMap.mockReturnValue({});
 });
 
 describe("web/dashboardData loadTopLoot", () => {
@@ -98,9 +102,51 @@ describe("web/dashboardData loadTopLoot", () => {
         expect(loadTopLoot(2).items.map((it) => it.character)).toEqual(["A", "B"]);
     });
 
+    it("shows at most five awards by default", () => {
+        settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 30883 }] });
+        lootStore.listAll.mockReturnValue(
+            ["A", "B", "C", "D", "E", "F"].map((c, i) => lootRow({ character: c, awardedAt: 6000 - i })),
+        );
+        expect(loadTopLoot().items.map((it) => it.character)).toEqual(["A", "B", "C", "D", "E"]);
+    });
+
     it("ignores top-item entries without a usable id", () => {
         settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 0 }, { name: "kaputt" }] });
         lootStore.listAll.mockReturnValue([lootRow()]);
         expect(loadTopLoot()).toEqual({ items: [], configured: 0 });
+    });
+
+    // Class colour and spec icon come from the character store, resolved
+    // server-side like everywhere else in the app.
+    describe("class/spec of the winner", () => {
+        beforeEach(() => {
+            settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 30883 }] });
+            lootStore.listAll.mockReturnValue([lootRow()]);
+        });
+
+        it("adds the class colour and spec icon of a known character", () => {
+            charStore.characterMap.mockReturnValue({ kilrogg: { className: "Mage", spec: "Fire" } });
+
+            const row = loadTopLoot().items[0];
+
+            expect(row.className).toBe("Mage");
+            expect(row.spec).toBe("Fire");
+            expect(row.classColor).toBe("#69CCF0");
+            expect(row.specIconUrl).toMatch(/^https:\/\/wow\.zamimg\.com\/images\/wow\/icons\/large\/.+\.jpg$/);
+        });
+
+        it("leaves the look empty for a character nobody resolved yet", () => {
+            expect(loadTopLoot().items[0]).toMatchObject({
+                className: "", spec: "", classColor: "", specIconUrl: "",
+            });
+        });
+
+        // Reading the store costs a file read; nothing matched means nothing to
+        // annotate.
+        it("does not touch the character store when no top item was awarded", () => {
+            lootStore.listAll.mockReturnValue([lootRow({ itemId: 999 })]);
+            expect(loadTopLoot()).toEqual({ items: [], configured: 1 });
+            expect(charStore.characterMap).not.toHaveBeenCalled();
+        });
     });
 });

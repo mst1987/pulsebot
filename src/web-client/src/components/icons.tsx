@@ -122,6 +122,27 @@ export function HistoryIcon() {
     );
 }
 
+/** A big drop — the treasure chest on the dashboard's "Latest Loot" card. */
+export function LootIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 10.5 5 5.5h14l2 5" />
+            <rect x="3" y="10.5" width="18" height="8" rx="1.5" />
+            <path d="M3 14h18" />
+            <path d="M10.5 10.5h3v4h-3z" />
+        </svg>
+    );
+}
+
+/** Jump straight to an action — the "Schnellzugriff" card's bolt. */
+export function BoltIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M13 2.5 4.5 13.5H11l-.5 8L19 10.5h-6.5l.5-8Z" />
+        </svg>
+    );
+}
+
 // ---- action icons ----
 // Buttons that do something (rather than navigate) carry one of these instead
 // of the emoji labels the raid page used to mix into its text. They all share

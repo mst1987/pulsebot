@@ -11,6 +11,8 @@ const { listLogs } = require("./logStore");
 const { buildRecentEvents, matchLogsForEvent, pendingLogsForEvent } = require("./recentEvents");
 const { autoLinkLogs } = require("./logAutoLink");
 const { logPostedAt } = require("./reportList");
+const { characterMap } = require("./characterStore");
+const { characterProfile } = require("../utils/setupView");
 const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const discord = require("./discord");
 
@@ -120,20 +122,41 @@ function annotateUpcomingExtras(events, guildId) {
  * is. `configured` is how many top items are defined at all, so the dashboard
  * can tell "nothing configured yet" from "configured, but none dropped yet".
  *
+ * Every row carries the winner's class/spec look (colour + spec icon) from the
+ * character store — resolved server-side like every other class colour in the
+ * app (see ClassSpec.tsx), so the client never owns a second palette. A
+ * character whose class nobody has resolved yet simply has empty fields and
+ * renders uncoloured.
+ *
  * Not guild-scoped: imported loot carries no guild id (see lootStore.js), the
  * same reason the Historie pages show it unfiltered.
  */
-function loadTopLoot(limit = 6) {
+function loadTopLoot(limit = 5) {
     const topItems = getConfig().topItems || [];
     const ids = new Set(topItems.map((it) => Number(it.id)).filter(Boolean));
     if (!ids.size) return { items: [], configured: 0 };
-    const items = listAllLoot()
-        .filter((it) => ids.has(Number(it.itemId)))
-        .slice(0, limit)
-        // charLootPreview() is the trimmed loot shape the history pages already
-        // use; the dashboard row only adds who got it and off which boss.
-        .map((it) => ({ ...charLootPreview(it), character: it.character, realm: it.realm || "", boss: it.boss || "" }));
-    return { items, configured: ids.size };
+    const awards = listAllLoot().filter((it) => ids.has(Number(it.itemId))).slice(0, limit);
+    if (!awards.length) return { items: [], configured: ids.size };
+    const known = characterMap();
+    return {
+        items: awards.map((it) => {
+            const info = known[it.characterKey] || null;
+            const look = info ? characterProfile(info.className, info.spec) : null;
+            return {
+                // charLootPreview() is the trimmed loot shape the history pages
+                // already use; the dashboard row adds who won it and how they play.
+                ...charLootPreview(it),
+                character: it.character,
+                realm: it.realm || "",
+                boss: it.boss || "",
+                className: (look && look.className) || "",
+                spec: (info && info.spec) || "",
+                classColor: (look && look.classColor) || "",
+                specIconUrl: (look && look.iconUrl) || "",
+            };
+        }),
+        configured: ids.size,
+    };
 }
 
 module.exports = { loadUpcomingSetups, loadRecentEvents, annotateUpcomingExtras, loadTopLoot };
