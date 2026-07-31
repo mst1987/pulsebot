@@ -12,15 +12,16 @@ import { Link } from "react-router-dom";
 import { getRoster, type ApiError, type CharGearReport, type RosterChar, type RosterData } from "../api";
 import { fmtMs } from "../lib/format";
 import { usePersistedState } from "../lib/persistedState";
+import { sortRows, type Dir } from "../lib/tableSort";
 import { ClassSpecCell } from "../components/ClassSpec";
 import { CharLootHover } from "../components/CharLootHover";
 import { HoverPanel } from "../components/HoverPanel";
 import { RosterHero } from "../components/RosterHero";
+import { SortTh } from "../components/SortTh";
 
-type SortKey = "character" | "classSpec" | "issues" | "loot";
-type Dir = "asc" | "desc";
+type SortKey = "character" | "classSpec" | "category" | "issues" | "loot";
 
-const SORT_DEFAULTS: Record<SortKey, Dir> = { character: "asc", classSpec: "asc", issues: "desc", loot: "desc" };
+const SORT_DEFAULTS: Record<SortKey, Dir> = { character: "asc", classSpec: "asc", category: "asc", issues: "desc", loot: "desc" };
 
 // Search/filter/sort survive a reload and a visit to another page. Stored
 // values are untrusted: a sort key from an older build falls back to the
@@ -31,31 +32,19 @@ const SORT_DEFAULTS: Record<SortKey, Dir> = { character: "asc", classSpec: "asc"
 type View = { search: string; category: string; className: string; classSpec: string; onlyIssues: boolean; sort: SortKey; dir: Dir };
 const VIEW_DEFAULT: View = { search: "", category: "", className: "", classSpec: "", onlyIssues: false, sort: "character", dir: "asc" };
 
-function sortValue(c: RosterChar, key: SortKey): string | number {
+// `categoryNames` is passed in because the ids alone would sort by snowflake,
+// which is by channel creation date and reads as random.
+function sortValue(c: RosterChar, key: SortKey, categoryNames: (char: RosterChar) => string): string | number {
     switch (key) {
         case "character": return c.character.toLowerCase();
         case "classSpec": return `${c.className} ${c.spec}`.toLowerCase().trim();
+        case "category": return categoryNames(c);
+        // Never evaluated (-1) is not the same as evaluated without findings (0)
+        // and sorts below it.
         case "issues": return c.gear ? c.gear.issueCount : -1;
         case "loot": return c.lootCount;
         default: return "";
     }
-}
-
-function SortTh({ sortKey, label, sort, dir, onSort }: {
-    sortKey: SortKey;
-    label: string;
-    sort: SortKey;
-    dir: Dir;
-    onSort: (key: SortKey) => void;
-}) {
-    const active = sort === sortKey;
-    return (
-        <th>
-            <button type="button" className={`sort-link${active ? " active" : ""}`} onClick={() => onSort(sortKey)}>
-                {label}{active ? (dir === "asc" ? " ▲" : " ▼") : ""}
-            </button>
-        </th>
-    );
 }
 
 // The gear issues of the character's latest evaluation, behind the issue count.
@@ -122,7 +111,7 @@ function RosterTable({ chars, categoryNameById, sort, dir, onSort }: {
                 <tr>
                     <SortTh sortKey="character" label="Charakter" sort={sort} dir={dir} onSort={onSort} />
                     <SortTh sortKey="classSpec" label="Klasse & Spec" sort={sort} dir={dir} onSort={onSort} />
-                    <th>Kategorie</th>
+                    <SortTh sortKey="category" label="Kategorie" sort={sort} dir={dir} onSort={onSort} />
                     <SortTh sortKey="issues" label="Gear-Issues" sort={sort} dir={dir} onSort={onSort} />
                     <SortTh sortKey="loot" label="Loot" sort={sort} dir={dir} onSort={onSort} />
                     <th>Links</th>
@@ -230,14 +219,12 @@ export default function RosterPage() {
         return true;
     });
 
-    const mul = dir === "asc" ? 1 : -1;
-    const sorted = [...filtered].sort((a, b) => {
-        const va = sortValue(a, sort);
-        const vb = sortValue(b, sort);
-        if (va < vb) return -1 * mul;
-        if (va > vb) return 1 * mul;
-        return a.character.localeCompare(b.character);
-    });
+    // The character name is the tiebreak for every other column: pre-sorted by
+    // name, the (stable) sort below leaves equal rows in that order.
+    const categoryNames = (c: RosterChar) =>
+        c.categoryIds.map((id) => (categoryNameById.get(id) || id).toLowerCase()).sort().join(", ");
+    const byName = sortRows(filtered, (c) => c.character.toLowerCase(), "asc");
+    const sorted = sortRows(byName, (c) => sortValue(c, sort, categoryNames), dir);
 
     // Grouping and filtering by category are the same mechanism: picking one
     // just narrows the groups down to it.

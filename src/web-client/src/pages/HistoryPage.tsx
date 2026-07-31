@@ -7,7 +7,9 @@ import {
 } from "../api";
 import { formatEventTime, fmtMs, formatDate } from "../lib/format";
 import { usePersistedState, usePersistedSearchParam, useDraftState } from "../lib/persistedState";
+import { sortRows, useTableSort, type Dir } from "../lib/tableSort";
 import RaidTable from "../components/RaidTable";
+import { SortTh } from "../components/SortTh";
 import { CharLootHover } from "../components/CharLootHover";
 import { ClassSpecCell, CharacterLink, CLASS_SOURCE_LABELS } from "../components/ClassSpec";
 import { LootReasonsTab } from "../components/LootReasonsTab";
@@ -152,6 +154,11 @@ function ImportForm({ data, csrfToken, onImported }: {
     );
 }
 
+type LootEventSortKey = "event" | "date" | "category" | "count" | "source";
+const LOOT_EVENT_SORT_DEFAULTS: Record<LootEventSortKey, Dir> = {
+    event: "asc", date: "desc", category: "asc", count: "desc", source: "asc",
+};
+
 function LootEventsTab({ lootEvents, categories, csrfToken, onChanged }: {
     lootEvents: LootEventSummary[];
     categories: Category[];
@@ -159,6 +166,12 @@ function LootEventsTab({ lootEvents, categories, csrfToken, onChanged }: {
     onChanged: (msg: string) => void;
 }) {
     const [saving, setSaving] = useState<string | null>(null);
+    // Newest import first by default — that is the one just pasted in, and the
+    // reason this list is opened at all.
+    const { sort, dir, onSort, apply } = useTableSort<LootEventSortKey>(
+        "history-loot-events-sort", LOOT_EVENT_SORT_DEFAULTS, "date",
+    );
+    const categoryNameById = useMemo(() => new Map(categories.map((c) => [c.id, c.name])), [categories]);
 
     // Assigning a category is what makes loot imported without a Raid-Helper
     // event show up in the category-grouped overviews at all; changing it on a
@@ -177,13 +190,36 @@ function LootEventsTab({ lootEvents, categories, csrfToken, onChanged }: {
     };
 
     if (!lootEvents.length) return <p className="sub">Noch kein Loot importiert.</p>;
+
+    const sorted = apply(lootEvents, (e, key) => {
+        switch (key) {
+            case "event": return (e.label || e.eventId).toLowerCase();
+            case "date": return e.awardedAt || e.importedAt || 0;
+            // By the name shown in the select, not the snowflake id; a bucket
+            // without a category sorts last instead of first.
+            case "category": return (categoryNameById.get(e.categoryId || "") || e.categoryId || "zzz").toLowerCase();
+            case "count": return e.count;
+            case "source": return (e.sources || []).map((s) => LOOT_TOOL_LABELS[s] || s).sort().join(", ").toLowerCase();
+            default: return "";
+        }
+    });
+
     return (
         <div className="dash-card">
             <div className="dash-card-head"><h3>Importierter Loot</h3><span className="small" style={{ marginLeft: "auto" }}>{lootEvents.length} Event(s)</span></div>
             <table className="idx" style={{ margin: 0 }}>
-                <thead><tr><th>Event</th><th>Datum</th><th>Kategorie</th><th>Items</th><th>Quelle</th><th /></tr></thead>
+                <thead>
+                    <tr>
+                        <SortTh sortKey="event" label="Event" sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="date" label="Datum" sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="category" label="Kategorie" sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="count" label="Items" sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="source" label="Quelle" sort={sort} dir={dir} onSort={onSort} />
+                        <th />
+                    </tr>
+                </thead>
                 <tbody>
-                    {lootEvents.map((e) => (
+                    {sorted.map((e) => (
                         <tr key={e.eventId}>
                             <td><strong>{e.label || e.eventId}</strong></td>
                             <td className="small">{fmtMs(e.awardedAt || e.importedAt, false)}</td>
@@ -218,7 +254,12 @@ function LootEventsTab({ lootEvents, categories, csrfToken, onChanged }: {
     );
 }
 
+type LogSortKey = "log" | "date" | "zone" | "event" | "status";
+const LOG_SORT_DEFAULTS: Record<LogSortKey, Dir> = { log: "asc", date: "desc", zone: "asc", event: "asc", status: "asc" };
+
 function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: string | null; onChanged: (msg: string) => void }) {
+    const { sort, dir, onSort, apply } = useTableSort<LogSortKey>("history-logs-sort", LOG_SORT_DEFAULTS, "date");
+
     const remove = async (l: LootLog) => {
         if (!confirm("Log aus der Liste entfernen?")) return;
         try {
@@ -231,13 +272,35 @@ function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: s
 
     if (!logs.length) return <p className="sub">Keine Warcraft-Logs erfasst (Log-Channels in den Einstellungen konfigurieren).</p>;
 
+    const sorted = apply(logs, (l, key) => {
+        switch (key) {
+            case "log": return (l.title || l.reportId || "").toLowerCase();
+            case "date": return l.postedAt || 0;
+            case "zone": return (l.zone || "zzz").toLowerCase();
+            // Unassigned logs are the ones that need work, so they lead the
+            // ascending order instead of trailing the named ones.
+            case "event": return (l.eventLabel || l.eventId || "").toLowerCase();
+            case "status": return l.status === "done" ? 1 : 0;
+            default: return "";
+        }
+    });
+
     return (
         <div className="dash-card">
             <div className="dash-card-head"><h3>Warcraft Logs</h3><span className="small" style={{ marginLeft: "auto" }}>{logs.length}</span></div>
             <table className="idx" style={{ margin: 0 }}>
-                <thead><tr><th>Log</th><th>Datum</th><th>Zone</th><th>Event</th><th>Status</th><th /></tr></thead>
+                <thead>
+                    <tr>
+                        <SortTh sortKey="log" label="Log" sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="date" label="Datum" sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="zone" label="Zone" sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="event" label="Event" sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="status" label="Status" sort={sort} dir={dir} onSort={onSort} />
+                        <th />
+                    </tr>
+                </thead>
                 <tbody>
-                    {logs.map((l) => {
+                    {sorted.map((l) => {
                         const wclUrl = l.link || (l.reportId ? `https://classic.warcraftlogs.com/reports/${l.reportId}` : "");
                         return (
                             <tr key={l.id}>
@@ -265,41 +328,26 @@ function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: s
     );
 }
 
-type CharSortKey = "character" | "classSpec" | "count" | "source";
-type Dir = "asc" | "desc";
+type CharSortKey = "character" | "classSpec" | "category" | "count" | "source";
 
-const CHAR_SORT_DEFAULTS: Record<CharSortKey, Dir> = { character: "asc", classSpec: "asc", count: "desc", source: "asc" };
+const CHAR_SORT_DEFAULTS: Record<CharSortKey, Dir> = { character: "asc", classSpec: "asc", category: "asc", count: "desc", source: "asc" };
 
 // Everything the Charaktere tab remembers between visits (see usePersistedState).
 type CharView = { search: string; category: string; classSpec: string; sort: CharSortKey; dir: Dir };
 const CHAR_VIEW_DEFAULT: CharView = { search: "", category: "", classSpec: "", sort: "count", dir: CHAR_SORT_DEFAULTS.count };
 
-function charSortValue(c: AnnotatedCharacter, key: CharSortKey): string | number {
+// The category cell holds badges, one per raid series the character shows up
+// in; it sorts by their names (the ids are snowflakes and would sort by channel
+// creation date), a character without any last.
+function charSortValue(c: AnnotatedCharacter, key: CharSortKey, categoryNames: (c: AnnotatedCharacter) => string): string | number {
     switch (key) {
         case "character": return c.character.toLowerCase();
         case "classSpec": return `${c.className} ${c.spec}`.toLowerCase().trim();
+        case "category": return categoryNames(c) || "zzz";
         case "count": return c.count;
         case "source": return (CLASS_SOURCE_LABELS[c.source] || c.source || "").toLowerCase();
         default: return "";
     }
-}
-
-function CharSortTh({ sortKey, label, sort, dir, onSort }: {
-    sortKey: CharSortKey;
-    label: string;
-    sort: CharSortKey;
-    dir: Dir;
-    onSort: (key: CharSortKey) => void;
-}) {
-    const active = sort === sortKey;
-    const arrow = active ? (dir === "asc" ? " ▲" : " ▼") : "";
-    return (
-        <th>
-            <button type="button" className={`sort-link${active ? " active" : ""}`} onClick={() => onSort(sortKey)}>
-                {label}{arrow}
-            </button>
-        </th>
-    );
 }
 
 function CharTable({ chars, categoryNameById, sort, dir, onSort }: {
@@ -313,11 +361,11 @@ function CharTable({ chars, categoryNameById, sort, dir, onSort }: {
         <table className="idx" style={{ margin: 0 }}>
             <thead>
                 <tr>
-                    <CharSortTh sortKey="character" label="Charakter" sort={sort} dir={dir} onSort={onSort} />
-                    <CharSortTh sortKey="classSpec" label="Klasse & Spec" sort={sort} dir={dir} onSort={onSort} />
-                    <th>Kategorie</th>
-                    <CharSortTh sortKey="count" label="Items" sort={sort} dir={dir} onSort={onSort} />
-                    <CharSortTh sortKey="source" label="Quelle" sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="character" label="Charakter" sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="classSpec" label="Klasse & Spec" sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="category" label="Kategorie" sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="count" label="Items" sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="source" label="Quelle" sort={sort} dir={dir} onSort={onSort} />
                 </tr>
             </thead>
             <tbody>
@@ -426,14 +474,9 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
         return true;
     });
 
-    const mul = dir === "asc" ? 1 : -1;
-    const sorted = [...filtered].sort((a, b) => {
-        const va = charSortValue(a, sort);
-        const vb = charSortValue(b, sort);
-        if (va < vb) return -1 * mul;
-        if (va > vb) return 1 * mul;
-        return 0;
-    });
+    const categoryNames = (c: AnnotatedCharacter) =>
+        c.categoryIds.map((id) => (categoryNameById.get(id) || id).toLowerCase()).sort().join(", ");
+    const sorted = sortRows(filtered, (c) => charSortValue(c, sort, categoryNames), dir);
 
     // Group by raid category (Pug, Montagsraid, …), not by the individual dated
     // raid — a character raiding under several categories shows up in each, so
@@ -586,11 +629,11 @@ export default function HistoryPage() {
                 <>
                     <div className="dash-card" style={{ marginBottom: 18 }}>
                         <div className="dash-card-head"><h3>Kommende Raids</h3><span className="small" style={{ marginLeft: "auto" }}>{data.upcomingRaids.events.length}</span></div>
-                        <RaidTable events={data.upcomingRaids.events} guildId={data.activeGuildId} error={data.upcomingRaids.error} emptyMessage="Keine anstehenden Raids gefunden." />
+                        <RaidTable events={data.upcomingRaids.events} guildId={data.activeGuildId} error={data.upcomingRaids.error} emptyMessage="Keine anstehenden Raids gefunden." sortKey="raids-upcoming-sort" initialDir="asc" />
                     </div>
                     <div className="dash-card">
                         <div className="dash-card-head"><h3>Vergangene Raids</h3><span className="small" style={{ marginLeft: "auto" }}>{data.pastRaids.events.length}</span></div>
-                        <RaidTable events={data.pastRaids.events} guildId={data.activeGuildId} error={data.pastRaids.error} emptyMessage="Keine vergangenen Raids gefunden." />
+                        <RaidTable events={data.pastRaids.events} guildId={data.activeGuildId} error={data.pastRaids.error} emptyMessage="Keine vergangenen Raids gefunden." sortKey="raids-past-sort" />
                     </div>
                 </>
             )}

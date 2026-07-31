@@ -5,10 +5,15 @@ import {
     type ApiError, type NotifyTemplate,
 } from "../api";
 import { useDraftState } from "../lib/persistedState";
+import { useTableSort, type Dir } from "../lib/tableSort";
 import type { ShellContext } from "../components/Shell";
+import { SortTh } from "../components/SortTh";
 import { TrashIcon } from "../components/icons";
 
 type Flash = { type: "ok" | "err"; text: string };
+
+type SortKey = "name" | "title";
+const SORT_DEFAULTS: Record<SortKey, Dir> = { name: "asc", title: "asc" };
 
 // Model closely on RecruitmentPage.tsx's TemplateForm — same create/edit-by-
 // query-param pattern, including the form-reset-after-save fix: the legacy SSR
@@ -83,6 +88,7 @@ export default function NotifyTemplatesPage() {
     const [templates, setTemplates] = useState<NotifyTemplate[] | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [flash, setFlash] = useState<Flash | null>(null);
+    const { sort, dir, onSort, apply } = useTableSort<SortKey>("notify-templates-sort", SORT_DEFAULTS, "name");
 
     const load = () => {
         getNotifyTemplates().then((r) => setTemplates(r.templates)).catch((err: ApiError) => setError(err));
@@ -113,6 +119,7 @@ export default function NotifyTemplatesPage() {
     if (!templates) return <div className="empty">Lade…</div>;
 
     const editing = editId ? templates.find((t) => t.id === editId) || null : null;
+    const sorted = apply(templates, (t, key) => (key === "name" ? (t.name || "") : (t.title || "")).toLowerCase());
 
     return (
         <>
@@ -123,9 +130,15 @@ export default function NotifyTemplatesPage() {
             {templates.length
                 ? (
                     <table className="idx" style={{ marginBottom: 18 }}>
-                        <thead><tr><th>Name</th><th>Titel</th><th /></tr></thead>
+                        <thead>
+                            <tr>
+                                <SortTh sortKey="name" label="Name" sort={sort} dir={dir} onSort={onSort} />
+                                <SortTh sortKey="title" label="Titel" sort={sort} dir={dir} onSort={onSort} />
+                                <th />
+                            </tr>
+                        </thead>
                         <tbody>
-                            {templates.map((t) => (
+                            {sorted.map((t) => (
                                 <tr key={t.id}>
                                     <td><strong>{t.name || "(ohne Name)"}</strong></td>
                                     <td className="sub" style={{ margin: 0 }}>{t.title || ""}</td>

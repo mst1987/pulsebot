@@ -92,6 +92,16 @@ const LOG_SORT_KEYS = {
     date: logPostedAt,
     title: (l) => String(l.title || l.reportId || "").toLowerCase(),
     status: (l) => (l.status === "done" ? 1 : 0),
+    // Category and channel are annotated onto the logs from Discord
+    // (annotateLogCategories) — the route has to do that BEFORE sorting, else
+    // only the current page carries them and the order would be arbitrary.
+    category: (l) => String(l.categoryName || "").toLowerCase(),
+    // The logs still waiting for a raid carry no label and lead the ascending
+    // order: they are the ones the page is opened for.
+    event: (l) => String(l.eventLabel || "").toLowerCase(),
+    // The "Quelle" column links to the Discord message; what distinguishes the
+    // rows there is the channel it was posted in.
+    source: (l) => String(l.channelName || "").toLowerCase(),
 };
 
 function prepareLogList(logs, query = {}, opts = {}) {
