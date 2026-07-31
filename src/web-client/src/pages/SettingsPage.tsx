@@ -553,7 +553,7 @@ export default function SettingsPage() {
                     <div className="field">
                         <label>Discord-Server-ID (Guild-ID)</label>
                         <input type="text" value={draft.guildId} onChange={(e) => patch({ guildId: e.target.value })} placeholder="Discord-Server-ID" />
-                        <div className="hint">Der Server, gegen den der Admin-Rollencheck oben läuft. Nicht zu verwechseln mit der Server-Auswahl im Menü.</div>
+                        <div className="hint">Der Server, gegen den der Admin-Rollencheck oben läuft — und der im Menü oben rechts vorausgewählt ist, solange niemand aktiv einen anderen wählt (die Auswahl im Menü gilt nur für die eigene Sitzung). Leer gespeichert greift wieder der Standard-Server des Bots.</div>
                     </div>
                     <div className="field">
                         <label>Raid-Helper Server-ID</label>
