@@ -15,6 +15,7 @@ import { usePersistedState } from "../lib/persistedState";
 import { ClassSpecCell } from "../components/ClassSpec";
 import { CharLootHover } from "../components/CharLootHover";
 import { HoverPanel } from "../components/HoverPanel";
+import { RosterHero } from "../components/RosterHero";
 
 type SortKey = "character" | "classSpec" | "issues" | "loot";
 type Dir = "asc" | "desc";
@@ -24,8 +25,11 @@ const SORT_DEFAULTS: Record<SortKey, Dir> = { character: "asc", classSpec: "asc"
 // Search/filter/sort survive a reload and a visit to another page. Stored
 // values are untrusted: a sort key from an older build falls back to the
 // default instead of sorting by nothing.
-type View = { search: string; category: string; classSpec: string; onlyIssues: boolean; sort: SortKey; dir: Dir };
-const VIEW_DEFAULT: View = { search: "", category: "", classSpec: "", onlyIssues: false, sort: "character", dir: "asc" };
+// `className` narrows to a whole class and is driven by the header's
+// distribution strip; `classSpec` is the select's finer class+spec pick. Both
+// exist because the strip has no spec to offer — a segment is a class.
+type View = { search: string; category: string; className: string; classSpec: string; onlyIssues: boolean; sort: SortKey; dir: Dir };
+const VIEW_DEFAULT: View = { search: "", category: "", className: "", classSpec: "", onlyIssues: false, sort: "character", dir: "asc" };
 
 function sortValue(c: RosterChar, key: SortKey): string | number {
     switch (key) {
@@ -220,6 +224,7 @@ export default function RosterPage() {
     const filtered = chars.filter((c) => {
         if (searchLower && !c.character.toLowerCase().includes(searchLower)) return false;
         if (view.category && !c.categoryIds.includes(view.category)) return false;
+        if (view.className && c.className !== view.className) return false;
         if (view.classSpec && `${c.className}||${c.spec}` !== view.classSpec) return false;
         if (view.onlyIssues && !(c.gear && c.gear.issueCount)) return false;
         return true;
@@ -242,8 +247,7 @@ export default function RosterPage() {
         .filter((g) => g.chars.length);
     const ungrouped = sorted.filter((c) => !c.categoryIds.length);
 
-    const hasFilters = !!(view.search || view.category || view.classSpec || view.onlyIssues);
-    const withIssues = chars.filter((c) => c.gear && c.gear.issueCount).length;
+    const hasFilters = !!(view.search || view.category || view.className || view.classSpec || view.onlyIssues);
 
     return (
         <>
@@ -254,11 +258,25 @@ export default function RosterPage() {
                 im Raid-Detail unter „Anwesenheit" zugeordnet; zusätzlich zählt jeder Raid, in dem ein Char Loot bekommen hat.
             </p>
 
+            {!!data.stats && (
+                <RosterHero
+                    stats={data.stats}
+                    activeClass={view.className}
+                    // The two class filters would fight each other ("Mage" plus
+                    // "Shadow Priest" matches nobody), so each one clears the other.
+                    onToggleClass={(className) => patch({ className, classSpec: "" })}
+                    onlyIssues={view.onlyIssues}
+                    onToggleIssues={() => patch({ onlyIssues: !view.onlyIssues })}
+                />
+            )}
+
             <div className="dash-card">
                 <div className="dash-card-head">
                     <h3>Charaktere</h3>
                     <span className="small" style={{ marginLeft: "auto" }}>
-                        {chars.length} Charakter(e){withIssues ? ` · ${withIssues} mit Gear-Problemen` : ""}
+                        {hasFilters
+                            ? `${sorted.length} von ${chars.length} Charakter(e)`
+                            : `${chars.length} Charakter(e)`}
                     </span>
                 </div>
                 <div style={{ display: "flex", gap: 14, flexWrap: "wrap", padding: "14px 16px", borderBottom: "1px solid var(--line)" }}>
@@ -281,7 +299,7 @@ export default function RosterPage() {
                     </div>
                     <div className="field" style={{ margin: 0, minWidth: 180 }}>
                         <label htmlFor="roster-class">Klasse & Spec</label>
-                        <select id="roster-class" value={view.classSpec} onChange={(e) => patch({ classSpec: e.target.value })}>
+                        <select id="roster-class" value={view.classSpec} onChange={(e) => patch({ classSpec: e.target.value, className: "" })}>
                             <option value="">Alle Klassen</option>
                             {classOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
@@ -302,7 +320,7 @@ export default function RosterPage() {
                                 className="btn btn-ghost btn-sm"
                                 type="button"
                                 title="Suche und Filter zurücksetzen (werden lokal im Browser gespeichert)"
-                                onClick={() => patch({ search: "", category: "", classSpec: "", onlyIssues: false })}
+                                onClick={() => patch({ search: "", category: "", className: "", classSpec: "", onlyIssues: false })}
                             >
                                 Filter zurücksetzen
                             </button>

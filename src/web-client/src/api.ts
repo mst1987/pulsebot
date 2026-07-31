@@ -336,7 +336,30 @@ export type RosterChar = {
     gear: CharGearReport | null;
 };
 
-export type RosterData = { chars: RosterChar[]; categories: Category[]; activeGuildId: string };
+/** One segment of the roster's class distribution — see web/rosterStats.js. */
+export type RosterClassShare = { className: string; classColor: string; count: number };
+
+/**
+ * The header band's numbers, folded server-side over the same rows the table
+ * below renders. They describe the *whole* roster: the filter bar underneath
+ * narrows the table, not the headline.
+ */
+export type RosterStats = {
+    total: number;
+    assigned: number;
+    fromLootOnly: number;
+    categories: number;
+    uncategorized: number;
+    loot: number;
+    evaluated: number;
+    withIssues: number;
+    clean: number;
+    issues: number;
+    highIssues: number;
+    classes: RosterClassShare[];
+};
+
+export type RosterData = { chars: RosterChar[]; categories: Category[]; stats: RosterStats; activeGuildId: string };
 
 export function getRoster(): Promise<RosterData> {
     return get<RosterData>("/api/roster");

@@ -233,6 +233,92 @@ td.cell-actions { text-align: right; white-space: nowrap; vertical-align: middle
     .hero-actions-row { justify-content: flex-start; }
 }
 
+/* ===== statistics hero band (roster) =====
+   A variant of .page-hero whose subject is a set of numbers instead of one
+   entity: hero figure + stat tiles with meters on top, a part-to-whole strip
+   with its legend in the footer. Built from the shared hero tokens above so it
+   sits in the same visual family as the raid/character heroes. */
+.stat-hero { border-top-color: var(--accent); }
+.stat-hero-main { display: flex; align-items: stretch; gap: 26px; padding: 18px 20px; flex-wrap: wrap; }
+.stat-hero-lead { display: flex; flex-direction: column; justify-content: center; gap: 4px; min-width: 190px; }
+.stat-hero-figure { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+/* The one hero figure of the page. Proportional figures on purpose: tabular
+   digits are for columns that must align, and at 52px they read loose. */
+.stat-hero-value { font-size: 52px; font-weight: 800; line-height: .95; letter-spacing: -.03em; color: var(--accent); }
+.stat-hero-unit { font-size: 15px; font-weight: 700; color: var(--text); }
+.stat-hero-sub { margin: 2px 0 0; font-size: 12.5px; color: var(--muted); }
+
+/* KPI row. Auto-fit so four tiles share the width on a desktop and reflow to
+   two, then one, without a media query per breakpoint. */
+.stat-tiles { flex: 1 1 460px; display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 10px; }
+.stat-tile {
+    display: grid; align-content: start; gap: 6px; min-width: 0;
+    padding: 11px 13px; background: var(--panel2); border: 1px solid var(--line);
+    border-left: 2px solid var(--line); border-radius: 0; text-align: left; font: inherit; color: inherit;
+}
+.stat-tile-label { font-size: 10.5px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: var(--muted); }
+.stat-tile-value { font-size: 24px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; font-family: var(--font-mono); }
+.stat-tile-of { font-size: 12.5px; font-weight: 600; color: var(--muted); margin-left: 5px; }
+.stat-tile-sub { font-size: 11.5px; color: var(--muted); }
+.stat-tile.is-accent { border-left-color: var(--accent); }
+.stat-tile.is-ok { border-left-color: var(--good); }
+.stat-tile.is-warn { border-left-color: var(--high); }
+.stat-tile.is-warn .stat-tile-value { color: var(--high); }
+/* Meter: the fill carries the state, the track is the same hue lightened, so
+   the ratio reads across the whole bar and not only from the digits. */
+.stat-meter { display: block; width: 100%; height: 4px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.stat-meter i { display: block; height: 100%; border-radius: inherit; background: var(--accent-2); transition: width .25s ease; }
+.stat-tile.is-accent .stat-meter { background: var(--accent-soft); }
+.stat-tile.is-accent .stat-meter i { background: var(--accent); }
+.stat-tile.is-warn .stat-meter { background: var(--high-bg); }
+.stat-tile.is-warn .stat-meter i { background: var(--high); }
+.stat-tile.is-ok .stat-meter { background: var(--good-bg); }
+.stat-tile.is-ok .stat-meter i { background: var(--good); }
+/* A tile that also filters the table below it says so by being pressable. */
+.stat-tile.is-toggle { cursor: pointer; transition: border-color .15s ease, background .15s ease; }
+.stat-tile.is-toggle:hover { border-color: var(--accent); }
+.stat-tile.is-toggle.is-active { background: var(--accent-soft); border-color: var(--accent); }
+.stat-tile.is-toggle.is-active.is-warn { border-left-color: var(--high); }
+
+.stat-hero-foot { border-top: 1px solid var(--line-soft); background: var(--panel2); padding: 13px 20px 15px; display: flex; flex-direction: column; gap: 9px; }
+.stat-strip-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+/* Part-to-whole strip: the 2px gaps are the footer surface showing through —
+   the segments carry no stroke, so no ink is spent that isn't data. */
+.stat-strip { display: flex; gap: 2px; height: 12px; width: 100%; border-radius: 999px; overflow: hidden; }
+.stat-seg { display: block; min-width: 4px; flex-basis: 0; flex-shrink: 1; transition: opacity .15s ease; }
+.stat-seg.is-unknown, .stat-dot.is-unknown { background: var(--line); }
+/* Filtering dims the rest instead of removing it: the composition stays
+   comparable, the picked class is the only one at full strength. */
+.stat-seg.is-dim { opacity: .28; }
+
+.stat-legend { display: flex; flex-wrap: wrap; gap: 5px 6px; }
+.stat-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px;
+    border: 1px solid var(--line); border-radius: 999px; background: var(--panel);
+    color: var(--muted); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+    transition: border-color .15s ease, color .15s ease;
+}
+.stat-chip:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
+.stat-chip.is-active { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+.stat-chip:disabled { cursor: default; opacity: .75; }
+.stat-chip b { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text); font-weight: 700; }
+.stat-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+
+/* A class colour as a fill. Same problem .class-colored solves for text: WoW's
+   palette is built for a black game UI, so Priest white and Rogue yellow
+   vanish on the light theme's surfaces — darken them there. */
+.class-fill { background: var(--cc); }
+@media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) .class-fill { background: color-mix(in srgb, var(--cc) 62%, #0d0f14); }
+}
+:root[data-theme="light"] .class-fill { background: color-mix(in srgb, var(--cc) 62%, #0d0f14); }
+
+@media (max-width: 700px) {
+    .stat-hero-main { gap: 16px; padding: 16px; }
+    .stat-hero-value { font-size: 42px; }
+    .stat-hero-foot { padding: 12px 16px 14px; }
+}
+
 /* --- character detail: the hero's leading badge is a class portrait ---
    Same 82px footprint as the raid hero's calendar badge, so both pages line
    their identity band up identically. The class colour comes from the API as
