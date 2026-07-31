@@ -10,6 +10,7 @@ import { formatEventTime, fmtMs } from "../lib/format";
 import { usePersistedState, usePersistedSearchParam, useDraftState } from "../lib/persistedState";
 import type { ShellContext } from "../components/Shell";
 import { useJobs } from "../components/Jobs";
+import Pager from "../components/Pager";
 import { RunIcon, SearchIcon, LinkIcon, TrashIcon, ExternalIcon, XIcon } from "../components/icons";
 
 type View = "reports" | "logs";
@@ -77,17 +78,6 @@ function SortTh({ sortKey, label, page, defaults, onSort }: {
     );
 }
 
-// Prev/next pager — mirrors claPager()'s exact text ("Seite X / Y · Z gesamt").
-function Pager({ page, onPage }: { page: { page: number; totalPages: number; total: number }; onPage: (p: number) => void }) {
-    if (!page.total) return null;
-    return (
-        <div className="pager">
-            <button type="button" className={`pager-btn${page.page <= 1 ? " disabled" : ""}`} disabled={page.page <= 1} onClick={() => onPage(page.page - 1)}>‹ Zurück</button>
-            <span className="pager-info">Seite {page.page} / {page.totalPages} · {page.total} gesamt</span>
-            <button type="button" className={`pager-btn${page.page >= page.totalPages ? " disabled" : ""}`} disabled={page.page >= page.totalPages} onClick={() => onPage(page.page + 1)}>Weiter ›</button>
-        </div>
-    );
-}
 
 // The "Raid" cell of a report row: the raid its log is assigned to, with a
 // button to remove that assignment. A report is never linked to a raid directly

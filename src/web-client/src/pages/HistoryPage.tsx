@@ -12,16 +12,18 @@ import { CharLootHover } from "../components/CharLootHover";
 import { ClassSpecCell, CharacterLink, CLASS_SOURCE_LABELS } from "../components/ClassSpec";
 import { LootReasonsTab } from "../components/LootReasonsTab";
 import { LootItemsTab } from "../components/LootItemsTab";
+import { LatestLootTab } from "../components/LatestLootTab";
 import type { ShellContext } from "../components/Shell";
 import { TrashIcon } from "../components/icons";
 
 type Flash = { type: "ok" | "err"; text: string };
-type Tab = "raids" | "import" | "loot" | "reasons" | "items" | "logs" | "chars";
+type Tab = "raids" | "import" | "loot" | "awards" | "reasons" | "items" | "logs" | "chars";
 
 const TABS: { id: Tab; label: string; count?: (d: HistoryData) => number }[] = [
     { id: "raids", label: "Alle Raids", count: (d) => d.upcomingRaids.events.length + d.pastRaids.events.length },
     { id: "import", label: "Import" },
     { id: "loot", label: "Importierter Loot", count: (d) => d.lootEvents.length },
+    { id: "awards", label: "Latest Loot" },
     { id: "reasons", label: "Loot-Gründe" },
     { id: "items", label: "Items" },
     { id: "logs", label: "Warcraft Logs", count: (d) => d.logs.length },
@@ -594,6 +596,8 @@ export default function HistoryPage() {
             )}
             {tab === "import" && <ImportForm data={data} csrfToken={csrfToken} onImported={afterChange} />}
             {tab === "loot" && <LootEventsTab lootEvents={data.lootEvents} categories={data.categories} csrfToken={csrfToken} onChanged={afterChange} />}
+            {/* Fetches its own page of awards — see LatestLootTab. */}
+            {tab === "awards" && <LatestLootTab categories={data.categories} />}
             {STATS_TABS.includes(tab) && (
                 statsError
                     ? <div className="empty">Fehler beim Laden: {statsError.message}</div>

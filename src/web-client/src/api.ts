@@ -993,6 +993,44 @@ export function getLootStats(): Promise<LootStats> {
     return get<LootStats>("/api/history/loot-stats");
 }
 
+// One page of the "Latest Loot" tab. The rows are the same awards the dashboard
+// card shows (see web/lootAwards.js); filtering and paging happen on the server,
+// because the loot store holds every row ever imported.
+export type LootAwardsQuery = {
+    /** false widens the list from the configured top items to all loot. */
+    topOnly: boolean;
+    search: string;
+    category: string;
+    content: string;
+    reason: string;
+    page: number;
+};
+
+export type LootAwardsData = {
+    items: TopLootAward[];
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    /** How many top items are configured at all (Einstellungen → Loot). */
+    topItemCount: number;
+    contents: LootContent[];
+    reasons: LootReason[];
+    unknownContentCount: number;
+};
+
+export function getLootAwards(q: LootAwardsQuery): Promise<LootAwardsData> {
+    const qs = new URLSearchParams({
+        top: q.topOnly ? "1" : "0",
+        q: q.search,
+        category: q.category,
+        content: q.content,
+        reason: q.reason,
+        page: String(q.page),
+    });
+    return get<LootAwardsData>(`/api/history/loot-awards?${qs.toString()}`);
+}
+
 export function deleteHistoryLog(csrfToken: string | null, logId: string): Promise<{ id: string }> {
     return send("POST", "/api/history/log-delete", csrfToken, { logId });
 }
