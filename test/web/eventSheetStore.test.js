@@ -108,6 +108,25 @@ describe("web/eventSheetStore", () => {
             expect(markEventSheetPosted("evt1", { channelId: "c1", messageId: "m1" })).toBeNull();
         });
 
+        // A raid that links the fixed sheet of its category has no fill record,
+        // but its posted message still has to be editable the next time around.
+        it("creates a sheetless record with createIfMissing", () => {
+            const saved = markEventSheetPosted("evt1", {
+                channelId: "c1", messageId: "m1", message: "Bitte eintragen", createIfMissing: true,
+            });
+            expect(saved).toMatchObject({
+                eventId: "evt1", url: "", sheetId: "", postedChannelId: "c1", postedMessageId: "m1",
+            });
+            expect(getEventSheet("evt1")).toMatchObject({ postedMessageId: "m1", url: "" });
+        });
+
+        it("updates that record instead of adding a second one", () => {
+            markEventSheetPosted("evt1", { channelId: "c1", messageId: "m1", createIfMissing: true });
+            markEventSheetPosted("evt1", { channelId: "c1", messageId: "m2", createIfMissing: true });
+            expect(listEventSheets()).toHaveLength(1);
+            expect(getEventSheet("evt1").postedMessageId).toBe("m2");
+        });
+
         it("records the posted message on top of an existing fill record", () => {
             markEventSheetFilled("evt1", { sheetId: "s1" });
             const saved = markEventSheetPosted("evt1", { channelId: "c1", messageId: "m1", message: "Bitte eintragen!" });

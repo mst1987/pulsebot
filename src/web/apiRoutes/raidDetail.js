@@ -10,7 +10,7 @@ const { readJsonBody } = require("../apiBody");
 const { activeGuildFor } = require("../activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
 const {
-    getConfig, listNotify, listRaidsheets, getNotify, getRaidsheet,
+    getConfig, listNotify, listRaidsheets, getNotify, getRaidsheet, resolveEventSheetLink,
 } = require("../settingsStore");
 const { matchRaidsheet } = require("../../utils/raidsheets");
 const { buildSetupView, tankCandidates } = require("../../utils/setupView");
@@ -176,6 +176,9 @@ async function getRaidDetail(req, res, url) {
         setupError,
         tankCandidates: tankCands,
         eventSheet: getEventSheet(eventId),
+        // Which sheet this raid actually links: its own filled copy, else the
+        // fixed sheet assigned to its category in the settings, else null.
+        sheetLink: resolveEventSheetLink(getEventSheet(eventId), found.g.categoryId),
         eventSoftres,
         softresCatalogue: softres.catalogue().filter((g) => g.edition === softresEdition),
         softresEdition,
@@ -201,9 +204,11 @@ async function resolveEventForPost(req, eventId) {
     const guildId = activeGuildFor(req);
     const { groups, error: groupsError } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
     if (groupsError) return { found: null, errorMessage: groupsError, code: "events_unavailable" };
-    const found = groups.flatMap((g) => g.events).find((e) => e.id === eventId);
-    if (!found) return { found: null, errorMessage: "Event nicht gefunden.", code: "not_found" };
-    return { found, errorMessage: null, code: null };
+    const hit = groups.flatMap((g) => g.events.map((e) => ({ e, g }))).find((x) => x.e.id === eventId);
+    if (!hit) return { found: null, errorMessage: "Event nicht gefunden.", code: "not_found" };
+    // categoryId comes along because the sheet a raid links may be the fixed one
+    // assigned to its category (settingsStore's categorySheets).
+    return { found: hit.e, categoryId: hit.g.categoryId, errorMessage: null, code: null };
 }
 
 /** POST /api/raids/notify — post an Anmelde-Aufruf into the event channel, pinging the chosen roles. Body: { event, templateId, channelId, roleIds }. */
@@ -345,22 +350,26 @@ async function postPostSheet(req, res) {
     const body = await readJsonBody(req);
     const eventId = String(body.event || "").trim();
     const es = getEventSheet(eventId);
-    if (!es || !es.url) return error(res, 400, "no_sheet", "Für dieses Event gibt es noch kein gefülltes Sheet.");
     // Resolve the event's channel + title server-side; never trust posted ids.
     // Past raids included — the detail page is reachable for them too.
-    const { found, errorMessage, code } = await resolveEventForPost(req, eventId);
+    const { found, categoryId, errorMessage, code } = await resolveEventForPost(req, eventId);
     if (errorMessage) return error(res, code === "not_found" ? 404 : 400, code, errorMessage);
+    // The app-made copy wins; without one the category's fixed sheet is posted.
+    const link = resolveEventSheetLink(es, categoryId);
+    if (!link) {
+        return error(res, 400, "no_sheet", "Für dieses Event gibt es weder ein gefülltes Sheet noch ein der Kategorie zugewiesenes.");
+    }
     // "message" present (even "") means the caller set it explicitly; otherwise
     // (quick re-post with no edit) keep whatever text was posted last time.
-    const message = body.message !== undefined ? body.message : (es.postedMessage || "");
+    const message = body.message !== undefined ? body.message : ((es && es.postedMessage) || "");
     const linkOpts = {
-        url: es.url,
+        url: link.url,
         title: found.title ? `Raidsheet – ${found.title}` : "Raidsheet",
         message,
         label: "Raidsheet öffnen",
         emoji: "📄",
     };
-    const alreadyPosted = Boolean(es.postedChannelId && es.postedMessageId);
+    const alreadyPosted = Boolean(es && es.postedChannelId && es.postedMessageId);
     try {
         let posted;
         if (alreadyPosted) {
@@ -372,7 +381,9 @@ async function postPostSheet(req, res) {
         } else {
             posted = await discord.postLink(found.channelId, linkOpts);
         }
-        markEventSheetPosted(eventId, { channelId: posted.channelId, messageId: posted.messageId, message });
+        markEventSheetPosted(eventId, {
+            channelId: posted.channelId, messageId: posted.messageId, message, createIfMissing: true,
+        });
         ok(res, { message: alreadyPosted ? "Raidsheet-Nachricht aktualisiert." : "Raidsheet in den Channel gepostet." });
     } catch (e) {
         console.error("post-sheet failed:", e.message);

@@ -9,15 +9,19 @@ import {
     type RaidDetailEventSheet, type LogSection,
 } from "../api";
 import { eventTimeParts, relativeDayLabel, fmtMs } from "../lib/format";
-import { ClockIcon } from "../components/icons";
+import {
+    ClockIcon, RunIcon, TrashIcon, ExternalIcon, SheetIcon, SendIcon, RefreshIcon, LinkIcon,
+} from "../components/icons";
 import { eventPostUrl, channelUrl, raidplanUrl, messageLink } from "../lib/discordLinks";
 import { LootTable } from "../components/LootTable";
 import type { ShellContext } from "../components/Shell";
-import Toast from "../components/Toast";
+import { useJobs } from "../components/Jobs";
 import PageLoader from "../components/PageLoader";
 
-type Flash = { type: "ok" | "err"; text: string };
 type Tab = "setup" | "attendance" | "actions" | "loot" | "softres" | "logs";
+
+// Rough runtimes for the job toasts' progress bar — same numbers as ClaPage.
+const EVAL_SECONDS: Record<LogSection, number> = { cla: 25, rpb: 55 };
 
 // One KPI cell of the hero header's stat strip: mono label on top, the number
 // below in display size, optionally a hairline bar showing it against the
@@ -308,7 +312,7 @@ function HeaderActions({ data, eventId, csrfToken, onSwitchTab, onDone }: {
     onDone: (msg: string) => void;
 }) {
     const [busy, setBusy] = useState(false);
-    const { eventSheet, eventSoftres, event: ev } = data;
+    const { sheetLink, eventSoftres, event: ev } = data;
     const channelLabel = ev.channelName || ev.channelId;
 
     const run = async (fn: () => Promise<{ message: string }>) => {
@@ -326,29 +330,40 @@ function HeaderActions({ data, eventId, csrfToken, onSwitchTab, onDone }: {
     return (
         <div className="hero-actions-row">
             <PageLoader show={busy} text="Wird gepostet" />
-            {!!eventSheet?.url && (
+            {!!sheetLink && (
                 <>
-                    <a className="btn btn-ghost" href={eventSheet.url} target="_blank" rel="noopener noreferrer">📄 Sheet öffnen</a>
+                    <a
+                        className="btn btn-ghost" href={sheetLink.url} target="_blank" rel="noopener noreferrer"
+                        title={sheetLink.source === "category"
+                            ? `Festes Sheet dieser Kategorie${sheetLink.name ? `: ${sheetLink.name}` : ""}`
+                            : "Für diesen Raid gefülltes Sheet"}
+                    >
+                        <SheetIcon />Sheet öffnen
+                    </a>
                     <button
                         className="btn btn-ghost" type="button" disabled={busy} title={`Sheet-Link in #${channelLabel} posten`}
                         onClick={() => run(() => postRaidSheet(csrfToken, { event: eventId }))}
                     >
-                        📤 Sheet posten
+                        <SendIcon />Sheet posten
                     </button>
                 </>
             )}
             {eventSoftres?.url ? (
                 <>
-                    <a className="btn btn-ghost" href={eventSoftres.url} target="_blank" rel="noopener noreferrer">🔗 Softres öffnen</a>
+                    <a className="btn btn-ghost" href={eventSoftres.url} target="_blank" rel="noopener noreferrer">
+                        <LinkIcon />Softres öffnen
+                    </a>
                     <button
                         className="btn btn-ghost" type="button" disabled={busy} title={`Softres-Link in #${channelLabel} posten`}
                         onClick={() => run(() => postRaidSoftres(csrfToken, { event: eventId }))}
                     >
-                        📤 Softres posten
+                        <SendIcon />Softres posten
                     </button>
                 </>
             ) : (
-                <button className="btn btn-ghost" type="button" onClick={() => onSwitchTab("softres")}>➕ Softres erstellen</button>
+                <button className="btn btn-ghost" type="button" onClick={() => onSwitchTab("softres")}>
+                    <LinkIcon />Softres erstellen
+                </button>
             )}
         </div>
     );
@@ -435,30 +450,32 @@ function FillForm({ data, eventId, csrfToken, onDone }: {
     csrfToken: string | null;
     onDone: (msg: string) => void;
 }) {
-    const { raidsheets, matchedSheetId, tankCandidates, eventSheet, event: ev } = data;
+    const jobs = useJobs();
+    const { raidsheets, matchedSheetId, tankCandidates, eventSheet, sheetLink, event: ev } = data;
     const [sheetId, setSheetId] = useState(matchedSheetId || raidsheets[0]?.id || "");
     const [tank3, setTank3] = useState("");
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
 
     if (!raidsheets.length) {
         return <p className="sub">Keine Raidsheets konfiguriert. Lege sie in den <Link className="mlink" to="/settings">Einstellungen</Link> an.</p>;
     }
 
-    const submit = async (e: React.FormEvent) => {
+    // Copying the template in Drive and writing the setup into it takes a while;
+    // it runs as a background job so the page stays usable meanwhile.
+    const submit = (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
-        setError(null);
-        try {
-            const r = await fillRaidsheet(csrfToken, {
-                event: eventId, sheetId, tank3, eventTitle: ev.title, eventStartTime: ev.startTime,
-            });
-            onDone(r.message);
-        } catch (err) {
-            setError((err as ApiError).message);
-        } finally {
+        jobs.run({
+            label: "Raidsheet füllen",
+            detail: ev.title,
+            expectedSeconds: 20,
+            describe: (r) => ({ message: r.message }),
+        }, () => fillRaidsheet(csrfToken, {
+            event: eventId, sheetId, tank3, eventTitle: ev.title, eventStartTime: ev.startTime,
+        })).then(() => {
             setBusy(false);
-        }
+            onDone("");
+        });
     };
 
     const matchHint = matchedSheetId
@@ -475,8 +492,21 @@ function FillForm({ data, eventId, csrfToken, onDone }: {
                     </div>
                 </div>
             )}
+            {/* No own copy, but the category has a fixed sheet — say which link the
+                raid is currently using, so "Sheet posten" is never a surprise. */}
+            {!eventSheet?.url && sheetLink?.source === "category" && (
+                <div className="sheetcard">
+                    <div>
+                        <strong>Festes Sheet dieser Kategorie:</strong>{" "}
+                        <a className="mlink" href={sheetLink.url} target="_blank" rel="noopener noreferrer">{sheetLink.name || "Sheet öffnen"}</a>
+                    </div>
+                    <div className="hint">
+                        Wird verlinkt und gepostet, solange für diesen Raid kein eigenes Sheet erstellt wurde.
+                        Zugewiesen in den <Link className="mlink" to="/settings">Einstellungen</Link> unter „Raidsheets".
+                    </div>
+                </div>
+            )}
             <form className="card-form" onSubmit={submit}>
-                {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
                 <div className="field">
                     <label>Vorlage (Ausgangssheet)</label>
                     <select value={sheetId} onChange={(e) => setSheetId(e.target.value)} required>
@@ -505,16 +535,20 @@ function FillForm({ data, eventId, csrfToken, onDone }: {
                         </div>
                     )}
                 <div className="row-actions">
-                    <button className="btn" type="submit" disabled={busy}>{busy ? "Erstelle Sheet …" : "Neues Sheet erstellen & füllen"}</button>
+                    <button className={`btn${busy ? " is-running" : ""}`} type="submit" disabled={busy}>
+                        {busy ? <span className="btn-spin" /> : <SheetIcon />}
+                        {busy ? "Erstelle Sheet …" : "Neues Sheet erstellen & füllen"}
+                    </button>
                 </div>
             </form>
         </>
     );
 }
 
-function PostSheetForm({ eventId, eventSheet, guildId, channelLabel, csrfToken, onDone }: {
+function PostSheetForm({ eventId, eventSheet, sheetLink, guildId, channelLabel, csrfToken, onDone }: {
     eventId: string;
     eventSheet: RaidDetailEventSheet;
+    sheetLink: RaidDetailData["sheetLink"];
     guildId: string;
     channelLabel: string;
     csrfToken: string | null;
@@ -524,10 +558,12 @@ function PostSheetForm({ eventId, eventSheet, guildId, channelLabel, csrfToken, 
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    if (!eventSheet?.url) {
-        return <p className="sub">Noch kein gefülltes Sheet vorhanden — fülle oben zuerst ein Raidsheet, dann kannst du den Link hier in den Channel posten.</p>;
+    // Postable as soon as there is any sheet to link — the raid's own copy, or
+    // the fixed one assigned to its category.
+    if (!sheetLink) {
+        return <p className="sub">Noch kein Sheet vorhanden — fülle oben ein Raidsheet oder weise der Kategorie in den Einstellungen ein festes Sheet zu, dann kannst du den Link hier in den Channel posten.</p>;
     }
-    const posted = !!(eventSheet.postedChannelId && eventSheet.postedMessageId);
+    const posted = !!(eventSheet?.postedChannelId && eventSheet?.postedMessageId);
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -552,11 +588,16 @@ function PostSheetForm({ eventId, eventSheet, guildId, channelLabel, csrfToken, 
                 <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="z. B. Das Raidsheet für heute Abend – bitte eintragen!" />
                 <div className="hint">
                     {posted
-                        ? <>Bereits gepostet in #{channelLabel} — <a className="mlink" href={messageLink(guildId, eventSheet.postedChannelId!, eventSheet.postedMessageId!)} target="_blank" rel="noopener noreferrer">Nachricht öffnen</a>. Speichern aktualisiert diese Nachricht.</>
-                        : <>Postet den Sheet-Link (📄 mit Button) in #{channelLabel}.</>}
+                        ? <>Bereits gepostet in #{channelLabel} — <a className="mlink" href={messageLink(guildId, eventSheet!.postedChannelId!, eventSheet!.postedMessageId!)} target="_blank" rel="noopener noreferrer">Nachricht öffnen</a>. Speichern aktualisiert diese Nachricht.</>
+                        : <>Postet den Sheet-Link {sheetLink.source === "category" ? "(festes Sheet der Kategorie) " : ""}als Nachricht mit Button in #{channelLabel}.</>}
                 </div>
             </div>
-            <div className="row-actions"><button className="btn" type="submit" disabled={busy}>{posted ? "🔄 Nachricht aktualisieren" : "📄 Sheet in Channel posten"}</button></div>
+            <div className="row-actions">
+                <button className="btn" type="submit" disabled={busy}>
+                    {posted ? <RefreshIcon /> : <SendIcon />}
+                    {posted ? "Nachricht aktualisieren" : "Sheet in Channel posten"}
+                </button>
+            </div>
         </form>
     );
 }
@@ -581,7 +622,7 @@ function ActionsTab({ data, eventId, csrfToken, onChanged }: {
             <h2>Raidsheet in Channel posten</h2>
             <p className="note">Postet den Link zum gefüllten Raidsheet als Nachricht mit Button in den Event-Channel — optional mit eigener Nachricht.</p>
             <PostSheetForm
-                eventId={eventId} eventSheet={data.eventSheet} guildId={data.guildId}
+                eventId={eventId} eventSheet={data.eventSheet} sheetLink={data.sheetLink} guildId={data.guildId}
                 channelLabel={data.event.channelName || data.event.channelId} csrfToken={csrfToken} onDone={onChanged}
             />
         </>
@@ -876,10 +917,15 @@ function PostSoftresForm({ eventId, eventSoftres, guildId, channelLabel, csrfTok
                 <div className="hint">
                     {posted
                         ? <>Bereits gepostet in #{channelLabel} — <a className="mlink" href={messageLink(guildId, eventSoftres.postedChannelId!, eventSoftres.postedMessageId!)} target="_blank" rel="noopener noreferrer">Nachricht öffnen</a>. Speichern aktualisiert diese Nachricht.</>
-                        : <>Postet den Softres-Link (🎁 mit Button) in #{channelLabel}.</>}
+                        : <>Postet den Softres-Link als Nachricht mit Button in #{channelLabel}.</>}
                 </div>
             </div>
-            <div className="row-actions"><button className="btn" type="submit" disabled={busy}>{posted ? "🔄 Nachricht aktualisieren" : "📤 Softres in Channel posten"}</button></div>
+            <div className="row-actions">
+                <button className="btn" type="submit" disabled={busy}>
+                    {posted ? <RefreshIcon /> : <SendIcon />}
+                    {posted ? "Nachricht aktualisieren" : "Softres in Channel posten"}
+                </button>
+            </div>
         </form>
     );
 }
@@ -1028,7 +1074,7 @@ function LootTab({ data, eventId, csrfToken, onChanged }: {
                         <span className="small" style={{ marginLeft: "auto" }}>{data.lootItems.length} Item(s)</span>
                     </div>
                     <div className="row-actions" style={{ padding: "0 16px 12px", justifyContent: "flex-end" }}>
-                        <button className="btn btn-danger btn-sm" type="button" disabled={busy} onClick={clear}>Loot löschen</button>
+                        <button className="btn btn-danger btn-sm" type="button" disabled={busy} onClick={clear}><TrashIcon />Loot löschen</button>
                     </div>
                     <LootTable items={data.lootItems} />
                 </div>
@@ -1049,10 +1095,10 @@ const LOG_ANALYSES: { key: LogSection; label: string; title: string }[] = [
     { key: "rpb", label: "RPB", title: "Vermeidbarer Schaden, Tode, Aktivität, Cooldowns, Interrupts & Log-Prüfung" },
 ];
 
-function LogRow({ l, evalBusySection, evalSeconds, unlinkBusy, onEvaluate, onReset, onUnlink }: {
+function LogRow({ l, runningSections, unlinkBusy, onEvaluate, onReset, onUnlink }: {
     l: RaidLogRow;
-    evalBusySection: LogSection | null;
-    evalSeconds: number;
+    /** Analyses of this log started from this page and not finished yet. */
+    runningSections: LogSection[];
     unlinkBusy: boolean;
     onEvaluate: (section: LogSection) => void;
     onReset: (section: LogSection) => void;
@@ -1087,21 +1133,23 @@ function LogRow({ l, evalBusySection, evalSeconds, unlinkBusy, onEvaluate, onRes
                     : <span className="pill">offen</span>}
             </div>
             <div className="row-actions" style={{ gap: 6 }}>
-                {LOG_ANALYSES.filter((a) => !done.includes(a.key)).map((a) => (
-                    <button
-                        key={a.key}
-                        className="btn btn-sm"
-                        type="button"
-                        title={a.title}
-                        disabled={evalBusySection !== null}
-                        onClick={() => onEvaluate(a.key)}
-                    >
-                        {evalBusySection === a.key
-                            ? (evalSeconds ? `Läuft … ${evalSeconds}s` : "Läuft …")
-                            : `${a.label} auswerten`}
-                    </button>
-                ))}
-                {reportHref ? <a className="btn btn-ghost btn-sm" href={reportHref}>Öffnen</a> : null}
+                {LOG_ANALYSES.filter((a) => !done.includes(a.key)).map((a) => {
+                    const running = runningSections.includes(a.key);
+                    return (
+                        <button
+                            key={a.key}
+                            className={`btn btn-run btn-sm${running ? " is-running" : ""}`}
+                            type="button"
+                            title={running ? `${a.label}-Auswertung läuft im Hintergrund` : a.title}
+                            disabled={running}
+                            onClick={() => onEvaluate(a.key)}
+                        >
+                            {running ? <span className="btn-spin" /> : <RunIcon />}
+                            {a.label} auswerten
+                        </button>
+                    );
+                })}
+                {reportHref ? <a className="btn btn-ghost btn-sm" href={reportHref}><ExternalIcon />Öffnen</a> : null}
                 <button className="btn btn-ghost btn-sm" type="button" disabled={unlinkBusy} title="Zuordnung entfernen" onClick={onUnlink}>✕</button>
             </div>
         </div>
@@ -1114,30 +1162,30 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
     csrfToken: string | null;
     onChanged: (msg: string) => void;
 }) {
-    // which log + which half is currently running (plus how long already), so only
-    // that button spins and can show progress
-    const [evalBusy, setEvalBusy] = useState<{ id: string; section: LogSection; seconds: number } | null>(null);
+    const jobs = useJobs();
+    // "<logId>:<section>" per analysis started here and still going — cosmetic and
+    // page-local; the job itself lives in JobsProvider and outlives this page.
+    const [running, setRunning] = useState<string[]>([]);
     const [unlinkBusyId, setUnlinkBusyId] = useState<string | null>(null);
     const [pickedLogId, setPickedLogId] = useState("");
     const [linkBusy, setLinkBusy] = useState(false);
 
-    const evaluate = async (l: RaidLogRow, section: LogSection) => {
+    const evaluate = (l: RaidLogRow, section: LogSection) => {
         const label = section.toUpperCase();
-        setEvalBusy({ id: l.id, section, seconds: 0 });
-        try {
-            // Runs server-side in the background; resolves once polling says done
-            // (an RPB evaluation takes ~50s).
-            const r = await evalLog(csrfToken, l.id, section, (seconds) =>
-                setEvalBusy((b) => (b && b.id === l.id && b.section === section ? { ...b, seconds } : b)));
-            window.open(r.url, "_blank", "noopener");
-            onChanged(r.alreadyEvaluated
-                ? `${label}-Auswertung lag bereits vor.`
-                : `${label}-Auswertung erstellt.`);
-        } catch (err) {
-            onChanged((err as ApiError).message);
-        } finally {
-            setEvalBusy(null);
-        }
+        const key = `${l.id}:${section}`;
+        setRunning((keys) => [...keys, key]);
+        jobs.run({
+            label: `${label}-Auswertung`,
+            detail: l.title || l.reportId || "",
+            expectedSeconds: EVAL_SECONDS[section],
+            describe: (r) => ({
+                message: r.alreadyEvaluated ? `${label}-Auswertung lag bereits vor.` : `${label}-Auswertung erstellt.`,
+                link: r.url ? { href: r.url, label: "Report ansehen ↗", external: true } : undefined,
+            }),
+        }, () => evalLog(csrfToken, l.id, section)).then(() => {
+            setRunning((keys) => keys.filter((k) => k !== key));
+            onChanged("");
+        });
     };
 
     const reset = async (l: RaidLogRow, section: LogSection) => {
@@ -1206,8 +1254,7 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
                     <LogRow
                         key={l.id}
                         l={l}
-                        evalBusySection={evalBusy && evalBusy.id === l.id ? evalBusy.section : null}
-                        evalSeconds={evalBusy && evalBusy.id === l.id ? evalBusy.seconds : 0}
+                        runningSections={LOG_ANALYSES.map((a) => a.key).filter((s) => running.includes(`${l.id}:${s}`))}
                         unlinkBusy={unlinkBusyId === l.id}
                         onEvaluate={(section) => evaluate(l, section)}
                         onReset={(section) => reset(l, section)}
@@ -1245,9 +1292,9 @@ export default function RaidDetailPage() {
     const eventId = searchParams.get("event") || "";
     const tab: Tab = (searchParams.get("tab") as Tab) || "setup";
 
+    const jobs = useJobs();
     const [data, setData] = useState<RaidDetailData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
-    const [flash, setFlash] = useState<Flash | null>(null);
 
     const load = () => {
         getRaidDetail(eventId).then(setData).catch((err: ApiError) => setError(err));
@@ -1262,11 +1309,12 @@ export default function RaidDetailPage() {
     };
 
     // Shared success handler for every mutating action on this page (header
-    // quick-posts, all Part B forms, and the loot tab): flash the message, then
-    // reload so the header/stats/tabs reflect the new state — same convention as
-    // ClaPage's/RecruitmentPage's afterChange.
+    // quick-posts, all Part B forms, and the loot tab): toast the message, then
+    // reload so the header/stats/tabs reflect the new state. An empty message
+    // means the action already reported itself through its own job toast — then
+    // this only refreshes.
     const afterChange = (msg: string) => {
-        setFlash({ type: "ok", text: msg });
+        if (msg) jobs.notify(msg);
         load();
     };
 
@@ -1356,8 +1404,6 @@ export default function RaidDetailPage() {
                     {!!data.eventLogs.length && <span className="tab-count">{data.eventLogs.length}</span>}
                 </button>
             </div>
-
-            <Toast flash={flash} onClose={() => setFlash(null)} />
 
             {tab === "setup" && <SetupTab data={data} />}
             {tab === "attendance" && <AttendanceTab data={data} eventId={eventId} csrfToken={csrfToken} onChanged={afterChange} />}

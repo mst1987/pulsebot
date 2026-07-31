@@ -25,6 +25,25 @@ function normalizeCategoryLootTool(raw) {
     return out;
 }
 
+// A fixed sheet per category: only a http(s) link is stored. Anything else
+// (javascript:, a bare word, an empty field) becomes "", which settingsStore's
+// normalizer then drops — so a category is either unassigned or carries a link
+// that is safe to render as an <a href>.
+function normalizeCategorySheets(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [categoryId, sheet] of Object.entries(raw)) {
+        const id = String(categoryId).trim();
+        if (!id) continue;
+        const url = String((sheet && sheet.url) || "").trim();
+        out[id] = {
+            url: /^https?:\/\//i.test(url) ? url : "",
+            name: String((sheet && sheet.name) || "").trim(),
+        };
+    }
+    return out;
+}
+
 // Config keys that decide who gets into the menu — only full admins may change
 // them, so a role with write access to "Einstellungen" can't grant itself more.
 const ACCESS_KEYS = ["adminRoleIds", "rolePermissions"];
@@ -84,6 +103,7 @@ async function updateSettings(req, res) {
     if (body.raidDefaults !== undefined && typeof body.raidDefaults === "object") partial.raidDefaults = body.raidDefaults;
     if (body.blizzard !== undefined && typeof body.blizzard === "object") partial.blizzard = body.blizzard;
     if (body.categoryLootTool !== undefined) partial.categoryLootTool = normalizeCategoryLootTool(body.categoryLootTool);
+    if (body.categorySheets !== undefined) partial.categorySheets = normalizeCategorySheets(body.categorySheets);
     ok(res, { config: saveConfig(partial) });
 }
 

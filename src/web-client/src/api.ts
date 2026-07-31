@@ -214,6 +214,9 @@ export type AdminConfig = {
     // keyed by category id — preselects the parser on the loot import and tells
     // the raid-detail loot tab which export to ask for.
     categoryLootTool: Record<string, string>;
+    // A fixed Google Sheet per category, keyed by category id. A raid in that
+    // category links this sheet unless the app made it a copy of its own.
+    categorySheets: Record<string, { url: string; name: string }>;
 };
 
 export type Raidsheet = {
@@ -442,6 +445,9 @@ export type RaidDetailData = {
     setupFromSnapshot?: boolean;
     tankCandidates: TankCandidate[];
     eventSheet: RaidDetailEventSheet;
+    // Which sheet this raid actually links: its own filled copy ("event"), else
+    // the fixed sheet assigned to its category ("category"), else null.
+    sheetLink: { url: string; name: string; source: "event" | "category" } | null;
     eventSoftres: EventSoftres;
     softresCatalogue: SoftresCatalogueGroup[];
     softresEdition: string;
@@ -1114,8 +1120,61 @@ export function getClaData(view: "reports" | "logs", sort?: string, dir?: string
     return get<ClaData>(`/api/cla?${qs.toString()}`);
 }
 
-export function createReport(csrfToken: string | null, link: string): Promise<{ id: string; url: string }> {
-    return send("POST", "/api/cla", csrfToken, { link });
+export type JobPollStatus = {
+    status: "running" | "done" | "error" | "unknown";
+    url?: string;
+    id?: string;
+    error?: string;
+};
+
+/**
+ * Build a report from a pasted Warcraft-Logs link, to completion.
+ *
+ * Same shape as evalLog(): the POST only queues the build (it is the full CLA
+ * analysis and takes far longer than a proxy holds a connection open), the
+ * outcome is collected by polling. Callers run this through useJobs().run(),
+ * so it keeps going while the admin browses elsewhere.
+ */
+export async function createReport(csrfToken: string | null, link: string): Promise<{ id: string; url: string }> {
+    const started = await send<{ jobId: string }>("POST", "/api/cla", csrfToken, { link });
+    const state = await pollJob(
+        () => get<JobPollStatus>(`/api/cla/report-status?jobId=${encodeURIComponent(started.jobId)}`),
+        "Die Auswertung konnte nicht erstellt werden.",
+    );
+    return { id: state.id || "", url: state.url || "" };
+}
+
+/**
+ * Poll a server-side job until it reports done/error. Shared by the report
+ * build and the log evaluations — both answer with the same status shape.
+ */
+async function pollJob(
+    read: () => Promise<JobPollStatus>,
+    failMessage: string,
+): Promise<JobPollStatus> {
+    const startedAt = Date.now();
+    const POLL_MS = 2000;
+    // Generous ceiling: well past a slow RPB run, but not infinite.
+    const TIMEOUT_MS = 10 * 60 * 1000;
+
+    for (;;) {
+        await new Promise((r) => setTimeout(r, POLL_MS));
+        const state = await read();
+        if (state.status === "done") return state;
+        if (state.status === "error") {
+            throw { code: "job_failed", message: state.error || failMessage } as ApiError;
+        }
+        if (state.status === "unknown") {
+            // the job vanished without leaving a result (server restart mid-run)
+            throw { code: "job_lost", message: "Der Vorgang wurde unterbrochen. Bitte erneut starten." } as ApiError;
+        }
+        if (Date.now() - startedAt > TIMEOUT_MS) {
+            throw {
+                code: "job_timeout",
+                message: "Der Vorgang dauert ungewöhnlich lange. Er läuft im Hintergrund weiter — lade die Seite später neu.",
+            } as ApiError;
+        }
+    }
 }
 
 export function deleteReport(
@@ -1190,49 +1249,20 @@ export function resetEval(
  * point where a reverse proxy would drop a held-open connection — so the result
  * is collected by polling. Resolves with the finished report's url.
  *
- * @param onTick called with the elapsed seconds, for a progress label
+ * Callers run this through useJobs().run(), which owns the pending promise —
+ * so the evaluation (and its progress toast) survives leaving the CLA page.
  */
 export async function evalLog(
     csrfToken: string | null,
     logId: string,
     section: LogSection = "cla",
-    onTick?: (seconds: number) => void,
 ): Promise<{ url: string; id?: string; alreadyEvaluated?: boolean; section?: LogSection }> {
     const started = await startEval(csrfToken, logId, section);
     if (started.alreadyEvaluated) {
         return { url: started.url || "", alreadyEvaluated: true, section };
     }
-
-    const startedAt = Date.now();
-    const POLL_MS = 2000;
-    // Generous ceiling: well past a slow RPB run, but not infinite.
-    const TIMEOUT_MS = 10 * 60 * 1000;
-
-    for (;;) {
-        await new Promise((r) => setTimeout(r, POLL_MS));
-        if (onTick) onTick(Math.round((Date.now() - startedAt) / 1000));
-
-        const state = await getEvalStatus(logId, section);
-        if (state.status === "done") {
-            return { url: state.url || "", id: state.id, section };
-        }
-        if (state.status === "error") {
-            throw { code: "eval_failed", message: state.error || "Auswertung fehlgeschlagen." } as ApiError;
-        }
-        if (state.status === "unknown") {
-            // the job vanished without leaving a result (server restart mid-run)
-            throw {
-                code: "eval_lost",
-                message: "Die Auswertung wurde unterbrochen. Bitte erneut starten.",
-            } as ApiError;
-        }
-        if (Date.now() - startedAt > TIMEOUT_MS) {
-            throw {
-                code: "eval_timeout",
-                message: "Die Auswertung dauert ungewöhnlich lange. Sie läuft im Hintergrund weiter — lade die Seite später neu.",
-            } as ApiError;
-        }
-    }
+    const state = await pollJob(() => getEvalStatus(logId, section), "Auswertung fehlgeschlagen.");
+    return { url: state.url || "", id: state.id, section };
 }
 
 export function scanLogs(csrfToken: string | null): Promise<{ found: number; message: string }> {
