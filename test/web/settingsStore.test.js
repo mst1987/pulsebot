@@ -26,7 +26,7 @@ const {
     listRaidTemplates, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
     listNotify, getNotify, saveNotify, deleteNotify,
     listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
-    getConfig, saveConfig,
+    getConfig, saveConfig, resolveEventSheetLink,
 } = require("../../src/web/settingsStore.js");
 
 beforeEach(() => {
@@ -150,6 +150,51 @@ describe("web/settingsStore", () => {
             saveConfig({ categoryLootTool: { cat2: "rclc" } });
             const cfg = getConfig();
             expect(cfg.categoryLootTool).toEqual({ cat1: "gargul", cat2: "rclc" });
+        });
+
+        it("merges categorySheets per category and trims the fields", () => {
+            saveConfig({ categorySheets: { cat1: { url: " https://s/1 ", name: " Kara " } } });
+            saveConfig({ categorySheets: { cat2: { url: "https://s/2" } } });
+            expect(getConfig().categorySheets).toEqual({
+                cat1: { url: "https://s/1", name: "Kara" },
+                cat2: { url: "https://s/2", name: "" },
+            });
+        });
+
+        // Emptying the url field in the admin menu is how an assignment is
+        // removed — it must not survive as a link to nowhere.
+        it("drops a category sheet whose url is cleared", () => {
+            saveConfig({ categorySheets: { cat1: { url: "https://s/1", name: "Kara" } } });
+            saveConfig({ categorySheets: { cat1: { url: "", name: "Kara" } } });
+            expect(getConfig().categorySheets).toEqual({});
+        });
+    });
+
+    // Which sheet a raid links: its own filled copy first, the category's fixed
+    // sheet as the fallback.
+    describe("resolveEventSheetLink", () => {
+        beforeEach(() => {
+            saveConfig({ categorySheets: { cat1: { url: "https://s/fix", name: "SSC/TK" } } });
+        });
+
+        it("prefers the raid's own filled copy over the category sheet", () => {
+            const link = resolveEventSheetLink({ url: "https://s/copy", sheetName: "Kopie" }, "cat1");
+            expect(link).toEqual({ url: "https://s/copy", name: "Kopie", source: "event" });
+        });
+
+        it("falls back to the category's fixed sheet when there is no copy", () => {
+            expect(resolveEventSheetLink(null, "cat1")).toEqual({
+                url: "https://s/fix", name: "SSC/TK", source: "category",
+            });
+        });
+
+        it("treats a fill record without a url as no copy at all", () => {
+            expect(resolveEventSheetLink({ url: "", sheetId: "s1" }, "cat1").source).toBe("category");
+        });
+
+        it("returns null when neither exists", () => {
+            expect(resolveEventSheetLink(null, "cat-other")).toBeNull();
+            expect(resolveEventSheetLink(null, "")).toBeNull();
         });
     });
 

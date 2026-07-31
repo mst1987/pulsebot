@@ -74,6 +74,11 @@ const CONFIG_DEFAULTS = {
     // Which loot addon a Discord category uses, keyed by category id:
     // "gargul" | "rclc". Steers the loot-import parser and the char-loot history.
     categoryLootTool: {},
+    // A fixed, guild-owned Google Sheet per Discord category:
+    // { [categoryId]: { url, name } }. When one is set, a raid in that category
+    // links this sheet instead of needing its own copy. A copy the app actually
+    // created for that raid still wins — see resolveEventSheetLink() below.
+    categorySheets: {},
 };
 
 function ensureDir() {
@@ -393,7 +398,46 @@ function getConfig() {
         blizzard: { ...CONFIG_DEFAULTS.blizzard, ...(stored.blizzard || {}) },
         categoryLootTool: (stored.categoryLootTool && typeof stored.categoryLootTool === "object")
             ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
+        categorySheets: normalizeCategorySheets(stored.categorySheets),
     };
+}
+
+/**
+ * Normalise the categorySheets map to `{ [categoryId]: { url, name } }`: coerce
+ * both fields to trimmed strings and drop every category without a url, so an
+ * emptied field is the same as "no sheet assigned" and can never link nowhere.
+ */
+function normalizeCategorySheets(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, sheet] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        if (!key || !sheet || typeof sheet !== "object") continue;
+        const url = String(sheet.url || "").trim();
+        if (!url) continue;
+        out[key] = { url, name: String(sheet.name || "").trim() };
+    }
+    return out;
+}
+
+/**
+ * Which sheet a raid should link: the copy the app created for this very raid
+ * if there is one, otherwise the fixed sheet assigned to its category. Returns
+ * null when neither exists.
+ *
+ * @param {object|null} eventSheet  the eventSheetStore record for the raid
+ * @param {string} categoryId       the raid channel's Discord category
+ * @returns {null | { url, name, source: "event" | "category" }}
+ */
+function resolveEventSheetLink(eventSheet, categoryId) {
+    if (eventSheet && eventSheet.url) {
+        return { url: eventSheet.url, name: eventSheet.sheetName || "", source: "event" };
+    }
+    const assigned = getConfig().categorySheets[String(categoryId || "").trim()];
+    if (assigned && assigned.url) {
+        return { url: assigned.url, name: assigned.name || "", source: "category" };
+    }
+    return null;
 }
 
 /**
@@ -421,6 +465,9 @@ function saveConfig(partial) {
     if (partial.raidDefaults) next.raidDefaults = { ...current.raidDefaults, ...partial.raidDefaults };
     if (partial.blizzard) next.blizzard = { ...current.blizzard, ...partial.blizzard };
     if (partial.categoryLootTool) next.categoryLootTool = { ...current.categoryLootTool, ...partial.categoryLootTool };
+    if (partial.categorySheets) {
+        next.categorySheets = normalizeCategorySheets({ ...current.categorySheets, ...partial.categorySheets });
+    }
     writeJson(CONFIG_FILE, next);
     return next;
 }
@@ -431,5 +478,5 @@ module.exports = {
     listRaidTemplates, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
     listNotify, getNotify, saveNotify, deleteNotify,
     listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
-    getConfig, saveConfig,
+    getConfig, saveConfig, resolveEventSheetLink,
 };

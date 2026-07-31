@@ -5,6 +5,7 @@ import {
     type ApiError, type RaidCreateContext, type RaidTemplate,
 } from "../api";
 import type { ShellContext } from "../components/Shell";
+import { TrashIcon } from "../components/icons";
 
 function ChannelField({ channels, value, onChange }: { channels: RaidCreateContext["channels"]; value: string; onChange: (v: string) => void }) {
     if (!channels.length) {
@@ -94,7 +95,7 @@ function TemplatesPanel({ templates, csrfToken, onChanged }: {
                                     <td><strong>{t.name || "(ohne Name)"}</strong></td>
                                     <td className="small">{t.id}</td>
                                     <td className="row-actions">
-                                        <button className="btn btn-danger" type="button" disabled={busy} onClick={() => remove(t.id)}>Entfernen</button>
+                                        <button className="btn btn-danger" type="button" disabled={busy} onClick={() => remove(t.id)}><TrashIcon />Entfernen</button>
                                     </td>
                                 </tr>
                             ))}

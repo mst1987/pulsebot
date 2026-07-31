@@ -121,3 +121,87 @@ export function HistoryIcon() {
         </svg>
     );
 }
+
+// ---- action icons ----
+// Buttons that do something (rather than navigate) carry one of these instead
+// of the emoji labels the raid page used to mix into its text. They all share
+// the 24-box + currentColor of the nav icons, so .btn svg can size them once.
+
+/** Start an analysis (CLA/RPB) — a play triangle in a ring. */
+export function RunIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M10 8.5v7l5.5-3.5-5.5-3.5Z" />
+        </svg>
+    );
+}
+
+export function SearchIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.6-3.6" />
+        </svg>
+    );
+}
+
+export function LinkIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1.2 1.1" />
+            <path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1.2-1.1" />
+        </svg>
+    );
+}
+
+export function TrashIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 7h16M10 11v6M14 11v6" />
+            <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+        </svg>
+    );
+}
+
+/** Opens something outside the current page (report, sheet, WCL). */
+export function ExternalIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 4h6v6" />
+            <path d="M20 4 11 13" />
+            <path d="M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" />
+        </svg>
+    );
+}
+
+/** A spreadsheet — replaces the 📄 the sheet buttons carried. */
+export function SheetIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
+            <path d="M3.5 9.5h17M3.5 15h17M9.5 3.5v17" />
+        </svg>
+    );
+}
+
+/** Post into a Discord channel — replaces the 📤. */
+export function SendIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 3 10.5 13.5" />
+            <path d="M21 3l-6.8 18-3.7-7.5L3 9.8 21 3Z" />
+        </svg>
+    );
+}
+
+/** Update something that already exists — replaces the 🔄. */
+export function RefreshIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 11a8 8 0 0 0-13.7-5.3L3 9" />
+            <path d="M4 13a8 8 0 0 0 13.7 5.3L21 15" />
+            <path d="M3 4v5h5M21 20v-5h-5" />
+        </svg>
+    );
+}

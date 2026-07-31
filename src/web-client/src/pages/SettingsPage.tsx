@@ -8,6 +8,7 @@ import {
 import { useOutletContext } from "react-router-dom";
 import type { ShellContext } from "../components/Shell";
 import RolePermissionsEditor from "../components/RolePermissions";
+import { TrashIcon } from "../components/icons";
 
 // "Zugang" and "Berechtigungen" decide who gets into the menu, so they are shown
 // to full admins only (the API rejects them for anyone else — see ACCESS_KEYS in
@@ -293,6 +294,86 @@ function BlizzardSecretField({ hasStoredSecret, value, onChange }: {
     );
 }
 
+// A fixed, guild-owned sheet per raid category. Assigning one means a raid in
+// that category links THAT sheet instead of needing a per-raid copy — and when a
+// copy is created for a raid anyway, the copy wins for that raid (the precedence
+// itself lives in settingsStore's resolveEventSheetLink()).
+//
+// Saves on its own (a PATCH carrying only categorySheets), like the Raidsheet
+// forms below it, since this tab sits outside the page's big config form.
+function CategorySheetsForm({ categories, config, csrfToken, onSaved }: {
+    categories: Category[];
+    config: AdminConfig;
+    csrfToken: string | null;
+    onSaved: (msg: string) => void;
+}) {
+    const [draft, setDraft] = useState<Record<string, { url: string; name: string }>>(config.categorySheets || {});
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    if (!categories.length) {
+        return <p className="hint">Keine Kategorien geladen (Server gewählt und Bot online?). Die Zuweisung ist verfügbar, sobald der Bot verbunden ist.</p>;
+    }
+
+    const patchCat = (id: string, fields: Partial<{ url: string; name: string }>) => {
+        const current = draft[id] || { url: "", name: "" };
+        setDraft({ ...draft, [id]: { ...current, ...fields } });
+    };
+
+    const submit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setBusy(true);
+        setError(null);
+        try {
+            // Send an entry for every category, so emptying a url actually drops
+            // that assignment instead of leaving the stored one merged back in.
+            const payload: Record<string, { url: string; name: string }> = {};
+            for (const c of categories) {
+                const entry = draft[c.id] || { url: "", name: "" };
+                payload[c.id] = { url: entry.url.trim(), name: entry.name.trim() };
+            }
+            const { config: saved } = await updateSettings(csrfToken, { categorySheets: payload });
+            setDraft(saved.categorySheets || {});
+            onSaved("Sheet-Zuweisungen gespeichert.");
+        } catch (err) {
+            setError((err as ApiError).message);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <form className="card-form" onSubmit={submit}>
+            {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
+            {categories.map((c) => {
+                const entry = draft[c.id] || { url: "", name: "" };
+                return (
+                    <div className="field" key={c.id}>
+                        <label htmlFor={`catsheet-url-${c.id}`}>{c.name}</label>
+                        <input
+                            id={`catsheet-url-${c.id}`}
+                            type="url"
+                            value={entry.url}
+                            onChange={(e) => patchCat(c.id, { url: e.target.value })}
+                            placeholder="https://docs.google.com/spreadsheets/… (leer = kein festes Sheet)"
+                        />
+                        <input
+                            type="text"
+                            style={{ marginTop: 6 }}
+                            value={entry.name}
+                            onChange={(e) => patchCat(c.id, { name: e.target.value })}
+                            placeholder="Anzeigename (optional), z. B. „SSC/TK Setup“"
+                        />
+                    </div>
+                );
+            })}
+            <div className="row-actions">
+                <button className="btn" type="submit" disabled={busy}>{busy ? "Speichert…" : "Zuweisungen speichern"}</button>
+            </div>
+        </form>
+    );
+}
+
 function RaidsheetForm({ sheet, csrfToken, onSaved, onDeleted }: {
     sheet: Raidsheet | null;
     csrfToken: string | null;
@@ -354,7 +435,7 @@ function RaidsheetForm({ sheet, csrfToken, onSaved, onDeleted }: {
             </div>
             <div className="row-actions">
                 <button className="btn" type="submit" disabled={busy}>{sheet ? "Speichern" : "Raidsheet anlegen"}</button>
-                {sheet && <button className="btn btn-danger" type="button" disabled={busy} onClick={remove}>Löschen</button>}
+                {sheet && <button className="btn btn-danger" type="button" disabled={busy} onClick={remove}><TrashIcon />Löschen</button>}
             </div>
         </form>
     );
@@ -603,7 +684,18 @@ export default function SettingsPage() {
 
             {tab === "raidsheets" && (
                 <div className="tab-panel active" role="tabpanel">
-                    <h2 style={{ marginTop: 0 }}>Raidsheets</h2>
+                    <h2 style={{ marginTop: 0 }}>Festes Sheet je Raidkategorie</h2>
+                    <p className="note">
+                        Trägst du hier für eine Kategorie ein Sheet ein, verlinkt und postet jeder Raid dieser Kategorie
+                        genau dieses Sheet — es wird dann keins mehr gebraucht, das die App anlegt. Wird für einen Raid
+                        trotzdem unten ein Sheet erstellt und gefüllt, hat dieses für genau diesen Raid Vorrang.
+                    </p>
+                    <CategorySheetsForm
+                        categories={data.categories} config={data.config} csrfToken={csrfToken}
+                        onSaved={(msg) => { setFlash(msg); load(); }}
+                    />
+
+                    <h2>Raidsheet-Vorlagen</h2>
                     <p className="note">Google-Sheets nach Content aufgeteilt (Tier 4/5 usw.). Beim Füllen wird anhand der Keywords das passende Sheet vorgeschlagen.</p>
                     {data.raidsheets.map((s) => (
                         <RaidsheetForm key={s.id} sheet={s} csrfToken={csrfToken} onSaved={(msg) => { setFlash(msg); load(); }} onDeleted={(msg) => { setFlash(msg); load(); }} />
