@@ -16,6 +16,8 @@ const AREA_BY_PATH = {
     "/api/channels/duplicate": "channels",
 
     "/api/settings": "settings",
+    // Wowhead search behind the top-item picker in the Loot tab.
+    "/api/settings/item-search": "settings",
     "/api/settings/raidsheets": "settings",
     "/api/settings/raidsheets/delete": "settings",
     // The raider→character assignment lives in the settings page's own tab.

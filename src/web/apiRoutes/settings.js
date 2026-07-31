@@ -6,6 +6,7 @@ const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet,
 } = require("../settingsStore");
 const discord = require("../discord");
+const wowhead = require("../../utils/wowhead");
 const { AREAS, normalizeRolePermissions } = require("../../config/permissions");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
@@ -104,7 +105,25 @@ async function updateSettings(req, res) {
     if (body.blizzard !== undefined && typeof body.blizzard === "object") partial.blizzard = body.blizzard;
     if (body.categoryLootTool !== undefined) partial.categoryLootTool = normalizeCategoryLootTool(body.categoryLootTool);
     if (body.categorySheets !== undefined) partial.categorySheets = normalizeCategorySheets(body.categorySheets);
+    // Sent as the complete list; settingsStore normalises it and replaces the
+    // stored one, so removing an item is just leaving it out.
+    if (body.topItems !== undefined) partial.topItems = Array.isArray(body.topItems) ? body.topItems : [];
     ok(res, { config: saveConfig(partial) });
+}
+
+/**
+ * GET /api/settings/item-search?q=&edition= — Wowhead item search for the
+ * top-item picker in Einstellungen → Loot. The same lookup the softres
+ * hard-reserve picker uses, but under the settings area, so defining top items
+ * doesn't require raid rights.
+ */
+async function getItemSearch(req, res, url) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    const q = url.searchParams.get("q") || "";
+    const edition = url.searchParams.get("edition") || "tbc";
+    const items = await wowhead.searchItems(q, { edition });
+    ok(res, { items });
 }
 
 /** POST /api/settings/raidsheets — create (no id) or update (id) a raidsheet. */
@@ -128,4 +147,4 @@ async function deleteRaidsheetHandler(req, res) {
     ok(res, { id });
 }
 
-module.exports = { getSettings, updateSettings, saveRaidsheetHandler, deleteRaidsheetHandler };
+module.exports = { getSettings, updateSettings, getItemSearch, saveRaidsheetHandler, deleteRaidsheetHandler };

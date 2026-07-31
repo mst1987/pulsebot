@@ -168,6 +168,43 @@ describe("web/settingsStore", () => {
             saveConfig({ categorySheets: { cat1: { url: "", name: "Kara" } } });
             expect(getConfig().categorySheets).toEqual({});
         });
+
+        it("defaults topItems to an empty list", () => {
+            expect(getConfig().topItems).toEqual([]);
+        });
+
+        it("normalises stored top items and drops the unusable ones", () => {
+            saveConfig({
+                topItems: [
+                    { id: "30883", name: " Kalter Fels ", iconUrl: " https://x/i.jpg ", quality: 4 },
+                    { id: 30883, name: "Duplikat" },            // same id: first wins
+                    { id: 0, name: "kein Item" },               // no usable id
+                    { id: 32235, name: "Ohne Icon", iconUrl: "javascript:alert(1)" },
+                    "nonsense",
+                ],
+            });
+            expect(getConfig().topItems).toEqual([
+                { id: 30883, name: "Kalter Fels", iconUrl: "https://x/i.jpg", quality: 4 },
+                { id: 32235, name: "Ohne Icon", iconUrl: "", quality: null },
+            ]);
+        });
+
+        // Unlike the category maps, the list is replaced wholesale — that is how
+        // the admin menu removes an item again.
+        it("replaces the top-item list instead of merging it", () => {
+            saveConfig({ topItems: [{ id: 30883, name: "A" }, { id: 32235, name: "B" }] });
+            saveConfig({ topItems: [{ id: 32235, name: "B" }] });
+            expect(getConfig().topItems.map((it) => it.id)).toEqual([32235]);
+            saveConfig({ topItems: [] });
+            expect(getConfig().topItems).toEqual([]);
+        });
+
+        it("guards a malformed stored topItems value", () => {
+            saveConfig({});
+            fs.__store.set([...fs.__store.keys()].find((k) => k.endsWith("config.json")),
+                JSON.stringify({ topItems: { id: 1 } }));
+            expect(getConfig().topItems).toEqual([]);
+        });
     });
 
     // Which sheet a raid links: its own filled copy first, the category's fixed

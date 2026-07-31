@@ -45,6 +45,7 @@ jest.mock("../../src/web/dashboardData", () => ({
     loadUpcomingSetups: jest.fn(() => Promise.resolve({ events: [], error: null })),
     loadRecentEvents: jest.fn(() => Promise.resolve({ events: [], error: null })),
     annotateUpcomingExtras: jest.fn((events) => events),
+    loadTopLoot: jest.fn(() => ({ items: [], configured: 0 })),
 }));
 jest.mock("../../src/web/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
@@ -496,6 +497,7 @@ describe("web/apiRouter", () => {
             activeGuildFor.mockReturnValue("guild-1");
             dashboardData.loadUpcomingSetups.mockResolvedValue({ events: [{ id: "u1" }], error: null });
             dashboardData.loadRecentEvents.mockResolvedValue({ events: [{ id: "e1" }], error: null });
+            dashboardData.loadTopLoot.mockReturnValue({ items: [{ itemId: 30883, character: "Kilrogg" }], configured: 3 });
 
             const res = mockRes();
             const handled = await handle("/api/dashboard", { method: "GET" }, res);
@@ -519,6 +521,7 @@ describe("web/apiRouter", () => {
                     ],
                     upcoming: { events: [{ id: "u1" }], error: null },
                     recentEvents: { events: [{ id: "e1" }], error: null },
+                    topLoot: { items: [{ itemId: 30883, character: "Kilrogg" }], configured: 3 },
                     activeGuildId: "guild-1",
                 },
             });
@@ -710,6 +713,28 @@ describe("web/apiRouter", () => {
             expect(settingsStore.saveConfig).toHaveBeenCalledWith({
                 categoryLootTool: { cat1: "gargul", cat2: "rclc", cat3: "", cat4: "" },
             });
+        });
+
+        // The top-item list is sent whole (that is how an item is removed); the
+        // router only guards the type, settingsStore does the cleaning.
+        it("forwards the top-item list as sent", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+
+            await patch("/api/settings", {
+                topItems: [{ id: 30883, name: "Kalter Fels", iconUrl: "https://x/i.jpg", quality: 4 }],
+            });
+
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+                topItems: [{ id: 30883, name: "Kalter Fels", iconUrl: "https://x/i.jpg", quality: 4 }],
+            });
+        });
+
+        it("turns a malformed topItems value into an empty list", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            await patch("/api/settings", { topItems: "nope" });
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({ topItems: [] });
         });
 
         it("ignores a malformed categoryLootTool instead of storing it", async () => {
@@ -2013,6 +2038,23 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raids/post-softres", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(500, expect.any(Object));
             expect(body(res)).toEqual({ error: { code: "post_failed", message: "Channel nicht gefunden." } });
+        });
+    });
+
+    describe("GET /api/settings/item-search", () => {
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await get("/api/settings/item-search", { q: "krone" });
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+            expect(wowhead.searchItems).not.toHaveBeenCalled();
+        });
+
+        it("proxies the top-item search to wowhead.searchItems, defaulting to tbc", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            wowhead.searchItems.mockResolvedValue([{ id: 30883, name: "Kalter Fels" }]);
+            const res = await get("/api/settings/item-search", { q: "kalter" });
+            expect(wowhead.searchItems).toHaveBeenCalledWith("kalter", { edition: "tbc" });
+            expect(body(res)).toEqual({ data: { items: [{ id: 30883, name: "Kalter Fels" }] } });
         });
     });
 

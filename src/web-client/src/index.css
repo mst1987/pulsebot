@@ -613,6 +613,30 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 /* Only the inset — the vertical padding stays with the table rules above, so a
    row holding a control can still take itself back down inside a card. */
 .dash-card table.idx th, .dash-card table.idx td { padding-left: 16px; padding-right: 16px; }
+
+/* ===== dashboard "Latest Loot": the awards of the items configured as top
+   items (Einstellungen → Loot). Every row IS the highlight — the card holds
+   nothing else — so each carries the star, the accent rail and the item's own
+   quality colour on the icon border. ===== */
+.dash-card-head .dash-card-sub { margin-left: 8px; font-size: 12px; font-weight: 600; color: var(--accent); text-transform: uppercase; letter-spacing: .06em; }
+.toploot { list-style: none; margin: 0; padding: 0; }
+.toploot-row {
+    display: flex; align-items: center; gap: 12px; padding: 11px 16px;
+    border-top: 1px solid var(--line-soft); border-left: 3px solid var(--accent);
+    background: linear-gradient(90deg, var(--accent-soft), transparent 55%);
+}
+.toploot-row:first-child { border-top: 0; }
+.toploot-star { color: var(--accent); font-size: 14px; line-height: 1; flex: 0 0 auto; }
+.toploot-ico { width: 34px; height: 34px; border-radius: 7px; border: 1px solid var(--line); flex: 0 0 auto; }
+.toploot-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.toploot-main > a, .toploot-main > span:first-child { font-weight: 600; }
+.toploot-meta { color: var(--muted); }
+.toploot-who { margin-left: auto; display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+@media (max-width: 700px) {
+    .toploot-row { flex-wrap: wrap; }
+    .toploot-who { margin-left: 46px; }
+}
+
 .quick { display: flex; flex-direction: column; }
 .quick a { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--line-soft); color: var(--text); text-decoration: none; font-weight: 600; font-size: 14px; }
 .quick a:first-child { border-top: 0; }

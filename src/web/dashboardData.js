@@ -3,7 +3,8 @@
 // without a circular dependency (server.js requires apiRouter.js).
 const { listRaidEvents } = require("./raidEventStore");
 const { scanRaidEvents } = require("./raidEventScan");
-const { listByEvent: listLootByEvent } = require("./lootStore");
+const { listByEvent: listLootByEvent, listAll: listAllLoot, charLootPreview } = require("./lootStore");
+const { getConfig } = require("./settingsStore");
 const { getEventSheet } = require("./eventSheetStore");
 const { getEventSoftres } = require("./eventSoftresStore");
 const { listLogs } = require("./logStore");
@@ -109,4 +110,30 @@ function annotateUpcomingExtras(events, guildId) {
     }));
 }
 
-module.exports = { loadUpcomingSetups, loadRecentEvents, annotateUpcomingExtras };
+/**
+ * The most recently awarded *top items* — the drops the guild flagged as big in
+ * Einstellungen → Loot (config.topItems), matched against imported loot by item
+ * id. Newest award first, capped at `limit`.
+ *
+ * Matching is by id only: the name on a loot row comes from whatever the export
+ * (or the Wowhead backfill) produced and may be missing entirely, the id never
+ * is. `configured` is how many top items are defined at all, so the dashboard
+ * can tell "nothing configured yet" from "configured, but none dropped yet".
+ *
+ * Not guild-scoped: imported loot carries no guild id (see lootStore.js), the
+ * same reason the Historie pages show it unfiltered.
+ */
+function loadTopLoot(limit = 6) {
+    const topItems = getConfig().topItems || [];
+    const ids = new Set(topItems.map((it) => Number(it.id)).filter(Boolean));
+    if (!ids.size) return { items: [], configured: 0 };
+    const items = listAllLoot()
+        .filter((it) => ids.has(Number(it.itemId)))
+        .slice(0, limit)
+        // charLootPreview() is the trimmed loot shape the history pages already
+        // use; the dashboard row only adds who got it and off which boss.
+        .map((it) => ({ ...charLootPreview(it), character: it.character, realm: it.realm || "", boss: it.boss || "" }));
+    return { items, configured: ids.size };
+}
+
+module.exports = { loadUpcomingSetups, loadRecentEvents, annotateUpcomingExtras, loadTopLoot };

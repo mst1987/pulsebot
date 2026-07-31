@@ -79,6 +79,11 @@ const CONFIG_DEFAULTS = {
     // links this sheet instead of needing its own copy. A copy the app actually
     // created for that raid still wins — see resolveEventSheetLink() below.
     categorySheets: {},
+    // The items the guild considers a "big" drop: [{ id, name, iconUrl, quality }],
+    // picked from the Wowhead search in Einstellungen → Loot. Imported loot is
+    // matched against these ids for the dashboard's "Latest Loot" card
+    // (see dashboardData.js's loadTopLoot()).
+    topItems: [],
 };
 
 function ensureDir() {
@@ -399,7 +404,35 @@ function getConfig() {
         categoryLootTool: (stored.categoryLootTool && typeof stored.categoryLootTool === "object")
             ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
         categorySheets: normalizeCategorySheets(stored.categorySheets),
+        topItems: normalizeTopItems(stored.topItems),
     };
+}
+
+/**
+ * Normalise the top-item list to `[{ id, name, iconUrl, quality }]`: keep only
+ * entries with a positive numeric item id, dedupe by id (first wins) and drop an
+ * icon that isn't an http(s) url, so a stored entry is always safe to render as
+ * an <img src>. `quality` stays null when Wowhead never reported one — 0 is a
+ * real quality ("poor"), same rule as the loot store's itemQuality.
+ */
+function normalizeTopItems(raw) {
+    if (!Array.isArray(raw)) return [];
+    const out = [];
+    const seen = new Set();
+    for (const entry of raw) {
+        if (!entry || typeof entry !== "object") continue;
+        const id = Number(entry.id) || 0;
+        if (id <= 0 || seen.has(id)) continue;
+        seen.add(id);
+        const iconUrl = String(entry.iconUrl || "").trim();
+        out.push({
+            id,
+            name: String(entry.name || "").trim(),
+            iconUrl: /^https?:\/\//i.test(iconUrl) ? iconUrl : "",
+            quality: typeof entry.quality === "number" ? entry.quality : null,
+        });
+    }
+    return out;
 }
 
 /**
@@ -468,6 +501,9 @@ function saveConfig(partial) {
     if (partial.categorySheets) {
         next.categorySheets = normalizeCategorySheets({ ...current.categorySheets, ...partial.categorySheets });
     }
+    // A list, not a map: what is sent replaces the stored one (that is how an
+    // item gets removed again), it is only cleaned up on the way in.
+    if (partial.topItems !== undefined) next.topItems = normalizeTopItems(partial.topItems);
     writeJson(CONFIG_FILE, next);
     return next;
 }

@@ -3,7 +3,7 @@ const { requireAdmin } = require("../apiMiddleware");
 const { listReports } = require("../reportStore");
 const { getConfig, listRecruitment, listRecruitmentPosts } = require("../settingsStore");
 const { activeGuildFor } = require("../activeGuild");
-const { loadUpcomingSetups, loadRecentEvents } = require("../dashboardData");
+const { loadUpcomingSetups, loadRecentEvents, loadTopLoot } = require("../dashboardData");
 
 /** GET /api/dashboard — the admin start page's key figures + quick lists. */
 async function getDashboard(req, res) {
@@ -31,6 +31,7 @@ async function getDashboard(req, res) {
         })),
         upcoming,
         recentEvents,
+        topLoot: loadTopLoot(6),
         activeGuildId: guildId,
     });
 }

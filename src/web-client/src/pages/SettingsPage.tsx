@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import {
     getSettings, updateSettings, saveRaidsheet, deleteRaidsheet,
-    getRaiderCharacters, saveRaiderCharacters,
+    getRaiderCharacters, saveRaiderCharacters, searchSettingsItems,
     type ApiError, type SettingsData, type AdminConfig, type Category, type Role, type Raidsheet,
-    type RaiderCharactersData, type RolePermissions,
+    type RaiderCharactersData, type RolePermissions, type TopItem,
 } from "../api";
 import { useOutletContext } from "react-router-dom";
 import type { ShellContext } from "../components/Shell";
 import RolePermissionsEditor from "../components/RolePermissions";
+import ItemSearchPicker from "../components/ItemSearchPicker";
+import { itemQualityProps } from "../lib/itemQuality";
 import { TrashIcon } from "../components/icons";
 
 // "Zugang" and "Berechtigungen" decide who gets into the menu, so they are shown
@@ -50,6 +52,7 @@ type Draft = {
     blizzardRealmSlug: string;
     blizzardNamespace: string;
     categoryLootTool: Record<string, string>;
+    topItems: TopItem[];
 };
 
 function toDraft(config: AdminConfig): Draft {
@@ -73,7 +76,50 @@ function toDraft(config: AdminConfig): Draft {
         blizzardRealmSlug: config.blizzard.realmSlug,
         blizzardNamespace: config.blizzard.namespace,
         categoryLootTool: config.categoryLootTool || {},
+        topItems: config.topItems || [],
     };
+}
+
+// The drops the guild counts as "big". Picked from the live Wowhead search and
+// stored with icon + quality, so the dashboard can render an award without
+// looking the item up again — and matched against imported loot by item id, so
+// a differently-named export row still counts.
+function TopItemsField({ items, onChange }: {
+    items: TopItem[];
+    onChange: (items: TopItem[]) => void;
+}) {
+    const add = (it: { id: number; name: string; iconUrl?: string; quality?: number | null }) => {
+        if (items.some((x) => x.id === it.id)) return;
+        onChange([...items, { id: it.id, name: it.name, iconUrl: it.iconUrl || "", quality: it.quality ?? null }]);
+    };
+
+    return (
+        <div className="field">
+            <label>Top-Items</label>
+            <ItemSearchPicker search={searchSettingsItems} onPick={add} />
+            {items.length > 0 && (
+                <ul className="hr-list">
+                    {items.map((it) => (
+                        <li key={it.id} className="rolebox hr-chip">
+                            <span>
+                                {it.iconUrl && <img src={it.iconUrl} alt="" loading="lazy" />}
+                                <span {...itemQualityProps(it.quality)}>{it.name || `Item ${it.id}`}</span>
+                                <span className="hint" style={{ marginLeft: 6 }}>#{it.id}</span>
+                            </span>
+                            <button
+                                type="button" className="btn btn-sm" title="Entfernen"
+                                onClick={() => onChange(items.filter((x) => x.id !== it.id))}
+                            >✕</button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <div className="hint">
+                Wird eines dieser Items importiert, taucht es auf dem Dashboard unter „Latest Loot" auf —
+                mit Charakter, Raid und Datum. Ohne Eintrag bleibt die Karte leer.
+            </div>
+        </div>
+    );
 }
 
 // Which loot addon each raid category uses. Steers which parser the loot import
@@ -514,6 +560,7 @@ export default function SettingsPage() {
                     ...(secretChange !== undefined ? { clientSecret: secretChange } : {}),
                 },
                 categoryLootTool: draft.categoryLootTool,
+                topItems: draft.topItems,
             });
             setData({ ...data, config });
             setDraft(toDraft(config));
@@ -657,6 +704,13 @@ export default function SettingsPage() {
                         value={draft.categoryLootTool}
                         onChange={(categoryId, tool) => patch({ categoryLootTool: { ...draft.categoryLootTool, [categoryId]: tool } })}
                     />
+
+                    <h2>Top-Items</h2>
+                    <p className="hint">
+                        Die richtig großen Drops — Waffen, Legendary-Teile, alles was die Gilde als besonders
+                        wertet. Vergibt ein Raid eines dieser Items, hebt das Dashboard die Vergabe hervor.
+                    </p>
+                    <TopItemsField items={draft.topItems} onChange={(topItems) => patch({ topItems })} />
                 </div>
 
                 <div className={`tab-panel${tab === "logs" ? " active" : ""}`} role="tabpanel">
