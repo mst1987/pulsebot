@@ -57,6 +57,35 @@ describe("web/settingsStore", () => {
             expect(getConfig().adminRoleIds).toEqual([]);
         });
 
+        // The bot's own server, hard-coded in config/variables.js: it drives the
+        // admin-role check and is preselected in the menu's server switcher.
+        describe("guildId", () => {
+            const { guildId: defaultGuildId } = require("../../src/config/variables");
+
+            it("falls back to the default when nothing is stored", () => {
+                expect(getConfig().guildId).toBe(defaultGuildId);
+            });
+
+            it("keeps a stored guild id", () => {
+                saveConfig({ guildId: "999" });
+                expect(getConfig().guildId).toBe("999");
+            });
+
+            // The settings form writes this field on every save, so a blank one
+            // must not shadow the default.
+            it("falls back to the default when the stored value is blank", () => {
+                saveConfig({ guildId: "999" });
+                saveConfig({ guildId: "   " });
+                expect(getConfig().guildId).toBe(defaultGuildId);
+            });
+
+            // What saveConfig() hands back is what the admin menu renders after
+            // saving — it must already be the effective value.
+            it("returns the effective guild id from saveConfig, not the raw blank", () => {
+                expect(saveConfig({ guildId: "" }).guildId).toBe(defaultGuildId);
+            });
+        });
+
         it("exposes the channel/role ids and persists overrides", () => {
             const def = getConfig();
             expect(def).toHaveProperty("applicationChannelId");

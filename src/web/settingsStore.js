@@ -390,6 +390,11 @@ function getConfig() {
         ...CONFIG_DEFAULTS,
         ...stored,
         raidDefaults: { ...CONFIG_DEFAULTS.raidDefaults, ...(stored.raidDefaults || {}) },
+        // An empty stored guild id falls back to the default instead of winning
+        // over it: the settings form writes this field on every save, so an
+        // install that never filled it in would otherwise keep a blank value —
+        // no admin-role check, no preselected server in the menu.
+        guildId: String(stored.guildId || "").trim() || CONFIG_DEFAULTS.guildId,
         adminRoleIds: Array.isArray(stored.adminRoleIds) ? stored.adminRoleIds : CONFIG_DEFAULTS.adminRoleIds,
         rolePermissions: normalizeRolePermissions(stored.rolePermissions),
         categoryIds: Array.isArray(stored.categoryIds) ? stored.categoryIds : CONFIG_DEFAULTS.categoryIds,
@@ -458,7 +463,12 @@ function normalizeCategoryRoles(raw) {
     return out;
 }
 
-/** Merge and persist a partial config update. Returns the full saved config. */
+/**
+ * Merge and persist a partial config update. Returns the config as every other
+ * reader sees it — read back through getConfig(), so a value that only takes its
+ * final shape there (a cleared guildId falling back to the default) is what the
+ * admin menu gets back and renders, instead of the raw stored blank.
+ */
 function saveConfig(partial) {
     const current = getConfig();
     const next = { ...current, ...partial };
@@ -469,7 +479,7 @@ function saveConfig(partial) {
         next.categorySheets = normalizeCategorySheets({ ...current.categorySheets, ...partial.categorySheets });
     }
     writeJson(CONFIG_FILE, next);
-    return next;
+    return getConfig();
 }
 
 module.exports = {

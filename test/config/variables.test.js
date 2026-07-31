@@ -56,6 +56,7 @@ describe("config/variables", () => {
             "BLIZZARD_REGION",
             "BLIZZARD_REALM",
             "BLIZZARD_NAMESPACE",
+            "GUILD_ID",
         ]) {
             delete process.env[key];
         }
@@ -74,6 +75,12 @@ describe("config/variables", () => {
     it("uses the documented default auction settings", () => {
         expect(variables.maxBidAmount).toBe(5000000);
         expect(variables.defaultTimeout).toBe(60000);
+    });
+
+    // The guild the bot is installed in: used for the admin-role check and
+    // preselected in the admin menu's server switcher (web/activeGuild.js).
+    it("defaults the guild id to the guild's own server", () => {
+        expect(variables.guildId).toBe("1354128137792917555");
     });
 
     it("defaults adminUserId and API_BASE_URL sanely", () => {

@@ -7,7 +7,11 @@ const legendaryID = "1144865420386517053";
 const adminUserId = process.env.ADMIN_USER_ID || "233598324022837249";
 // Bootstrap defaults only — the admin menu can override both in the settings
 // store (kept out of .env on purpose, like the other editable config).
-const guildId = process.env.GUILD_ID || "";
+// The guild id is the guild this bot is installed in: it is what the admin-role
+// check runs against, and what the admin menu's server switcher preselects when
+// the session hasn't picked one (see web/activeGuild.js). A dev instance points
+// its own .env(.dev) GUILD_ID at the test server instead.
+const guildId = process.env.GUILD_ID || "1354128137792917555";
 const raidhelperServerId = process.env.RAIDHELPER_SERVER_ID || "";
 const raidhelperBotId = "579155972115660803";
 const categoryIds = [
