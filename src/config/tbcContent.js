@@ -178,12 +178,20 @@ function contentForInstance(instance) {
  * including Gargul's id-only rows), the export's instance string second.
  * Returns { contentId, boss } with "" for whatever could not be resolved —
  * unknown items are shown as such rather than guessed into a raid.
+ *
+ * The boss follows the same order, and deliberately so: RCLootcouncil's `boss`
+ * is the encounter that was current when the item was *awarded*, not where it
+ * dropped. Anything handed out later — from the bag, from the bank, a re-roll
+ * after the next pull — carries the wrong boss, which is why a whole raid night
+ * can end up filed under its last kill. The item id is unambiguous, so the
+ * table wins; the export's string is only the fallback for ids the table has no
+ * NPC attribution for (trash drops, badge gear, a future patch).
  */
 function contentForLoot(item) {
     const it = item || {};
     const known = sourceForItem(it.itemId);
     const contentId = known ? known.content : contentForInstance(it.instance);
-    return { contentId, boss: String(it.boss || "").trim() || (known ? known.boss : "") };
+    return { contentId, boss: (known && known.boss) || String(it.boss || "").trim() };
 }
 
 // The tier tokens ("Chestguard of the Fallen Champion", "Helm der siegreichen
