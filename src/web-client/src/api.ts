@@ -544,7 +544,7 @@ export function postRaidSoftres(
     return send("POST", "/api/raids/post-softres", csrfToken, input);
 }
 
-export type SoftresSearchItem = { id: number; name: string; iconUrl?: string };
+export type SoftresSearchItem = { id: number; name: string; iconUrl?: string; quality?: number | null };
 
 export function searchSoftresItems(edition: string, q: string): Promise<{ items: SoftresSearchItem[] }> {
     const qs = new URLSearchParams({ edition, q });
@@ -779,6 +779,9 @@ export type LootItem = {
     itemId: number;
     itemName: string;
     itemIconUrl?: string;
+    /** Wowhead's 0-7 quality scale, resolved at import time; null/absent when
+     *  the lookup never came back — see lib/itemQuality.ts. */
+    itemQuality?: number | null;
     itemLink: string;
     character: string;
     response: string;
@@ -808,6 +811,8 @@ export type CharLootPreview = {
     itemId: number;
     itemName: string;
     itemIconUrl: string;
+    /** See LootItem.itemQuality. */
+    itemQuality: number | null;
     itemLink: string;
     response: string;
     offspec: boolean;
@@ -911,6 +916,8 @@ export type LootCatalogItem = {
     itemId: number;
     itemName: string;
     itemIconUrl: string;
+    /** See LootItem.itemQuality. */
+    itemQuality: number | null;
     itemLink: string;
     /** "" when the content table doesn't know the item — shown as "Unbekannt". */
     contentId: string;

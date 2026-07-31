@@ -13,6 +13,7 @@
 import { Link } from "react-router-dom";
 import type { CharLootPreview, LootAward } from "../api";
 import { fmtMs } from "../lib/format";
+import { itemQualityProps } from "../lib/itemQuality";
 import { HoverPanel } from "./HoverPanel";
 import { classColorProps } from "./ClassSpec";
 
@@ -78,7 +79,7 @@ export function ReasonBadgeHover({ label, reasonLabel, tone, count, items }: {
                         ? <img className="loot-pop-ico" src={it.itemIconUrl} alt="" loading="lazy" />
                         : <span className="loot-pop-ico loot-pop-ico-ph" />}
                     <div className="loot-pop-body">
-                        <div className="loot-pop-name" title={it.itemName || `Item ${it.itemId}`}>{it.itemName || `Item ${it.itemId}`}</div>
+                        <div {...itemQualityProps(it.itemQuality, "loot-pop-name")} title={it.itemName || `Item ${it.itemId}`}>{it.itemName || `Item ${it.itemId}`}</div>
                         <div className="loot-pop-meta">
                             {!!it.eventLabel && <span className="lbadge lbadge-neutral">{it.eventLabel}</span>}
                             {!!it.awardedAt && <span className="sub" style={{ margin: 0 }}>{fmtMs(it.awardedAt, false)}</span>}

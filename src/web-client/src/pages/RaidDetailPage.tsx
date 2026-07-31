@@ -9,6 +9,7 @@ import {
     type RaidDetailEventSheet, type LogSection,
 } from "../api";
 import { eventTimeParts, relativeDayLabel, fmtMs } from "../lib/format";
+import { itemQualityProps } from "../lib/itemQuality";
 import {
     ClockIcon, RunIcon, TrashIcon, ExternalIcon, SheetIcon, SendIcon, RefreshIcon, LinkIcon,
 } from "../components/icons";
@@ -690,7 +691,7 @@ function HardReservePicker({ edition, onAdd }: {
                 {results.map((it) => (
                     <div key={it.id} className="hr-row" onMouseDown={(e) => { e.preventDefault(); pick(it); }}>
                         {it.iconUrl && <img src={it.iconUrl} alt="" loading="lazy" />}
-                        <span>{it.name}</span>
+                        <span {...itemQualityProps(it.quality)}>{it.name}</span>
                     </div>
                 ))}
             </div>

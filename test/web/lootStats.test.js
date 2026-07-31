@@ -143,6 +143,18 @@ describe("web/lootStats", () => {
             expect(itemCatalog()[0].itemName).toBe("Serpent Spine Longbow");
         });
 
+        // The quality colours the item name in every table (lib/itemQuality.ts).
+        it("carries the item quality and takes it from whichever row has one", () => {
+            addImport("ev1", [item({ source: "gargul", rawId: "g1", awardedAt: 500 })], {});
+            addImport("ev2", [item({ rawId: "r2", itemQuality: 4, awardedAt: 900 })], {});
+            expect(itemCatalog()[0].itemQuality).toBe(4);
+        });
+
+        it("reports an unresolved quality as null rather than dropping the field", () => {
+            addImport("ev1", [item({ rawId: "q" })], {});
+            expect(itemCatalog()[0].itemQuality).toBeNull();
+        });
+
         it("marks tier tokens with their tier", () => {
             addImport("ev1", [item({ rawId: "t", itemId: 30239, itemName: "Gloves of the Vanquished Champion" })], {});
             expect(itemCatalog()[0].tokenTier).toBe("t5");

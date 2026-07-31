@@ -7,13 +7,16 @@
 // carries nothing but that id — filters exactly like an RCLootcouncil one.
 import { useMemo } from "react";
 import type { LootCatalogItem, LootContent, LootReason, LootTier } from "../api";
-import { fmtMs } from "../lib/format";
+import { itemQualityProps } from "../lib/itemQuality";
 import { usePersistedState } from "../lib/persistedState";
 import { AwardBadge } from "./LootBadges";
 
-type SortKey = "item" | "content" | "count" | "time";
+// No "Zuletzt" column: the item names are what this table is read by, and the
+// date of the newest award was eating the width they need. When a piece was
+// last handed out is on every recipient badge's hover anyway.
+type SortKey = "item" | "content" | "count";
 type Dir = "asc" | "desc";
-const SORT_DEFAULTS: Record<SortKey, Dir> = { item: "asc", content: "asc", count: "desc", time: "desc" };
+const SORT_DEFAULTS: Record<SortKey, Dir> = { item: "asc", content: "asc", count: "desc" };
 
 type View = { search: string; content: string; tier: string; reason: string; tokensOnly: boolean; sort: SortKey; dir: Dir };
 const VIEW_DEFAULT: View = { search: "", content: "", tier: "", reason: "", tokensOnly: false, sort: "count", dir: "desc" };
@@ -83,7 +86,6 @@ export function LootItemsTab({ items, contents, tiers, reasons, unknownContentCo
                 case "item": return (it.itemName || `Item ${it.itemId}`).toLowerCase();
                 case "content": return (contentById.get(it.contentId)?.label || "zzz").toLowerCase();
                 case "count": return it.count;
-                case "time": return it.lastAwardedAt;
                 default: return "";
             }
         };
@@ -169,7 +171,6 @@ export function LootItemsTab({ items, contents, tiers, reasons, unknownContentCo
                                 <SortTh sortKey="content" label="Content" sort={sort} dir={dir} onSort={onSort} />
                                 <th>Boss</th>
                                 <SortTh sortKey="count" label="Vergaben" sort={sort} dir={dir} onSort={onSort} />
-                                <SortTh sortKey="time" label="Zuletzt" sort={sort} dir={dir} onSort={onSort} />
                                 <th>Erhalten von (Hover zeigt Raid & Grund)</th>
                             </tr>
                         </thead>
@@ -178,16 +179,15 @@ export function LootItemsTab({ items, contents, tiers, reasons, unknownContentCo
                                 const content = contentById.get(it.contentId);
                                 return (
                                     <tr key={it.itemId}>
+                                        {/* No token badge next to the name either — the
+                                            "Nur Tier-Token" filter above says which items
+                                            are tokens, and the badge cost the name a line
+                                            break on every one of them. */}
                                         <td>
                                             {it.itemIconUrl && <img className="loot-ico" src={it.itemIconUrl} alt="" loading="lazy" />}
                                             {it.itemLink
-                                                ? <a className="mlink" href={it.itemLink} target="_blank" rel="noopener noreferrer">{it.itemName || `Item ${it.itemId}`}</a>
-                                                : (it.itemName || `Item ${it.itemId}`)}
-                                            {!!it.tokenTier && (
-                                                <span className="lbadge lbadge-neutral" style={{ marginLeft: 8 }} title="Tier-Set-Token — die Rüstung selbst wird beim Händler eingetauscht und taucht in keinem Export auf">
-                                                    {it.tokenTier.toUpperCase()}-Token
-                                                </span>
-                                            )}
+                                                ? <a {...itemQualityProps(it.itemQuality, "mlink")} href={it.itemLink} target="_blank" rel="noopener noreferrer">{it.itemName || `Item ${it.itemId}`}</a>
+                                                : <span {...itemQualityProps(it.itemQuality)}>{it.itemName || `Item ${it.itemId}`}</span>}
                                         </td>
                                         <td className="small">
                                             {content
@@ -196,7 +196,6 @@ export function LootItemsTab({ items, contents, tiers, reasons, unknownContentCo
                                         </td>
                                         <td className="small">{it.boss || ""}</td>
                                         <td className="small">{it.count}</td>
-                                        <td className="small">{fmtMs(it.lastAwardedAt, false)}</td>
                                         <td>
                                             <div className="badge-row">
                                                 {it.awards.map((a, i) => <AwardBadge key={`${a.characterKey}-${a.awardedAt}-${i}`} award={a} />)}

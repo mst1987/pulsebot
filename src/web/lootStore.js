@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
-const { characterKey, enrichItemNames } = require("../utils/lootImport");
+const { characterKey, enrichItemNames, needsLookup } = require("../utils/lootImport");
 const { describeReason } = require("../utils/lootReasons");
 const { contentForLoot, tokenTier } = require("../config/tbcContent");
 
@@ -150,6 +150,8 @@ function charLootPreview(it) {
         itemId: it.itemId || 0,
         itemName: it.itemName || "",
         itemIconUrl: it.itemIconUrl || "",
+        // null (not 0) when Wowhead never resolved it — 0 is "poor" quality.
+        itemQuality: typeof it.itemQuality === "number" ? it.itemQuality : null,
         itemLink: it.itemLink || "",
         response: it.response || "",
         offspec: !!it.offspec,
@@ -232,20 +234,26 @@ function clearEvent(eventId) {
     return removed;
 }
 
+// What repairItemNames() can fill in, as one comparable string — a row counts
+// as repaired when any of the three changed.
+const itemMetaKey = (it) => `${it.itemName}|${it.itemIconUrl}|${it.itemQuality}`;
+
 /**
- * Backfill itemName/itemIconUrl on stored rows that never got them — records
- * imported before icon enrichment existed still show as "Item <id>". Runs the
+ * Backfill itemName/itemIconUrl/itemQuality on stored rows that never got them —
+ * records imported before icon (or quality) enrichment existed still show as
+ * "Item <id>", or in the plain text colour instead of the item's own. Runs the
  * same Wowhead lookup as import-time enrichment and persists what it resolves,
  * so each missing id is fixed once instead of on every page view. Best-effort:
- * ids Wowhead doesn't know simply stay as they are. Returns how many rows
- * gained a name or icon.
+ * ids Wowhead doesn't know simply stay as they are. Returns how many rows gained
+ * a name, an icon or a quality.
  */
 async function repairItemNames() {
     const all = readAll();
-    const missing = all.filter((it) => it.itemId && (!it.itemName || !it.itemIconUrl));
+    const missing = all.filter(needsLookup);
     if (!missing.length) return 0;
+    const before = missing.map(itemMetaKey);
     await enrichItemNames(missing); // mutates the rows in place
-    const repaired = missing.filter((it) => it.itemName && it.itemIconUrl).length;
+    const repaired = missing.filter((it, i) => itemMetaKey(it) !== before[i]).length;
     if (repaired) writeAll(all);
     return repaired;
 }

@@ -184,10 +184,38 @@ describe("utils/lootImport", () => {
             expect(items[0]).toMatchObject({ itemName: "", itemIconUrl: "" });
         });
 
-        it("skips items that already have both a name and an icon", async () => {
-            const items = [{ itemId: 1, itemName: "Known", itemIconUrl: "https://example/known.jpg" }];
+        it("skips items that already have a name, an icon and a quality", async () => {
+            const items = [{ itemId: 1, itemName: "Known", itemIconUrl: "https://example/known.jpg", itemQuality: 4 }];
             await enrichItemNames(items);
             expect(wowhead.lookupItem).not.toHaveBeenCalled();
+        });
+
+        it("looks a complete item up again when only its quality is missing", async () => {
+            wowhead.lookupItem.mockResolvedValue({ id: 1, name: "ignored", iconUrl: "ignored", quality: 4 });
+            const items = [{ itemId: 1, itemName: "Known", itemIconUrl: "https://example/known.jpg" }];
+            await enrichItemNames(items);
+            // name/icon stay as they were, only the missing quality is filled in
+            expect(items[0]).toMatchObject({ itemName: "Known", itemIconUrl: "https://example/known.jpg", itemQuality: 4 });
+        });
+
+        it("fills the quality alongside name and icon", async () => {
+            wowhead.lookupItem.mockResolvedValue({ id: 1, name: "X", iconUrl: "https://example/x.jpg", quality: 5 });
+            const items = [{ itemId: 1, itemName: "", itemIconUrl: "" }];
+            await enrichItemNames(items);
+            expect(items[0].itemQuality).toBe(5);
+        });
+
+        it("keeps a resolved quality of 0 (poor) instead of re-looking it up", async () => {
+            const items = [{ itemId: 1, itemName: "Grey", itemIconUrl: "https://example/g.jpg", itemQuality: 0 }];
+            await enrichItemNames(items);
+            expect(wowhead.lookupItem).not.toHaveBeenCalled();
+        });
+
+        it("leaves the quality unset when Wowhead reports none", async () => {
+            wowhead.lookupItem.mockResolvedValue({ id: 1, name: "X", iconUrl: "https://example/x.jpg", quality: null });
+            const items = [{ itemId: 1, itemName: "", itemIconUrl: "" }];
+            await enrichItemNames(items);
+            expect(items[0].itemQuality).toBeUndefined();
         });
     });
 

@@ -8,16 +8,17 @@
 //                    (date, char without realm, item id, offspec flag, unique id).
 //
 // Normalized loot item:
-//   { source, rawId, itemId, itemName, itemIconUrl, itemLink, player, character,
-//     characterKey, realm, class, response, offspec, boss, instance, note,
-//     replacedGear, awardedAt, awardedBy }
+//   { source, rawId, itemId, itemName, itemIconUrl, itemQuality, itemLink, player,
+//     character, characterKey, realm, class, response, offspec, boss, instance,
+//     note, replacedGear, awardedAt, awardedBy }
 //
 // `rawId` + `source` is the dedup key (stable across re-imports of the same log).
 //
 // `itemName`/`itemIconUrl` are only what the export itself carries — RCLootcouncil
-// gives a name but no icon, Gargul gives neither. enrichItemNames() fills in
-// what's missing via a Wowhead lookup; call it once at import time, not on every
-// read, since the same item ids repeat across a raid's loot.
+// gives a name but no icon, Gargul gives neither, and neither says how rare the
+// item is. enrichItemNames() fills in what's missing (including `itemQuality`)
+// via a Wowhead lookup; call it once at import time, not on every read, since
+// the same item ids repeat across a raid's loot.
 
 // Wowhead links for TBC (Burning Crusade). Item names resolve in the tooltip even
 // when an export (Gargul) only gives us the id.
@@ -193,22 +194,37 @@ function detectImportDate(items) {
     return times.length ? Math.min(...times) : null;
 }
 
-// --- name/icon enrichment ------------------------------------------------------
+// --- name/icon/quality enrichment ----------------------------------------------
 
 const wowhead = require("./wowhead");
 
+/** Does this row still need a Wowhead lookup? */
+function needsLookup(it) {
+    return !!(it && it.itemId && (!it.itemName || !it.itemIconUrl || !isQuality(it.itemQuality)));
+}
+
+/** A resolved quality is a number (Wowhead's 0-7 scale); anything else is "unknown". */
+function isQuality(q) {
+    return typeof q === "number" && q >= 0;
+}
+
 /**
- * Fill in `itemName`/`itemIconUrl` for items an export didn't already carry
- * (Gargul: neither, RCLootcouncil: name but no icon). Looks up each distinct
- * item id at most once via Wowhead, then mutates every matching item in place.
- * Best-effort: a failed lookup just leaves that item showing "Item <id>" (still
- * clickable via itemLink). Call once at import time — the result is stored, so
- * later reads never repeat the network round trip.
+ * Fill in `itemName`/`itemIconUrl`/`itemQuality` for items an export didn't
+ * already carry — no addon exports any of the three completely (Gargul: none,
+ * RCLootcouncil: the name only). Looks up each distinct item id at most once via
+ * Wowhead, then mutates every matching item in place. Best-effort: a failed
+ * lookup just leaves that item showing "Item <id>" in the default text colour
+ * (still clickable via itemLink). Call once at import time — the result is
+ * stored, so later reads never repeat the network round trip.
+ *
+ * `itemQuality` is what the item name is coloured with everywhere in the app
+ * (see web-client's lib/itemQuality.ts); it is stored rather than derived on
+ * read because nothing in the repo maps an item id to its quality offline.
  */
 async function enrichItemNames(items) {
     const ids = [...new Set(
         (items || [])
-            .filter((it) => it && it.itemId && (!it.itemName || !it.itemIconUrl))
+            .filter(needsLookup)
             .map((it) => it.itemId)
     )];
     if (!ids.length) return items;
@@ -219,11 +235,12 @@ async function enrichItemNames(items) {
         if (!found) continue;
         if (!it.itemName) it.itemName = found.name;
         if (!it.itemIconUrl) it.itemIconUrl = found.iconUrl;
+        if (!isQuality(it.itemQuality) && isQuality(found.quality)) it.itemQuality = found.quality;
     }
     return items;
 }
 
 module.exports = {
-    parseLoot, parseRclc, parseGargul, detectImportDate, enrichItemNames,
+    parseLoot, parseRclc, parseGargul, detectImportDate, enrichItemNames, needsLookup,
     splitPlayer, characterKey, itemLink, LootParseError,
 };
