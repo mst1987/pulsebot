@@ -5,9 +5,10 @@
 // Filterable by content (Gruul, SSC, TK, …) and by tier, both resolved from the
 // item id on the server (config/tbcContent.js), so a Gargul export — which
 // carries nothing but that id — filters exactly like an RCLootcouncil one, and
-// by raid category (Mainraid, Twinkraid, …) like the Loot-Gründe tab.
+// by raid category (Mainraid, Twinkraid, …) like the Loot-Gründe tab. What was
+// only ever sharded is out of the table by default (see DISENCHANT).
 import { useMemo } from "react";
-import type { Category, LootCatalogItem, LootContent, LootReason, LootTier } from "../api";
+import type { Category, LootAward, LootCatalogItem, LootContent, LootReason, LootTier } from "../api";
 import { itemQualityProps } from "../lib/itemQuality";
 import { usePersistedState } from "../lib/persistedState";
 import { AwardBadge } from "./LootBadges";
@@ -19,13 +20,30 @@ type SortKey = "item" | "content" | "count";
 type Dir = "asc" | "desc";
 const SORT_DEFAULTS: Record<SortKey, Dir> = { item: "asc", content: "asc", count: "desc" };
 
-type View = { search: string; content: string; tier: string; reason: string; category: string; tokensOnly: boolean; sort: SortKey; dir: Dir };
-const VIEW_DEFAULT: View = { search: "", content: "", tier: "", reason: "", category: "", tokensOnly: false, sort: "count", dir: "desc" };
+type View = { search: string; content: string; tier: string; reason: string; category: string; tokensOnly: boolean; hideDisenchanted: boolean; sort: SortKey; dir: Dir };
+const VIEW_DEFAULT: View = { search: "", content: "", tier: "", reason: "", category: "", tokensOnly: false, hideDisenchanted: true, sort: "count", dir: "desc" };
 
 // The bucket for items the content table doesn't know (a world drop, a badge
 // item, a raid added in a later patch). Never silently filed into a raid — an
 // own filter value so they can be found and the table fixed.
 const UNKNOWN = "__unknown__";
+
+// Sharded loot is not loot anybody got — it says nothing about who was equipped
+// with what, which is what this table is read for. Hidden by default, and the
+// checkbox brings it back for the rare "wie viel wurde entzaubert" question.
+const DISENCHANT = "disenchant";
+
+// Keeps only the awards a filter selected, and drops the items left without
+// any. The count travels with them, so the header and the "Vergaben" column
+// never state a number the badge row doesn't show.
+function narrow(items: LootCatalogItem[], keep: (award: LootAward) => boolean): LootCatalogItem[] {
+    return items
+        .map((it) => {
+            const awards = it.awards.filter(keep);
+            return awards.length === it.awards.length ? it : { ...it, awards, count: awards.length };
+        })
+        .filter((it) => it.count > 0);
+}
 
 function SortTh({ sortKey, label, sort, dir, onSort }: {
     sortKey: SortKey; label: string; sort: SortKey; dir: Dir; onSort: (k: SortKey) => void;
@@ -51,6 +69,9 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
     const [view, setView] = usePersistedState<View>("history-items-view", VIEW_DEFAULT);
     const sort: SortKey = SORT_DEFAULTS[view.sort] ? view.sort : VIEW_DEFAULT.sort;
     const dir: Dir = view.dir === "asc" ? "asc" : "desc";
+    // A view remembered before this filter existed carries no flag at all — only
+    // an explicit false unhides the shards, so the default holds for everyone.
+    const hideDisenchanted = view.hideDisenchanted !== false;
     const patch = (p: Partial<View>) => setView((v) => ({ ...v, ...p }));
 
     const onSort = (key: SortKey) => {
@@ -72,23 +93,26 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
             .sort((a, b) => a.label.localeCompare(b.label));
     }, [items, categoryNameById]);
 
-    // A raid category narrows the awards themselves, not just which items are
-    // listed: "was ist im Twinkraid gefallen" must neither count the Mainraid's
-    // handouts nor show its raiders as recipients.
-    const scoped = useMemo(() => {
-        if (!view.category) return items;
-        return items
-            .map((it) => {
-                const awards = it.awards.filter((a) => a.categoryId === view.category);
-                return awards.length === it.awards.length ? it : { ...it, awards, count: awards.length };
-            })
-            .filter((it) => it.count > 0);
-    }, [items, view.category]);
+    // Category and reason narrow the awards themselves, not just which items are
+    // listed: "wer hat das im Twinkraid als Offspec bekommen" must neither count
+    // the other handouts nor show their raiders among the recipients.
+    const inCategory = useMemo(() => {
+        const byCategory = view.category ? narrow(items, (a) => a.categoryId === view.category) : items;
+        return hideDisenchanted ? narrow(byCategory, (a) => a.reason !== DISENCHANT) : byCategory;
+    }, [items, view.category, hideDisenchanted]);
 
+    // Offered before the reason narrowing, otherwise picking one would leave its
+    // own dropdown with a single entry. Hidden shards are gone from here too —
+    // an "Entzaubert" option that can only ever yield an empty table is a trap.
     const reasonOptions = useMemo(() => {
-        const used = new Set(scoped.flatMap((i) => i.awards.map((a) => a.reason)));
+        const used = new Set(inCategory.flatMap((i) => i.awards.map((a) => a.reason)));
         return reasons.filter((r) => used.has(r.id));
-    }, [scoped, reasons]);
+    }, [inCategory, reasons]);
+
+    const scoped = useMemo(
+        () => (view.reason ? narrow(inCategory, (a) => a.reason === view.reason) : inCategory),
+        [inCategory, view.reason],
+    );
 
     const searchLower = view.search.trim().toLowerCase();
     const filtered = scoped.filter((it) => {
@@ -99,7 +123,6 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
         if (view.content === UNKNOWN ? !!it.contentId : view.content && it.contentId !== view.content) return false;
         if (view.tier && it.tier !== view.tier) return false;
         if (view.tokensOnly && !it.tokenTier) return false;
-        if (view.reason && !it.awards.some((a) => a.reason === view.reason)) return false;
         return true;
     });
 
@@ -122,11 +145,15 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
         });
     }, [filtered, sort, mul, contentById]);
 
-    const hasFilters = !!(view.search || view.content || view.tier || view.reason || view.category || view.tokensOnly);
+    // Hiding the shards is the default, so it is not what the reset button is
+    // there for — showing them is.
+    const hasFilters = !!(view.search || view.content || view.tier || view.reason || view.category || view.tokensOnly || !hideDisenchanted);
     const awardCount = sorted.reduce((n, i) => n + i.count, 0);
-    // The server counts the unknown-content items over all raids; inside a
-    // category the option has to say how many are left there.
-    const unknownCount = view.category ? scoped.filter((i) => !i.contentId).length : unknownContentCount;
+    // The server counts the unknown-content items over all loot; once anything
+    // narrows the awards, the option has to say how many are left.
+    const unknownCount = view.category || view.reason || hideDisenchanted
+        ? scoped.filter((i) => !i.contentId).length
+        : unknownContentCount;
 
     if (!items.length) return <p className="sub">Noch kein Loot importiert.</p>;
 
@@ -189,9 +216,26 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
                         Nur Tier-Token
                     </label>
                 </div>
+                <div className="field">
+                    <label title="Items, die niemand bekommen hat, sondern entzaubert wurden">
+                        <input
+                            type="checkbox"
+                            checked={hideDisenchanted}
+                            onChange={(e) => {
+                                const hide = e.target.checked;
+                                // Hiding the shards while "Entzaubert" is the
+                                // picked reason would leave an empty table with
+                                // no visible cause — drop the pick with them.
+                                const reason = hide && view.reason === DISENCHANT ? "" : view.reason;
+                                patch({ hideDisenchanted: hide, reason });
+                            }}
+                        />
+                        Entzaubertes ausblenden
+                    </label>
+                </div>
                 {hasFilters && (
                     <div className="field">
-                        <button className="btn btn-ghost" type="button" onClick={() => patch({ search: "", content: "", tier: "", reason: "", category: "", tokensOnly: false })}>
+                        <button className="btn btn-ghost" type="button" onClick={() => patch({ search: "", content: "", tier: "", reason: "", category: "", tokensOnly: false, hideDisenchanted: true })}>
                             Filter zurücksetzen
                         </button>
                     </div>
