@@ -3,10 +3,17 @@ import { Link, useLocation, useOutletContext } from "react-router-dom";
 import { getRaids, type ApiError, type RaidEventGroup, type RaidEvent } from "../api";
 import { formatEventTime } from "../lib/format";
 import { usePersistedState } from "../lib/persistedState";
+import { useTableSort, type Dir } from "../lib/tableSort";
 import { eventPostUrl, raidplanUrl } from "../lib/discordLinks";
 import type { ShellContext } from "../components/Shell";
+import { SortTh } from "../components/SortTh";
 
 type Flash = { type: "ok" | "err"; text: string };
+
+// The links column carries the same two links on every row — nothing to order
+// by, so it stays a plain header.
+type SortKey = "event" | "time" | "signups";
+const SORT_DEFAULTS: Record<SortKey, Dir> = { event: "asc", time: "asc", signups: "desc" };
 
 function CategoryTable({ group, guildId }: { group: RaidEventGroup; guildId: string }) {
     // Pre-fill the "＋ Event" form from this category's most recently started
@@ -14,15 +21,34 @@ function CategoryTable({ group, guildId }: { group: RaidEventGroup; guildId: str
     // whichever event happens to be first in the (not necessarily sorted) list.
     const latest = group.events.slice().sort((a, b) => (b.startTime || 0) - (a.startTime || 0))[0];
     const newHref = `/raids/new${latest ? `?source=${latest.id}` : ""}`;
+    // One memory for all categories: they are the same table shown per raid
+    // series, and sorting one by date means wanting the next one that way too.
+    const { sort, dir, onSort, apply } = useTableSort<SortKey>("raids-events-sort", SORT_DEFAULTS, "time");
+    const events = apply(group.events, (ev, key) => {
+        switch (key) {
+            case "event": return (ev.title || "").toLowerCase();
+            case "time": return ev.startTime || 0;
+            case "signups": return ev.signupCount || 0;
+            default: return "";
+        }
+    });
     return (
         <>
             <div className="row-actions" style={{ justifyContent: "flex-end", marginBottom: 12 }}>
                 <Link className="btn btn-ghost btn-sm" to={newHref} title="Neues Event in dieser Kategorie anlegen (Format vorbelegt)">＋ Event</Link>
             </div>
             <table className="idx" style={{ margin: 0 }}>
-                <thead><tr><th>Event</th><th>Termin</th><th>Anm.</th><th>Links</th><th /></tr></thead>
+                <thead>
+                    <tr>
+                        <SortTh sortKey="event" label="Event" sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="time" label="Termin" sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="signups" label="Anm." sort={sort} dir={dir} onSort={onSort} />
+                        <th>Links</th>
+                        <th />
+                    </tr>
+                </thead>
                 <tbody>
-                    {group.events.map((ev: RaidEvent) => (
+                    {events.map((ev: RaidEvent) => (
                         <tr key={ev.id}>
                             <td><strong>{ev.title || "(ohne Titel)"}</strong><div className="small">#{ev.channelName || ev.channelId}</div></td>
                             <td className="small">{formatEventTime(ev.startTime)}</td>

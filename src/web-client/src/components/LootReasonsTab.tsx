@@ -8,12 +8,15 @@
 import { useMemo } from "react";
 import type { CharReasonRow, LootReason, Category } from "../api";
 import { usePersistedState } from "../lib/persistedState";
+import { sortRows, type Dir } from "../lib/tableSort";
 import { ClassSpecCell } from "./ClassSpec";
+import { SortTh } from "./SortTh";
 import { ReasonBadge, ReasonBadgeHover, RaiderBadge } from "./LootBadges";
 
-type SortKey = "character" | "classSpec" | "count";
-type Dir = "asc" | "desc";
-const SORT_DEFAULTS: Record<SortKey, Dir> = { character: "asc", classSpec: "asc", count: "desc" };
+// The badge column sorts by the raider's strongest reason (the badges are laid
+// out in that order anyway), so "wer nimmt nur Mainspec" is one click.
+type SortKey = "character" | "classSpec" | "count" | "reasons";
+const SORT_DEFAULTS: Record<SortKey, Dir> = { character: "asc", classSpec: "asc", count: "desc", reasons: "asc" };
 
 type View = { search: string; reason: string; category: string; sort: SortKey; dir: Dir };
 const VIEW_DEFAULT: View = { search: "", reason: "", category: "", sort: "count", dir: "desc" };
@@ -23,21 +26,12 @@ function sortValue(c: CharReasonRow, key: SortKey): string | number {
         case "character": return c.character.toLowerCase();
         case "classSpec": return `${c.className} ${c.spec}`.toLowerCase().trim();
         case "count": return c.count;
+        // `order` is the reason catalog's rank (0 = BiS); the buckets arrive
+        // sorted by it, so the first one is the strongest. A raider without any
+        // bucket can't happen, but sorts last rather than first if it does.
+        case "reasons": return c.reasons[0]?.order ?? 99;
         default: return "";
     }
-}
-
-function SortTh({ sortKey, label, sort, dir, onSort }: {
-    sortKey: SortKey; label: string; sort: SortKey; dir: Dir; onSort: (k: SortKey) => void;
-}) {
-    const active = sort === sortKey;
-    return (
-        <th>
-            <button type="button" className={`sort-link${active ? " active" : ""}`} onClick={() => onSort(sortKey)}>
-                {label}{active ? (dir === "asc" ? " ▲" : " ▼") : ""}
-            </button>
-        </th>
-    );
 }
 
 export function LootReasonsTab({ characters, reasons, categories }: {
@@ -83,14 +77,7 @@ export function LootReasonsTab({ characters, reasons, categories }: {
         return true;
     });
 
-    const mul = dir === "asc" ? 1 : -1;
-    const sorted = [...filtered].sort((a, b) => {
-        const va = sortValue(a, sort);
-        const vb = sortValue(b, sort);
-        if (va < vb) return -1 * mul;
-        if (va > vb) return 1 * mul;
-        return 0;
-    });
+    const sorted = sortRows(filtered, (c) => sortValue(c, sort), dir);
 
     const totalItems = characters.reduce((n, c) => n + c.count, 0);
     const hasFilters = !!(view.search || view.reason || view.category);
@@ -144,7 +131,11 @@ export function LootReasonsTab({ characters, reasons, categories }: {
                                 <SortTh sortKey="character" label="Charakter" sort={sort} dir={dir} onSort={onSort} />
                                 <SortTh sortKey="classSpec" label="Klasse & Spec" sort={sort} dir={dir} onSort={onSort} />
                                 <SortTh sortKey="count" label="Items" sort={sort} dir={dir} onSort={onSort} />
-                                <th>Gründe (Hover zeigt die Items)</th>
+                                <SortTh
+                                    sortKey="reasons" label="Gründe (Hover zeigt die Items)"
+                                    title="Sortiert nach dem stärksten Grund des Raiders"
+                                    sort={sort} dir={dir} onSort={onSort}
+                                />
                             </tr>
                         </thead>
                         <tbody>

@@ -5,7 +5,9 @@ import { formatEventTime, formatDate, fmtMs } from "../lib/format";
 import {
     RecruitmentIcon, ClaIcon, RaidsIcon, ChannelsIcon, SettingsIcon, ClockIcon, LootIcon, BoltIcon,
 } from "../components/icons";
+import { useTableSort, type Dir } from "../lib/tableSort";
 import RaidTable from "../components/RaidTable";
+import { SortTh } from "../components/SortTh";
 import OrbsBackground from "../components/OrbsBackground";
 import { CharacterLink, ClassSpecIcon } from "../components/ClassSpec";
 import { LootResponseBadge } from "../components/LootTable";
@@ -47,42 +49,86 @@ function SheetBadge({ sheet }: { sheet: UpcomingEvent["sheet"] }) {
     return <span className="pill good" title={title}>Sheet ✓</span>;
 }
 
+type UpcomingSortKey = "event" | "channel" | "time" | "sheet";
+const UPCOMING_SORT_DEFAULTS: Record<UpcomingSortKey, Dir> = { event: "asc", channel: "asc", time: "asc", sheet: "asc" };
+
 function UpcomingTable({ upcoming }: { upcoming: DashboardData["upcoming"] }) {
-    if (upcoming.error) {
-        return <tr><td colSpan={4} className="sub" style={{ padding: 16, color: "var(--high)" }}>{upcoming.error}</td></tr>;
-    }
-    if (!upcoming.events.length) {
-        return <tr><td colSpan={4} className="sub" style={{ padding: 16 }}>Keine anstehenden Events mit fertigem Setup.</td></tr>;
-    }
-    return (
-        <>
-            {upcoming.events.map((ev) => (
+    const { sort, dir, onSort, apply } = useTableSort<UpcomingSortKey>("dashboard-upcoming-sort", UPCOMING_SORT_DEFAULTS, "time");
+    const sorted = apply(upcoming.events, (ev, key) => {
+        switch (key) {
+            case "event": return (ev.title || "").toLowerCase();
+            case "channel": return (ev.channelName || "").toLowerCase();
+            case "time": return ev.startTime || 0;
+            // The events still missing their sheet are the ones to act on, so
+            // they lead the ascending order.
+            case "sheet": return ev.sheet ? 1 : 0;
+            default: return "";
+        }
+    });
+    const body = upcoming.error
+        ? <tr><td colSpan={4} className="sub" style={{ padding: 16, color: "var(--high)" }}>{upcoming.error}</td></tr>
+        : !sorted.length
+            ? <tr><td colSpan={4} className="sub" style={{ padding: 16 }}>Keine anstehenden Events mit fertigem Setup.</td></tr>
+            : sorted.map((ev) => (
                 <tr key={ev.id}>
                     <td><Link className="mlink" to={`/raids/detail?event=${encodeURIComponent(ev.id)}`}>{ev.title}</Link></td>
                     <td className="small">{ev.channelName}</td>
                     <td className="small">{formatEventTime(ev.startTime)}</td>
                     <td><SheetBadge sheet={ev.sheet} /></td>
                 </tr>
-            ))}
-        </>
+            ));
+    return (
+        <table className="idx">
+            <thead>
+                <tr>
+                    <SortTh sortKey="event" label="Event" sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="channel" label="Kanal" sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="time" label="Termin" sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="sheet" label="Sheet" sort={sort} dir={dir} onSort={onSort} />
+                </tr>
+            </thead>
+            <tbody>{body}</tbody>
+        </table>
     );
 }
 
+type ReportSortKey = "report" | "zone" | "date" | "issues";
+const REPORT_SORT_DEFAULTS: Record<ReportSortKey, Dir> = { report: "asc", zone: "asc", date: "desc", issues: "desc" };
+
 function RecentReportsTable({ reports }: { reports: DashboardData["recentReports"] }) {
-    if (!reports.length) {
-        return <tr><td colSpan={4} className="sub" style={{ padding: 16 }}>Noch keine Auswertungen.</td></tr>;
-    }
+    const { sort, dir, onSort, apply } = useTableSort<ReportSortKey>("dashboard-reports-sort", REPORT_SORT_DEFAULTS, "date");
+    const sorted = apply(reports, (r, key) => {
+        switch (key) {
+            case "report": return (r.title || r.id).toLowerCase();
+            case "zone": return (r.zone || "").toLowerCase();
+            case "date": return r.generatedAt || 0;
+            case "issues": return r.issueCount || 0;
+            default: return "";
+        }
+    });
     return (
-        <>
-            {reports.map((r) => (
-                <tr key={r.id}>
-                    <td><a className="mlink" href={`/r/${r.id}`}>{r.title || r.id}</a></td>
-                    <td>{r.zone}</td>
-                    <td className="small">{formatDate(r.generatedAt)}</td>
-                    <td><span className="pill">{r.issueCount}</span></td>
+        <table className="idx">
+            <thead>
+                <tr>
+                    <SortTh sortKey="report" label="Report" sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="zone" label="Zone" sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="date" label="Erstellt" sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="issues" label="Probleme" sort={sort} dir={dir} onSort={onSort} />
                 </tr>
-            ))}
-        </>
+            </thead>
+            <tbody>
+                {!sorted.length
+                    ? <tr><td colSpan={4} className="sub" style={{ padding: 16 }}>Noch keine Auswertungen.</td></tr>
+                    : sorted.map((r) => (
+                        <tr key={r.id}>
+                            <td><a className="mlink" href={`/r/${r.id}`}>{r.title || r.id}</a></td>
+                            <td>{r.zone}</td>
+                            <td className="small">{formatDate(r.generatedAt)}</td>
+                            <td><span className="pill">{r.issueCount}</span></td>
+                        </tr>
+                    ))}
+            </tbody>
+        </table>
     );
 }
 
@@ -196,10 +242,7 @@ export default function DashboardPage() {
 
             <div className="dash-card">
                 <CardHead icon={<ClockIcon />} title="Upcoming Events" link="/raids" />
-                <table className="idx">
-                    <thead><tr><th>Event</th><th>Kanal</th><th>Termin</th><th>Sheet</th></tr></thead>
-                    <tbody><UpcomingTable upcoming={data.upcoming} /></tbody>
-                </table>
+                <UpcomingTable upcoming={data.upcoming} />
             </div>
 
             <div className="dash-card">
@@ -207,16 +250,14 @@ export default function DashboardPage() {
                 <RaidTable
                     events={data.recentEvents.events} guildId={data.activeGuildId}
                     error={data.recentEvents.error} emptyMessage="Keine vergangenen Events gefunden."
+                    sortKey="dashboard-events-sort"
                 />
             </div>
 
             <div className="dash-grid">
                 <div className="dash-card">
                     <CardHead icon={<ClaIcon />} title="Letzte Auswertungen" link="/cla" />
-                    <table className="idx">
-                        <thead><tr><th>Report</th><th>Zone</th><th>Erstellt</th><th>Probleme</th></tr></thead>
-                        <tbody><RecentReportsTable reports={data.recentReports} /></tbody>
-                    </table>
+                    <RecentReportsTable reports={data.recentReports} />
                 </div>
                 <div className="dash-card">
                     <CardHead icon={<BoltIcon />} title="Schnellzugriff" />

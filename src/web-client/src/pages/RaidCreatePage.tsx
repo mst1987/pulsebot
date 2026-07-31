@@ -4,8 +4,13 @@ import {
     getRaidCreateContext, createRaid, getRaidTemplates, createRaidTemplate, deleteRaidTemplate, importRaidTemplates,
     type ApiError, type RaidCreateContext, type RaidTemplate,
 } from "../api";
+import { useTableSort, type Dir } from "../lib/tableSort";
 import type { ShellContext } from "../components/Shell";
+import { SortTh } from "../components/SortTh";
 import { TrashIcon } from "../components/icons";
+
+type SortKey = "name" | "id";
+const SORT_DEFAULTS: Record<SortKey, Dir> = { name: "asc", id: "asc" };
 
 function ChannelField({ channels, value, onChange }: { channels: RaidCreateContext["channels"]; value: string; onChange: (v: string) => void }) {
     if (!channels.length) {
@@ -31,6 +36,12 @@ function TemplatesPanel({ templates, csrfToken, onChanged }: {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [msg, setMsg] = useState<string | null>(null);
+    const { sort, dir, onSort, apply } = useTableSort<SortKey>("raid-templates-sort", SORT_DEFAULTS, "name");
+    // The id is Raid-Helper's own numbering and compares as a number where it
+    // is one, so "10" doesn't land between "1" and "2".
+    const sorted = apply(templates, (t, key) => (
+        key === "name" ? (t.name || "").toLowerCase() : (Number(t.id) || t.id.toLowerCase())
+    ));
 
     const refresh = () => getRaidTemplates().then((r) => onChanged(r.templates));
 
@@ -88,9 +99,15 @@ function TemplatesPanel({ templates, csrfToken, onChanged }: {
             {templates.length
                 ? (
                     <table className="idx" style={{ marginBottom: 14 }}>
-                        <thead><tr><th>Name</th><th className="small">Template-ID</th><th /></tr></thead>
+                        <thead>
+                            <tr>
+                                <SortTh sortKey="name" label="Name" sort={sort} dir={dir} onSort={onSort} />
+                                <SortTh sortKey="id" label="Template-ID" sort={sort} dir={dir} onSort={onSort} />
+                                <th />
+                            </tr>
+                        </thead>
                         <tbody>
-                            {templates.map((t) => (
+                            {sorted.map((t) => (
                                 <tr key={t.id}>
                                     <td><strong>{t.name || "(ohne Name)"}</strong></td>
                                     <td className="small">{t.id}</td>

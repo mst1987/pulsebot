@@ -9,6 +9,7 @@ import {
 import { formatEventTime, fmtMs } from "../lib/format";
 import { usePersistedState, usePersistedSearchParam, useDraftState } from "../lib/persistedState";
 import type { ShellContext } from "../components/Shell";
+import { SortTh } from "../components/SortTh";
 import { useJobs } from "../components/Jobs";
 import { RunIcon, SearchIcon, LinkIcon, TrashIcon, ExternalIcon, XIcon } from "../components/icons";
 
@@ -24,7 +25,9 @@ const REPORT_SECONDS = 30;
 // Default sort direction per column — mirrors renderAdmin.js's REPORT_DIR/LOG_DIR
 // maps used by claSortHeader().
 const REPORT_SORT_DEFAULTS: Record<string, Dir> = { title: "asc", zone: "asc", event: "asc", date: "desc", players: "desc", issues: "desc" };
-const LOG_SORT_DEFAULTS: Record<string, Dir> = { title: "asc", status: "asc", date: "desc" };
+const LOG_SORT_DEFAULTS: Record<string, Dir> = {
+    title: "asc", category: "asc", event: "asc", source: "asc", status: "asc", date: "desc",
+};
 
 // The remembered sort, per view: the two tables share no columns, so a single
 // common memory would hand the logs table a "players" column it doesn't have.
@@ -56,24 +59,26 @@ function logWclUrl(l: LogRow): string {
     return l.link || (l.reportId ? `https://classic.warcraftlogs.com/reports/${l.reportId}` : "");
 }
 
-// A clickable sortable <th>: toggles asc/desc on the active column (using its
-// configured default direction the first time it's clicked), resets to page 1.
-function SortTh({ sortKey, label, page, defaults, onSort }: {
+// The shared sortable <th>, adapted to this page's server-side sorting: the two
+// CLA tables are paginated by the API, so a click doesn't reorder an array here
+// but asks for a differently sorted page (and resets to page 1). Which
+// direction that is — toggled on the active column, else the column's
+// configured default — is decided here rather than in the shared component,
+// which only ever reports "this column was clicked".
+function ClaSortTh({ sortKey, label, page, defaults, onSort }: {
     sortKey: string;
     label: string;
     page: { sort: string; dir: Dir };
     defaults: Record<string, Dir>;
     onSort: (key: string, dir: Dir) => void;
 }) {
-    const active = page.sort === sortKey;
-    const nextDir: Dir = active ? (page.dir === "asc" ? "desc" : "asc") : (defaults[sortKey] || "desc");
-    const arrow = active ? (page.dir === "asc" ? " ▲" : " ▼") : "";
+    const nextDir: Dir = page.sort === sortKey ? (page.dir === "asc" ? "desc" : "asc") : (defaults[sortKey] || "desc");
     return (
-        <th>
-            <button type="button" className={`sort-link${active ? " active" : ""}`} onClick={() => onSort(sortKey, nextDir)}>
-                {label}{arrow}
-            </button>
-        </th>
+        <SortTh
+            sortKey={sortKey} label={label}
+            sort={page.sort} dir={page.dir}
+            onSort={() => onSort(sortKey, nextDir)}
+        />
     );
 }
 
@@ -197,12 +202,12 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
                         <table className="idx">
                             <thead>
                                 <tr>
-                                    <SortTh sortKey="title" label="Report" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
-                                    <SortTh sortKey="zone" label="Zone" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
-                                    <SortTh sortKey="event" label="Raid" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
-                                    <SortTh sortKey="date" label="Erstellt" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
-                                    <SortTh sortKey="players" label="Spieler" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
-                                    <SortTh sortKey="issues" label="Probleme" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
+                                    <ClaSortTh sortKey="title" label="Report" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
+                                    <ClaSortTh sortKey="zone" label="Zone" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
+                                    <ClaSortTh sortKey="event" label="Raid" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
+                                    <ClaSortTh sortKey="date" label="Erstellt" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
+                                    <ClaSortTh sortKey="players" label="Spieler" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
+                                    <ClaSortTh sortKey="issues" label="Probleme" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
                                     <th>WCL</th>
                                     <th />
                                 </tr>
@@ -481,12 +486,12 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
                         <table className="idx">
                             <thead>
                                 <tr>
-                                    <SortTh sortKey="title" label="Log" page={logPage} defaults={LOG_SORT_DEFAULTS} onSort={onSort} />
-                                    <th>Kategorie</th>
-                                    <th>Event</th>
-                                    <th>Quelle</th>
-                                    <SortTh sortKey="status" label="Status" page={logPage} defaults={LOG_SORT_DEFAULTS} onSort={onSort} />
-                                    <SortTh sortKey="date" label="Gepostet" page={logPage} defaults={LOG_SORT_DEFAULTS} onSort={onSort} />
+                                    <ClaSortTh sortKey="title" label="Log" page={logPage} defaults={LOG_SORT_DEFAULTS} onSort={onSort} />
+                                    <ClaSortTh sortKey="category" label="Kategorie" page={logPage} defaults={LOG_SORT_DEFAULTS} onSort={onSort} />
+                                    <ClaSortTh sortKey="event" label="Event" page={logPage} defaults={LOG_SORT_DEFAULTS} onSort={onSort} />
+                                    <ClaSortTh sortKey="source" label="Quelle" page={logPage} defaults={LOG_SORT_DEFAULTS} onSort={onSort} />
+                                    <ClaSortTh sortKey="status" label="Status" page={logPage} defaults={LOG_SORT_DEFAULTS} onSort={onSort} />
+                                    <ClaSortTh sortKey="date" label="Gepostet" page={logPage} defaults={LOG_SORT_DEFAULTS} onSort={onSort} />
                                     <th />
                                 </tr>
                             </thead>

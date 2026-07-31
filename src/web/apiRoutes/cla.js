@@ -39,6 +39,10 @@ async function getClaData(req, res, url) {
         dir: url.searchParams.get("dir"),
         page: url.searchParams.get("page"),
     };
+    // Category and channel name are sortable columns, so they have to sit on
+    // every log before the list is sorted and cut — annotating just the page
+    // would sort by a field that isn't filled in yet.
+    if (view === "logs") annotateLogCategories(logs, discord.getChannelCategoryMap(guildId));
     // Only the active view is paginated; the other tab is just a link/count.
     const reportPage = view === "reports" ? prepareReportList(reports, sortQuery) : null;
     const logPage = view === "logs" ? prepareLogList(logs, sortQuery) : null;
@@ -46,7 +50,6 @@ async function getClaData(req, res, url) {
     let matchEvents = { events: [], error: null };
     if (logPage) {
         await backfillLogTitles(logPage.items);
-        annotateLogCategories(logPage.items, discord.getChannelCategoryMap(guildId));
         matchEvents = await loadMatchableEvents(guildId);
         annotateMatches(logPage.items, matchEvents.events);
         // which analyses already ran, normalised for legacy entries

@@ -6,14 +6,23 @@ import {
     type ApiError, type RecruitmentData, type RecruitmentTemplate, type RecruitmentPost,
 } from "../api";
 import { usePersistedSearchParam, useDraftState } from "../lib/persistedState";
+import { useTableSort, type Dir } from "../lib/tableSort";
 import EmojiPicker from "../components/EmojiPicker";
 import SpecPicker from "../components/SpecPicker";
 import type { ShellContext } from "../components/Shell";
+import { SortTh } from "../components/SortTh";
 import { TrashIcon } from "../components/icons";
 
 type Flash = { type: "ok" | "err"; text: string };
 type View = "posts" | "templates" | "applications";
 const VIEWS: View[] = ["posts", "templates", "applications"];
+
+// Both tables sort by their text columns; the trailing button column has
+// nothing to order by.
+type TemplateSortKey = "name" | "preview";
+const TEMPLATE_SORT_DEFAULTS: Record<TemplateSortKey, Dir> = { name: "asc", preview: "asc" };
+type PostSortKey = "channel" | "preview" | "source";
+const POST_SORT_DEFAULTS: Record<PostSortKey, Dir> = { channel: "asc", preview: "asc", source: "asc" };
 
 function textPreview(s: string, max = 60): string {
     const clean = String(s || "").replace(/\s+/g, " ").trim();
@@ -122,6 +131,11 @@ function TemplatesTab({ data, csrfToken, editing, onChanged, onCancelEdit, onEdi
     onCancelEdit: () => void;
     onEdit: (id: string) => void;
 }) {
+    const { sort, dir, onSort, apply } = useTableSort<TemplateSortKey>("recruitment-templates-sort", TEMPLATE_SORT_DEFAULTS, "name");
+    const templates = apply(data.templates, (t, key) => (
+        key === "name" ? (t.name || "").toLowerCase() : textPreview(t.content || t.title).toLowerCase()
+    ));
+
     const remove = async (t: RecruitmentTemplate) => {
         if (!confirm("Vorlage wirklich löschen?")) return;
         try {
@@ -139,9 +153,15 @@ function TemplatesTab({ data, csrfToken, editing, onChanged, onCancelEdit, onEdi
             {data.templates.length
                 ? (
                     <table className="idx" style={{ marginBottom: 18 }}>
-                        <thead><tr><th>Name</th><th>Vorschau</th><th /></tr></thead>
+                        <thead>
+                            <tr>
+                                <SortTh sortKey="name" label="Name" sort={sort} dir={dir} onSort={onSort} />
+                                <SortTh sortKey="preview" label="Vorschau" sort={sort} dir={dir} onSort={onSort} />
+                                <th />
+                            </tr>
+                        </thead>
                         <tbody>
-                            {data.templates.map((t) => (
+                            {templates.map((t) => (
                                 <tr key={t.id}>
                                     <td><strong>{t.name || "(ohne Name)"}</strong></td>
                                     <td className="sub" style={{ margin: 0 }}>{textPreview(t.content || t.title)}</td>
@@ -239,6 +259,15 @@ function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
     const [posting, setPosting] = useState(false);
     const [postError, setPostError] = useState<string | null>(null);
     const [scanning, setScanning] = useState(false);
+    const postSort = useTableSort<PostSortKey>("recruitment-posts-sort", POST_SORT_DEFAULTS, "channel");
+    const posts = postSort.apply(data.posts, (p, key) => {
+        switch (key) {
+            case "channel": return (p.channelName || p.channelId || "").toLowerCase();
+            case "preview": return textPreview(p.content || p.title).toLowerCase();
+            case "source": return (p.source || "").toLowerCase();
+            default: return "";
+        }
+    });
 
     const submitPost = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -321,9 +350,16 @@ function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
             {data.posts.length
                 ? (
                     <table className="idx">
-                        <thead><tr><th>Channel</th><th>Vorschau</th><th className="small">Quelle</th><th /></tr></thead>
+                        <thead>
+                            <tr>
+                                <SortTh sortKey="channel" label="Channel" sort={postSort.sort} dir={postSort.dir} onSort={postSort.onSort} />
+                                <SortTh sortKey="preview" label="Vorschau" sort={postSort.sort} dir={postSort.dir} onSort={postSort.onSort} />
+                                <SortTh sortKey="source" label="Quelle" sort={postSort.sort} dir={postSort.dir} onSort={postSort.onSort} />
+                                <th />
+                            </tr>
+                        </thead>
                         <tbody>
-                            {data.posts.map((p) => (
+                            {posts.map((p) => (
                                 <tr key={p.id}>
                                     <td>#{p.channelName || p.channelId}</td>
                                     <td>

@@ -4,18 +4,17 @@
 // no server round trip needed like ClaPage's server-side SortTh. Defaults to
 // sorting by character, since that's how a raid lead checks "who got what"
 // right after an import.
-import { useMemo } from "react";
 import type { LootItem } from "../api";
 import { fmtMs } from "../lib/format";
-import { usePersistedState } from "../lib/persistedState";
+import { useTableSort, type Dir } from "../lib/tableSort";
 import { itemQualityProps } from "../lib/itemQuality";
 import { CharacterLink } from "./ClassSpec";
+import { SortTh } from "./SortTh";
 import { reasonToneClass } from "./LootBadges";
 
 const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil" };
 
 type SortKey = "item" | "character" | "response" | "boss" | "event" | "time" | "source";
-type Dir = "asc" | "desc";
 
 const SORT_DEFAULTS: Record<SortKey, Dir> = {
     item: "asc", character: "asc", response: "asc", boss: "asc", event: "asc", time: "desc", source: "asc",
@@ -57,50 +56,12 @@ export function LootResponseBadge({ response, offspec, reasonLabel, reasonTone }
     );
 }
 
-function SortTh({ sortKey, label, sort, dir, onSort }: {
-    sortKey: SortKey;
-    label: string;
-    sort: SortKey;
-    dir: Dir;
-    onSort: (key: SortKey) => void;
-}) {
-    const active = sort === sortKey;
-    const arrow = active ? (dir === "asc" ? " ▲" : " ▼") : "";
-    return (
-        <th>
-            <button type="button" className={`sort-link${active ? " active" : ""}`} onClick={() => onSort(sortKey)}>
-                {label}{arrow}
-            </button>
-        </th>
-    );
-}
-
 export function LootTable({ items, showEvent = false }: { items: LootItem[]; showEvent?: boolean }) {
     // One shared memory for every place this table shows up (raid detail, event
     // loot, character history): it is the same table, so whoever sorts it by item
-    // wants it that way in the next raid too. A stored key from an older build
-    // falls back to the default instead of sorting by nothing.
-    const [view, setView] = usePersistedState<{ sort: SortKey; dir: Dir }>("loot-table-sort", {
-        sort: "character", dir: SORT_DEFAULTS.character,
-    });
-    const sort: SortKey = SORT_DEFAULTS[view.sort] ? view.sort : "character";
-    const dir: Dir = view.dir === "desc" ? "desc" : "asc";
-
-    const onSort = (key: SortKey) => {
-        if (key === sort) { setView({ sort, dir: dir === "asc" ? "desc" : "asc" }); return; }
-        setView({ sort: key, dir: SORT_DEFAULTS[key] });
-    };
-
-    const sorted = useMemo(() => {
-        const mul = dir === "asc" ? 1 : -1;
-        return [...items].sort((a, b) => {
-            const va = sortValue(a, sort);
-            const vb = sortValue(b, sort);
-            if (va < vb) return -1 * mul;
-            if (va > vb) return 1 * mul;
-            return 0;
-        });
-    }, [items, sort, dir]);
+    // wants it that way in the next raid too.
+    const { sort, dir, onSort, apply } = useTableSort<SortKey>("loot-table-sort", SORT_DEFAULTS, "character");
+    const sorted = apply(items, sortValue);
 
     return (
         <table className="idx loot-table" style={{ margin: 0 }}>

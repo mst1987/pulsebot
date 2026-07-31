@@ -11,14 +11,19 @@ import { useMemo } from "react";
 import type { Category, LootAward, LootCatalogItem, LootContent, LootReason, LootTier } from "../api";
 import { itemQualityProps } from "../lib/itemQuality";
 import { usePersistedState } from "../lib/persistedState";
+import { sortRows, type Dir } from "../lib/tableSort";
+import { SortTh } from "./SortTh";
 import { AwardBadge } from "./LootBadges";
 
 // No "Zuletzt" column: the item names are what this table is read by, and the
 // date of the newest award was eating the width they need. When a piece was
 // last handed out is on every recipient badge's hover anyway.
-type SortKey = "item" | "content" | "count";
-type Dir = "asc" | "desc";
-const SORT_DEFAULTS: Record<SortKey, Dir> = { item: "asc", content: "asc", count: "desc" };
+//
+// The recipient column is a list of badges: it sorts by the alphabetically
+// first raider in it, which is what "sort by that column" can mean for a cell
+// full of names (how many are in it is already the Vergaben column).
+type SortKey = "item" | "content" | "boss" | "count" | "recipients";
+const SORT_DEFAULTS: Record<SortKey, Dir> = { item: "asc", content: "asc", boss: "asc", count: "desc", recipients: "asc" };
 
 type View = { search: string; content: string; tier: string; reason: string; category: string; tokensOnly: boolean; hideDisenchanted: boolean; sort: SortKey; dir: Dir };
 const VIEW_DEFAULT: View = { search: "", content: "", tier: "", reason: "", category: "", tokensOnly: false, hideDisenchanted: true, sort: "count", dir: "desc" };
@@ -45,18 +50,6 @@ function narrow(items: LootCatalogItem[], keep: (award: LootAward) => boolean): 
         .filter((it) => it.count > 0);
 }
 
-function SortTh({ sortKey, label, sort, dir, onSort }: {
-    sortKey: SortKey; label: string; sort: SortKey; dir: Dir; onSort: (k: SortKey) => void;
-}) {
-    const active = sort === sortKey;
-    return (
-        <th>
-            <button type="button" className={`sort-link${active ? " active" : ""}`} onClick={() => onSort(sortKey)}>
-                {label}{active ? (dir === "asc" ? " ▲" : " ▼") : ""}
-            </button>
-        </th>
-    );
-}
 
 export function LootItemsTab({ items, contents, tiers, reasons, categories, unknownContentCount }: {
     items: LootCatalogItem[];
@@ -126,24 +119,18 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
         return true;
     });
 
-    const mul = dir === "asc" ? 1 : -1;
-    const sorted = useMemo(() => {
-        const value = (it: LootCatalogItem): string | number => {
-            switch (sort) {
-                case "item": return (it.itemName || `Item ${it.itemId}`).toLowerCase();
-                case "content": return (contentById.get(it.contentId)?.label || "zzz").toLowerCase();
-                case "count": return it.count;
-                default: return "";
-            }
-        };
-        return [...filtered].sort((a, b) => {
-            const va = value(a);
-            const vb = value(b);
-            if (va < vb) return -1 * mul;
-            if (va > vb) return 1 * mul;
-            return 0;
-        });
-    }, [filtered, sort, mul, contentById]);
+    const sorted = sortRows(filtered, (it) => {
+        switch (sort) {
+            case "item": return (it.itemName || `Item ${it.itemId}`).toLowerCase();
+            // An item whose raid the content table doesn't know sorts to the
+            // end rather than to the top, where an empty label would put it.
+            case "content": return (contentById.get(it.contentId)?.label || "zzz").toLowerCase();
+            case "boss": return (it.boss || "zzz").toLowerCase();
+            case "count": return it.count;
+            case "recipients": return it.awards.map((a) => a.character.toLowerCase()).sort()[0] || "zzz";
+            default: return "";
+        }
+    }, dir);
 
     // Hiding the shards is the default, so it is not what the reset button is
     // there for — showing them is.
@@ -249,9 +236,13 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
                             <tr>
                                 <SortTh sortKey="item" label="Item" sort={sort} dir={dir} onSort={onSort} />
                                 <SortTh sortKey="content" label="Content" sort={sort} dir={dir} onSort={onSort} />
-                                <th>Boss</th>
+                                <SortTh sortKey="boss" label="Boss" sort={sort} dir={dir} onSort={onSort} />
                                 <SortTh sortKey="count" label="Vergaben" sort={sort} dir={dir} onSort={onSort} />
-                                <th>Erhalten von (Hover zeigt Raid & Grund)</th>
+                                <SortTh
+                                    sortKey="recipients" label="Erhalten von (Hover zeigt Raid & Grund)"
+                                    title="Sortiert nach dem alphabetisch ersten Empfänger"
+                                    sort={sort} dir={dir} onSort={onSort}
+                                />
                             </tr>
                         </thead>
                         <tbody>

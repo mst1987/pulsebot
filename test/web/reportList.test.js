@@ -143,6 +143,29 @@ describe("web/reportList prepareLogList", () => {
         expect(prepareLogList(logs, { sort: "status", dir: "asc" }).items.map((l) => l.id)).toEqual(["c", "a", "b"]);
     });
 
+    // The logs table sorts by every column it shows; three of them are filled in
+    // by annotateLogCategories/the event assignment rather than by the log itself.
+    it("sorts by category, event and source channel", () => {
+        const annotated = [
+            { id: "a", postedAt: 100, categoryName: "Pug", eventLabel: "SSC", channelName: "logs-pug" },
+            { id: "b", postedAt: 200, categoryName: "Montagsraid", eventLabel: "", channelName: "logs-mo" },
+            { id: "c", postedAt: 300, categoryName: "Twink", eventLabel: "Gruul", channelName: "logs-twink" },
+        ];
+        expect(prepareLogList(annotated, { sort: "category", dir: "asc" }).items.map((l) => l.id)).toEqual(["b", "a", "c"]);
+        // A log without a raid has no label and leads ascending — those are the
+        // ones the page is opened to assign.
+        expect(prepareLogList(annotated, { sort: "event", dir: "asc" }).items.map((l) => l.id)).toEqual(["b", "c", "a"]);
+        expect(prepareLogList(annotated, { sort: "source", dir: "asc" }).items.map((l) => l.id)).toEqual(["b", "a", "c"]);
+    });
+
+    it("keeps an unknown sort key from silently sorting by nothing", () => {
+        // Everything the client can ask for is a listed column; anything else
+        // falls back to the default rather than leaving the list unordered.
+        const lp = prepareLogList(logs, { sort: "wcl", dir: "asc" });
+        expect(lp.sort).toBe("date");
+        expect(lp.items.map((l) => l.id)).toEqual(["a", "c", "b"]);
+    });
+
     it("paginates logs 15 per page", () => {
         const many = Array.from({ length: 20 }, (_, i) => ({ id: "l" + i, postedAt: i }));
         const lp = prepareLogList(many, { page: "2" });
