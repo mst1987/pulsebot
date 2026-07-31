@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getDashboard, type ApiError, type DashboardData, type UpcomingEvent } from "../api";
-import { formatEventTime, formatDate } from "../lib/format";
+import { formatEventTime, formatDate, fmtMs } from "../lib/format";
 import { RecruitmentIcon, ClaIcon, RaidsIcon, ChannelsIcon, SettingsIcon } from "../components/icons";
 import RaidTable from "../components/RaidTable";
 import OrbsBackground from "../components/OrbsBackground";
+import { CharacterLink } from "../components/ClassSpec";
+import { LootResponseBadge } from "../components/LootTable";
+import { itemQualityProps, itemQualityColor } from "../lib/itemQuality";
 import type { ReactNode } from "react";
 
 function Tile({ area, icon, label, value, sub, accent }: {
@@ -63,6 +66,50 @@ function RecentReportsTable({ reports }: { reports: DashboardData["recentReports
                 </tr>
             ))}
         </>
+    );
+}
+
+// The awards of items the guild flagged as "top" in Einstellungen → Loot. Every
+// row is a highlight by definition — the card only ever holds top items — so it
+// gets the star + accent treatment rather than a plain table row.
+function TopLootList({ topLoot }: { topLoot: DashboardData["topLoot"] }) {
+    if (!topLoot.items.length) {
+        return (
+            <p className="sub" style={{ padding: 16, margin: 0 }}>
+                {topLoot.configured
+                    ? `Noch keins der ${topLoot.configured} Top-Items vergeben.`
+                    : <>Noch keine Top-Items festgelegt — <Link className="mlink" to="/settings">Einstellungen → Loot</Link>.</>}
+            </p>
+        );
+    }
+    return (
+        <ul className="toploot">
+            {topLoot.items.map((it) => (
+                <li className="toploot-row" key={`${it.eventId}-${it.itemId}-${it.character}-${it.awardedAt}`}>
+                    <span className="toploot-star" aria-hidden="true">★</span>
+                    {it.itemIconUrl && (
+                        <img
+                            className="toploot-ico" src={it.itemIconUrl} alt="" loading="lazy"
+                            style={{ borderColor: itemQualityColor(it.itemQuality) || "var(--line)" }}
+                        />
+                    )}
+                    <span className="toploot-main">
+                        {it.itemLink
+                            ? <a {...itemQualityProps(it.itemQuality, "mlink")} href={it.itemLink} target="_blank" rel="noopener noreferrer">{it.itemName || `Item ${it.itemId}`}</a>
+                            : <span {...itemQualityProps(it.itemQuality)}>{it.itemName || `Item ${it.itemId}`}</span>}
+                        <span className="toploot-meta small">
+                            {[it.eventLabel, it.boss].filter(Boolean).join(" · ")}
+                            {(it.eventLabel || it.boss) && " · "}
+                            {fmtMs(it.awardedAt, false)}
+                        </span>
+                    </span>
+                    <span className="toploot-who">
+                        <CharacterLink character={it.character} />
+                        <LootResponseBadge response={it.response} offspec={it.offspec} reasonLabel={it.reasonLabel} reasonTone={it.reasonTone} />
+                    </span>
+                </li>
+            ))}
+        </ul>
     );
 }
 
@@ -129,6 +176,14 @@ export default function DashboardPage() {
                     events={data.recentEvents.events} guildId={data.activeGuildId}
                     error={data.recentEvents.error} emptyMessage="Keine vergangenen Events gefunden."
                 />
+            </div>
+
+            <div className="dash-card">
+                <div className="dash-card-head">
+                    <h3>Latest Loot <span className="dash-card-sub">Top-Items</span></h3>
+                    <Link className="mlink" to="/history">Historie &amp; Loot →</Link>
+                </div>
+                <TopLootList topLoot={data.topLoot} />
             </div>
 
             <div className="dash-grid">

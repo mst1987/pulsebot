@@ -8,7 +8,8 @@ const { getSession, postActiveGuild } = require("./apiRoutes/session");
 const { getDashboard } = require("./apiRoutes/dashboard");
 const { getChannels, createChannel, duplicateChannel } = require("./apiRoutes/channels");
 const {
-    getSettings, updateSettings, saveRaidsheetHandler, deleteRaidsheetHandler,
+    getSettings, updateSettings, getItemSearch: getSettingsItemSearch,
+    saveRaidsheetHandler, deleteRaidsheetHandler,
 } = require("./apiRoutes/settings");
 const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raiderCharacters");
 const { getRoster } = require("./apiRoutes/roster");
@@ -98,6 +99,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/settings" && req.method === "PATCH") {
         await updateSettings(req, res);
+        return true;
+    }
+    if (pathname === "/api/settings/item-search" && req.method === "GET") {
+        await getSettingsItemSearch(req, res, url);
         return true;
     }
     if (pathname === "/api/settings/raidsheets" && req.method === "POST") {

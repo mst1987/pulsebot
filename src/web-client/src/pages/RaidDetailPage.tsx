@@ -1,15 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     getRaidDetail, importLoot, clearHistoryEvent,
     notifyRaid, pingMissingRaiders, fillRaidsheet, postRaidSheet, postRaidSoftres,
     searchSoftresItems, createSoftres, linkSoftres, evalLog, resetEval, linkLog, linkLogUrl, unlinkLog,
     type ApiError, type RaidDetailData, type SetupPlayer, type AttendancePerson,
-    type SoftresSearchItem, type SoftresCatalogueGroup, type EventSoftres, type RaidLogRow,
+    type SoftresCatalogueGroup, type EventSoftres, type RaidLogRow,
     type RaidDetailEventSheet, type LogSection,
 } from "../api";
 import { eventTimeParts, relativeDayLabel, fmtMs } from "../lib/format";
-import { itemQualityProps } from "../lib/itemQuality";
+import ItemSearchPicker from "../components/ItemSearchPicker";
 import {
     ClockIcon, RunIcon, TrashIcon, ExternalIcon, SheetIcon, SendIcon, RefreshIcon, LinkIcon,
 } from "../components/icons";
@@ -633,70 +633,14 @@ function ActionsTab({ data, eventId, csrfToken, onChanged }: {
 // --- Softres tab: existing-list display, manual-link form, create form with a
 // live Wowhead hard-reserve item search. ---
 
-// Live item search dropdown for hard-reserved loot — same shape as EmojiPicker/
-// SpecPicker (debounced fetch, click-outside-to-close, add-to-list-on-pick).
+// The shared Wowhead item picker, searching the softres endpoint for the raid
+// edition this event is in (see components/ItemSearchPicker).
 function HardReservePicker({ edition, onAdd }: {
     edition: string;
     onAdd: (item: { id: number; name: string }) => void;
 }) {
-    const [query, setQuery] = useState("");
-    const [results, setResults] = useState<SoftresSearchItem[]>([]);
-    const [open, setOpen] = useState(false);
-    const rootRef = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const q = query.trim();
-        if (q.length < 2) {
-            setResults([]);
-            setOpen(false);
-            return;
-        }
-        const handle = setTimeout(() => {
-            searchSoftresItems(edition, q)
-                .then((r) => {
-                    setResults(r.items || []);
-                    setOpen(true);
-                })
-                .catch(() => {
-                    setResults([]);
-                    setOpen(false);
-                });
-        }, 250);
-        return () => clearTimeout(handle);
-    }, [query, edition]);
-
-    useEffect(() => {
-        const onDocClick = (e: MouseEvent) => {
-            if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
-        };
-        document.addEventListener("click", onDocClick);
-        return () => document.removeEventListener("click", onDocClick);
-    }, []);
-
-    const pick = (item: SoftresSearchItem) => {
-        onAdd({ id: item.id, name: item.name });
-        setQuery("");
-        setResults([]);
-        setOpen(false);
-    };
-
-    return (
-        <div className="hr-picker" ref={rootRef}>
-            <input
-                type="text" value={query} onChange={(e) => setQuery(e.target.value)}
-                placeholder="Item-Namen suchen (Wowhead) …" autoComplete="off"
-                onFocus={() => { if (results.length) setOpen(true); }}
-            />
-            <div className={`hr-panel${open ? " open" : ""}`}>
-                {results.map((it) => (
-                    <div key={it.id} className="hr-row" onMouseDown={(e) => { e.preventDefault(); pick(it); }}>
-                        {it.iconUrl && <img src={it.iconUrl} alt="" loading="lazy" />}
-                        <span {...itemQualityProps(it.quality)}>{it.name}</span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
+    const search = useCallback((q: string) => searchSoftresItems(edition, q), [edition]);
+    return <ItemSearchPicker search={search} onPick={(it) => onAdd({ id: it.id, name: it.name })} />;
 }
 
 function SoftresLinkForm({ eventSoftres, eventId, csrfToken, onDone }: {

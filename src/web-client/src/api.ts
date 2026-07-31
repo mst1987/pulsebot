@@ -78,6 +78,30 @@ export type RecentReport = {
     issueCount: number;
 };
 
+// One awarded top item on the dashboard's "Latest Loot" card: the loot row's
+// trimmed shape (see lootStore.js's charLootPreview) plus who got it.
+export type TopLootAward = {
+    itemId: number;
+    itemName: string;
+    itemIconUrl: string;
+    /** See LootItem.itemQuality. */
+    itemQuality: number | null;
+    itemLink: string;
+    character: string;
+    realm: string;
+    boss: string;
+    response: string;
+    offspec: boolean;
+    reason: string;
+    reasonLabel: string;
+    reasonTone: string;
+    contentId: string;
+    categoryId: string;
+    eventId: string;
+    eventLabel: string;
+    awardedAt: number;
+};
+
 export type DashboardData = {
     stats: {
         reportsTotal: number;
@@ -90,6 +114,10 @@ export type DashboardData = {
     recentReports: RecentReport[];
     upcoming: { events: UpcomingEvent[]; error: string | null };
     recentEvents: { events: RecentEvent[]; error: string | null };
+    // Latest awards of the items defined as "top items" in Einstellungen → Loot.
+    // `configured` is how many are defined at all, which distinguishes "nothing
+    // configured" from "configured, but nothing dropped yet".
+    topLoot: { items: TopLootAward[]; configured: number };
     activeGuildId: string;
 };
 
@@ -217,7 +245,21 @@ export type AdminConfig = {
     // A fixed Google Sheet per category, keyed by category id. A raid in that
     // category links this sheet unless the app made it a copy of its own.
     categorySheets: Record<string, { url: string; name: string }>;
+    // The drops the guild counts as "big", picked from the Wowhead search in
+    // Einstellungen → Loot. The dashboard highlights their awards.
+    topItems: TopItem[];
 };
+
+// One hit of a Wowhead item search — what both item pickers (softres hard
+// reserves, top items) render and store.
+export type ItemSearchResult = { id: number; name: string; iconUrl?: string; quality?: number | null };
+
+export type TopItem = { id: number; name: string; iconUrl: string; quality: number | null };
+
+/** Wowhead item search for the top-item picker (settings area, see api docs). */
+export function searchSettingsItems(q: string): Promise<{ items: ItemSearchResult[] }> {
+    return get<{ items: ItemSearchResult[] }>(`/api/settings/item-search?q=${encodeURIComponent(q)}`);
+}
 
 export type Raidsheet = {
     id: string;
@@ -544,7 +586,7 @@ export function postRaidSoftres(
     return send("POST", "/api/raids/post-softres", csrfToken, input);
 }
 
-export type SoftresSearchItem = { id: number; name: string; iconUrl?: string; quality?: number | null };
+export type SoftresSearchItem = ItemSearchResult;
 
 export function searchSoftresItems(edition: string, q: string): Promise<{ items: SoftresSearchItem[] }> {
     const qs = new URLSearchParams({ edition, q });
