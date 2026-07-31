@@ -7,6 +7,7 @@ import {
     type LogSection,
 } from "../api";
 import { formatEventTime, fmtMs } from "../lib/format";
+import { usePersistedState, usePersistedSearchParam, useDraftState } from "../lib/persistedState";
 import type { ShellContext } from "../components/Shell";
 import { useJobs } from "../components/Jobs";
 import { RunIcon, SearchIcon, LinkIcon, TrashIcon, ExternalIcon, XIcon } from "../components/icons";
@@ -24,6 +25,12 @@ const REPORT_SECONDS = 30;
 // maps used by claSortHeader().
 const REPORT_SORT_DEFAULTS: Record<string, Dir> = { title: "asc", zone: "asc", event: "asc", date: "desc", players: "desc", issues: "desc" };
 const LOG_SORT_DEFAULTS: Record<string, Dir> = { title: "asc", status: "asc", date: "desc" };
+
+// The remembered sort, per view: the two tables share no columns, so a single
+// common memory would hand the logs table a "players" column it doesn't have.
+type Sorting = Record<View, { sort: string; dir: Dir }>;
+const SORTING_DEFAULT: Sorting = { reports: { sort: "date", dir: "desc" }, logs: { sort: "date", dir: "desc" } };
+const SORT_COLUMNS: Record<View, Record<string, Dir>> = { reports: REPORT_SORT_DEFAULTS, logs: LOG_SORT_DEFAULTS };
 
 // "vor/nach Start" hint for a candidate event — mirrors formatMatchOffset() in
 // renderAdmin.js exactly (hours+minutes, or "pünktlich zum Start" on an exact match).
@@ -113,7 +120,9 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
     onChanged: () => void;
 }) {
     const jobs = useJobs();
-    const [link, setLink] = useState("");
+    // A draft, so a link pasted here is still around after a look at the logs tab.
+    const [draft, patchDraft, clearDraft] = useDraftState("cla-report-link", { link: "" });
+    const link = draft.link;
     const [rowBusyId, setRowBusyId] = useState<string | null>(null);
 
     // The build runs as a background job: the form clears immediately and the
@@ -123,7 +132,7 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
         e.preventDefault();
         const target = link.trim();
         if (!target) return;
-        setLink("");
+        clearDraft();
         jobs.run({
             label: "Auswertung erstellen",
             detail: target,
@@ -172,7 +181,7 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
                 <div className="field">
                     <label>Warcraft-Logs-Report-Link oder Report-ID</label>
                     <input
-                        type="text" value={link} onChange={(e) => setLink(e.target.value)}
+                        type="text" value={link} onChange={(e) => patchDraft({ link: e.target.value })}
                         placeholder="https://classic.warcraftlogs.com/reports/abc123…" required
                     />
                     <div className="hint">Läuft im Hintergrund — der Fortschritt steht im Hinweis oben rechts, die Seite bleibt nutzbar.</div>
@@ -511,9 +520,20 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
 export default function ClaPage() {
     const { csrfToken } = useOutletContext<ShellContext>();
     const [searchParams, setSearchParams] = useSearchParams();
-    const view = (searchParams.get("view") as View) || "reports";
-    const sort = searchParams.get("sort") || "date";
-    const dir: Dir = searchParams.get("dir") === "asc" ? "asc" : "desc";
+    const [view, setView] = usePersistedSearchParam<View>("cla-view", "view", "reports", ["reports", "logs"]);
+    const [sorting, setSorting] = usePersistedState<Sorting>("cla-sort", SORTING_DEFAULT);
+
+    // An explicit ?sort/?dir wins; without one the view's remembered sort applies.
+    // Both are checked against the columns this view actually has, so a stored
+    // value from an older build can't ask the API to sort by nothing.
+    const columns = SORT_COLUMNS[view];
+    const remembered = sorting[view] || SORTING_DEFAULT[view];
+    const sortParam = searchParams.get("sort") || "";
+    const sort = columns[sortParam] ? sortParam : (columns[remembered.sort] ? remembered.sort : "date");
+    const dirParam = searchParams.get("dir");
+    const dir: Dir = dirParam ? (dirParam === "asc" ? "asc" : "desc") : remembered.dir;
+    // The page number is deliberately not remembered: the lists grow at the top,
+    // so page 3 of last week points at different rows today.
     const page = Math.max(1, Number(searchParams.get("page")) || 1);
 
     const [data, setData] = useState<ClaData | null>(null);
@@ -525,17 +545,14 @@ export default function ClaPage() {
 
     useEffect(load, [view, sort, dir, page]);
 
-    // Mirrors the legacy <a href="/admin/cla?view=id">: switching tabs does NOT
-    // carry over the other tab's sort/dir/page.
-    const switchView = (v: View) => setSearchParams(v === "reports" ? {} : { view: v });
+    // Switching tabs drops the other tab's sort/dir/page from the URL — the new
+    // view brings its own remembered sort instead of inheriting a column it
+    // doesn't have.
+    const switchView = (v: View) => setView(v, (p) => { p.delete("sort"); p.delete("dir"); p.delete("page"); });
 
     const sortBy = (key: string, nextDir: Dir) => {
-        const next = new URLSearchParams(searchParams);
-        next.set("view", view);
-        next.set("sort", key);
-        next.set("dir", nextDir);
-        next.set("page", "1");
-        setSearchParams(next);
+        setSorting((s) => ({ ...s, [view]: { sort: key, dir: nextDir } }));
+        setView(view, (p) => { p.set("sort", key); p.set("dir", nextDir); p.set("page", "1"); });
     };
 
     const goToPage = (p: number) => {

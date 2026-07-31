@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useOutletContext, useSearchParams } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import {
     getHistoryData, getLootStats, importLoot, setLootCategory, deleteHistoryLog, resolveCharacters,
     type ApiError, type HistoryData, type HistoryEvent, type LootEventSummary, type LootLog, type AnnotatedCharacter,
     type Category, type LootStats,
 } from "../api";
 import { formatEventTime, fmtMs, formatDate } from "../lib/format";
-import { usePersistedState } from "../lib/persistedState";
+import { usePersistedState, usePersistedSearchParam, useDraftState } from "../lib/persistedState";
 import RaidTable from "../components/RaidTable";
 import { CharLootHover } from "../components/CharLootHover";
 import { ClassSpecCell, CharacterLink, CLASS_SOURCE_LABELS } from "../components/ClassSpec";
@@ -34,34 +34,37 @@ const STATS_TABS: Tab[] = ["reasons", "items"];
 
 const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil" };
 
+// Everything typed into the import form. Kept as a draft (see useDraftState), so
+// a pasted export survives a detour to another tab — re-pasting it is the one
+// step nobody can redo from memory.
+type ImportDraft = { eventId: string; manualLabel: string; categoryId: string; tool: string; text: string };
+const IMPORT_DRAFT_DEFAULT: ImportDraft = { eventId: "__auto__", manualLabel: "", categoryId: "", tool: "auto", text: "" };
+
 function ImportForm({ data, csrfToken, onImported }: {
     data: HistoryData;
     csrfToken: string | null;
     onImported: (msg: string) => void;
 }) {
-    const [eventId, setEventId] = useState("__auto__");
-    const [manualLabel, setManualLabel] = useState("");
-    // Only used when the import lands without a Raid-Helper event: a real event
-    // brings its own Discord category along (see api.ts's ImportLootInput).
-    const [categoryId, setCategoryId] = useState("");
-    const [tool, setTool] = useState("auto");
-    const [text, setText] = useState("");
+    // categoryId is only used when the import lands without a Raid-Helper event:
+    // a real event brings its own Discord category along (see api.ts's
+    // ImportLootInput).
+    const [draft, patch] = useDraftState<ImportDraft>("history-import", IMPORT_DRAFT_DEFAULT);
+    const { eventId, manualLabel, categoryId, tool, text } = draft;
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
 
     const selectEvent = (id: string) => {
-        setEventId(id);
         const ev = data.events.find((e) => e.id === id);
         const preferred = ev ? (data.categoryLootTool[ev.categoryId || ""] || "") : "";
-        if (preferred) setTool(preferred);
+        patch(preferred ? { eventId: id, tool: preferred } : { eventId: id });
     };
 
     const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = () => setText(String(reader.result || ""));
+        reader.onload = () => patch({ text: String(reader.result || "") });
         reader.readAsText(file);
     };
 
@@ -72,8 +75,10 @@ function ImportForm({ data, csrfToken, onImported }: {
         try {
             const r = await importLoot(csrfToken, { data: text, tool, event: eventId, manualLabel, categoryId });
             onImported(`${r.added} Item(s) importiert${r.skipped ? `, ${r.skipped} Duplikat(e) übersprungen` : ""}.`);
-            setText("");
-            setManualLabel("");
+            // Only the imported content goes — the event and tool choice stay, the
+            // next import of the evening usually belongs to the same raid.
+            patch({ text: "", manualLabel: "" });
+            if (fileRef.current) fileRef.current.value = "";
         } catch (err) {
             setError((err as ApiError).message);
         } finally {
@@ -105,12 +110,12 @@ function ImportForm({ data, csrfToken, onImported }: {
                     <>
                         <div className="field">
                             <label>Titel (optional)</label>
-                            <input type="text" value={manualLabel} onChange={(e) => setManualLabel(e.target.value)} placeholder="z.B. SSC/TK — 12.07.2026" />
+                            <input type="text" value={manualLabel} onChange={(e) => patch({ manualLabel: e.target.value })} placeholder="z.B. SSC/TK — 12.07.2026" />
                             <div className="hint">Nur nötig, wenn kein Event automatisch gefunden wird oder ein eigener Titel gewünscht ist.</div>
                         </div>
                         <div className="field">
                             <label>Kategorie (optional)</label>
-                            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                            <select value={categoryId} onChange={(e) => patch({ categoryId: e.target.value })}>
                                 <option value="">— keine —</option>
                                 {data.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
@@ -123,7 +128,7 @@ function ImportForm({ data, csrfToken, onImported }: {
                 )}
                 <div className="field">
                     <label>Loot-Tool</label>
-                    <select value={tool} onChange={(e) => setTool(e.target.value)}>
+                    <select value={tool} onChange={(e) => patch({ tool: e.target.value })}>
                         <option value="auto">Auto-Erkennung</option>
                         <option value="gargul">Gargul</option>
                         <option value="rclc">RCLootcouncil</option>
@@ -132,7 +137,7 @@ function ImportForm({ data, csrfToken, onImported }: {
                 </div>
                 <div className="field">
                     <label>Export einfügen</label>
-                    <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6} placeholder="RCLootcouncil-JSON oder Gargul-CSV hier einfügen …" />
+                    <textarea value={text} onChange={(e) => patch({ text: e.target.value })} rows={6} placeholder="RCLootcouncil-JSON oder Gargul-CSV hier einfügen …" />
                 </div>
                 <div className="field">
                     <label>… oder Datei hochladen</label>
@@ -518,8 +523,9 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
 
 export default function HistoryPage() {
     const { csrfToken } = useOutletContext<ShellContext>();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const tab = (searchParams.get("tab") as Tab) || "raids";
+    // In the URL (linkable, survives a reload) and remembered on top of that, so
+    // coming back via the sidebar re-opens the tab that was last used here.
+    const [tab, setTab] = usePersistedSearchParam<Tab>("history-tab", "tab", "raids", TABS.map((t) => t.id));
 
     const [data, setData] = useState<HistoryData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
@@ -567,7 +573,7 @@ export default function HistoryPage() {
 
             <div className="tabs" role="tablist">
                 {TABS.map((t) => (
-                    <button key={t.id} type="button" className={`tab-btn${tab === t.id ? " active" : ""}`} role="tab" onClick={() => setSearchParams(t.id === "raids" ? {} : { tab: t.id })}>
+                    <button key={t.id} type="button" className={`tab-btn${tab === t.id ? " active" : ""}`} role="tab" onClick={() => setTab(t.id)}>
                         {t.label}
                         {!!t.count?.(data) && <span className="tab-count">{t.count(data)}</span>}
                     </button>

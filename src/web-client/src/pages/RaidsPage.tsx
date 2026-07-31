@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useOutletContext } from "react-router-dom";
 import { getRaids, type ApiError, type RaidEventGroup, type RaidEvent } from "../api";
 import { formatEventTime } from "../lib/format";
+import { usePersistedState } from "../lib/persistedState";
 import { eventPostUrl, raidplanUrl } from "../lib/discordLinks";
 import type { ShellContext } from "../components/Shell";
 
@@ -49,13 +50,15 @@ export default function RaidsPage() {
     const location = useLocation();
     const [data, setData] = useState<{ groups: RaidEventGroup[]; error: string | null; activeGuildId: string } | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
-    const [tab, setTab] = useState(0);
+    // Remembered by category id, not by tab index: the groups come and go with the
+    // scheduled events, so an index would point at a different raid type next week.
+    const [categoryId, setCategoryId] = usePersistedState("raids-category", "");
     // Passed via navigate(..., { state: { flash } }) after creating an event (RaidCreatePage.tsx).
     const [flash] = useState<Flash | null>((location.state as { flash?: Flash } | null)?.flash ?? null);
 
     useEffect(() => {
         getRaids()
-            .then((d) => { setData(d); setTab(0); })
+            .then(setData)
             .catch((err: ApiError) => setError(err));
     }, []);
 
@@ -70,12 +73,14 @@ export default function RaidsPage() {
     } else if (!data.groups.length) {
         listing = <p className="sub">Keine anstehenden Events gefunden.</p>;
     } else {
-        const active = data.groups[tab] ?? data.groups[0];
+        // A remembered category whose events are all over falls back to the first
+        // group instead of showing an empty page.
+        const active = data.groups.find((g) => (g.categoryId || "") === categoryId) ?? data.groups[0];
         listing = (
             <div className="tabwrap">
                 <div className="tabs" role="tablist">
-                    {data.groups.map((g, i) => (
-                        <button key={g.categoryId || "none"} type="button" className={`tab-btn${i === tab ? " active" : ""}`} role="tab" onClick={() => setTab(i)}>
+                    {data.groups.map((g) => (
+                        <button key={g.categoryId || "none"} type="button" className={`tab-btn${g === active ? " active" : ""}`} role="tab" onClick={() => setCategoryId(g.categoryId || "")}>
                             {g.categoryName || "Ohne Kategorie"}
                             <span className="tab-count">{g.events.length}</span>
                         </button>
