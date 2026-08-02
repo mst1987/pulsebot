@@ -9,7 +9,7 @@ const { listLogs, deleteLog } = require("../logStore");
 const { logPostedAt } = require("../reportList");
 const {
     addImport: addLootImport, listByEvent: listLootByEvent, listByCharacter: listLootByCharacter, eventsWithLoot, clearEvent: clearLootEvent,
-    setEventCategory: setLootEventCategory, repairItemNames: repairLootItemNames,
+    setEventCategory: setLootEventCategory, removeItems: removeLootItems, repairItemNames: repairLootItemNames,
 } = require("../lootStore");
 const { lootStats } = require("../lootStats");
 const { listAwards } = require("../lootAwards");
@@ -241,6 +241,27 @@ async function setLootCategory(req, res) {
     ok(res, { eventId, categoryId: picked.id, updated });
 }
 
+/**
+ * POST /api/history/loot-delete — body: { id } or { ids: [...] }.
+ * Deletes single loot rows by their stored id, wherever they are shown (raid
+ * detail, event history, character history) — the fine-grained counterpart to
+ * /api/history/clear, which throws away a whole import.
+ */
+async function deleteLootItems(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const ids = Array.isArray(body.ids) ? body.ids : [body.id];
+    const wanted = ids.map((id) => String(id || "").trim()).filter(Boolean);
+    if (!wanted.length) return error(res, 400, "no_id", "Kein Loot-Eintrag angegeben.");
+    const removed = removeLootItems(wanted);
+    // An id that matched nothing is a stale view (someone else deleted it, or
+    // the import was cleared) — say so instead of reporting a silent success.
+    if (!removed) return error(res, 404, "not_found", "Loot-Eintrag nicht gefunden — die Ansicht ist veraltet.");
+    ok(res, { removed });
+}
+
 /** POST /api/history/clear — body: { event }. Deletes all loot stored for one event. */
 async function clearHistoryEvent(req, res) {
     const user = requireAdmin(req, res);
@@ -351,6 +372,6 @@ function enrichCharInfo(info) {
 }
 
 module.exports = {
-    getHistoryData, getLootStats, getLootAwards, deleteHistoryLog, importLoot, setLootCategory, clearHistoryEvent, getHistoryEvent,
+    getHistoryData, getLootStats, getLootAwards, deleteHistoryLog, importLoot, setLootCategory, deleteLootItems, clearHistoryEvent, getHistoryEvent,
     resolveCharacters, getHistoryChar,
 };

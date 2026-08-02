@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
-    getRaidDetail, importLoot, clearHistoryEvent,
+    getRaidDetail, importLoot, clearHistoryEvent, deleteLootItems,
     notifyRaid, pingMissingRaiders, fillRaidsheet, postRaidSheet, postRaidSoftres,
     searchSoftresItems, createSoftres, linkSoftres, evalLog, resetEval, linkLog, linkLogUrl, unlinkLog,
-    type ApiError, type RaidDetailData, type SetupPlayer, type AttendancePerson,
+    type ApiError, type RaidDetailData, type SetupPlayer, type AttendancePerson, type LootItem,
     type SoftresCatalogueGroup, type EventSoftres, type RaidLogRow,
     type RaidDetailEventSheet, type LogSection,
 } from "../api";
@@ -1026,6 +1026,17 @@ function LootTab({ data, eventId, csrfToken, onChanged }: {
         }
     };
 
+    // One wrong row instead of the whole import — onChanged reloads the raid
+    // detail, so the table comes back without it.
+    const removeItem = async (it: LootItem) => {
+        try {
+            await deleteLootItems(csrfToken, [it.id]);
+            onChanged(`„${it.itemName || `Item ${it.itemId}`}" gelöscht.`);
+        } catch (err) {
+            onChanged((err as ApiError).message);
+        }
+    };
+
     return (
         <>
             <p className="note">
@@ -1042,7 +1053,7 @@ function LootTab({ data, eventId, csrfToken, onChanged }: {
                     <div className="row-actions" style={{ padding: "0 16px 12px", justifyContent: "flex-end" }}>
                         <button className="btn btn-danger btn-sm" type="button" disabled={busy} onClick={clear}><TrashIcon />Loot löschen</button>
                     </div>
-                    <LootTable items={data.lootItems} />
+                    <LootTable items={data.lootItems} onDelete={removeItem} />
                 </div>
             )}
             <LootImportForm eventId={eventId} defaultTool={data.lootTool || "auto"} csrfToken={csrfToken} onImported={onChanged} />

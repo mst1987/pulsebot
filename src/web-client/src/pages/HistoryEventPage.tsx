@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
-import { getHistoryEvent, clearHistoryEvent, type ApiError, type HistoryEventData } from "../api";
+import { getHistoryEvent, clearHistoryEvent, deleteLootItems, type ApiError, type HistoryEventData, type LootItem } from "../api";
 import { LootTable } from "../components/LootTable";
 import type { ShellContext } from "../components/Shell";
 import { TrashIcon } from "../components/icons";
@@ -33,6 +33,18 @@ export default function HistoryEventPage() {
         }
     };
 
+    // One wrong row instead of the whole import — drop it from the list right
+    // away rather than refetching the event for a single removal.
+    const removeItem = async (it: LootItem) => {
+        try {
+            await deleteLootItems(csrfToken, [it.id]);
+            setData((d) => (d ? { ...d, items: d.items.filter((row) => row.id !== it.id) } : d));
+            setFlash(`„${it.itemName || `Item ${it.itemId}`}" gelöscht.`);
+        } catch (err) {
+            setFlash((err as ApiError).message);
+        }
+    };
+
     if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
     if (!data) return <div className="empty">Lade…</div>;
 
@@ -47,7 +59,7 @@ export default function HistoryEventPage() {
                     <button className="btn btn-danger" type="button" disabled={busy} onClick={clear}><TrashIcon />Loot löschen</button>
                 )}
             </div>
-            {data.items.length ? <LootTable items={data.items} /> : <p className="sub">Kein Loot (mehr) für dieses Event.</p>}
+            {data.items.length ? <LootTable items={data.items} onDelete={removeItem} /> : <p className="sub">Kein Loot (mehr) für dieses Event.</p>}
         </>
     );
 }

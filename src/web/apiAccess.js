@@ -56,6 +56,7 @@ const AREA_BY_PATH = {
     "/api/history/log-delete": "history",
     "/api/history/import": "history",
     "/api/history/loot-category": "history",
+    "/api/history/loot-delete": "history",
     "/api/history/clear": "history",
     "/api/history/event": "history",
     "/api/history/characters-resolve": "history",

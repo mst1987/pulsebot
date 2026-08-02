@@ -1,12 +1,13 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { getHistoryChar, type ApiError, type CharGearReport, type GearItem, type HistoryCharData } from "../api";
+import { Link, useLocation, useOutletContext, useSearchParams } from "react-router-dom";
+import { getHistoryChar, deleteLootItems, type ApiError, type CharGearReport, type GearItem, type HistoryCharData, type LootItem } from "../api";
 import { fmtMs } from "../lib/format";
 import { itemQualityColor, itemQualityProps } from "../lib/itemQuality";
 import { usePersistedSearchParam } from "../lib/persistedState";
 import { refreshWowheadLinks } from "../lib/wowheadTooltips";
 import { CLASS_SOURCE_LABELS } from "../components/ClassSpec";
 import { LootTable } from "../components/LootTable";
+import type { ShellContext } from "../components/Shell";
 
 type CharTab = "gear" | "loot";
 
@@ -379,6 +380,7 @@ function GearTab({ data }: { data: HistoryCharData }) {
 }
 
 export default function HistoryCharPage() {
+    const { csrfToken } = useOutletContext<ShellContext>();
     const [searchParams] = useSearchParams();
     const location = useLocation();
     const name = searchParams.get("name") || "";
@@ -393,9 +395,23 @@ export default function HistoryCharPage() {
 
     const [data, setData] = useState<HistoryCharData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
+    const [flash, setFlash] = useState<string | null>(null);
 
     const load = () => {
         getHistoryChar(name).then(setData).catch((err: ApiError) => setError(err));
+    };
+
+    // A wrongly assigned award usually shows up here — on the raider who did not
+    // get it. Drop the row locally instead of refetching the whole character
+    // (which would hit the Blizzard gear API again for one deleted item).
+    const removeItem = async (it: LootItem) => {
+        try {
+            await deleteLootItems(csrfToken, [it.id]);
+            setData((d) => (d ? { ...d, items: d.items.filter((row) => row.id !== it.id) } : d));
+            setFlash(`„${it.itemName || `Item ${it.itemId}`}" gelöscht.`);
+        } catch (err) {
+            setFlash((err as ApiError).message);
+        }
     };
 
     useEffect(load, [name]);
@@ -429,7 +445,8 @@ export default function HistoryCharPage() {
                     ? (
                         <div className="dash-card">
                             <div className="dash-card-head"><h3>Loot-Historie</h3><span className="small" style={{ marginLeft: "auto" }}>{data.items.length} Item(s)</span></div>
-                            <LootTable items={data.items} showEvent />
+                            {flash && <p className="sub" style={{ padding: "0 16px" }}>{flash}</p>}
+                            <LootTable items={data.items} showEvent onDelete={removeItem} />
                         </div>
                     )
                     : <p className="sub">Kein Loot für diesen Charakter gespeichert.</p>

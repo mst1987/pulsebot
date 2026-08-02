@@ -4,6 +4,7 @@
 // no server round trip needed like ClaPage's server-side SortTh. Defaults to
 // sorting by character, since that's how a raid lead checks "who got what"
 // right after an import.
+import { useState } from "react";
 import type { LootItem } from "../api";
 import { fmtMs } from "../lib/format";
 import { useTableSort, type Dir } from "../lib/tableSort";
@@ -11,6 +12,7 @@ import { itemQualityProps } from "../lib/itemQuality";
 import { CharacterLink } from "./ClassSpec";
 import { SortTh } from "./SortTh";
 import { reasonToneClass } from "./LootBadges";
+import { TrashIcon } from "./icons";
 
 const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil" };
 
@@ -56,12 +58,35 @@ export function LootResponseBadge({ response, offspec, reasonLabel, reasonTone }
     );
 }
 
-export function LootTable({ items, showEvent = false }: { items: LootItem[]; showEvent?: boolean }) {
+export function LootTable({ items, showEvent = false, onDelete }: {
+    items: LootItem[];
+    showEvent?: boolean;
+    /**
+     * Drop one awarded item (a double-logged row, one awarded to the wrong
+     * raider). Passing it grows the table by a delete column; the table owns the
+     * confirm and the per-row busy state, the page owns the request and the
+     * reload afterwards.
+     */
+    onDelete?: (item: LootItem) => Promise<unknown> | void;
+}) {
     // One shared memory for every place this table shows up (raid detail, event
     // loot, character history): it is the same table, so whoever sorts it by item
     // wants it that way in the next raid too.
     const { sort, dir, onSort, apply } = useTableSort<SortKey>("loot-table-sort", SORT_DEFAULTS, "character");
+    const [busyId, setBusyId] = useState("");
     const sorted = apply(items, sortValue);
+
+    const remove = async (it: LootItem) => {
+        if (!onDelete) return;
+        const label = it.itemName || `Item ${it.itemId}`;
+        if (!confirm(`„${label}" von ${it.character} wirklich aus dem Loot löschen?`)) return;
+        setBusyId(it.id);
+        try {
+            await onDelete(it);
+        } finally {
+            setBusyId("");
+        }
+    };
 
     return (
         <table className="idx loot-table" style={{ margin: 0 }}>
@@ -74,11 +99,12 @@ export function LootTable({ items, showEvent = false }: { items: LootItem[]; sho
                     {showEvent && <SortTh sortKey="event" label="Event" sort={sort} dir={dir} onSort={onSort} />}
                     <SortTh sortKey="time" label="Zeit" sort={sort} dir={dir} onSort={onSort} />
                     <SortTh sortKey="source" label="Quelle" sort={sort} dir={dir} onSort={onSort} />
+                    {onDelete && <th />}
                 </tr>
             </thead>
             <tbody>
                 {sorted.map((it, i) => (
-                    <tr key={i}>
+                    <tr key={it.id || i}>
                         <td>
                             {it.itemIconUrl && (
                                 <img className="loot-ico" src={it.itemIconUrl} alt="" loading="lazy" />
@@ -93,6 +119,17 @@ export function LootTable({ items, showEvent = false }: { items: LootItem[]; sho
                         {showEvent && <td className="small">{it.eventLabel || it.eventId || ""}</td>}
                         <td className="small">{fmtMs(it.awardedAt)}</td>
                         <td className="small">{LOOT_TOOL_LABELS[it.source] || it.source || "?"}</td>
+                        {onDelete && (
+                            <td className="cell-actions">
+                                <div className="row-actions" style={{ justifyContent: "flex-end" }}>
+                                    <button
+                                        className="btn btn-danger btn-sm" type="button"
+                                        title="Diesen Eintrag löschen" aria-label={`Eintrag „${it.itemName || `Item ${it.itemId}`}" von ${it.character} löschen`}
+                                        disabled={busyId === it.id} onClick={() => remove(it)}
+                                    ><TrashIcon /></button>
+                                </div>
+                            </td>
+                        )}
                     </tr>
                 ))}
             </tbody>

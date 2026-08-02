@@ -824,6 +824,8 @@ export type LootLog = {
 // (config/tbcContent.js) and therefore also present for Gargul rows, which carry
 // no instance at all.
 export type LootItem = {
+    /** Id of the stored row — the handle deleteLootItems() removes it by. */
+    id: string;
     itemId: number;
     itemName: string;
     itemIconUrl?: string;
@@ -1057,6 +1059,16 @@ export function setLootCategory(
 
 export function clearHistoryEvent(csrfToken: string | null, event: string): Promise<{ removed: number }> {
     return send("POST", "/api/history/clear", csrfToken, { event });
+}
+
+/**
+ * Delete single loot rows (LootItem.id) — the row-level counterpart to
+ * clearHistoryEvent(), for the one item that was logged twice or awarded to the
+ * wrong raider. Re-importing the same export brings it back (the import dedupes
+ * against what is stored).
+ */
+export function deleteLootItems(csrfToken: string | null, ids: string[]): Promise<{ removed: number }> {
+    return send("POST", "/api/history/loot-delete", csrfToken, { ids });
 }
 
 export type HistoryEventData = { eventId: string; label: string; items: LootItem[] };
