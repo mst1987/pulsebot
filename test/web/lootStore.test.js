@@ -28,7 +28,7 @@ jest.mock("../../src/utils/wowhead", () => ({
 
 const fs = require("fs");
 const {
-    addImport, listAll, listByEvent, listByCharacter, eventsWithLoot, characters, setEventCategory, clearEvent, repairItemNames,
+    addImport, listAll, listByEvent, listByCharacter, eventsWithLoot, characters, setEventCategory, removeItems, clearEvent, repairItemNames,
 } = require("../../src/web/lootStore.js");
 
 beforeEach(() => {
@@ -226,6 +226,55 @@ describe("web/lootStore", () => {
             expect(foo.items.map((i) => i.categoryId).sort()).toEqual(["cat-montag", "cat-pug"]);
             const bare = foo.items.find((i) => !i.itemName);
             expect(bare).toMatchObject({ itemName: "", itemIconUrl: "", itemLink: "", response: "", offspec: false });
+        });
+    });
+
+    describe("removeItems", () => {
+        const idOf = (eventId, rawId) => listByEvent(eventId).find((r) => r.rawId === rawId).id;
+
+        it("removes exactly the rows whose id was given", () => {
+            addImport("e1", [item({ rawId: "a" }), item({ rawId: "b" }), item({ rawId: "c" })]);
+            expect(removeItems([idOf("e1", "a"), idOf("e1", "c")])).toBe(2);
+            expect(listByEvent("e1").map((i) => i.rawId)).toEqual(["b"]);
+        });
+
+        it("takes a single id as well as a list", () => {
+            addImport("e1", [item({ rawId: "a" })]);
+            expect(removeItems(idOf("e1", "a"))).toBe(1);
+            expect(listByEvent("e1")).toHaveLength(0);
+        });
+
+        it("leaves the other events' loot alone", () => {
+            addImport("e1", [item({ rawId: "a" })]);
+            addImport("e2", [item({ rawId: "b" })]);
+            removeItems(idOf("e1", "a"));
+            expect(listByEvent("e2")).toHaveLength(1);
+        });
+
+        it("reports 0 for unknown, empty or missing ids without writing", () => {
+            addImport("e1", [item()]);
+            fs.writeFileSync.mockClear();
+            expect(removeItems(["nope"])).toBe(0);
+            expect(removeItems([])).toBe(0);
+            expect(removeItems([""])).toBe(0);
+            expect(removeItems(undefined)).toBe(0);
+            expect(fs.writeFileSync).not.toHaveBeenCalled();
+            expect(listByEvent("e1")).toHaveLength(1);
+        });
+
+        it("persists the removal", () => {
+            addImport("e1", [item({ rawId: "a" }), item({ rawId: "b" })]);
+            removeItems(idOf("e1", "a"));
+            const written = JSON.parse(fs.__store.get([...fs.__store.keys()].find((k) => k.endsWith("loot.json"))));
+            expect(written.items.map((i) => i.rawId)).toEqual(["b"]);
+        });
+
+        // Deleting is not a permanent blocklist: the import dedupes against what
+        // is stored, so importing the same export again brings the row back.
+        it("does not stop the same row from being imported again", () => {
+            addImport("e1", [item({ rawId: "a" })]);
+            removeItems(idOf("e1", "a"));
+            expect(addImport("e1", [item({ rawId: "a" })])).toEqual({ added: 1, skipped: 0 });
         });
     });
 

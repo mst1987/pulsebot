@@ -122,6 +122,7 @@ jest.mock("../../src/web/lootStore", () => ({
     listByCharacter: jest.fn(() => []),
     eventsWithLoot: jest.fn(() => []),
     setEventCategory: jest.fn(() => 0),
+    removeItems: jest.fn(() => 0),
     clearEvent: jest.fn(() => 0),
     repairItemNames: jest.fn(() => Promise.resolve(0)),
 }));
@@ -2841,6 +2842,60 @@ describe("web/apiRouter", () => {
         const res = await post("/api/history/category-tool", { categoryId: "cat1", tool: "rclc" });
         expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
         expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+    });
+
+    describe("POST /api/history/loot-delete", () => {
+        it("deletes single rows by id and returns the removed count", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            lootStore.removeItems.mockReturnValue(2);
+            const res = await post("/api/history/loot-delete", { ids: ["a1", "b2"] });
+            expect(lootStore.removeItems).toHaveBeenCalledWith(["a1", "b2"]);
+            expect(body(res)).toEqual({ data: { removed: 2 } });
+        });
+
+        it("accepts a single id", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            lootStore.removeItems.mockReturnValue(1);
+            await post("/api/history/loot-delete", { id: "a1" });
+            expect(lootStore.removeItems).toHaveBeenCalledWith(["a1"]);
+        });
+
+        it("returns 400 without an id", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            const res = await post("/api/history/loot-delete", { ids: ["", "  "] });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "no_id", message: expect.any(String) } });
+            expect(lootStore.removeItems).not.toHaveBeenCalled();
+        });
+
+        // A row the view still shows but the store no longer has — a stale page,
+        // not a success.
+        it("returns 404 when nothing matched", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            lootStore.removeItems.mockReturnValue(0);
+            const res = await post("/api/history/loot-delete", { id: "gone" });
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "not_found", message: expect.any(String) } });
+        });
+
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await post("/api/history/loot-delete", { id: "a1" });
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+            expect(lootStore.removeItems).not.toHaveBeenCalled();
+        });
+
+        it("returns 403 without a valid CSRF token", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(false);
+            const res = await post("/api/history/loot-delete", { id: "a1" });
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(lootStore.removeItems).not.toHaveBeenCalled();
+        });
     });
 
     describe("POST /api/history/clear", () => {

@@ -224,6 +224,28 @@ function setEventCategory(eventId, categoryId) {
     return updated;
 }
 
+/**
+ * Remove single loot rows by their stored id. Returns how many were removed.
+ *
+ * The counterpart to clearEvent() for the everyday case of one wrong row — an
+ * item the addon logged twice, one awarded to the wrong raider, a test entry —
+ * where dropping the whole import and redoing it is far too coarse. A deletion
+ * only holds until the *same* export is imported again: addImport() dedupes
+ * against what is stored, and a removed row is no longer there to dedupe
+ * against, so it comes back.
+ */
+function removeItems(ids) {
+    const wanted = new Set(
+        (Array.isArray(ids) ? ids : [ids]).map((id) => String(id || "").trim()).filter(Boolean),
+    );
+    if (!wanted.size) return 0;
+    const all = readAll();
+    const next = all.filter((it) => !wanted.has(it.id));
+    const removed = all.length - next.length;
+    if (removed) writeAll(next);
+    return removed;
+}
+
 /** Remove all loot stored for an event. Returns how many rows were removed. */
 function clearEvent(eventId) {
     const id = String(eventId || "").trim();
@@ -259,6 +281,6 @@ async function repairItemNames() {
 }
 
 module.exports = {
-    addImport, listAll, listByEvent, listByCharacter, eventsWithLoot, characters, setEventCategory, clearEvent, repairItemNames,
+    addImport, listAll, listByEvent, listByCharacter, eventsWithLoot, characters, setEventCategory, removeItems, clearEvent, repairItemNames,
     charLootPreview, LOOT_FILE,
 };
