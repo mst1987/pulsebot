@@ -446,8 +446,9 @@ async function getItemSearch(req, res, url) {
  * POST /api/raids/softres — create a softres.it soft-reserve list for this
  * event (instances derived from the title, but editable), with the chosen
  * number of reserves and hard reserves.
- * Body: { event, instanceCodes, amount, faction, hardReserves, hideReserves, discord }.
- * `discord` (Discord-Login-Pflicht auf softres.it) is on unless explicitly false.
+ * Body: { event, instanceCodes, amount, faction, hardReserves, hideReserves, protection }.
+ * `protection` (softres.it's "User Protection": reserving needs a login and each
+ * raider may only edit their own reserves) is on unless explicitly false.
  */
 async function postSoftresCreate(req, res) {
     const user = requireAdmin(req, res);
@@ -471,7 +472,7 @@ async function postSoftresCreate(req, res) {
             faction: String(body.faction || "").trim(),
             hardReserves,
             hideReserves: body.hideReserves === true,
-            discord: body.discord !== false,
+            protection: body.protection !== false,
         });
         saveEventSoftres(eventId, {
             raidId: created.raidId,
@@ -483,7 +484,13 @@ async function postSoftresCreate(req, res) {
             amount: Number(body.amount) || 1,
             hardReserveCount: hardReserves.length,
         });
-        ok(res, { message: "Softres-Liste erstellt." }, 201);
+        // The list itself is created either way; hard reserves are a follow-up
+        // write on softres.it and can fail on their own. Say so instead of
+        // reporting a clean success the raidlead would not verify.
+        const message = created.hardReserveError
+            ? `Softres-Liste erstellt, aber die Hardreserves konnten nicht gesetzt werden: ${created.hardReserveError}`
+            : "Softres-Liste erstellt.";
+        ok(res, { message }, 201);
     } catch (e) {
         console.error("softres create failed:", e.message);
         error(res, 500, "softres_failed", e.message || "Softres-Erstellung fehlgeschlagen.");
