@@ -683,7 +683,7 @@ function SoftresLinkForm({ eventSoftres, eventId, csrfToken, onDone }: {
                 </div>
                 <div className="field">
                     <label>Softres-Link (Bearbeiten, optional)</label>
-                    <input type="url" value={softresEditUrl} onChange={(e) => setSoftresEditUrl(e.target.value)} placeholder="https://softres.it/raid/.../token" />
+                    <input type="url" value={softresEditUrl} onChange={(e) => setSoftresEditUrl(e.target.value)} placeholder="https://softres.it/raid/...?adminToken=..." />
                 </div>
                 <div className="row-actions"><button className="btn" type="submit" disabled={busy}>Link speichern</button></div>
             </form>
@@ -708,7 +708,7 @@ type SoftresDraft = {
     amount: number;
     faction: "Horde" | "Alliance";
     hardReserves: Array<{ id: number; name: string }>;
-    discord: boolean;
+    protection: boolean;
 };
 
 function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
@@ -720,11 +720,11 @@ function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
     const { softresCatalogue, softresSuggested, softresEdition } = data;
     // Draft per event: picking instances and searching hard-reserve items is real
     // work, and the softres tab is one click away from the loot/logs tabs.
-    // Discord-Login-Pflicht ist der Standard für neue Listen.
+    // User Protection (Login-Pflicht zum Reservieren) ist der Standard für neue Listen.
     const [draft, patch, clearDraft] = useDraftState<SoftresDraft>(`raid-softres:${eventId}`, {
-        codes: softresSuggested || [], amount: 1, faction: "Horde", hardReserves: [], discord: true,
+        codes: softresSuggested || [], amount: 1, faction: "Horde", hardReserves: [], protection: true,
     });
-    const { amount, faction, hardReserves, discord } = draft;
+    const { amount, faction, hardReserves, protection } = draft;
     const selected = useMemo(() => new Set(draft.codes), [draft.codes]);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -761,7 +761,7 @@ function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
         setError(null);
         try {
             const r = await createSoftres(csrfToken, {
-                event: eventId, instanceCodes: [...selected], amount, faction, hardReserves, hideReserves: false, discord,
+                event: eventId, instanceCodes: [...selected], amount, faction, hardReserves, hideReserves: false, protection,
             });
             // The list exists now — keeping the draft would only offer to build a
             // second one from the same picks.
@@ -811,11 +811,14 @@ function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
                 </select>
             </div>
             <div className="field">
-                <label>Discord-Authentifizierung</label>
+                <label>User Protection</label>
                 <label className="rolebox">
-                    <input type="checkbox" checked={discord} onChange={(e) => patch({ discord: e.target.checked })} /> Discord-Login zum Reservieren verlangen
+                    <input type="checkbox" checked={protection} onChange={(e) => patch({ protection: e.target.checked })} /> Login zum Reservieren verlangen
                 </label>
-                <div className="hint">Standard: an. Spieler müssen sich auf softres.it mit Discord einloggen, ihre Reserves sind damit einem Discord-Account zugeordnet.</div>
+                <div className="hint">
+                    Standard: an. Spieler müssen sich auf softres.it einloggen (Discord oder Battle.net) und können
+                    dann nur ihre eigenen Reserves ändern. Aus: jeder kann die Reserves aller anderen bearbeiten.
+                </div>
             </div>
             <div className="field">
                 <label>Hardreserved Items (optional)</label>

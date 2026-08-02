@@ -1,7 +1,16 @@
 // softres.it integration: derive raid instances from an event title and create a
-// soft-reserve list via softres.it's (internal) API. softres.it has no public API
-// but its create endpoint accepts a raid object and returns { raidId, token }; the
-// token is the edit secret. See config/softresInstances.js for the instance codes.
+// soft-reserve list on softres.it.
+//
+// softres.it has no public API. It used to expose a plain `POST /api/raid/create`
+// that took a JSON raid object and answered with `{ raidId, token }`. The 2026
+// rewrite replaced that with a Laravel/Inertia app: the create endpoint is now
+// `POST /raid`, it is CSRF-gated (session cookie + matching X-XSRF-TOKEN header),
+// it wants snake_case fields and *numeric* instance ids, and it answers a
+// successful write with a 302 to `/raid/{raidId}?adminToken={token}` instead of a
+// JSON body. Hard reserves no longer travel with the create call either — they
+// are two follow-up writes against the fresh raid.
+//
+// See config/softresInstances.js for the instance codes and their numeric ids.
 
 const axios = require("axios");
 const httpsAgent = require("./httpAgent");
@@ -9,6 +18,10 @@ const { INSTANCES } = require("../config/softresInstances");
 
 const SOFTRES_BASE = "https://softres.it";
 const VALID_FACTIONS = ["Alliance", "Horde"];
+const XSRF_COOKIE = "XSRF-TOKEN";
+// softres.it can be slow to answer under load; give it generous headroom so
+// creating/re-creating a list doesn't fail with a premature timeout.
+const TIMEOUT = 45000;
 
 // Lower-case a title and strip accents so keyword matching is robust to
 // "Zul'Aman" vs "zulaman" etc.
@@ -102,86 +115,217 @@ function catalogue() {
     }));
 }
 
-// Turn a list of { id, raider?, note? } hard reserves into softres itemNotes.
-function buildItemNotes(hardReserves = []) {
-    return (hardReserves || [])
-        .map((hr) => ({ id: Number(hr.id) || 0, raider: String(hr.raider || "").trim(), note: String(hr.note || "").trim() }))
-        .filter((hr) => hr.id > 0)
-        .map((hr) => ({
-            id: hr.id,
-            hardReserved: true,
-            raider: hr.raider,
-            note: hr.note,
-            roles: [],
-            specs: [],
-            ignoreClassRestrict: false,
-        }));
+/**
+ * Translate our instance codes into the numeric ids softres.it wants on the wire,
+ * de-duplicated and in the order given. An unknown code is an error rather than a
+ * silent drop: a list quietly missing a raid the raidlead ticked is worse than a
+ * visible failure.
+ */
+function instanceIdsForCodes(codes = []) {
+    const seen = new Set();
+    const ids = [];
+    for (const raw of codes || []) {
+        const code = String(raw || "").trim();
+        if (!code || seen.has(code)) continue;
+        seen.add(code);
+        const inst = INSTANCES[code];
+        if (!inst) throw new Error(`Unbekannte Instanz: ${code}`);
+        ids.push(inst.id);
+    }
+    if (!ids.length) throw new Error("Mindestens eine Instanz wählen.");
+    return ids;
 }
 
 /**
- * Build the payload softres.it's POST /api/raid/create expects. Kept pure and
- * exported so it can be unit-tested without hitting the network.
- *
- * `discord` (softres.it's "Discord authentication") defaults to **true**: raiders
- * have to sign in with Discord before they can reserve, which ties every reserve
- * to a known Discord account. Pass `discord: false` to opt out for a single list.
+ * Turn a list of { id, note? } hard reserves into softres.it's `item_notes`
+ * shape. Only entries that actually carry a note survive — softres drops empty
+ * ones anyway, and the hard-reserve flag itself travels separately (see
+ * `hardReserveIds`).
  */
-function buildCreatePayload({ instances, edition, amount, faction, hardReserves, note, hideReserves, discord } = {}) {
-    const codes = [...new Set((instances || []).map((c) => String(c).trim()).filter(Boolean))];
-    if (!codes.length) throw new Error("Mindestens eine Instanz wählen.");
+function buildItemNotes(hardReserves = []) {
+    return (hardReserves || [])
+        .map((hr) => ({ id: Number(hr.id) || 0, note: String(hr.note || "").trim() }))
+        .filter((hr) => hr.id > 0 && hr.note !== "");
+}
+
+/** The plain item ids of a hard-reserve list, de-duplicated, invalid ids dropped. */
+function hardReserveIds(hardReserves = []) {
+    return [...new Set((hardReserves || []).map((hr) => Number(hr.id) || 0).filter((id) => id > 0))];
+}
+
+/**
+ * Build the payload softres.it's `POST /raid` expects. Kept pure and exported so
+ * it can be unit-tested without hitting the network.
+ *
+ * `protection` (softres.it's "User Protection") defaults to **true**: raiders have
+ * to sign in (Discord or Battle.net) before they can reserve, and can then only
+ * edit their own reserves. With it off, anyone can edit anyone's reserves. Pass
+ * `protection: false` to opt out for a single list.
+ */
+function buildCreatePayload({ instances, edition, amount, faction, hideReserves, protection } = {}) {
+    const ids = instanceIdsForCodes(instances);
     if (!VALID_FACTIONS.includes(faction)) throw new Error("Fraktion muss \"Alliance\" oder \"Horde\" sein.");
     const amt = Math.max(1, Math.min(6, Number(amount) || 1));
     return {
-        instances: codes,
         edition: String(edition || "tbc"),
-        amount: amt,
-        faction,
-        itemLimit: 0,
-        hideReserves: Boolean(hideReserves),
-        characterNotes: true,
-        restrictByClass: true,
-        allowDuplicate: true,
-        plusModifier: 1,
-        plusType: 0,
-        lock: false,
-        discord: discord === undefined ? true : Boolean(discord),
-        note: String(note || "").trim(),
-        itemNotes: buildItemNotes(hardReserves),
-        reserved: [],
+        instances: ids,
+        // softres.it switched to lower-case faction slugs in the rewrite.
+        faction: faction.toLowerCase(),
+        protection: protection === undefined ? true : Boolean(protection),
+        reserve_limit: amt,
+        item_limit: 0,
+        item_reserve_limit: 0,
+        hide_reserves: Boolean(hideReserves),
+        notes_enabled: true,
+        class_restrictions: true,
     };
+}
+
+// --- HTTP plumbing -------------------------------------------------------
+// Laravel gates every write behind a session cookie plus the matching XSRF
+// token, so a create is: GET the start page to pick both up, then POST with
+// them. The handful of cookies live in a Map rather than a cookie-jar
+// dependency — one short-lived session per create is all this ever needs.
+
+function absorbCookies(jar, setCookie) {
+    for (const line of setCookie || []) {
+        const pair = String(line).split(";")[0];
+        const eq = pair.indexOf("=");
+        if (eq > 0) jar.set(pair.slice(0, eq).trim(), pair.slice(eq + 1).trim());
+    }
+    return jar;
+}
+
+function cookieHeader(jar) {
+    return [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
+}
+
+/** Turn an axios failure into a German error carrying softres.it's own complaint. */
+function softresError(err) {
+    const data = err && err.response && err.response.data;
+    if (data && typeof data === "object") {
+        // Laravel validation errors: { message, errors: { field: [msg, ...] } }
+        const first = Object.values(data.errors || {}).flat().find(Boolean);
+        const detail = first || data.message;
+        if (detail) return new Error(`softres.it lehnte die Anfrage ab: ${detail}`);
+    }
+    const status = err && err.response && err.response.status;
+    if (status) return new Error(`softres.it antwortete mit HTTP ${status}.`);
+    return new Error(`softres.it nicht erreichbar: ${(err && err.message) || "unbekannter Fehler"}`);
+}
+
+/** Open a session: fetch the start page and keep its session + XSRF cookies. */
+async function openSession() {
+    const jar = new Map();
+    try {
+        const res = await axios.get(`${SOFTRES_BASE}/`, { httpsAgent, timeout: TIMEOUT });
+        absorbCookies(jar, res.headers["set-cookie"]);
+    } catch (err) {
+        throw softresError(err);
+    }
+    if (!jar.has(XSRF_COOKIE)) throw new Error("softres.it lieferte kein CSRF-Token — Seite geändert?");
+    return jar;
+}
+
+/**
+ * One authenticated request against softres.it. A successful write answers with
+ * a 302 back to the raid page, so 3xx counts as success here and is *not*
+ * followed — the Location header is where the new raid id and token live.
+ */
+async function send(jar, method, path, data) {
+    let res;
+    try {
+        res = await axios.request({
+            method,
+            url: `${SOFTRES_BASE}${path}`,
+            data,
+            httpsAgent,
+            timeout: TIMEOUT,
+            maxRedirects: 0,
+            headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                "X-Requested-With": "XMLHttpRequest",
+                "X-XSRF-TOKEN": decodeURIComponent(jar.get(XSRF_COOKIE) || ""),
+                Cookie: cookieHeader(jar),
+            },
+            validateStatus: (s) => s >= 200 && s < 400,
+        });
+    } catch (err) {
+        throw softresError(err);
+    }
+    absorbCookies(jar, res.headers["set-cookie"]);
+    return res;
+}
+
+/**
+ * Pull the raid id and admin token out of the redirect softres.it answers a
+ * successful create with: `/raid/{raidId}?adminToken={token}`.
+ */
+function parseCreatedLocation(location) {
+    if (!location) return null;
+    let url;
+    try {
+        url = new URL(location, SOFTRES_BASE);
+    } catch {
+        return null;
+    }
+    const m = /^\/raid\/([A-Za-z0-9]+)\/?$/.exec(url.pathname);
+    if (!m) return null;
+    return { raidId: m[1], token: url.searchParams.get("adminToken") || "" };
+}
+
+/** The view and edit URLs for a raid id + admin token. */
+function raidUrls(raidId, token) {
+    const url = `${SOFTRES_BASE}/raid/${raidId}`;
+    return { url, editUrl: token ? `${url}?adminToken=${token}` : url };
 }
 
 /**
  * Create a soft-reserve list on softres.it. Returns the ids and the shareable
- * URLs. Throws on a validation error (softres returns `{ code, error }`) or a
- * network failure.
- * @returns {Promise<{ raidId: string, token: string, url: string, editUrl: string }>}
+ * URLs. Throws on a validation error or a network failure.
+ *
+ * Hard reserves are applied as two follow-up writes, because the create endpoint
+ * no longer accepts them: `POST /raid/{id}/hardReserve` flags the items, `PUT
+ * /raid/{id}` carries the per-item notes and the raid note. Those run
+ * best-effort and report back via `hardReserveError` — a list that exists but is
+ * missing its hard reserves is far more useful than a hard failure that leaves
+ * an orphaned list behind on softres.it.
+ * @returns {Promise<{ raidId, token, url, editUrl, hardReserveError? }>}
  */
 async function createRaid(opts = {}) {
     const payload = buildCreatePayload(opts);
-    const { data } = await axios.post(`${SOFTRES_BASE}/api/raid/create`, payload, {
-        httpsAgent,
-        // softres.it can be slow to answer under load; give it generous headroom
-        // so creating/re-creating a list doesn't fail with a premature timeout.
-        timeout: 45000,
-        headers: { "Content-Type": "application/json" },
-    });
-    if (!data || data.code !== undefined || !data.raidId) {
-        const detail = data && data.error && data.error.details && data.error.details[0]
-            ? data.error.details[0].message : "unbekannter Fehler";
-        throw new Error(`softres.it lehnte die Anfrage ab: ${detail}`);
+    const jar = await openSession();
+    const res = await send(jar, "post", "/raid", payload);
+    const created = parseCreatedLocation(res.headers && res.headers.location);
+    if (!created) throw new Error("softres.it hat keine Raid-ID zurückgegeben.");
+
+    const result = { ...created, ...raidUrls(created.raidId, created.token) };
+    const items = hardReserveIds(opts.hardReserves);
+    const itemNotes = buildItemNotes(opts.hardReserves);
+    const note = String(opts.note || "").trim();
+    if (!items.length && !itemNotes.length && !note) return result;
+
+    try {
+        // Claim manager rights for this session — the token is what proves them.
+        if (created.token) await send(jar, "get", `/raid/${created.raidId}?adminToken=${created.token}`);
+        if (items.length) await send(jar, "post", `/raid/${created.raidId}/hardReserve`, { items });
+        if (itemNotes.length || note) {
+            const update = {};
+            if (itemNotes.length) update.item_notes = itemNotes;
+            if (note) update.note = note;
+            await send(jar, "put", `/raid/${created.raidId}`, update);
+        }
+    } catch (err) {
+        result.hardReserveError = err.message;
     }
-    return {
-        raidId: data.raidId,
-        token: data.token || "",
-        url: `${SOFTRES_BASE}/raid/${data.raidId}`,
-        editUrl: data.token ? `${SOFTRES_BASE}/raid/${data.raidId}/${data.token}` : `${SOFTRES_BASE}/raid/${data.raidId}`,
-    };
+    return result;
 }
 
 module.exports = {
     SOFTRES_BASE, VALID_FACTIONS,
     normalizeTitle, titleHasKeyword, parseInstancesFromTitle,
     instancesForEdition, listEditions, editionOf, nameOf, catalogue, targetSizeForInstances,
-    buildItemNotes, buildCreatePayload, createRaid,
+    instanceIdsForCodes, buildItemNotes, hardReserveIds, buildCreatePayload,
+    parseCreatedLocation, raidUrls, createRaid,
 };
