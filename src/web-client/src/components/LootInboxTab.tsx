@@ -82,9 +82,17 @@ function SessionCard({ session, events, categories, csrfToken, onDone }: {
         <div className="dash-card" style={{ marginBottom: 14 }}>
             <div className="dash-card-head">
                 <h3>
-                    {session.instance || "Unbekannter Raid"}
+                    {session.contentLabel || session.instance || "Unbekannter Raid"}
                     <span className="sub" style={{ marginLeft: 10, fontWeight: 400 }}>
                         {timeSpan(session)} · {session.itemCount} Item(s)
+                        {/* Sichtbar machen, dass der Raidname erschlossen ist und
+                            nicht vom Addon kam — sonst liest er sich wie eine
+                            Tatsache, die niemand mehr hinterfragt. */}
+                        {session.contentSource === "items" && (
+                            <> · <span title={`Aus ${session.contentMatched} von ${session.itemCount} Item-IDs erkannt`}>
+                                Raid aus den Items erkannt
+                            </span></>
+                        )}
                     </span>
                 </h3>
                 <button className="btn ghost" type="button" onClick={() => setOpen((v) => !v)}>
@@ -143,7 +151,13 @@ function SessionCard({ session, events, categories, csrfToken, onDone }: {
                         <div className="field">
                             <label>Titel (optional)</label>
                             <input
-                                type="text" value={manualLabel} placeholder="z.B. SSC/TK — 12.07.2026"
+                                type="text" value={manualLabel}
+                                // Leer gelassen, aber mit dem erkannten Raid als
+                                // Platzhalter: der ist fast immer der Titel, den
+                                // man ohnehin tippen würde.
+                                placeholder={session.contentLabel
+                                    ? `${session.contentLabel} — ${fmtMs(session.startedAt, false)}`
+                                    : "z.B. SSC/TK — 12.07.2026"}
                                 onChange={(e) => setManualLabel(e.target.value)}
                             />
                         </div>

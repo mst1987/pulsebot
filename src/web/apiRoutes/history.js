@@ -22,6 +22,7 @@ const { bestDayMatch, formatDayDisplay, dayKey } = require("../lootEventMatch");
 const {
     listPending: listPendingSessions, getPending: getPendingSession, resolvePending: resolvePendingSession,
 } = require("../lootInboxStore");
+const { sessionContentLabel } = require("../lootSessionContent");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setupView");
 const { applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../../config/variables");
 const Blizzard = require("../../classes/blizzard");
@@ -323,10 +324,18 @@ async function getLootInbox(req, res) {
     if (!user) return;
     // Decorated like stored loot (reason badge, raid, tier) even though it isn't
     // stored yet — the preview should look like the history it is about to be.
-    const sessions = listPendingSessions().map((s) => ({
-        ...s,
-        items: (s.items || []).map(decorateLootItem),
-    }));
+    const sessions = listPendingSessions().map((s) => {
+        // Welcher Raid das war, notfalls aus den Item-IDs — das Addon kann es
+        // nicht immer wissen (siehe lootSessionContent.js).
+        const content = sessionContentLabel(s);
+        return {
+            ...s,
+            items: (s.items || []).map(decorateLootItem),
+            contentLabel: content.label,
+            contentSource: content.source,
+            contentMatched: content.derived.matched,
+        };
+    });
     ok(res, { sessions });
 }
 
