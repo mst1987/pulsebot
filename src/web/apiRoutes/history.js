@@ -10,6 +10,7 @@ const { logPostedAt } = require("../reportList");
 const {
     addImport: addLootImport, listByEvent: listLootByEvent, listByCharacter: listLootByCharacter, eventsWithLoot, clearEvent: clearLootEvent,
     setEventCategory: setLootEventCategory, removeItems: removeLootItems, repairItemNames: repairLootItemNames,
+    decorate: decorateLootItem,
 } = require("../lootStore");
 const { lootStats } = require("../lootStats");
 const { listAwards } = require("../lootAwards");
@@ -320,7 +321,13 @@ async function clearHistoryEvent(req, res) {
 async function getLootInbox(req, res) {
     const user = requireAdmin(req, res);
     if (!user) return;
-    ok(res, { sessions: listPendingSessions() });
+    // Decorated like stored loot (reason badge, raid, tier) even though it isn't
+    // stored yet — the preview should look like the history it is about to be.
+    const sessions = listPendingSessions().map((s) => ({
+        ...s,
+        items: (s.items || []).map(decorateLootItem),
+    }));
+    ok(res, { sessions });
 }
 
 /**

@@ -282,5 +282,8 @@ async function repairItemNames() {
 
 module.exports = {
     addImport, listAll, listByEvent, listByCharacter, eventsWithLoot, characters, setEventCategory, removeItems, clearEvent, repairItemNames,
-    charLootPreview, LOOT_FILE,
+    // Exported for the addon inbox, which shows loot that is not stored yet:
+    // running it through the same decoration makes the preview look exactly like
+    // the history it is about to become (reason badge, raid, tier).
+    charLootPreview, decorate, LOOT_FILE,
 };

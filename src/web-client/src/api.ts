@@ -1100,7 +1100,11 @@ export type InboxSession = {
     endedAt: number;
     instance: string;
     itemCount: number;
-    /** Not yet decorated (no reason/content) — these rows are not history yet. */
+    /**
+     * The session's loot, decorated exactly like stored history (reason badge,
+     * raid, tier) although it isn't stored yet — so the preview looks like what
+     * accepting will produce. `id` is absent: these rows have no store id.
+     */
     items: LootItem[];
     realm: string;
     reporter: string;

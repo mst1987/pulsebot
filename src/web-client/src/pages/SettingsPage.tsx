@@ -9,6 +9,8 @@ import {
 import { useOutletContext } from "react-router-dom";
 import { fmtMs } from "../lib/format";
 import { usePersistedState } from "../lib/persistedState";
+import { useTableSort, type Dir } from "../lib/tableSort";
+import { SortTh } from "../components/SortTh";
 import type { ShellContext } from "../components/Shell";
 import RolePermissionsEditor from "../components/RolePermissions";
 import ItemSearchPicker from "../components/ItemSearchPicker";
@@ -319,7 +321,28 @@ function RaiderCharactersTab({ categories, csrfToken }: { categories: Category[]
  * someone navigates away, which is why the new token gets its own panel rather
  * than a row in the table.
  */
+type TokenSortKey = "name" | "created" | "createdBy" | "lastUsed" | "uses";
+const TOKEN_SORT_DEFAULTS: Record<TokenSortKey, Dir> = {
+    name: "asc", created: "desc", createdBy: "asc", lastUsed: "desc", uses: "desc",
+};
+
+function tokenSortValue(t: IngestToken, key: TokenSortKey): string | number {
+    switch (key) {
+        case "name": return t.name.toLowerCase();
+        case "created": return t.createdAt || 0;
+        case "createdBy": return (t.createdBy || "").toLowerCase();
+        case "lastUsed": return t.lastUsedAt || 0;
+        case "uses": return t.uses || 0;
+        default: return "";
+    }
+}
+
 function IngestTokensTab({ csrfToken }: { csrfToken: string | null }) {
+    // Default "zuletzt benutzt": the question this table answers is usually
+    // "welcher Rechner lädt eigentlich noch hoch?".
+    const { sort, dir, onSort, apply } = useTableSort<TokenSortKey>(
+        "settings-ingest-tokens-sort", TOKEN_SORT_DEFAULTS, "lastUsed",
+    );
     const [tokens, setTokens] = useState<IngestToken[] | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [name, setName] = useState("");
@@ -418,12 +441,18 @@ function IngestTokensTab({ csrfToken }: { csrfToken: string | null }) {
                 <table className="table">
                     <thead>
                         <tr>
-                            <th>Name</th><th>Token</th><th>Erstellt</th><th>Von</th>
-                            <th>Zuletzt benutzt</th><th>Uploads</th><th />
+                            <SortTh sortKey="name" label="Name" sort={sort} dir={dir} onSort={onSort} />
+                            {/* Immer "ehl_…" plus vier Zeichen — nichts, wonach sich sortieren liesse. */}
+                            <th>Token</th>
+                            <SortTh sortKey="created" label="Erstellt" sort={sort} dir={dir} onSort={onSort} />
+                            <SortTh sortKey="createdBy" label="Von" sort={sort} dir={dir} onSort={onSort} />
+                            <SortTh sortKey="lastUsed" label="Zuletzt benutzt" sort={sort} dir={dir} onSort={onSort} />
+                            <SortTh sortKey="uses" label="Uploads" sort={sort} dir={dir} onSort={onSort} />
+                            <th />
                         </tr>
                     </thead>
                     <tbody>
-                        {tokens.map((t) => (
+                        {apply(tokens, tokenSortValue).map((t) => (
                             <tr key={t.id}>
                                 <td>{t.name}</td>
                                 <td><code>ehl_…{t.hint}</code></td>
