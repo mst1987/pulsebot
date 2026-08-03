@@ -1,5 +1,25 @@
 ﻿const https = require("https");
 
+// raid-helper.xyz sometimes accepts the connection and then never answers.
+// Without a timeout the surrounding promise never settles, so whatever admin
+// action triggered the call hangs until the reverse proxy gives up with a 504 —
+// that is what made "fehlende Raider pingen" appear to do nothing at all.
+// Every request below arms the same hard cap and fails with a real error, so
+// callers can fall back (raidEventGroups' last-good cache) or report it.
+const REQUEST_TIMEOUT_MS = 20000;
+
+// Abort `request` if the server hasn't answered in time. Destroying it with an
+// Error makes the request emit "error" with that Error, so the existing error
+// handlers (reject / resolve-empty) do the right thing without extra plumbing.
+function armTimeout(request) {
+  request.setTimeout(REQUEST_TIMEOUT_MS, () => {
+    request.destroy(
+      new Error(`Raid-Helper hat nicht innerhalb von ${REQUEST_TIMEOUT_MS / 1000}s geantwortet.`),
+    );
+  });
+  return request;
+}
+
 class Raidhelper {
   // opts.serverId lets callers override the raid-helper.xyz server id from the
   // admin-editable settings store (see utils/raidhelperClient.js); apiKey stays
@@ -57,7 +77,7 @@ class Raidhelper {
           });
         })
         .on("error", (err) => reject(err));
-      request.end();
+      armTimeout(request).end();
     });
   }
 
@@ -130,10 +150,12 @@ class Raidhelper {
             resolve(filteredEvents);
           });
         })
-        .on("error", (err) => {
-          console.log("Error: " + err.message);
-        });
-      request.end();
+        // Rejecting (instead of only logging) matters now that a request can be
+        // aborted by the timeout above: swallowing the error would leave this
+        // promise pending forever. bot.js's interactionCreate handler catches it
+        // and tells the user, rather than letting the command hang on its defer.
+        .on("error", (err) => reject(err));
+      armTimeout(request).end();
     });
   }
 
@@ -164,10 +186,12 @@ class Raidhelper {
             resolve(filteredEvents.map((events) => events.channelId));
           });
         })
-        .on("error", (err) => {
-          console.log("Error: " + err.message);
-        });
-      request.end();
+        // Rejecting (instead of only logging) matters now that a request can be
+        // aborted by the timeout above: swallowing the error would leave this
+        // promise pending forever. bot.js's interactionCreate handler catches it
+        // and tells the user, rather than letting the command hang on its defer.
+        .on("error", (err) => reject(err));
+      armTimeout(request).end();
     });
   }
 
@@ -212,6 +236,7 @@ class Raidhelper {
       request.on("error", (error) => {
         reject(error);
       });
+      armTimeout(request);
       request.write(postData);
       request.end();
     });
@@ -243,7 +268,7 @@ class Raidhelper {
           resp.on("error", reject);
         })
         .on("error", reject);
-      request.end();
+      armTimeout(request).end();
     });
   }
 
@@ -287,7 +312,7 @@ class Raidhelper {
         })
         .on("error", () => resolve());
 
-      request.end();
+      armTimeout(request).end();
     });
   }
 
@@ -330,6 +355,7 @@ class Raidhelper {
       });
 
       request.on("error", (error) => reject(error));
+      armTimeout(request);
       request.write(postData);
       request.end();
     });
@@ -364,6 +390,7 @@ class Raidhelper {
         reject(error);
       });
 
+      armTimeout(request);
       request.write(postData);
       request.end();
     });

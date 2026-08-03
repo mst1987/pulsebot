@@ -242,7 +242,13 @@ async function postPingMissing(req, res) {
     const body = await readJsonBody(req);
     const eventId = String(body.event || "").trim();
     const guildId = activeGuildFor(req);
+    // Timings are logged because a slow step here is invisible from the outside:
+    // when the whole handler outlives the reverse proxy's 60s ceiling, the admin
+    // only ever sees a 504 gateway page and cannot tell which of the three
+    // external round trips (Raid-Helper, member fetch, Discord post) was to blame.
+    const t0 = Date.now();
     const { groups, error: groupsError } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
+    const tEvents = Date.now();
     if (groupsError) return error(res, 400, "events_unavailable", groupsError);
     const found = groups.flatMap((g) => g.events.map((e) => ({ e, g }))).find((x) => x.e.id === eventId);
     if (!found) return error(res, 404, "not_found", "Event nicht gefunden.");
@@ -257,6 +263,7 @@ async function postPingMissing(req, res) {
         return error(res, 400, "event_past", "Der Raid hat bereits begonnen — fehlende Raider zu pingen ergibt hier keinen Sinn mehr.");
     }
     const { members, error: membersError } = await discord.listMembersWithRoles(guildId, categoryRoleIds);
+    const tMembers = Date.now();
     if (membersError) return error(res, 400, "members_unavailable", membersError);
     const { missing } = computeAttendance(members, found.e.signUps || []);
     if (!missing.length) {
@@ -264,6 +271,9 @@ async function postPingMissing(req, res) {
     }
     try {
         await discord.postMissingPing(found.e.channelId, missing.map((m) => m.id), body.text);
+        console.log(
+            `ping-missing: ${missing.length} Raider — events ${tEvents - t0}ms, members ${tMembers - tEvents}ms, post ${Date.now() - tMembers}ms`,
+        );
         ok(res, { message: `${missing.length} fehlende Raider gepingt.` });
     } catch (e) {
         console.error("ping-missing failed:", e.message);
