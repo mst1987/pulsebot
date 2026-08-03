@@ -185,17 +185,23 @@ function SetupTab({ data }: { data: RaidDetailData }) {
 }
 
 // A missing/responded name list — a person without a resolved class/spec profile
-// renders as a plain rolebox with just the display name.
+// renders as a plain rolebox with just the name.
+//
+// Raid leads think in character names, so a resolved character wins the label
+// outright and the Discord display name moves into the tooltip; only someone
+// without an assigned character still shows up under their Discord name.
 function NameList({ people }: { people: AttendancePerson[] }) {
     if (!people.length) return <p className="sub">—</p>;
     return (
         <div className="rolegrid rolegrid-flat">
             {people.map((p) => {
                 const prof = p.profile;
-                const label = (p.displayName || p.id) + (p.character ? ` (${p.character})` : "");
-                if (!prof) return <span key={p.id} className="rolebox">{label}</span>;
+                const discordName = p.displayName || p.id;
+                const label = p.character || discordName;
+                const title = [prof?.specName, p.character ? discordName : ""].filter(Boolean).join(" · ");
+                if (!prof) return <span key={p.id} className="rolebox" title={title}>{label}</span>;
                 return (
-                    <span key={p.id} className="rolebox setup-player" style={{ borderLeftColor: prof.classColor || "var(--line)" }} title={prof.specName || ""}>
+                    <span key={p.id} className="rolebox setup-player" style={{ borderLeftColor: prof.classColor || "var(--line)" }} title={title}>
                         <PlayerChip iconUrl={prof.iconUrl} className={prof.className} name={label} />
                     </span>
                 );
