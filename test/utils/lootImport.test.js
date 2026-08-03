@@ -1,8 +1,9 @@
 jest.mock("../../src/utils/wowhead");
 const wowhead = require("../../src/utils/wowhead");
 const {
-    parseLoot, parseRclc, parseGargul, detectImportDate, enrichItemNames,
-    splitPlayer, characterKey, itemLink, LootParseError,
+    parseLoot, parseRclc, parseGargul, parseEventHelper, parseEventHelperSessions,
+    detectImportDate, enrichItemNames,
+    splitPlayer, characterKey, itemLink, LootParseError, EH_FORMAT, EH_VERSION,
 } = require("../../src/utils/lootImport");
 
 // Real rows taken (trimmed) from the actual exports on the server.
@@ -216,6 +217,187 @@ describe("utils/lootImport", () => {
             const items = [{ itemId: 1, itemName: "", itemIconUrl: "" }];
             await enrichItemNames(items);
             expect(items[0].itemQuality).toBeUndefined();
+        });
+    });
+
+    describe("parseEventHelperSessions", () => {
+        // Shaped exactly like what the addon writes: RCLootcouncil and Gargul
+        // rows side by side in one session, both with a real unix timestamp.
+        const payload = (over = {}) => ({
+            format: EH_FORMAT,
+            version: EH_VERSION,
+            generatedAt: 1784580000,
+            realm: "Thunderstrike",
+            reporter: "Gemli-Thunderstrike",
+            client: { addon: "1.0.0", sync: "1.0.0" },
+            sessions: [{
+                sessionId: "eh-1784574000-ssc",
+                startedAt: 1784574000,
+                endedAt: 1784581200,
+                instance: "Serpentshrine Cavern",
+                items: [
+                    {
+                        source: "rclc", rawId: "1784574268-1", itemId: 29920,
+                        itemName: "Phoenix-Ring of Rebirth", player: "Naphfß-Thunderstrike",
+                        class: "SHAMAN", response: "Off Spec", offspec: true,
+                        boss: "Lady Vashj", instance: "Serpentshrine Cavern",
+                        note: "for pvp", replacedGear: ["[Ancestral Ring of Conquest]", ""],
+                        awardedAt: 1784574268, awardedBy: "Gemli-Thunderstrike",
+                    },
+                    {
+                        source: "gargul", rawId: "abc123checksum", itemId: 30242,
+                        itemName: "", player: "Keslight", class: "paladin",
+                        response: "Main Spec", offspec: false, awardedAt: 1784574375,
+                        awardedBy: "Gemli-Thunderstrike", gdkpCost: 15000,
+                    },
+                ],
+            }],
+            ...over,
+        });
+
+        it("reads the envelope's metadata", () => {
+            const { meta } = parseEventHelperSessions(JSON.stringify(payload()));
+            expect(meta).toMatchObject({
+                version: 1, realm: "Thunderstrike", reporter: "Gemli-Thunderstrike",
+                addonVersion: "1.0.0", syncVersion: "1.0.0",
+            });
+            expect(meta.generatedAt).toBe(1784580000 * 1000);
+        });
+
+        it("accepts an already-parsed object as well as a JSON string", () => {
+            expect(parseEventHelperSessions(payload()).sessions).toHaveLength(1);
+        });
+
+        it("converts session times from unix seconds to ms", () => {
+            const [s] = parseEventHelperSessions(payload()).sessions;
+            expect(s).toMatchObject({
+                sessionId: "eh-1784574000-ssc",
+                startedAt: 1784574000 * 1000,
+                endedAt: 1784581200 * 1000,
+                instance: "Serpentshrine Cavern",
+            });
+        });
+
+        it("normalizes an RCLootcouncil row to the shared loot shape", () => {
+            const [s] = parseEventHelperSessions(payload()).sessions;
+            expect(s.items[0]).toEqual({
+                source: "rclc", rawId: "1784574268-1", itemId: 29920,
+                itemName: "Phoenix-Ring of Rebirth", itemIconUrl: "",
+                itemLink: "https://www.wowhead.com/tbc/item=29920",
+                player: "Naphfß-Thunderstrike", character: "Naphfß", characterKey: "naphfß",
+                realm: "Thunderstrike", class: "SHAMAN", response: "Off Spec", offspec: true,
+                boss: "Lady Vashj", instance: "Serpentshrine Cavern", note: "for pvp",
+                replacedGear: ["[Ancestral Ring of Conquest]"],
+                awardedAt: 1784574268 * 1000, awardedBy: "Gemli-Thunderstrike",
+            });
+        });
+
+        // The whole reason the addon exists: Gargul's own CSV has a date but no
+        // time of day, which makes matching a raid night guesswork.
+        it("gives a Gargul row a real timestamp and a resolvable character", () => {
+            const [s] = parseEventHelperSessions(payload()).sessions;
+            expect(s.items[1]).toMatchObject({
+                source: "gargul", rawId: "abc123checksum", itemId: 30242,
+                character: "Keslight", characterKey: "keslight", realm: "",
+                class: "paladin", offspec: false, awardedAt: 1784574375 * 1000,
+            });
+        });
+
+        // The source is kept so an addon upload and a hand-pasted export of the
+        // same award collapse into one item instead of appearing twice.
+        it("keeps the originating addon as the item's source", () => {
+            const [s] = parseEventHelperSessions(payload()).sessions;
+            expect(s.items.map((i) => i.source)).toEqual(["rclc", "gargul"]);
+        });
+
+        it("marks a row from an unknown addon rather than trusting the label", () => {
+            const data = payload();
+            data.sessions[0].items = [{ ...data.sessions[0].items[0], source: "somethingelse" }];
+            expect(parseEventHelper(data)[0].source).toBe("eventhelper");
+        });
+
+        it("carries fields the app does not use yet without choking", () => {
+            // gdkpCost rides along in the wire format; the parser simply drops it.
+            expect(parseEventHelper(payload())[1]).not.toHaveProperty("gdkpCost");
+        });
+
+        it("falls back to the response text when the offspec flag is missing", () => {
+            const data = payload();
+            data.sessions[0].items = [{
+                source: "rclc", rawId: "x", itemId: 1, player: "Foo", response: "Off Spec",
+            }];
+            expect(parseEventHelper(data)[0].offspec).toBe(true);
+        });
+
+        it("synthesizes a rawId when a row has none, so dedup still works", () => {
+            const data = payload();
+            data.sessions[0].items = [{ source: "rclc", itemId: 7, player: "Foo", awardedAt: 42 }];
+            expect(parseEventHelper(data)[0].rawId).toBe("7-42-Foo");
+        });
+
+        it("drops rows without an item id or a player instead of storing junk", () => {
+            const data = payload();
+            data.sessions[0].items = [
+                { source: "rclc", rawId: "a", player: "Foo" },
+                { source: "rclc", rawId: "b", itemId: 5, player: "" },
+                { source: "rclc", rawId: "c", itemId: 5, player: "Ok" },
+                null,
+            ];
+            expect(parseEventHelper(data).map((i) => i.rawId)).toEqual(["c"]);
+        });
+
+        it("tolerates a session without items", () => {
+            const data = payload();
+            data.sessions[0].items = undefined;
+            expect(parseEventHelperSessions(data).sessions[0].items).toEqual([]);
+        });
+
+        describe("rejects what it cannot trust", () => {
+            it("refuses text that is not JSON", () => {
+                expect(() => parseEventHelperSessions("nope")).toThrow(LootParseError);
+            });
+
+            it("refuses another tool's JSON", () => {
+                expect(() => parseEventHelperSessions(RCLC_JSON)).toThrow(/Kein EventHelper-Addon-Export/);
+            });
+
+            // Silently importing half a payload would lose loot without saying so.
+            it("refuses a payload from a newer addon than it understands", () => {
+                expect(() => parseEventHelperSessions(payload({ version: EH_VERSION + 1 })))
+                    .toThrow(/neueren Addon-Version/);
+            });
+
+            it("accepts an older version", () => {
+                expect(parseEventHelperSessions(payload({ version: 1 })).sessions).toHaveLength(1);
+            });
+
+            it("refuses a payload without a session list", () => {
+                expect(() => parseEventHelperSessions(payload({ sessions: "nope" })))
+                    .toThrow(/sessions/);
+            });
+        });
+
+        describe("via parseLoot", () => {
+            it("auto-detects the envelope and flattens it", () => {
+                const items = parseLoot(JSON.stringify(payload()));
+                expect(items).toHaveLength(2);
+                expect(items[0].itemId).toBe(29920);
+            });
+
+            it("still auto-detects RCLootcouncil's array and Gargul's csv", () => {
+                expect(parseLoot(RCLC_JSON)).toHaveLength(2);
+                expect(parseLoot(GARGUL_CSV).length).toBeGreaterThan(0);
+            });
+
+            it("can be asked for the format explicitly", () => {
+                expect(parseLoot(JSON.stringify(payload()), "eventhelper")).toHaveLength(2);
+            });
+        });
+
+        // detectImportDate drives the date match, so it must see the addon's
+        // precise timestamps rather than a midnight-rounded Gargul date.
+        it("feeds detectImportDate a real award time", () => {
+            expect(detectImportDate(parseEventHelper(payload()))).toBe(1784574268 * 1000);
         });
     });
 

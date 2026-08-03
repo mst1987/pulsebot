@@ -10,7 +10,9 @@ const { getChannels, createChannel, duplicateChannel } = require("./apiRoutes/ch
 const {
     getSettings, updateSettings, getItemSearch: getSettingsItemSearch,
     saveRaidsheetHandler, deleteRaidsheetHandler,
+    getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler,
 } = require("./apiRoutes/settings");
+const { ingestLoot } = require("./apiRoutes/ingest");
 const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raiderCharacters");
 const { getRoster } = require("./apiRoutes/roster");
 const { getRaids, getRaidCreateContext, createRaid } = require("./apiRoutes/raids");
@@ -31,6 +33,7 @@ const {
 const {
     getHistoryData, getLootStats, getLootAwards, deleteHistoryLog, importLoot, setLootCategory, deleteLootItems, clearHistoryEvent, getHistoryEvent,
     resolveCharacters, getHistoryChar,
+    getLootInbox, acceptLootInbox, dismissLootInbox,
 } = require("./apiRoutes/history");
 const {
     getClaData, createReport, reportStatus, evalLog, evalStatus, resetEval, scanLogs, deleteLogHandler,
@@ -111,6 +114,23 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/settings/raidsheets/delete" && req.method === "POST") {
         await deleteRaidsheetHandler(req, res);
+        return true;
+    }
+    if (pathname === "/api/settings/ingest-tokens" && req.method === "GET") {
+        getIngestTokens(req, res);
+        return true;
+    }
+    if (pathname === "/api/settings/ingest-tokens" && req.method === "POST") {
+        await createIngestTokenHandler(req, res);
+        return true;
+    }
+    if (pathname === "/api/settings/ingest-tokens/delete" && req.method === "POST") {
+        await deleteIngestTokenHandler(req, res);
+        return true;
+    }
+    // Token-authenticated, not session-authenticated — see apiRoutes/ingest.js.
+    if (pathname === "/api/ingest/loot" && req.method === "POST") {
+        await ingestLoot(req, res);
         return true;
     }
     if (pathname === "/api/raider-characters" && req.method === "GET") {
@@ -247,6 +267,18 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/history/import" && req.method === "POST") {
         await importLoot(req, res);
+        return true;
+    }
+    if (pathname === "/api/history/inbox" && req.method === "GET") {
+        await getLootInbox(req, res);
+        return true;
+    }
+    if (pathname === "/api/history/inbox-accept" && req.method === "POST") {
+        await acceptLootInbox(req, res);
+        return true;
+    }
+    if (pathname === "/api/history/inbox-dismiss" && req.method === "POST") {
+        await dismissLootInbox(req, res);
         return true;
     }
     if (pathname === "/api/history/loot-category" && req.method === "POST") {

@@ -254,7 +254,16 @@ Access is **per area** (one admin-menu section) and **per level** (`read` = open
 
 ### Loot import (Gargul/RCLootcouncil)
 
-`src/utils/lootImport.js` normalizes both export formats to one loot-item shape (`parseLoot`/`parseGargul`/`parseRclc`). `enrichItemNames(items)` fills in `itemName`/`itemIconUrl` that an export didn't carry (Gargul gives neither, RCLootcouncil gives a name but no icon) via `src/utils/wowhead.js`'s `lookupItem(itemId)` (Wowhead's tooltip endpoint, in-memory cached, best-effort — mock it in tests). Call it once, right after `parseLoot()` — the one import handler is `apiRoutes/history.js`'s `importLoot` (JSON, called from the React client's Historie-&-Loot and Raid-Detail Loot-tab imports).
+`src/utils/lootImport.js` normalizes all export formats to one loot-item shape (`parseLoot`/`parseGargul`/`parseRclc`/`parseEventHelper`). `enrichItemNames(items)` fills in `itemName`/`itemIconUrl` that an export didn't carry (Gargul gives neither, RCLootcouncil gives a name but no icon) via `src/utils/wowhead.js`'s `lookupItem(itemId)` (Wowhead's tooltip endpoint, in-memory cached, best-effort — mock it in tests). Call it once, right after `parseLoot()` — the import handlers are `apiRoutes/history.js`'s `importLoot` (JSON, called from the React client's Historie-&-Loot and Raid-Detail Loot-tab imports) and `apiRoutes/ingest.js`'s `ingestLoot` (below).
+
+### Addon loot sync (`/api/ingest/loot` → Addon-Inbox)
+
+A companion WoW addon (own repo: **eventhelper-addon**) reads the in-game history of *both* loot addons and uploads it, so nobody has to click through two export dialogs. WoW's Lua sandbox has no network access at all, so the chain is: addon → its own SavedVariables → a Node sync tool on the raidleader's PC → `POST /api/ingest/loot`.
+
+- **Wire format** `eventhelper-loot` v1 (`EH_FORMAT`/`EH_VERSION` in `lootImport.js`): an envelope of raid *sessions*, each with items carrying a real unix `awardedAt`. That timestamp is the point — Gargul's own CSV has a date but no time of day, which makes matching a raid night guesswork. A payload from a newer addon than the server knows is refused, never half-read.
+- **Item `source` stays `"rclc"`/`"gargul"`**, so an addon upload and a hand-pasted export of the same award share the dedup key (`source` + `rawId` = RCLootcouncil's `id` resp. Gargul's `checksum`) and collapse into one item.
+- **Auth is a bearer token**, not a Discord session — the uploader runs unattended. `src/web/ingestTokenStore.js` stores tokens sha256-hashed, shows the secret exactly once, and revokes immediately. Minted in Einstellungen → *Loot-Sync* (full admins only). `apiAccess.js`'s `TOKEN_AUTH` set exempts *only* this one path from the session gate; the handler checks the token itself before doing any work.
+- **Nothing lands in the history unconfirmed.** An upload becomes a *pending session* in `src/web/lootInboxStore.js`, shown in Historie & Loot → *Addon-Inbox* with the Raid-Helper event it was matched to (a suggestion; an ambiguous day preselects nothing). Accepting files it and is **remembered**: later uploads of that session append straight to the same event, which is how the rest of a raid night arrives without a second click. Dismissing is remembered too, so a discarded session cannot reappear. Re-uploads of a pending session merge into the one card instead of stacking up — the sync tool re-sends the whole raid on every SavedVariables flush, so that is the normal case.
 
 ### Award reason and raid content (the "Loot-Gründe"/"Items" overviews)
 

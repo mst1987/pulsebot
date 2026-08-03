@@ -1,11 +1,15 @@
-// Parsers for the two loot-addon exports used on the server, both normalized to
-// a single loot-item shape so the store / history pages don't care which addon
-// produced them.
+// Parsers for the loot exports used on the server, all normalized to a single
+// loot-item shape so the store / history pages don't care which addon produced
+// them.
 //
 //   RCLootcouncil  → a JSON array of loot entries (rich: item name, boss,
 //                    response, class, the gear the player replaced, ML, …).
 //   Gargul         → a small CSV `dateTime,character,itemID,offspec,id`
 //                    (date, char without realm, item id, offspec flag, unique id).
+//   EventHelper    → the "eventhelper-loot" envelope our own WoW addon writes: it
+//                    reads *both* addons' in-game history and emits them as raid
+//                    sessions with a real per-item unix timestamp. Uploaded by the
+//                    companion sync tool, but also pasteable by hand.
 //
 // Normalized loot item:
 //   { source, rawId, itemId, itemName, itemIconUrl, itemQuality, itemLink, player,
@@ -165,19 +169,137 @@ function parseGargul(text) {
     return out;
 }
 
+// --- EventHelper addon envelope ------------------------------------------------
+
+// The wire format our own addon + sync tool speak. Bumped only on a breaking
+// change; a payload from a newer addon than this server knows is refused rather
+// than half-read, so a mismatch is visible instead of silently losing items.
+const EH_FORMAT = "eventhelper-loot";
+const EH_VERSION = 1;
+
+// Which addon a row originally came from. Kept as the item's `source` so an
+// addon-uploaded row and a hand-pasted RCLootcouncil/Gargul export of the *same*
+// award share a dedup key (`source` + `rawId`) and collapse into one item —
+// rawId is RCLootcouncil's `id` resp. Gargul's `checksum` in both paths.
+const EH_SOURCES = new Set(["rclc", "gargul"]);
+
+function normalizeEhRow(r) {
+    if (!r || typeof r !== "object") return null;
+    const itemId = Number(r.itemId) || null;
+    if (!itemId) return null;
+    const { player, character, realm } = splitPlayer(r.player);
+    if (!character) return null;
+    const source = EH_SOURCES.has(String(r.source)) ? String(r.source) : "eventhelper";
+    const response = String(r.response || "").trim();
+    // The addon resolves the offspec flag itself (Gargul's `OS`, RCLootcouncil's
+    // responseID 4); the text check only backstops an older addon build.
+    const offspec = r.offspec === true || /off\s*spec/i.test(response);
+    // Unix seconds in the payload — everything downstream works in ms.
+    const awardedAt = Math.round((Number(r.awardedAt) || 0) * 1000);
+    return {
+        source,
+        rawId: String(r.rawId || `${itemId}-${r.awardedAt || ""}-${player}`),
+        itemId,
+        itemName: String(r.itemName || "").trim(),
+        itemIconUrl: "",
+        itemLink: itemLink(itemId),
+        player,
+        character,
+        characterKey: characterKey(character),
+        realm,
+        class: String(r.class || "").trim(),
+        response,
+        offspec,
+        boss: String(r.boss || "").trim(),
+        instance: String(r.instance || "").trim(),
+        note: String(r.note || "").trim(),
+        replacedGear: Array.isArray(r.replacedGear)
+            ? r.replacedGear.map((g) => String(g || "").trim()).filter(Boolean)
+            : [],
+        awardedAt,
+        awardedBy: splitPlayer(r.awardedBy).player,
+    };
+}
+
+/**
+ * Parse the addon's envelope into its raid sessions, each with normalized loot
+ * items. One upload can carry several sessions (the addon splits by raid night /
+ * instance), which is exactly what lets the inbox match each one to its own
+ * Raid-Helper event instead of lumping a week of raids together.
+ *
+ * @returns {{ meta: object, sessions: Array<{ sessionId, startedAt, endedAt, instance, items }> }}
+ */
+function parseEventHelperSessions(text) {
+    let data = text;
+    if (typeof data === "string") {
+        try {
+            data = JSON.parse(data.trim());
+        } catch {
+            throw new LootParseError("Konnte den EventHelper-Addon-Export nicht als JSON lesen.");
+        }
+    }
+    if (!data || typeof data !== "object" || data.format !== EH_FORMAT) {
+        throw new LootParseError(
+            `Kein EventHelper-Addon-Export — erwartet wird ein Objekt mit "format": "${EH_FORMAT}".`
+        );
+    }
+    const version = Number(data.version) || 0;
+    if (version > EH_VERSION) {
+        throw new LootParseError(
+            `Der Export stammt aus einer neueren Addon-Version (Format v${version}, unterstützt wird v${EH_VERSION}). Bitte den Bot aktualisieren.`
+        );
+    }
+    if (!Array.isArray(data.sessions)) {
+        throw new LootParseError("Unerwartetes EventHelper-Format — „sessions\" fehlt oder ist keine Liste.");
+    }
+    const sessions = data.sessions.map((s, i) => {
+        const items = (Array.isArray(s && s.items) ? s.items : []).map(normalizeEhRow).filter(Boolean);
+        return {
+            sessionId: String((s && s.sessionId) || `session-${i + 1}`),
+            startedAt: Math.round((Number(s && s.startedAt) || 0) * 1000),
+            endedAt: Math.round((Number(s && s.endedAt) || 0) * 1000),
+            instance: String((s && s.instance) || "").trim(),
+            items,
+        };
+    });
+    const meta = {
+        version,
+        generatedAt: Math.round((Number(data.generatedAt) || 0) * 1000),
+        realm: String(data.realm || "").trim(),
+        reporter: splitPlayer(data.reporter).player,
+        addonVersion: String((data.client && data.client.addon) || "").trim(),
+        syncVersion: String((data.client && data.client.sync) || "").trim(),
+    };
+    return { meta, sessions };
+}
+
+/** The addon envelope flattened to a plain item list (the paste-it-by-hand path). */
+function parseEventHelper(text) {
+    return parseEventHelperSessions(text).sessions.flatMap((s) => s.items);
+}
+
 // --- dispatch ------------------------------------------------------------------
 
 /**
- * Parse a loot export. `tool` is "rclc" | "gargul". When omitted or "auto", the
- * format is sniffed (JSON → rclc, otherwise csv → gargul).
+ * Parse a loot export. `tool` is "rclc" | "gargul" | "eventhelper". When omitted
+ * or "auto", the format is sniffed: a JSON object tagged with our own format is
+ * the addon envelope, any other JSON is RCLootcouncil's array, everything else is
+ * Gargul's CSV.
  */
 function parseLoot(text, tool = "auto") {
     const t = String(tool || "auto").toLowerCase();
     if (t === "rclc") return parseRclc(text);
     if (t === "gargul") return parseGargul(text);
+    if (t === "eventhelper") return parseEventHelper(text);
     // auto-detect
     const trimmed = String(text || "").trim();
-    if (trimmed.startsWith("[") || trimmed.startsWith("{")) return parseRclc(text);
+    if (trimmed.startsWith("{")) {
+        // Only our envelope is an object; an RCLootcouncil export is an array.
+        // Sniffing on the raw text keeps this cheap and avoids parsing twice.
+        if (trimmed.includes(`"${EH_FORMAT}"`)) return parseEventHelper(text);
+        return parseRclc(text);
+    }
+    if (trimmed.startsWith("[")) return parseRclc(text);
     return parseGargul(text);
 }
 
@@ -241,6 +363,8 @@ async function enrichItemNames(items) {
 }
 
 module.exports = {
-    parseLoot, parseRclc, parseGargul, detectImportDate, enrichItemNames, needsLookup,
+    parseLoot, parseRclc, parseGargul, parseEventHelper, parseEventHelperSessions,
+    detectImportDate, enrichItemNames, needsLookup,
     splitPlayer, characterKey, itemLink, LootParseError,
+    EH_FORMAT, EH_VERSION,
 };

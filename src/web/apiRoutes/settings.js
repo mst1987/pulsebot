@@ -5,6 +5,9 @@ const { activeGuildFor } = require("../activeGuild");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet,
 } = require("../settingsStore");
+const {
+    listTokens: listIngestTokens, createToken: createIngestToken, revokeToken: revokeIngestToken,
+} = require("../ingestTokenStore");
 const discord = require("../discord");
 const wowhead = require("../../utils/wowhead");
 const { AREAS, normalizeRolePermissions } = require("../../config/permissions");
@@ -147,4 +150,41 @@ async function deleteRaidsheetHandler(req, res) {
     ok(res, { id });
 }
 
-module.exports = { getSettings, updateSettings, getItemSearch, saveRaidsheetHandler, deleteRaidsheetHandler };
+// ---- loot-sync API tokens (the WoW addon's companion uploader) ----
+// Full-admin only, like the other access settings: these are credentials that
+// bypass the Discord login entirely, so someone with mere write access to
+// "Einstellungen" must not be able to mint one.
+
+/** GET /api/settings/ingest-tokens — the tokens, never their secrets. */
+function getIngestTokens(req, res) {
+    if (!requireFullAdmin(req, res)) return;
+    ok(res, { tokens: listIngestTokens() });
+}
+
+/**
+ * POST /api/settings/ingest-tokens — body: { name }. Mints a token and returns
+ * the plaintext **once**; it is stored hashed and can never be shown again.
+ */
+async function createIngestTokenHandler(req, res) {
+    const user = requireFullAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const { token, record } = createIngestToken(body.name, user.name || user.id || "");
+    ok(res, { token, record }, 201);
+}
+
+/** POST /api/settings/ingest-tokens/delete — body: { id }. Revokes immediately. */
+async function deleteIngestTokenHandler(req, res) {
+    if (!requireFullAdmin(req, res)) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const id = String(body.id || "").trim();
+    if (!id || !revokeIngestToken(id)) return error(res, 404, "not_found", "Token nicht gefunden.");
+    ok(res, { id });
+}
+
+module.exports = {
+    getSettings, updateSettings, getItemSearch, saveRaidsheetHandler, deleteRaidsheetHandler,
+    getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler,
+};
