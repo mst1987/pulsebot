@@ -37,6 +37,9 @@
     --reason-greed: #6fa8dc; --reason-greed-bg: rgba(111, 168, 220, .16);
     --reason-disenchant: #b083f0; --reason-disenchant-bg: rgba(176, 131, 240, .16);
     --reason-bank: #9aa0aa; --reason-bank-bg: rgba(154, 160, 170, .16);
+    /* ---- signup status (Anwesenheit): icon-only colours, see .sig-ico ---- */
+    --sig-signed: #7fd17f; --sig-tentative: #e3cf5c; --sig-late: #eb9440;
+    --sig-bench: #6fa8dc; --sig-absence: #e0524f;
 }
 @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
@@ -63,6 +66,8 @@
         --reason-greed: #2b6ca3; --reason-greed-bg: rgba(43, 108, 163, .12);
         --reason-disenchant: #7c4fd6; --reason-disenchant-bg: rgba(124, 79, 214, .12);
         --reason-bank: #5b616e; --reason-bank-bg: rgba(91, 97, 110, .12);
+        --sig-signed: #2b9440; --sig-tentative: #9a6c12; --sig-late: #c26414;
+        --sig-bench: #2b6ca3; --sig-absence: #cf3b37;
     }
 }
 :root[data-theme="light"] {
@@ -89,6 +94,8 @@
     --reason-greed: #2b6ca3; --reason-greed-bg: rgba(43, 108, 163, .12);
     --reason-disenchant: #7c4fd6; --reason-disenchant-bg: rgba(124, 79, 214, .12);
     --reason-bank: #5b616e; --reason-bank-bg: rgba(91, 97, 110, .12);
+    --sig-signed: #2b9440; --sig-tentative: #9a6c12; --sig-late: #c26414;
+    --sig-bench: #2b6ca3; --sig-absence: #cf3b37;
 }
 
 * { box-sizing: border-box; }
@@ -252,6 +259,23 @@ td.cell-actions { text-align: right; white-space: nowrap; vertical-align: middle
 .rolebox input[type=checkbox] { margin-top: 1px; }
 .rolebox:hover { background: var(--panel2); }
 .rolebox:has(input:checked) { background: var(--accent-soft); border-color: var(--accent-soft); }
+
+/* ===== signup status (Anwesenheit → Reagiert) =====
+   The reaction is coded by a coloured icon, never by a tinted row: a raider's
+   row colour already belongs to their WoW class, and two colour systems on the
+   same chip cancel each other out. The list is grouped by status, so the icon
+   repeats the group's glyph per line and stays readable on its own. */
+.sig-ico { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; flex: 0 0 15px; color: var(--sig-fg, var(--muted)); }
+.sig-ico svg { width: 100%; height: 100%; }
+.rolebox > .sig-ico { margin-top: 2px; }
+.sig-signed { --sig-fg: var(--sig-signed); }
+.sig-tentative { --sig-fg: var(--sig-tentative); }
+.sig-late { --sig-fg: var(--sig-late); }
+.sig-bench { --sig-fg: var(--sig-bench); }
+.sig-absence { --sig-fg: var(--sig-absence); }
+.sig-group + .sig-group { margin-top: 12px; }
+.sig-group-head { display: flex; align-items: center; gap: 7px; margin: 0 0 6px; font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.sig-group-head b { color: var(--text); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 
 /* ===== page hero header (raid detail, character detail) =====
    The identity block above a detail page's tabs. Instead of one flat text

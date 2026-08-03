@@ -461,7 +461,11 @@ export type SetupGroup = { label: string; players: SetupPlayer[] };
 export type EventSetup = { total: number; groups: SetupGroup[] } | null;
 
 export type AttendanceProfile = { classColor: string; specName: string; className: string; iconUrl: string };
-export type AttendancePerson = { id: string; displayName: string; character?: string; profile: AttendanceProfile | null };
+// What the raider's reaction said — mirrors SIGNUP_STATUSES in
+// src/utils/attendance.js. Only set on `responded`; someone who has not reacted
+// has no status at all.
+export type SignupStatus = "signed" | "tentative" | "late" | "bench" | "absence";
+export type AttendancePerson = { id: string; displayName: string; character?: string; status?: SignupStatus; profile: AttendanceProfile | null };
 export type Attendance = { responded: AttendancePerson[]; missing: AttendancePerson[] };
 
 export type RaidDetailEvent = {

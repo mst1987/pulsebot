@@ -235,3 +235,57 @@ export function RefreshIcon() {
         </svg>
     );
 }
+
+/* ---- signup status (Anwesenheit): one glyph per reaction, drawn in the
+   status colour by .sig-ico — the list codes a status by icon, never by a
+   filled background. ---- */
+
+/** Signed up — the checkmark. */
+export function SignedIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m4 12.5 5 5L20 6.5" />
+        </svg>
+    );
+}
+
+/** Signed off (Absence) — a crossed-out circle. */
+export function AbsenceIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M6.4 6.4 17.6 17.6" />
+        </svg>
+    );
+}
+
+/** Bench — a seat, for a raider held in reserve. */
+export function BenchIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 11h18M3 15h18" />
+            <path d="M5 7v12M19 7v12" />
+        </svg>
+    );
+}
+
+/** Tentative — the question mark of an undecided answer. */
+export function TentativeIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M9.3 9.2a2.8 2.8 0 0 1 5.4.9c0 1.9-2.7 2.3-2.7 4" />
+            <path d="M12 17.4h.01" strokeWidth="2.6" />
+        </svg>
+    );
+}
+
+/** Late — a clock, for "coming, but not on time". */
+export function LateIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5.3l3.3 2" />
+        </svg>
+    );
+}

@@ -14,9 +14,9 @@ const SOURCE = path.join(
 );
 const src = fs.readFileSync(SOURCE, "utf8");
 
-/** The body of the NameList component, up to the next top-level declaration. */
-function nameListBody() {
-    const start = src.indexOf("function NameList(");
+/** The body of a component, up to the next top-level declaration. */
+function componentBody(name) {
+    const start = src.indexOf(`function ${name}(`);
     expect(start).toBeGreaterThan(-1);
     const rest = src.slice(start + 1);
     const end = rest.indexOf("\nfunction ");
@@ -24,7 +24,8 @@ function nameListBody() {
 }
 
 describe("attendance name lists", () => {
-    const body = nameListBody();
+    // The naming lives in PersonBox, the one chip both lists render through.
+    const body = componentBody("PersonBox");
 
     it("labels a person by their character name when one is known", () => {
         expect(body).toMatch(/const label = p\.character \|\| discordName;/);
@@ -36,7 +37,7 @@ describe("attendance name lists", () => {
     });
 
     it("keeps the Discord name reachable in the tooltip", () => {
-        expect(body).toMatch(/title = \[[^\]]*p\.character \? discordName/);
+        expect(body).toMatch(/const title = \[[\s\S]*?p\.character \? discordName/);
         // Both branches (with and without a class/spec profile) carry it.
         expect(body.match(/title=\{title\}/g) || []).toHaveLength(2);
     });

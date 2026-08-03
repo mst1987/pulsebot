@@ -6,13 +6,14 @@ import {
     searchSoftresItems, createSoftres, linkSoftres, evalLog, resetEval, linkLog, linkLogUrl, unlinkLog,
     type ApiError, type RaidDetailData, type SetupPlayer, type AttendancePerson, type LootItem,
     type SoftresCatalogueGroup, type EventSoftres, type RaidLogRow,
-    type RaidDetailEventSheet, type LogSection,
+    type RaidDetailEventSheet, type LogSection, type SignupStatus,
 } from "../api";
 import { eventTimeParts, relativeDayLabel, fmtMs } from "../lib/format";
 import { usePersistedSearchParam, useDraftState } from "../lib/persistedState";
 import ItemSearchPicker from "../components/ItemSearchPicker";
 import {
     ClockIcon, RunIcon, TrashIcon, ExternalIcon, SheetIcon, SendIcon, RefreshIcon, LinkIcon,
+    SignedIcon, TentativeIcon, LateIcon, BenchIcon, AbsenceIcon,
 } from "../components/icons";
 import { eventPostUrl, channelUrl, raidplanUrl, messageLink } from "../lib/discordLinks";
 import { LootTable } from "../components/LootTable";
@@ -184,29 +185,93 @@ function SetupTab({ data }: { data: RaidDetailData }) {
     );
 }
 
+// The reactions, in the order a raid lead cares about them: who is actually
+// coming first, the maybes next, the ones who are out last. `signed` is the
+// fallback for a signup whose status the backend could not resolve, so an
+// unknown Raid-Helper wording lands in "Angemeldet" and never disappears.
+const SIGNUP_ORDER: SignupStatus[] = ["signed", "tentative", "late", "bench", "absence"];
+const SIGNUP_META: Record<SignupStatus, { label: string; icon: () => JSX.Element }> = {
+    signed: { label: "Angemeldet", icon: SignedIcon },
+    tentative: { label: "Unsicher", icon: TentativeIcon },
+    late: { label: "Kommt später", icon: LateIcon },
+    bench: { label: "Bank", icon: BenchIcon },
+    absence: { label: "Abgemeldet", icon: AbsenceIcon },
+};
+
+/** The status badge of one reaction — colour comes from `.sig-<status>` in the CSS. */
+function StatusIcon({ status }: { status: SignupStatus }) {
+    const meta = SIGNUP_META[status];
+    const Icon = meta.icon;
+    return <span className={`sig-ico sig-${status}`} aria-label={meta.label} title={meta.label}><Icon /></span>;
+}
+
+/** One person as a rolebox, optionally led by their signup-status icon. */
+function PersonBox({ p, status }: { p: AttendancePerson; status?: SignupStatus }) {
+    const prof = p.profile;
+    const discordName = p.displayName || p.id;
+    const label = p.character || discordName;
+    const title = [
+        status ? SIGNUP_META[status].label : "",
+        prof?.specName,
+        p.character ? discordName : "",
+    ].filter(Boolean).join(" · ");
+    const icon = status ? <StatusIcon status={status} /> : null;
+    if (!prof) return <span className="rolebox" title={title}>{icon}{label}</span>;
+    return (
+        <span className="rolebox setup-player" style={{ borderLeftColor: prof.classColor || "var(--line)" }} title={title}>
+            {icon}
+            <PlayerChip iconUrl={prof.iconUrl} className={prof.className} name={label} />
+        </span>
+    );
+}
+
+/** Alphabetical by the name actually shown, so a list reads like a roster. */
+function byLabel(a: AttendancePerson, b: AttendancePerson) {
+    const name = (p: AttendancePerson) => (p.character || p.displayName || p.id);
+    return name(a).localeCompare(name(b), "de");
+}
+
 // A missing/responded name list — a person without a resolved class/spec profile
 // renders as a plain rolebox with just the name.
 //
 // Raid leads think in character names, so a resolved character wins the label
 // outright and the Discord display name moves into the tooltip; only someone
 // without an assigned character still shows up under their Discord name.
-function NameList({ people }: { people: AttendancePerson[] }) {
+//
+// `grouped` splits the list by what the reaction said (Angemeldet / Unsicher /
+// Kommt später / Bank / Abgemeldet) — a flat list of 29 names hides the three
+// people who signed off. The status is carried by a coloured icon rather than a
+// tinted row: the row's colour already belongs to the WoW class.
+function NameList({ people, grouped = false }: { people: AttendancePerson[]; grouped?: boolean }) {
     if (!people.length) return <p className="sub">—</p>;
+    if (!grouped) {
+        return (
+            <div className="rolegrid rolegrid-flat">
+                {[...people].sort(byLabel).map((p) => <PersonBox key={p.id} p={p} />)}
+            </div>
+        );
+    }
+    const groups = SIGNUP_ORDER
+        .map((status) => ({
+            status,
+            people: people.filter((p) => (p.status || "signed") === status).sort(byLabel),
+        }))
+        .filter((g) => g.people.length);
     return (
-        <div className="rolegrid rolegrid-flat">
-            {people.map((p) => {
-                const prof = p.profile;
-                const discordName = p.displayName || p.id;
-                const label = p.character || discordName;
-                const title = [prof?.specName, p.character ? discordName : ""].filter(Boolean).join(" · ");
-                if (!prof) return <span key={p.id} className="rolebox" title={title}>{label}</span>;
-                return (
-                    <span key={p.id} className="rolebox setup-player" style={{ borderLeftColor: prof.classColor || "var(--line)" }} title={title}>
-                        <PlayerChip iconUrl={prof.iconUrl} className={prof.className} name={label} />
-                    </span>
-                );
-            })}
-        </div>
+        <>
+            {groups.map((g) => (
+                <div className="sig-group" key={g.status}>
+                    <h5 className="sig-group-head">
+                        <StatusIcon status={g.status} />
+                        {SIGNUP_META[g.status].label}
+                        <b>{g.people.length}</b>
+                    </h5>
+                    <div className="rolegrid rolegrid-flat">
+                        {g.people.map((p) => <PersonBox key={p.id} p={p} status={g.status} />)}
+                    </div>
+                </div>
+            ))}
+        </>
     );
 }
 
@@ -295,7 +360,7 @@ function AttendanceTab({ data, eventId, csrfToken, onChanged }: {
                     <h4 style={{ margin: "14px 0 6px" }}>Fehlt (noch keine Reaktion)</h4>
                     <NameList people={attendance.missing} />
                     <h4 style={{ margin: "14px 0 6px" }}>Reagiert (an- oder abgemeldet)</h4>
-                    <NameList people={attendance.responded} />
+                    <NameList people={attendance.responded} grouped />
                     {/* Pinging is pointless once the raid has started — the backend refuses it too. */}
                     {ev.isPast
                         ? null

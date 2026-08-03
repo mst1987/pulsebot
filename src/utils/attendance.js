@@ -7,23 +7,65 @@ const { specProfile, characterProfile } = require("./setupView");
 
 // specName values that mark a non-attendance reaction (signed off), not a real
 // class/spec — must not be looked up as one when building spec history.
-const NON_ATTENDING_SPECS = new Set(["Absence"]);
+const NON_ATTENDING_SPECS = new Set(["Absence", "Bench", "Tentative", "Late"]);
+
+// What a reaction actually says. Raid-Helper models signing off as its own
+// pseudo class/spec ("Absence"/"Bench"/"Tentative"/"Late") rather than as a
+// flag, while the payload additionally carries a `status` — both are read, so a
+// persisted snapshot that only kept `specName` (raidEventScan.js) resolves to
+// the same answer as a live signup does.
+const SIGNED = "signed";
+const SIGNUP_STATUSES = [SIGNED, "tentative", "late", "bench", "absence"];
+const STATUS_ALIASES = {
+    absence: "absence", absent: "absence", declined: "absence", decline: "absence",
+    bench: "bench", benched: "bench",
+    tentative: "tentative",
+    late: "late",
+    primary: SIGNED, signed: SIGNED,
+};
 
 /**
- * Split expected members into those who reacted and those still missing.
+ * Normalise one Raid-Helper signup to a status out of `SIGNUP_STATUSES`.
+ *
+ * An off-signup beats a "primary": Raid-Helper keeps `status` at "primary" for
+ * sign-off classes, so a recognised absence/bench/tentative/late in *any* field
+ * decides and only a signup saying nothing of the sort counts as attending.
+ * Feeding an already-normalised value back in returns it unchanged, so this is
+ * safe to re-derive on a reduced snapshot.
+ * @param {{status?:string, className?:string, specName?:string, roleName?:string}} signUp
+ * @returns {string} one of SIGNUP_STATUSES
+ */
+function signupStatus(signUp) {
+    if (!signUp) return SIGNED;
+    for (const field of [signUp.status, signUp.className, signUp.specName, signUp.roleName]) {
+        const mapped = STATUS_ALIASES[String(field || "").trim().toLowerCase()];
+        if (mapped && mapped !== SIGNED) return mapped;
+    }
+    return SIGNED;
+}
+
+/**
+ * Split expected members into those who reacted and those still missing. Each
+ * responded member carries the `status` of their signup (see signupStatus), so
+ * the attendance list can tell an actual signup from a bench/absence.
  * @param {{id:string, displayName?:string}[]} members expected raiders (role holders)
  * @param {{userId:string}[]} signUps the event's Raid-Helper signups
  * @returns {{ responded: object[], missing: object[] }}
  */
 function computeAttendance(members = [], signUps = []) {
-    const respondedIds = new Set(
-        (signUps || []).map((s) => s && s.userId).filter(Boolean).map(String)
-    );
+    // Last entry per user wins — if Raid-Helper ever returns more than one
+    // reaction for the same raider, the most recent one is their answer.
+    const signUpByUser = new Map();
+    for (const s of signUps || []) {
+        if (!s || !s.userId) continue;
+        signUpByUser.set(String(s.userId), s);
+    }
     const responded = [];
     const missing = [];
     for (const m of members || []) {
         if (!m || !m.id) continue;
-        if (respondedIds.has(String(m.id))) responded.push(m);
+        const signUp = signUpByUser.get(String(m.id));
+        if (signUp) responded.push({ ...m, status: signupStatus(signUp) });
         else missing.push(m);
     }
     return { responded, missing };
@@ -110,5 +152,5 @@ function isRosterKnown(event, now = Date.now()) {
 
 module.exports = {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
-    hasStarted, isRosterKnown,
+    hasStarted, isRosterKnown, signupStatus, SIGNUP_STATUSES,
 };
