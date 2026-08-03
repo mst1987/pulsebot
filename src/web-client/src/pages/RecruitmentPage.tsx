@@ -12,8 +12,8 @@ import SpecPicker from "../components/SpecPicker";
 import type { ShellContext } from "../components/Shell";
 import { SortTh } from "../components/SortTh";
 import { TrashIcon } from "../components/icons";
+import { useToast } from "../components/Jobs";
 
-type Flash = { type: "ok" | "err"; text: string };
 type View = "posts" | "templates" | "applications";
 const VIEWS: View[] = ["posts", "templates", "applications"];
 
@@ -69,13 +69,12 @@ function TemplateForm({ data, csrfToken, editing, onSaved, onCancel }: {
     const { name, content, buttonLabel } = draft;
     const setContent = (v: string) => patch({ content: v });
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const toast = useToast();
     const contentRef = useRef<HTMLTextAreaElement>(null);
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
-        setError(null);
         try {
             await saveRecruitmentTemplate(csrfToken, { id: editing?.id, name, content, buttonLabel });
             // Mirrors the SSR page: after any save (create or edit) it lands back on a
@@ -83,7 +82,7 @@ function TemplateForm({ data, csrfToken, editing, onSaved, onCancel }: {
             clearDraft();
             onSaved(editing ? "Gespeichert." : "Vorlage angelegt.");
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -93,7 +92,6 @@ function TemplateForm({ data, csrfToken, editing, onSaved, onCancel }: {
         <>
             <h2>{editing ? `Vorlage bearbeiten: ${editing.name || ""}` : "Neue Vorlage anlegen"}</h2>
             <form className="card-form" onSubmit={submit}>
-                {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
                 <div className="field">
                     <label>Name (interne Bezeichnung)</label>
                     <input type="text" value={name} onChange={(e) => patch({ name: e.target.value })} placeholder="z.B. Heiler-Recruitment" required />
@@ -132,6 +130,7 @@ function TemplatesTab({ data, csrfToken, editing, onChanged, onCancelEdit, onEdi
     onEdit: (id: string) => void;
 }) {
     const { sort, dir, onSort, apply } = useTableSort<TemplateSortKey>("recruitment-templates-sort", TEMPLATE_SORT_DEFAULTS, "name");
+    const toast = useToast();
     const templates = apply(data.templates, (t, key) => (
         key === "name" ? (t.name || "").toLowerCase() : textPreview(t.content || t.title).toLowerCase()
     ));
@@ -142,7 +141,7 @@ function TemplatesTab({ data, csrfToken, editing, onChanged, onCancelEdit, onEdi
             await deleteRecruitmentTemplate(csrfToken, t.id);
             onChanged("Gelöscht.");
         } catch (err) {
-            onChanged((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         }
     };
 
@@ -194,19 +193,18 @@ function PostEditForm({ data, csrfToken, post, onSaved, onCancel }: {
     const { content, buttonLabel } = draft;
     const setContent = (v: string) => patch({ content: v });
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const toast = useToast();
     const contentRef = useRef<HTMLTextAreaElement>(null);
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
-        setError(null);
         try {
             await updateRecruitmentPost(csrfToken, { id: post.id, content, buttonLabel });
             clearDraft();
             onSaved("Nachricht aktualisiert.");
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -221,7 +219,6 @@ function PostEditForm({ data, csrfToken, post, onSaved, onCancel }: {
                 {" "}Änderungen werden direkt in Discord aktualisiert.
             </p>
             <form className="card-form" onSubmit={submit}>
-                {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
                 <div className="field">
                     <label>Nachrichtentext</label>
                     <textarea ref={contentRef} value={content} onChange={(e) => setContent(e.target.value)} style={{ minHeight: 380 }} />
@@ -257,8 +254,8 @@ function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
     });
     const { templateId, channelId } = target;
     const [posting, setPosting] = useState(false);
-    const [postError, setPostError] = useState<string | null>(null);
     const [scanning, setScanning] = useState(false);
+    const toast = useToast();
     const postSort = useTableSort<PostSortKey>("recruitment-posts-sort", POST_SORT_DEFAULTS, "channel");
     const posts = postSort.apply(data.posts, (p, key) => {
         switch (key) {
@@ -272,12 +269,11 @@ function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
     const submitPost = async (e: React.FormEvent) => {
         e.preventDefault();
         setPosting(true);
-        setPostError(null);
         try {
             await postRecruitmentTemplate(csrfToken, { templateId, channelId });
             onChanged("Nachricht gepostet.");
         } catch (err) {
-            setPostError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setPosting(false);
         }
@@ -289,7 +285,7 @@ function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
             const r = await scanRecruitmentPosts(csrfToken);
             onChanged(`${r.count} Nachricht(en) gefunden/aktualisiert.`);
         } catch (err) {
-            onChanged((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setScanning(false);
         }
@@ -301,7 +297,7 @@ function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
             await deleteRecruitmentPost(csrfToken, p.id);
             onChanged("Gelöscht.");
         } catch (err) {
-            onChanged((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         }
     };
 
@@ -312,7 +308,6 @@ function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
             {data.activeGuildId && !data.templates.length && <p className="sub">Lege zuerst eine Vorlage an, um sie posten zu können.</p>}
             {data.activeGuildId && data.templates.length > 0 && (
                 <form className="card-form" onSubmit={submitPost}>
-                    {postError && <p className="sub" style={{ color: "var(--high)" }}>{postError}</p>}
                     <div className="field">
                         <label>Vorlage</label>
                         <select value={templateId} onChange={(e) => patchTarget({ templateId: e.target.value })} required>
@@ -445,7 +440,7 @@ export default function RecruitmentPage() {
 
     const [data, setData] = useState<RecruitmentData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
-    const [flash, setFlash] = useState<Flash | null>(null);
+    const toast = useToast();
 
     const load = () => {
         getRecruitmentData({ view, edit: editId, editpost: editPostId })
@@ -465,7 +460,7 @@ export default function RecruitmentPage() {
     const cancelEditPost = () => leaveEdit("posts");
 
     const afterChange = (msg: string) => {
-        setFlash({ type: "ok", text: msg });
+        toast(msg);
         // Leave whichever edit form we were on back to the plain list, then reload.
         if (editId) leaveEdit("templates");
         else if (editPostId) leaveEdit("posts");
@@ -480,7 +475,6 @@ export default function RecruitmentPage() {
     return (
         <>
             <h1 className="page-title">Recruitment</h1>
-            {flash && <p className="sub" style={{ color: flash.type === "err" ? "var(--high)" : "var(--good)" }}>{flash.text}</p>}
             <SubNav
                 view={view}
                 counts={{ posts: data.posts.length, templates: data.templates.length, applications: data.applications ? data.applications.length : null }}

@@ -8,6 +8,7 @@ import { refreshWowheadLinks } from "../lib/wowheadTooltips";
 import { CLASS_SOURCE_LABELS } from "../components/ClassSpec";
 import { LootTable } from "../components/LootTable";
 import type { ShellContext } from "../components/Shell";
+import { useToast } from "../components/Jobs";
 
 type CharTab = "gear" | "loot";
 
@@ -395,7 +396,7 @@ export default function HistoryCharPage() {
 
     const [data, setData] = useState<HistoryCharData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
-    const [flash, setFlash] = useState<string | null>(null);
+    const toast = useToast();
 
     const load = () => {
         getHistoryChar(name).then(setData).catch((err: ApiError) => setError(err));
@@ -408,9 +409,9 @@ export default function HistoryCharPage() {
         try {
             await deleteLootItems(csrfToken, [it.id]);
             setData((d) => (d ? { ...d, items: d.items.filter((row) => row.id !== it.id) } : d));
-            setFlash(`„${it.itemName || `Item ${it.itemId}`}" gelöscht.`);
+            toast(`„${it.itemName || `Item ${it.itemId}`}" gelöscht.`);
         } catch (err) {
-            setFlash((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         }
     };
 
@@ -445,7 +446,6 @@ export default function HistoryCharPage() {
                     ? (
                         <div className="dash-card">
                             <div className="dash-card-head"><h3>Loot-Historie</h3><span className="small" style={{ marginLeft: "auto" }}>{data.items.length} Item(s)</span></div>
-                            {flash && <p className="sub" style={{ padding: "0 16px" }}>{flash}</p>}
                             <LootTable items={data.items} showEvent onDelete={removeItem} />
                         </div>
                     )

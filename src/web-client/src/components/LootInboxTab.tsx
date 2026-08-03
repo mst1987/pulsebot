@@ -16,6 +16,7 @@ import {
 } from "../api";
 import { fmtMs, formatEventTime } from "../lib/format";
 import { LootTable } from "./LootTable";
+import { useToast } from "./Jobs";
 
 /** "20:00 – 23:10" for a session's span; just the start when it has no end. */
 function timeSpan(s: InboxSession): string {
@@ -41,14 +42,13 @@ function SessionCard({ session, events, categories, csrfToken, onDone }: {
     const [manualLabel, setManualLabel] = useState("");
     const [categoryId, setCategoryId] = useState("");
     const [busy, setBusy] = useState<"" | "accept" | "dismiss">("");
-    const [error, setError] = useState<string | null>(null);
+    const toast = useToast();
     const [open, setOpen] = useState(false);
 
     const showManual = eventId === "__manual__" || eventId === "__auto__";
 
     const accept = async () => {
         setBusy("accept");
-        setError(null);
         try {
             const r = await acceptLootInbox(csrfToken, { id: session.id, event: eventId, manualLabel, categoryId });
             onDone(
@@ -57,7 +57,7 @@ function SessionCard({ session, events, categories, csrfToken, onDone }: {
                 + " Weitere Uploads dieses Raids landen automatisch dort.",
             );
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
             setBusy("");
         }
     };
@@ -68,12 +68,11 @@ function SessionCard({ session, events, categories, csrfToken, onDone }: {
             + "\n\nSie wird nicht erneut angeboten, auch wenn das Addon sie nochmal hochlädt.",
         )) return;
         setBusy("dismiss");
-        setError(null);
         try {
             await dismissLootInbox(csrfToken, session.id);
             onDone("Session verworfen.");
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
             setBusy("");
         }
     };
@@ -101,7 +100,6 @@ function SessionCard({ session, events, categories, csrfToken, onDone }: {
             </div>
 
             <div style={{ padding: "12px 16px" }}>
-                {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
 
                 <p className="sub" style={{ marginTop: 0 }}>
                     Hochgeladen von {session.reporter || "unbekannt"}

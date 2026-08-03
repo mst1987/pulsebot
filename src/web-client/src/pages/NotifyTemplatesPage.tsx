@@ -9,8 +9,7 @@ import { useTableSort, type Dir } from "../lib/tableSort";
 import type { ShellContext } from "../components/Shell";
 import { SortTh } from "../components/SortTh";
 import { TrashIcon } from "../components/icons";
-
-type Flash = { type: "ok" | "err"; text: string };
+import { useToast } from "../components/Jobs";
 
 type SortKey = "name" | "title";
 const SORT_DEFAULTS: Record<SortKey, Dir> = { name: "asc", title: "asc" };
@@ -33,12 +32,11 @@ function NotifyTemplateForm({ csrfToken, editing, onSaved, onCancel }: {
     });
     const { name, title, body } = draft;
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const toast = useToast();
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
-        setError(null);
         try {
             await saveNotifyTemplate(csrfToken, { id: editing?.id, name, title, body });
             // Mirrors the SSR page: after any save (create or edit) it lands back on a
@@ -46,7 +44,7 @@ function NotifyTemplateForm({ csrfToken, editing, onSaved, onCancel }: {
             clearDraft();
             onSaved(editing ? "Gespeichert." : "Vorlage angelegt.");
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -56,7 +54,6 @@ function NotifyTemplateForm({ csrfToken, editing, onSaved, onCancel }: {
         <>
             <h2>{editing ? `Vorlage bearbeiten: ${editing.name || ""}` : "Neue Aufruf-Vorlage anlegen"}</h2>
             <form className="card-form" onSubmit={submit}>
-                {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
                 <div className="field">
                     <label>Name (interne Bezeichnung)</label>
                     <input type="text" value={name} onChange={(e) => patch({ name: e.target.value })} placeholder="z.B. Kara-Reminder" required />
@@ -87,7 +84,7 @@ export default function NotifyTemplatesPage() {
 
     const [templates, setTemplates] = useState<NotifyTemplate[] | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
-    const [flash, setFlash] = useState<Flash | null>(null);
+    const toast = useToast();
     const { sort, dir, onSort, apply } = useTableSort<SortKey>("notify-templates-sort", SORT_DEFAULTS, "name");
 
     const load = () => {
@@ -100,7 +97,7 @@ export default function NotifyTemplatesPage() {
     const cancelEdit = () => setSearchParams({});
 
     const afterChange = (msg: string) => {
-        setFlash({ type: "ok", text: msg });
+        toast(msg);
         if (editId) setSearchParams({});
         load();
     };
@@ -111,7 +108,10 @@ export default function NotifyTemplatesPage() {
             await deleteNotifyTemplate(csrfToken, t.id);
             afterChange("Gelöscht.");
         } catch (err) {
-            afterChange((err as ApiError).message);
+            // A failed delete changed nothing — report it as the error it is
+            // instead of running it through the success path (which reloaded the
+            // list and coloured the message green).
+            toast((err as ApiError).message, "err");
         }
     };
 
@@ -125,7 +125,6 @@ export default function NotifyTemplatesPage() {
         <>
             <p className="note"><Link className="mlink" to="/raids">← Zurück zur Event-Übersicht</Link></p>
             <h1 className="page-title">Aufruf-Vorlagen</h1>
-            {flash && <p className="sub" style={{ color: flash.type === "err" ? "var(--high)" : "var(--good)" }}>{flash.text}</p>}
             <p className="note">Nachrichten-Vorlagen, die der Bot pro Event mit Rollen-Ping postet.</p>
             {templates.length
                 ? (

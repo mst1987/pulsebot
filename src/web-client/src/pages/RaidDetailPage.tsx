@@ -18,7 +18,7 @@ import {
 import { eventPostUrl, channelUrl, raidplanUrl, messageLink } from "../lib/discordLinks";
 import { LootTable } from "../components/LootTable";
 import type { ShellContext } from "../components/Shell";
-import { useJobs } from "../components/Jobs";
+import { useJobs, useToast } from "../components/Jobs";
 import PageLoader from "../components/PageLoader";
 
 type Tab = "setup" | "attendance" | "actions" | "loot" | "softres" | "logs";
@@ -286,18 +286,17 @@ function PingMissingForm({ eventId, missingCount, csrfToken, onDone }: {
 }) {
     const [text, setText] = useState("");
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const toast = useToast();
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
-        setError(null);
         try {
             const r = await pingMissingRaiders(csrfToken, { event: eventId, text });
             onDone(r.message);
             setText("");
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -305,7 +304,6 @@ function PingMissingForm({ eventId, missingCount, csrfToken, onDone }: {
 
     return (
         <form className="card-form" style={{ marginTop: 16 }} onSubmit={submit}>
-            {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
             <div className="field">
                 <label>Nachricht (optional)</label>
                 <input type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder="Bitte meldet euch für den Raid an oder ab." />
@@ -455,7 +453,7 @@ function NotifyForm({ data, eventId, csrfToken, onDone }: {
     const [templateId, setTemplateId] = useState(notifyTemplates[0]?.id ?? "");
     const [roleIds, setRoleIds] = useState<Set<string>>(new Set());
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const toast = useToast();
 
     if (!notifyTemplates.length) {
         return (
@@ -476,14 +474,13 @@ function NotifyForm({ data, eventId, csrfToken, onDone }: {
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
-        setError(null);
         try {
             const r = await notifyRaid(csrfToken, {
                 event: eventId, templateId, channelId: data.event.channelId, roleIds: [...roleIds],
             });
             onDone(r.message);
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -491,7 +488,6 @@ function NotifyForm({ data, eventId, csrfToken, onDone }: {
 
     return (
         <form className="card-form" onSubmit={submit}>
-            {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
             <div className="field">
                 <label>Aufruf-Vorlage</label>
                 <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} required>
@@ -630,7 +626,7 @@ function PostSheetForm({ eventId, eventSheet, sheetLink, guildId, channelLabel, 
 }) {
     const [message, setMessage] = useState(eventSheet?.postedMessage || "");
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const toast = useToast();
 
     // Postable as soon as there is any sheet to link — the raid's own copy, or
     // the fixed one assigned to its category.
@@ -642,12 +638,11 @@ function PostSheetForm({ eventId, eventSheet, sheetLink, guildId, channelLabel, 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
-        setError(null);
         try {
             const r = await postRaidSheet(csrfToken, { event: eventId, message });
             onDone(r.message);
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -656,7 +651,6 @@ function PostSheetForm({ eventId, eventSheet, sheetLink, guildId, channelLabel, 
     return (
         <form className="card-form" onSubmit={submit}>
             <PageLoader show={busy} text="Wird gepostet" />
-            {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
             <div className="field">
                 <label>Nachricht (optional)</label>
                 <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="z. B. Das Raidsheet für heute Abend – bitte eintragen!" />
@@ -725,17 +719,16 @@ function SoftresLinkForm({ eventSoftres, eventId, csrfToken, onDone }: {
     const [softresUrl, setSoftresUrl] = useState(eventSoftres?.url || "");
     const [softresEditUrl, setSoftresEditUrl] = useState(eventSoftres?.editUrl || "");
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const toast = useToast();
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
-        setError(null);
         try {
             const r = await linkSoftres(csrfToken, { event: eventId, softresUrl, softresEditUrl });
             onDone(r.message);
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -747,7 +740,6 @@ function SoftresLinkForm({ eventSoftres, eventId, csrfToken, onDone }: {
                 {eventSoftres?.url ? "Anderen Softres-Link verwenden" : "Schon eine Liste auf softres.it? Link manuell hinterlegen"}
             </summary>
             <form className="card-form" style={{ marginTop: 10 }} onSubmit={submit}>
-                {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
                 <div className="field">
                     <label>Softres-Link (Ansehen)</label>
                     <input type="url" value={softresUrl} onChange={(e) => setSoftresUrl(e.target.value)} placeholder="https://softres.it/raid/..." required />
@@ -798,7 +790,7 @@ function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
     const { amount, faction, hardReserves, protection } = draft;
     const selected = useMemo(() => new Set(draft.codes), [draft.codes]);
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const toast = useToast();
 
     const codeEdition = useMemo(() => editionMap(softresCatalogue), [softresCatalogue]);
     const currentEdition = useMemo(() => {
@@ -829,7 +821,6 @@ function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
-        setError(null);
         try {
             const r = await createSoftres(csrfToken, {
                 event: eventId, instanceCodes: [...selected], amount, faction, hardReserves, hideReserves: false, protection,
@@ -839,7 +830,7 @@ function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
             clearDraft();
             onDone(r.message);
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -847,7 +838,6 @@ function SoftresCreateForm({ data, eventId, csrfToken, onDone }: {
 
     return (
         <form className="card-form" onSubmit={submit}>
-            {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
             <div className="field">
                 <label>Instanzen (Raids)</label>
                 {softresCatalogue.map((g) => (
@@ -923,7 +913,7 @@ function PostSoftresForm({ eventId, eventSoftres, guildId, channelLabel, csrfTok
 }) {
     const [message, setMessage] = useState(eventSoftres?.postedMessage || "");
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const toast = useToast();
 
     if (!eventSoftres?.url) return null;
     const posted = !!(eventSoftres.postedChannelId && eventSoftres.postedMessageId);
@@ -931,12 +921,11 @@ function PostSoftresForm({ eventId, eventSoftres, guildId, channelLabel, csrfTok
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
-        setError(null);
         try {
             const r = await postRaidSoftres(csrfToken, { event: eventId, message });
             onDone(r.message);
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -945,7 +934,6 @@ function PostSoftresForm({ eventId, eventSoftres, guildId, channelLabel, csrfTok
     return (
         <form className="card-form" style={{ marginTop: 12 }} onSubmit={submit}>
             <PageLoader show={busy} text="Wird gepostet" />
-            {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
             <div className="field">
                 <label>Nachricht (optional)</label>
                 <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="z. B. Bitte bis Raidbeginn eintragen!" />
@@ -1019,7 +1007,7 @@ function LootImportForm({ eventId, defaultTool, csrfToken, onImported }: {
     const [draft, patch] = useDraftState(`raid-loot-import:${eventId}`, { tool: defaultTool || "auto", text: "" });
     const { tool, text } = draft;
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const toast = useToast();
     const fileRef = useRef<HTMLInputElement>(null);
 
     const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1033,14 +1021,13 @@ function LootImportForm({ eventId, defaultTool, csrfToken, onImported }: {
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
-        setError(null);
         try {
             const r = await importLoot(csrfToken, { data: text, tool, event: eventId, manualLabel: "" });
             onImported(`${r.added} Item(s) importiert${r.skipped ? `, ${r.skipped} Duplikat(e) übersprungen` : ""}.`);
             patch({ text: "" });
             if (fileRef.current) fileRef.current.value = "";
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -1050,7 +1037,6 @@ function LootImportForm({ eventId, defaultTool, csrfToken, onImported }: {
         <div className="dash-card">
             <div className="dash-card-head"><h3>Loot importieren</h3></div>
             <form className="card-form" onSubmit={submit} style={{ padding: "14px 16px" }}>
-                {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
                 <div className="field">
                     <label>Loot-Tool</label>
                     <select value={tool} onChange={(e) => patch({ tool: e.target.value })}>

@@ -8,6 +8,7 @@ import { useTableSort, type Dir } from "../lib/tableSort";
 import type { ShellContext } from "../components/Shell";
 import { SortTh } from "../components/SortTh";
 import { TrashIcon } from "../components/icons";
+import { useToast } from "../components/Jobs";
 
 type SortKey = "name" | "id";
 const SORT_DEFAULTS: Record<SortKey, Dir> = { name: "asc", id: "asc" };
@@ -34,8 +35,7 @@ function TemplatesPanel({ templates, csrfToken, onChanged }: {
     const [id, setId] = useState("");
     const [name, setName] = useState("");
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [msg, setMsg] = useState<string | null>(null);
+    const toast = useToast();
     const { sort, dir, onSort, apply } = useTableSort<SortKey>("raid-templates-sort", SORT_DEFAULTS, "name");
     // The id is Raid-Helper's own numbering and compares as a number where it
     // is one, so "10" doesn't land between "1" and "2".
@@ -48,15 +48,14 @@ function TemplatesPanel({ templates, csrfToken, onChanged }: {
     const add = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
-        setError(null);
         try {
             await createRaidTemplate(csrfToken, { id, name });
             setId("");
             setName("");
-            setMsg("Gespeichert.");
+            toast("Gespeichert.");
             await refresh();
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -68,8 +67,10 @@ function TemplatesPanel({ templates, csrfToken, onChanged }: {
         try {
             await deleteRaidTemplate(csrfToken, templateId);
             await refresh();
+            // Silent before: the row just vanished and nothing said why.
+            toast("Template entfernt.");
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -77,14 +78,12 @@ function TemplatesPanel({ templates, csrfToken, onChanged }: {
 
     const importFromRaidHelper = async () => {
         setBusy(true);
-        setError(null);
-        setMsg(null);
         try {
             const r = await importRaidTemplates(csrfToken);
             onChanged(r.templates);
-            setMsg(`${r.added} neu, ${r.updated} aktualisiert.`);
+            toast(`${r.added} neu, ${r.updated} aktualisiert.`);
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -94,8 +93,6 @@ function TemplatesPanel({ templates, csrfToken, onChanged }: {
         <>
             <h2>Raid-Helper-Templates</h2>
             <p className="note">Raid-Helper bietet keinen Endpunkt zum Auflisten von Templates. Der Bot pflegt daher eine eigene Liste — automatisch aus den bestehenden Events deines Servers geladen oder von Hand ergänzt. Sie füllt die Auswahl oben.</p>
-            {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
-            {msg && <p className="sub" style={{ color: "var(--good)" }}>{msg}</p>}
             {templates.length
                 ? (
                     <table className="idx" style={{ marginBottom: 14 }}>
@@ -139,8 +136,8 @@ export default function RaidCreatePage() {
     const navigate = useNavigate();
     const [ctx, setCtx] = useState<RaidCreateContext | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
-    const [saveError, setSaveError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    const toast = useToast();
 
     const [sourceEventId, setSourceEventId] = useState("");
     const [title, setTitle] = useState("");
@@ -197,16 +194,19 @@ export default function RaidCreatePage() {
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
-        setSaveError(null);
         try {
             await createRaid(csrfToken, {
                 title, date, time, templateId,
                 ...(reusing ? { sourceEventId, channelName } : { channelId }),
                 leaderId, description,
             });
-            navigate("/raids", { state: { flash: { type: "ok", text: "Event angelegt." } } });
+            // The toast provider lives above the router, so the success survives
+            // this navigation — no need to hand the message to the raid list
+            // through location state and have it render its own flash line.
+            toast("Event angelegt.");
+            navigate("/raids");
         } catch (err) {
-            setSaveError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setSaving(false);
         }
@@ -219,8 +219,6 @@ export default function RaidCreatePage() {
             <p className="note">Legt über die Raid-Helper-API ein echtes Event mit Signup-Nachricht an. Standardwerte kommen aus den <a href="/settings">Einstellungen</a>.</p>
 
             <form className="card-form" onSubmit={submit}>
-                {saveError && <p className="sub" style={{ color: "var(--high)" }}>{saveError}</p>}
-
                 {ctx.reusableEvents.length > 0 && (
                     <div className="field">
                         <label>Vorhandenes Event wiederverwenden (optional)</label>

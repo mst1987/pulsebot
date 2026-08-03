@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useOutletContext } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import { getRaids, type ApiError, type RaidEventGroup, type RaidEvent } from "../api";
 import { formatEventTime } from "../lib/format";
 import { usePersistedState } from "../lib/persistedState";
@@ -7,8 +7,6 @@ import { useTableSort, type Dir } from "../lib/tableSort";
 import { eventPostUrl, raidplanUrl } from "../lib/discordLinks";
 import type { ShellContext } from "../components/Shell";
 import { SortTh } from "../components/SortTh";
-
-type Flash = { type: "ok" | "err"; text: string };
 
 // The links column carries the same two links on every row — nothing to order
 // by, so it stays a plain header.
@@ -73,14 +71,11 @@ function CategoryTable({ group, guildId }: { group: RaidEventGroup; guildId: str
 
 export default function RaidsPage() {
     useOutletContext<ShellContext>();
-    const location = useLocation();
     const [data, setData] = useState<{ groups: RaidEventGroup[]; error: string | null; activeGuildId: string } | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     // Remembered by category id, not by tab index: the groups come and go with the
     // scheduled events, so an index would point at a different raid type next week.
     const [categoryId, setCategoryId] = usePersistedState("raids-category", "");
-    // Passed via navigate(..., { state: { flash } }) after creating an event (RaidCreatePage.tsx).
-    const [flash] = useState<Flash | null>((location.state as { flash?: Flash } | null)?.flash ?? null);
 
     useEffect(() => {
         getRaids()
@@ -123,7 +118,6 @@ export default function RaidsPage() {
         <>
             <h1 className="page-title">Raid-Events</h1>
             <p className="note">Alle anstehenden Events des Servers, gruppiert nach Discord-Kategorie. Über „Details" pro Event einen Anmelde-Aufruf posten oder das Raidsheet füllen.</p>
-            {flash && <p className="sub" style={{ color: flash.type === "err" ? "var(--high)" : "var(--good)" }}>{flash.text}</p>}
             <div className="row-actions" style={{ marginBottom: 16 }}>
                 <Link className="btn" to="/raids/new">＋ Neues Event</Link>
                 <Link className="btn btn-ghost" to="/raids/templates">Aufruf-Vorlagen</Link>

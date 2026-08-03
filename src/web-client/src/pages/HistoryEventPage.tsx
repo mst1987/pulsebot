@@ -4,16 +4,17 @@ import { getHistoryEvent, clearHistoryEvent, deleteLootItems, type ApiError, typ
 import { LootTable } from "../components/LootTable";
 import type { ShellContext } from "../components/Shell";
 import { TrashIcon } from "../components/icons";
+import { useToast } from "../components/Jobs";
 
 export default function HistoryEventPage() {
     const { csrfToken } = useOutletContext<ShellContext>();
     const [searchParams] = useSearchParams();
     const eventId = searchParams.get("event") || "";
+    const toast = useToast();
 
     const [data, setData] = useState<HistoryEventData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [busy, setBusy] = useState(false);
-    const [flash, setFlash] = useState<string | null>(null);
 
     useEffect(() => {
         getHistoryEvent(eventId).then(setData).catch((err: ApiError) => setError(err));
@@ -24,10 +25,10 @@ export default function HistoryEventPage() {
         setBusy(true);
         try {
             const r = await clearHistoryEvent(csrfToken, eventId);
-            setFlash(`${r.removed} Loot-Eintrag/-Einträge gelöscht.`);
+            toast(`${r.removed} Loot-Eintrag/-Einträge gelöscht.`);
             setData((d) => (d ? { ...d, items: [] } : d));
         } catch (err) {
-            setFlash((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -39,9 +40,9 @@ export default function HistoryEventPage() {
         try {
             await deleteLootItems(csrfToken, [it.id]);
             setData((d) => (d ? { ...d, items: d.items.filter((row) => row.id !== it.id) } : d));
-            setFlash(`„${it.itemName || `Item ${it.itemId}`}" gelöscht.`);
+            toast(`„${it.itemName || `Item ${it.itemId}`}" gelöscht.`);
         } catch (err) {
-            setFlash((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         }
     };
 
@@ -52,7 +53,6 @@ export default function HistoryEventPage() {
         <>
             <p className="note"><Link className="mlink" to="/history">← Zurück zur Historie</Link></p>
             <h1 className="page-title">{data.label}</h1>
-            {flash && <p className="sub" style={{ color: "var(--good)" }}>{flash}</p>}
             <div className="row-actions" style={{ marginBottom: 16 }}>
                 <span className="sub" style={{ margin: 0 }}>{data.items.length} Item(s)</span>
                 {data.items.length > 0 && (

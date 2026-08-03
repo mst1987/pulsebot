@@ -16,6 +16,7 @@ import RolePermissionsEditor from "../components/RolePermissions";
 import ItemSearchPicker from "../components/ItemSearchPicker";
 import { itemQualityProps } from "../lib/itemQuality";
 import { TrashIcon } from "../components/icons";
+import { useToast } from "../components/Jobs";
 
 // "Zugang" and "Berechtigungen" decide who gets into the menu, so they are shown
 // to full admins only (the API rejects them for anyone else — see ACCESS_KEYS in
@@ -219,14 +220,12 @@ function RaiderCharactersTab({ categories, csrfToken }: { categories: Category[]
     const [info, setInfo] = useState<RaiderCharactersData | null>(null);
     const [draftMap, setDraftMap] = useState<Record<string, string>>({});
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [saveError, setSaveError] = useState<string | null>(null);
-    const [flash, setFlash] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    const toast = useToast();
 
     const load = () => {
         setInfo(null);
         setLoadError(null);
-        setFlash(null);
         if (!categoryId) return;
         getRaiderCharacters(categoryId)
             .then((d) => {
@@ -245,14 +244,13 @@ function RaiderCharactersTab({ categories, csrfToken }: { categories: Category[]
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
-        setSaveError(null);
         try {
             const { assignments } = await saveRaiderCharacters(csrfToken, categoryId, draftMap);
             setDraftMap(assignments);
             setInfo((prev) => (prev ? { ...prev, assignments } : prev));
-            setFlash("Gespeichert.");
+            toast("Gespeichert.");
         } catch (err) {
-            setSaveError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setSaving(false);
         }
@@ -281,8 +279,6 @@ function RaiderCharactersTab({ categories, csrfToken }: { categories: Category[]
             )}
             {info && !!info.roleIds.length && !info.membersError && (
                 <form className="card-form" onSubmit={submit}>
-                    {saveError && <p className="sub" style={{ color: "var(--high)" }}>{saveError}</p>}
-                    {flash && <p className="sub" style={{ color: "var(--good)" }}>{flash}</p>}
                     {!info.members.length ? (
                         <p className="sub">Keine Mitglieder mit den zugeordneten Rollen gefunden.</p>
                     ) : (
@@ -344,9 +340,14 @@ function IngestTokensTab({ csrfToken }: { csrfToken: string | null }) {
         "settings-ingest-tokens-sort", TOKEN_SORT_DEFAULTS, "lastUsed",
     );
     const [tokens, setTokens] = useState<IngestToken[] | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    // Only the *load* failure stays inline — it describes the state of the list
+    // below it, which a toast that fades after seven seconds cannot. Named
+    // loadError so it stays distinguishable from an action's result, which
+    // belongs in a toast.
+    const [loadError, setLoadError] = useState<string | null>(null);
     const [name, setName] = useState("");
     const [busy, setBusy] = useState(false);
+    const toast = useToast();
     // The plaintext of the token just created — lives in this component's state
     // only, and is gone on reload.
     const [fresh, setFresh] = useState<{ token: string; name: string } | null>(null);
@@ -354,22 +355,22 @@ function IngestTokensTab({ csrfToken }: { csrfToken: string | null }) {
 
     const load = () => {
         getIngestTokens()
-            .then((r) => { setTokens(r.tokens); setError(null); })
-            .catch((err: ApiError) => setError(err.message));
+            .then((r) => { setTokens(r.tokens); setLoadError(null); })
+            .catch((err: ApiError) => setLoadError(err.message));
     };
     useEffect(load, []);
 
     const create = async () => {
         setBusy(true);
-        setError(null);
         try {
             const r = await createIngestToken(csrfToken, name);
             setFresh({ token: r.token, name: r.record.name });
             setName("");
             setCopied(false);
             load();
+            toast(`Token „${r.record.name}" erstellt.`);
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -382,8 +383,9 @@ function IngestTokensTab({ csrfToken }: { csrfToken: string | null }) {
         try {
             await deleteIngestToken(csrfToken, t.id);
             load();
+            toast(`Token „${t.name}" zurückgezogen.`);
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         }
     };
 
@@ -395,7 +397,7 @@ function IngestTokensTab({ csrfToken }: { csrfToken: string | null }) {
                 sondern mit einem dieser Tokens. Hochgeladene Raids landen in <strong>Historie &amp; Loot → Addon-Inbox</strong>
                 {" "}und werden dort einmal bestätigt.
             </p>
-            {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
+            {loadError && <p className="sub" style={{ color: "var(--high)" }}>{loadError}</p>}
 
             {fresh && (
                 <div className="dash-card" style={{ marginBottom: 16 }}>
@@ -523,7 +525,7 @@ function CategorySheetsForm({ categories, config, csrfToken, onSaved }: {
 }) {
     const [draft, setDraft] = useState<Record<string, { url: string; name: string }>>(config.categorySheets || {});
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const toast = useToast();
 
     if (!categories.length) {
         return <p className="hint">Keine Kategorien geladen (Server gewählt und Bot online?). Die Zuweisung ist verfügbar, sobald der Bot verbunden ist.</p>;
@@ -537,7 +539,6 @@ function CategorySheetsForm({ categories, config, csrfToken, onSaved }: {
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
-        setError(null);
         try {
             // Send an entry for every category, so emptying a url actually drops
             // that assignment instead of leaving the stored one merged back in.
@@ -550,7 +551,7 @@ function CategorySheetsForm({ categories, config, csrfToken, onSaved }: {
             setDraft(saved.categorySheets || {});
             onSaved("Sheet-Zuweisungen gespeichert.");
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -558,7 +559,6 @@ function CategorySheetsForm({ categories, config, csrfToken, onSaved }: {
 
     return (
         <form className="card-form" onSubmit={submit}>
-            {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
             {categories.map((c) => {
                 const entry = draft[c.id] || { url: "", name: "" };
                 return (
@@ -600,12 +600,11 @@ function RaidsheetForm({ sheet, csrfToken, onSaved, onDeleted }: {
     const [gid, setGid] = useState(sheet?.gid === undefined || sheet?.gid === null ? "" : String(sheet.gid));
     const [keywords, setKeywords] = useState((sheet?.keywords ?? []).join(", "));
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const toast = useToast();
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
-        setError(null);
         try {
             await saveRaidsheet(csrfToken, {
                 id: sheet?.id,
@@ -617,7 +616,7 @@ function RaidsheetForm({ sheet, csrfToken, onSaved, onDeleted }: {
             });
             onSaved(sheet ? `Raidsheet „${name}" gespeichert.` : `Raidsheet „${name}" angelegt.`);
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -630,14 +629,13 @@ function RaidsheetForm({ sheet, csrfToken, onSaved, onDeleted }: {
             await deleteRaidsheet(csrfToken, sheet.id);
             onDeleted(`Raidsheet „${sheet.name}" gelöscht.`);
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
             setBusy(false);
         }
     };
 
     return (
         <form className="sheetcard" onSubmit={submit}>
-            {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
             <div className="field"><label>Name (Content)</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="z.B. Tier 6 / SWP" required /></div>
             <div className="field"><label>Spreadsheet-ID</label><input type="text" value={spreadsheetId} onChange={(e) => setSpreadsheetId(e.target.value)} placeholder="Google-Sheet-ID" /></div>
             <div className="field"><label>Tab-Name</label><input type="text" value={sheetName} onChange={(e) => setSheetName(e.target.value)} placeholder="Setup" /></div>
@@ -661,9 +659,8 @@ export default function SettingsPage() {
     const [draft, setDraft] = useState<Draft | null>(null);
     const [secretChange, setSecretChange] = useState<string | undefined>(undefined);
     const [error, setError] = useState<ApiError | null>(null);
-    const [flash, setFlash] = useState<string | null>(null);
-    const [saveError, setSaveError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    const toast = useToast();
     const [tab, setTab] = usePersistedState("settings-tab", "zugang");
 
     const load = () => {
@@ -707,7 +704,6 @@ export default function SettingsPage() {
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setSaving(true);
-        setSaveError(null);
         try {
             const { config } = await updateSettings(csrfToken, {
                 // Access config is full-admin-only; sending it as anyone else
@@ -739,9 +735,9 @@ export default function SettingsPage() {
             setData({ ...data, config });
             setDraft(toDraft(config));
             setSecretChange(undefined);
-            setFlash("Gespeichert.");
+            toast("Gespeichert.");
         } catch (err) {
-            setSaveError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setSaving(false);
         }
@@ -751,7 +747,6 @@ export default function SettingsPage() {
         <>
             <h1 className="page-title">Einstellungen</h1>
             <p className="note">Alle Werte werden in der Datenbank gespeichert und greifen ohne Bot-Neustart. IDs bekommst du in Discord per Rechtsklick → „ID kopieren" (Entwicklermodus).</p>
-            {flash && <p className="sub" style={{ color: "var(--good)" }}>{flash}</p>}
 
             <div className="tabs" role="tablist">
                 {tabs.map((t) => (
@@ -762,8 +757,6 @@ export default function SettingsPage() {
             </div>
 
             <form className="card-form" onSubmit={submit}>
-                {saveError && <p className="sub" style={{ color: "var(--high)" }}>{saveError}</p>}
-
                 <div className={`tab-panel${activeTab === "zugang" ? " active" : ""}`} role="tabpanel">
                     <h2 style={{ marginTop: 0 }}>Admin-Zugang</h2>
                     <div className="field">
@@ -927,16 +920,16 @@ export default function SettingsPage() {
                     </p>
                     <CategorySheetsForm
                         categories={data.categories} config={data.config} csrfToken={csrfToken}
-                        onSaved={(msg) => { setFlash(msg); load(); }}
+                        onSaved={(msg) => { toast(msg); load(); }}
                     />
 
                     <h2>Raidsheet-Vorlagen</h2>
                     <p className="note">Google-Sheets nach Content aufgeteilt (Tier 4/5 usw.). Beim Füllen wird anhand der Keywords das passende Sheet vorgeschlagen.</p>
                     {data.raidsheets.map((s) => (
-                        <RaidsheetForm key={s.id} sheet={s} csrfToken={csrfToken} onSaved={(msg) => { setFlash(msg); load(); }} onDeleted={(msg) => { setFlash(msg); load(); }} />
+                        <RaidsheetForm key={s.id} sheet={s} csrfToken={csrfToken} onSaved={(msg) => { toast(msg); load(); }} onDeleted={(msg) => { toast(msg); load(); }} />
                     ))}
                     <h3 style={{ marginTop: 18 }}>Neues Raidsheet</h3>
-                    <RaidsheetForm sheet={null} csrfToken={csrfToken} onSaved={(msg) => { setFlash(msg); load(); }} onDeleted={() => {}} />
+                    <RaidsheetForm sheet={null} csrfToken={csrfToken} onSaved={(msg) => { toast(msg); load(); }} onDeleted={() => {}} />
                 </div>
             )}
         </>

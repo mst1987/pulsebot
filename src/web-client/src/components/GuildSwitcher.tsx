@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { switchGuild, type ApiError, type SessionGuild } from "../api";
+import { useToast } from "./Jobs";
 
 // Topbar server switcher — mirrors src/web/renderAdmin.js's renderServerBar(),
 // but via fetch() instead of a form POST + redirect, so switching guilds
@@ -10,7 +11,7 @@ export default function GuildSwitcher({ guilds, activeGuildId, csrfToken }: {
     csrfToken: string | null;
 }) {
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const toast = useToast();
 
     if (!guilds.length) {
         return <span className="hint">Bot ist mit keinem Server verbunden (noch nicht bereit?).</span>;
@@ -23,12 +24,13 @@ export default function GuildSwitcher({ guilds, activeGuildId, csrfToken }: {
     const onChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
         const guildId = e.target.value;
         setBusy(true);
-        setError(null);
         try {
             await switchGuild(csrfToken, guildId);
+            // No success toast: the reload below wipes the page anyway, and the
+            // switcher then simply shows the server that was picked.
             window.location.reload();
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
             setBusy(false);
         }
     };
@@ -40,8 +42,7 @@ export default function GuildSwitcher({ guilds, activeGuildId, csrfToken }: {
                 {!activeGuildId && <option value="">— Server wählen —</option>}
                 {guilds.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
-            {!activeGuildId && !error && <span className="hint">← bitte zuerst einen Server wählen</span>}
-            {error && <span className="hint" style={{ color: "var(--high)" }}>{error}</span>}
+            {!activeGuildId && <span className="hint">← bitte zuerst einen Server wählen</span>}
         </div>
     );
 }
