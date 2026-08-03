@@ -157,6 +157,10 @@ describe("web/discord channel management", () => {
             return { members: { fetch: jest.fn(async () => new Map(members.map((m) => [m.id, m]))) } };
         }
 
+        // The member list is cached per guild across calls, so every test starts
+        // from a clean slate instead of inheriting the previous one's fetch.
+        beforeEach(() => discord._resetMembersCacheForTests());
+
         it("returns members holding at least one wanted role, sorted by name", async () => {
             const guild = guildWithMembers([
                 member("1", "Bob", ["r1"]),
@@ -193,6 +197,40 @@ describe("web/discord channel management", () => {
             const res = await discord.listMembersWithRoles("nope", ["r1"]);
             expect(res.members).toEqual([]);
             expect(res.error).toMatch(/Server nicht gefunden/);
+        });
+
+        // Fetching the full member list is the expensive part of the raid detail
+        // page; the ping that follows it seconds later must not pay for it again
+        // (that second fetch is what pushed ping-missing past the proxy's 60s).
+        it("reuses the fetched member list for a follow-up call", async () => {
+            const guild = guildWithMembers([member("1", "Bob", ["r1"]), member("2", "Alice", ["r2"])]);
+            setClientWithGuild(guild);
+
+            const first = await discord.listMembersWithRoles("g1", ["r1"]);
+            const second = await discord.listMembersWithRoles("g1", ["r2"]);
+
+            expect(guild.members.fetch).toHaveBeenCalledTimes(1);
+            expect(first.members).toEqual([{ id: "1", displayName: "Bob" }]);
+            // Still filtered per call — only the fetch is shared, not the result.
+            expect(second.members).toEqual([{ id: "2", displayName: "Alice" }]);
+        });
+
+        it("caps the fetch so it cannot outlive the reverse proxy", async () => {
+            const guild = guildWithMembers([member("1", "Bob", ["r1"])]);
+            setClientWithGuild(guild);
+            await discord.listMembersWithRoles("g1", ["r1"]);
+            expect(guild.members.fetch).toHaveBeenCalledWith({ time: 25000 });
+        });
+
+        it("does not cache a failed fetch", async () => {
+            const guild = { members: { fetch: jest.fn(async () => { throw new Error("Used disallowed intents"); }) } };
+            setClientWithGuild(guild);
+
+            await discord.listMembersWithRoles("g1", ["r1"]);
+            const retry = await discord.listMembersWithRoles("g1", ["r1"]);
+
+            expect(guild.members.fetch).toHaveBeenCalledTimes(2);
+            expect(retry.error).toMatch(/disallowed intents/i);
         });
     });
 

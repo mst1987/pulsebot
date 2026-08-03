@@ -112,6 +112,38 @@ async function postAnnouncement(channelId, template, roleIds = []) {
     return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url };
 }
 
+// `guild.members.fetch()` pulls the WHOLE member list over the gateway on every
+// call — there is no incremental variant for "everyone with role X". The event
+// detail page does it once, and the ping that follows it seconds later used to
+// pay for it a second time; together with the Raid-Helper round trip that
+// pushed POST /api/raids/ping-missing past the reverse proxy's 60s ceiling, so
+// the admin got a 504 and nothing was ever posted. Cache the fetched list
+// briefly per guild: the ping then pings exactly the roster the page just
+// showed, and role changes are picked up again after the TTL.
+const MEMBERS_CACHE_TTL_MS = 60_000;
+// Cap the fetch itself too — discord.js waits 120s by default, which is already
+// twice the proxy's patience.
+const MEMBERS_FETCH_TIMEOUT_MS = 25_000;
+const membersCache = new Map(); // guildId -> { at, members: Array<GuildMember> }
+
+/** Test-only: drop the member cache. Production code never calls this. */
+function _resetMembersCacheForTests() {
+    membersCache.clear();
+}
+
+/**
+ * All members of a guild, cached for MEMBERS_CACHE_TTL_MS. Throws whatever the
+ * fetch throws (missing GuildMembers intent, timeout) — a failure is never cached.
+ */
+async function fetchGuildMembersCached(guildId, guild) {
+    const cached = membersCache.get(guildId);
+    if (cached && Date.now() - cached.at < MEMBERS_CACHE_TTL_MS) return cached.members;
+    const fetched = await guild.members.fetch({ time: MEMBERS_FETCH_TIMEOUT_MS });
+    const members = [...fetched.values()];
+    membersCache.set(guildId, { at: Date.now(), members });
+    return members;
+}
+
 /**
  * Guild members that hold at least one of the given roles, for the event
  * attendance check. Fetching the full member list needs the privileged
@@ -126,8 +158,8 @@ async function listMembersWithRoles(guildId, roleIds = []) {
     const wanted = new Set((roleIds || []).map(String).filter(Boolean));
     if (!wanted.size) return { members: [], error: null };
     try {
-        const all = await guild.members.fetch();
-        const members = [...all.values()]
+        const all = await fetchGuildMembersCached(guildId, guild);
+        const members = all
             .filter((m) => [...wanted].some((id) => m.roles.cache.has(id)))
             .map((m) => ({ id: m.id, displayName: m.displayName || m.user.username }))
             .sort((a, b) => a.displayName.localeCompare(b.displayName));
@@ -631,7 +663,7 @@ module.exports = {
     setClient, getClient, listGuilds, getGuild, listTextChannels, listEmojis,
     listCategories, listAllChannels, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,
-    listMembersWithRoles, postMissingPing,
+    listMembersWithRoles, postMissingPing, _resetMembersCacheForTests,
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,
     isRecruitmentMessage, extractTemplate,
     listApplications, parseApplicationEmbed,

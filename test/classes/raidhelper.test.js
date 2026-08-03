@@ -8,11 +8,26 @@ const Raidhelper = require("../../src/classes/raidhelper.js");
 // - body: what the response stream should emit (string or object -> JSON).
 //   Pass `undefined` to emit no "data" event at all (empty response).
 // - error: if set, the request emits "error" instead of a response.
-function respondWith(body, { error } = {}) {
+// - hang: if true, the request neither responds nor errors — the real-world
+//   case the timeout exists for (raid-helper.xyz accepting a connection and
+//   then going quiet). Fire `req.__fireTimeout()` to act out the timeout.
+function respondWith(body, { error, hang } = {}) {
     https.request.mockImplementation((options, callback) => {
         const req = new EventEmitter();
         req.write = jest.fn();
+        // Mirrors http.ClientRequest: setTimeout registers the handler,
+        // destroy(err) surfaces the error via the "error" event.
+        req.setTimeout = jest.fn((ms, handler) => {
+            req.__timeoutMs = ms;
+            req.__fireTimeout = handler;
+            return req;
+        });
+        req.destroy = jest.fn((err) => {
+            if (err) req.emit("error", err);
+            return req;
+        });
         req.end = jest.fn(() => {
+            if (hang) return;
             if (error) {
                 req.emit("error", error);
                 return;
@@ -32,6 +47,11 @@ function respondWith(body, { error } = {}) {
 function lastOptions() {
     const calls = https.request.mock.calls;
     return calls[calls.length - 1][0];
+}
+
+function lastRequest() {
+    const results = https.request.mock.results;
+    return results[results.length - 1].value;
 }
 
 describe("classes/Raidhelper", () => {
@@ -125,6 +145,50 @@ describe("classes/Raidhelper", () => {
             const client = new Raidhelper();
 
             await expect(client.getAllEvents()).rejects.toThrow("socket hang up");
+        });
+    });
+
+    // A request that is accepted and then never answered used to leave the
+    // promise pending forever, which hung whatever admin action triggered it
+    // until the reverse proxy answered 504 (see "fehlende Raider pingen").
+    describe("request timeout", () => {
+        it("arms a timeout on the request instead of waiting forever", async () => {
+            respondWith({ postedEvents: [] });
+            await new Raidhelper().getAllEvents();
+
+            const req = lastRequest();
+            expect(req.setTimeout).toHaveBeenCalled();
+            expect(req.__timeoutMs).toBe(20000);
+        });
+
+        it("rejects with a timeout error when the server never answers", async () => {
+            respondWith(null, { hang: true });
+            const client = new Raidhelper();
+
+            const pending = client.getAllEvents();
+            lastRequest().__fireTimeout();
+
+            await expect(pending).rejects.toThrow(/nicht innerhalb von 20s geantwortet/);
+        });
+
+        it("rejects getUserSignUps on timeout rather than leaving it pending", async () => {
+            respondWith(null, { hang: true });
+            const client = new Raidhelper();
+
+            const pending = client.getUserSignUps("u1");
+            lastRequest().__fireTimeout();
+
+            await expect(pending).rejects.toThrow(/nicht innerhalb von 20s geantwortet/);
+        });
+
+        it("resolves getSetup to undefined on timeout (no setup, not a crash)", async () => {
+            respondWith(null, { hang: true });
+            const client = new Raidhelper();
+
+            const pending = client.getSetup("r1");
+            lastRequest().__fireTimeout();
+
+            await expect(pending).resolves.toBeUndefined();
         });
     });
 
