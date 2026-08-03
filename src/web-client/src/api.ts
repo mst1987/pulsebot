@@ -1102,7 +1102,18 @@ export type InboxSession = {
     updatedAt: number;
     startedAt: number;
     endedAt: number;
+    /** Was das Addon gemeldet hat — kann leer oder bloss ein Kontinent sein. */
     instance: string;
+    /**
+     * Der Raid, unter dem die Session angezeigt wird. Bevorzugt die Meldung des
+     * Addons; ist die leer oder nur ein Kontinent, aus den Item-IDs abgeleitet
+     * (siehe web/lootSessionContent.js).
+     */
+    contentLabel: string;
+    /** Woher `contentLabel` stammt — "items" heisst: erschlossen, nicht gemeldet. */
+    contentSource: "addon" | "items" | "";
+    /** Wie viele Items sich einem Raid zuordnen liessen. */
+    contentMatched: number;
     itemCount: number;
     /**
      * The session's loot, decorated exactly like stored history (reason badge,
