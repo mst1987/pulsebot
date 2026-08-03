@@ -82,10 +82,29 @@ describe("web/raidEventScan", () => {
 
             await scanRaidEvents("g1");
 
+            // The normalised status is kept: it is derived from fields this
+            // reduction drops, so a snapshot without it could never tell a
+            // bench/absence from a plain signup again.
             expect(mockSaveRaidEvents.mock.calls[0][0][0].signUps).toEqual([
-                { userId: "u1", specName: "Fury" },
-                { userId: "u2", specName: "Absence" },
+                { userId: "u1", specName: "Fury", status: "signed" },
+                { userId: "u2", specName: "Absence", status: "absence" },
             ]);
+        });
+
+        it("keeps a bench/tentative status Raid-Helper only puts on the class", async () => {
+            mockGetPastEvents.mockResolvedValue([{
+                id: "e1", channelId: "c1", title: "Kara", startTime: 100,
+                signUps: [
+                    { userId: "u1", className: "Bench", specName: "Bench", status: "primary" },
+                    { userId: "u2", className: "Tentative", specName: "Tentative" },
+                ],
+            }]);
+            mockGetChannelCategoryMap.mockReturnValue({ c1: { name: "kara" } });
+
+            await scanRaidEvents("g1");
+
+            expect(mockSaveRaidEvents.mock.calls[0][0][0].signUps.map((s) => s.status))
+                .toEqual(["bench", "tentative"]);
         });
 
         it("captures the raidplan once and never re-fetches it for that event", async () => {

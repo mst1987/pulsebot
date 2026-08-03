@@ -60,7 +60,7 @@ describe("web/raidEventGroups", () => {
                 id: "e1", title: "Kara", startTime: 2000000000, leaderId: "u1",
                 channelId: "chan1", channelName: "kara-signup", categoryId: "cat1",
                 templateId: "3", description: "desc", signupCount: 1,
-                signUps: [{ userId: "1", specName: "Fire" }], signUpsFromSnapshot: false,
+                signUps: [{ userId: "1", specName: "Fire", status: "signed" }], signUpsFromSnapshot: false,
             }],
         }]);
     });
@@ -95,7 +95,7 @@ describe("web/raidEventGroups", () => {
                 id: "e1", title: "Kara", startTime: 2000000000, leaderId: "u1",
                 channelId: "chan1", channelName: "kara-signup (gone)", categoryId: "cat1",
                 templateId: "3", description: "desc", signupCount: 1,
-                signUps: [{ userId: "1", specName: "Fire" }], signUpsFromSnapshot: false,
+                signUps: [{ userId: "1", specName: "Fire", status: "signed" }], signUpsFromSnapshot: false,
             }],
         }]);
     });
@@ -160,8 +160,28 @@ describe("web/raidEventGroups", () => {
         const { groups } = await loadEventGroups("g1", { sinceSeconds: 1 });
         const ev = groups[0].events[0];
 
-        expect(ev.signUps).toEqual([{ userId: "9", specName: "Frost" }]);
+        expect(ev.signUps).toEqual([{ userId: "9", specName: "Frost", status: "signed" }]);
         expect(ev.signUpsFromSnapshot).toBe(false);
+    });
+
+    // Raid-Helper puts a sign-off into fields this reduction drops, so the
+    // status is normalised on the way through — the attendance list would
+    // otherwise read every reaction as a plain signup.
+    it("normalises each live signup's status", async () => {
+        mockFetchEvents.mockResolvedValue([event({
+            signUps: [
+                { userId: "1", className: "Warrior", specName: "Fury", status: "primary" },
+                { userId: "2", className: "Absence", specName: "Absence", status: "primary" },
+                { userId: "3", className: "Bench", specName: "Bench" },
+            ],
+        })]);
+        discord.getChannelCategoryMap.mockReturnValue({
+            chan1: { name: "kara-signup", categoryId: "cat1", categoryName: "Raids" },
+        });
+
+        const { groups } = await loadEventGroups("g1", { sinceSeconds: 1 });
+
+        expect(groups[0].events[0].signUps.map((s) => s.status)).toEqual(["signed", "absence", "bench"]);
     });
 
     it("carries the snapshot roster into a persisted-only event", async () => {

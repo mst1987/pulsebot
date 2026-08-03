@@ -1,6 +1,6 @@
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
-    hasStarted, isRosterKnown,
+    hasStarted, isRosterKnown, signupStatus, SIGNUP_STATUSES,
 } = require("../../src/utils/attendance");
 
 describe("utils/attendance hasStarted / isRosterKnown", () => {
@@ -76,6 +76,70 @@ describe("utils/attendance computeAttendance", () => {
         expect(computeAttendance()).toEqual({ responded: [], missing: [] });
         expect(computeAttendance([], [])).toEqual({ responded: [], missing: [] });
     });
+
+    it("carries each reaction's status on the responded member", () => {
+        const signUps = [
+            { userId: "1", specName: "Fury", status: "primary" },
+            { userId: "2", className: "Absence", specName: "Absence" },
+            { userId: "3", className: "Bench", specName: "Bench" },
+        ];
+        const { responded } = computeAttendance(members, signUps);
+        expect(responded.map((m) => [m.id, m.status])).toEqual([
+            ["1", "signed"], ["2", "absence"], ["3", "bench"],
+        ]);
+        // The member's own fields survive the status being attached.
+        expect(responded[0].displayName).toBe("Alice");
+    });
+
+    it("leaves members who have not reacted without a status", () => {
+        const { missing } = computeAttendance(members, [{ userId: "1", specName: "Fury" }]);
+        expect(missing.every((m) => m.status === undefined)).toBe(true);
+    });
+
+    it("lets the most recent reaction of a user win", () => {
+        const signUps = [
+            { userId: "1", className: "Absence" },
+            { userId: "1", specName: "Fury", status: "primary" },
+        ];
+        const { responded } = computeAttendance(members, signUps);
+        expect(responded).toHaveLength(1);
+        expect(responded[0].status).toBe("signed");
+    });
+});
+
+describe("utils/attendance signupStatus", () => {
+    it("reads the status out of whichever field Raid-Helper used", () => {
+        expect(signupStatus({ status: "absence" })).toBe("absence");
+        expect(signupStatus({ className: "Bench" })).toBe("bench");
+        expect(signupStatus({ specName: "Tentative" })).toBe("tentative");
+        expect(signupStatus({ roleName: "Late" })).toBe("late");
+    });
+
+    // Raid-Helper leaves `status` at "primary" for sign-off classes, so a
+    // recognised absence anywhere has to beat it — otherwise everyone who
+    // signed off would be listed as attending.
+    it("lets an off-signup beat a 'primary' status", () => {
+        expect(signupStatus({ status: "primary", className: "Absence", specName: "Absence" })).toBe("absence");
+        expect(signupStatus({ status: "primary", className: "Warrior", specName: "Fury" })).toBe("signed");
+    });
+
+    it("treats an unknown or missing wording as a normal signup", () => {
+        expect(signupStatus({ className: "Druid", specName: "Feral" })).toBe("signed");
+        expect(signupStatus({})).toBe("signed");
+        expect(signupStatus(null)).toBe("signed");
+    });
+
+    it("is idempotent, so a reduced snapshot can be re-derived", () => {
+        for (const status of SIGNUP_STATUSES) {
+            expect(signupStatus({ status })).toBe(status);
+            expect(signupStatus({ status, specName: "Fury" })).toBe(status);
+        }
+    });
+
+    it("is case- and whitespace-insensitive", () => {
+        expect(signupStatus({ className: "  ABSENCE " })).toBe("absence");
+        expect(signupStatus({ specName: "tEnTaTiVe" })).toBe("tentative");
+    });
 });
 
 describe("utils/attendance buildSpecHistory", () => {
@@ -93,6 +157,16 @@ describe("utils/attendance buildSpecHistory", () => {
             { startTime: 100, signUps: [{ userId: "1", specName: "Absence" }, { userId: "2" }, { specName: "Fury" }] },
         ];
         expect(buildSpecHistory(events)).toEqual({});
+    });
+
+    // Bench/Tentative/Late are pseudo-specs just like Absence — remembering one
+    // as a raider's "last known spec" would render them as a made-up class.
+    it("skips the other sign-off pseudo-specs too", () => {
+        const events = [
+            { startTime: 300, signUps: [{ userId: "1", specName: "Bench" }, { userId: "2", specName: "Tentative" }, { userId: "3", specName: "Late" }] },
+            { startTime: 100, signUps: [{ userId: "1", specName: "Fury" }] },
+        ];
+        expect(buildSpecHistory(events)).toEqual({ 1: "Fury" });
     });
 
     it("falls back to an older spec when the most recent event has none for that user", () => {

@@ -3,6 +3,7 @@
 const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const discord = require("./discord");
 const { listRaidEvents } = require("./raidEventStore");
+const { signupStatus } = require("../utils/attendance");
 
 // How far back events are looked up when a past raid has to be found again — for
 // the log→event assignment and for the event detail page, which the dashboard's
@@ -114,7 +115,12 @@ async function loadEventGroups(guildId, { sinceSeconds } = {}) {
         // is still listed, just with an empty roster. Falling back to the snapshot
         // raidEventScan.js took while they were still there keeps a past raid's
         // detail page from reporting "0 Anmeldungen" and everyone as missing.
-        const liveSignUps = (ev.signUps || []).map((s) => ({ userId: s.userId, specName: s.specName }));
+        // `status` is normalised here rather than kept raw: Raid-Helper spreads
+        // a bench/absence over several fields this reduction drops, so the
+        // attendance list would otherwise see every reaction as a plain signup.
+        const liveSignUps = (ev.signUps || []).map((s) => ({
+            userId: s.userId, specName: s.specName, status: signupStatus(s),
+        }));
         const signUps = liveSignUps.length ? liveSignUps : ((snapshot && snapshot.signUps) || []);
         place(categoryId, categoryName, {
             id: ev.id,

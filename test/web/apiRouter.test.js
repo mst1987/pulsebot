@@ -1313,6 +1313,7 @@ describe("web/apiRouter", () => {
                 responded: [{
                     id: "1",
                     displayName: "Anna",
+                    status: "signed",
                     profile: {
                         specName: "Protection Pala",
                         className: "Paladin",

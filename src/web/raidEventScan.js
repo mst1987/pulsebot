@@ -9,6 +9,7 @@ const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const discord = require("./discord");
 const { saveRaidEvents, getRaidEvent } = require("./raidEventStore");
 const { RECENT_WINDOW_DAYS } = require("./recentEvents");
+const { signupStatus } = require("../utils/attendance");
 
 // A finished raid's raidplan costs one extra HTTP call, so only events without a
 // setup snapshot are probed, and at most this many per scan — a backlog is worked
@@ -62,7 +63,12 @@ async function scanRaidEvents(guildId, { windowDays = RECENT_WINDOW_DAYS } = {})
                 categoryId: meta.categoryId || "",
                 categoryName: meta.categoryName || "",
                 startTime: ev.startTime,
-                signUps: (ev.signUps || []).map((s) => ({ userId: s.userId, specName: s.specName })),
+                // The normalised status is kept alongside the spec: Raid-Helper
+                // expresses a bench/absence through fields this reduction drops,
+                // so deriving it later from `specName` alone would lose it.
+                signUps: (ev.signUps || []).map((s) => ({
+                    userId: s.userId, specName: s.specName, status: signupStatus(s),
+                })),
                 setup,
             });
         }
