@@ -34,10 +34,13 @@ function clientSources() {
 // else has to be a <SortTh>.
 //
 //   * "Links"/"WCL"  — the cell is the same one or two links on every row,
+//   * "Token"        — the loot-sync token column is "ehl_…" plus four
+//     characters of an otherwise unreadable secret; there is nothing in it an
+//     order could be about,
 //   * the permission matrix — a fixed checklist per role in the deliberate
 //     order of config/permissions.js, where sorting by a switch would make the
 //     row jump away under the cursor as it is toggled.
-const ALLOWED_PLAIN_HEADERS = new Set(["Links", "WCL", "Bereich", "Lesen", "Schreiben"]);
+const ALLOWED_PLAIN_HEADERS = new Set(["Links", "WCL", "Token", "Bereich", "Lesen", "Schreiben"]);
 
 describe("table sorting", () => {
     it("sorts every column that isn't a button or link column", () => {

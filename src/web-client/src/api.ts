@@ -1071,6 +1071,101 @@ export function deleteLootItems(csrfToken: string | null, ids: string[]): Promis
     return send("POST", "/api/history/loot-delete", csrfToken, { ids });
 }
 
+// ---- addon inbox: raid sessions the loot-sync tool uploaded, awaiting a decision ----
+
+/** The event a session was matched to. A suggestion — the admin confirms it. */
+export type InboxMatchEvent = {
+    eventId: string;
+    eventLabel: string;
+    startTime: number;
+    categoryId: string;
+    categoryName: string;
+};
+
+export type InboxMatch = {
+    /** More than one raid started that day — nothing is preselected. */
+    ambiguous: boolean;
+    suggested: InboxMatchEvent | null;
+    candidates: InboxMatchEvent[];
+};
+
+export type InboxSession = {
+    /** Handle for accept/dismiss. */
+    id: string;
+    /** The addon's own id for the raid night — stable across re-uploads. */
+    sessionId: string;
+    receivedAt: number;
+    updatedAt: number;
+    startedAt: number;
+    endedAt: number;
+    instance: string;
+    itemCount: number;
+    /**
+     * The session's loot, decorated exactly like stored history (reason badge,
+     * raid, tier) although it isn't stored yet — so the preview looks like what
+     * accepting will produce. `id` is absent: these rows have no store id.
+     */
+    items: LootItem[];
+    realm: string;
+    reporter: string;
+    addonVersion: string;
+    tokenName: string;
+    match: InboxMatch | null;
+};
+
+export function getLootInbox(): Promise<{ sessions: InboxSession[] }> {
+    return get<{ sessions: InboxSession[] }>("/api/history/inbox");
+}
+
+/**
+ * File a pending session under an event. `event` accepts the same vocabulary as
+ * the paste import (an event id, "__auto__", "__manual__"); left empty it takes
+ * the match the upload already suggested.
+ */
+export function acceptLootInbox(
+    csrfToken: string | null,
+    input: { id: string; event?: string; manualLabel?: string; categoryId?: string },
+): Promise<{ eventId: string; eventLabel: string; categoryId: string; added: number; skipped: number }> {
+    return send("POST", "/api/history/inbox-accept", csrfToken, input);
+}
+
+/** Throw a session away. The decision sticks — re-uploads will not bring it back. */
+export function dismissLootInbox(
+    csrfToken: string | null,
+    id: string,
+): Promise<{ id: string; sessionId: string }> {
+    return send("POST", "/api/history/inbox-dismiss", csrfToken, { id });
+}
+
+// ---- loot-sync API tokens (full admins only) ----
+
+export type IngestToken = {
+    id: string;
+    name: string;
+    /** Last 4 chars of the secret, so several tokens are tellable apart. */
+    hint: string;
+    createdAt: number;
+    createdBy: string;
+    lastUsedAt: number;
+    uses: number;
+};
+
+export function getIngestTokens(): Promise<{ tokens: IngestToken[] }> {
+    return get<{ tokens: IngestToken[] }>("/api/settings/ingest-tokens");
+}
+
+/** Mints a token. `token` is the plaintext and is returned exactly once. */
+export function createIngestToken(
+    csrfToken: string | null,
+    name: string,
+): Promise<{ token: string; record: IngestToken }> {
+    return send("POST", "/api/settings/ingest-tokens", csrfToken, { name });
+}
+
+export function deleteIngestToken(csrfToken: string | null, id: string): Promise<{ id: string }> {
+    return send("POST", "/api/settings/ingest-tokens/delete", csrfToken, { id });
+}
+
 export type HistoryEventData = { eventId: string; label: string; items: LootItem[] };
 
 export function getHistoryEvent(eventId: string): Promise<HistoryEventData> {

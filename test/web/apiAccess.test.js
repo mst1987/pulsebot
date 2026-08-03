@@ -1,6 +1,6 @@
 const fs = require("fs");
 const path = require("path");
-const { checkAccess, AREA_BY_PATH, UNGATED, ANY_AREA } = require("../../src/web/apiAccess");
+const { checkAccess, AREA_BY_PATH, UNGATED, ANY_AREA, TOKEN_AUTH } = require("../../src/web/apiAccess");
 const { emptyAccess, AREA_IDS } = require("../../src/config/permissions");
 
 const admin = { id: "1", name: "Admin", isAdmin: true };
@@ -53,6 +53,19 @@ describe("web/apiAccess", () => {
             expect(checkAccess("/api/session/guild", "POST", limited({}))).toMatchObject({ status: 403 });
         });
 
+        // The loot-sync uploader has no Discord session at all, so the session
+        // gate has to let it past — apiRoutes/ingest.js checks the bearer token
+        // itself before doing anything.
+        it("lets the token-authenticated ingest endpoint past the session gate", () => {
+            expect(checkAccess("/api/ingest/loot", "POST", null)).toBeNull();
+        });
+
+        // That exemption must stay a one-off, not a hole a future route slips
+        // into by accident.
+        it("exempts nothing but the ingest endpoint from the session gate", () => {
+            expect([...TOKEN_AUTH]).toEqual(["/api/ingest/loot"]);
+        });
+
         // Fail-closed: a route added without a table entry must not become
         // reachable for a limited role just because it holds some other area.
         it("falls back to admin-only for endpoints missing from the table", () => {
@@ -74,7 +87,7 @@ describe("web/apiAccess", () => {
         // The gate is fail-closed, so forgetting an entry silently locks the
         // endpoint to full admins instead of erroring — this catches that.
         it("covers every endpoint the router serves", () => {
-            const covered = new Set([...Object.keys(AREA_BY_PATH), ...UNGATED, ...ANY_AREA]);
+            const covered = new Set([...Object.keys(AREA_BY_PATH), ...UNGATED, ...ANY_AREA, ...TOKEN_AUTH]);
             const uncovered = routerPaths().filter((p) => !covered.has(p));
             expect(uncovered).toEqual([]);
         });

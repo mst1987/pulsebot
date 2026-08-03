@@ -20,6 +20,11 @@ const AREA_BY_PATH = {
     "/api/settings/item-search": "settings",
     "/api/settings/raidsheets": "settings",
     "/api/settings/raidsheets/delete": "settings",
+    // Loot-sync tokens. Listed here so a settings-reader gets the same 403 as
+    // everywhere else, but the handlers additionally demand a *full* admin —
+    // these are credentials that skip the Discord login (apiRoutes/settings.js).
+    "/api/settings/ingest-tokens": "settings",
+    "/api/settings/ingest-tokens/delete": "settings",
     // The raider→character assignment lives in the settings page's own tab.
     "/api/raider-characters": "settings",
 
@@ -55,6 +60,9 @@ const AREA_BY_PATH = {
     "/api/history/loot-awards": "history",
     "/api/history/log-delete": "history",
     "/api/history/import": "history",
+    "/api/history/inbox": "history",
+    "/api/history/inbox-accept": "history",
+    "/api/history/inbox-dismiss": "history",
     "/api/history/loot-category": "history",
     "/api/history/loot-delete": "history",
     "/api/history/clear": "history",
@@ -81,6 +89,12 @@ const AREA_BY_PATH = {
 const UNGATED = new Set(["/api/session"]);
 // Needs a menu user, but belongs to no single area (the guild switcher).
 const ANY_AREA = new Set(["/api/session/guild"]);
+// Authenticated by an API token instead of a Discord session (the loot-sync
+// uploader — see apiRoutes/ingest.js). These bypass *this* gate because there is
+// no session user to check, never the auth itself: the handler rejects anything
+// without a valid bearer token before it does any work. Deliberately a tiny,
+// explicit set — an endpoint listed here is reachable by whoever holds a token.
+const TOKEN_AUTH = new Set(["/api/ingest/loot"]);
 
 const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
 
@@ -90,6 +104,7 @@ const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
  */
 function checkAccess(pathname, method, user) {
     if (UNGATED.has(pathname)) return null;
+    if (TOKEN_AUTH.has(pathname)) return null;
     if (!user) return { status: 401, code: "unauthorized", message: "Nicht angemeldet." };
     if (!userHasMenuAccess(user)) {
         return { status: 403, code: "forbidden", message: "Kein Zugang zum Admin-Menü." };
@@ -112,4 +127,4 @@ function checkAccess(pathname, method, user) {
     };
 }
 
-module.exports = { checkAccess, AREA_BY_PATH, UNGATED, ANY_AREA };
+module.exports = { checkAccess, AREA_BY_PATH, UNGATED, ANY_AREA, TOKEN_AUTH };

@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
     getHistoryData, getLootStats, importLoot, setLootCategory, deleteHistoryLog, resolveCharacters,
+    getLootInbox,
     type ApiError, type HistoryData, type HistoryEvent, type LootEventSummary, type LootLog, type AnnotatedCharacter,
-    type Category, type LootStats,
+    type Category, type LootStats, type InboxSession,
 } from "../api";
 import { formatEventTime, fmtMs, formatDate } from "../lib/format";
 import { usePersistedState, usePersistedSearchParam, useDraftState } from "../lib/persistedState";
@@ -15,15 +16,18 @@ import { ClassSpecCell, CharacterLink, CLASS_SOURCE_LABELS } from "../components
 import { LootReasonsTab } from "../components/LootReasonsTab";
 import { LootItemsTab } from "../components/LootItemsTab";
 import { LatestLootTab } from "../components/LatestLootTab";
+import { LootInboxTab } from "../components/LootInboxTab";
 import type { ShellContext } from "../components/Shell";
 import { TrashIcon } from "../components/icons";
 
 type Flash = { type: "ok" | "err"; text: string };
-type Tab = "raids" | "import" | "loot" | "awards" | "reasons" | "items" | "logs" | "chars";
+type Tab = "raids" | "import" | "inbox" | "loot" | "awards" | "reasons" | "items" | "logs" | "chars";
 
 const TABS: { id: Tab; label: string; count?: (d: HistoryData) => number }[] = [
     { id: "raids", label: "Alle Raids", count: (d) => d.upcomingRaids.events.length + d.pastRaids.events.length },
     { id: "import", label: "Import" },
+    // Count comes from its own request, not from HistoryData — see the render.
+    { id: "inbox", label: "Addon-Inbox" },
     { id: "loot", label: "Importierter Loot", count: (d) => d.lootEvents.length },
     { id: "awards", label: "Latest Loot" },
     { id: "reasons", label: "Loot-Gründe" },
@@ -136,12 +140,13 @@ function ImportForm({ data, csrfToken, onImported }: {
                         <option value="auto">Auto-Erkennung</option>
                         <option value="gargul">Gargul</option>
                         <option value="rclc">RCLootcouncil</option>
+                        <option value="eventhelper">EventHelper-Addon</option>
                     </select>
-                    <div className="hint">Wird aus der Kategorie-Markierung vorbelegt. „Auto" erkennt JSON (RCLootcouncil) bzw. CSV (Gargul) selbst.</div>
+                    <div className="hint">Wird aus der Kategorie-Markierung vorbelegt. „Auto" erkennt alle drei Formate selbst (JSON = RCLootcouncil, CSV = Gargul, Envelope = EventHelper-Addon).</div>
                 </div>
                 <div className="field">
                     <label>Export einfügen</label>
-                    <textarea value={text} onChange={(e) => patch({ text: e.target.value })} rows={6} placeholder="RCLootcouncil-JSON oder Gargul-CSV hier einfügen …" />
+                    <textarea value={text} onChange={(e) => patch({ text: e.target.value })} rows={6} placeholder="RCLootcouncil-JSON, Gargul-CSV oder EventHelper-Addon-Export hier einfügen …" />
                 </div>
                 <div className="field">
                     <label>… oder Datei hochladen</label>
@@ -577,6 +582,11 @@ export default function HistoryPage() {
     const [flash, setFlash] = useState<Flash | null>(null);
     const [stats, setStats] = useState<LootStats | null>(null);
     const [statsError, setStatsError] = useState<ApiError | null>(null);
+    // Loaded with the page rather than on tab open: the badge is the only hint
+    // that a raid is waiting to be filed, so it has to be there before anyone
+    // thinks to look.
+    const [inbox, setInbox] = useState<InboxSession[]>([]);
+    const [inboxError, setInboxError] = useState<string | null>(null);
 
     // Whether the overviews were ever asked for. A ref, not the state above:
     // after a failed load there is nothing in `stats`, and retrying on every
@@ -590,6 +600,9 @@ export default function HistoryPage() {
 
     const load = () => {
         getHistoryData().then(setData).catch((err: ApiError) => setError(err));
+        getLootInbox()
+            .then((r) => { setInbox(r.sessions); setInboxError(null); })
+            .catch((err: ApiError) => setInboxError(err.message));
         // Only refresh the overviews once they have been opened — before that
         // there is nothing on screen that could go stale after an import.
         if (statsRequested.current) loadStats();
@@ -617,12 +630,15 @@ export default function HistoryPage() {
             {flash && <p className="sub" style={{ color: flash.type === "err" ? "var(--high)" : "var(--good)" }}>{flash.text}</p>}
 
             <div className="tabs" role="tablist">
-                {TABS.map((t) => (
-                    <button key={t.id} type="button" className={`tab-btn${tab === t.id ? " active" : ""}`} role="tab" onClick={() => setTab(t.id)}>
-                        {t.label}
-                        {!!t.count?.(data) && <span className="tab-count">{t.count(data)}</span>}
-                    </button>
-                ))}
+                {TABS.map((t) => {
+                    const count = t.id === "inbox" ? inbox.length : t.count?.(data);
+                    return (
+                        <button key={t.id} type="button" className={`tab-btn${tab === t.id ? " active" : ""}`} role="tab" onClick={() => setTab(t.id)}>
+                            {t.label}
+                            {!!count && <span className="tab-count">{count}</span>}
+                        </button>
+                    );
+                })}
             </div>
 
             {tab === "raids" && (
@@ -638,6 +654,12 @@ export default function HistoryPage() {
                 </>
             )}
             {tab === "import" && <ImportForm data={data} csrfToken={csrfToken} onImported={afterChange} />}
+            {tab === "inbox" && (
+                <LootInboxTab
+                    sessions={inbox} events={data.events} categories={data.categories}
+                    csrfToken={csrfToken} onChanged={afterChange} error={inboxError}
+                />
+            )}
             {tab === "loot" && <LootEventsTab lootEvents={data.lootEvents} categories={data.categories} csrfToken={csrfToken} onChanged={afterChange} />}
             {/* Fetches its own page of awards — see LatestLootTab. */}
             {tab === "awards" && <LatestLootTab categories={data.categories} />}

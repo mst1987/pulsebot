@@ -2,11 +2,15 @@ import { useEffect, useState } from "react";
 import {
     getSettings, updateSettings, saveRaidsheet, deleteRaidsheet,
     getRaiderCharacters, saveRaiderCharacters, searchSettingsItems,
+    getIngestTokens, createIngestToken, deleteIngestToken,
     type ApiError, type SettingsData, type AdminConfig, type Category, type Role, type Raidsheet,
-    type RaiderCharactersData, type RolePermissions, type TopItem,
+    type RaiderCharactersData, type RolePermissions, type TopItem, type IngestToken,
 } from "../api";
 import { useOutletContext } from "react-router-dom";
+import { fmtMs } from "../lib/format";
 import { usePersistedState } from "../lib/persistedState";
+import { useTableSort, type Dir } from "../lib/tableSort";
+import { SortTh } from "../components/SortTh";
 import type { ShellContext } from "../components/Shell";
 import RolePermissionsEditor from "../components/RolePermissions";
 import ItemSearchPicker from "../components/ItemSearchPicker";
@@ -15,8 +19,9 @@ import { TrashIcon } from "../components/icons";
 
 // "Zugang" and "Berechtigungen" decide who gets into the menu, so they are shown
 // to full admins only (the API rejects them for anyone else — see ACCESS_KEYS in
-// src/web/apiRoutes/settings.js).
-const ADMIN_ONLY_TABS = ["zugang", "berechtigungen"];
+// src/web/apiRoutes/settings.js). "Loot-Sync" is in the same club for the same
+// reason: its tokens authenticate past the Discord login entirely.
+const ADMIN_ONLY_TABS = ["zugang", "berechtigungen", "lootsync"];
 
 const TABS = [
     { id: "zugang", label: "Zugang" },
@@ -25,6 +30,7 @@ const TABS = [
     { id: "auktionen", label: "Auktionen" },
     { id: "events", label: "Events" },
     { id: "loot", label: "Loot" },
+    { id: "lootsync", label: "Loot-Sync" },
     { id: "raidchars", label: "Raider-Chars" },
     { id: "logs", label: "Logs" },
     { id: "raidsheets", label: "Raidsheets" },
@@ -302,6 +308,167 @@ function RaiderCharactersTab({ categories, csrfToken }: { categories: Category[]
                         </>
                     )}
                 </form>
+            )}
+        </>
+    );
+}
+
+/**
+ * API tokens for the loot-sync companion tool that ships with the WoW addon.
+ *
+ * The secret is shown exactly once, right after minting: the server stores only
+ * a hash, so there is no "show again". The UI has to make that obvious *before*
+ * someone navigates away, which is why the new token gets its own panel rather
+ * than a row in the table.
+ */
+type TokenSortKey = "name" | "created" | "createdBy" | "lastUsed" | "uses";
+const TOKEN_SORT_DEFAULTS: Record<TokenSortKey, Dir> = {
+    name: "asc", created: "desc", createdBy: "asc", lastUsed: "desc", uses: "desc",
+};
+
+function tokenSortValue(t: IngestToken, key: TokenSortKey): string | number {
+    switch (key) {
+        case "name": return t.name.toLowerCase();
+        case "created": return t.createdAt || 0;
+        case "createdBy": return (t.createdBy || "").toLowerCase();
+        case "lastUsed": return t.lastUsedAt || 0;
+        case "uses": return t.uses || 0;
+        default: return "";
+    }
+}
+
+function IngestTokensTab({ csrfToken }: { csrfToken: string | null }) {
+    // Default "zuletzt benutzt": the question this table answers is usually
+    // "welcher Rechner lädt eigentlich noch hoch?".
+    const { sort, dir, onSort, apply } = useTableSort<TokenSortKey>(
+        "settings-ingest-tokens-sort", TOKEN_SORT_DEFAULTS, "lastUsed",
+    );
+    const [tokens, setTokens] = useState<IngestToken[] | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [name, setName] = useState("");
+    const [busy, setBusy] = useState(false);
+    // The plaintext of the token just created — lives in this component's state
+    // only, and is gone on reload.
+    const [fresh, setFresh] = useState<{ token: string; name: string } | null>(null);
+    const [copied, setCopied] = useState(false);
+
+    const load = () => {
+        getIngestTokens()
+            .then((r) => { setTokens(r.tokens); setError(null); })
+            .catch((err: ApiError) => setError(err.message));
+    };
+    useEffect(load, []);
+
+    const create = async () => {
+        setBusy(true);
+        setError(null);
+        try {
+            const r = await createIngestToken(csrfToken, name);
+            setFresh({ token: r.token, name: r.record.name });
+            setName("");
+            setCopied(false);
+            load();
+        } catch (err) {
+            setError((err as ApiError).message);
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const revoke = async (t: IngestToken) => {
+        if (!window.confirm(
+            `Token „${t.name}" zurückziehen?\n\nDas Sync-Tool, das ihn benutzt, kann danach nichts mehr hochladen.`,
+        )) return;
+        try {
+            await deleteIngestToken(csrfToken, t.id);
+            load();
+        } catch (err) {
+            setError((err as ApiError).message);
+        }
+    };
+
+    return (
+        <>
+            <p className="note">
+                Das WoW-Addon schreibt den Loot beider Addons (RCLootcouncil und Gargul) in seine SavedVariables;
+                das Sync-Tool auf dem Rechner des Raidleaders lädt sie hier hoch. Es meldet sich nicht per Discord an,
+                sondern mit einem dieser Tokens. Hochgeladene Raids landen in <strong>Historie &amp; Loot → Addon-Inbox</strong>
+                {" "}und werden dort einmal bestätigt.
+            </p>
+            {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
+
+            {fresh && (
+                <div className="dash-card" style={{ marginBottom: 16 }}>
+                    <div className="dash-card-head"><h3>Token „{fresh.name}" erstellt</h3></div>
+                    <div style={{ padding: "12px 16px" }}>
+                        <p className="sub" style={{ marginTop: 0, color: "var(--high)" }}>
+                            Jetzt kopieren — der Token wird nur dieses eine Mal angezeigt und ist danach nicht mehr
+                            abrufbar (er liegt nur als Hash auf dem Server). Geht er verloren, einfach einen neuen erstellen.
+                        </p>
+                        <div className="field">
+                            <input type="text" readOnly value={fresh.token} onFocus={(e) => e.target.select()} />
+                        </div>
+                        <div className="row-actions">
+                            <button
+                                className="btn" type="button"
+                                onClick={() => { navigator.clipboard?.writeText(fresh.token); setCopied(true); }}
+                            >
+                                {copied ? "Kopiert ✓" : "Kopieren"}
+                            </button>
+                            <button className="btn ghost" type="button" onClick={() => setFresh(null)}>Fertig</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="field" style={{ maxWidth: 420 }}>
+                <label>Neues Token</label>
+                <input
+                    type="text" value={name} onChange={(e) => setName(e.target.value)}
+                    placeholder="z.B. Raidlead-PC"
+                />
+                <div className="hint">Ein Name pro Rechner, damit ein einzelner gezielt zurückgezogen werden kann.</div>
+            </div>
+            <div className="row-actions" style={{ marginBottom: 18 }}>
+                <button className="btn" type="button" onClick={create} disabled={busy}>
+                    {busy ? "Erstellt…" : "Token erstellen"}
+                </button>
+            </div>
+
+            {!tokens ? <div className="empty">Lade…</div> : !tokens.length ? (
+                <div className="empty">Noch kein Token erstellt.</div>
+            ) : (
+                <table className="table">
+                    <thead>
+                        <tr>
+                            <SortTh sortKey="name" label="Name" sort={sort} dir={dir} onSort={onSort} />
+                            {/* Immer "ehl_…" plus vier Zeichen — nichts, wonach sich sortieren liesse. */}
+                            <th>Token</th>
+                            <SortTh sortKey="created" label="Erstellt" sort={sort} dir={dir} onSort={onSort} />
+                            <SortTh sortKey="createdBy" label="Von" sort={sort} dir={dir} onSort={onSort} />
+                            <SortTh sortKey="lastUsed" label="Zuletzt benutzt" sort={sort} dir={dir} onSort={onSort} />
+                            <SortTh sortKey="uses" label="Uploads" sort={sort} dir={dir} onSort={onSort} />
+                            <th />
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {apply(tokens, tokenSortValue).map((t) => (
+                            <tr key={t.id}>
+                                <td>{t.name}</td>
+                                <td><code>ehl_…{t.hint}</code></td>
+                                <td>{fmtMs(t.createdAt)}</td>
+                                <td>{t.createdBy || "—"}</td>
+                                <td>{t.lastUsedAt ? fmtMs(t.lastUsedAt) : <span className="sub">nie</span>}</td>
+                                <td>{t.uses || 0}</td>
+                                <td style={{ textAlign: "right" }}>
+                                    <button className="icon-btn" type="button" title="Token zurückziehen" onClick={() => revoke(t)}>
+                                        <TrashIcon />
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
             )}
         </>
     );
@@ -729,12 +896,19 @@ export default function SettingsPage() {
                     </div>
                 </div>
 
-                {tab !== "raidsheets" && tab !== "raidchars" && (
+                {tab !== "raidsheets" && tab !== "raidchars" && tab !== "lootsync" && (
                     <div className="row-actions">
                         <button className="btn" type="submit" disabled={saving}>{saving ? "Speichert…" : "Speichern"}</button>
                     </div>
                 )}
             </form>
+
+            {activeTab === "lootsync" && (
+                <div className="tab-panel active" role="tabpanel">
+                    <h2 style={{ marginTop: 0 }}>Loot-Sync (WoW-Addon)</h2>
+                    <IngestTokensTab csrfToken={csrfToken} />
+                </div>
+            )}
 
             {activeTab === "raidchars" && (
                 <div className="tab-panel active" role="tabpanel">

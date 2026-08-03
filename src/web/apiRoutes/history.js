@@ -10,6 +10,7 @@ const { logPostedAt } = require("../reportList");
 const {
     addImport: addLootImport, listByEvent: listLootByEvent, listByCharacter: listLootByCharacter, eventsWithLoot, clearEvent: clearLootEvent,
     setEventCategory: setLootEventCategory, removeItems: removeLootItems, repairItemNames: repairLootItemNames,
+    decorate: decorateLootItem,
 } = require("../lootStore");
 const { lootStats } = require("../lootStats");
 const { listAwards } = require("../lootAwards");
@@ -18,6 +19,9 @@ const { getCharacter } = require("../characterStore");
 const { issuesForCharacter } = require("../charGearIssues");
 const { parseLoot, detectImportDate, enrichItemNames, LootParseError } = require("../../utils/lootImport");
 const { bestDayMatch, formatDayDisplay, dayKey } = require("../lootEventMatch");
+const {
+    listPending: listPendingSessions, getPending: getPendingSession, resolvePending: resolvePendingSession,
+} = require("../lootInboxStore");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setupView");
 const { applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../../config/variables");
 const Blizzard = require("../../classes/blizzard");
@@ -145,6 +149,69 @@ function pickedCategory(req, requested) {
 }
 
 /**
+ * Which event a batch of loot items should be filed under. Shared by the paste
+ * import and the addon inbox, so both understand the same three answers for
+ * `event`: a real event id, "__auto__" (match by the loot's own date) or
+ * "__manual__" (a hand-typed label, no Raid-Helper event involved).
+ *
+ * @returns {{ eventId, eventLabel, categoryId } | { error, status, code }}
+ */
+async function resolveImportTarget(req, { event, manualLabel, items }) {
+    let eventId = String(event || "").trim();
+    const manualTitle = String(manualLabel || "").trim();
+
+    if (eventId === "__manual__") {
+        if (!manualTitle) {
+            return { error: "Bitte ein Event wählen oder eine Bezeichnung eingeben.", status: 400, code: "no_label" };
+        }
+        return { eventId: `manual-${slugify(manualTitle)}`, eventLabel: manualTitle, categoryId: "" };
+    }
+
+    if (eventId === "__auto__" || !eventId) {
+        const detected = detectImportDate(items);
+        const { groups } = await loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
+        const allEvents = groups.flatMap((g) => g.events);
+        const { match, ambiguous } = detected ? bestDayMatch(detected, allEvents) : { match: null, ambiguous: false };
+        if (ambiguous) {
+            return {
+                error: `Mehrere Events am ${formatDayDisplay(detected)} gefunden — bitte unten das passende Event auswählen.`,
+                status: 409,
+                code: "ambiguous",
+            };
+        }
+        if (match) {
+            const g = groups.find((gr) => gr.events.includes(match));
+            return {
+                eventId: match.id,
+                eventLabel: manualTitle || match.title || match.id,
+                categoryId: g ? (g.categoryId || "") : "",
+            };
+        }
+        const label = manualTitle || (detected ? `Raid vom ${formatDayDisplay(detected)}` : "");
+        if (!label) {
+            return {
+                error: "Kein Event am erkannten Datum gefunden und kein Datum im Export erkannt — bitte Event wählen oder einen Titel eingeben.",
+                status: 400,
+                code: "no_match",
+            };
+        }
+        return {
+            eventId: `manual-${slugify(label)}${detected ? `-${dayKey(detected)}` : ""}`,
+            eventLabel: label,
+            categoryId: "",
+        };
+    }
+
+    const { groups } = await loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
+    const found = groups.flatMap((g) => g.events.map((ev) => ({ ev, g }))).find((x) => x.ev.id === eventId);
+    return {
+        eventId,
+        eventLabel: found ? (found.ev.title || eventId) : eventId,
+        categoryId: found ? (found.g.categoryId || "") : "",
+    };
+}
+
+/**
  * POST /api/history/import — body: { data, tool, event, manualLabel, categoryId }.
  * `event` is a real event id, "__auto__" (match by the export's own date) or
  * "__manual__" (a hand-typed label, no Raid-Helper event involved).
@@ -172,44 +239,16 @@ async function importLoot(req, res) {
     if (picked.error) return error(res, 400, "bad_category", picked.error);
     await enrichItemNames(items);
 
-    let eventId = String(body.event || "").trim();
-    const manualTitle = String(body.manualLabel || "").trim();
-    let eventLabel = "";
-    let categoryId = "";
-    if (eventId === "__manual__") {
-        if (!manualTitle) return error(res, 400, "no_label", "Bitte ein Event wählen oder eine Bezeichnung eingeben.");
-        eventLabel = manualTitle;
-        eventId = `manual-${slugify(manualTitle)}`;
-    } else if (eventId === "__auto__" || !eventId) {
-        const detected = detectImportDate(items);
-        const { groups } = await loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
-        const allEvents = groups.flatMap((g) => g.events);
-        const { match, ambiguous } = detected ? bestDayMatch(detected, allEvents) : { match: null, ambiguous: false };
-        if (ambiguous) {
-            return error(res, 409, "ambiguous", `Mehrere Events am ${formatDayDisplay(detected)} gefunden — bitte unten das passende Event auswählen.`);
-        }
-        if (match) {
-            eventId = match.id;
-            eventLabel = manualTitle || match.title || eventId;
-            const g = groups.find((gr) => gr.events.includes(match));
-            categoryId = g ? (g.categoryId || "") : "";
-        } else {
-            const label = manualTitle || (detected ? `Raid vom ${formatDayDisplay(detected)}` : "");
-            if (!label) {
-                return error(res, 400, "no_match", "Kein Event am erkannten Datum gefunden und kein Datum im Export erkannt — bitte Event wählen oder einen Titel eingeben.");
-            }
-            eventLabel = label;
-            eventId = `manual-${slugify(label)}${detected ? `-${dayKey(detected)}` : ""}`;
-        }
-    } else {
-        const { groups } = await loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
-        const found = groups.flatMap((g) => g.events.map((ev) => ({ ev, g }))).find((x) => x.ev.id === eventId);
-        eventLabel = found ? (found.ev.title || eventId) : eventId;
-        categoryId = found ? (found.g.categoryId || "") : "";
-    }
+    const target = await resolveImportTarget(req, {
+        event: body.event,
+        manualLabel: body.manualLabel,
+        items,
+    });
+    if (target.error) return error(res, target.status, target.code, target.error);
+    const { eventId, eventLabel } = target;
 
     // Only where the event left a gap — see the header comment.
-    if (!categoryId) categoryId = picked.id;
+    const categoryId = target.categoryId || picked.id;
 
     const { added, skipped } = addLootImport(eventId, items, { categoryId, eventLabel });
     // RCLootcouncil exports carry the raider's class — keep it right away, so the
@@ -270,6 +309,83 @@ async function clearHistoryEvent(req, res) {
     const body = await readJsonBody(req);
     const removed = clearLootEvent(String(body.event || "").trim());
     ok(res, { removed });
+}
+
+// ---- addon inbox: sessions uploaded by the loot-sync tool, awaiting a decision ----
+
+/**
+ * GET /api/history/inbox — the raid sessions the WoW addon uploaded but nobody
+ * has filed yet, each with the event it was matched to (a suggestion only) and
+ * its loot, so the admin can see what they are accepting before they accept it.
+ */
+async function getLootInbox(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    // Decorated like stored loot (reason badge, raid, tier) even though it isn't
+    // stored yet — the preview should look like the history it is about to be.
+    const sessions = listPendingSessions().map((s) => ({
+        ...s,
+        items: (s.items || []).map(decorateLootItem),
+    }));
+    ok(res, { sessions });
+}
+
+/**
+ * POST /api/history/inbox-accept — body: { id, event, manualLabel, categoryId }.
+ * Files a pending session's loot under an event and takes it out of the inbox.
+ * `event` defaults to the suggested match; the admin can override it with any
+ * event id, "__auto__" or "__manual__" (same vocabulary as the paste import).
+ */
+async function acceptLootInbox(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const entry = getPendingSession(String(body.id || "").trim());
+    if (!entry) return error(res, 404, "not_found", "Diese Session liegt nicht mehr in der Inbox.");
+
+    const picked = pickedCategory(req, body.categoryId);
+    if (picked.error) return error(res, 400, "bad_category", picked.error);
+
+    // No explicit choice → take the match the upload already suggested, and only
+    // fall back to re-matching by date when there was none.
+    const suggested = entry.match && entry.match.suggested ? entry.match.suggested.eventId : "";
+    const target = await resolveImportTarget(req, {
+        event: String(body.event || "").trim() || suggested || "__auto__",
+        manualLabel: body.manualLabel,
+        items: entry.items,
+    });
+    if (target.error) return error(res, target.status, target.code, target.error);
+
+    const categoryId = target.categoryId || picked.id;
+    const { added, skipped } = addLootImport(target.eventId, entry.items, {
+        categoryId,
+        eventLabel: target.eventLabel,
+    });
+    rememberClassesFromLoot(entry.items);
+    // Remembered on the session, so the rest of the raid night appends here by
+    // itself on the next upload instead of asking again.
+    resolvePendingSession(entry.id, "accepted", {
+        eventId: target.eventId,
+        eventLabel: target.eventLabel,
+        categoryId,
+    });
+    ok(res, { eventId: target.eventId, eventLabel: target.eventLabel, categoryId, added, skipped }, 201);
+}
+
+/**
+ * POST /api/history/inbox-dismiss — body: { id }. Throws a session away without
+ * importing it. The decision sticks: the sync tool re-uploads the same session
+ * as long as it is in the addon's SavedVariables, and it must not come back.
+ */
+async function dismissLootInbox(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const removed = resolvePendingSession(String(body.id || "").trim(), "dismissed");
+    if (!removed) return error(res, 404, "not_found", "Diese Session liegt nicht mehr in der Inbox.");
+    ok(res, { id: removed.id, sessionId: removed.sessionId });
 }
 
 /** GET /api/history/event?event=<id> — the loot imported for one event. */
@@ -372,6 +488,7 @@ function enrichCharInfo(info) {
 }
 
 module.exports = {
+    getLootInbox, acceptLootInbox, dismissLootInbox,
     getHistoryData, getLootStats, getLootAwards, deleteHistoryLog, importLoot, setLootCategory, deleteLootItems, clearHistoryEvent, getHistoryEvent,
     resolveCharacters, getHistoryChar,
 };
