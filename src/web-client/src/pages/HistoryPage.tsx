@@ -19,9 +19,9 @@ import { LatestLootTab } from "../components/LatestLootTab";
 import { LootInboxTab } from "../components/LootInboxTab";
 import type { ShellContext } from "../components/Shell";
 import { TrashIcon } from "../components/icons";
+import { useToast } from "../components/Jobs";
 
-type Flash = { type: "ok" | "err"; text: string };
-type Tab = "raids" | "import" | "inbox" | "loot" | "awards" | "reasons" | "items" | "logs" | "chars";
+type Tab ="raids" | "import" | "inbox" | "loot" | "awards" | "reasons" | "items" | "logs" | "chars";
 
 const TABS: { id: Tab; label: string; count?: (d: HistoryData) => number }[] = [
     { id: "raids", label: "Alle Raids", count: (d) => d.upcomingRaids.events.length + d.pastRaids.events.length },
@@ -59,7 +59,7 @@ function ImportForm({ data, csrfToken, onImported }: {
     const [draft, patch] = useDraftState<ImportDraft>("history-import", IMPORT_DRAFT_DEFAULT);
     const { eventId, manualLabel, categoryId, tool, text } = draft;
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const toast = useToast();
     const fileRef = useRef<HTMLInputElement>(null);
 
     const selectEvent = (id: string) => {
@@ -79,7 +79,6 @@ function ImportForm({ data, csrfToken, onImported }: {
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
-        setError(null);
         try {
             const r = await importLoot(csrfToken, { data: text, tool, event: eventId, manualLabel, categoryId });
             onImported(`${r.added} Item(s) importiert${r.skipped ? `, ${r.skipped} Duplikat(e) übersprungen` : ""}.`);
@@ -88,7 +87,7 @@ function ImportForm({ data, csrfToken, onImported }: {
             patch({ text: "", manualLabel: "" });
             if (fileRef.current) fileRef.current.value = "";
         } catch (err) {
-            setError((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -100,7 +99,6 @@ function ImportForm({ data, csrfToken, onImported }: {
         <div className="dash-card" style={{ marginBottom: 18 }}>
             <div className="dash-card-head"><h3>Loot importieren</h3></div>
             <form className="card-form" onSubmit={submit} style={{ padding: "14px 16px" }}>
-                {error && <p className="sub" style={{ color: "var(--high)" }}>{error}</p>}
                 <div className="field">
                     <label>Event</label>
                     <select value={eventId} onChange={(e) => selectEvent(e.target.value)}>
@@ -171,6 +169,7 @@ function LootEventsTab({ lootEvents, categories, csrfToken, onChanged }: {
     onChanged: (msg: string) => void;
 }) {
     const [saving, setSaving] = useState<string | null>(null);
+    const toast = useToast();
     // Newest import first by default — that is the one just pasted in, and the
     // reason this list is opened at all.
     const { sort, dir, onSort, apply } = useTableSort<LootEventSortKey>(
@@ -188,7 +187,9 @@ function LootEventsTab({ lootEvents, categories, csrfToken, onChanged }: {
             const r = await setLootCategory(csrfToken, { event: eventId, categoryId });
             onChanged(`Kategorie gesetzt (${r.updated} Item(s)).`);
         } catch (err) {
-            onChanged((err as ApiError).message);
+            // Not onChanged: nothing changed, so this must not reload the list
+            // and must not be reported in the success tone.
+            toast((err as ApiError).message, "err");
         } finally {
             setSaving(null);
         }
@@ -264,6 +265,7 @@ const LOG_SORT_DEFAULTS: Record<LogSortKey, Dir> = { log: "asc", date: "desc", z
 
 function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: string | null; onChanged: (msg: string) => void }) {
     const { sort, dir, onSort, apply } = useTableSort<LogSortKey>("history-logs-sort", LOG_SORT_DEFAULTS, "date");
+    const toast = useToast();
 
     const remove = async (l: LootLog) => {
         if (!confirm("Log aus der Liste entfernen?")) return;
@@ -271,7 +273,7 @@ function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: s
             await deleteHistoryLog(csrfToken, l.id);
             onChanged("Gelöscht.");
         } catch (err) {
-            onChanged((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         }
     };
 
@@ -410,6 +412,7 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
     onChanged: (msg: string) => void;
 }) {
     const [busy, setBusy] = useState(false);
+    const toast = useToast();
     // Search, filters, grouping and sort live in localStorage, so they survive a
     // reload and switching away to another tab (which unmounts this component).
     // Stored values are treated as untrusted: a sort key from an older build
@@ -422,13 +425,16 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
     const dir: Dir = view.dir === "asc" ? "asc" : "desc";
     const patch = (p: Partial<CharView>) => setView((v) => ({ ...v, ...p }));
 
+    // The button for this sits under a long character table, which is exactly why
+    // its result has to be a toast: the old page-level flash line was rendered
+    // far above the fold, so a finished lookup looked like nothing had happened.
     const resolve = async () => {
         setBusy(true);
         try {
             const r = await resolveCharacters(csrfToken);
             onChanged(r.message);
         } catch (err) {
-            onChanged((err as ApiError).message);
+            toast((err as ApiError).message, "err");
         } finally {
             setBusy(false);
         }
@@ -579,7 +585,7 @@ export default function HistoryPage() {
 
     const [data, setData] = useState<HistoryData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
-    const [flash, setFlash] = useState<Flash | null>(null);
+    const toast = useToast();
     const [stats, setStats] = useState<LootStats | null>(null);
     const [statsError, setStatsError] = useState<ApiError | null>(null);
     // Loaded with the page rather than on tab open: the badge is the only hint
@@ -616,7 +622,7 @@ export default function HistoryPage() {
     }, [tab]);
 
     const afterChange = (msg: string) => {
-        setFlash({ type: "ok", text: msg });
+        toast(msg);
         load();
     };
 
@@ -627,7 +633,6 @@ export default function HistoryPage() {
         <>
             <h1 className="page-title">Historie &amp; Loot</h1>
             <p className="note">Loot pro Event importieren (RCLootcouncil-JSON oder Gargul-CSV), Warcraft-Logs verlinken und pro Charakter die Loot-Historie samt Armory einsehen. „Loot-Gründe" zeigt je Raider, wofür er Items bekommen hat, „Items" alle Items mit ihren Empfängern — filterbar nach Raid und Tier.</p>
-            {flash && <p className="sub" style={{ color: flash.type === "err" ? "var(--high)" : "var(--good)" }}>{flash.text}</p>}
 
             <div className="tabs" role="tablist">
                 {TABS.map((t) => {

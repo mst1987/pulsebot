@@ -63,6 +63,24 @@ export function useJobs(): JobsApi {
     return api;
 }
 
+/**
+ * The result channel for every admin action: `toast("Gespeichert.")` when it
+ * worked, `toast(err.message, "err")` when it didn't.
+ *
+ * Each page used to keep its own `flash` state and render it as a line of text
+ * under its heading. That line is invisible from anywhere else on the page — the
+ * "Klassen & Specs ergänzen" button sits below a long character table, so its
+ * result was reported into empty space and the action looked like it had done
+ * nothing at all. A toast is anchored to the viewport instead, so an outcome
+ * shows up where the admin actually is.
+ *
+ * The provider sits above the router, so a toast also survives the navigation an
+ * action triggers (creating a raid reports its success on the raid list).
+ */
+export function useToast(): JobsApi["notify"] {
+    return useJobs().notify;
+}
+
 export function JobsProvider({ children }: { children: ReactNode }) {
     const [jobs, setJobs] = useState<BackgroundJob[]>([]);
     const nextId = useRef(1);
