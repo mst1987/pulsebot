@@ -53,6 +53,14 @@ function buildApplicantEmbeds(characterName, analysis) {
     return embeds;
 }
 
+// Discord rejects the whole message when a single embed field value exceeds 1024
+// characters — the modal allows up to 1500, so cut before the API does.
+const FIELD_LIMIT = 1024;
+function truncate(value, limit = FIELD_LIMIT) {
+    const text = String(value ?? "");
+    return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
+}
+
 function getEmojiString(guildEmojis, iconName) {
     if (!guildEmojis || !iconName) return "";
     const emoji = guildEmojis.find((e) => e.name.toLowerCase() === iconName.toLowerCase());
@@ -87,10 +95,11 @@ module.exports = {
             : "Unbekannt";
         const threadTitle = pending.spec ? `${pending.spec} - ${characterName}` : characterName;
 
+        let thread = null;
         try {
             const { applicationChannelId, officerRoleId } = getConfig();
             const channel = await client.channels.fetch(applicationChannelId);
-            const thread = await channel.threads.create({
+            thread = await channel.threads.create({
                 name: threadTitle,
                 autoArchiveDuration: ThreadAutoArchiveDuration.OneWeek,
                 type: ChannelType.PublicThread,
@@ -102,9 +111,13 @@ module.exports = {
                 { name: "Charakter", value: characterName, inline: true },
                 { name: "Klasse / Spec", value: classSpec, inline: true },
             ];
-            if (armoryLink) fields.push({ name: `Armory${armoryAuto ? auto : ""}`, value: armoryLink, inline: false });
-            if (logsLink) fields.push({ name: `WarcraftLogs${logsAuto ? auto : ""}`, value: logsLink, inline: false });
-            if (description) fields.push({ name: "Über den Bewerber", value: description, inline: false });
+            if (armoryLink) fields.push({ name: `Armory${armoryAuto ? auto : ""}`, value: truncate(armoryLink), inline: false });
+            if (logsLink) fields.push({ name: `WarcraftLogs${logsAuto ? auto : ""}`, value: truncate(logsLink), inline: false });
+            // a long text goes into its own message instead of being cut off in the embed
+            const descriptionTooLong = description.length > FIELD_LIMIT;
+            if (description && !descriptionTooLong) {
+                fields.push({ name: "Über den Bewerber", value: description, inline: false });
+            }
 
             const embed = {
                 title: `Neue Bewerbung von ${interaction.member?.displayName || interaction.user.username}`,
@@ -116,11 +129,29 @@ module.exports = {
             };
 
             const officerPing = officerRoleId ? `<@&${officerRoleId}> ` : "";
-            await thread.send({
-                content: `${officerPing}Neue Bewerbung von <@${interaction.user.id}>!`,
-                embeds: [embed],
-                allowedMentions: { users: [interaction.user.id], roles: officerRoleId ? [officerRoleId] : [] },
-            });
+            const mentions = { users: [interaction.user.id], roles: officerRoleId ? [officerRoleId] : [] };
+            const notice = `${officerPing}Neue Bewerbung von <@${interaction.user.id}>!`;
+            let embedPosted = true;
+            try {
+                await thread.send({ content: notice, embeds: [embed], allowedMentions: mentions });
+            } catch (sendError) {
+                embedPosted = false;
+                // never leave an empty thread behind: retry without the embed, so at least
+                // the raw application survives a rejected embed
+                console.error("application embed rejected:", sendError.code || "", sendError.message);
+                const plain = [
+                    notice,
+                    `**Charakter:** ${characterName}`,
+                    `**Klasse / Spec:** ${classSpec}`,
+                    armoryLink ? `**Armory:** ${armoryLink}` : "",
+                    logsLink ? `**WarcraftLogs:** ${logsLink}` : "",
+                ].filter(Boolean).join("\n");
+                await thread.send({ content: truncate(plain, 2000), allowedMentions: mentions });
+            }
+
+            if (description && (descriptionTooLong || !embedPosted)) {
+                await thread.send({ content: truncate(`**Über den Bewerber:**\n${description}`, 2000) });
+            }
 
             await interaction.editReply({
                 content: "Deine Bewerbung wurde eingereicht! Wir melden uns bei dir.",
@@ -143,7 +174,15 @@ module.exports = {
                 console.error("applicant analysis failed:", analysisError.message);
             }
         } catch (error) {
-            console.error("Error creating application thread:", error);
+            console.error("Error creating application thread:", error.code || "", error.message, error);
+            // an empty thread tells the officers nothing — drop it if we could not fill it
+            if (thread) {
+                try {
+                    await thread.delete("Bewerbung konnte nicht gepostet werden");
+                } catch (cleanupError) {
+                    console.error("could not remove the empty application thread:", cleanupError.message);
+                }
+            }
             await interaction.editReply({
                 content: "Fehler beim Einreichen der Bewerbung. Bitte versuche es erneut oder kontaktiere einen Officer.",
             });
