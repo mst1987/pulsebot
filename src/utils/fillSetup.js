@@ -198,8 +198,10 @@ function buildSetupWrite(slots, opts = {}) {
         shuffledHealers[2] || null,
     ];
 
-    // ---- Melee/debuff column D27:D31 (Rogues → Enhancers → Warriors, max 5) ----
-    const meleeCol = toColumn([...rogues, ...enhancers, ...warriors], 5);
+    // ---- Kick column D27:D31 (Rogues → Warriors → Enhancers, max 5) ----
+    // That order is the raid's kick priority: Kick first, then Pummel/Shield
+    // Bash, Earth Shock last.
+    const meleeCol = toColumn([...rogues, ...warriors, ...enhancers], 5);
 
     // ---- Build write data ----
     const R = (range, values) => ({ range: `${tab}!${range}`, values });
