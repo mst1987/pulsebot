@@ -171,14 +171,16 @@ function enrichSlot(slot) {
     };
 }
 
-// Raid group of a slot: an explicit numeric `slot.group` wins; otherwise fall
+// Raid group of a slot: an explicit group number wins — Raid-Helper's raidplan
+// API sends it as `groupNumber`, hand-built payloads as `group`. Otherwise fall
 // back to 5 slots per group by position (index 0-4 = group 1), matching the
 // sheet export in src/utils/fillSetup.js. Uses the raw array index so empty
 // slots keep the following players in their real group instead of shifting them.
 function groupOf(slot, index) {
-    const g = slot && slot.group;
-    const n = typeof g === "number" ? g : parseInt(g, 10);
-    if (Number.isInteger(n) && n >= 1) return n;
+    for (const value of [slot && slot.group, slot && slot.groupNumber]) {
+        const n = typeof value === "number" ? value : parseInt(value, 10);
+        if (Number.isInteger(n) && n >= 1) return n;
+    }
     return Math.floor(index / 5) + 1;
 }
 

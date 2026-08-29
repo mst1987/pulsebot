@@ -27,6 +27,11 @@ describe("utils/fillSetup", () => {
             expect(players[0].name).toBe("Tanky");
             expect(players[0].entry.icon).toBe("protpala");
         });
+
+        it("takes the group from groupNumber when `group` is absent", () => {
+            const players = enrichPlayers([{ name: "Ranged", spec: "Restoration1", groupNumber: 4 }]);
+            expect(players[0].group).toBe(4);
+        });
     });
 
     describe("buildSetupWrite", () => {
@@ -43,6 +48,22 @@ describe("utils/fillSetup", () => {
             const { writeData } = buildSetupWrite(SAMPLE, {});
             expect(cell(writeData, "Setup!B3:B7")).toEqual([["Tanky"], ["Bear"], [""], [""], [""]]);
             expect(cell(writeData, "Setup!C3:C7")).toEqual([["Healpal"], ["Shammy"], [""], [""], [""]]);
+        });
+
+        // Raid-Helper sends the group as `groupNumber`. Falling through to the
+        // index heuristic would put the fifth slot in group 1, because that
+        // heuristic assumes every group is full.
+        it("reads Raid-Helper's groupNumber so a non-full group shifts nobody", () => {
+            const slots = [
+                { name: "One", spec: "Restoration1", groupNumber: 1 },
+                { name: "Two", spec: "Restoration1", groupNumber: 1 },
+                { name: "Three", spec: "Restoration1", groupNumber: 1 },
+                { name: "Four", spec: "Restoration1", groupNumber: 1 },
+                { name: "Five", spec: "Restoration1", groupNumber: 2 },
+            ];
+            const { writeData } = buildSetupWrite(slots, {});
+            expect(cell(writeData, "Setup!B3:B7")).toEqual([["One"], ["Two"], ["Three"], ["Four"], [""]]);
+            expect(cell(writeData, "Setup!C3:C7")).toEqual([["Five"], [""], [""], [""], [""]]);
         });
 
         it("honours a custom tab name and clears the manual block", () => {

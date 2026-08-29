@@ -160,6 +160,15 @@ describe("utils/setupView", () => {
             expect(groupOf({ group: 0 }, 7)).toBe(2);
             expect(groupOf({ group: "x" }, 12)).toBe(3);
         });
+
+        it("accepts groupNumber, the field Raid-Helper's raidplan API sends", () => {
+            expect(groupOf({ groupNumber: 3 }, 0)).toBe(3);
+            expect(groupOf({ groupNumber: "5" }, 0)).toBe(5);
+        });
+
+        it("prefers group over groupNumber when both are present", () => {
+            expect(groupOf({ group: 2, groupNumber: 4 }, 0)).toBe(2);
+        });
     });
 
     describe("buildSetupView", () => {
