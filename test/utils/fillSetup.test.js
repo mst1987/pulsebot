@@ -66,6 +66,20 @@ describe("utils/fillSetup", () => {
             expect(cell(writeData, "Setup!C3:C7")).toEqual([["Five"], [""], [""], [""], [""]]);
         });
 
+        // Kick priority: Kick, then Pummel/Shield Bash, Earth Shock last.
+        // The input order is deliberately mixed so the test pins the sorting.
+        it("orders the kick column rogues, then warriors, then enhancers", () => {
+            const slots = [
+                { name: "Enh", spec: "Enhancement", groupNumber: 1 },
+                { name: "Fury", spec: "Fury", groupNumber: 1 },
+                { name: "Sneak", spec: "Combat", groupNumber: 1 },
+                { name: "Arms", spec: "Arms", groupNumber: 1 },
+            ];
+            const { writeData } = buildSetupWrite(slots, {});
+            expect(cell(writeData, "Setup!D27:D31"))
+                .toEqual([["Sneak"], ["Fury"], ["Arms"], ["Enh"], [""]]);
+        });
+
         it("honours a custom tab name and clears the manual block", () => {
             const { writeData, clearRanges } = buildSetupWrite(SAMPLE, { tab: "Tier6" });
             expect(writeData.every((d) => d.range.startsWith("Tier6!"))).toBe(true);
