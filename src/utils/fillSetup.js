@@ -72,8 +72,16 @@ function getSlotSpec(slot) {
     return slot.specName || slot.spec || slot.className || "";
 }
 
+// Raid group of a slot. Raid-Helper's raidplan API names the field
+// `groupNumber`; `group` only appears on hand-built payloads. Without that
+// fallback the index heuristic below takes over, and since it assumes five
+// players per group, a single non-full group shifts everyone behind it into
+// the wrong one.
 function getSlotGroup(slot, index) {
-    if (slot.group && typeof slot.group === "number") return slot.group;
+    for (const value of [slot.group, slot.groupNumber]) {
+        const n = typeof value === "number" ? value : parseInt(value, 10);
+        if (Number.isInteger(n) && n >= 1) return n;
+    }
     return Math.floor(index / 5) + 1;
 }
 
