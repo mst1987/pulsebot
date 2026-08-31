@@ -254,7 +254,7 @@ async function postPingMissing(req, res) {
     if (!found) return error(res, 404, "not_found", "Event nicht gefunden.");
     const categoryRoleIds = (getConfig().categoryRoles || {})[found.g.categoryId] || [];
     if (!categoryRoleIds.length) {
-        return error(res, 400, "no_roles", "Dieser Kategorie sind keine Rollen zugeordnet (Einstellungen → Events).");
+        return error(res, 400, "no_roles", "Dieser Kategorie sind keine Rollen zugeordnet (Einstellungen → Kategorien).");
     }
     // A raid that already started expects no further signups — and once
     // Raid-Helper drops its roster, everyone would count as "missing" and get

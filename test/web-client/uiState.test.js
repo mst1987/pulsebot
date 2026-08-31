@@ -93,7 +93,7 @@ describe("client state persistence", () => {
         ["pages/ClaPage.tsx", "cla-view"],
         ["pages/RecruitmentPage.tsx", "recruitment-view"],
         ["pages/RaidsPage.tsx", "raids-category"],
-        ["pages/SettingsPage.tsx", "settings-tab"],
+        ["pages/SettingsPage.tsx", "settings-section"],
     ];
 
     it.each(TAB_PAGES)("%s remembers its open tab as %s", (file, key) => {

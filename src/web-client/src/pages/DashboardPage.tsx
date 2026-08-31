@@ -139,7 +139,7 @@ function TopLootCard({ topLoot }: { topLoot: DashboardData["topLoot"] }) {
             <p className="sub" style={{ padding: 16, margin: 0 }}>
                 {topLoot.configured
                     ? `Noch keins der ${topLoot.configured} Top-Items vergeben.`
-                    : <>Noch keine Top-Items festgelegt — <Link className="mlink" to="/settings">Einstellungen → Loot</Link>.</>}
+                    : <>Noch keine Top-Items festgelegt — <Link className="mlink" to="/settings?section=loot">Einstellungen → Loot</Link>.</>}
             </p>
         );
     }

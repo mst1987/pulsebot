@@ -3,12 +3,12 @@ import {
     getSettings, updateSettings, saveRaidsheet, deleteRaidsheet,
     getRaiderCharacters, saveRaiderCharacters, searchSettingsItems,
     getIngestTokens, createIngestToken, deleteIngestToken,
-    type ApiError, type SettingsData, type AdminConfig, type Category, type Role, type Raidsheet,
+    type ApiError, type SettingsData, type AdminConfig, type Category, type Raidsheet,
     type RaiderCharactersData, type RolePermissions, type TopItem, type IngestToken,
 } from "../api";
 import { useOutletContext } from "react-router-dom";
 import { fmtMs } from "../lib/format";
-import { usePersistedState } from "../lib/persistedState";
+import { usePersistedSearchParam } from "../lib/persistedState";
 import { useTableSort, type Dir } from "../lib/tableSort";
 import { SortTh } from "../components/SortTh";
 import type { ShellContext } from "../components/Shell";
@@ -17,25 +17,9 @@ import ItemSearchPicker from "../components/ItemSearchPicker";
 import { itemQualityProps } from "../lib/itemQuality";
 import { TrashIcon } from "../components/icons";
 import { useToast } from "../components/Jobs";
-
-// "Zugang" and "Berechtigungen" decide who gets into the menu, so they are shown
-// to full admins only (the API rejects them for anyone else — see ACCESS_KEYS in
-// src/web/apiRoutes/settings.js). "Loot-Sync" is in the same club for the same
-// reason: its tokens authenticate past the Discord login entirely.
-const ADMIN_ONLY_TABS = ["zugang", "berechtigungen", "lootsync"];
-
-const TABS = [
-    { id: "zugang", label: "Zugang" },
-    { id: "berechtigungen", label: "Berechtigungen" },
-    { id: "recruitment", label: "Recruitment" },
-    { id: "auktionen", label: "Auktionen" },
-    { id: "events", label: "Events" },
-    { id: "loot", label: "Loot" },
-    { id: "lootsync", label: "Loot-Sync" },
-    { id: "raidchars", label: "Raider-Chars" },
-    { id: "logs", label: "Logs" },
-    { id: "raidsheets", label: "Raidsheets" },
-];
+import SectionNav from "../components/SectionNav";
+import CategoryMatrix, { type CategorySheet } from "../components/CategoryMatrix";
+import { SETTINGS_SECTIONS, visibleSections, resolveSection, groupedSections, savesWithForm } from "../lib/settingsSections";
 
 const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
@@ -60,6 +44,9 @@ type Draft = {
     blizzardRealmSlug: string;
     blizzardNamespace: string;
     categoryLootTool: Record<string, string>;
+    // Part of the one big form since the per-category settings were merged into
+    // one section — it used to save itself through a PATCH of its own.
+    categorySheets: Record<string, CategorySheet>;
     topItems: TopItem[];
 };
 
@@ -84,6 +71,7 @@ function toDraft(config: AdminConfig): Draft {
         blizzardRealmSlug: config.blizzard.realmSlug,
         blizzardNamespace: config.blizzard.namespace,
         categoryLootTool: config.categoryLootTool || {},
+        categorySheets: config.categorySheets || {},
         topItems: config.topItems || [],
     };
 }
@@ -127,86 +115,6 @@ function TopItemsField({ items, onChange }: {
                 mit Charakter, Raid und Datum. Ohne Eintrag bleibt die Karte leer.
             </div>
         </div>
-    );
-}
-
-// Which loot addon each raid category uses. Steers which parser the loot import
-// preselects and which export the Raid-Detail loot tab asks for — a setting, not
-// something you do while importing, so it lives here and no longer in the
-// Historie tab.
-function LootToolTable({ categories, value, onChange }: {
-    categories: Category[];
-    value: Record<string, string>;
-    onChange: (categoryId: string, tool: string) => void;
-}) {
-    if (!categories.length) {
-        return <p className="hint">Keine Kategorien geladen (Server gewählt und Bot online?). Die Auswahl ist verfügbar, sobald der Bot verbunden ist.</p>;
-    }
-    return (
-        <>
-            {categories.map((c) => (
-                <div className="field" key={c.id}>
-                    <label htmlFor={`loottool-${c.id}`}>{c.name}</label>
-                    <select id={`loottool-${c.id}`} value={value[c.id] || ""} onChange={(e) => onChange(c.id, e.target.value)}>
-                        <option value="">— nicht gesetzt —</option>
-                        <option value="gargul">Gargul</option>
-                        <option value="rclc">RCLootcouncil</option>
-                    </select>
-                </div>
-            ))}
-        </>
-    );
-}
-
-function CategoryRoleMatrix({ categories, roles, categoryIds, categoryRoles, onToggleCategory, onToggleRole }: {
-    categories: Category[];
-    roles: Role[];
-    categoryIds: string[];
-    categoryRoles: Record<string, string[]>;
-    onToggleCategory: (id: string) => void;
-    onToggleRole: (catId: string, roleId: string) => void;
-}) {
-    const knownIds = new Set(categories.map((c) => c.id));
-    const rows = [
-        ...categories.map((c) => ({ id: c.id, name: c.name, unknown: false })),
-        ...categoryIds.filter((id) => !knownIds.has(id)).map((id) => ({ id, name: id, unknown: true })),
-    ];
-    const raidRoles = roles.filter((r) => /raid/i.test(r.name || ""));
-
-    if (!rows.length) {
-        return <p className="hint">Keine Kategorien geladen (Server gewählt und Bot online?). Die Auswahl ist verfügbar, sobald der Bot verbunden ist.</p>;
-    }
-
-    return (
-        <>
-            {rows.map((cat) => {
-                const isEvent = categoryIds.includes(cat.id);
-                const assigned = new Set(categoryRoles[cat.id] || []);
-                return (
-                    <div className="field" key={cat.id}>
-                        <label className="switch-row" style={{ fontWeight: 600 }}>
-                            <span className="switch">
-                                <input type="checkbox" checked={isEvent} onChange={() => onToggleCategory(cat.id)} />
-                                <span className="switch-track"><span className="switch-thumb" /></span>
-                            </span>
-                            {cat.name}
-                            {cat.unknown && <span className="hint" style={{ fontWeight: 400 }}> (unbekannte ID — abwählen zum Entfernen)</span>}
-                        </label>
-                        <div className="rolegrid" style={{ marginTop: 8 }}>
-                            {raidRoles.length
-                                ? raidRoles.map((r) => (
-                                    <label className="rolebox" key={r.id}>
-                                        <input type="checkbox" checked={assigned.has(r.id)} onChange={() => onToggleRole(cat.id, r.id)} />
-                                        @{r.name}
-                                    </label>
-                                ))
-                                : <span className="hint">—</span>}
-                        </div>
-                    </div>
-                );
-            })}
-            {!raidRoles.length && <div className="hint">Keine Raid-/Raider-Rollen gefunden. Es werden nur Rollen angeboten, deren Name „Raid" enthält.</div>}
-        </>
     );
 }
 
@@ -260,7 +168,7 @@ function RaiderCharactersTab({ categories, csrfToken }: { categories: Category[]
         <>
             <p className="hint">
                 Raider spielen je nach Raidtag/-typ oft unterschiedliche Charaktere. Hier lässt sich pro Kategorie
-                (siehe Tab „Events") festlegen, welchen Charakter ein Raider dort spielt — das überschreibt auf der
+                (siehe „Kategorien") festlegen, welchen Charakter ein Raider dort spielt — das überschreibt auf der
                 Event-Detailseite die automatische Erkennung aus vergangenen Anmeldungen.
             </p>
             <div className="field">
@@ -272,7 +180,7 @@ function RaiderCharactersTab({ categories, csrfToken }: { categories: Category[]
             {loadError && <p className="sub" style={{ color: "var(--high)" }}>{loadError}</p>}
             {!loadError && !info && <p className="sub">Lade…</p>}
             {info && !info.roleIds.length && (
-                <p className="hint">Dieser Kategorie sind noch keine Raider-Rollen zugeordnet (siehe Tab „Events").</p>
+                <p className="hint">Dieser Kategorie sind noch keine Raider-Rollen zugeordnet (siehe „Kategorien").</p>
             )}
             {info && info.membersError && (
                 <p className="sub" style={{ color: "var(--high)" }}>Mitglieder konnten nicht geladen werden: {info.membersError}</p>
@@ -510,84 +418,6 @@ function BlizzardSecretField({ hasStoredSecret, value, onChange }: {
     );
 }
 
-// A fixed, guild-owned sheet per raid category. Assigning one means a raid in
-// that category links THAT sheet instead of needing a per-raid copy — and when a
-// copy is created for a raid anyway, the copy wins for that raid (the precedence
-// itself lives in settingsStore's resolveEventSheetLink()).
-//
-// Saves on its own (a PATCH carrying only categorySheets), like the Raidsheet
-// forms below it, since this tab sits outside the page's big config form.
-function CategorySheetsForm({ categories, config, csrfToken, onSaved }: {
-    categories: Category[];
-    config: AdminConfig;
-    csrfToken: string | null;
-    onSaved: (msg: string) => void;
-}) {
-    const [draft, setDraft] = useState<Record<string, { url: string; name: string }>>(config.categorySheets || {});
-    const [busy, setBusy] = useState(false);
-    const toast = useToast();
-
-    if (!categories.length) {
-        return <p className="hint">Keine Kategorien geladen (Server gewählt und Bot online?). Die Zuweisung ist verfügbar, sobald der Bot verbunden ist.</p>;
-    }
-
-    const patchCat = (id: string, fields: Partial<{ url: string; name: string }>) => {
-        const current = draft[id] || { url: "", name: "" };
-        setDraft({ ...draft, [id]: { ...current, ...fields } });
-    };
-
-    const submit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setBusy(true);
-        try {
-            // Send an entry for every category, so emptying a url actually drops
-            // that assignment instead of leaving the stored one merged back in.
-            const payload: Record<string, { url: string; name: string }> = {};
-            for (const c of categories) {
-                const entry = draft[c.id] || { url: "", name: "" };
-                payload[c.id] = { url: entry.url.trim(), name: entry.name.trim() };
-            }
-            const { config: saved } = await updateSettings(csrfToken, { categorySheets: payload });
-            setDraft(saved.categorySheets || {});
-            onSaved("Sheet-Zuweisungen gespeichert.");
-        } catch (err) {
-            toast((err as ApiError).message, "err");
-        } finally {
-            setBusy(false);
-        }
-    };
-
-    return (
-        <form className="card-form" onSubmit={submit}>
-            {categories.map((c) => {
-                const entry = draft[c.id] || { url: "", name: "" };
-                return (
-                    <div className="field" key={c.id}>
-                        <label htmlFor={`catsheet-url-${c.id}`}>{c.name}</label>
-                        <input
-                            id={`catsheet-url-${c.id}`}
-                            type="url"
-                            value={entry.url}
-                            onChange={(e) => patchCat(c.id, { url: e.target.value })}
-                            placeholder="https://docs.google.com/spreadsheets/… (leer = kein festes Sheet)"
-                        />
-                        <input
-                            type="text"
-                            style={{ marginTop: 6 }}
-                            value={entry.name}
-                            onChange={(e) => patchCat(c.id, { name: e.target.value })}
-                            placeholder="Anzeigename (optional), z. B. „SSC/TK Setup“"
-                        />
-                    </div>
-                );
-            })}
-            <div className="row-actions">
-                <button className="btn" type="submit" disabled={busy}>{busy ? "Speichert…" : "Zuweisungen speichern"}</button>
-            </div>
-        </form>
-    );
-}
-
 function RaidsheetForm({ sheet, csrfToken, onSaved, onDeleted }: {
     sheet: Raidsheet | null;
     csrfToken: string | null;
@@ -653,6 +483,7 @@ function RaidsheetForm({ sheet, csrfToken, onSaved, onDeleted }: {
     );
 }
 
+
 export default function SettingsPage() {
     const { csrfToken } = useOutletContext<ShellContext>();
     const [data, setData] = useState<SettingsData | null>(null);
@@ -661,7 +492,11 @@ export default function SettingsPage() {
     const [error, setError] = useState<ApiError | null>(null);
     const [saving, setSaving] = useState(false);
     const toast = useToast();
-    const [tab, setTab] = usePersistedState("settings-tab", "zugang");
+    // In the url as well as remembered, so a hint elsewhere in the menu can link
+    // straight at the section it names ("…siehe Einstellungen → Kategorien").
+    const [section, setSection] = usePersistedSearchParam(
+        "settings-section", "section", "zugang", SETTINGS_SECTIONS.map((s) => s.id),
+    );
 
     const load = () => {
         getSettings()
@@ -669,25 +504,22 @@ export default function SettingsPage() {
                 setData(d);
                 setDraft(toDraft(d.config));
                 setSecretChange(undefined);
-                // A limited settings user never sees the access tabs — start them
-                // on the first tab they can actually use.
-                if (!d.canManageAccess) setTab((t) => (ADMIN_ONLY_TABS.includes(t) ? "recruitment" : t));
             })
             .catch((err: ApiError) => setError(err));
     };
 
-    // load() only ever runs once; setTab is a setState function and stable, the
-    // rule just can't see that through the persisted-state hook.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // load() only ever runs once.
     useEffect(load, []);
 
     if (error) return <div className="empty">Fehler beim Laden der Einstellungen: {error.message}</div>;
     if (!data || !draft) return <div className="empty">Lade…</div>;
 
-    const tabs = data.canManageAccess ? TABS : TABS.filter((t) => !ADMIN_ONLY_TABS.includes(t.id));
-    // The open tab is remembered between visits; one that no longer exists (older
-    // build, renamed section) must not leave every panel hidden.
-    const activeTab = tabs.some((t) => t.id === tab) ? tab : tabs[0].id;
+    // A user who only holds write on "Einstellungen" never sees the access
+    // sections; a remembered id that is gone (older build, or exactly that case)
+    // resolves to the first section they may open instead of hiding everything.
+    const sections = visibleSections(data.canManageAccess);
+    const active = resolveSection(section, sections);
+    const activeSection = sections.find((s) => s.id === active)!;
 
     const patch = (fields: Partial<Draft>) => setDraft({ ...draft, ...fields });
 
@@ -711,9 +543,9 @@ export default function SettingsPage() {
                 ...(data.canManageAccess ? {
                     adminRoleIds: splitList(draft.adminRoleIdsText),
                     rolePermissions: draft.rolePermissions,
+                    guildId: draft.guildId.trim(),
+                    raidhelperServerId: draft.raidhelperServerId.trim(),
                 } : {}),
-                guildId: draft.guildId.trim(),
-                raidhelperServerId: draft.raidhelperServerId.trim(),
                 officerRoleId: draft.officerRoleId.trim(),
                 applicationChannelId: draft.applicationChannelId.trim(),
                 highestBidsChannelId: draft.highestBidsChannelId.trim(),
@@ -730,6 +562,11 @@ export default function SettingsPage() {
                     ...(secretChange !== undefined ? { clientSecret: secretChange } : {}),
                 },
                 categoryLootTool: draft.categoryLootTool,
+                // Sent whole: the store replaces the map, so clearing a url is
+                // what removes that category's sheet.
+                categorySheets: Object.fromEntries(
+                    Object.entries(draft.categorySheets).map(([id, s]) => [id, { url: s.url.trim(), name: s.name.trim() }]),
+                ),
                 topItems: draft.topItems,
             });
             setData({ ...data, config });
@@ -743,93 +580,48 @@ export default function SettingsPage() {
         }
     };
 
-    return (
-        <>
-            <h1 className="page-title">Einstellungen</h1>
-            <p className="note">Alle Werte werden in der Datenbank gespeichert und greifen ohne Bot-Neustart. IDs bekommst du in Discord per Rechtsklick → „ID kopieren" (Entwicklermodus).</p>
+    // The panel of the open section. Everything above "Loot-Sync" belongs to the
+    // page's one config form; the three standalone sections below save on their
+    // own and are rendered outside it (see settingsSections.ts).
+    const panel = () => {
+        switch (active) {
+            case "zugang": return (
+                <div className="field">
+                    <label>Admin-Rollen (Discord-Rollen-IDs, kommagetrennt)</label>
+                    <input type="text" value={draft.adminRoleIdsText} onChange={(e) => patch({ adminRoleIdsText: e.target.value })} placeholder="123456789012345678, 234567890123456789" />
+                    <div className="hint">Mitglieder mit einer dieser Rollen erhalten Admin-Zugang. Änderungen greifen für bereits angemeldete Nutzer innerhalb von ca. 5 Minuten, ohne erneuten Login. Die <code>ADMIN_USER_ID</code> aus der .env behält immer Zugang (Notfall-Zugang).</div>
+                </div>
+            );
 
-            <div className="tabs" role="tablist">
-                {tabs.map((t) => (
-                    <button key={t.id} type="button" className={`tab-btn${activeTab === t.id ? " active" : ""}`} role="tab" onClick={() => setTab(t.id)}>
-                        {t.label}
-                    </button>
-                ))}
-            </div>
+            case "berechtigungen": return (
+                <RolePermissionsEditor
+                    areas={data.areas}
+                    roles={data.roles}
+                    adminRoleIds={splitList(draft.adminRoleIdsText)}
+                    value={draft.rolePermissions}
+                    onChange={(rolePermissions) => patch({ rolePermissions })}
+                />
+            );
 
-            <form className="card-form" onSubmit={submit}>
-                <div className={`tab-panel${activeTab === "zugang" ? " active" : ""}`} role="tabpanel">
-                    <h2 style={{ marginTop: 0 }}>Admin-Zugang</h2>
-                    <div className="field">
-                        <label>Admin-Rollen (Discord-Rollen-IDs, kommagetrennt)</label>
-                        <input type="text" value={draft.adminRoleIdsText} onChange={(e) => patch({ adminRoleIdsText: e.target.value })} placeholder="123456789012345678, 234567890123456789" />
-                        <div className="hint">Mitglieder mit einer dieser Rollen erhalten Admin-Zugang. Änderungen greifen für bereits angemeldete Nutzer innerhalb von ca. 5 Minuten, ohne erneuten Login. Die <code>ADMIN_USER_ID</code> aus der .env behält immer Zugang (Notfall-Zugang).</div>
-                    </div>
+            case "discord": return (
+                <>
+                    <p className="hint">Gegen welchen Server der Bot arbeitet. Beides bleibt Voll-Admins vorbehalten: Die Guild-ID entscheidet, wo der Admin-Rollencheck greift.</p>
                     <div className="field">
                         <label>Discord-Server-ID (Guild-ID)</label>
                         <input type="text" value={draft.guildId} onChange={(e) => patch({ guildId: e.target.value })} placeholder="Discord-Server-ID" />
-                        <div className="hint">Der Server, gegen den der Admin-Rollencheck oben läuft — und der im Menü oben rechts vorausgewählt ist, solange niemand aktiv einen anderen wählt (die Auswahl im Menü gilt nur für die eigene Sitzung). Leer gespeichert greift wieder der Standard-Server des Bots.</div>
+                        <div className="hint">Der Server, gegen den der Admin-Rollencheck läuft — und der im Menü oben rechts vorausgewählt ist, solange niemand aktiv einen anderen wählt (die Auswahl im Menü gilt nur für die eigene Sitzung). Leer gespeichert greift wieder der Standard-Server des Bots.</div>
                     </div>
                     <div className="field">
                         <label>Raid-Helper Server-ID</label>
                         <input type="text" value={draft.raidhelperServerId} onChange={(e) => patch({ raidhelperServerId: e.target.value })} placeholder="Server-ID von raid-helper.xyz" />
                         <div className="hint">Wird für alle Raid-Helper-API-Aufrufe verwendet (Events, Setups, Anmeldungen). Der API-Key selbst bleibt in der .env.</div>
                     </div>
-                </div>
+                </>
+            );
 
-                {data.canManageAccess && (
-                    <div className={`tab-panel${activeTab === "berechtigungen" ? " active" : ""}`} role="tabpanel">
-                        <h2 style={{ marginTop: 0 }}>Rollen-Berechtigungen</h2>
-                        <RolePermissionsEditor
-                            areas={data.areas}
-                            roles={data.roles}
-                            adminRoleIds={splitList(draft.adminRoleIdsText)}
-                            value={draft.rolePermissions}
-                            onChange={(rolePermissions) => patch({ rolePermissions })}
-                        />
-                    </div>
-                )}
-
-                <div className={`tab-panel${activeTab === "recruitment" ? " active" : ""}`} role="tabpanel">
-                    <h2 style={{ marginTop: 0 }}>Recruitment</h2>
-                    <div className="field">
-                        <label>Bewerbungs-Channel-ID</label>
-                        <input type="text" value={draft.applicationChannelId} onChange={(e) => patch({ applicationChannelId: e.target.value })} placeholder="Discord-Channel-ID" />
-                        <div className="hint">Channel, in dem neue Bewerbungen als Thread gepostet werden.</div>
-                    </div>
-                    <div className="field">
-                        <label>Offizier-Rollen-ID</label>
-                        <input type="text" value={draft.officerRoleId} onChange={(e) => patch({ officerRoleId: e.target.value })} placeholder="Discord-Rollen-ID" />
-                        <div className="hint">Wird bei neuen Bewerbungen gepingt. Leer lassen für keinen Ping.</div>
-                    </div>
-                </div>
-
-                <div className={`tab-panel${activeTab === "auktionen" ? " active" : ""}`} role="tabpanel">
-                    <h2 style={{ marginTop: 0 }}>Auktionen</h2>
-                    <div className="field">
-                        <label>Höchstgebote-Channel-ID</label>
-                        <input type="text" value={draft.highestBidsChannelId} onChange={(e) => patch({ highestBidsChannelId: e.target.value })} placeholder="Discord-Channel-ID" />
-                    </div>
-                    <div className="field">
-                        <label>Höchstgebote-Message-ID</label>
-                        <input type="text" value={draft.highestBidsMessageId} onChange={(e) => patch({ highestBidsMessageId: e.target.value })} placeholder="Discord-Message-ID" />
-                        <div className="hint">Die Nachricht mit der Höchstgebote-Übersicht, die der Bot aktualisiert.</div>
-                    </div>
-                </div>
-
-                <div className={`tab-panel${activeTab === "events" ? " active" : ""}`} role="tabpanel">
-                    <h2 style={{ marginTop: 0 }}>Event-Kategorien &amp; Raider-Rollen</h2>
-                    <p className="hint">Wähle die Kategorien, deren Channels Raid-Events enthalten, und ordne jeder die erwarteten Raider-Rollen zu.</p>
-                    <CategoryRoleMatrix
-                        categories={data.categories}
-                        roles={data.roles}
-                        categoryIds={draft.categoryIds}
-                        categoryRoles={draft.categoryRoles}
-                        onToggleCategory={toggleCategory}
-                        onToggleRole={toggleRole}
-                    />
-
-                    <h2>Armory / Battle.net API</h2>
-                    <p className="hint" style={{ margin: "-6px 0 12px" }}>Optional: Mit Battle.net-API-Zugang zeigt die Char-Historie das Live-Gear direkt an. Client anlegen unter <code>develop.battle.net</code>.</p>
+            case "battlenet": return (
+                <>
+                    <p className="hint">Optional: Mit Battle.net-API-Zugang zeigt die Char-Historie das Live-Gear direkt an. Client anlegen unter <code>develop.battle.net</code>.</p>
                     <div className="field">
                         <label>Battle.net Client-ID</label>
                         <input type="text" value={draft.blizzardClientId} onChange={(e) => patch({ blizzardClientId: e.target.value })} placeholder="Client-ID von develop.battle.net" autoComplete="off" />
@@ -847,8 +639,33 @@ export default function SettingsPage() {
                         <label>Profile-Namespace (optional)</label>
                         <input type="text" value={draft.blizzardNamespace} onChange={(e) => patch({ blizzardNamespace: e.target.value })} placeholder={`leer = automatisch (profile-classicann-${draft.blizzardRegion || "eu"})`} />
                     </div>
+                </>
+            );
 
-                    <h2>Raid-Standardwerte</h2>
+            case "kategorien": return (
+                <>
+                    <p className="hint">
+                        Welche Discord-Kategorien Raid-Events enthalten — und für jede davon alles, was sie betrifft:
+                        die erwarteten Raider-Rollen, das benutzte Loot-Addon und ein fest zugewiesenes Sheet.
+                    </p>
+                    <CategoryMatrix
+                        categories={data.categories}
+                        roles={data.roles}
+                        categoryIds={draft.categoryIds}
+                        categoryRoles={draft.categoryRoles}
+                        categoryLootTool={draft.categoryLootTool}
+                        categorySheets={draft.categorySheets}
+                        onToggleCategory={toggleCategory}
+                        onToggleRole={toggleRole}
+                        onLootTool={(id, tool) => patch({ categoryLootTool: { ...draft.categoryLootTool, [id]: tool } })}
+                        onSheet={(id, sheet) => patch({ categorySheets: { ...draft.categorySheets, [id]: sheet } })}
+                    />
+                </>
+            );
+
+            case "raids": return (
+                <>
+                    <p className="hint">Womit ein neues Raid-Event vorbelegt wird, wenn beim Anlegen nichts anderes gewählt ist.</p>
                     <div className="field">
                         <label>Standard-Template-ID</label>
                         <input type="text" value={draft.raidTemplateId} onChange={(e) => patch({ raidTemplateId: e.target.value })} placeholder="Raid-Helper Template-ID" />
@@ -857,81 +674,111 @@ export default function SettingsPage() {
                         <label>Standard-Channel-ID</label>
                         <input type="text" value={draft.raidChannelId} onChange={(e) => patch({ raidChannelId: e.target.value })} placeholder="Discord-Channel-ID" />
                     </div>
-                </div>
+                </>
+            );
 
-                <div className={`tab-panel${activeTab === "loot" ? " active" : ""}`} role="tabpanel">
-                    <h2 style={{ marginTop: 0 }}>Loot-Tool je Kategorie</h2>
-                    <p className="hint">
-                        Womit wird in dieser Kategorie gelootet? Der Import in „Historie &amp; Loot" wählt den passenden
-                        Parser dann von selbst vor, und der Loot-Tab eines Raids weiß, welchen Export er verlangen muss.
-                        „Nicht gesetzt" heißt nur, dass beim Import selbst gewählt (oder automatisch erkannt) wird.
-                    </p>
-                    <LootToolTable
-                        categories={data.categories}
-                        value={draft.categoryLootTool}
-                        onChange={(categoryId, tool) => patch({ categoryLootTool: { ...draft.categoryLootTool, [categoryId]: tool } })}
-                    />
-
-                    <h2>Top-Items</h2>
+            case "loot": return (
+                <>
                     <p className="hint">
                         Die richtig großen Drops — Waffen, Legendary-Teile, alles was die Gilde als besonders
                         wertet. Vergibt ein Raid eines dieser Items, hebt das Dashboard die Vergabe hervor.
+                        Welches Loot-Addon eine Kategorie benutzt, steht unter „Kategorien".
                     </p>
                     <TopItemsField items={draft.topItems} onChange={(topItems) => patch({ topItems })} />
-                </div>
+                </>
+            );
 
-                <div className={`tab-panel${activeTab === "logs" ? " active" : ""}`} role="tabpanel">
-                    <h2 style={{ marginTop: 0 }}>Log-Auswertung</h2>
+            case "logs": return (
+                <div className="field">
+                    <label>Log-Channel-IDs (kommagetrennt)</label>
+                    <input type="text" value={draft.logChannelIdsText} onChange={(e) => patch({ logChannelIdsText: e.target.value })} placeholder="111…, 222…" />
+                    <div className="hint">Channels, in denen automatisch Warcraft-Logs gepostet werden.</div>
+                </div>
+            );
+
+            case "recruitment": return (
+                <>
                     <div className="field">
-                        <label>Log-Channel-IDs (kommagetrennt)</label>
-                        <input type="text" value={draft.logChannelIdsText} onChange={(e) => patch({ logChannelIdsText: e.target.value })} placeholder="111…, 222…" />
-                        <div className="hint">Channels, in denen automatisch Warcraft-Logs gepostet werden.</div>
+                        <label>Bewerbungs-Channel-ID</label>
+                        <input type="text" value={draft.applicationChannelId} onChange={(e) => patch({ applicationChannelId: e.target.value })} placeholder="Discord-Channel-ID" />
+                        <div className="hint">Channel, in dem neue Bewerbungen als Thread gepostet werden.</div>
                     </div>
-                </div>
-
-                {tab !== "raidsheets" && tab !== "raidchars" && tab !== "lootsync" && (
-                    <div className="row-actions">
-                        <button className="btn" type="submit" disabled={saving}>{saving ? "Speichert…" : "Speichern"}</button>
+                    <div className="field">
+                        <label>Offizier-Rollen-ID</label>
+                        <input type="text" value={draft.officerRoleId} onChange={(e) => patch({ officerRoleId: e.target.value })} placeholder="Discord-Rollen-ID" />
+                        <div className="hint">Wird bei neuen Bewerbungen gepingt. Leer lassen für keinen Ping.</div>
                     </div>
-                )}
-            </form>
+                </>
+            );
 
-            {activeTab === "lootsync" && (
-                <div className="tab-panel active" role="tabpanel">
-                    <h2 style={{ marginTop: 0 }}>Loot-Sync (WoW-Addon)</h2>
-                    <IngestTokensTab csrfToken={csrfToken} />
-                </div>
-            )}
+            case "auktionen": return (
+                <>
+                    <div className="field">
+                        <label>Höchstgebote-Channel-ID</label>
+                        <input type="text" value={draft.highestBidsChannelId} onChange={(e) => patch({ highestBidsChannelId: e.target.value })} placeholder="Discord-Channel-ID" />
+                    </div>
+                    <div className="field">
+                        <label>Höchstgebote-Message-ID</label>
+                        <input type="text" value={draft.highestBidsMessageId} onChange={(e) => patch({ highestBidsMessageId: e.target.value })} placeholder="Discord-Message-ID" />
+                        <div className="hint">Die Nachricht mit der Höchstgebote-Übersicht, die der Bot aktualisiert.</div>
+                    </div>
+                </>
+            );
 
-            {activeTab === "raidchars" && (
-                <div className="tab-panel active" role="tabpanel">
-                    <h2 style={{ marginTop: 0 }}>Raider → Charakter je Kategorie</h2>
-                    <RaiderCharactersTab categories={data.categories} csrfToken={csrfToken} />
-                </div>
-            )}
+            case "lootsync": return <IngestTokensTab csrfToken={csrfToken} />;
 
-            {activeTab === "raidsheets" && (
-                <div className="tab-panel active" role="tabpanel">
-                    <h2 style={{ marginTop: 0 }}>Festes Sheet je Raidkategorie</h2>
+            case "raidchars": return <RaiderCharactersTab categories={data.categories} csrfToken={csrfToken} />;
+
+            case "raidsheets": return (
+                <>
                     <p className="note">
-                        Trägst du hier für eine Kategorie ein Sheet ein, verlinkt und postet jeder Raid dieser Kategorie
-                        genau dieses Sheet — es wird dann keins mehr gebraucht, das die App anlegt. Wird für einen Raid
-                        trotzdem unten ein Sheet erstellt und gefüllt, hat dieses für genau diesen Raid Vorrang.
+                        Google-Sheets nach Content aufgeteilt (Tier 4/5 usw.). Beim Füllen wird anhand der Keywords das
+                        passende Sheet vorgeschlagen. Ein festes Sheet für eine ganze Raidkategorie wird dagegen unter
+                        „Kategorien" zugewiesen.
                     </p>
-                    <CategorySheetsForm
-                        categories={data.categories} config={data.config} csrfToken={csrfToken}
-                        onSaved={(msg) => { toast(msg); load(); }}
-                    />
-
-                    <h2>Raidsheet-Vorlagen</h2>
-                    <p className="note">Google-Sheets nach Content aufgeteilt (Tier 4/5 usw.). Beim Füllen wird anhand der Keywords das passende Sheet vorgeschlagen.</p>
                     {data.raidsheets.map((s) => (
                         <RaidsheetForm key={s.id} sheet={s} csrfToken={csrfToken} onSaved={(msg) => { toast(msg); load(); }} onDeleted={(msg) => { toast(msg); load(); }} />
                     ))}
                     <h3 style={{ marginTop: 18 }}>Neues Raidsheet</h3>
                     <RaidsheetForm sheet={null} csrfToken={csrfToken} onSaved={(msg) => { toast(msg); load(); }} onDeleted={() => {}} />
+                </>
+            );
+
+            default: return null;
+        }
+    };
+
+    const inForm = savesWithForm(active);
+    const body = (
+        <>
+            <h2 className="section-title">{activeSection.label}</h2>
+            {panel()}
+        </>
+    );
+
+    return (
+        <>
+            <h1 className="page-title">Einstellungen</h1>
+            <p className="note">Alle Werte werden in der Datenbank gespeichert und greifen ohne Bot-Neustart. IDs bekommst du in Discord per Rechtsklick → „ID kopieren" (Entwicklermodus).</p>
+
+            <div className="settings-layout">
+                <SectionNav
+                    groups={groupedSections(sections)}
+                    active={active}
+                    onSelect={setSection}
+                    ariaLabel="Einstellungs-Bereiche"
+                />
+                <div className="settings-panel">
+                    {inForm ? (
+                        <form className="card-form" onSubmit={submit}>
+                            {body}
+                            <div className="row-actions">
+                                <button className="btn" type="submit" disabled={saving}>{saving ? "Speichert…" : "Speichern"}</button>
+                            </div>
+                        </form>
+                    ) : body}
                 </div>
-            )}
+            </div>
         </>
     );
 }

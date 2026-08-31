@@ -330,7 +330,7 @@ function AttendanceTab({ data, eventId, csrfToken, onChanged }: {
             {!attendanceRoleIds.length ? (
                 <p className="sub">
                     Dieser Kategorie sind noch keine Raider-Rollen zugeordnet. Lege sie in den{" "}
-                    <Link className="mlink" to="/settings">Einstellungen → Events</Link> fest, um zu sehen, wer noch fehlt.
+                    <Link className="mlink" to="/settings?section=kategorien">Einstellungen → Kategorien</Link> fest, um zu sehen, wer noch fehlt.
                 </p>
             ) : !rosterKnown ? (
                 <p className="sub">

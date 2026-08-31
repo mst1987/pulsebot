@@ -115,7 +115,7 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
             {!data.items.length ? (
                 <div className="empty">
                     {view.topOnly && !data.topItemCount
-                        ? <>Noch keine Top-Items festgelegt — <Link className="mlink" to="/settings">Einstellungen → Loot</Link>.</>
+                        ? <>Noch keine Top-Items festgelegt — <Link className="mlink" to="/settings?section=loot">Einstellungen → Loot</Link>.</>
                         : "Keine Vergaben für diese Filter."}
                 </div>
             ) : (
