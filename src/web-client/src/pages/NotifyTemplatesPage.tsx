@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link, useOutletContext, useSearchParams } from "react-router-dom";
+import { Link, useOutletContext } from "react-router-dom";
 import {
     getNotifyTemplates, saveNotifyTemplate, deleteNotifyTemplate,
     type ApiError, type NotifyTemplate,
 } from "../api";
 import { useDraftState } from "../lib/persistedState";
+import { useCollectionEditor } from "../lib/collectionEditor";
 import { useTableSort, type Dir } from "../lib/tableSort";
 import type { ShellContext } from "../components/Shell";
+import { ListSection } from "../components/ListSection";
 import { SortTh } from "../components/SortTh";
 import { TrashIcon } from "../components/icons";
 import { useToast } from "../components/Jobs";
@@ -51,36 +53,32 @@ function NotifyTemplateForm({ csrfToken, editing, onSaved, onCancel }: {
     };
 
     return (
-        <>
-            <h2>{editing ? `Vorlage bearbeiten: ${editing.name || ""}` : "Neue Aufruf-Vorlage anlegen"}</h2>
-            <form className="card-form" onSubmit={submit}>
-                <div className="field">
-                    <label>Name (interne Bezeichnung)</label>
-                    <input type="text" value={name} onChange={(e) => patch({ name: e.target.value })} placeholder="z.B. Kara-Reminder" required />
-                    <div className="hint">Nur zur Auswahl — nicht Teil der geposteten Nachricht.</div>
-                </div>
-                <div className="field">
-                    <label>Titel der Nachricht (optional)</label>
-                    <input type="text" value={title} onChange={(e) => patch({ title: e.target.value })} placeholder="Anmeldung offen!" />
-                </div>
-                <div className="field">
-                    <label>Text</label>
-                    <textarea value={body} onChange={(e) => patch({ body: e.target.value })} placeholder="Bitte tragt euch für den Raid ein …" />
-                    <div className="hint">Discord-Markdown erlaubt. Die Rollen-Pings werden beim Posten pro Event ausgewählt.</div>
-                </div>
-                <div className="row-actions">
-                    <button className="btn" type="submit" disabled={busy}>{editing ? "Speichern" : "Vorlage anlegen"}</button>
-                    {editing && <button className="btn btn-ghost" type="button" onClick={() => { clearDraft(); onCancel(); }}>Abbrechen</button>}
-                </div>
-            </form>
-        </>
+        <form className="card-form" onSubmit={submit}>
+            <div className="field">
+                <label>Name (interne Bezeichnung)</label>
+                <input type="text" value={name} onChange={(e) => patch({ name: e.target.value })} placeholder="z.B. Kara-Reminder" required />
+                <div className="hint">Nur zur Auswahl — nicht Teil der geposteten Nachricht.</div>
+            </div>
+            <div className="field">
+                <label>Titel der Nachricht (optional)</label>
+                <input type="text" value={title} onChange={(e) => patch({ title: e.target.value })} placeholder="Anmeldung offen!" />
+            </div>
+            <div className="field">
+                <label>Text</label>
+                <textarea value={body} onChange={(e) => patch({ body: e.target.value })} placeholder="Bitte tragt euch für den Raid ein …" />
+                <div className="hint">Discord-Markdown erlaubt. Die Rollen-Pings werden beim Posten pro Event ausgewählt.</div>
+            </div>
+            <div className="row-actions">
+                <button className="btn" type="submit" disabled={busy}>{editing ? "Speichern" : "Vorlage anlegen"}</button>
+                <button className="btn btn-ghost" type="button" onClick={() => { clearDraft(); onCancel(); }}>Abbrechen</button>
+            </div>
+        </form>
     );
 }
 
 export default function NotifyTemplatesPage() {
     const { csrfToken } = useOutletContext<ShellContext>();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const editId = searchParams.get("edit") || "";
+    const editor = useCollectionEditor("edit");
 
     const [templates, setTemplates] = useState<NotifyTemplate[] | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
@@ -93,12 +91,11 @@ export default function NotifyTemplatesPage() {
 
     useEffect(load, []);
 
-    const startEdit = (id: string) => setSearchParams({ edit: id });
-    const cancelEdit = () => setSearchParams({});
-
     const afterChange = (msg: string) => {
         toast(msg);
-        if (editId) setSearchParams({});
+        // Back to the list after a save or a delete: the edited template is done
+        // with, and the list is where the next one is picked.
+        editor.close();
         load();
     };
 
@@ -118,40 +115,52 @@ export default function NotifyTemplatesPage() {
     if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
     if (!templates) return <div className="empty">Lade…</div>;
 
-    const editing = editId ? templates.find((t) => t.id === editId) || null : null;
     const sorted = apply(templates, (t, key) => (key === "name" ? (t.name || "") : (t.title || "")).toLowerCase());
 
     return (
         <>
             <p className="note"><Link className="mlink" to="/raids">← Zurück zur Event-Übersicht</Link></p>
             <h1 className="page-title">Aufruf-Vorlagen</h1>
-            <p className="note">Nachrichten-Vorlagen, die der Bot pro Event mit Rollen-Ping postet.</p>
-            {templates.length
-                ? (
-                    <table className="idx" style={{ marginBottom: 18 }}>
-                        <thead>
-                            <tr>
-                                <SortTh sortKey="name" label="Name" sort={sort} dir={dir} onSort={onSort} />
-                                <SortTh sortKey="title" label="Titel" sort={sort} dir={dir} onSort={onSort} />
-                                <th />
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {sorted.map((t) => (
-                                <tr key={t.id}>
-                                    <td><strong>{t.name || "(ohne Name)"}</strong></td>
-                                    <td className="sub" style={{ margin: 0 }}>{t.title || ""}</td>
-                                    <td className="row-actions">
-                                        <button className="btn btn-ghost" type="button" onClick={() => startEdit(t.id)}>Bearbeiten</button>
-                                        <button className="btn btn-danger" type="button" onClick={() => remove(t)}><TrashIcon />Löschen</button>
-                                    </td>
+            <ListSection
+                editor={editor}
+                entries={templates}
+                idOf={(t) => t.id}
+                note="Nachrichten-Vorlagen, die der Bot pro Event mit Rollen-Ping postet."
+                newLabel="Neue Vorlage"
+                editorTitle={(t) => (t ? `Vorlage „${t.name || ""}" bearbeiten` : "Neue Aufruf-Vorlage")}
+                editorFor={(t) => (
+                    <NotifyTemplateForm
+                        key={t?.id ?? "new"} csrfToken={csrfToken} editing={t}
+                        onSaved={afterChange} onCancel={editor.close}
+                    />
+                )}
+            >
+                {templates.length
+                    ? (
+                        <table className="idx">
+                            <thead>
+                                <tr>
+                                    <SortTh sortKey="name" label="Name" sort={sort} dir={dir} onSort={onSort} />
+                                    <SortTh sortKey="title" label="Titel" sort={sort} dir={dir} onSort={onSort} />
+                                    <th />
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                )
-                : <p className="sub">Noch keine Aufruf-Vorlagen. Lege unten die erste an.</p>}
-            <NotifyTemplateForm key={editing?.id ?? "new"} csrfToken={csrfToken} editing={editing} onSaved={afterChange} onCancel={cancelEdit} />
+                            </thead>
+                            <tbody>
+                                {sorted.map((t) => (
+                                    <tr key={t.id}>
+                                        <td><strong>{t.name || "(ohne Name)"}</strong></td>
+                                        <td className="sub" style={{ margin: 0 }}>{t.title || ""}</td>
+                                        <td className="row-actions">
+                                            <button className="btn btn-ghost" type="button" onClick={() => editor.startEdit(t.id)}>Bearbeiten</button>
+                                            <button className="btn btn-danger" type="button" onClick={() => remove(t)}><TrashIcon />Löschen</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )
+                    : <p className="sub">Noch keine Aufruf-Vorlagen angelegt.</p>}
+            </ListSection>
         </>
     );
 }

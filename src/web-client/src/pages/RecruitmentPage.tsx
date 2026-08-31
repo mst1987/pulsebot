@@ -1,15 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { useOutletContext, useSearchParams } from "react-router-dom";
+import { useOutletContext } from "react-router-dom";
 import {
     getRecruitmentData, saveRecruitmentTemplate, deleteRecruitmentTemplate,
     postRecruitmentTemplate, updateRecruitmentPost, deleteRecruitmentPost, scanRecruitmentPosts,
     type ApiError, type RecruitmentData, type RecruitmentTemplate, type RecruitmentPost,
 } from "../api";
 import { usePersistedSearchParam, useDraftState } from "../lib/persistedState";
+import { useCollectionEditor, type CollectionEditor } from "../lib/collectionEditor";
 import { useTableSort, type Dir } from "../lib/tableSort";
 import EmojiPicker from "../components/EmojiPicker";
 import SpecPicker from "../components/SpecPicker";
 import type { ShellContext } from "../components/Shell";
+import { ListSection } from "../components/ListSection";
 import { SortTh } from "../components/SortTh";
 import { TrashIcon } from "../components/icons";
 import { useToast } from "../components/Jobs";
@@ -89,45 +91,42 @@ function TemplateForm({ data, csrfToken, editing, onSaved, onCancel }: {
     };
 
     return (
-        <>
-            <h2>{editing ? `Vorlage bearbeiten: ${editing.name || ""}` : "Neue Vorlage anlegen"}</h2>
-            <form className="card-form" onSubmit={submit}>
-                <div className="field">
-                    <label>Name (interne Bezeichnung)</label>
-                    <input type="text" value={name} onChange={(e) => patch({ name: e.target.value })} placeholder="z.B. Heiler-Recruitment" required />
-                    <div className="hint">Nur zur Auswahl — nicht Teil der geposteten Nachricht.</div>
-                </div>
-                <div className="field">
-                    <label>Nachrichtentext</label>
-                    <textarea ref={contentRef} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Nachrichtentext …" style={{ minHeight: 380 }} />
-                    <div className="hint">Der eigentliche Nachrichtentext — inkl. Emojis. Custom-Emojis als &lt;:name:id&gt;, Discord-Markdown erlaubt.</div>
-                    <EmojiPicker emojis={data.emojis} textareaRef={contentRef} value={content} onChange={setContent} />
-                </div>
-                <div className="field">
-                    <label>Gesuchte Klassen/Specs</label>
-                    <SpecPicker value={content} onChange={setContent} specCatalog={data.specCatalog} emojis={data.emojis} />
-                    <div className="hint">Wird automatisch im Nachrichtentext oben ein-/ausgetragen (Zeile „## Icon Spec-Name") — dort weiterhin frei editierbar.</div>
-                </div>
-                <div className="field">
-                    <label>Button-Beschriftung (optional)</label>
-                    <input type="text" value={buttonLabel} onChange={(e) => patch({ buttonLabel: e.target.value })} placeholder="Jetzt bewerben" />
-                </div>
-                <div className="row-actions">
-                    <button className="btn" type="submit" disabled={busy}>{editing ? "Speichern" : "Vorlage anlegen"}</button>
-                    {editing && <button className="btn btn-ghost" type="button" onClick={() => { clearDraft(); onCancel(); }}>Abbrechen</button>}
-                </div>
-            </form>
-        </>
+        <form className="card-form" onSubmit={submit}>
+            <div className="field">
+                <label>Name (interne Bezeichnung)</label>
+                <input type="text" value={name} onChange={(e) => patch({ name: e.target.value })} placeholder="z.B. Heiler-Recruitment" required />
+                <div className="hint">Nur zur Auswahl — nicht Teil der geposteten Nachricht.</div>
+            </div>
+            <div className="field">
+                <label>Nachrichtentext</label>
+                <textarea ref={contentRef} value={content} onChange={(e) => setContent(e.target.value)} placeholder="Nachrichtentext …" style={{ minHeight: 380 }} />
+                <div className="hint">Der eigentliche Nachrichtentext — inkl. Emojis. Custom-Emojis als &lt;:name:id&gt;, Discord-Markdown erlaubt.</div>
+                <EmojiPicker emojis={data.emojis} textareaRef={contentRef} value={content} onChange={setContent} />
+            </div>
+            <div className="field">
+                <label>Gesuchte Klassen/Specs</label>
+                <SpecPicker value={content} onChange={setContent} specCatalog={data.specCatalog} emojis={data.emojis} />
+                <div className="hint">Wird automatisch im Nachrichtentext oben ein-/ausgetragen (Zeile „## Icon Spec-Name") — dort weiterhin frei editierbar.</div>
+            </div>
+            <div className="field">
+                <label>Button-Beschriftung (optional)</label>
+                <input type="text" value={buttonLabel} onChange={(e) => patch({ buttonLabel: e.target.value })} placeholder="Jetzt bewerben" />
+            </div>
+            <div className="row-actions">
+                <button className="btn" type="submit" disabled={busy}>{editing ? "Speichern" : "Vorlage anlegen"}</button>
+                <button className="btn btn-ghost" type="button" onClick={() => { clearDraft(); onCancel(); }}>Abbrechen</button>
+            </div>
+        </form>
     );
 }
 
-function TemplatesTab({ data, csrfToken, editing, onChanged, onCancelEdit, onEdit }: {
+function TemplatesTab({ data, csrfToken, editing, editor, onChanged }: {
     data: RecruitmentData;
     csrfToken: string | null;
+    /** The template the server loaded for `?edit=<id>`; null while creating. */
     editing: RecruitmentTemplate | null;
+    editor: CollectionEditor;
     onChanged: (msg: string) => void;
-    onCancelEdit: () => void;
-    onEdit: (id: string) => void;
 }) {
     const { sort, dir, onSort, apply } = useTableSort<TemplateSortKey>("recruitment-templates-sort", TEMPLATE_SORT_DEFAULTS, "name");
     const toast = useToast();
@@ -146,12 +145,26 @@ function TemplatesTab({ data, csrfToken, editing, onChanged, onCancelEdit, onEdi
     };
 
     return (
-        <>
-            <h2>Recruitment-Vorlagen</h2>
-            <p className="note">Vorlagen-Texte, die der Bot beim Posten nutzt (auch via Discord-Befehl <code>/recruitment</code>).</p>
+        <ListSection
+            editor={editor}
+            entries={data.templates}
+            idOf={(t) => t.id}
+            title="Recruitment-Vorlagen"
+            note={<>Vorlagen-Texte, die der Bot beim Posten nutzt (auch via Discord-Befehl <code>/recruitment</code>).</>}
+            newLabel="Neue Vorlage"
+            // The entry comes from the server (data.editing), not from the list,
+            // since only that one carries the full text.
+            editorTitle={() => (editing ? `Vorlage „${editing.name || ""}" bearbeiten` : "Neue Recruitment-Vorlage")}
+            editorFor={() => (
+                <TemplateForm
+                    key={editing?.id ?? "new"} data={data} csrfToken={csrfToken} editing={editing}
+                    onSaved={onChanged} onCancel={editor.close}
+                />
+            )}
+        >
             {data.templates.length
                 ? (
-                    <table className="idx" style={{ marginBottom: 18 }}>
+                    <table className="idx">
                         <thead>
                             <tr>
                                 <SortTh sortKey="name" label="Name" sort={sort} dir={dir} onSort={onSort} />
@@ -165,7 +178,7 @@ function TemplatesTab({ data, csrfToken, editing, onChanged, onCancelEdit, onEdi
                                     <td><strong>{t.name || "(ohne Name)"}</strong></td>
                                     <td className="sub" style={{ margin: 0 }}>{textPreview(t.content || t.title)}</td>
                                     <td className="row-actions">
-                                        <button className="btn btn-ghost" type="button" onClick={() => onEdit(t.id)}>Bearbeiten</button>
+                                        <button className="btn btn-ghost" type="button" onClick={() => editor.startEdit(t.id)}>Bearbeiten</button>
                                         <button className="btn btn-danger" type="button" onClick={() => remove(t)}><TrashIcon />Löschen</button>
                                     </td>
                                 </tr>
@@ -173,9 +186,8 @@ function TemplatesTab({ data, csrfToken, editing, onChanged, onCancelEdit, onEdi
                         </tbody>
                     </table>
                 )
-                : <p className="sub">Noch keine Vorlagen. Lege unten die erste an.</p>}
-            <TemplateForm key={editing?.id ?? "new"} data={data} csrfToken={csrfToken} editing={editing} onSaved={onChanged} onCancel={onCancelEdit} />
-        </>
+                : <p className="sub">Noch keine Vorlagen angelegt.</p>}
+        </ListSection>
     );
 }
 
@@ -243,11 +255,13 @@ function PostEditForm({ data, csrfToken, post, onSaved, onCancel }: {
     );
 }
 
-function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
+function PostsTab({ data, csrfToken, editingPost, editor, onChanged }: {
     data: RecruitmentData;
     csrfToken: string | null;
+    /** The post the server loaded for `?editpost=<id>`; null while posting a new one. */
+    editingPost: RecruitmentPost | null;
+    editor: CollectionEditor;
     onChanged: (msg: string) => void;
-    onEditPost: (id: string) => void;
 }) {
     const [target, patchTarget] = useDraftState("recruitment-post-target", {
         templateId: data.templates[0]?.id ?? "", channelId: "",
@@ -301,9 +315,10 @@ function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
         }
     };
 
-    return (
+    // The "post a message" form, shown when the new-editor is open. It is a
+    // creation form like any other here: the list is what the tab opens on.
+    const postForm = (
         <>
-            <h2>Nachricht posten</h2>
             {!data.activeGuildId && <p className="sub">Wähle oben einen Server, um eine Nachricht zu posten.</p>}
             {data.activeGuildId && !data.templates.length && <p className="sub">Lege zuerst eine Vorlage an, um sie posten zu können.</p>}
             {data.activeGuildId && data.templates.length > 0 && (
@@ -330,11 +345,28 @@ function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
                                 />
                             )}
                     </div>
-                    <div className="row-actions"><button className="btn" type="submit" disabled={posting}>{posting ? "Wird gepostet…" : "In Channel posten"}</button></div>
+                    <div className="row-actions">
+                        <button className="btn" type="submit" disabled={posting}>{posting ? "Wird gepostet…" : "In Channel posten"}</button>
+                        <button className="btn btn-ghost" type="button" onClick={editor.close}>Abbrechen</button>
+                    </div>
                 </form>
             )}
+        </>
+    );
 
-            <h2>Gepostete Nachrichten</h2>
+    return (
+        <ListSection
+            editor={editor}
+            entries={data.posts}
+            idOf={(p) => p.id}
+            title="Gepostete Nachrichten"
+            note="Vom Bot gepostete Recruitment-Nachrichten. Bearbeiten ändert die Nachricht direkt in Discord."
+            newLabel="Nachricht posten"
+            editorTitle={() => (editingPost ? `Nachricht in #${editingPost.channelName || editingPost.channelId} bearbeiten` : "Nachricht posten")}
+            editorFor={() => (editingPost
+                ? <PostEditForm data={data} csrfToken={csrfToken} post={editingPost} onSaved={onChanged} onCancel={editor.close} />
+                : postForm)}
+        >
             {data.activeGuildId && (
                 <div className="row-actions" style={{ marginBottom: 14 }}>
                     <button className="btn btn-ghost" type="button" disabled={scanning} onClick={scan}>
@@ -363,7 +395,7 @@ function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
                                     </td>
                                     <td className="small">{p.source}</td>
                                     <td className="row-actions">
-                                        <button className="btn btn-ghost" type="button" onClick={() => onEditPost(p.id)}>Bearbeiten</button>
+                                        <button className="btn btn-ghost" type="button" onClick={() => editor.startEdit(p.id)}>Bearbeiten</button>
                                         <button className="btn btn-danger" type="button" onClick={() => removePost(p)}><TrashIcon />Entfernen</button>
                                     </td>
                                 </tr>
@@ -371,8 +403,8 @@ function PostsTab({ data, csrfToken, onChanged, onEditPost }: {
                         </tbody>
                     </table>
                 )
-                : <p className="sub">Noch keine geposteten Nachrichten getrackt. Poste oben eine Vorlage oder durchsuche den Server.</p>}
-        </>
+                : <p className="sub">Noch keine geposteten Nachrichten getrackt. Poste eine Vorlage oder durchsuche den Server.</p>}
+        </ListSection>
     );
 }
 
@@ -431,46 +463,43 @@ function ApplicationsTab({ data }: { data: RecruitmentData }) {
 
 export default function RecruitmentPage() {
     const { csrfToken } = useOutletContext<ShellContext>();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const editId = searchParams.get("edit") || "";
-    const editPostId = searchParams.get("editpost") || "";
+    const templateEditor = useCollectionEditor("edit");
+    const postEditor = useCollectionEditor("editpost");
     const [storedView, setStoredView] = usePersistedSearchParam<View>("recruitment-view", "view", "posts", VIEWS);
-    // Editing a template always forces the templates view, mirroring the SSR page.
-    const view: View = editId ? "templates" : storedView;
+    // An open editor forces its own tab: a link to ?edit=<id> lands on the
+    // template it names, whichever tab was last open.
+    const view: View = templateEditor.open ? "templates" : postEditor.open ? "posts" : storedView;
 
     const [data, setData] = useState<RecruitmentData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const toast = useToast();
 
     const load = () => {
-        getRecruitmentData({ view, edit: editId, editpost: editPostId })
+        // editId is "" while creating, so the server loads no entry to edit.
+        getRecruitmentData({ view, edit: templateEditor.editId, editpost: postEditor.editId })
             .then(setData)
             .catch((err: ApiError) => setError(err));
     };
 
-    useEffect(load, [view, editId, editPostId]);
+    // Opening and closing an editor reloads too: coming back from a save has to
+    // show the changed list, and that is the same transition.
+    useEffect(load, [view, templateEditor.open, templateEditor.editId, postEditor.open, postEditor.editId]);
 
-    // Switching the tab always leaves whichever edit form was open — otherwise the
-    // edit id would keep forcing its own view back on.
+    // Switching the tab always leaves whichever editor was open — otherwise it
+    // would keep forcing its own tab back on.
     const switchView = (v: View) => setStoredView(v, (p) => { p.delete("edit"); p.delete("editpost"); });
-    const startEdit = (id: string) => setSearchParams({ edit: id });
-    const startEditPost = (id: string) => setSearchParams({ editpost: id });
-    const leaveEdit = (v: View) => setStoredView(v, (p) => { p.delete("edit"); p.delete("editpost"); });
-    const cancelEdit = () => leaveEdit("templates");
-    const cancelEditPost = () => leaveEdit("posts");
 
     const afterChange = (msg: string) => {
         toast(msg);
-        // Leave whichever edit form we were on back to the plain list, then reload.
-        if (editId) leaveEdit("templates");
-        else if (editPostId) leaveEdit("posts");
+        // Back to the list, which reloads it through the effect above. A change
+        // made from the list itself (a delete) has to ask for the reload.
+        if (templateEditor.open) templateEditor.close();
+        else if (postEditor.open) postEditor.close();
         else load();
     };
 
     if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
     if (!data) return <div className="empty">Lade…</div>;
-
-    const editingPost = view === "posts" && editPostId ? data.editingPost : null;
 
     return (
         <>
@@ -480,24 +509,27 @@ export default function RecruitmentPage() {
                 counts={{ posts: data.posts.length, templates: data.templates.length, applications: data.applications ? data.applications.length : null }}
                 onChange={switchView}
             />
-            {editingPost
-                ? <PostEditForm data={data} csrfToken={csrfToken} post={editingPost} onSaved={afterChange} onCancel={cancelEditPost} />
-                : view === "applications"
+            {view === "applications"
+                ? (
+                    <>
+                        <h2>Bewerbungen</h2>
+                        <p className="note">Bewerbungen aus den Threads im Bewerbungs-Channel — mit allen Details aus dem Bewerbungsformular. Es werden die letzten 10 Bewerbungen der vergangenen 6 Wochen angezeigt (neueste zuerst).</p>
+                        <ApplicationsTab data={data} />
+                    </>
+                )
+                : view === "templates"
                     ? (
-                        <>
-                            <h2>Bewerbungen</h2>
-                            <p className="note">Bewerbungen aus den Threads im Bewerbungs-Channel — mit allen Details aus dem Bewerbungsformular. Es werden die letzten 10 Bewerbungen der vergangenen 6 Wochen angezeigt (neueste zuerst).</p>
-                            <ApplicationsTab data={data} />
-                        </>
+                        <TemplatesTab
+                            data={data} csrfToken={csrfToken} editing={data.editing}
+                            editor={templateEditor} onChanged={afterChange}
+                        />
                     )
-                    : view === "templates"
-                        ? (
-                            <TemplatesTab
-                                data={data} csrfToken={csrfToken} editing={data.editing}
-                                onChanged={afterChange} onCancelEdit={cancelEdit} onEdit={startEdit}
-                            />
-                        )
-                        : <PostsTab data={data} csrfToken={csrfToken} onChanged={afterChange} onEditPost={startEditPost} />}
+                    : (
+                        <PostsTab
+                            data={data} csrfToken={csrfToken} editingPost={data.editingPost}
+                            editor={postEditor} onChanged={afterChange}
+                        />
+                    )}
         </>
     );
 }
