@@ -242,6 +242,14 @@ The bot ships an admin website as a **single React SPA** — `src/web-client/` (
 - Page components live in `src/web-client/src/pages/*.tsx`, one per admin section (`DashboardPage`, `RecruitmentPage`, `ClaPage`, `RaidsPage`/`RaidCreatePage`/`RaidDetailPage`/`NotifyTemplatesPage`, `ChannelsPage`, `SettingsPage`, `HistoryPage`/`HistoryEventPage`/`HistoryCharPage`), routed in `App.tsx`, shelled by `components/Shell.tsx` (sidebar nav + topbar with the server/guild switcher and theme toggle).
 - Backend route handlers live in `src/web/apiRoutes/*.js`, grouped by domain the same way the pages are; `apiMiddleware.js`'s `requireAdmin`/`requireCsrf` gate every mutating call.
 
+### How a page with many sections is laid out
+
+Two pages outgrew a single tab row and are organised in two levels instead — the upper level says *what kind* of thing a section is, the lower *which one*:
+
+- **Einstellungen** uses a section column (`components/SectionNav.tsx`) whose entries and groups are declared in `src/web-client/src/lib/settingsSections.ts`: *Zugang* (who gets in), *Verbindungen* (Discord/Raid-Helper, Battle.net, Loot-Sync tokens — every foreign system and its credentials), *Raid-Kategorien*, *Module* (one feature's behaviour). Two flags on a section carry real consequences: `adminOnly` keeps it out of a limited settings user's menu (mirroring `ACCESS_KEYS`/`requireFullAdmin` on the server), and `standalone` marks a section that saves itself, so the page's shared save button is not rendered under it. The open section is in the url as `?section=<id>`, so a hint on another page can link straight at it.
+- **Historie & Loot** groups its nine tabs into *Raids* / *Loot* / *Import* (`TAB_GROUPS` in `HistoryPage.tsx`). The open group follows from the open tab, so there is only one thing to persist and `?tab=items` still opens the right place.
+- **Everything configured per raid category** lives in one place, Einstellungen → *Kategorien* (`components/CategoryMatrix.tsx`): whether it is an event category, its raider roles, its loot addon and its fixed sheet — one card per category, saved with the page's form. It used to be four tabs each re-listing the same categories. A category that is switched off shows nothing but its switch.
+
 ### Role permissions (who may see/do what)
 
 Access is **per area** (one admin-menu section) and **per level** (`read` = open it, `write` = act in it; write implies read). The area list and all the pure logic live in `src/config/permissions.js` — the single source of truth shared by server and client (the client gets the list from `/api/session` and `/api/settings`).
@@ -275,7 +283,7 @@ Two things a loot export does not state usably are derived on **every read** in 
 
 `src/web/lootStats.js` aggregates both into what `GET /api/history/loot-stats` serves (`reasonsByCharacter()` + `itemCatalog()`), rendered by `LootReasonsTab.tsx`/`LootItemsTab.tsx`. A reason badge is labelled with the guild's **own** response wording whenever every item in that bucket carries the same one ("Zweitspec" rather than the internal "Offspec"); the bucket only decides the colour and the filter.
 
-Which loot addon a category uses (`config.categoryLootTool`) is a **setting**: it is edited in Einstellungen → *Loot* and saved with the rest of the config through `PATCH /api/settings`. There is no separate endpoint for it (the old `/api/history/category-tool` is gone).
+Which loot addon a category uses (`config.categoryLootTool`) is a **setting**: it is edited in Einstellungen → *Kategorien*, on that category's card, and saved with the rest of the config through `PATCH /api/settings`. There is no separate endpoint for it (the old `/api/history/category-tool` is gone).
 
 **Class colours in the client:** hand them to the DOM via `classColorProps()` (`ClassSpec.tsx`), not as `style={{ color }}` — it sets the `--cc` custom property so `.class-colored` can darken WoW's game palette for the light theme (Priest white and Rogue yellow are invisible on white otherwise).
 

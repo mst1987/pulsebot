@@ -7,7 +7,7 @@ const { getConfig } = require("./settingsStore");
 /**
  * The server the admin is managing, in this order:
  *   1. the guild explicitly selected in this session (the topbar switcher),
- *   2. the configured guild (Einstellungen → Zugang, default in
+ *   2. the configured guild (Einstellungen → Discord & Raid-Helper, default in
  *      config/variables.js) — the guild this bot is installed in, so it is what
  *      the switcher shows without anyone picking a server first,
  *   3. the bot's only guild, when it is in exactly one.

@@ -207,7 +207,7 @@ export function LootInboxTab({ sessions, events, categories, csrfToken, onChange
             <div className="empty">
                 Keine offenen Addon-Uploads.<br />
                 Das WoW-Addon lädt Raid-Sessions über das Sync-Tool hoch; sie erscheinen hier zur Bestätigung.
-                Ein API-Token dafür wird in den <a className="mlink" href="/admin/settings">Einstellungen → Loot-Sync</a> erzeugt.
+                Ein API-Token dafür wird in den <a className="mlink" href="/admin/settings?section=lootsync">Einstellungen → Loot-Sync</a> erzeugt.
             </div>
         );
     }

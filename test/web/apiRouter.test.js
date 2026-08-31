@@ -1683,7 +1683,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raids/ping-missing", { event: "e1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
             expect(body(res)).toEqual({
-                error: { code: "no_roles", message: "Dieser Kategorie sind keine Rollen zugeordnet (Einstellungen → Events)." },
+                error: { code: "no_roles", message: "Dieser Kategorie sind keine Rollen zugeordnet (Einstellungen → Kategorien)." },
             });
             expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
         });

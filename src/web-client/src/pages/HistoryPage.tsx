@@ -36,6 +36,21 @@ const TABS: { id: Tab; label: string; count?: (d: HistoryData) => number }[] = [
     { id: "chars", label: "Charaktere", count: (d) => d.chars.length },
 ];
 
+// Nine tabs in one row asked the admin to remember which of them was a stock
+// list, which an evaluation and which a way to get data in. They are the same
+// nine, one level deeper: the group says what kind of thing it is, the tab
+// which one. The open group follows from the open tab, so there is nothing
+// extra to remember or persist.
+const TAB_GROUPS: { id: string; label: string; tabs: Tab[] }[] = [
+    { id: "raids", label: "Raids", tabs: ["raids", "logs", "chars"] },
+    { id: "loot", label: "Loot", tabs: ["loot", "awards", "reasons", "items"] },
+    { id: "import", label: "Import", tabs: ["import", "inbox"] },
+];
+
+function groupOf(tab: Tab) {
+    return TAB_GROUPS.find((g) => g.tabs.includes(tab)) || TAB_GROUPS[0];
+}
+
 // The two overview tabs carry every loot row ever imported, so they load on
 // demand instead of with the page — opening "Alle Raids" must not pay for them.
 const STATS_TABS: Tab[] = ["reasons", "items"];
@@ -629,18 +644,32 @@ export default function HistoryPage() {
     if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
     if (!data) return <div className="empty">Lade…</div>;
 
+    const activeGroup = groupOf(tab);
+
     return (
         <>
             <h1 className="page-title">Historie &amp; Loot</h1>
             <p className="note">Loot pro Event importieren (RCLootcouncil-JSON oder Gargul-CSV), Warcraft-Logs verlinken und pro Charakter die Loot-Historie samt Armory einsehen. „Loot-Gründe" zeigt je Raider, wofür er Items bekommen hat, „Items" alle Items mit ihren Empfängern — filterbar nach Raid und Tier.</p>
 
             <div className="tabs" role="tablist">
-                {TABS.map((t) => {
+                {TAB_GROUPS.map((g) => (
+                    <button
+                        key={g.id} type="button" role="tab"
+                        className={`tab-btn${activeGroup.id === g.id ? " active" : ""}`}
+                        onClick={() => setTab(g.tabs[0])}
+                    >
+                        {g.label}
+                    </button>
+                ))}
+            </div>
+            <div className="subnav" role="tablist">
+                {activeGroup.tabs.map((id) => {
+                    const t = TABS.find((x) => x.id === id)!;
                     const count = t.id === "inbox" ? inbox.length : t.count?.(data);
                     return (
-                        <button key={t.id} type="button" className={`tab-btn${tab === t.id ? " active" : ""}`} role="tab" onClick={() => setTab(t.id)}>
+                        <button key={t.id} type="button" className={`subnav-item${tab === t.id ? " active" : ""}`} role="tab" onClick={() => setTab(t.id)}>
                             {t.label}
-                            {!!count && <span className="tab-count">{count}</span>}
+                            {!!count && <span className="subnav-count">{count}</span>}
                         </button>
                     );
                 })}

@@ -522,6 +522,44 @@ input[type=checkbox]:checked::after {
 
 .sheetcard { background: var(--panel2); border: 1px solid var(--line); border-radius: 0; padding: 14px; margin-bottom: 12px; }
 
+/* ===== section navigation (Einstellungen) =====
+   A page with a dozen sections outgrows a tab row: it wraps into three lines
+   that read as one undifferentiated list. The column carries a heading per
+   group instead, so a setting is found by *what kind* of setting it is. Below
+   the breakpoint it folds into chips — the headings stay, one per line, since
+   the grouping is the whole point. */
+.settings-layout { display: grid; grid-template-columns: 224px minmax(0, 1fr); gap: 26px; align-items: start; }
+.section-nav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 74px; border-right: 1px solid var(--line); padding-right: 14px; }
+.section-nav-group { display: flex; flex-direction: column; gap: 2px; }
+.section-nav-label { font-size: 10.5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); opacity: .7; padding: 14px 10px 5px; }
+.section-nav-group:first-child .section-nav-label { padding-top: 2px; }
+.section-nav-item { appearance: none; background: none; border: 1px solid transparent; border-radius: 8px; text-align: left; font: inherit; font-size: 14px; font-weight: 600; color: var(--muted); padding: 8px 10px; cursor: pointer; transition: background .12s, color .12s, border-color .12s; }
+.section-nav-item:hover { background: var(--panel2); color: var(--text); }
+.section-nav-item.active { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--text); }
+.settings-panel > .section-title { font-size: 19px; font-weight: 800; letter-spacing: -.01em; margin: 0 0 14px; }
+@media (max-width: 900px) {
+    .settings-layout { grid-template-columns: 1fr; gap: 18px; }
+    .section-nav { position: static; flex-direction: row; flex-wrap: wrap; gap: 6px; border-right: 0; padding-right: 0; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+    .section-nav-group { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; flex-basis: 100%; }
+    .section-nav-label { flex-basis: 100%; padding: 6px 0 0; }
+    .section-nav-group:first-child .section-nav-label { padding-top: 0; }
+    .section-nav-item { border-color: var(--line); }
+}
+
+/* ===== per-category settings card (Einstellungen → Kategorien) =====
+   One card per Discord category holding everything configured for it. A
+   category that isn't a raid category shows its switch and nothing else: those
+   fields would have no effect, and a guild has far more categories than raid
+   ones. */
+.catcard { background: var(--panel2); border: 1px solid var(--line); margin-bottom: 12px; }
+.catcard-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-bottom: 1px solid var(--line-soft); }
+.catcard-head.is-off { border-bottom: 0; }
+.catcard-head b { font-size: 15px; }
+.catcard-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.catcard-body { padding: 14px; display: grid; gap: 14px; }
+.catcard-body > .field:last-child, .catcard-grid > .field:last-child { margin-bottom: 0; }
+.catcard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+
 /* role permission matrix (Einstellungen → Berechtigungen) */
 .perm-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
 .perm-table th { text-align: left; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 6px 10px; border-bottom: 1px solid var(--line); }
