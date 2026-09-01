@@ -145,7 +145,7 @@ describe("web/logChannel — evaluateLog", () => {
         const res = await evaluateLog("l1", "rpb");
         expect(res).toMatchObject({ ok: true, section: "rpb" });
         // merges into the page the CLA run created rather than making a second one
-        expect(buildReport).toHaveBeenCalledWith("x", { sections: ["rpb"], mergeIntoId: "abc123" });
+        expect(buildReport).toHaveBeenCalledWith("x", { sections: ["rpb"], mergeIntoId: "abc123", force: false });
     });
 
     it("builds, marks evaluated and returns the url on success", async () => {
@@ -156,7 +156,7 @@ describe("web/logChannel — evaluateLog", () => {
         const res = await evaluateLog("l1");
         expect(buildReport).toHaveBeenCalledWith(
             "https://classic.warcraftlogs.com/reports/RPT1",
-            { sections: ["cla"], mergeIntoId: undefined },
+            { sections: ["cla"], mergeIntoId: undefined, force: false },
         );
         expect(logStore.markEvaluated).toHaveBeenCalledWith("l1", expect.objectContaining({
             reportRefId: "abc123", reportUrl: "/r/abc123", title: "SSC + TK", sections: ["cla"],

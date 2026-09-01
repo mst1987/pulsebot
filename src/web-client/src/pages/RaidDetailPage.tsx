@@ -9,6 +9,7 @@ import {
     type RaidDetailEventSheet, type LogSection, type SignupStatus,
 } from "../api";
 import { eventTimeParts, relativeDayLabel, fmtMs } from "../lib/format";
+import { withIncompleteConfirm } from "../lib/confirmIncomplete";
 import { usePersistedSearchParam, useDraftState } from "../lib/persistedState";
 import ItemSearchPicker from "../components/ItemSearchPicker";
 import {
@@ -1216,7 +1217,7 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
                 message: r.alreadyEvaluated ? `${label}-Auswertung lag bereits vor.` : `${label}-Auswertung erstellt.`,
                 link: r.url ? { href: r.url, label: "Report ansehen ↗", external: true } : undefined,
             }),
-        }, () => evalLog(csrfToken, l.id, section)).then(() => {
+        }, () => withIncompleteConfirm((force) => evalLog(csrfToken, l.id, section, { force }))).then(() => {
             setRunning((keys) => keys.filter((k) => k !== key));
             onChanged("");
         });

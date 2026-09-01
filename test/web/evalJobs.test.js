@@ -50,6 +50,20 @@ describe("web/evalJobs", () => {
         startJob("l1", "rpb", async () => ({ ok: false, error: "Report ist privat." }));
         await flush();
         expect(getJob("l1", "rpb")).toMatchObject({ status: "error", error: "Report ist privat." });
+        // ...and it is not the raid-still-running case, which the client asks about.
+        expect(getJob("l1", "rpb").incomplete).toBe(false);
+    });
+
+    it("marks a refusal over a still-running raid as such, not as a plain failure", async () => {
+        // The client turns this one into "trotzdem auswerten?" rather than a red
+        // message, so the flag has to survive the job (see raidProgress.js).
+        startJob("l1", "cla", async () => ({
+            ok: false, incomplete: true, error: "Der Endboss fehlt noch: Der Schwarze Tempel.",
+        }));
+        await flush();
+        expect(getJob("l1", "cla")).toMatchObject({
+            status: "error", incomplete: true, error: "Der Endboss fehlt noch: Der Schwarze Tempel.",
+        });
     });
 
     it("treats an already-evaluated result as done and keeps the url", async () => {

@@ -8,11 +8,29 @@ const { analyzeSunder } = require("./sunder");
 const { analyzeBossUptimes } = require("./bossUptimes");
 const { analyzeRpb, rpbSummaryLines } = require("./rpb");
 const { selectPlayers } = require("./common");
+const { analyzeRaidProgress, progressSummary } = require("./raidProgress");
 const { saveReport, getReport } = require("../../web/reportStore");
 const { publicBaseUrl } = require("../../config/variables");
 
 // A user-facing failure whose message is safe to show directly.
 class ReportError extends Error {}
+
+/**
+ * The raid was still running: its final boss is not down yet. Thrown before any
+ * of the expensive analysis happens, and carries the progress so the caller can
+ * offer "evaluate anyway" (opts.force) with the actual reason in hand.
+ */
+class IncompleteRaidError extends ReportError {
+    constructor(progress) {
+        super(`Der Raid sieht noch nicht abgeschlossen aus. ${progressSummary(progress)}`);
+        this.progress = progress;
+        // Callers branch on this flag rather than `instanceof`: they are spread
+        // over the bot and the web api, and every one of them mocks this module
+        // in its tests — a mock without the class turns `instanceof` into a
+        // TypeError, which would swallow the real error behind it.
+        this.incomplete = true;
+    }
+}
 
 // In-flight guard keyed by WCL report id + the sections being built, so a double
 // form submit (or two tabs) racing on the same link joins the build already
@@ -44,7 +62,10 @@ function normalizeSections(sections) {
  * @param {string|string[]} [opts.sections]  "cla", "rpb" or both (default: both)
  * @param {string} [opts.mergeIntoId]  existing report id to merge the result into,
  *   so both halves of a log end up on one page under one link
+ * @param {boolean} [opts.force]  build even though the raid's final boss is not
+ *   down yet — the deliberate answer to an IncompleteRaidError
  * @throws {ReportError} with a user-friendly message on any expected failure
+ * @throws {IncompleteRaidError} when the raid is still running and force is not set
  */
 async function buildReport(link, opts = {}) {
     const reportId = WarcraftLogs.parseReportId(link);
@@ -52,16 +73,18 @@ async function buildReport(link, opts = {}) {
         throw new ReportError("Konnte keine Report-ID aus dem Link lesen.");
     }
     const sections = normalizeSections(opts.sections);
-    const key = `${reportId}:${sections.join("+")}`;
+    // A forced build must not join an in-flight one that is about to refuse, and
+    // vice versa — they answer different questions about the same report.
+    const key = `${reportId}:${sections.join("+")}${opts.force ? ":force" : ""}`;
     const running = inFlight.get(key);
     if (running) return running;
-    const build = buildReportForId(reportId, sections, opts.mergeIntoId)
+    const build = buildReportForId(reportId, sections, opts.mergeIntoId, !!opts.force)
         .finally(() => inFlight.delete(key));
     inFlight.set(key, build);
     return build;
 }
 
-async function buildReportForId(reportId, sections, mergeIntoId) {
+async function buildReportForId(reportId, sections, mergeIntoId, force) {
     const wantCla = sections.includes(SECTION_CLA);
     const wantRpb = sections.includes(SECTION_RPB);
     let wcl;
@@ -71,9 +94,22 @@ async function buildReportForId(reportId, sections, mergeIntoId) {
         throw new ReportError("WCL-API-Key fehlt (WARCRAFTLOGS_API_KEY in .env).");
     }
 
-    let fights, table;
+    let fights;
     try {
         fights = await wcl.getFights(reportId);
+    } catch (e) {
+        const status = e.response ? ` (HTTP ${e.response.status})` : "";
+        throw new ReportError(`Report konnte nicht geladen werden${status}. Stimmt der Link und ist der Report öffentlich?`);
+    }
+
+    // Before anything expensive: has the raid actually ended? The fight list is
+    // the one request this needs, and it is the one already made — so a refusal
+    // costs a single call instead of the dozens the analysis would spend.
+    const progress = analyzeRaidProgress(fights);
+    if (!force && !progress.complete) throw new IncompleteRaidError(progress);
+
+    let table;
+    try {
         table = await wcl.getCasts(reportId, 0, fights.end || 999999999999);
     } catch (e) {
         const status = e.response ? ` (HTTP ${e.response.status})` : "";
@@ -139,6 +175,9 @@ async function buildReportForId(reportId, sections, mergeIntoId) {
         reportUrl: `https://classic.warcraftlogs.com/reports/${reportId}`,
         generatedAt: Date.now(),
         sections,
+        // Kept on the report so a page built over a still-running raid says so,
+        // instead of the reader having to remember that it was forced.
+        raidProgress: progress,
         players,
         consumables,
         shadowResi,
@@ -273,6 +312,7 @@ module.exports = {
     normalizeSections,
     stripSection,
     ReportError,
+    IncompleteRaidError,
     SECTION_CLA,
     SECTION_RPB,
     ALL_SECTIONS,

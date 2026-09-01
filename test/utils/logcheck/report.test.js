@@ -42,13 +42,23 @@ jest.mock("../../../src/config/variables.js", () => ({ publicBaseUrl: "http://lo
 const { analyzeConsumables } = require("../../../src/utils/logcheck/consumables.js");
 const { analyzeRpb } = require("../../../src/utils/logcheck/rpb/index.js");
 const {
-    buildReport, mergeRoster, reportSummaryLines, normalizeSections, stripSection, ReportError,
+    buildReport, mergeRoster, reportSummaryLines, normalizeSections, stripSection,
+    ReportError, IncompleteRaidError,
 } = require("../../../src/utils/logcheck/report.js");
 
 beforeEach(() => {
     jest.clearAllMocks();
     mockParseReportId.mockImplementation((link) => String(link || "").trim() || null);
-    mockGetFights.mockResolvedValue({ title: "SSC + TK", zoneName: "Serpentshrine Cavern", start: 0, end: 100 });
+    // A finished raid night by default: buildReport refuses to evaluate one whose
+    // final boss is still standing (see the guard tests at the bottom), so every
+    // other test here needs a log that actually got to the end.
+    mockGetFights.mockResolvedValue({
+        title: "SSC + TK", zoneName: "Serpentshrine Cavern", start: 0, end: 100,
+        fights: [
+            { id: 1, boss: 623, name: "Hydross the Unstable", kill: true },
+            { id: 2, boss: 628, name: "Lady Vashj", kill: true },
+        ],
+    });
     mockGetCasts.mockResolvedValue({ entries: [] });
     mockGetReport.mockReturnValue(null);
     let n = 0;
@@ -313,5 +323,74 @@ describe("logcheck/report — reportSummaryLines", () => {
 
     it("always names the raider count", () => {
         expect(reportSummaryLines(report, "rpb")[0]).toContain("Raider");
+    });
+});
+
+describe("logcheck/report — the unfinished-raid guard", () => {
+    /** A report whose raid is still running: SSC with Vashj still up. */
+    function stillRunning() {
+        mockGetFights.mockResolvedValue({
+            title: "SSC", zoneName: "Serpentshrine Cavern", start: 0, end: 100,
+            fights: [
+                { id: 1, boss: 623, name: "Hydross the Unstable", kill: true },
+                { id: 2, boss: 628, name: "Lady Vashj", kill: false },
+            ],
+        });
+    }
+
+    it("refuses to evaluate a raid whose final boss is still up", async () => {
+        stillRunning();
+        await expect(buildReport("RPT1")).rejects.toThrow(IncompleteRaidError);
+        expect(mockSaveReport).not.toHaveBeenCalled();
+    });
+
+    it("refuses before spending the analysis, not after", async () => {
+        // The fight list is the one request the guard needs — and the one that
+        // was already made. Everything else must not have been touched.
+        stillRunning();
+        await expect(buildReport("RPT1")).rejects.toThrow(IncompleteRaidError);
+        expect(mockGetFights).toHaveBeenCalledTimes(1);
+        expect(mockGetCasts).not.toHaveBeenCalled();
+        expect(analyzeConsumables).not.toHaveBeenCalled();
+        expect(analyzeRpb).not.toHaveBeenCalled();
+    });
+
+    it("carries the progress, so the caller can say what is missing", async () => {
+        stillRunning();
+        const err = await buildReport("RPT1").catch((e) => e);
+        expect(err).toBeInstanceOf(IncompleteRaidError);
+        expect(err.progress.pending).toEqual(["Höhle des Schlangenschreins"]);
+        expect(err.message).toContain("Lady Vashj");
+    });
+
+    it("builds anyway when forced", async () => {
+        stillRunning();
+        await expect(buildReport("RPT1", { force: true })).resolves.toMatchObject({ id: expect.any(String) });
+        expect(mockSaveReport).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the forced build apart from the refusing one", async () => {
+        // Both are in flight for the same report id and answer different
+        // questions — joining them would have one return the other's result.
+        stillRunning();
+        const [refused, forced] = await Promise.all([
+            buildReport("RPT1").catch((e) => e),
+            buildReport("RPT1", { force: true }),
+        ]);
+        expect(refused).toBeInstanceOf(IncompleteRaidError);
+        expect(forced.id).toEqual(expect.any(String));
+    });
+
+    it("records on the report that the raid was not finished", async () => {
+        stillRunning();
+        await buildReport("RPT1", { force: true });
+        const saved = mockSaveReport.mock.calls[0][0];
+        expect(saved.raidProgress.complete).toBe(false);
+        expect(saved.raidProgress.pending).toEqual(["Höhle des Schlangenschreins"]);
+    });
+
+    it("lets a finished raid straight through", async () => {
+        await expect(buildReport("RPT1")).resolves.toMatchObject({ id: expect.any(String) });
+        expect(mockGetCasts).toHaveBeenCalled();
     });
 });

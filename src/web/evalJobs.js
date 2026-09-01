@@ -58,6 +58,7 @@ function startJob(logId, section, runner) {
         id: "",
         error: "",
         already: false,
+        incomplete: false,
     };
     jobs.set(key, job);
 
@@ -78,6 +79,10 @@ function startJob(logId, section, runner) {
             } else {
                 job.status = "error";
                 job.error = (res && res.error) || "Auswertung fehlgeschlagen.";
+                // The raid was still running when the guard looked. It ends the
+                // job like an error, but the client turns it into a question
+                // ("trotzdem auswerten?") rather than a red message.
+                job.incomplete = !!(res && res.incomplete);
             }
         })
         .catch((e) => {
@@ -92,7 +97,7 @@ function startJob(logId, section, runner) {
 
 /**
  * Current state of an evaluation.
- * @returns {null | {status:"running"|"done"|"error", url, id, error, already, runningMs}}
+ * @returns {null | {status:"running"|"done"|"error", url, id, error, already, incomplete, runningMs}}
  */
 function getJob(logId, section) {
     prune();
@@ -104,6 +109,7 @@ function getJob(logId, section) {
         id: job.id,
         error: job.error,
         already: job.already,
+        incomplete: !!job.incomplete,
         runningMs: (job.finishedAt || Date.now()) - job.startedAt,
     };
 }

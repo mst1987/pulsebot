@@ -117,3 +117,35 @@ describe("commands/logcheck/logeval", () => {
         expect(arg.content).toContain("/r/old");
     });
 });
+
+describe("commands/logcheck/logeval — a raid that is still running", () => {
+    it("offers the confirm button instead of a dead end", async () => {
+        // The guard refused; the click that follows opens the modal (see
+        // logevalForce.js), so the refusal must carry that button.
+        evaluateLog.mockResolvedValue({
+            ok: false,
+            incomplete: true,
+            error: "Der Raid sieht noch nicht abgeschlossen aus. Der Endboss fehlt noch: **Der Schwarze Tempel**.",
+            progress: { complete: false, pending: ["Der Schwarze Tempel"] },
+        });
+        const interaction = mockInteraction({ customId: "logcheck-eval:log1:cla" });
+
+        await command.execute(interaction);
+
+        const reply = interaction.editReply.mock.calls[0][0];
+        expect(reply.content).toContain("Der Schwarze Tempel");
+        expect(JSON.stringify(reply.components)).toContain("logcheck-force:log:log1:cla");
+    });
+
+    it("leaves an ordinary failure without a confirm button", async () => {
+        // "Evaluate anyway" makes no sense for a broken link or a private report.
+        evaluateLog.mockResolvedValue({ ok: false, error: "Report konnte nicht geladen werden." });
+        const interaction = mockInteraction({ customId: "logcheck-eval:log1:cla" });
+
+        await command.execute(interaction);
+
+        const reply = interaction.editReply.mock.calls[0][0];
+        expect(reply.content).toContain("Report konnte nicht geladen werden.");
+        expect(reply.components).toBeUndefined();
+    });
+});

@@ -109,9 +109,14 @@ const SECTION_LABEL = { [SECTION_CLA]: "CLA", [SECTION_RPB]: "RPB" };
  *
  * @param {string} logId
  * @param {string} [section]  "cla" or "rpb" (default: "cla")
- * @returns {Promise<{ok:true,id,url,report,log,section} | {ok:false,error,already?,url?}>}
+ * @param {object} [opts]
+ * @param {boolean} [opts.force]  evaluate even though the raid's final boss is
+ *   not down yet; without it such a log comes back as `{ incomplete: true }`
+ *   with the progress, so the caller can ask before spending the analysis
+ * @returns {Promise<{ok:true,id,url,report,log,section}
+ *   | {ok:false,error,already?,url?,incomplete?,progress?}>}
  */
-async function evaluateLog(logId, section = SECTION_CLA) {
+async function evaluateLog(logId, section = SECTION_CLA, opts = {}) {
     const kind = section === SECTION_RPB ? SECTION_RPB : SECTION_CLA;
     const log = logStore.getLog(logId);
     if (!log) return { ok: false, error: "Log nicht gefunden." };
@@ -139,8 +144,14 @@ async function evaluateLog(logId, section = SECTION_CLA) {
                 sections: [kind],
                 // fold into the page the other half already created, if there is one
                 mergeIntoId: log.reportRefId || undefined,
+                force: !!opts.force,
             });
         } catch (e) {
+            // The raid is still running: a refusal to answer, not a failure —
+            // the caller offers "evaluate anyway" instead of showing an error.
+            if (e && e.incomplete) {
+                return { ok: false, incomplete: true, progress: e.progress, error: e.message };
+            }
             const msg = e instanceof ReportError ? e.message : "Unerwarteter Fehler beim Erstellen der Auswertung.";
             if (!(e instanceof ReportError)) console.error("evaluateLog build failed:", e);
             return { ok: false, error: msg };

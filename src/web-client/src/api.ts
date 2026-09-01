@@ -1365,7 +1365,16 @@ export type JobPollStatus = {
     url?: string;
     id?: string;
     error?: string;
+    /** The job stopped because the raid's final boss is not down yet. */
+    incomplete?: boolean;
 };
+
+/**
+ * The error code a refused evaluation carries — the raid was still running.
+ * Not a failure: the caller asks whether to run it anyway and retries with
+ * force (see lib/confirmIncomplete.ts).
+ */
+export const RAID_INCOMPLETE = "raid_incomplete";
 
 /**
  * Build a report from a pasted Warcraft-Logs link, to completion.
@@ -1375,8 +1384,12 @@ export type JobPollStatus = {
  * outcome is collected by polling. Callers run this through useJobs().run(),
  * so it keeps going while the admin browses elsewhere.
  */
-export async function createReport(csrfToken: string | null, link: string): Promise<{ id: string; url: string }> {
-    const started = await send<{ jobId: string }>("POST", "/api/cla", csrfToken, { link });
+export async function createReport(
+    csrfToken: string | null,
+    link: string,
+    opts: { force?: boolean } = {},
+): Promise<{ id: string; url: string }> {
+    const started = await send<{ jobId: string }>("POST", "/api/cla", csrfToken, { link, force: !!opts.force });
     const state = await pollJob(
         () => get<JobPollStatus>(`/api/cla/report-status?jobId=${encodeURIComponent(started.jobId)}`),
         "Die Auswertung konnte nicht erstellt werden.",
@@ -1402,7 +1415,10 @@ async function pollJob(
         const state = await read();
         if (state.status === "done") return state;
         if (state.status === "error") {
-            throw { code: "job_failed", message: state.error || failMessage } as ApiError;
+            // A raid that is still running is a question, not a failure — the
+            // caller offers "evaluate anyway" on this code.
+            const code = state.incomplete ? RAID_INCOMPLETE : "job_failed";
+            throw { code, message: state.error || failMessage } as ApiError;
         }
         if (state.status === "unknown") {
             // the job vanished without leaving a result (server restart mid-run)
@@ -1450,6 +1466,7 @@ export type EvalStatus = {
     url?: string;
     id?: string;
     error?: string;
+    incomplete?: boolean;
     section?: LogSection;
     runningMs?: number;
 };
@@ -1459,8 +1476,9 @@ export function startEval(
     csrfToken: string | null,
     logId: string,
     section: LogSection = "cla",
+    opts: { force?: boolean } = {},
 ): Promise<EvalStart> {
-    return send("POST", "/api/cla/eval", csrfToken, { logId, section });
+    return send("POST", "/api/cla/eval", csrfToken, { logId, section, force: !!opts.force });
 }
 
 /** Current state of a started evaluation. */
@@ -1496,8 +1514,9 @@ export async function evalLog(
     csrfToken: string | null,
     logId: string,
     section: LogSection = "cla",
+    opts: { force?: boolean } = {},
 ): Promise<{ url: string; id?: string; alreadyEvaluated?: boolean; section?: LogSection }> {
-    const started = await startEval(csrfToken, logId, section);
+    const started = await startEval(csrfToken, logId, section, opts);
     if (started.alreadyEvaluated) {
         return { url: started.url || "", alreadyEvaluated: true, section };
     }
