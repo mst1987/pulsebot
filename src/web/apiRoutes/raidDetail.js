@@ -27,6 +27,7 @@ const {
 const softres = require("../../utils/softres");
 const wowhead = require("../../utils/wowhead");
 const { listByEvent: listLootByEvent } = require("../lootStore");
+const { withClassLook: withLootClassLook } = require("../lootClassLook");
 const { listLogs, listLogsForEvent, evaluatedSections } = require("../logStore");
 const { backfillLogTitles } = require("../logChannel");
 const { createRaidhelperClient } = require("../../utils/raidhelperClient");
@@ -187,7 +188,7 @@ async function getRaidDetail(req, res, url) {
         attendanceRoleIds: categoryRoleIds,
         membersError,
         signupTarget,
-        lootItems: listLootByEvent(eventId),
+        lootItems: withLootClassLook(listLootByEvent(eventId)),
         lootTool: (getConfig().categoryLootTool || {})[found.g.categoryId] || "",
         eventLogs,
         unlinkedLogs,

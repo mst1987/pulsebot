@@ -32,7 +32,7 @@ const {
 } = require("./apiRoutes/recruitment");
 const {
     getHistoryData, getLootStats, getLootAwards, deleteHistoryLog, importLoot, setLootCategory, deleteLootItems, clearHistoryEvent, getHistoryEvent,
-    resolveCharacters, getHistoryChar,
+    resolveCharacters, getHistoryChar, getLootPicker, addLootItem,
     getLootInbox, acceptLootInbox, dismissLootInbox,
 } = require("./apiRoutes/history");
 const {
@@ -287,6 +287,14 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/history/loot-delete" && req.method === "POST") {
         await deleteLootItems(req, res);
+        return true;
+    }
+    if (pathname === "/api/history/loot-picker" && req.method === "GET") {
+        await getLootPicker(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/history/loot-add" && req.method === "POST") {
+        await addLootItem(req, res);
         return true;
     }
     if (pathname === "/api/history/clear" && req.method === "POST") {

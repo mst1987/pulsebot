@@ -9,12 +9,14 @@ import type { LootItem } from "../api";
 import { fmtMs } from "../lib/format";
 import { useTableSort, type Dir } from "../lib/tableSort";
 import { itemQualityProps } from "../lib/itemQuality";
-import { CharacterLink } from "./ClassSpec";
 import { SortTh } from "./SortTh";
-import { reasonToneClass } from "./LootBadges";
+import { RaiderBadge, reasonToneClass } from "./LootBadges";
 import { TrashIcon } from "./icons";
 
-const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil" };
+// "manual" is a row somebody entered in the admin menu rather than one an addon
+// exported (see lootImport.js's buildManualItem) — worth saying in the table,
+// since it is the one kind of row no re-import will bring back.
+const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil", manual: "Manuell" };
 
 type SortKey = "item" | "character" | "response" | "boss" | "event" | "time" | "source";
 
@@ -113,7 +115,13 @@ export function LootTable({ items, showEvent = false, onDelete }: {
                                 ? <a {...itemQualityProps(it.itemQuality, "mlink")} href={it.itemLink} target="_blank" rel="noopener noreferrer">{it.itemName || `Item ${it.itemId}`}</a>
                                 : <span {...itemQualityProps(it.itemQuality)}>{it.itemName || `Item ${it.itemId}`}</span>}
                         </td>
-                        <td><CharacterLink character={it.character} /></td>
+                        {/* Spec icon + class colour, not a plain link: "who got
+                            what" is read down this column, and the class is the
+                            first thing a raid lead checks a hunter bow or a
+                            healer trinket against. The look comes from the
+                            server (lootClassLook.js); a character whose class
+                            nobody has resolved yet renders uncoloured. */}
+                        <td><RaiderBadge character={it.character} classColor={it.classColor} iconUrl={it.specIconUrl} className={it.className} spec={it.spec} /></td>
                         <td className="small"><LootResponseBadge response={it.response} offspec={it.offspec} reasonLabel={it.reasonLabel} reasonTone={it.reasonTone} /></td>
                         <td className="small">{it.boss || ""}</td>
                         {showEvent && <td className="small">{it.eventLabel || it.eventId || ""}</td>}

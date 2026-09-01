@@ -1,5 +1,5 @@
 const {
-    CONTENTS, TIERS, RAID_LOOT, content, tier, sourceForItem, contentForInstance, contentForLoot, tokenTier,
+    CONTENTS, TIERS, RAID_LOOT, content, tier, sourceForItem, contentForInstance, contentsForText, contentForLoot, tokenTier,
 } = require("../../src/config/tbcContent");
 
 describe("tbcContent", () => {
@@ -173,6 +173,31 @@ describe("tbcContent", () => {
             expect(tokenTier("Dragonspine Trophy")).toBe("");
             expect(tokenTier("Warglaive of Azzinoth")).toBe("");
             expect(tokenTier("")).toBe("");
+        });
+    });
+
+    describe("contentsForText", () => {
+        it("names every raid a combined night mentions, in CONTENTS order", () => {
+            expect(contentsForText("SSC/TK Donnerstag")).toEqual(["ssc", "tk"]);
+            expect(contentsForText("Hyjal + BT")).toEqual(["hyjal", "bt"]);
+            expect(contentsForText("Gruul & Mag")).toEqual(["gruul", "mag"]);
+        });
+
+        it("also understands the instance strings an export writes", () => {
+            expect(contentsForText("Serpentshrine Cavern-25 Player")).toEqual(["ssc"]);
+            expect(contentsForText("Der Schwarze Tempel")).toEqual(["bt"]);
+        });
+
+        it("answers nothing rather than guessing", () => {
+            expect(contentsForText("Raidabend")).toEqual([]);
+            expect(contentsForText("")).toEqual([]);
+            expect(contentsForText(null)).toEqual([]);
+        });
+
+        it("does not match an abbreviation inside another word", () => {
+            // "BT" in "Debt", "ZA" in "Zangarmarschen" — the short forms only
+            // count on word boundaries.
+            expect(contentsForText("Debt Zangarmarschen")).toEqual([]);
         });
     });
 

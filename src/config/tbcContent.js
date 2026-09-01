@@ -202,6 +202,44 @@ function contentForInstance(instance) {
     return hit ? hit.content : "";
 }
 
+// What a raid night is called in a Raid-Helper title, which is not what an
+// addon writes into an export: nobody names an event "Serpentshrine Cavern-25
+// Player", they write "SSC/TK" or "Hyjal + BT". Kept apart from
+// INSTANCE_PATTERNS on purpose — these abbreviations are short enough to hit
+// inside an unrelated word ("BT" in "Debt", "ZA" in "Zangarmarschen"), so they
+// only ever match on word boundaries.
+const TITLE_PATTERNS = [
+    { content: "kara", re: /\bkara\b|\bkz\b/i },
+    { content: "gruul", re: /\bgruul\b|\bhdz\b/i },
+    { content: "mag", re: /\bmag(theridon)?\b/i },
+    { content: "ssc", re: /\bssc\b|\bhds\b/i },
+    { content: "tk", re: /\btk\b|\bfds\b/i },
+    { content: "za", re: /\bza\b/i },
+    { content: "hyjal", re: /\bmh\b|\bhyjal\b/i },
+    { content: "bt", re: /\bbt\b|\bswt\b/i },
+    { content: "swp", re: /\bswp\b|\bsunwell\b|\bsonnenbrunnen\b/i },
+];
+
+/**
+ * Every content a free text names, in CONTENTS order — "SSC + TK" is two raids,
+ * and answering with one of them would be a wrong answer (TBC nights routinely
+ * combine raids, the same reason lootSessionContent.js may name more than one).
+ * Matches both the full instance names an export writes and the abbreviations
+ * an event title uses. Returns [] when nothing is recognised, so a caller can
+ * offer everything instead of a guess.
+ * @param {string} text
+ * @returns {string[]} content ids
+ */
+function contentsForText(text) {
+    const s = String(text || "").trim();
+    if (!s) return [];
+    const hits = new Set();
+    for (const p of [...INSTANCE_PATTERNS, ...TITLE_PATTERNS]) {
+        if (p.re.test(s)) hits.add(p.content);
+    }
+    return CONTENTS.map((c) => c.id).filter((id) => hits.has(id));
+}
+
 /**
  * Where a loot row came from: the item table first (works for every source,
  * including Gargul's id-only rows), the export's instance string second.
@@ -281,7 +319,7 @@ for (const [contentId, names] of Object.entries(FINAL_BOSSES)) {
 
 module.exports = {
     TIERS, CONTENTS, RAID_LOOT, FINAL_BOSSES,
-    content, sourceForItem, contentForInstance, contentForLoot, tokenTier,
+    content, sourceForItem, contentForInstance, contentsForText, contentForLoot, tokenTier,
     finalBossesFor, contentForBoss, normalizeBoss,
     tier: (id) => TIER_BY_ID.get(String(id || "")) || null,
 };

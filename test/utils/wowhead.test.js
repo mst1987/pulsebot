@@ -59,8 +59,19 @@ describe("utils/wowhead", () => {
                 iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_pants_plate_07.jpg",
                 quality: 4,
             });
+            // On the TBC branch, not the branchless endpoint: retail answers
+            // with retail's data, where the era's relics and idols are quality 0.
             expect(axios.get).toHaveBeenCalledWith(
-                "https://nether.wowhead.com/tooltip/item/29991",
+                "https://nether.wowhead.com/tbc/tooltip/item/29991",
+                expect.objectContaining({ httpsAgent: expect.anything() })
+            );
+        });
+
+        it("asks the branch of the edition it is given", async () => {
+            axios.get.mockResolvedValue({ data: { name: "Frostmourne", icon: "inv_sword_82", quality: 5 } });
+            await wowhead.lookupItem(49623, { edition: "wotlk" });
+            expect(axios.get).toHaveBeenCalledWith(
+                "https://nether.wowhead.com/wotlk/tooltip/item/49623",
                 expect.objectContaining({ httpsAgent: expect.anything() })
             );
         });

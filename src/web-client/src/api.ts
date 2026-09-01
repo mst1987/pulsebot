@@ -789,7 +789,8 @@ export function scanRecruitmentPosts(csrfToken: string | null): Promise<{ count:
 export type HistoryEvent = { id: string; title: string; startTime: number; categoryId: string };
 export type RaidRow = RecentEvent;
 
-export type LootSource = "gargul" | "rclc" | string;
+// "manual" is a row entered in the admin menu rather than exported by an addon.
+export type LootSource = "gargul" | "rclc" | "manual" | string;
 
 export type LootEventSummary = {
     eventId: string;
@@ -850,6 +851,14 @@ export type LootItem = {
     source: LootSource;
     eventId?: string;
     eventLabel?: string;
+    // How the winner plays — joined onto the row on read (web/lootClassLook.js),
+    // not stored with it: a raider's class is a fact about them, not about the
+    // item. All four are "" for a character whose class nobody has resolved yet,
+    // and their name then renders uncoloured.
+    className?: string;
+    spec?: string;
+    classColor?: string;
+    specIconUrl?: string;
 };
 
 // A loot character with its resolved WoW class/spec (or blank if unresolved
@@ -1073,6 +1082,80 @@ export function clearHistoryEvent(csrfToken: string | null, event: string): Prom
  */
 export function deleteLootItems(csrfToken: string | null, ids: string[]): Promise<{ removed: number }> {
     return send("POST", "/api/history/loot-delete", csrfToken, { ids });
+}
+
+// ---- adding one award by hand ("Item nachtragen") ----
+
+/** One possible drop of a raid, as the picker lists it. */
+export type RaidDropItem = {
+    id: number;
+    name: string;
+    iconUrl: string;
+    itemLink: string;
+    /** See LootItem.itemQuality — colours the name. */
+    quality: number | null;
+    /** "Trash" and "" are not encounters; see tbcContent.js's RAID_LOOT. */
+    boss: string;
+};
+
+/** A raid with everything that can drop in it. */
+export type LootCatalogContent = {
+    id: string;
+    label: string;
+    short: string;
+    tier: string;
+    tierLabel: string;
+    items: RaidDropItem[];
+};
+
+/** A raider the award can be credited to, with the look their name renders in. */
+export type LootPickerCharacter = {
+    character: string;
+    className: string;
+    spec: string;
+    classColor: string;
+    iconUrl: string;
+};
+
+export type LootPickerData = {
+    contents: LootCatalogContent[];
+    /** Which raid(s) this event was — the picker opens on the first of them. */
+    suggested: string[];
+    reasons: { id: string; label: string; tone: string }[];
+    characters: LootPickerCharacter[];
+};
+
+/**
+ * What the "Item nachtragen" form offers: the raid drop tables, the raid(s) the
+ * event was, the award reasons and the known raiders. Static apart from the
+ * per-event suggestion, so a page loads it once when the form is opened.
+ */
+export function getLootPicker(event: string, title = ""): Promise<LootPickerData> {
+    return get<LootPickerData>(`/api/history/loot-picker?event=${encodeURIComponent(event)}&title=${encodeURIComponent(title)}`);
+}
+
+export type AddLootInput = {
+    event: string;
+    itemId: number;
+    character: string;
+    boss?: string;
+    instance?: string;
+    response?: string;
+    offspec?: boolean;
+    /** Unix ms; the server falls back to "now" when it is 0/absent. */
+    awardedAt?: number;
+};
+
+/**
+ * Add one award that no export carried (handed out after the raid, a night
+ * nobody logged). Rejects with a 409 when the same item/raider/time is already
+ * stored — that is a double submit, not a second drop.
+ */
+export function addLootItem(
+    csrfToken: string | null,
+    input: AddLootInput,
+): Promise<{ eventId: string; eventLabel: string; added: number; skipped: number; item: LootItem }> {
+    return send("POST", "/api/history/loot-add", csrfToken, input);
 }
 
 // ---- addon inbox: raid sessions the loot-sync tool uploaded, awaiting a decision ----
