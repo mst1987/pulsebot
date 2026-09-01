@@ -33,20 +33,20 @@ async function handle(req, res) {
     let pathname = "/";
     try { pathname = decodeURIComponent(url.pathname); } catch { pathname = "/"; }
 
-    // --- React admin client (see src/web-client/) ---
+    // --- React client (see src/web-client/), served from the root below ---
     if (pathname.startsWith("/api/")) {
         await apiRouter.handle(pathname, req, res, url);
         return;
     }
-    // Transitional redirect for the client's old "/admin2" mount (pre-cutover
-    // bookmarks) to its current path under "/admin".
-    if (pathname === "/admin2" || pathname.startsWith("/admin2/")) {
-        const rest = pathname === "/admin2" ? "" : pathname.slice("/admin2".length);
-        return redirect(res, `/admin${rest}${url.search || ""}`);
-    }
-    if (pathname === "/admin" || pathname.startsWith("/admin/")) {
-        if (await staticClient.serve(req, res, pathname)) return;
-        return send(res, 404, renderNotFound());
+    // The menu used to sit under /admin (and before that /admin2). It serves
+    // members looking up loot as much as officers, so it moved to the root —
+    // both old mounts redirect there, which keeps every bookmark and every link
+    // already posted in Discord working, one hop later.
+    for (const legacy of ["/admin2", "/admin"]) {
+        if (pathname === legacy || pathname.startsWith(`${legacy}/`)) {
+            const rest = pathname.slice(legacy.length);
+            return redirect(res, `${rest || "/"}${url.search || ""}`);
+        }
     }
 
     // --- auth routes ---
@@ -95,12 +95,8 @@ async function handle(req, res) {
         res.writeHead(200, { "Content-Type": "text/plain" });
         return res.end("ok");
     }
-    // Start page = admin dashboard, now the React SPA under /admin. Auth gating
-    // for the admin menu happens client-side there (see src/web-client/src/App.tsx);
-    // the public report pages below (/r/...) stay reachable without login.
-    if (pathname === "/" || pathname === "") {
-        return redirect(res, "/admin");
-    }
+    // The public report pages keep their own paths and are matched before the
+    // SPA — they are server-rendered and reachable without a login.
     // per-raider detail page: /r/<id>/p/<idx>
     const pm = pathname.match(/^\/r\/([a-zA-Z0-9]+)\/p\/(\d+)\/?$/);
     if (pm) {
@@ -114,6 +110,11 @@ async function handle(req, res) {
         if (report) return send(res, 200, renderReportPage(report, auth.getUser(req)));
         return send(res, 404, renderNotFound());
     }
+    // Everything else is the client: "/" and every page path below it. Who may
+    // see what is decided in the client and, for real, by /api/* (apiAccess.js);
+    // an unknown path lands on the client's own "not found" page.
+    if (await staticClient.serve(req, res, pathname)) return;
+    // Only reached when dist/ was never built — see "Web Admin" in CLAUDE.md.
     return send(res, 404, renderNotFound());
 }
 

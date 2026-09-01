@@ -523,9 +523,9 @@ describe("web/render", () => {
             expect(html).toContain("class=\"app\"");
             expect(html).toContain("id=\"sideNav\"");
             // full admin navigation, with the CLA section highlighted
-            expect(html).toContain("href=\"/admin/cla\"");
-            expect(html).toContain("href=\"/admin/raids\"");
-            expect(html).toContain("href=\"/admin/settings\"");
+            expect(html).toContain("href=\"/cla\"");
+            expect(html).toContain("href=\"/raids\"");
+            expect(html).toContain("href=\"/settings\"");
             expect(html).toContain("nav-item area-cla active");
             // breadcrumbs down to the report + the user footer
             expect(html).toContain("CLA / Logcheck");

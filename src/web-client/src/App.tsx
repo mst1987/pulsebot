@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, Link } from "react-router-dom";
 import Shell, { firstAllowedTab } from "./components/Shell";
 import DashboardPage from "./pages/DashboardPage";
 import ChannelsPage from "./pages/ChannelsPage";
@@ -49,6 +49,19 @@ function NoAreaNotice() {
     );
 }
 
+/**
+ * A path no route claims. The server hands every unknown GET to the client
+ * (staticClient.js), so without this the page would simply stay blank.
+ */
+function NotFound() {
+    return (
+        <div className="empty" style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center", paddingTop: 60 }}>
+            <p>Diese Seite gibt es nicht.</p>
+            <Link className="mlink" to="/">Zurück zur Übersicht</Link>
+        </div>
+    );
+}
+
 type LoadState =
     | { status: "loading" }
     | { status: "ready"; session: Session }
@@ -80,7 +93,7 @@ export default function App() {
     if (!user) {
         return (
             <div className="empty" style={{ display: "flex", flexDirection: "column", gap: 14, alignItems: "center", paddingTop: 80 }}>
-                <p>Bitte melde dich mit Discord an, um das Admin-Menü zu nutzen.</p>
+                <p>Bitte melde dich mit Discord an, um das Gildenmenü zu nutzen.</p>
                 <a className="mlink" href="/auth/login">Mit Discord anmelden</a>
             </div>
         );
@@ -123,6 +136,9 @@ export default function App() {
                         its back-link pointing at wherever it was opened from. */}
                     <Route path="roster/char" element={<Guard user={user} areas={["roster"]}><HistoryCharPage /></Guard>} />
                     <Route path="cla" element={<Guard user={user} areas={["cla"]}><ClaPage /></Guard>} />
+                    {/* Inside the shell on purpose: a mistyped path should still
+                        leave the menu (and the way back) standing. */}
+                    <Route path="*" element={<NotFound />} />
                 </Route>
             </Routes>
         </JobsProvider>

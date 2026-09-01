@@ -82,10 +82,10 @@ describe("web/server", () => {
             expect(res.end).toHaveBeenCalledWith("ok");
         });
 
-        it("GET / redirects to the admin SPA regardless of auth state (client-side gated there)", async () => {
+        it("GET / serves the SPA regardless of auth state (client-side gated there)", async () => {
             auth.getUser.mockReturnValue(null);
-            const res = await request({ url: "/", method: "GET", headers: {} });
-            expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({ Location: "/admin" }));
+            await request({ url: "/", method: "GET", headers: {} });
+            expect(staticClient.serve).toHaveBeenCalledWith(expect.any(Object), expect.any(Object), "/");
         });
 
         it("GET /r/<id> renders the report when it exists", async () => {
@@ -126,9 +126,13 @@ describe("web/server", () => {
             expect(render.renderPlayerPage).toHaveBeenCalledWith({ id: "abc" }, 2, { id: "u1", name: "Admin", isAdmin: true });
         });
 
-        it("returns 404 for an unknown path", async () => {
+        // An unknown GET is a client route as far as the server is concerned;
+        // the "not found" page is the client's (App.tsx). A server 404 is left
+        // for the case where there is no build to serve at all.
+        it("hands an unknown path to the client", async () => {
             const res = await request({ url: "/nope", method: "GET", headers: {} });
-            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+            expect(staticClient.serve).toHaveBeenCalledWith(expect.any(Object), expect.any(Object), "/nope");
+            expect(res.writeHead).not.toHaveBeenCalledWith(404, expect.any(Object));
         });
 
         it("returns 405 for a non-GET method on a normal path", async () => {
@@ -202,27 +206,53 @@ describe("web/server", () => {
             expect(apiRouter.handle).toHaveBeenCalledWith("/api/session", expect.any(Object), expect.any(Object), expect.any(URL));
         });
 
-        it("delegates /admin and /admin/* requests to staticClient", async () => {
-            await request({ url: "/admin/recruitment", method: "GET", headers: {} });
-            expect(staticClient.serve).toHaveBeenCalledWith(expect.any(Object), expect.any(Object), "/admin/recruitment");
+        it("delegates a page path to staticClient", async () => {
+            await request({ url: "/recruitment", method: "GET", headers: {} });
+            expect(staticClient.serve).toHaveBeenCalledWith(expect.any(Object), expect.any(Object), "/recruitment");
         });
 
         it("returns 404 when staticClient has no build to serve yet", async () => {
             staticClient.serve.mockResolvedValueOnce(false);
-            const res = await request({ url: "/admin", method: "GET", headers: {} });
+            const res = await request({ url: "/", method: "GET", headers: {} });
             expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
             expect(res.end).toHaveBeenCalledWith("NOT_FOUND");
         });
 
-        it("redirects /admin2 and /admin2/* to the equivalent /admin path (old bookmarks)", async () => {
-            const res = await request({ url: "/admin2/recruitment?view=posts", method: "GET", headers: {} });
-            expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({ Location: "/admin/recruitment?view=posts" }));
+        // The menu moved from /admin (and, before that, /admin2) to the root.
+        // Both old mounts redirect, so bookmarks and links already posted in
+        // Discord keep working.
+        it("redirects /admin/* to the same path at the root, query intact", async () => {
+            const res = await request({ url: "/admin/recruitment?view=posts", method: "GET", headers: {} });
+            expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({ Location: "/recruitment?view=posts" }));
             expect(staticClient.serve).not.toHaveBeenCalled();
         });
 
-        it("redirects bare /admin2 to bare /admin", async () => {
-            const res = await request({ url: "/admin2", method: "GET", headers: {} });
-            expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({ Location: "/admin" }));
+        it("redirects bare /admin and bare /admin2 to the root", async () => {
+            for (const url of ["/admin", "/admin2"]) {
+                const res = await request({ url, method: "GET", headers: {} });
+                expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({ Location: "/" }));
+            }
+        });
+
+        it("redirects the older /admin2/* mount to the root as well", async () => {
+            const res = await request({ url: "/admin2/history?tab=awards", method: "GET", headers: {} });
+            expect(res.writeHead).toHaveBeenCalledWith(302, expect.objectContaining({ Location: "/history?tab=awards" }));
+        });
+
+        // The report pages are server-rendered and public; the SPA fallback must
+        // not swallow them.
+        it("keeps the report pages ahead of the SPA fallback", async () => {
+            store.getReport.mockReturnValue({ id: "abc" });
+            await request({ url: "/r/abc123", method: "GET", headers: {} });
+            expect(render.renderReportPage).toHaveBeenCalled();
+            expect(staticClient.serve).not.toHaveBeenCalled();
+        });
+
+        it("still 404s an unknown report id instead of serving the SPA", async () => {
+            store.getReport.mockReturnValue(null);
+            const res = await request({ url: "/r/weggeworfen", method: "GET", headers: {} });
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+            expect(staticClient.serve).not.toHaveBeenCalled();
         });
     });
 
@@ -248,7 +278,7 @@ describe("web/server", () => {
             staticClient.serve.mockRejectedValueOnce(new Error("kaputt"));
             const res = mockRes();
             res.headersSent = false;
-            await capturedHandler({ url: "/admin", method: "GET", headers: {} }, res);
+            await capturedHandler({ url: "/", method: "GET", headers: {} }, res);
             await flush();
             expect(res.writeHead).toHaveBeenCalledWith(500);
             expect(res.end).toHaveBeenCalledWith("error");
