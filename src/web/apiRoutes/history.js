@@ -14,10 +14,13 @@ const {
 } = require("../lootStore");
 const { lootStats } = require("../lootStats");
 const { listAwards } = require("../lootAwards");
+const { withClassLook: withLootClassLook } = require("../lootClassLook");
+const { lootCatalog, suggestedContents } = require("../lootCatalog");
+const { reasonCatalog } = require("../../utils/lootReasons");
 const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../characterInfo");
 const { getCharacter } = require("../characterStore");
 const { issuesForCharacter } = require("../charGearIssues");
-const { parseLoot, detectImportDate, enrichItemNames, LootParseError } = require("../../utils/lootImport");
+const { parseLoot, buildManualItem, detectImportDate, enrichItemNames, LootParseError } = require("../../utils/lootImport");
 const { bestDayMatch, formatDayDisplay, dayKey } = require("../lootEventMatch");
 const {
     listPending: listPendingSessions, getPending: getPendingSession, resolvePending: resolvePendingSession,
@@ -262,6 +265,90 @@ async function importLoot(req, res) {
 }
 
 /**
+ * GET /api/history/loot-picker?event=<id> — everything the "Item nachtragen"
+ * form offers: the raid drop tables to pick an item from, which raid(s) this
+ * event was, the award reasons, and the raiders already known by name.
+ *
+ * The catalogue is static (config/tbcContent.js + tbcLootNames.js) and comes
+ * over in full: a raid is 30-200 items, and having them client-side is what
+ * lets the picker filter as you type without a round trip per keystroke.
+ */
+async function getLootPicker(req, res, url) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    const eventId = (url.searchParams.get("event") || "").trim();
+    const title = (url.searchParams.get("title") || "").trim();
+    const items = eventId ? listLootByEvent(eventId) : [];
+    ok(res, {
+        contents: lootCatalog(),
+        // Which raid to open the picker on. The event's own loot decides where
+        // it can, its title otherwise — see suggestedContents().
+        suggested: suggestedContents({ title, items }),
+        reasons: reasonCatalog(),
+        // Who can be credited: every character the app already knows (from the
+        // imports and the log evaluations), class look included so the dropdown
+        // reads like the loot table it writes into. A name that is not in the
+        // list can still be typed — a trial's first item is exactly that case.
+        characters: annotatedCharacters().map(withClassLook).map((c) => ({
+            character: c.character,
+            className: c.className || "",
+            spec: c.spec || "",
+            classColor: c.classColor || "",
+            iconUrl: c.iconUrl || "",
+        })),
+    });
+}
+
+/**
+ * POST /api/history/loot-add — body:
+ * { event, itemId, character, boss, contentId, response, offspec, awardedAt }.
+ * Files one hand-entered award under an event, for what the addons missed (an
+ * item handed out after the raid, a night nobody logged). Everything is
+ * re-derived server-side: the event's label/category from Raid-Helper, the
+ * item's name/icon from the drop table, the raid from the item id.
+ */
+async function addLootItem(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+
+    const eventId = String(body.event || "").trim();
+    if (!eventId) return error(res, 400, "no_event", "Kein Event angegeben.");
+    const item = buildManualItem({
+        itemId: body.itemId,
+        character: body.character,
+        boss: body.boss,
+        instance: body.instance,
+        response: body.response,
+        offspec: body.offspec,
+        awardedAt: body.awardedAt,
+        awardedBy: user.username || "",
+    });
+    if (!item) return error(res, 400, "missing_fields", "Item und Charakter sind Pflicht.");
+    // Name/icon/quality: from the drop table for a raid item, from Wowhead for
+    // anything it doesn't list (a badge item, a BoE) — the same enrichment the
+    // Gargul import runs, so a hand-entered row is indistinguishable from an
+    // imported one in the table.
+    await enrichItemNames([item]);
+
+    const target = await resolveImportTarget(req, { event: eventId, manualLabel: body.manualLabel, items: [item] });
+    if (target.error) return error(res, target.status, target.code, target.error);
+
+    const { added, skipped } = addLootImport(target.eventId, [item], {
+        categoryId: target.categoryId,
+        eventLabel: target.eventLabel,
+    });
+    // Submitting the same award twice hits the dedup key rather than doubling
+    // the row (see buildManualItem) — say so instead of reporting a success
+    // that added nothing.
+    if (!added) {
+        return error(res, 409, "duplicate", `„${item.itemName || `Item ${item.itemId}`}" ist für ${item.character} in diesem Raid bereits eingetragen.`);
+    }
+    ok(res, { eventId: target.eventId, eventLabel: target.eventLabel, added, skipped, item: decorateLootItem(item) }, 201);
+}
+
+/**
  * POST /api/history/loot-category — body: { event, categoryId }.
  * Files an already-imported loot bucket under a raid category, or clears it with
  * an empty id. The point of it: loot imported without a Raid-Helper event has no
@@ -405,7 +492,7 @@ async function getHistoryEvent(req, res, url) {
     // Backfill names/icons on rows imported before enrichment existed, so old
     // records stop showing as "Item <id>" (persisted — a one-time repair).
     await repairLootItemNames();
-    const items = listLootByEvent(eventId);
+    const items = withLootClassLook(listLootByEvent(eventId));
     const label = (items[0] && items[0].eventLabel) || eventId;
     ok(res, { eventId, label, items });
 }
@@ -440,7 +527,7 @@ async function getHistoryChar(req, res, url) {
     if (!user) return;
     const name = url.searchParams.get("name") || "";
     await repairLootItemNames(); // see getHistoryEvent
-    const items = listLootByCharacter(name);
+    const items = withLootClassLook(listLootByCharacter(name));
     const cfg = getConfig();
     const bzCfg = cfg.blizzard || {};
     const realm = (items[0] && items[0].realm) || bzCfg.realmSlug || "";
@@ -499,5 +586,6 @@ function enrichCharInfo(info) {
 module.exports = {
     getLootInbox, acceptLootInbox, dismissLootInbox,
     getHistoryData, getLootStats, getLootAwards, deleteHistoryLog, importLoot, setLootCategory, deleteLootItems, clearHistoryEvent, getHistoryEvent,
+    getLootPicker, addLootItem,
     resolveCharacters, getHistoryChar,
 };

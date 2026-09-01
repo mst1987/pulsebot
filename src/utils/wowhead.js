@@ -61,20 +61,23 @@ async function searchItems(query, { edition = "tbc", limit = 12 } = {}) {
 const itemCache = new Map();
 
 /**
- * Resolve one item's name/icon by numeric id — used to fill in Gargul imports,
- * which only carry the id. Wowhead's tooltip endpoint keys items by their
- * database id directly (no game-version branch needed: TBC-era ids resolve to
- * the same item there as on the classic site). Cached in-memory; returns null
- * on a missing id or any error (best-effort, like searchItems — a lookup
- * failure just means the item keeps showing as "Item <id>").
+ * Resolve one item's name/icon/quality by numeric id — used to fill in Gargul
+ * imports, which only carry the id. Asked on the game branch (default TBC), not
+ * on the branchless endpoint: the id resolves to the same item either way, but
+ * retail answers with retail's data, and the TBC relics and idols that were
+ * squished out of the modern game come back as quality 0 there — grey, when
+ * they were epic. Cached in-memory; returns null on a missing id or any error
+ * (best-effort, like searchItems — a lookup failure just means the item keeps
+ * showing as "Item <id>").
  * @param {number|string} itemId
+ * @param {object} [opts] { edition }
  */
-async function lookupItem(itemId) {
+async function lookupItem(itemId, { edition = "tbc" } = {}) {
     const id = Number(itemId) || 0;
     if (!id) return null;
     if (itemCache.has(id)) return itemCache.get(id);
     try {
-        const { data } = await axios.get(`https://nether.wowhead.com/tooltip/item/${id}`, {
+        const { data } = await axios.get(`https://nether.wowhead.com/${branchFor(edition)}/tooltip/item/${id}`, {
             httpsAgent,
             timeout: 15000,
             headers: { "User-Agent": "Mozilla/5.0 (EventHelper)" },

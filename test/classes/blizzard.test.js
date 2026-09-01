@@ -104,7 +104,7 @@ describe("classes/Blizzard", () => {
         it("resolves gem icons via Wowhead when the socket carries a gem item id", async () => {
             axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
             axios.get.mockImplementation((url) => {
-                if (url.includes("nether.wowhead.com/tooltip/item/32409")) {
+                if (url.includes("wowhead.com/tbc/tooltip/item/32409")) {
                     return Promise.resolve({ data: { name: "Relentless Earthstorm Diamond", icon: "inv_misc_gem_diamond_06", quality: 3 } });
                 }
                 if (url.includes("nether.wowhead.com")) {
@@ -153,7 +153,7 @@ describe("classes/Blizzard", () => {
         it("uses the gem's source_item when the enchantment entry carries one", async () => {
             axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
             axios.get.mockImplementation((url) => {
-                if (url.includes("nether.wowhead.com/tooltip/item/24027")) {
+                if (url.includes("wowhead.com/tbc/tooltip/item/24027")) {
                     return Promise.resolve({ data: { name: "Bold Living Ruby", icon: "inv_jewelcrafting_livingruby_01", quality: 3 } });
                 }
                 if (url.includes("nether.wowhead.com")) return Promise.resolve({ data: {} });

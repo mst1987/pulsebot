@@ -18,6 +18,7 @@ import {
 } from "../components/icons";
 import { eventPostUrl, channelUrl, raidplanUrl, messageLink } from "../lib/discordLinks";
 import { LootTable } from "../components/LootTable";
+import ManualLootForm from "../components/ManualLootForm";
 import type { ShellContext } from "../components/Shell";
 import { useJobs, useToast } from "../components/Jobs";
 import PageLoader from "../components/PageLoader";
@@ -1114,6 +1115,20 @@ function LootTab({ data, eventId, csrfToken, onChanged }: {
                     <LootTable items={data.lootItems} onDelete={removeItem} />
                 </div>
             )}
+            {/* The raid's own people first in the raider picker: the setup names
+                are character names, the signups are only there where a raider
+                has a character assigned (see raiderCharactersStore.js). */}
+            <ManualLootForm
+                eventId={eventId}
+                eventTitle={data.event.title}
+                defaultAwardedAt={(data.event.startTime || 0) * 1000}
+                roster={[
+                    ...(data.setup?.groups || []).flatMap((g) => g.players.map((p) => p.name)),
+                    ...data.attendance.responded.map((p) => p.character || "").filter(Boolean),
+                ]}
+                csrfToken={csrfToken}
+                onAdded={onChanged}
+            />
             <LootImportForm eventId={eventId} defaultTool={data.lootTool || "auto"} csrfToken={csrfToken} onImported={onChanged} />
         </>
     );

@@ -278,6 +278,56 @@ function parseEventHelper(text) {
     return parseEventHelperSessions(text).sessions.flatMap((s) => s.items);
 }
 
+// --- one item, entered by hand -------------------------------------------------
+
+// A row nobody exported: the raid lead picked the item and the raider in the
+// admin menu, because the addon missed the award (a piece handed out after the
+// raid, a night where nobody had the addon running, an item traded on).
+//
+// `source` is its own value rather than a borrowed "gargul"/"rclc": a hand-made
+// row shares no dedup key with any export, and saying where a row came from is
+// the point of the field. `rawId` is derived from what was entered instead of
+// being random, so submitting the same award twice (a double click, a reload)
+// is recognised as the duplicate it is — a raider genuinely winning the same
+// item twice in one second is not a case worth breaking that for.
+const MANUAL_SOURCE = "manual";
+
+/**
+ * Build the normalized loot item for a hand-entered award.
+ * @param {object} entry { itemId, character, boss, instance, response, offspec, awardedAt, note, awardedBy }
+ * @returns {object|null} the item, or null when item or character is missing
+ */
+function buildManualItem(entry) {
+    const e = entry || {};
+    const itemId = Number(e.itemId) || null;
+    const { player, character, realm } = splitPlayer(e.character);
+    if (!itemId || !character) return null;
+    const response = String(e.response || "").trim();
+    const offspec = e.offspec === true || /off\s*spec/i.test(response);
+    const awardedAt = Number(e.awardedAt) || Date.now();
+    return {
+        source: MANUAL_SOURCE,
+        rawId: `${itemId}-${characterKey(character)}-${awardedAt}`,
+        itemId,
+        itemName: String(e.itemName || "").trim(),
+        itemIconUrl: String(e.itemIconUrl || "").trim(),
+        itemLink: itemLink(itemId),
+        player,
+        character,
+        characterKey: characterKey(character),
+        realm,
+        class: "",
+        response,
+        offspec,
+        boss: String(e.boss || "").trim(),
+        instance: String(e.instance || "").trim(),
+        note: String(e.note || "").trim(),
+        replacedGear: [],
+        awardedAt,
+        awardedBy: String(e.awardedBy || "").trim(),
+    };
+}
+
 // --- dispatch ------------------------------------------------------------------
 
 /**
@@ -364,7 +414,7 @@ async function enrichItemNames(items) {
 
 module.exports = {
     parseLoot, parseRclc, parseGargul, parseEventHelper, parseEventHelperSessions,
-    detectImportDate, enrichItemNames, needsLookup,
+    buildManualItem, detectImportDate, enrichItemNames, needsLookup,
     splitPlayer, characterKey, itemLink, LootParseError,
-    EH_FORMAT, EH_VERSION,
+    EH_FORMAT, EH_VERSION, MANUAL_SOURCE,
 };

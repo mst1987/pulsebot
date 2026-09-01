@@ -94,14 +94,21 @@ export function ReasonBadgeHover({ label, reasonLabel, tone, count, items }: {
     );
 }
 
-/** Spec icon + class-coloured name, linking to the character's loot history. */
-export function RaiderBadge({ character, classColor, iconUrl }: {
+/**
+ * Spec icon + class-coloured name, linking to the character's loot history.
+ * `className`/`spec` are only for the hover ("Restoration Shaman") — a spec icon
+ * is quick to recognise but not everybody reads all thirty of them.
+ */
+export function RaiderBadge({ character, classColor, iconUrl, className, spec }: {
     character: string;
     classColor?: string;
     iconUrl?: string;
+    className?: string;
+    spec?: string;
 }) {
+    const specLabel = className ? (spec ? `${spec} ${className}` : className) : "";
     return (
-        <Link className="raider-badge" to={`/history/char?name=${encodeURIComponent(character)}`}>
+        <Link className="raider-badge" to={`/history/char?name=${encodeURIComponent(character)}`} title={specLabel || undefined}>
             {iconUrl
                 ? <img className="raider-badge-ico" src={iconUrl} alt="" loading="lazy" />
                 : <span className="raider-badge-ico raider-badge-ico-ph" />}

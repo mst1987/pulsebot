@@ -8,7 +8,7 @@
 const { listAll: listAllLoot, charLootPreview } = require("./lootStore");
 const { characterMap } = require("./characterStore");
 const { getConfig } = require("./settingsStore");
-const { characterProfile } = require("../utils/setupView");
+const { classLook } = require("./lootClassLook");
 const { CONTENTS } = require("../config/tbcContent");
 const { reasonCatalog } = require("../utils/lootReasons");
 
@@ -27,22 +27,16 @@ function topItemIds() {
 
 /**
  * One stored loot row as an award: the trimmed shape plus the winner's name and
- * their class/spec look. Colour and icon are resolved server-side like every
- * other class colour in the app (see ClassSpec.tsx) — a character nobody has
- * resolved yet simply keeps empty fields and renders uncoloured.
+ * their class/spec look (see lootClassLook.js — the same join the loot tables
+ * use, so a raider looks identical wherever their name shows up).
  */
 function awardRow(it, known) {
-    const info = known[it.characterKey] || null;
-    const look = info ? characterProfile(info.className, info.spec) : null;
     return {
         ...charLootPreview(it),
         character: it.character,
         realm: it.realm || "",
         boss: it.boss || "",
-        className: (look && look.className) || "",
-        spec: (info && info.spec) || "",
-        classColor: (look && look.classColor) || "",
-        specIconUrl: (look && look.iconUrl) || "",
+        ...classLook(known, it.characterKey),
     };
 }
 

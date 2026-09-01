@@ -2,7 +2,7 @@ jest.mock("../../src/utils/wowhead");
 const wowhead = require("../../src/utils/wowhead");
 const {
     parseLoot, parseRclc, parseGargul, parseEventHelper, parseEventHelperSessions,
-    detectImportDate, enrichItemNames,
+    buildManualItem, detectImportDate, enrichItemNames,
     splitPlayer, characterKey, itemLink, LootParseError, EH_FORMAT, EH_VERSION,
 } = require("../../src/utils/lootImport");
 
@@ -398,6 +398,59 @@ describe("utils/lootImport", () => {
         // precise timestamps rather than a midnight-rounded Gargul date.
         it("feeds detectImportDate a real award time", () => {
             expect(detectImportDate(parseEventHelper(payload()))).toBe(1784574268 * 1000);
+        });
+    });
+
+    describe("buildManualItem", () => {
+        it("normalizes a hand-entered award like any imported row", () => {
+            const item = buildManualItem({
+                itemId: 30095,
+                character: "Anna-Thunderstrike",
+                boss: "Leotheras the Blind",
+                instance: "Höhle des Schlangenschreins",
+                response: "Mainspec",
+                awardedAt: 1784574268000,
+                awardedBy: "Raidlead",
+            });
+            expect(item).toMatchObject({
+                source: "manual",
+                itemId: 30095,
+                player: "Anna-Thunderstrike",
+                character: "Anna",
+                characterKey: "anna",
+                realm: "Thunderstrike",
+                boss: "Leotheras the Blind",
+                response: "Mainspec",
+                offspec: false,
+                awardedAt: 1784574268000,
+                awardedBy: "Raidlead",
+            });
+            expect(item.itemLink).toContain("item=30095");
+        });
+
+        it("derives the offspec flag from the response text", () => {
+            expect(buildManualItem({ itemId: 1, character: "Anna", response: "Off Spec" }).offspec).toBe(true);
+            expect(buildManualItem({ itemId: 1, character: "Anna", offspec: true }).offspec).toBe(true);
+            expect(buildManualItem({ itemId: 1, character: "Anna", response: "BiS" }).offspec).toBe(false);
+        });
+
+        it("gives the same award the same dedup key, so a double submit collapses", () => {
+            const entry = { itemId: 30095, character: "Anna", awardedAt: 5000 };
+            expect(buildManualItem(entry).rawId).toBe(buildManualItem(entry).rawId);
+            // Another raider, another row.
+            expect(buildManualItem({ ...entry, character: "Bob" }).rawId).not.toBe(buildManualItem(entry).rawId);
+        });
+
+        it("falls back to now when no time is given", () => {
+            const before = Date.now();
+            const item = buildManualItem({ itemId: 30095, character: "Anna" });
+            expect(item.awardedAt).toBeGreaterThanOrEqual(before);
+        });
+
+        it("refuses an entry without an item or without a character", () => {
+            expect(buildManualItem({ itemId: 0, character: "Anna" })).toBeNull();
+            expect(buildManualItem({ itemId: 30095, character: "  " })).toBeNull();
+            expect(buildManualItem(null)).toBeNull();
         });
     });
 

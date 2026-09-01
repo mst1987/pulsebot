@@ -125,6 +125,7 @@ jest.mock("../../src/web/lootStore", () => ({
     removeItems: jest.fn(() => 0),
     clearEvent: jest.fn(() => 0),
     repairItemNames: jest.fn(() => Promise.resolve(0)),
+    decorate: jest.fn((it) => it),
 }));
 jest.mock("../../src/web/lootAwards", () => ({
     listAwards: jest.fn(() => ({
@@ -177,10 +178,12 @@ jest.mock("../../src/utils/lootImport", () => {
         parseLoot: jest.fn(() => []),
         detectImportDate: jest.fn(() => null),
         enrichItemNames: jest.fn((items) => Promise.resolve(items)),
-        // Pure name normalisation (realm suffix, lowercasing) — the roster keys
-        // its rows with it, so a stub would silently change the join.
+        // Pure normalisation, no I/O: the roster keys its rows with
+        // characterKey, and buildManualItem's shape (dedup key included) is what
+        // the loot-add endpoint is tested for — a stub would test the stub.
         characterKey: actual.characterKey,
         splitPlayer: actual.splitPlayer,
+        buildManualItem: actual.buildManualItem,
         LootParseError,
     };
 });
@@ -246,9 +249,16 @@ jest.mock("../../src/utils/softres", () => ({
 jest.mock("../../src/utils/raidsheets", () => ({
     matchRaidsheet: jest.fn(() => null),
 }));
-jest.mock("../../src/utils/wowhead", () => ({
-    searchItems: jest.fn(() => Promise.resolve([])),
-}));
+jest.mock("../../src/utils/wowhead", () => {
+    const actual = jest.requireActual("../../src/utils/wowhead");
+    return {
+        searchItems: jest.fn(() => Promise.resolve([])),
+        // Pure URL builders, no network: the loot catalogue's icon and Wowhead
+        // links are exactly these strings, and stubbing them tests nothing.
+        iconUrl: actual.iconUrl,
+        itemLink: actual.itemLink,
+    };
+});
 const mockDriveCopyFile = jest.fn();
 const mockDriveDeleteFile = jest.fn(() => Promise.resolve());
 const mockDriveShareAnyoneWriter = jest.fn(() => Promise.resolve());
@@ -1326,7 +1336,12 @@ describe("web/apiRouter", () => {
             expect(data.attendanceRoleIds).toEqual(["role1"]);
             expect(data.membersError).toBeNull();
             expect(data.signupTarget).toBe(10);
-            expect(data.lootItems).toEqual([{ eventId: "e1", itemName: "Sword", character: "Anna" }]);
+            // Every loot row carries the winner's class look (empty here — the
+            // character store knows nobody in this test), see lootClassLook.js.
+            expect(data.lootItems).toEqual([{
+                eventId: "e1", itemName: "Sword", character: "Anna",
+                className: "", spec: "", classColor: "", specIconUrl: "",
+            }]);
             expect(data.lootTool).toBe("gargul");
         });
 
@@ -2899,6 +2914,112 @@ describe("web/apiRouter", () => {
         });
     });
 
+    describe("GET /api/history/loot-picker", () => {
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            lootStore.listByEvent.mockReturnValue([]);
+            characterInfo.annotatedCharacters.mockReturnValue([]);
+        });
+
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await get("/api/history/loot-picker", { event: "e1" });
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+        });
+
+        it("offers every raid's drops, the reasons and the known raiders", async () => {
+            characterInfo.annotatedCharacters.mockReturnValue([{ character: "Anna", className: "Paladin", spec: "Holy" }]);
+
+            const data = body(await get("/api/history/loot-picker", { event: "e1", title: "Raidabend" })).data;
+
+            const ssc = data.contents.find((c) => c.id === "ssc");
+            expect(ssc.items.length).toBeGreaterThan(0);
+            expect(ssc.items.find((it) => it.id === 30095)).toMatchObject({ name: "Fang of the Leviathan" });
+            expect(data.reasons.map((r) => r.id)).toContain("offspec");
+            // The raider comes with the look their name renders in, so the
+            // dropdown matches the table it writes into.
+            expect(data.characters[0]).toMatchObject({ character: "Anna", className: "Paladin", spec: "Holy" });
+            expect(data.characters[0].classColor).toBeTruthy();
+        });
+
+        it("preselects the raid the event's own loot says it was", async () => {
+            lootStore.listByEvent.mockReturnValue([{ contentId: "bt" }, { contentId: "hyjal" }]);
+            const data = body(await get("/api/history/loot-picker", { event: "e1", title: "SSC/TK" })).data;
+            // The stored loot wins over the title — item ids are evidence, a
+            // title is a plan.
+            expect(data.suggested).toEqual(["hyjal", "bt"]);
+        });
+
+        it("falls back to the event title, and suggests nothing when it says nothing", async () => {
+            expect(body(await get("/api/history/loot-picker", { event: "e1", title: "Kara" })).data.suggested).toEqual(["kara"]);
+            expect(body(await get("/api/history/loot-picker", { event: "e1", title: "Raid" })).data.suggested).toEqual([]);
+        });
+    });
+
+    describe("POST /api/history/loot-add", () => {
+        const entry = { event: "e1", itemId: 30095, character: "Anna", boss: "Leotheras the Blind", response: "Mainspec", awardedAt: 5000 };
+
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            lootStore.addImport.mockReturnValue({ added: 1, skipped: 0 });
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", events: [{ id: "e1", title: "SSC/TK" }] }],
+            });
+        });
+
+        it("files the award under the event, with the event's own label and category", async () => {
+            const res = await post("/api/history/loot-add", entry);
+
+            expect(lootStore.addImport).toHaveBeenCalledWith("e1", [expect.objectContaining({
+                source: "manual",
+                itemId: 30095,
+                character: "Anna",
+                characterKey: "anna",
+                boss: "Leotheras the Blind",
+                response: "Mainspec",
+                offspec: false,
+                awardedAt: 5000,
+            })], { categoryId: "cat1", eventLabel: "SSC/TK" });
+            expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
+            expect(body(res).data).toMatchObject({ eventId: "e1", eventLabel: "SSC/TK", added: 1 });
+        });
+
+        it("looks up the item's name and icon before storing it", async () => {
+            await post("/api/history/loot-add", entry);
+            expect(lootImport.enrichItemNames).toHaveBeenCalledWith([expect.objectContaining({ itemId: 30095 })]);
+        });
+
+        it("returns 409 when the same award is already stored (a double submit)", async () => {
+            lootStore.addImport.mockReturnValue({ added: 0, skipped: 1 });
+            const res = await post("/api/history/loot-add", entry);
+            expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+            expect(body(res)).toEqual({ error: { code: "duplicate", message: expect.any(String) } });
+        });
+
+        it("returns 400 without an event, an item or a character", async () => {
+            const noEvent = await post("/api/history/loot-add", { ...entry, event: "" });
+            expect(body(noEvent)).toEqual({ error: { code: "no_event", message: expect.any(String) } });
+
+            const noItem = await post("/api/history/loot-add", { ...entry, itemId: 0 });
+            expect(body(noItem)).toEqual({ error: { code: "missing_fields", message: expect.any(String) } });
+
+            const noChar = await post("/api/history/loot-add", { ...entry, character: "  " });
+            expect(body(noChar)).toEqual({ error: { code: "missing_fields", message: expect.any(String) } });
+            expect(lootStore.addImport).not.toHaveBeenCalled();
+        });
+
+        it("returns 401 for an anonymous caller and 403 without a CSRF token", async () => {
+            auth.getUser.mockReturnValue(null);
+            expect((await post("/api/history/loot-add", entry)).writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(false);
+            expect((await post("/api/history/loot-add", entry)).writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(lootStore.addImport).not.toHaveBeenCalled();
+        });
+    });
+
     describe("POST /api/history/clear", () => {
         it("clears the event's loot and returns the removed count", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
@@ -2916,7 +3037,31 @@ describe("web/apiRouter", () => {
             lootStore.listByEvent.mockReturnValue([{ eventLabel: "Kara", itemName: "Sword" }]);
             const res = await get("/api/history/event", { event: "e1" });
             expect(lootStore.listByEvent).toHaveBeenCalledWith("e1");
-            expect(body(res)).toEqual({ data: { eventId: "e1", label: "Kara", items: [{ eventLabel: "Kara", itemName: "Sword" }] } });
+            expect(body(res)).toEqual({
+                data: {
+                    eventId: "e1",
+                    label: "Kara",
+                    items: [{ eventLabel: "Kara", itemName: "Sword", className: "", spec: "", classColor: "", specIconUrl: "" }],
+                },
+            });
+        });
+
+        it("gives every row the winner's class colour and spec icon", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            characterStore.characterMap.mockReturnValue({ anna: { className: "Paladin", spec: "Holy" } });
+            lootStore.listByEvent.mockReturnValue([
+                { eventLabel: "Kara", itemName: "Sword", character: "Anna", characterKey: "anna" },
+                { eventLabel: "Kara", itemName: "Shield", character: "Bob", characterKey: "bob" },
+            ]);
+
+            const [anna, bob] = body(await get("/api/history/event", { event: "e1" })).data.items;
+
+            expect(anna.className).toBe("Paladin");
+            expect(anna.spec).toBe("Holy");
+            expect(anna.classColor).toBeTruthy();
+            expect(anna.specIconUrl).toBeTruthy();
+            // Nobody resolved Bob's class — he stays blank rather than guessed.
+            expect(bob).toMatchObject({ className: "", spec: "", classColor: "", specIconUrl: "" });
         });
     });
 
@@ -3064,7 +3209,10 @@ describe("web/apiRouter", () => {
             expect(body(res).data).toEqual({
                 character: "Anna",
                 realm: "thunderstrike",
-                items: [{ character: "Anna", realm: "thunderstrike", itemName: "Sword" }],
+                items: [{
+                    character: "Anna", realm: "thunderstrike", itemName: "Sword",
+                    className: "", spec: "", classColor: "", specIconUrl: "",
+                }],
                 armoryUrl: expect.stringContaining(encodeURIComponent("Anna")),
                 wclUrl: expect.stringContaining(encodeURIComponent("Anna")),
                 gear: null,

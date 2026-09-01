@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import { getHistoryEvent, clearHistoryEvent, deleteLootItems, type ApiError, type HistoryEventData, type LootItem } from "../api";
 import { LootTable } from "../components/LootTable";
+import ManualLootForm from "../components/ManualLootForm";
 import type { ShellContext } from "../components/Shell";
 import { TrashIcon } from "../components/icons";
 import { useToast } from "../components/Jobs";
@@ -59,6 +60,16 @@ export default function HistoryEventPage() {
                     <button className="btn btn-danger" type="button" disabled={busy} onClick={clear}><TrashIcon />Loot löschen</button>
                 )}
             </div>
+            {/* Reloads the event afterwards instead of appending the row: the
+                new item has to land in the table's own sort order, and one
+                round trip per nachgetragenem Item is nothing. */}
+            <ManualLootForm
+                eventId={eventId}
+                eventTitle={data.label}
+                defaultAwardedAt={data.items[0]?.awardedAt || 0}
+                csrfToken={csrfToken}
+                onAdded={(msg) => { toast(msg); getHistoryEvent(eventId).then(setData).catch(() => {}); }}
+            />
             {data.items.length ? <LootTable items={data.items} onDelete={removeItem} /> : <p className="sub">Kein Loot (mehr) für dieses Event.</p>}
         </>
     );
