@@ -1,6 +1,13 @@
 const { lootCatalog, itemsForContent, suggestedContents } = require("../../src/web/lootCatalog");
 const { CONTENTS, RAID_LOOT } = require("../../src/config/tbcContent");
 
+/** The bosses of one raid in the order the pick list offers them. */
+function bossSequence(contentId) {
+    const bosses = [];
+    for (const it of itemsForContent(contentId)) if (!bosses.includes(it.boss)) bosses.push(it.boss);
+    return bosses;
+}
+
 describe("web/lootCatalog", () => {
     describe("itemsForContent", () => {
         it("lists every drop of a raid, named and with an icon", () => {
@@ -16,10 +23,44 @@ describe("web/lootCatalog", () => {
         });
 
         it("puts the encounters first and Trash/nameless drops last", () => {
-            const bosses = [];
-            for (const it of itemsForContent("kara")) if (!bosses.includes(it.boss)) bosses.push(it.boss);
+            const bosses = bossSequence("kara");
             expect(bosses[0]).not.toBe("Trash");
             expect(bosses[bosses.length - 1]).toBe("Trash");
+        });
+
+        // The whole point of the pick list: it is read by someone who walked the
+        // instance an hour ago, so it has to run in the raid's own order.
+        it("lists the bosses in the order the raid meets them, not alphabetically", () => {
+            expect(bossSequence("bt")).toEqual([
+                "High Warlord Naj'entus", "Supremus", "Shade of Akama", "Teron Gorefiend",
+                "Gurtogg Bloodboil", "Reliquary of the Lost", "Mother Shahraz",
+                "The Illidari Council", "Illidan Stormrage", "Trash",
+            ]);
+            expect(bossSequence("hyjal")).toEqual([
+                "Rage Winterchill", "Anetheron", "Kaz'rogal", "Azgalor", "Archimonde", "Trash",
+            ]);
+            // Zul'Aman's timed-run chest is no encounter: it goes after the last
+            // boss, ahead of the trash and the nameless bucket.
+            expect(bossSequence("za")).toEqual([
+                "Nalorakk", "Akil'zon", "Jan'alai", "Halazzi", "Hex Lord Malacrass", "Zul'jin",
+                "Timed Chest", "Trash", "",
+            ]);
+        });
+
+        it("keeps Karazhan's opera bosses under their event and the rares at the end", () => {
+            const bosses = bossSequence("kara");
+            const at = (name) => bosses.indexOf(name);
+            expect(at("Opera Event")).toBeLessThan(at("The Wizard of Oz"));
+            expect(at("Romulo and Julianne")).toBeLessThan(at("The Curator"));
+            expect(at("Prince Malchezaar")).toBeLessThan(at("Nightbane"));
+            // The three rare trash spawns come after every real encounter.
+            expect(at("Nightbane")).toBeLessThan(at("Hyakiss the Lurker"));
+            expect(at("Rokad the Ravager")).toBeLessThan(at("Trash"));
+        });
+
+        it("sorts one boss's own drops by name", () => {
+            const names = itemsForContent("mag").map((it) => it.name);
+            expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
         });
 
         it("is empty for a raid the table doesn't know", () => {

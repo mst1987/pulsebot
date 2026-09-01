@@ -10,22 +10,18 @@
 // The catalogue is static data, so it is built once and reused; the picker
 // filters it client-side (a raid is 30-200 items — small enough to hand over in
 // one response, and searching it then costs no round trip).
-const { CONTENTS, RAID_LOOT, contentsForText, tier } = require("../config/tbcContent");
+const { CONTENTS, RAID_LOOT, contentsForText, tier, bossOrder } = require("../config/tbcContent");
 const { RAID_ITEMS } = require("../config/tbcLootNames");
 const { iconUrl, itemLink } = require("../utils/wowhead");
 
-// Bosses sort by name, with the two non-encounter buckets last: "Trash" and the
-// nameless one ("" — an item no single kill can be pinned on, see RAID_LOOT).
-// A raid lead reads the list looking for a boss, so the odd ones out belong at
-// the bottom.
-function bossRank(boss) {
-    if (!boss) return 2;
-    if (boss === "Trash") return 1;
-    return 0;
-}
-
-function byBossThenName(a, b) {
-    return bossRank(a.boss) - bossRank(b.boss)
+// Bosses sort in the order the raid actually meets them (BOSS_ORDER in
+// config/tbcContent.js), with the non-encounter buckets last: the timed chest,
+// "Trash" and the nameless one ("" — an item no single kill can be pinned on).
+// Whoever fills this in walked the instance an hour ago and reads the list that
+// way, so alphabetical order — Gurtogg Bloodboil ahead of the Black Temple's
+// first boss — is exactly wrong. Within one boss, the items sort by name.
+function byBossThenName(contentId) {
+    return (a, b) => bossOrder(contentId, a.boss) - bossOrder(contentId, b.boss)
         || a.boss.localeCompare(b.boss)
         || a.name.localeCompare(b.name);
 }
@@ -55,7 +51,7 @@ function itemsForContent(contentId) {
             });
         }
     }
-    return items.sort(byBossThenName);
+    return items.sort(byBossThenName(contentId));
 }
 
 let cached = null;

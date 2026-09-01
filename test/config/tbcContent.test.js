@@ -1,5 +1,6 @@
 const {
-    CONTENTS, TIERS, RAID_LOOT, content, tier, sourceForItem, contentForInstance, contentsForText, contentForLoot, tokenTier,
+    CONTENTS, TIERS, RAID_LOOT, BOSS_ORDER, NON_BOSSES, bossOrder,
+    content, tier, sourceForItem, contentForInstance, contentsForText, contentForLoot, tokenTier,
 } = require("../../src/config/tbcContent");
 
 describe("tbcContent", () => {
@@ -25,6 +26,61 @@ describe("tbcContent", () => {
         it("gives every content a tier that exists", () => {
             const tierIds = TIERS.map((t) => t.id);
             for (const c of CONTENTS) expect(tierIds).toContain(c.tier);
+        });
+    });
+
+    // BOSS_ORDER is hand-kept next to the generated table, so the two can drift:
+    // a regenerated RAID_LOOT may bring a boss nobody placed — which would sort
+    // to the end of the pick list without anyone noticing — or rename one and
+    // leave a dead entry behind.
+    describe("BOSS_ORDER", () => {
+        const bossKeys = (id) => Object.keys(RAID_LOOT[id] || {});
+
+        it("places every boss the loot table knows", () => {
+            for (const c of CONTENTS) {
+                const placed = [...(BOSS_ORDER[c.id] || []), ...NON_BOSSES];
+                for (const boss of bossKeys(c.id)) {
+                    const label = placed.includes(boss) ? boss : `${c.id}: "${boss}" has no place in BOSS_ORDER`;
+                    expect(label).toBe(boss);
+                }
+            }
+        });
+
+        it("names no boss the loot table doesn't have, and none twice", () => {
+            for (const [contentId, order] of Object.entries(BOSS_ORDER)) {
+                const known = bossKeys(contentId);
+                for (const boss of order) {
+                    const label = known.includes(boss) ? boss : `${contentId}: "${boss}" is not in RAID_LOOT`;
+                    expect(label).toBe(boss);
+                }
+                expect(order).toEqual([...new Set(order)]);
+            }
+        });
+    });
+
+    describe("bossOrder", () => {
+        it("counts up along the raid's own order", () => {
+            expect(bossOrder("bt", "High Warlord Naj'entus")).toBe(0);
+            expect(bossOrder("bt", "Illidan Stormrage")).toBeGreaterThan(bossOrder("bt", "Mother Shahraz"));
+            expect(bossOrder("hyjal", "Rage Winterchill")).toBeLessThan(bossOrder("hyjal", "Archimonde"));
+            // Alphabetically these two are the wrong way round — that is the point.
+            expect(bossOrder("bt", "Gurtogg Bloodboil")).toBeGreaterThan(bossOrder("bt", "High Warlord Naj'entus"));
+        });
+
+        it("sorts the non-encounter buckets after every boss, chest before trash", () => {
+            expect(bossOrder("za", "Timed Chest")).toBeGreaterThan(bossOrder("za", "Zul'jin"));
+            expect(bossOrder("za", "Trash")).toBeGreaterThan(bossOrder("za", "Timed Chest"));
+            expect(bossOrder("za", "")).toBeGreaterThan(bossOrder("za", "Trash"));
+            expect(bossOrder("za", null)).toBe(bossOrder("za", ""));
+        });
+
+        // Between the bosses it knows and the trash: a new encounter is still an
+        // encounter, it just has not been placed yet.
+        it("puts an unplaced boss after the known ones but ahead of the trash", () => {
+            const rank = bossOrder("bt", "Someone New");
+            expect(rank).toBeGreaterThan(bossOrder("bt", "Illidan Stormrage"));
+            expect(rank).toBeLessThan(bossOrder("bt", "Trash"));
+            expect(bossOrder("naxx", "Kel'Thuzad")).toBe(rank);
         });
     });
 
