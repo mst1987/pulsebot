@@ -1,6 +1,6 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Link, useLocation, useOutletContext, useSearchParams } from "react-router-dom";
-import { getHistoryChar, deleteLootItems, type ApiError, type CharGearReport, type GearItem, type HistoryCharData, type LootItem } from "../api";
+import { getHistoryChar, deleteLootItems, canAccess, type ApiError, type CharGearReport, type GearItem, type HistoryCharData, type LootItem } from "../api";
 import { fmtMs } from "../lib/format";
 import { itemQualityColor, itemQualityProps } from "../lib/itemQuality";
 import { usePersistedSearchParam } from "../lib/persistedState";
@@ -381,7 +381,9 @@ function GearTab({ data }: { data: HistoryCharData }) {
 }
 
 export default function HistoryCharPage() {
-    const { csrfToken } = useOutletContext<ShellContext>();
+    const { user, csrfToken } = useOutletContext<ShellContext>();
+    // Also reachable read-only via "Loot-Ansichten" (src/config/permissions.js).
+    const canEdit = canAccess(user, "history", "write");
     const [searchParams] = useSearchParams();
     const location = useLocation();
     const name = searchParams.get("name") || "";
@@ -446,7 +448,7 @@ export default function HistoryCharPage() {
                     ? (
                         <div className="dash-card">
                             <div className="dash-card-head"><h3>Loot-Historie</h3><span className="small" style={{ marginLeft: "auto" }}>{data.items.length} Item(s)</span></div>
-                            <LootTable items={data.items} showEvent onDelete={removeItem} />
+                            <LootTable items={data.items} showEvent onDelete={canEdit ? removeItem : undefined} />
                         </div>
                     )
                     : <p className="sub">Kein Loot für diesen Charakter gespeichert.</p>

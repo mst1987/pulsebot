@@ -681,7 +681,8 @@ describe("web/apiRouter", () => {
                 access: { ...emptyAccess(), settings: { read: true, write: true } },
             });
             settingsStore.getConfig.mockReturnValue({
-                adminRoleIds: ["r1"], rolePermissions: { role1: { raids: { read: true, write: false } } }, guildId: "g1",
+                adminRoleIds: ["r1"], rolePermissions: { role1: { raids: { read: true, write: false } } },
+                baseAccess: { loot: { read: true, write: false } }, guildId: "g1",
             });
 
             const res = mockRes();
@@ -821,6 +822,20 @@ describe("web/apiRouter", () => {
             });
         });
 
+        it("normalises the base access before saving it", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+
+            await patch("/api/settings", {
+                baseAccess: { loot: { read: true }, history: { write: true }, nonsense: { read: true }, cla: { read: false } },
+            });
+
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+                // write implied read; the unknown area and the empty grant dropped
+                baseAccess: { loot: { read: true, write: false }, history: { read: true, write: true } },
+            });
+        });
+
         // Otherwise a role with write access to "Einstellungen" could grant
         // itself (or anyone) full admin.
         it("refuses adminRoleIds/rolePermissions from a non-admin settings user", async () => {
@@ -831,6 +846,21 @@ describe("web/apiRouter", () => {
             auth.checkCsrf.mockReturnValue(true);
 
             const res = await patch("/api/settings", { rolePermissions: { role1: { raids: { write: true } } } });
+
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+        });
+
+        // The base access applies to everyone at once, so it is guarded like the
+        // rest of the access config.
+        it("refuses a baseAccess change from a non-admin settings user", async () => {
+            auth.getUser.mockReturnValue({
+                id: "7", name: "Bob", isAdmin: false,
+                access: { ...emptyAccess(), settings: { read: true, write: true } },
+            });
+            auth.checkCsrf.mockReturnValue(true);
+
+            const res = await patch("/api/settings", { baseAccess: { settings: { write: true } } });
 
             expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
             expect(settingsStore.saveConfig).not.toHaveBeenCalled();
@@ -2563,6 +2593,36 @@ describe("web/apiRouter", () => {
                 activeGuildId: "guild-1",
                 chars: [],
             });
+        });
+
+        // A member holding only "Loot-Ansichten" reads the same endpoint, but the
+        // raid lists, the logs and the characters are not theirs to see — and the
+        // Raid-Helper/Discord round-trips behind them are pure waste here.
+        it("cuts the payload down to the loot part for a loot-only caller", async () => {
+            auth.getUser.mockReturnValue({
+                id: "7", name: "Bob", isAdmin: false,
+                access: { ...emptyAccess(), loot: { read: true, write: false } },
+            });
+            activeGuildFor.mockReturnValue("guild-1");
+            lootStore.eventsWithLoot.mockReturnValue([{ eventId: "e1", label: "Kara", count: 2 }]);
+            discord.listCategories.mockReturnValue([{ id: "cat1", name: "Raids" }]);
+
+            const res = await get("/api/history");
+
+            expect(body(res).data).toEqual({
+                events: [],
+                upcomingRaids: { events: [], error: null },
+                pastRaids: { events: [], error: null },
+                lootEvents: [{ eventId: "e1", label: "Kara", count: 2 }],
+                logs: [],
+                categories: [{ id: "cat1", name: "Raids" }],
+                categoryLootTool: {},
+                activeGuildId: "guild-1",
+                chars: [],
+            });
+            expect(raidEventGroups.loadEventGroups).not.toHaveBeenCalled();
+            expect(dashboardData.loadRecentEvents).not.toHaveBeenCalled();
+            expect(logStore.listLogs).not.toHaveBeenCalled();
         });
 
         it("computes each log's posted-date via logPostedAt (falls back through messageId/detectedAt)", async () => {

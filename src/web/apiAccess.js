@@ -7,7 +7,12 @@
 //
 // Fail-closed by design: an endpoint missing from this table is admin-only, so
 // adding a route without listing it here can never leak it to a limited role.
-const { AREAS, userCan, userHasMenuAccess } = require("../config/permissions");
+//
+// A path may name *several* areas — then any one of them at the required level
+// lets the call through. That is how the loot views ("loot") share endpoints with
+// the full history ("history") without handing out the rest of that tab; the
+// handlers of the shared endpoints trim their payload accordingly.
+const { AREAS, userCanAny, userHasMenuAccess } = require("../config/permissions");
 
 const AREA_BY_PATH = {
     "/api/dashboard": "dashboard",
@@ -55,9 +60,14 @@ const AREA_BY_PATH = {
     "/api/recruitment/post-delete": "recruitment",
     "/api/recruitment/scan": "recruitment",
 
-    "/api/history": "history",
-    "/api/history/loot-stats": "history",
-    "/api/history/loot-awards": "history",
+    // Readable with "loot" too — the loot views need them. Their handlers cut
+    // the payload down to the loot part for a caller who only holds "loot"
+    // (apiRoutes/history.js), and writing still takes "history".
+    "/api/history": ["history", "loot"],
+    "/api/history/loot-stats": ["history", "loot"],
+    "/api/history/loot-awards": ["history", "loot"],
+    "/api/history/event": ["history", "loot"],
+    "/api/history/char": ["history", "loot"],
     "/api/history/log-delete": "history",
     "/api/history/import": "history",
     "/api/history/inbox": "history",
@@ -68,9 +78,7 @@ const AREA_BY_PATH = {
     "/api/history/loot-picker": "history",
     "/api/history/loot-add": "history",
     "/api/history/clear": "history",
-    "/api/history/event": "history",
     "/api/history/characters-resolve": "history",
-    "/api/history/char": "history",
 
     "/api/cla": "cla",
     "/api/cla/report-status": "cla",
@@ -100,6 +108,13 @@ const TOKEN_AUTH = new Set(["/api/ingest/loot"]);
 
 const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
 
+/** The areas listed for a path, always as an array (empty = not listed). */
+function areasFor(pathname) {
+    const entry = AREA_BY_PATH[pathname];
+    if (!entry) return [];
+    return Array.isArray(entry) ? entry : [entry];
+}
+
 /**
  * Check a request against the caller's permissions.
  * Returns null when it may proceed, else `{ status, code, message }` to send.
@@ -112,14 +127,16 @@ function checkAccess(pathname, method, user) {
         return { status: 403, code: "forbidden", message: "Kein Zugang zum Admin-Menü." };
     }
     if (ANY_AREA.has(pathname)) return null;
-    const area = AREA_BY_PATH[pathname];
+    const areas = areasFor(pathname);
     // Unknown endpoint (or one nobody listed): admins only.
-    if (!area) {
+    if (!areas.length) {
         return user.isAdmin ? null : { status: 403, code: "forbidden", message: "Kein Zugang zu diesem Bereich." };
     }
     const level = method === "GET" ? "read" : "write";
-    if (userCan(user, area, level)) return null;
-    const label = LABELS[area] || area;
+    if (userCanAny(user, areas, level)) return null;
+    // The first area is the endpoint's home; the others only widen access, so it
+    // is the one to name in the refusal.
+    const label = LABELS[areas[0]] || areas[0];
     return {
         status: 403,
         code: "forbidden",
@@ -129,4 +146,4 @@ function checkAccess(pathname, method, user) {
     };
 }
 
-module.exports = { checkAccess, AREA_BY_PATH, UNGATED, ANY_AREA, TOKEN_AUTH };
+module.exports = { checkAccess, areasFor, AREA_BY_PATH, UNGATED, ANY_AREA, TOKEN_AUTH };

@@ -329,6 +329,76 @@ describe("web/auth", () => {
             expect(auth.getUser(req).isAdmin).toBe(false);
         });
 
+        // config.baseAccess: what every logged-in account holds without any role.
+        // Deliberately independent of Discord, so it also survives "not a member
+        // of the guild" and a lookup that fails outright.
+        describe("base access", () => {
+            it("grants it without any role and unions the role grants on top", async () => {
+                getConfig.mockImplementation(() => ({
+                    adminRoleIds: [],
+                    baseAccess: { loot: { read: true, write: false } },
+                    rolePermissions: { "role-a": { raids: { read: true, write: true } } },
+                }));
+                auth.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-a"))).client);
+
+                const { req } = await loginAs("606");
+                const user = auth.getUser(req);
+
+                expect(user.isAdmin).toBe(false);
+                expect(user.access.loot).toEqual({ read: true, write: false });
+                expect(user.access.raids).toEqual({ read: true, write: true });
+                expect(user.access.settings).toEqual({ read: false, write: false });
+            });
+
+            it("still applies when nothing else is configured — without a Discord lookup", async () => {
+                getConfig.mockImplementation(() => ({
+                    adminRoleIds: [], rolePermissions: {}, baseAccess: { loot: { read: true, write: false } },
+                }));
+                const fetch = jest.fn();
+                auth.setClient(fakeClient(fetch).client);
+
+                const { req } = await loginAs("607");
+
+                expect(fetch).not.toHaveBeenCalled();
+                expect(auth.getUser(req).access.loot).toEqual({ read: true, write: false });
+            });
+
+            it("applies to someone who is not a member of the guild", async () => {
+                getConfig.mockImplementation(() => ({
+                    adminRoleIds: ["role-admin"],
+                    baseAccess: { loot: { read: true, write: false } },
+                }));
+                const notAMember = Object.assign(new Error("Unknown Member"), { code: 10007 });
+                auth.setClient(fakeClient(jest.fn().mockRejectedValue(notAMember)).client);
+
+                const { req } = await loginAs("608");
+                const user = auth.getUser(req);
+
+                expect(user.isAdmin).toBe(false);
+                expect(user.access.loot).toEqual({ read: true, write: false });
+            });
+
+            it("falls back to it when the role lookup fails outright", async () => {
+                getConfig.mockImplementation(() => ({
+                    adminRoleIds: ["role-admin"],
+                    baseAccess: { loot: { read: true, write: false } },
+                }));
+                auth.setClient(fakeClient(jest.fn().mockRejectedValue(new Error("Discord down"))).client);
+
+                const { req } = await loginAs("609");
+                const user = auth.getUser(req);
+
+                expect(user.isAdmin).toBe(false);
+                expect(user.access.loot).toEqual({ read: true, write: false });
+            });
+
+            it("leaves an unconfigured base access closed", async () => {
+                getConfig.mockImplementation(() => ({ adminRoleIds: [], rolePermissions: {} }));
+                const { req } = await loginAs("610");
+                expect(auth.getUser(req).access.loot).toEqual({ read: false, write: false });
+            });
+        });
+
         it("picks up permissions added after login once the cache expires", async () => {
             getConfig.mockImplementation(() => ({ adminRoleIds: [], rolePermissions: {} }));
             const { req } = await loginAs("605");

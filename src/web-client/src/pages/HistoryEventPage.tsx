@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
-import { getHistoryEvent, clearHistoryEvent, deleteLootItems, type ApiError, type HistoryEventData, type LootItem } from "../api";
+import { getHistoryEvent, clearHistoryEvent, deleteLootItems, canAccess, type ApiError, type HistoryEventData, type LootItem } from "../api";
 import { LootTable } from "../components/LootTable";
 import ManualLootForm from "../components/ManualLootForm";
 import type { ShellContext } from "../components/Shell";
@@ -8,7 +8,10 @@ import { TrashIcon } from "../components/icons";
 import { useToast } from "../components/Jobs";
 
 export default function HistoryEventPage() {
-    const { csrfToken } = useOutletContext<ShellContext>();
+    const { user, csrfToken } = useOutletContext<ShellContext>();
+    // Reachable with the read-only "Loot-Ansichten" too, which sees the loot but
+    // must not add to or delete from it (src/config/permissions.js).
+    const canEdit = canAccess(user, "history", "write");
     const [searchParams] = useSearchParams();
     const eventId = searchParams.get("event") || "";
     const toast = useToast();
@@ -56,21 +59,25 @@ export default function HistoryEventPage() {
             <h1 className="page-title">{data.label}</h1>
             <div className="row-actions" style={{ marginBottom: 16 }}>
                 <span className="sub" style={{ margin: 0 }}>{data.items.length} Item(s)</span>
-                {data.items.length > 0 && (
+                {canEdit && data.items.length > 0 && (
                     <button className="btn btn-danger" type="button" disabled={busy} onClick={clear}><TrashIcon />Loot löschen</button>
                 )}
             </div>
             {/* Reloads the event afterwards instead of appending the row: the
                 new item has to land in the table's own sort order, and one
                 round trip per nachgetragenem Item is nothing. */}
-            <ManualLootForm
-                eventId={eventId}
-                eventTitle={data.label}
-                defaultAwardedAt={data.items[0]?.awardedAt || 0}
-                csrfToken={csrfToken}
-                onAdded={(msg) => { toast(msg); getHistoryEvent(eventId).then(setData).catch(() => {}); }}
-            />
-            {data.items.length ? <LootTable items={data.items} onDelete={removeItem} /> : <p className="sub">Kein Loot (mehr) für dieses Event.</p>}
+            {canEdit && (
+                <ManualLootForm
+                    eventId={eventId}
+                    eventTitle={data.label}
+                    defaultAwardedAt={data.items[0]?.awardedAt || 0}
+                    csrfToken={csrfToken}
+                    onAdded={(msg) => { toast(msg); getHistoryEvent(eventId).then(setData).catch(() => {}); }}
+                />
+            )}
+            {data.items.length
+                ? <LootTable items={data.items} onDelete={canEdit ? removeItem : undefined} />
+                : <p className="sub">Kein Loot (mehr) für dieses Event.</p>}
         </>
     );
 }
