@@ -7,7 +7,7 @@ const {
     adminRoleIds: envAdminRoleIds, guildId: envGuildId, devAutoLogin,
 } = require("../config/variables");
 const { getConfig } = require("./settingsStore");
-const { fullAccess, emptyAccess, accessForRoles } = require("../config/permissions");
+const { fullAccess, emptyAccess, accessForRoles, baseAccessMap, mergeAccess } = require("../config/permissions");
 
 // Sessions are persisted to disk so a bot/PM2 restart does not log everyone out.
 // sid -> { id, name, isAdmin, access, csrf, createdAt, adminCheckedAt }
@@ -198,6 +198,20 @@ const NO_ACCESS = () => ({ isAdmin: false, access: emptyAccess() });
 const ALL_ACCESS = () => ({ isAdmin: true, access: fullAccess() });
 
 /**
+ * What a logged-in account gets without any role: config.baseAccess, edited in
+ * Einstellungen → Berechtigungen. Deliberately independent of Discord — it is
+ * the fallback when the role lookup says "not a member" or fails outright, so a
+ * guest can still open the loot views the guild decided to share.
+ */
+function BASE_ACCESS() {
+    try {
+        return { isAdmin: false, access: baseAccessMap(getConfig().baseAccess) };
+    } catch {
+        return NO_ACCESS();
+    }
+}
+
+/**
  * What the given Discord user id may currently do: `{ isAdmin, access }`.
  * Full admin if the id is in the static admin list or the guild member holds
  * one of the admin roles — full admins get every area at write level. Otherwise
@@ -213,8 +227,10 @@ async function computeAccess(userId) {
     // with any .env ADMIN_ROLE_IDS merged in as an optional fallback.
     const adminRoleIds = [...new Set([...(config.adminRoleIds || []), ...(envAdminRoleIds || [])])];
     const rolePermissions = config.rolePermissions || {};
+    // What everyone gets before any role is looked at (see BASE_ACCESS).
+    const base = baseAccessMap(config.baseAccess);
     // Nothing is configured at all — no need to hit Discord.
-    if (!adminRoleIds.length && !Object.keys(rolePermissions).length) return NO_ACCESS();
+    if (!adminRoleIds.length && !Object.keys(rolePermissions).length) return { isAdmin: false, access: base };
     // guildId is likewise admin-editable (data/settings/config.json), .env is only the bootstrap fallback.
     const guildId = config.guildId || envGuildId;
     if (!botClient || !guildId) throw new Error("bot client or guild id not available");
@@ -223,11 +239,12 @@ async function computeAccess(userId) {
     try {
         member = await guild.members.fetch(userId);
     } catch (e) {
-        if (e && (e.code === UNKNOWN_MEMBER || e.code === UNKNOWN_USER)) return NO_ACCESS();
+        // Not a member of the guild — they still keep the base access.
+        if (e && (e.code === UNKNOWN_MEMBER || e.code === UNKNOWN_USER)) return { isAdmin: false, access: base };
         throw e;
     }
     if (adminRoleIds.some((rid) => member.roles.cache.has(rid))) return ALL_ACCESS();
-    return { isAdmin: false, access: accessForRoles(rolePermissions, memberRoleIds(member)) };
+    return { isAdmin: false, access: mergeAccess(base, accessForRoles(rolePermissions, memberRoleIds(member))) };
 }
 
 /** The role ids of a guild member, tolerating an unexpected member shape. */
@@ -237,13 +254,13 @@ function memberRoleIds(member) {
     return [...cache.keys()];
 }
 
-/** computeAccess(), treating a failed lookup as "no access" (login-time default). */
+/** computeAccess(), falling back to the base access when the lookup fails. */
 async function resolveAccess(userId) {
     try {
         return await computeAccess(userId);
     } catch (e) {
         console.warn(`Role lookup failed for ${userId}:`, e.message);
-        return NO_ACCESS();
+        return BASE_ACCESS();
     }
 }
 

@@ -1,6 +1,7 @@
 const {
-    AREA_IDS, emptyAccess, fullAccess, can, hasAnyAccess, readableAreas,
-    normalizeRolePermissions, accessForRoles, userCan, userHasMenuAccess,
+    AREAS, AREA_IDS, emptyAccess, fullAccess, can, canAny, hasAnyAccess, readableAreas,
+    normalizeRolePermissions, normalizeAreaAccess, mergeAccess, baseAccessMap,
+    accessForRoles, userCan, userCanAny, userHasMenuAccess,
 } = require("../../src/config/permissions");
 
 describe("config/permissions", () => {
@@ -33,6 +34,73 @@ describe("config/permissions", () => {
             expect(can({ raids: { read: true } }, "cla")).toBe(false);
             expect(can(null, "raids")).toBe(false);
             expect(can(undefined, "raids")).toBe(false);
+        });
+    });
+
+    describe("canAny", () => {
+        it("is true as soon as one of the areas is granted", () => {
+            const access = { loot: { read: true, write: false } };
+            expect(canAny(access, ["history", "loot"])).toBe(true);
+            expect(canAny(access, ["history", "loot"], "write")).toBe(false);
+            expect(canAny(access, ["history"])).toBe(false);
+            expect(canAny(access, [])).toBe(false);
+        });
+    });
+
+    describe("the loot area", () => {
+        // The read-only slice of the history tab that the base access hands to
+        // members — it shares the tab, so it must not become its own sidebar tab.
+        it("is a second area on the history tab", () => {
+            const loot = AREAS.find((a) => a.id === "loot");
+            const history = AREAS.find((a) => a.id === "history");
+            expect(loot).toBeDefined();
+            expect(loot.tab).toBe(history.tab);
+        });
+    });
+
+    describe("normalizeAreaAccess", () => {
+        it("keeps known areas, lets write imply read and drops the rest", () => {
+            expect(normalizeAreaAccess({
+                loot: { read: true, write: false },
+                history: { read: false, write: true },
+                dashboard: { read: false, write: false },
+                nonsense: { read: true, write: true },
+            })).toEqual({
+                loot: { read: true, write: false },
+                history: { read: true, write: true },
+            });
+        });
+
+        it("returns an empty object for anything that is not a map", () => {
+            expect(normalizeAreaAccess(null)).toEqual({});
+            expect(normalizeAreaAccess([{ loot: { read: true } }])).toEqual({});
+            expect(normalizeAreaAccess("loot")).toEqual({});
+        });
+    });
+
+    describe("mergeAccess / baseAccessMap", () => {
+        it("unions both maps without touching either", () => {
+            const a = { ...emptyAccess(), loot: { read: true, write: false } };
+            const b = { ...emptyAccess(), raids: { read: true, write: true } };
+            const merged = mergeAccess(a, b);
+            expect(merged.loot).toEqual({ read: true, write: false });
+            expect(merged.raids).toEqual({ read: true, write: true });
+            expect(a.raids).toEqual({ read: false, write: false });
+            expect(b.loot).toEqual({ read: false, write: false });
+        });
+
+        it("keeps the more permissive side of a conflict", () => {
+            const merged = mergeAccess(
+                { history: { read: true, write: false } },
+                { history: { read: true, write: true } },
+            );
+            expect(merged.history).toEqual({ read: true, write: true });
+        });
+
+        it("turns a stored base access into a full map, empty when unset", () => {
+            expect(baseAccessMap({ loot: { read: true } }).loot).toEqual({ read: true, write: false });
+            expect(Object.keys(baseAccessMap({}))).toEqual(AREA_IDS);
+            expect(hasAnyAccess(baseAccessMap(undefined))).toBe(false);
         });
     });
 
@@ -99,6 +167,15 @@ describe("config/permissions", () => {
             expect(userHasMenuAccess({ isAdmin: false })).toBe(false);
             expect(userHasMenuAccess(null)).toBe(false);
             expect(userCan(null, "raids")).toBe(false);
+        });
+
+        it("userCanAny takes any one of the areas, admins included", () => {
+            const looter = { isAdmin: false, access: { ...emptyAccess(), loot: { read: true, write: false } } };
+            expect(userCanAny(looter, ["history", "loot"])).toBe(true);
+            expect(userCanAny(looter, ["history", "loot"], "write")).toBe(false);
+            expect(userCanAny(looter, ["raids", "cla"])).toBe(false);
+            expect(userCanAny({ isAdmin: true }, ["history", "loot"], "write")).toBe(true);
+            expect(userCanAny(null, ["loot"])).toBe(false);
         });
     });
 });

@@ -145,8 +145,18 @@ describe("Historie & Loot tab groups", () => {
 
     it("derives the open group from the open tab", () => {
         // Persisting the group as well would let the two drift apart — a link to
-        // ?tab=items could open the group that doesn't contain it.
-        expect(historySrc).toContain("const activeGroup = groupOf(tab);");
+        // ?tab=items could open the group that doesn't contain it. Resolved
+        // against the groups the user may see, so the loot-only view lands in
+        // its own group instead of falling back to "Raids".
+        expect(historySrc).toContain("const activeGroup = groups.find((g) => g.tabs.includes(tab)) || groups[0];");
         expect(historySrc).not.toMatch(/usePersisted\w*\(\s*"history-group"/);
+    });
+
+    it("offers only the groups the visitor's permissions cover", () => {
+        // The narrower "loot" area opens the loot group alone (permissions.js);
+        // rendering TAB_GROUPS directly would put tabs on screen whose data the
+        // server refuses to send.
+        expect(historySrc).toContain('const groups = fullHistory ? TAB_GROUPS : TAB_GROUPS.filter((g) => g.id === "loot");');
+        expect(historySrc).toMatch(/\{groups\.map\(\(g\) => \(/);
     });
 });

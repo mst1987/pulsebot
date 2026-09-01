@@ -10,7 +10,7 @@ const {
 } = require("../ingestTokenStore");
 const discord = require("../discord");
 const wowhead = require("../../utils/wowhead");
-const { AREAS, normalizeRolePermissions } = require("../../config/permissions");
+const { AREAS, normalizeRolePermissions, normalizeAreaAccess } = require("../../config/permissions");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
 
@@ -50,7 +50,7 @@ function normalizeCategorySheets(raw) {
 
 // Config keys that decide who gets into the menu — only full admins may change
 // them, so a role with write access to "Einstellungen" can't grant itself more.
-const ACCESS_KEYS = ["adminRoleIds", "rolePermissions"];
+const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess"];
 
 /** GET /api/settings — config + raidsheets + the active guild's roles/categories. */
 function getSettings(req, res) {
@@ -95,6 +95,7 @@ async function updateSettings(req, res) {
     const partial = {};
     if (body.adminRoleIds !== undefined) partial.adminRoleIds = asStringArray(body.adminRoleIds);
     if (body.rolePermissions !== undefined) partial.rolePermissions = normalizeRolePermissions(body.rolePermissions);
+    if (body.baseAccess !== undefined) partial.baseAccess = normalizeAreaAccess(body.baseAccess);
     if (body.guildId !== undefined) partial.guildId = String(body.guildId).trim();
     if (body.raidhelperServerId !== undefined) partial.raidhelperServerId = String(body.raidhelperServerId).trim();
     if (body.officerRoleId !== undefined) partial.officerRoleId = String(body.officerRoleId).trim();

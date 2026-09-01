@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
     getHistoryData, getLootStats, importLoot, setLootCategory, deleteHistoryLog, resolveCharacters,
-    getLootInbox,
+    getLootInbox, canAccess,
     type ApiError, type HistoryData, type HistoryEvent, type LootEventSummary, type LootLog, type AnnotatedCharacter,
     type Category, type LootStats, type InboxSession,
 } from "../api";
@@ -41,15 +41,13 @@ const TABS: { id: Tab; label: string; count?: (d: HistoryData) => number }[] = [
 // nine, one level deeper: the group says what kind of thing it is, the tab
 // which one. The open group follows from the open tab, so there is nothing
 // extra to remember or persist.
+// The "loot" group is also what the narrower "Loot-Ansichten" permission opens
+// on its own — see the page component and src/config/permissions.js.
 const TAB_GROUPS: { id: string; label: string; tabs: Tab[] }[] = [
     { id: "raids", label: "Raids", tabs: ["raids", "logs", "chars"] },
     { id: "loot", label: "Loot", tabs: ["loot", "awards", "reasons", "items"] },
     { id: "import", label: "Import", tabs: ["import", "inbox"] },
 ];
-
-function groupOf(tab: Tab) {
-    return TAB_GROUPS.find((g) => g.tabs.includes(tab)) || TAB_GROUPS[0];
-}
 
 // The two overview tabs carry every loot row ever imported, so they load on
 // demand instead of with the page — opening "Alle Raids" must not pay for them.
@@ -177,11 +175,14 @@ const LOOT_EVENT_SORT_DEFAULTS: Record<LootEventSortKey, Dir> = {
     event: "asc", date: "desc", category: "asc", count: "desc", source: "asc",
 };
 
-function LootEventsTab({ lootEvents, categories, csrfToken, onChanged }: {
+function LootEventsTab({ lootEvents, categories, csrfToken, onChanged, canEdit }: {
     lootEvents: LootEventSummary[];
     categories: Category[];
     csrfToken: string | null;
     onChanged: (msg: string) => void;
+    // Without write access to "Historie & Loot" the category is shown, not set —
+    // the loot views are read-only (src/config/permissions.js).
+    canEdit: boolean;
 }) {
     const [saving, setSaving] = useState<string | null>(null);
     const toast = useToast();
@@ -245,20 +246,22 @@ function LootEventsTab({ lootEvents, categories, csrfToken, onChanged }: {
                             <td><strong>{e.label || e.eventId}</strong></td>
                             <td className="small">{fmtMs(e.awardedAt || e.importedAt, false)}</td>
                             <td className="small">
-                                <select
-                                    value={e.categoryId || ""}
-                                    disabled={saving === e.eventId}
-                                    title="Raid-Kategorie, unter der dieser Loot geführt wird — nötig für Loot ohne Event"
-                                    onChange={(ev) => save(e.eventId, ev.target.value)}
-                                >
-                                    <option value="">— ohne Kategorie —</option>
-                                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                    {/* A category the bot can't see right now (channel gone / Discord offline)
-                                        must stay selectable, else opening the tab silently reassigns it. */}
-                                    {e.categoryId && !categories.some((c) => c.id === e.categoryId) && (
-                                        <option value={e.categoryId}>{e.categoryId} (unbekannt)</option>
-                                    )}
-                                </select>
+                                {canEdit ? (
+                                    <select
+                                        value={e.categoryId || ""}
+                                        disabled={saving === e.eventId}
+                                        title="Raid-Kategorie, unter der dieser Loot geführt wird — nötig für Loot ohne Event"
+                                        onChange={(ev) => save(e.eventId, ev.target.value)}
+                                    >
+                                        <option value="">— ohne Kategorie —</option>
+                                        {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        {/* A category the bot can't see right now (channel gone / Discord offline)
+                                            must stay selectable, else opening the tab silently reassigns it. */}
+                                        {e.categoryId && !categories.some((c) => c.id === e.categoryId) && (
+                                            <option value={e.categoryId}>{e.categoryId} (unbekannt)</option>
+                                        )}
+                                    </select>
+                                ) : (categoryNameById.get(e.categoryId || "") || e.categoryId || "—")}
                             </td>
                             <td className="small">{e.count}</td>
                             <td className="small">{(e.sources || []).map((s) => <span key={s} className="lbadge">{LOOT_TOOL_LABELS[s] || s}</span>)}</td>
@@ -593,10 +596,17 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
 }
 
 export default function HistoryPage() {
-    const { csrfToken } = useOutletContext<ShellContext>();
+    const { user, csrfToken } = useOutletContext<ShellContext>();
+    // Two ways in: "history" opens the whole tab, the narrower "loot" only the
+    // loot views (see src/config/permissions.js). Everything below asks this one
+    // flag; the server sends the loot-only caller a payload to match, so the
+    // hidden tabs would have nothing to show anyway (apiRoutes/history.js).
+    const fullHistory = canAccess(user, "history");
+    const groups = fullHistory ? TAB_GROUPS : TAB_GROUPS.filter((g) => g.id === "loot");
+    const allowedTabs = groups.flatMap((g) => g.tabs);
     // In the URL (linkable, survives a reload) and remembered on top of that, so
     // coming back via the sidebar re-opens the tab that was last used here.
-    const [tab, setTab] = usePersistedSearchParam<Tab>("history-tab", "tab", "raids", TABS.map((t) => t.id));
+    const [tab, setTab] = usePersistedSearchParam<Tab>("history-tab", "tab", allowedTabs[0], allowedTabs);
 
     const [data, setData] = useState<HistoryData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
@@ -621,9 +631,13 @@ export default function HistoryPage() {
 
     const load = () => {
         getHistoryData().then(setData).catch((err: ApiError) => setError(err));
-        getLootInbox()
-            .then((r) => { setInbox(r.sessions); setInboxError(null); })
-            .catch((err: ApiError) => setInboxError(err.message));
+        // Skipped without "history": the inbox tab isn't rendered then, and the
+        // call would only earn a 403.
+        if (fullHistory) {
+            getLootInbox()
+                .then((r) => { setInbox(r.sessions); setInboxError(null); })
+                .catch((err: ApiError) => setInboxError(err.message));
+        }
         // Only refresh the overviews once they have been opened — before that
         // there is nothing on screen that could go stale after an import.
         if (statsRequested.current) loadStats();
@@ -644,24 +658,30 @@ export default function HistoryPage() {
     if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
     if (!data) return <div className="empty">Lade…</div>;
 
-    const activeGroup = groupOf(tab);
+    const activeGroup = groups.find((g) => g.tabs.includes(tab)) || groups[0];
 
     return (
         <>
             <h1 className="page-title">Historie &amp; Loot</h1>
-            <p className="note">Loot pro Event importieren (RCLootcouncil-JSON oder Gargul-CSV), Warcraft-Logs verlinken und pro Charakter die Loot-Historie samt Armory einsehen. „Loot-Gründe" zeigt je Raider, wofür er Items bekommen hat, „Items" alle Items mit ihren Empfängern — filterbar nach Raid und Tier.</p>
+            <p className="note">{fullHistory
+                ? "Loot pro Event importieren (RCLootcouncil-JSON oder Gargul-CSV), Warcraft-Logs verlinken und pro Charakter die Loot-Historie samt Armory einsehen. „Loot-Gründe\" zeigt je Raider, wofür er Items bekommen hat, „Items\" alle Items mit ihren Empfängern — filterbar nach Raid und Tier."
+                : "Der Loot der letzten Raids: „Latest Loot\" zeigt die jüngsten Vergaben, „Loot-Gründe\" je Raider, wofür er Items bekommen hat, und „Items\" alle Items mit ihren Empfängern — filterbar nach Raid und Tier."}</p>
 
-            <div className="tabs" role="tablist">
-                {TAB_GROUPS.map((g) => (
-                    <button
-                        key={g.id} type="button" role="tab"
-                        className={`tab-btn${activeGroup.id === g.id ? " active" : ""}`}
-                        onClick={() => setTab(g.tabs[0])}
-                    >
-                        {g.label}
-                    </button>
-                ))}
-            </div>
+            {/* A row with a single group would say nothing the subnav under it
+                doesn't — the loot-only view goes straight to its four tabs. */}
+            {groups.length > 1 && (
+                <div className="tabs" role="tablist">
+                    {groups.map((g) => (
+                        <button
+                            key={g.id} type="button" role="tab"
+                            className={`tab-btn${activeGroup.id === g.id ? " active" : ""}`}
+                            onClick={() => setTab(g.tabs[0])}
+                        >
+                            {g.label}
+                        </button>
+                    ))}
+                </div>
+            )}
             <div className="subnav" role="tablist">
                 {activeGroup.tabs.map((id) => {
                     const t = TABS.find((x) => x.id === id)!;
@@ -694,7 +714,12 @@ export default function HistoryPage() {
                     csrfToken={csrfToken} onChanged={afterChange} error={inboxError}
                 />
             )}
-            {tab === "loot" && <LootEventsTab lootEvents={data.lootEvents} categories={data.categories} csrfToken={csrfToken} onChanged={afterChange} />}
+            {tab === "loot" && (
+                <LootEventsTab
+                    lootEvents={data.lootEvents} categories={data.categories} csrfToken={csrfToken}
+                    onChanged={afterChange} canEdit={canAccess(user, "history", "write")}
+                />
+            )}
             {/* Fetches its own page of awards — see LatestLootTab. */}
             {tab === "awards" && <LatestLootTab categories={data.categories} />}
             {STATS_TABS.includes(tab) && (

@@ -49,6 +49,15 @@ describe("web/settingsStore", () => {
             expect(cfg.raidDefaults).toEqual({ templateId: "tpl", channelId: "" });
         });
 
+        // config.baseAccess is what every logged-in account holds without any
+        // role. Read back through the same normaliser the API saves with, so a
+        // hand-edited config.json cannot smuggle in an area that does not exist.
+        it("normalises baseAccess and defaults it to nothing granted", () => {
+            expect(getConfig().baseAccess).toEqual({});
+            saveConfig({ baseAccess: { loot: { read: true }, nonsense: { read: true, write: true } } });
+            expect(getConfig().baseAccess).toEqual({ loot: { read: true, write: false } });
+        });
+
         it("guards adminRoleIds to an array when the stored value is malformed", () => {
             // write a bad shape directly, then read through getConfig
             saveConfig({});

@@ -1,11 +1,15 @@
 import { useMemo, useState } from "react";
-import type { Area, AreaAccess, Role, RolePermissions } from "../api";
+import type { Access, Area, AreaAccess, Role, RolePermissions } from "../api";
 import { TrashIcon } from "./icons";
 
 // Editor for the "Berechtigungen" settings tab: per Discord role, per area, a
 // read and a write toggle. The stored shape is
 // { [roleId]: { [areaId]: { read, write } } } — see src/config/permissions.js;
 // the server normalises and enforces it (write always implies read).
+//
+// Above the roles sits the base access ({ [areaId]: { read, write } }): what
+// every logged-in account gets without any role. It is a union with the role
+// grants, so it can only widen — a role can never take back what it opens.
 
 const EMPTY: AreaAccess = { read: false, write: false };
 
@@ -36,6 +40,92 @@ function Switch({ checked, onChange, label }: { checked: boolean; onChange: () =
     );
 }
 
+/** The read/write matrix itself — shared by the base access and every role. */
+function AreaTable({ areas, grants, onSet }: {
+    areas: Area[];
+    grants: Record<string, AreaAccess>;
+    onSet: (areaId: string, next: AreaAccess) => void;
+}) {
+    return (
+        <table className="perm-table">
+            <thead>
+                <tr>
+                    <th>Bereich</th>
+                    <th>Lesen</th>
+                    <th>Schreiben</th>
+                </tr>
+            </thead>
+            <tbody>
+                {areas.map((area) => {
+                    const grant = grants[area.id] || EMPTY;
+                    return (
+                        <tr key={area.id}>
+                            <td>
+                                <div>{area.label}</div>
+                                <div className="hint">{area.description}</div>
+                            </td>
+                            <td>
+                                <Switch
+                                    checked={grant.read}
+                                    label="Lesen"
+                                    onChange={() => onSet(area.id, toggled(grant, "read"))}
+                                />
+                            </td>
+                            <td>
+                                <Switch
+                                    checked={grant.write}
+                                    label="Schreiben"
+                                    onChange={() => onSet(area.id, toggled(grant, "write"))}
+                                />
+                            </td>
+                        </tr>
+                    );
+                })}
+            </tbody>
+        </table>
+    );
+}
+
+/**
+ * What every logged-in account may do without holding any of the roles below.
+ * Its own card above them, because it is the one grant that applies to people
+ * nobody configured — typically read on "Loot-Ansichten" so members can look up
+ * what dropped.
+ */
+function BaseAccessCard({ areas, value, onChange }: {
+    areas: Area[];
+    value: Access;
+    onChange: (next: Access) => void;
+}) {
+    const granted = areas.filter((a) => (value[a.id] || EMPTY).read || (value[a.id] || EMPTY).write);
+
+    const setGrant = (areaId: string, next: AreaAccess) => {
+        const out = { ...value };
+        if (!next.read && !next.write) delete out[areaId];
+        else out[areaId] = next;
+        onChange(out);
+    };
+
+    return (
+        <div className="sheetcard">
+            <div className="row-actions" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
+                <h3 style={{ margin: 0 }}>Basiszugang für alle Angemeldeten</h3>
+                <span className="hint">{granted.length ? `${granted.length} Bereich(e)` : "nichts freigegeben"}</span>
+            </div>
+            <p className="hint">
+                Gilt für <b>jedes</b> Discord-Konto, das sich anmeldet — auch ohne Rolle und ohne Mitgliedschaft
+                auf dem Server. Das Menü mit Logout ist immer erreichbar; sichtbar wird davon nur, was hier
+                freigegeben ist. Rollenrechte kommen oben drauf, nehmen aber nie etwas weg.
+            </p>
+            <AreaTable
+                areas={areas}
+                grants={value as Record<string, AreaAccess>}
+                onSet={setGrant}
+            />
+        </div>
+    );
+}
+
 function RoleCard({ role, areas, grants, onSet, onSetAll, onRemove }: {
     role: Role;
     areas: Area[];
@@ -59,52 +149,19 @@ function RoleCard({ role, areas, grants, onSet, onSetAll, onRemove }: {
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => onSetAll("read", false)}>Alles abwählen</button>
                 <button type="button" className="btn btn-danger btn-sm" onClick={onRemove}><TrashIcon />Rolle entfernen</button>
             </div>
-            <table className="perm-table">
-                <thead>
-                    <tr>
-                        <th>Bereich</th>
-                        <th>Lesen</th>
-                        <th>Schreiben</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {areas.map((area) => {
-                        const grant = grants[area.id] || EMPTY;
-                        return (
-                            <tr key={area.id}>
-                                <td>
-                                    <div>{area.label}</div>
-                                    <div className="hint">{area.description}</div>
-                                </td>
-                                <td>
-                                    <Switch
-                                        checked={grant.read}
-                                        label="Lesen"
-                                        onChange={() => onSet(area.id, toggled(grant, "read"))}
-                                    />
-                                </td>
-                                <td>
-                                    <Switch
-                                        checked={grant.write}
-                                        label="Schreiben"
-                                        onChange={() => onSet(area.id, toggled(grant, "write"))}
-                                    />
-                                </td>
-                            </tr>
-                        );
-                    })}
-                </tbody>
-            </table>
+            <AreaTable areas={areas} grants={grants} onSet={onSet} />
         </div>
     );
 }
 
-export default function RolePermissionsEditor({ areas, roles, adminRoleIds, value, onChange }: {
+export default function RolePermissionsEditor({ areas, roles, adminRoleIds, value, onChange, baseAccess, onBaseAccessChange }: {
     areas: Area[];
     roles: Role[];
     adminRoleIds: string[];
     value: RolePermissions;
     onChange: (next: RolePermissions) => void;
+    baseAccess: Access;
+    onBaseAccessChange: (next: Access) => void;
 }) {
     const [picked, setPicked] = useState("");
 
@@ -143,12 +200,22 @@ export default function RolePermissionsEditor({ areas, roles, adminRoleIds, valu
         setPicked("");
     };
 
+    const base = <BaseAccessCard areas={areas} value={baseAccess} onChange={onBaseAccessChange} />;
+
+    // The base access needs no Discord roles at all, so it stays editable while
+    // the role list is unavailable (bot offline, no server picked).
     if (!roles.length) {
-        return <p className="hint">Keine Rollen geladen (Server gewählt und Bot online?). Die Auswahl ist verfügbar, sobald der Bot verbunden ist.</p>;
+        return (
+            <>
+                {base}
+                <p className="hint">Keine Rollen geladen (Server gewählt und Bot online?). Die Auswahl ist verfügbar, sobald der Bot verbunden ist.</p>
+            </>
+        );
     }
 
     return (
         <>
+            {base}
             <p className="hint">
                 Rollen ohne Admin-Rechte bekommen hier gezielt Zugriff auf einzelne Bereiche des Menüs.
                 <b> Lesen</b> = Bereich ansehen, <b>Schreiben</b> = dort auch Aktionen ausführen (Schreiben schaltet Lesen automatisch mit).

@@ -4,7 +4,7 @@ import {
     getRaiderCharacters, saveRaiderCharacters, searchSettingsItems,
     getIngestTokens, createIngestToken, deleteIngestToken,
     type ApiError, type SettingsData, type AdminConfig, type Category, type Raidsheet,
-    type RaiderCharactersData, type RolePermissions, type TopItem, type IngestToken,
+    type RaiderCharactersData, type RolePermissions, type Access, type TopItem, type IngestToken,
 } from "../api";
 import { useOutletContext } from "react-router-dom";
 import { fmtMs } from "../lib/format";
@@ -30,6 +30,8 @@ const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolea
 type Draft = {
     adminRoleIdsText: string;
     rolePermissions: RolePermissions;
+    // What every logged-in account gets without a role (see RolePermissions.tsx).
+    baseAccess: Access;
     guildId: string;
     raidhelperServerId: string;
     officerRoleId: string;
@@ -57,6 +59,7 @@ function toDraft(config: AdminConfig): Draft {
         // Both are absent for a non-admin who only holds write on "Einstellungen".
         adminRoleIdsText: (config.adminRoleIds || []).join(", "),
         rolePermissions: config.rolePermissions || {},
+        baseAccess: config.baseAccess || {},
         guildId: config.guildId,
         raidhelperServerId: config.raidhelperServerId,
         officerRoleId: config.officerRoleId,
@@ -618,6 +621,7 @@ export default function SettingsPage() {
                 ...(data.canManageAccess ? {
                     adminRoleIds: splitList(draft.adminRoleIdsText),
                     rolePermissions: draft.rolePermissions,
+                    baseAccess: draft.baseAccess,
                     guildId: draft.guildId.trim(),
                     raidhelperServerId: draft.raidhelperServerId.trim(),
                 } : {}),
@@ -675,6 +679,8 @@ export default function SettingsPage() {
                     adminRoleIds={splitList(draft.adminRoleIdsText)}
                     value={draft.rolePermissions}
                     onChange={(rolePermissions) => patch({ rolePermissions })}
+                    baseAccess={draft.baseAccess}
+                    onBaseAccessChange={(baseAccess) => patch({ baseAccess })}
                 />
             );
 

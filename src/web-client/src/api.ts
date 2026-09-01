@@ -32,6 +32,15 @@ export function canAccess(user: SessionUser | null, area: string, level: "read" 
     return level === "write" ? !!entry.write : !!(entry.read || entry.write);
 }
 
+/**
+ * Whether the user may read (or write) at least one of the given areas — the
+ * client-side twin of userCanAny() in src/config/permissions.js, for a tab that
+ * more than one area opens (Historie & Loot: "history" fully, "loot" partly).
+ */
+export function canAccessAny(user: SessionUser | null, areas: string[], level: "read" | "write" = "read"): boolean {
+    return areas.some((area) => canAccess(user, area, level));
+}
+
 export type EventSheet = { filledAt: string; playerCount?: number } | null;
 
 export type UpcomingEvent = {
@@ -233,6 +242,8 @@ export type AdminConfig = {
     adminRoleIds: string[];
     // Per-role area rights; only sent to (and savable by) full admins.
     rolePermissions?: RolePermissions;
+    // What every logged-in account gets without a role — same gate as above.
+    baseAccess?: Access;
     guildId: string;
     raidhelperServerId: string;
     officerRoleId: string;

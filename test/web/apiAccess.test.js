@@ -48,6 +48,41 @@ describe("web/apiAccess", () => {
             expect(checkAccess("/api/settings", "GET", user)).toMatchObject({ status: 403 });
         });
 
+        // "Loot-Ansichten" is the read-only slice of the history tab that every
+        // member can be given (config/permissions.js).
+        describe("the loot area", () => {
+            const looter = limited({ loot: { read: true, write: false } });
+
+            it("opens the loot endpoints for reading", () => {
+                for (const p of ["/api/history", "/api/history/loot-stats", "/api/history/loot-awards", "/api/history/event", "/api/history/char"]) {
+                    expect(checkAccess(p, "GET", looter)).toBeNull();
+                }
+            });
+
+            it("refuses to write anywhere in the history", () => {
+                expect(checkAccess("/api/history/import", "POST", looter)).toMatchObject({ status: 403 });
+                expect(checkAccess("/api/history/loot-delete", "POST", looter)).toMatchObject({ status: 403 });
+                expect(checkAccess("/api/history/loot-category", "POST", looter)).toMatchObject({ status: 403 });
+                expect(checkAccess("/api/history/clear", "POST", looter)).toMatchObject({ status: 403 });
+            });
+
+            it("does not open the rest of the history tab", () => {
+                expect(checkAccess("/api/history/inbox", "GET", looter)).toMatchObject({ status: 403 });
+                expect(checkAccess("/api/history/log-delete", "POST", looter)).toMatchObject({ status: 403 });
+                expect(checkAccess("/api/cla", "GET", looter)).toMatchObject({ status: 403 });
+                expect(checkAccess("/api/roster", "GET", looter)).toMatchObject({ status: 403 });
+            });
+
+            // The wider area must keep opening everything it did before.
+            it("leaves a history reader unaffected", () => {
+                const reader = limited({ history: { read: true, write: false } });
+                expect(checkAccess("/api/history", "GET", reader)).toBeNull();
+                expect(checkAccess("/api/history/inbox", "GET", reader)).toBeNull();
+                expect(checkAccess("/api/history/event", "GET", reader)).toBeNull();
+                expect(checkAccess("/api/history/import", "POST", reader)).toMatchObject({ status: 403 });
+            });
+        });
+
         it("lets any menu user switch the active guild", () => {
             expect(checkAccess("/api/session/guild", "POST", limited({ raids: { read: true, write: false } }))).toBeNull();
             expect(checkAccess("/api/session/guild", "POST", limited({}))).toMatchObject({ status: 403 });
@@ -77,7 +112,10 @@ describe("web/apiAccess", () => {
 
     describe("AREA_BY_PATH", () => {
         it("only maps to known areas", () => {
-            for (const area of Object.values(AREA_BY_PATH)) expect(AREA_IDS).toContain(area);
+            // A value is one area or a list of them — any of which opens the path.
+            for (const entry of Object.values(AREA_BY_PATH)) {
+                for (const area of Array.isArray(entry) ? entry : [entry]) expect(AREA_IDS).toContain(area);
+            }
         });
 
         it("maps nothing that the router doesn't serve", () => {

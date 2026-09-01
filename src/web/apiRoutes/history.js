@@ -29,6 +29,7 @@ const { sessionContentLabel } = require("../lootSessionContent");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setupView");
 const { applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../../config/variables");
 const Blizzard = require("../../classes/blizzard");
+const { userCan } = require("../../config/permissions");
 const discord = require("../discord");
 const { listKnownCategories } = require("../categoryNames");
 
@@ -47,11 +48,35 @@ const withClassLook = (c) => ({
     iconUrl: c.className ? classSpecIconUrl(c.className, c.spec) : "",
 });
 
+/**
+ * The same payload shape as getHistoryData(), reduced to what the loot tabs use:
+ * the imported loot buckets and the category names they are labelled with. The
+ * remaining fields stay present but empty, so the client keeps one type.
+ */
+function lootOnlyHistoryData(guildId) {
+    return {
+        events: [],
+        upcomingRaids: { events: [], error: null },
+        pastRaids: { events: [], error: null },
+        lootEvents: eventsWithLoot(),
+        logs: [],
+        categories: listKnownCategories(guildId),
+        categoryLootTool: {},
+        activeGuildId: guildId,
+        chars: [],
+    };
+}
+
 /** GET /api/history — everything the "Alle Raids/Import/Loot/Logs/Loot-Tools" tabs need. */
 async function getHistoryData(req, res) {
     const user = requireAdmin(req, res);
     if (!user) return;
     const guildId = activeGuildFor(req);
+    // Someone who only holds "Loot-Ansichten" gets exactly what those four tabs
+    // read and nothing else — the raid lists, the logs and the character table
+    // belong to "Historie & Loot". Skipping them also spares the Raid-Helper and
+    // Discord round-trips below, which that caller has no use for.
+    if (!userCan(user, "history")) return ok(res, lootOnlyHistoryData(guildId));
     const { groups, error: upcomingError } = await loadEventGroups(guildId);
     const allUpcoming = groups.flatMap((g) => g.events);
     const events = allUpcoming.map((ev) => ({ id: ev.id, title: ev.title, startTime: ev.startTime, categoryId: ev.categoryId }));
