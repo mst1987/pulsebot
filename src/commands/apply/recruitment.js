@@ -18,7 +18,7 @@ module.exports = {
         const templates = listRecruitment();
         if (!templates.length) {
             return interaction.editReply(
-                "Es sind noch keine Recruitment-Vorlagen angelegt. Erstelle sie im Admin-Menü unter /admin/recruitment."
+                "Es sind noch keine Recruitment-Vorlagen angelegt. Erstelle sie im Gildenmenü unter /recruitment."
             );
         }
 

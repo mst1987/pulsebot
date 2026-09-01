@@ -21,6 +21,36 @@ const appSrc = read("App.tsx");
 const shellSrc = read("components", "Shell.tsx");
 const historySrc = read("pages", "HistoryPage.tsx");
 
+// The menu is served from the site root, not from /admin — see server.js and
+// staticClient.js. A basename or an /admin link left behind in the client would
+// either break routing outright or take a needless redirect hop.
+describe("served from the root", () => {
+    it("mounts the router without a basename", () => {
+        const mainSrc = read("main.tsx");
+        expect(mainSrc).toContain("<BrowserRouter>");
+        expect(mainSrc).not.toMatch(/basename\s*=/);
+    });
+
+    it("has no /admin link left anywhere in the client", () => {
+        for (const dir of ["pages", "components"]) {
+            const dirPath = path.join(CLIENT, dir);
+            for (const file of fs.readdirSync(dirPath)) {
+                if (!file.endsWith(".tsx")) continue;
+                expect(`${dir}/${file}: ${read(dir, file).includes("\"/admin") ? "links to /admin" : "ok"}`)
+                    .toBe(`${dir}/${file}: ok`);
+            }
+        }
+        expect(appSrc).not.toContain("\"/admin");
+    });
+
+    it("catches an unknown path in the client instead of leaving it blank", () => {
+        // Every unknown GET reaches the SPA now (staticClient.js serves index.html),
+        // so a path no route claims has to render something.
+        expect(appSrc).toContain('<Route path="*" element={<NotFound />} />');
+        expect(appSrc).toMatch(/function NotFound\(\)/);
+    });
+});
+
 describe("menu access", () => {
     it("keeps the shell for a logged-in account with nothing granted", () => {
         // The only early return before the router is the anonymous one.

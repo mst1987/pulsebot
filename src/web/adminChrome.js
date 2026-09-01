@@ -20,15 +20,17 @@ const ICONS = {
     settings: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z\"/></svg>",
 };
 
-// Same order/grouping as Shell.tsx's TABS; hrefs carry the SPA's /admin basename.
+// Same order/grouping as Shell.tsx's TABS, and now the same hrefs too: the
+// client is served from the site root (src/web/staticClient.js), so a link here
+// leads straight into it.
 const TABS = [
-    { id: "home", label: "Übersicht", href: "/admin", group: "Verwaltung", icon: ICONS.home },
-    { id: "recruitment", label: "Recruitment", href: "/admin/recruitment", group: "Verwaltung", icon: ICONS.recruitment },
-    { id: "cla", label: "CLA / Logcheck", href: "/admin/cla", group: "Verwaltung", icon: ICONS.cla },
-    { id: "raids", label: "Raid-Events", href: "/admin/raids", group: "Verwaltung", icon: ICONS.raids },
-    { id: "history", label: "Historie & Loot", href: "/admin/history", group: "Verwaltung", icon: ICONS.history },
-    { id: "channels", label: "Kanäle", href: "/admin/channels", group: "Verwaltung", icon: ICONS.channels },
-    { id: "settings", label: "Einstellungen", href: "/admin/settings", group: "System", icon: ICONS.settings },
+    { id: "home", label: "Übersicht", href: "/", group: "Verwaltung", icon: ICONS.home },
+    { id: "recruitment", label: "Recruitment", href: "/recruitment", group: "Verwaltung", icon: ICONS.recruitment },
+    { id: "cla", label: "CLA / Logcheck", href: "/cla", group: "Verwaltung", icon: ICONS.cla },
+    { id: "raids", label: "Raid-Events", href: "/raids", group: "Verwaltung", icon: ICONS.raids },
+    { id: "history", label: "Historie & Loot", href: "/history", group: "Verwaltung", icon: ICONS.history },
+    { id: "channels", label: "Kanäle", href: "/channels", group: "Verwaltung", icon: ICONS.channels },
+    { id: "settings", label: "Einstellungen", href: "/settings", group: "System", icon: ICONS.settings },
 ];
 
 // Shell layout, ported from the "sidebar app shell" block of index.css so the
@@ -118,11 +120,11 @@ function renderAdminChrome({ user, activeTab, crumbs = [], body = "", actions = 
 
     return `<div class="app">
   <aside class="side" id="sideNav">
-    <a class="brand" href="/admin">
+    <a class="brand" href="/">
       <div class="crest">${ICONS.crest}</div>
       <div>
         <div class="brand-name">EventHelper</div>
-        <div class="brand-sub">Gilden-Admin</div>
+        <div class="brand-sub">Gildenmenü</div>
       </div>
     </a>
     <nav class="menu">${navHtml(activeTab)}</nav>

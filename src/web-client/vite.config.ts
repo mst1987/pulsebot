@@ -13,10 +13,10 @@ dotenv.config({ path: existsSync(envDev) ? envDev : path.join(rootDir, ".env") }
 
 const backendPort = process.env.WEB_PORT || "3005";
 
-export default defineConfig(({ command }) => ({
-    // Production build is served by the Node backend under /admin/ (see
-    // src/web/staticClient.js); dev keeps the default root base for the Vite server.
-    base: command === "build" ? "/admin/" : "/",
+export default defineConfig(() => ({
+    // The Node backend (src/web/staticClient.js) and the Vite dev server both
+    // serve the app from the site root, so the base is the same either way.
+    base: "/",
     plugins: [react()],
     server: {
         port: Number(process.env.WEB_CLIENT_PORT) || 4015,

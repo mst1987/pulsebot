@@ -11,7 +11,7 @@ function render(opts = {}) {
     return renderAdminChrome({
         user: { name: "Admin" },
         activeTab: "cla",
-        crumbs: [{ label: "Admin", href: "/admin" }, { label: "CLA / Logcheck", href: "/admin/cla" }, { label: "Test Raid" }],
+        crumbs: [{ label: "Menü", href: "/" }, { label: "CLA / Logcheck", href: "/cla" }, { label: "Test Raid" }],
         body: "<p>inhalt</p>",
         actions: "<button id=\"themeBtn\"></button>",
         esc,
@@ -23,7 +23,8 @@ describe("web/adminChrome", () => {
     it("renders the brand, every nav tab and the page body", () => {
         const html = render();
         expect(html).toContain("EventHelper");
-        expect(html).toContain("Gilden-Admin");
+        // Same wording as the React shell's brand-sub (Shell.tsx).
+        expect(html).toContain("Gildenmenü");
         for (const tab of TABS) {
             expect(html).toContain(`href="${tab.href}"`);
             expect(html).toContain(`<span>${tab.label}</span>`);
@@ -31,11 +32,14 @@ describe("web/adminChrome", () => {
         expect(html).toContain("<div class=\"content\"><p>inhalt</p></div>");
     });
 
-    it("uses the same hrefs as the React admin routes (under the /admin basename)", () => {
+    // Both the SSR chrome and the React client are served from the root now, so
+    // a link that still carried /admin would take a needless redirect hop.
+    it("uses the same hrefs as the React routes, at the root", () => {
         const html = render();
-        expect(html).toContain("href=\"/admin\"");
-        expect(html).toContain("href=\"/admin/history\"");
-        expect(html).not.toContain("href=\"/cla\"");
+        expect(html).toContain("href=\"/\"");
+        expect(html).toContain("href=\"/history\"");
+        expect(html).toContain("href=\"/cla\"");
+        expect(html).not.toContain("href=\"/admin");
     });
 
     it("marks only the active tab", () => {
@@ -46,8 +50,8 @@ describe("web/adminChrome", () => {
 
     it("renders breadcrumbs with links for all but the last segment", () => {
         const html = render();
-        expect(html).toContain("<a href=\"/admin\">Admin</a>");
-        expect(html).toContain("<a href=\"/admin/cla\">CLA / Logcheck</a>");
+        expect(html).toContain("<a href=\"/\">Menü</a>");
+        expect(html).toContain("<a href=\"/cla\">CLA / Logcheck</a>");
         expect(html).toContain("<b>Test Raid</b>");
     });
 

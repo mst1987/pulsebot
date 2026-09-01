@@ -620,7 +620,7 @@ function shellPage(title, { user, body, crumbs = [] }) {
         const chrome = renderAdminChrome({
             user,
             activeTab: "cla",
-            crumbs: [{ label: "Admin", href: "/admin" }, { label: "CLA / Logcheck", href: "/admin/cla" }, ...crumbs],
+            crumbs: [{ label: "Menü", href: "/" }, { label: "CLA / Logcheck", href: "/cla" }, ...crumbs],
             body,
             actions: themeToggleBtn(),
             esc,
@@ -1253,7 +1253,7 @@ function renderReportPage(report, user) {
     const isAdmin = !!(user && user.isAdmin);
     const actions = [
         report.reportUrl ? `<a class="btn btn-ghost btn-sm" href="${esc(report.reportUrl)}" target="_blank" rel="noopener">→ Warcraft Logs</a>` : "",
-        isAdmin ? "<a class=\"btn btn-ghost btn-sm\" href=\"/admin/cla\">Alle Auswertungen</a>" : "",
+        isAdmin ? "<a class=\"btn btn-ghost btn-sm\" href=\"/cla\">Alle Auswertungen</a>" : "",
     ].filter(Boolean).join("");
 
     const body = `
@@ -1402,7 +1402,7 @@ function renderPlayerPage(report, idx, user) {
 // chrome (sidebar + user footer) around the page instead.
 function authBar(user) {
     if (user && user.name) {
-        const admin = user.isAdmin ? " · <a class=\"mlink\" href=\"/admin\">Admin-Menü</a>" : "";
+        const admin = user.isAdmin ? " · <a class=\"mlink\" href=\"/\">Gildenmenü</a>" : "";
         return `<span class="sub" style="margin:0">Eingeloggt als <strong>${esc(user.name)}</strong>${admin} · <a class="mlink" href="/auth/logout">Logout</a></span>`;
     }
     return `<a class="discord-btn" href="/auth/login">${DISCORD_LOGO}<span>Mit Discord einloggen</span></a>`;

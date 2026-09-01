@@ -84,8 +84,8 @@ The web server boots **independently of the Discord gateway** (`src/bot.js` `sta
   ```bash
   npm start          # reads WEB_PORT + DEV_AUTO_LOGIN from .env.dev
   ```
-  or override inline (bash: `WEB_PORT=3010 DEV_AUTO_LOGIN=1 NODE_ENV=development npm start`; PowerShell: `$env:WEB_PORT=3010; $env:DEV_AUTO_LOGIN=1; npm start`). The admin menu is then at `http://localhost:3010/` (redirects to `/admin`). `DEV_AUTO_LOGIN=1` auto-logs-in the first admin and is hard-gated to non-production (`src/config/variables.js`), so it can never weaken auth on the live bot.
-- **The admin menu needs the React client built first.** `/admin` is served entirely from `src/web-client/dist/` (see "Web Admin" below) — run `cd src/web-client && npm install && npm run build` once per fresh worktree before starting the backend, or run `npm run dev` inside `src/web-client/` (its own Vite dev server, proxying `/api` to the backend port) for live-reloading frontend work. A missing/stale `dist/` means `/admin` 404s outright — there is no server-rendered fallback anymore.
+  or override inline (bash: `WEB_PORT=3010 DEV_AUTO_LOGIN=1 NODE_ENV=development npm start`; PowerShell: `$env:WEB_PORT=3010; $env:DEV_AUTO_LOGIN=1; npm start`). The menu is then at `http://localhost:3010/` — the site root. `DEV_AUTO_LOGIN=1` auto-logs-in the first admin and is hard-gated to non-production (`src/config/variables.js`), so it can never weaken auth on the live bot.
+- **The menu needs the React client built first.** Everything outside `/api`, `/auth`, `/health` and the `/r/` report pages is served from `src/web-client/dist/` (see "Web Admin" below) — run `cd src/web-client && npm install && npm run build` once per fresh worktree before starting the backend, or run `npm run dev` inside `src/web-client/` (its own Vite dev server, proxying `/api` to the backend port) for live-reloading frontend work. A missing/stale `dist/` means the menu 404s outright — there is no server-rendered fallback anymore.
 - **After the change:** report the port/URL you used to verify it, and stop the instance when done (it is only for review, never left running in production).
 
 ## Architecture
@@ -236,7 +236,14 @@ const raidInfos = await getRaidInfosFromChannel(interaction);
 
 ## Web Admin (`src/web/`, `src/web-client/`)
 
-The bot ships an admin website as a **single React SPA** — `src/web-client/` (Vite + TypeScript), built to `dist/` and served as static files by `src/web/staticClient.js` under `/admin/*` (root `/` 302-redirects to `/admin`; `/admin2/*`, the SPA's old mount point during its migration, 302-redirects to the equivalent `/admin/*` path for old bookmarks). The SPA talks to `src/web/apiRoutes/*.js` (`/api/*`, JSON, dispatched by `apiRouter.js`) for everything — there is no server-rendered admin UI anymore.
+The bot ships its website as a **single React SPA** — `src/web-client/` (Vite + TypeScript), built to `dist/` and served as static files by `src/web/staticClient.js` **from the site root**. The SPA talks to `src/web/apiRoutes/*.js` (`/api/*`, JSON, dispatched by `apiRouter.js`) for everything — there is no server-rendered admin UI anymore.
+
+**Why the root, and what that means for routing.** The menu used to live under `/admin` (and `/admin2` before that), but members open it to look up loot — a link reading `/admin/history` told them they were somewhere they should not be. So `server.js` matches the paths that own themselves first (`/api/*`, `/auth/*`, `/health`, the public `/r/<id>` report pages) and hands **everything else** to `staticClient.js`; `/admin/*` and `/admin2/*` 302-redirect to the same path at the root, so old bookmarks and links already posted in Discord keep working. Consequences worth knowing:
+
+- A new **server-side** path must be registered in `server.js` *above* the SPA fallback, or the client will answer it.
+- An unknown GET no longer 404s on the server — it reaches the SPA, whose `path="*"` route renders the "not found" page inside the shell. The server's 404 is left for a missing `dist/` and for an unknown report id.
+- `staticClient.js` takes the request path unprefixed now, so its path-traversal guard is the only thing between `/../../.env` and the filesystem (`test/web/staticClient.test.js` covers it).
+- Vite's `base` and the router's basename are both `/` — don't reintroduce either. Links in the SSR report chrome (`adminChrome.js`) point at the root paths too, so they don't take a redirect hop.
 
 - **Must be built before it's reachable.** Run `cd src/web-client && npm install && npm run build` — the built `dist/` is what `staticClient.js` serves. In production this now happens automatically via `deploy.sh`. See "Local test instances" above for the worktree workflow.
 - Page components live in `src/web-client/src/pages/*.tsx`, one per admin section (`DashboardPage`, `RecruitmentPage`, `ClaPage`, `RaidsPage`/`RaidCreatePage`/`RaidDetailPage`/`NotifyTemplatesPage`, `ChannelsPage`, `SettingsPage`, `HistoryPage`/`HistoryEventPage`/`HistoryCharPage`), routed in `App.tsx`, shelled by `components/Shell.tsx` (sidebar nav + topbar with the server/guild switcher and theme toggle).

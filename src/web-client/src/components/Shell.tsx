@@ -108,7 +108,9 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
                     <div className="crest"><CrestIcon /></div>
                     <div>
                         <div className="brand-name">EventHelper</div>
-                        <div className="brand-sub">Gilden-Admin</div>
+                        {/* Not "Gilden-Admin": most people in here are members
+                            looking up loot, not officers. */}
+                        <div className="brand-sub">Gildenmenü</div>
                     </div>
                 </div>
                 <AdminNav user={user} />
@@ -129,7 +131,7 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
                         <BurgerIcon />
                     </button>
                     <div className="crumbs">
-                        <Link to="/">Admin</Link> <span style={{ opacity: .45 }}>/</span>{" "}
+                        <Link to="/">Menü</Link> <span style={{ opacity: .45 }}>/</span>{" "}
                         {crumb && tab ? <Link to={tab.href}>{label}</Link> : <b>{label}</b>}
                         {crumb && <> <span style={{ opacity: .45 }}>/</span> <b>{crumb}</b></>}
                     </div>
