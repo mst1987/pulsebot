@@ -21,7 +21,13 @@ import { useToast } from "./Jobs";
 // Bosses that are not an encounter, in the order tbcContent.js files them.
 const TRASH = "Trash";
 
-/** How many suggestions the two pickers drop down at once. */
+// How many suggestions the raider picker drops down at once. The raider list is
+// open-ended (everyone who ever got loot), so it is a "keep typing" hint.
+//
+// The item picker deliberately has NO such cap: its list is one raid's closed
+// drop table, and scrolling it is how somebody who does not remember an item's
+// exact name finds it. Capped at 12 it showed the alphabetically first boss and
+// nothing else — "Alle Bosse" promised 223 items and offered a dozen.
 const MAX_SUGGESTIONS = 12;
 
 const norm = (s: string) => s.trim().toLowerCase();
@@ -54,11 +60,13 @@ function ItemPicker({ items, value, onPick }: {
 
     // An empty query lists the raid's drops from the top rather than nothing:
     // the list is the point of the picker, and scrolling it is how somebody who
-    // does not remember the item's exact name finds it.
+    // does not remember the item's exact name finds it. Never cut short — the
+    // panel scrolls (.hr-panel), and a raid is 30-200 items, all of which the
+    // browser renders without noticing. See MAX_SUGGESTIONS.
     const matches = useMemo(() => {
         const q = norm(query);
-        const hits = q ? items.filter((it) => norm(it.name).includes(q) || String(it.id) === q) : items;
-        return hits.slice(0, MAX_SUGGESTIONS);
+        if (!q) return items;
+        return items.filter((it) => norm(it.name).includes(q) || String(it.id) === q);
     }, [items, query]);
 
     if (value) {
