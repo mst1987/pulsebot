@@ -53,6 +53,12 @@ function mockInteraction(opts = {}) {
         emojis = [],
         channels = [],
         member = { displayName: "Tester", id: userId },
+        // A submitted modal rather than a click. Handlers that serve both under
+        // one customId prefix branch on isModalSubmit() — see
+        // commands/logcheck/logevalForce.js.
+        modal = false,
+        // The message a component sits under (interaction.message).
+        message = null,
     } = opts;
 
     const sentMessage = {
@@ -81,6 +87,9 @@ function mockInteraction(opts = {}) {
         channel,
         commandName,
         customId,
+        message,
+        isModalSubmit: jest.fn(() => !!modal),
+        isButton: jest.fn(() => !modal && !!customId),
         replied: false,
         deferred: false,
         reply: jest.fn().mockResolvedValue(sentMessage),

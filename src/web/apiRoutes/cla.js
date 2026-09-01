@@ -87,13 +87,17 @@ async function createReport(req, res) {
     const body = await readJsonBody(req);
     const link = String(body.link || "").trim();
     if (!link) return error(res, 400, "build_failed", "Kein Report-Link angegeben.");
+    // Sent once the client has asked whether a raid that is still running should
+    // be evaluated regardless (see utils/logcheck/raidProgress.js).
+    const force = !!body.force;
 
     const jobId = crypto.randomBytes(8).toString("hex");
     startJob(jobId, REPORT_SECTION, async () => {
         try {
-            const result = await buildReport(link);
+            const result = await buildReport(link, { force });
             return { ok: true, id: result.id, url: result.url };
         } catch (e) {
+            if (e && e.incomplete) return { ok: false, incomplete: true, error: e.message };
             if (e instanceof ReportError) return { ok: false, error: e.message };
             console.error("CLA web build failed:", e);
             return { ok: false, error: "Unerwarteter Fehler beim Erstellen der Auswertung." };
@@ -113,7 +117,10 @@ function reportStatus(req, res, url) {
     const jobId = String(url.searchParams.get("jobId") || "").trim();
     const job = getJob(jobId, REPORT_SECTION);
     if (!job) return ok(res, { status: "unknown" });
-    ok(res, { status: job.status, url: job.url, id: job.id, error: job.error, runningMs: job.runningMs });
+    ok(res, {
+        status: job.status, url: job.url, id: job.id, error: job.error,
+        incomplete: job.incomplete, runningMs: job.runningMs,
+    });
 }
 
 /**
@@ -184,7 +191,10 @@ async function evalLog(req, res) {
         });
     }
 
-    const { alreadyRunning } = startJob(logId, section, () => evaluateLog(logId, section));
+    // Set once the client has asked whether a raid that is still running should
+    // be evaluated regardless (see utils/logcheck/raidProgress.js).
+    const force = !!body.force;
+    const { alreadyRunning } = startJob(logId, section, () => evaluateLog(logId, section, { force }));
     ok(res, { status: "running", section, logId, alreadyRunning }, 202);
 }
 
@@ -252,7 +262,7 @@ function evalStatus(req, res, url) {
     if (job) {
         return ok(res, {
             status: job.status, url: job.url, id: job.id,
-            error: job.error, section, runningMs: job.runningMs,
+            error: job.error, incomplete: job.incomplete, section, runningMs: job.runningMs,
         });
     }
 

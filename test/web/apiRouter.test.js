@@ -3321,7 +3321,7 @@ describe("web/apiRouter", () => {
             expect(body(res).data.status).toBe("running");
             expect(body(res).data.jobId).toEqual(expect.any(String));
             await flushJobs();
-            expect(buildReport).toHaveBeenCalledWith("https://classic.warcraftlogs.com/reports/abc123");
+            expect(buildReport).toHaveBeenCalledWith("https://classic.warcraftlogs.com/reports/abc123", { force: false });
         });
 
         it("rejects an empty link outright instead of queueing a doomed job", async () => {
@@ -3495,14 +3495,14 @@ describe("web/apiRouter", () => {
             logChannel.evaluateLog.mockResolvedValue({ ok: true, id: "abc", url: "/r/abc" });
             await post("/api/cla/eval", { logId: "l1", section: "rpb" });
             await flushJobs();
-            expect(logChannel.evaluateLog).toHaveBeenCalledWith("l1", "rpb");
+            expect(logChannel.evaluateLog).toHaveBeenCalledWith("l1", "rpb", { force: false });
         });
 
         it("falls back to the CLA half for an unknown section", async () => {
             logChannel.evaluateLog.mockResolvedValue({ ok: true, id: "abc", url: "/r/abc" });
             await post("/api/cla/eval", { logId: "l1", section: "nonsense" });
             await flushJobs();
-            expect(logChannel.evaluateLog).toHaveBeenCalledWith("l1", "cla");
+            expect(logChannel.evaluateLog).toHaveBeenCalledWith("l1", "cla", { force: false });
         });
 
         it("reports a half that already ran without starting a job", async () => {
@@ -3521,7 +3521,7 @@ describe("web/apiRouter", () => {
             const res = await post("/api/cla/eval", { logId: "l1", section: "rpb" });
             expect(res.writeHead).toHaveBeenCalledWith(202, expect.any(Object));
             await flushJobs();
-            expect(logChannel.evaluateLog).toHaveBeenCalledWith("l1", "rpb");
+            expect(logChannel.evaluateLog).toHaveBeenCalledWith("l1", "rpb", { force: false });
         });
 
         it("rejects an unknown log up front", async () => {

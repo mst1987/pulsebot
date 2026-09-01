@@ -1,5 +1,6 @@
 const { evaluateLog, SECTION_LABEL } = require("../../web/logChannel");
 const { reportSummaryLines } = require("../../utils/logcheck/report");
+const { forceButtonRow } = require("./logevalForce");
 const logStore = require("../../web/logStore");
 const discord = require("../../web/discord");
 
@@ -21,6 +22,14 @@ module.exports = {
 
         const res = await evaluateLog(logId, section);
         if (!res.ok) {
+            // The raid is still running: offer the deliberate way past instead of
+            // a dead end. The button opens a confirmation modal (logevalForce.js).
+            if (res.incomplete) {
+                return interaction.editReply({
+                    content: `⚠️ ${res.error}`,
+                    components: [forceButtonRow("log", logId, section)],
+                });
+            }
             const suffix = res.url ? `\n🔗 ${res.url}` : "";
             return interaction.editReply({ content: `⚠️ ${res.error}${suffix}` });
         }

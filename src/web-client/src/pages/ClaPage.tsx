@@ -7,6 +7,7 @@ import {
     type LogSection,
 } from "../api";
 import { formatEventTime, fmtMs } from "../lib/format";
+import { withIncompleteConfirm } from "../lib/confirmIncomplete";
 import { usePersistedState, usePersistedSearchParam, useDraftState } from "../lib/persistedState";
 import type { ShellContext } from "../components/Shell";
 import { SortTh } from "../components/SortTh";
@@ -136,7 +137,7 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
                 message: "Auswertung erstellt.",
                 link: { href: r.url, label: "Report ansehen ↗", external: true },
             }),
-        }, () => createReport(csrfToken, target)).then(onChanged);
+        }, () => withIncompleteConfirm((force) => createReport(csrfToken, target, { force }))).then(onChanged);
     };
 
     // Deleting a report also resets its log back to "offen", so it can be
@@ -410,7 +411,7 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
                     : `${label}-Auswertung erstellt.`,
                 link: r.url ? { href: r.url, label: "Report ansehen ↗", external: true } : undefined,
             }),
-        }, () => evalLog(csrfToken, l.id, section)).then(() => {
+        }, () => withIncompleteConfirm((force) => evalLog(csrfToken, l.id, section, { force }))).then(() => {
             setRunning((keys) => keys.filter((k) => k !== key));
             onChanged();
         });
