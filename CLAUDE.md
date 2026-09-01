@@ -250,6 +250,16 @@ Two pages outgrew a single tab row and are organised in two levels instead — t
 - **Historie & Loot** groups its nine tabs into *Raids* / *Loot* / *Import* (`TAB_GROUPS` in `HistoryPage.tsx`). The open group follows from the open tab, so there is only one thing to persist and `?tab=items` still opens the right place.
 - **Everything configured per raid category** lives in one place, Einstellungen → *Kategorien* (`components/CategoryMatrix.tsx`): whether it is an event category, its raider roles, its loot addon and its fixed sheet — one card per category, saved with the page's form. It used to be four tabs each re-listing the same categories. A category that is switched off shows nothing but its switch.
 
+### Editing a collection: list first, one editor at a time
+
+Anything the admin keeps several of — raidsheets, Aufruf-Vorlagen, Recruitment-Vorlagen, gepostete Nachrichten — uses one shared pattern instead of stacking a form per entry (or parking a permanent "create" form under the list):
+
+- `lib/collectionEditor.ts`'s `useCollectionEditor(param)` holds which editor is open in the url as `?<param>=<id|new>`: `""` = the list, `"new"` = creating, anything else = that entry's id. It **keeps the page's other params** (the settings section, the recruitment tab), and `editId` is `""` while creating, so no request ever asks the server to load an entry called "new".
+- `components/ListSection.tsx` renders either the list (a heading row with the section's one "new" button, `ListHeader`) or the editor **in the list's place** (`EditorPanel`, with the way back where the new-button was). An id that no longer exists falls back to the new-editor rather than to a blank page.
+- The forms themselves stay dumb: no own heading (the panel titles them) and an always-present *Abbrechen* that closes the editor. Two collections on one page need two params — Recruitment uses `edit` for templates and `editpost` for posted messages; sharing one would make the two editors close each other.
+
+`test/web-client/listSection.test.js` holds the line, including a scan that no page renders `entries.map(e => <SomethingForm …/>)` again.
+
 ### Role permissions (who may see/do what)
 
 Access is **per area** (one admin-menu section) and **per level** (`read` = open it, `write` = act in it; write implies read). The area list and all the pure logic live in `src/config/permissions.js` — the single source of truth shared by server and client (the client gets the list from `/api/session` and `/api/settings`).

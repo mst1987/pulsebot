@@ -18,6 +18,8 @@ import { itemQualityProps } from "../lib/itemQuality";
 import { TrashIcon } from "../components/icons";
 import { useToast } from "../components/Jobs";
 import SectionNav from "../components/SectionNav";
+import { ListSection } from "../components/ListSection";
+import { useCollectionEditor } from "../lib/collectionEditor";
 import CategoryMatrix, { type CategorySheet } from "../components/CategoryMatrix";
 import { SETTINGS_SECTIONS, visibleSections, resolveSection, groupedSections, savesWithForm } from "../lib/settingsSections";
 
@@ -418,11 +420,14 @@ function BlizzardSecretField({ hasStoredSecret, value, onChange }: {
     );
 }
 
-function RaidsheetForm({ sheet, csrfToken, onSaved, onDeleted }: {
+type SheetSortKey = "name" | "sheetName" | "keywords";
+const SHEET_SORT_DEFAULTS: Record<SheetSortKey, Dir> = { name: "asc", sheetName: "asc", keywords: "asc" };
+
+function RaidsheetForm({ sheet, csrfToken, onSaved, onCancel }: {
     sheet: Raidsheet | null;
     csrfToken: string | null;
     onSaved: (msg: string) => void;
-    onDeleted: (msg: string) => void;
+    onCancel: () => void;
 }) {
     const [name, setName] = useState(sheet?.name ?? "");
     const [spreadsheetId, setSpreadsheetId] = useState(sheet?.spreadsheetId ?? "");
@@ -452,18 +457,6 @@ function RaidsheetForm({ sheet, csrfToken, onSaved, onDeleted }: {
         }
     };
 
-    const remove = async () => {
-        if (!sheet || !confirm("Raidsheet wirklich löschen?")) return;
-        setBusy(true);
-        try {
-            await deleteRaidsheet(csrfToken, sheet.id);
-            onDeleted(`Raidsheet „${sheet.name}" gelöscht.`);
-        } catch (err) {
-            toast((err as ApiError).message, "err");
-            setBusy(false);
-        }
-    };
-
     return (
         <form className="sheetcard" onSubmit={submit}>
             <div className="field"><label>Name (Content)</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="z.B. Tier 6 / SWP" required /></div>
@@ -477,9 +470,91 @@ function RaidsheetForm({ sheet, csrfToken, onSaved, onDeleted }: {
             </div>
             <div className="row-actions">
                 <button className="btn" type="submit" disabled={busy}>{sheet ? "Speichern" : "Raidsheet anlegen"}</button>
-                {sheet && <button className="btn btn-danger" type="button" disabled={busy} onClick={remove}><TrashIcon />Löschen</button>}
+                <button className="btn btn-ghost" type="button" disabled={busy} onClick={onCancel}>Abbrechen</button>
             </div>
         </form>
+    );
+}
+
+// The guild's raidsheet templates: the list first, one editor at a time. Every
+// sheet used to render its own five-field form below the previous one, which
+// turned a handful of templates into a page nobody could scan.
+function RaidsheetsSection({ sheets, csrfToken, onChanged }: {
+    sheets: Raidsheet[];
+    csrfToken: string | null;
+    onChanged: (msg: string) => void;
+}) {
+    const editor = useCollectionEditor("sheet");
+    const toast = useToast();
+    const { sort, dir, onSort, apply } = useTableSort<SheetSortKey>("raidsheets-sort", SHEET_SORT_DEFAULTS, "name");
+
+    const remove = async (sheet: Raidsheet) => {
+        if (!confirm(`Raidsheet „${sheet.name}" wirklich löschen?`)) return;
+        try {
+            await deleteRaidsheet(csrfToken, sheet.id);
+            onChanged(`Raidsheet „${sheet.name}" gelöscht.`);
+        } catch (err) {
+            toast((err as ApiError).message, "err");
+        }
+    };
+
+    const saved = (msg: string) => { editor.close(); onChanged(msg); };
+    const sorted = apply(sheets, (s, key) => {
+        switch (key) {
+            case "sheetName": return (s.sheetName || "").toLowerCase();
+            case "keywords": return s.keywords.join(", ").toLowerCase();
+            default: return (s.name || "").toLowerCase();
+        }
+    });
+
+    return (
+        <ListSection
+            editor={editor}
+            entries={sheets}
+            idOf={(s) => s.id}
+            title="Raidsheet-Vorlagen"
+            note={<>Google-Sheets nach Content aufgeteilt (Tier 4/5 usw.). Beim Füllen wird anhand der Keywords das passende Sheet vorgeschlagen. Ein festes Sheet für eine ganze Raidkategorie wird dagegen unter <b>Kategorien</b> zugewiesen.</>}
+            newLabel="Neues Raidsheet"
+            editorTitle={(s) => (s ? `Raidsheet „${s.name || ""}" bearbeiten` : "Neues Raidsheet")}
+            editorFor={(s) => <RaidsheetForm sheet={s} csrfToken={csrfToken} onSaved={saved} onCancel={editor.close} />}
+        >
+            {sheets.length ? (
+                <table className="idx">
+                    <thead>
+                        <tr>
+                            <SortTh sortKey="name" label="Name" sort={sort} dir={dir} onSort={onSort} />
+                            <SortTh sortKey="sheetName" label="Tab" sort={sort} dir={dir} onSort={onSort} />
+                            <SortTh sortKey="keywords" label="Keywords" sort={sort} dir={dir} onSort={onSort} />
+                            <th />
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {sorted.map((s) => (
+                            <tr key={s.id}>
+                                <td>
+                                    <strong>{s.name || "(ohne Name)"}</strong>
+                                    {s.spreadsheetId && (
+                                        <>
+                                            {" "}
+                                            <a
+                                                className="mlink" target="_blank" rel="noopener noreferrer"
+                                                href={`https://docs.google.com/spreadsheets/d/${s.spreadsheetId}/edit${s.gid ? `#gid=${s.gid}` : ""}`}
+                                            >öffnen ↗</a>
+                                        </>
+                                    )}
+                                </td>
+                                <td className="sub" style={{ margin: 0 }}>{s.sheetName || "—"}</td>
+                                <td className="sub" style={{ margin: 0 }}>{s.keywords.length ? s.keywords.join(", ") : "—"}</td>
+                                <td className="row-actions">
+                                    <button className="btn btn-ghost" type="button" onClick={() => editor.startEdit(s.id)}>Bearbeiten</button>
+                                    <button className="btn btn-danger" type="button" onClick={() => remove(s)}><TrashIcon />Löschen</button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            ) : <p className="sub">Noch keine Raidsheets angelegt.</p>}
+        </ListSection>
     );
 }
 
@@ -730,18 +805,11 @@ export default function SettingsPage() {
             case "raidchars": return <RaiderCharactersTab categories={data.categories} csrfToken={csrfToken} />;
 
             case "raidsheets": return (
-                <>
-                    <p className="note">
-                        Google-Sheets nach Content aufgeteilt (Tier 4/5 usw.). Beim Füllen wird anhand der Keywords das
-                        passende Sheet vorgeschlagen. Ein festes Sheet für eine ganze Raidkategorie wird dagegen unter
-                        „Kategorien" zugewiesen.
-                    </p>
-                    {data.raidsheets.map((s) => (
-                        <RaidsheetForm key={s.id} sheet={s} csrfToken={csrfToken} onSaved={(msg) => { toast(msg); load(); }} onDeleted={(msg) => { toast(msg); load(); }} />
-                    ))}
-                    <h3 style={{ marginTop: 18 }}>Neues Raidsheet</h3>
-                    <RaidsheetForm sheet={null} csrfToken={csrfToken} onSaved={(msg) => { toast(msg); load(); }} onDeleted={() => {}} />
-                </>
+                <RaidsheetsSection
+                    sheets={data.raidsheets}
+                    csrfToken={csrfToken}
+                    onChanged={(msg) => { toast(msg); load(); }}
+                />
             );
 
             default: return null;

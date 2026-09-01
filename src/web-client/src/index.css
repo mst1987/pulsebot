@@ -546,6 +546,17 @@ input[type=checkbox]:checked::after {
     .section-nav-item { border-color: var(--line); }
 }
 
+/* ===== list + editor sections (Raidsheets, Vorlagen, Nachrichten) =====
+   The heading row above a list: title and note on the left, the one button that
+   opens an editor on the right — and the same row in the editor view, with the
+   way back where the new-button was. The button keeps its place across both,
+   so the eye does not have to go looking for it. */
+.list-head { display: flex; align-items: flex-start; gap: 14px; flex-wrap: wrap; margin: 0 0 14px; }
+.list-head-text { flex: 1 1 320px; min-width: 0; }
+.list-head-text h2 { margin: 0 0 4px; }
+.list-head-text .note { margin: 0; }
+.list-head > .btn { flex: 0 0 auto; margin-top: 2px; }
+
 /* ===== per-category settings card (Einstellungen → Kategorien) =====
    One card per Discord category holding everything configured for it. A
    category that isn't a raid category shows its switch and nothing else: those
