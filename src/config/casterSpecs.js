@@ -233,7 +233,48 @@ function isSimSupported(specEntry) {
     return !!(specEntry && specEntry.role === "caster" && specEntry.talents && aplForSpec(specEntry));
 }
 
+/**
+ * Which specs have this item on their BiS list for a tier — the answer to "für
+ * wen ist das eigentlich BiS?".
+ *
+ * Worth its own function because most caster drops are contested: 29 of the 50
+ * items on a T6 caster BiS list are wanted by more than one spec, so "BiS" on
+ * its own says nothing about *whose*.
+ *
+ * Specs that borrow another's list are folded into the spec they borrow from
+ * (`alsoFor`) rather than listed separately. Otherwise every contested item
+ * would show nine entries carrying five distinct claims, and the borrowed ones
+ * are an assumption anyway — the page shows them as such.
+ *
+ * @returns [{ specKey, label, className, spec, role, alsoFor: [label] }]
+ */
+function bisSpecsForItem(itemId, tierId) {
+    const id = Number(itemId);
+    if (!id) return [];
+    const owners = new Map();
+    for (const spec of SPECS) {
+        const bis = bisForSpec(spec, tierId);
+        if (!bis.items.some((entry) => Number(entry.id) === id)) continue;
+        // The spec whose list this actually is: the lender for a borrowed one.
+        const ownerKey = bis.borrowedFrom || spec.key;
+        if (!owners.has(ownerKey)) {
+            const owner = BY_KEY.get(ownerKey) || spec;
+            owners.set(ownerKey, {
+                specKey: owner.key,
+                label: owner.label,
+                className: owner.className,
+                spec: owner.spec,
+                role: owner.role,
+                tier: bis.tier,
+                alsoFor: [],
+            });
+        }
+        if (bis.borrowedFrom) owners.get(ownerKey).alsoFor.push(spec.label);
+    }
+    return [...owners.values()];
+}
+
 module.exports = {
     ROLES, SPECS, CASTER_WEIGHTS, HEALER_WEIGHTS, HIT_CAP,
-    specFor, specByKey, isCasterSpec, weightsFor, hitCapFor, bisForSpec, aplForSpec, isSimSupported,
+    specFor, specByKey, isCasterSpec, weightsFor, hitCapFor, bisForSpec, aplForSpec, isSimSupported, bisSpecsForItem,
 };

@@ -1701,6 +1701,26 @@ export type WornItem = {
     enchantStatus: string;
     /** Whether this piece is on that raider's own BiS list. */
     isBis: boolean;
+    /** ...and whose lists it is on at all. */
+    bisSpecs: BisSpec[];
+};
+
+/**
+ * A spec that has a given item on its BiS list.
+ *
+ * "BiS" on its own says nothing when nine specs share one item table — most
+ * caster drops are contested — so every item carries whose list it is on.
+ * `alsoFor` names the specs that borrow this one's list (WoWSims ships none of
+ * their own), which is an assumption and shown as one.
+ */
+export type BisSpec = {
+    specKey: string;
+    label: string;
+    iconUrl: string;
+    classColor: string;
+    role: string;
+    tier: string;
+    alsoFor: string[];
 };
 
 /** An item as the BiS list and the candidate view render it. */
@@ -1714,6 +1734,8 @@ export type CouncilItem = {
     setName?: string;
     contentId: string;
     boss: string;
+    /** Which specs have it on their BiS list for the tier being measured. */
+    bisSpecs: BisSpec[];
     owned?: boolean;
 };
 

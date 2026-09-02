@@ -63,7 +63,9 @@ async function getLootCouncil(req, res, url) {
     // council wants the candidates for that item, not the whole gap report.
     const itemId = Number(url.searchParams.get("item") || 0);
     const focus = itemId > 0
-        ? { item: itemView(itemId), candidates: candidatesForItem(itemId, rows) }
+        // Against the tier that was actually used, so "BiS für …" names the same
+        // lists the roster's BiS column is counted against.
+        ? { item: itemView(itemId, usedBisTier), candidates: candidatesForItem(itemId, rows) }
         : null;
 
     ok(res, {

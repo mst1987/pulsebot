@@ -1347,3 +1347,74 @@ a.gear-row:hover { background: var(--panel2); }
     .lc-need { width: 56px; }
     .lc-worn-img { width: 26px; height: 26px; }
 }
+
+/* ── Loot-Council: Raid-Badges und "BiS für wen" ──────────────────────────── */
+
+/* One badge per raid, coloured by tier so a glance down a list separates
+   "still T5" from "already T6" without reading a label. Inside a tier each
+   raid gets its own shade — enough to tell Hyjal from Black Temple, not so
+   much that the two stop looking like one tier.
+
+   Hue by tier: T4 amber (~35°), T5 teal (~185°), T6 violet (~275°),
+   Sunwell gold (~50°). The badge draws itself from one hue variable, so a new
+   raid is one line. */
+.lc-cbadge {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .02em;
+    white-space: nowrap;
+    cursor: help;
+    color: hsl(var(--cb-h) 70% 78%);
+    background: hsl(var(--cb-h) 55% 22% / .55);
+    border: 1px solid hsl(var(--cb-h) 55% 45% / .5);
+}
+/* Light theme: the same hue, but dark ink on a pale ground — the dark-theme
+   values are unreadable on white. */
+:root:not([data-theme="dark"]) .lc-cbadge { color: hsl(var(--cb-h) 65% 28%); background: hsl(var(--cb-h) 70% 92%); border-color: hsl(var(--cb-h) 50% 72%); }
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .lc-cbadge { color: hsl(var(--cb-h) 70% 78%); background: hsl(var(--cb-h) 55% 22% / .55); border-color: hsl(var(--cb-h) 55% 45% / .5); }
+}
+[data-theme="light"] .lc-cbadge { color: hsl(var(--cb-h) 65% 28%); background: hsl(var(--cb-h) 70% 92%); border-color: hsl(var(--cb-h) 50% 72%); }
+
+/* T4 */
+.lc-cbadge-kara { --cb-h: 28; }
+.lc-cbadge-gruul { --cb-h: 14; }
+.lc-cbadge-mag { --cb-h: 42; }
+/* T5 */
+.lc-cbadge-ssc { --cb-h: 190; }
+.lc-cbadge-tk { --cb-h: 210; }
+.lc-cbadge-za { --cb-h: 165; }
+/* T6 */
+.lc-cbadge-hyjal { --cb-h: 290; }
+.lc-cbadge-bt { --cb-h: 265; }
+/* Sunwell */
+.lc-cbadge-swp { --cb-h: 50; }
+
+/* Whose BiS list an item is on. One chip per spec that owns a list; specs that
+   borrow it are counted in the "+n" and named in the title. */
+.lc-bisspecs { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 4px 0 2px; }
+.lc-bisspec {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px 2px 3px;
+    border-radius: 999px;
+    background: var(--panel3);
+    border: 1px solid var(--line);
+    font-size: 12.5px;
+    cursor: help;
+}
+.lc-bisspec img { width: 18px; height: 18px; border-radius: 50%; display: block; }
+/* Compact form (inside a hover): the icons alone, no names. */
+.lc-bisspec:has(> img:only-child) { padding: 2px; }
+.lc-bisspec-more { font-family: var(--font-mono); font-size: 11px; color: var(--muted); font-weight: 700; }
+
+.lc-gap-meta { display: inline-flex; align-items: center; gap: 7px; }
+.lc-worn-where { display: flex; align-items: center; gap: 7px; }
+.lc-worn-bisfor { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.lc-worn-bisfor .hint { margin: 0; }
+.lc-worn-bisfor .lc-bisspecs { margin: 0; }

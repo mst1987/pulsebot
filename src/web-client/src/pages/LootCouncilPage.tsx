@@ -103,6 +103,28 @@ function SpecCell({ specLabel, iconUrl, assumed }: { specLabel: string; iconUrl?
     );
 }
 
+/**
+ * Which raid a drop comes from, as a badge in that raid's own colour.
+ *
+ * Nine raids across four tiers all looked alike before, which made the column
+ * pure text to be read one entry at a time. The colours run by tier — T4 amber,
+ * T5 teal, T6 violet, Sunwell gold — with each raid inside a tier a shade of
+ * its own, so a glance down a list separates "still T5" from "already T6"
+ * without reading a single label. The actual values live in index.css
+ * (.lc-cbadge-*), because the palette belongs with the rest of the theme.
+ */
+function ContentBadge({ contentId, tier, label }: { contentId: string; tier?: string; label?: string }) {
+    if (!contentId) return null;
+    return (
+        <span
+            className={`lc-cbadge lc-cbadge-${contentId}`}
+            title={[label || contentId.toUpperCase(), tier ? tier.toUpperCase() : ""].filter(Boolean).join(" · ")}
+        >
+            {contentId.toUpperCase()}
+        </span>
+    );
+}
+
 /** An item as icon + quality-coloured name, linked to Wowhead. */
 function ItemLink({ id, name, iconUrl, quality }: { id: number; name: string; iconUrl?: string; quality?: number | null }) {
     return (
@@ -110,6 +132,41 @@ function ItemLink({ id, name, iconUrl, quality }: { id: number; name: string; ic
             {iconUrl ? <img src={iconUrl} alt="" loading="lazy" /> : null}
             <span {...itemQualityProps(quality ?? null)}>{name || `Item ${id}`}</span>
         </a>
+    );
+}
+
+/**
+ * For which specs an item is BiS — the question "BiS" alone never answers.
+ *
+ * Most caster drops are contested: 29 of the 50 items on a T6 caster BiS list
+ * are wanted by more than one spec, so a bare "BiS" badge tells a council
+ * nothing about whose list it is on. One chip per spec, icon plus name in the
+ * class colour.
+ *
+ * A spec that borrows another's list (Fire/Frost from Arcane, the two other
+ * warlock specs from Destruction) is folded into the chip of the list it
+ * borrows and named in its title — otherwise a contested item would show nine
+ * chips carrying five distinct claims.
+ */
+function BisSpecs({ specs, compact = false }: { specs: CouncilItem["bisSpecs"]; compact?: boolean }) {
+    if (!specs.length) return null;
+    return (
+        <span className="lc-bisspecs">
+            {!compact ? <span className="lbadge lbadge-ok">BiS</span> : null}
+            {specs.map((s) => (
+                <span
+                    key={s.specKey}
+                    className="lc-bisspec"
+                    title={s.alsoFor.length
+                        ? `${s.label} — dieselbe Liste gilt auch für ${s.alsoFor.join(" und ")} (WoWSims führt für die keine eigene)`
+                        : s.label}
+                >
+                    {s.iconUrl ? <img src={s.iconUrl} alt="" loading="lazy" /> : null}
+                    {!compact ? <span {...classColorProps(s.classColor)}>{s.label}</span> : null}
+                    {s.alsoFor.length ? <span className="lc-bisspec-more">+{s.alsoFor.length}</span> : null}
+                </span>
+            ))}
+        </span>
     );
 }
 
@@ -212,13 +269,18 @@ function WornIcon({ item }: { item: WornItem }) {
                 <div>
                     <ItemLink id={item.itemId} name={item.itemName} iconUrl={item.iconUrl} quality={item.quality} />
                 </div>
-                <div className="hint">
+                <div className="hint lc-worn-where">
+                    <ContentBadge contentId={item.contentId} />
                     {item.slotName} · ilvl {item.itemLevel}
-                    {item.contentId ? ` · ${item.contentId.toUpperCase()}` : ""}
                     {item.boss ? ` · ${item.boss}` : ""}
                 </div>
+                {item.bisSpecs.length ? (
+                    <div className="lc-worn-bisfor">
+                        <span className="hint">BiS für</span>
+                        <BisSpecs specs={item.bisSpecs} compact />
+                    </div>
+                ) : null}
                 <div className="lc-worn-flags">
-                    {item.isBis ? <span className="lbadge lbadge-ok">BiS</span> : null}
                     {item.enchantStatus === "missing" ? <span className="lbadge lbadge-warn">keine Verzauberung</span> : null}
                     {item.emptySockets > 0 ? <span className="lbadge lbadge-warn">{item.emptySockets} leere Sockel</span> : null}
                     {item.gemCount > 0 ? <span className="lbadge lbadge-neutral">{item.gemCount} Edelsteine</span> : null}
@@ -302,7 +364,7 @@ function LootCell({ raider }: { raider: CouncilRaider }) {
                 {raider.items.slice(0, HOVER_ITEMS).map((item, i) => (
                     <div key={`${item.itemId}-${item.awardedAt}-${i}`} className="lc-loot-row">
                         <ItemLink id={item.itemId} name={item.itemName} iconUrl={item.itemIconUrl} quality={item.itemQuality} />
-                        <span className="sub lc-loot-raid">{item.contentId ? item.contentId.toUpperCase() : ""}</span>
+                        <ContentBadge contentId={item.contentId} tier={item.tier} />
                         {item.reasonLabel ? <ReasonBadge label={item.reasonLabel} tone={item.reasonTone} title={item.reason} /> : null}
                         <span className="sub lc-loot-date">{item.awardedAt ? fmtMs(item.awardedAt, false) : ""}</span>
                     </div>
@@ -491,11 +553,12 @@ function GapCard({ gap, sim, expanded, onToggle, sortState, onCheck }: {
                 <h3 style={{ margin: 0 }}>
                     <ItemLink id={gap.id} name={gap.name} iconUrl={gap.iconUrl} quality={gap.quality} />
                 </h3>
-                <span className="hint">
-                    {gap.contentId ? `${gap.contentId.toUpperCase()}${gap.boss ? ` · ${gap.boss}` : ""} · ` : ""}
-                    ilvl {gap.ilvl} · fehlt {gap.wantedBy.length} Raider(n)
+                <span className="hint lc-gap-meta">
+                    <ContentBadge contentId={gap.contentId} />
+                    {gap.boss ? `${gap.boss} · ` : ""}ilvl {gap.ilvl} · fehlt {gap.wantedBy.length} Raider(n)
                 </span>
             </div>
+            <BisSpecs specs={gap.bisSpecs} />
             {best ? (
                 <p className="hint" style={{ marginTop: 2 }}>
                     Vorschlag: <b>{best.character}</b>
@@ -570,11 +633,19 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
                         <h3 style={{ margin: 0 }}>
                             <ItemLink id={focus.item.id} name={focus.item.name} iconUrl={focus.item.iconUrl} quality={focus.item.quality} />
                         </h3>
-                        <span className="hint">
-                            {focus.item.contentId ? `${focus.item.contentId.toUpperCase()}${focus.item.boss ? ` · ${focus.item.boss}` : ""} · ` : ""}
-                            ilvl {focus.item.ilvl}
+                        <span className="hint lc-gap-meta">
+                            <ContentBadge contentId={focus.item.contentId} />
+                            {focus.item.boss ? `${focus.item.boss} · ` : ""}ilvl {focus.item.ilvl}
                         </span>
                     </div>
+
+                    {focus.item.bisSpecs.length ? (
+                        <BisSpecs specs={focus.item.bisSpecs} />
+                    ) : (
+                        <p className="hint" style={{ marginTop: 2 }}>
+                            Steht auf keiner BiS-Liste der gewählten Tier-Stufe — kann trotzdem ein Upgrade sein.
+                        </p>
+                    )}
 
                     {best ? (
                         <p className="hint" style={{ marginTop: 2 }}>

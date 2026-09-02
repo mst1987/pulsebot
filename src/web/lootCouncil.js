@@ -20,10 +20,11 @@ const { characterMap } = require("./characterStore");
 const { gearByCharacter } = require("./charGear");
 const { CONTENTS, TIERS, content: contentMeta, sourceForItem } = require("../config/tbcContent");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
+const { characterProfile } = require("../utils/setupView");
 const { targetSlotFor } = require("../utils/wowsims/loadout");
 const wowsims = require("../config/wowsims");
 const {
-    ROLES, specFor, specByKey, weightsFor, hitCapFor, bisForSpec, isSimSupported,
+    ROLES, specFor, specByKey, weightsFor, hitCapFor, bisForSpec, isSimSupported, bisSpecsForItem,
 } = require("../config/casterSpecs");
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -136,11 +137,37 @@ function upgradeValue({ gear, specEntry, itemId, replaces }) {
     return Math.round((inScore - outScore) * 10) / 10;
 }
 
+/**
+ * Which specs have this item on their BiS list, ready to render: the spec's own
+ * icon and class colour next to its name.
+ *
+ * "Ist BiS" is not a property of an item, it is a property of an item *for a
+ * spec* — and most caster drops are contested (29 of the 50 items on a T6
+ * caster BiS list are wanted by more than one spec). So every item that carries
+ * a BiS mark also carries whose.
+ */
+function bisSpecsView(itemId, tierId) {
+    return bisSpecsForItem(itemId, tierId).map((owner) => {
+        const look = characterProfile(owner.className, owner.spec) || {};
+        return {
+            specKey: owner.specKey,
+            label: owner.label,
+            iconUrl: look.iconUrl || "",
+            classColor: look.classColor || "",
+            role: owner.role,
+            tier: owner.tier,
+            // Specs that borrow this list — an assumption, and shown as one.
+            alsoFor: owner.alsoFor,
+        };
+    });
+}
+
 /** Trim a wowsims item entry for the client. */
-function itemView(itemId) {
+function itemView(itemId, tierId = "") {
     const item = wowsims.item(itemId);
     const id = Number(itemId);
-    if (!item) return { id, name: "", iconUrl: "", ilvl: 0, quality: 0, stats: {}, contentId: "", boss: "" };
+    const bisSpecs = bisSpecsView(id, tierId);
+    if (!item) return { id, name: "", iconUrl: "", ilvl: 0, quality: 0, stats: {}, contentId: "", boss: "", bisSpecs };
     const source = sourceForItem(id) || {};
     return {
         id,
@@ -152,6 +179,7 @@ function itemView(itemId) {
         setName: item.setName || "",
         contentId: source.content || "",
         boss: source.boss || "",
+        bisSpecs,
     };
 }
 
@@ -166,10 +194,13 @@ function itemView(itemId) {
  *
  * `isBis` is resolved here because only the server knows this raider's BiS list.
  */
-function wornItemView(item, bisIds) {
+function wornItemView(item, bisIds, tierId = "") {
     const known = wowsims.item(item.itemId);
     const source = sourceForItem(item.itemId) || {};
     return {
+        // Whose BiS list this piece is on — not just "is it BiS", which says
+        // nothing when nine specs share one item table.
+        bisSpecs: bisSpecsView(item.itemId, tierId),
         slot: item.slot,
         slotName: item.slotName,
         itemId: item.itemId,
@@ -300,7 +331,7 @@ function councilRoster(opts = {}) {
             const id = Number(entry.id);
             const left = wornCount.get(id) || 0;
             if (left > 0) wornCount.set(id, left - 1);
-            return { ...itemView(id), owned: left > 0 };
+            return { ...itemView(id, bisTier), owned: left > 0 };
         });
         const bisIds = new Set(bis.items.map((entry) => Number(entry.id)));
 
@@ -345,7 +376,7 @@ function councilRoster(opts = {}) {
                 // page can show the raider's gear as a row of icons. Whether a
                 // piece is on their BiS list is decided here rather than in the
                 // client, which has no BiS list per raider to check against.
-                items: gear.items.map((it) => wornItemView(it, bisIds)),
+                items: gear.items.map((it) => wornItemView(it, bisIds, bisTier)),
             } : null,
             bis: {
                 tier: bis.tier,
@@ -415,7 +446,7 @@ function candidatesForItem(itemId, roster) {
             // item level, whether it is enchanted, whether it was on that
             // raider's BiS list.
             replaces: target.replaces
-                ? wornItemView(target.replaces, new Set(row.bis.items.map((i) => i.id)))
+                ? wornItemView(target.replaces, new Set(row.bis.items.map((i) => i.id)), row.bis.tier)
                 : null,
             value,
             isBis,
@@ -501,6 +532,6 @@ function filterOptions() {
 }
 
 module.exports = {
-    councilRoster, candidatesForItem, bisGaps, filterOptions, currentTier, wornItemView,
+    councilRoster, candidatesForItem, bisGaps, filterOptions, currentTier, wornItemView, bisSpecsView,
     upgradeValue, needScore, scoreItem, gearSpellHit, resolveContentFilter, itemView,
 };
