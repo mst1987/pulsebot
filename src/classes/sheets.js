@@ -35,6 +35,17 @@ class SheetsClient {
         });
     }
 
+    // Read an A1 range, e.g. "Setup!A26:Z26". Returns the raw row array
+    // (rows of cell values), or [] when the range is empty.
+    async readRange(range) {
+        const sheets = await this._getSheets();
+        const res = await sheets.spreadsheets.values.get({
+            spreadsheetId: this.spreadsheetId,
+            range,
+        });
+        return (res.data && res.data.values) || [];
+    }
+
     async batchClear(ranges) {
         const sheets = await this._getSheets();
         await sheets.spreadsheets.values.batchClear({

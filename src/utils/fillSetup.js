@@ -43,6 +43,9 @@ const isProtPala         = (e) => e?.icon === "protpala";
 const isGuardian         = (e) => e?.icon === "guardian";
 const isHolyPala         = (e) => e?.icon === "holypala";
 const isRestoSham        = (e) => e?.icon === "restosham";
+// "restoration" is the druid icon — the shaman one is "restosham".
+const isRestoDruid       = (e) => e?.icon === "restoration";
+const isElemental        = (e) => e?.icon === "elemental";
 const isHolyOrDiscPriest = (e) => e?.icon === "holypriest" || e?.icon === "discipline";
 const isHealer           = (e) => e?.sodclazz === "Healer";
 const isWarlock          = (e) => e?.clazz === "Warlock";
@@ -85,7 +88,18 @@ function getSlotGroup(slot, index) {
     return Math.floor(index / 5) + 1;
 }
 
-// Pick healers in priority order, tracking used names
+// Pick healers in priority order, tracking used names. Each slot has a wanted
+// spec (slot 2 is the resto druid, slot 4 the priest — that is how the raid
+// leader arranges the healer column by hand); when nobody of that spec signed
+// up the slot falls back to the next unused healer instead of staying empty.
+const HEALER_SLOT_SPECS = [
+    isHolyPala,
+    isRestoDruid,
+    isRestoSham,
+    isHolyOrDiscPriest,
+    null,
+];
+
 function buildHealerSlots(healers) {
     const used = new Set();
 
@@ -95,12 +109,43 @@ function buildHealerSlots(healers) {
         return h || null;
     }
 
-    const c11 = next(isHolyPala);
-    const c12 = next(isRestoSham);
-    const c13 = next(isHolyOrDiscPriest);
-    const c14 = next(isRestoSham) || next();
-    const c15 = next();
-    return [c11, c12, c13, c14, c15];
+    // Two passes: every slot first gets its wanted spec, only then are the
+    // leftovers handed out. A single pass would let slot 1's fallback eat the
+    // resto druid that slot 2 is waiting for.
+    const slots = HEALER_SLOT_SPECS.map((fn) => (fn ? next(fn) : null));
+    return slots.map((player) => player || next());
+}
+
+// Columns that only some raidsheets have. They are found by their header text
+// in row 26 rather than hard-coded, so a sheet without the header (the Tier 4/5
+// one has neither) simply doesn't get them written, and moving the column in
+// the sheet needs no code change.
+const HEADER_ROW = 26;
+const OPTIONAL_COLUMN_HEADERS = {
+    spellkicks: "spellkicks",
+    decurse: "decurse",
+};
+
+/** A1 column letter for a zero-based index (A..Z — the range we scan). */
+function columnLetter(index) {
+    return String.fromCharCode(65 + index);
+}
+
+/**
+ * Map the header row (values from column A onwards) to column letters:
+ * ["", …, "SpellKicks", …, "Decurse"] → { spellkicks: "F", decurse: "K" }.
+ * The first match wins; unknown headers are ignored.
+ */
+function resolveOptionalColumns(headerValues) {
+    const found = {};
+    (headerValues || []).forEach((value, i) => {
+        if (i > 25) return;
+        const header = String(value || "").trim().toLowerCase();
+        for (const [key, wanted] of Object.entries(OPTIONAL_COLUMN_HEADERS)) {
+            if (header === wanted && !found[key]) found[key] = columnLetter(i);
+        }
+    });
+    return found;
 }
 
 // Build a column of `rows` player slots, padding with null
@@ -170,6 +215,8 @@ function buildSetupWrite(slots, opts = {}) {
     const balDruids   = players.filter((p) => isBalance(p.entry));
     const feralDruids = players.filter((p) => isFeral(p.entry));
     const survHunters = players.filter((p) => isSurvival(p.entry));
+    const eleShamans  = players.filter((p) => isElemental(p.entry));
+    const restoDruids = players.filter((p) => isRestoDruid(p.entry));
 
     // ---- Debuffs (row 22) ----
     const afflWL  = afflWLs[0] || null;
@@ -237,6 +284,19 @@ function buildSetupWrite(slots, opts = {}) {
         R("H27:H31", columnEntries(ssPlayers)),
     ];
 
+    // ---- Optional columns (only where the sheet carries the header) ----
+    // SpellKicks: elemental shamans first (Wind Shock), then mages (Counterspell).
+    // Decurse: mages first (Remove Curse), then the druids (Abolish Curse).
+    const columns = opts.columns || {};
+    if (columns.spellkicks) {
+        const col = columns.spellkicks;
+        writeData.push(R(`${col}27:${col}31`, columnEntries(toColumn([...eleShamans, ...mages], 5))));
+    }
+    if (columns.decurse) {
+        const col = columns.decurse;
+        writeData.push(R(`${col}27:${col}31`, columnEntries(toColumn([...mages, ...restoDruids, ...balDruids], 5))));
+    }
+
     // ---- Player → class color map for conditional formatting ----
     const playerColors = [...new Map(
         players
@@ -258,6 +318,22 @@ function buildSetupWrite(slots, opts = {}) {
 }
 
 /**
+ * Read row 26 of the sheet and resolve the optional columns from its headers.
+ * Never throws: an unreadable sheet (old client, no permission, network) just
+ * means no optional columns, i.e. exactly the pre-existing behaviour.
+ */
+async function readOptionalColumns(sheetsClient, tab) {
+    if (typeof sheetsClient.readRange !== "function") return {};
+    try {
+        const rows = await sheetsClient.readRange(`${tab}!A${HEADER_ROW}:Z${HEADER_ROW}`);
+        return resolveOptionalColumns((rows && rows[0]) || []);
+    } catch (e) {
+        console.log(`[fillSetup] Header-Zeile nicht lesbar, optionale Spalten übersprungen: ${e.message}`);
+        return {};
+    }
+}
+
+/**
  * Fill a raidsheet from Raidhelper setup slots using an already-constructed
  * SheetsClient. Clears the manual-tank block, writes the setup, then applies
  * class-colour conditional formatting. Guarded by a hard timeout so a hung
@@ -265,21 +341,31 @@ function buildSetupWrite(slots, opts = {}) {
  *
  * @param {object} sheetsClient  instance of classes/sheets.js SheetsClient
  * @param {Array}  slots         raw Raidhelper raidplan slots
- * @param {object} opts          { tab, tank3, timeoutMs = 150000 }
+ * @param {object} opts          { tab, tank3, columns, timeoutMs = 150000 }
  * @returns {Promise<object>} the summary from buildSetupWrite
  */
 async function fillSetupSheet(sheetsClient, slots, opts = {}) {
-    const { writeData, clearRanges, playerColors, summary } = buildSetupWrite(slots, opts);
+    const tab = opts.tab || process.env.GOOGLE_SHEET_NAME || "Setup";
     const timeoutMs = opts.timeoutMs || 150000;
 
     let timeoutId;
+    let summary;
     try {
         await Promise.race([
             (async () => {
+                // Which optional columns this sheet has can only be answered by
+                // the sheet itself, so the header row is read before building
+                // the payload. Best-effort: a sheet we can't read is filled the
+                // way it always was, rather than not at all.
+                const columns = opts.columns || await readOptionalColumns(sheetsClient, tab);
+                const built = buildSetupWrite(slots, { ...opts, tab, columns });
+                summary = built.summary;
+
                 await Promise.all([
-                    sheetsClient.batchClear(clearRanges),
-                    sheetsClient.batchWrite(writeData),
+                    sheetsClient.batchClear(built.clearRanges),
+                    sheetsClient.batchWrite(built.writeData),
                 ]);
+                const playerColors = built.playerColors;
                 await sheetsClient.applyConditionalFormatting(playerColors);
             })(),
             new Promise((_, reject) => {
@@ -302,6 +388,7 @@ module.exports = {
     enrichPlayers,
     buildSetupWrite,
     fillSetupSheet,
+    resolveOptionalColumns,
     getClassColor,
     CLASS_COLORS,
 };
