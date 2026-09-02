@@ -1678,6 +1678,31 @@ export type CouncilLootItem = {
     eventLabel: string;
 };
 
+/**
+ * One piece a raider currently wears, as the gear row under their name and the
+ * "Slot" column of the candidate list render it. Name and icon come from the
+ * log (it saw what they actually wear); stats and raid come from the item table
+ * where it knows the item.
+ */
+export type WornItem = {
+    slot: number;
+    slotName: string;
+    itemId: number;
+    itemName: string;
+    iconUrl: string;
+    quality: number | null;
+    itemLevel: number;
+    stats: Record<string, number>;
+    contentId: string;
+    boss: string;
+    gemCount: number;
+    emptySockets: number;
+    /** "ok" | "missing" | "bad" | "na" — "missing" is the one worth showing. */
+    enchantStatus: string;
+    /** Whether this piece is on that raider's own BiS list. */
+    isBis: boolean;
+};
+
 /** An item as the BiS list and the candidate view render it. */
 export type CouncilItem = {
     id: number;
@@ -1701,13 +1726,21 @@ export type CouncilCandidate = {
     specLabel: string;
     specIconUrl: string;
     slot: number;
-    replaces: { itemId: number; itemName: string; itemLevel: number } | null;
+    slotName: string;
+    /** What would come off — null when the slot is free. */
+    replaces: WornItem | null;
     /** Stat-weight value of the swap. Negative means it would be a downgrade. */
     value: number;
     isBis: boolean;
+    /** The fairness half — the same numbers the roster table shows. */
     needScore: number;
+    needParts: { drought: number; share: number; need: number };
     lootCount: number;
+    lootTotal: number;
     daysSinceLoot: number | null;
+    lastAwardAt: number;
+    bisOwned: number;
+    bisTotal: number;
     hasGear: boolean;
     simSupported: boolean;
 };
@@ -1737,6 +1770,8 @@ export type CouncilRaider = {
         itemCount: number;
         spellHit: number;
         hitCap: number;
+        /** Everything they wear, in character-sheet order. */
+        items: WornItem[];
     } | null;
     bis: {
         tier: string;

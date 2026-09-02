@@ -12,7 +12,7 @@ jest.mock("../../src/web/charGear", () => ({ gearByCharacter: (...a) => mockGear
 jest.mock("../../src/web/characterStore", () => ({ characterMap: (...a) => mockCharacterMap(...a) }));
 
 const {
-    councilRoster, candidatesForItem, bisGaps, needScore, upgradeValue, currentTier,
+    councilRoster, candidatesForItem, bisGaps, needScore, upgradeValue, currentTier, wornItemView,
     gearSpellHit, resolveContentFilter,
 } = require("../../src/web/lootCouncil");
 const { specByKey, hitCapFor } = require("../../src/config/casterSpecs");
@@ -421,6 +421,128 @@ describe("web/lootCouncil — which BiS list, and who is on the list at all", ()
                 ["p", gearOf([item(0, 31064)], { key: "p", character: "P", className: "Priest" })],
             ]));
             expect(councilRoster().rows).toEqual([]);
+        });
+    });
+});
+
+describe("web/lootCouncil — the worn gear a council looks at", () => {
+    const bisIds = () => new Set(wowsims.bisFor("Priest-Shadow", "t6").items.map((e) => e.id));
+
+    function shadowPriestWearing(items) {
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf(items)]]));
+        return councilRoster({ bisTier: "t6" }).rows[0];
+    }
+
+    const worn = (over = {}) => ({
+        slot: 0, slotName: "Kopf", itemId: 31064, itemName: "Hood of Absolution",
+        iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_helmet_99.jpg",
+        quality: 4, itemLevel: 146, gems: [25893, 0], emptySockets: 1, enchantId: 3002,
+        enchantStatus: "ok", ...over,
+    });
+
+    describe("wornItemView", () => {
+        it("keeps the log's own name and icon", () => {
+            // The log saw what the raider actually wears, including items the
+            // generated table does not carry.
+            const view = wornItemView(worn(), new Set());
+            expect(view.itemName).toBe("Hood of Absolution");
+            expect(view.iconUrl).toContain("inv_helmet_99");
+        });
+
+        it("names an item the log left blank from the item table", () => {
+            const view = wornItemView(worn({ itemName: "" }), new Set());
+            expect(view.itemName).toBe("Hood of Absolution");
+        });
+
+        it("falls back to the id for an item neither source knows", () => {
+            const view = wornItemView(worn({ itemId: 999999, itemName: "" }), new Set());
+            expect(view.itemName).toBe("Item 999999");
+        });
+
+        it("adds the stats the item table knows", () => {
+            const view = wornItemView(worn(), new Set());
+            expect(view.stats.spellPower).toBeGreaterThan(0);
+            expect(view.itemLevel).toBeGreaterThan(0);
+        });
+
+        it("leaves the raid empty for an item no single raid drops", () => {
+            // Tier tokens and badge gear are deliberately absent from the
+            // content table (see config/tbcContent.js) — filing them under
+            // whichever raid came first would be a wrong answer, not a gap.
+            expect(wornItemView(worn(), new Set()).contentId).toBe("");
+            // ...while a plain boss drop resolves.
+            expect(wornItemView(worn({ itemId: 32235 }), new Set()).contentId).toBeTruthy();
+        });
+
+        it("marks a piece that is on this raider's BiS list", () => {
+            const bisId = wowsims.bisFor("Priest-Shadow", "t6").items[0].id;
+            expect(wornItemView(worn({ itemId: bisId }), bisIds()).isBis).toBe(true);
+            expect(wornItemView(worn({ itemId: 29352 }), bisIds()).isBis).toBe(false);
+        });
+
+        it("carries the flags the page marks an icon with", () => {
+            const view = wornItemView(worn({ enchantStatus: "missing" }), new Set());
+            expect(view.enchantStatus).toBe("missing");
+            expect(view.emptySockets).toBe(1);
+            // Only real gems count — a 0 is an empty socket, not a gem.
+            expect(view.gemCount).toBe(1);
+        });
+    });
+
+    describe("gear in the roster payload", () => {
+        it("hands out every worn piece", () => {
+            const row = shadowPriestWearing([item(0, 31064), item(4, 31065)]);
+            expect(row.gear.items).toHaveLength(2);
+            expect(row.gear.itemCount).toBe(2);
+        });
+
+        it("is null for a raider no report has seen", () => {
+            mockListAll.mockReturnValue([lootRow()]);
+            mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+            mockGearByCharacter.mockReturnValue(new Map());
+            expect(councilRoster().rows[0].gear).toBeNull();
+        });
+    });
+
+    describe("what a candidate would replace", () => {
+        it("is the full item view, not just a name", () => {
+            mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+            mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([item(0, 29352)])]]));
+            const rows = councilRoster({ bisTier: "t6" }).rows;
+            const [candidate] = candidatesForItem(31064, rows);
+            expect(candidate.replaces).toMatchObject({
+                itemId: 29352,
+                slot: 0,
+                itemName: expect.any(String),
+                iconUrl: expect.any(String),
+            });
+        });
+
+        it("stays null for a free slot, and names the slot anyway", () => {
+            mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+            mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([])]]));
+            const [candidate] = candidatesForItem(31064, councilRoster().rows);
+            expect(candidate.replaces).toBeNull();
+            expect(candidate.slotName).toBe("Kopf");
+        });
+    });
+
+    describe("the fairness numbers on a candidate", () => {
+        it("are the same ones the roster row shows", () => {
+            // A raider must not read as overdue in one view and satisfied in
+            // the other.
+            mockListAll.mockReturnValue([lootRow({ awardedAt: now - 20 * DAY })]);
+            mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+            mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([])]]));
+            const row = councilRoster().rows[0];
+            const [candidate] = candidatesForItem(31064, [row]);
+            expect(candidate.needScore).toBe(row.needScore);
+            expect(candidate.needParts).toEqual(row.needParts);
+            expect(candidate.daysSinceLoot).toBe(row.daysSinceLoot);
+            expect(candidate.lootCount).toBe(row.lootCount);
+            expect(candidate.bisOwned).toBe(row.bis.owned);
+            expect(candidate.bisTotal).toBe(row.bis.total);
         });
     });
 });

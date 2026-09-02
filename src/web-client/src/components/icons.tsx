@@ -112,6 +112,26 @@ export function RosterIcon() {
     );
 }
 
+// How much a raider has already been given — a loot bag, next to the count.
+export function LootBagIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M5 9h14l-1.2 10.2a2 2 0 0 1-2 1.8H8.2a2 2 0 0 1-2-1.8Z" />
+            <path d="M9 9V6.5a3 3 0 0 1 6 0V9" />
+        </svg>
+    );
+}
+
+// An equip slot with nothing in it — better news for a drop than any item.
+export function EmptySlotIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="4.5" y="4.5" width="15" height="15" rx="2.5" strokeDasharray="3 2.5" />
+            <path d="M12 9v6M9 12h6" />
+        </svg>
+    );
+}
+
 // Loot council: a scale, for weighing who a drop should go to.
 export function CouncilIcon() {
     return (

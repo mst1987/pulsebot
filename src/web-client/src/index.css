@@ -1194,22 +1194,7 @@ a.gear-row:hover { background: var(--panel2); }
 
 /* The need score as a bar. Its width is the score, so a glance down the column
    orders the roster without anyone reading a number. */
-.lc-need {
-    display: inline-block;
-    width: 76px;
-    height: 8px;
-    border-radius: 999px;
-    background: var(--panel3);
-    border: 1px solid var(--line);
-    overflow: hidden;
-    vertical-align: middle;
-}
-.lc-need-fill {
-    display: block;
-    height: 100%;
-    background: linear-gradient(90deg, var(--accent-2), var(--accent));
-}
-.lc-need-detail { display: grid; gap: 3px; font-size: 13px; min-width: 260px; }
+
 
 .lc-count {
     font-family: var(--font-mono);
@@ -1246,4 +1231,119 @@ a.gear-row:hover { background: var(--panel2); }
 @media (max-width: 640px) {
     .lc-need { width: 52px; }
     .lc-simbar { align-items: flex-start; }
+}
+
+/* ── Loot-Council: Gear-Reihe, Balken, Icon-Kennzahlen ────────────────────── */
+
+/* A number with its meaning as an icon in front — replaces "vor 31 Tagen" and
+   "3 Items" with something readable at a glance and in a narrow column. */
+.lc-stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: help;
+}
+.lc-stat svg { width: 14px; height: 14px; opacity: .65; flex: none; }
+
+/* The need bar, stacked in its three components (40/30/30) so it shows not
+   just how overdue somebody is but which part of it drives that. */
+.lc-need {
+    display: inline-flex;
+    width: 84px;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--panel3);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    vertical-align: middle;
+}
+.lc-need-fill { display: block; height: 100%; }
+.lc-seg-drought { background: var(--accent); }
+.lc-seg-share { background: var(--accent-2); }
+.lc-seg-need { background: color-mix(in srgb, var(--accent) 45%, var(--accent-2)); }
+
+.lc-need-detail { display: grid; gap: 5px; font-size: 13px; }
+.lc-need-head { margin-bottom: 2px; }
+.lc-need-part { display: grid; grid-template-columns: 10px 16px 1fr auto; align-items: center; gap: 8px; }
+.lc-need-part svg { width: 14px; height: 14px; opacity: .7; }
+.lc-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+/* The gain bar: how much this item would do for that raider, relative to the
+   strongest candidate in the same list. A measured (simulated) value is solid,
+   an estimate is hatched — the difference has to be visible without reading. */
+.lc-gain { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.lc-gain-bar {
+    display: block;
+    width: 72px;
+    height: 9px;
+    border-radius: 999px;
+    background: var(--panel3);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    flex: none;
+}
+.lc-gain-fill {
+    display: block;
+    height: 100%;
+    background: repeating-linear-gradient(
+        135deg,
+        var(--accent-2) 0 4px,
+        color-mix(in srgb, var(--accent-2) 55%, transparent) 4px 8px
+    );
+}
+.lc-gain-measured .lc-gain-fill { background: var(--accent-2); }
+.lc-gain b { font-family: var(--font-mono); font-size: 13px; }
+.lc-gain-loss b { color: var(--danger, #e5484d); }
+.lc-gain-loss .lc-gain-fill { background: var(--danger, #e5484d); }
+
+/* One worn item as its icon. Sixteen names are unreadable, sixteen icons are a
+   character sheet. */
+.lc-worn { display: inline-flex; }
+.lc-worn-img {
+    width: 30px;
+    height: 30px;
+    border-radius: 4px;
+    border: 1.5px solid var(--line);
+    display: block;
+    background: var(--panel3);
+}
+.lc-worn-blank { border-style: dashed; }
+.lc-worn-trigger { cursor: help; }
+/* Two marks worth seeing without hovering: on the raider's BiS list, and no
+   enchant on a slot that should have one. */
+.lc-worn-bis .lc-worn-img { border-color: var(--accent-2); }
+.lc-worn-noench .lc-worn-img { border-color: var(--danger, #e5484d); }
+
+.lc-worn-detail { display: grid; gap: 7px; }
+.lc-worn-flags { display: flex; flex-wrap: wrap; gap: 5px; }
+.lc-worn-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    font-size: 12.5px;
+    color: var(--muted);
+    border-top: 1px solid var(--line-soft);
+    padding-top: 6px;
+}
+
+/* An equip slot with nothing in it — the best case for a drop, so it reads as
+   an invitation rather than as a gap. */
+.lc-freeslot { display: inline-flex; color: var(--accent-2); cursor: help; }
+.lc-freeslot svg { width: 26px; height: 26px; }
+
+/* The gear row under each raider: their whole set, left to right. Its own row
+   rather than a column, because sixteen icons need the table's full width. */
+.lc-raider-row td { border-bottom: 0; }
+.lc-gear-row td { padding-top: 0; padding-bottom: 12px; }
+.lc-gear { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.lc-candidates td { vertical-align: middle; }
+
+@media (max-width: 900px) {
+    .lc-gain-bar { width: 44px; }
+    .lc-need { width: 56px; }
+    .lc-worn-img { width: 26px; height: 26px; }
 }

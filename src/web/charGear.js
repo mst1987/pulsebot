@@ -22,6 +22,25 @@ const { listReports, getReport } = require("./reportStore");
 const { characterKey, splitPlayer } = require("../utils/lootImport");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 
+const ICON_BASE = "https://wow.zamimg.com/images/wow/icons/large";
+
+// The order a character sheet shows the slots in — head down the left side,
+// then the right, then the weapons. Same list as gearIssues.js's ARMORY_SLOTS;
+// kept here too because this module hands out gear for display, and "in the
+// order the game shows it" is part of that.
+const DISPLAY_ORDER = [0, 1, 2, 14, 4, 8, 9, 5, 6, 7, 10, 11, 12, 13, 15, 16, 17];
+
+/**
+ * WCL ships a bare asset name ("inv_helmet_21.jpg"), the CDN wants it
+ * lowercased without the extension. Same mapping as charGearIssues.js and
+ * render.js — three copies exist because each formats a different payload, and
+ * none of them is worth a module of its own.
+ */
+function itemIconUrl(icon) {
+    if (!icon) return "";
+    return `${ICON_BASE}/${String(icon).replace(/\.(jpg|jpeg|png|gif)$/i, "").toLowerCase()}.jpg`;
+}
+
 // How many of the newest evaluations are walked. Same bound and same reason as
 // charGearIssues.js's MAX_REPORTS: far enough back to cover everyone who raided
 // recently, without reading years of files on every page view.
@@ -45,6 +64,8 @@ function trimItem(entry) {
         itemId: Number(entry.itemId) || 0,
         itemName: String(entry.itemName || ""),
         icon: entry.icon || null,
+        iconUrl: itemIconUrl(entry.icon),
+        quality: typeof entry.quality === "number" ? entry.quality : null,
         itemLevel: Number(entry.itemLevel) || 0,
         gems: (entry.gems || []).map((g) => Number(g.id) || 0),
         emptySockets: Number(entry.emptySockets) || 0,
@@ -72,7 +93,14 @@ function gearByCharacter() {
         for (const entry of report.roster) {
             const key = charKey(entry.name);
             if (!key || out.has(key)) continue;
-            const items = (entry.armory || []).filter((it) => it && Number(it.itemId) > 0).map(trimItem);
+            // Kept in character-sheet order rather than the order the report
+            // happened to list them: this is what the page draws as a row of
+            // icons, and "head, neck, shoulders, …" is the order a raider reads
+            // their own gear in.
+            const items = (entry.armory || [])
+                .filter((it) => it && Number(it.itemId) > 0)
+                .map(trimItem)
+                .sort((a, b) => DISPLAY_ORDER.indexOf(a.slot) - DISPLAY_ORDER.indexOf(b.slot));
             // A roster row without a single item is a player the log saw but
             // whose gear it could not read — keeping it would look like a raider
             // in no gear at all.
@@ -102,4 +130,4 @@ function itemInSlot(gear, slot) {
     return gear.items.find((it) => it.slot === Number(slot)) || null;
 }
 
-module.exports = { gearByCharacter, gearFor, itemInSlot, charKey, MAX_REPORTS };
+module.exports = { gearByCharacter, gearFor, itemInSlot, charKey, itemIconUrl, DISPLAY_ORDER, MAX_REPORTS };

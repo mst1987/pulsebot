@@ -1,25 +1,37 @@
 // The caster loot council.
 //
-// It answers the three questions a council actually asks, in that order:
-//   "Wer war zuletzt dran?"      — the roster table: what each caster got in the
-//                                  selected content, how long ago, and how far
-//                                  their gear still is from BiS
-//   "Wer sollte mal wieder?"     — the same table sorted by need, with the
-//                                  reasoning spelled out instead of hidden in a
-//                                  score
-//   "Wem bringt DAS hier am     — the BiS list: per open item, who would gain
-//    meisten?"                     most, by simulated DPS where possible and by
-//                                  stat weights otherwise
+// It answers the questions a council actually asks, in that order:
+//   "Wer war zuletzt dran?"    — the roster table: what each caster got in the
+//                                selected content, how long ago, how far their
+//                                gear is from BiS, and their whole gear as a
+//                                row of icons under their name
+//   "Wer sollte mal wieder?"   — the same table sorted by need, with the
+//                                reasoning in the bar itself rather than hidden
+//                                in a score
+//   "Das ist gerade gedroppt   — the drop check: pick the item, see everyone it
+//    — wer kriegt es?"           fits, what it would replace, what it would
+//                                gain them and what they have coming to them
+//
+// Two rules run through the whole page:
+//
+//   Icons over words. A spec, an item, a wait, a loot count — each is one glyph
+//   with the detail behind a hover, because a council reads this table under
+//   time pressure while a boss corpse cools.
+//
+//   Gain and fairness stay apart. What an item would *do* and what a raider has
+//   *coming to them* are two different questions, shown as two bars side by
+//   side. Multiplying them into one number would look like an answer and hide
+//   the judgement a council is there to make.
 //
 // The DPS numbers come from a background simulation (wowsimcli) that the user
 // starts deliberately — it costs seconds of CPU per raider, and the page is
 // fully usable without it. Everything a simulation can improve is labelled, so
 // a stat-weight estimate is never mistaken for a measured number.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import {
     getLootCouncil, runCouncilSim, searchCouncilItems,
-    type ApiError, type CouncilCandidate, type CouncilGap, type CouncilItem, type CouncilRaider,
+    type ApiError, type CouncilCandidate, type CouncilGap, type CouncilItem, type CouncilRaider, type WornItem,
     type ItemSearchResult, type LootCouncilData, type SimJob, type SimResult,
 } from "../api";
 import ItemSearchPicker from "../components/ItemSearchPicker";
@@ -30,6 +42,7 @@ import { usePersistedState } from "../lib/persistedState";
 import { useTableSort, type Dir, type TableSort } from "../lib/tableSort";
 import { SortTh } from "../components/SortTh";
 import { classColorProps, ClassSpecIcon } from "../components/ClassSpec";
+import { ClockIcon, LootBagIcon, EmptySlotIcon, CouncilIcon } from "../components/icons";
 import { ReasonBadge } from "../components/LootBadges";
 import { HoverPanel } from "../components/HoverPanel";
 import PageLoader from "../components/PageLoader";
@@ -55,9 +68,9 @@ const ROSTER_SORT: Record<RosterSortKey, Dir> = {
     last: "asc", bis: "asc", dps: "desc", gear: "desc",
 };
 
-type CandidateSortKey = "character" | "spec" | "slot" | "gain" | "loot";
+type CandidateSortKey = "character" | "spec" | "slot" | "gain" | "need" | "waited" | "loot";
 const CANDIDATE_SORT: Record<CandidateSortKey, Dir> = {
-    character: "asc", spec: "asc", slot: "asc", gain: "desc", loot: "desc",
+    character: "asc", spec: "asc", slot: "asc", gain: "desc", need: "desc", waited: "desc", loot: "desc",
 };
 
 const WOWHEAD = (id: number) => `https://www.wowhead.com/tbc/item=${id}`;
@@ -100,34 +113,154 @@ function ItemLink({ id, name, iconUrl, quality }: { id: number; name: string; ic
     );
 }
 
+/** Everything the need bar needs, from a roster row or a candidate alike. */
+type NeedSubject = {
+    needScore: number;
+    needParts: { drought: number; share: number; need: number };
+    daysSinceLoot: number | null;
+    lootCount: number;
+    bisOwned: number;
+    bisTotal: number;
+};
+
+const needSubject = (r: CouncilRaider): NeedSubject => ({
+    needScore: r.needScore, needParts: r.needParts, daysSinceLoot: r.daysSinceLoot,
+    lootCount: r.lootCount, bisOwned: r.bis.owned, bisTotal: r.bis.total,
+});
+
 /**
  * The need score, with its parts behind a hover.
  *
  * Shown as a bar rather than a number because the number itself means nothing
  * to a reader — what matters is the ordering and what drives it, and the hover
- * says exactly that in words.
+ * says exactly that in words. The three segments are the three components, so
+ * the bar shows not just how overdue someone is but why.
  */
-function NeedBar({ raider }: { raider: CouncilRaider }) {
-    const pct = Math.round(raider.needScore * 100);
-    const parts = raider.needParts;
+function NeedBar({ subject }: { subject: NeedSubject }) {
+    const pct = Math.round(subject.needScore * 100);
+    const p = subject.needParts;
+    // The bar is stacked in the weights the score itself uses (40/30/30), so
+    // the widths add up to exactly the score.
+    const seg = [
+        { key: "drought", w: p.drought * 40, cls: "lc-seg-drought" },
+        { key: "share", w: p.share * 30, cls: "lc-seg-share" },
+        { key: "need", w: p.need * 30, cls: "lc-seg-need" },
+    ];
     return (
         <HoverPanel
+            width={420}
             trigger={
                 <span className="lc-need" aria-label={`Bedarf ${pct} Prozent`}>
-                    <span className="lc-need-fill" style={{ width: `${pct}%` }} />
+                    {seg.map((s) => <span key={s.key} className={`lc-need-fill ${s.cls}`} style={{ width: `${s.w}%` }} />)}
                 </span>
             }
         >
             <div className="lc-need-detail">
-                <div><b>Bedarf {pct} %</b></div>
-                <div>Wartezeit: {Math.round(parts.drought * 100)} % {raider.daysSinceLoot === null ? "(noch nie etwas bekommen)" : `(${raider.daysSinceLoot} Tage her)`}</div>
-                <div>Anteil am Loot: {Math.round(parts.share * 100)} % ({raider.lootCount} Items im Filter)</div>
-                <div>BiS-Lücke: {Math.round(parts.need * 100)} % ({raider.bis.owned}/{raider.bis.total} BiS getragen)</div>
+                <div className="lc-need-head"><b>Bedarf {pct} %</b></div>
+                <div className="lc-need-part">
+                    <span className="lc-dot lc-seg-drought" />
+                    <ClockIcon />
+                    <span>{subject.daysSinceLoot === null ? "noch nie etwas bekommen" : `${subject.daysSinceLoot} Tage her`}</span>
+                    <b>{Math.round(p.drought * 100)} %</b>
+                </div>
+                <div className="lc-need-part">
+                    <span className="lc-dot lc-seg-share" />
+                    <LootBagIcon />
+                    <span>{subject.lootCount} Items im Filter</span>
+                    <b>{Math.round(p.share * 100)} %</b>
+                </div>
+                <div className="lc-need-part">
+                    <span className="lc-dot lc-seg-need" />
+                    <CouncilIcon />
+                    <span>{subject.bisTotal ? `${subject.bisOwned}/${subject.bisTotal} BiS getragen` : "keine BiS-Liste"}</span>
+                    <b>{Math.round(p.need * 100)} %</b>
+                </div>
                 <div className="hint" style={{ marginTop: 6 }}>
-                    Gewichtung: 40 % Wartezeit, 30 % Loot-Anteil, 30 % BiS-Lücke.
+                    Gewichtet: 40 % Wartezeit, 30 % Loot-Anteil, 30 % BiS-Lücke.
                 </div>
             </div>
         </HoverPanel>
+    );
+}
+
+/**
+ * One worn piece as its icon, with everything about it behind the hover.
+ *
+ * The icon is the whole cell on purpose: a row of sixteen item names is
+ * unreadable, a row of sixteen icons is a character sheet. A missing enchant
+ * gets a corner mark, because that is what a council spots when someone asks
+ * for an upgrade; a BiS piece gets one too.
+ */
+function WornIcon({ item }: { item: WornItem }) {
+    const marks = [
+        item.isBis ? "lc-worn-bis" : "",
+        item.enchantStatus === "missing" ? "lc-worn-noench" : "",
+    ].filter(Boolean).join(" ");
+    return (
+        <HoverPanel
+            width={340}
+            className="lc-worn-trigger"
+            trigger={
+                <span className={`lc-worn ${marks}`}>
+                    {item.iconUrl
+                        ? <img src={item.iconUrl} alt="" loading="lazy" {...itemQualityProps(item.quality, "lc-worn-img")} />
+                        : <span className="lc-worn-img lc-worn-blank" />}
+                </span>
+            }
+        >
+            <div className="lc-worn-detail">
+                <div>
+                    <ItemLink id={item.itemId} name={item.itemName} iconUrl={item.iconUrl} quality={item.quality} />
+                </div>
+                <div className="hint">
+                    {item.slotName} · ilvl {item.itemLevel}
+                    {item.contentId ? ` · ${item.contentId.toUpperCase()}` : ""}
+                    {item.boss ? ` · ${item.boss}` : ""}
+                </div>
+                <div className="lc-worn-flags">
+                    {item.isBis ? <span className="lbadge lbadge-ok">BiS</span> : null}
+                    {item.enchantStatus === "missing" ? <span className="lbadge lbadge-warn">keine Verzauberung</span> : null}
+                    {item.emptySockets > 0 ? <span className="lbadge lbadge-warn">{item.emptySockets} leere Sockel</span> : null}
+                    {item.gemCount > 0 ? <span className="lbadge lbadge-neutral">{item.gemCount} Edelsteine</span> : null}
+                </div>
+                {Object.keys(item.stats).length ? (
+                    <div className="lc-worn-stats">
+                        {Object.entries(item.stats).map(([stat, value]) => (
+                            <span key={stat}>{STAT_LABELS[stat] || stat} <b>+{value}</b></span>
+                        ))}
+                    </div>
+                ) : null}
+            </div>
+        </HoverPanel>
+    );
+}
+
+/** German labels for the stat keys the item table uses. */
+const STAT_LABELS: Record<string, string> = {
+    spellPower: "Zaubermacht", healingPower: "Heilung", spellHit: "Trefferwertung",
+    spellCrit: "Krit", spellHaste: "Tempo", spellPen: "Zauberdurchschlag",
+    intellect: "Intelligenz", spirit: "Willenskraft", stamina: "Ausdauer", mp5: "Mp5",
+    arcanePower: "Arkanschaden", firePower: "Feuerschaden", frostPower: "Frostschaden",
+    holyPower: "Heiliger Schaden", naturePower: "Naturschaden", shadowPower: "Schattenschaden",
+};
+
+/**
+ * Everything a raider wears, left to right in character-sheet order.
+ *
+ * Its own row under the raider rather than a column, because sixteen icons need
+ * the full table width — and because that is how a council looks at somebody:
+ * name first, then their gear.
+ */
+function GearRow({ gear, colSpan }: { gear: CouncilRaider["gear"]; colSpan: number }) {
+    if (!gear || !gear.items.length) return null;
+    return (
+        <tr className="lc-gear-row">
+            <td colSpan={colSpan}>
+                <div className="lc-gear">
+                    {gear.items.map((item) => <WornIcon key={`${item.slot}-${item.itemId}`} item={item} />)}
+                </div>
+            </td>
+        </tr>
     );
 }
 
@@ -198,9 +331,26 @@ function SimCell({ raider, sim }: { raider: CouncilRaider; sim: SimResult | null
     return <b>{Math.round(entry.baseline)}</b>;
 }
 
-/** One row of the "who would gain most" list under an item. */
-function CandidateRow({ candidate, simDelta }: { candidate: CouncilCandidate; simDelta: number | null | undefined }) {
+/**
+ * One row of the "who would gain most" list.
+ *
+ * Two bars side by side, and they answer different questions on purpose: the
+ * left one is what the item would *do* (simulated DPS where it exists, the
+ * stat-weight estimate otherwise), the right one is what the raider has
+ * *coming to them*. A council weighs those two against each other itself — the
+ * page must not multiply them into one number and pretend that is the answer.
+ *
+ * `gainMax` is the strongest gain in this list, so the bars are relative to the
+ * best candidate rather than to an absolute scale nobody knows.
+ */
+function CandidateRow({ candidate, simDelta, gainMax }: {
+    candidate: CouncilCandidate;
+    simDelta: number | null | undefined;
+    gainMax: number;
+}) {
     const measured = typeof simDelta === "number";
+    const gain = measured ? (simDelta as number) : candidate.value;
+    const pct = gainMax > 0 ? Math.max(0, Math.min(100, (gain / gainMax) * 100)) : 0;
     return (
         <tr>
             <td><SpecCell specLabel={candidate.specLabel} iconUrl={candidate.specIconUrl} /></td>
@@ -210,16 +360,39 @@ function CandidateRow({ candidate, simDelta }: { candidate: CouncilCandidate; si
             </td>
             <td>
                 {candidate.replaces
-                    ? <span className="sub">ersetzt {candidate.replaces.itemName || `Item ${candidate.replaces.itemId}`} (ilvl {candidate.replaces.itemLevel})</span>
-                    : <span className="lbadge lbadge-ok">freier Slot</span>}
+                    ? <WornIcon item={candidate.replaces} />
+                    : (
+                        <span className="lc-freeslot" title={`${candidate.slotName} ist frei`}>
+                            <EmptySlotIcon />
+                        </span>
+                    )}
             </td>
-            <td className={measured ? "" : "sub"}>
-                {measured
-                    ? <b title="Simulierte DPS-Differenz (wowsimcli)">{simDelta > 0 ? "+" : ""}{Math.round(simDelta as number)} DPS</b>
-                    : <span title="Schätzung aus Stat-Gewichten — noch nicht simuliert">{candidate.value > 0 ? "+" : ""}{candidate.value}</span>}
+            <td>
+                <span className={`lc-gain${gain < 0 ? " lc-gain-loss" : ""}${measured ? " lc-gain-measured" : ""}`}>
+                    <span className="lc-gain-bar"><span className="lc-gain-fill" style={{ width: `${pct}%` }} /></span>
+                    <b title={measured
+                        ? "Simulierte DPS-Differenz (wowsimcli)"
+                        : "Schätzung aus Stat-Gewichten — noch nicht simuliert"}
+                    >
+                        {gain > 0 ? "+" : ""}{Math.round(gain)}{measured ? " DPS" : ""}
+                    </b>
+                </span>
             </td>
-            <td className="sub">
-                {candidate.daysSinceLoot === null ? "noch nie" : `vor ${candidate.daysSinceLoot} T`} · {candidate.lootCount} Items
+            <td><NeedBar subject={candidate} /></td>
+            <td>
+                <span className="lc-stat" title={candidate.daysSinceLoot === null
+                    ? "Hat noch nie ein Item bekommen"
+                    : `Letztes Item vor ${candidate.daysSinceLoot} Tagen`}
+                >
+                    <ClockIcon />
+                    {candidate.daysSinceLoot === null ? "∞" : `${candidate.daysSinceLoot}`}
+                </span>
+            </td>
+            <td>
+                <span className="lc-stat" title={`${candidate.lootCount} Items im aktuellen Filter, ${candidate.lootTotal} insgesamt`}>
+                    <LootBagIcon />
+                    {candidate.lootCount}
+                </span>
             </td>
         </tr>
     );
@@ -258,23 +431,40 @@ function CandidateTable({ itemId, candidates, sim, sortState }: {
             case "spec": return c.specLabel.toLowerCase();
             case "slot": return c.replaces ? c.replaces.itemLevel : -1;
             case "gain": return gainFor(sim, c, itemId);
-            case "loot": return c.daysSinceLoot === null ? Number.MAX_SAFE_INTEGER : c.daysSinceLoot;
+            case "need": return c.needScore;
+            // Never having won anything is the longest wait there is, not the
+            // shortest — so it sorts to the overdue end.
+            case "waited": return c.daysSinceLoot === null ? Number.MAX_SAFE_INTEGER : c.daysSinceLoot;
+            case "loot": return c.lootCount;
             default: return 0;
         }
     });
+    // The bars are relative to the strongest candidate, so the best one is
+    // always full and the rest read as a share of it.
+    const gainMax = Math.max(
+        0,
+        ...candidates.map((c) => {
+            const delta = deltaFor(sim, c, itemId);
+            return typeof delta === "number" ? delta : c.value;
+        }),
+    );
     return (
-        <table className="idx" style={{ marginTop: 8 }}>
+        <table className="idx lc-candidates" style={{ marginTop: 8 }}>
             <thead>
                 <tr>
                     <SortTh sortKey="spec" label="Spec" title="Nach Spec sortieren" style={{ width: 52 }} {...sortState} />
                     <SortTh sortKey="character" label="Raider" {...sortState} />
-                    <SortTh sortKey="slot" label="Slot" title="Nach dem Itemlevel des Stücks, das ersetzt würde — ein freier Slot zuerst" {...sortState} />
-                    <SortTh sortKey="gain" label="Zugewinn" {...sortState} />
-                    <SortTh sortKey="loot" label="Zuletzt Loot" {...sortState} />
+                    <SortTh sortKey="slot" label="Ersetzt" title="Das Stück, das dafür abgelegt würde — nach dessen Itemlevel sortiert, ein freier Slot zuerst" style={{ width: 70 }} {...sortState} />
+                    <SortTh sortKey="gain" label="Zugewinn" title="Simulierte DPS, wo vorhanden — sonst die Schätzung aus Stat-Gewichten" {...sortState} />
+                    <SortTh sortKey="need" label="Bedarf" title="Wartezeit, Loot-Anteil und BiS-Lücke zusammengenommen" {...sortState} />
+                    <SortTh sortKey="waited" label="Tage" title="Seit dem letzten Item" style={{ width: 70 }} {...sortState} />
+                    <SortTh sortKey="loot" label="Items" title="Im aktuellen Content-Filter" style={{ width: 70 }} {...sortState} />
                 </tr>
             </thead>
             <tbody>
-                {rows.map((c) => <CandidateRow key={c.key} candidate={c} simDelta={deltaFor(sim, c, itemId)} />)}
+                {rows.map((c) => (
+                    <CandidateRow key={c.key} candidate={c} simDelta={deltaFor(sim, c, itemId)} gainMax={gainMax} />
+                ))}
             </tbody>
         </table>
     );
@@ -691,27 +881,39 @@ export default function LootCouncilPage() {
                         </thead>
                         <tbody>
                             {sortedRoster.map((r) => (
-                                <tr key={r.key}>
-                                    <td><SpecCell specLabel={r.specLabel} iconUrl={r.specIconUrl} assumed={r.specAssumed} /></td>
-                                    <td><RaiderName raider={r} /></td>
-                                    <td><NeedBar raider={r} /></td>
-                                    <td><LootCell raider={r} /></td>
-                                    <td className="sub">
-                                        {r.lastAwardAt ? `${fmtMs(r.lastAwardAt, false)} (vor ${r.daysSinceLoot} T)` : "noch nie"}
-                                    </td>
-                                    <td><BisCell raider={r} /></td>
-                                    <td><SimCell raider={r} sim={sim} /></td>
-                                    <td className="sub">
-                                        {r.gear
-                                            ? <span title={`Aus der Auswertung „${r.gear.reportTitle}"`}>
-                                                {fmtMs(r.gear.seenAt, false)}
-                                                {r.gear.hitCap > 0
-                                                    ? ` · Trefferwertung ${r.gear.spellHit}/${r.gear.hitCap}`
-                                                    : ""}
+                                // Two rows per raider: the numbers, then their
+                                // gear underneath. A fragment rather than a
+                                // nested table so both keep the same columns.
+                                <Fragment key={r.key}>
+                                    <tr className="lc-raider-row">
+                                        <td><SpecCell specLabel={r.specLabel} iconUrl={r.specIconUrl} assumed={r.specAssumed} /></td>
+                                        <td><RaiderName raider={r} /></td>
+                                        <td><NeedBar subject={needSubject(r)} /></td>
+                                        <td><LootCell raider={r} /></td>
+                                        <td className="sub">
+                                            <span className="lc-stat" title={r.lastAwardAt
+                                                ? `Letztes Item am ${fmtMs(r.lastAwardAt, false)}`
+                                                : "Hat noch nie ein Item bekommen"}
+                                            >
+                                                <ClockIcon />
+                                                {r.lastAwardAt ? `${r.daysSinceLoot}` : "∞"}
                                             </span>
-                                            : "—"}
-                                    </td>
-                                </tr>
+                                        </td>
+                                        <td><BisCell raider={r} /></td>
+                                        <td><SimCell raider={r} sim={sim} /></td>
+                                        <td className="sub">
+                                            {r.gear
+                                                ? <span title={`Aus der Auswertung „${r.gear.reportTitle}“`}>
+                                                    {fmtMs(r.gear.seenAt, false)}
+                                                    {r.gear.hitCap > 0
+                                                        ? ` · Hit ${r.gear.spellHit}/${r.gear.hitCap}`
+                                                        : ""}
+                                                </span>
+                                                : "—"}
+                                        </td>
+                                    </tr>
+                                    <GearRow gear={r.gear} colSpan={8} />
+                                </Fragment>
                             ))}
                         </tbody>
                     </table>

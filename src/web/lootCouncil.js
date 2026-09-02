@@ -19,6 +19,7 @@ const { classLook } = require("./lootClassLook");
 const { characterMap } = require("./characterStore");
 const { gearByCharacter } = require("./charGear");
 const { CONTENTS, TIERS, content: contentMeta, sourceForItem } = require("../config/tbcContent");
+const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 const { targetSlotFor } = require("../utils/wowsims/loadout");
 const wowsims = require("../config/wowsims");
 const {
@@ -155,6 +156,45 @@ function itemView(itemId) {
 }
 
 /**
+ * One worn piece, as the page draws it: the log's own name and icon, plus what
+ * the item table knows on top (stats, quality, which raid it came from).
+ *
+ * Deliberately the log's icon rather than the table's — the log saw what the
+ * raider actually wears, including items the generated table does not carry, and
+ * an icon-less square in a row of gear reads as "slot empty" when it only means
+ * "not in our table".
+ *
+ * `isBis` is resolved here because only the server knows this raider's BiS list.
+ */
+function wornItemView(item, bisIds) {
+    const known = wowsims.item(item.itemId);
+    const source = sourceForItem(item.itemId) || {};
+    return {
+        slot: item.slot,
+        slotName: item.slotName,
+        itemId: item.itemId,
+        itemName: item.itemName || (known ? known.name : "") || `Item ${item.itemId}`,
+        // Always a string: an undefined src renders as a broken image, which in
+        // a row of gear icons reads as "this slot is broken" rather than "we
+        // have no picture of it".
+        iconUrl: item.iconUrl || "",
+        // WCL's quality is authoritative for a worn item; the table fills in for
+        // rows an older report stored without one.
+        quality: item.quality !== null && item.quality !== undefined ? item.quality : (known ? known.quality : null),
+        itemLevel: item.itemLevel || (known ? known.ilvl : 0),
+        stats: known ? known.stats : {},
+        contentId: source.content || "",
+        boss: source.boss || "",
+        gemCount: (item.gems || []).filter(Boolean).length,
+        emptySockets: item.emptySockets,
+        // "missing" is the one worth showing — an unenchanted slot is the most
+        // common thing a council spots on a raider asking for an upgrade.
+        enchantStatus: item.enchantStatus,
+        isBis: bisIds.has(Number(item.itemId)),
+    };
+}
+
+/**
  * How urgently a raider should be considered for the next drop, and why.
  *
  * Three inputs, each capped so no single one can dominate:
@@ -262,6 +302,7 @@ function councilRoster(opts = {}) {
             if (left > 0) wornCount.set(id, left - 1);
             return { ...itemView(id), owned: left > 0 };
         });
+        const bisIds = new Set(bis.items.map((entry) => Number(entry.id)));
 
         const look = classLook(charStore, key);
         rows.push({
@@ -300,6 +341,11 @@ function councilRoster(opts = {}) {
                 itemCount: gear.items.length,
                 spellHit: gearSpellHit(gear),
                 hitCap: hitCapFor(specEntry),
+                // The worn pieces themselves, in character-sheet order, so the
+                // page can show the raider's gear as a row of icons. Whether a
+                // piece is on their BiS list is decided here rather than in the
+                // client, which has no BiS list per raider to check against.
+                items: gear.items.map((it) => wornItemView(it, bisIds)),
             } : null,
             bis: {
                 tier: bis.tier,
@@ -363,16 +409,30 @@ function candidatesForItem(itemId, roster) {
             // same way the roster table does.
             specIconUrl: row.specIconUrl,
             slot: target.slot,
-            replaces: target.replaces ? {
-                itemId: target.replaces.itemId,
-                itemName: target.replaces.itemName,
-                itemLevel: target.replaces.itemLevel,
-            } : null,
+            slotName: target.replaces ? target.replaces.slotName : (SLOT_NAMES[target.slot] || `Slot ${target.slot}`),
+            // The full view of what would come off, not just its name: a council
+            // deciding on a drop wants to see the piece it replaces — icon,
+            // item level, whether it is enchanted, whether it was on that
+            // raider's BiS list.
+            replaces: target.replaces
+                ? wornItemView(target.replaces, new Set(row.bis.items.map((i) => i.id)))
+                : null,
             value,
             isBis,
+            // The fairness half of the decision, carried alongside the gear
+            // gain rather than folded into it: "who would gain most" and "who
+            // has waited longest" are two different questions, and a council
+            // that only ever sees them multiplied together cannot weigh them
+            // against each other. Same numbers as the roster table, so a name
+            // cannot look overdue in one view and satisfied in the other.
             needScore: row.needScore,
+            needParts: row.needParts,
             lootCount: row.lootCount,
+            lootTotal: row.lootTotal,
             daysSinceLoot: row.daysSinceLoot,
+            lastAwardAt: row.lastAwardAt,
+            bisOwned: row.bis.owned,
+            bisTotal: row.bis.total,
             hasGear: !!gear,
             simSupported: row.simSupported,
         });
@@ -441,6 +501,6 @@ function filterOptions() {
 }
 
 module.exports = {
-    councilRoster, candidatesForItem, bisGaps, filterOptions, currentTier,
+    councilRoster, candidatesForItem, bisGaps, filterOptions, currentTier, wornItemView,
     upgradeValue, needScore, scoreItem, gearSpellHit, resolveContentFilter, itemView,
 };
