@@ -1179,7 +1179,14 @@ a.gear-row:hover { background: var(--panel2); }
 .lc-simbar .hint { margin: 0; }
 .lc-simbar .hint.err { color: var(--danger, #e5484d); }
 
-.lc-raider { display: inline-flex; align-items: center; gap: 7px; }
+/* The spec column: the icon alone, in a column narrow enough that the columns
+   carrying numbers get the width instead. */
+.lc-spec { display: inline-flex; align-items: center; }
+.lc-spec img { width: 20px; height: 20px; border-radius: 3px; }
+/* A spec derived from the class rather than read from a log — dimmed, so the
+   difference stays visible without a second column spelling it out. */
+.lc-spec-assumed img { opacity: .5; }
+.lc-roster td:first-child, .lc-gap .idx td:first-child { width: 52px; }
 
 .lc-item { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
 .lc-item img { width: 20px; height: 20px; border-radius: 3px; border: 1px solid var(--line); }
@@ -1211,9 +1218,25 @@ a.gear-row:hover { background: var(--panel2); }
     cursor: help;
 }
 
-.lc-loot-list { display: grid; gap: 6px; min-width: 340px; max-height: 420px; overflow-y: auto; }
-.lc-loot-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
-.lc-loot-row .sub { margin: 0; font-size: 12px; }
+/* The loot hover. A grid rather than a flex row so the four columns line up
+   down the list, and with no scrolling of its own: the panel is wide enough for
+   a full row and the list is capped at a handful of entries (HOVER_ITEMS), so
+   nothing ever needs to be scrolled into view. */
+.lc-loot-list { display: grid; gap: 7px; }
+.lc-loot-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+}
+.lc-loot-row .sub { margin: 0; font-size: 12px; white-space: nowrap; }
+/* The item name is the one part allowed to wrap — a long one must not push the
+   raid, the reason and the date out of the panel. */
+.lc-loot-row .lc-item { min-width: 0; }
+.lc-loot-row .lc-item span { overflow-wrap: anywhere; }
+.lc-loot-raid { font-family: var(--font-mono); }
+.lc-loot-date { text-align: right; }
 
 /* One open BiS item plus its candidates. */
 .lc-gap h3 { display: flex; align-items: center; gap: 8px; font-size: 16px; }

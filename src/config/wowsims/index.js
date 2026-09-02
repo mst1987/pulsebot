@@ -63,6 +63,44 @@ function specsWithBis() {
     return Object.keys(bisData.sets);
 }
 
+/**
+ * Caster items whose name matches `query`, best match first.
+ *
+ * Searched locally in the generated table rather than through Wowhead, for
+ * three reasons: it is instant, it only ever offers items a caster can actually
+ * be handed, and every hit is guaranteed to resolve to a slot and a stat block
+ * — which is exactly what the "who should get this drop" question needs. An
+ * item Wowhead knows and this table does not is one the council could not
+ * evaluate anyway.
+ *
+ * Ranking: a name starting with the query beats one merely containing it, then
+ * the higher item level wins, so "Zhar" finds the T6 staff and not a level-60
+ * leftover of the same word.
+ */
+function searchItems(query, { limit = 15 } = {}) {
+    const q = String(query || "").trim().toLowerCase();
+    if (q.length < 2) return [];
+    const hits = [];
+    for (const [id, item] of Object.entries(itemData.items)) {
+        const name = item.name.toLowerCase();
+        const at = name.indexOf(q);
+        if (at < 0) continue;
+        hits.push({ id: Number(id), item, starts: at === 0 });
+        // Bounded: a two-letter query matches hundreds of items, and the picker
+        // shows a dozen. Collecting them all only to throw them away is work
+        // nobody sees.
+        if (hits.length > 400) break;
+    }
+    hits.sort((a, b) => (b.starts - a.starts) || (b.item.ilvl - a.item.ilvl) || a.item.name.localeCompare(b.item.name));
+    return hits.slice(0, limit).map(({ id, item }) => ({
+        id,
+        name: item.name,
+        iconUrl: item.icon ? `https://wow.zamimg.com/images/wow/icons/large/${item.icon}.jpg` : "",
+        quality: item.quality,
+        ilvl: item.ilvl,
+    }));
+}
+
 // The rotations are read from disk on first use and kept — they are a few KB
 // each and every sim of that spec needs the same one.
 const aplCache = new Map();
@@ -83,5 +121,5 @@ function aplFor(specKey) {
 module.exports = {
     ITEM_DB_VERSION: itemData.version,
     BIS_VERSION: bisData.version,
-    item, slotsFor, bisFor, bisTiers, specsWithBis, aplFor,
+    item, slotsFor, bisFor, bisTiers, specsWithBis, aplFor, searchItems,
 };

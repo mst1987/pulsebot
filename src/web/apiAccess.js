@@ -40,6 +40,7 @@ const AREA_BY_PATH = {
     // page and its stat-weight estimates, but does not spend CPU on it.
     "/api/lootcouncil": "lootcouncil",
     "/api/lootcouncil/sim": "lootcouncil",
+    "/api/lootcouncil/item-search": "lootcouncil",
 
     "/api/raids": "raids",
     "/api/raids/new": "raids",

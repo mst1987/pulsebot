@@ -18,10 +18,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import {
-    getLootCouncil, runCouncilSim,
-    type ApiError, type CouncilCandidate, type CouncilGap, type CouncilRaider,
-    type LootCouncilData, type SimJob, type SimResult,
+    getLootCouncil, runCouncilSim, searchCouncilItems,
+    type ApiError, type CouncilCandidate, type CouncilGap, type CouncilItem, type CouncilRaider,
+    type ItemSearchResult, type LootCouncilData, type SimJob, type SimResult,
 } from "../api";
+import ItemSearchPicker from "../components/ItemSearchPicker";
 import type { ShellContext } from "../components/Shell";
 import { fmtMs } from "../lib/format";
 import { itemQualityProps } from "../lib/itemQuality";
@@ -39,9 +40,11 @@ type View = {
     contents: string[];
     category: string;
     bisTier: string;
-    tab: "roster" | "bis";
+    tab: "roster" | "bis" | "drop";
+    /** The item the "Drop prüfen" tab is asking about (0 = none picked). */
+    dropItem: number;
 };
-const VIEW_DEFAULT: View = { role: "caster", tiers: [], contents: [], category: "", bisTier: "", tab: "roster" };
+const VIEW_DEFAULT: View = { role: "caster", tiers: [], contents: [], category: "", bisTier: "", tab: "roster", dropItem: 0 };
 
 // The direction each column's first click picks: names ascending, everything
 // that measures "how much / how long" descending, because that is the end
@@ -65,12 +68,24 @@ function tierLabel(tiers: { id: string; label: string }[], id: string): string {
     return tier ? tier.label : id.toUpperCase();
 }
 
-/** A raider's name in their class colour, with the spec icon in front. */
+/** A raider's name in their class colour. */
 function RaiderName({ raider }: { raider: CouncilRaider }) {
+    return <b {...classColorProps(raider.classColor)}>{raider.character}</b>;
+}
+
+/**
+ * The spec, as its icon alone in a narrow column of its own.
+ *
+ * The icon says the spec to anyone who plays the game, so a second column
+ * spelling it out was only taking width from the columns that carry numbers.
+ * The name stays reachable as the title, and the column still sorts by it.
+ */
+function SpecCell({ specLabel, iconUrl, assumed }: { specLabel: string; iconUrl?: string; assumed?: boolean }) {
+    const title = assumed ? `${specLabel} — aus der Klasse abgeleitet, nicht aus einem Log` : specLabel;
+    if (!iconUrl) return <span className="sub" title={title}>{specLabel.slice(0, 2)}</span>;
     return (
-        <span className="lc-raider">
-            {raider.specIconUrl ? <ClassSpecIcon iconUrl={raider.specIconUrl} /> : null}
-            <b {...classColorProps(raider.classColor)}>{raider.character}</b>
+        <span className={`lc-spec${assumed ? " lc-spec-assumed" : ""}`} title={title}>
+            <ClassSpecIcon iconUrl={iconUrl} />
         </span>
     );
 }
@@ -137,21 +152,31 @@ function BisCell({ raider }: { raider: CouncilRaider }) {
     );
 }
 
+// How many awards the hover shows. A peek, not the full history: past this the
+// panel would need to scroll, and a tooltip you have to scroll is one you
+// cannot read at a glance. The character page has the complete list.
+const HOVER_ITEMS = 8;
+
 /** The loot a raider got in the filter, newest first, behind a hover. */
 function LootCell({ raider }: { raider: CouncilRaider }) {
     if (!raider.lootCount) return <span className="sub">—</span>;
     return (
-        <HoverPanel trigger={<span className="lc-count">{raider.lootCount}</span>}>
+        // Wide enough that item name, raid, reason and date fit on one line —
+        // at the default width the row overflowed and the panel grew a
+        // horizontal scrollbar.
+        <HoverPanel width={560} trigger={<span className="lc-count">{raider.lootCount}</span>}>
             <div className="lc-loot-list">
-                {raider.items.slice(0, 20).map((item, i) => (
+                {raider.items.slice(0, HOVER_ITEMS).map((item, i) => (
                     <div key={`${item.itemId}-${item.awardedAt}-${i}`} className="lc-loot-row">
                         <ItemLink id={item.itemId} name={item.itemName} iconUrl={item.itemIconUrl} quality={item.itemQuality} />
-                        <span className="sub">{item.contentId ? item.contentId.toUpperCase() : ""}</span>
+                        <span className="sub lc-loot-raid">{item.contentId ? item.contentId.toUpperCase() : ""}</span>
                         {item.reasonLabel ? <ReasonBadge label={item.reasonLabel} tone={item.reasonTone} title={item.reason} /> : null}
-                        <span className="sub">{item.awardedAt ? fmtMs(item.awardedAt, false) : ""}</span>
+                        <span className="sub lc-loot-date">{item.awardedAt ? fmtMs(item.awardedAt, false) : ""}</span>
                     </div>
                 ))}
-                {raider.items.length > 20 ? <div className="hint">… und {raider.items.length - 20} weitere</div> : null}
+                {raider.items.length > HOVER_ITEMS
+                    ? <div className="hint">… und {raider.items.length - HOVER_ITEMS} ältere</div>
+                    : null}
             </div>
         </HoverPanel>
     );
@@ -178,11 +203,11 @@ function CandidateRow({ candidate, simDelta }: { candidate: CouncilCandidate; si
     const measured = typeof simDelta === "number";
     return (
         <tr>
+            <td><SpecCell specLabel={candidate.specLabel} iconUrl={candidate.specIconUrl} /></td>
             <td>
-                <b>{candidate.character}</b>
+                <b {...classColorProps(candidate.classColor)}>{candidate.character}</b>
                 {candidate.isBis ? <span className="lbadge lbadge-ok" title="Steht auf der BiS-Liste dieses Raiders" style={{ marginLeft: 6 }}>BiS</span> : null}
             </td>
-            <td className="sub">{candidate.specLabel}</td>
             <td>
                 {candidate.replaces
                     ? <span className="sub">ersetzt {candidate.replaces.itemName || `Item ${candidate.replaces.itemId}`} (ilvl {candidate.replaces.itemLevel})</span>
@@ -200,39 +225,75 @@ function CandidateRow({ candidate, simDelta }: { candidate: CouncilCandidate; si
     );
 }
 
+/**
+ * The measured DPS delta of one item for one raider, or undefined when it has
+ * not been simulated.
+ */
+function deltaFor(sim: SimResult | null, candidate: CouncilCandidate, itemId: number): number | null | undefined {
+    const entry = sim && sim[candidate.key];
+    const item = entry && entry.items[String(itemId)];
+    return item ? item.delta : undefined;
+}
+
+/**
+ * What a row is ranked by: the measured delta once it exists, the stat-weight
+ * estimate until then. A guess must never outrank a simulated result, so the
+ * measured ones are lifted clear above the whole estimate range.
+ */
+function gainFor(sim: SimResult | null, candidate: CouncilCandidate, itemId: number): number {
+    const delta = deltaFor(sim, candidate, itemId);
+    return typeof delta === "number" ? delta + 1e6 : candidate.value;
+}
+
+/** The "who should get this" table — shared by the BiS cards and the drop check. */
+function CandidateTable({ itemId, candidates, sim, sortState }: {
+    itemId: number;
+    candidates: CouncilCandidate[];
+    sim: SimResult | null;
+    sortState: TableSort<CandidateSortKey>;
+}) {
+    const rows = sortState.apply(candidates, (c, key) => {
+        switch (key) {
+            case "character": return c.character.toLowerCase();
+            case "spec": return c.specLabel.toLowerCase();
+            case "slot": return c.replaces ? c.replaces.itemLevel : -1;
+            case "gain": return gainFor(sim, c, itemId);
+            case "loot": return c.daysSinceLoot === null ? Number.MAX_SAFE_INTEGER : c.daysSinceLoot;
+            default: return 0;
+        }
+    });
+    return (
+        <table className="idx" style={{ marginTop: 8 }}>
+            <thead>
+                <tr>
+                    <SortTh sortKey="spec" label="Spec" title="Nach Spec sortieren" style={{ width: 52 }} {...sortState} />
+                    <SortTh sortKey="character" label="Raider" {...sortState} />
+                    <SortTh sortKey="slot" label="Slot" title="Nach dem Itemlevel des Stücks, das ersetzt würde — ein freier Slot zuerst" {...sortState} />
+                    <SortTh sortKey="gain" label="Zugewinn" {...sortState} />
+                    <SortTh sortKey="loot" label="Zuletzt Loot" {...sortState} />
+                </tr>
+            </thead>
+            <tbody>
+                {rows.map((c) => <CandidateRow key={c.key} candidate={c} simDelta={deltaFor(sim, c, itemId)} />)}
+            </tbody>
+        </table>
+    );
+}
+
 /** One open BiS item with everyone it would suit. */
-function GapCard({ gap, sim, expanded, onToggle, sortState }: {
+function GapCard({ gap, sim, expanded, onToggle, sortState, onCheck }: {
     gap: CouncilGap;
     sim: SimResult | null;
     expanded: boolean;
     onToggle: () => void;
     /** Shared across every card, so all of them stay ordered the same way. */
     sortState: TableSort<CandidateSortKey>;
+    /** Opens this item in the drop check, where it can be simulated on its own. */
+    onCheck: () => void;
 }) {
-    const deltaOf = (c: CouncilCandidate) => {
-        const entry = sim && sim[c.key];
-        const item = entry && entry.items[String(gap.id)];
-        return item ? item.delta : undefined;
-    };
-    // The gain a row is judged by: the measured delta once it exists, the
-    // stat-weight estimate until then. A guess must never outrank a simulated
-    // result, so the measured ones are lifted above the whole estimate range.
-    const gainOf = (c: CouncilCandidate) => {
-        const delta = deltaOf(c);
-        return typeof delta === "number" ? delta + 1e6 : c.value;
-    };
-    const candidates = sortState.apply(gap.candidates, (c, key) => {
-        switch (key) {
-            case "character": return c.character.toLowerCase();
-            case "spec": return c.specLabel.toLowerCase();
-            case "slot": return c.replaces ? c.replaces.itemLevel : -1;
-            case "gain": return gainOf(c);
-            case "loot": return c.daysSinceLoot === null ? Number.MAX_SAFE_INTEGER : c.daysSinceLoot;
-            default: return 0;
-        }
-    });
+    const deltaOf = (c: CouncilCandidate) => deltaFor(sim, c, gap.id);
     // The suggestion is always the biggest gain, whatever the table is sorted by.
-    const best = [...gap.candidates].sort((a, b) => gainOf(b) - gainOf(a))[0];
+    const best = [...gap.candidates].sort((a, b) => gainFor(sim, b, gap.id) - gainFor(sim, a, gap.id))[0];
 
     return (
         <div className="sheetcard lc-gap">
@@ -255,26 +316,104 @@ function GapCard({ gap, sim, expanded, onToggle, sortState }: {
             ) : (
                 <p className="hint" style={{ marginTop: 2 }}>Für keinen der gefilterten Raider ein passender Slot.</p>
             )}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={onToggle}>
-                {expanded ? "Kandidaten ausblenden" : `Alle ${candidates.length} Kandidaten`}
-            </button>
-            {expanded && candidates.length ? (
-                <table className="idx" style={{ marginTop: 8 }}>
-                    <thead>
-                        <tr>
-                            <SortTh sortKey="character" label="Raider" {...sortState} />
-                            <SortTh sortKey="spec" label="Spec" {...sortState} />
-                            <SortTh sortKey="slot" label="Slot" title="Nach dem Itemlevel des Stücks, das ersetzt würde — ein freier Slot zuerst" {...sortState} />
-                            <SortTh sortKey="gain" label="Zugewinn" {...sortState} />
-                            <SortTh sortKey="loot" label="Zuletzt Loot" {...sortState} />
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {candidates.map((c) => <CandidateRow key={c.key} candidate={c} simDelta={deltaOf(c)} />)}
-                    </tbody>
-                </table>
-            ) : null}
+            <div className="row-actions">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={onToggle}>
+                    {expanded ? "Kandidaten ausblenden" : `Alle ${gap.candidates.length} Kandidaten`}
+                </button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={onCheck}>
+                    Als Drop prüfen
+                </button>
+            </div>
+            {expanded && gap.candidates.length
+                ? <CandidateTable itemId={gap.id} candidates={gap.candidates} sim={sim} sortState={sortState} />
+                : null}
         </div>
+    );
+}
+
+/**
+ * "Das ist gerade gedroppt — wer soll es bekommen?"
+ *
+ * The one question a council asks under time pressure, so it gets its own tab
+ * instead of being buried in the BiS list: pick the item, see everyone it fits
+ * ranked by what it would actually gain them, and simulate exactly that one
+ * item rather than the whole gap list (five raiders instead of a hundred runs —
+ * seconds, not minutes).
+ */
+function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, onClear, onSimulate }: {
+    focus: { item: CouncilItem; candidates: CouncilCandidate[] } | null;
+    sim: SimResult | null;
+    sortState: TableSort<CandidateSortKey>;
+    simAvailable: boolean;
+    simRunning: boolean;
+    onPick: (item: ItemSearchResult) => void;
+    onClear: () => void;
+    onSimulate: () => void;
+}) {
+    const best = focus && focus.candidates.length
+        ? [...focus.candidates].sort((a, b) => gainFor(sim, b, focus.item.id) - gainFor(sim, a, focus.item.id))[0]
+        : null;
+    const measured = best ? deltaFor(sim, best, focus!.item.id) : undefined;
+
+    return (
+        <>
+            <div className="card-form">
+                <div className="field" style={{ marginBottom: 0 }}>
+                    <label>Welches Item ist gedroppt?</label>
+                    <ItemSearchPicker
+                        search={searchCouncilItems}
+                        onPick={onPick}
+                        placeholder="Item-Namen tippen, z. B. Zhar'doom …"
+                    />
+                    <div className="hint">
+                        Gesucht wird in der Caster-Itemliste des Bots — angeboten wird nur, was ein Caster
+                        auch tragen kann.
+                    </div>
+                </div>
+            </div>
+
+            {!focus ? (
+                <div className="empty">Noch kein Item gewählt.</div>
+            ) : (
+                <div className="sheetcard lc-gap">
+                    <div className="row-actions" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
+                        <h3 style={{ margin: 0 }}>
+                            <ItemLink id={focus.item.id} name={focus.item.name} iconUrl={focus.item.iconUrl} quality={focus.item.quality} />
+                        </h3>
+                        <span className="hint">
+                            {focus.item.contentId ? `${focus.item.contentId.toUpperCase()}${focus.item.boss ? ` · ${focus.item.boss}` : ""} · ` : ""}
+                            ilvl {focus.item.ilvl}
+                        </span>
+                    </div>
+
+                    {best ? (
+                        <p className="hint" style={{ marginTop: 2 }}>
+                            Größter Zugewinn: <b>{best.character}</b>
+                            {typeof measured === "number"
+                                ? <> — simuliert <b>{measured > 0 ? "+" : ""}{Math.round(measured)} DPS</b></>
+                                : <> — geschätzt {best.value > 0 ? "+" : ""}{best.value} (Stat-Gewichte; für echte DPS unten simulieren)</>}
+                        </p>
+                    ) : (
+                        <p className="hint" style={{ marginTop: 2 }}>
+                            Für keinen Raider im aktuellen Filter ein passender Slot — Rolle oder Filter oben prüfen.
+                        </p>
+                    )}
+
+                    <div className="row-actions">
+                        {simAvailable && focus.candidates.length ? (
+                            <button type="button" className="btn btn-sm" disabled={simRunning} onClick={onSimulate}>
+                                DPS-Gewinn für dieses Item simulieren
+                            </button>
+                        ) : null}
+                        <button type="button" className="btn btn-ghost btn-sm" onClick={onClear}>Anderes Item</button>
+                    </div>
+
+                    {focus.candidates.length
+                        ? <CandidateTable itemId={focus.item.id} candidates={focus.candidates} sim={sim} sortState={sortState} />
+                        : null}
+                </div>
+            )}
+        </>
     );
 }
 
@@ -307,6 +446,27 @@ export default function LootCouncilPage() {
             .catch((e: ApiError) => setError(e))
             .finally(() => setLoading(false));
     }, [view.role, view.tiers, view.contents, view.category, view.bisTier]);
+
+    // The picked drop is fetched on its own rather than filtered out of the
+    // page's data: which slot it lands in and what it would replace is decided
+    // per raider on the server, and a dropped item is regularly one that is on
+    // nobody's BiS list and therefore in no payload the page already holds.
+    const [focus, setFocus] = useState<{ item: CouncilItem; candidates: CouncilCandidate[] } | null>(null);
+    useEffect(() => {
+        if (!view.dropItem) { setFocus(null); return; }
+        let alive = true;
+        getLootCouncil({
+            role: view.role,
+            tiers: view.tiers,
+            contents: view.contents,
+            category: view.category,
+            bisTier: view.bisTier,
+            item: view.dropItem,
+        })
+            .then((d) => { if (alive) setFocus(d.focus); })
+            .catch(() => { if (alive) setFocus(null); });
+        return () => { alive = false; };
+    }, [view.dropItem, view.role, view.tiers, view.contents, view.category, view.bisTier]);
 
     useEffect(load, [load]);
 
@@ -347,16 +507,31 @@ export default function LootCouncilPage() {
         }
     });
 
-    /** Sim the roster's baselines, plus the items of the open BiS list. */
-    const runSim = async (withItems: boolean) => {
+    /**
+     * Simulate the roster's baselines plus the given items.
+     *
+     * `items` is the whole open BiS list for the overview button and a single
+     * id for the drop check — the difference between minutes and seconds, which
+     * is why the drop check has its own button at all.
+     */
+    const runSim = async (items: number[]) => {
         if (!data || !simulatable.length) return;
         setSimError("");
-        const items = withItems ? gaps.map((g) => g.id) : [];
         const id = `council-${Date.now()}`;
         setSimJob({ status: "running", progress: 0, total: simulatable.length * (1 + items.length) });
         try {
             const result = await runCouncilSim(csrfToken, id, simulatable, items, setSimJob);
-            setSim(result);
+            // Merged, not replaced: simulating one drop must not throw away the
+            // deltas of the BiS run somebody kicked off five minutes ago.
+            setSim((prev) => {
+                if (!prev) return result;
+                const merged: SimResult = { ...prev };
+                for (const [key, entry] of Object.entries(result)) {
+                    const old = merged[key];
+                    merged[key] = old ? { ...entry, items: { ...old.items, ...entry.items } } : entry;
+                }
+                return merged;
+            });
         } catch (e) {
             setSimError((e as ApiError).message);
         } finally {
@@ -471,10 +646,16 @@ export default function LootCouncilPage() {
                 </div>
                 {data.sim.available ? (
                     <div className="row-actions">
-                        <button type="button" className="btn btn-sm" disabled={simRunning || !simulatable.length} onClick={() => runSim(false)}>
+                        <button type="button" className="btn btn-sm" disabled={simRunning || !simulatable.length} onClick={() => runSim([])}>
                             DPS der Raider berechnen
                         </button>
-                        <button type="button" className="btn btn-sm" disabled={simRunning || !simulatable.length || !gaps.length} onClick={() => runSim(true)}>
+                        <button
+                            type="button"
+                            className="btn btn-sm"
+                            disabled={simRunning || !simulatable.length || !gaps.length}
+                            title="Rechnet jedes offene BiS-Item gegen jeden Raider durch — gründlich, aber minutenlang. Für ein einzelnes Item ist „Drop prüfen“ schneller."
+                            onClick={() => runSim(gaps.map((g) => g.id))}
+                        >
                             Alle BiS-Items durchrechnen ({gaps.length})
                         </button>
                     </div>
@@ -488,15 +669,18 @@ export default function LootCouncilPage() {
                 <button type="button" className={`tab-btn${view.tab === "bis" ? " active" : ""}`} onClick={() => patch({ tab: "bis" })}>
                     Offene BiS-Items ({gaps.length})
                 </button>
+                <button type="button" className={`tab-btn${view.tab === "drop" ? " active" : ""}`} onClick={() => patch({ tab: "drop" })}>
+                    Drop prüfen
+                </button>
             </div>
 
             {view.tab === "roster" ? (
                 roster.length ? (
-                    <table className="idx">
+                    <table className="idx lc-roster">
                         <thead>
                             <tr>
+                                <SortTh sortKey="spec" label="Spec" title="Nach Spec sortieren" style={{ width: 52 }} {...rosterSort} />
                                 <SortTh sortKey="character" label="Raider" {...rosterSort} />
-                                <SortTh sortKey="spec" label="Spec" {...rosterSort} />
                                 <SortTh sortKey="need" label="Bedarf" title="Wartezeit, Loot-Anteil und BiS-Lücke zusammengenommen" {...rosterSort} />
                                 <SortTh sortKey="loot" label="Items" {...rosterSort} />
                                 <SortTh sortKey="last" label="Zuletzt" {...rosterSort} />
@@ -508,11 +692,8 @@ export default function LootCouncilPage() {
                         <tbody>
                             {sortedRoster.map((r) => (
                                 <tr key={r.key}>
+                                    <td><SpecCell specLabel={r.specLabel} iconUrl={r.specIconUrl} assumed={r.specAssumed} /></td>
                                     <td><RaiderName raider={r} /></td>
-                                    <td>
-                                        {r.specLabel}
-                                        {r.specAssumed ? <span className="sub" title="Spec nicht aus einem Log bekannt — aus der Klasse abgeleitet."> (angenommen)</span> : null}
-                                    </td>
                                     <td><NeedBar raider={r} /></td>
                                     <td><LootCell raider={r} /></td>
                                     <td className="sub">
@@ -540,7 +721,9 @@ export default function LootCouncilPage() {
                         CLA-Auswertungen — ohne die bleibt die Liste leer.
                     </div>
                 )
-            ) : (
+            ) : null}
+
+            {view.tab === "bis" ? (
                 gaps.length ? (
                     <>
                         <p className="hint">
@@ -561,6 +744,7 @@ export default function LootCouncilPage() {
                                     setExpanded(next);
                                 }}
                                 sortState={candidateSort}
+                                onCheck={() => patch({ tab: "drop", dropItem: gap.id })}
                             />
                         ))}
                     </>
@@ -570,7 +754,20 @@ export default function LootCouncilPage() {
                         oder für ihre Specs gibt es in WoWSims-TBC keine BiS-Listen (das gilt für alle Heiler).
                     </div>
                 )
-            )}
+            ) : null}
+
+            {view.tab === "drop" ? (
+                <DropPanel
+                    focus={focus}
+                    sim={sim}
+                    sortState={candidateSort}
+                    simAvailable={data.sim.available}
+                    simRunning={simRunning}
+                    onPick={(item: ItemSearchResult) => patch({ dropItem: item.id })}
+                    onClear={() => patch({ dropItem: 0 })}
+                    onSimulate={() => runSim([view.dropItem])}
+                />
+            ) : null}
         </>
     );
 }

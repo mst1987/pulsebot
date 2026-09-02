@@ -356,8 +356,12 @@ function candidatesForItem(itemId, roster) {
         out.push({
             key: row.key,
             character: row.character,
+            classColor: row.classColor,
             specKey: row.specKey,
             specLabel: row.specLabel,
+            // Carried so the candidate list can show the spec as its icon, the
+            // same way the roster table does.
+            specIconUrl: row.specIconUrl,
             slot: target.slot,
             replaces: target.replaces ? {
                 itemId: target.replaces.itemId,

@@ -1,10 +1,12 @@
 // The caster loot council endpoints.
 //
 // Two speeds, deliberately split:
-//   GET  /api/lootcouncil            — the whole picture from stored data, one
-//                                      page load, no simulation
-//   POST /api/lootcouncil/sim        — start the DPS simulation in the background
-//   GET  /api/lootcouncil/sim        — poll it
+//   GET  /api/lootcouncil             — the whole picture from stored data, one
+//                                       page load, no simulation. `?item=<id>`
+//                                       narrows it to "this just dropped: who?"
+//   GET  /api/lootcouncil/item-search — the picker behind that question
+//   POST /api/lootcouncil/sim         — start the DPS simulation in the background
+//   GET  /api/lootcouncil/sim         — poll it
 //
 // Everything the page shows works without the simulation; the sim only ever
 // *replaces* the stat-weight estimate with a measured number. That split is the
@@ -18,6 +20,7 @@ const { activeGuildFor } = require("../activeGuild");
 const { userCan } = require("../../config/permissions");
 const { councilRoster, bisGaps, candidatesForItem, filterOptions, resolveContentFilter, itemView } = require("../lootCouncil");
 const { startCouncilSim, getJob } = require("../simStore");
+const { searchItems } = require("../../config/wowsims");
 const engine = require("../../utils/wowsims/engine");
 const discord = require("../discord");
 const { getConfig } = require("../settingsStore");
@@ -114,6 +117,17 @@ async function postLootCouncilSim(req, res) {
     ok(res, { ...started, id });
 }
 
+/**
+ * GET /api/lootcouncil/item-search?q=… — items for the "this just dropped"
+ * picker, searched in the generated caster table (config/wowsims).
+ */
+async function getItemSearch(req, res, url) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
+    ok(res, { items: searchItems(url.searchParams.get("q") || "") });
+}
+
 /** GET /api/lootcouncil/sim?id=… — poll a running simulation. */
 async function getLootCouncilSim(req, res, url) {
     const user = requireAdmin(req, res);
@@ -124,4 +138,4 @@ async function getLootCouncilSim(req, res, url) {
     ok(res, job);
 }
 
-module.exports = { getLootCouncil, postLootCouncilSim, getLootCouncilSim };
+module.exports = { getLootCouncil, postLootCouncilSim, getLootCouncilSim, getItemSearch };

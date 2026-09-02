@@ -1696,8 +1696,10 @@ export type CouncilItem = {
 export type CouncilCandidate = {
     key: string;
     character: string;
+    classColor: string;
     specKey: string;
     specLabel: string;
+    specIconUrl: string;
     slot: number;
     replaces: { itemId: number; itemName: string; itemLevel: number } | null;
     /** Stat-weight value of the swap. Negative means it would be a downgrade. */
@@ -1865,4 +1867,17 @@ export async function runCouncilSim(
             throw { code: "sim_timeout", message: "Die Simulation dauert ungewöhnlich lange. Bitte später erneut versuchen." } as ApiError;
         }
     }
+}
+
+/**
+ * Items for the "this just dropped" picker.
+ *
+ * Searched in the bot's own caster item table, not on Wowhead: it answers
+ * instantly, only offers items a caster can be handed, and every hit is
+ * guaranteed to resolve to a slot and a stat block — which is what the
+ * candidate list needs. Same result shape as the other item pickers, so
+ * ItemSearchPicker takes it as-is.
+ */
+export function searchCouncilItems(q: string): Promise<{ items: ItemSearchResult[] }> {
+    return get<{ items: ItemSearchResult[] }>(`/api/lootcouncil/item-search?q=${encodeURIComponent(q)}`);
 }
