@@ -5,11 +5,15 @@ const mockListAll = jest.fn(() => []);
 const mockAnnotated = jest.fn(() => []);
 const mockGearByCharacter = jest.fn(() => new Map());
 const mockCharacterMap = jest.fn(() => ({}));
+const mockAssignments = jest.fn(() => ({}));
+const mockExcludedKeys = jest.fn(() => new Set());
 
 jest.mock("../../src/web/lootStore", () => ({ listAll: (...a) => mockListAll(...a) }));
 jest.mock("../../src/web/characterInfo", () => ({ annotatedCharacters: (...a) => mockAnnotated(...a) }));
 jest.mock("../../src/web/charGear", () => ({ gearByCharacter: (...a) => mockGearByCharacter(...a) }));
 jest.mock("../../src/web/characterStore", () => ({ characterMap: (...a) => mockCharacterMap(...a) }));
+jest.mock("../../src/web/raiderCharactersStore", () => ({ getCategoryAssignments: (...a) => mockAssignments(...a) }));
+jest.mock("../../src/web/councilStore", () => ({ excludedKeys: (...a) => mockExcludedKeys(...a) }));
 
 const {
     councilRoster, candidatesForItem, bisGaps, needScore, upgradeValue, currentTier, wornItemView,
@@ -43,6 +47,8 @@ beforeEach(() => {
     mockAnnotated.mockReturnValue([]);
     mockGearByCharacter.mockReturnValue(new Map());
     mockCharacterMap.mockReturnValue({});
+    mockAssignments.mockReturnValue({});
+    mockExcludedKeys.mockReturnValue(new Set());
 });
 
 describe("web/lootCouncil", () => {
@@ -583,5 +589,104 @@ describe("web/lootCouncil — the loot history on a candidate", () => {
         const [candidate] = candidatesForItem(31064, councilRoster().rows);
         expect(candidate.recentItems).toEqual([]);
         expect(candidate.lootCount).toBe(0);
+    });
+});
+
+describe("web/lootCouncil — the category filter picks the raiders, not just the loot", () => {
+    // Filtering only the loot left every other raid's casters standing there
+    // with "0 Items" and a maximum drought — on top of the very ranking the
+    // page exists for.
+    function twoRaids() {
+        mockListAll.mockReturnValue([
+            lootRow({ characterKey: "montag", character: "Montag", categoryId: "cat-mo" }),
+            lootRow({ characterKey: "donnerstag", character: "Donnerstag", categoryId: "cat-do" }),
+        ]);
+        mockAnnotated.mockReturnValue([
+            { key: "montag", className: "Priest", spec: "Shadow" },
+            { key: "donnerstag", className: "Mage", spec: "Arcane" },
+        ]);
+    }
+
+    it("drops raiders of another category entirely", () => {
+        twoRaids();
+        const { rows, skipped } = councilRoster({ categoryId: "cat-mo" });
+        expect(rows.map((r) => r.character)).toEqual(["Montag"]);
+        expect(skipped.category).toBe(1);
+    });
+
+    it("keeps everyone when no category is picked", () => {
+        twoRaids();
+        expect(councilRoster({}).rows).toHaveLength(2);
+        expect(councilRoster({}).skipped.category).toBe(0);
+    });
+
+    it("keeps a raider the assignment names even though they never won anything there", () => {
+        // Exactly the raider a council is looking for — invisible to a filter
+        // that only knows who was awarded loot.
+        mockListAll.mockReturnValue([lootRow({ characterKey: "montag", character: "Montag", categoryId: "cat-mo" })]);
+        mockAnnotated.mockReturnValue([
+            { key: "montag", className: "Priest", spec: "Shadow" },
+            { key: "neuling", className: "Mage", spec: "Arcane" },
+        ]);
+        mockGearByCharacter.mockReturnValue(new Map([
+            ["neuling", gearOf([item(0, 31064)], { key: "neuling", character: "Neuling", className: "Mage" })],
+        ]));
+        mockAssignments.mockReturnValue({ "user-1": "Neuling" });
+
+        const { rows, categorySource } = councilRoster({ categoryId: "cat-mo" });
+        expect(rows.map((r) => r.character).sort()).toEqual(["Montag", "Neuling"]);
+        expect(categorySource).toBe("assigned");
+    });
+
+    it("says when it only had the loot to go on", () => {
+        twoRaids();
+        mockAssignments.mockReturnValue({});
+        expect(councilRoster({ categoryId: "cat-mo" }).categorySource).toBe("loot");
+    });
+
+    it("does not filter at all for a category nothing is known about", () => {
+        // An empty list would read as "this raid has no casters".
+        twoRaids();
+        mockAssignments.mockReturnValue({});
+        const { rows, categorySource } = councilRoster({ categoryId: "cat-unbekannt" });
+        expect(rows).toHaveLength(2);
+        expect(categorySource).toBe("");
+    });
+});
+
+describe("web/lootCouncil — raiders the council set aside", () => {
+    it("leaves them out of the roster and counts them", () => {
+        mockListAll.mockReturnValue([
+            lootRow({ characterKey: "aktiv", character: "Aktiv" }),
+            lootRow({ characterKey: "weg", character: "Weg" }),
+        ]);
+        mockAnnotated.mockReturnValue([
+            { key: "aktiv", className: "Priest", spec: "Shadow" },
+            { key: "weg", className: "Mage", spec: "Arcane" },
+        ]);
+        mockExcludedKeys.mockReturnValue(new Set(["weg"]));
+
+        const { rows, skipped } = councilRoster({});
+        expect(rows.map((r) => r.character)).toEqual(["Aktiv"]);
+        expect(skipped.excluded).toBe(1);
+    });
+
+    it("leaves them out of the candidate lists too", () => {
+        mockAnnotated.mockReturnValue([{ key: "weg", className: "Priest", spec: "Shadow" }]);
+        mockGearByCharacter.mockReturnValue(new Map([["weg", gearOf([])]]));
+        mockExcludedKeys.mockReturnValue(new Set(["weg"]));
+        expect(candidatesForItem(31064, councilRoster({}).rows)).toEqual([]);
+    });
+
+    it("does not touch the loot history — the numbers stay whole", () => {
+        // Excluding is a planning decision, not a deletion.
+        mockListAll.mockReturnValue([lootRow({ characterKey: "weg", character: "Weg" })]);
+        mockAnnotated.mockReturnValue([{ key: "weg", className: "Priest", spec: "Shadow" }]);
+        mockExcludedKeys.mockReturnValue(new Set(["weg"]));
+        councilRoster({});
+        expect(mockListAll).toHaveBeenCalled();
+        // ...and taking them back in restores the row.
+        mockExcludedKeys.mockReturnValue(new Set());
+        expect(councilRoster({}).rows.map((r) => r.character)).toEqual(["Weg"]);
     });
 });

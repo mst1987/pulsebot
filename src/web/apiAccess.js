@@ -41,6 +41,8 @@ const AREA_BY_PATH = {
     "/api/lootcouncil": "lootcouncil",
     "/api/lootcouncil/sim": "lootcouncil",
     "/api/lootcouncil/item-search": "lootcouncil",
+    "/api/lootcouncil/exclude": "lootcouncil",
+    "/api/lootcouncil/export": "lootcouncil",
 
     "/api/raids": "raids",
     "/api/raids/new": "raids",

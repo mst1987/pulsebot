@@ -18,6 +18,9 @@ const { annotatedCharacters } = require("./characterInfo");
 const { classLook } = require("./lootClassLook");
 const { characterMap } = require("./characterStore");
 const { gearByCharacter } = require("./charGear");
+const { getCategoryAssignments } = require("./raiderCharactersStore");
+const { excludedKeys } = require("./councilStore");
+const { characterKey } = require("../utils/lootImport");
 const { CONTENTS, TIERS, content: contentMeta, sourceForItem } = require("../config/tbcContent");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 const { characterProfile } = require("../utils/setupView");
@@ -72,6 +75,37 @@ function currentTier(rows) {
     }
     if (!counts.size) return TIERS[TIERS.length - 1].id;
     return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+}
+
+/**
+ * Which characters belong to one raid category — the answer to "zeig mir nur
+ * den Montagsraid".
+ *
+ * Two sources, unioned:
+ *   - the raider→character assignment kept per category (raiderCharactersStore,
+ *     edited in Einstellungen). That is the maintained truth, and the only one
+ *     that knows a raider who has *never won anything there* — which is exactly
+ *     the raider a council is looking for.
+ *   - everyone who was actually awarded loot in that category.
+ *
+ * Returns null when nothing is known for the category, and null means "do not
+ * filter": showing an empty list because nobody filled in the assignment would
+ * look like the raid has no casters.
+ */
+function categoryMembers(categoryId, lootRows) {
+    const id = String(categoryId || "").trim();
+    if (!id) return null;
+    const keys = new Set();
+    for (const name of Object.values(getCategoryAssignments(id))) {
+        const key = characterKey(name);
+        if (key) keys.add(key);
+    }
+    const assigned = keys.size;
+    for (const it of lootRows) {
+        if (it.categoryId === id && it.characterKey) keys.add(it.characterKey);
+    }
+    if (!keys.size) return null;
+    return { keys, assigned, fromLootOnly: assigned === 0 };
 }
 
 /** Sum an item's stats against a spec's weights. Unknown items score 0. */
@@ -289,13 +323,19 @@ function councilRoster(opts = {}) {
     const bisTier = opts.bisTier || currentTier(allLoot);
 
     // Loot per character, split into "counts for the filter" and "all of it".
+    //
+    // The category narrows which items *count* — a raider assigned to Monday
+    // who only ever won something on Thursday belongs in the Monday list with
+    // zero items, not out of it. Who is on the list at all is decided below.
     const loot = new Map();
     for (const it of allLoot) {
         const key = it.characterKey;
         if (!key) continue;
-        if (categoryId && it.categoryId !== categoryId) continue;
-        if (!loot.has(key)) loot.set(key, { all: [], filtered: [] });
+        // The name is taken before the category cut, so a raider whose items
+        // all belong to another raid is still shown by name rather than by key.
+        if (!loot.has(key)) loot.set(key, { all: [], filtered: [], character: it.character });
         const bucket = loot.get(key);
+        if (categoryId && it.categoryId !== categoryId) continue;
         bucket.all.push(it);
         if (!contentFilter || contentFilter.has(it.contentId)) bucket.filtered.push(it);
     }
@@ -304,8 +344,21 @@ function councilRoster(opts = {}) {
     // or from both. A raider who has never won an item still belongs on the
     // list — they are precisely the case the council is looking for.
     const keys = new Set([...loot.keys(), ...gearMap.keys()]);
+
+    // The category filter narrows *who is on the list*, not just which of their
+    // items count. Filtering the loot alone left every other raid's casters
+    // standing there with "0 Items" and a maximum drought — and therefore on
+    // top of the very ranking the page is for.
+    const members = categoryMembers(categoryId, allLoot);
+    // Raiders the council has stopped planning with. Excluded rather than
+    // deleted, so the loot history stays whole and the decision is reversible.
+    const excluded = excludedKeys();
+
     const rows = [];
+    const skipped = { category: 0, excluded: 0 };
     for (const key of keys) {
+        if (members && !members.keys.has(key)) { skipped.category += 1; continue; }
+        if (excluded.has(key)) { skipped.excluded += 1; continue; }
         // Three sources for class and spec, and all three are needed:
         // characterInfo only annotates raiders who appear in the loot history,
         // so a raider who has never won anything — exactly the case this page
@@ -319,7 +372,7 @@ function councilRoster(opts = {}) {
         if (!specEntry) continue;
         if (role && specEntry.role !== role) continue;
 
-        const bucket = loot.get(key) || { all: [], filtered: [] };
+        const bucket = loot.get(key) || { all: [], filtered: [], character: "" };
         const filtered = bucket.filtered.sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0));
         const lastAwardAt = filtered.length ? filtered[0].awardedAt : 0;
         const bis = bisForSpec(specEntry, bisTier);
@@ -343,7 +396,7 @@ function councilRoster(opts = {}) {
         const look = classLook(charStore, key);
         rows.push({
             key,
-            character: (bucket.all[0] && bucket.all[0].character) || (gear && gear.character) || key,
+            character: bucket.character || (gear && gear.character) || key,
             className,
             classColor: look.classColor,
             specIconUrl: look.specIconUrl,
@@ -415,8 +468,19 @@ function councilRoster(opts = {}) {
     }
     rows.sort((a, b) => b.needScore - a.needScore || a.character.localeCompare(b.character));
     // bisTier goes back out so the page can show which list it is measuring
-    // against — especially when nobody picked one and it was derived.
-    return { rows, avgLootCount: Math.round(avg * 10) / 10, bisTier };
+    // against — especially when nobody picked one and it was derived. The
+    // skipped counts let the page say *why* a name is missing, which is the
+    // difference between a working filter and a page that looks broken.
+    return {
+        rows,
+        avgLootCount: Math.round(avg * 10) / 10,
+        bisTier,
+        skipped,
+        // How the category filter knew who belongs: from the maintained
+        // assignment, or only from who won loot there (which cannot see a
+        // raider who never won anything).
+        categorySource: members ? (members.fromLootOnly ? "loot" : "assigned") : "",
+    };
 }
 
 /**
@@ -437,7 +501,15 @@ function candidatesForItem(itemId, roster) {
         const gear = gearMap.get(row.key) || null;
         const target = targetSlotFor(gear, itemId);
         if (!target) continue; // the item fits no slot this raider has
-        const value = upgradeValue({ gear, specEntry, itemId, replaces: target.replaces });
+        const bisIds = new Set(row.bis.items.map((i) => i.id));
+        const asWorn = (it) => wornItemView(it, bisIds, row.bis.tier);
+        // A two-hander costs the off-hand piece on top of the main-hand one, so
+        // the value has to be measured against both — scoring it against the
+        // main hand alone would overstate every staff.
+        const value = target.displaces.reduce(
+            (sum, off, i) => sum - (i === 0 ? 0 : scoreItem(off.itemId, weightsFor(specEntry))),
+            upgradeValue({ gear, specEntry, itemId, replaces: target.replaces }),
+        );
         const isBis = row.bis.items.some((i) => i.id === Number(itemId));
         out.push({
             key: row.key,
@@ -449,14 +521,25 @@ function candidatesForItem(itemId, roster) {
             // same way the roster table does.
             specIconUrl: row.specIconUrl,
             slot: target.slot,
-            slotName: target.replaces ? target.replaces.slotName : (SLOT_NAMES[target.slot] || `Slot ${target.slot}`),
+            slotName: SLOT_NAMES[target.slot] || `Slot ${target.slot}`,
             // The full view of what would come off, not just its name: a council
             // deciding on a drop wants to see the piece it replaces — icon,
             // item level, whether it is enchanted, whether it was on that
             // raider's BiS list.
-            replaces: target.replaces
-                ? wornItemView(target.replaces, new Set(row.bis.items.map((i) => i.id)), row.bis.tier)
-                : null,
+            replaces: target.replaces ? asWorn(target.replaces) : null,
+            // Every slot that was in play, so the page can show *both* rings or
+            // *both* hands rather than only the one that happens to lose out.
+            // `chosen` marks the slot the item lands in — for a two-hander that
+            // is both, because it takes both.
+            slotOptions: target.options.map((opt) => ({
+                slot: opt.slot,
+                slotName: SLOT_NAMES[opt.slot] || `Slot ${opt.slot}`,
+                chosen: opt.chosen,
+                item: opt.item ? asWorn(opt.item) : null,
+            })),
+            // True when accepting the item costs more than one piece — a
+            // two-handed weapon also empties the off hand.
+            twoHanded: (target.clears || []).length > 0,
             value,
             isBis,
             // The fairness half of the decision, carried alongside the gear
@@ -546,6 +629,6 @@ function filterOptions() {
 }
 
 module.exports = {
-    councilRoster, candidatesForItem, bisGaps, filterOptions, currentTier, wornItemView, bisSpecsView,
+    councilRoster, candidatesForItem, bisGaps, filterOptions, currentTier, wornItemView, bisSpecsView, categoryMembers,
     upgradeValue, needScore, scoreItem, gearSpellHit, resolveContentFilter, itemView,
 };

@@ -168,7 +168,10 @@ function startCouncilSim(id, subjects, itemIds = []) {
                         if (!target) { job.progress += 1; continue; }
                         const run = await simulateCached({
                             specKey: subject.specKey, gear,
-                            swap: { slot: target.slot, itemId: Number(itemId) },
+                            // `clears` matters for two-handers: without it the
+                            // off hand stays equipped next to the staff and the
+                            // run reports DPS off gear the raider cannot wear.
+                            swap: { slot: target.slot, itemId: Number(itemId), clears: target.clears },
                         });
                         entry.items[itemId] = {
                             dps: run.dps,

@@ -109,6 +109,12 @@ const APL_FILES = {
     "Shaman-Elemental": "ui/shaman/elemental/apls/default.apl.json",
 };
 
+// WoWSims HandType (proto/common.proto) — which hand a weapon occupies. The
+// one that matters here is TwoHand: a two-handed staff takes *both* hands, so
+// handing one out frees the main hand and the off hand at once, and a council
+// deciding on it wants to see both pieces that would come off.
+const HAND_TYPE = { 1: "main", 2: "one", 3: "off", 4: "two" };
+
 // WoWSims ItemType (proto/common.proto) -> the WCL equip-slot indices it can go
 // in. WCL numbers the slots the way the game does (see SLOT_NAMES in
 // utils/logcheck/gearIssues.js); the doubled slots (rings, trinkets) list both,
@@ -263,6 +269,8 @@ async function main() {
             phase: Number(item.phase || 0),
             stats,
             ...(item.setName ? { setName: String(item.setName) } : {}),
+            // Only weapons have one, and only "two" changes anything downstream.
+            ...(HAND_TYPE[item.handType] ? { hand: HAND_TYPE[item.handType] } : {}),
             ...(Array.isArray(item.gemSockets) && item.gemSockets.length ? { sockets: item.gemSockets.map(Number) } : {}),
             // Which classes may wear it at all (WoWSims class enum). Kept so the
             // page never offers a Mage a Shaman's mail chest.
