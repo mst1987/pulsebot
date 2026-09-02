@@ -30,7 +30,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useOutletContext } from "react-router-dom";
 import {
-    getLootCouncil, runCouncilSim, searchCouncilItems,
+    getLootCouncil, runCouncilSim, searchCouncilItems, setCouncilExcluded, canAccess,
     type ApiError, type CouncilCandidate, type CouncilGap, type CouncilItem, type CouncilLootItem, type CouncilRaider, type WornItem,
     type ItemSearchResult, type LootCouncilData, type SimJob, type SimResult,
 } from "../api";
@@ -492,6 +492,45 @@ function SimCell({ raider, sim }: { raider: CouncilRaider; sim: SimResult | null
 }
 
 /**
+ * What the raider currently has in the slots this item could go into.
+ *
+ * Always *all* of them, which is the whole fix: a ring shows both rings, a
+ * trinket both trinkets, and a two-handed staff both hands. Showing only the
+ * piece that happens to lose out hid half the decision — which ring is kept
+ * matters as much as which one goes, and a staff quietly costing the off hand
+ * is the kind of thing a council notices only after the item is handed out.
+ *
+ * The piece that would actually be replaced is marked; a two-hander marks both,
+ * because it takes both.
+ */
+function SlotOptions({ candidate }: { candidate: CouncilCandidate }) {
+    const options = candidate.slotOptions.length
+        ? candidate.slotOptions
+        // Older payloads (or an item resolved before this existed) still render.
+        : [{ slot: candidate.slot, slotName: candidate.slotName, chosen: true, item: candidate.replaces }];
+    return (
+        <span className={`lc-slots${candidate.twoHanded ? " lc-slots-two" : ""}`}>
+            {options.map((opt) => (
+                <span
+                    key={opt.slot}
+                    className={`lc-slot${opt.chosen ? " lc-slot-chosen" : ""}`}
+                    title={opt.chosen
+                        ? `${opt.slotName} — wird belegt`
+                        : `${opt.slotName} — bleibt, wie es ist`}
+                >
+                    {opt.item
+                        ? <WornIcon item={opt.item} />
+                        : <span className="lc-freeslot"><EmptySlotIcon /></span>}
+                </span>
+            ))}
+            {candidate.twoHanded ? (
+                <span className="lc-slots-note" title="Zweihandwaffe: belegt Waffenhand und Nebenhand, beide Teile fallen weg">2H</span>
+            ) : null}
+        </span>
+    );
+}
+
+/**
  * One row of the "who would gain most" list.
  *
  * Two bars side by side, and they answer different questions on purpose: the
@@ -518,15 +557,7 @@ function CandidateRow({ candidate, simDelta, gainMax }: {
                 <b {...classColorProps(candidate.classColor)}>{candidate.character}</b>
                 {candidate.isBis ? <span className="lbadge lbadge-ok" title="Steht auf der BiS-Liste dieses Raiders" style={{ marginLeft: 6 }}>BiS</span> : null}
             </td>
-            <td>
-                {candidate.replaces
-                    ? <WornIcon item={candidate.replaces} />
-                    : (
-                        <span className="lc-freeslot" title={`${candidate.slotName} ist frei`}>
-                            <EmptySlotIcon />
-                        </span>
-                    )}
-            </td>
+            <td><SlotOptions candidate={candidate} /></td>
             <td>
                 <span className={`lc-gain${gain < 0 ? " lc-gain-loss" : ""}${measured ? " lc-gain-measured" : ""}`}>
                     <span className="lc-gain-bar"><span className="lc-gain-fill" style={{ width: `${pct}%` }} /></span>
@@ -821,7 +852,9 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
 }
 
 export default function LootCouncilPage() {
-    const { csrfToken } = useOutletContext<ShellContext>();
+    const { csrfToken, user } = useOutletContext<ShellContext>();
+    // Setting a raider aside is an action on the server, so it takes write.
+    const canWrite = canAccess(user, "lootcouncil", "write");
     const [view, setView] = usePersistedState<View>("lootcouncil.view", VIEW_DEFAULT);
     const [data, setData] = useState<LootCouncilData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
@@ -912,6 +945,23 @@ export default function LootCouncilPage() {
             default: return 0;
         }
     });
+
+    /**
+     * Set a raider aside, or take them back in.
+     *
+     * Reloads afterwards rather than patching the list in place: the need score
+     * is relative to the group (the loot-share component divides by its
+     * average), so removing one raider changes everybody else's number. Faking
+     * that client-side would show figures the server disagrees with.
+     */
+    const setExcluded = async (character: string, excluded: boolean) => {
+        try {
+            await setCouncilExcluded(csrfToken, character, excluded);
+            load();
+        } catch (e) {
+            setSimError((e as ApiError).message);
+        }
+    };
 
     /**
      * Simulate the roster's baselines plus the given items.
@@ -1105,6 +1155,7 @@ export default function LootCouncilPage() {
                                 <SortTh sortKey="bis" label="BiS" title="Anteil der getragenen BiS-Teile" {...rosterSort} />
                                 <SortTh sortKey="dps" label="DPS" {...rosterSort} />
                                 <SortTh sortKey="gear" label="Gear-Stand" title="Wann der Raider zuletzt in einer Auswertung auftauchte" {...rosterSort} />
+                                <th />
                             </tr>
                         </thead>
                         <tbody>
@@ -1139,8 +1190,20 @@ export default function LootCouncilPage() {
                                                 </span>
                                                 : "—"}
                                         </td>
+                                        <td className="cell-actions">
+                                            {canWrite ? (
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-ghost btn-sm"
+                                                    title="Nicht mehr einplanen — bleibt in der Historie, verschwindet nur aus dieser Liste"
+                                                    onClick={() => setExcluded(r.character, true)}
+                                                >
+                                                    Nicht einplanen
+                                                </button>
+                                            ) : null}
+                                        </td>
                                     </tr>
-                                    <GearRow gear={r.gear} colSpan={8} />
+                                    <GearRow gear={r.gear} colSpan={9} />
                                 </Fragment>
                             ))}
                         </tbody>
@@ -1151,6 +1214,47 @@ export default function LootCouncilPage() {
                         CLA-Auswertungen — ohne die bleibt die Liste leer.
                     </div>
                 )
+            ) : null}
+
+            {/* Why a familiar name is not in the list — otherwise a working
+                filter looks like a bug. */}
+            {view.tab === "roster" && (data.filter.skipped.category || data.filter.skipped.excluded) ? (
+                <p className="hint">
+                    {data.filter.skipped.category
+                        ? `${data.filter.skipped.category} Raider gehören nicht zu dieser Raid-Kategorie. `
+                        : ""}
+                    {data.filter.skipped.excluded
+                        ? `${data.filter.skipped.excluded} sind als „nicht einplanen" abgelegt. `
+                        : ""}
+                    {data.filter.categorySource === "loot"
+                        ? "Für diese Kategorie ist keine Raider-Zuordnung gepflegt — es zählt, wer dort schon Loot bekommen hat. Wer dort noch nie etwas bekam, fehlt dadurch; die Zuordnung steht in Einstellungen → Kategorien."
+                        : ""}
+                </p>
+            ) : null}
+
+            {view.tab === "roster" && data.excluded.length ? (
+                <Section
+                    title={`Nicht eingeplant (${data.excluded.length})`}
+                    hint="Bleiben in der Historie — sie tauchen nur in dieser Planung nicht auf."
+                >
+                    <div className="lc-excluded">
+                        {data.excluded.map((e) => (
+                            <span key={e.key} className="lc-excluded-item">
+                                <b>{e.character}</b>
+                                <span className="hint">seit {fmtMs(e.at, false)}{e.by ? ` · ${e.by}` : ""}</span>
+                                {canWrite ? (
+                                    <button
+                                        type="button"
+                                        className="btn btn-ghost btn-sm"
+                                        onClick={() => setExcluded(e.character, false)}
+                                    >
+                                        Wieder einplanen
+                                    </button>
+                                ) : null}
+                            </span>
+                        ))}
+                    </div>
+                </Section>
             ) : null}
 
             {view.tab === "bis" ? (

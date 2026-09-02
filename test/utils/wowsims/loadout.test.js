@@ -122,3 +122,89 @@ describe("utils/wowsims/loadout", () => {
         });
     });
 });
+
+describe("utils/wowsims/loadout — every slot in play, not just the losing one", () => {
+    // Zhar'doom is a two-hand staff, Tempest of Chaos a main-hand dagger.
+    const STAFF = 32374;
+    const DAGGER = 30910;
+
+    const armed = {
+        character: "Devihra",
+        className: "Priest",
+        items: [
+            { slot: 15, itemId: DAGGER, itemLevel: 141, gems: [], enchantId: 0, itemName: "Waffe" },
+            { slot: 16, itemId: 29982, itemLevel: 128, gems: [], enchantId: 0, itemName: "Nebenhand" },
+            { slot: 10, itemId: 29352, itemLevel: 120, gems: [], enchantId: 0, itemName: "Ring A" },
+            { slot: 11, itemId: 32527, itemLevel: 151, gems: [], enchantId: 0, itemName: "Ring B" },
+        ],
+    };
+
+    describe("a two-handed weapon", () => {
+        it("takes both hands, so both pieces are displaced", () => {
+            const target = targetSlotFor(armed, STAFF);
+            expect(target.displaces.map((d) => d.itemName)).toEqual(["Waffe", "Nebenhand"]);
+            expect(target.clears).toEqual([16]);
+        });
+
+        it("marks both hands as occupied, not one as a choice", () => {
+            const target = targetSlotFor(armed, STAFF);
+            expect(target.options.map((o) => o.slot)).toEqual([15, 16]);
+            expect(target.options.every((o) => o.chosen)).toBe(true);
+        });
+
+        it("empties the off hand in the simulated loadout", () => {
+            // Without this the sim keeps the off hand next to the staff and
+            // reports DPS off gear the raider cannot wear.
+            const { items } = equipmentFor(armed, { slot: 15, itemId: STAFF, clears: [16] });
+            const ids = items.map((i) => i.id);
+            expect(ids).toContain(STAFF);
+            expect(ids).not.toContain(29982);
+        });
+
+        it("still works for a raider with empty hands", () => {
+            const bare = { items: [{ slot: 0, itemId: 31064, itemLevel: 146, gems: [], enchantId: 0 }] };
+            const target = targetSlotFor(bare, STAFF);
+            expect(target.displaces).toEqual([]);
+            expect(target.replaces).toBeNull();
+            expect(target.options).toHaveLength(2);
+        });
+    });
+
+    describe("a doubled slot", () => {
+        it("shows both rings, with the weaker one marked as the one that goes", () => {
+            const target = targetSlotFor(armed, 29352);
+            expect(target.options.map((o) => o.slot)).toEqual([10, 11]);
+            const chosen = target.options.filter((o) => o.chosen);
+            expect(chosen).toHaveLength(1);
+            expect(chosen[0].slot).toBe(10);
+            expect(target.options.find((o) => o.slot === 11).item.itemName).toBe("Ring B");
+        });
+
+        it("displaces exactly one of them", () => {
+            const target = targetSlotFor(armed, 29352);
+            expect(target.displaces).toHaveLength(1);
+            expect(target.clears).toEqual([]);
+        });
+
+        it("takes the empty slot when there is one, and shows the other anyway", () => {
+            const oneRing = { items: [{ slot: 11, itemId: 32527, itemLevel: 151, gems: [], enchantId: 0, itemName: "Ring B" }] };
+            const target = targetSlotFor(oneRing, 29352);
+            expect(target.slot).toBe(10);
+            expect(target.replaces).toBeNull();
+            expect(target.options).toHaveLength(2);
+            expect(target.options.find((o) => o.slot === 11).item.itemName).toBe("Ring B");
+        });
+    });
+
+    describe("a one-hand weapon", () => {
+        it("does not clear the off hand", () => {
+            const target = targetSlotFor(armed, DAGGER);
+            expect(target.clears).toEqual([]);
+            expect(target.displaces).toHaveLength(1);
+        });
+    });
+
+    it("still returns null for an item that fits nowhere", () => {
+        expect(targetSlotFor(armed, 999999)).toBeNull();
+    });
+});

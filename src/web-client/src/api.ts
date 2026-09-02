@@ -1751,6 +1751,14 @@ export type CouncilCandidate = {
     slotName: string;
     /** What would come off — null when the slot is free. */
     replaces: WornItem | null;
+    /**
+     * Every slot the item could go in, with what sits there. Two rings, two
+     * trinkets, or both hands for a two-hander; `chosen` marks where it lands
+     * (both, for a two-hander, since it takes both).
+     */
+    slotOptions: { slot: number; slotName: string; chosen: boolean; item: WornItem | null }[];
+    /** True when accepting it also costs the off-hand piece. */
+    twoHanded: boolean;
     /** Stat-weight value of the swap. Negative means it would be a downgrade. */
     value: number;
     isBis: boolean;
@@ -1827,9 +1835,20 @@ export type CouncilFilterOptions = {
     categories: { id: string; name: string }[];
 };
 
+/** A raider the council has stopped planning with. */
+export type ExcludedRaider = {
+    key: string;
+    character: string;
+    reason: string;
+    at: number;
+    by: string;
+};
+
 export type LootCouncilData = {
     roster: CouncilRaider[];
     avgLootCount: number;
+    /** Set aside, and offerable back. */
+    excluded: ExcludedRaider[];
     gaps: CouncilGap[];
     focus: { item: CouncilItem; candidates: CouncilCandidate[] } | null;
     options: CouncilFilterOptions;
@@ -1839,6 +1858,15 @@ export type LootCouncilData = {
         bisTier: string;
         /** True when nobody picked one and it came from the guild's newest loot. */
         bisTierDerived: boolean;
+        /** How many raiders each filter removed — so a short list is explained. */
+        skipped: { category: number; excluded: number };
+        /**
+         * How the category filter knew who belongs: "assigned" from the
+         * maintained raider→character map, "loot" only from who won something
+         * there (which cannot see a raider who never won anything), "" when no
+         * category is picked.
+         */
+        categorySource: string;
     };
     sim: { available: boolean; version: string; hint: string };
     activeGuildId: string;
@@ -1939,4 +1967,19 @@ export async function runCouncilSim(
  */
 export function searchCouncilItems(q: string): Promise<{ items: ItemSearchResult[] }> {
     return get<{ items: ItemSearchResult[] }>(`/api/lootcouncil/item-search?q=${encodeURIComponent(q)}`);
+}
+
+/**
+ * Stop planning with a raider, or resume.
+ *
+ * Never deletes anything: the loot history stays whole, the raider simply drops
+ * out of the roster and the candidate lists until somebody takes them back in.
+ */
+export function setCouncilExcluded(
+    csrfToken: string | null,
+    character: string,
+    excluded: boolean,
+    reason = "",
+): Promise<{ character: string; excluded: boolean }> {
+    return send("POST", "/api/lootcouncil/exclude", csrfToken, { character, exclude: excluded, reason });
 }

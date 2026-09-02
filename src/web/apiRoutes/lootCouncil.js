@@ -21,6 +21,7 @@ const { userCan } = require("../../config/permissions");
 const { councilRoster, bisGaps, candidatesForItem, filterOptions, resolveContentFilter, itemView } = require("../lootCouncil");
 const { startCouncilSim, getJob } = require("../simStore");
 const { searchItems } = require("../../config/wowsims");
+const councilStore = require("../councilStore");
 const engine = require("../../utils/wowsims/engine");
 const discord = require("../discord");
 const { getConfig } = require("../settingsStore");
@@ -56,7 +57,9 @@ async function getLootCouncil(req, res, url) {
     const bisTier = url.searchParams.get("bisTier") || "";
     const guildId = activeGuildFor(req);
 
-    const { rows, avgLootCount, bisTier: usedBisTier } = councilRoster({ role, tierIds, contentIds, categoryId, bisTier });
+    const {
+        rows, avgLootCount, bisTier: usedBisTier, skipped, categorySource,
+    } = councilRoster({ role, tierIds, contentIds, categoryId, bisTier });
     const contentFilter = resolveContentFilter({ tierIds, contentIds });
 
     // One named item ("this just dropped") short-circuits the BiS list: the
@@ -71,13 +74,26 @@ async function getLootCouncil(req, res, url) {
     ok(res, {
         roster: rows,
         avgLootCount,
+        // Who the council has set aside, so the page can offer them back — and
+        // say why a familiar name is missing instead of looking broken.
+        excluded: Object.entries(councilStore.listExcluded())
+            .map(([key, entry]) => ({ key, ...entry }))
+            .sort((a, b) => (b.at || 0) - (a.at || 0)),
         gaps: focus ? [] : bisGaps(rows, { contentIds: contentFilter }),
         focus,
         options: { ...filterOptions(), categories: categoryOptions(guildId) },
         // `bisTier` is what was actually used: the admin's pick, or — when they
         // made none — the tier derived from the guild's newest loot. The page
         // says which, so "12/16 BiS" is never read against the wrong list.
-        filter: { role, tierIds, contentIds, categoryId, bisTier: usedBisTier, bisTierDerived: !bisTier },
+        filter: {
+            role, tierIds, contentIds, categoryId,
+            bisTier: usedBisTier, bisTierDerived: !bisTier,
+            // How many names the filters took out, and on what basis the
+            // category filter knew who belongs. Without this a shrunken list
+            // reads as a bug rather than as the filter doing its job.
+            skipped,
+            categorySource,
+        },
         sim: {
             available: engine.isAvailable(),
             version: engine.WOWSIMS_VERSION,
@@ -120,6 +136,37 @@ async function postLootCouncilSim(req, res) {
 }
 
 /**
+ * POST /api/lootcouncil/exclude — stop planning with a raider, or resume.
+ * Body: { character, exclude: boolean, reason? }
+ *
+ * A roster built from history keeps everyone who ever raided, and someone who
+ * left the guild wins the "hat am längsten nichts bekommen" ranking simply by
+ * not raiding — their drought grows forever. Excluding is reversible and never
+ * touches the loot history, so the numbers stay whole.
+ */
+async function postExclude(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!userCan(user, "lootcouncil", "write")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
+    if (!requireCsrf(req, res)) return;
+
+    const body = await readJsonBody(req);
+    const character = String(body.character || "").trim();
+    if (!character) return apiError(res, 400, "Kein Charakter angegeben.");
+
+    if (body.exclude === false) {
+        const removed = councilStore.include(character);
+        return ok(res, { character, excluded: false, changed: removed });
+    }
+    const entry = councilStore.exclude(character, {
+        reason: String(body.reason || "").trim(),
+        by: user.name || user.id,
+    });
+    if (!entry) return apiError(res, 400, "Kein Charakter angegeben.");
+    ok(res, { character, excluded: true, entry });
+}
+
+/**
  * GET /api/lootcouncil/item-search?q=… — items for the "this just dropped"
  * picker, searched in the generated caster table (config/wowsims).
  */
@@ -140,4 +187,4 @@ async function getLootCouncilSim(req, res, url) {
     ok(res, job);
 }
 
-module.exports = { getLootCouncil, postLootCouncilSim, getLootCouncilSim, getItemSearch };
+module.exports = { getLootCouncil, postLootCouncilSim, getLootCouncilSim, getItemSearch, postExclude };

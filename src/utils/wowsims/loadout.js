@@ -15,7 +15,7 @@
 //   - it does not take the raider's talents. See casterSpecs.js — the reference
 //     build is what makes two raiders comparable.
 
-const { slotsFor } = require("../../config/wowsims");
+const { slotsFor, item: itemInfo } = require("../../config/wowsims");
 
 // WoWSims orders ambiguous slots positionally (ring 1/2, trinket 1/2, main/off
 // hand), so items go out in this fixed order — the same order WoWSims' own
@@ -39,7 +39,12 @@ const RACE_BY_CLASS = {
  * The equipment array for a gear snapshot, in WoWSims' slot order.
  *
  * @param {object} gear      a charGear.js snapshot ({ items: [{slot, itemId, gems, enchantId}] })
- * @param {object} [swap]    one item to put in before building: { slot, itemId, enchantId?, gems? }
+ * @param {object} [swap]    one item to put in before building:
+ *                           { slot, itemId, enchantId?, gems?, clears?: number[] }
+ *                           `clears` empties further slots the item takes over —
+ *                           a two-handed weapon also costs the off hand, and
+ *                           leaving that equipped next to the staff would give
+ *                           the raider DPS from gear they cannot wear.
  * @returns {{items: Array, warnings: string[]}}
  */
 function equipmentFor(gear, swap = null) {
@@ -49,6 +54,7 @@ function equipmentFor(gear, swap = null) {
         if (Number(it.itemId) > 0) bySlot.set(Number(it.slot), it);
     }
     if (swap && Number(swap.itemId) > 0) {
+        for (const slot of swap.clears || []) bySlot.delete(Number(slot));
         // A swapped-in item keeps the enchant and gems of the piece it replaces
         // where the caller did not state its own: the raider would enchant and
         // socket a new item too, and comparing a fresh drop's bare stats against
@@ -104,26 +110,73 @@ function playerFor({ gear, specEntry, preset, apl, swap = null }) {
     };
 }
 
+// The two hands, in the order a character sheet shows them.
+const MAIN_HAND = 15;
+const OFF_HAND = 16;
+
 /**
- * Which equip slot a drop would go into for this raider, and what it would
- * replace. For a doubled slot (rings, trinkets) that is the *weaker* of the two
- * they wear, because that is the one an upgrade actually pushes out; an empty
- * slot always wins over a filled one.
+ * Where a drop would go for this raider, what it would displace, and which
+ * slots were in play at all.
  *
- * @returns {{slot: number, replaces: object|null}|null} null when the item fits no slot
+ * Three cases, and each used to be answered wrongly by "pick one slot":
+ *
+ *   - A **doubled slot** (rings, trinkets) has two candidates and only one is
+ *     replaced — the weaker of the two, because that is the one an upgrade
+ *     actually pushes out. A council still wants to see both: which ring is
+ *     kept is half the decision. `options` carries both, `replaces` the one
+ *     that goes.
+ *   - A **two-handed weapon** takes main hand *and* off hand, so accepting one
+ *     costs the raider both pieces. `displaces` lists them; without that the
+ *     simulation would keep the off hand equipped next to the staff and report
+ *     DPS the raider will never have.
+ *   - A **one-hander** may go in either hand, and an empty hand always wins
+ *     over a filled one.
+ *
+ * @returns {{slot, replaces, displaces: object[], clears: number[], options: object[]}|null}
+ *          null when the item fits no slot this raider has
  */
 function targetSlotFor(gear, itemId) {
     const slots = slotsFor(itemId);
     if (!slots.length) return null;
+    const item = itemInfo(itemId);
     const worn = new Map(((gear && gear.items) || []).map((it) => [Number(it.slot), it]));
-    let best = null;
+
+    // A two-hander is not a choice between two slots — it occupies both.
+    if (item && item.hand === "two") {
+        const displaces = [worn.get(MAIN_HAND), worn.get(OFF_HAND)].filter(Boolean);
+        return {
+            slot: MAIN_HAND,
+            // The main-hand piece is what it "replaces" for scoring; the off
+            // hand is lost on top and shows up in `displaces`.
+            replaces: worn.get(MAIN_HAND) || null,
+            displaces,
+            // Told to the simulation so the off hand is emptied with the swap.
+            clears: [OFF_HAND],
+            options: [MAIN_HAND, OFF_HAND].map((slot) => ({
+                slot, item: worn.get(slot) || null, chosen: true,
+            })),
+        };
+    }
+
+    // Everything else: the emptiest, then the weakest of the candidate slots.
+    let pick = null;
     for (const slot of slots) {
         const current = worn.get(slot) || null;
-        if (!current) return { slot, replaces: null }; // an empty slot is the obvious home
-        const level = Number(current.itemLevel) || 0;
-        if (!best || level < best.level) best = { slot, replaces: current, level };
+        const level = current ? (Number(current.itemLevel) || 0) : -1;
+        if (!pick || level < pick.level) pick = { slot, replaces: current, level };
     }
-    return best ? { slot: best.slot, replaces: best.replaces } : null;
+    if (!pick) return null;
+    return {
+        slot: pick.slot,
+        replaces: pick.replaces,
+        displaces: pick.replaces ? [pick.replaces] : [],
+        clears: [],
+        // Every slot the item could have gone in, so a doubled slot shows both
+        // pieces with the one that would go marked.
+        options: slots.map((slot) => ({
+            slot, item: worn.get(slot) || null, chosen: slot === pick.slot,
+        })),
+    };
 }
 
 module.exports = { equipmentFor, playerFor, targetSlotFor, SLOT_ORDER, RACE_BY_CLASS };
