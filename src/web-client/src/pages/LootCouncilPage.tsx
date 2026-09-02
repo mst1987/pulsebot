@@ -107,6 +107,53 @@ function Section({ title, hint, actions, children, tone = "" }: {
 }
 
 /**
+ * Why the roster is shorter than the reader expects — or empty.
+ *
+ * The category filter draws on three sources (the logs of that raid, the loot
+ * awarded there, the maintained raider→character assignment). When it finds
+ * nobody, the list is empty *on purpose* — falling back to "show everyone"
+ * would mean picking a category changes nothing. But an empty table with no
+ * explanation looks broken, so this says which sources were tried, what each
+ * found, and what to do about it.
+ */
+function CategoryNote({ data }: { data: LootCouncilData }) {
+    const { skipped, categorySources: src, categoryId } = data.filter;
+    if (!categoryId && !skipped.excluded) return null;
+
+    const nothingFound = src && !src.reports && !src.loot && !src.assigned;
+    const parts: string[] = [];
+    if (skipped.category) parts.push(`${skipped.category} Raider gehören nicht zu dieser Raid-Kategorie.`);
+    if (skipped.excluded) parts.push(`${skipped.excluded} sind als „nicht einplanen" abgelegt.`);
+
+    return (
+        <p className="hint">
+            {parts.join(" ")}
+            {src && !nothingFound ? (
+                <>
+                    {" "}Zugeordnet über: {[
+                        src.reports ? `${src.reports} aus Logs` : "",
+                        src.loot ? `${src.loot} über Loot` : "",
+                        src.assigned ? `${src.assigned} aus der Zuordnung` : "",
+                    ].filter(Boolean).join(", ")}.
+                    {!src.assigned ? (
+                        <> Ohne gepflegte Zuordnung (Einstellungen → Kategorien) fehlt, wer hier weder geloggt
+                            wurde noch etwas gewonnen hat.</>
+                    ) : null}
+                </>
+            ) : null}
+            {nothingFound ? (
+                <>
+                    {" "}Für diese Kategorie ist niemand zuzuordnen: keine ausgewerteten Logs, kein Loot mit
+                    dieser Kategorie und keine Raider-Zuordnung. Am schnellsten behoben in
+                    Einstellungen → Kategorien (Raider ↔ Charakter), oder indem ein Log dieses Raids
+                    ausgewertet und dem Event zugeordnet wird.
+                </>
+            ) : null}
+        </p>
+    );
+}
+
+/**
  * A raider's loadout as a WoWSims import, so anyone can check our number.
  *
  * The JSON is shown rather than downloaded: WoWSims takes it through
@@ -1297,19 +1344,7 @@ export default function LootCouncilPage() {
 
             {/* Why a familiar name is not in the list — otherwise a working
                 filter looks like a bug. */}
-            {view.tab === "roster" && (data.filter.skipped.category || data.filter.skipped.excluded) ? (
-                <p className="hint">
-                    {data.filter.skipped.category
-                        ? `${data.filter.skipped.category} Raider gehören nicht zu dieser Raid-Kategorie. `
-                        : ""}
-                    {data.filter.skipped.excluded
-                        ? `${data.filter.skipped.excluded} sind als „nicht einplanen" abgelegt. `
-                        : ""}
-                    {data.filter.categorySource === "loot"
-                        ? "Für diese Kategorie ist keine Raider-Zuordnung gepflegt — es zählt, wer dort schon Loot bekommen hat. Wer dort noch nie etwas bekam, fehlt dadurch; die Zuordnung steht in Einstellungen → Kategorien."
-                        : ""}
-                </p>
-            ) : null}
+            {view.tab === "roster" ? <CategoryNote data={data} /> : null}
 
             {view.tab === "roster" && data.excluded.length ? (
                 <Section

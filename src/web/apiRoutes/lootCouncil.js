@@ -61,7 +61,7 @@ async function getLootCouncil(req, res, url) {
     const guildId = activeGuildFor(req);
 
     const {
-        rows, avgLootCount, bisTier: usedBisTier, skipped, categorySource,
+        rows, avgLootCount, bisTier: usedBisTier, skipped, categorySources,
     } = councilRoster({ role, tierIds, contentIds, categoryId, bisTier });
     const contentFilter = resolveContentFilter({ tierIds, contentIds });
 
@@ -95,7 +95,7 @@ async function getLootCouncil(req, res, url) {
             // category filter knew who belongs. Without this a shrunken list
             // reads as a bug rather than as the filter doing its job.
             skipped,
-            categorySource,
+            categorySources,
         },
         sim: {
             available: engine.isAvailable(),
