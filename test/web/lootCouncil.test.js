@@ -7,6 +7,10 @@ const mockGearByCharacter = jest.fn(() => new Map());
 const mockCharacterMap = jest.fn(() => ({}));
 const mockAssignments = jest.fn(() => ({}));
 const mockExcludedKeys = jest.fn(() => new Set());
+const mockRaidEvents = jest.fn(() => []);
+const mockLogs = jest.fn(() => []);
+const mockListReports = jest.fn(() => []);
+const mockGetReport = jest.fn(() => null);
 
 jest.mock("../../src/web/lootStore", () => ({ listAll: (...a) => mockListAll(...a) }));
 jest.mock("../../src/web/characterInfo", () => ({ annotatedCharacters: (...a) => mockAnnotated(...a) }));
@@ -14,6 +18,12 @@ jest.mock("../../src/web/charGear", () => ({ gearByCharacter: (...a) => mockGear
 jest.mock("../../src/web/characterStore", () => ({ characterMap: (...a) => mockCharacterMap(...a) }));
 jest.mock("../../src/web/raiderCharactersStore", () => ({ getCategoryAssignments: (...a) => mockAssignments(...a) }));
 jest.mock("../../src/web/councilStore", () => ({ excludedKeys: (...a) => mockExcludedKeys(...a) }));
+jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: (...a) => mockRaidEvents(...a) }));
+jest.mock("../../src/web/logStore", () => ({ listLogs: (...a) => mockLogs(...a) }));
+jest.mock("../../src/web/reportStore", () => ({
+    listReports: (...a) => mockListReports(...a),
+    getReport: (...a) => mockGetReport(...a),
+}));
 
 const {
     councilRoster, candidatesForItem, bisGaps, needScore, upgradeValue, currentTier, wornItemView,
@@ -49,6 +59,10 @@ beforeEach(() => {
     mockCharacterMap.mockReturnValue({});
     mockAssignments.mockReturnValue({});
     mockExcludedKeys.mockReturnValue(new Set());
+    mockRaidEvents.mockReturnValue([]);
+    mockLogs.mockReturnValue([]);
+    mockListReports.mockReturnValue([]);
+    mockGetReport.mockReturnValue(null);
 });
 
 describe("web/lootCouncil", () => {
@@ -633,24 +647,52 @@ describe("web/lootCouncil — the category filter picks the raiders, not just th
         ]));
         mockAssignments.mockReturnValue({ "user-1": "Neuling" });
 
-        const { rows, categorySource } = councilRoster({ categoryId: "cat-mo" });
+        const { rows, categorySources } = councilRoster({ categoryId: "cat-mo" });
         expect(rows.map((r) => r.character).sort()).toEqual(["Montag", "Neuling"]);
-        expect(categorySource).toBe("assigned");
+        expect(categorySources.assigned).toBe(1);
     });
 
-    it("says when it only had the loot to go on", () => {
+    it("reports what each source contributed", () => {
+        // So an unexpectedly short list can be explained rather than looking
+        // like a bug.
         twoRaids();
         mockAssignments.mockReturnValue({});
-        expect(councilRoster({ categoryId: "cat-mo" }).categorySource).toBe("loot");
+        const { categorySources } = councilRoster({ categoryId: "cat-mo" });
+        expect(categorySources).toEqual({ reports: 0, loot: 1, assigned: 0 });
     });
 
-    it("does not filter at all for a category nothing is known about", () => {
-        // An empty list would read as "this raid has no casters".
+    it("finds the raiders of a category through its evaluated logs", () => {
+        // The strongest source, because nobody has to maintain it: whoever
+        // stands in the log of a Monday raid raids on Mondays. It is also the
+        // only one that works when loot was imported without a category.
+        mockListAll.mockReturnValue([]);
+        mockAnnotated.mockReturnValue([
+            { key: "montag", className: "Priest", spec: "Shadow" },
+            { key: "donnerstag", className: "Mage", spec: "Arcane" },
+        ]);
+        mockGearByCharacter.mockReturnValue(new Map([
+            ["montag", gearOf([item(0, 31064)], { key: "montag", character: "Montag", className: "Priest" })],
+            ["donnerstag", gearOf([item(0, 31064)], { key: "donnerstag", character: "Donnerstag", className: "Mage" })],
+        ]));
+        mockRaidEvents.mockReturnValue([{ id: "ev-1", categoryId: "cat-mo" }]);
+        mockLogs.mockReturnValue([{ eventId: "ev-1", reportRefId: "rep-1" }]);
+        mockListReports.mockReturnValue([{ id: "rep-1" }]);
+        mockGetReport.mockReturnValue({ id: "rep-1", roster: [{ name: "Montag" }] });
+
+        const { rows, categorySources } = councilRoster({ categoryId: "cat-mo" });
+        expect(rows.map((r) => r.character)).toEqual(["Montag"]);
+        expect(categorySources.reports).toBe(1);
+    });
+
+    it("still filters when it finds nobody, rather than falling back to everyone", () => {
+        // ⚠️ The bug this replaced: picking a category changed nothing, because
+        // an unknown category silently switched the filter off. An empty list
+        // plus the source counts says what to fix; a full list says nothing.
         twoRaids();
         mockAssignments.mockReturnValue({});
-        const { rows, categorySource } = councilRoster({ categoryId: "cat-unbekannt" });
-        expect(rows).toHaveLength(2);
-        expect(categorySource).toBe("");
+        const { rows, categorySources } = councilRoster({ categoryId: "cat-unbekannt" });
+        expect(rows).toEqual([]);
+        expect(categorySources).toEqual({ reports: 0, loot: 0, assigned: 0 });
     });
 });
 
