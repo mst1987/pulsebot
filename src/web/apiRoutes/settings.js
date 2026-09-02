@@ -50,7 +50,7 @@ function normalizeCategorySheets(raw) {
 
 // Config keys that decide who gets into the menu — only full admins may change
 // them, so a role with write access to "Einstellungen" can't grant itself more.
-const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess"];
+const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermissions"];
 
 /** GET /api/settings — config + raidsheets + the active guild's roles/categories. */
 function getSettings(req, res) {

@@ -15,6 +15,7 @@ const {
 const { ingestLoot } = require("./apiRoutes/ingest");
 const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raiderCharacters");
 const { getRoster } = require("./apiRoutes/roster");
+const { getLootCouncil, postLootCouncilSim, getLootCouncilSim } = require("./apiRoutes/lootCouncil");
 const { getRaids, getRaidCreateContext, createRaid } = require("./apiRoutes/raids");
 const {
     getRaidDetail, postNotify, postPingMissing, postFill, postPostSheet, postPostSoftres,
@@ -143,6 +144,18 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/roster" && req.method === "GET") {
         await getRoster(req, res);
+        return true;
+    }
+    if (pathname === "/api/lootcouncil" && req.method === "GET") {
+        await getLootCouncil(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/lootcouncil/sim" && req.method === "GET") {
+        await getLootCouncilSim(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/lootcouncil/sim" && req.method === "POST") {
+        await postLootCouncilSim(req, res);
         return true;
     }
     if (pathname === "/api/raids" && req.method === "GET") {

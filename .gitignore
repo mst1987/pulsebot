@@ -6,3 +6,6 @@ data/
 reference/cla/appsscript/
 reference/rpb/appsscript/
 service-account.json
+
+# The wowsims binary is fetched, not committed (scripts/fetch-wowsimcli.js).
+bin/
