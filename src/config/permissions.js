@@ -11,6 +11,12 @@
 // every logged-in Discord account gets without holding any configured role — the
 // same `{ [area]: { read, write } }` shape, merged into the role grants as a
 // union, so it can only ever widen access, never narrow it.
+//
+// Next to both sits the *per-account* grant (config.userPermissions), keyed by
+// Discord user id instead of role id and unioned in the same way. It exists for
+// the areas that go to named people rather than to a group — the loot council is
+// two or three players, and inventing a Discord role for them (which then has to
+// be kept in sync by hand) buys nothing.
 
 // The areas an admin can hand out, in the order they appear in the sidebar.
 // `tab` is the sidebar tab id in src/web-client/src/components/Shell.tsx.
@@ -25,6 +31,11 @@ const AREAS = [
     // and everything that gets data in. Meant as the base access for members who
     // should be able to look up what dropped without seeing the admin side.
     { id: "loot", tab: "history", label: "Loot-Ansichten", description: "Nur die Loot-Tabs der Historie: Importierter Loot, Latest Loot, Loot-Gründe und Items — ohne Import, Logs und Raid-Listen." },
+    // The caster loot-council view: who was given what lately, what is still
+    // missing from their BiS and who a drop would help most. Its own area rather
+    // than another slice of "loot", because it is handed to the few people who
+    // sit on the council, not to the guild at large.
+    { id: "lootcouncil", tab: "lootcouncil", label: "Loot-Council", description: "Caster-Übersicht für den Lootrat: vergebene Items je Content, BiS-Lücken und Upgrade-Vorschläge." },
     { id: "channels", tab: "channels", label: "Kanäle", description: "Discord-Kanäle anlegen und duplizieren." },
     { id: "settings", tab: "settings", label: "Einstellungen", description: "Bot-Konfiguration. Admin-Rollen und Berechtigungen bleiben Voll-Admins vorbehalten." },
 ];
@@ -145,6 +156,36 @@ function accessForRoles(rolePermissions, roleIds) {
 }
 
 /**
+ * Normalise a stored/submitted `{ [userId]: { [area]: { read, write } } }` map —
+ * the per-account grants (config.userPermissions). Identical shape and rules to
+ * the role map, only keyed by Discord user id, so it shares its normaliser: an
+ * unknown area is dropped, write implies read, and an account left granting
+ * nothing disappears from the map.
+ */
+function normalizeUserPermissions(raw) {
+    return normalizeRolePermissions(raw);
+}
+
+/**
+ * The grants configured for exactly this Discord account, as an access map.
+ * Empty when nothing is configured for them — it is unioned into the role
+ * grants, so like the base access it can only ever widen.
+ */
+function accessForUser(userPermissions, userId) {
+    const access = emptyAccess();
+    const key = String(userId || "").trim();
+    if (!key) return access;
+    const grants = normalizeUserPermissions(userPermissions)[key];
+    if (!grants) return access;
+    for (const [area, entry] of Object.entries(grants)) {
+        if (!access[area]) continue;
+        if (entry.read) access[area].read = true;
+        if (entry.write) { access[area].write = true; access[area].read = true; }
+    }
+    return access;
+}
+
+/**
  * Whether a session user (see web/auth.js) may read/write the given area.
  * Full admins always may.
  */
@@ -168,6 +209,7 @@ function userCanAny(user, areas, level = "read") {
 module.exports = {
     AREAS, AREA_IDS, LEVELS,
     emptyAccess, fullAccess, can, canAny, hasAnyAccess, readableAreas,
-    normalizeRolePermissions, normalizeAreaAccess, mergeAccess, baseAccessMap, accessForRoles,
+    normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,
+    mergeAccess, baseAccessMap, accessForRoles, accessForUser,
     userCan, userCanAny, userHasMenuAccess,
 };

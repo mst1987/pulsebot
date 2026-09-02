@@ -50,20 +50,33 @@ function normalizeCategorySheets(raw) {
 
 // Config keys that decide who gets into the menu — only full admins may change
 // them, so a role with write access to "Einstellungen" can't grant itself more.
-const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess"];
+const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermissions"];
 
 /** GET /api/settings — config + raidsheets + the active guild's roles/categories. */
-function getSettings(req, res) {
+async function getSettings(req, res) {
     const user = requireAdmin(req, res);
     if (!user) return;
     const guildId = activeGuildFor(req);
     const config = getConfig();
+    // Names for the accounts that hold a per-user grant, so the permissions tab
+    // shows people rather than 18-digit ids. Only full admins see that list at
+    // all, so only they trigger the lookup — and a failed lookup must not cost
+    // anyone the settings page, since the ids alone still work.
+    let userNames = {};
+    if (user.isAdmin) {
+        try {
+            userNames = await discord.resolveUserNames(guildId, Object.keys(config.userPermissions || {}));
+        } catch (e) {
+            console.warn("resolveUserNames failed:", e.message);
+        }
+    }
     ok(res, {
         // The access config is admin-only; a limited settings user never sees
         // (nor can save) it.
         config: user.isAdmin ? config : omit(config, ACCESS_KEYS),
         canManageAccess: !!user.isAdmin,
         areas: AREAS,
+        userNames,
         raidsheets: listRaidsheets(),
         roles: discord.listRoles(guildId),
         categories: discord.listCategories(guildId),

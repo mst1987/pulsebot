@@ -1,7 +1,7 @@
 const {
     AREAS, AREA_IDS, emptyAccess, fullAccess, can, canAny, hasAnyAccess, readableAreas,
-    normalizeRolePermissions, normalizeAreaAccess, mergeAccess, baseAccessMap,
-    accessForRoles, userCan, userCanAny, userHasMenuAccess,
+    normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess, mergeAccess, baseAccessMap,
+    accessForRoles, accessForUser, userCan, userCanAny, userHasMenuAccess,
 } = require("../../src/config/permissions");
 
 describe("config/permissions", () => {
@@ -176,6 +176,75 @@ describe("config/permissions", () => {
             expect(userCanAny(looter, ["raids", "cla"])).toBe(false);
             expect(userCanAny({ isAdmin: true }, ["history", "loot"], "write")).toBe(true);
             expect(userCanAny(null, ["loot"])).toBe(false);
+        });
+    });
+});
+
+describe("config/permissions — per-account grants", () => {
+    describe("normalizeUserPermissions", () => {
+        it("normalises like the role map, keyed by user id", () => {
+            const out = normalizeUserPermissions({
+                "233598324022837249": { lootcouncil: { read: false, write: true }, nonsense: { read: true } },
+            });
+            // write implies read; an unknown area is dropped.
+            expect(out["233598324022837249"]).toEqual({ lootcouncil: { read: true, write: true } });
+        });
+
+        it("drops an account that ends up granting nothing", () => {
+            expect(normalizeUserPermissions({ "1": { lootcouncil: { read: false, write: false } } })).toEqual({});
+            expect(normalizeUserPermissions({ "1": {} })).toEqual({});
+        });
+
+        it("tolerates junk", () => {
+            expect(normalizeUserPermissions(null)).toEqual({});
+            expect(normalizeUserPermissions([])).toEqual({});
+            expect(normalizeUserPermissions("x")).toEqual({});
+        });
+    });
+
+    describe("accessForUser", () => {
+        const perms = { "42": { lootcouncil: { read: true, write: false }, raids: { read: true, write: true } } };
+
+        it("returns exactly what is configured for that account", () => {
+            const access = accessForUser(perms, "42");
+            expect(access.lootcouncil).toEqual({ read: true, write: false });
+            expect(access.raids).toEqual({ read: true, write: true });
+            expect(access.settings).toEqual({ read: false, write: false });
+        });
+
+        it("gives an account with no entry nothing at all", () => {
+            expect(hasAnyAccess(accessForUser(perms, "999"))).toBe(false);
+            expect(hasAnyAccess(accessForUser(perms, ""))).toBe(false);
+            expect(hasAnyAccess(accessForUser(undefined, "42"))).toBe(false);
+        });
+
+        it("matches a numeric id given as a number", () => {
+            expect(can(accessForUser(perms, 42), "lootcouncil")).toBe(true);
+        });
+
+        it("only ever widens when merged with the base access", () => {
+            const base = baseAccessMap({ loot: { read: true } });
+            const merged = mergeAccess(base, accessForUser(perms, "42"));
+            expect(can(merged, "loot")).toBe(true);
+            expect(can(merged, "lootcouncil")).toBe(true);
+            expect(can(merged, "raids", "write")).toBe(true);
+        });
+    });
+
+    describe("the lootcouncil area", () => {
+        it("is its own area on its own tab", () => {
+            const area = AREAS.find((a) => a.id === "lootcouncil");
+            expect(area).toBeTruthy();
+            expect(area.tab).toBe("lootcouncil");
+        });
+
+        it("is not implied by the loot or history areas", () => {
+            // The council is handed to a few people; the loot views are shared
+            // with the guild. One must never open the other.
+            const lootReader = { ...emptyAccess(), loot: { read: true, write: false } };
+            expect(can(lootReader, "lootcouncil")).toBe(false);
+            const historyWriter = { ...emptyAccess(), history: { read: true, write: true } };
+            expect(can(historyWriter, "lootcouncil")).toBe(false);
         });
     });
 });

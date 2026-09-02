@@ -32,6 +32,8 @@ type Draft = {
     rolePermissions: RolePermissions;
     // What every logged-in account gets without a role (see RolePermissions.tsx).
     baseAccess: Access;
+    // Rights handed to single Discord accounts rather than to a role.
+    userPermissions: RolePermissions;
     guildId: string;
     raidhelperServerId: string;
     officerRoleId: string;
@@ -60,6 +62,7 @@ function toDraft(config: AdminConfig): Draft {
         adminRoleIdsText: (config.adminRoleIds || []).join(", "),
         rolePermissions: config.rolePermissions || {},
         baseAccess: config.baseAccess || {},
+        userPermissions: config.userPermissions || {},
         guildId: config.guildId,
         raidhelperServerId: config.raidhelperServerId,
         officerRoleId: config.officerRoleId,
@@ -622,6 +625,7 @@ export default function SettingsPage() {
                     adminRoleIds: splitList(draft.adminRoleIdsText),
                     rolePermissions: draft.rolePermissions,
                     baseAccess: draft.baseAccess,
+                    userPermissions: draft.userPermissions,
                     guildId: draft.guildId.trim(),
                     raidhelperServerId: draft.raidhelperServerId.trim(),
                 } : {}),
@@ -681,6 +685,9 @@ export default function SettingsPage() {
                     onChange={(rolePermissions) => patch({ rolePermissions })}
                     baseAccess={draft.baseAccess}
                     onBaseAccessChange={(baseAccess) => patch({ baseAccess })}
+                    userPermissions={draft.userPermissions}
+                    onUserPermissionsChange={(userPermissions) => patch({ userPermissions })}
+                    userNames={data.userNames || {}}
                 />
             );
 

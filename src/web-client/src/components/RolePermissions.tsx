@@ -7,9 +7,13 @@ import { TrashIcon } from "./icons";
 // { [roleId]: { [areaId]: { read, write } } } — see src/config/permissions.js;
 // the server normalises and enforces it (write always implies read).
 //
-// Above the roles sits the base access ({ [areaId]: { read, write } }): what
-// every logged-in account gets without any role. It is a union with the role
-// grants, so it can only widen — a role can never take back what it opens.
+// Above the roles sit two other grants, both unions with the role rights and so
+// both only ever widening — neither can take back what another opens:
+//   - the base access ({ [areaId]: { read, write } }): what every logged-in
+//     account gets without any role
+//   - the per-account grants ({ [userId]: { [areaId]: … } }, same shape as the
+//     role map): rights for one named person, for areas that go to people
+//     rather than to a group
 
 const EMPTY: AreaAccess = { read: false, write: false };
 
@@ -126,6 +130,40 @@ function BaseAccessCard({ areas, value, onChange }: {
     );
 }
 
+/**
+ * Rights handed to one named Discord account instead of to a role
+ * (config.userPermissions). For areas that go to a person, not a group — the
+ * loot council is two or three players, and a Discord role for them would only
+ * be a second list to keep in sync.
+ *
+ * Like the base access, this is a union with everything else: it can only ever
+ * widen what that account may do.
+ */
+function UserAccessCard({ userId, name, areas, grants, onSet, onRemove }: {
+    userId: string;
+    name: string;
+    areas: Area[];
+    grants: Record<string, AreaAccess>;
+    onSet: (areaId: string, next: AreaAccess) => void;
+    onRemove: () => void;
+}) {
+    const readCount = areas.filter((a) => (grants[a.id] || EMPTY).read).length;
+    const writeCount = areas.filter((a) => (grants[a.id] || EMPTY).write).length;
+    return (
+        <div className="sheetcard">
+            <div className="row-actions" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
+                <h3 style={{ margin: 0 }}>{name || `Konto ${userId}`}</h3>
+                <span className="hint">{readCount} × Lesen · {writeCount} × Schreiben</span>
+            </div>
+            <div className="row-actions" style={{ marginTop: 4, justifyContent: "space-between" }}>
+                <span className="hint">Discord-ID {userId}</span>
+                <button type="button" className="btn btn-danger btn-sm" onClick={onRemove}><TrashIcon />Konto entfernen</button>
+            </div>
+            <AreaTable areas={areas} grants={grants} onSet={onSet} />
+        </div>
+    );
+}
+
 function RoleCard({ role, areas, grants, onSet, onSetAll, onRemove }: {
     role: Role;
     areas: Area[];
@@ -154,7 +192,10 @@ function RoleCard({ role, areas, grants, onSet, onSetAll, onRemove }: {
     );
 }
 
-export default function RolePermissionsEditor({ areas, roles, adminRoleIds, value, onChange, baseAccess, onBaseAccessChange }: {
+export default function RolePermissionsEditor({
+    areas, roles, adminRoleIds, value, onChange, baseAccess, onBaseAccessChange,
+    userPermissions, onUserPermissionsChange, userNames,
+}: {
     areas: Area[];
     roles: Role[];
     adminRoleIds: string[];
@@ -162,8 +203,12 @@ export default function RolePermissionsEditor({ areas, roles, adminRoleIds, valu
     onChange: (next: RolePermissions) => void;
     baseAccess: Access;
     onBaseAccessChange: (next: Access) => void;
+    userPermissions: RolePermissions;
+    onUserPermissionsChange: (next: RolePermissions) => void;
+    userNames: Record<string, string>;
 }) {
     const [picked, setPicked] = useState("");
+    const [newUserId, setNewUserId] = useState("");
 
     // Configured roles first (in the guild's role order), with roles whose id is
     // no longer in the guild kept visible so they can be cleaned up.
@@ -200,7 +245,73 @@ export default function RolePermissionsEditor({ areas, roles, adminRoleIds, valu
         setPicked("");
     };
 
+    const setUserGrant = (userId: string, areaId: string, next: AreaAccess) => {
+        const grants = { ...(userPermissions[userId] || {}) };
+        if (!next.read && !next.write) delete grants[areaId];
+        else grants[areaId] = next;
+        onUserPermissionsChange({ ...userPermissions, [userId]: grants });
+    };
+
+    const removeUser = (userId: string) => {
+        const next = { ...userPermissions };
+        delete next[userId];
+        onUserPermissionsChange(next);
+    };
+
+    const addUser = () => {
+        // Discord ids are 17-20 digit snowflakes; anything else is a typo, and
+        // saving it would put a grant on an account that can never log in.
+        const id = newUserId.trim();
+        if (!/^\d{17,20}$/.test(id) || userPermissions[id]) return;
+        onUserPermissionsChange({ ...userPermissions, [id]: {} });
+        setNewUserId("");
+    };
+
+    const userIds = Object.keys(userPermissions);
+    const userIdValid = /^\d{17,20}$/.test(newUserId.trim());
+
     const base = <BaseAccessCard areas={areas} value={baseAccess} onChange={onBaseAccessChange} />;
+
+    const perUser = (
+        <>
+            <h3 style={{ marginBottom: 4 }}>Einzelne Konten</h3>
+            <p className="hint">
+                Rechte für <b>ein bestimmtes Discord-Konto</b> — gedacht für Bereiche, die an benannte Personen
+                gehen statt an eine Gruppe (etwa den Loot-Council). Kommt oben drauf wie der Basiszugang und
+                nimmt nie etwas weg. Die ID findest du in Discord per Rechtsklick auf den Nutzer →
+                „ID kopieren" (Entwicklermodus muss an sein).
+            </p>
+            <div className="field">
+                <label>Konto hinzufügen (Discord-ID)</label>
+                <div className="row-actions">
+                    <input
+                        value={newUserId}
+                        onChange={(e) => setNewUserId(e.target.value)}
+                        placeholder="z. B. 123456789012345678"
+                        inputMode="numeric"
+                    />
+                    <button type="button" className="btn" onClick={addUser} disabled={!userIdValid || !!userPermissions[newUserId.trim()]}>
+                        Hinzufügen
+                    </button>
+                </div>
+                {newUserId.trim() && !userIdValid && <div className="hint">Das sieht nicht nach einer Discord-ID aus (17–20 Ziffern).</div>}
+                {userIdValid && userPermissions[newUserId.trim()] && <div className="hint">Dieses Konto ist bereits eingetragen.</div>}
+            </div>
+            {!userIds.length
+                ? <p className="hint">Noch kein einzelnes Konto freigeschaltet.</p>
+                : userIds.map((id) => (
+                    <UserAccessCard
+                        key={id}
+                        userId={id}
+                        name={userNames[id] || ""}
+                        areas={areas}
+                        grants={Object.fromEntries(areas.map((a) => [a.id, grantFor(userPermissions, id, a.id)]))}
+                        onSet={(areaId, next) => setUserGrant(id, areaId, next)}
+                        onRemove={() => removeUser(id)}
+                    />
+                ))}
+        </>
+    );
 
     // The base access needs no Discord roles at all, so it stays editable while
     // the role list is unavailable (bot offline, no server picked).
@@ -208,6 +319,7 @@ export default function RolePermissionsEditor({ areas, roles, adminRoleIds, valu
         return (
             <>
                 {base}
+                {perUser}
                 <p className="hint">Keine Rollen geladen (Server gewählt und Bot online?). Die Auswahl ist verfügbar, sobald der Bot verbunden ist.</p>
             </>
         );
@@ -216,6 +328,8 @@ export default function RolePermissionsEditor({ areas, roles, adminRoleIds, valu
     return (
         <>
             {base}
+            {perUser}
+            <h3 style={{ marginBottom: 4 }}>Rollen</h3>
             <p className="hint">
                 Rollen ohne Admin-Rechte bekommen hier gezielt Zugriff auf einzelne Bereiche des Menüs.
                 <b> Lesen</b> = Bereich ansehen, <b>Schreiben</b> = dort auch Aktionen ausführen (Schreiben schaltet Lesen automatisch mit).

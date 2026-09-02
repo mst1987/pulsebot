@@ -14,6 +14,7 @@ import HistoryEventPage from "./pages/HistoryEventPage";
 import HistoryCharPage from "./pages/HistoryCharPage";
 import RosterPage from "./pages/RosterPage";
 import ClaPage from "./pages/ClaPage";
+import LootCouncilPage from "./pages/LootCouncilPage";
 import { JobsProvider } from "./components/Jobs";
 import { canAccess, canAccessAny, getSession, type ApiError, type Session, type SessionUser } from "./api";
 
@@ -136,6 +137,7 @@ export default function App() {
                         its back-link pointing at wherever it was opened from. */}
                     <Route path="roster/char" element={<Guard user={user} areas={["roster"]}><HistoryCharPage /></Guard>} />
                     <Route path="cla" element={<Guard user={user} areas={["cla"]}><ClaPage /></Guard>} />
+                    <Route path="lootcouncil" element={<Guard user={user} areas={["lootcouncil"]}><LootCouncilPage /></Guard>} />
                     {/* Inside the shell on purpose: a mistyped path should still
                         leave the menu (and the way back) standing. */}
                     <Route path="*" element={<NotFound />} />

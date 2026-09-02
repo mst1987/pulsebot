@@ -35,6 +35,13 @@ const AREA_BY_PATH = {
 
     "/api/roster": "roster",
 
+    // The caster loot council. Starting a simulation is a POST, so the method
+    // rule already makes it write-level — a read-only council member sees the
+    // page and its stat-weight estimates, but does not spend CPU on it.
+    "/api/lootcouncil": "lootcouncil",
+    "/api/lootcouncil/sim": "lootcouncil",
+    "/api/lootcouncil/item-search": "lootcouncil",
+
     "/api/raids": "raids",
     "/api/raids/new": "raids",
     "/api/raids/detail": "raids",
