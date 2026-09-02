@@ -18,6 +18,7 @@ const { getRoster } = require("./apiRoutes/roster");
 const {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim,
     getItemSearch: getCouncilItemSearch, postExclude: postCouncilExclude,
+    getExport: getCouncilExport,
 } = require("./apiRoutes/lootCouncil");
 const { getRaids, getRaidCreateContext, createRaid } = require("./apiRoutes/raids");
 const {
@@ -151,6 +152,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/lootcouncil" && req.method === "GET") {
         await getLootCouncil(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/lootcouncil/export" && req.method === "GET") {
+        await getCouncilExport(req, res, url);
         return true;
     }
     if (pathname === "/api/lootcouncil/exclude" && req.method === "POST") {

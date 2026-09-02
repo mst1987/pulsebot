@@ -1983,3 +1983,27 @@ export function setCouncilExcluded(
 ): Promise<{ character: string; excluded: boolean }> {
     return send("POST", "/api/lootcouncil/exclude", csrfToken, { character, exclude: excluded, reason });
 }
+
+/**
+ * A raider's loadout as a WoWSims "From JSON" import.
+ *
+ * Built from the same pieces as the page's own simulation — gear, talents, spec
+ * options, rotation, consumables, buffs, encounter — so pasting it into
+ * wowsims.github.io/tbc reproduces the number shown here. An export that
+ * quietly differed would make the page look wrong when it is not.
+ */
+export type CouncilExport = {
+    character: string;
+    spec: string;
+    specLabel: string;
+    /** The WoWSims page it belongs on — the import does not switch class itself. */
+    simUrl: string;
+    seenAt: number;
+    reportTitle: string;
+    warnings: string[];
+    json: string;
+};
+
+export function getCouncilExport(character: string): Promise<CouncilExport> {
+    return get<CouncilExport>(`/api/lootcouncil/export?character=${encodeURIComponent(character)}`);
+}

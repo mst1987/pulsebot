@@ -22,6 +22,9 @@ const { councilRoster, bisGaps, candidatesForItem, filterOptions, resolveContent
 const { startCouncilSim, getJob } = require("../simStore");
 const { searchItems } = require("../../config/wowsims");
 const councilStore = require("../councilStore");
+const { gearFor, charKey } = require("../charGear");
+const { characterMap } = require("../characterStore");
+const { specFor } = require("../../config/casterSpecs");
 const engine = require("../../utils/wowsims/engine");
 const discord = require("../discord");
 const { getConfig } = require("../settingsStore");
@@ -167,6 +170,62 @@ async function postExclude(req, res) {
 }
 
 /**
+ * GET /api/lootcouncil/export?character=… — that raider's loadout as a WoWSims
+ * "From JSON" import, so anyone can paste it into wowsims.github.io/tbc and
+ * check the number this page shows.
+ *
+ * Built from the same pieces as our own run, so it reproduces our DPS rather
+ * than a different one — an export that quietly differs would make the page
+ * look wrong when it is not.
+ */
+async function getExport(req, res, url) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
+
+    const character = String(url.searchParams.get("character") || "").trim();
+    if (!character) return apiError(res, 400, "Kein Charakter angegeben.");
+    const gear = gearFor(character);
+    if (!gear) return apiError(res, 404, `Für ${character} ist kein Gear bekannt — der Charakter taucht in keiner der letzten CLA-Auswertungen auf.`);
+
+    // The spec decides the rotation and the buff set, so it has to be the same
+    // one the page judged them by.
+    const known = characterMap()[charKey(character)] || {};
+    const specEntry = specFor(known.className || gear.className, known.spec);
+    if (!specEntry) return apiError(res, 400, `Für ${character} ist keine Caster-Spec bekannt.`);
+
+    const built = engine.buildIndividualExport({ gear, specEntry });
+    if (!built.supported) return apiError(res, 400, built.warnings.join(" ") || "Diese Spec lässt sich nicht exportieren.");
+
+    ok(res, {
+        character: gear.character,
+        spec: specEntry.key,
+        specLabel: specEntry.label,
+        // Where to paste it — the WoWSims import does not switch class itself.
+        simUrl: SIM_URLS[specEntry.key] || SIM_URLS[specEntry.simSpec] || "https://wowsims.github.io/tbc/",
+        seenAt: gear.seenAt,
+        reportTitle: gear.reportTitle,
+        warnings: built.warnings,
+        json: JSON.stringify(built.data, null, 2),
+    });
+}
+
+// Which WoWSims page an export belongs on. The individual import reads gear and
+// talents from the JSON but not the class, so pasting a priest export on the
+// mage sim silently produces nonsense.
+const SIM_URLS = {
+    "Priest-Shadow": "https://wowsims.github.io/tbc/priest/dps/",
+    "Mage-Arcane": "https://wowsims.github.io/tbc/mage/",
+    "Mage-Fire": "https://wowsims.github.io/tbc/mage/",
+    "Mage-Frost": "https://wowsims.github.io/tbc/mage/",
+    "Warlock-Destruction": "https://wowsims.github.io/tbc/warlock/",
+    "Warlock-Affliction": "https://wowsims.github.io/tbc/warlock/",
+    "Warlock-Demonology": "https://wowsims.github.io/tbc/warlock/",
+    "Druid-Balance": "https://wowsims.github.io/tbc/balance_druid/",
+    "Shaman-Elemental": "https://wowsims.github.io/tbc/elemental_shaman/",
+};
+
+/**
  * GET /api/lootcouncil/item-search?q=… — items for the "this just dropped"
  * picker, searched in the generated caster table (config/wowsims).
  */
@@ -187,4 +246,7 @@ async function getLootCouncilSim(req, res, url) {
     ok(res, job);
 }
 
-module.exports = { getLootCouncil, postLootCouncilSim, getLootCouncilSim, getItemSearch, postExclude };
+module.exports = {
+    getLootCouncil, postLootCouncilSim, getLootCouncilSim,
+    getItemSearch, postExclude, getExport,
+};

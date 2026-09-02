@@ -30,9 +30,9 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useOutletContext } from "react-router-dom";
 import {
-    getLootCouncil, runCouncilSim, searchCouncilItems, setCouncilExcluded, canAccess,
+    getLootCouncil, runCouncilSim, searchCouncilItems, setCouncilExcluded, getCouncilExport, canAccess,
     type ApiError, type CouncilCandidate, type CouncilGap, type CouncilItem, type CouncilLootItem, type CouncilRaider, type WornItem,
-    type ItemSearchResult, type LootCouncilData, type SimJob, type SimResult,
+    type CouncilExport, type ItemSearchResult, type LootCouncilData, type SimJob, type SimResult,
 } from "../api";
 import ItemSearchPicker from "../components/ItemSearchPicker";
 import type { ShellContext } from "../components/Shell";
@@ -103,6 +103,60 @@ function Section({ title, hint, actions, children, tone = "" }: {
             </header>
             <div className="lc-section-body">{children}</div>
         </section>
+    );
+}
+
+/**
+ * A raider's loadout as a WoWSims import, so anyone can check our number.
+ *
+ * The JSON is shown rather than downloaded: WoWSims takes it through
+ * "Import → From JSON", which is a paste box. A download would only add a step.
+ * The link goes to the sim page it belongs on, because the individual import
+ * reads gear and talents from the JSON but *not* the class — pasted on the
+ * wrong class's sim it silently produces nonsense.
+ */
+function ExportPanel({ data, onClose }: { data: CouncilExport; onClose: () => void }) {
+    const [copied, setCopied] = useState(false);
+    const copy = async () => {
+        try {
+            await navigator.clipboard.writeText(data.json);
+            setCopied(true);
+            window.setTimeout(() => setCopied(false), 2000);
+        } catch {
+            // Clipboard blocked (no https, denied) — the textarea is still there
+            // to select by hand, which is why it is not hidden behind the button.
+            setCopied(false);
+        }
+    };
+    return (
+        <Section
+            title={`WoWSims-Export — ${data.character}`}
+            hint={`${data.specLabel} · Gear-Stand vom ${fmtMs(data.seenAt, false)}`}
+            actions={
+                <>
+                    <button type="button" className="btn btn-sm" onClick={copy}>
+                        {copied ? "Kopiert" : "JSON kopieren"}
+                    </button>
+                    <a className="btn btn-ghost btn-sm" href={data.simUrl} target="_blank" rel="noreferrer">
+                        WoWSims öffnen
+                    </a>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>Schließen</button>
+                </>
+            }
+        >
+            <ol className="lc-export-steps">
+                <li>WoWSims öffnen — <b>{data.simUrl.replace("https://", "")}</b> (die Seite muss zur Klasse passen)</li>
+                <li>Oben rechts <b>Import</b> → <b>From JSON</b></li>
+                <li>Das JSON unten einfügen und bestätigen</li>
+                <li><b>Simulate</b> — die DPS sollte der hier angezeigten entsprechen</li>
+            </ol>
+            {data.warnings.length ? (
+                <p className="hint">
+                    Hinweise zum Gear: {data.warnings.join(" ")}
+                </p>
+            ) : null}
+            <textarea className="lc-export-json" readOnly value={data.json} spellCheck={false} onFocus={(e) => e.currentTarget.select()} />
+        </Section>
     );
 }
 
@@ -867,6 +921,8 @@ export default function LootCouncilPage() {
     // When the running simulation started — the base for its remaining-time
     // estimate, which is measured from this run rather than assumed.
     const [simStartedAt, setSimStartedAt] = useState(0);
+    // The open WoWSims export, if any — one raider at a time.
+    const [exportData, setExportData] = useState<CouncilExport | null>(null);
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
     const rosterSort = useTableSort<RosterSortKey>("lootcouncil.roster-sort", ROSTER_SORT, "need");
     // One sort for every candidate table, so the cards stay comparable.
@@ -954,6 +1010,15 @@ export default function LootCouncilPage() {
      * average), so removing one raider changes everybody else's number. Faking
      * that client-side would show figures the server disagrees with.
      */
+    /** That raider's loadout as a WoWSims import, to check our number with. */
+    const showExport = async (character: string) => {
+        try {
+            setExportData(await getCouncilExport(character));
+        } catch (e) {
+            setSimError((e as ApiError).message);
+        }
+    };
+
     const setExcluded = async (character: string, excluded: boolean) => {
         try {
             await setCouncilExcluded(csrfToken, character, excluded);
@@ -1142,6 +1207,10 @@ export default function LootCouncilPage() {
                 </button>
             </div>
 
+            {view.tab === "roster" && exportData ? (
+                <ExportPanel data={exportData} onClose={() => setExportData(null)} />
+            ) : null}
+
             {view.tab === "roster" ? (
                 roster.length ? (
                     <table className="idx lc-roster">
@@ -1191,6 +1260,16 @@ export default function LootCouncilPage() {
                                                 : "—"}
                                         </td>
                                         <td className="cell-actions">
+                                            {r.gear && r.simSupported ? (
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-ghost btn-sm"
+                                                    title="Loadout als WoWSims-Import, um die Zahl selbst nachzurechnen"
+                                                    onClick={() => showExport(r.character)}
+                                                >
+                                                    Sim-Export
+                                                </button>
+                                            ) : null}
                                             {canWrite ? (
                                                 <button
                                                     type="button"

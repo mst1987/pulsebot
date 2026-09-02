@@ -95,6 +95,32 @@ function metric(node, key) {
     return node && typeof node[key] === "number" ? node[key] : null;
 }
 
+// ⚠️ A gem the binary's embedded item DB does not know aborts the ENTIRE run —
+// not the item, the whole simulation ("...had gem with id: <N>\nThis gem is not
+// in the database."). Verified against the pinned binary. Raiders socket things
+// no caster table anticipated, so without a retry one exotic gem costs that
+// raider their number completely.
+const UNKNOWN_GEM_RE = /gem with id:\s*(\d+)[\s\S]*?not in the database/i;
+// Backstop against looping on a loadout full of unknown gems.
+const MAX_GEM_RETRIES = 12;
+
+/** The gem id named in a WoWSims error, or null. */
+function parseUnknownGemId(message) {
+    const m = String(message || "").match(UNKNOWN_GEM_RE);
+    return m ? Number(m[1]) : null;
+}
+
+/** A copy of the request with one gem removed from every socket (0 = empty). */
+function stripGem(request, gemId) {
+    const clone = JSON.parse(JSON.stringify(request));
+    const items = ((((clone.raid || {}).parties || [])[0] || {}).players || [])[0];
+    for (const item of (items && items.equipment && items.equipment.items) || []) {
+        if (!Array.isArray(item.gems)) continue;
+        item.gems = item.gems.map((g) => (Number(g) === Number(gemId) ? 0 : g));
+    }
+    return clone;
+}
+
 /** Run one prepared request through the binary. */
 function runRequest(request) {
     const bin = binaryPath();
@@ -149,6 +175,46 @@ function runRequest(request) {
 }
 
 /**
+ * The same loadout as a WoWSims "From JSON" import (IndividualSimSettings), so
+ * anyone can paste it into wowsims.github.io/tbc and check our number.
+ *
+ * Deliberately built from the *same* pieces as the headless run — the enriched
+ * player (gear, talents, spec options, ground-truth rotation, consumables),
+ * plus the buff bundles and the encounter. An export that left any of them out
+ * would reproduce a different number than the page shows, which would make it
+ * worse than no export at all: it would look like the page is wrong.
+ *
+ * ⚠️ The WoWSims individual import does not switch class from the JSON — it has
+ * to be pasted on that class's own sim page. The `class` field is informative.
+ *
+ * @returns {{supported, data, warnings, spec, sim}}
+ */
+function buildIndividualExport({ gear, specEntry, swap = null, duration = FIGHT_DURATION }) {
+    if (!isSimSupported(specEntry)) {
+        return { supported: false, data: null, warnings: [`Für ${specEntry ? specEntry.label : "diese Spec"} gibt es in WoWSims-TBC keine Simulation.`] };
+    }
+    const preset = presetFor(specEntry);
+    const apl = aplForSpec(specEntry);
+    if (!preset || !apl) return { supported: false, data: null, warnings: ["Kein WoWSims-Preset für diese Spec hinterlegt."] };
+
+    const { player, warnings } = playerFor({ gear, specEntry, preset, apl, swap });
+    return {
+        supported: true,
+        warnings,
+        spec: specEntry.key,
+        // Which sim page it belongs on — the import cannot switch class itself.
+        sim: `${REPO} ${WOWSIMS_VERSION}`,
+        data: {
+            player,
+            raidBuffs: preset.buffs.raid,
+            partyBuffs: preset.buffs.party,
+            debuffs: preset.buffs.debuffs,
+            encounter: encounter(duration),
+        },
+    };
+}
+
+/**
  * DPS for one raider's current gear.
  * @returns {Promise<{available, supported, dps, stdev, warnings, error}>}
  */
@@ -157,8 +223,23 @@ async function simulate({ gear, specEntry, swap = null, iterations, duration }) 
     if (!built.supported) {
         return { available: isAvailable(), supported: false, dps: null, stdev: null, warnings: built.warnings, error: "" };
     }
-    const run = await runRequest(built.request);
-    return { ...run, supported: true, warnings: built.warnings };
+
+    // One unknown gem aborts the whole run, so retry without it rather than
+    // letting a raider lose their number over one socket. Each removed gem is
+    // reported: the result is then slightly low, and saying so is the point.
+    let request = built.request;
+    const warnings = [...built.warnings];
+    for (let attempt = 0; attempt <= MAX_GEM_RETRIES; attempt += 1) {
+        const run = await runRequest(request);
+        const unknownGem = run.dps === null ? parseUnknownGemId(run.error) : null;
+        if (unknownGem === null) return { ...run, supported: true, warnings };
+        warnings.push(`Edelstein ${unknownGem} kennt WoWSims nicht — ohne ihn gerechnet, der Wert ist entsprechend etwas zu niedrig.`);
+        request = stripGem(request, unknownGem);
+    }
+    return {
+        available: true, supported: true, dps: null, stdev: null, warnings,
+        error: "Zu viele WoWSims unbekannte Edelsteine in diesem Gear.",
+    };
 }
 
 /**
@@ -180,5 +261,6 @@ async function simulateSwap({ gear, specEntry, swap, baselineDps, iterations, du
 
 module.exports = {
     isAvailable, binaryPath, buildRequest, runRequest, simulate, simulateSwap,
+    parseUnknownGemId, stripGem, buildIndividualExport,
     ITERATIONS, FIGHT_DURATION, WOWSIMS_VERSION, REPO,
 };

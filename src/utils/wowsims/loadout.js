@@ -16,6 +16,55 @@
 //     build is what makes two raiders comparable.
 
 const { slotsFor, item: itemInfo } = require("../../config/wowsims");
+const { metaGemActive } = require("../logcheck/gearIssues");
+const claData = require("../../config/claData");
+
+const META_GEMS = new Set(claData.META_GEM_IDS.map(String));
+const RED_GEMS = new Set(claData.RED_GEM_IDS.map(String));
+const YELLOW_GEMS = new Set(claData.YELLOW_GEM_IDS.map(String));
+const BLUE_GEMS = new Set(claData.BLUE_GEM_IDS.map(String));
+
+/**
+ * Drop a meta gem whose colour requirement the raider does not meet.
+ *
+ * ⚠️ Measured against the pinned binary: WoWSims does NOT check the condition —
+ * a Chaotic Skyfire Diamond without its two blue gems still contributes its
+ * stats and its crit bonus (1809 vs 1806 DPS in a run where it should have been
+ * inactive). So a raider who socketed wrongly would be simulated as if they had
+ * not, and the council would compare them against raiders who did it right.
+ *
+ * The same rule the gear check already applies (`metaGemActive`), so the sim and
+ * the "Meta-Gem inaktiv" finding in a CLA report can never disagree.
+ *
+ * @returns {{items: Array, dropped: string[]}} the gear with inactive metas
+ *          removed, and which ones went
+ */
+function stripInactiveMeta(items) {
+    let red = 0;
+    let yellow = 0;
+    let blue = 0;
+    let meta = 0;
+    for (const it of items) {
+        for (const gem of it.gems || []) {
+            const id = String(gem);
+            if (!gem) continue;
+            // A dual-colour gem counts for both of its colours, same as the
+            // gear check counts them.
+            if (META_GEMS.has(id)) meta = Number(gem);
+            if (RED_GEMS.has(id)) red += 1;
+            if (YELLOW_GEMS.has(id)) yellow += 1;
+            if (BLUE_GEMS.has(id)) blue += 1;
+        }
+    }
+    if (!meta || metaGemActive(meta, red, yellow, blue)) return { items, dropped: [] };
+    return {
+        items: items.map((it) => ({
+            ...it,
+            gems: (it.gems || []).map((gem) => (Number(gem) === meta ? 0 : gem)),
+        })),
+        dropped: [String(meta)],
+    };
+}
 
 // WoWSims orders ambiguous slots positionally (ring 1/2, trinket 1/2, main/off
 // hand), so items go out in this fixed order — the same order WoWSims' own
@@ -66,6 +115,14 @@ function equipmentFor(gear, swap = null) {
             enchantId: swap.enchantId !== undefined ? Number(swap.enchantId) : Number((replaced && replaced.enchantId) || 0),
             gems: Array.isArray(swap.gems) ? swap.gems : ((replaced && replaced.gems) || []),
         });
+    }
+
+    // An inactive meta gem has to go before the request is built — the binary
+    // would count it regardless (see stripInactiveMeta).
+    const meta = stripInactiveMeta([...bySlot.values()]);
+    if (meta.dropped.length) {
+        for (const it of meta.items) bySlot.set(Number(it.slot), it);
+        warnings.push("Meta-Edelstein inaktiv (Farbbedingung nicht erfüllt) — für die Simulation ausgelassen.");
     }
 
     const items = [];

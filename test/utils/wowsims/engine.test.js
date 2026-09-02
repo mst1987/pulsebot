@@ -116,3 +116,130 @@ describe("utils/wowsims/engine", () => {
         expect(binVersion).toBe(engine.WOWSIMS_VERSION);
     });
 });
+
+describe("utils/wowsims — what the binary gets wrong, and what we do about it", () => {
+    const claData = require("../../../src/config/claData");
+    const { equipmentFor } = require("../../../src/utils/wowsims/loadout");
+
+    const META = Number(claData.META_GEM_IDS[0]);
+    const BLUE = Number(claData.BLUE_GEM_IDS[0]);
+    const RED = Number(claData.RED_GEM_IDS[0]);
+    const gearWith = (gems) => ({ items: [{ slot: 0, itemId: 31064, gems, enchantId: 0, itemLevel: 146 }] });
+
+    describe("an inactive meta gem", () => {
+        // ⚠️ Measured against the pinned binary: WoWSims does NOT check a meta
+        // gem's colour requirement, so an inactive one still contributes. A
+        // raider who socketed wrongly would be simulated as if they had not.
+        it("is dropped from the loadout, with a warning", () => {
+            // 34220 (Chaotic Skyfire Diamond) wants two blue gems.
+            const { items, warnings } = equipmentFor(gearWith([34220, RED, RED]));
+            expect(items[0].gems[0]).toBe(0);
+            expect(warnings.join(" ")).toMatch(/Meta-Edelstein inaktiv/);
+        });
+
+        it("stays when the requirement is met", () => {
+            const { items, warnings } = equipmentFor(gearWith([34220, BLUE, BLUE]));
+            expect(items[0].gems[0]).toBe(34220);
+            expect(warnings.join(" ")).not.toMatch(/Meta/);
+        });
+
+        it("leaves the other gems alone either way", () => {
+            const { items } = equipmentFor(gearWith([34220, RED, RED]));
+            expect(items[0].gems.slice(1)).toEqual([RED, RED]);
+        });
+
+        it("does nothing to a loadout without a meta gem", () => {
+            const { items, warnings } = equipmentFor(gearWith([BLUE, RED]));
+            expect(items[0].gems).toEqual([BLUE, RED]);
+            expect(warnings).toEqual([]);
+        });
+
+        it("uses the same rule as the gear check, so the two cannot disagree", () => {
+            const { metaGemActive } = require("../../../src/utils/logcheck/gearIssues");
+            expect(metaGemActive(34220, 0, 0, 2)).toBe(true);
+            expect(metaGemActive(34220, 3, 0, 0)).toBe(false);
+            expect(META).toBeGreaterThan(0);
+        });
+    });
+
+    describe("a gem the binary does not know", () => {
+        // ⚠️ It aborts the WHOLE run, not just that item — so without a retry
+        // one exotic gem costs that raider their number completely.
+        it("is recognised in the error text", () => {
+            const msg = "When parsing item 31064, socket 0 had gem with id: 41285\nThis gem is not in the database.";
+            expect(engine.parseUnknownGemId(msg)).toBe(41285);
+        });
+
+        it("is not mistaken for some other failure", () => {
+            expect(engine.parseUnknownGemId("wowsimcli lieferte kein Ergebnis")).toBeNull();
+            expect(engine.parseUnknownGemId("")).toBeNull();
+            expect(engine.parseUnknownGemId(null)).toBeNull();
+        });
+
+        it("is removed from every socket it sits in, without touching the rest", () => {
+            const request = {
+                raid: { parties: [{ players: [{ equipment: { items: [
+                    { id: 1, gems: [41285, 32196] },
+                    { id: 2, gems: [32196] },
+                    { id: 3 },
+                ] } }] }] },
+            };
+            const stripped = engine.stripGem(request, 41285);
+            const items = stripped.raid.parties[0].players[0].equipment.items;
+            expect(items[0].gems).toEqual([0, 32196]);
+            expect(items[1].gems).toEqual([32196]);
+            expect(items[2].gems).toBeUndefined();
+        });
+
+        it("does not modify the request it was given", () => {
+            const request = { raid: { parties: [{ players: [{ equipment: { items: [{ id: 1, gems: [41285] }] } }] }] } };
+            engine.stripGem(request, 41285);
+            expect(request.raid.parties[0].players[0].equipment.items[0].gems).toEqual([41285]);
+        });
+    });
+});
+
+describe("utils/wowsims/engine — the WoWSims export", () => {
+    const gear = {
+        character: "Devihra",
+        className: "Priest",
+        items: [
+            { slot: 0, itemId: 31064, itemLevel: 146, gems: [25893], enchantId: 3002 },
+            { slot: 4, itemId: 31065, itemLevel: 146, gems: [], enchantId: 2661 },
+        ],
+    };
+
+    it("carries everything the page's own run uses", () => {
+        // An export that left any of it out would reproduce a different number
+        // than the page shows — worse than no export, because it would make the
+        // page look wrong.
+        const exp = engine.buildIndividualExport({ gear, specEntry: specByKey("Priest-Shadow") });
+        expect(exp.supported).toBe(true);
+        expect(exp.data.player.equipment.items).toHaveLength(2);
+        expect(exp.data.player.talentsString).toBe(specByKey("Priest-Shadow").talents);
+        expect(exp.data.player.rotation).toBeTruthy();
+        expect(exp.data.player.consumables).toBeTruthy();
+        expect(exp.data.raidBuffs).toBeTruthy();
+        expect(exp.data.partyBuffs).toBeTruthy();
+        expect(exp.data.debuffs).toBeTruthy();
+        expect(exp.data.encounter.targets[0].level).toBe(73);
+    });
+
+    it("builds the same player the simulation runs", () => {
+        const exp = engine.buildIndividualExport({ gear, specEntry: specByKey("Priest-Shadow") });
+        const req = engine.buildRequest({ gear, specEntry: specByKey("Priest-Shadow") });
+        expect(exp.data.player).toEqual(req.request.raid.parties[0].players[0]);
+    });
+
+    it("refuses a spec WoWSims cannot simulate, with a reason", () => {
+        const exp = engine.buildIndividualExport({ gear, specEntry: specByKey("Druid-Restoration") });
+        expect(exp.supported).toBe(false);
+        expect(exp.data).toBeNull();
+        expect(exp.warnings.join(" ")).toMatch(/keine Simulation/i);
+    });
+
+    it("names the release it belongs to", () => {
+        const exp = engine.buildIndividualExport({ gear, specEntry: specByKey("Priest-Shadow") });
+        expect(exp.sim).toContain(engine.WOWSIMS_VERSION);
+    });
+});
