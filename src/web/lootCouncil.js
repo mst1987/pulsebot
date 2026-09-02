@@ -29,6 +29,11 @@ const {
 
 const DAY = 24 * 60 * 60 * 1000;
 
+// How many recent awards ride along on a candidate. Enough to answer "was hat
+// der schon bekommen?" in a hover, few enough that the panel needs no scrolling
+// — the character page has the full history.
+const RECENT_ITEMS = 8;
+
 /** The contents belonging to a set of tier ids. */
 function contentsForTiers(tierIds) {
     const wanted = new Set(tierIds || []);
@@ -353,7 +358,11 @@ function councilRoster(opts = {}) {
             daysSinceLoot: lastAwardAt ? Math.floor((now - lastAwardAt) / DAY) : null,
             items: filtered.map((it) => ({
                 itemId: it.itemId,
-                itemName: it.itemName,
+                // The import fills the name in (enrichItemNames), but a row from
+                // before that existed — or one Wowhead was unreachable for —
+                // carries none. The item table answers for anything a caster can
+                // wear, which is every row this page shows.
+                itemName: it.itemName || (wowsims.item(it.itemId) || {}).name || `Item ${it.itemId}`,
                 itemIconUrl: it.itemIconUrl,
                 itemQuality: typeof it.itemQuality === "number" ? it.itemQuality : null,
                 contentId: it.contentId,
@@ -460,6 +469,11 @@ function candidatesForItem(itemId, roster) {
             needParts: row.needParts,
             lootCount: row.lootCount,
             lootTotal: row.lootTotal,
+            // What they were actually given lately, so "4 Items" can be opened
+            // up on the spot. A council arguing about a drop asks "ja was hat
+            // der denn schon bekommen?" in the same breath — sending them to
+            // another tab for the answer is how a decision stalls.
+            recentItems: row.items.slice(0, RECENT_ITEMS),
             daysSinceLoot: row.daysSinceLoot,
             lastAwardAt: row.lastAwardAt,
             bisOwned: row.bis.owned,

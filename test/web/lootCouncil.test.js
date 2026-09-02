@@ -546,3 +546,42 @@ describe("web/lootCouncil — the worn gear a council looks at", () => {
         });
     });
 });
+
+describe("web/lootCouncil — the loot history on a candidate", () => {
+    it("carries the newest awards, so the count can be opened in a hover", () => {
+        // A council asks "wer kriegt es?" and "was hat der schon bekommen?" in
+        // one breath — the second answer has to be in the same payload.
+        mockListAll.mockReturnValue([
+            lootRow({ awardedAt: now - 1 * 86400000, itemName: "Neu" }),
+            lootRow({ awardedAt: now - 9 * 86400000, itemName: "Alt" }),
+        ]);
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([])]]));
+
+        const [candidate] = candidatesForItem(31064, councilRoster().rows);
+        expect(candidate.recentItems.map((i) => i.itemName)).toEqual(["Neu", "Alt"]);
+        expect(candidate.lootCount).toBe(2);
+    });
+
+    it("caps the list while keeping the true count", () => {
+        // The hover shows a handful; the number must stay honest.
+        const many = Array.from({ length: 20 }, (_, i) => lootRow({ awardedAt: now - i * 86400000 }));
+        mockListAll.mockReturnValue(many);
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([])]]));
+
+        const [candidate] = candidatesForItem(31064, councilRoster().rows);
+        expect(candidate.lootCount).toBe(20);
+        expect(candidate.recentItems.length).toBeLessThan(20);
+        expect(candidate.recentItems.length).toBeGreaterThan(0);
+    });
+
+    it("is empty for a raider who has never won anything", () => {
+        mockListAll.mockReturnValue([]);
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([])]]));
+        const [candidate] = candidatesForItem(31064, councilRoster().rows);
+        expect(candidate.recentItems).toEqual([]);
+        expect(candidate.lootCount).toBe(0);
+    });
+});

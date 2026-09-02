@@ -1759,6 +1759,8 @@ export type CouncilCandidate = {
     needParts: { drought: number; share: number; need: number };
     lootCount: number;
     lootTotal: number;
+    /** Their newest awards, so the loot count can be opened in a hover. */
+    recentItems: CouncilLootItem[];
     daysSinceLoot: number | null;
     lastAwardAt: number;
     bisOwned: number;

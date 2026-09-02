@@ -27,11 +27,11 @@
 // starts deliberately — it costs seconds of CPU per raider, and the page is
 // fully usable without it. Everything a simulation can improve is labelled, so
 // a stat-weight estimate is never mistaken for a measured number.
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useOutletContext } from "react-router-dom";
 import {
     getLootCouncil, runCouncilSim, searchCouncilItems,
-    type ApiError, type CouncilCandidate, type CouncilGap, type CouncilItem, type CouncilRaider, type WornItem,
+    type ApiError, type CouncilCandidate, type CouncilGap, type CouncilItem, type CouncilLootItem, type CouncilRaider, type WornItem,
     type ItemSearchResult, type LootCouncilData, type SimJob, type SimResult,
 } from "../api";
 import ItemSearchPicker from "../components/ItemSearchPicker";
@@ -75,6 +75,76 @@ const CANDIDATE_SORT: Record<CandidateSortKey, Dir> = {
 
 const WOWHEAD = (id: number) => `https://www.wowhead.com/tbc/item=${id}`;
 
+/**
+ * One bordered block with a heading — the page's unit of "this is one thing".
+ *
+ * Everything used to run together in one long card, so the eye had to find the
+ * seams itself: which filter belongs to what, where the item ends and the
+ * candidates begin. A council reads this under time pressure, and a heading
+ * plus a border is the cheapest way to say "this part answers that question".
+ */
+function Section({ title, hint, actions, children, tone = "" }: {
+    title: string;
+    hint?: ReactNode;
+    /** Buttons that act on this block, kept in its header rather than loose. */
+    actions?: ReactNode;
+    children: ReactNode;
+    /** "accent" lifts the one block that carries the answer. */
+    tone?: "" | "accent";
+}) {
+    return (
+        <section className={`lc-section${tone ? ` lc-section-${tone}` : ""}`}>
+            <header className="lc-section-head">
+                <div>
+                    <h3>{title}</h3>
+                    {hint ? <div className="hint">{hint}</div> : null}
+                </div>
+                {actions ? <div className="row-actions">{actions}</div> : null}
+            </header>
+            <div className="lc-section-body">{children}</div>
+        </section>
+    );
+}
+
+/**
+ * A thin bar that says something is happening.
+ *
+ * Two modes, and the difference matters: with a `value` it fills to that share
+ * (a simulation knows how many runs are left), without one it sweeps
+ * indefinitely (a fetch does not). Faking a percentage for something unmeasured
+ * is worse than admitting it is unknown — a bar that crawls to 90 % and sits
+ * there teaches people to distrust every bar on the page.
+ */
+function ProgressBar({ value, label, hint }: { value?: number; label?: string; hint?: string }) {
+    const pct = typeof value === "number" ? Math.max(0, Math.min(100, value * 100)) : null;
+    return (
+        <div className="lc-progress" role="progressbar" aria-valuenow={pct ?? undefined} aria-valuemin={0} aria-valuemax={100}>
+            <div className={`lc-progress-track${pct === null ? " lc-progress-indet" : ""}`}>
+                <div className="lc-progress-fill" style={pct === null ? undefined : { width: `${pct}%` }} />
+            </div>
+            {label || hint ? (
+                <div className="lc-progress-text">
+                    {label ? <span>{label}</span> : null}
+                    {hint ? <span className="hint">{hint}</span> : null}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
+/** "noch ca. 2:40" from a rate we have actually measured, or "" while we can't. */
+function remainingLabel(done: number, total: number, startedAt: number): string {
+    const elapsed = Date.now() - startedAt;
+    // Below a couple of finished runs the rate is noise, and a wildly wrong
+    // estimate is worse than none.
+    if (done < 2 || elapsed < 1500 || done >= total) return "";
+    const perItem = elapsed / done;
+    const left = Math.round((perItem * (total - done)) / 1000);
+    if (left < 5) return "gleich fertig";
+    if (left < 60) return `noch ca. ${left} s`;
+    return `noch ca. ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} min`;
+}
+
 /** A tier's readable name ("Tier 6"), falling back to its id. */
 function tierLabel(tiers: { id: string; label: string }[], id: string): string {
     const tier = tiers.find((t) => t.id === id);
@@ -110,14 +180,17 @@ function SpecCell({ specLabel, iconUrl, assumed }: { specLabel: string; iconUrl?
  * pure text to be read one entry at a time. The colours run by tier — T4 amber,
  * T5 teal, T6 violet, Sunwell gold — with each raid inside a tier a shade of
  * its own, so a glance down a list separates "still T5" from "already T6"
- * without reading a single label. The actual values live in index.css
- * (.lc-cbadge-*), because the palette belongs with the rest of the theme.
+ * without reading a single label.
+ *
+ * The hue comes from `lc-h-<id>` in index.css — the same class the content
+ * filter buttons carry, so a raid has one colour whether you are switching it
+ * on or reading it off a row. Two palettes would be two codes to learn.
  */
 function ContentBadge({ contentId, tier, label }: { contentId: string; tier?: string; label?: string }) {
     if (!contentId) return null;
     return (
         <span
-            className={`lc-cbadge lc-cbadge-${contentId}`}
+            className={`lc-cbadge lc-h-${contentId}`}
             title={[label || contentId.toUpperCase(), tier ? tier.toUpperCase() : ""].filter(Boolean).join(" · ")}
         >
             {contentId.toUpperCase()}
@@ -352,16 +425,30 @@ function BisCell({ raider }: { raider: CouncilRaider }) {
 // cannot read at a glance. The character page has the complete list.
 const HOVER_ITEMS = 8;
 
-/** The loot a raider got in the filter, newest first, behind a hover. */
-function LootCell({ raider }: { raider: CouncilRaider }) {
-    if (!raider.lootCount) return <span className="sub">—</span>;
+/**
+ * What a raider was given lately, behind a hover on their loot count.
+ *
+ * Shared by the roster table and the candidate list on purpose: "wer soll das
+ * Item kriegen?" and "ja was hat der denn schon bekommen?" are asked in the
+ * same breath, and sending the council to another tab for the second answer is
+ * how a decision stalls.
+ *
+ * `total` is the real count; the list is capped so the panel never scrolls.
+ */
+function LootHover({ items, total, trigger, width = 560 }: {
+    items: CouncilLootItem[];
+    total: number;
+    trigger: ReactNode;
+    width?: number;
+}) {
+    if (!total) return <span className="sub">—</span>;
     return (
         // Wide enough that item name, raid, reason and date fit on one line —
         // at the default width the row overflowed and the panel grew a
         // horizontal scrollbar.
-        <HoverPanel width={560} trigger={<span className="lc-count">{raider.lootCount}</span>}>
+        <HoverPanel width={width} head="Zuletzt bekommen" trigger={trigger}>
             <div className="lc-loot-list">
-                {raider.items.slice(0, HOVER_ITEMS).map((item, i) => (
+                {items.slice(0, HOVER_ITEMS).map((item, i) => (
                     <div key={`${item.itemId}-${item.awardedAt}-${i}`} className="lc-loot-row">
                         <ItemLink id={item.itemId} name={item.itemName} iconUrl={item.itemIconUrl} quality={item.itemQuality} />
                         <ContentBadge contentId={item.contentId} tier={item.tier} />
@@ -369,11 +456,22 @@ function LootCell({ raider }: { raider: CouncilRaider }) {
                         <span className="sub lc-loot-date">{item.awardedAt ? fmtMs(item.awardedAt, false) : ""}</span>
                     </div>
                 ))}
-                {raider.items.length > HOVER_ITEMS
-                    ? <div className="hint">… und {raider.items.length - HOVER_ITEMS} ältere</div>
+                {total > items.slice(0, HOVER_ITEMS).length
+                    ? <div className="hint">… und {total - items.slice(0, HOVER_ITEMS).length} ältere</div>
                     : null}
             </div>
         </HoverPanel>
+    );
+}
+
+/** The loot count in the roster table, with the items behind it. */
+function LootCell({ raider }: { raider: CouncilRaider }) {
+    return (
+        <LootHover
+            items={raider.items}
+            total={raider.lootCount}
+            trigger={<span className="lc-count">{raider.lootCount}</span>}
+        />
     );
 }
 
@@ -451,10 +549,16 @@ function CandidateRow({ candidate, simDelta, gainMax }: {
                 </span>
             </td>
             <td>
-                <span className="lc-stat" title={`${candidate.lootCount} Items im aktuellen Filter, ${candidate.lootTotal} insgesamt`}>
-                    <LootBagIcon />
-                    {candidate.lootCount}
-                </span>
+                <LootHover
+                    items={candidate.recentItems}
+                    total={candidate.lootCount}
+                    trigger={
+                        <span className="lc-stat" title={`${candidate.lootCount} Items im Filter, ${candidate.lootTotal} insgesamt`}>
+                            <LootBagIcon />
+                            {candidate.lootCount}
+                        </span>
+                    }
+                />
             </td>
         </tr>
     );
@@ -608,71 +712,109 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
         : null;
     const measured = best ? deltaFor(sim, best, focus!.item.id) : undefined;
 
+    // Three blocks, because they answer three separate questions: which item,
+    // who should get it, and on what grounds. Running them together in one card
+    // made the reader find those seams themselves.
     return (
         <>
-            <div className="card-form">
-                <div className="field" style={{ marginBottom: 0 }}>
-                    <label>Welches Item ist gedroppt?</label>
-                    <ItemSearchPicker
-                        search={searchCouncilItems}
-                        onPick={onPick}
-                        placeholder="Item-Namen tippen, z. B. Zhar'doom …"
-                    />
-                    <div className="hint">
-                        Gesucht wird in der Caster-Itemliste des Bots — angeboten wird nur, was ein Caster
-                        auch tragen kann.
-                    </div>
-                </div>
-            </div>
+            <Section
+                title="Welches Item ist gedroppt?"
+                hint="Gesucht wird in der Caster-Itemliste des Bots — angeboten wird nur, was ein Caster auch tragen kann."
+            >
+                <ItemSearchPicker
+                    search={searchCouncilItems}
+                    onPick={onPick}
+                    placeholder="Item-Namen tippen, z. B. Zhar'doom …"
+                />
+            </Section>
 
             {!focus ? (
                 <div className="empty">Noch kein Item gewählt.</div>
             ) : (
-                <div className="sheetcard lc-gap">
-                    <div className="row-actions" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
-                        <h3 style={{ margin: 0 }}>
-                            <ItemLink id={focus.item.id} name={focus.item.name} iconUrl={focus.item.iconUrl} quality={focus.item.quality} />
-                        </h3>
-                        <span className="hint lc-gap-meta">
-                            <ContentBadge contentId={focus.item.contentId} />
-                            {focus.item.boss ? `${focus.item.boss} · ` : ""}ilvl {focus.item.ilvl}
-                        </span>
-                    </div>
+                <>
+                    <Section
+                        title="Das Item"
+                        actions={<button type="button" className="btn btn-ghost btn-sm" onClick={onClear}>Anderes Item</button>}
+                    >
+                        <div className="lc-dropitem">
+                            <div className="lc-dropitem-head">
+                                <ItemLink id={focus.item.id} name={focus.item.name} iconUrl={focus.item.iconUrl} quality={focus.item.quality} />
+                                <span className="hint lc-gap-meta">
+                                    <ContentBadge contentId={focus.item.contentId} />
+                                    {focus.item.boss ? `${focus.item.boss} · ` : ""}ilvl {focus.item.ilvl}
+                                </span>
+                            </div>
+                            {focus.item.bisSpecs.length ? (
+                                <BisSpecs specs={focus.item.bisSpecs} />
+                            ) : (
+                                <p className="hint" style={{ margin: 0 }}>
+                                    Steht auf keiner BiS-Liste der gewählten Tier-Stufe — kann trotzdem ein Upgrade sein.
+                                </p>
+                            )}
+                        </div>
+                    </Section>
 
-                    {focus.item.bisSpecs.length ? (
-                        <BisSpecs specs={focus.item.bisSpecs} />
-                    ) : (
-                        <p className="hint" style={{ marginTop: 2 }}>
-                            Steht auf keiner BiS-Liste der gewählten Tier-Stufe — kann trotzdem ein Upgrade sein.
-                        </p>
-                    )}
-
-                    {best ? (
-                        <p className="hint" style={{ marginTop: 2 }}>
-                            Größter Zugewinn: <b>{best.character}</b>
-                            {typeof measured === "number"
-                                ? <> — simuliert <b>{measured > 0 ? "+" : ""}{Math.round(measured)} DPS</b></>
-                                : <> — geschätzt {best.value > 0 ? "+" : ""}{best.value} (Stat-Gewichte; für echte DPS unten simulieren)</>}
-                        </p>
-                    ) : (
-                        <p className="hint" style={{ marginTop: 2 }}>
-                            Für keinen Raider im aktuellen Filter ein passender Slot — Rolle oder Filter oben prüfen.
-                        </p>
-                    )}
-
-                    <div className="row-actions">
-                        {simAvailable && focus.candidates.length ? (
+                    {/* The answer, lifted out of the table so it is the thing you
+                        see first — the table below is the evidence for it. */}
+                    <Section
+                        title="Empfehlung"
+                        tone="accent"
+                        actions={simAvailable && focus.candidates.length ? (
                             <button type="button" className="btn btn-sm" disabled={simRunning} onClick={onSimulate}>
-                                DPS-Gewinn für dieses Item simulieren
+                                {simRunning ? "Simulation läuft …" : "DPS-Gewinn simulieren"}
                             </button>
                         ) : null}
-                        <button type="button" className="btn btn-ghost btn-sm" onClick={onClear}>Anderes Item</button>
-                    </div>
+                    >
+                        {best ? (
+                            <div className="lc-verdict">
+                                <SpecCell specLabel={best.specLabel} iconUrl={best.specIconUrl} />
+                                <b {...classColorProps(best.classColor)}>{best.character}</b>
+                                {typeof measured === "number" ? (
+                                    <span className="lc-verdict-gain lc-verdict-measured">
+                                        {measured > 0 ? "+" : ""}{Math.round(measured)} DPS
+                                    </span>
+                                ) : (
+                                    <span className="lc-verdict-gain">
+                                        {best.value > 0 ? "+" : ""}{best.value}
+                                        <span className="hint"> geschätzt</span>
+                                    </span>
+                                )}
+                                <span className="lc-verdict-sep" />
+                                <NeedBar subject={best} />
+                                <span className="lc-stat" title={best.daysSinceLoot === null ? "Hat noch nie ein Item bekommen" : `Letztes Item vor ${best.daysSinceLoot} Tagen`}>
+                                    <ClockIcon />{best.daysSinceLoot === null ? "∞" : best.daysSinceLoot}
+                                </span>
+                                <LootHover
+                                    items={best.recentItems}
+                                    total={best.lootCount}
+                                    trigger={
+                                        <span className="lc-stat" title={`${best.lootCount} Items im Filter`}>
+                                            <LootBagIcon />{best.lootCount}
+                                        </span>
+                                    }
+                                />
+                            </div>
+                        ) : (
+                            <p className="hint" style={{ margin: 0 }}>
+                                Für keinen Raider im aktuellen Filter ein passender Slot — Rolle oder Filter oben prüfen.
+                            </p>
+                        )}
+                        {typeof measured !== "number" && simAvailable && focus.candidates.length ? (
+                            <p className="hint" style={{ marginBottom: 0 }}>
+                                Noch Stat-Gewichte. Für echte DPS oben simulieren — bei einem Item sind das nur ein paar Sekunden.
+                            </p>
+                        ) : null}
+                    </Section>
 
-                    {focus.candidates.length
-                        ? <CandidateTable itemId={focus.item.id} candidates={focus.candidates} sim={sim} sortState={sortState} />
-                        : null}
-                </div>
+                    {focus.candidates.length ? (
+                        <Section
+                            title={`Alle Kandidaten (${focus.candidates.length})`}
+                            hint="Zugewinn und Bedarf getrennt: was das Item bringt, und was dem Raider zusteht."
+                        >
+                            <CandidateTable itemId={focus.item.id} candidates={focus.candidates} sim={sim} sortState={sortState} />
+                        </Section>
+                    ) : null}
+                </>
             )}
         </>
     );
@@ -689,6 +831,9 @@ export default function LootCouncilPage() {
     const [sim, setSim] = useState<SimResult | null>(null);
     const [simJob, setSimJob] = useState<SimJob | null>(null);
     const [simError, setSimError] = useState<string>("");
+    // When the running simulation started — the base for its remaining-time
+    // estimate, which is measured from this run rather than assumed.
+    const [simStartedAt, setSimStartedAt] = useState(0);
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
     const rosterSort = useTableSort<RosterSortKey>("lootcouncil.roster-sort", ROSTER_SORT, "need");
     // One sort for every candidate table, so the cards stay comparable.
@@ -779,6 +924,7 @@ export default function LootCouncilPage() {
         if (!data || !simulatable.length) return;
         setSimError("");
         const id = `council-${Date.now()}`;
+        setSimStartedAt(Date.now());
         setSimJob({ status: "running", progress: 0, total: simulatable.length * (1 + items.length) });
         try {
             const result = await runCouncilSim(csrfToken, id, simulatable, items, setSimJob);
@@ -809,9 +955,12 @@ export default function LootCouncilPage() {
 
     return (
         <>
-            <PageLoader show={loading && !!data} text="Wird aktualisiert" />
+            {/* A thin bar rather than the full-screen loader: a filter click
+                reloads in a moment, and blanking the page for it loses the
+                reader's place every time. */}
+            {loading ? <ProgressBar /> : null}
 
-            <div className="card-form">
+            <Section title="Filter" hint="Wer gezählt wird, welcher Loot zählt und gegen welche BiS-Liste gemessen wird.">
                 <div className="field">
                     <label>Rolle</label>
                     <div className="row-actions">
@@ -842,18 +991,19 @@ export default function LootCouncilPage() {
                             <button
                                 key={t.id}
                                 type="button"
-                                className={`btn btn-sm ${view.tiers.includes(t.id) ? "" : "btn-ghost"}`}
+                                className={`btn btn-sm lc-filter lc-filter-tier lc-h-${t.id}${view.tiers.includes(t.id) ? " on" : ""}`}
+                                title={`Ganze Stufe ${t.label} ein-/ausschalten`}
                                 onClick={() => patch({ tiers: toggleIn(view.tiers, t.id) })}
                             >
                                 {t.label}
                             </button>
                         ))}
-                        <span className="sub" style={{ margin: "0 6px" }}>|</span>
+                        <span className="lc-filter-sep">|</span>
                         {o.contents.map((c) => (
                             <button
                                 key={c.id}
                                 type="button"
-                                className={`btn btn-sm ${view.contents.includes(c.id) ? "" : "btn-ghost"}`}
+                                className={`btn btn-sm lc-filter lc-h-${c.id}${view.contents.includes(c.id) ? " on" : ""}`}
                                 title={c.label}
                                 onClick={() => patch({ contents: toggleIn(view.contents, c.id) })}
                             >
@@ -893,20 +1043,15 @@ export default function LootCouncilPage() {
                         ) : null}
                     </div>
                 </div>
-            </div>
+            </Section>
 
-            <div className="card-form lc-simbar">
-                <div>
-                    {data.sim.available
-                        ? <span className="hint">WoWSims {data.sim.version} — {simulatable.length} von {roster.length} Raider(n) simulierbar.</span>
-                        : <span className="hint">{data.sim.hint}</span>}
-                    {simRunning && simJob
-                        ? <div className="hint">Simulation läuft … {simJob.progress ?? 0} von {simJob.total ?? 0}</div>
-                        : null}
-                    {simError ? <div className="hint err">{simError}</div> : null}
-                </div>
-                {data.sim.available ? (
-                    <div className="row-actions">
+            <Section
+                title="Simulation"
+                hint={data.sim.available
+                    ? `WoWSims ${data.sim.version} — ${simulatable.length} von ${roster.length} Raider(n) simulierbar.`
+                    : data.sim.hint}
+                actions={data.sim.available ? (
+                    <>
                         <button type="button" className="btn btn-sm" disabled={simRunning || !simulatable.length} onClick={() => runSim([])}>
                             DPS der Raider berechnen
                         </button>
@@ -919,9 +1064,21 @@ export default function LootCouncilPage() {
                         >
                             Alle BiS-Items durchrechnen ({gaps.length})
                         </button>
-                    </div>
+                    </>
                 ) : null}
-            </div>
+            >
+                {simRunning && simJob ? (
+                    <ProgressBar
+                        value={simJob.total ? (simJob.progress ?? 0) / simJob.total : undefined}
+                        label={`Simulation läuft … ${simJob.progress ?? 0} von ${simJob.total ?? 0}`}
+                        hint={remainingLabel(simJob.progress ?? 0, simJob.total ?? 0, simStartedAt)}
+                    />
+                ) : null}
+                {simError ? <div className="hint err">{simError}</div> : null}
+                {!simRunning && !simError && sim
+                    ? <div className="hint">Ergebnisse liegen vor — sie stehen als DPS in den Tabellen.</div>
+                    : null}
+            </Section>
 
             <div className="tabs">
                 <button type="button" className={`tab-btn${view.tab === "roster" ? " active" : ""}`} onClick={() => patch({ tab: "roster" })}>
