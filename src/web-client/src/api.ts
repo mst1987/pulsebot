@@ -1861,12 +1861,13 @@ export type LootCouncilData = {
         /** How many raiders each filter removed — so a short list is explained. */
         skipped: { category: number; excluded: number };
         /**
-         * How the category filter knew who belongs: "assigned" from the
-         * maintained raider→character map, "loot" only from who won something
-         * there (which cannot see a raider who never won anything), "" when no
-         * category is picked.
+         * What each source contributed to "who raids this category" — the logs
+         * of its raids, the loot awarded there, and the maintained
+         * raider→character assignment. All three zero means the filter found
+         * nobody, which is why the list is empty; the page uses this to say
+         * what to fix. null when no category is picked.
          */
-        categorySource: string;
+        categorySources: { reports: number; loot: number; assigned: number } | null;
     };
     sim: { available: boolean; version: string; hint: string };
     activeGuildId: string;

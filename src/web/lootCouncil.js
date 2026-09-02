@@ -20,7 +20,10 @@ const { characterMap } = require("./characterStore");
 const { gearByCharacter } = require("./charGear");
 const { getCategoryAssignments } = require("./raiderCharactersStore");
 const { excludedKeys } = require("./councilStore");
-const { characterKey } = require("../utils/lootImport");
+const { characterKey, splitPlayer } = require("../utils/lootImport");
+const { listRaidEvents } = require("./raidEventStore");
+const { listLogs } = require("./logStore");
+const { listReports, getReport } = require("./reportStore");
 const { CONTENTS, TIERS, content: contentMeta, sourceForItem } = require("../config/tbcContent");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 const { characterProfile } = require("../utils/setupView");
@@ -77,35 +80,91 @@ function currentTier(rows) {
     return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
 }
 
+// How many stored evaluations are walked to find out who raids a category.
+// Same bound and reason as charGear's: far enough back to cover the current
+// roster, without reading years of files on every page view.
+const MAX_CATEGORY_REPORTS = 40;
+
+/**
+ * Everyone the *logs* say raided in this category.
+ *
+ * The chain is Report → Log (`reportRefId`) → `eventId` → raid event →
+ * `categoryId`. It is the strongest of the three sources, because it is not a
+ * list anybody has to maintain: whoever shows up in the log of a Monday raid
+ * raids on Mondays, full stop.
+ */
+function categoryFromReports(categoryId) {
+    const keys = new Set();
+    // Which events belong to this category, from the persisted snapshot (it
+    // keeps the category captured at scan time, so a deleted Discord channel
+    // does not lose the event — see raidEventStore.js).
+    const events = new Set(
+        listRaidEvents()
+            .filter((e) => e && e.categoryId === categoryId)
+            .map((e) => String(e.id || e.eventId || "")),
+    );
+    if (!events.size) return keys;
+    // Logs assigned to one of those events, and the evaluation each produced.
+    const reportIds = new Set(
+        listLogs()
+            .filter((l) => l && l.eventId && events.has(String(l.eventId)) && l.reportRefId)
+            .map((l) => String(l.reportRefId)),
+    );
+    if (!reportIds.size) return keys;
+    for (const meta of listReports().slice(0, MAX_CATEGORY_REPORTS)) {
+        if (!reportIds.has(String(meta.id))) continue;
+        const report = getReport(meta.id);
+        for (const entry of (report && report.roster) || []) {
+            const key = characterKey(splitPlayer(entry.name).character);
+            if (key) keys.add(key);
+        }
+    }
+    return keys;
+}
+
 /**
  * Which characters belong to one raid category — the answer to "zeig mir nur
  * den Montagsraid".
  *
- * Two sources, unioned:
- *   - the raider→character assignment kept per category (raiderCharactersStore,
- *     edited in Einstellungen). That is the maintained truth, and the only one
- *     that knows a raider who has *never won anything there* — which is exactly
- *     the raider a council is looking for.
- *   - everyone who was actually awarded loot in that category.
+ * Three sources, unioned, because no single one is complete:
+ *   - the **logs** of that category's raids (`categoryFromReports`): who
+ *     actually stood there. Needs nothing maintained by hand.
+ *   - the **loot** awarded in that category: covers raids that were never
+ *     evaluated, but cannot see anyone who never won something.
+ *   - the raider→character **assignment** (raiderCharactersStore, Einstellungen
+ *     → Kategorien): the only source that knows a raider who has neither won
+ *     nor been logged there — a new member, say.
  *
- * Returns null when nothing is known for the category, and null means "do not
- * filter": showing an empty list because nobody filled in the assignment would
- * look like the raid has no casters.
+ * ⚠️ When all three come up empty the filter still applies, and the roster comes
+ * back empty. That is deliberate and was wrong before: falling back to "show
+ * everyone" meant picking a category changed nothing, which is exactly the bug
+ * this is fixing. An empty list plus `sources` (what was tried, what each one
+ * found) tells the admin what to fix; a full list tells them nothing.
  */
 function categoryMembers(categoryId, lootRows) {
     const id = String(categoryId || "").trim();
     if (!id) return null;
-    const keys = new Set();
+
+    const fromReports = categoryFromReports(id);
+    const fromLoot = new Set();
+    for (const it of lootRows) {
+        if (it.categoryId === id && it.characterKey) fromLoot.add(it.characterKey);
+    }
+    const fromAssignment = new Set();
     for (const name of Object.values(getCategoryAssignments(id))) {
         const key = characterKey(name);
-        if (key) keys.add(key);
+        if (key) fromAssignment.add(key);
     }
-    const assigned = keys.size;
-    for (const it of lootRows) {
-        if (it.categoryId === id && it.characterKey) keys.add(it.characterKey);
-    }
-    if (!keys.size) return null;
-    return { keys, assigned, fromLootOnly: assigned === 0 };
+
+    const keys = new Set([...fromReports, ...fromLoot, ...fromAssignment]);
+    return {
+        keys,
+        sources: {
+            reports: fromReports.size,
+            loot: fromLoot.size,
+            assigned: fromAssignment.size,
+        },
+    };
 }
 
 /** Sum an item's stats against a spec's weights. Unknown items score 0. */
@@ -479,7 +538,9 @@ function councilRoster(opts = {}) {
         // How the category filter knew who belongs: from the maintained
         // assignment, or only from who won loot there (which cannot see a
         // raider who never won anything).
-        categorySource: members ? (members.fromLootOnly ? "loot" : "assigned") : "",
+        // What each source contributed, so an empty list can be explained
+        // rather than looking like a bug.
+        categorySources: members ? members.sources : null,
     };
 }
 
