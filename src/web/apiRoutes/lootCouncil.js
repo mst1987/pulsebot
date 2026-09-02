@@ -53,7 +53,7 @@ async function getLootCouncil(req, res, url) {
     const bisTier = url.searchParams.get("bisTier") || "";
     const guildId = activeGuildFor(req);
 
-    const { rows, avgLootCount } = councilRoster({ role, tierIds, contentIds, categoryId, bisTier });
+    const { rows, avgLootCount, bisTier: usedBisTier } = councilRoster({ role, tierIds, contentIds, categoryId, bisTier });
     const contentFilter = resolveContentFilter({ tierIds, contentIds });
 
     // One named item ("this just dropped") short-circuits the BiS list: the
@@ -69,7 +69,10 @@ async function getLootCouncil(req, res, url) {
         gaps: focus ? [] : bisGaps(rows, { contentIds: contentFilter }),
         focus,
         options: { ...filterOptions(), categories: categoryOptions(guildId) },
-        filter: { role, tierIds, contentIds, categoryId, bisTier },
+        // `bisTier` is what was actually used: the admin's pick, or — when they
+        // made none — the tier derived from the guild's newest loot. The page
+        // says which, so "12/16 BiS" is never read against the wrong list.
+        filter: { role, tierIds, contentIds, categoryId, bisTier: usedBisTier, bisTierDerived: !bisTier },
         sim: {
             available: engine.isAvailable(),
             version: engine.WOWSIMS_VERSION,

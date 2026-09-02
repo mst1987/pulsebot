@@ -1164,3 +1164,63 @@ a.gear-row:hover { background: var(--panel2); }
     .gear-portrait { width: 44px; height: 44px; }
     .gear-stats { gap: 16px; }
 }
+
+/* ── Loot-Council (pages/LootCouncilPage.tsx) ─────────────────────────────── */
+
+/* The sim bar sits between the filters and the table: what the simulation can
+   say right now on the left, the buttons that start it on the right. */
+.lc-simbar {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+.lc-simbar .hint { margin: 0; }
+.lc-simbar .hint.err { color: var(--danger, #e5484d); }
+
+.lc-raider { display: inline-flex; align-items: center; gap: 7px; }
+
+.lc-item { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.lc-item img { width: 20px; height: 20px; border-radius: 3px; border: 1px solid var(--line); }
+.lc-item:hover span { text-decoration: underline; }
+
+/* The need score as a bar. Its width is the score, so a glance down the column
+   orders the roster without anyone reading a number. */
+.lc-need {
+    display: inline-block;
+    width: 76px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--panel3);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    vertical-align: middle;
+}
+.lc-need-fill {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-2), var(--accent));
+}
+.lc-need-detail { display: grid; gap: 3px; font-size: 13px; min-width: 260px; }
+
+.lc-count {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    border-bottom: 1px dotted var(--muted);
+    cursor: help;
+}
+
+.lc-loot-list { display: grid; gap: 6px; min-width: 340px; max-height: 420px; overflow-y: auto; }
+.lc-loot-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.lc-loot-row .sub { margin: 0; font-size: 12px; }
+
+/* One open BiS item plus its candidates. */
+.lc-gap h3 { display: flex; align-items: center; gap: 8px; font-size: 16px; }
+.lc-gap .idx { margin-top: 8px; }
+.lc-gap .idx th, .lc-gap .idx td { padding: 6px 10px; font-size: 13px; }
+
+@media (max-width: 640px) {
+    .lc-need { width: 52px; }
+    .lc-simbar { align-items: flex-start; }
+}

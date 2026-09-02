@@ -15,6 +15,8 @@
 
 const { listAll } = require("./lootStore");
 const { annotatedCharacters } = require("./characterInfo");
+const { classLook } = require("./lootClassLook");
+const { characterMap } = require("./characterStore");
 const { gearByCharacter } = require("./charGear");
 const { CONTENTS, TIERS, content: contentMeta, sourceForItem } = require("../config/tbcContent");
 const { targetSlotFor } = require("../utils/wowsims/loadout");
@@ -39,6 +41,30 @@ function contentsForTiers(tierIds) {
 function resolveContentFilter({ tierIds = [], contentIds = [] } = {}) {
     const ids = new Set([...contentsForTiers(tierIds), ...(contentIds || [])]);
     return ids.size ? ids : null;
+}
+
+// How many of the newest awards decide which tier the guild is currently in.
+// Enough to cover a few raid nights, few enough that last expansion's clears do
+// not outvote this month's.
+const TIER_SAMPLE = 60;
+
+/**
+ * The raid tier the guild is actually in, taken from its newest loot.
+ *
+ * This is the default BiS list to measure against, and taking it from the data
+ * is the only sensible answer: "the newest list WoWSims has" would hold a T6
+ * guild against Sunwell gear it cannot get, which makes every raider look
+ * equally far from BiS and the whole column useless. Falls back to the newest
+ * tier when there is no loot to learn from yet.
+ */
+function currentTier(rows) {
+    const counts = new Map();
+    for (const it of (rows || []).slice(0, TIER_SAMPLE)) {
+        const tier = (contentMeta(it.contentId) || {}).tier;
+        if (tier) counts.set(tier, (counts.get(tier) || 0) + 1);
+    }
+    if (!counts.size) return TIERS[TIERS.length - 1].id;
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
 }
 
 /** Sum an item's stats against a spec's weights. Unknown items score 0. */
@@ -170,18 +196,25 @@ function needScore({ daysSinceLoot, lootCount, avgLootCount, bisOwned, bisTotal 
  *   tierIds     tier ids to count loot from ([] = all)
  *   contentIds  extra content ids to count loot from
  *   categoryId  restrict to one raid category (the Monday raid, say)
- *   bisTier     which tier's BiS list to measure against (default: newest)
+ *   bisTier     which tier's BiS list to measure against
+ *               (default: the tier the guild's newest loot comes from)
  */
 function councilRoster(opts = {}) {
-    const { role = "", categoryId = "", bisTier = "" } = opts;
+    const { role = "", categoryId = "" } = opts;
     const contentFilter = resolveContentFilter(opts);
     const info = new Map(annotatedCharacters().map((c) => [c.key, c]));
     const gearMap = gearByCharacter();
+    // Class colour and spec icon are resolved server-side, like everywhere else
+    // in the app — the client never keeps a second copy of the WoW palette.
+    const charStore = characterMap();
     const now = Date.now();
+
+    const allLoot = listAll();
+    const bisTier = opts.bisTier || currentTier(allLoot);
 
     // Loot per character, split into "counts for the filter" and "all of it".
     const loot = new Map();
-    for (const it of listAll()) {
+    for (const it of allLoot) {
         const key = it.characterKey;
         if (!key) continue;
         if (categoryId && it.categoryId !== categoryId) continue;
@@ -197,7 +230,13 @@ function councilRoster(opts = {}) {
     const keys = new Set([...loot.keys(), ...gearMap.keys()]);
     const rows = [];
     for (const key of keys) {
-        const known = info.get(key) || {};
+        // Three sources for class and spec, and all three are needed:
+        // characterInfo only annotates raiders who appear in the loot history,
+        // so a raider who has never won anything — exactly the case this page
+        // exists for — would have no spec and be dropped as "not a caster".
+        // The character store knows them from the log evaluations, and the
+        // report's own roster still knows at least the class.
+        const known = info.get(key) || charStore[key] || {};
         const gear = gearMap.get(key) || null;
         const className = known.className || (gear && gear.className) || "";
         const specEntry = specFor(className, known.spec);
@@ -208,16 +247,29 @@ function councilRoster(opts = {}) {
         const filtered = bucket.filtered.sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0));
         const lastAwardAt = filtered.length ? filtered[0].awardedAt : 0;
         const bis = bisForSpec(specEntry, bisTier);
-        const wornIds = new Set(((gear && gear.items) || []).map((it) => Number(it.itemId)));
-        const bisItems = bis.items.map((entry) => ({
-            ...itemView(entry.id),
-            owned: wornIds.has(Number(entry.id)),
-        }));
+        // Copies, not ids: a BiS list can name the same item twice (the shadow
+        // priest's T6 list wants Ring of Recurrence in *both* finger slots), and
+        // owning one of them does not close the second gap. So the worn items
+        // are counted and spent one per BiS entry.
+        const wornCount = new Map();
+        for (const it of (gear && gear.items) || []) {
+            const id = Number(it.itemId);
+            wornCount.set(id, (wornCount.get(id) || 0) + 1);
+        }
+        const bisItems = bis.items.map((entry) => {
+            const id = Number(entry.id);
+            const left = wornCount.get(id) || 0;
+            if (left > 0) wornCount.set(id, left - 1);
+            return { ...itemView(id), owned: left > 0 };
+        });
 
+        const look = classLook(charStore, key);
         rows.push({
             key,
             character: (bucket.all[0] && bucket.all[0].character) || (gear && gear.character) || key,
             className,
+            classColor: look.classColor,
+            specIconUrl: look.specIconUrl,
             spec: known.spec || "",
             specKey: specEntry.key,
             specLabel: specEntry.label,
@@ -276,7 +328,9 @@ function councilRoster(opts = {}) {
         row.needParts = parts;
     }
     rows.sort((a, b) => b.needScore - a.needScore || a.character.localeCompare(b.character));
-    return { rows, avgLootCount: Math.round(avg * 10) / 10 };
+    // bisTier goes back out so the page can show which list it is measuring
+    // against — especially when nobody picked one and it was derived.
+    return { rows, avgLootCount: Math.round(avg * 10) / 10, bisTier };
 }
 
 /**
@@ -331,21 +385,36 @@ function candidatesForItem(itemId, roster) {
  *
  * Grouped by item rather than by raider on purpose — that is the shape a loot
  * council needs when a boss dies and one item is on the table.
+ *
+ * A raider appears once per item even when their list wants two copies of it
+ * (both finger slots); `missing` on their entry says how many they still need,
+ * so a second drop of that ring has an answer too.
  */
 function bisGaps(roster, { contentIds = null } = {}) {
     const byItem = new Map();
     for (const row of roster) {
+        const seen = new Map();
         for (const item of row.bis.items) {
             if (item.owned) continue;
             if (contentIds && item.contentId && !contentIds.has(item.contentId)) continue;
             if (!byItem.has(item.id)) byItem.set(item.id, { ...item, wantedBy: [] });
-            byItem.get(item.id).wantedBy.push({
+            // Second copy of the same item for the same raider: count it up on
+            // the entry that is already there instead of listing them twice.
+            const already = seen.get(item.id);
+            if (already) {
+                already.missing += 1;
+                continue;
+            }
+            const entry = {
+                missing: 1,
                 key: row.key,
                 character: row.character,
                 specKey: row.specKey,
                 specLabel: row.specLabel,
                 needScore: row.needScore,
-            });
+            };
+            seen.set(item.id, entry);
+            byItem.get(item.id).wantedBy.push(entry);
         }
     }
     const items = [...byItem.values()];
@@ -368,6 +437,6 @@ function filterOptions() {
 }
 
 module.exports = {
-    councilRoster, candidatesForItem, bisGaps, filterOptions,
+    councilRoster, candidatesForItem, bisGaps, filterOptions, currentTier,
     upgradeValue, needScore, scoreItem, gearSpellHit, resolveContentFilter, itemView,
 };

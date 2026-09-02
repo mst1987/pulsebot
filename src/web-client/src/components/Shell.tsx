@@ -4,7 +4,7 @@ import ThemeToggle from "./ThemeToggle";
 import GuildSwitcher from "./GuildSwitcher";
 import {
     CrestIcon, BurgerIcon, HomeIcon, RecruitmentIcon, ClaIcon, RaidsIcon, ChannelsIcon, SettingsIcon, HistoryIcon,
-    RosterIcon,
+    RosterIcon, CouncilIcon,
 } from "./icons";
 import { canAccessAny, type SessionUser, type SessionGuild } from "../api";
 
@@ -23,6 +23,7 @@ export const TABS: Tab[] = [
     { id: "raids", areas: ["raids"], label: "Raid-Events", href: "/raids", group: "Verwaltung", icon: <RaidsIcon /> },
     { id: "roster", areas: ["roster"], label: "Roster", href: "/roster", group: "Verwaltung", icon: <RosterIcon /> },
     { id: "history", areas: ["history", "loot"], label: "Historie & Loot", href: "/history", group: "Verwaltung", icon: <HistoryIcon /> },
+    { id: "lootcouncil", areas: ["lootcouncil"], label: "Loot-Council", href: "/lootcouncil", group: "Verwaltung", icon: <CouncilIcon /> },
     { id: "channels", areas: ["channels"], label: "Kanäle", href: "/channels", group: "Verwaltung", icon: <ChannelsIcon /> },
     { id: "settings", areas: ["settings"], label: "Einstellungen", href: "/settings", group: "System", icon: <SettingsIcon /> },
 ];

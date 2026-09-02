@@ -659,8 +659,37 @@ async function editLink(channelId, messageId, opts = {}) {
     return { channelId, messageId, url: message.url };
 }
 
+/**
+ * Display names for a handful of user ids, best-effort.
+ *
+ * For the per-account permission grants (config.userPermissions): a raw 18-digit
+ * id in a rights list tells an admin nothing, so the settings page shows the
+ * name next to it. Fetched one by one rather than through the member cache,
+ * because this is a few ids and a single-member fetch needs no privileged
+ * intent — an id that cannot be resolved (left the server, bot offline) simply
+ * has no entry, and the page falls back to showing the id.
+ *
+ * @returns {Promise<Record<string, string>>} id -> display name
+ */
+async function resolveUserNames(guildId, userIds = []) {
+    const ids = [...new Set((userIds || []).map(String).filter(Boolean))];
+    const guild = getGuild(guildId);
+    if (!guild || !ids.length) return {};
+    const out = {};
+    await Promise.all(ids.map(async (id) => {
+        try {
+            const member = guild.members.cache.get(id) || await guild.members.fetch(id);
+            if (member) out[id] = member.displayName || member.user.username;
+        } catch {
+            // Unknown member / no access — the page shows the bare id.
+        }
+    }));
+    return out;
+}
+
 module.exports = {
     setClient, getClient, listGuilds, getGuild, listTextChannels, listEmojis,
+    resolveUserNames,
     listCategories, listAllChannels, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,
     listMembersWithRoles, postMissingPing, _resetMembersCacheForTests,

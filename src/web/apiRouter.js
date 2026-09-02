@@ -98,7 +98,7 @@ async function route(pathname, req, res, url) {
         return true;
     }
     if (pathname === "/api/settings" && req.method === "GET") {
-        getSettings(req, res);
+        await getSettings(req, res);
         return true;
     }
     if (pathname === "/api/settings" && req.method === "PATCH") {

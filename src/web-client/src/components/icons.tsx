@@ -112,6 +112,20 @@ export function RosterIcon() {
     );
 }
 
+// Loot council: a scale, for weighing who a drop should go to.
+export function CouncilIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 4v16" />
+            <path d="M6 20h12" />
+            <path d="M4 7h16" />
+            <path d="M4 7 1.5 13a3 3 0 0 0 5 0Z" />
+            <path d="M20 7l2.5 6a3 3 0 0 1-5 0Z" />
+            <path d="M12 4a1.5 1.5 0 1 0 0-.01Z" />
+        </svg>
+    );
+}
+
 export function HistoryIcon() {
     return (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

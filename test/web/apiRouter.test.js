@@ -208,6 +208,7 @@ jest.mock("../../src/web/discord", () => ({
     getClient: jest.fn(() => null),
     getChannelCategoryMap: jest.fn(() => ({})),
     listMembersWithRoles: jest.fn(() => Promise.resolve({ members: [], error: null })),
+    resolveUserNames: jest.fn(() => Promise.resolve({})),
     postAnnouncement: jest.fn(),
     postMissingPing: jest.fn(),
     postLink: jest.fn(),

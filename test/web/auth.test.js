@@ -399,6 +399,70 @@ describe("web/auth", () => {
             });
         });
 
+        // config.userPermissions: rights for one named account, for areas that
+        // go to people rather than to a group (the loot council). Sits next to
+        // the base access and is likewise independent of Discord.
+        describe("per-account grants", () => {
+            const councilFor = (id) => ({
+                adminRoleIds: [], rolePermissions: {}, baseAccess: {},
+                userPermissions: { [id]: { lootcouncil: { read: true, write: true } } },
+            });
+
+            it("grants exactly the configured account, nobody else", async () => {
+                getConfig.mockImplementation(() => councilFor("611"));
+
+                const mine = await loginAs("611");
+                expect(auth.getUser(mine.req).access.lootcouncil).toEqual({ read: true, write: true });
+
+                const other = await loginAs("612");
+                expect(auth.getUser(other.req).access.lootcouncil).toEqual({ read: false, write: false });
+            });
+
+            it("grants nothing beyond the named area", async () => {
+                getConfig.mockImplementation(() => councilFor("613"));
+                const { req } = await loginAs("613");
+                const user = auth.getUser(req);
+                expect(user.isAdmin).toBe(false);
+                expect(user.access.settings).toEqual({ read: false, write: false });
+                expect(user.access.history).toEqual({ read: false, write: false });
+            });
+
+            it("needs no Discord lookup when nothing role-based is configured", async () => {
+                getConfig.mockImplementation(() => councilFor("614"));
+                const fetch = jest.fn();
+                auth.setClient(fakeClient(fetch).client);
+
+                const { req } = await loginAs("614");
+
+                expect(fetch).not.toHaveBeenCalled();
+                expect(auth.getUser(req).access.lootcouncil.write).toBe(true);
+            });
+
+            it("survives a failing role lookup, like the base access does", async () => {
+                getConfig.mockImplementation(() => ({ ...councilFor("615"), adminRoleIds: ["role-admin"] }));
+                auth.setClient(fakeClient(jest.fn().mockRejectedValue(new Error("Discord down"))).client);
+
+                const { req } = await loginAs("615");
+
+                expect(auth.getUser(req).access.lootcouncil).toEqual({ read: true, write: true });
+            });
+
+            it("unions with the role grants instead of replacing them", async () => {
+                getConfig.mockImplementation(() => ({
+                    adminRoleIds: [],
+                    userPermissions: { "616": { lootcouncil: { read: true, write: false } } },
+                    rolePermissions: { "role-a": { raids: { read: true, write: true } } },
+                }));
+                auth.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-a"))).client);
+
+                const { req } = await loginAs("616");
+                const user = auth.getUser(req);
+
+                expect(user.access.lootcouncil).toEqual({ read: true, write: false });
+                expect(user.access.raids).toEqual({ read: true, write: true });
+            });
+        });
+
         it("picks up permissions added after login once the cache expires", async () => {
             getConfig.mockImplementation(() => ({ adminRoleIds: [], rolePermissions: {} }));
             const { req } = await loginAs("605");
