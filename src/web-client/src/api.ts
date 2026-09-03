@@ -1861,8 +1861,22 @@ export type CouncilRaider = {
         skippedReports: number;
         /** Slots still held by a boss-specific piece the comparison reads as empty. */
         situational: number;
-        /** Slots filled from an older raid instead of one. */
+        /** Slots filled from another source (armory, another boss, an older raid). */
         substituted: number;
+        /**
+         * Boss-specific pieces taken out of the set entirely, because no source
+         * could say what the raider wears there otherwise. Those slots count as
+         * empty — which is what they are worth against every boss the council
+         * plans for — and the page names them.
+         */
+        dropped: {
+            slot: number;
+            slotName: string;
+            itemId: number;
+            itemName: string;
+            iconUrl: string;
+            note: string;
+        }[];
         /** Everything they wear, in character-sheet order. */
         items: WornItem[];
     } | null;

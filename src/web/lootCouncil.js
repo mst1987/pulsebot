@@ -551,6 +551,19 @@ function councilRoster(opts = {}) {
                 // night is precisely what this is here to prevent.
                 situational: gear.items.filter((it) => it.situational).length,
                 substituted: gear.items.filter((it) => it.replacedSituational).length,
+                // Boss-specific pieces that were taken out of the set because
+                // nothing could say what the raider wears there otherwise. The
+                // slot is empty on purpose, and the page says which and why —
+                // showing the piece would claim gear they do not have for the
+                // boss anybody is planning for.
+                dropped: (gear.dropped || []).map((it) => ({
+                    slot: it.slot,
+                    slotName: it.slotName,
+                    itemId: it.itemId,
+                    itemName: it.itemName,
+                    iconUrl: it.iconUrl,
+                    note: it.note,
+                })),
                 // The worn pieces themselves, in character-sheet order, so the
                 // page can show the raider's gear as a row of icons. Whether a
                 // piece is on their BiS list is decided here rather than in the
