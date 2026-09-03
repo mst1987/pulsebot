@@ -7,6 +7,15 @@ jest.mock("../../src/web/reportStore", () => ({
     getReport: (...a) => mockGetReport(...a),
 }));
 
+// Der Armory-Cache ist gemockt: geprüft wird, was charGear mit einer Antwort
+// macht, nicht wie sie geholt wird (das steht in armoryGear.test.js).
+const mockArmorySetFor = jest.fn(() => null);
+const mockArmoryItemInSlot = jest.fn(() => null);
+jest.mock("../../src/web/armoryGear", () => ({
+    armorySetFor: (...a) => mockArmorySetFor(...a),
+    armoryItemInSlot: (...a) => mockArmoryItemInSlot(...a),
+}));
+
 const { gearByCharacter, gearFor, itemInSlot, charKey } = require("../../src/web/charGear");
 
 const armoryItem = (over = {}) => ({
@@ -30,7 +39,11 @@ function setReports(...reports) {
 }
 
 describe("web/charGear", () => {
-    beforeEach(() => jest.clearAllMocks());
+    beforeEach(() => {
+        jest.clearAllMocks();
+        mockArmorySetFor.mockReturnValue(null);
+        mockArmoryItemInSlot.mockReturnValue(null);
+    });
 
     it("returns nothing when there are no reports", () => {
         setReports();
@@ -256,6 +269,91 @@ describe("web/charGear", () => {
             const worn = itemInSlot(casterGear(), 12);
             expect(worn.itemId).toBe(trinket);
             expect(worn.replacedSituational).toBeNull();
+        });
+    });
+
+    // Die Logs wissen, was jemand *getragen* hat; die Armory weiß, was er
+    // *anhat*. Zwischen zwei Raidnächten läuft das mit jedem Drop auseinander.
+    describe("gear from the armory", () => {
+        const wowsims = require("../../src/config/wowsims");
+        const shadowIds = wowsims.bisFor("Priest-Shadow", "t6").items.map((e) => e.id);
+        const logSet = shadowIds.slice(0, 16).map((itemId, i) => armoryItem({
+            slot: i, itemId: String(itemId), itemName: `Item ${itemId}`, gems: [],
+            enchant: { status: "ok", enchantId: "3002", reason: "" },
+        }));
+        const armoryRow = (slot, itemId) => ({
+            slot, itemId: String(itemId), itemName: `Item ${itemId}`, icon: null, quality: null,
+            itemLevel: 0, gems: [], emptySockets: 0, enchant: { status: "na", enchantId: null, reason: "" },
+        });
+        const casterGear = () => gearByCharacter({ roleFor: () => "caster" }).get("devihra");
+
+        beforeEach(() => {
+            setReports(report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: logSet }]));
+        });
+
+        it("uses the log while nobody has asked the armory", () => {
+            const gear = casterGear();
+            expect(gear.source).toBe("log");
+            expect(gear.armoryAt).toBe(0);
+        });
+
+        it("takes the whole set once the armory has answered", () => {
+            // Der gemeldete Fall: im Log noch Waffe + Nebenhand, in der Armory
+            // längst ein Zweihänder.
+            mockArmorySetFor.mockReturnValue({
+                at: 5000,
+                rows: [armoryRow(0, shadowIds[0]), armoryRow(15, 32374)],
+            });
+            const gear = casterGear();
+            expect(gear.source).toBe("armory");
+            expect(gear.armoryAt).toBe(5000);
+            expect(gear.items).toHaveLength(2);
+            expect(itemInSlot(gear, 15).itemId).toBe(32374);
+            // Die Nebenhand aus dem Log ist weg, weil die Armory sie nicht führt.
+            expect(itemInSlot(gear, 16)).toBeNull();
+        });
+
+        it("carries the log's enchant over for a piece that did not change", () => {
+            // Blizzards Verzauberungs-IDs sind nicht die von WoWSims — für
+            // dasselbe Teil ist die Verzauberung aber eine Tatsache über das
+            // Teil, nicht über die Quelle.
+            mockArmorySetFor.mockReturnValue({ at: 5000, rows: [armoryRow(0, shadowIds[0])] });
+            const worn = itemInSlot(casterGear(), 0);
+            expect(worn.enchantId).toBe(3002);
+            expect(worn.enchantStatus).toBe("ok");
+        });
+
+        it("claims no enchant for a piece that is new since the last raid", () => {
+            mockArmorySetFor.mockReturnValue({ at: 5000, rows: [armoryRow(0, 32341)] });
+            const gear = casterGear();
+            expect(itemInSlot(gear, 0).enchantId).toBe(0);
+            expect(itemInSlot(gear, 0).enchantStatus).toBe("na");
+            // Und es wird gezählt, damit die Seite sagen kann, dass die
+            // Simulation dieses Teil unverzaubert rechnet.
+            expect(gear.unverifiedEnchants).toBe(1);
+        });
+
+        it("keeps the log's name and icon for the same piece", () => {
+            // Die Armory schickt kein Icon; das Log hat eins gesehen, auch für
+            // Teile, die die generierte Tabelle nicht kennt.
+            mockArmorySetFor.mockReturnValue({ at: 5000, rows: [armoryRow(0, shadowIds[0])] });
+            expect(itemInSlot(casterGear(), 0).iconUrl).toContain("inv_helmet_99");
+        });
+
+        it("refuses a set that is the wrong role for this raider", () => {
+            // Wer gerade in Heilgear steckt, wird trotzdem an seinem Casterset
+            // gemessen — dieselbe Regel wie bei den Logs.
+            const healIds = Object.entries(require("../../src/config/wowsims/casterItems.json").items)
+                .filter(([, it]) => (it.stats.healingPower || 0) > 60 && !it.stats.spellHit && it.ilvl >= 120)
+                .sort((a, b) => b[1].stats.healingPower - a[1].stats.healingPower)
+                .slice(0, 16)
+                .map(([id]) => Number(id));
+            mockArmorySetFor.mockReturnValue({
+                at: 5000,
+                rows: healIds.map((id, i) => armoryRow(i, id)),
+            });
+            const gear = casterGear();
+            expect(gear.source).toBe("log");
         });
     });
 

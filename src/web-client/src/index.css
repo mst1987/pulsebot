@@ -2031,3 +2031,41 @@ a.gear-row:hover { background: var(--panel2); }
     .lc-blcorner, .lc-blslot { width: 88px; }
     .lc-blcol { width: 210px; }
 }
+
+/* ── Loot-Council: die Aktionen an einem Raider ───────────────────────────
+   Vier Knöpfe nebeneinander, die vier verschiedene Dinge tun — Daten holen,
+   woanders hin, etwas ausrechnen, jemanden aussortieren. Als vier identische
+   graue Knöpfe muss man sie jedes Mal lesen. Die Farbe trägt hier also die
+   Bedeutung, nicht die Dekoration:
+
+     Armory laden   Akzent (violett)  — die Aktion, die Daten verändert
+     Armory ↗       Akzent-2 (cyan)   — führt aus der Seite hinaus
+     Sim-Export     neutral           — nimmt nur mit, was schon da ist
+     Nicht einplanen rot              — entfernt jemanden aus der Planung
+
+   Alles aus den Tokens; kein Knopf wird gefüllt, damit die Reihe ruhig bleibt
+   und die Farbe am Rand steht, wo sie unterscheidet ohne zu schreien. */
+.btn-armory {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.btn-armory:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+
+.btn-armory-link {
+    color: var(--accent-2);
+    border-color: color-mix(in srgb, var(--accent-2) 55%, transparent);
+}
+.btn-armory-link:hover { background: color-mix(in srgb, var(--accent-2) 14%, transparent); border-color: var(--accent-2); }
+
+.btn-sim { color: var(--text); border-color: var(--line); }
+.btn-sim:hover:not(:disabled) { background: var(--panel3); }
+
+.btn-drop {
+    color: var(--high);
+    border-color: color-mix(in srgb, var(--high) 45%, transparent);
+}
+.btn-drop:hover:not(:disabled) { background: var(--high-bg); border-color: var(--high); }
+
+/* Gear, das aus der Armory statt aus einer Auswertung stammt — der Stempel sagt
+   das, statt ein frisches Datum wie ein frisches Log aussehen zu lassen. */
+.lc-gear-armory { color: var(--accent-2); font-weight: 600; }

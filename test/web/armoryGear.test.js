@@ -13,7 +13,7 @@ jest.mock("../../src/classes/blizzard", () => jest.fn().mockImplementation(() =>
 jest.mock("../../src/web/settingsStore", () => ({ getConfig: (...a) => mockGetConfig(...a) }));
 
 const {
-    primeArmoryGear, armoryItemInSlot, hasArmoryGear, clearArmoryCache, toArmoryRows,
+    primeArmoryGear, armoryItemInSlot, armorySetFor, hasArmoryGear, clearArmoryCache, toArmoryRows,
 } = require("../../src/web/armoryGear");
 
 const equipped = (slot, id, over = {}) => ({
@@ -88,6 +88,50 @@ describe("web/armoryGear", () => {
             mockGetEquipment.mockResolvedValue([equipped("TRINKET_2", 32483)]);
             await primeArmoryGear(["Devihra-Thunderstrike"]);
             expect(armoryItemInSlot("devihra", 13).itemId).toBe("32483");
+        });
+    });
+
+    describe("armorySetFor", () => {
+        it("answers only for a set that was fetched as a set", async () => {
+            // Die enge Abfrage hinter einem bossabhängigen Slot füllt denselben
+            // Cache — sie darf aber nicht ungefragt das ganze Gear eines Raiders
+            // austauschen. Das ist eine Entscheidung des Lesers, kein
+            // Nebeneffekt eines Seitenaufrufs.
+            mockGetEquipment.mockResolvedValue([equipped("HEAD", 31064)]);
+            await primeArmoryGear(["Devihra"]);
+            expect(armorySetFor("Devihra")).toBeNull();
+
+            await primeArmoryGear(["Devihra"], { full: true });
+            expect(armorySetFor("Devihra").rows).toHaveLength(1);
+        });
+
+        it("re-fetches when a whole set is wanted and only a slot was cached", async () => {
+            mockGetEquipment.mockResolvedValue([equipped("HEAD", 31064)]);
+            await primeArmoryGear(["Devihra"]);
+            await primeArmoryGear(["Devihra"], { full: true });
+            expect(mockGetEquipment).toHaveBeenCalledTimes(2);
+        });
+
+        it("fetches again on force, however fresh the cache is", async () => {
+            mockGetEquipment.mockResolvedValue([equipped("HEAD", 31064)]);
+            await primeArmoryGear(["Devihra"], { full: true });
+            await primeArmoryGear(["Devihra"], { full: true, force: true });
+            expect(mockGetEquipment).toHaveBeenCalledTimes(2);
+        });
+
+        it("asks for several raiders at once rather than one after another", async () => {
+            let open = 0;
+            let peak = 0;
+            mockGetEquipment.mockImplementation(async () => {
+                open += 1;
+                peak = Math.max(peak, open);
+                await new Promise((r) => setImmediate(r));
+                open -= 1;
+                return [equipped("HEAD", 31064)];
+            });
+            await primeArmoryGear(["A", "B", "C", "D"], { full: true });
+            expect(peak).toBeGreaterThan(1);
+            expect(mockGetEquipment).toHaveBeenCalledTimes(4);
         });
     });
 

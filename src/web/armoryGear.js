@@ -37,6 +37,10 @@ const SLOT_BY_TYPE = {
 // swapped shows up in the same session.
 const TTL_MS = 10 * 60 * 1000;
 
+// Wie viele Abfragen gleichzeitig laufen. Genug, dass ein Raid nicht seriell
+// abgearbeitet wird, wenig genug, dass die API nicht geflutet wird.
+const CONCURRENCY = 5;
+
 const cache = new Map();
 
 function keyOf(character) {
@@ -76,7 +80,7 @@ function toArmoryRows(gear) {
  * @param {string[]} characters names, as the reports spell them
  * @returns {Promise<{asked: number, answered: number, configured: boolean}>}
  */
-async function primeArmoryGear(characters) {
+async function primeArmoryGear(characters, { full = false, force = false } = {}) {
     const config = getConfig();
     const client = new Blizzard(config.blizzard || {});
     if (!client.isConfigured()) return { asked: 0, answered: 0, configured: false };
@@ -84,26 +88,58 @@ async function primeArmoryGear(characters) {
     const now = Date.now();
     const wanted = [...new Set((characters || []).map((c) => String(c || "").trim()).filter(Boolean))]
         .filter((name) => {
+            if (force) return true;
             const hit = cache.get(keyOf(name));
-            return !hit || now - hit.at > TTL_MS;
+            if (!hit) return true;
+            // An entry fetched for one slot does not satisfy a request for the
+            // whole set — the caller wants more than it holds.
+            if (full && !hit.full) return true;
+            return now - hit.at > TTL_MS;
         });
 
     let answered = 0;
-    for (const name of wanted) {
-        let rows = null;
-        try {
-            const gear = await client.getEquipment(name);
-            rows = gear ? toArmoryRows(gear) : null;
-        } catch {
-            rows = null;
+    // A raid is twenty-odd names, and one after another that is a page load
+    // spent waiting. A handful at a time keeps it near the slowest call without
+    // hammering the API.
+    const queue = [...wanted];
+    const worker = async () => {
+        for (let name = queue.shift(); name !== undefined; name = queue.shift()) {
+            let rows = null;
+            try {
+                const gear = await client.getEquipment(name);
+                rows = gear ? toArmoryRows(gear) : null;
+            } catch {
+                rows = null;
+            }
+            // A failed lookup is cached too, as "no answer": otherwise every
+            // page view retries a character the API does not know, and the
+            // council waits for it every time.
+            cache.set(keyOf(name), { at: Date.now(), rows, full });
+            if (rows && rows.length) answered += 1;
         }
-        // A failed lookup is cached too, as "no answer": otherwise every page
-        // view retries a character the API does not know, and the council waits
-        // for it every time.
-        cache.set(keyOf(name), { at: Date.now(), rows });
-        if (rows && rows.length) answered += 1;
-    }
+    };
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, wanted.length) }, worker));
     return { asked: wanted.length, answered, configured: true };
+}
+
+/**
+ * Everything the armory has on a character — the whole set, not one slot.
+ *
+ * This is what the loot council wants for a raider who has geared up since
+ * their last logged raid: the logs know what they *wore*, the armory knows what
+ * they *have on*.
+ *
+ * Only answers for a set that was fetched *as* a set — somebody pressed the
+ * button. The narrow lookup behind a boss-specific slot fills the same cache,
+ * but it must not quietly swap out a raider's whole gear on a page load nobody
+ * asked for.
+ *
+ * @returns {{at: number, rows: object[]}|null}
+ */
+function armorySetFor(character) {
+    const hit = cache.get(keyOf(character));
+    if (!hit || !hit.full || !hit.rows || !hit.rows.length) return null;
+    return { at: hit.at, rows: hit.rows };
 }
 
 /**
@@ -131,6 +167,6 @@ function clearArmoryCache() {
 }
 
 module.exports = {
-    primeArmoryGear, armoryItemInSlot, hasArmoryGear, clearArmoryCache,
+    primeArmoryGear, armoryItemInSlot, armorySetFor, hasArmoryGear, clearArmoryCache,
     toArmoryRows, SLOT_BY_TYPE, TTL_MS,
 };
