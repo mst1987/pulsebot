@@ -45,13 +45,22 @@ describe("loot council — raider blocks", () => {
     });
 
     it("keeps the gear inside the raider's block, under the rail", () => {
-        // The band is the last child of the block — the gear is never a sibling
-        // of the block that owns it.
+        // Die Gear-Zeile gehört in den Block, nie daneben.
         const block = fn("RaiderBlock");
         expect(block).toMatch(/<article className="lc-raider" style=\{classColorProps\(r\.classColor\)\.style\}/);
-        expect(block).toMatch(/<GearBand raider=\{r\} \/>\s*<\/article>/);
+        expect(block).toMatch(/<GearBand raider=\{r\} \/>/);
         // The rail is the class colour handed down as --cc.
         expect(rule(".lc-raider")).toMatch(/border-left: 4px solid var\(--cc/);
+    });
+
+    it("opens the sim export at the raider it was asked for", () => {
+        // Oben an der Seite hieße: bei einem Raider weit unten erst
+        // hochscrollen, um das Ergebnis des eigenen Klicks zu sehen.
+        const block = fn("RaiderBlock");
+        expect(block).toMatch(/\{exportData \? <ExportPanel data=\{exportData\} onClose=\{onCloseExport\} \/> : null\}\s*<\/article>/);
+        // Und die Seite reicht ihn nur dem Raider durch, der ihn angefordert hat.
+        expect(page).toMatch(/exportData\.character\.toLowerCase\(\) === r\.character\.toLowerCase\(\)/);
+        expect(page).not.toMatch(/view\.tab === "roster" && exportData/);
     });
 
     it("labels the band and says how many BiS pieces are worn", () => {

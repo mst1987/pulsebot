@@ -176,7 +176,7 @@ function runRequest(request) {
 
 /**
  * The same loadout as a WoWSims "From JSON" import (IndividualSimSettings), so
- * anyone can paste it into wowsims.github.io/tbc and check our number.
+ * anyone can paste it into wowsims.com/tbc and check our number.
  *
  * Deliberately built from the *same* pieces as the headless run — the enriched
  * player (gear, talents, spec options, ground-truth rotation, consumables),

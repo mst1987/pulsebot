@@ -191,7 +191,7 @@ async function postExclude(req, res) {
 
 /**
  * GET /api/lootcouncil/export?character=… — that raider's loadout as a WoWSims
- * "From JSON" import, so anyone can paste it into wowsims.github.io/tbc and
+ * "From JSON" import, so anyone can paste it into wowsims.com/tbc and
  * check the number this page shows.
  *
  * Built from the same pieces as our own run, so it reproduces our DPS rather
@@ -235,7 +235,7 @@ async function getExport(req, res, url) {
         spec: specEntry.key,
         specLabel: specEntry.label,
         // Where to paste it — the WoWSims import does not switch class itself.
-        simUrl: SIM_URLS[specEntry.key] || SIM_URLS[specEntry.simSpec] || "https://wowsims.github.io/tbc/",
+        simUrl: SIM_URLS[specEntry.key] || SIM_URLS[specEntry.simSpec] || "https://www.wowsims.com/tbc/",
         seenAt: gear.seenAt,
         reportTitle: gear.reportTitle,
         warnings: [...built.warnings, ...substitutions, ...stillSituational],
@@ -246,16 +246,23 @@ async function getExport(req, res, url) {
 // Which WoWSims page an export belongs on. The individual import reads gear and
 // talents from the JSON but not the class, so pasting a priest export on the
 // mage sim silently produces nonsense.
+//
+// wowsims.com, not the old wowsims.github.io: that one only forwards from
+// inside the loaded page, so every link cost a detour — and its shadow-priest
+// path answers 404 outright. Every address below was checked against the live
+// site; an invented path there answers 200 with a 1.8 KB placeholder rather
+// than an error, so "it loads" is not proof and the pages were told apart by
+// what they actually return.
 const SIM_URLS = {
-    "Priest-Shadow": "https://wowsims.github.io/tbc/priest/dps/",
-    "Mage-Arcane": "https://wowsims.github.io/tbc/mage/",
-    "Mage-Fire": "https://wowsims.github.io/tbc/mage/",
-    "Mage-Frost": "https://wowsims.github.io/tbc/mage/",
-    "Warlock-Destruction": "https://wowsims.github.io/tbc/warlock/",
-    "Warlock-Affliction": "https://wowsims.github.io/tbc/warlock/",
-    "Warlock-Demonology": "https://wowsims.github.io/tbc/warlock/",
-    "Druid-Balance": "https://wowsims.github.io/tbc/balance_druid/",
-    "Shaman-Elemental": "https://wowsims.github.io/tbc/elemental_shaman/",
+    "Priest-Shadow": "https://www.wowsims.com/tbc/priest/dps/",
+    "Mage-Arcane": "https://www.wowsims.com/tbc/mage/dps/",
+    "Mage-Fire": "https://www.wowsims.com/tbc/mage/dps/",
+    "Mage-Frost": "https://www.wowsims.com/tbc/mage/dps/",
+    "Warlock-Destruction": "https://www.wowsims.com/tbc/warlock/dps/",
+    "Warlock-Affliction": "https://www.wowsims.com/tbc/warlock/dps/",
+    "Warlock-Demonology": "https://www.wowsims.com/tbc/warlock/dps/",
+    "Druid-Balance": "https://www.wowsims.com/tbc/druid/balance/",
+    "Shaman-Elemental": "https://www.wowsims.com/tbc/shaman/elemental/",
 };
 
 /**
