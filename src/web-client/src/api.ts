@@ -1859,6 +1859,19 @@ export type CouncilRaider = {
         roleMismatch: boolean;
         /** Newer raids skipped to find a set of the right role. */
         skippedReports: number;
+        /**
+         * Where this set comes from: "log" — the last evaluation, "armory" —
+         * what the character has on now, because somebody pressed the button.
+         */
+        source: "log" | "armory";
+        /** When the armory answered (0 for a log set). */
+        armoryAt: number;
+        /**
+         * Pieces that are new since the last raid: the armory names the item,
+         * but its enchant ids are not the ones WoWSims uses, so no enchant is
+         * claimed for them and the simulation runs them unenchanted.
+         */
+        unverifiedEnchants: number;
         /** Slots still held by a boss-specific piece the comparison reads as empty. */
         situational: number;
         /** Slots filled from another source (armory, another boss, an older raid). */
@@ -2119,6 +2132,20 @@ export function setCouncilExcluded(
     reason = "",
 ): Promise<{ character: string; excluded: boolean }> {
     return send("POST", "/api/lootcouncil/exclude", csrfToken, { character, exclude: excluded, reason });
+}
+
+/**
+ * Fetch these raiders' current gear from the armory.
+ *
+ * A button, not a page load: it is one call per raider to an API outside this
+ * app, and "nimm den Stand von jetzt" is a decision the reader makes. The
+ * council data has to be reloaded afterwards to show it.
+ */
+export function refreshCouncilArmory(
+    csrfToken: string | null,
+    characters: string[],
+): Promise<{ asked: number; answered: number; configured: boolean }> {
+    return send("POST", "/api/lootcouncil/armory", csrfToken, { characters });
 }
 
 /**

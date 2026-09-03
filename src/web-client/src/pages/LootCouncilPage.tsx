@@ -30,7 +30,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useOutletContext } from "react-router-dom";
 import {
-    getLootCouncil, runCouncilSim, searchCouncilItems, setCouncilExcluded, getCouncilExport, getBisLists, canAccess,
+    getLootCouncil, runCouncilSim, searchCouncilItems, setCouncilExcluded, getCouncilExport, getBisLists, refreshCouncilArmory, canAccess,
     type ApiError, type CouncilCandidate, type CouncilGap, type CouncilItem, type CouncilLootItem, type CouncilRaider, type WornItem,
     type CouncilExport, type ItemSearchResult, type LootCouncilData, type SimJob, type SimResult,
     type BisListsData, type CouncilItemHit,
@@ -568,7 +568,21 @@ const STAT_LABELS: Record<string, string> = {
 function GearStamp({ raider }: { raider: CouncilRaider }) {
     const g = raider.gear;
     if (!g) return <>—</>;
-    const stamp = `${fmtMs(g.seenAt, false)}${g.hitCap > 0 ? ` · Hit ${g.spellHit}/${g.hitCap}` : ""}`;
+    const hit = g.hitCap > 0 ? ` · Hit ${g.spellHit}/${g.hitCap}` : "";
+
+    // Aus der Armory heißt: der Stand von jetzt, nicht der der letzten
+    // Auswertung. Das muss vorne stehen, sonst liest sich ein frisches Datum
+    // wie ein frisches Log.
+    if (g.source === "armory") {
+        return (
+            <span className="lc-gear-armory" title={`Aktuelles Gear aus der Armory, geholt ${fmtMs(g.armoryAt, true)}.${g.unverifiedEnchants ? ` ${g.unverifiedEnchants} Teil(e) sind seit der letzten Auswertung dazugekommen — für die ist keine Verzauberung bekannt, die Simulation rechnet sie unverzaubert.` : ""}`}>
+                Armory{hit}
+                {g.unverifiedEnchants ? <span className="sub"> · {g.unverifiedEnchants} ohne VZ-Info</span> : null}
+            </span>
+        );
+    }
+
+    const stamp = `${fmtMs(g.seenAt, false)}${hit}`;
     // What the set is *not* purely their normal kit for. Rides along with every
     // branch below, because it is orthogonal to how the set was found.
     const slots = (
@@ -711,7 +725,7 @@ function SortHead({ sortKey, label, title, sort, dir, onSort }: {
  * names. The columns still line up with the header above the list, so the
  * numbers stay comparable down the page and every column still sorts.
  */
-function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude }: {
+function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude, onArmory }: {
     raider: CouncilRaider;
     rank: number;
     sim: SimResult | null;
@@ -719,6 +733,7 @@ function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude
     canWrite: boolean;
     onExport: (character: string) => void;
     onExclude: (character: string) => void;
+    onArmory: (character: string) => void;
 }) {
     return (
         <article className="lc-raider" style={classColorProps(r.classColor).style} role="row">
@@ -748,13 +763,28 @@ function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude
                     {/* Das Gear hier ist zuletzt *im Log gesehen*, nie live —
                         ein Klick in die Armory macht das nachprüfbar, statt es
                         einem Council zum Glauben vorzusetzen. */}
+                    {canWrite ? (
+                        <button
+                            type="button"
+                            className="btn btn-ghost btn-sm btn-armory"
+                            title={r.gear && r.gear.source === "armory"
+                                ? "Gear noch einmal aus der Armory holen"
+                                : "Gear aus der Armory holen — die Seite zeigt sonst den Stand der letzten Auswertung"}
+                            disabled={busy.has(`armory:${r.character}`)}
+                            onClick={() => onArmory(r.character)}
+                        >
+                            {busy.has(`armory:${r.character}`)
+                                ? <><ButtonSpinner />Armory …</>
+                                : "Armory laden"}
+                        </button>
+                    ) : null}
                     {r.armoryUrl ? (
                         <a
-                            className="btn btn-ghost btn-sm"
+                            className="btn btn-ghost btn-sm btn-armory-link"
                             href={r.armoryUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            title="Armory öffnen — das Gear hier stammt aus der letzten Auswertung, nicht von jetzt"
+                            title="Armory im Browser öffnen und selbst nachsehen"
                         >
                             Armory ↗
                         </a>
@@ -762,7 +792,7 @@ function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude
                     {r.gear && r.simSupported ? (
                         <button
                             type="button"
-                            className="btn btn-ghost btn-sm"
+                            className="btn btn-ghost btn-sm btn-sim"
                             title="Loadout als WoWSims-Import, um die Zahl selbst nachzurechnen"
                             disabled={busy.has(`export:${r.character}`)}
                             onClick={() => onExport(r.character)}
@@ -775,7 +805,7 @@ function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude
                     {canWrite ? (
                         <button
                             type="button"
-                            className="btn btn-ghost btn-sm"
+                            className="btn btn-ghost btn-sm btn-drop"
                             title="Nicht mehr einplanen — bleibt in der Historie, verschwindet nur aus dieser Liste"
                             disabled={busy.has(`exclude:${r.character}`)}
                             onClick={() => onExclude(r.character)}
@@ -1720,6 +1750,11 @@ export default function LootCouncilPage() {
         () => roster.filter((r) => r.simSupported && r.gear).map((r) => ({ key: r.key, specKey: r.specKey })),
         [roster],
     );
+    /** Wie viele Raider gerade mit Armory-Gear bewertet werden statt mit dem Log. */
+    const armoryCount = useMemo(
+        () => roster.filter((r) => r.gear && r.gear.source === "armory").length,
+        [roster],
+    );
 
     // The table opens on the server's own order (most overdue first), which is
     // the question the page is here to answer; every other column is one click.
@@ -1769,6 +1804,25 @@ export default function LootCouncilPage() {
         `export:${character}`,
         async () => setExportData(await getCouncilExport(character)),
     );
+
+    /**
+     * Fetch current gear from the armory, then reload.
+     *
+     * The reload is the point: the armory answer changes the gear, which changes
+     * the BiS count, the upgrade values and the DPS estimate. Patching one row
+     * would leave the rest of the page arguing from the old set.
+     */
+    const loadArmory = (characters: string[], key: string) => runFor(key, async () => {
+        const result = await refreshCouncilArmory(csrfToken, characters);
+        await load();
+        if (!result.answered) {
+            setSimError(characters.length === 1
+                ? `Die Armory kennt ${characters[0]} nicht (oder antwortet gerade nicht) — es bleibt beim Stand der letzten Auswertung.`
+                : "Die Armory hat für niemanden geantwortet — es bleibt beim Stand der letzten Auswertung.");
+        } else {
+            setSimError("");
+        }
+    });
 
     /**
      * Set a raider aside, or take them back in.
@@ -1919,6 +1973,38 @@ export default function LootCouncilPage() {
                 </div>
             </Section>
 
+            {/* Gear-Herkunft: die Seite liest sonst den Stand der letzten
+                Auswertung, und zwischen zwei Raidnächten veraltet der mit jedem
+                Drop. Ein Knopf, weil es ein Aufruf je Raider an eine fremde API
+                ist — und weil „nimm den Stand von jetzt" eine Entscheidung des
+                Lesers ist, keine Nebenwirkung eines Seitenaufrufs. */}
+            <Section
+                title="Gear-Stand"
+                hint={armoryCount
+                    ? `${armoryCount} von ${roster.length} Raider(n) mit Gear aus der Armory, der Rest aus der letzten Auswertung.`
+                    : "Alles Gear stammt aus der letzten Auswertung. Wer seitdem etwas angezogen hat, wird hier noch mit dem alten Set bewertet."}
+                actions={canWrite ? (
+                    <button
+                        type="button"
+                        className="btn btn-sm btn-armory"
+                        disabled={!roster.length || busy.has("armory:all")}
+                        title="Holt für jeden Raider der Liste das aktuelle Gear aus der Armory"
+                        onClick={() => loadArmory(roster.map((r) => r.character), "armory:all")}
+                    >
+                        {busy.has("armory:all")
+                            ? <><ButtonSpinner />Armory wird geladen …</>
+                            : `Gear aus Armory holen (${roster.length})`}
+                    </button>
+                ) : null}
+            >
+                <div className="hint">
+                    Verzauberungen kommen weiter aus den Auswertungen: Blizzards Verzauberungs-IDs sind nicht die,
+                    die WoWSims erwartet. Für ein Teil, das seit dem letzten Raid dazugekommen ist, wird deshalb
+                    keine Verzauberung behauptet — die Simulation rechnet es unverzaubert und fällt entsprechend
+                    etwas zu niedrig aus.
+                </div>
+            </Section>
+
             <Section
                 title="Simulation"
                 hint={data.sim.available
@@ -2012,6 +2098,7 @@ export default function LootCouncilPage() {
                                     canWrite={canWrite}
                                     onExport={showExport}
                                     onExclude={(character) => setExcluded(character, true)}
+                                    onArmory={(character) => loadArmory([character], `armory:${character}`)}
                                 />
                             ))}
                         </div>

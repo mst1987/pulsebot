@@ -549,6 +549,12 @@ function councilRoster(opts = {}) {
                 // raid instead of one. Both are counted for the page's stamp —
                 // silently comparing against gear nobody wears on a normal
                 // night is precisely what this is here to prevent.
+                // Woher das Set stammt — die Auswertung oder die Armory. Ohne
+                // das liest sich ein Gear-Stand von „gerade eben" wie ein Log
+                // von gerade eben, und das wäre eine Lüge über die Herkunft.
+                source: gear.source || "log",
+                armoryAt: gear.armoryAt || 0,
+                unverifiedEnchants: gear.unverifiedEnchants || 0,
                 situational: gear.items.filter((it) => it.situational).length,
                 substituted: gear.items.filter((it) => it.replacedSituational).length,
                 // Boss-specific pieces that were taken out of the set because

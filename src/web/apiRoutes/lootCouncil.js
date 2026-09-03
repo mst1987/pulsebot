@@ -285,6 +285,32 @@ async function getItemSearch(req, res, url) {
 }
 
 /**
+ * POST /api/lootcouncil/armory — fetch the current gear of these raiders from
+ * the armory, so the page stops judging them on their last logged raid.
+ *
+ * Deliberately a button and not a page load. It is a call per raider to an API
+ * outside this app: doing it on every view would make the council slow and
+ * would spend somebody else's rate limit on a page nobody is reading. And it is
+ * a decision — "nimm den Stand von jetzt" — which belongs to the reader.
+ */
+async function postArmoryRefresh(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!userCan(user, "lootcouncil", "write")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
+    if (!requireCsrf(req, res)) return;
+
+    const body = await readJsonBody(req);
+    const characters = Array.isArray(body.characters) ? body.characters : [];
+    if (!characters.length) return apiError(res, 400, "Keine Charaktere angegeben.");
+
+    const result = await primeArmoryGear(characters, { full: true, force: true });
+    if (!result.configured) {
+        return apiError(res, 400, "Für die Armory fehlen die Battle.net-Zugangsdaten (Einstellungen → Verbindungen).");
+    }
+    ok(res, result);
+}
+
+/**
  * GET /api/lootcouncil/bislists?tier=… — which gear set is BiS for which caster
  * DPS class and spec, as the matrix the tab draws (see web/bisLists.js).
  */
@@ -307,5 +333,5 @@ async function getLootCouncilSim(req, res, url) {
 
 module.exports = {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim,
-    getItemSearch, getBisLists, postExclude, getExport,
+    getItemSearch, getBisLists, postExclude, getExport, postArmoryRefresh,
 };

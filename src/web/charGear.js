@@ -26,7 +26,7 @@ const { characterKey, splitPlayer } = require("../utils/lootImport");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 const { gearProfile, fitsRole } = require("./gearProfile");
 const { situationalItem } = require("../config/situationalItems");
-const { armoryItemInSlot } = require("./armoryGear");
+const { armoryItemInSlot, armorySetFor } = require("./armoryGear");
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons/large";
 
@@ -165,6 +165,59 @@ function replaceSituational(items, character) {
             },
         };
     });
+}
+
+/**
+ * Replace a raider's set with what the armory says they have on now.
+ *
+ * The logs know what somebody *wore*, the armory knows what they *have on* — and
+ * between two raid nights those drift apart with every drop, every craft, every
+ * badge purchase. A council planning tonight's loot against last Monday's gear
+ * argues about the wrong set.
+ *
+ * The one thing the armory cannot be trusted for is enchants: Blizzard's ids are
+ * not the ones WoWSims expects, and claiming one would be a guess. So the log's
+ * enchant is carried over wherever it is the *same piece* — then it is a fact
+ * about that item, not about the source. A piece that is new since the last raid
+ * has no verified enchant, is counted in `unverifiedEnchants`, and the
+ * simulation runs it unenchanted, which understates it slightly and says so.
+ *
+ * @param {object} snapshot the log-derived set, replaced in place
+ * @param {{at: number, rows: object[]}} set the armory answer
+ */
+function useArmorySet(snapshot, set) {
+    const byLog = new Map(snapshot.items.map((it) => [it.slot, it]));
+    let unverified = 0;
+    const items = set.rows
+        .map((row) => {
+            const item = trimItem(row);
+            const logged = byLog.get(item.slot);
+            const same = logged && logged.itemId === item.itemId;
+            if (same) {
+                // Same piece, so the log's reading of it still holds — that is
+                // where the enchant and the socket count come from.
+                item.enchantId = logged.enchantId;
+                item.enchantStatus = logged.enchantStatus;
+                item.emptySockets = logged.emptySockets;
+                if (!item.gems.filter(Boolean).length) item.gems = logged.gems;
+                // The log also saw the real icon and name, including for items
+                // the generated table does not carry.
+                if (logged.iconUrl) { item.icon = logged.icon; item.iconUrl = logged.iconUrl; }
+                if (logged.itemName) item.itemName = logged.itemName;
+                if (logged.quality !== null) item.quality = logged.quality;
+                if (logged.itemLevel) item.itemLevel = logged.itemLevel;
+            } else if (item.enchantStatus === "na") {
+                unverified += 1;
+            }
+            return item;
+        })
+        .sort((a, b) => DISPLAY_ORDER.indexOf(a.slot) - DISPLAY_ORDER.indexOf(b.slot));
+
+    snapshot.items = replaceSituational(items, snapshot.character);
+    snapshot.source = "armory";
+    snapshot.armoryAt = set.at;
+    snapshot.unverifiedEnchants = unverified;
+    return snapshot;
 }
 
 /**
@@ -322,6 +375,11 @@ function gearByCharacter({ roleFor } = {}) {
                 // Boss-specific pieces nothing could answer, taken out of the
                 // set at the end of the walk (dropSituational).
                 dropped: [],
+                // Where this set comes from: the evaluation, or the armory when
+                // somebody asked for it (useArmorySet).
+                source: "log",
+                armoryAt: 0,
+                unverifiedEnchants: 0,
             };
 
             const wanted = roleFor ? roleFor(key) : "";
@@ -343,9 +401,21 @@ function gearByCharacter({ roleFor } = {}) {
     for (const [key, snapshot] of rejected) {
         if (!out.has(key)) out.set(key, { ...snapshot, roleMismatch: true, skippedReports: 0 });
     }
-    // Last: whatever no source could answer leaves the set. A piece worth zero
-    // in every comparison must not sit in a raider's gear pretending otherwise.
-    for (const snapshot of out.values()) dropSituational(snapshot);
+    for (const snapshot of out.values()) {
+        // The armory wins where somebody asked for it: it is the only source
+        // that knows what a raider has on *now*, and between two raid nights the
+        // logs go stale with every drop. Only when it fits the role, though — a
+        // shaman currently in healing gear is judged on their caster set, same
+        // rule as everywhere here.
+        const set = armorySetFor(snapshot.character);
+        if (set && fitsRole(gearProfile({ items: set.rows.map(trimItem) }), roleFor ? roleFor(snapshot.key) : "")) {
+            useArmorySet(snapshot, set);
+        }
+        // Last: whatever no source could answer leaves the set. A piece worth
+        // zero in every comparison must not sit in a raider's gear pretending
+        // otherwise.
+        dropSituational(snapshot);
+    }
     return out;
 }
 
