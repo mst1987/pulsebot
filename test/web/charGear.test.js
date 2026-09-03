@@ -132,6 +132,41 @@ describe("web/charGear", () => {
 
         const casterGear = () => gearByCharacter({ roleFor: () => "caster" }).get("devihra");
 
+        it("prefers what they wore on another boss of the same night", () => {
+            // Die beste Auskunft, die es gibt: derselbe Raider, derselbe Abend,
+            // einen Boss weiter. Die Auswertung hat das beim Bauen mitgeschrieben
+            // (utils/logcheck/gearVariants.js), also muss der Griff in ältere
+            // Auswertungen gar nicht erst passieren.
+            const withAlternate = casterSet(MOTC);
+            withAlternate[12].alternate = {
+                slot: 12, itemId: String(trinket), itemName: `Item ${trinket}`,
+                gems: [], enchant: { status: "na", enchantId: null }, fight: "Illidan Stormrage",
+            };
+            setReports(
+                report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: withAlternate }]),
+                report("alt", 2000, [{ name: "Devihra", type: "Priest", armory: casterSet(shadowIds[13]) }]),
+            );
+            const worn = itemInSlot(casterGear(), 12);
+            expect(worn.itemId).toBe(trinket);
+            expect(worn.situational).toBeNull();
+            expect(worn.replacedSituational).toMatchObject({
+                itemId: MOTC, sameRaid: true, fight: "Illidan Stormrage",
+            });
+        });
+
+        it("ignores a same-night alternative the raider wears elsewhere", () => {
+            const withAlternate = casterSet(MOTC);
+            withAlternate[13] = { ...withAlternate[13], itemId: String(trinket), itemName: `Item ${trinket}` };
+            withAlternate[12].alternate = {
+                slot: 12, itemId: String(trinket), itemName: `Item ${trinket}`,
+                gems: [], enchant: { status: "na", enchantId: null }, fight: "Illidan Stormrage",
+            };
+            setReports(report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: withAlternate }]));
+            const gear = casterGear();
+            expect(itemInSlot(gear, 12).itemId).toBe(MOTC);
+            expect(itemInSlot(gear, 12).itemId).not.toBe(itemInSlot(gear, 13).itemId);
+        });
+
         it("substitutes what the raider wears in that slot on a normal night", () => {
             setReports(
                 report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: casterSet(MOTC) }]),

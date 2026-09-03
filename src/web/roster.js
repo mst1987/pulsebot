@@ -18,7 +18,7 @@ const { characterMap } = require("./characterStore");
 const { latestIssuesByCharacter } = require("./charGearIssues");
 const { characterKey: lootCharacterKey, splitPlayer } = require("../utils/lootImport");
 const { CLASS_COLORS, classSpecIconUrl } = require("../utils/setupView");
-const { applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../config/variables");
+const { armoryUrlFor, wclUrlFor } = require("./charLinks");
 const { listKnownCategories } = require("./categoryNames");
 
 // How much loot a roster row carries for its hover panel. The overview shows
@@ -29,11 +29,6 @@ function charKey(character) {
     return lootCharacterKey(splitPlayer(character).character);
 }
 
-// Fill a {char} URL template (armory / WCL) for a character name — same helper
-// apiRoutes/history.js uses for the character detail page.
-function fillCharTemplate(tpl, character) {
-    return String(tpl || "").replace("{char}", encodeURIComponent(String(character || "").trim()));
-}
 
 /**
  * Assemble the roster of one guild.
@@ -114,8 +109,8 @@ function buildRoster(guildId) {
             source: row.source || info.source || "",
             classColor: CLASS_COLORS[className] || "",
             iconUrl: className ? classSpecIconUrl(className, spec) : "",
-            armoryUrl: fillCharTemplate(applyArmoryUrlTemplate, row.character),
-            wclUrl: fillCharTemplate(applyWclUrlTemplate, row.character),
+            armoryUrl: armoryUrlFor(row.character),
+            wclUrl: wclUrlFor(row.character),
             gear,
         };
     });
