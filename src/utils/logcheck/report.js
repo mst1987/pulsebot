@@ -9,6 +9,7 @@ const { analyzeBossUptimes } = require("./bossUptimes");
 const { analyzeRpb, rpbSummaryLines } = require("./rpb");
 const { selectPlayers } = require("./common");
 const { analyzeRaidProgress, progressSummary } = require("./raidProgress");
+const { resolveSituationalGear } = require("./gearVariants");
 const { saveReport, getReport } = require("../../web/reportStore");
 const { publicBaseUrl } = require("../../config/variables");
 
@@ -166,6 +167,17 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         issues: issuesByName[p.name] || [],
         potions: potionMap[p.name] || { destruction: 0, haste: 0, mana: 0 },
     }));
+
+    // A piece worn for one boss only (Mark of the Champion and its like) is not
+    // what the raider plays with, and the loot council must not compare against
+    // it. So for those slots — and only those — the fights are walked to find
+    // what they wore the rest of the night. Costs nothing on a normal raid,
+    // because normally nobody wears one.
+    try {
+        await resolveSituationalGear(wcl, reportId, fights, roster);
+    } catch (e) {
+        console.error("situational gear failed:", e.message);
+    }
 
     let report = {
         title: fights.title || reportId,

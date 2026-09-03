@@ -520,9 +520,11 @@ function WornIcon({ item }: { item: WornItem }) {
                         </div>
                         <div>
                             Das {item.replacedSituational.note}. Gezeigt wird, was{" "}
-                            {item.replacedSituational.reportTitle
-                                ? `„${item.replacedSituational.reportTitle}“`
-                                : "eine ältere Auswertung"}{" "}auf dem Slot zeigt.
+                            {item.replacedSituational.sameRaid
+                                ? <>im selben Raid{item.replacedSituational.fight ? ` bei ${item.replacedSituational.fight}` : ""} auf dem Slot steckte</>
+                                : <>{item.replacedSituational.reportTitle
+                                    ? `„${item.replacedSituational.reportTitle}“`
+                                    : "eine ältere Auswertung"} auf dem Slot zeigt</>}.
                         </div>
                     </div>
                 ) : null}
@@ -731,6 +733,20 @@ function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude
                 <div><BisCell raider={r} /></div>
                 <div><SimCell raider={r} sim={sim} /></div>
                 <div className="lc-raider-actions">
+                    {/* Das Gear hier ist zuletzt *im Log gesehen*, nie live —
+                        ein Klick in die Armory macht das nachprüfbar, statt es
+                        einem Council zum Glauben vorzusetzen. */}
+                    {r.armoryUrl ? (
+                        <a
+                            className="btn btn-ghost btn-sm"
+                            href={r.armoryUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Armory öffnen — das Gear hier stammt aus der letzten Auswertung, nicht von jetzt"
+                        >
+                            Armory ↗
+                        </a>
+                    ) : null}
                     {r.gear && r.simSupported ? (
                         <button
                             type="button"

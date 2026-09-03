@@ -27,7 +27,7 @@ const {
 } = require("../lootInboxStore");
 const { sessionContentLabel } = require("../lootSessionContent");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setupView");
-const { applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../../config/variables");
+const { armoryUrlFor, wclUrlFor } = require("../charLinks");
 const Blizzard = require("../../classes/blizzard");
 const { userCan } = require("../../config/permissions");
 const discord = require("../discord");
@@ -36,8 +36,6 @@ const { listKnownCategories } = require("../categoryNames");
 // A manually-labelled loot bucket's synthetic event id: "manual-<slug>".
 const slugify = (label) => String(label || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 
-// Fill a {char} URL template (armory / WCL) for a character name.
-const fillCharTemplate = (tpl, character) => String(tpl || "").replace("{char}", encodeURIComponent(String(character || "").trim()));
 
 // Class colour + spec icon for anything that renders a raider's name. Computed
 // server-side like every other class colour in the app (see ClassSpec.tsx's
@@ -556,8 +554,8 @@ async function getHistoryChar(req, res, url) {
     const cfg = getConfig();
     const bzCfg = cfg.blizzard || {};
     const realm = (items[0] && items[0].realm) || bzCfg.realmSlug || "";
-    const armoryUrl = fillCharTemplate(applyArmoryUrlTemplate, name);
-    const wclUrl = fillCharTemplate(applyWclUrlTemplate, name);
+    const armoryUrl = armoryUrlFor(name);
+    const wclUrl = wclUrlFor(name);
     const client = new Blizzard(bzCfg);
     const gearConfigured = client.isConfigured();
     const gearNamespace = client._resolve().namespace;

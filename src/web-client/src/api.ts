@@ -1721,6 +1721,14 @@ export type WornItem = {
         note: string;
         seenAt: number;
         reportTitle: string;
+        /**
+         * The best case: the substitute is from the *same* raid, one boss away
+         * — the evaluation walked the fights and found what they wore when the
+         * boss-specific piece was off. Then `fight` names that boss and
+         * `seenAt`/`reportTitle` are empty, because it is not an older set.
+         */
+        sameRaid?: boolean;
+        fight?: string;
     } | null;
 };
 
@@ -1816,6 +1824,8 @@ export type CouncilRaider = {
     specLabel: string;
     /** True when the spec was assumed from the class (a mage is always a caster). */
     specAssumed: boolean;
+    /** Their armory page, for checking the gear this page derived from a log. */
+    armoryUrl: string;
     role: "caster" | "healer";
     /** Items in the current content filter; lootTotal counts all of them. */
     lootCount: number;

@@ -894,6 +894,16 @@ describe("web/lootCouncil — judging a caster on caster gear", () => {
         expect(row.gear).toMatchObject({ setRole: "healer", roleMismatch: true, skippedReports: 2 });
     });
 
+    it("gives every raider a link to their armory", () => {
+        // Das Gear auf dieser Seite ist zuletzt im Log gesehen, nie live — ohne
+        // den Link müsste ein Council es glauben statt es zu prüfen.
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([item(0, 31064)])]]));
+        const row = councilRoster({}).rows[0];
+        expect(row.armoryUrl).toMatch(/^https:\/\//);
+        expect(row.armoryUrl).toContain(encodeURIComponent(row.character));
+    });
+
     it("counts the slots the comparison cannot read, and the ones it filled instead", () => {
         mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
         mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([

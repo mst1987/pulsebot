@@ -21,6 +21,7 @@ const { gearByCharacter } = require("./charGear");
 const { countsAsLoot } = require("../utils/lootReasons");
 const { getCategoryAssignments } = require("./raiderCharactersStore");
 const { excludedKeys } = require("./councilStore");
+const { armoryUrlFor } = require("./charLinks");
 const { characterKey, splitPlayer } = require("../utils/lootImport");
 const { listRaidEvents } = require("./raidEventStore");
 const { listLogs } = require("./logStore");
@@ -482,12 +483,17 @@ function councilRoster(opts = {}) {
         const bisIds = new Set(bis.items.map((entry) => Number(entry.id)));
 
         const look = classLook(charStore, key);
+        const character = bucket.character || (gear && gear.character) || key;
         rows.push({
             key,
-            character: bucket.character || (gear && gear.character) || key,
+            character,
             className,
             classColor: look.classColor,
             specIconUrl: look.specIconUrl,
+            // The gear on this page is *last seen in a log*, never live. One
+            // click to the armory is what makes that checkable instead of
+            // something a council has to take on trust.
+            armoryUrl: armoryUrlFor(character),
             spec: known.spec || "",
             specKey: specEntry.key,
             specLabel: specEntry.label,

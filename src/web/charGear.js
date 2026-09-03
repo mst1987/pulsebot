@@ -92,10 +92,51 @@ function trimItem(entry) {
  * gear in.
  */
 function armoryItems(entry) {
-    return (entry.armory || [])
+    const items = (entry.armory || [])
         .filter((it) => it && Number(it.itemId) > 0)
-        .map(trimItem)
+        .map((it) => ({ ...trimItem(it), alternate: it.alternate || null }))
         .sort((a, b) => DISPLAY_ORDER.indexOf(a.slot) - DISPLAY_ORDER.indexOf(b.slot));
+    return useSameNightAlternate(items);
+}
+
+/**
+ * Swap a boss-specific piece for what the raider wore on the other bosses of
+ * the *same* night, where the evaluation recorded it.
+ *
+ * This is the closest answer there is, and it beats reaching back into an older
+ * raid: it is the same raider on the same evening, one boss apart. The older
+ * evaluations stay as the fallback for reports that carry no alternative —
+ * every report built before utils/logcheck/gearVariants.js existed, and any
+ * night where the piece never came off.
+ */
+function useSameNightAlternate(items) {
+    if (!items.some((it) => it.situational && it.alternate)) return items;
+    const equipped = new Set(items.map((it) => it.itemId));
+    return items.map((it) => {
+        if (!it.situational || !it.alternate) return it;
+        const alt = trimItem(it.alternate);
+        // Same guard as everywhere else: never put on a piece the raider is
+        // already wearing in another slot.
+        if (!alt.itemId || alt.situational || equipped.has(alt.itemId)) return it;
+        equipped.delete(it.itemId);
+        equipped.add(alt.itemId);
+        return {
+            ...alt,
+            alternate: null,
+            replacedSituational: {
+                itemId: it.itemId,
+                itemName: it.itemName,
+                iconUrl: it.iconUrl,
+                note: (it.situational || {}).note || "",
+                seenAt: 0,
+                reportTitle: "",
+                // The one case where the substitute is not older than the rest
+                // of the set: it is from the same raid, one boss away.
+                fight: String(it.alternate.fight || ""),
+                sameRaid: true,
+            },
+        };
+    });
 }
 
 /**
@@ -151,6 +192,8 @@ function fillSituational(snapshot, want, entry, report, wanted) {
                 // the set, and the page says so.
                 seenAt: Number(report.generatedAt) || 0,
                 reportTitle: report.title || "",
+                fight: "",
+                sameRaid: false,
             },
         };
         want.delete(slot);
