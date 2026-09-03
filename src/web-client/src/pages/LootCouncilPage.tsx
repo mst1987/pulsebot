@@ -725,7 +725,7 @@ function SortHead({ sortKey, label, title, sort, dir, onSort }: {
  * names. The columns still line up with the header above the list, so the
  * numbers stay comparable down the page and every column still sorts.
  */
-function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude, onArmory }: {
+function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude, onArmory, exportData, onCloseExport }: {
     raider: CouncilRaider;
     rank: number;
     sim: SimResult | null;
@@ -734,6 +734,9 @@ function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude
     onExport: (character: string) => void;
     onExclude: (character: string) => void;
     onArmory: (character: string) => void;
+    /** Der offene Sim-Export, wenn er zu diesem Raider gehört. */
+    exportData: CouncilExport | null;
+    onCloseExport: () => void;
 }) {
     return (
         <article className="lc-raider" style={classColorProps(r.classColor).style} role="row">
@@ -818,6 +821,10 @@ function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude
                 </div>
             </div>
             <GearBand raider={r} />
+            {/* Der Export öffnet sich dort, wo geklickt wurde. Oben an der Seite
+                hieße: bei einem Raider weit unten erst hochscrollen, um zu
+                sehen, was der eigene Klick bewirkt hat. */}
+            {exportData ? <ExportPanel data={exportData} onClose={onCloseExport} /> : null}
         </article>
     );
 }
@@ -1496,7 +1503,7 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                                                     key={spec.specKey}
                                                     type="button"
                                                     className="lc-bllink"
-                                                    {...classColorProps(spec.classColor)}
+                                                    style={classColorProps(spec.classColor).style}
                                                     onClick={() => only(spec.specKey, hit.id)}
                                                     title={`Liste auf ${spec.label} filtern und das Teil dort hervorheben`}
                                                 >
@@ -1543,7 +1550,7 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                             key={spec.key}
                             type="button"
                             className={`lc-blspec${off.has(spec.key) ? " off" : ""}`}
-                            {...classColorProps(spec.classColor)}
+                            style={classColorProps(spec.classColor).style}
                             onClick={() => patch({
                                 listOff: off.has(spec.key)
                                     ? view.listOff.filter((k) => k !== spec.key)
@@ -1582,7 +1589,7 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                                 <tr>
                                     <th className="lc-blcorner">Slot</th>
                                     {columns.map((col) => (
-                                        <th key={col.key} className="lc-blcol" {...classColorProps(col.classColor)}>
+                                        <th key={col.key} className="lc-blcol" style={classColorProps(col.classColor).style}>
                                             <span className="lc-blcolhead">
                                                 <img src={col.iconUrl} alt="" loading="lazy" />
                                                 <span className="lc-blcolname class-colored">{col.label}</span>
@@ -1707,11 +1714,26 @@ export default function LootCouncilPage() {
             .finally(() => setLoading(false));
     }, [view.role, view.tiers, view.contents, view.category, view.bisTier]);
 
+    /**
+     * Alles neu holen, was von den Raiderdaten abhängt — die Liste *und* den
+     * geprüften Drop. Jede Aktion, die das Gear ändert, geht hier durch.
+     */
+    const reloadAll = useCallback(async () => {
+        setDataToken((t) => t + 1);
+        await load();
+    }, [load]);
+
     // The picked drop is fetched on its own rather than filtered out of the
     // page's data: which slot it lands in and what it would replace is decided
     // per raider on the server, and a dropped item is regularly one that is on
     // nobody's BiS list and therefore in no payload the page already holds.
     const [focus, setFocus] = useState<{ item: CouncilItem; candidates: CouncilCandidate[] } | null>(null);
+    // Der geprüfte Drop hängt an denselben Daten wie die Liste: wer wie viel
+    // gewinnt, folgt aus dem Gear. Holt jemand die Armory oder legt einen
+    // Raider beiseite, ändert sich also auch der Drop-Check — die Filter stehen
+    // schon in den Abhängigkeiten, aber ein Nachladen ohne Filterwechsel wäre
+    // sonst unsichtbar geblieben und erst nach einem Neuladen der Seite da.
+    const [dataToken, setDataToken] = useState(0);
     useEffect(() => {
         if (!view.dropItem) { setFocus(null); return; }
         let alive = true;
@@ -1726,7 +1748,7 @@ export default function LootCouncilPage() {
             .then((d) => { if (alive) setFocus(d.focus); })
             .catch(() => { if (alive) setFocus(null); });
         return () => { alive = false; };
-    }, [view.dropItem, view.role, view.tiers, view.contents, view.category, view.bisTier]);
+    }, [view.dropItem, view.role, view.tiers, view.contents, view.category, view.bisTier, dataToken]);
 
     // Wrapped rather than passed directly: `load` returns a promise now, and a
     // promise handed to useEffect would be mistaken for a cleanup function.
@@ -1814,7 +1836,7 @@ export default function LootCouncilPage() {
      */
     const loadArmory = (characters: string[], key: string) => runFor(key, async () => {
         const result = await refreshCouncilArmory(csrfToken, characters);
-        await load();
+        await reloadAll();
         if (!result.answered) {
             setSimError(characters.length === 1
                 ? `Die Armory kennt ${characters[0]} nicht (oder antwortet gerade nicht) — es bleibt beim Stand der letzten Auswertung.`
@@ -1837,7 +1859,7 @@ export default function LootCouncilPage() {
         `exclude:${character}`,
         async () => {
             await setCouncilExcluded(csrfToken, character, excluded);
-            await load();
+            await reloadAll();
         },
     );
 
@@ -1986,7 +2008,10 @@ export default function LootCouncilPage() {
                 actions={canWrite ? (
                     <button
                         type="button"
-                        className="btn btn-sm btn-armory"
+                        // Gefüllt, weil es die Hauptaktion des Abschnitts ist —
+                        // die Tönungen gelten nur für die Ghost-Knöpfe an einem
+                        // einzelnen Raider.
+                        className="btn btn-sm"
                         disabled={!roster.length || busy.has("armory:all")}
                         title="Holt für jeden Raider der Liste das aktuelle Gear aus der Armory"
                         onClick={() => loadArmory(roster.map((r) => r.character), "armory:all")}
@@ -2059,9 +2084,6 @@ export default function LootCouncilPage() {
                 Raidern und ihrem Loot abhängt, sondern nur von WoWSims. */}
             {view.tab === "bislists" ? <BisListsTab view={view} patch={patch} /> : null}
 
-            {view.tab === "roster" && exportData ? (
-                <ExportPanel data={exportData} onClose={() => setExportData(null)} />
-            ) : null}
 
             {view.tab === "roster" ? (
                 <Section
@@ -2099,6 +2121,10 @@ export default function LootCouncilPage() {
                                     onExport={showExport}
                                     onExclude={(character) => setExcluded(character, true)}
                                     onArmory={(character) => loadArmory([character], `armory:${character}`)}
+                                    exportData={exportData && exportData.character.toLowerCase() === r.character.toLowerCase()
+                                        ? exportData
+                                        : null}
+                                    onCloseExport={() => setExportData(null)}
                                 />
                             ))}
                         </div>

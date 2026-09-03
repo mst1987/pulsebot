@@ -2049,22 +2049,22 @@ a.gear-row:hover { background: var(--panel2); }
     color: var(--accent);
     border-color: color-mix(in srgb, var(--accent) 55%, transparent);
 }
-.btn-armory:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.btn-ghost.btn-armory:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
 
 .btn-armory-link {
     color: var(--accent-2);
     border-color: color-mix(in srgb, var(--accent-2) 55%, transparent);
 }
-.btn-armory-link:hover { background: color-mix(in srgb, var(--accent-2) 14%, transparent); border-color: var(--accent-2); }
+.btn-ghost.btn-armory-link:hover { background: color-mix(in srgb, var(--accent-2) 14%, transparent); border-color: var(--accent-2); }
 
-.btn-sim { color: var(--text); border-color: var(--line); }
-.btn-sim:hover:not(:disabled) { background: var(--panel3); }
+.btn-ghost.btn-sim { color: var(--text); border-color: var(--line); }
+.btn-ghost.btn-sim:hover:not(:disabled) { background: var(--panel3); }
 
 .btn-drop {
     color: var(--high);
     border-color: color-mix(in srgb, var(--high) 45%, transparent);
 }
-.btn-drop:hover:not(:disabled) { background: var(--high-bg); border-color: var(--high); }
+.btn-ghost.btn-drop:hover:not(:disabled) { background: var(--high-bg); border-color: var(--high); }
 
 /* Gear, das aus der Armory statt aus einer Auswertung stammt — der Stempel sagt
    das, statt ein frisches Datum wie ein frisches Log aussehen zu lassen. */

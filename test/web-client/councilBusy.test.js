@@ -56,8 +56,20 @@ describe("loot council — busy state", () => {
     it("keeps the spinner until the reloaded list is on screen", () => {
         // The write returning is not the point — the new numbers are, and the
         // whole roster's need scores shift when one raider leaves it.
-        expect(src).toMatch(/await setCouncilExcluded\(csrfToken, character, excluded\);\s*await load\(\);/);
+        // `reloadAll` rather than `load`: der geprüfte Drop hängt an denselben
+        // Daten und wäre sonst bis zum nächsten Filterwechsel veraltet.
+        expect(src).toMatch(/await setCouncilExcluded\(csrfToken, character, excluded\);\s*await reloadAll\(\);/);
         expect(src).toMatch(/return getLootCouncil\(/);
+    });
+
+    it("refreshes the checked drop along with the list", () => {
+        // Sonst zeigt „Drop prüfen" nach einem Armory-Update oder einem
+        // beiseitegelegten Raider weiter die alten Zugewinne, bis jemand die
+        // Seite neu lädt.
+        expect(src).toMatch(/const reloadAll = useCallback\(async \(\) => \{\s*setDataToken/);
+        expect(src).toMatch(/await refreshCouncilArmory\(csrfToken, characters\);\s*await reloadAll\(\);/);
+        // Und der Drop-Effekt hört auf den Token.
+        expect(src).toMatch(/view\.bisTier, dataToken\]/);
     });
 
     it("does not hand the promise-returning load to useEffect", () => {
