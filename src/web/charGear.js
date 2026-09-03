@@ -109,10 +109,13 @@ function armoryItems(entry) {
  * gets the difference, which turns a deliberate boss swap into a claim.
  *
  * The substitute has to earn its place: it comes from a set that fits the
- * raider's role, sits in the same slot, and is not itself situational. It is
- * recorded on the item (`replacedSituational`) rather than swapped in quietly —
- * showing gear a raider was not wearing without saying so would be its own kind
- * of wrong.
+ * raider's role, sits in the same slot, is not itself situational, and — the
+ * one that bit — is not already on the raider somewhere else. A trinket they
+ * still wear in the other slot would otherwise be duplicated into both, which
+ * is not gear anybody can equip and quietly doubles that item's stats in every
+ * comparison built on the set. It is recorded on the item
+ * (`replacedSituational`) rather than swapped in quietly — showing gear a
+ * raider was not wearing without saying so would be its own kind of wrong.
  *
  * @param {object} snapshot the accepted set, modified in place
  * @param {Map<number, object>} want slots still open, emptied as they are filled
@@ -124,11 +127,19 @@ function fillSituational(snapshot, want, entry, report, wanted) {
     const items = armoryItems(entry);
     if (!items.length) return;
     if (wanted && !fitsRole(gearProfile({ items }), wanted)) return;
+    // Everything the raider is already wearing, kept in step with the swaps
+    // below so two open slots cannot be handed the same piece either.
+    const equipped = new Set(snapshot.items.map((it) => it.itemId));
     for (const [slot, worn] of [...want]) {
         const older = items.find((it) => it.slot === slot);
         if (!older || older.itemId === worn.itemId || older.situational) continue;
+        // The trinket they still wear in the other slot is not a substitute for
+        // this one — it is the same item, and nobody can equip it twice.
+        if (equipped.has(older.itemId)) continue;
         const idx = snapshot.items.findIndex((it) => it.slot === slot);
         if (idx < 0) continue;
+        equipped.delete(worn.itemId);
+        equipped.add(older.itemId);
         snapshot.items[idx] = {
             ...older,
             replacedSituational: {

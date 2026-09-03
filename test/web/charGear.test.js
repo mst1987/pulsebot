@@ -174,6 +174,26 @@ describe("web/charGear", () => {
             expect(worn.situational).not.toBeNull();
         });
 
+        it("does not hand a slot the item the raider still wears in the other one", () => {
+            // Aus der Praxis: ein Elementar-Schamane bekam auf Schmuck 1 genau
+            // das Trinket gesetzt, das er auf Schmuck 2 schon trug. Zweimal
+            // dasselbe Teil kann niemand anlegen, und im Vergleich zählen seine
+            // Werte dann doppelt.
+            const pair = (a, b) => setOf(shadowIds, {
+                12: { itemId: String(a), itemName: `Item ${a}` },
+                13: { itemId: String(b), itemName: `Item ${b}` },
+            });
+            const other = shadowIds[13];
+            setReports(
+                report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: pair(MOTC, trinket) }]),
+                report("alt", 2000, [{ name: "Devihra", type: "Priest", armory: pair(trinket, other) }]),
+            );
+            const gear = casterGear();
+            expect(itemInSlot(gear, 12).itemId).toBe(MOTC);
+            expect(itemInSlot(gear, 12).situational).not.toBeNull();
+            expect(itemInSlot(gear, 12).itemId).not.toBe(itemInSlot(gear, 13).itemId);
+        });
+
         it("does not replace one boss-specific piece with another", () => {
             setReports(
                 report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: casterSet(23207) }]),
