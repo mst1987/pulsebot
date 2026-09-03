@@ -1703,6 +1703,25 @@ export type WornItem = {
     isBis: boolean;
     /** ...and whose lists it is on at all. */
     bisSpecs: BisSpec[];
+    /**
+     * Set when the piece only pays off against certain bosses (Mark of the
+     * Champion and its like) and no older raid showed what they wear otherwise.
+     * Every comparison reads such a slot as empty, so it has to be marked.
+     */
+    situational: { note: string } | null;
+    /**
+     * The other side of the same coin: this piece was taken from an older raid
+     * because the newest one had a boss-specific item in the slot. Says what it
+     * stands in for, and where it comes from.
+     */
+    replacedSituational: {
+        itemId: number;
+        itemName: string;
+        iconUrl: string;
+        note: string;
+        seenAt: number;
+        reportTitle: string;
+    } | null;
 };
 
 /**
@@ -1761,12 +1780,21 @@ export type CouncilCandidate = {
     twoHanded: boolean;
     /** Stat-weight value of the swap. Negative means it would be a downgrade. */
     value: number;
+    /**
+     * Why this raider's gain is not comparable to the others': what would come
+     * off carries no caster stats at all, so the comparison measures against an
+     * empty slot and credits them the item's full worth. Empty in the normal
+     * case.
+     */
+    inflatedBy: { itemName: string; note: string }[];
     isBis: boolean;
     /** The fairness half — the same numbers the roster table shows. */
     needScore: number;
     needParts: { drought: number; share: number; need: number };
     lootCount: number;
     lootTotal: number;
+    /** See CouncilRaider.otherCount — off-spec, shards, bank. */
+    otherCount: number;
     /** Their newest awards, so the loot count can be opened in a hover. */
     recentItems: CouncilLootItem[];
     daysSinceLoot: number | null;
@@ -1792,6 +1820,12 @@ export type CouncilRaider = {
     /** Items in the current content filter; lootTotal counts all of them. */
     lootCount: number;
     lootTotal: number;
+    /**
+     * Off-spec rolls, shards and bank items. Deliberately *not* part of
+     * lootCount: they did nothing for the raider's set, and counting them would
+     * rank somebody who took three shards above one real upgrade.
+     */
+    otherCount: number;
     lastAwardAt: number;
     daysSinceLoot: number | null;
     items: CouncilLootItem[];
@@ -1802,6 +1836,23 @@ export type CouncilRaider = {
         itemCount: number;
         spellHit: number;
         hitCap: number;
+        /**
+         * Whether the set read out of the log is this raider's damage kit or
+         * their healing one ("caster" | "healer" | "" when too little is known).
+         * Shamans and druids heal a night regularly, and judging them on that
+         * set would mean no DPS and drops "replacing" healing pieces.
+         */
+        setRole: string;
+        /** False when the two signals (heal ratio, spell hit) disagree. */
+        setConfident: boolean;
+        /** Every recent log showed the wrong role — the numbers are off. */
+        roleMismatch: boolean;
+        /** Newer raids skipped to find a set of the right role. */
+        skippedReports: number;
+        /** Slots still held by a boss-specific piece the comparison reads as empty. */
+        situational: number;
+        /** Slots filled from an older raid instead of one. */
+        substituted: number;
         /** Everything they wear, in character-sheet order. */
         items: WornItem[];
     } | null;

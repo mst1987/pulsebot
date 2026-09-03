@@ -1302,10 +1302,15 @@ a.gear-row:hover { background: var(--panel2); }
 .lc-gain b { font-family: var(--font-mono); font-size: 13px; }
 .lc-gain-loss b { color: var(--danger, #e5484d); }
 .lc-gain-loss .lc-gain-fill { background: var(--danger, #e5484d); }
+/* The gain is real but not comparable: it is measured against a slot that reads
+   as empty, so this raider is credited the item's full worth while everyone
+   else only gets the difference. Marked at the number, which is where a council
+   would otherwise draw the wrong conclusion from it. */
+.lc-gain-inflated { color: var(--medium); font-weight: 800; cursor: help; margin-left: 4px; }
 
 /* One worn item as its icon. Sixteen names are unreadable, sixteen icons are a
    character sheet. */
-.lc-worn { display: inline-flex; }
+.lc-worn { display: inline-flex; position: relative; }
 .lc-worn-img {
     width: 30px;
     height: 30px;
@@ -1320,6 +1325,33 @@ a.gear-row:hover { background: var(--panel2); }
    enchant on a slot that should have one. */
 .lc-worn-bis .lc-worn-img { border-color: var(--accent-2); }
 .lc-worn-noench .lc-worn-img { border-color: var(--danger, #e5484d); }
+
+/* Two more marks, both about what the *comparison* can read rather than about
+   the item's quality: a piece that only counts against certain bosses (the slot
+   reads as empty, see config/situationalItems.js) and one taken from an older
+   raid in its place. A corner dot, not a third border colour — the border is
+   already spoken for by "BiS" and "no enchant", and a fourth shade of outline
+   would stop meaning anything. */
+.lc-worn-sit .lc-worn-img { border-color: var(--medium); border-style: dashed; }
+.lc-worn-mark {
+    position: absolute;
+    right: -3px;
+    bottom: -3px;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1;
+    border: 1.5px solid var(--panel);
+}
+.lc-worn-mark-sit { background: var(--medium); color: #1c1305; }
+.lc-worn-mark-sub { background: var(--accent-2); color: var(--accent-ink); }
+/* The substituted piece, named in the hover next to what it stands in for. */
+.lc-worn-sub { display: flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.lc-worn-sub img { width: 20px; height: 20px; border-radius: 3px; display: block; }
 
 .lc-worn-detail { display: grid; gap: 7px; }
 .lc-worn-flags { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -1589,3 +1621,29 @@ a.gear-row:hover { background: var(--panel2); }
     white-space: pre;
     resize: vertical;
 }
+
+/* The in-button spinner: a small ring that turns while an action runs. Sized
+   from the button's own font, so it lines up in a btn-sm as well as a full one. */
+.lc-spin {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    margin-right: 6px;
+    vertical-align: -0.12em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    opacity: .7;
+    animation: lc-spin 0.7s linear infinite;
+}
+@keyframes lc-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+    /* Still says "busy" through the disabled button and the changed label. */
+    .lc-spin { animation: none; opacity: .45; }
+}
+.btn:disabled .lc-spin { opacity: .55; }
+
+/* Gear that is the wrong kind for the raider's role. The numbers built on it
+   are worth less, and that has to be visible without opening a tooltip. */
+.lc-gear-warn { color: var(--danger, #e5484d); }
+.lc-loot-other { border-top: 1px solid var(--line-soft); padding-top: 6px; margin-top: 2px; }

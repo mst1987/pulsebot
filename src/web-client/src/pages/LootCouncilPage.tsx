@@ -208,6 +208,18 @@ function ExportPanel({ data, onClose }: { data: CouncilExport; onClose: () => vo
 }
 
 /**
+ * The spinner that lives inside a button while its action runs.
+ *
+ * Inline rather than a page overlay: the action belongs to one row, and
+ * blanking the whole table for it would lose the reader's place over a
+ * half-second request. `aria-hidden` because the button's own label already
+ * changes — a screen reader hears "wird abgelegt", not a spinning glyph.
+ */
+function ButtonSpinner() {
+    return <span className="lc-spin" aria-hidden="true" />;
+}
+
+/**
  * A thin bar that says something is happening.
  *
  * Two modes, and the difference matters: with a `value` it fills to that share
@@ -426,6 +438,7 @@ function WornIcon({ item }: { item: WornItem }) {
     const marks = [
         item.isBis ? "lc-worn-bis" : "",
         item.enchantStatus === "missing" ? "lc-worn-noench" : "",
+        item.situational ? "lc-worn-sit" : "",
     ].filter(Boolean).join(" ");
     return (
         <HoverPanel
@@ -436,6 +449,12 @@ function WornIcon({ item }: { item: WornItem }) {
                     {item.iconUrl
                         ? <img src={item.iconUrl} alt="" loading="lazy" {...itemQualityProps(item.quality, "lc-worn-img")} />
                         : <span className="lc-worn-img lc-worn-blank" />}
+                    {/* Both about what the comparison can read on this slot, and
+                        both worth seeing without hovering: an item that only
+                        counts against certain bosses, or one taken from an older
+                        raid because the newest raid had such a piece here. */}
+                    {item.situational ? <span className="lc-worn-mark lc-worn-mark-sit">!</span> : null}
+                    {item.replacedSituational ? <span className="lc-worn-mark lc-worn-mark-sub">↺</span> : null}
                 </span>
             }
         >
@@ -452,6 +471,29 @@ function WornIcon({ item }: { item: WornItem }) {
                     <div className="lc-worn-bisfor">
                         <span className="hint">BiS für</span>
                         <BisSpecs specs={item.bisSpecs} compact />
+                    </div>
+                ) : null}
+                {item.situational ? (
+                    <div className="hint lc-gear-warn">Zählt im Vergleich nicht: {item.situational.note}.</div>
+                ) : null}
+                {item.replacedSituational ? (
+                    // Named, never quietly swapped: whoever has the raider's
+                    // armory open next to this page must be able to see why the
+                    // page shows a piece they are not wearing tonight.
+                    <div className="hint">
+                        <div className="lc-worn-sub">
+                            <span>Steht hier statt</span>
+                            {item.replacedSituational.iconUrl
+                                ? <img src={item.replacedSituational.iconUrl} alt="" loading="lazy" />
+                                : null}
+                            <b>{item.replacedSituational.itemName}</b>
+                        </div>
+                        <div>
+                            Das {item.replacedSituational.note}. Gezeigt wird, was{" "}
+                            {item.replacedSituational.reportTitle
+                                ? `„${item.replacedSituational.reportTitle}“`
+                                : "eine ältere Auswertung"}{" "}auf dem Slot zeigt.
+                        </div>
                     </div>
                 ) : null}
                 <div className="lc-worn-flags">
@@ -479,6 +521,55 @@ const STAT_LABELS: Record<string, string> = {
     arcanePower: "Arkanschaden", firePower: "Feuerschaden", frostPower: "Frostschaden",
     holyPower: "Heiliger Schaden", naturePower: "Naturschaden", shadowPower: "Schattenschaden",
 };
+
+/**
+ * When the gear was seen — and whether it is the right *kind* of gear.
+ *
+ * The council reads gear out of whatever raid log is newest, and shamans,
+ * druids and priests routinely heal a night. A healing set judged as a damage
+ * kit would give a DPS caster no DPS worth the name and let every drop
+ * "replace" a healing piece it has nothing to do with, so the server walks back
+ * to the newest raid where they played the right role. Two things then need
+ * saying: that the gear is older than the last raid, and — when no fitting set
+ * exists at all — that the numbers are built on the wrong one.
+ */
+function GearStamp({ raider }: { raider: CouncilRaider }) {
+    const g = raider.gear;
+    if (!g) return <>—</>;
+    const stamp = `${fmtMs(g.seenAt, false)}${g.hitCap > 0 ? ` · Hit ${g.spellHit}/${g.hitCap}` : ""}`;
+    // What the set is *not* purely their normal kit for. Rides along with every
+    // branch below, because it is orthogonal to how the set was found.
+    const slots = (
+        <>
+            {g.substituted > 0 ? (
+                <span className="sub" title={`${g.substituted} Slot(s) tragen heute ein Teil, das nur gegen bestimmte Bosse zählt — verglichen wird mit dem, was dort sonst steckt (Icon mit ↺).`}>
+                    {" "}· {g.substituted}× ersetzt
+                </span>
+            ) : null}
+            {g.situational > 0 ? (
+                <span className="lc-gear-warn" title={`${g.situational} Slot(s) tragen ein bossabhängiges Teil, und keine ältere Auswertung zeigt dort etwas anderes. Der Vergleich liest den Slot als leer (Icon mit !).`}>
+                    {" "}· {g.situational} Slot situativ
+                </span>
+            ) : null}
+        </>
+    );
+
+    if (g.roleMismatch) {
+        return (
+            <span className="lc-gear-warn" title={`Aus „${g.reportTitle}“ — dort wurde offenbar geheilt. Für diesen Raider ist kein reines Caster-Set geloggt, die Werte sind daher mit Vorsicht zu lesen.`}>
+                {stamp} <b>· Heilgear</b>{slots}
+            </span>
+        );
+    }
+    if (g.skippedReports > 0) {
+        return (
+            <span title={`Aus „${g.reportTitle}“. ${g.skippedReports} neuere Auswertung(en) übersprungen, weil dort geheilt wurde.`}>
+                {stamp} <span className="sub">· {g.skippedReports} übersprungen</span>{slots}
+            </span>
+        );
+    }
+    return <span title={`Aus der Auswertung „${g.reportTitle}“`}>{stamp}{slots}</span>;
+}
 
 /**
  * Everything a raider wears, left to right in character-sheet order.
@@ -536,13 +627,21 @@ const HOVER_ITEMS = 8;
  *
  * `total` is the real count; the list is capped so the panel never scrolls.
  */
-function LootHover({ items, total, trigger, width = 560 }: {
+function LootHover({ items, total, other = 0, trigger, width = 560 }: {
     items: CouncilLootItem[];
     total: number;
+    /** Off-spec rolls, shards and bank items — counted nowhere, named here. */
+    other?: number;
     trigger: ReactNode;
     width?: number;
 }) {
-    if (!total) return <span className="sub">—</span>;
+    if (!total) {
+        // Nothing that counts. If they did take shards or off-spec pieces, say
+        // so — "—" alone would look like they were never even in the raid.
+        return other
+            ? <span className="sub" title={`${other} Item(s) für Offspec, Entzaubern oder die Bank — zählen nicht als erhaltener Loot.`}>—<sup>{other}</sup></span>
+            : <span className="sub">—</span>;
+    }
     return (
         // Wide enough that item name, raid, reason and date fit on one line —
         // at the default width the row overflowed and the panel grew a
@@ -560,6 +659,14 @@ function LootHover({ items, total, trigger, width = 560 }: {
                 {total > items.slice(0, HOVER_ITEMS).length
                     ? <div className="hint">… und {total - items.slice(0, HOVER_ITEMS).length} ältere</div>
                     : null}
+                {/* Named, not listed: they are not upgrades and do not count,
+                    but hiding them entirely would make the number look wrong to
+                    anyone who remembers handing them out. */}
+                {other ? (
+                    <div className="hint lc-loot-other">
+                        Dazu {other} × Offspec, Entzaubern oder Bank — zählt nicht als erhaltener Loot.
+                    </div>
+                ) : null}
             </div>
         </HoverPanel>
     );
@@ -571,6 +678,7 @@ function LootCell({ raider }: { raider: CouncilRaider }) {
         <LootHover
             items={raider.items}
             total={raider.lootCount}
+            other={raider.otherCount}
             trigger={<span className="lc-count">{raider.lootCount}</span>}
         />
     );
@@ -668,6 +776,22 @@ function CandidateRow({ candidate, simDelta, gainMax }: {
                     >
                         {gain > 0 ? "+" : ""}{Math.round(gain)}{measured ? " DPS" : ""}
                     </b>
+                    {/* The number is honestly measured, the *comparison* is not:
+                        what would come off reads as an empty slot, so this
+                        raider is credited the item's full worth while the rest
+                        of the list only gets a difference. Marked right at the
+                        number, since that is where the wrong conclusion would
+                        be drawn. */}
+                    {candidate.inflatedBy.length ? (
+                        <span
+                            className="lc-gain-inflated"
+                            title={`Nicht vergleichbar: ${candidate.inflatedBy
+                                .map((b) => `„${b.itemName}“ ${b.note}`)
+                                .join("; ")}. Der Zugewinn fällt dadurch höher aus als bei Raidern mit einem normalen Teil auf dem Slot.`}
+                        >
+                            !
+                        </span>
+                    ) : null}
                 </span>
             </td>
             <td><NeedBar subject={candidate} /></td>
@@ -684,6 +808,7 @@ function CandidateRow({ candidate, simDelta, gainMax }: {
                 <LootHover
                     items={candidate.recentItems}
                     total={candidate.lootCount}
+                    other={candidate.otherCount}
                     trigger={
                         <span className="lc-stat" title={`${candidate.lootCount} Items im Filter, ${candidate.lootTotal} insgesamt`}>
                             <LootBagIcon />
@@ -919,6 +1044,7 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
                                 <LootHover
                                     items={best.recentItems}
                                     total={best.lootCount}
+                                    other={best.otherCount}
                                     trigger={
                                         <span className="lc-stat" title={`${best.lootCount} Items im Filter`}>
                                             <LootBagIcon />{best.lootCount}
@@ -970,14 +1096,21 @@ export default function LootCouncilPage() {
     const [simStartedAt, setSimStartedAt] = useState(0);
     // The open WoWSims export, if any — one raider at a time.
     const [exportData, setExportData] = useState<CouncilExport | null>(null);
+    // Which per-raider actions are in flight, as "action:character". A set
+    // rather than a single flag: two raiders can be worked on at once, and each
+    // button should only ever show its own spinner.
+    const [busy, setBusy] = useState<Set<string>>(new Set());
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
     const rosterSort = useTableSort<RosterSortKey>("lootcouncil.roster-sort", ROSTER_SORT, "need");
     // One sort for every candidate table, so the cards stay comparable.
     const candidateSort = useTableSort<CandidateSortKey>("lootcouncil.candidate-sort", CANDIDATE_SORT, "gain");
 
+    // Returns the promise so an action that reloads afterwards (setting a raider
+    // aside) can keep its spinner until the new list is actually on screen —
+    // not just until the write came back.
     const load = useCallback(() => {
         setLoading(true);
-        getLootCouncil({
+        return getLootCouncil({
             role: view.role,
             tiers: view.tiers,
             contents: view.contents,
@@ -1010,7 +1143,9 @@ export default function LootCouncilPage() {
         return () => { alive = false; };
     }, [view.dropItem, view.role, view.tiers, view.contents, view.category, view.bisTier]);
 
-    useEffect(load, [load]);
+    // Wrapped rather than passed directly: `load` returns a promise now, and a
+    // promise handed to useEffect would be mistaken for a cleanup function.
+    useEffect(() => { load(); }, [load]);
 
     // A changed filter changes which raiders and items were simulated, so the
     // old results no longer describe what is on screen. Dropping them is the
@@ -1050,30 +1185,52 @@ export default function LootCouncilPage() {
     });
 
     /**
+     * Run one per-raider action with a visible busy state.
+     *
+     * Both actions here take a server round trip, and "Nicht einplanen" takes
+     * two — the call, then a full reload. Without feedback the row simply sits
+     * there and the natural response is to click again, which fires the request
+     * twice. The key is `action:character`, so two raiders can be worked on at
+     * once without either button claiming the other's spinner.
+     */
+    const runFor = async (key: string, fn: () => Promise<unknown>) => {
+        if (busy.has(key)) return;
+        setBusy((prev) => new Set(prev).add(key));
+        try {
+            await fn();
+        } catch (e) {
+            setSimError((e as ApiError).message);
+        } finally {
+            setBusy((prev) => {
+                const next = new Set(prev);
+                next.delete(key);
+                return next;
+            });
+        }
+    };
+
+    /** That raider's loadout as a WoWSims import, to check our number with. */
+    const showExport = (character: string) => runFor(
+        `export:${character}`,
+        async () => setExportData(await getCouncilExport(character)),
+    );
+
+    /**
      * Set a raider aside, or take them back in.
      *
      * Reloads afterwards rather than patching the list in place: the need score
      * is relative to the group (the loot-share component divides by its
      * average), so removing one raider changes everybody else's number. Faking
-     * that client-side would show figures the server disagrees with.
+     * that client-side would show figures the server disagrees with — and it is
+     * why this takes long enough to need a spinner.
      */
-    /** That raider's loadout as a WoWSims import, to check our number with. */
-    const showExport = async (character: string) => {
-        try {
-            setExportData(await getCouncilExport(character));
-        } catch (e) {
-            setSimError((e as ApiError).message);
-        }
-    };
-
-    const setExcluded = async (character: string, excluded: boolean) => {
-        try {
+    const setExcluded = (character: string, excluded: boolean) => runFor(
+        `exclude:${character}`,
+        async () => {
             await setCouncilExcluded(csrfToken, character, excluded);
-            load();
-        } catch (e) {
-            setSimError((e as ApiError).message);
-        }
-    };
+            await load();
+        },
+    );
 
     /**
      * Simulate the roster's baselines plus the given items.
@@ -1296,25 +1453,19 @@ export default function LootCouncilPage() {
                                         </td>
                                         <td><BisCell raider={r} /></td>
                                         <td><SimCell raider={r} sim={sim} /></td>
-                                        <td className="sub">
-                                            {r.gear
-                                                ? <span title={`Aus der Auswertung „${r.gear.reportTitle}“`}>
-                                                    {fmtMs(r.gear.seenAt, false)}
-                                                    {r.gear.hitCap > 0
-                                                        ? ` · Hit ${r.gear.spellHit}/${r.gear.hitCap}`
-                                                        : ""}
-                                                </span>
-                                                : "—"}
-                                        </td>
+                                        <td className="sub"><GearStamp raider={r} /></td>
                                         <td className="cell-actions">
                                             {r.gear && r.simSupported ? (
                                                 <button
                                                     type="button"
                                                     className="btn btn-ghost btn-sm"
                                                     title="Loadout als WoWSims-Import, um die Zahl selbst nachzurechnen"
+                                                    disabled={busy.has(`export:${r.character}`)}
                                                     onClick={() => showExport(r.character)}
                                                 >
-                                                    Sim-Export
+                                                    {busy.has(`export:${r.character}`)
+                                                        ? <><ButtonSpinner />Wird geholt …</>
+                                                        : "Sim-Export"}
                                                 </button>
                                             ) : null}
                                             {canWrite ? (
@@ -1322,9 +1473,12 @@ export default function LootCouncilPage() {
                                                     type="button"
                                                     className="btn btn-ghost btn-sm"
                                                     title="Nicht mehr einplanen — bleibt in der Historie, verschwindet nur aus dieser Liste"
+                                                    disabled={busy.has(`exclude:${r.character}`)}
                                                     onClick={() => setExcluded(r.character, true)}
                                                 >
-                                                    Nicht einplanen
+                                                    {busy.has(`exclude:${r.character}`)
+                                                        ? <><ButtonSpinner />Wird abgelegt …</>
+                                                        : "Nicht einplanen"}
                                                 </button>
                                             ) : null}
                                         </td>
@@ -1360,9 +1514,12 @@ export default function LootCouncilPage() {
                                     <button
                                         type="button"
                                         className="btn btn-ghost btn-sm"
+                                        disabled={busy.has(`exclude:${e.character}`)}
                                         onClick={() => setExcluded(e.character, false)}
                                     >
-                                        Wieder einplanen
+                                        {busy.has(`exclude:${e.character}`)
+                                            ? <><ButtonSpinner />Wird aufgenommen …</>
+                                            : "Wieder einplanen"}
                                     </button>
                                 ) : null}
                             </span>

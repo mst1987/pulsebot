@@ -42,9 +42,13 @@ const lootRow = (over = {}) => ({
     awardedAt: now - 3 * DAY, eventLabel: "Montagsraid", ...over,
 });
 
+// Mirrors what charGear.js hands out, profile included — the council reads it
+// to warn when a raider was last logged wearing healing gear.
 const gearOf = (items, over = {}) => ({
     key: "devihra", character: "Devihra", className: "Priest", seenAt: now - DAY,
-    reportId: "r1", reportTitle: "Report", items, ...over,
+    reportId: "r1", reportTitle: "Report", items,
+    profile: { role: "caster", confident: true }, skippedReports: 0, roleMismatch: false,
+    ...over,
 });
 
 const item = (slot, itemId, itemLevel = 140) => ({
@@ -314,6 +318,54 @@ describe("web/lootCouncil", () => {
         it("returns nothing for an item nobody can equip", () => {
             expect(candidatesForItem(999999, twoCasters())).toEqual([]);
         });
+
+        it("judges the drop against caster gear, like the roster does", () => {
+            // Without this the drop check compares a caster's upgrade against
+            // the healing set they wore on Thursday — the very thing the roster
+            // already refuses to do.
+            const rows = twoCasters();
+            mockGearByCharacter.mockClear();
+            candidatesForItem(31064, rows);
+            const { roleFor } = mockGearByCharacter.mock.calls[0][0];
+            expect(roleFor("devihra")).toBe("caster");
+        });
+
+        it("marks a gain that is measured against a slot it cannot read", () => {
+            // A raider wearing Mark of the Champion has, as far as any
+            // comparison goes, an empty trinket slot — so they are credited the
+            // full worth of the drop while everybody else only gets the
+            // difference. The number stands, the incomparability is named.
+            const trinketId = wowsims.bisFor("Priest-Shadow", "t6").items
+                .find((e) => wowsims.slotsFor(e.id).includes(12)).id;
+            mockAnnotated.mockReturnValue([
+                { key: "devihra", className: "Priest", spec: "Shadow" },
+                { key: "magier", className: "Mage", spec: "Arcane" },
+            ]);
+            mockGearByCharacter.mockReturnValue(new Map([
+                ["devihra", gearOf([
+                    { ...item(12, 23207), situational: { note: "wirkt nur gegen Untote und Dämonen" } },
+                    item(13, 29370),
+                ])],
+                ["magier", gearOf([item(12, 29370), item(13, 32483)], { key: "magier", character: "Magier", className: "Mage" })],
+            ]));
+            const byChar = Object.fromEntries(
+                candidatesForItem(trinketId, councilRoster({ bisTier: "t6" }).rows).map((c) => [c.character, c]),
+            );
+            expect(byChar.Devihra.inflatedBy).toHaveLength(1);
+            expect(byChar.Devihra.inflatedBy[0]).toMatchObject({ itemName: "Item 23207" });
+            expect(byChar.Devihra.inflatedBy[0].note).toContain("Untote");
+            // The raider with a real trinket on the slot is compared normally.
+            expect(byChar.Magier.inflatedBy).toEqual([]);
+        });
+
+        it("leaves a genuinely free slot uncommented", () => {
+            // An empty slot is not a hole in the comparison — the raider really
+            // does own nothing there, and the full gain is the truth.
+            const rows = twoCasters();
+            const byChar = Object.fromEntries(candidatesForItem(31064, rows).map((c) => [c.character, c]));
+            expect(byChar.Magier.replaces).toBeNull();
+            expect(byChar.Magier.inflatedBy).toEqual([]);
+        });
     });
 
     describe("bisGaps", () => {
@@ -507,6 +559,18 @@ describe("web/lootCouncil — the worn gear a council looks at", () => {
             expect(view.emptySockets).toBe(1);
             // Only real gems count — a 0 is an empty socket, not a gem.
             expect(view.gemCount).toBe(1);
+        });
+
+        it("passes on that a slot only counts against certain bosses", () => {
+            const sit = { note: "wirkt nur gegen Untote und Dämonen" };
+            expect(wornItemView(worn({ situational: sit }), new Set()).situational).toEqual(sit);
+            expect(wornItemView(worn(), new Set()).situational).toBeNull();
+        });
+
+        it("passes on which piece stands in for which", () => {
+            const sub = { itemId: 23207, itemName: "Mark of the Champion", iconUrl: "", note: "…", seenAt: 1, reportTitle: "Alt" };
+            expect(wornItemView(worn({ replacedSituational: sub }), new Set()).replacedSituational).toEqual(sub);
+            expect(wornItemView(worn(), new Set()).replacedSituational).toBeNull();
         });
     });
 
@@ -730,5 +794,113 @@ describe("web/lootCouncil — raiders the council set aside", () => {
         // ...and taking them back in restores the row.
         mockExcludedKeys.mockReturnValue(new Set());
         expect(councilRoster({}).rows.map((r) => r.character)).toEqual(["Weg"]);
+    });
+});
+
+describe("web/lootCouncil — what counts as having been given something", () => {
+    // A council weighs who is owed a drop. An off-spec roll, a shard or a bank
+    // item did nothing for the raider's set, so counting them would rank
+    // somebody who politely took three shards above one real upgrade.
+    function withReasons(reasons) {
+        mockListAll.mockReturnValue(reasons.map((reason, i) => lootRow({
+            reason,
+            reasonLabel: reason,
+            awardedAt: now - (i + 1) * DAY,
+        })));
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        return councilRoster({}).rows[0];
+    }
+
+    it("counts real awards", () => {
+        const row = withReasons(["bis", "mainspec", "upgrade", "minor"]);
+        expect(row.lootCount).toBe(4);
+        expect(row.otherCount).toBe(0);
+    });
+
+    it("does not count off-spec, shards or bank items", () => {
+        const row = withReasons(["offspec", "disenchant", "bank", "greed", "pvp"]);
+        expect(row.lootCount).toBe(0);
+        expect(row.otherCount).toBe(5);
+    });
+
+    it("keeps them out of the item list the hover shows", () => {
+        const row = withReasons(["mainspec", "disenchant", "offspec"]);
+        expect(row.items.map((i) => i.reason)).toEqual(["mainspec"]);
+    });
+
+    it("counts an unrecognised response, because it is more often a real award", () => {
+        // Treating a guild's own wording for a mainspec roll as nothing is the
+        // worse of the two possible mistakes.
+        expect(withReasons(["other"]).lootCount).toBe(1);
+    });
+
+    it("does not let a shard reset the drought", () => {
+        // The whole point: someone whose only recent "loot" was a shard has
+        // still been waiting, and has to keep their place in the ranking.
+        mockListAll.mockReturnValue([
+            lootRow({ reason: "disenchant", awardedAt: now - 1 * DAY }),
+            lootRow({ reason: "mainspec", awardedAt: now - 40 * DAY }),
+        ]);
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        const row = councilRoster({}).rows[0];
+        expect(row.daysSinceLoot).toBeGreaterThanOrEqual(40);
+        expect(row.lootCount).toBe(1);
+        expect(row.otherCount).toBe(1);
+    });
+
+    it("carries the same counts onto a candidate", () => {
+        mockListAll.mockReturnValue([
+            lootRow({ reason: "mainspec" }),
+            lootRow({ reason: "offspec" }),
+        ]);
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([])]]));
+        const [candidate] = candidatesForItem(31064, councilRoster({}).rows);
+        expect(candidate.lootCount).toBe(1);
+        expect(candidate.otherCount).toBe(1);
+    });
+});
+
+describe("web/lootCouncil — judging a caster on caster gear", () => {
+    it("asks charGear for a set matching the raider's role", () => {
+        // Shamans and druids heal a night regularly; their newest log then shows
+        // a healing set, which would give a DPS caster no DPS and let every drop
+        // "replace" a healing piece.
+        mockAnnotated.mockReturnValue([
+            { key: "devihra", className: "Priest", spec: "Shadow" },
+            { key: "heala", className: "Shaman", spec: "Restoration" },
+        ]);
+        mockGearByCharacter.mockReturnValue(new Map());
+        councilRoster({ role: "" });
+
+        expect(mockGearByCharacter).toHaveBeenCalledWith(
+            expect.objectContaining({ roleFor: expect.any(Function) }),
+        );
+        const { roleFor } = mockGearByCharacter.mock.calls[0][0];
+        expect(roleFor("devihra")).toBe("caster");
+        expect(roleFor("heala")).toBe("healer");
+        expect(roleFor("unbekannt")).toBe("");
+    });
+
+    it("passes the gear verdict on to the page", () => {
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        mockGearByCharacter.mockReturnValue(new Map([["devihra", {
+            ...gearOf([item(0, 31064)]),
+            profile: { role: "healer", confident: true },
+            roleMismatch: true,
+            skippedReports: 2,
+        }]]));
+        const row = councilRoster({}).rows[0];
+        expect(row.gear).toMatchObject({ setRole: "healer", roleMismatch: true, skippedReports: 2 });
+    });
+
+    it("counts the slots the comparison cannot read, and the ones it filled instead", () => {
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([
+            item(0, 31064),
+            { ...item(12, 23207), situational: { note: "wirkt nur gegen Untote und Dämonen" } },
+            { ...item(13, 29370), replacedSituational: { itemId: 23206, itemName: "Mark of the Champion", iconUrl: "", note: "…", seenAt: 1, reportTitle: "Alt" } },
+        ])]]));
+        expect(councilRoster({}).rows[0].gear).toMatchObject({ situational: 1, substituted: 1 });
     });
 });

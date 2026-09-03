@@ -108,6 +108,92 @@ describe("web/charGear", () => {
         expect(gearByCharacter().size).toBe(0);
     });
 
+    // A piece that only pays off against certain bosses reads as an empty slot
+    // in every comparison (see config/situationalItems.js), which would credit
+    // its wearer the full worth of any drop for that slot. So the newest raid
+    // is not the last word on such a slot.
+    describe("boss-specific pieces", () => {
+        const MOTC = 23207; // Mark of the Champion, "+85 gegen Untote und Dämonen"
+        const wowsims = require("../../src/config/wowsims");
+        const shadowIds = wowsims.bisFor("Priest-Shadow", "t6").items.map((e) => e.id);
+        const trinket = shadowIds.find((id) => wowsims.slotsFor(id).includes(12));
+
+        // Full sets, so gearProfile has enough to judge the role by: the
+        // substitution may only take a piece out of a set that fits the role.
+        const setOf = (ids, over = {}) => ids.slice(0, 16).map((itemId, i) => armoryItem({
+            slot: i, itemId: String(itemId), itemName: `Item ${itemId}`, gems: [],
+            ...(over[i] || {}),
+        }));
+        const casterSet = (slot12) => setOf(shadowIds, { 12: { itemId: String(slot12), itemName: `Item ${slot12}` } });
+        const healIds = Object.entries(require("../../src/config/wowsims/casterItems.json").items)
+            .filter(([, it]) => (it.stats.healingPower || 0) > 60 && !it.stats.spellHit && it.ilvl >= 120)
+            .sort((a, b) => b[1].stats.healingPower - a[1].stats.healingPower)
+            .map(([id]) => Number(id));
+
+        const casterGear = () => gearByCharacter({ roleFor: () => "caster" }).get("devihra");
+
+        it("substitutes what the raider wears in that slot on a normal night", () => {
+            setReports(
+                report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: casterSet(MOTC) }]),
+                report("alt", 2000, [{ name: "Devihra", type: "Priest", armory: casterSet(trinket) }]),
+            );
+            const worn = itemInSlot(casterGear(), 12);
+            expect(worn.itemId).toBe(trinket);
+            expect(worn.situational).toBeNull();
+        });
+
+        it("says what it stands in for rather than swapping it in quietly", () => {
+            setReports(
+                report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: casterSet(MOTC) }]),
+                report("alt", 2000, [{ name: "Devihra", type: "Priest", armory: casterSet(trinket) }]),
+            );
+            const worn = itemInSlot(casterGear(), 12);
+            expect(worn.replacedSituational).toMatchObject({ itemId: MOTC, reportTitle: "Report alt", seenAt: 2000 });
+            expect(worn.replacedSituational.note).toContain("Untote");
+        });
+
+        it("leaves the piece standing, flagged, when no older raid shows another", () => {
+            // Better a marked slot than a silently missing one: the page says
+            // the comparison cannot read it instead of pretending it can.
+            setReports(report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: casterSet(MOTC) }]));
+            const worn = itemInSlot(casterGear(), 12);
+            expect(worn.itemId).toBe(MOTC);
+            expect(worn.situational.note).toContain("Untote");
+            expect(worn.replacedSituational).toBeNull();
+        });
+
+        it("does not take the substitute out of a set of the wrong role", () => {
+            // The trinket of the night they healed is not what they wear as a
+            // caster either — that would trade one wrong baseline for another.
+            setReports(
+                report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: casterSet(MOTC) }]),
+                report("heal", 2000, [{ name: "Devihra", type: "Priest", armory: setOf(healIds) }]),
+            );
+            const worn = itemInSlot(casterGear(), 12);
+            expect(worn.itemId).toBe(MOTC);
+            expect(worn.situational).not.toBeNull();
+        });
+
+        it("does not replace one boss-specific piece with another", () => {
+            setReports(
+                report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: casterSet(23207) }]),
+                report("alt", 2000, [{ name: "Devihra", type: "Priest", armory: casterSet(23206) }]),
+                report("alt2", 1000, [{ name: "Devihra", type: "Priest", armory: casterSet(trinket) }]),
+            );
+            expect(itemInSlot(casterGear(), 12).itemId).toBe(trinket);
+        });
+
+        it("leaves ordinary gear alone — the newest raid stays the newest raid", () => {
+            setReports(
+                report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: casterSet(trinket) }]),
+                report("alt", 2000, [{ name: "Devihra", type: "Priest", armory: casterSet(MOTC) }]),
+            );
+            const worn = itemInSlot(casterGear(), 12);
+            expect(worn.itemId).toBe(trinket);
+            expect(worn.replacedSituational).toBeNull();
+        });
+    });
+
     describe("itemInSlot", () => {
         it("finds the item in a slot, or null", () => {
             setReports(report("a", 1, [{ name: "Devihra", type: "Priest", armory: [armoryItem()] }]));

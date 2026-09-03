@@ -153,7 +153,12 @@ function startCouncilSim(id, subjects, itemIds = []) {
     // Deliberately not awaited — the caller answers immediately.
     (async () => {
         try {
-            const gearMap = gearByCharacter();
+            // The same role gate the page uses: simulating a caster's healing
+            // set produces a number that is honestly measured and completely
+            // meaningless. Each subject already says which spec it is judged
+            // as, so the role follows from that.
+            const roleByKey = new Map(subjects.map((s) => [s.key, (specByKey(s.specKey) || {}).role || ""]));
+            const gearMap = gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "" });
             const out = {};
             for (const subject of subjects) {
                 const gear = gearMap.get(subject.key) || null;
