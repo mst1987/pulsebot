@@ -2017,8 +2017,69 @@ export async function runCouncilSim(
  * candidate list needs. Same result shape as the other item pickers, so
  * ItemSearchPicker takes it as-is.
  */
-export function searchCouncilItems(q: string): Promise<{ items: ItemSearchResult[] }> {
-    return get<{ items: ItemSearchResult[] }>(`/api/lootcouncil/item-search?q=${encodeURIComponent(q)}`);
+export function searchCouncilItems(q: string, tier = ""): Promise<{ items: CouncilItemHit[] }> {
+    const qs = new URLSearchParams({ q });
+    if (tier) qs.set("tier", tier);
+    return get<{ items: CouncilItemHit[] }>(`/api/lootcouncil/item-search?${qs.toString()}`);
+}
+
+/**
+ * A search hit, with the answer to the other direction on it: whose BiS list is
+ * this piece on? An empty `bisSpecs` is that answer, not a missing field — most
+ * items are on nobody's list.
+ */
+export type CouncilItemHit = ItemSearchResult & {
+    /** The caster table knows the item level; the Wowhead pickers do not. */
+    ilvl?: number;
+    contentId: string;
+    boss: string;
+    bisSpecs: BisSpec[];
+};
+
+/** Which gear set is BiS for which caster DPS class and spec, as a matrix. */
+export type BisListsData = {
+    tier: string;
+    /** Every tier, with the lists it has no set for (SWP has none for Shadow/Arcane). */
+    tiers: { id: string; label: string; missing: string[] }[];
+    /** All nine caster DPS specs — including the four that borrow a list. */
+    specs: {
+        key: string;
+        label: string;
+        className: string;
+        spec: string;
+        iconUrl: string;
+        classColor: string;
+        /** Whose list this spec plays. */
+        listKey: string;
+        ownList: boolean;
+    }[];
+    /** One column per list, carrying everyone who plays it. */
+    columns: {
+        key: string;
+        label: string;
+        iconUrl: string;
+        classColor: string;
+        users: { key: string; label: string; ownList: boolean }[];
+    }[];
+    rows: {
+        slot: number;
+        slotName: string;
+        cells: {
+            column: string;
+            item: CouncilItem | null;
+            /** Sockets and enchant of the WoWSims reference set. */
+            gems?: number;
+            enchanted?: boolean;
+            /** How many of the tier's lists want this item. */
+            shared?: number;
+        }[];
+    }[];
+    contested: number;
+};
+
+export function getBisLists(tier: string): Promise<BisListsData> {
+    const qs = tier ? `?tier=${encodeURIComponent(tier)}` : "";
+    return get<BisListsData>(`/api/lootcouncil/bislists${qs}`);
 }
 
 /**

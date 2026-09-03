@@ -39,15 +39,23 @@ function clientSources() {
 //     order could be about,
 //   * the permission matrix — a fixed checklist per role in the deliberate
 //     order of config/permissions.js, where sorting by a switch would make the
-//     row jump away under the cursor as it is toggled.
-const ALLOWED_PLAIN_HEADERS = new Set(["Links", "WCL", "Token", "Bereich", "Lesen", "Schreiben"]);
+//     row jump away under the cursor as it is toggled,
+//   * "Slot" — the BiS-Listen matrix runs in character-sheet order (Kopf, Hals,
+//     Schultern, …). That order is the point: it is how a raider reads their own
+//     gear, and it is what lets the eye find a gap. Alphabetical would read
+//     "Beine, Brust, Füße" and mean nothing.
+const ALLOWED_PLAIN_HEADERS = new Set(["Links", "WCL", "Token", "Bereich", "Lesen", "Schreiben", "Slot"]);
 
 describe("table sorting", () => {
     it("sorts every column that isn't a button or link column", () => {
         for (const [name, src] of clientSources()) {
             // <th>Label</th> — an empty <th /> is the actions column and fine.
-            const labels = [...src.matchAll(/<th[^>]*>([^<]+)<\/th>/g)]
-                .map((m) => m[1].trim())
+            // A <th scope="row"> is skipped: it labels its own row (the slot in
+            // the BiS matrix), so it is not a column header and can never be a
+            // sort control.
+            const labels = [...src.matchAll(/<th([^>]*)>([^<]+)<\/th>/g)]
+                .filter((m) => !/scope=("row"|\{"row"\})/.test(m[1]))
+                .map((m) => m[2].trim())
                 .filter((label) => label && !ALLOWED_PLAIN_HEADERS.has(label));
             expect({ file: name, unsortable: labels }).toEqual({ file: name, unsortable: [] });
         }
