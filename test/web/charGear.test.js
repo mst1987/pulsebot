@@ -138,7 +138,7 @@ describe("web/charGear", () => {
             ...(over[i] || {}),
         }));
         const casterSet = (slot12) => setOf(shadowIds, { 12: { itemId: String(slot12), itemName: `Item ${slot12}` } });
-        const healIds = Object.entries(require("../../src/config/wowsims/casterItems.json").items)
+        const healIds = Object.entries(require("../../src/config/wowsims/items.json").items)
             .filter(([, it]) => (it.stats.healingPower || 0) > 60 && !it.stats.spellHit && it.ilvl >= 120)
             .sort((a, b) => b[1].stats.healingPower - a[1].stats.healingPower)
             .map(([id]) => Number(id));
@@ -343,7 +343,7 @@ describe("web/charGear", () => {
         it("refuses a set that is the wrong role for this raider", () => {
             // Wer gerade in Heilgear steckt, wird trotzdem an seinem Casterset
             // gemessen — dieselbe Regel wie bei den Logs.
-            const healIds = Object.entries(require("../../src/config/wowsims/casterItems.json").items)
+            const healIds = Object.entries(require("../../src/config/wowsims/items.json").items)
                 .filter(([, it]) => (it.stats.healingPower || 0) > 60 && !it.stats.spellHit && it.ilvl >= 120)
                 .sort((a, b) => b[1].stats.healingPower - a[1].stats.healingPower)
                 .slice(0, 16)

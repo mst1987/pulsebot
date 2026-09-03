@@ -10,7 +10,7 @@ const dpsSet = gearOf(wowsims.bisFor("Priest-Shadow", "t6").items.map((e) => e.i
 // WoWSims ships no healer BiS (see fetch-wowsims-data.js), so a healing set is
 // assembled from the item table: the pieces with the most healing power.
 const healSet = gearOf(
-    Object.entries(require("../../src/config/wowsims/casterItems.json").items)
+    Object.entries(require("../../src/config/wowsims/items.json").items)
         .filter(([, it]) => (it.stats.healingPower || 0) > 60 && !it.stats.spellHit && it.ilvl >= 120)
         .sort((a, b) => b[1].stats.healingPower - a[1].stats.healingPower)
         .slice(0, 16)

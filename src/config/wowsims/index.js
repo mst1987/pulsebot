@@ -9,7 +9,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const itemData = require("./casterItems.json");
+const itemData = require("./items.json");
 const bisData = require("./bisSets.json");
 
 const APL_DIR = path.join(__dirname, "apls");

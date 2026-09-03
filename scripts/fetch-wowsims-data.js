@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Generates everything the loot council needs out of WoWSims-TBC (wowsims/tbc-new, MIT):
 //
-//   src/config/wowsims/casterItems.js  — the caster-relevant slice of the item DB
-//                                        (stats, slot, sockets), keyed by item id
-//   src/config/wowsims/bisSets.js      — the BiS gear sets per caster spec and phase
+//   src/config/wowsims/items.json      — the raid-relevant slice of the item DB
+//                                        (stats, slot, sockets, weapon), by item id
+//   src/config/wowsims/bisSets.json    — the BiS gear sets per spec and phase
 //   src/config/wowsims/apls/*.json     — the ground-truth rotations, verbatim
 //
 // Run it to refresh those files; do NOT hand-edit them (same rule as the
@@ -66,13 +66,16 @@ const BIS_FILES = {
         { tier: "t4", file: "ui/druid/balance/gear_sets/p1_a.gear.json" },
         { tier: "t5", file: "ui/druid/balance/gear_sets/p2_a.gear.json" },
         { tier: "t6", file: "ui/druid/balance/gear_sets/p3.gear.json" },
-        { tier: "t65", file: "ui/druid/balance/gear_sets/p4.gear.json" },
+        // p5, nicht p4: p4 ist die ZA-Phase (medianes Itemlevel 141), Sunwell
+        // steht in p5 (154). Stand vorher falsch hier.
+        { tier: "t65", file: "ui/druid/balance/gear_sets/p5.gear.json" },
     ],
     "Shaman-Elemental": [
         { tier: "t4", file: "ui/shaman/elemental/gear_sets/p1_a.gear.json" },
         { tier: "t5", file: "ui/shaman/elemental/gear_sets/p2.gear.json" },
         { tier: "t6", file: "ui/shaman/elemental/gear_sets/p3.gear.json" },
-        { tier: "t65", file: "ui/shaman/elemental/gear_sets/p4.gear.json" },
+        // p5 aus demselben Grund wie beim Druiden oben.
+        { tier: "t65", file: "ui/shaman/elemental/gear_sets/p5.gear.json" },
     ],
     // ⚠️ The healing specs are listed but yield nothing, and that is WoWSims'
     // state, not a bug here: ui/priest has no healing sim at all, and the resto
@@ -97,6 +100,107 @@ const BIS_FILES = {
         { tier: "t4", file: "ui/paladin/holy/gear_sets/p1.gear.json" },
     ],
 };
+
+// ── Nahkampf und Tanks ───────────────────────────────────────────────────────
+//
+// ⚠️ WoWSims' Phasennummern sind nicht unsere Tiers. `p4` ist bei jeder Spec
+// die Zul'Aman-Phase auf T6-Niveau, Sunwell steht in `p5` — und genau das war
+// bei den Castern oben jahrelang falsch verbucht (p4 als t65, medianes
+// Itemlevel 141 statt 154). Die Zuordnung hier ist an den Itemleveln der Sets
+// geprüft, und das Skript druckt sie beim Erzeugen mit, damit eine verrutschte
+// Phase auffällt statt still ein falsches Set als BiS zu führen.
+//
+// p4 fehlt deshalb überall: Zul'Aman ist in unserer Tier-Tabelle kein eigenes
+// Tier, und das ZA-Set wäre ein zweites T6-Set. Gelistet ist je Phase nur, was
+// als "das Beste daraus" gemeint ist — beim Jäger die Zweihand-Variante mit
+// vollem Setbonus, beim Bären das ausgewogene statt der Widerstandssets.
+const BIS_MELEE = {
+    "Warrior-Arms": [
+        { tier: "t4", file: "ui/warrior/dps/gear_sets/p1_arms.gear.json" },
+        { tier: "t5", file: "ui/warrior/dps/gear_sets/p2_arms.gear.json" },
+        { tier: "t6", file: "ui/warrior/dps/gear_sets/p3_arms.gear.json" },
+        { tier: "t65", file: "ui/warrior/dps/gear_sets/p5_arms.gear.json" },
+    ],
+    "Warrior-Fury": [
+        { tier: "t4", file: "ui/warrior/dps/gear_sets/p1_fury.gear.json" },
+        { tier: "t5", file: "ui/warrior/dps/gear_sets/p2_fury.gear.json" },
+        { tier: "t6", file: "ui/warrior/dps/gear_sets/p3_fury.gear.json" },
+        { tier: "t65", file: "ui/warrior/dps/gear_sets/p5_fury.gear.json" },
+    ],
+    "Warrior-Protection": [
+        { tier: "t4", file: "ui/warrior/protection/gear_sets/p1_bis.gear.json" },
+        { tier: "t5", file: "ui/warrior/protection/gear_sets/p2_bis.gear.json" },
+        { tier: "t6", file: "ui/warrior/protection/gear_sets/p3_bis.gear.json" },
+        { tier: "t65", file: "ui/warrior/protection/gear_sets/p5_bis.gear.json" },
+    ],
+    "Rogue-Combat": [
+        { tier: "t4", file: "ui/rogue/dps/gear_sets/p1.gear.json" },
+        { tier: "t5", file: "ui/rogue/dps/gear_sets/p2.gear.json" },
+        { tier: "t6", file: "ui/rogue/dps/gear_sets/p3.gear.json" },
+    ],
+    "Druid-Feral": [
+        { tier: "t4", file: "ui/druid/feralcat/gear_sets/p1_bis_9p.gear.json" },
+        { tier: "t5", file: "ui/druid/feralcat/gear_sets/p2_alt_9p.gear.json" },
+        { tier: "t6", file: "ui/druid/feralcat/gear_sets/p3_9p.gear.json" },
+        { tier: "t65", file: "ui/druid/feralcat/gear_sets/p5.gear.json" },
+    ],
+    "Druid-Guardian": [
+        { tier: "t4", file: "ui/druid/feralbear/gear_sets/p1.gear.json" },
+        { tier: "t5", file: "ui/druid/feralbear/gear_sets/p2_balanced.gear.json" },
+        { tier: "t6", file: "ui/druid/feralbear/gear_sets/p3.gear.json" },
+        { tier: "t65", file: "ui/druid/feralbear/gear_sets/p5.gear.json" },
+    ],
+    "Shaman-Enhancement": [
+        { tier: "t4", file: "ui/shaman/enhancement/gear_sets/p1.gear.json" },
+        { tier: "t5", file: "ui/shaman/enhancement/gear_sets/p2.gear.json" },
+        { tier: "t6", file: "ui/shaman/enhancement/gear_sets/p3.gear.json" },
+        { tier: "t65", file: "ui/shaman/enhancement/gear_sets/p5.gear.json" },
+    ],
+    "Paladin-Retribution": [
+        { tier: "t4", file: "ui/paladin/retribution/gear_sets/p1.gear.json" },
+        { tier: "t5", file: "ui/paladin/retribution/gear_sets/p2.gear.json" },
+        { tier: "t6", file: "ui/paladin/retribution/gear_sets/p3.gear.json" },
+    ],
+    "Paladin-Protection": [
+        { tier: "t4", file: "ui/paladin/protection/gear_sets/p1.gear.json" },
+        { tier: "t5", file: "ui/paladin/protection/gear_sets/p2.gear.json" },
+        // p5 statt p3: mit ilvl 146 gegen 141 ist es das bessere T6-Set — und
+        // eben kein Sunwell-Set, dafür liegt es 8 Itemlevel zu niedrig. Für den
+        // Schutz-Paladin gibt es bei WoWSims schlicht keine Sunwell-Liste.
+        { tier: "t6", file: "ui/paladin/protection/gear_sets/p5.gear.json" },
+    ],
+    // Der Jäger ordnet nach Phase *und* Spec; Beastmastery mit Zweihandwaffe und
+    // vollem Setbonus ist die Liste, die als BiS gemeint ist.
+    "Hunter-BeastMastery": [
+        { tier: "t4", file: "ui/hunter/dps/gear_sets/phase_1/bm/2h_9p.gear.json" },
+        { tier: "t5", file: "ui/hunter/dps/gear_sets/phase_2/bm/2h_9p.gear.json" },
+        { tier: "t6", file: "ui/hunter/dps/gear_sets/phase_3/bm/2h_9p.gear.json" },
+        // phase_4 liegt bei ilvl 141 und ist damit die ZA-Phase, kein Sunwell —
+        // eine Sunwell-Liste führt WoWSims für Jäger nicht.
+    ],
+    "Hunter-Survival": [
+        { tier: "t4", file: "ui/hunter/dps/gear_sets/phase_1/sv/2h_6p.gear.json" },
+        { tier: "t5", file: "ui/hunter/dps/gear_sets/phase_2/sv/2h_6p.gear.json" },
+        { tier: "t6", file: "ui/hunter/dps/gear_sets/phase_3/sv/2h_9p.gear.json" },
+        // phase_4 wie beim Beastmastery-Jäger: ZA-Niveau, kein Sunwell.
+    ],
+};
+
+// Womit man rechnen darf, wenn die Zuordnung stimmt: T4 liegt bei medianem
+// Itemlevel 115-120, T5 bei 128-133, T6 bei 138-146, Sunwell bei 154-159. Das
+// Skript druckt den Median je Set, damit eine verrutschte Phase auffällt statt
+// still ein falsches Set als BiS zu führen — genau so war p4 jahrelang als
+// Sunwell verbucht.
+// T4 steht bewusst tief: WoWSims' Priester-P1-Set liegt bei 110 und ist damit
+// echtes Kara-Einstiegsgear. Die Zahlen sollen einen um ein ganzes Tier
+// verrutschten Satz fangen, nicht ein schwaches Set melden.
+const TIER_ILVL_HINT = { t4: 108, t5: 126, t6: 136, t65: 152 };
+
+/** Der Median der Itemlevel eines Sets — die Kontrollzahl beim Erzeugen. */
+function medianIlvl(ilvls) {
+    const sorted = ilvls.filter(Boolean).sort((a, b) => a - b);
+    return sorted.length ? sorted[Math.floor(sorted.length / 2)] : 0;
+}
 
 // The rotations, copied verbatim (they are the ground truth we sim against).
 const APL_FILES = {
@@ -136,13 +240,21 @@ const TYPE_TO_SLOTS = {
     14: [17],     // Ranged (wand/idol/relic/totem)
 };
 
-// WoWSims stat index -> our stat key. Only the stats a caster is judged on are
-// carried over; the melee half of the vector would just be noise here.
-// Verified against the item DB (e.g. Hood of Absolution 31064: 3=int, 5=spell
-// power, 13=spell crit, 16=spirit, 35=mp5).
+// WoWSims stat index -> our stat key.
+//
+// Taken from WoWSims' own `enum Stat` (proto/common.proto), not inferred from
+// example items: the caster half was originally read off a known item, and that
+// works until it doesn't — one wrong index silently mis-scores every piece.
+//
+// Resistances and the composite health/mana entries are left out: no council
+// question is decided by them, and an item's fire resistance would only add
+// noise to a stat block the page prints.
 const STAT_KEYS = {
+    0: "strength",
+    1: "agility",
     2: "stamina",
     3: "intellect",
+    // Caster half.
     4: "healingPower",
     5: "spellPower",
     6: "arcanePower",
@@ -156,6 +268,24 @@ const STAT_KEYS = {
     14: "spellHaste",
     15: "spellPen",
     16: "spirit",
+    // Physical — what a melee, a hunter or a feral druid is judged by.
+    17: "attackPower",
+    18: "rangedAttackPower",
+    19: "feralAttackPower",
+    20: "meleeHit",
+    21: "meleeCrit",
+    22: "meleeHaste",
+    23: "armorPen",
+    24: "expertise",
+    // Tank.
+    25: "defense",
+    26: "blockRating",
+    27: "blockValue",
+    28: "dodge",
+    29: "parry",
+    30: "resilience",
+    31: "armor",
+    32: "bonusArmor",
     35: "mp5",
 };
 
@@ -188,23 +318,41 @@ function statsOf(item) {
         const value = Number(raw[idx] || 0);
         if (value) out[key] = value;
     }
-    return { stats: out, ilvl: Number((scaling && scaling.ilvl) || 0) };
+    return {
+        stats: out,
+        ilvl: Number((scaling && scaling.ilvl) || 0),
+        // Waffenschaden steht im Skalierungsblock, die Geschwindigkeit dagegen
+        // an der Wurzel des Items — für einen Caster war beides gleichgültig,
+        // für jeden Nahkämpfer ist es die halbe Waffe.
+        damage: {
+            min: Number((scaling && scaling.weaponDamageMin) || 0),
+            max: Number((scaling && scaling.weaponDamageMax) || 0),
+        },
+    };
 }
 
+// The stats that make a piece worth carrying, by the role that cares about it.
+// Plain stamina or intellect is on every hybrid piece in the game and says
+// nothing, so neither is a reason on its own.
+const RELEVANT_STATS = {
+    caster: ["spellPower", "healingPower", "arcanePower", "firePower", "frostPower",
+        "holyPower", "naturePower", "shadowPower", "spellHit", "spellCrit", "spellHaste", "mp5"],
+    physical: ["strength", "agility", "attackPower", "rangedAttackPower", "feralAttackPower",
+        "meleeHit", "meleeCrit", "meleeHaste", "armorPen", "expertise"],
+    tank: ["defense", "blockRating", "blockValue", "dodge", "parry", "bonusArmor"],
+};
+
 /**
- * Is this item worth carrying into the caster item table? Caster gear is what
- * has spell power, healing power or a school-specific damage bonus on it; plain
- * intellect alone is not enough (every mail/plate hybrid piece has some).
+ * Is this item worth carrying into the table at all?
  *
- * Kept deliberately wide — an item that is *offered* to a caster has to be
+ * Kept deliberately wide — an item that is *offered* to somebody has to be
  * lookup-able even when it is a poor pick, or the page would silently drop the
- * very row a council is arguing about.
+ * very row a council is arguing about. Green and worse never reaches a council,
+ * and that is the only hard cut.
  */
-function isCasterItem(item, stats) {
-    if (item.quality < 3) return false; // green and worse never reaches a council
-    return !!(stats.spellPower || stats.healingPower || stats.arcanePower || stats.firePower
-        || stats.frostPower || stats.holyPower || stats.naturePower || stats.shadowPower
-        || stats.spellHit || stats.spellCrit || stats.spellHaste || stats.mp5);
+function isRaidItem(item, stats) {
+    if (item.quality < 3) return false;
+    return Object.values(RELEVANT_STATS).some((keys) => keys.some((key) => stats[key]));
 }
 
 async function main() {
@@ -219,7 +367,12 @@ async function main() {
     // carry would show up as a hole in the BiS list.
     const bis = {};
     const bisItemIds = new Set();
-    for (const [specKey, sets] of Object.entries(BIS_FILES)) {
+    // Itemlevel je Item — die Kontrollzahl, mit der unten jedes Set gedruckt
+    // wird (siehe TIER_ILVL_HINT).
+    const ilvlById = new Map();
+    for (const item of db.items || []) ilvlById.set(Number(item.id), statsOf(item).ilvl);
+
+    for (const [specKey, sets] of Object.entries({ ...BIS_FILES, ...BIS_MELEE })) {
         const bySets = {};
         for (const { tier, file } of sets) {
             let parsed;
@@ -246,18 +399,22 @@ async function main() {
             }
             for (const it of items) if (it) bisItemIds.add(it.id);
             bySets[tier] = items;
-            console.log(`  ${specKey} ${tier}: ${items.filter(Boolean).length} Items`);
+            const median = medianIlvl(items.filter(Boolean).map((it) => ilvlById.get(it.id) || 0));
+            const expected = TIER_ILVL_HINT[tier] || 0;
+            const off = expected && median < expected ? "  ← unter dem erwarteten Itemlevel dieses Tiers!" : "";
+            console.log(`  ${specKey} ${tier}: ${items.filter(Boolean).length} Items, ilvl ${median}${off}`);
         }
         if (Object.keys(bySets).length) bis[specKey] = bySets;
     }
 
-    // Now the item table: everything a caster could be handed, plus every id a
-    // BiS set names.
+
+    // Now the item table: everything anybody on the council could be handed,
+    // plus every id a BiS set names.
     const items = {};
     const icons = new Map((db.itemIcons || []).map((i) => [Number(i.id), String(i.icon || "")]));
     for (const item of db.items || []) {
-        const { stats, ilvl } = statsOf(item);
-        if (!isCasterItem(item, stats) && !bisItemIds.has(Number(item.id))) continue;
+        const { stats, ilvl, damage } = statsOf(item);
+        if (!isRaidItem(item, stats) && !bisItemIds.has(Number(item.id))) continue;
         const slots = TYPE_TO_SLOTS[item.type];
         if (!slots) continue; // a type we have no equip slot for (shirt, tabard)
         items[item.id] = {
@@ -276,13 +433,26 @@ async function main() {
             // page never offers a Mage a Shaman's mail chest.
             ...(Array.isArray(item.classAllowlist) && item.classAllowlist.length
                 ? { classes: item.classAllowlist.map(Number) } : {}),
+            // Waffen: Schaden und Geschwindigkeit. Für einen Caster war das
+            // gleichgültig — die Zauberwerte stehen im Statblock —, für jeden
+            // Nahkämpfer ist es die halbe Waffe.
+            ...(damage.min || damage.max || item.weaponSpeed ? {
+                weapon: {
+                    min: damage.min,
+                    max: damage.max,
+                    speed: Number(item.weaponSpeed || 0),
+                    type: Number(item.weaponType || 0),
+                },
+            } : {}),
         };
     }
-    console.log(`Caster-Items: ${Object.keys(items).length}`);
+    const withPhysical = Object.values(items)
+        .filter((it) => RELEVANT_STATS.physical.some((key) => it.stats[key])).length;
+    console.log(`Items: ${Object.keys(items).length} (davon ${withPhysical} mit Nahkampf-/Distanzwerten)`);
 
     // Shape per id: { name, icon, slots: [wcl equip slot], ilvl, quality, phase,
     // stats: { spellPower, spellHit, … }, setName?, sockets?, classes? }.
-    writeJson("casterItems.json", { version: SIM_VERSION, items });
+    writeJson("items.json", { version: SIM_VERSION, items });
     // Shape: { "<Class>-<Spec>": { t4: [{ id, enchant?, gems? } | null, …], … } }.
     writeJson("bisSets.json", { version: BIS_VERSION, sets: bis });
 

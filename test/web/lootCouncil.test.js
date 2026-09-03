@@ -250,7 +250,7 @@ describe("web/lootCouncil", () => {
             // The whole point: a capped raider must not be handed the hit item
             // over someone who still needs it.
             const cap = hitCapFor(shadow);
-            const hitItem = Object.entries(require("../../src/config/wowsims/casterItems.json").items)
+            const hitItem = Object.entries(require("../../src/config/wowsims/items.json").items)
                 .find(([, it]) => it.stats.spellHit >= 20 && it.slots.includes(12));
             expect(hitItem).toBeTruthy();
             const [hitId] = hitItem;
@@ -262,7 +262,7 @@ describe("web/lootCouncil", () => {
             // ...one already at the cap does not.
             const cappedItems = [];
             let hit = 0;
-            for (const [id, it] of Object.entries(require("../../src/config/wowsims/casterItems.json").items)) {
+            for (const [id, it] of Object.entries(require("../../src/config/wowsims/items.json").items)) {
                 if (hit >= cap) break;
                 if (it.stats.spellHit > 0 && !it.slots.includes(12)) {
                     cappedItems.push(item(it.slots[0], Number(id)));
