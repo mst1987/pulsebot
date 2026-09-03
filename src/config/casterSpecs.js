@@ -173,6 +173,32 @@ function specByKey(key) {
     return BY_KEY.get(String(key || "")) || null;
 }
 
+/**
+ * The spec a class is played as in a given role — the first one listed, which
+ * for every hybrid is the one that matters: a priest planned as DPS is shadow,
+ * a druid balance, a shaman elemental. Null when the class has no spec in that
+ * role at all, so a paladin can never be planned as a caster.
+ *
+ * Which of the two healing specs a priest gets is deliberately not a decision:
+ * heal sets have no BiS list and no simulation, so Holy and Discipline are the
+ * same thing to everything downstream.
+ */
+function specForRole(className, role) {
+    const cls = String(className || "").trim();
+    const want = String(role || "").trim();
+    if (!cls || !want) return null;
+    return SPECS.find((s) => s.className === cls && s.role === want) || null;
+}
+
+/**
+ * Which roles a class can be planned as. One entry means there is nothing to
+ * choose — a mage is never a healer — and the page then shows no switch.
+ */
+function rolesForClass(className) {
+    const cls = String(className || "").trim();
+    return [...new Set(SPECS.filter((s) => s.className === cls).map((s) => s.role))];
+}
+
 /** Whether this class/spec belongs on the caster council at all. */
 function isCasterSpec(className, spec) {
     return !!specFor(className, spec);
@@ -276,5 +302,6 @@ function bisSpecsForItem(itemId, tierId) {
 
 module.exports = {
     ROLES, SPECS, CASTER_WEIGHTS, HEALER_WEIGHTS, HIT_CAP,
-    specFor, specByKey, isCasterSpec, weightsFor, hitCapFor, bisForSpec, aplForSpec, isSimSupported, bisSpecsForItem,
+    specFor, specByKey, specForRole, rolesForClass, isCasterSpec, weightsFor, hitCapFor,
+    bisForSpec, aplForSpec, isSimSupported, bisSpecsForItem,
 };

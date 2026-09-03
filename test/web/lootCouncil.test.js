@@ -7,6 +7,7 @@ const mockGearByCharacter = jest.fn(() => new Map());
 const mockCharacterMap = jest.fn(() => ({}));
 const mockAssignments = jest.fn(() => ({}));
 const mockExcludedKeys = jest.fn(() => new Set());
+const mockPlannedRoles = jest.fn(() => new Map());
 const mockRaidEvents = jest.fn(() => []);
 const mockLogs = jest.fn(() => []);
 const mockListReports = jest.fn(() => []);
@@ -17,7 +18,10 @@ jest.mock("../../src/web/characterInfo", () => ({ annotatedCharacters: (...a) =>
 jest.mock("../../src/web/charGear", () => ({ gearByCharacter: (...a) => mockGearByCharacter(...a) }));
 jest.mock("../../src/web/characterStore", () => ({ characterMap: (...a) => mockCharacterMap(...a) }));
 jest.mock("../../src/web/raiderCharactersStore", () => ({ getCategoryAssignments: (...a) => mockAssignments(...a) }));
-jest.mock("../../src/web/councilStore", () => ({ excludedKeys: (...a) => mockExcludedKeys(...a) }));
+jest.mock("../../src/web/councilStore", () => ({
+    excludedKeys: (...a) => mockExcludedKeys(...a),
+    plannedRoles: (...a) => mockPlannedRoles(...a),
+}));
 jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: (...a) => mockRaidEvents(...a) }));
 jest.mock("../../src/web/logStore", () => ({ listLogs: (...a) => mockLogs(...a) }));
 jest.mock("../../src/web/reportStore", () => ({
@@ -63,6 +67,7 @@ beforeEach(() => {
     mockCharacterMap.mockReturnValue({});
     mockAssignments.mockReturnValue({});
     mockExcludedKeys.mockReturnValue(new Set());
+    mockPlannedRoles.mockReturnValue(new Map());
     mockRaidEvents.mockReturnValue([]);
     mockLogs.mockReturnValue([]);
     mockListReports.mockReturnValue([]);
@@ -892,6 +897,71 @@ describe("web/lootCouncil — judging a caster on caster gear", () => {
         }]]));
         const row = councilRoster({}).rows[0];
         expect(row.gear).toMatchObject({ setRole: "healer", roleMismatch: true, skippedReports: 2 });
+    });
+
+    // Ein Heiler spielt hin und wieder Offspec. Aus den Daten geht das nicht
+    // hervor — dort steht die Spec, mit der er zuletzt geloggt wurde —, also
+    // legt der Raidlead es fest.
+    describe("als was jemand eingeplant ist", () => {
+        const holyPriest = () => {
+            mockAnnotated.mockReturnValue([{ key: "heala", className: "Priest", spec: "Holy" }]);
+            mockGearByCharacter.mockReturnValue(new Map([["heala", gearOf([item(0, 31064)], {
+                key: "heala", character: "Heala", className: "Priest",
+            })]]));
+        };
+
+        it("folgt den Daten, solange niemand etwas festgelegt hat", () => {
+            holyPriest();
+            const row = councilRoster({ role: "healer" }).rows[0];
+            expect(row).toMatchObject({ role: "healer", specKey: "Priest-Holy", roleOverride: "" });
+        });
+
+        it("plant einen Heiler als DPS ein, wenn es festgelegt ist", () => {
+            holyPriest();
+            mockPlannedRoles.mockReturnValue(new Map([["heala", "caster"]]));
+            const row = councilRoster({ role: "caster" }).rows[0];
+            // Mit der Rolle wechselt die Spec — und damit BiS-Liste,
+            // Stat-Gewichte und Simulation.
+            expect(row).toMatchObject({ role: "caster", specKey: "Priest-Shadow", roleOverride: "caster" });
+            expect(row.bis.total).toBeGreaterThan(0);
+            // Was die Daten sagen, bleibt sichtbar.
+            expect(row.roleFromData).toBe("healer");
+        });
+
+        it("sucht danach auch das passende Gear", () => {
+            // Die Rolle entscheidet, welches Set aus den Auswertungen gesucht
+            // wird — ein als DPS eingeplanter Heiler darf nicht am Heilset
+            // gemessen werden.
+            holyPriest();
+            mockPlannedRoles.mockReturnValue(new Map([["heala", "caster"]]));
+            councilRoster({});
+            const { roleFor } = mockGearByCharacter.mock.calls[0][0];
+            expect(roleFor("heala")).toBe("caster");
+        });
+
+        it("nennt die Rollen, zwischen denen die Klasse überhaupt wählen kann", () => {
+            holyPriest();
+            expect(councilRoster({ role: "healer" }).rows[0].roleOptions.sort()).toEqual(["caster", "healer"]);
+
+            mockAnnotated.mockReturnValue([{ key: "magier", className: "Mage", spec: "Arcane" }]);
+            mockGearByCharacter.mockReturnValue(new Map([["magier", gearOf([item(0, 31064)], {
+                key: "magier", character: "Magier", className: "Mage",
+            })]]));
+            // Ein Magier ist nie Heiler — die Seite zeigt dann keinen Schalter.
+            expect(councilRoster({}).rows[0].roleOptions).toEqual(["caster"]);
+        });
+
+        it("ignoriert eine Festlegung, die die Klasse nicht hergibt", () => {
+            // Ein Paladin lässt sich nicht als Caster einplanen; dann bleibt es
+            // bei dem, was die Daten sagen, statt ihn zu verlieren.
+            mockAnnotated.mockReturnValue([{ key: "pala", className: "Paladin", spec: "Holy" }]);
+            mockGearByCharacter.mockReturnValue(new Map([["pala", gearOf([item(0, 31064)], {
+                key: "pala", character: "Pala", className: "Paladin",
+            })]]));
+            mockPlannedRoles.mockReturnValue(new Map([["pala", "caster"]]));
+            const row = councilRoster({ role: "healer" }).rows[0];
+            expect(row).toMatchObject({ role: "healer", roleOverride: "" });
+        });
     });
 
     it("gives every raider a link to their armory", () => {

@@ -20,7 +20,7 @@ const { characterMap } = require("./characterStore");
 const { gearByCharacter } = require("./charGear");
 const { countsAsLoot } = require("../utils/lootReasons");
 const { getCategoryAssignments } = require("./raiderCharactersStore");
-const { excludedKeys } = require("./councilStore");
+const { excludedKeys, plannedRoles } = require("./councilStore");
 const { armoryUrlFor } = require("./charLinks");
 const { characterKey, splitPlayer } = require("../utils/lootImport");
 const { listRaidEvents } = require("./raidEventStore");
@@ -32,7 +32,8 @@ const { characterProfile } = require("../utils/setupView");
 const { targetSlotFor } = require("../utils/wowsims/loadout");
 const wowsims = require("../config/wowsims");
 const {
-    ROLES, specFor, specByKey, weightsFor, hitCapFor, bisForSpec, isSimSupported, bisSpecsForItem,
+    ROLES, specFor, specByKey, specForRole, rolesForClass, weightsFor, hitCapFor,
+    bisForSpec, isSimSupported, bisSpecsForItem,
 } = require("../config/casterSpecs");
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -393,6 +394,12 @@ function councilRoster(opts = {}) {
         const spec = specFor(c.className, c.spec);
         if (spec) roleByKey.set(c.key, spec.role);
     }
+    // Was der Raidlead festgelegt hat, schlägt die Spec aus den Daten: ein
+    // Heiler, der heute Offspec spielt, wird nach Casterset und Caster-BiS
+    // beurteilt statt nach dem, womit er zuletzt geloggt wurde. Muss vor dem
+    // Gear stehen — die Rolle entscheidet, welches Set überhaupt gesucht wird.
+    const planned = plannedRoles();
+    for (const [key, wanted] of planned) roleByKey.set(key, wanted);
     const gearMap = gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "" });
     // Class colour and spec icon are resolved server-side, like everywhere else
     // in the app — the client never keeps a second copy of the WoW palette.
@@ -457,8 +464,13 @@ function councilRoster(opts = {}) {
         const known = info.get(key) || charStore[key] || {};
         const gear = gearMap.get(key) || null;
         const className = known.className || (gear && gear.className) || "";
-        const specEntry = specFor(className, known.spec);
-        if (!specEntry) continue;
+        const fromData = specFor(className, known.spec);
+        if (!fromData) continue;
+        // Die Festlegung des Raidleads gewinnt, wenn die Klasse sie hergibt —
+        // ein Paladin lässt sich nicht als Caster einplanen, dann bleibt es bei
+        // dem, was die Daten sagen.
+        const wanted = planned.get(key) || "";
+        const specEntry = (wanted && wanted !== fromData.role && specForRole(className, wanted)) || fromData;
         if (role && specEntry.role !== role) continue;
 
         const bucket = loot.get(key) || { all: [], filtered: [], other: 0, character: "" };
@@ -498,6 +510,12 @@ function councilRoster(opts = {}) {
             specKey: specEntry.key,
             specLabel: specEntry.label,
             specAssumed: !!specEntry.assumedFromClass,
+            // Als was jemand eingeplant ist, und ob das eine Festlegung war
+            // oder aus den Daten folgt. `roleOptions` sagt der Seite, ob es
+            // überhaupt etwas zu wählen gibt — bei einem Magier nicht.
+            roleOverride: specEntry.role === wanted ? wanted : "",
+            roleFromData: fromData.role,
+            roleOptions: rolesForClass(className),
             role: specEntry.role,
             lootCount: filtered.length,
             lootTotal: bucket.all.length,

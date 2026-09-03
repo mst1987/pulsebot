@@ -1827,6 +1827,16 @@ export type CouncilRaider = {
     /** Their armory page, for checking the gear this page derived from a log. */
     armoryUrl: string;
     role: "caster" | "healer";
+    /**
+     * Als was der Raidlead sie eingeplant hat ("" = wie in den Daten). Ein
+     * Heiler im Offspec ist für diesen Abend ein DPS, und das steht nirgends in
+     * den Daten — also wird es festgelegt.
+     */
+    roleOverride: string;
+    /** Was die Daten sagen: die Spec, mit der sie zuletzt geloggt wurden. */
+    roleFromData: string;
+    /** Welche Rollen ihre Klasse spielen kann. Eine = nichts zu wählen. */
+    roleOptions: string[];
     /** Items in the current content filter; lootTotal counts all of them. */
     lootCount: number;
     lootTotal: number;
@@ -2132,6 +2142,18 @@ export function setCouncilExcluded(
     reason = "",
 ): Promise<{ character: string; excluded: boolean }> {
     return send("POST", "/api/lootcouncil/exclude", csrfToken, { character, exclude: excluded, reason });
+}
+
+/**
+ * Als was ein Raider eingeplant ist. Ein leeres `role` nimmt die Festlegung
+ * zurück, und die Seite folgt wieder dem, was die Daten sagen.
+ */
+export function setCouncilRole(
+    csrfToken: string | null,
+    character: string,
+    role: "" | "caster" | "healer",
+): Promise<{ character: string; role: string }> {
+    return send("POST", "/api/lootcouncil/role", csrfToken, { character, role });
 }
 
 /**
