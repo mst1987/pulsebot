@@ -163,8 +163,11 @@ describe("web/charGear", () => {
             };
             setReports(report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: withAlternate }]));
             const gear = casterGear();
-            expect(itemInSlot(gear, 12).itemId).toBe(MOTC);
-            expect(itemInSlot(gear, 12).itemId).not.toBe(itemInSlot(gear, 13).itemId);
+            // Der Ersatz wird abgelehnt, und weil nichts anderes bleibt, ist der
+            // Slot leer statt doppelt belegt.
+            expect(itemInSlot(gear, 12)).toBeNull();
+            expect(itemInSlot(gear, 13).itemId).toBe(trinket);
+            expect(gear.dropped[0]).toMatchObject({ slot: 12, itemId: MOTC });
         });
 
         it("substitutes what the raider wears in that slot on a normal night", () => {
@@ -187,26 +190,31 @@ describe("web/charGear", () => {
             expect(worn.replacedSituational.note).toContain("Untote");
         });
 
-        it("leaves the piece standing, flagged, when no older raid shows another", () => {
-            // Better a marked slot than a silently missing one: the page says
-            // the comparison cannot read it instead of pretending it can.
+        it("takes the piece out of the set when no source can answer", () => {
+            // Es steht dann *nicht* mehr da. So ein Teil ist gegen jeden Boss,
+            // für den ein Council plant, so viel wert wie ein leerer Slot — es
+            // stehen zu lassen behauptet Ausrüstung, die es nicht gibt.
             setReports(report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: casterSet(MOTC) }]));
-            const worn = itemInSlot(casterGear(), 12);
-            expect(worn.itemId).toBe(MOTC);
-            expect(worn.situational.note).toContain("Untote");
-            expect(worn.replacedSituational).toBeNull();
+            const gear = casterGear();
+            expect(itemInSlot(gear, 12)).toBeNull();
+            expect(gear.items.some((it) => it.situational)).toBe(false);
+            // Verschwiegen wird es aber nicht: der Slot ist benannt, samt Grund.
+            expect(gear.dropped).toHaveLength(1);
+            expect(gear.dropped[0]).toMatchObject({ slot: 12, itemId: MOTC });
+            expect(gear.dropped[0].note).toContain("Untote");
         });
 
         it("does not take the substitute out of a set of the wrong role", () => {
             // The trinket of the night they healed is not what they wear as a
             // caster either — that would trade one wrong baseline for another.
+            // Also bleibt der Slot leer statt falsch gefüllt.
             setReports(
                 report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: casterSet(MOTC) }]),
                 report("heal", 2000, [{ name: "Devihra", type: "Priest", armory: setOf(healIds) }]),
             );
-            const worn = itemInSlot(casterGear(), 12);
-            expect(worn.itemId).toBe(MOTC);
-            expect(worn.situational).not.toBeNull();
+            const gear = casterGear();
+            expect(itemInSlot(gear, 12)).toBeNull();
+            expect(gear.dropped[0]).toMatchObject({ itemId: MOTC });
         });
 
         it("does not hand a slot the item the raider still wears in the other one", () => {
@@ -224,9 +232,11 @@ describe("web/charGear", () => {
                 report("alt", 2000, [{ name: "Devihra", type: "Priest", armory: pair(trinket, other) }]),
             );
             const gear = casterGear();
-            expect(itemInSlot(gear, 12).itemId).toBe(MOTC);
-            expect(itemInSlot(gear, 12).situational).not.toBeNull();
-            expect(itemInSlot(gear, 12).itemId).not.toBe(itemInSlot(gear, 13).itemId);
+            // Schmuck 1 bleibt leer, Schmuck 2 behält sein Trinket — auf keinen
+            // Fall steht dasselbe Teil zweimal da.
+            expect(itemInSlot(gear, 12)).toBeNull();
+            expect(itemInSlot(gear, 13).itemId).toBe(trinket);
+            expect(gear.dropped[0]).toMatchObject({ slot: 12, itemId: MOTC });
         });
 
         it("does not replace one boss-specific piece with another", () => {

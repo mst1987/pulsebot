@@ -641,6 +641,18 @@ function GearBand({ raider }: { raider: CouncilRaider }) {
                 ) : null}
                 {noench ? <span className="lc-gchip lc-gchip-warn" title="Teile ohne Verzauberung">{noench} ohne VZ</span> : null}
                 {sockets ? <span className="lc-gchip lc-gchip-warn" title="Leere Sockel">{sockets} Sockel leer</span> : null}
+                {/* Bossabhängige Teile fliegen aus dem Vergleich — sie sind für
+                    jeden anderen Boss so viel wert wie ein leerer Slot. Der Chip
+                    sagt, welcher Slot deshalb leer ist. */}
+                {gear.dropped.map((d) => (
+                    <span
+                        key={d.slot}
+                        className="lc-gchip lc-gchip-warn"
+                        title={`„${d.itemName}" ${d.note}. Der Slot zählt hier als leer, weil keine andere Quelle sagt, was ${raider.character} dort sonst trägt.`}
+                    >
+                        {d.slotName} leer
+                    </span>
+                ))}
             </div>
             <div className="lc-gear">
                 {grouped.filter((g) => g.length).map((g, gi) => (

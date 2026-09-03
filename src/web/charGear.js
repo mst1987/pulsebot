@@ -26,6 +26,7 @@ const { characterKey, splitPlayer } = require("../utils/lootImport");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 const { gearProfile, fitsRole } = require("./gearProfile");
 const { situationalItem } = require("../config/situationalItems");
+const { armoryItemInSlot } = require("./armoryGear");
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons/large";
 
@@ -91,35 +92,61 @@ function trimItem(entry) {
  * icons, and "head, neck, shoulders, …" is the order a raider reads their own
  * gear in.
  */
-function armoryItems(entry) {
+function armoryItems(entry, character = "") {
     const items = (entry.armory || [])
         .filter((it) => it && Number(it.itemId) > 0)
         .map((it) => ({ ...trimItem(it), alternate: it.alternate || null }))
         .sort((a, b) => DISPLAY_ORDER.indexOf(a.slot) - DISPLAY_ORDER.indexOf(b.slot));
-    return useSameNightAlternate(items);
+    return replaceSituational(items, character || entry.name || "");
 }
 
 /**
- * Swap a boss-specific piece for what the raider wore on the other bosses of
- * the *same* night, where the evaluation recorded it.
+ * Get a boss-specific piece out of the set, using the best source that answers.
  *
- * This is the closest answer there is, and it beats reaching back into an older
- * raid: it is the same raider on the same evening, one boss apart. The older
- * evaluations stay as the fallback for reports that carry no alternative —
- * every report built before utils/logcheck/gearVariants.js existed, and any
- * night where the piece never came off.
+ * In order:
+ *   1. the armory — what is on the character *now*, which is the only source
+ *      that knows what they wear when nobody is logging,
+ *   2. the same raid night, one boss over, where the evaluation recorded it
+ *      (utils/logcheck/gearVariants.js).
+ *
+ * An older evaluation is tried after this, back in gearByCharacter, because
+ * that one needs the whole walk. And if none of the three answers, the piece is
+ * dropped rather than shown — see dropSituational().
  */
-function useSameNightAlternate(items) {
-    if (!items.some((it) => it.situational && it.alternate)) return items;
+function replaceSituational(items, character) {
+    if (!items.some((it) => it.situational)) return items;
     const equipped = new Set(items.map((it) => it.itemId));
     return items.map((it) => {
-        if (!it.situational || !it.alternate) return it;
-        const alt = trimItem(it.alternate);
+        if (!it.situational) return it;
+        const source = armoryItemInSlot(character, it.slot)
+            ? { row: armoryItemInSlot(character, it.slot), from: "armory" }
+            : (it.alternate ? { row: it.alternate, from: "sameRaid" } : null);
+        if (!source) return it;
+        const alt = trimItem(source.row);
         // Same guard as everywhere else: never put on a piece the raider is
         // already wearing in another slot.
         if (!alt.itemId || alt.situational || equipped.has(alt.itemId)) return it;
         equipped.delete(it.itemId);
         equipped.add(alt.itemId);
+        if (source.from === "armory") {
+            return {
+                ...alt,
+                alternate: null,
+                replacedSituational: {
+                    itemId: it.itemId,
+                    itemName: it.itemName,
+                    iconUrl: it.iconUrl,
+                    note: (it.situational || {}).note || "",
+                    seenAt: 0,
+                    reportTitle: "",
+                    fight: "",
+                    sameRaid: false,
+                    // The strongest answer there is: not what they wore, what
+                    // they wear.
+                    armory: true,
+                },
+            };
+        }
         return {
             ...alt,
             alternate: null,
@@ -134,9 +161,37 @@ function useSameNightAlternate(items) {
                 // of the set: it is from the same raid, one boss away.
                 fight: String(it.alternate.fight || ""),
                 sameRaid: true,
+                armory: false,
             },
         };
     });
+}
+
+/**
+ * Take every boss-specific piece nothing could answer out of the set.
+ *
+ * The last word, and the simplest one. Such a piece is worth exactly nothing in
+ * every comparison this app makes — WoWSims sims it as an empty slot, the stat
+ * weights score it at zero — so leaving it in the set only ever misleads the
+ * reader: the council sees a trinket where, for the boss they are planning for,
+ * there is none. An empty slot with the reason on it is the truth.
+ *
+ * What was taken out stays on the snapshot (`dropped`) so the page can say
+ * which slot is empty and why, instead of silently showing a hole.
+ */
+function dropSituational(snapshot) {
+    const dropped = snapshot.items.filter((it) => it.situational);
+    if (!dropped.length) return snapshot;
+    snapshot.items = snapshot.items.filter((it) => !it.situational);
+    snapshot.dropped = dropped.map((it) => ({
+        slot: it.slot,
+        slotName: it.slotName,
+        itemId: it.itemId,
+        itemName: it.itemName,
+        iconUrl: it.iconUrl,
+        note: (it.situational || {}).note || "",
+    }));
+    return snapshot;
 }
 
 /**
@@ -264,6 +319,9 @@ function gearByCharacter({ roleFor } = {}) {
                 profile: gearProfile({ items }),
                 skippedReports: 0,
                 roleMismatch: false,
+                // Boss-specific pieces nothing could answer, taken out of the
+                // set at the end of the walk (dropSituational).
+                dropped: [],
             };
 
             const wanted = roleFor ? roleFor(key) : "";
@@ -285,6 +343,9 @@ function gearByCharacter({ roleFor } = {}) {
     for (const [key, snapshot] of rejected) {
         if (!out.has(key)) out.set(key, { ...snapshot, roleMismatch: true, skippedReports: 0 });
     }
+    // Last: whatever no source could answer leaves the set. A piece worth zero
+    // in every comparison must not sit in a raider's gear pretending otherwise.
+    for (const snapshot of out.values()) dropSituational(snapshot);
     return out;
 }
 
