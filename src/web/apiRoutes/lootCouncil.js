@@ -22,6 +22,7 @@ const { activeGuildFor } = require("../activeGuild");
 const { userCan } = require("../../config/permissions");
 const { councilRoster, bisGaps, candidatesForItem, filterOptions, resolveContentFilter, itemView, bisSpecsView } = require("../lootCouncil");
 const { bisLists } = require("../bisLists");
+const { primeArmoryGear } = require("../armoryGear");
 const { sourceForItem } = require("../../config/tbcContent");
 const { startCouncilSim, getJob } = require("../simStore");
 const { searchItems } = require("../../config/wowsims");
@@ -64,9 +65,24 @@ async function getLootCouncil(req, res, url) {
     const bisTier = url.searchParams.get("bisTier") || "";
     const guildId = activeGuildFor(req);
 
+    const opts = { role, tierIds, contentIds, categoryId, bisTier };
+    let built = councilRoster(opts);
+    // A set that still holds a boss-specific piece is the one case the logs
+    // cannot answer — only the armory knows what is on that raider *now*. Asked
+    // then and only then, and only for those names, so a normal council costs
+    // no extra call at all. If it answers, the roster is built again with it.
+    const needArmory = built.rows.filter((r) => r.gear && r.gear.dropped.length).map((r) => r.character);
+    if (needArmory.length) {
+        try {
+            const primed = await primeArmoryGear(needArmory);
+            if (primed.answered) built = councilRoster(opts);
+        } catch (e) {
+            console.error("armory gear failed:", e.message);
+        }
+    }
     const {
         rows, avgLootCount, bisTier: usedBisTier, skipped, categorySources,
-    } = councilRoster({ role, tierIds, contentIds, categoryId, bisTier });
+    } = built;
     const contentFilter = resolveContentFilter({ tierIds, contentIds });
 
     // One named item ("this just dropped") short-circuits the BiS list: the
