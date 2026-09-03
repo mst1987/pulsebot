@@ -438,6 +438,7 @@ function WornIcon({ item }: { item: WornItem }) {
     const marks = [
         item.isBis ? "lc-worn-bis" : "",
         item.enchantStatus === "missing" ? "lc-worn-noench" : "",
+        item.situational ? "lc-worn-sit" : "",
     ].filter(Boolean).join(" ");
     return (
         <HoverPanel
@@ -448,6 +449,12 @@ function WornIcon({ item }: { item: WornItem }) {
                     {item.iconUrl
                         ? <img src={item.iconUrl} alt="" loading="lazy" {...itemQualityProps(item.quality, "lc-worn-img")} />
                         : <span className="lc-worn-img lc-worn-blank" />}
+                    {/* Both about what the comparison can read on this slot, and
+                        both worth seeing without hovering: an item that only
+                        counts against certain bosses, or one taken from an older
+                        raid because the newest raid had such a piece here. */}
+                    {item.situational ? <span className="lc-worn-mark lc-worn-mark-sit">!</span> : null}
+                    {item.replacedSituational ? <span className="lc-worn-mark lc-worn-mark-sub">↺</span> : null}
                 </span>
             }
         >
@@ -464,6 +471,29 @@ function WornIcon({ item }: { item: WornItem }) {
                     <div className="lc-worn-bisfor">
                         <span className="hint">BiS für</span>
                         <BisSpecs specs={item.bisSpecs} compact />
+                    </div>
+                ) : null}
+                {item.situational ? (
+                    <div className="hint lc-gear-warn">Zählt im Vergleich nicht: {item.situational.note}.</div>
+                ) : null}
+                {item.replacedSituational ? (
+                    // Named, never quietly swapped: whoever has the raider's
+                    // armory open next to this page must be able to see why the
+                    // page shows a piece they are not wearing tonight.
+                    <div className="hint">
+                        <div className="lc-worn-sub">
+                            <span>Steht hier statt</span>
+                            {item.replacedSituational.iconUrl
+                                ? <img src={item.replacedSituational.iconUrl} alt="" loading="lazy" />
+                                : null}
+                            <b>{item.replacedSituational.itemName}</b>
+                        </div>
+                        <div>
+                            Das {item.replacedSituational.note}. Gezeigt wird, was{" "}
+                            {item.replacedSituational.reportTitle
+                                ? `„${item.replacedSituational.reportTitle}“`
+                                : "eine ältere Auswertung"}{" "}auf dem Slot zeigt.
+                        </div>
                     </div>
                 ) : null}
                 <div className="lc-worn-flags">
@@ -507,22 +537,38 @@ function GearStamp({ raider }: { raider: CouncilRaider }) {
     const g = raider.gear;
     if (!g) return <>—</>;
     const stamp = `${fmtMs(g.seenAt, false)}${g.hitCap > 0 ? ` · Hit ${g.spellHit}/${g.hitCap}` : ""}`;
+    // What the set is *not* purely their normal kit for. Rides along with every
+    // branch below, because it is orthogonal to how the set was found.
+    const slots = (
+        <>
+            {g.substituted > 0 ? (
+                <span className="sub" title={`${g.substituted} Slot(s) tragen heute ein Teil, das nur gegen bestimmte Bosse zählt — verglichen wird mit dem, was dort sonst steckt (Icon mit ↺).`}>
+                    {" "}· {g.substituted}× ersetzt
+                </span>
+            ) : null}
+            {g.situational > 0 ? (
+                <span className="lc-gear-warn" title={`${g.situational} Slot(s) tragen ein bossabhängiges Teil, und keine ältere Auswertung zeigt dort etwas anderes. Der Vergleich liest den Slot als leer (Icon mit !).`}>
+                    {" "}· {g.situational} Slot situativ
+                </span>
+            ) : null}
+        </>
+    );
 
     if (g.roleMismatch) {
         return (
             <span className="lc-gear-warn" title={`Aus „${g.reportTitle}“ — dort wurde offenbar geheilt. Für diesen Raider ist kein reines Caster-Set geloggt, die Werte sind daher mit Vorsicht zu lesen.`}>
-                {stamp} <b>· Heilgear</b>
+                {stamp} <b>· Heilgear</b>{slots}
             </span>
         );
     }
     if (g.skippedReports > 0) {
         return (
             <span title={`Aus „${g.reportTitle}“. ${g.skippedReports} neuere Auswertung(en) übersprungen, weil dort geheilt wurde.`}>
-                {stamp} <span className="sub">· {g.skippedReports} übersprungen</span>
+                {stamp} <span className="sub">· {g.skippedReports} übersprungen</span>{slots}
             </span>
         );
     }
-    return <span title={`Aus der Auswertung „${g.reportTitle}“`}>{stamp}</span>;
+    return <span title={`Aus der Auswertung „${g.reportTitle}“`}>{stamp}{slots}</span>;
 }
 
 /**
@@ -730,6 +776,22 @@ function CandidateRow({ candidate, simDelta, gainMax }: {
                     >
                         {gain > 0 ? "+" : ""}{Math.round(gain)}{measured ? " DPS" : ""}
                     </b>
+                    {/* The number is honestly measured, the *comparison* is not:
+                        what would come off reads as an empty slot, so this
+                        raider is credited the item's full worth while the rest
+                        of the list only gets a difference. Marked right at the
+                        number, since that is where the wrong conclusion would
+                        be drawn. */}
+                    {candidate.inflatedBy.length ? (
+                        <span
+                            className="lc-gain-inflated"
+                            title={`Nicht vergleichbar: ${candidate.inflatedBy
+                                .map((b) => `„${b.itemName}“ ${b.note}`)
+                                .join("; ")}. Der Zugewinn fällt dadurch höher aus als bei Raidern mit einem normalen Teil auf dem Slot.`}
+                        >
+                            !
+                        </span>
+                    ) : null}
                 </span>
             </td>
             <td><NeedBar subject={candidate} /></td>

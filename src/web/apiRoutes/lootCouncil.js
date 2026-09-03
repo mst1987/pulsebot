@@ -185,17 +185,30 @@ async function getExport(req, res, url) {
 
     const character = String(url.searchParams.get("character") || "").trim();
     if (!character) return apiError(res, 400, "Kein Charakter angegeben.");
-    const gear = gearFor(character);
+    // The spec decides the rotation and the buff set, so it has to be the same
+    // one the page judged them by — and, one step earlier, the same role: the
+    // export has to be built from the set the page compared, not from the
+    // healing gear of whatever raid happens to be the newest.
+    const known = characterMap()[charKey(character)] || {};
+    const knownSpec = specFor(known.className, known.spec);
+    const gear = gearFor(character, { roleFor: () => (knownSpec ? knownSpec.role : "") });
     if (!gear) return apiError(res, 404, `Für ${character} ist kein Gear bekannt — der Charakter taucht in keiner der letzten CLA-Auswertungen auf.`);
 
-    // The spec decides the rotation and the buff set, so it has to be the same
-    // one the page judged them by.
-    const known = characterMap()[charKey(character)] || {};
-    const specEntry = specFor(known.className || gear.className, known.spec);
+    const specEntry = knownSpec || specFor(gear.className, known.spec);
     if (!specEntry) return apiError(res, 400, `Für ${character} ist keine Caster-Spec bekannt.`);
 
     const built = engine.buildIndividualExport({ gear, specEntry });
     if (!built.supported) return apiError(res, 400, built.warnings.join(" ") || "Diese Spec lässt sich nicht exportieren.");
+
+    // Whoever checks the number in WoWSims has the raider's armory open next to
+    // it, so every place where this loadout deliberately differs from their last
+    // raid has to be named — otherwise the export looks wrong where it is right.
+    const substitutions = gear.items
+        .filter((it) => it.replacedSituational)
+        .map((it) => `Statt „${it.replacedSituational.itemName}“ (${it.replacedSituational.note}) steht hier „${it.itemName}“ aus einer älteren Auswertung.`);
+    const stillSituational = gear.items
+        .filter((it) => it.situational)
+        .map((it) => `„${it.itemName}“ ${it.situational.note} — keine ältere Auswertung zeigt etwas anderes auf dem Slot.`);
 
     ok(res, {
         character: gear.character,
@@ -205,7 +218,7 @@ async function getExport(req, res, url) {
         simUrl: SIM_URLS[specEntry.key] || SIM_URLS[specEntry.simSpec] || "https://wowsims.github.io/tbc/",
         seenAt: gear.seenAt,
         reportTitle: gear.reportTitle,
-        warnings: built.warnings,
+        warnings: [...built.warnings, ...substitutions, ...stillSituational],
         json: JSON.stringify(built.data, null, 2),
     });
 }

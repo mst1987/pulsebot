@@ -321,6 +321,13 @@ function wornItemView(item, bisIds, tierId = "") {
         // common thing a council spots on a raider asking for an upgrade.
         enchantStatus: item.enchantStatus,
         isBis: bisIds.has(Number(item.itemId)),
+        // A piece that only pays off against certain bosses (Mark of the
+        // Champion and its like), and — the other side of the same coin — the
+        // situational piece this one was substituted in for. Both go to the
+        // page: a slot the comparison cannot read is exactly what a council
+        // needs to be told about before it weighs a gain.
+        situational: item.situational || null,
+        replacedSituational: item.replacedSituational || null,
     };
 }
 
@@ -531,6 +538,13 @@ function councilRoster(opts = {}) {
                 // How many newer raids were passed over to find a fitting set,
                 // so "Gear-Stand" can explain why it is not the last raid.
                 skippedReports: gear.skippedReports || 0,
+                // Slots still held by a boss-specific piece (no older raid
+                // showed anything else there) and slots filled from an older
+                // raid instead of one. Both are counted for the page's stamp —
+                // silently comparing against gear nobody wears on a normal
+                // night is precisely what this is here to prevent.
+                situational: gear.items.filter((it) => it.situational).length,
+                substituted: gear.items.filter((it) => it.replacedSituational).length,
                 // The worn pieces themselves, in character-sheet order, so the
                 // page can show the raider's gear as a row of icons. Whether a
                 // piece is on their BiS list is decided here rather than in the
@@ -593,7 +607,12 @@ function councilRoster(opts = {}) {
 function candidatesForItem(itemId, roster) {
     const item = wowsims.item(itemId);
     if (!item) return [];
-    const gearMap = gearByCharacter();
+    // Same role gate as the roster: the drop check must not weigh a caster's
+    // upgrade against the healing set they wore on Thursday either. The roster
+    // rows already carry the spec each raider is judged as, so it needs no
+    // second lookup.
+    const roleByKey = new Map(roster.map((r) => [r.key, (specByKey(r.specKey) || {}).role || ""]));
+    const gearMap = gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "" });
     const out = [];
     for (const row of roster) {
         const specEntry = specByKey(row.specKey);
@@ -610,6 +629,13 @@ function candidatesForItem(itemId, roster) {
             upgradeValue({ gear, specEntry, itemId, replaces: target.replaces }),
         );
         const isBis = row.bis.items.some((i) => i.id === Number(itemId));
+        // A baseline the comparison cannot read: what would come off carries no
+        // caster stats at all — a situational trinket the substitution could not
+        // replace, a relic, an off-spec piece — so both the stat weights and the
+        // simulation measure against an empty slot and credit this raider the
+        // item's *full* worth while everyone else only gets the difference. The
+        // gain is not wrong, the comparison is; the council is told which.
+        const unreadable = target.displaces.filter((off) => off && !wowsims.item(off.itemId));
         out.push({
             key: row.key,
             character: row.character,
@@ -640,6 +666,12 @@ function candidatesForItem(itemId, roster) {
             // two-handed weapon also empties the off hand.
             twoHanded: (target.clears || []).length > 0,
             value,
+            // Why the gain is not comparable to the others', named so the page
+            // can say it rather than showing a bare warning triangle.
+            inflatedBy: unreadable.map((off) => ({
+                itemName: off.itemName || `Item ${off.itemId}`,
+                note: (off.situational || {}).note || "trägt keine Casterwerte, zählt im Vergleich wie ein leerer Slot",
+            })),
             isBis,
             // The fairness half of the decision, carried alongside the gear
             // gain rather than folded into it: "who would gain most" and "who

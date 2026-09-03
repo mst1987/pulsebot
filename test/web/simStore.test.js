@@ -120,6 +120,21 @@ describe("web/simStore", () => {
             expect(job.result.devihra).toMatchObject({ baseline: 1800, hasGear: true });
         });
 
+        it("takes the gear of the role the raider is judged as", async () => {
+            // Simulating a caster's healing set gives an honestly measured and
+            // completely meaningless number. Each subject says which spec it is,
+            // so the role follows from that without a second lookup.
+            simStore.startCouncilSim("job1b", [
+                { key: "devihra", specKey: "Priest-Shadow" },
+                { key: "heala", specKey: "Shaman-Restoration" },
+            ], []);
+            await settle("job1b");
+            const { roleFor } = mockGearByCharacter.mock.calls[0][0];
+            expect(roleFor("devihra")).toBe("caster");
+            expect(roleFor("heala")).toBe("healer");
+            expect(roleFor("wer?")).toBe("");
+        });
+
         it("reports each item as a delta against that one baseline", async () => {
             mockSimulate
                 .mockResolvedValueOnce({ dps: 1800, available: true, supported: true, error: "", warnings: [] })

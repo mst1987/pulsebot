@@ -318,6 +318,54 @@ describe("web/lootCouncil", () => {
         it("returns nothing for an item nobody can equip", () => {
             expect(candidatesForItem(999999, twoCasters())).toEqual([]);
         });
+
+        it("judges the drop against caster gear, like the roster does", () => {
+            // Without this the drop check compares a caster's upgrade against
+            // the healing set they wore on Thursday — the very thing the roster
+            // already refuses to do.
+            const rows = twoCasters();
+            mockGearByCharacter.mockClear();
+            candidatesForItem(31064, rows);
+            const { roleFor } = mockGearByCharacter.mock.calls[0][0];
+            expect(roleFor("devihra")).toBe("caster");
+        });
+
+        it("marks a gain that is measured against a slot it cannot read", () => {
+            // A raider wearing Mark of the Champion has, as far as any
+            // comparison goes, an empty trinket slot — so they are credited the
+            // full worth of the drop while everybody else only gets the
+            // difference. The number stands, the incomparability is named.
+            const trinketId = wowsims.bisFor("Priest-Shadow", "t6").items
+                .find((e) => wowsims.slotsFor(e.id).includes(12)).id;
+            mockAnnotated.mockReturnValue([
+                { key: "devihra", className: "Priest", spec: "Shadow" },
+                { key: "magier", className: "Mage", spec: "Arcane" },
+            ]);
+            mockGearByCharacter.mockReturnValue(new Map([
+                ["devihra", gearOf([
+                    { ...item(12, 23207), situational: { note: "wirkt nur gegen Untote und Dämonen" } },
+                    item(13, 29370),
+                ])],
+                ["magier", gearOf([item(12, 29370), item(13, 32483)], { key: "magier", character: "Magier", className: "Mage" })],
+            ]));
+            const byChar = Object.fromEntries(
+                candidatesForItem(trinketId, councilRoster({ bisTier: "t6" }).rows).map((c) => [c.character, c]),
+            );
+            expect(byChar.Devihra.inflatedBy).toHaveLength(1);
+            expect(byChar.Devihra.inflatedBy[0]).toMatchObject({ itemName: "Item 23207" });
+            expect(byChar.Devihra.inflatedBy[0].note).toContain("Untote");
+            // The raider with a real trinket on the slot is compared normally.
+            expect(byChar.Magier.inflatedBy).toEqual([]);
+        });
+
+        it("leaves a genuinely free slot uncommented", () => {
+            // An empty slot is not a hole in the comparison — the raider really
+            // does own nothing there, and the full gain is the truth.
+            const rows = twoCasters();
+            const byChar = Object.fromEntries(candidatesForItem(31064, rows).map((c) => [c.character, c]));
+            expect(byChar.Magier.replaces).toBeNull();
+            expect(byChar.Magier.inflatedBy).toEqual([]);
+        });
     });
 
     describe("bisGaps", () => {
@@ -511,6 +559,18 @@ describe("web/lootCouncil — the worn gear a council looks at", () => {
             expect(view.emptySockets).toBe(1);
             // Only real gems count — a 0 is an empty socket, not a gem.
             expect(view.gemCount).toBe(1);
+        });
+
+        it("passes on that a slot only counts against certain bosses", () => {
+            const sit = { note: "wirkt nur gegen Untote und Dämonen" };
+            expect(wornItemView(worn({ situational: sit }), new Set()).situational).toEqual(sit);
+            expect(wornItemView(worn(), new Set()).situational).toBeNull();
+        });
+
+        it("passes on which piece stands in for which", () => {
+            const sub = { itemId: 23207, itemName: "Mark of the Champion", iconUrl: "", note: "…", seenAt: 1, reportTitle: "Alt" };
+            expect(wornItemView(worn({ replacedSituational: sub }), new Set()).replacedSituational).toEqual(sub);
+            expect(wornItemView(worn(), new Set()).replacedSituational).toBeNull();
         });
     });
 
@@ -832,5 +892,15 @@ describe("web/lootCouncil — judging a caster on caster gear", () => {
         }]]));
         const row = councilRoster({}).rows[0];
         expect(row.gear).toMatchObject({ setRole: "healer", roleMismatch: true, skippedReports: 2 });
+    });
+
+    it("counts the slots the comparison cannot read, and the ones it filled instead", () => {
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([
+            item(0, 31064),
+            { ...item(12, 23207), situational: { note: "wirkt nur gegen Untote und Dämonen" } },
+            { ...item(13, 29370), replacedSituational: { itemId: 23206, itemName: "Mark of the Champion", iconUrl: "", note: "…", seenAt: 1, reportTitle: "Alt" } },
+        ])]]));
+        expect(councilRoster({}).rows[0].gear).toMatchObject({ situational: 1, substituted: 1 });
     });
 });
