@@ -44,6 +44,7 @@ const AREA_BY_PATH = {
     "/api/lootcouncil/bislists": "lootcouncil",
     "/api/lootcouncil/armory": "lootcouncil",
     "/api/lootcouncil/exclude": "lootcouncil",
+    "/api/lootcouncil/role": "lootcouncil",
     "/api/lootcouncil/export": "lootcouncil",
 
     "/api/raids": "raids",

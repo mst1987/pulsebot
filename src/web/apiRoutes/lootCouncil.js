@@ -29,7 +29,7 @@ const { searchItems } = require("../../config/wowsims");
 const councilStore = require("../councilStore");
 const { gearFor, charKey } = require("../charGear");
 const { characterMap } = require("../characterStore");
-const { specFor } = require("../../config/casterSpecs");
+const { specFor, ROLES } = require("../../config/casterSpecs");
 const engine = require("../../utils/wowsims/engine");
 const discord = require("../discord");
 const { getConfig } = require("../settingsStore");
@@ -190,6 +190,31 @@ async function postExclude(req, res) {
 }
 
 /**
+ * POST /api/lootcouncil/role — als was ein Raider eingeplant ist.
+ *
+ * Body: { character, role: "caster" | "healer" | "" }
+ *
+ * Ein Heiler, der heute Offspec spielt, ist für diesen Abend ein DPS — mit
+ * Casterset, Caster-BiS und Caster-Simulation. Aus den Daten geht das nicht
+ * hervor, also ist es eine Festlegung; ein leeres `role` nimmt sie zurück.
+ */
+async function postRole(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!userCan(user, "lootcouncil", "write")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
+    if (!requireCsrf(req, res)) return;
+
+    const body = await readJsonBody(req);
+    const character = String(body.character || "").trim();
+    if (!character) return apiError(res, 400, "Kein Charakter angegeben.");
+    const role = String(body.role || "").trim();
+    if (role && !ROLES.some((r) => r.id === role)) return apiError(res, 400, `Unbekannte Rolle: ${role}`);
+
+    const entry = councilStore.setRole(character, role, { by: user.name || user.id });
+    ok(res, { character, role: entry ? entry.role : "", entry });
+}
+
+/**
  * GET /api/lootcouncil/export?character=… — that raider's loadout as a WoWSims
  * "From JSON" import, so anyone can paste it into wowsims.com/tbc and
  * check the number this page shows.
@@ -340,5 +365,5 @@ async function getLootCouncilSim(req, res, url) {
 
 module.exports = {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim,
-    getItemSearch, getBisLists, postExclude, getExport, postArmoryRefresh,
+    getItemSearch, getBisLists, postExclude, postRole, getExport, postArmoryRefresh,
 };

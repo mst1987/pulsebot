@@ -30,7 +30,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useOutletContext } from "react-router-dom";
 import {
-    getLootCouncil, runCouncilSim, searchCouncilItems, setCouncilExcluded, getCouncilExport, getBisLists, refreshCouncilArmory, canAccess,
+    getLootCouncil, runCouncilSim, searchCouncilItems, setCouncilExcluded, getCouncilExport, getBisLists, refreshCouncilArmory, setCouncilRole, canAccess,
     type ApiError, type CouncilCandidate, type CouncilGap, type CouncilItem, type CouncilLootItem, type CouncilRaider, type WornItem,
     type CouncilExport, type ItemSearchResult, type LootCouncilData, type SimJob, type SimResult,
     type BisListsData, type CouncilItemHit,
@@ -70,6 +70,9 @@ const VIEW_DEFAULT: View = {
 // The tier buttons wear the hue of the raids they stand for — the same table
 // the raid badges use (.lc-h-* in index.css), so "still T5" and "already T6"
 // separate at a glance instead of being four identical grey buttons.
+// Wie die Rollen am Raider heißen. Kurz, weil sie in einer Knopfreihe stehen.
+const ROLE_LABEL: Record<string, string> = { caster: "DPS", healer: "Heiler" };
+
 const TIER_HUE: Record<string, string> = { t4: "kara", t5: "ssc", t6: "bt", t65: "swp" };
 const TIER_LABEL: Record<string, string> = { t4: "T4", t5: "T5", t6: "T6", t65: "SWP" };
 
@@ -725,7 +728,7 @@ function SortHead({ sortKey, label, title, sort, dir, onSort }: {
  * names. The columns still line up with the header above the list, so the
  * numbers stay comparable down the page and every column still sorts.
  */
-function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude, onArmory, exportData, onCloseExport }: {
+function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude, onArmory, onRole, exportData, onCloseExport }: {
     raider: CouncilRaider;
     rank: number;
     sim: SimResult | null;
@@ -734,6 +737,7 @@ function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude
     onExport: (character: string) => void;
     onExclude: (character: string) => void;
     onArmory: (character: string) => void;
+    onRole: (character: string, role: "" | "caster" | "healer") => void;
     /** Der offene Sim-Export, wenn er zu diesem Raider gehört. */
     exportData: CouncilExport | null;
     onCloseExport: () => void;
@@ -763,6 +767,29 @@ function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude
                 <div><BisCell raider={r} /></div>
                 <div><SimCell raider={r} sim={sim} /></div>
                 <div className="lc-raider-actions">
+                    {/* Als was jemand eingeplant ist — nur dort, wo es etwas zu
+                        wählen gibt: ein Magier ist nie Heiler. Danach wird ein
+                        Heiler im Offspec nach Casterset, Caster-BiS und
+                        Caster-Simulation beurteilt. */}
+                    {canWrite && r.roleOptions.length > 1 ? (
+                        <span className="lc-roleswitch" role="group" aria-label={`${r.character} einplanen als`}>
+                            {r.roleOptions.map((option) => (
+                                <button
+                                    key={option}
+                                    type="button"
+                                    className={`lc-roleopt${r.role === option ? " active" : ""}`}
+                                    disabled={busy.has(`role:${r.character}`)}
+                                    title={r.roleOverride === option
+                                        ? "So festgelegt — noch einmal klicken nimmt die Festlegung zurück"
+                                        : `Als ${ROLE_LABEL[option] || option} einplanen`}
+                                    onClick={() => onRole(r.character, r.roleOverride === option ? "" : option as "caster" | "healer")}
+                                >
+                                    {ROLE_LABEL[option] || option}
+                                    {r.roleOverride === option ? <span className="lc-rolepin">•</span> : null}
+                                </button>
+                            ))}
+                        </span>
+                    ) : null}
                     {/* Das Gear hier ist zuletzt *im Log gesehen*, nie live —
                         ein Klick in die Armory macht das nachprüfbar, statt es
                         einem Council zum Glauben vorzusetzen. */}
@@ -1828,6 +1855,21 @@ export default function LootCouncilPage() {
     );
 
     /**
+     * Als was ein Raider eingeplant wird.
+     *
+     * Reicht bis ins Gear durch: die Rolle entscheidet, welches Set aus den
+     * Auswertungen überhaupt gesucht wird, also muss danach alles neu geholt
+     * werden — Liste und geprüfter Drop.
+     */
+    const setRole = (character: string, role: "" | "caster" | "healer") => runFor(
+        `role:${character}`,
+        async () => {
+            await setCouncilRole(csrfToken, character, role);
+            await reloadAll();
+        },
+    );
+
+    /**
      * Fetch current gear from the armory, then reload.
      *
      * The reload is the point: the armory answer changes the gear, which changes
@@ -2121,6 +2163,7 @@ export default function LootCouncilPage() {
                                     onExport={showExport}
                                     onExclude={(character) => setExcluded(character, true)}
                                     onArmory={(character) => loadArmory([character], `armory:${character}`)}
+                                    onRole={setRole}
                                     exportData={exportData && exportData.character.toLowerCase() === r.character.toLowerCase()
                                         ? exportData
                                         : null}
