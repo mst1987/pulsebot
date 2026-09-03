@@ -1585,3 +1585,24 @@ a.gear-row:hover { background: var(--panel2); }
     white-space: pre;
     resize: vertical;
 }
+
+/* The in-button spinner: a small ring that turns while an action runs. Sized
+   from the button's own font, so it lines up in a btn-sm as well as a full one. */
+.lc-spin {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    margin-right: 6px;
+    vertical-align: -0.12em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    opacity: .7;
+    animation: lc-spin 0.7s linear infinite;
+}
+@keyframes lc-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+    /* Still says "busy" through the disabled button and the changed label. */
+    .lc-spin { animation: none; opacity: .45; }
+}
+.btn:disabled .lc-spin { opacity: .55; }

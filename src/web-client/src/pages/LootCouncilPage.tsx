@@ -208,6 +208,18 @@ function ExportPanel({ data, onClose }: { data: CouncilExport; onClose: () => vo
 }
 
 /**
+ * The spinner that lives inside a button while its action runs.
+ *
+ * Inline rather than a page overlay: the action belongs to one row, and
+ * blanking the whole table for it would lose the reader's place over a
+ * half-second request. `aria-hidden` because the button's own label already
+ * changes — a screen reader hears "wird abgelegt", not a spinning glyph.
+ */
+function ButtonSpinner() {
+    return <span className="lc-spin" aria-hidden="true" />;
+}
+
+/**
  * A thin bar that says something is happening.
  *
  * Two modes, and the difference matters: with a `value` it fills to that share
@@ -970,14 +982,21 @@ export default function LootCouncilPage() {
     const [simStartedAt, setSimStartedAt] = useState(0);
     // The open WoWSims export, if any — one raider at a time.
     const [exportData, setExportData] = useState<CouncilExport | null>(null);
+    // Which per-raider actions are in flight, as "action:character". A set
+    // rather than a single flag: two raiders can be worked on at once, and each
+    // button should only ever show its own spinner.
+    const [busy, setBusy] = useState<Set<string>>(new Set());
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
     const rosterSort = useTableSort<RosterSortKey>("lootcouncil.roster-sort", ROSTER_SORT, "need");
     // One sort for every candidate table, so the cards stay comparable.
     const candidateSort = useTableSort<CandidateSortKey>("lootcouncil.candidate-sort", CANDIDATE_SORT, "gain");
 
+    // Returns the promise so an action that reloads afterwards (setting a raider
+    // aside) can keep its spinner until the new list is actually on screen —
+    // not just until the write came back.
     const load = useCallback(() => {
         setLoading(true);
-        getLootCouncil({
+        return getLootCouncil({
             role: view.role,
             tiers: view.tiers,
             contents: view.contents,
@@ -1010,7 +1029,9 @@ export default function LootCouncilPage() {
         return () => { alive = false; };
     }, [view.dropItem, view.role, view.tiers, view.contents, view.category, view.bisTier]);
 
-    useEffect(load, [load]);
+    // Wrapped rather than passed directly: `load` returns a promise now, and a
+    // promise handed to useEffect would be mistaken for a cleanup function.
+    useEffect(() => { load(); }, [load]);
 
     // A changed filter changes which raiders and items were simulated, so the
     // old results no longer describe what is on screen. Dropping them is the
@@ -1050,30 +1071,52 @@ export default function LootCouncilPage() {
     });
 
     /**
+     * Run one per-raider action with a visible busy state.
+     *
+     * Both actions here take a server round trip, and "Nicht einplanen" takes
+     * two — the call, then a full reload. Without feedback the row simply sits
+     * there and the natural response is to click again, which fires the request
+     * twice. The key is `action:character`, so two raiders can be worked on at
+     * once without either button claiming the other's spinner.
+     */
+    const runFor = async (key: string, fn: () => Promise<unknown>) => {
+        if (busy.has(key)) return;
+        setBusy((prev) => new Set(prev).add(key));
+        try {
+            await fn();
+        } catch (e) {
+            setSimError((e as ApiError).message);
+        } finally {
+            setBusy((prev) => {
+                const next = new Set(prev);
+                next.delete(key);
+                return next;
+            });
+        }
+    };
+
+    /** That raider's loadout as a WoWSims import, to check our number with. */
+    const showExport = (character: string) => runFor(
+        `export:${character}`,
+        async () => setExportData(await getCouncilExport(character)),
+    );
+
+    /**
      * Set a raider aside, or take them back in.
      *
      * Reloads afterwards rather than patching the list in place: the need score
      * is relative to the group (the loot-share component divides by its
      * average), so removing one raider changes everybody else's number. Faking
-     * that client-side would show figures the server disagrees with.
+     * that client-side would show figures the server disagrees with — and it is
+     * why this takes long enough to need a spinner.
      */
-    /** That raider's loadout as a WoWSims import, to check our number with. */
-    const showExport = async (character: string) => {
-        try {
-            setExportData(await getCouncilExport(character));
-        } catch (e) {
-            setSimError((e as ApiError).message);
-        }
-    };
-
-    const setExcluded = async (character: string, excluded: boolean) => {
-        try {
+    const setExcluded = (character: string, excluded: boolean) => runFor(
+        `exclude:${character}`,
+        async () => {
             await setCouncilExcluded(csrfToken, character, excluded);
-            load();
-        } catch (e) {
-            setSimError((e as ApiError).message);
-        }
-    };
+            await load();
+        },
+    );
 
     /**
      * Simulate the roster's baselines plus the given items.
@@ -1312,9 +1355,12 @@ export default function LootCouncilPage() {
                                                     type="button"
                                                     className="btn btn-ghost btn-sm"
                                                     title="Loadout als WoWSims-Import, um die Zahl selbst nachzurechnen"
+                                                    disabled={busy.has(`export:${r.character}`)}
                                                     onClick={() => showExport(r.character)}
                                                 >
-                                                    Sim-Export
+                                                    {busy.has(`export:${r.character}`)
+                                                        ? <><ButtonSpinner />Wird geholt …</>
+                                                        : "Sim-Export"}
                                                 </button>
                                             ) : null}
                                             {canWrite ? (
@@ -1322,9 +1368,12 @@ export default function LootCouncilPage() {
                                                     type="button"
                                                     className="btn btn-ghost btn-sm"
                                                     title="Nicht mehr einplanen — bleibt in der Historie, verschwindet nur aus dieser Liste"
+                                                    disabled={busy.has(`exclude:${r.character}`)}
                                                     onClick={() => setExcluded(r.character, true)}
                                                 >
-                                                    Nicht einplanen
+                                                    {busy.has(`exclude:${r.character}`)
+                                                        ? <><ButtonSpinner />Wird abgelegt …</>
+                                                        : "Nicht einplanen"}
                                                 </button>
                                             ) : null}
                                         </td>
@@ -1360,9 +1409,12 @@ export default function LootCouncilPage() {
                                     <button
                                         type="button"
                                         className="btn btn-ghost btn-sm"
+                                        disabled={busy.has(`exclude:${e.character}`)}
                                         onClick={() => setExcluded(e.character, false)}
                                     >
-                                        Wieder einplanen
+                                        {busy.has(`exclude:${e.character}`)
+                                            ? <><ButtonSpinner />Wird aufgenommen …</>
+                                            : "Wieder einplanen"}
                                     </button>
                                 ) : null}
                             </span>
