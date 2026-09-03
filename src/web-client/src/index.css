@@ -144,7 +144,7 @@ form.card-form { background: var(--panel); border: 1px solid var(--line); border
    computed height lands on --ctl-h; the min-height is the floor that keeps it
    there when a shorter font is used. --- */
 select,
-.field input:not([type=checkbox]):not([type=radio]), .field textarea, .inp-sm, .sel-sm {
+.field input:not([type=checkbox]):not([type=radio]), .field textarea, .inp-sm, .sel-sm, .hr-picker input {
     /* background-color, not the shorthand: the shorthand would reset the chevron
        image below, and it does so at a higher specificity than the `select`
        rule can win back — .sel-sm would silently lose its arrow. */
@@ -173,7 +173,7 @@ select:disabled, .field input:disabled, .inp-sm:disabled {
 /* The popup list is native, so it can only be tinted through the options
    themselves (plus the pinned color-scheme in :root). */
 select option { background: var(--panel); color: var(--text); }
-select:focus, .field input:focus, .field textarea:focus, .inp-sm:focus, .sel-sm:focus {
+select:focus, .field input:focus, .field textarea:focus, .inp-sm:focus, .sel-sm:focus, .hr-picker input:focus {
     border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--accent);
 }
 select:focus { background-image: var(--ctl-arrow-hi); }
@@ -993,6 +993,10 @@ dl.app-meta dd { margin: 0; min-width: 0; word-break: break-word; }
 .softres-ed { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; margin: 0 0 10px; }
 .softres-ed legend { padding: 0 6px; font-size: 12.5px; color: var(--muted); }
 .hr-picker { position: relative; max-width: 440px; }
+/* The picker brings its own control look along: it is dropped straight into a
+   section on the Loot-Council page, not only into a .field, and an input that
+   only looks right inside a label wrapper is a trap for the next caller. */
+.hr-picker input { width: 100%; min-height: var(--ctl-h); padding: 8px 12px; }
 .hr-panel {
     display: none; position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 4px); background: var(--panel);
     border: 1px solid var(--line); border-radius: 8px; max-height: 260px; overflow-y: auto;

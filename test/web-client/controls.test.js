@@ -109,4 +109,19 @@ describe("web-client control styles", () => {
             expect(src).not.toContain("padding: \"14px 16px\", borderBottom");
         }
     });
+
+    it("styles the item picker's own input, not only the one inside a .field", () => {
+        // The picker is dropped straight into a Section on the Loot-Council page,
+        // where no .field wrapper lends it the control look — it rendered as a bare
+        // browser input there while looking right everywhere else.
+        const base = css.match(/select,\s*\.field input[^{]+\{[^}]+\}/);
+        expect(base[0]).toContain(".hr-picker input");
+        expect(css).toMatch(/select:focus,[^{]*\.hr-picker input:focus \{/);
+        const rule = css.match(/\n\.hr-picker input \{[^}]+\}/);
+        expect(rule).not.toBeNull();
+        expect(rule[0]).toContain("min-height: var(--ctl-h)");
+        // it hangs off the wrapper, so no caller can forget a class on the input
+        const src = fs.readFileSync(path.join(CLIENT, "components/ItemSearchPicker.tsx"), "utf8");
+        expect(src).toContain("className=\"hr-picker\"");
+    });
 });
