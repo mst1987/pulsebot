@@ -1496,7 +1496,7 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                                                     key={spec.specKey}
                                                     type="button"
                                                     className="lc-bllink"
-                                                    {...classColorProps(spec.classColor)}
+                                                    style={classColorProps(spec.classColor).style}
                                                     onClick={() => only(spec.specKey, hit.id)}
                                                     title={`Liste auf ${spec.label} filtern und das Teil dort hervorheben`}
                                                 >
@@ -1543,7 +1543,7 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                             key={spec.key}
                             type="button"
                             className={`lc-blspec${off.has(spec.key) ? " off" : ""}`}
-                            {...classColorProps(spec.classColor)}
+                            style={classColorProps(spec.classColor).style}
                             onClick={() => patch({
                                 listOff: off.has(spec.key)
                                     ? view.listOff.filter((k) => k !== spec.key)
@@ -1582,7 +1582,7 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                                 <tr>
                                     <th className="lc-blcorner">Slot</th>
                                     {columns.map((col) => (
-                                        <th key={col.key} className="lc-blcol" {...classColorProps(col.classColor)}>
+                                        <th key={col.key} className="lc-blcol" style={classColorProps(col.classColor).style}>
                                             <span className="lc-blcolhead">
                                                 <img src={col.iconUrl} alt="" loading="lazy" />
                                                 <span className="lc-blcolname class-colored">{col.label}</span>
