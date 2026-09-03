@@ -40,7 +40,7 @@ import { fmtMs } from "../lib/format";
 import { itemQualityProps } from "../lib/itemQuality";
 import { usePersistedState } from "../lib/persistedState";
 import { useTableSort, type Dir, type TableSort } from "../lib/tableSort";
-import { SortTh } from "../components/SortTh";
+import { SortLabel, SortTh, ariaSort } from "../components/SortTh";
 import { classColorProps, ClassSpecIcon } from "../components/ClassSpec";
 import { ClockIcon, LootBagIcon, EmptySlotIcon, CouncilIcon } from "../components/icons";
 import { ReasonBadge } from "../components/LootBadges";
@@ -393,8 +393,13 @@ function NeedBar({ subject }: { subject: NeedSubject }) {
         <HoverPanel
             width={420}
             trigger={
-                <span className="lc-need" aria-label={`Bedarf ${pct} Prozent`}>
-                    {seg.map((s) => <span key={s.key} className={`lc-need-fill ${s.cls}`} style={{ width: `${s.w}%` }} />)}
+                <span className="lc-need-wrap">
+                    <span className="lc-need" aria-label={`Bedarf ${pct} Prozent`}>
+                        {seg.map((s) => <span key={s.key} className={`lc-need-fill ${s.cls}`} style={{ width: `${s.w}%` }} />)}
+                    </span>
+                    {/* The number beside the bar: the bar orders the list, the
+                        number lets two raiders be compared out loud. */}
+                    <b className="lc-need-pct" aria-hidden="true">{pct} %</b>
                 </span>
             }
         >
@@ -435,9 +440,10 @@ function NeedBar({ subject }: { subject: NeedSubject }) {
  * for an upgrade; a BiS piece gets one too.
  */
 function WornIcon({ item }: { item: WornItem }) {
+    const noench = item.enchantStatus === "missing";
     const marks = [
         item.isBis ? "lc-worn-bis" : "",
-        item.enchantStatus === "missing" ? "lc-worn-noench" : "",
+        noench ? "lc-worn-noench" : "",
         item.situational ? "lc-worn-sit" : "",
     ].filter(Boolean).join(" ");
     return (
@@ -449,10 +455,20 @@ function WornIcon({ item }: { item: WornItem }) {
                     {item.iconUrl
                         ? <img src={item.iconUrl} alt="" loading="lazy" {...itemQualityProps(item.quality, "lc-worn-img")} />
                         : <span className="lc-worn-img lc-worn-blank" />}
-                    {/* Both about what the comparison can read on this slot, and
-                        both worth seeing without hovering: an item that only
-                        counts against certain bosses, or one taken from an older
-                        raid because the newest raid had such a piece here. */}
+                    {/* Each mark owns one corner, so the eye knows where to look
+                        before it reads anything: BiS bottom right, no enchant top
+                        left, an empty socket top right. A coloured border alone
+                        was the old way, and next to sixteen other borders it was
+                        invisible — the tag is what makes "BiS" legible at 30px. */}
+                    {item.isBis ? <span className="lc-worn-tag lc-worn-tag-bis" aria-label="BiS">BiS</span> : null}
+                    {noench ? <span className="lc-worn-tag lc-worn-tag-noench" title="keine Verzauberung">!</span> : null}
+                    {item.emptySockets > 0
+                        ? <span className="lc-worn-tag lc-worn-tag-socket" title={`${item.emptySockets} leere Sockel`} />
+                        : null}
+                    {/* Bottom left, both about what the comparison can read on
+                        this slot: an item that only counts against certain
+                        bosses, or one taken from an older raid because the
+                        newest raid had such a piece here. */}
                     {item.situational ? <span className="lc-worn-mark lc-worn-mark-sit">!</span> : null}
                     {item.replacedSituational ? <span className="lc-worn-mark lc-worn-mark-sub">↺</span> : null}
                 </span>
@@ -571,23 +587,166 @@ function GearStamp({ raider }: { raider: CouncilRaider }) {
     return <span title={`Aus der Auswertung „${g.reportTitle}“`}>{stamp}{slots}</span>;
 }
 
+// The slot groups a character sheet reads in (slot ids from
+// utils/logcheck/gearIssues.js): armour top to bottom, then rings and trinkets,
+// then the weapons. A gap between the groups is what keeps seventeen icons from
+// reading as one ribbon.
+const GEAR_GROUPS: number[][] = [[0, 1, 2, 14, 4, 8, 9, 5, 6, 7], [10, 11, 12, 13], [15, 16, 17]];
+
 /**
- * Everything a raider wears, left to right in character-sheet order.
+ * Everything a raider wears, as the band under their numbers — inside their
+ * block, never a row of its own.
  *
- * Its own row under the raider rather than a column, because sixteen icons need
- * the full table width — and because that is how a council looks at somebody:
- * name first, then their gear.
+ * The old layout put the gear in a second table row, and with eleven raiders
+ * that was eleven identical strips of icons between eleven names: nobody could
+ * say whose gear a strip was without counting rows. Now the band sits inside
+ * the raider's block, under the class-coloured rail, with its own "Gear" label
+ * and the counts a council asks for first (how many BiS pieces, what is missing
+ * an enchant). The stamp on the right says how old the gear is.
  */
-function GearRow({ gear, colSpan }: { gear: CouncilRaider["gear"]; colSpan: number }) {
+function GearBand({ raider }: { raider: CouncilRaider }) {
+    const gear = raider.gear;
     if (!gear || !gear.items.length) return null;
+    const items = gear.items;
+    const noench = items.filter((i) => i.enchantStatus === "missing").length;
+    const sockets = items.reduce((n, i) => n + i.emptySockets, 0);
+    const grouped = GEAR_GROUPS.map((slots) => items.filter((i) => slots.includes(i.slot)));
+    // A slot id the groups do not know still gets shown, at the end.
+    const rest = items.filter((i) => !GEAR_GROUPS.some((g) => g.includes(i.slot)));
+    if (rest.length) grouped.push(rest);
     return (
-        <tr className="lc-gear-row">
-            <td colSpan={colSpan}>
-                <div className="lc-gear">
-                    {gear.items.map((item) => <WornIcon key={`${item.slot}-${item.itemId}`} item={item} />)}
+        <div className="lc-gear-band">
+            <div className="lc-gear-label">
+                <span className="lc-kicker">Gear</span>
+                {raider.bis.total ? (
+                    <span className="lc-gchip lc-gchip-bis" title="Getragene Teile der BiS-Liste dieses Raiders">
+                        BiS {raider.bis.owned}/{raider.bis.total}
+                    </span>
+                ) : null}
+                {noench ? <span className="lc-gchip lc-gchip-warn" title="Teile ohne Verzauberung">{noench} ohne VZ</span> : null}
+                {sockets ? <span className="lc-gchip lc-gchip-warn" title="Leere Sockel">{sockets} Sockel leer</span> : null}
+            </div>
+            <div className="lc-gear">
+                {grouped.filter((g) => g.length).map((g, gi) => (
+                    <Fragment key={gi}>
+                        {gi > 0 ? <span className="lc-gear-sep" /> : null}
+                        <span className="lc-gear-group">
+                            {g.map((item) => <WornIcon key={`${item.slot}-${item.itemId}`} item={item} />)}
+                        </span>
+                    </Fragment>
+                ))}
+            </div>
+            <span className="lc-gear-seen sub"><GearStamp raider={raider} /></span>
+        </div>
+    );
+}
+
+/** What the corner marks on a worn item mean — in the roster's header, once. */
+function GearLegend() {
+    return (
+        <div className="lc-legend" aria-label="Legende der Item-Marken">
+            <span className="lc-legend-item">
+                <span className="lc-worn lc-worn-bis lc-worn-demo"><span className="lc-worn-img" /><span className="lc-worn-tag lc-worn-tag-bis">BiS</span></span>
+                auf der BiS-Liste des Raiders
+            </span>
+            <span className="lc-legend-item">
+                <span className="lc-worn lc-worn-noench lc-worn-demo"><span className="lc-worn-img" /><span className="lc-worn-tag lc-worn-tag-noench">!</span></span>
+                keine Verzauberung
+            </span>
+            <span className="lc-legend-item">
+                <span className="lc-worn lc-worn-demo"><span className="lc-worn-img" /><span className="lc-worn-tag lc-worn-tag-socket" /></span>
+                leerer Sockel
+            </span>
+        </div>
+    );
+}
+
+/** A sortable column header for the roster's grid — the `<th>` variant's twin. */
+function SortHead({ sortKey, label, title, sort, dir, onSort }: {
+    sortKey: RosterSortKey;
+    label: string;
+    title?: string;
+} & TableSort<RosterSortKey>) {
+    return (
+        <div role="columnheader" aria-sort={ariaSort(sortKey, sort, dir)}>
+            <SortLabel sortKey={sortKey} label={label} title={title} sort={sort} dir={dir} onSort={onSort} />
+        </div>
+    );
+}
+
+/**
+ * One raider: their numbers on top, their gear in a band underneath, one box.
+ *
+ * The rail on the left carries the class colour, and the box is what answers
+ * "whose gear is this" without a second look — the table it replaces had the
+ * gear as a separate row, which put every strip of icons exactly between two
+ * names. The columns still line up with the header above the list, so the
+ * numbers stay comparable down the page and every column still sorts.
+ */
+function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude }: {
+    raider: CouncilRaider;
+    rank: number;
+    sim: SimResult | null;
+    busy: Set<string>;
+    canWrite: boolean;
+    onExport: (character: string) => void;
+    onExclude: (character: string) => void;
+}) {
+    return (
+        <article className="lc-raider" style={classColorProps(r.classColor).style} role="row">
+            <div className="lc-raider-head">
+                <div className="lc-ident">
+                    <span className="lc-rank" aria-hidden="true">{rank}</span>
+                    <SpecCell specLabel={r.specLabel} iconUrl={r.specIconUrl} assumed={r.specAssumed} />
+                    <span className="lc-who">
+                        <RaiderName raider={r} />
+                        <span className="sub">{r.specLabel}{r.className ? ` · ${r.className}` : ""}</span>
+                    </span>
                 </div>
-            </td>
-        </tr>
+                <div><NeedBar subject={needSubject(r)} /></div>
+                <div><LootCell raider={r} /></div>
+                <div>
+                    <span className="lc-stat" title={r.lastAwardAt
+                        ? `Letztes Item am ${fmtMs(r.lastAwardAt, false)}`
+                        : "Hat noch nie ein Item bekommen"}
+                    >
+                        <ClockIcon />
+                        {r.lastAwardAt ? `${r.daysSinceLoot}` : "∞"}
+                    </span>
+                </div>
+                <div><BisCell raider={r} /></div>
+                <div><SimCell raider={r} sim={sim} /></div>
+                <div className="lc-raider-actions">
+                    {r.gear && r.simSupported ? (
+                        <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            title="Loadout als WoWSims-Import, um die Zahl selbst nachzurechnen"
+                            disabled={busy.has(`export:${r.character}`)}
+                            onClick={() => onExport(r.character)}
+                        >
+                            {busy.has(`export:${r.character}`)
+                                ? <><ButtonSpinner />Wird geholt …</>
+                                : "Sim-Export"}
+                        </button>
+                    ) : null}
+                    {canWrite ? (
+                        <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            title="Nicht mehr einplanen — bleibt in der Historie, verschwindet nur aus dieser Liste"
+                            disabled={busy.has(`exclude:${r.character}`)}
+                            onClick={() => onExclude(r.character)}
+                        >
+                            {busy.has(`exclude:${r.character}`)
+                                ? <><ButtonSpinner />Wird abgelegt …</>
+                                : "Nicht einplanen"}
+                        </button>
+                    ) : null}
+                </div>
+            </div>
+            <GearBand raider={r} />
+        </article>
     );
 }
 
@@ -604,10 +763,16 @@ function BisCell({ raider }: { raider: CouncilRaider }) {
         raider.bis.borrowedFrom ? `Liste von ${raider.bis.borrowedFrom} (WoWSims hat für diese Spec keine eigene)` : "",
         !raider.bis.exact && raider.bis.tier ? `Neueste verfügbare Liste: ${raider.bis.tier.toUpperCase()}` : "",
     ].filter(Boolean);
+    const pct = Math.round((raider.bis.owned / raider.bis.total) * 100);
     return (
-        <span title={notes.join(" · ")}>
-            {raider.bis.owned}/{raider.bis.total}
-            {notes.length ? <span className="sub"> *</span> : null}
+        <span className="lc-bisfrac" title={notes.join(" · ")}>
+            <span className="lc-bisfrac-num">
+                <b>{raider.bis.owned}</b>
+                <span className="sub">/{raider.bis.total}{notes.length ? " *" : ""}</span>
+            </span>
+            {/* A hairline meter under the fraction, so the column reads as a
+                bar chart of who is closest to their list. */}
+            <span className="lc-bisfrac-meter" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span>
         </span>
     );
 }
@@ -679,7 +844,12 @@ function LootCell({ raider }: { raider: CouncilRaider }) {
             items={raider.items}
             total={raider.lootCount}
             other={raider.otherCount}
-            trigger={<span className="lc-count">{raider.lootCount}</span>}
+            trigger={
+                <span className="lc-stat" title={`${raider.lootCount} Items im Filter, ${raider.lootTotal} insgesamt`}>
+                    <LootBagIcon />
+                    {raider.lootCount}
+                </span>
+            }
         />
     );
 }
@@ -761,10 +931,15 @@ function CandidateRow({ candidate, simDelta, gainMax }: {
     const pct = gainMax > 0 ? Math.max(0, Math.min(100, (gain / gainMax) * 100)) : 0;
     return (
         <tr>
-            <td><SpecCell specLabel={candidate.specLabel} iconUrl={candidate.specIconUrl} /></td>
             <td>
-                <b {...classColorProps(candidate.classColor)}>{candidate.character}</b>
-                {candidate.isBis ? <span className="lbadge lbadge-ok" title="Steht auf der BiS-Liste dieses Raiders" style={{ marginLeft: 6 }}>BiS</span> : null}
+                {/* Spec icon and name as one cell, the same identity the roster
+                    shows — a council switching between the two must not have to
+                    re-learn who is who. */}
+                <span className="lc-cand-ident">
+                    <SpecCell specLabel={candidate.specLabel} iconUrl={candidate.specIconUrl} />
+                    <b {...classColorProps(candidate.classColor)}>{candidate.character}</b>
+                    {candidate.isBis ? <span className="lc-pill-bis" title="Steht auf der BiS-Liste dieses Raiders">BiS</span> : null}
+                </span>
             </td>
             <td><SlotOptions candidate={candidate} /></td>
             <td>
@@ -875,7 +1050,6 @@ function CandidateTable({ itemId, candidates, sim, sortState }: {
         <table className="idx lc-candidates" style={{ marginTop: 8 }}>
             <thead>
                 <tr>
-                    <SortTh sortKey="spec" label="Spec" title="Nach Spec sortieren" style={{ width: 52 }} {...sortState} />
                     <SortTh sortKey="character" label="Raider" {...sortState} />
                     <SortTh sortKey="slot" label="Ersetzt" title="Das Stück, das dafür abgelegt würde — nach dessen Itemlevel sortiert, ein freier Slot zuerst" style={{ width: 70 }} {...sortState} />
                     <SortTh sortKey="gain" label="Zugewinn" title="Simulierte DPS, wo vorhanden — sonst die Schätzung aus Stat-Gewichten" {...sortState} />
@@ -908,29 +1082,48 @@ function GapCard({ gap, sim, expanded, onToggle, sortState, onCheck }: {
     // The suggestion is always the biggest gain, whatever the table is sorted by.
     const best = [...gap.candidates].sort((a, b) => gainFor(sim, b, gap.id) - gainFor(sim, a, gap.id))[0];
 
+    const delta = best ? deltaOf(best) : undefined;
+
+    // Three bands: what the item is, who should get it, and — opened on
+    // demand — everyone else it would fit. The suggestion gets a band of its
+    // own rather than a hint line, because it is the one thing a council reads
+    // off this card.
     return (
-        <div className="sheetcard lc-gap">
-            <div className="row-actions" style={{ justifyContent: "space-between", alignItems: "baseline" }}>
-                <h3 style={{ margin: 0 }}>
-                    <ItemLink id={gap.id} name={gap.name} iconUrl={gap.iconUrl} quality={gap.quality} />
-                </h3>
-                <span className="hint lc-gap-meta">
-                    <ContentBadge contentId={gap.contentId} />
-                    {gap.boss ? `${gap.boss} · ` : ""}ilvl {gap.ilvl} · fehlt {gap.wantedBy.length} Raider(n)
-                </span>
+        <article className={`lc-gap${expanded ? " lc-gap-open" : ""}`}>
+            <div className="lc-gap-head">
+                <ItemHead
+                    id={gap.id}
+                    name={gap.name}
+                    iconUrl={gap.iconUrl}
+                    quality={gap.quality}
+                    meta={<>
+                        <ContentBadge contentId={gap.contentId} />
+                        {gap.boss ? `${gap.boss} · ` : ""}ilvl {gap.ilvl} · fehlt {gap.wantedBy.length} Raider(n)
+                    </>}
+                />
+                <BisSpecs specs={gap.bisSpecs} />
             </div>
-            <BisSpecs specs={gap.bisSpecs} />
-            {best ? (
-                <p className="hint" style={{ marginTop: 2 }}>
-                    Vorschlag: <b>{best.character}</b>
-                    {typeof deltaOf(best) === "number"
-                        ? <> — simuliert <b>{(deltaOf(best) as number) > 0 ? "+" : ""}{Math.round(deltaOf(best) as number)} DPS</b></>
-                        : <> — geschätzter Zugewinn {best.value > 0 ? "+" : ""}{best.value} (Stat-Gewichte)</>}
-                </p>
-            ) : (
-                <p className="hint" style={{ marginTop: 2 }}>Für keinen der gefilterten Raider ein passender Slot.</p>
-            )}
-            <div className="row-actions">
+            <div className="lc-gap-verdict">
+                <span className="lc-kicker">Vorschlag</span>
+                {best ? (
+                    <>
+                        <SpecCell specLabel={best.specLabel} iconUrl={best.specIconUrl} />
+                        <b {...classColorProps(best.classColor)}>{best.character}</b>
+                        {typeof delta === "number" ? (
+                            <span className="lc-verdict-gain lc-verdict-measured" title="Simulierte DPS-Differenz (wowsimcli)">
+                                {delta > 0 ? "+" : ""}{Math.round(delta)} DPS
+                            </span>
+                        ) : (
+                            <span className="lc-verdict-gain" title="Schätzung aus Stat-Gewichten — noch nicht simuliert">
+                                {best.value > 0 ? "+" : ""}{best.value}
+                                <span className="hint">geschätzt</span>
+                            </span>
+                        )}
+                    </>
+                ) : (
+                    <span className="hint" style={{ margin: 0 }}>Für keinen der gefilterten Raider ein passender Slot.</span>
+                )}
+                <span className="lc-grow" />
                 <button type="button" className="btn btn-ghost btn-sm" onClick={onToggle}>
                     {expanded ? "Kandidaten ausblenden" : `Alle ${gap.candidates.length} Kandidaten`}
                 </button>
@@ -941,7 +1134,36 @@ function GapCard({ gap, sim, expanded, onToggle, sortState, onCheck }: {
             {expanded && gap.candidates.length
                 ? <CandidateTable itemId={gap.id} candidates={gap.candidates} sim={sim} sortState={sortState} />
                 : null}
-        </div>
+        </article>
+    );
+}
+
+/**
+ * An item as the head of a card: big icon in its quality colour, the name
+ * linked to Wowhead, and under the name where it comes from.
+ *
+ * Shared by the BiS cards and the drop check, so a drop looks the same whether
+ * the council found it in the gap list or typed it in.
+ */
+function ItemHead({ id, name, iconUrl, quality, meta }: {
+    id: number;
+    name: string;
+    iconUrl?: string;
+    quality?: number | null;
+    meta: ReactNode;
+}) {
+    return (
+        <span className="lc-itemhead">
+            {iconUrl
+                ? <img src={iconUrl} alt="" loading="lazy" {...itemQualityProps(quality ?? null, "lc-itemhead-icon")} />
+                : <span className="lc-itemhead-icon lc-worn-blank" />}
+            <span className="lc-itemhead-text">
+                <a href={WOWHEAD(id)} target="_blank" rel="noreferrer" {...itemQualityProps(quality ?? null, "lc-itemhead-name")}>
+                    {name || `Item ${id}`}
+                </a>
+                <span className="hint lc-gap-meta">{meta}</span>
+            </span>
+        </span>
     );
 }
 
@@ -993,14 +1215,17 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
                         title="Das Item"
                         actions={<button type="button" className="btn btn-ghost btn-sm" onClick={onClear}>Anderes Item</button>}
                     >
-                        <div className="lc-dropitem">
-                            <div className="lc-dropitem-head">
-                                <ItemLink id={focus.item.id} name={focus.item.name} iconUrl={focus.item.iconUrl} quality={focus.item.quality} />
-                                <span className="hint lc-gap-meta">
+                        <div className="lc-gap-head lc-dropitem">
+                            <ItemHead
+                                id={focus.item.id}
+                                name={focus.item.name}
+                                iconUrl={focus.item.iconUrl}
+                                quality={focus.item.quality}
+                                meta={<>
                                     <ContentBadge contentId={focus.item.contentId} />
                                     {focus.item.boss ? `${focus.item.boss} · ` : ""}ilvl {focus.item.ilvl}
-                                </span>
-                            </div>
+                                </>}
+                            />
                             {focus.item.bisSpecs.length ? (
                                 <BisSpecs specs={focus.item.bisSpecs} />
                             ) : (
@@ -1023,34 +1248,55 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
                         ) : null}
                     >
                         {best ? (
-                            <div className="lc-verdict">
-                                <SpecCell specLabel={best.specLabel} iconUrl={best.specIconUrl} />
-                                <b {...classColorProps(best.classColor)}>{best.character}</b>
+                            // Who, what it gains them, then the fairness side as
+                            // labelled values — a row of bare numbers read like a
+                            // table row torn out of context.
+                            <div className="lc-verdict" style={classColorProps(best.classColor).style}>
+                                <span className="lc-ident">
+                                    <SpecCell specLabel={best.specLabel} iconUrl={best.specIconUrl} />
+                                    <span className="lc-who">
+                                        <b {...classColorProps(best.classColor)}>{best.character}</b>
+                                        <span className="sub">{best.specLabel}</span>
+                                    </span>
+                                </span>
                                 {typeof measured === "number" ? (
-                                    <span className="lc-verdict-gain lc-verdict-measured">
+                                    <span className="lc-verdict-gain lc-verdict-measured lc-verdict-big" title="Simulierte DPS-Differenz (wowsimcli)">
                                         {measured > 0 ? "+" : ""}{Math.round(measured)} DPS
                                     </span>
                                 ) : (
-                                    <span className="lc-verdict-gain">
+                                    <span className="lc-verdict-gain lc-verdict-big" title="Schätzung aus Stat-Gewichten — noch nicht simuliert">
                                         {best.value > 0 ? "+" : ""}{best.value}
-                                        <span className="hint"> geschätzt</span>
+                                        <span className="hint">geschätzt</span>
                                     </span>
                                 )}
                                 <span className="lc-verdict-sep" />
-                                <NeedBar subject={best} />
-                                <span className="lc-stat" title={best.daysSinceLoot === null ? "Hat noch nie ein Item bekommen" : `Letztes Item vor ${best.daysSinceLoot} Tagen`}>
-                                    <ClockIcon />{best.daysSinceLoot === null ? "∞" : best.daysSinceLoot}
+                                <span className="lc-vstat">
+                                    <span className="lc-kicker">Bedarf</span>
+                                    <NeedBar subject={best} />
                                 </span>
-                                <LootHover
-                                    items={best.recentItems}
-                                    total={best.lootCount}
-                                    other={best.otherCount}
-                                    trigger={
-                                        <span className="lc-stat" title={`${best.lootCount} Items im Filter`}>
-                                            <LootBagIcon />{best.lootCount}
-                                        </span>
-                                    }
-                                />
+                                <span className="lc-vstat">
+                                    <span className="lc-kicker">Zuletzt</span>
+                                    <span className="lc-stat" title={best.daysSinceLoot === null ? "Hat noch nie ein Item bekommen" : `Letztes Item vor ${best.daysSinceLoot} Tagen`}>
+                                        <ClockIcon />{best.daysSinceLoot === null ? "∞" : `${best.daysSinceLoot} Tage`}
+                                    </span>
+                                </span>
+                                <span className="lc-vstat">
+                                    <span className="lc-kicker">Items</span>
+                                    <LootHover
+                                        items={best.recentItems}
+                                        total={best.lootCount}
+                                        other={best.otherCount}
+                                        trigger={
+                                            <span className="lc-stat" title={`${best.lootCount} Items im Filter`}>
+                                                <LootBagIcon />{best.lootCount}
+                                            </span>
+                                        }
+                                    />
+                                </span>
+                                <span className="lc-vstat">
+                                    <span className="lc-kicker">Ersetzt</span>
+                                    <SlotOptions candidate={best} />
+                                </span>
                             </div>
                         ) : (
                             <p className="hint" style={{ margin: 0 }}>
@@ -1416,84 +1662,50 @@ export default function LootCouncilPage() {
             ) : null}
 
             {view.tab === "roster" ? (
-                roster.length ? (
-                    <table className="idx lc-roster">
-                        <thead>
-                            <tr>
-                                <SortTh sortKey="spec" label="Spec" title="Nach Spec sortieren" style={{ width: 52 }} {...rosterSort} />
-                                <SortTh sortKey="character" label="Raider" {...rosterSort} />
-                                <SortTh sortKey="need" label="Bedarf" title="Wartezeit, Loot-Anteil und BiS-Lücke zusammengenommen" {...rosterSort} />
-                                <SortTh sortKey="loot" label="Items" {...rosterSort} />
-                                <SortTh sortKey="last" label="Zuletzt" {...rosterSort} />
-                                <SortTh sortKey="bis" label="BiS" title="Anteil der getragenen BiS-Teile" {...rosterSort} />
-                                <SortTh sortKey="dps" label="DPS" {...rosterSort} />
-                                <SortTh sortKey="gear" label="Gear-Stand" title="Wann der Raider zuletzt in einer Auswertung auftauchte" {...rosterSort} />
-                                <th />
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {sortedRoster.map((r) => (
-                                // Two rows per raider: the numbers, then their
-                                // gear underneath. A fragment rather than a
-                                // nested table so both keep the same columns.
-                                <Fragment key={r.key}>
-                                    <tr className="lc-raider-row">
-                                        <td><SpecCell specLabel={r.specLabel} iconUrl={r.specIconUrl} assumed={r.specAssumed} /></td>
-                                        <td><RaiderName raider={r} /></td>
-                                        <td><NeedBar subject={needSubject(r)} /></td>
-                                        <td><LootCell raider={r} /></td>
-                                        <td className="sub">
-                                            <span className="lc-stat" title={r.lastAwardAt
-                                                ? `Letztes Item am ${fmtMs(r.lastAwardAt, false)}`
-                                                : "Hat noch nie ein Item bekommen"}
-                                            >
-                                                <ClockIcon />
-                                                {r.lastAwardAt ? `${r.daysSinceLoot}` : "∞"}
-                                            </span>
-                                        </td>
-                                        <td><BisCell raider={r} /></td>
-                                        <td><SimCell raider={r} sim={sim} /></td>
-                                        <td className="sub"><GearStamp raider={r} /></td>
-                                        <td className="cell-actions">
-                                            {r.gear && r.simSupported ? (
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-ghost btn-sm"
-                                                    title="Loadout als WoWSims-Import, um die Zahl selbst nachzurechnen"
-                                                    disabled={busy.has(`export:${r.character}`)}
-                                                    onClick={() => showExport(r.character)}
-                                                >
-                                                    {busy.has(`export:${r.character}`)
-                                                        ? <><ButtonSpinner />Wird geholt …</>
-                                                        : "Sim-Export"}
-                                                </button>
-                                            ) : null}
-                                            {canWrite ? (
-                                                <button
-                                                    type="button"
-                                                    className="btn btn-ghost btn-sm"
-                                                    title="Nicht mehr einplanen — bleibt in der Historie, verschwindet nur aus dieser Liste"
-                                                    disabled={busy.has(`exclude:${r.character}`)}
-                                                    onClick={() => setExcluded(r.character, true)}
-                                                >
-                                                    {busy.has(`exclude:${r.character}`)
-                                                        ? <><ButtonSpinner />Wird abgelegt …</>
-                                                        : "Nicht einplanen"}
-                                                </button>
-                                            ) : null}
-                                        </td>
-                                    </tr>
-                                    <GearRow gear={r.gear} colSpan={9} />
-                                </Fragment>
+                <Section
+                    title={`Raider (${roster.length})`}
+                    hint="Wer am längsten nichts bekommen hat, steht oben. Das Gear jedes Raiders liegt in seinem Block."
+                    actions={<GearLegend />}
+                >
+                    {roster.length ? (
+                        // One block per raider instead of a table with two rows
+                        // each: the gear lives inside the block, under the rail in
+                        // the raider's class colour, so nobody has to count rows to
+                        // tell whose set a strip of icons is. The header keeps the
+                        // columns sortable.
+                        <div className="lc-roster" role="table" aria-label="Raider">
+                            <div className="lc-roster-head" role="row">
+                                <SortHead sortKey="character" label="Raider" {...rosterSort} />
+                                <SortHead sortKey="need" label="Bedarf" title="Wartezeit, Loot-Anteil und BiS-Lücke zusammengenommen" {...rosterSort} />
+                                <SortHead sortKey="loot" label="Items" title="Im aktuellen Content-Filter" {...rosterSort} />
+                                <SortHead sortKey="last" label="Zuletzt" title="Tage seit dem letzten Item" {...rosterSort} />
+                                <SortHead sortKey="bis" label="BiS" title="Anteil der getragenen BiS-Teile" {...rosterSort} />
+                                <SortHead sortKey="dps" label="DPS" {...rosterSort} />
+                                <div className="lc-roster-head-more">
+                                    <SortHead sortKey="spec" label="Spec" title="Nach Spec sortieren" {...rosterSort} />
+                                    <SortHead sortKey="gear" label="Gear-Stand" title="Wann der Raider zuletzt in einer Auswertung auftauchte" {...rosterSort} />
+                                </div>
+                            </div>
+                            {sortedRoster.map((r, i) => (
+                                <RaiderBlock
+                                    key={r.key}
+                                    raider={r}
+                                    rank={i + 1}
+                                    sim={sim}
+                                    busy={busy}
+                                    canWrite={canWrite}
+                                    onExport={showExport}
+                                    onExclude={(character) => setExcluded(character, true)}
+                                />
                             ))}
-                        </tbody>
-                    </table>
-                ) : (
-                    <div className="empty">
-                        Keine passenden Raider. Der Loot-Council liest Klasse und Spec aus den Loot-Importen und den
-                        CLA-Auswertungen — ohne die bleibt die Liste leer.
-                    </div>
-                )
+                        </div>
+                    ) : (
+                        <div className="empty">
+                            Keine passenden Raider. Der Loot-Council liest Klasse und Spec aus den Loot-Importen und den
+                            CLA-Auswertungen — ohne die bleibt die Liste leer.
+                        </div>
+                    )}
+                </Section>
             ) : null}
 
             {/* Why a familiar name is not in the list — otherwise a working
