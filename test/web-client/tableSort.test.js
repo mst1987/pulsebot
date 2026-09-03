@@ -64,8 +64,11 @@ describe("table sorting", () => {
 
     it("tells screen readers which column is sorted", () => {
         // The ▲/▼ glyph is decoration; aria-sort is what is announced.
+        // One helper decides the value, and both headers — the <th> and the
+        // loot council's grid header — announce it through it.
         const sortTh = readClient("components", "SortTh.tsx");
-        expect(sortTh).toMatch(/aria-sort=\{active \? \(dir === "asc" \? "ascending" : "descending"\) : "none"\}/);
+        expect(sortTh).toMatch(/if \(sort !== sortKey\) return "none";\s*return dir === "asc" \? "ascending" : "descending";/);
+        expect(sortTh).toMatch(/<th aria-sort=\{ariaSort\(props\.sortKey, props\.sort, props\.dir\)\}/);
     });
 
     it("sorts through the shared comparator instead of a local one", () => {

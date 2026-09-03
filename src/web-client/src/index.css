@@ -1190,7 +1190,6 @@ a.gear-row:hover { background: var(--panel2); }
 /* A spec derived from the class rather than read from a log — dimmed, so the
    difference stays visible without a second column spelling it out. */
 .lc-spec-assumed img { opacity: .5; }
-.lc-roster td:first-child, .lc-gap .idx td:first-child { width: 52px; }
 
 .lc-item { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
 .lc-item img { width: 20px; height: 20px; border-radius: 3px; border: 1px solid var(--line); }
@@ -1227,10 +1226,70 @@ a.gear-row:hover { background: var(--panel2); }
 .lc-loot-raid { font-family: var(--font-mono); }
 .lc-loot-date { text-align: right; }
 
-/* One open BiS item plus its candidates. */
-.lc-gap h3 { display: flex; align-items: center; gap: 8px; font-size: 16px; }
-.lc-gap .idx { margin-top: 8px; }
-.lc-gap .idx th, .lc-gap .idx td { padding: 6px 10px; font-size: 13px; }
+/* One open BiS item plus its candidates: the item's head, the suggestion as a
+   band of its own, and the candidate table opened underneath on demand. */
+.lc-gap {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    margin-bottom: 12px;
+    position: relative;
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+.lc-gap::after {
+    content: ""; position: absolute; top: 0; right: 0; width: 14px; height: 14px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 42%, transparent 44%);
+    opacity: .85; pointer-events: none;
+}
+.lc-gap-open { border-color: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+.lc-gap-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+}
+.lc-gap-head .lc-bisspecs { margin: 0; }
+.lc-gap-verdict {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    border-top: 1px solid var(--line-soft);
+    background: var(--panel2);
+}
+.lc-gap-verdict > b { font-size: 15px; }
+.lc-gap .idx { margin-top: 0; }
+.lc-gap .idx th, .lc-gap .idx td { padding: 7px 10px; font-size: 13px; }
+.lc-gap .idx th:first-child, .lc-gap .idx td:first-child { padding-left: 16px; }
+.lc-gap .idx tr:last-child td { border-bottom: 0; }
+.lc-grow { flex: 1; }
+
+/* An item as a card's head: the icon in its quality colour, big enough to be
+   recognised, the name linked, where it drops from underneath. */
+.lc-itemhead { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
+.lc-itemhead-icon {
+    width: 40px; height: 40px; border-radius: 6px; flex: none; display: block;
+    border: 2px solid var(--iq, var(--line));
+    box-shadow: 0 0 10px color-mix(in srgb, var(--iq, transparent) 35%, transparent);
+    background: var(--panel3);
+}
+.lc-itemhead-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.lc-itemhead-name { font-size: 16px; font-weight: 700; text-decoration: none; }
+.lc-itemhead-name:hover { text-decoration: underline; }
+.lc-itemhead-text .hint { margin: 3px 0 0; }
+
+/* Spec icon and name as one identity in the candidate tables — the same pair
+   the roster shows, so nobody has to re-learn who is who between the tabs. */
+.lc-cand-ident { display: inline-flex; align-items: center; gap: 9px; }
+.lc-cand-ident b { font-size: 14.5px; font-weight: 800; }
+.lc-pill-bis {
+    display: inline-flex; align-items: center;
+    padding: 1px 8px; border-radius: 4px; line-height: 1.6;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 800; letter-spacing: .06em;
+    background: var(--accent-2); color: var(--accent-ink);
+}
 
 @media (max-width: 640px) {
     .lc-need { width: 52px; }
@@ -1254,16 +1313,19 @@ a.gear-row:hover { background: var(--panel2); }
 
 /* The need bar, stacked in its three components (40/30/30) so it shows not
    just how overdue somebody is but which part of it drives that. */
+.lc-need-wrap { display: inline-flex; align-items: center; gap: 8px; cursor: help; }
 .lc-need {
     display: inline-flex;
-    width: 84px;
+    width: 96px;
     height: 9px;
     border-radius: 999px;
     background: var(--panel3);
     border: 1px solid var(--line);
     overflow: hidden;
     vertical-align: middle;
+    flex: none;
 }
+.lc-need-pct { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); white-space: nowrap; }
 .lc-need-fill { display: block; height: 100%; }
 .lc-seg-drought { background: var(--accent); }
 .lc-seg-share { background: var(--accent-2); }
@@ -1321,21 +1383,62 @@ a.gear-row:hover { background: var(--panel2); }
 }
 .lc-worn-blank { border-style: dashed; }
 .lc-worn-trigger { cursor: help; }
-/* Two marks worth seeing without hovering: on the raider's BiS list, and no
-   enchant on a slot that should have one. */
-.lc-worn-bis .lc-worn-img { border-color: var(--accent-2); }
+/* The marks worth seeing without hovering, each in a corner of its own so the
+   eye knows where to look: BiS bottom right, no enchant top left, an empty
+   socket top right. A coloured border alone was invisible next to sixteen
+   other borders — a BiS piece now also gets a 2px border and a soft glow, but
+   it is the tag that makes it legible at 30px. */
+.lc-worn-bis .lc-worn-img {
+    border: 2px solid var(--accent-2);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-2) 35%, transparent), 0 0 10px color-mix(in srgb, var(--accent-2) 55%, transparent);
+}
 .lc-worn-noench .lc-worn-img { border-color: var(--danger, #e5484d); }
+.lc-worn-bis.lc-worn-noench .lc-worn-img { border-color: var(--accent-2); }
+.lc-worn-tag {
+    position: absolute;
+    font-family: var(--font-mono);
+    font-style: normal;
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: 0 0 0 1.5px var(--panel2);
+    pointer-events: none;
+}
+.lc-worn-tag-bis {
+    right: -4px; bottom: -5px;
+    padding: 0 3px; border-radius: 3px;
+    font-size: 8.5px; line-height: 12px; letter-spacing: .04em;
+    background: var(--accent-2); color: var(--accent-ink);
+}
+.lc-worn-tag-noench {
+    left: -5px; top: -5px;
+    width: 13px; height: 13px; border-radius: 50%;
+    font-size: 9px; line-height: 13px; text-align: center;
+    background: var(--danger, #e5484d); color: #fff;
+}
+.lc-worn-tag-socket {
+    right: -4px; top: -4px;
+    width: 9px; height: 9px; border-radius: 1px;
+    transform: rotate(45deg);
+    background: var(--medium);
+}
+/* The legend's miniature icons: an empty square carrying just the mark. */
+.lc-worn-demo .lc-worn-img { width: 20px; height: 20px; }
+.lc-worn-demo .lc-worn-tag-bis { font-size: 7px; line-height: 9px; right: -4px; bottom: -4px; }
+.lc-worn-demo .lc-worn-tag-noench { width: 10px; height: 10px; font-size: 7px; line-height: 10px; }
+.lc-legend { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.lc-legend-item { display: inline-flex; align-items: center; gap: 8px; }
 
 /* Two more marks, both about what the *comparison* can read rather than about
    the item's quality: a piece that only counts against certain bosses (the slot
    reads as empty, see config/situationalItems.js) and one taken from an older
-   raid in its place. A corner dot, not a third border colour — the border is
-   already spoken for by "BiS" and "no enchant", and a fourth shade of outline
-   would stop meaning anything. */
+   raid in its place. They sit bottom left — the corner the tags above leave
+   free — and not as a third border colour: the border is already spoken for
+   by "BiS" and "no enchant", and a fourth shade of outline would stop meaning
+   anything. */
 .lc-worn-sit .lc-worn-img { border-color: var(--medium); border-style: dashed; }
 .lc-worn-mark {
     position: absolute;
-    right: -3px;
+    left: -3px;
     bottom: -3px;
     width: 13px;
     height: 13px;
@@ -1370,11 +1473,112 @@ a.gear-row:hover { background: var(--panel2); }
 .lc-freeslot { display: inline-flex; color: var(--accent-2); cursor: help; }
 .lc-freeslot svg { width: 26px; height: 26px; }
 
-/* The gear row under each raider: their whole set, left to right. Its own row
-   rather than a column, because sixteen icons need the table's full width. */
-.lc-raider-row td { border-bottom: 0; }
-.lc-gear-row td { padding-top: 0; padding-bottom: 12px; }
-.lc-gear { display: flex; flex-wrap: wrap; gap: 4px; }
+/* ── Loot-Council: die Raider-Liste als Blöcke ──────────────────────────── */
+
+/* One block per raider — the numbers on top, the gear in a band underneath,
+   both inside one box with a rail in the class colour. The old table put the
+   gear in a second row, which left every strip of icons sitting exactly
+   between two names; the box is what says whose gear it is. The header above
+   the list uses the same grid as every block's head, so the columns line up
+   and stay sortable. */
+.lc-roster { display: flex; flex-direction: column; gap: 8px; }
+.lc-roster-head, .lc-raider-head {
+    display: grid;
+    grid-template-columns: minmax(180px, 216px) 132px 56px 56px 80px 92px 1fr;
+    gap: 12px;
+    align-items: center;
+}
+/* "nicht simuliert" and its like stay on one line in their column. */
+.lc-raider-head .sub { white-space: nowrap; font-size: 12px; }
+.lc-roster-head {
+    padding: 2px 12px 8px 11px;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 13px;
+    border-bottom: 1px solid var(--line);
+}
+.lc-roster-head .sort-link { padding: 0; }
+.lc-roster-head-more { display: flex; justify-content: flex-end; gap: 12px; }
+.lc-raider {
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--cc, var(--line));
+    border-radius: 0 6px 6px 0;
+}
+.lc-raider-head { padding: 10px 12px 10px 11px; }
+.lc-ident { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.lc-rank {
+    width: 18px; flex: none; text-align: right;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--muted);
+}
+/* The spec icon in a square tinted with the class colour — the block's rail
+   and this square are the two places the colour shows, and together they read
+   as "this is a warlock" from across the room. */
+.lc-ident .lc-spec {
+    padding: 2px; border-radius: 7px;
+    background: color-mix(in srgb, var(--cc, var(--muted)) 22%, var(--panel3));
+    border: 1px solid color-mix(in srgb, var(--cc, var(--muted)) 45%, var(--line));
+}
+.lc-ident .lc-spec img { width: 26px; height: 26px; border-radius: 5px; }
+.lc-who { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.lc-who > b { font-size: 16px; font-weight: 800; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc-who .sub { font-size: 12px; margin: 2px 0 0; }
+.lc-raider-actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.lc-raider-head .lc-stat { font-size: 14px; }
+
+/* The BiS fraction with a hairline meter under it. */
+.lc-bisfrac { display: inline-flex; flex-direction: column; gap: 4px; align-items: flex-start; font-family: var(--font-mono); line-height: 1; }
+.lc-bisfrac-num { display: inline-flex; align-items: baseline; gap: 1px; }
+.lc-bisfrac-num b { font-size: 15px; }
+.lc-bisfrac-num .sub { font-size: 12px; margin: 0; }
+.lc-bisfrac-meter { width: 56px; height: 3px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.lc-bisfrac-meter i { display: block; height: 100%; background: var(--accent-2); }
+
+/* The gear band: label and counts on the left, the set in the middle in its
+   three groups, and how old the gear is on the right. */
+.lc-gear-band {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 8px 12px 10px 11px;
+    border-top: 1px dashed var(--line);
+    background: color-mix(in srgb, var(--panel) 55%, var(--panel2));
+}
+.lc-gear-label { display: flex; align-items: center; gap: 6px; flex: none; }
+.lc-kicker { font-size: 10.5px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--muted); }
+.lc-gear-label .lc-kicker { margin-right: 2px; }
+.lc-gchip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 1px 7px; border-radius: 999px; white-space: nowrap;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+    border: 1px solid var(--line); background: var(--panel3); color: var(--muted);
+}
+.lc-gchip-bis { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 50%, var(--line)); background: color-mix(in srgb, var(--accent-2) 14%, var(--panel3)); }
+.lc-gchip-warn { color: var(--high); border-color: color-mix(in srgb, var(--high) 50%, var(--line)); background: var(--high-bg); }
+.lc-gear { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
+.lc-gear-group { display: inline-flex; gap: 3px; }
+.lc-gear-sep { width: 1px; height: 22px; background: var(--line); margin: 0 5px; }
+.lc-gear-seen { margin-left: auto; font-family: var(--font-mono); font-size: 11px; white-space: nowrap; }
+.lc-gear-seen .sub { font-size: inherit; }
+
+/* Labelled values in the drop check's verdict: a kicker over each figure, so
+   the row reads as "Bedarf · Zuletzt · Items · Ersetzt" instead of as bare
+   numbers torn out of a table. */
+.lc-vstat { display: inline-flex; flex-direction: column; gap: 4px; }
+.lc-verdict .lc-ident .lc-spec { padding: 2px; border-radius: 8px; background: color-mix(in srgb, var(--cc, var(--muted)) 22%, var(--panel3)); border: 1px solid color-mix(in srgb, var(--cc, var(--muted)) 45%, var(--line)); }
+.lc-verdict .lc-ident .lc-spec img { width: 32px; height: 32px; border-radius: 6px; }
+.lc-verdict .lc-who > b { font-size: 18px; }
+.lc-verdict-big { font-size: 20px; padding: 4px 14px; }
+
+@media (max-width: 900px) {
+    /* The grid header has nothing to line up with once the head wraps. */
+    .lc-roster-head { display: none; }
+    .lc-raider-head { grid-template-columns: 1fr 1fr; }
+    .lc-raider-head .lc-ident, .lc-raider-head .lc-raider-actions { grid-column: 1 / -1; }
+    .lc-raider-actions { justify-content: flex-start; }
+    .lc-gear-seen { margin-left: 0; }
+}
 
 .lc-candidates td { vertical-align: middle; }
 
@@ -1557,12 +1761,9 @@ a.gear-row:hover { background: var(--panel2); }
 .lc-progress-text { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; }
 .lc-progress-text .hint { margin: 0; }
 
-/* The picked drop and, under it, whose BiS list it is on. */
-.lc-dropitem { display: grid; gap: 8px; }
-.lc-dropitem-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
-.lc-dropitem-head .lc-item span { font-size: 16px; font-weight: 700; }
-.lc-dropitem-head .lc-item img { width: 28px; height: 28px; }
-.lc-dropitem .lc-bisspecs { margin: 0; }
+/* The picked drop inside its section: the same head as a BiS card, without the
+   card's own padding (the section body already has it). */
+.lc-dropitem { padding: 0; }
 
 /* The verdict line: who, how much, and what they have coming — one row, read
    left to right. */
@@ -1578,6 +1779,7 @@ a.gear-row:hover { background: var(--panel2); }
     border: 1px solid var(--line);
 }
 .lc-verdict-measured { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 45%, var(--line)); }
+.lc-verdict-gain { display: inline-flex; align-items: center; gap: 6px; }
 .lc-verdict-gain .hint { margin: 0; font-size: 11.5px; font-weight: 500; }
 .lc-verdict-sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 2px; }
 
