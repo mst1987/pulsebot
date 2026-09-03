@@ -9,6 +9,12 @@
 // — and the fact that most caster drops are contested needs no explaining,
 // because such an item simply stands in the same row more than once.
 //
+// The healers are on it too, and they are on it differently: WoWSims ships no
+// healing set at all, so their lists come from Wowhead's written guides
+// (config/bisSets). Those name items but no gems or enchants, which is why a
+// column says where it came from — a sim result and a recommendation are not
+// the same claim, and the page should not blur them.
+//
 // Two things the shape has to carry honestly, both of them consequences of
 // WoWSims-TBC shipping five caster lists for nine specs:
 //
@@ -22,6 +28,7 @@
 // Everything here is derived from config on read; nothing is stored.
 
 const wowsims = require("../config/wowsims");
+const bis = require("../config/bisSets");
 const { SPECS } = require("../config/casterSpecs");
 const { TIERS } = require("../config/tbcContent");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
@@ -29,9 +36,9 @@ const { characterProfile } = require("../utils/setupView");
 const { itemView } = require("./lootCouncil");
 const { DISPLAY_ORDER } = require("./charGear");
 
-/** The caster DPS specs, in the order the page lists them. Healers have no list. */
-function casterSpecs() {
-    return SPECS.filter((s) => s.role === "caster").map((s) => {
+/** Every spec the tab can show a list for, in the order it lists them. */
+function listedSpecs() {
+    return SPECS.map((s) => {
         const look = characterProfile(s.className, s.spec) || {};
         const listKey = s.bisSpec || s.key;
         return {
@@ -42,6 +49,7 @@ function casterSpecs() {
             iconUrl: look.iconUrl || "",
             classColor: look.classColor || "",
             // Whose list this spec plays, and whether that is its own.
+            role: s.role,
             listKey,
             ownList: listKey === s.key,
         };
@@ -57,7 +65,7 @@ function casterSpecs() {
  * than fighting over the same row.
  */
 function bySlot(specKey, tierId) {
-    const set = wowsims.bisFor(specKey, tierId);
+    const set = bis.bisFor(specKey, tierId);
     const used = new Set();
     const out = new Map();
     for (const entry of set.items) {
@@ -78,8 +86,8 @@ function bySlot(specKey, tierId) {
  */
 function columnsFor(tierId, specs) {
     const out = [];
-    for (const key of wowsims.specsWithBis()) {
-        if (!wowsims.bisTiers(key).includes(tierId)) continue;
+    for (const key of bis.specsWithBis()) {
+        if (!bis.bisTiers(key).includes(tierId)) continue;
         const owner = specs.find((s) => s.key === key);
         if (!owner) continue;
         out.push({
@@ -87,6 +95,12 @@ function columnsFor(tierId, specs) {
             label: owner.label,
             iconUrl: owner.iconUrl,
             classColor: owner.classColor,
+            role: owner.role,
+            // Where this list comes from. A Wowhead list is a written
+            // recommendation without gems or enchants, and the column says so
+            // rather than looking like a sim result.
+            source: bis.sourceFor(key),
+            sourceLabel: bis.SOURCE_LABEL[bis.sourceFor(key)] || "",
             users: specs.filter((s) => s.listKey === key).map((s) => ({
                 key: s.key, label: s.label, ownList: s.ownList,
             })),
@@ -102,7 +116,7 @@ function columnsFor(tierId, specs) {
  *        back to the newest tier every list has, so the page always has one.
  */
 function bisLists(tierId = "") {
-    const specs = casterSpecs();
+    const specs = listedSpecs();
     const known = TIERS.map((t) => t.id);
     const tier = known.includes(tierId) ? tierId : "t6";
 
@@ -154,7 +168,7 @@ function bisLists(tierId = "") {
             id: t.id,
             label: t.label,
             missing: specs
-                .filter((s) => s.ownList && !wowsims.bisTiers(s.key).includes(t.id))
+                .filter((s) => s.ownList && !bis.bisTiers(s.key).includes(t.id))
                 .map((s) => s.label),
         })),
         specs,
@@ -164,4 +178,4 @@ function bisLists(tierId = "") {
     };
 }
 
-module.exports = { bisLists, casterSpecs, columnsFor, bySlot };
+module.exports = { bisLists, listedSpecs, columnsFor, bySlot };

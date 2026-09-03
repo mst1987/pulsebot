@@ -1909,6 +1909,9 @@ export type CouncilRaider = {
         exact: boolean;
         /** Set when the list belongs to another spec (Fire mage borrows Arcane). */
         borrowedFrom: string;
+        /** "wowsims" (simulated loadout) or "wowhead" (written, items only). */
+        source: string;
+        sourceLabel: string;
         total: number;
         owned: number;
         items: CouncilItem[];
@@ -2088,12 +2091,13 @@ export type BisListsData = {
     tier: string;
     /** Every tier, with the lists it has no set for (SWP has none for Shadow/Arcane). */
     tiers: { id: string; label: string; missing: string[] }[];
-    /** All nine caster DPS specs — including the four that borrow a list. */
+    /** Every caster and healer spec — including those that borrow a list. */
     specs: {
         key: string;
         label: string;
         className: string;
         spec: string;
+        role: string;
         iconUrl: string;
         classColor: string;
         /** Whose list this spec plays. */
@@ -2106,6 +2110,13 @@ export type BisListsData = {
         label: string;
         iconUrl: string;
         classColor: string;
+        role: string;
+        /**
+         * Where the list comes from: "wowsims" is a simulated loadout with gems
+         * and enchants, "wowhead" a written recommendation naming items only.
+         */
+        source: string;
+        sourceLabel: string;
         users: { key: string; label: string; ownList: boolean }[];
     }[];
     rows: {

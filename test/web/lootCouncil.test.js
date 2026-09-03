@@ -395,10 +395,15 @@ describe("web/lootCouncil", () => {
             expect(gaps[0].best).toBeTruthy();
         });
 
-        it("is empty for a healer, who has no BiS list at all", () => {
+it("works for a healer too, off Wowhead's list", () => {
+            // WoWSims ships no healing set, so this list comes from Wowhead.
+            // A healer with nothing on is missing their whole set, and the
+            // council should be told that rather than shown an empty tab.
             mockAnnotated.mockReturnValue([{ key: "heala", className: "Shaman", spec: "Restoration" }]);
             mockGearByCharacter.mockReturnValue(new Map([["heala", gearOf([], { key: "heala", character: "Heala", className: "Shaman" })]]));
-            expect(bisGaps(councilRoster({ role: "healer" }).rows)).toEqual([]);
+            const gaps = bisGaps(councilRoster({ role: "healer", bisTier: "t6" }).rows);
+            expect(gaps.length).toBeGreaterThan(10);
+            expect(gaps[0].wantedBy.map((w) => w.character)).toContain("Heala");
         });
 
         it("respects the content filter", () => {

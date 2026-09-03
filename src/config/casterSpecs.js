@@ -6,7 +6,8 @@
 // the BiS list, the rotation to sim with, and the stat weights the fallback
 // scoring uses when no sim result is available.
 
-const { bisFor, aplFor } = require("./wowsims");
+const { aplFor } = require("./wowsims");
+const { bisFor } = require("./bisSets");
 
 // Roles the page can filter by. "caster" is the DPS council's own scope;
 // "healer" is there because the two argue over the same spell-power drops often
@@ -109,10 +110,11 @@ const SPECS = [
         school: "naturePower",
     },
     // ── Healers ───────────────────────────────────────────────────────────────
-    // WoWSims-TBC has no healing sims and its healer gear sets are empty
-    // placeholders (see scripts/fetch-wowsims-data.js), so these specs get the
-    // loot history and the stat-weight scoring, and honestly report that there
-    // is no BiS list and no simulation for them.
+    // WoWSims-TBC has no healing sims and ships its healer gear sets as empty
+    // placeholders (see scripts/fetch-wowsims-data.js). The BiS lists therefore
+    // come from Wowhead's written guides instead (scripts/fetch-wowhead-bis.js),
+    // which name items but no gems or enchants — enough for the loot history,
+    // the stat-weight scoring and the BiS gap, not enough to simulate against.
     {
         key: "Priest-Holy", className: "Priest", spec: "Holy", role: "healer",
         label: "Heilig-Priester", wowClass: "ClassPriest", specField: "priest",
@@ -120,6 +122,9 @@ const SPECS = [
     {
         key: "Priest-Discipline", className: "Priest", spec: "Discipline", role: "healer",
         label: "Disziplin-Priester", wowClass: "ClassPriest", specField: "priest",
+        // Wowhead writes one priest healing list, not one per spec — the two
+        // heal out of the same gear.
+        bisSpec: "Priest-Holy",
     },
     {
         key: "Druid-Restoration", className: "Druid", spec: "Restoration", role: "healer",
@@ -180,8 +185,9 @@ function specByKey(key) {
  * role at all, so a paladin can never be planned as a caster.
  *
  * Which of the two healing specs a priest gets is deliberately not a decision:
- * heal sets have no BiS list and no simulation, so Holy and Discipline are the
- * same thing to everything downstream.
+ * there is no healing simulation, and Wowhead writes one priest healing list
+ * for both — so Holy and Discipline are the same thing to everything
+ * downstream.
  */
 function specForRole(className, role) {
     const cls = String(className || "").trim();
@@ -240,7 +246,7 @@ function hitCapFor(specEntry) {
 
 /** The BiS list to show for this spec and tier, plus where it came from. */
 function bisForSpec(specEntry, tierId) {
-    if (!specEntry) return { items: [], tier: "", exact: false, borrowedFrom: "" };
+    if (!specEntry) return { items: [], tier: "", exact: false, source: "", sourceLabel: "", borrowedFrom: "" };
     const own = bisFor(specEntry.key, tierId);
     if (own.items.length) return { ...own, borrowedFrom: "" };
     if (!specEntry.bisSpec) return { ...own, borrowedFrom: "" };

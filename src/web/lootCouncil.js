@@ -31,6 +31,7 @@ const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 const { characterProfile } = require("../utils/setupView");
 const { targetSlotFor } = require("../utils/wowsims/loadout");
 const wowsims = require("../config/wowsims");
+const bisSource = require("../config/bisSets");
 const {
     ROLES, specFor, specByKey, specForRole, rolesForClass, weightsFor, hitCapFor,
     bisForSpec, isSimSupported, bisSpecsForItem,
@@ -598,6 +599,11 @@ function councilRoster(opts = {}) {
                 tier: bis.tier,
                 exact: bis.exact,
                 borrowedFrom: bis.borrowedFrom,
+                // Woher die Liste stammt. Eine geschriebene Wowhead-Liste nennt
+                // keine Sockel und keine Verzauberungen, und das ist etwas
+                // anderes als ein simuliertes Set — die Zeile sagt es dazu.
+                source: bis.source || "",
+                sourceLabel: bis.sourceLabel || "",
                 total: bisItems.length,
                 owned: bisItems.filter((i) => i.owned).length,
                 items: bisItems,
@@ -799,7 +805,7 @@ function filterOptions() {
         roles: ROLES,
         tiers: TIERS,
         contents: CONTENTS.map((c) => ({ id: c.id, label: c.label, short: c.short, tier: c.tier })),
-        bisTiers: TIERS.filter((t) => wowsims.specsWithBis().some((s) => wowsims.bisTiers(s).includes(t.id))),
+        bisTiers: TIERS.filter((t) => bisSource.specsWithBis().some((s) => bisSource.bisTiers(s).includes(t.id))),
     };
 }
 

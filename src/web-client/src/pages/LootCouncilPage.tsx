@@ -770,7 +770,8 @@ function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude
                     {/* Als was jemand eingeplant ist — nur dort, wo es etwas zu
                         wählen gibt: ein Magier ist nie Heiler. Danach wird ein
                         Heiler im Offspec nach Casterset, Caster-BiS und
-                        Caster-Simulation beurteilt. */}
+                        Caster-Simulation beurteilt, ein eingeplanter Heiler nach
+                        seiner Heil-BiS-Liste (die von Wowhead kommt). */}
                     {canWrite && r.roleOptions.length > 1 ? (
                         <span className="lc-roleswitch" role="group" aria-label={`${r.character} einplanen als`}>
                             {r.roleOptions.map((option) => (
@@ -860,13 +861,16 @@ function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude
 function BisCell({ raider }: { raider: CouncilRaider }) {
     if (!raider.bis.total) {
         return (
-            <span className="sub" title="WoWSims-TBC liefert für diese Spec keine BiS-Liste (alle Heiler-Sets sind dort leer).">
+            <span className="sub" title="Für diese Spec und dieses Tier gibt es keine BiS-Liste.">
                 keine Liste
             </span>
         );
     }
     const notes = [
-        raider.bis.borrowedFrom ? `Liste von ${raider.bis.borrowedFrom} (WoWSims hat für diese Spec keine eigene)` : "",
+        raider.bis.source === "wowhead"
+            ? "Geschriebene Wowhead-Liste: nennt Items, keine Sockel und keine Verzauberungen"
+            : "",
+        raider.bis.borrowedFrom ? `Liste von ${raider.bis.borrowedFrom} (für diese Spec gibt es keine eigene)` : "",
         !raider.bis.exact && raider.bis.tier ? `Neueste verfügbare Liste: ${raider.bis.tier.toUpperCase()}` : "",
     ].filter(Boolean);
     const pct = Math.round((raider.bis.owned / raider.bis.total) * 100);
@@ -1445,6 +1449,23 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
  * whom it is BiS, and step from there into the list filtered to exactly that
  * spec.
  */
+// Die Listen kommen aus zwei Quellen, und das ist keine Kleinigkeit: eine
+// WoWSims-Liste ist ein simuliertes Loadout mit Sockeln und Verzauberungen, eine
+// Wowhead-Liste eine geschriebene Empfehlung, die nur Items nennt. Beides als
+// dasselbe darzustellen hieße, für die Heiler mehr zu behaupten, als dasteht.
+const SOURCE_NOTE: Record<string, string> = {
+    wowsims: "Simuliertes WoWSims-Set — mit Sockeln und Verzauberungen.",
+    wowhead: "Geschriebene Wowhead-Empfehlung — nennt Items, keine Sockel und keine Verzauberungen.",
+};
+
+// Neun Spalten sind zu viele, um sie einzeln wegzuklicken, wenn man nur eine
+// Hälfte sehen will.
+const LIST_GROUPS = [
+    { id: "", label: "Alle" },
+    { id: "caster", label: "Caster" },
+    { id: "healer", label: "Heiler" },
+];
+
 function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) => void }) {
     const [data, setData] = useState<BisListsData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -1544,14 +1565,14 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                                 </div>
                             </div>
                         ))}
-                        {!hits.length ? <div className="lc-blnobis">Kein Caster-Item mit diesem Namen.</div> : null}
+                        {!hits.length ? <div className="lc-blnobis">Kein Item mit diesem Namen.</div> : null}
                     </div>
                 ) : null}
             </Section>
 
             <Section
                 title="Welche Specs nebeneinander"
-                hint={`${data.specs.length} Caster-DPS-Specs, ${data.columns.length} Listen. Wer keine eigene hat, spielt die einer anderen Spec — das steht an der Spalte.`}
+                hint={`${data.specs.length} Specs, ${data.columns.length} Listen. Wer keine eigene hat, spielt die einer anderen Spec — das steht an der Spalte.`}
                 actions={
                     <div className="lc-blfilters">
                         {data.tiers.map((t) => (
@@ -1561,7 +1582,7 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                                 className={`lc-filter lc-h-${TIER_HUE[t.id] || "bt"}${t.id === data.tier ? " active" : ""}`}
                                 onClick={() => patch({ listTier: t.id, listFocus: 0 })}
                                 title={t.missing.length
-                                    ? `WoWSims hat für ${t.missing.join(" und ")} kein Set dieses Tiers`
+                                    ? `Für ${t.missing.join(" und ")} gibt es kein Set dieses Tiers`
                                     : t.label}
                             >
                                 {TIER_LABEL[t.id] || t.label}
@@ -1571,6 +1592,26 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                     </div>
                 }
             >
+                <div className="lc-blgroups">
+                    {LIST_GROUPS.map((group) => {
+                        const inGroup = (key: string) => !group.id
+                            || data.specs.find((s) => s.key === key)?.role === group.id;
+                        const active = data.specs.every((s) => off.has(s.key) !== inGroup(s.key));
+                        return (
+                            <button
+                                key={group.id || "all"}
+                                type="button"
+                                className={`lc-filter${active ? " active" : ""}`}
+                                onClick={() => patch({
+                                    listOff: data.specs.filter((s) => !inGroup(s.key)).map((s) => s.key),
+                                    listFocus: 0,
+                                })}
+                            >
+                                {group.label}
+                            </button>
+                        );
+                    })}
+                </div>
                 <div className="lc-blspecs">
                     {data.specs.map((spec) => (
                         <button
@@ -1590,11 +1631,6 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                             <span className="lc-blmark" />
                         </button>
                     ))}
-                    {off.size ? (
-                        <button type="button" className="lc-blreset" onClick={() => patch({ listOff: [], listFocus: 0 })}>
-                            Alle anzeigen
-                        </button>
-                    ) : null}
                 </div>
             </Section>
 
@@ -1621,6 +1657,11 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                                                 <img src={col.iconUrl} alt="" loading="lazy" />
                                                 <span className="lc-blcolname class-colored">{col.label}</span>
                                             </span>
+                                            {col.source === "wowhead" ? (
+                                                <span className="lc-blsource" title={SOURCE_NOTE[col.source]}>
+                                                    {col.sourceLabel}
+                                                </span>
+                                            ) : null}
                                             <span className="lc-blcolusers">
                                                 {col.users.filter((u) => !off.has(u.key)).map((u) => (
                                                     <span
@@ -1648,6 +1689,7 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                                                 <BisListCell
                                                     key={col.key}
                                                     cell={cell}
+                                                    source={col.source}
                                                     focused={!!cell && !!cell.item && cell.item.id === view.listFocus}
                                                 />
                                             );
@@ -1666,21 +1708,24 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
 }
 
 /** One position of one list: the item, where it drops, how it is socketed. */
-function BisListCell({ cell, focused }: {
+function BisListCell({ cell, source, focused }: {
     cell?: BisListsData["rows"][number]["cells"][number];
+    source: string;
     focused: boolean;
 }) {
     if (!cell || !cell.item) return <td className="lc-blcell"><span className="lc-blfree">frei</span></td>;
     const item = cell.item;
     const shared = cell.shared || 1;
-    const reference = [
-        cell.gems ? `${cell.gems} Sockel` : "keine Sockel",
-        cell.enchanted ? "verzaubert" : "keine Verzauberung",
-    ].join(", ");
+    // Nur ein simuliertes Set weiß etwas über Sockel und Verzauberungen. Bei
+    // einer geschriebenen Liste "keine Sockel" zu melden wäre eine Aussage über
+    // das Item statt über die Quelle — und damit falsch.
+    const reference = source === "wowsims"
+        ? `WoWSims-Referenz: ${cell.gems ? `${cell.gems} Sockel` : "keine Sockel"}, ${cell.enchanted ? "verzaubert" : "keine Verzauberung"}`
+        : SOURCE_NOTE[source] || "";
     return (
         <td
             className={`lc-blcell${shared > 1 ? " shared" : ""}${focused ? " focused" : ""}`}
-            title={`WoWSims-Referenz: ${reference}${shared > 1 ? ` · steht auf ${shared} Listen` : ""}`}
+            title={[reference, shared > 1 ? `steht auf ${shared} Listen` : ""].filter(Boolean).join(" · ")}
         >
             <span className="lc-blitem">
                 <img src={item.iconUrl} alt="" loading="lazy" {...itemQualityProps(item.quality, "lc-blicon")} />
@@ -2240,7 +2285,7 @@ export default function LootCouncilPage() {
                 ) : (
                     <div className="empty">
                         Keine offenen BiS-Items im gewählten Filter — entweder trägt die Gruppe schon alles,
-                        oder für ihre Specs gibt es in WoWSims-TBC keine BiS-Listen (das gilt für alle Heiler).
+                        oder für ihre Specs gibt es zu diesem Tier keine BiS-Liste.
                     </div>
                 )
             ) : null}
