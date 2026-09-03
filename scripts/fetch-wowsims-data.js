@@ -407,6 +407,25 @@ async function main() {
         if (Object.keys(bySets).length) bis[specKey] = bySets;
     }
 
+    // The healer lists come from Wowhead, not from here (scripts/fetch-wowhead-bis.js),
+    // but their items have to sit in the same table — and a healing relic
+    // carries no stats at all, its whole value being an effect, so the filter
+    // below would drop every idol, totem and libram. Their ids are taken along
+    // the way a WoWSims set's are, except for the quality cut: a written guide
+    // may name an item this table filters for want of stats, never a green.
+    const wowheadIds = new Set();
+    try {
+        const wowhead = require(path.join(OUT_DIR, "..", "wowhead", "bisSets.json"));
+        for (const tiers of Object.values(wowhead.sets || {})) {
+            for (const set of Object.values(tiers)) {
+                for (const entry of set) if (entry) wowheadIds.add(Number(entry.id));
+            }
+        }
+        for (const id of wowhead.pending || []) wowheadIds.add(Number(id));
+        console.log(`Wowhead-Heilerlisten: ${wowheadIds.size} Items mitgenommen`);
+    } catch {
+        console.warn("  ! keine Wowhead-Heilerlisten gefunden — `node scripts/fetch-wowhead-bis.js` erzeugt sie");
+    }
 
     // Now the item table: everything anybody on the council could be handed,
     // plus every id a BiS set names.
@@ -414,7 +433,9 @@ async function main() {
     const icons = new Map((db.itemIcons || []).map((i) => [Number(i.id), String(i.icon || "")]));
     for (const item of db.items || []) {
         const { stats, ilvl, damage } = statsOf(item);
-        if (!isRaidItem(item, stats) && !bisItemIds.has(Number(item.id))) continue;
+        const id = Number(item.id);
+        const wanted = bisItemIds.has(id) || (wowheadIds.has(id) && Number(item.quality || 0) >= 3);
+        if (!isRaidItem(item, stats) && !wanted) continue;
         const slots = TYPE_TO_SLOTS[item.type];
         if (!slots) continue; // a type we have no equip slot for (shirt, tabard)
         items[item.id] = {

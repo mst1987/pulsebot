@@ -101,11 +101,24 @@ describe("config/casterSpecs", () => {
             expect(bis.items.length).toBeGreaterThan(0);
         });
 
-        it("reports an empty list for healers instead of inventing one", () => {
-            // Every healing gear set in WoWSims-TBC is an empty placeholder.
+        it("gives healers Wowhead's list and names it as such", () => {
+            // Every healing gear set in WoWSims-TBC is an empty placeholder, so
+            // these lists come from Wowhead's written guides instead. That the
+            // source rides along matters: it is the difference between a
+            // simulated loadout and a recommendation, and the page says which.
             for (const spec of SPECS.filter((s) => s.role === "healer")) {
-                expect(bisForSpec(spec, "t6").items).toEqual([]);
+                const bis = bisForSpec(spec, "t6");
+                expect(bis.source).toBe("wowhead");
+                expect(bis.items.length).toBeGreaterThan(10);
             }
+            expect(bisForSpec(specByKey("Priest-Shadow"), "t6").source).toBe("wowsims");
+        });
+
+        it("lets Discipline borrow the priest healing list", () => {
+            // Wowhead writes one priest healing list, not one per spec.
+            const disc = bisForSpec(specByKey("Priest-Discipline"), "t6");
+            expect(disc.borrowedFrom).toBe("Priest-Holy");
+            expect(disc.items.length).toBeGreaterThan(10);
         });
 
         it("survives a null spec", () => {

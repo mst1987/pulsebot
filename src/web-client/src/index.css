@@ -1858,9 +1858,13 @@ a.gear-row:hover { background: var(--panel2); }
    meisten Caster-Drops umkämpft sind, muss dabei niemand erklären: so ein Teil
    steht in derselben Zeile mehrfach. */
 
-/* Die Schalter. Alle neun Specs, jede einzeln zuschaltbar; der Punkt trägt den
-   Zustand, denn die Farbe ist schon die Klassenfarbe und kann ihn nicht auch
-   noch tragen. */
+/* Caster oder Heiler auf einmal — dreizehn Specs einzeln wegzuklicken, um eine
+   Hälfte zu sehen, ist keine Bedienung. */
+.lc-blgroups { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+
+/* Die Schalter. Jede Spec einzeln zuschaltbar; der Punkt trägt den Zustand,
+   denn die Farbe ist schon die Klassenfarbe und kann ihn nicht auch noch
+   tragen. */
 .lc-blspecs { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .lc-blspec {
     display: inline-flex;
@@ -1883,20 +1887,6 @@ a.gear-row:hover { background: var(--panel2); }
 .lc-blmark { width: 9px; height: 9px; border-radius: 50%; background: var(--cc); flex: none; }
 .lc-blspec.off { opacity: .4; border-left-color: var(--line); }
 .lc-blspec.off .lc-blmark { background: transparent; border: 1px solid var(--line); }
-
-.lc-blreset {
-    appearance: none;
-    font: inherit;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    padding: 7px 15px;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--accent);
-    border: 1px dashed var(--accent);
-}
-.lc-blreset:hover { background: var(--accent-soft); }
 
 .lc-blfilters { display: flex; gap: 8px; flex-wrap: wrap; }
 /* Ein Tier, für das WoWSims nicht jede Liste hat (Sunwell kennt kein Schatten-
@@ -1935,6 +1925,22 @@ a.gear-row:hover { background: var(--panel2); }
 .lc-blcolhead { display: flex; align-items: center; gap: 10px; }
 .lc-blcolhead img { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--line); flex: none; }
 .lc-blcolname { font-size: 13.5px; font-weight: 700; }
+/* Woher die Liste kommt. Nur eine geschriebene Liste wird ausgezeichnet: eine
+   simulierte ist der Normalfall dieser Seite, und ein Etikett an jeder Spalte
+   sagt nichts mehr. */
+.lc-blsource {
+    display: inline-block;
+    margin-top: 7px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--panel3);
+    border: 1px dashed var(--line);
+    border-radius: 5px;
+    padding: 1px 6px;
+}
 /* Wer diese Liste spielt. Als eigene Marken statt als Komma-Aufzählung, damit
    eine abgeschaltete Spec einfach verschwindet, ohne ein Komma zu hinterlassen. */
 .lc-blcolusers { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
