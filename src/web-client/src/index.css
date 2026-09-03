@@ -1606,3 +1606,8 @@ a.gear-row:hover { background: var(--panel2); }
     .lc-spin { animation: none; opacity: .45; }
 }
 .btn:disabled .lc-spin { opacity: .55; }
+
+/* Gear that is the wrong kind for the raider's role. The numbers built on it
+   are worth less, and that has to be visible without opening a tooltip. */
+.lc-gear-warn { color: var(--danger, #e5484d); }
+.lc-loot-other { border-top: 1px solid var(--line-soft); padding-top: 6px; margin-top: 2px; }

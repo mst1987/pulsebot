@@ -493,6 +493,39 @@ const STAT_LABELS: Record<string, string> = {
 };
 
 /**
+ * When the gear was seen — and whether it is the right *kind* of gear.
+ *
+ * The council reads gear out of whatever raid log is newest, and shamans,
+ * druids and priests routinely heal a night. A healing set judged as a damage
+ * kit would give a DPS caster no DPS worth the name and let every drop
+ * "replace" a healing piece it has nothing to do with, so the server walks back
+ * to the newest raid where they played the right role. Two things then need
+ * saying: that the gear is older than the last raid, and — when no fitting set
+ * exists at all — that the numbers are built on the wrong one.
+ */
+function GearStamp({ raider }: { raider: CouncilRaider }) {
+    const g = raider.gear;
+    if (!g) return <>—</>;
+    const stamp = `${fmtMs(g.seenAt, false)}${g.hitCap > 0 ? ` · Hit ${g.spellHit}/${g.hitCap}` : ""}`;
+
+    if (g.roleMismatch) {
+        return (
+            <span className="lc-gear-warn" title={`Aus „${g.reportTitle}“ — dort wurde offenbar geheilt. Für diesen Raider ist kein reines Caster-Set geloggt, die Werte sind daher mit Vorsicht zu lesen.`}>
+                {stamp} <b>· Heilgear</b>
+            </span>
+        );
+    }
+    if (g.skippedReports > 0) {
+        return (
+            <span title={`Aus „${g.reportTitle}“. ${g.skippedReports} neuere Auswertung(en) übersprungen, weil dort geheilt wurde.`}>
+                {stamp} <span className="sub">· {g.skippedReports} übersprungen</span>
+            </span>
+        );
+    }
+    return <span title={`Aus der Auswertung „${g.reportTitle}“`}>{stamp}</span>;
+}
+
+/**
  * Everything a raider wears, left to right in character-sheet order.
  *
  * Its own row under the raider rather than a column, because sixteen icons need
@@ -548,13 +581,21 @@ const HOVER_ITEMS = 8;
  *
  * `total` is the real count; the list is capped so the panel never scrolls.
  */
-function LootHover({ items, total, trigger, width = 560 }: {
+function LootHover({ items, total, other = 0, trigger, width = 560 }: {
     items: CouncilLootItem[];
     total: number;
+    /** Off-spec rolls, shards and bank items — counted nowhere, named here. */
+    other?: number;
     trigger: ReactNode;
     width?: number;
 }) {
-    if (!total) return <span className="sub">—</span>;
+    if (!total) {
+        // Nothing that counts. If they did take shards or off-spec pieces, say
+        // so — "—" alone would look like they were never even in the raid.
+        return other
+            ? <span className="sub" title={`${other} Item(s) für Offspec, Entzaubern oder die Bank — zählen nicht als erhaltener Loot.`}>—<sup>{other}</sup></span>
+            : <span className="sub">—</span>;
+    }
     return (
         // Wide enough that item name, raid, reason and date fit on one line —
         // at the default width the row overflowed and the panel grew a
@@ -572,6 +613,14 @@ function LootHover({ items, total, trigger, width = 560 }: {
                 {total > items.slice(0, HOVER_ITEMS).length
                     ? <div className="hint">… und {total - items.slice(0, HOVER_ITEMS).length} ältere</div>
                     : null}
+                {/* Named, not listed: they are not upgrades and do not count,
+                    but hiding them entirely would make the number look wrong to
+                    anyone who remembers handing them out. */}
+                {other ? (
+                    <div className="hint lc-loot-other">
+                        Dazu {other} × Offspec, Entzaubern oder Bank — zählt nicht als erhaltener Loot.
+                    </div>
+                ) : null}
             </div>
         </HoverPanel>
     );
@@ -583,6 +632,7 @@ function LootCell({ raider }: { raider: CouncilRaider }) {
         <LootHover
             items={raider.items}
             total={raider.lootCount}
+            other={raider.otherCount}
             trigger={<span className="lc-count">{raider.lootCount}</span>}
         />
     );
@@ -696,6 +746,7 @@ function CandidateRow({ candidate, simDelta, gainMax }: {
                 <LootHover
                     items={candidate.recentItems}
                     total={candidate.lootCount}
+                    other={candidate.otherCount}
                     trigger={
                         <span className="lc-stat" title={`${candidate.lootCount} Items im Filter, ${candidate.lootTotal} insgesamt`}>
                             <LootBagIcon />
@@ -931,6 +982,7 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
                                 <LootHover
                                     items={best.recentItems}
                                     total={best.lootCount}
+                                    other={best.otherCount}
                                     trigger={
                                         <span className="lc-stat" title={`${best.lootCount} Items im Filter`}>
                                             <LootBagIcon />{best.lootCount}
@@ -1339,16 +1391,7 @@ export default function LootCouncilPage() {
                                         </td>
                                         <td><BisCell raider={r} /></td>
                                         <td><SimCell raider={r} sim={sim} /></td>
-                                        <td className="sub">
-                                            {r.gear
-                                                ? <span title={`Aus der Auswertung „${r.gear.reportTitle}“`}>
-                                                    {fmtMs(r.gear.seenAt, false)}
-                                                    {r.gear.hitCap > 0
-                                                        ? ` · Hit ${r.gear.spellHit}/${r.gear.hitCap}`
-                                                        : ""}
-                                                </span>
-                                                : "—"}
-                                        </td>
+                                        <td className="sub"><GearStamp raider={r} /></td>
                                         <td className="cell-actions">
                                             {r.gear && r.simSupported ? (
                                                 <button

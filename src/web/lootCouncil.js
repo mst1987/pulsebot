@@ -18,6 +18,7 @@ const { annotatedCharacters } = require("./characterInfo");
 const { classLook } = require("./lootClassLook");
 const { characterMap } = require("./characterStore");
 const { gearByCharacter } = require("./charGear");
+const { countsAsLoot } = require("../utils/lootReasons");
 const { getCategoryAssignments } = require("./raiderCharactersStore");
 const { excludedKeys } = require("./councilStore");
 const { characterKey, splitPlayer } = require("../utils/lootImport");
@@ -372,7 +373,19 @@ function councilRoster(opts = {}) {
     const { role = "", categoryId = "" } = opts;
     const contentFilter = resolveContentFilter(opts);
     const info = new Map(annotatedCharacters().map((c) => [c.key, c]));
-    const gearMap = gearByCharacter();
+    // Which role each raider is judged as, so a night spent healing does not
+    // become their DPS gear (see charGear.js). Resolved from the same sources
+    // the roster rows use, one pass ahead of them.
+    const roleByKey = new Map();
+    for (const [key, entry] of Object.entries(characterMap())) {
+        const spec = specFor(entry.className, entry.spec);
+        if (spec) roleByKey.set(key, spec.role);
+    }
+    for (const c of annotatedCharacters()) {
+        const spec = specFor(c.className, c.spec);
+        if (spec) roleByKey.set(c.key, spec.role);
+    }
+    const gearMap = gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "" });
     // Class colour and spec icon are resolved server-side, like everywhere else
     // in the app — the client never keeps a second copy of the WoW palette.
     const charStore = characterMap();
@@ -392,9 +405,18 @@ function councilRoster(opts = {}) {
         if (!key) continue;
         // The name is taken before the category cut, so a raider whose items
         // all belong to another raid is still shown by name rather than by key.
-        if (!loot.has(key)) loot.set(key, { all: [], filtered: [], character: it.character });
+        if (!loot.has(key)) loot.set(key, { all: [], filtered: [], other: 0, character: it.character });
         const bucket = loot.get(key);
         if (categoryId && it.categoryId !== categoryId) continue;
+        // An off-spec roll, a shard or a bank item did nothing for this raider's
+        // main set, so it must not count towards "was schon bekommen". Counting
+        // them would rank somebody who politely took three shards above a raider
+        // who got one real upgrade. They are tallied separately (`other`) rather
+        // than dropped silently, so the page can say they exist.
+        if (!countsAsLoot(it.reason)) {
+            bucket.other += 1;
+            continue;
+        }
         bucket.all.push(it);
         if (!contentFilter || contentFilter.has(it.contentId)) bucket.filtered.push(it);
     }
@@ -431,7 +453,7 @@ function councilRoster(opts = {}) {
         if (!specEntry) continue;
         if (role && specEntry.role !== role) continue;
 
-        const bucket = loot.get(key) || { all: [], filtered: [], character: "" };
+        const bucket = loot.get(key) || { all: [], filtered: [], other: 0, character: "" };
         const filtered = bucket.filtered.sort((a, b) => (b.awardedAt || 0) - (a.awardedAt || 0));
         const lastAwardAt = filtered.length ? filtered[0].awardedAt : 0;
         const bis = bisForSpec(specEntry, bisTier);
@@ -466,6 +488,10 @@ function councilRoster(opts = {}) {
             role: specEntry.role,
             lootCount: filtered.length,
             lootTotal: bucket.all.length,
+            // Off-spec rolls, shards and bank items: they exist, but they did
+            // nothing for this raider's set, so they do not count towards what
+            // they have already been given (see countsAsLoot).
+            otherCount: bucket.other || 0,
             lastAwardAt,
             daysSinceLoot: lastAwardAt ? Math.floor((now - lastAwardAt) / DAY) : null,
             items: filtered.map((it) => ({
@@ -493,6 +519,18 @@ function councilRoster(opts = {}) {
                 itemCount: gear.items.length,
                 spellHit: gearSpellHit(gear),
                 hitCap: hitCapFor(specEntry),
+                // Whether this really is the raider's damage kit. A shaman who
+                // healed last night would otherwise be judged on healing gear:
+                // no DPS worth the name, and every drop "replacing" a healing
+                // piece it has nothing to do with.
+                setRole: (gear.profile || {}).role || "",
+                setConfident: !!(gear.profile || {}).confident,
+                // True when *every* recent log showed the wrong role — the page
+                // says so instead of quietly comparing against healing gear.
+                roleMismatch: !!gear.roleMismatch,
+                // How many newer raids were passed over to find a fitting set,
+                // so "Gear-Stand" can explain why it is not the last raid.
+                skippedReports: gear.skippedReports || 0,
                 // The worn pieces themselves, in character-sheet order, so the
                 // page can show the raider's gear as a row of icons. Whether a
                 // piece is on their BiS list is decided here rather than in the
@@ -613,6 +651,7 @@ function candidatesForItem(itemId, roster) {
             needParts: row.needParts,
             lootCount: row.lootCount,
             lootTotal: row.lootTotal,
+            otherCount: row.otherCount,
             // What they were actually given lately, so "4 Items" can be opened
             // up on the spot. A council arguing about a drop asks "ja was hat
             // der denn schon bekommen?" in the same breath — sending them to

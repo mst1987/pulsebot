@@ -30,6 +30,26 @@ const REASONS = [
 
 const REASON_BY_ID = new Map(REASONS.map((r, i) => [r.id, { ...r, order: i }]));
 
+/**
+ * The reasons that count as "this raider was actually given something".
+ *
+ * A loot council weighs who is owed a drop, and for that only real gear counts:
+ * an item taken for the off-spec, sharded or put in the bank did nothing for the
+ * raider's main set. Counting those would make somebody who politely took three
+ * shards look better served than a raider who got one real upgrade — precisely
+ * backwards, and it is the fairness half of the ranking that would be wrong.
+ *
+ * `other` is deliberately in: an unrecognised response is far more often a
+ * guild's own wording for a mainspec roll than it is a shard, and treating a
+ * real award as nothing is the worse of the two mistakes.
+ */
+const COUNTING_REASONS = new Set(["bis", "mainspec", "upgrade", "minor", "other"]);
+
+/** Whether an award counts towards what a raider has already been given. */
+function countsAsLoot(reason) {
+    return COUNTING_REASONS.has(String(reason || "other"));
+}
+
 // Matched in order — the first hit wins, so the more specific pattern has to
 // come first: "Minor Upgrade" is a minor upgrade and not an upgrade, and an
 // "Off-Spec Upgrade" is an offspec roll, not an upgrade.
@@ -91,4 +111,7 @@ function reasonCatalog() {
     return REASONS.map((r, i) => ({ ...r, order: i }));
 }
 
-module.exports = { REASONS, reasonIdFor, reasonMeta, describeReason, reasonCatalog };
+module.exports = {
+    REASONS, reasonIdFor, reasonMeta, describeReason, reasonCatalog,
+    COUNTING_REASONS, countsAsLoot,
+};

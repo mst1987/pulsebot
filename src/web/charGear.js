@@ -21,6 +21,7 @@
 const { listReports, getReport } = require("./reportStore");
 const { characterKey, splitPlayer } = require("../utils/lootImport");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
+const { gearProfile, fitsRole } = require("./gearProfile");
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons/large";
 
@@ -75,17 +76,34 @@ function trimItem(entry) {
 }
 
 /**
- * The newest gear snapshot per character across the recent reports.
+ * The newest *usable* gear snapshot per character across the recent reports.
  *
  * Walks the reports newest first and keeps the first hit per character, so a
  * raider who has not logged in weeks keeps their last known set rather than
  * dropping out — the entry says when it was seen, and the caller decides
  * whether that is still worth something.
  *
- * @returns {Map<string, {key, character, className, seenAt, reportId, reportTitle, items}>}
+ * ⚠️ "Usable" is what `roleFor` is for. Shamans, druids and priests routinely
+ * heal a night, and their newest log then shows a healing set. Judging a DPS
+ * caster by it ruins three things at once: the simulated DPS (healing gear does
+ * not do damage), the upgrade comparison (the drop "replaces" a healing piece it
+ * has nothing to do with) and the BiS count. With `roleFor` the walk keeps going
+ * to the newest raid where they actually played that role, and the snapshot
+ * records how many newer raids were passed over (`skippedReports`) so the page
+ * can say the gear is older than the last raid, and why.
+ *
+ * @param {object} [opts]
+ * @param {(key: string) => string} [opts.roleFor] the role a character is judged
+ *        as ("caster" | "healer"), by character key. Omit to take any set.
+ * @returns {Map<string, {key, character, className, seenAt, reportId, reportTitle,
+ *          items, profile, skippedReports, roleMismatch}>}
  */
-function gearByCharacter() {
+function gearByCharacter({ roleFor } = {}) {
     const out = new Map();
+    // Sets rejected for the wrong role, kept as a fallback: a raider who has
+    // *only* ever been logged healing must still get gear, or the page would
+    // show "kein Gear" for somebody it plainly knows something about.
+    const rejected = new Map();
     const reports = listReports().slice(0, MAX_REPORTS);
     for (const meta of reports) {
         const report = getReport(meta.id);
@@ -105,7 +123,8 @@ function gearByCharacter() {
             // whose gear it could not read — keeping it would look like a raider
             // in no gear at all.
             if (!items.length) continue;
-            out.set(key, {
+
+            const snapshot = {
                 key,
                 character: entry.name,
                 className: entry.type || "",
@@ -113,15 +132,34 @@ function gearByCharacter() {
                 reportId: report.id || meta.id,
                 reportTitle: report.title || "",
                 items,
-            });
+                profile: gearProfile({ items }),
+                skippedReports: 0,
+                roleMismatch: false,
+            };
+
+            const wanted = roleFor ? roleFor(key) : "";
+            if (wanted && !fitsRole(snapshot.profile, wanted)) {
+                // Wrong role for this raider — remember the newest such set as a
+                // fallback, count it, and keep looking for one that fits.
+                if (!rejected.has(key)) rejected.set(key, snapshot);
+                rejected.get(key).skippedReports += 1;
+                continue;
+            }
+            snapshot.skippedReports = rejected.has(key) ? rejected.get(key).skippedReports : 0;
+            out.set(key, snapshot);
         }
+    }
+    // Nothing fitting anywhere: fall back to the newest set, marked, so the page
+    // can say "das ist Heilgear" instead of showing nothing at all.
+    for (const [key, snapshot] of rejected) {
+        if (!out.has(key)) out.set(key, { ...snapshot, roleMismatch: true, skippedReports: 0 });
     }
     return out;
 }
 
 /** The gear snapshot for one character, or null when no report shows them. */
-function gearFor(character) {
-    return gearByCharacter().get(charKey(character)) || null;
+function gearFor(character, opts) {
+    return gearByCharacter(opts).get(charKey(character)) || null;
 }
 
 /** The item a character has in one equip slot, or null. */

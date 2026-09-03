@@ -1767,6 +1767,8 @@ export type CouncilCandidate = {
     needParts: { drought: number; share: number; need: number };
     lootCount: number;
     lootTotal: number;
+    /** See CouncilRaider.otherCount — off-spec, shards, bank. */
+    otherCount: number;
     /** Their newest awards, so the loot count can be opened in a hover. */
     recentItems: CouncilLootItem[];
     daysSinceLoot: number | null;
@@ -1792,6 +1794,12 @@ export type CouncilRaider = {
     /** Items in the current content filter; lootTotal counts all of them. */
     lootCount: number;
     lootTotal: number;
+    /**
+     * Off-spec rolls, shards and bank items. Deliberately *not* part of
+     * lootCount: they did nothing for the raider's set, and counting them would
+     * rank somebody who took three shards above one real upgrade.
+     */
+    otherCount: number;
     lastAwardAt: number;
     daysSinceLoot: number | null;
     items: CouncilLootItem[];
@@ -1802,6 +1810,19 @@ export type CouncilRaider = {
         itemCount: number;
         spellHit: number;
         hitCap: number;
+        /**
+         * Whether the set read out of the log is this raider's damage kit or
+         * their healing one ("caster" | "healer" | "" when too little is known).
+         * Shamans and druids heal a night regularly, and judging them on that
+         * set would mean no DPS and drops "replacing" healing pieces.
+         */
+        setRole: string;
+        /** False when the two signals (heal ratio, spell hit) disagree. */
+        setConfident: boolean;
+        /** Every recent log showed the wrong role — the numbers are off. */
+        roleMismatch: boolean;
+        /** Newer raids skipped to find a set of the right role. */
+        skippedReports: number;
         /** Everything they wear, in character-sheet order. */
         items: WornItem[];
     } | null;

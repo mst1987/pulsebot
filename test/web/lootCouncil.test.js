@@ -42,9 +42,13 @@ const lootRow = (over = {}) => ({
     awardedAt: now - 3 * DAY, eventLabel: "Montagsraid", ...over,
 });
 
+// Mirrors what charGear.js hands out, profile included — the council reads it
+// to warn when a raider was last logged wearing healing gear.
 const gearOf = (items, over = {}) => ({
     key: "devihra", character: "Devihra", className: "Priest", seenAt: now - DAY,
-    reportId: "r1", reportTitle: "Report", items, ...over,
+    reportId: "r1", reportTitle: "Report", items,
+    profile: { role: "caster", confident: true }, skippedReports: 0, roleMismatch: false,
+    ...over,
 });
 
 const item = (slot, itemId, itemLevel = 140) => ({
@@ -730,5 +734,103 @@ describe("web/lootCouncil — raiders the council set aside", () => {
         // ...and taking them back in restores the row.
         mockExcludedKeys.mockReturnValue(new Set());
         expect(councilRoster({}).rows.map((r) => r.character)).toEqual(["Weg"]);
+    });
+});
+
+describe("web/lootCouncil — what counts as having been given something", () => {
+    // A council weighs who is owed a drop. An off-spec roll, a shard or a bank
+    // item did nothing for the raider's set, so counting them would rank
+    // somebody who politely took three shards above one real upgrade.
+    function withReasons(reasons) {
+        mockListAll.mockReturnValue(reasons.map((reason, i) => lootRow({
+            reason,
+            reasonLabel: reason,
+            awardedAt: now - (i + 1) * DAY,
+        })));
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        return councilRoster({}).rows[0];
+    }
+
+    it("counts real awards", () => {
+        const row = withReasons(["bis", "mainspec", "upgrade", "minor"]);
+        expect(row.lootCount).toBe(4);
+        expect(row.otherCount).toBe(0);
+    });
+
+    it("does not count off-spec, shards or bank items", () => {
+        const row = withReasons(["offspec", "disenchant", "bank", "greed", "pvp"]);
+        expect(row.lootCount).toBe(0);
+        expect(row.otherCount).toBe(5);
+    });
+
+    it("keeps them out of the item list the hover shows", () => {
+        const row = withReasons(["mainspec", "disenchant", "offspec"]);
+        expect(row.items.map((i) => i.reason)).toEqual(["mainspec"]);
+    });
+
+    it("counts an unrecognised response, because it is more often a real award", () => {
+        // Treating a guild's own wording for a mainspec roll as nothing is the
+        // worse of the two possible mistakes.
+        expect(withReasons(["other"]).lootCount).toBe(1);
+    });
+
+    it("does not let a shard reset the drought", () => {
+        // The whole point: someone whose only recent "loot" was a shard has
+        // still been waiting, and has to keep their place in the ranking.
+        mockListAll.mockReturnValue([
+            lootRow({ reason: "disenchant", awardedAt: now - 1 * DAY }),
+            lootRow({ reason: "mainspec", awardedAt: now - 40 * DAY }),
+        ]);
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        const row = councilRoster({}).rows[0];
+        expect(row.daysSinceLoot).toBeGreaterThanOrEqual(40);
+        expect(row.lootCount).toBe(1);
+        expect(row.otherCount).toBe(1);
+    });
+
+    it("carries the same counts onto a candidate", () => {
+        mockListAll.mockReturnValue([
+            lootRow({ reason: "mainspec" }),
+            lootRow({ reason: "offspec" }),
+        ]);
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([])]]));
+        const [candidate] = candidatesForItem(31064, councilRoster({}).rows);
+        expect(candidate.lootCount).toBe(1);
+        expect(candidate.otherCount).toBe(1);
+    });
+});
+
+describe("web/lootCouncil — judging a caster on caster gear", () => {
+    it("asks charGear for a set matching the raider's role", () => {
+        // Shamans and druids heal a night regularly; their newest log then shows
+        // a healing set, which would give a DPS caster no DPS and let every drop
+        // "replace" a healing piece.
+        mockAnnotated.mockReturnValue([
+            { key: "devihra", className: "Priest", spec: "Shadow" },
+            { key: "heala", className: "Shaman", spec: "Restoration" },
+        ]);
+        mockGearByCharacter.mockReturnValue(new Map());
+        councilRoster({ role: "" });
+
+        expect(mockGearByCharacter).toHaveBeenCalledWith(
+            expect.objectContaining({ roleFor: expect.any(Function) }),
+        );
+        const { roleFor } = mockGearByCharacter.mock.calls[0][0];
+        expect(roleFor("devihra")).toBe("caster");
+        expect(roleFor("heala")).toBe("healer");
+        expect(roleFor("unbekannt")).toBe("");
+    });
+
+    it("passes the gear verdict on to the page", () => {
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        mockGearByCharacter.mockReturnValue(new Map([["devihra", {
+            ...gearOf([item(0, 31064)]),
+            profile: { role: "healer", confident: true },
+            roleMismatch: true,
+            skippedReports: 2,
+        }]]));
+        const row = councilRoster({}).rows[0];
+        expect(row.gear).toMatchObject({ setRole: "healer", roleMismatch: true, skippedReports: 2 });
     });
 });
