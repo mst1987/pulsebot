@@ -4,7 +4,9 @@
 //   GET  /api/lootcouncil             — the whole picture from stored data, one
 //                                       page load, no simulation. `?item=<id>`
 //                                       narrows it to "this just dropped: who?"
-//   GET  /api/lootcouncil/item-search — the picker behind that question
+//   GET  /api/lootcouncil/item-search — the picker behind that question, and
+//                                       the lookup "for whom is this BiS?"
+//   GET  /api/lootcouncil/bislists    — the lists themselves, per class and spec
 //   POST /api/lootcouncil/sim         — start the DPS simulation in the background
 //   GET  /api/lootcouncil/sim         — poll it
 //
@@ -18,7 +20,9 @@ const { requireAdmin, requireCsrf } = require("../apiMiddleware");
 const { readJsonBody } = require("../apiBody");
 const { activeGuildFor } = require("../activeGuild");
 const { userCan } = require("../../config/permissions");
-const { councilRoster, bisGaps, candidatesForItem, filterOptions, resolveContentFilter, itemView } = require("../lootCouncil");
+const { councilRoster, bisGaps, candidatesForItem, filterOptions, resolveContentFilter, itemView, bisSpecsView } = require("../lootCouncil");
+const { bisLists } = require("../bisLists");
+const { sourceForItem } = require("../../config/tbcContent");
 const { startCouncilSim, getJob } = require("../simStore");
 const { searchItems } = require("../../config/wowsims");
 const councilStore = require("../councilStore");
@@ -239,14 +243,40 @@ const SIM_URLS = {
 };
 
 /**
- * GET /api/lootcouncil/item-search?q=… — items for the "this just dropped"
- * picker, searched in the generated caster table (config/wowsims).
+ * GET /api/lootcouncil/item-search?q=…&tier=… — items for the "this just
+ * dropped" picker, searched in the generated caster table (config/wowsims).
+ *
+ * Each hit carries whose BiS list it is on, because the same search answers the
+ * other direction too: the BiS-Listen tab looks a piece up to find out *for
+ * whom* it is best in slot. An item on nobody's list comes back with an empty
+ * `bisSpecs` — which is the answer, not a gap.
  */
 async function getItemSearch(req, res, url) {
     const user = requireAdmin(req, res);
     if (!user) return;
     if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
-    ok(res, { items: searchItems(url.searchParams.get("q") || "") });
+    const tier = url.searchParams.get("tier") || "";
+    const items = searchItems(url.searchParams.get("q") || "").map((it) => {
+        const source = sourceForItem(it.id) || {};
+        return {
+            ...it,
+            contentId: source.content || "",
+            boss: source.boss || "",
+            bisSpecs: bisSpecsView(it.id, tier),
+        };
+    });
+    ok(res, { items });
+}
+
+/**
+ * GET /api/lootcouncil/bislists?tier=… — which gear set is BiS for which caster
+ * DPS class and spec, as the matrix the tab draws (see web/bisLists.js).
+ */
+async function getBisLists(req, res, url) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
+    ok(res, bisLists(url.searchParams.get("tier") || ""));
 }
 
 /** GET /api/lootcouncil/sim?id=… — poll a running simulation. */
@@ -261,5 +291,5 @@ async function getLootCouncilSim(req, res, url) {
 
 module.exports = {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim,
-    getItemSearch, postExclude, getExport,
+    getItemSearch, getBisLists, postExclude, getExport,
 };
