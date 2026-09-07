@@ -10,17 +10,18 @@
 //   POST /api/lootcouncil/sim         — start the DPS simulation in the background
 //   GET  /api/lootcouncil/sim         — poll it
 //
-// Everything the page shows works without the simulation; the sim only ever
-// *replaces* the stat-weight estimate with a measured number. That split is the
-// point — the binary is optional (see utils/wowsims/engine.js), and a council
-// looking at last month's loot should never be blocked on a simulator.
+// Everything the page shows works without the simulation; the sim is what
+// puts a gain next to a candidate at all — the page shows no estimates. That
+// split is the point — the binary is optional (see utils/wowsims/engine.js),
+// and a council looking at last month's loot should never be blocked on a
+// simulator.
 
 const { ok, error: apiError } = require("../apiResponse");
 const { requireAdmin, requireCsrf } = require("../apiMiddleware");
 const { readJsonBody } = require("../apiBody");
 const { activeGuildFor } = require("../activeGuild");
 const { userCan } = require("../../config/permissions");
-const { councilRoster, bisGaps, candidatesForItem, filterOptions, resolveContentFilter, itemView, bisSpecsView } = require("../lootCouncil");
+const { councilRoster, bisGaps, candidateSplit, filterOptions, resolveContentFilter, itemView, bisSpecsView } = require("../lootCouncil");
 const { bisLists } = require("../bisLists");
 const { primeArmoryGear } = require("../armoryGear");
 const { sourceForItem } = require("../../config/tbcContent");
@@ -86,12 +87,13 @@ async function getLootCouncil(req, res, url) {
     const contentFilter = resolveContentFilter({ tierIds, contentIds });
 
     // One named item ("this just dropped") short-circuits the BiS list: the
-    // council wants the candidates for that item, not the whole gap report.
+    // council wants the candidates for that item, not the whole gap report —
+    // and, next to them, who cannot wear it at all, so a short list is explained.
     const itemId = Number(url.searchParams.get("item") || 0);
     const focus = itemId > 0
         // Against the tier that was actually used, so "BiS für …" names the same
         // lists the roster's BiS column is counted against.
-        ? { item: itemView(itemId, usedBisTier), candidates: candidatesForItem(itemId, rows) }
+        ? { item: itemView(itemId, usedBisTier), ...candidateSplit(itemId, rows) }
         : null;
 
     ok(res, {
@@ -120,11 +122,11 @@ async function getLootCouncil(req, res, url) {
         sim: {
             available: engine.isAvailable(),
             version: engine.WOWSIMS_VERSION,
-            // What the page tells the reader when there is no binary: the
-            // numbers are stat-weight estimates, not simulated DPS.
+            // What the page tells the reader when there is no binary: there
+            // is no gain to show at all, because the page shows no estimates.
             hint: engine.isAvailable()
                 ? ""
-                : "Keine WoWSims-Simulation verfügbar (WOWSIMCLI_PATH nicht gesetzt) — die Upgrade-Werte sind Schätzungen aus Stat-Gewichten.",
+                : "Keine WoWSims-Simulation verfügbar (WOWSIMCLI_PATH nicht gesetzt) — ohne Simulation zeigt die Seite keine Zugewinne, geschätzt wird nichts.",
         },
         activeGuildId: guildId,
     });

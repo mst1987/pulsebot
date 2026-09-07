@@ -32,6 +32,7 @@ const { characterProfile } = require("../utils/setupView");
 const { targetSlotFor } = require("../utils/wowsims/loadout");
 const wowsims = require("../config/wowsims");
 const bisSource = require("../config/bisSets");
+const { wearCheck } = require("../config/wearable");
 const {
     ROLES, specFor, specByKey, specForRole, rolesForClass, weightsFor, hitCapFor,
     bisForSpec, isSimSupported, bisSpecsForItem,
@@ -169,6 +170,12 @@ function categoryMembers(categoryId, lootRows) {
             assigned: fromAssignment.size,
         },
     };
+}
+
+/** Whether the table knows this item *and* a stat block for it. */
+function hasStats(itemId) {
+    const item = wowsims.item(itemId);
+    return !!(item && item.stats && Object.keys(item.stats).length);
 }
 
 /** Sum an item's stats against a spec's weights. Unknown items score 0. */
@@ -574,6 +581,13 @@ function councilRoster(opts = {}) {
                 source: gear.source || "log",
                 armoryAt: gear.armoryAt || 0,
                 unverifiedEnchants: gear.unverifiedEnchants || 0,
+                // Warum die Armory-Antwort nicht genommen wurde, obwohl es
+                // eine gibt: "pvp" (Arenaset) oder "role" (Heilset für einen
+                // Caster). Dann gilt weiter das Set aus dem letzten Raid.
+                armoryRejected: gear.armoryRejected || "",
+                // Jede der letzten Auswertungen zeigt PvP-Gear — dann wird es
+                // gezeigt, aber gesagt.
+                pvpGear: !!gear.pvpGear,
                 situational: gear.items.filter((it) => it.situational).length,
                 substituted: gear.items.filter((it) => it.replacedSituational).length,
                 // Boss-specific pieces that were taken out of the set because
@@ -646,16 +660,28 @@ function councilRoster(opts = {}) {
 }
 
 /**
- * For one item: who on the roster it fits, what it would replace, and how much
- * it would be worth to each of them by stat weights.
+ * For one item: who on the roster can wear it, what it would replace, and how
+ * much it would be worth to each of them by stat weights — plus who *cannot*
+ * wear it, and why.
  *
  * The list is the answer to the question a council actually asks — "this just
  * dropped, who gets it?" — so it keeps raiders the item is a *downgrade* for
  * too, marked as such: knowing that it helps nobody is an answer.
+ *
+ * ⚠️ A raider who cannot equip the item is never a candidate: a warlock's tier
+ * helm is not "a downgrade" for a mage, it is not theirs to take, and offering
+ * it would let a council hand it out. `unwearable` names them with the reason
+ * (config/wearable.js), so a shorter list is explained rather than puzzling.
+ *
+ * `value` is the stat-weight ordering and nothing more — the page shows no
+ * estimated gain, only a simulated one — but it still decides which candidate
+ * is listed first while nothing is simulated yet.
+ *
+ * @returns {{candidates: object[], unwearable: object[]}}
  */
-function candidatesForItem(itemId, roster) {
+function candidateSplit(itemId, roster) {
     const item = wowsims.item(itemId);
-    if (!item) return [];
+    if (!item) return { candidates: [], unwearable: [] };
     // Same role gate as the roster: the drop check must not weigh a caster's
     // upgrade against the healing set they wore on Thursday either. The roster
     // rows already carry the spec each raider is judged as, so it needs no
@@ -663,8 +689,23 @@ function candidatesForItem(itemId, roster) {
     const roleByKey = new Map(roster.map((r) => [r.key, (specByKey(r.specKey) || {}).role || ""]));
     const gearMap = gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "" });
     const out = [];
+    const unwearable = [];
     for (const row of roster) {
         const specEntry = specByKey(row.specKey);
+        const fit = wearCheck(row.className, itemId, { spec: (specEntry && specEntry.spec) || row.spec || "" });
+        if (!fit.ok) {
+            unwearable.push({
+                key: row.key,
+                character: row.character,
+                classColor: row.classColor,
+                specKey: row.specKey,
+                specLabel: row.specLabel,
+                specIconUrl: row.specIconUrl,
+                reason: fit.reason,
+                note: fit.note,
+            });
+            continue;
+        }
         const gear = gearMap.get(row.key) || null;
         const target = targetSlotFor(gear, itemId);
         if (!target) continue; // the item fits no slot this raider has
@@ -684,7 +725,10 @@ function candidatesForItem(itemId, roster) {
         // simulation measure against an empty slot and credit this raider the
         // item's *full* worth while everyone else only gets the difference. The
         // gain is not wrong, the comparison is; the council is told which.
-        const unreadable = target.displaces.filter((off) => off && !wowsims.item(off.itemId));
+        // "No stats" rather than "not in the table": the table carries
+        // effect-only trinkets and relics precisely so they can be handed out,
+        // and their empty stat block reads as an empty slot all the same.
+        const unreadable = target.displaces.filter((off) => off && !hasStats(off.itemId));
         out.push({
             key: row.key,
             character: row.character,
@@ -749,7 +793,12 @@ function candidatesForItem(itemId, roster) {
     // Biggest gear gain first; the need score only breaks ties, because a
     // council weighs fairness itself and should see the raw upgrade unblurred.
     out.sort((a, b) => b.value - a.value || b.needScore - a.needScore);
-    return out;
+    return { candidates: out, unwearable };
+}
+
+/** The candidates alone — everyone on the roster who can wear the item. */
+function candidatesForItem(itemId, roster) {
+    return candidateSplit(itemId, roster).candidates;
 }
 
 /**
@@ -810,6 +859,6 @@ function filterOptions() {
 }
 
 module.exports = {
-    councilRoster, candidatesForItem, bisGaps, filterOptions, currentTier, wornItemView, bisSpecsView, categoryMembers,
-    upgradeValue, needScore, scoreItem, gearSpellHit, resolveContentFilter, itemView,
+    councilRoster, candidatesForItem, candidateSplit, bisGaps, filterOptions, currentTier, wornItemView, bisSpecsView,
+    categoryMembers, upgradeValue, needScore, scoreItem, gearSpellHit, resolveContentFilter, itemView,
 };

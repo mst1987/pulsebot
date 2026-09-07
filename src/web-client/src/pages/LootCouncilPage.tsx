@@ -23,18 +23,25 @@
 //   side. Multiplying them into one number would look like an answer and hide
 //   the judgement a council is there to make.
 //
-// The DPS numbers come from a background simulation (wowsimcli) that the user
-// starts deliberately — it costs seconds of CPU per raider, and the page is
-// fully usable without it. Everything a simulation can improve is labelled, so
-// a stat-weight estimate is never mistaken for a measured number.
-import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+// The DPS numbers come from a background simulation (wowsimcli). There are no
+// estimates on this page: a gain is shown once it has been simulated and not
+// before — until then a candidate says "nicht simuliert", and a spec the sim
+// cannot answer (healers) is ranked by need and says so. A picked drop is
+// simulated on the spot (seconds); the whole BiS list is a button (minutes).
+//
+// Everything that takes a moment — a reload, the armory, a simulation — is
+// reported through the shared job toasts (components/Jobs.tsx), anchored to
+// the viewport: the page is long, and a progress bar three screens up is one
+// nobody sees.
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useOutletContext } from "react-router-dom";
 import {
     getLootCouncil, runCouncilSim, searchCouncilItems, setCouncilExcluded, getCouncilExport, getBisLists, refreshCouncilArmory, setCouncilRole, canAccess,
     type ApiError, type CouncilCandidate, type CouncilGap, type CouncilItem, type CouncilLootItem, type CouncilRaider, type WornItem,
-    type CouncilExport, type ItemSearchResult, type LootCouncilData, type SimJob, type SimResult,
+    type CouncilExport, type CouncilFocus, type ItemSearchResult, type LootCouncilData, type SimResult,
     type BisListsData, type CouncilItemHit,
 } from "../api";
+import { useJobs, useToast } from "../components/Jobs";
 import ItemSearchPicker from "../components/ItemSearchPicker";
 import type { ShellContext } from "../components/Shell";
 import { fmtMs } from "../lib/format";
@@ -234,45 +241,6 @@ function ExportPanel({ data, onClose }: { data: CouncilExport; onClose: () => vo
  */
 function ButtonSpinner() {
     return <span className="lc-spin" aria-hidden="true" />;
-}
-
-/**
- * A thin bar that says something is happening.
- *
- * Two modes, and the difference matters: with a `value` it fills to that share
- * (a simulation knows how many runs are left), without one it sweeps
- * indefinitely (a fetch does not). Faking a percentage for something unmeasured
- * is worse than admitting it is unknown — a bar that crawls to 90 % and sits
- * there teaches people to distrust every bar on the page.
- */
-function ProgressBar({ value, label, hint }: { value?: number; label?: string; hint?: string }) {
-    const pct = typeof value === "number" ? Math.max(0, Math.min(100, value * 100)) : null;
-    return (
-        <div className="lc-progress" role="progressbar" aria-valuenow={pct ?? undefined} aria-valuemin={0} aria-valuemax={100}>
-            <div className={`lc-progress-track${pct === null ? " lc-progress-indet" : ""}`}>
-                <div className="lc-progress-fill" style={pct === null ? undefined : { width: `${pct}%` }} />
-            </div>
-            {label || hint ? (
-                <div className="lc-progress-text">
-                    {label ? <span>{label}</span> : null}
-                    {hint ? <span className="hint">{hint}</span> : null}
-                </div>
-            ) : null}
-        </div>
-    );
-}
-
-/** "noch ca. 2:40" from a rate we have actually measured, or "" while we can't. */
-function remainingLabel(done: number, total: number, startedAt: number): string {
-    const elapsed = Date.now() - startedAt;
-    // Below a couple of finished runs the rate is noise, and a wildly wrong
-    // estimate is worse than none.
-    if (done < 2 || elapsed < 1500 || done >= total) return "";
-    const perItem = elapsed / done;
-    const left = Math.round((perItem * (total - done)) / 1000);
-    if (left < 5) return "gleich fertig";
-    if (left < 60) return `noch ca. ${left} s`;
-    return `noch ca. ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} min`;
 }
 
 /** A tier's readable name ("Tier 6"), falling back to its id. */
@@ -590,6 +558,24 @@ function GearStamp({ raider }: { raider: CouncilRaider }) {
     // branch below, because it is orthogonal to how the set was found.
     const slots = (
         <>
+            {/* Die Armory hat geantwortet, aber mit einem Set, das gegen einen
+                Boss nichts taugt — dann bleibt es beim letzten Raid, und das
+                steht hier, sonst sähe der Knopf aus, als hätte er nichts getan. */}
+            {g.armoryRejected === "pvp" ? (
+                <span className="lc-gear-warn" title="Die Armory zeigt gerade PvP-Gear (Abhärtung auf den meisten Teilen). Gegen einen Boss zählt das nicht — bewertet wird weiter das Set aus dem letzten Raid.">
+                    {" "}· Armory: PvP-Gear
+                </span>
+            ) : null}
+            {g.armoryRejected === "role" ? (
+                <span className="sub" title="Die Armory zeigt ein Set der anderen Rolle (Heilgear für einen Caster oder umgekehrt). Bewertet wird weiter das Set aus dem letzten Raid.">
+                    {" "}· Armory: andere Rolle
+                </span>
+            ) : null}
+            {g.pvpGear ? (
+                <span className="lc-gear-warn" title="Jede der letzten Auswertungen zeigt diesen Raider in PvP-Gear. Ein anderes Set ist nicht bekannt, die Werte sind daher mit Vorsicht zu lesen.">
+                    {" "}· <b>PvP-Gear</b>
+                </span>
+            ) : null}
             {g.substituted > 0 ? (
                 <span className="sub" title={`${g.substituted} Slot(s) tragen heute ein Teil, das nur gegen bestimmte Bosse zählt — verglichen wird mit dem, was dort sonst steckt (Icon mit ↺).`}>
                     {" "}· {g.substituted}× ersetzt
@@ -612,7 +598,7 @@ function GearStamp({ raider }: { raider: CouncilRaider }) {
     }
     if (g.skippedReports > 0) {
         return (
-            <span title={`Aus „${g.reportTitle}“. ${g.skippedReports} neuere Auswertung(en) übersprungen, weil dort geheilt wurde.`}>
+            <span title={`Aus „${g.reportTitle}“. ${g.skippedReports} neuere Auswertung(en) übersprungen, weil dort geheilt wurde oder PvP-Gear getragen wurde.`}>
                 {stamp} <span className="sub">· {g.skippedReports} übersprungen</span>{slots}
             </span>
         );
@@ -1020,25 +1006,71 @@ function SlotOptions({ candidate }: { candidate: CouncilCandidate }) {
 }
 
 /**
+ * What an item would do for one raider — measured, or nothing.
+ *
+ * No estimate is ever drawn here. Until the drop has been simulated the cell
+ * says "nicht simuliert"; a spec the sim cannot answer says so; a raider
+ * without gear says that. A stat-weight number in a column that elsewhere
+ * holds simulated DPS is the one thing that would make the page lie.
+ */
+function GainCell({ candidate, simDelta, gainMax }: {
+    candidate: CouncilCandidate;
+    simDelta: number | null | undefined;
+    gainMax: number;
+}) {
+    if (typeof simDelta !== "number") {
+        if (!candidate.simSupported) {
+            return <span className="sub" title="Für diese Spec gibt es keine Simulation — WoWSims-TBC rechnet nur Caster-DPS.">—</span>;
+        }
+        if (!candidate.hasGear) {
+            return <span className="sub" title="Kein Gear bekannt: der Raider taucht in keiner der letzten CLA-Auswertungen auf.">kein Gear</span>;
+        }
+        return <span className="sub" title="Noch nicht simuliert — der Zugewinn erscheint, sobald die Simulation durch ist.">nicht simuliert</span>;
+    }
+    const gain = simDelta;
+    const pct = gainMax > 0 ? Math.max(0, Math.min(100, (gain / gainMax) * 100)) : 0;
+    return (
+        <span className={`lc-gain lc-gain-measured${gain < 0 ? " lc-gain-loss" : ""}`}>
+            <span className="lc-gain-bar"><span className="lc-gain-fill" style={{ width: `${pct}%` }} /></span>
+            <b title="Simulierte DPS-Differenz (wowsimcli)">
+                {gain > 0 ? "+" : ""}{Math.round(gain)} DPS
+            </b>
+            {/* The number is honestly measured, the *comparison* is not:
+                what would come off reads as an empty slot, so this raider is
+                credited the item's full worth while the rest of the list only
+                gets a difference. Marked right at the number, since that is
+                where the wrong conclusion would be drawn. */}
+            {candidate.inflatedBy.length ? (
+                <span
+                    className="lc-gain-inflated"
+                    title={`Nicht vergleichbar: ${candidate.inflatedBy
+                        .map((b) => `„${b.itemName}“ ${b.note}`)
+                        .join("; ")}. Der Zugewinn fällt dadurch höher aus als bei Raidern mit einem normalen Teil auf dem Slot.`}
+                >
+                    !
+                </span>
+            ) : null}
+        </span>
+    );
+}
+
+/**
  * One row of the "who would gain most" list.
  *
  * Two bars side by side, and they answer different questions on purpose: the
- * left one is what the item would *do* (simulated DPS where it exists, the
- * stat-weight estimate otherwise), the right one is what the raider has
- * *coming to them*. A council weighs those two against each other itself — the
- * page must not multiply them into one number and pretend that is the answer.
+ * left one is what the item would *do* (simulated DPS — nothing until then),
+ * the right one is what the raider has *coming to them*. A council weighs
+ * those two against each other itself — the page must not multiply them into
+ * one number and pretend that is the answer.
  *
- * `gainMax` is the strongest gain in this list, so the bars are relative to the
- * best candidate rather than to an absolute scale nobody knows.
+ * `gainMax` is the strongest measured gain in this list, so the bars are
+ * relative to the best candidate rather than to an absolute scale nobody knows.
  */
 function CandidateRow({ candidate, simDelta, gainMax }: {
     candidate: CouncilCandidate;
     simDelta: number | null | undefined;
     gainMax: number;
 }) {
-    const measured = typeof simDelta === "number";
-    const gain = measured ? (simDelta as number) : candidate.value;
-    const pct = gainMax > 0 ? Math.max(0, Math.min(100, (gain / gainMax) * 100)) : 0;
     return (
         <tr>
             <td>
@@ -1052,33 +1084,7 @@ function CandidateRow({ candidate, simDelta, gainMax }: {
                 </span>
             </td>
             <td><SlotOptions candidate={candidate} /></td>
-            <td>
-                <span className={`lc-gain${gain < 0 ? " lc-gain-loss" : ""}${measured ? " lc-gain-measured" : ""}`}>
-                    <span className="lc-gain-bar"><span className="lc-gain-fill" style={{ width: `${pct}%` }} /></span>
-                    <b title={measured
-                        ? "Simulierte DPS-Differenz (wowsimcli)"
-                        : "Schätzung aus Stat-Gewichten — noch nicht simuliert"}
-                    >
-                        {gain > 0 ? "+" : ""}{Math.round(gain)}{measured ? " DPS" : ""}
-                    </b>
-                    {/* The number is honestly measured, the *comparison* is not:
-                        what would come off reads as an empty slot, so this
-                        raider is credited the item's full worth while the rest
-                        of the list only gets a difference. Marked right at the
-                        number, since that is where the wrong conclusion would
-                        be drawn. */}
-                    {candidate.inflatedBy.length ? (
-                        <span
-                            className="lc-gain-inflated"
-                            title={`Nicht vergleichbar: ${candidate.inflatedBy
-                                .map((b) => `„${b.itemName}“ ${b.note}`)
-                                .join("; ")}. Der Zugewinn fällt dadurch höher aus als bei Raidern mit einem normalen Teil auf dem Slot.`}
-                        >
-                            !
-                        </span>
-                    ) : null}
-                </span>
-            </td>
+            <td><GainCell candidate={candidate} simDelta={simDelta} gainMax={gainMax} /></td>
             <td><NeedBar subject={candidate} /></td>
             <td>
                 <span className="lc-stat" title={candidate.daysSinceLoot === null
@@ -1117,13 +1123,60 @@ function deltaFor(sim: SimResult | null, candidate: CouncilCandidate, itemId: nu
 }
 
 /**
- * What a row is ranked by: the measured delta once it exists, the stat-weight
- * estimate until then. A guess must never outrank a simulated result, so the
- * measured ones are lifted clear above the whole estimate range.
+ * What a row is ranked by: the measured delta, and nothing else. A candidate
+ * without a simulated number sorts below every measured one — there is no
+ * estimate to rank them by, and the need score breaks the tie.
  */
 function gainFor(sim: SimResult | null, candidate: CouncilCandidate, itemId: number): number {
     const delta = deltaFor(sim, candidate, itemId);
-    return typeof delta === "number" ? delta + 1e6 : candidate.value;
+    return typeof delta === "number" ? delta : Number.NEGATIVE_INFINITY;
+}
+
+/**
+ * Who should get an item, and on what grounds.
+ *
+ *   sim      — the biggest simulated gain; the one answer with a number.
+ *   pending  — somebody in the list could be simulated but has not been yet:
+ *              no suggestion, rather than a guess dressed up as one.
+ *   need     — nobody in the list can be simulated at all (healers; WoWSims-
+ *              TBC sims no healing), so the suggestion follows the need score
+ *              and is labelled as exactly that.
+ *   none     — nobody could take the item.
+ */
+type Verdict =
+    | { basis: "sim"; best: CouncilCandidate; delta: number }
+    | { basis: "need"; best: CouncilCandidate; delta: null }
+    | { basis: "pending" | "none"; best: null; delta: null };
+
+function pickVerdict(candidates: CouncilCandidate[], sim: SimResult | null, itemId: number): Verdict {
+    const measured = candidates
+        .map((c) => ({ c, delta: deltaFor(sim, c, itemId) }))
+        .filter((x): x is { c: CouncilCandidate; delta: number } => typeof x.delta === "number")
+        .sort((a, b) => b.delta - a.delta || b.c.needScore - a.c.needScore)[0];
+    if (measured) return { basis: "sim", best: measured.c, delta: measured.delta };
+    if (candidates.some((c) => c.simSupported && c.hasGear)) return { basis: "pending", best: null, delta: null };
+    const byNeed = [...candidates].sort((a, b) => b.needScore - a.needScore)[0];
+    return byNeed ? { basis: "need", best: byNeed, delta: null } : { basis: "none", best: null, delta: null };
+}
+
+/** The pill next to the suggested name: measured DPS, or "höchster Bedarf". */
+function VerdictGain({ verdict, big = false }: { verdict: Verdict; big?: boolean }) {
+    const size = big ? " lc-verdict-big" : "";
+    if (verdict.basis === "sim") {
+        return (
+            <span className={`lc-verdict-gain lc-verdict-measured${size}`} title="Simulierte DPS-Differenz (wowsimcli)">
+                {verdict.delta > 0 ? "+" : ""}{Math.round(verdict.delta)} DPS
+            </span>
+        );
+    }
+    if (verdict.basis === "need") {
+        return (
+            <span className={`lc-verdict-gain lc-verdict-need${size}`} title="Für diese Specs gibt es keine Simulation (WoWSims-TBC rechnet keine Heilung). Der Vorschlag folgt dem Bedarf — geschätzt wird kein Zugewinn.">
+                höchster Bedarf
+            </span>
+        );
+    }
+    return null;
 }
 
 /** The "who should get this" table — shared by the BiS cards and the drop check. */
@@ -1147,13 +1200,13 @@ function CandidateTable({ itemId, candidates, sim, sortState }: {
             default: return 0;
         }
     });
-    // The bars are relative to the strongest candidate, so the best one is
-    // always full and the rest read as a share of it.
+    // The bars are relative to the strongest measured candidate, so the best
+    // one is always full and the rest read as a share of it.
     const gainMax = Math.max(
         0,
         ...candidates.map((c) => {
             const delta = deltaFor(sim, c, itemId);
-            return typeof delta === "number" ? delta : c.value;
+            return typeof delta === "number" ? delta : 0;
         }),
     );
     return (
@@ -1162,7 +1215,7 @@ function CandidateTable({ itemId, candidates, sim, sortState }: {
                 <tr>
                     <SortTh sortKey="character" label="Raider" {...sortState} />
                     <SortTh sortKey="slot" label="Ersetzt" title="Das Stück, das dafür abgelegt würde — nach dessen Itemlevel sortiert, ein freier Slot zuerst" style={{ width: 70 }} {...sortState} />
-                    <SortTh sortKey="gain" label="Zugewinn" title="Simulierte DPS, wo vorhanden — sonst die Schätzung aus Stat-Gewichten" {...sortState} />
+                    <SortTh sortKey="gain" label="Zugewinn" title="Simulierte DPS-Differenz — leer, solange nicht simuliert wurde. Geschätzt wird nichts." {...sortState} />
                     <SortTh sortKey="need" label="Bedarf" title="Wartezeit, Loot-Anteil und BiS-Lücke zusammengenommen" {...sortState} />
                     <SortTh sortKey="waited" label="Tage" title="Seit dem letzten Item" style={{ width: 70 }} {...sortState} />
                     <SortTh sortKey="loot" label="Items" title="Im aktuellen Content-Filter" style={{ width: 70 }} {...sortState} />
@@ -1188,11 +1241,10 @@ function GapCard({ gap, sim, expanded, onToggle, sortState, onCheck }: {
     /** Opens this item in the drop check, where it can be simulated on its own. */
     onCheck: () => void;
 }) {
-    const deltaOf = (c: CouncilCandidate) => deltaFor(sim, c, gap.id);
-    // The suggestion is always the biggest gain, whatever the table is sorted by.
-    const best = [...gap.candidates].sort((a, b) => gainFor(sim, b, gap.id) - gainFor(sim, a, gap.id))[0];
-
-    const delta = best ? deltaOf(best) : undefined;
+    // The suggestion is always the biggest measured gain, whatever the table
+    // is sorted by — and none at all while nothing is simulated.
+    const verdict = pickVerdict(gap.candidates, sim, gap.id);
+    const best = verdict.best;
 
     // Three bands: what the item is, who should get it, and — opened on
     // demand — everyone else it would fit. The suggestion gets a band of its
@@ -1219,17 +1271,12 @@ function GapCard({ gap, sim, expanded, onToggle, sortState, onCheck }: {
                     <>
                         <SpecCell specLabel={best.specLabel} iconUrl={best.specIconUrl} />
                         <b {...classColorProps(best.classColor)}>{best.character}</b>
-                        {typeof delta === "number" ? (
-                            <span className="lc-verdict-gain lc-verdict-measured" title="Simulierte DPS-Differenz (wowsimcli)">
-                                {delta > 0 ? "+" : ""}{Math.round(delta)} DPS
-                            </span>
-                        ) : (
-                            <span className="lc-verdict-gain" title="Schätzung aus Stat-Gewichten — noch nicht simuliert">
-                                {best.value > 0 ? "+" : ""}{best.value}
-                                <span className="hint">geschätzt</span>
-                            </span>
-                        )}
+                        <VerdictGain verdict={verdict} />
                     </>
+                ) : verdict.basis === "pending" ? (
+                    <span className="hint" style={{ margin: 0 }}>
+                        Noch nicht simuliert — „Als Drop prüfen“ rechnet es in Sekunden, „Alle BiS-Items durchrechnen“ die ganze Liste.
+                    </span>
                 ) : (
                     <span className="hint" style={{ margin: 0 }}>Für keinen der gefilterten Raider ein passender Slot.</span>
                 )}
@@ -1287,7 +1334,7 @@ function ItemHead({ id, name, iconUrl, quality, meta }: {
  * seconds, not minutes).
  */
 function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, onClear, onSimulate }: {
-    focus: { item: CouncilItem; candidates: CouncilCandidate[] } | null;
+    focus: CouncilFocus | null;
     sim: SimResult | null;
     sortState: TableSort<CandidateSortKey>;
     simAvailable: boolean;
@@ -1296,10 +1343,8 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
     onClear: () => void;
     onSimulate: () => void;
 }) {
-    const best = focus && focus.candidates.length
-        ? [...focus.candidates].sort((a, b) => gainFor(sim, b, focus.item.id) - gainFor(sim, a, focus.item.id))[0]
-        : null;
-    const measured = best ? deltaFor(sim, best, focus!.item.id) : undefined;
+    const verdict: Verdict = focus ? pickVerdict(focus.candidates, sim, focus.item.id) : { basis: "none", best: null, delta: null };
+    const best = verdict.best;
 
     // Three blocks, because they answer three separate questions: which item,
     // who should get it, and on what grounds. Running them together in one card
@@ -1308,7 +1353,7 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
         <>
             <Section
                 title="Welches Item ist gedroppt?"
-                hint="Gesucht wird in der Caster-Itemliste des Bots — angeboten wird nur, was ein Caster auch tragen kann."
+                hint="Gesucht wird in der Item-Tabelle des Bots. Wer das Teil nicht anlegen kann — falsche Klasse, Rüstungsart oder Waffentyp —, steht nicht unter den Kandidaten, sondern darunter."
             >
                 <ItemSearchPicker
                     search={searchCouncilItems}
@@ -1351,9 +1396,9 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
                     <Section
                         title="Empfehlung"
                         tone="accent"
-                        actions={simAvailable && focus.candidates.length ? (
+                        actions={simAvailable && focus.candidates.some((c) => c.simSupported && c.hasGear) ? (
                             <button type="button" className="btn btn-sm" disabled={simRunning} onClick={onSimulate}>
-                                {simRunning ? "Simulation läuft …" : "DPS-Gewinn simulieren"}
+                                {simRunning ? "Simulation läuft …" : verdict.basis === "sim" ? "Erneut simulieren" : "DPS-Gewinn simulieren"}
                             </button>
                         ) : null}
                     >
@@ -1369,16 +1414,7 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
                                         <span className="sub">{best.specLabel}</span>
                                     </span>
                                 </span>
-                                {typeof measured === "number" ? (
-                                    <span className="lc-verdict-gain lc-verdict-measured lc-verdict-big" title="Simulierte DPS-Differenz (wowsimcli)">
-                                        {measured > 0 ? "+" : ""}{Math.round(measured)} DPS
-                                    </span>
-                                ) : (
-                                    <span className="lc-verdict-gain lc-verdict-big" title="Schätzung aus Stat-Gewichten — noch nicht simuliert">
-                                        {best.value > 0 ? "+" : ""}{best.value}
-                                        <span className="hint">geschätzt</span>
-                                    </span>
-                                )}
+                                <VerdictGain verdict={verdict} big />
                                 <span className="lc-verdict-sep" />
                                 <span className="lc-vstat">
                                     <span className="lc-kicker">Bedarf</span>
@@ -1408,14 +1444,28 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
                                     <SlotOptions candidate={best} />
                                 </span>
                             </div>
+                        ) : verdict.basis === "pending" ? (
+                            // Keine Zahl, kein Name: eine Empfehlung aus
+                            // Stat-Gewichten wäre eine Schätzung, und die zeigt
+                            // die Seite nicht. Die Simulation startet beim
+                            // Wählen des Items von selbst; hier steht, woran
+                            // es gerade hängt.
+                            <p className="hint" style={{ margin: 0 }}>
+                                {simRunning
+                                    ? "Simulation läuft — der Fortschritt steht oben rechts. Die Empfehlung erscheint, sobald sie durch ist."
+                                    : simAvailable
+                                        ? "Noch nicht simuliert. Ohne Simulation gibt es keine Empfehlung — geschätzt wird nichts."
+                                        : "Keine Simulation verfügbar (WOWSIMCLI_PATH nicht gesetzt). Ohne sie gibt es keinen Zugewinn und keine Empfehlung — geschätzt wird nichts."}
+                            </p>
                         ) : (
                             <p className="hint" style={{ margin: 0 }}>
                                 Für keinen Raider im aktuellen Filter ein passender Slot — Rolle oder Filter oben prüfen.
                             </p>
                         )}
-                        {typeof measured !== "number" && simAvailable && focus.candidates.length ? (
+                        {verdict.basis === "need" ? (
                             <p className="hint" style={{ marginBottom: 0 }}>
-                                Noch Stat-Gewichte. Für echte DPS oben simulieren — bei einem Item sind das nur ein paar Sekunden.
+                                Für diese Specs gibt es keine Simulation. Der Vorschlag ist der höchste Bedarf — was das Teil
+                                bringt, sagt die Seite nicht, weil sie es nicht messen kann.
                             </p>
                         ) : null}
                     </Section>
@@ -1423,9 +1473,30 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
                     {focus.candidates.length ? (
                         <Section
                             title={`Alle Kandidaten (${focus.candidates.length})`}
-                            hint="Zugewinn und Bedarf getrennt: was das Item bringt, und was dem Raider zusteht."
+                            hint="Zugewinn und Bedarf getrennt: was das Item bringt (nur simuliert), und was dem Raider zusteht."
                         >
                             <CandidateTable itemId={focus.item.id} candidates={focus.candidates} sim={sim} sortState={sortState} />
+                        </Section>
+                    ) : null}
+
+                    {/* Wer es nicht anlegen kann, wird genannt statt still
+                        weggelassen — sonst sieht eine Liste mit drei Namen bei
+                        neun Raidern nach einem Fehler aus, und ein Council
+                        vergibt das Teil am Ende doch an den Magier. */}
+                    {focus.unwearable.length ? (
+                        <Section
+                            title={`Können es nicht tragen (${focus.unwearable.length})`}
+                            hint="Klasse, Rüstungsart oder Waffentyp lassen es nicht zu — sie stehen deshalb nicht unter den Kandidaten."
+                        >
+                            <ul className="lc-unwearable">
+                                {focus.unwearable.map((u) => (
+                                    <li key={u.key}>
+                                        <SpecCell specLabel={u.specLabel} iconUrl={u.specIconUrl} />
+                                        <b {...classColorProps(u.classColor)}>{u.character}</b>
+                                        <span className="lc-unwearable-why">{u.note}</span>
+                                    </li>
+                                ))}
+                            </ul>
                         </Section>
                     ) : null}
                 </>
@@ -1750,14 +1821,21 @@ export default function LootCouncilPage() {
     const [data, setData] = useState<LootCouncilData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [loading, setLoading] = useState(true);
+    // Every wait on this page is a job toast: anchored to the viewport, so a
+    // reload, the armory or a simulation is visible from anywhere on a page
+    // that is three screens long.
+    const jobs = useJobs();
+    const toast = useToast();
+    // Whether a first load has landed — after it, reloads run as quiet jobs
+    // (the full-page loader would lose the reader's place).
+    const loaded = useRef(false);
     // Sim results live next to the data, not in it: the page is complete
     // without them and they are only ever an improvement laid over the top.
     const [sim, setSim] = useState<SimResult | null>(null);
-    const [simJob, setSimJob] = useState<SimJob | null>(null);
-    const [simError, setSimError] = useState<string>("");
-    // When the running simulation started — the base for its remaining-time
-    // estimate, which is measured from this run rather than assumed.
-    const [simStartedAt, setSimStartedAt] = useState(0);
+    const [simRunning, setSimRunning] = useState(false);
+    // The same flag as a ref, so an automatic run (see the drop effect) cannot
+    // start a second simulation while one is going.
+    const simBusy = useRef(false);
     // The open WoWSims export, if any — one raider at a time.
     const [exportData, setExportData] = useState<CouncilExport | null>(null);
     // Which per-raider actions are in flight, as "action:character". A set
@@ -1769,22 +1847,32 @@ export default function LootCouncilPage() {
     // One sort for every candidate table, so the cards stay comparable.
     const candidateSort = useTableSort<CandidateSortKey>("lootcouncil.candidate-sort", CANDIDATE_SORT, "gain");
 
-    // Returns the promise so an action that reloads afterwards (setting a raider
-    // aside) can keep its spinner until the new list is actually on screen —
-    // not just until the write came back.
-    const load = useCallback(() => {
+    // Returns the promise (resolving with the fresh data, or null) so an action
+    // that reloads afterwards (setting a raider aside, the armory) can keep its
+    // spinner until the new list is actually on screen — not just until the
+    // write came back — and can report on what it sees there.
+    const load = useCallback((): Promise<LootCouncilData | null> => {
         setLoading(true);
-        return getLootCouncil({
+        const fetchData = () => getLootCouncil({
             role: view.role,
             tiers: view.tiers,
             contents: view.contents,
             category: view.category,
             bisTier: view.bisTier,
-        })
-            .then((d) => { setData(d); setError(null); })
-            .catch((e: ApiError) => setError(e))
+        });
+        // The first load has the full-page loader; every later one is a quiet
+        // job toast — visible wherever the reader is, gone the moment it lands.
+        // A failure keeps the old list and reports through the toast.
+        const request = loaded.current
+            ? jobs.run({ label: "Loot-Council wird geladen", quiet: true }, fetchData)
+            : fetchData().catch((err: ApiError) => { setError(err); return null; });
+        return request
+            .then((d) => {
+                if (d) { setData(d); setError(null); loaded.current = true; }
+                return d;
+            })
             .finally(() => setLoading(false));
-    }, [view.role, view.tiers, view.contents, view.category, view.bisTier]);
+    }, [view.role, view.tiers, view.contents, view.category, view.bisTier, jobs]);
 
     /**
      * Alles neu holen, was von den Raiderdaten abhängt — die Liste *und* den
@@ -1792,35 +1880,47 @@ export default function LootCouncilPage() {
      */
     const reloadAll = useCallback(async () => {
         setDataToken((t) => t + 1);
-        await load();
+        return load();
     }, [load]);
 
     // The picked drop is fetched on its own rather than filtered out of the
     // page's data: which slot it lands in and what it would replace is decided
     // per raider on the server, and a dropped item is regularly one that is on
     // nobody's BiS list and therefore in no payload the page already holds.
-    const [focus, setFocus] = useState<{ item: CouncilItem; candidates: CouncilCandidate[] } | null>(null);
+    const [focus, setFocus] = useState<CouncilFocus | null>(null);
     // Der geprüfte Drop hängt an denselben Daten wie die Liste: wer wie viel
     // gewinnt, folgt aus dem Gear. Holt jemand die Armory oder legt einen
     // Raider beiseite, ändert sich also auch der Drop-Check — die Filter stehen
     // schon in den Abhängigkeiten, aber ein Nachladen ohne Filterwechsel wäre
     // sonst unsichtbar geblieben und erst nach einem Neuladen der Seite da.
     const [dataToken, setDataToken] = useState(0);
+    // Was nach dem Laden eines Drops passiert (die Simulation), als Ref: der
+    // Effekt darf nicht an der Identität von runSim hängen, sonst liefe er bei
+    // jedem Render neu.
+    const autoSimRef = useRef<(f: CouncilFocus) => void>(() => {});
     useEffect(() => {
         if (!view.dropItem) { setFocus(null); return; }
         let alive = true;
-        getLootCouncil({
+        jobs.run({ label: "Drop wird geprüft", quiet: true }, () => getLootCouncil({
             role: view.role,
             tiers: view.tiers,
             contents: view.contents,
             category: view.category,
             bisTier: view.bisTier,
             item: view.dropItem,
-        })
-            .then((d) => { if (alive) setFocus(d.focus); })
-            .catch(() => { if (alive) setFocus(null); });
+        }))
+            .then((d) => {
+                if (!alive) return;
+                if (!d) { setFocus(null); return; }
+                setFocus(d.focus);
+                // Ohne Simulation gibt es keinen Zugewinn und keine Empfehlung
+                // — also wird der Drop sofort gerechnet, nicht erst auf Klick.
+                // Ein Item gegen seine Kandidaten sind Sekunden, und der
+                // Server hat den Großteil ohnehin im Cache.
+                if (d.focus && d.sim.available) autoSimRef.current(d.focus);
+            });
         return () => { alive = false; };
-    }, [view.dropItem, view.role, view.tiers, view.contents, view.category, view.bisTier, dataToken]);
+    }, [view.dropItem, view.role, view.tiers, view.contents, view.category, view.bisTier, dataToken, jobs]);
 
     // Wrapped rather than passed directly: `load` returns a promise now, and a
     // promise handed to useEffect would be mistaken for a cleanup function.
@@ -1829,7 +1929,7 @@ export default function LootCouncilPage() {
     // A changed filter changes which raiders and items were simulated, so the
     // old results no longer describe what is on screen. Dropping them is the
     // honest move — a stale delta under a new filter is worse than none.
-    useEffect(() => { setSim(null); setSimJob(null); }, [view.role, view.tiers, view.contents, view.category, view.bisTier]);
+    useEffect(() => { setSim(null); }, [view.role, view.tiers, view.contents, view.category, view.bisTier]);
 
     const patch = (next: Partial<View>) => setView({ ...view, ...next });
 
@@ -1882,8 +1982,8 @@ export default function LootCouncilPage() {
         setBusy((prev) => new Set(prev).add(key));
         try {
             await fn();
-        } catch (e) {
-            setSimError((e as ApiError).message);
+        } catch (err) {
+            toast((err as ApiError).message || "Die Aktion ist fehlgeschlagen.", "err");
         } finally {
             setBusy((prev) => {
                 const next = new Set(prev);
@@ -1911,6 +2011,9 @@ export default function LootCouncilPage() {
         async () => {
             await setCouncilRole(csrfToken, character, role);
             await reloadAll();
+            toast(role
+                ? `${character} wird als ${ROLE_LABEL[role] || role} eingeplant.`
+                : `Festlegung für ${character} zurückgenommen — es gilt wieder, was die Daten sagen.`);
         },
     );
 
@@ -1918,19 +2021,37 @@ export default function LootCouncilPage() {
      * Fetch current gear from the armory, then reload.
      *
      * The reload is the point: the armory answer changes the gear, which changes
-     * the BiS count, the upgrade values and the DPS estimate. Patching one row
+     * the BiS count, the upgrade values and the simulated DPS. Patching one row
      * would leave the rest of the page arguing from the old set.
+     *
+     * What the reload shows is reported, not just that it happened: the armory
+     * regularly answers with an arena set, which the server refuses (PvP gear
+     * makes no sense against a boss) — and then the button looks as if it had
+     * done nothing unless the toast says why.
      */
     const loadArmory = (characters: string[], key: string) => runFor(key, async () => {
-        const result = await refreshCouncilArmory(csrfToken, characters);
-        await reloadAll();
+        const result = await jobs.run(
+            { label: "Armory wird geladen", detail: characters.length === 1 ? characters[0] : `${characters.length} Raider`, quiet: true },
+            () => refreshCouncilArmory(csrfToken, characters),
+        );
+        // A failure is already on the toast.
+        if (!result) return;
+        const fresh = await reloadAll();
         if (!result.answered) {
-            setSimError(characters.length === 1
+            toast(characters.length === 1
                 ? `Die Armory kennt ${characters[0]} nicht (oder antwortet gerade nicht) — es bleibt beim Stand der letzten Auswertung.`
-                : "Die Armory hat für niemanden geantwortet — es bleibt beim Stand der letzten Auswertung.");
-        } else {
-            setSimError("");
+                : "Die Armory hat für niemanden geantwortet — es bleibt beim Stand der letzten Auswertung.", "err");
+            return;
         }
+        const asked = new Set(characters.map((c) => c.toLowerCase()));
+        const rows = fresh ? fresh.roster.filter((r) => asked.has(r.character.toLowerCase())) : [];
+        const taken = rows.filter((r) => r.gear && r.gear.source === "armory").length;
+        const pvp = rows.filter((r) => r.gear && r.gear.armoryRejected === "pvp").map((r) => r.character);
+        const wrongRole = rows.filter((r) => r.gear && r.gear.armoryRejected === "role").map((r) => r.character);
+        const parts = [`Armory geladen: ${taken} von ${characters.length} Raider(n) mit aktuellem Gear.`];
+        if (pvp.length) parts.push(`${pvp.join(", ")}: die Armory zeigt PvP-Gear — es bleibt beim Set aus dem letzten Raid.`);
+        if (wrongRole.length) parts.push(`${wrongRole.join(", ")}: die Armory zeigt ein Set der anderen Rolle — es bleibt beim Set aus dem letzten Raid.`);
+        toast(parts.join(" "), taken ? "ok" : "err");
     });
 
     /**
@@ -1947,56 +2068,75 @@ export default function LootCouncilPage() {
         async () => {
             await setCouncilExcluded(csrfToken, character, excluded);
             await reloadAll();
+            toast(excluded ? `${character} wird nicht mehr eingeplant.` : `${character} wird wieder eingeplant.`);
         },
     );
 
     /**
-     * Simulate the roster's baselines plus the given items.
+     * Simulate baselines plus the given items, as a job toast with the real
+     * progress ("7 von 24") — measured by the server, not estimated.
      *
      * `items` is the whole open BiS list for the overview button and a single
-     * id for the drop check — the difference between minutes and seconds, which
-     * is why the drop check has its own button at all.
+     * id for the drop check; `subjects` is the whole roster for the buttons and
+     * only that drop's candidates when a drop is checked — the difference
+     * between minutes and seconds.
      */
-    const runSim = async (items: number[]) => {
-        if (!data || !simulatable.length) return;
-        setSimError("");
+    const runSim = async (items: number[], subjects = simulatable, what = "") => {
+        if (simBusy.current || !subjects.length) return;
+        simBusy.current = true;
+        setSimRunning(true);
         const id = `council-${Date.now()}`;
-        setSimStartedAt(Date.now());
-        setSimJob({ status: "running", progress: 0, total: simulatable.length * (1 + items.length) });
-        try {
-            const result = await runCouncilSim(csrfToken, id, simulatable, items, setSimJob);
-            // Merged, not replaced: simulating one drop must not throw away the
-            // deltas of the BiS run somebody kicked off five minutes ago.
-            setSim((prev) => {
-                if (!prev) return result;
-                const merged: SimResult = { ...prev };
-                for (const [key, entry] of Object.entries(result)) {
-                    const old = merged[key];
-                    merged[key] = old ? { ...entry, items: { ...old.items, ...entry.items } } : entry;
-                }
-                return merged;
-            });
-        } catch (e) {
-            setSimError((e as ApiError).message);
-        } finally {
-            setSimJob(null);
-        }
+        const total = subjects.length * (1 + items.length);
+        const detail = what || `${subjects.length} Raider${items.length ? ` × ${items.length} Item(s)` : ""}`;
+        const result = await jobs.run<SimResult>(
+            {
+                label: "Simulation",
+                detail,
+                describe: (r) => ({
+                    message: items.length
+                        ? `Simulation fertig: ${Object.keys(r).length} Raider, ${items.length} Item(s). Die DPS stehen jetzt in den Tabellen.`
+                        : `DPS berechnet für ${Object.keys(r).length} Raider.`,
+                }),
+            },
+            (update) => runCouncilSim(csrfToken, id, subjects, items, (job) => update({
+                progress: job.total ? (job.progress ?? 0) / job.total : undefined,
+                detail: `${detail} · ${job.progress ?? 0} von ${job.total ?? total}`,
+            })),
+        );
+        simBusy.current = false;
+        setSimRunning(false);
+        // A failure is on the toast already; there is nothing to merge.
+        if (!result) return;
+        // Merged, not replaced: simulating one drop must not throw away the
+        // deltas of the BiS run somebody kicked off five minutes ago.
+        setSim((prev) => {
+            if (!prev) return result;
+            const merged: SimResult = { ...prev };
+            for (const [key, entry] of Object.entries(result)) {
+                const old = merged[key];
+                merged[key] = old ? { ...entry, items: { ...old.items, ...entry.items } } : entry;
+            }
+            return merged;
+        });
     };
+
+    /** The drop check's own run: this item against the raiders it fits. */
+    const simulateDrop = (f: CouncilFocus) => {
+        const subjects = f.candidates
+            .filter((c) => c.simSupported && c.hasGear)
+            .map((c) => ({ key: c.key, specKey: c.specKey }));
+        runSim([f.item.id], subjects, `Drop prüfen: ${f.item.name || `Item ${f.item.id}`}`);
+    };
+    autoSimRef.current = simulateDrop;
 
     if (loading && !data) return <PageLoader show text="Loot-Council wird geladen" />;
     if (error) return <div className="empty">{error.message}</div>;
     if (!data) return null;
 
     const o = data.options;
-    const simRunning = !!simJob && simJob.status === "running";
 
     return (
         <>
-            {/* A thin bar rather than the full-screen loader: a filter click
-                reloads in a moment, and blanking the page for it loses the
-                reader's place every time. */}
-            {loading ? <ProgressBar /> : null}
-
             <Section title="Filter" hint="Wer gezählt wird, welcher Loot zählt und gegen welche BiS-Liste gemessen wird.">
                 <div className="field">
                     <label>Rolle</label>
@@ -2139,17 +2279,14 @@ export default function LootCouncilPage() {
                     </>
                 ) : null}
             >
-                {simRunning && simJob ? (
-                    <ProgressBar
-                        value={simJob.total ? (simJob.progress ?? 0) / simJob.total : undefined}
-                        label={`Simulation läuft … ${simJob.progress ?? 0} von ${simJob.total ?? 0}`}
-                        hint={remainingLabel(simJob.progress ?? 0, simJob.total ?? 0, simStartedAt)}
-                    />
-                ) : null}
-                {simError ? <div className="hint err">{simError}</div> : null}
-                {!simRunning && !simError && sim
-                    ? <div className="hint">Ergebnisse liegen vor — sie stehen als DPS in den Tabellen.</div>
-                    : null}
+                {/* Der Fortschritt selbst steht im Job-Toast oben rechts — der
+                    ist von überall auf der Seite zu sehen, dieser Abschnitt
+                    nicht. Hier steht nur, woran man ist. */}
+                {simRunning
+                    ? <div className="hint">Simulation läuft — der Fortschritt steht oben rechts.</div>
+                    : sim
+                        ? <div className="hint">Ergebnisse liegen vor — sie stehen als DPS in den Tabellen.</div>
+                        : <div className="hint">Noch nichts simuliert. Ein Zugewinn erscheint erst mit einer Simulation — die Seite zeigt keine Schätzungen aus Stat-Gewichten.</div>}
             </Section>
 
             <div className="tabs">
@@ -2299,7 +2436,7 @@ export default function LootCouncilPage() {
                     simRunning={simRunning}
                     onPick={(item: ItemSearchResult) => patch({ dropItem: item.id })}
                     onClear={() => patch({ dropItem: 0 })}
-                    onSimulate={() => runSim([view.dropItem])}
+                    onSimulate={() => { if (focus) simulateDrop(focus); }}
                 />
             ) : null}
         </>

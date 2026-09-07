@@ -434,7 +434,15 @@ async function main() {
     for (const item of db.items || []) {
         const { stats, ilvl, damage } = statsOf(item);
         const id = Number(item.id);
-        const wanted = bisItemIds.has(id) || (wowheadIds.has(id) && Number(item.quality || 0) >= 3);
+        const quality = Number(item.quality || 0);
+        // Relikte (Götze, Buchband, Totem) tragen keine Werte — ihr ganzer
+        // Wert ist ein Effekt —, also würde der Stat-Filter sie alle
+        // verwerfen. Ein Council muss sie trotzdem vergeben können, darum
+        // kommen sie ab Blau immer mit. Effektbasierte Schmuckstücke dagegen
+        // bleiben draußen: config/situationalItems.js verlässt sich darauf,
+        // dass die Tabelle ein bossabhängiges Teil *nicht* kennt.
+        const relic = [6, 7, 8].includes(Number(item.rangedWeaponType)) && quality >= 3;
+        const wanted = bisItemIds.has(id) || (wowheadIds.has(id) && quality >= 3) || relic;
         if (!isRaidItem(item, stats) && !wanted) continue;
         const slots = TYPE_TO_SLOTS[item.type];
         if (!slots) continue; // a type we have no equip slot for (shirt, tabard)
@@ -450,10 +458,21 @@ async function main() {
             // Only weapons have one, and only "two" changes anything downstream.
             ...(HAND_TYPE[item.handType] ? { hand: HAND_TYPE[item.handType] } : {}),
             ...(Array.isArray(item.gemSockets) && item.gemSockets.length ? { sockets: item.gemSockets.map(Number) } : {}),
-            // Which classes may wear it at all (WoWSims class enum). Kept so the
-            // page never offers a Mage a Shaman's mail chest.
+            // Which classes may wear it at all (Blizzard's class ids, as the
+            // WoWSims Class enum numbers them: 1 Warrior … 11 Druid). Only set
+            // items and a few class-bound pieces carry one; everything else is
+            // decided by the three types below (see config/wearable.js).
             ...(Array.isArray(item.classAllowlist) && item.classAllowlist.length
                 ? { classes: item.classAllowlist.map(Number) } : {}),
+            // Rüstungsart (ArmorType: 1 Stoff, 2 Leder, 3 Kette, 4 Platte),
+            // Waffentyp (WeaponType: 1 Axt … 5 Nebenhand, 7 Schild, 8 Stab,
+            // 9 Schwert) und Distanztyp (RangedWeaponType: 5 Zauberstab,
+            // 6 Götze, 7 Buchband, 8 Totem). Zusammen mit `classes` entscheiden
+            // sie, wer ein Teil überhaupt anlegen kann — ein Loot-Council darf
+            // keinen Magier für eine Kettenbrust vorschlagen.
+            ...(Number(item.armorType) > 0 ? { armorType: Number(item.armorType) } : {}),
+            ...(Number(item.weaponType) > 0 ? { weaponType: Number(item.weaponType) } : {}),
+            ...(Number(item.rangedWeaponType) > 0 ? { rangedType: Number(item.rangedWeaponType) } : {}),
             // Waffen: Schaden und Geschwindigkeit. Für einen Caster war das
             // gleichgültig — die Zauberwerte stehen im Statblock —, für jeden
             // Nahkämpfer ist es die halbe Waffe.

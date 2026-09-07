@@ -25,6 +25,11 @@ export type BackgroundJob = {
     seconds: number;
     /** Rough duration for the progress bar; omitted → indeterminate. */
     expectedSeconds?: number;
+    /**
+     * Measured progress, 0..1, when the job reports it (a simulation knows how
+     * many runs are left). Beats the estimated creep from expectedSeconds.
+     */
+    progress?: number;
     /** Result / error text, once finished. */
     message: string;
     link?: { href: string; label: string; external?: boolean };
@@ -39,15 +44,26 @@ export type JobSpec<T> = {
     expectedSeconds?: number;
     /** Defaults to "<label> fertig." */
     describe?: (result: T) => JobOutcome;
+    /**
+     * Drop the toast the moment the job succeeds, without a "fertig" message —
+     * for a load whose result *is* the page (a filter change, a re-fetch). The
+     * running toast is still the visible "something is happening"; a failure
+     * still reports. Without this every filter click would leave a ✓ behind.
+     */
+    quiet?: boolean;
 };
+
+/** What a running job may report about itself while it runs. */
+export type JobUpdate = (fields: { detail?: string; progress?: number }) => void;
 
 type JobsApi = {
     /**
      * Run `runner` as a tracked background job. Resolves with its result (or
      * null when it failed — the toast already reported the error), so a caller
-     * that is still mounted can refresh its list afterwards.
+     * that is still mounted can refresh its list afterwards. The runner gets
+     * an `update` to report progress and a changing detail line into the toast.
      */
-    run: <T>(spec: JobSpec<T>, runner: () => Promise<T>) => Promise<T | null>;
+    run: <T>(spec: JobSpec<T>, runner: (update: JobUpdate) => Promise<T>) => Promise<T | null>;
     /** One-off feedback without a job behind it (saved, deleted, …). */
     notify: (message: string, type?: "ok" | "err") => void;
 };
@@ -104,7 +120,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
         return () => clearInterval(t);
     }, [hasRunning]);
 
-    const run = useCallback(async <T,>(spec: JobSpec<T>, runner: () => Promise<T>): Promise<T | null> => {
+    const run = useCallback(async <T,>(spec: JobSpec<T>, runner: (update: JobUpdate) => Promise<T>): Promise<T | null> => {
         const id = nextId.current++;
         setJobs((list) => [...list, {
             id,
@@ -115,8 +131,13 @@ export function JobsProvider({ children }: { children: ReactNode }) {
             expectedSeconds: spec.expectedSeconds,
             message: "",
         }]);
+        const update: JobUpdate = (fields) => patch(id, fields);
         try {
-            const result = await runner();
+            const result = await runner(update);
+            if (spec.quiet) {
+                dismiss(id);
+                return result;
+            }
             const outcome = spec.describe ? spec.describe(result) : { message: `${spec.label} fertig.` };
             patch(id, { state: "done", message: outcome.message, link: outcome.link });
             return result;
@@ -125,7 +146,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
             patch(id, { state: "error", message });
             return null;
         }
-    }, [patch]);
+    }, [patch, dismiss]);
 
     const notify = useCallback((message: string, type: "ok" | "err" = "ok") => {
         const id = nextId.current++;
@@ -182,11 +203,16 @@ function JobToast({ job, onDismiss }: { job: BackgroundJob; onDismiss: (id: numb
     }, [hiding, job.id, onDismiss]);
 
     const tone = running ? "toast-run" : job.state === "error" ? "toast-err" : "toast-ok";
-    // Estimated, never a lie about being finished: it creeps to 95% and waits
-    // there until the job actually reports back.
-    const pct = job.expectedSeconds
-        ? Math.min(95, Math.round((job.seconds / job.expectedSeconds) * 100))
-        : 0;
+    // A measured progress is drawn as it is. Otherwise estimated, never a lie
+    // about being finished: it creeps to 95% and waits there until the job
+    // actually reports back.
+    const measured = typeof job.progress === "number";
+    const pct = measured
+        ? Math.max(0, Math.min(100, Math.round((job.progress as number) * 100)))
+        : job.expectedSeconds
+            ? Math.min(95, Math.round((job.seconds / job.expectedSeconds) * 100))
+            : 0;
+    const determinate = measured || !!job.expectedSeconds;
 
     return (
         <div className={`toast ${tone}${hiding ? " hide" : ""}`} role="status" aria-live="polite">
@@ -202,8 +228,8 @@ function JobToast({ job, onDismiss }: { job: BackgroundJob; onDismiss: (id: numb
                                 <span className="toast-elapsed">{formatElapsed(job.seconds)}</span>
                             </div>
                             {job.detail && <div className="toast-detail">{job.detail}</div>}
-                            <div className={`toast-bar${job.expectedSeconds ? "" : " is-indeterminate"}`}>
-                                <i style={job.expectedSeconds ? { width: `${pct}%` } : undefined} />
+                            <div className={`toast-bar${determinate ? "" : " is-indeterminate"}`}>
+                                <i style={determinate ? { width: `${pct}%` } : undefined} />
                             </div>
                         </>
                     )

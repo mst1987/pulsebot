@@ -162,6 +162,18 @@ describe("web/simStore", () => {
             expect(job.result.devihra.items[999999]).toBeUndefined();
         });
 
+        it("skips an item the class cannot equip — a number for it would be a wrong answer", async () => {
+            // Hood of the Corruptor is warlock tier; a priest cannot put it on,
+            // however well it would sim.
+            simStore.startCouncilSim("job3b", subjects, [30212]);
+            const job = await settle("job3b");
+            expect(job.result.devihra.items[30212]).toBeUndefined();
+            // Only the baseline ran.
+            expect(mockSimulate).toHaveBeenCalledTimes(1);
+            // ...and the progress still reaches the total.
+            expect(job.progress).toBe(job.total);
+        });
+
         it("says 'no gear' rather than simulating a naked raider", async () => {
             mockGearByCharacter.mockReturnValue(new Map());
             simStore.startCouncilSim("job4", subjects, [31064]);
