@@ -286,6 +286,8 @@ describe("web/lootCouncil", () => {
     });
 
     describe("candidatesForItem", () => {
+        // 32525 (Cowl of the Illidari High Lord) is a cloth head without a
+        // class lock — the one kind of item both a priest and a mage can take.
         function twoCasters() {
             mockAnnotated.mockReturnValue([
                 { key: "devihra", className: "Priest", spec: "Shadow" },
@@ -300,14 +302,14 @@ describe("web/lootCouncil", () => {
 
         it("lists everyone the item fits, best gain first", () => {
             const rows = twoCasters();
-            const candidates = candidatesForItem(31064, rows);
+            const candidates = candidatesForItem(32525, rows);
             expect(candidates.length).toBe(2);
             expect(candidates[0].value).toBeGreaterThanOrEqual(candidates[1].value);
         });
 
         it("says what the item would replace, or that the slot is free", () => {
             const rows = twoCasters();
-            const byChar = Object.fromEntries(candidatesForItem(31064, rows).map((c) => [c.character, c]));
+            const byChar = Object.fromEntries(candidatesForItem(32525, rows).map((c) => [c.character, c]));
             expect(byChar.Devihra.replaces).toMatchObject({ itemId: 29352 });
             expect(byChar.Magier.replaces).toBeNull();
         });
@@ -330,7 +332,7 @@ describe("web/lootCouncil", () => {
             // already refuses to do.
             const rows = twoCasters();
             mockGearByCharacter.mockClear();
-            candidatesForItem(31064, rows);
+            candidatesForItem(32525, rows);
             const { roleFor } = mockGearByCharacter.mock.calls[0][0];
             expect(roleFor("devihra")).toBe("caster");
         });
@@ -367,7 +369,7 @@ describe("web/lootCouncil", () => {
             // An empty slot is not a hole in the comparison — the raider really
             // does own nothing there, and the full gain is the truth.
             const rows = twoCasters();
-            const byChar = Object.fromEntries(candidatesForItem(31064, rows).map((c) => [c.character, c]));
+            const byChar = Object.fromEntries(candidatesForItem(32525, rows).map((c) => [c.character, c]));
             expect(byChar.Magier.replaces).toBeNull();
             expect(byChar.Magier.inflatedBy).toEqual([]);
         });
@@ -604,7 +606,7 @@ describe("web/lootCouncil — the worn gear a council looks at", () => {
             mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
             mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([item(0, 29352)])]]));
             const rows = councilRoster({ bisTier: "t6" }).rows;
-            const [candidate] = candidatesForItem(31064, rows);
+            const [candidate] = candidatesForItem(32525, rows);
             expect(candidate.replaces).toMatchObject({
                 itemId: 29352,
                 slot: 0,
@@ -987,5 +989,86 @@ describe("web/lootCouncil — judging a caster on caster gear", () => {
             { ...item(13, 29370), replacedSituational: { itemId: 23206, itemName: "Mark of the Champion", iconUrl: "", note: "…", seenAt: 1, reportTitle: "Alt" } },
         ])]]));
         expect(councilRoster({}).rows[0].gear).toMatchObject({ situational: 1, substituted: 1 });
+    });
+
+    it("sagt, warum die Armory-Antwort nicht genommen wurde, und ob das Set PvP ist", () => {
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([item(0, 31064)], {
+            armoryRejected: "pvp", pvpGear: false,
+        })]]));
+        expect(councilRoster({}).rows[0].gear).toMatchObject({ armoryRejected: "pvp", pvpGear: false });
+    });
+});
+
+// Ein Raider, der ein Teil nicht anlegen kann, ist kein Kandidat — ein
+// Hexer-Helm ist für den Magier kein „Downgrade", er gehört ihm schlicht
+// nicht. Dass er fehlt, wird gesagt, sonst sieht die kürzere Liste kaputt aus.
+describe("web/lootCouncil — wer das Item überhaupt tragen kann", () => {
+    const { candidateSplit } = require("../../src/web/lootCouncil");
+    const CORRUPTOR_HOOD = 30212;   // Hexenmeister-T5
+    const SKYSHATTER_COVER = 31015; // Schamanen-T6, Kette
+    const ZHARDOOM = 32374;         // Zweihandstab — für alle Caster
+
+    function mixedRoster() {
+        mockAnnotated.mockReturnValue([
+            { key: "devihra", className: "Priest", spec: "Shadow" },
+            { key: "magier", className: "Mage", spec: "Arcane" },
+            { key: "hexer", className: "Warlock", spec: "Destruction" },
+            { key: "schami", className: "Shaman", spec: "Elemental" },
+        ]);
+        const gear = (key, character, className) => gearOf([item(0, 31064), item(15, 30082)], { key, character, className });
+        mockGearByCharacter.mockReturnValue(new Map([
+            ["devihra", gear("devihra", "Devihra", "Priest")],
+            ["magier", gear("magier", "Magier", "Mage")],
+            ["hexer", gear("hexer", "Hexer", "Warlock")],
+            ["schami", gear("schami", "Schami", "Shaman")],
+        ]));
+        return councilRoster({ bisTier: "t6" }).rows;
+    }
+
+    it("gibt ein Setteil nur seiner Klasse", () => {
+        const { candidates, unwearable } = candidateSplit(CORRUPTOR_HOOD, mixedRoster());
+        expect(candidates.map((c) => c.key)).toEqual(["hexer"]);
+        expect(unwearable.map((u) => u.key).sort()).toEqual(["devihra", "magier", "schami"]);
+        const mage = unwearable.find((u) => u.key === "magier");
+        expect(mage).toMatchObject({ character: "Magier", reason: "class" });
+        expect(mage.note).toContain("Hexenmeister");
+    });
+
+    it("gibt eine Kettenbrust keiner Stoffklasse", () => {
+        const { candidates, unwearable } = candidateSplit(SKYSHATTER_COVER, mixedRoster());
+        expect(candidates.map((c) => c.key)).toEqual(["schami"]);
+        expect(unwearable).toHaveLength(3);
+    });
+
+    it("lässt jeden Caster für einen Stab antreten", () => {
+        const { candidates, unwearable } = candidateSplit(ZHARDOOM, mixedRoster());
+        expect(candidates).toHaveLength(4);
+        expect(unwearable).toEqual([]);
+    });
+
+    it("trägt die Identität für die Seite mit, nicht nur den Schlüssel", () => {
+        const { unwearable } = candidateSplit(CORRUPTOR_HOOD, mixedRoster());
+        expect(unwearable[0]).toEqual(expect.objectContaining({
+            key: expect.any(String), character: expect.any(String), specLabel: expect.any(String),
+            classColor: expect.any(String), reason: expect.any(String), note: expect.any(String),
+        }));
+    });
+
+    it("hält candidatesForItem als reine Kandidatenliste bei", () => {
+        expect(candidatesForItem(CORRUPTOR_HOOD, mixedRoster()).map((c) => c.key)).toEqual(["hexer"]);
+    });
+
+    it("nimmt sie damit auch aus den BiS-Lücken", () => {
+        // Der Hexer-Helm steht auf der Hexer-Liste; der Magier fehlt ihn nicht
+        // und darf ihn nicht bekommen — er taucht nirgends als Kandidat auf.
+        const gaps = bisGaps(mixedRoster());
+        const hood = gaps.find((g) => g.id === CORRUPTOR_HOOD);
+        if (hood) expect(hood.candidates.every((c) => c.key === "hexer")).toBe(true);
+        for (const gap of gaps) {
+            for (const c of gap.candidates) {
+                expect(require("../../src/config/wearable").canWear(c.key === "magier" ? "Mage" : c.key === "hexer" ? "Warlock" : c.key === "schami" ? "Shaman" : "Priest", gap.id)).toBe(true);
+            }
+        }
     });
 });

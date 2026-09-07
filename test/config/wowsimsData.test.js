@@ -42,6 +42,29 @@ describe("config/wowsims — die erzeugten Daten", () => {
             expect(items.items["31064"].stats).toMatchObject({ intellect: expect.any(Number), spellPower: expect.any(Number) });
             expect(items.items["30902"].stats).toMatchObject({ strength: 75, armorPen: 335 });
         });
+
+        it("kennt Rüstungsart, Waffentyp und Distanztyp — woran die Tragbarkeit hängt", () => {
+            // config/wearable.js liest genau diese drei Felder; fehlen sie,
+            // winkt es jedes Item durch und der Magier bekommt die Kettenbrust.
+            expect(items.items["30169"]).toMatchObject({ name: "Cataclysm Chestpiece", armorType: 3, classes: [7] });
+            expect(items.items["30734"]).toMatchObject({ armorType: 1 });
+            expect(items.items["32374"]).toMatchObject({ weaponType: 8, hand: "two" });
+            expect(items.items["33661"]).toMatchObject({ weaponType: 7, hand: "off" });
+            expect(items.items["28783"]).toMatchObject({ rangedType: 5 });
+            const all = Object.values(items.items);
+            expect(all.filter((it) => it.armorType).length).toBeGreaterThan(3000);
+            expect(all.filter((it) => it.weaponType).length).toBeGreaterThan(500);
+        });
+
+        it("führt Relikte, obwohl sie keine Werte tragen", () => {
+            // Ihr ganzer Wert ist ein Effekt — der Stat-Filter würde sie alle
+            // verwerfen, und ein Council könnte kein Totem vergeben.
+            expect(items.items["33505"]).toMatchObject({ name: "Totem of Living Water", rangedType: 8 });
+            expect(items.items["28568"]).toMatchObject({ name: "Idol of the Avian Heart", rangedType: 6 });
+            // Effektbasierte Schmuckstücke bleiben draußen — siehe
+            // config/situationalItems.js, das darauf baut.
+            expect(items.items["23207"]).toBeUndefined();
+        });
     });
 
     describe("BiS-Listen", () => {

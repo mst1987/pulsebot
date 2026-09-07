@@ -20,6 +20,7 @@
 const Blizzard = require("../classes/blizzard");
 const { getConfig } = require("./settingsStore");
 const { situationalItem } = require("../config/situationalItems");
+const { isPvpItem } = require("./gearProfile");
 const wowsims = require("../config/wowsims");
 const { characterKey, splitPlayer } = require("../utils/lootImport");
 
@@ -143,15 +144,16 @@ function armorySetFor(character) {
 }
 
 /**
- * What the armory says sits in one slot — null when unknown, and null for a
- * piece that is itself boss-specific (the armory may have caught the same
- * moment the log did).
+ * What the armory says sits in one slot — null when unknown, null for a piece
+ * that is itself boss-specific (the armory may have caught the same moment the
+ * log did), and null for a PvP piece: between two raid nights the armory shows
+ * the arena trinket, and that is no answer to "what do they raid with".
  */
 function armoryItemInSlot(character, slot) {
     const hit = cache.get(keyOf(character));
     if (!hit || !hit.rows) return null;
     const item = hit.rows.find((it) => it.slot === Number(slot));
-    if (!item || situationalItem(item.itemId)) return null;
+    if (!item || situationalItem(item.itemId) || isPvpItem(item.itemId)) return null;
     return item;
 }
 

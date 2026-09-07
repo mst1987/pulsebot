@@ -1781,7 +1781,16 @@ a.gear-row:hover { background: var(--panel2); }
 .lc-verdict-measured { color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 45%, var(--line)); }
 .lc-verdict-gain { display: inline-flex; align-items: center; gap: 6px; }
 .lc-verdict-gain .hint { margin: 0; font-size: 11.5px; font-weight: 500; }
+/* A suggestion made on need alone (no simulation for that spec): plain, not
+   the accent of a measured number. */
+.lc-verdict-need { font-family: var(--font-body, inherit); font-weight: 600; color: var(--muted); }
 .lc-verdict-sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 2px; }
+
+/* Loot-Council: wer ein Item nicht anlegen kann — genannt, nicht verschwiegen,
+   sonst sieht eine kurze Kandidatenliste nach einem Fehler aus. */
+.lc-unwearable { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 0; list-style: none; }
+.lc-unwearable li { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.lc-unwearable .lc-unwearable-why { color: var(--muted); }
 
 /* Loot-Council: Slot-Optionen und abgelegte Raider */
 .lc-slots { display: inline-flex; align-items: center; gap: 4px; }

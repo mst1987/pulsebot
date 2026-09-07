@@ -354,6 +354,64 @@ describe("web/charGear", () => {
             });
             const gear = casterGear();
             expect(gear.source).toBe("log");
+            expect(gear.armoryRejected).toBe("role");
+        });
+
+        // Zwischen zwei Raidnächten hat ein Raider regelmäßig sein Arenaset
+        // an — und die Armory zeigt genau das. Gegen einen Boss zählt Abhärtung
+        // nichts, also bleibt es beim Set aus dem letzten Raid, und der
+        // Snapshot sagt, warum.
+        describe("PvP-Gear", () => {
+            // Ein Caster-Arenaset: Abhärtung, und Zaubermacht gleich Heilung
+            // (sonst läse das Rollen-Profil ein Heilset und der Test prüfte
+            // die falsche Regel).
+            const pvpIds = Object.entries(require("../../src/config/wowsims/items.json").items)
+                .filter(([, it]) => it.stats.resilience && it.ilvl >= 130 && it.slots.length === 1
+                    && it.stats.spellPower && it.stats.healingPower === it.stats.spellPower)
+                .slice(0, 12)
+                .map(([id]) => Number(id));
+
+            it("weist ein Arenaset aus der Armory zurück und sagt es", () => {
+                mockArmorySetFor.mockReturnValue({
+                    at: 5000,
+                    rows: pvpIds.map((id, i) => armoryRow(i, id)),
+                });
+                const gear = casterGear();
+                expect(gear.source).toBe("log");
+                expect(gear.armoryRejected).toBe("pvp");
+                expect(itemInSlot(gear, 0).itemId).toBe(shadowIds[0]);
+            });
+
+            it("nimmt ein Raidset mit der Arenawaffe darin trotzdem", () => {
+                mockArmorySetFor.mockReturnValue({
+                    at: 5000,
+                    rows: [...shadowIds.slice(0, 12).map((id, i) => armoryRow(i, id)), armoryRow(15, pvpIds[0])],
+                });
+                const gear = casterGear();
+                expect(gear.source).toBe("armory");
+                expect(gear.armoryRejected).toBe("");
+            });
+
+            it("überspringt in den Auswertungen ein PvP-Set wie ein Set der falschen Rolle", () => {
+                setReports(
+                    report("pvp", 4000, [{ name: "Devihra", type: "Priest", armory: pvpIds.map((id, i) => armoryItem({ slot: i, itemId: String(id), gems: [] })) }]),
+                    report("raid", 3000, [{ name: "Devihra", type: "Priest", armory: logSet }]),
+                );
+                const gear = casterGear();
+                expect(gear.reportId).toBe("raid");
+                expect(gear.skippedReports).toBe(1);
+                expect(gear.pvpGear).toBe(false);
+            });
+
+            it("zeigt das PvP-Set, wenn es kein anderes gibt — und markiert es", () => {
+                setReports(
+                    report("pvp", 4000, [{ name: "Devihra", type: "Priest", armory: pvpIds.map((id, i) => armoryItem({ slot: i, itemId: String(id), gems: [] })) }]),
+                );
+                const gear = casterGear();
+                expect(gear.reportId).toBe("pvp");
+                expect(gear.pvpGear).toBe(true);
+                expect(gear.roleMismatch).toBe(false);
+            });
         });
     });
 

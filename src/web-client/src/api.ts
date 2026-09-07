@@ -1786,7 +1786,10 @@ export type CouncilCandidate = {
     slotOptions: { slot: number; slotName: string; chosen: boolean; item: WornItem | null }[];
     /** True when accepting it also costs the off-hand piece. */
     twoHanded: boolean;
-    /** Stat-weight value of the swap. Negative means it would be a downgrade. */
+    /**
+     * Stat-weight value of the swap — the server's *ordering* while nothing is
+     * simulated, never shown as a number: the page shows measured gains only.
+     */
     value: number;
     /**
      * Why this raider's gain is not comparable to the others': what would come
@@ -1811,6 +1814,31 @@ export type CouncilCandidate = {
     bisTotal: number;
     hasGear: boolean;
     simSupported: boolean;
+};
+
+/**
+ * A raider who cannot equip the item at all — a warlock's tier helm for a
+ * mage, a mail chest for a priest, a two-hander for a rogue. Never a
+ * candidate; listed with the reason so a short list is explained.
+ */
+export type CouncilUnwearable = {
+    key: string;
+    character: string;
+    classColor: string;
+    specKey: string;
+    specLabel: string;
+    specIconUrl: string;
+    /** "class" | "armor" | "weapon" | "ranged" */
+    reason: string;
+    /** The short German reason, e.g. "Kette — Magier trägt nur Stoff". */
+    note: string;
+};
+
+/** The picked drop: the item, who could take it, who cannot. */
+export type CouncilFocus = {
+    item: CouncilItem;
+    candidates: CouncilCandidate[];
+    unwearable: CouncilUnwearable[];
 };
 
 export type CouncilRaider = {
@@ -1876,6 +1904,15 @@ export type CouncilRaider = {
         source: "log" | "armory";
         /** When the armory answered (0 for a log set). */
         armoryAt: number;
+        /**
+         * Why the armory's answer was *not* taken although there is one:
+         * "pvp" — the character is in arena gear right now, which makes no
+         * sense against a boss; "role" — a healing set for a raider judged as
+         * a caster. The last raid's set stays in both cases.
+         */
+        armoryRejected: "" | "pvp" | "role";
+        /** Every recent log showed PvP gear, so this set is one — and says so. */
+        pvpGear: boolean;
         /**
          * Pieces that are new since the last raid: the armory names the item,
          * but its enchant ids are not the ones WoWSims uses, so no enchant is
@@ -1951,7 +1988,7 @@ export type LootCouncilData = {
     /** Set aside, and offerable back. */
     excluded: ExcludedRaider[];
     gaps: CouncilGap[];
-    focus: { item: CouncilItem; candidates: CouncilCandidate[] } | null;
+    focus: CouncilFocus | null;
     options: CouncilFilterOptions;
     filter: {
         role: string; tierIds: string[]; contentIds: string[]; categoryId: string;

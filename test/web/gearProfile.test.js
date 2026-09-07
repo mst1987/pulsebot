@@ -101,4 +101,46 @@ describe("web/gearProfile", () => {
             expect(fitsRole({ role: "", confident: false }, "caster")).toBe(true);
         });
     });
+
+    // Die Armory zeigt, was jemand *jetzt* anhat — zwischen zwei Raidnächten
+    // ist das regelmäßig das Arenaset. Gegen einen Boss ist das nichts wert.
+    describe("PvP-Gear erkennen", () => {
+        const { pvpProfile, isPvpSet, isPvpItem, PVP_SHARE } = require("../../src/web/gearProfile");
+        const table = require("../../src/config/wowsims/items.json").items;
+        // Ein echtes Arenaset aus der Tabelle: die Teile mit Abhärtung.
+        const pvpIds = Object.entries(table)
+            .filter(([, it]) => it.stats.resilience && it.ilvl >= 130)
+            .slice(0, 12)
+            .map(([id]) => Number(id));
+
+        it("kennt ein Item mit Abhärtung als PvP-Teil", () => {
+            expect(isPvpItem(pvpIds[0])).toBe(true);
+            expect(isPvpItem(31064)).toBe(false);
+            expect(isPvpItem(999999)).toBe(false);
+        });
+
+        it("liest ein Arenaset als PvP-Set", () => {
+            const p = pvpProfile(gearOf(pvpIds));
+            expect(p.pvpPieces).toBe(pvpIds.length);
+            expect(p.isPvp).toBe(true);
+            expect(isPvpSet(gearOf(pvpIds))).toBe(true);
+        });
+
+        it("lässt ein Raidset mit ein, zwei Gladiator-Teilen durchgehen", () => {
+            // Die Arenawaffe im PvE-Set ist normal — das ist kein Arenaset.
+            const raid = gearOf([...dpsSet.items.map((i) => i.itemId), pvpIds[0], pvpIds[1]]);
+            expect(isPvpSet(raid)).toBe(false);
+        });
+
+        it("kippt ab der Hälfte", () => {
+            const half = gearOf([...dpsSet.items.slice(0, 6).map((i) => i.itemId), ...pvpIds.slice(0, 6)]);
+            expect(pvpProfile(half).pvpPieces / pvpProfile(half).known).toBeGreaterThanOrEqual(PVP_SHARE);
+            expect(isPvpSet(half)).toBe(true);
+        });
+
+        it("urteilt nicht über zu wenige bekannte Teile", () => {
+            expect(isPvpSet(gearOf(pvpIds.slice(0, 3)))).toBe(false);
+            expect(isPvpSet(null)).toBe(false);
+        });
+    });
 });

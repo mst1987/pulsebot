@@ -59,7 +59,10 @@ describe("loot council — busy state", () => {
         // `reloadAll` rather than `load`: der geprüfte Drop hängt an denselben
         // Daten und wäre sonst bis zum nächsten Filterwechsel veraltet.
         expect(src).toMatch(/await setCouncilExcluded\(csrfToken, character, excluded\);\s*await reloadAll\(\);/);
-        expect(src).toMatch(/return getLootCouncil\(/);
+        // load() hands its promise back (resolving with the fresh data), so an
+        // action can wait for the list — and read what it shows.
+        expect(src).toMatch(/const fetchData = \(\) => getLootCouncil\(/);
+        expect(src).toMatch(/return request\s*\.then/);
     });
 
     it("refreshes the checked drop along with the list", () => {
@@ -67,9 +70,10 @@ describe("loot council — busy state", () => {
         // beiseitegelegten Raider weiter die alten Zugewinne, bis jemand die
         // Seite neu lädt.
         expect(src).toMatch(/const reloadAll = useCallback\(async \(\) => \{\s*setDataToken/);
-        expect(src).toMatch(/await refreshCouncilArmory\(csrfToken, characters\);\s*await reloadAll\(\);/);
+        // The armory runs as a job toast; the reload still follows it.
+        expect(src).toMatch(/\(\) => refreshCouncilArmory\(csrfToken, characters\),[\s\S]{0,200}await reloadAll\(\);/);
         // Und der Drop-Effekt hört auf den Token.
-        expect(src).toMatch(/view\.bisTier, dataToken\]/);
+        expect(src).toMatch(/view\.bisTier, dataToken\b/);
     });
 
     it("does not hand the promise-returning load to useEffect", () => {

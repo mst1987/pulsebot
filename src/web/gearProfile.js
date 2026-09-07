@@ -93,4 +93,46 @@ function fitsRole(profile, role) {
     return !profile.confident;
 }
 
-module.exports = { gearProfile, fitsRole, HEAL_RATIO, MIN_DPS_HIT };
+// From this share of resilience pieces on, a set is an arena set and not a
+// raid set with the odd Gladiator weapon in it. A PvE raider carries one to
+// three PvP pieces (a weapon, an off-hand, the trinket); a full arena set is
+// five pieces plus accessories.
+const PVP_SHARE = 0.5;
+
+/** Whether one item is PvP gear — resilience is the stat only PvP gear has. */
+function isPvpItem(itemId) {
+    const item = wowsims.item(itemId);
+    return !!(item && item.stats && item.stats.resilience);
+}
+
+/**
+ * Is this a PvP set?
+ *
+ * Asked because the armory shows what a raider has on *now* — and between two
+ * raid nights that is regularly their arena gear. Judging a raid drop against
+ * it makes no sense at all: resilience is worth nothing to a boss, and every
+ * drop would "replace" a Gladiator piece it has nothing to do with. Such a set
+ * is refused in favour of the last raid's (see charGear.js).
+ *
+ * @returns {{ known: number, pvpPieces: number, isPvp: boolean }}
+ */
+function pvpProfile(gear) {
+    const items = (gear && gear.items) || [];
+    let known = 0;
+    let pvpPieces = 0;
+    for (const it of items) {
+        if (!wowsims.item(it.itemId)) continue;
+        known += 1;
+        if (isPvpItem(it.itemId)) pvpPieces += 1;
+    }
+    // Too few known pieces to call it either way.
+    const isPvp = known >= 5 && pvpPieces / known >= PVP_SHARE;
+    return { known, pvpPieces, isPvp };
+}
+
+/** The yes/no half of pvpProfile. */
+function isPvpSet(gear) {
+    return pvpProfile(gear).isPvp;
+}
+
+module.exports = { gearProfile, fitsRole, pvpProfile, isPvpSet, isPvpItem, HEAL_RATIO, MIN_DPS_HIT, PVP_SHARE };

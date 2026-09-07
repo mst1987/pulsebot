@@ -21,6 +21,7 @@ const path = require("path");
 
 const engine = require("../utils/wowsims/engine");
 const { specByKey } = require("../config/casterSpecs");
+const { canWear } = require("../config/wearable");
 const { equipmentFor, targetSlotFor } = require("../utils/wowsims/loadout");
 const { gearByCharacter } = require("./charGear");
 
@@ -162,6 +163,7 @@ function startCouncilSim(id, subjects, itemIds = []) {
             const out = {};
             for (const subject of subjects) {
                 const gear = gearMap.get(subject.key) || null;
+                const specEntry = specByKey(subject.specKey);
                 const entry = { baseline: null, items: {}, hasGear: !!gear };
                 if (gear) {
                     const base = await simulateCached({ specKey: subject.specKey, gear });
@@ -170,7 +172,16 @@ function startCouncilSim(id, subjects, itemIds = []) {
                     job.progress += 1;
                     for (const itemId of itemIds) {
                         const target = targetSlotFor(gear, itemId);
-                        if (!target) { job.progress += 1; continue; }
+                        // No slot, or a piece this class cannot equip at all
+                        // (config/wearable.js): the number would be honestly
+                        // measured and the answer wrong — a mage does not gain
+                        // from a mail chest, they cannot put it on.
+                        const wearable = canWear(
+                            (specEntry && specEntry.className) || gear.className,
+                            itemId,
+                            { spec: (specEntry && specEntry.spec) || "" },
+                        );
+                        if (!target || !wearable) { job.progress += 1; continue; }
                         const run = await simulateCached({
                             specKey: subject.specKey, gear,
                             // `clears` matters for two-handers: without it the
