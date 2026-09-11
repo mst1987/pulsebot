@@ -29,6 +29,9 @@ jest.mock("../../../src/utils/logcheck/bossUptimes.js", () => ({ analyzeBossUpti
 jest.mock("../../../src/utils/logcheck/fightTimeline.js", () => ({
     analyzeFightTimeline: jest.fn(async () => ({ fights: [{ id: 1, deaths: [{ at: 1 }] }, { id: 2, deaths: [] }] })),
 }));
+jest.mock("../../../src/utils/logcheck/raidDebuffs.js", () => ({
+    analyzeRaidDebuffs: jest.fn(async () => ({ expected: ["sunder", "coe"], rows: [{ key: "sunder", expected: true, missing: 0, avgUptime: 95 }, { key: "coe", expected: true, missing: 1, avgUptime: 60 }] })),
+}));
 jest.mock("../../../src/utils/logcheck/rpb/index.js", () => ({
     analyzeRpb: jest.fn(async () => ({ roles: {}, byRole: {} })),
     rpbSummaryLines: jest.fn(() => ["🎭 Rollen: Tank 2"]),
@@ -269,6 +272,7 @@ describe("logcheck/report — stripSection", () => {
         sunder: [1],
         bossUptimes: { rows: [1] },
         timeline: { fights: [1] },
+        raidDebuffs: { rows: [1] },
         shadowResi: { players: [1] },
         rpb: { roles: {} },
     };
@@ -286,7 +290,7 @@ describe("logcheck/report — stripSection", () => {
         const { report, remaining } = stripSection(full, "cla");
         expect(remaining).toEqual(["rpb"]);
         expect(report.rpb).toEqual({ roles: {} });
-        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "timeline", "shadowResi"]) {
+        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "shadowResi"]) {
             expect(report[key]).toBeNull();
         }
     });
@@ -355,6 +359,21 @@ describe("logcheck/report — reportSummaryLines", () => {
         expect(line).toContain("3 Tode");
         expect(reportSummaryLines(withTimeline, "rpb").join("\n")).not.toContain("Kampfverlauf");
         expect(reportSummaryLines(report, "cla").join("\n")).not.toContain("Kampfverlauf");
+    });
+
+    it("counts the expected raid debuffs and how many of them fell short", () => {
+        const withDebuffs = {
+            ...report,
+            raidDebuffs: { rows: [
+                { key: "sunder", expected: true, missing: 0, avgUptime: 97 },
+                { key: "coe", expected: true, missing: 1, avgUptime: 80 },
+                { key: "ff", expected: true, missing: 0, avgUptime: 72 },
+                { key: "recklessness", expected: false, missing: 0, avgUptime: 10 },
+            ] },
+        };
+        const line = reportSummaryLines(withDebuffs, "cla").find((l) => l.includes("Raid-Debuffs"));
+        expect(line).toContain("3 erwartet, 2 mit Lücken");
+        expect(reportSummaryLines(withDebuffs, "rpb").join("\n")).not.toContain("Raid-Debuffs");
     });
 });
 
