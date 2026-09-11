@@ -90,10 +90,18 @@ function omit(obj, keys) {
     return out;
 }
 
-/** The config as the browser may see it: the Anthropic key never leaves the server, only whether one is set. */
+/**
+ * The config as the browser may see it: the Anthropic key and the WCL v2
+ * client secret never leave the server, only whether one is set.
+ */
 function publicConfig(config) {
     const anthropic = config.anthropic || {};
-    return { ...config, anthropic: { model: anthropic.model || "", hasApiKey: !!anthropic.apiKey } };
+    const wclV2 = config.warcraftlogsV2 || {};
+    return {
+        ...config,
+        anthropic: { model: anthropic.model || "", hasApiKey: !!anthropic.apiKey },
+        warcraftlogsV2: { clientId: wclV2.clientId || "", hasClientSecret: !!wclV2.clientSecret },
+    };
 }
 
 /**
@@ -131,6 +139,12 @@ async function updateSettings(req, res) {
         partial.anthropic = {};
         if (body.anthropic.model !== undefined) partial.anthropic.model = String(body.anthropic.model || "").trim();
         if (body.anthropic.apiKey !== undefined) partial.anthropic.apiKey = String(body.anthropic.apiKey || "").trim();
+    }
+    // warcraftlogsV2.clientSecret: the same contract — omit = keep, "" = clear.
+    if (body.warcraftlogsV2 !== undefined && typeof body.warcraftlogsV2 === "object") {
+        partial.warcraftlogsV2 = {};
+        if (body.warcraftlogsV2.clientId !== undefined) partial.warcraftlogsV2.clientId = String(body.warcraftlogsV2.clientId || "").trim();
+        if (body.warcraftlogsV2.clientSecret !== undefined) partial.warcraftlogsV2.clientSecret = String(body.warcraftlogsV2.clientSecret || "").trim();
     }
     if (body.categoryLootTool !== undefined) partial.categoryLootTool = normalizeCategoryLootTool(body.categoryLootTool);
     if (body.categorySheets !== undefined) partial.categorySheets = normalizeCategorySheets(body.categorySheets);

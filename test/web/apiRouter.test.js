@@ -690,8 +690,24 @@ describe("web/apiRouter", () => {
             await handle("/api/settings", { method: "GET" }, res);
 
             const data = body(res).data;
-            expect(data.config).toEqual({ guildId: "g1", anthropic: { model: "", hasApiKey: false } });
+            expect(data.config).toEqual({
+                guildId: "g1",
+                anthropic: { model: "", hasApiKey: false },
+                warcraftlogsV2: { clientId: "", hasClientSecret: false },
+            });
             expect(data.canManageAccess).toBe(false);
+        });
+
+        // Same for the WCL v2 client secret: the id is shown, the secret is only "set".
+        it("masks the Warcraft Logs v2 client secret, reporting only whether one is set", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            settingsStore.getConfig.mockReturnValue({ guildId: "g1", warcraftlogsV2: { clientId: "wcl-id", clientSecret: "wcl-secret" } });
+
+            const res = mockRes();
+            await handle("/api/settings", { method: "GET" }, res);
+
+            expect(body(res).data.config.warcraftlogsV2).toEqual({ clientId: "wcl-id", hasClientSecret: true });
+            expect(JSON.stringify(body(res))).not.toContain("wcl-secret");
         });
 
         // The Anthropic key never leaves the server — the page only learns that one is stored.
@@ -747,6 +763,23 @@ describe("web/apiRouter", () => {
 
             await patch("/api/settings", { anthropic: { apiKey: " sk-new ", model: "" } });
             expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ anthropic: { apiKey: "sk-new", model: "" } });
+        });
+
+        it("forwards the WCL v2 client secret only when sent (omit = keep, \"\" = clear), never echoing it", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.saveConfig.mockReturnValue({ guildId: "g1", warcraftlogsV2: { clientId: "wcl-id", clientSecret: "wcl-new" } });
+
+            const res = await patch("/api/settings", { warcraftlogsV2: { clientId: " wcl-id " } });
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({ warcraftlogsV2: { clientId: "wcl-id" } });
+            expect(body(res).data.config.warcraftlogsV2).toEqual({ clientId: "wcl-id", hasClientSecret: true });
+            expect(JSON.stringify(body(res))).not.toContain("wcl-new");
+
+            await patch("/api/settings", { warcraftlogsV2: { clientId: "wcl-id", clientSecret: " wcl-new " } });
+            expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ warcraftlogsV2: { clientId: "wcl-id", clientSecret: "wcl-new" } });
+
+            await patch("/api/settings", { warcraftlogsV2: { clientSecret: "" } });
+            expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ warcraftlogsV2: { clientSecret: "" } });
         });
 
         it("stores the loot tool per category, dropping anything but the two known tools", async () => {

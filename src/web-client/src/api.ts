@@ -262,6 +262,10 @@ export type AdminConfig = {
     // never comes back from the server — only whether one is stored.
     // Read: { model, hasApiKey }. Write: { model, apiKey? } — omit apiKey to keep, "" to clear.
     anthropic?: { model: string; hasApiKey?: boolean; apiKey?: string };
+    // Warcraft Logs v2 API client for the raid DPS/HPS and boss-health curves
+    // of the fight timeline. Same contract as above: the secret never comes
+    // back. Read: { clientId, hasClientSecret }. Write: { clientId, clientSecret? }.
+    warcraftlogsV2?: { clientId: string; hasClientSecret?: boolean; clientSecret?: string };
     // Which loot addon a Discord category raids with ("gargul" | "rclc" | ""),
     // keyed by category id — preselects the parser on the loot import and tells
     // the raid-detail loot tab which export to ask for.

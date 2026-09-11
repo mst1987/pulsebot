@@ -102,6 +102,28 @@ describe("web/render — Kampfverlauf tab", () => {
         expect(html).toContain("Niemand ist gestorben.");
     });
 
+    it("draws the boss-health line beside the DPS/HPS strip when a fight carries one", () => {
+        const html = renderReportPage({ ...report(), timeline: timeline() });
+        expect(html).toContain("<title>Boss-Leben (%)</title>");
+        expect(html).toContain("<th>Boss-Leben</th>");
+        const none = timeline();
+        none.fights[1].series.bossHp = null;
+        const without = renderReportPage({ ...report(), timeline: none });
+        expect(without).toContain("<div class=\"fight-series\">");
+        expect(without).not.toContain("<title>Boss-Leben (%)</title>");
+    });
+
+    it("says what is missing when no fight has a DPS/HPS strip, and stays quiet when one has", () => {
+        const hint = "brauchen den Warcraft-Logs-v2-Zugang (Einstellungen → Verbindungen → Warcraft Logs)";
+        expect(renderReportPage({ ...report(), timeline: timeline() })).not.toContain(hint);
+        const bare = timeline();
+        for (const f of bare.fights) delete f.series;
+        expect(renderReportPage({ ...report(), timeline: bare })).toContain(hint);
+        // a series without any curve counts as none
+        bare.fights[1].series = { step: 5000, dps: null, hps: null, bossHp: null };
+        expect(renderReportPage({ ...report(), timeline: bare })).toContain(hint);
+    });
+
     it("leaves the tab out for a report without a timeline", () => {
         const html = renderReportPage(report());
         expect(html).not.toContain("data-tab=\"timeline\"");

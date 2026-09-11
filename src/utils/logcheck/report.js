@@ -7,6 +7,7 @@ const { analyzePotions, potionsByName } = require("./potions");
 const { analyzeSunder } = require("./sunder");
 const { analyzeBossUptimes } = require("./bossUptimes");
 const { analyzeFightTimeline } = require("./fightTimeline");
+const { analyzeFightSeries } = require("./fightSeries");
 const { analyzeRaidDebuffs } = require("./raidDebuffs");
 const { analyzeCooldownTimeline } = require("./cooldownTimeline");
 const { analyzeTotems } = require("./totems");
@@ -20,6 +21,8 @@ const { selectPlayers } = require("./common");
 const { analyzeRaidProgress, progressSummary } = require("./raidProgress");
 const { resolveSituationalGear } = require("./gearVariants");
 const { saveReport, getReport } = require("../../web/reportStore");
+const { getConfig } = require("../../web/settingsStore");
+const WarcraftLogsV2 = require("../../classes/warcraftlogsV2");
 const { publicBaseUrl } = require("../../config/variables");
 
 // A user-facing failure whose message is safe to show directly.
@@ -157,6 +160,12 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         // The time axis every fight chart draws on: fight bounds and deaths now,
         // debuff/totem/cooldown bands from the analyzers that build on it.
         try { timeline = await analyzeFightTimeline(wcl, reportId, fights, idToPlayer); } catch (e) { console.error("timeline failed:", e.message); }
+        // Raid DPS/HPS and boss health per fight, on the timeline. Needs the
+        // WCL v2 client from the settings; without one the series stays null.
+        try {
+            const v2 = getConfig().warcraftlogsV2 || {};
+            await analyzeFightSeries(new WarcraftLogsV2(v2), reportId, fights, timeline);
+        } catch (e) { console.error("fightSeries failed:", e.message); }
         // Debuffs on the boss per fight, written into the timeline; the summary is its own field.
         try { raidDebuffs = await analyzeRaidDebuffs(wcl, reportId, fights, playerEntries, timeline); } catch (e) { console.error("raidDebuffs failed:", e.message); }
         // Cooldown presses per player per fight, on the timeline; the summary is its own field.
