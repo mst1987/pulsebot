@@ -574,8 +574,17 @@ ${body}
   .rec-send-row.ok { color:var(--good); } .rec-send-row.warn { color:var(--medium); } .rec-send-row.muted { color:var(--muted); }
   /* Empfehlungen: verdict cards */
   .rec-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:14px; }
-  .rec-card { background:var(--panel); border:1px solid var(--line); border-top:2px solid var(--cc); padding:12px 14px 6px; }
-  .rec-card-head { display:flex; align-items:center; gap:10px; margin:0 0 8px; }
+  .rec-card { background:var(--panel); border:1px solid var(--line); border-top:2px solid var(--cc); padding:0 14px 0; }
+  .rec-card[open] { padding-bottom:6px; }
+  .rec-card-head { display:flex; align-items:center; gap:10px; padding:12px 0; cursor:pointer; list-style:none; }
+  .rec-card-head::-webkit-details-marker { display:none; }
+  .rec-card-head:hover { color:var(--text); }
+  .rec-chev { width:8px; height:8px; border-right:2px solid var(--muted); border-bottom:2px solid var(--muted); transform:rotate(45deg); transition:transform .15s; flex:none; margin:0 4px 4px 0; }
+  .rec-card[open] .rec-chev { transform:rotate(-135deg); margin:4px 4px 0 0; }
+  .rec-card-open { border-top-color:var(--accent); }
+  .rec-players-head { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .rec-players-head h2 { margin-right:auto; }
+  .rec-toggle-all { display:flex; gap:6px; }
   .rec-card-head img { width:28px; height:28px; border-radius:6px; border:1px solid var(--line); }
   .rec-card-head h3 { margin:0; font-size:16px; }
   .rec-card-head .cn, .rec-card-head .cn a { color:var(--cc); text-decoration:none; }
@@ -1207,10 +1216,17 @@ function renderRecommendationsPanel(report, user, linkFor) {
         const body = p.items.length
             ? `<ul class="rec-list">${p.items.map((i) => recItem(i, "player", p.name, reviewer)).join("")}</ul>`
             : "<div class=\"rec-clean\">Nichts auszusetzen – weiter so.</div>";
-        return `<section class="rec-card" style="--cc:${esc(classColorOf(p.type) || "var(--text)")}">
-          <div class="rec-card-head"><img src="${esc(classIconUrl(p.type))}" alt=""><h3 class="cn">${name}</h3><span class="rec-count">${p.items.length}</span></div>
+        // One collapsed card per raider: the head names them and counts, the
+        // points unfold on click — twenty-five open cards are unreadable.
+        const openCount = p.items.filter((i) => i.approved === null).length;
+        const approvedCount = p.items.filter((i) => i.approved === true).length;
+        const meta = reviewer
+            ? `${p.items.length} ${p.items.length === 1 ? "Punkt" : "Punkte"}${openCount ? ` · ${openCount} offen` : ""}${approvedCount ? ` · ${approvedCount} frei` : ""}`
+            : `${p.items.length} ${p.items.length === 1 ? "Punkt" : "Punkte"}`;
+        return `<details class="rec-card${openCount ? " rec-card-open" : ""}" style="--cc:${esc(classColorOf(p.type) || "var(--text)")}">
+          <summary class="rec-card-head"><img src="${esc(classIconUrl(p.type))}" alt=""><h3 class="cn">${name}</h3><span class="rec-count">${esc(meta)}</span><span class="rec-chev" aria-hidden="true"></span></summary>
           ${body}
-        </section>`;
+        </details>`;
     }).join("");
 
     return `<p class="note">${reviewer
@@ -1219,10 +1235,16 @@ function renderRecommendationsPanel(report, user, linkFor) {
     ${reviewer ? renderSendBox(report) : ""}
     <h2>Für den Raid</h2>
     ${raidHtml}
-    <h2>Pro Raider</h2>
+    <div class="rec-players-head"><h2>Pro Raider</h2><span class="rec-toggle-all"><button type="button" class="btn btn-sm btn-ghost" data-cards="open">Alle aufklappen</button><button type="button" class="btn btn-sm btn-ghost" data-cards="close">Alle zuklappen</button></span></div>
     <div class="rec-grid">${cards || "<div class=\"fc-empty\">Noch keine freigegebenen Empfehlungen.</div>"}</div>
+    ${CARDS_SCRIPT}
     ${reviewer ? REVIEW_SCRIPT : ""}`;
 }
+
+// "Alle aufklappen / zuklappen" for the raider cards; a single card is native <details>.
+const CARDS_SCRIPT = `<script>(function(){if(window.__ehCards)return;window.__ehCards=1;
+document.addEventListener("click",function(e){var b=e.target.closest("[data-cards]");if(!b)return;var open=b.getAttribute("data-cards")==="open";
+document.querySelectorAll(".rec-card").forEach(function(d){d.open=open;});});})();</script>`;
 
 /**
  * The send box for reviewers: how many raiders have approved points, who was
