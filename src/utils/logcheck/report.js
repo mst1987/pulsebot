@@ -14,6 +14,7 @@ const { analyzeTotems } = require("./totems");
 const { analyzeMechanics } = require("./mechanics");
 const { analyzeActivityTimeline } = require("./activityTimeline");
 const { analyzeHealers } = require("./healers");
+const { analyzeRaidBuffs } = require("./raidBuffs");
 const { buildRecommendations } = require("./recommendations");
 const { analyzeRpb, rpbSummaryLines } = require("./rpb");
 const { selectPlayers } = require("./common");
@@ -148,6 +149,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
     let mechanics = null;
     let activity = null;
     let healers = null;
+    let raidBuffs = null;
     if (wantCla) {
         try { consumables = await analyzeConsumables(wcl, reportId, fights, playerEntries); } catch (e) { console.error("consumables failed:", e.message); }
         try { drums = await analyzeDrums(wcl, reportId, fights); } catch (e) { console.error("drums failed:", e.message); }
@@ -176,6 +178,8 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         try { activity = await analyzeActivityTimeline(wcl, reportId, fights, idToPlayer, timeline); } catch (e) { console.error("activity failed:", e.message); }
         // Healers per fight (overheal, mana, dispels, the tank's shields), on the timeline; the summary is its own field.
         try { healers = await analyzeHealers(wcl, reportId, fights, idToPlayer, timeline); } catch (e) { console.error("healers failed:", e.message); }
+        // Raid buffs on every player per fight (missing, run out, wrong role), on the timeline; the summary is its own field.
+        try { raidBuffs = await analyzeRaidBuffs(wcl, reportId, fights, playerEntries, idToPlayer, timeline); } catch (e) { console.error("raidBuffs failed:", e.message); }
     }
 
     // RPB (Role Performance Breakdown) — the performance half of the analysis.
@@ -243,6 +247,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         mechanics,
         activity,
         healers,
+        raidBuffs,
         rpb,
         roster,
         icons,
@@ -313,7 +318,7 @@ function mergeRoster(existingRoster, freshRoster, sections) {
 
 // Report fields each half owns. Only these are dropped when a half is discarded;
 // the shared meta (title, players, roster, ...) belongs to the page itself.
-const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems", "mechanics", "activity", "healers"];
+const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems", "mechanics", "activity", "healers", "raidBuffs"];
 const RPB_FIELDS = ["rpb"];
 
 /**
@@ -408,6 +413,16 @@ function debuffsMissingLine(raidDebuffs) {
     return `${rows.length} erwartet, ${short.length} mit Lücken`;
 }
 
+/** "n erwartet, m mit Lücken (Kings auf 5 Spielern)" — the expected raid buffs and where they fell short. */
+function raidBuffsLine(raidBuffs) {
+    const rows = (raidBuffs.rows || []).filter((r) => r.expected);
+    if (!rows.length) return "keine erwartet";
+    const short = rows.filter((r) => r.none > 0 || r.partial > 0);
+    const worst = short.slice().sort((a, b) => b.missingPlayers - a.missingPlayers)[0];
+    const detail = worst && worst.missingPlayers ? ` (${worst.label} auf ${worst.missingPlayers} Spieler${worst.missingPlayers === 1 ? "" : "n"})` : "";
+    return `${rows.length} erwartet, ${short.length} mit Lücken${detail}`;
+}
+
 function timelineDeaths(timeline) {
     return (timeline.fights || []).reduce((n, f) => n + ((f.deaths && f.deaths.length) || 0), 0);
 }
@@ -434,6 +449,7 @@ function reportSummaryLines(report, only) {
             report.mechanics ? `💀 Tode: ${deathsLine(report.mechanics)}` : "",
             report.activity ? `🕒 Aktivität: ${activityLine(report.activity)}` : "",
             report.healers ? `💧 Heiler: ${healersLine(report.healers)}` : "",
+            report.raidBuffs ? `✨ Raid-Buffs: ${raidBuffsLine(report.raidBuffs)}` : "",
             ...raidRecommendationLines(report.recommendations),
         );
     }

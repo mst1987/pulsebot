@@ -11,6 +11,7 @@ const rpbData = require("../config/rpbData");
 const { ribbonChart, markerChart, lineChart, fmtTime, CHART_STYLE, PX_PER_SEC } = require("./charts");
 const { bossIconUrl } = require("../config/bosses");
 const { TANK_AURAS } = require("../config/healerSpells");
+const { ROLE_LABELS: BUFF_ROLE_LABELS } = require("../config/raidBuffs");
 const { applyReview } = require("../utils/logcheck/recommendations");
 
 const CLASS_COLORS = {
@@ -361,6 +362,14 @@ ${body}
   .pct-full { background:var(--good-bg); color:var(--good); }
   .pct-part { background:var(--medium-bg); color:var(--medium); }
   .pct-none { background:var(--high-bg); color:var(--high); }
+  .pct-na { background:transparent; color:var(--muted); font-weight:500; }
+  .pct-wrong { background:transparent; color:var(--high); border:1px dashed var(--high); }
+  .buff-matrix th.bh { text-align:center; padding:6px 4px; }
+  .buff-matrix th.bh .hicon { width:22px; height:22px; margin:0; }
+  .buff-matrix td.bc { text-align:center; padding:6px 4px; }
+  .buff-matrix tr.cov td { border-bottom:2px solid var(--line); }
+  .buff-list .tag { display:inline-flex; align-items:center; gap:4px; margin:2px 4px 2px 0; }
+  .buff-list .tag .hicon { width:16px; height:16px; margin:0; }
   .pname-cell { display:inline-flex; align-items:center; gap:8px; text-decoration:none; }
   .pname-cell img { width:20px; height:20px; border-radius:4px; }
   .srval { font-weight:700; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
@@ -1065,6 +1074,9 @@ function fightParts(f, linkFor, only) {
     const healing = healingParts(f, only, common);
     if (healing) parts.push({ id: key("healing"), label: "Heilung", count: healing.count, html: healing.html });
 
+    const buffs = buffParts(f, only, common);
+    if (buffs) parts.push({ id: key("buffs"), label: "Buffs", count: buffs.count, html: buffs.html });
+
     const deaths = only ? (f.deaths || []).filter((d) => d.name === only) : (f.deaths || []);
     if (parts.length === 0) {
         // nothing but the skeleton yet: the fight itself is the one band, so the
@@ -1175,6 +1187,90 @@ function renderHealersPanel(healers, linkFor) {
     return `${tanks}${missed}<table class="idx heal-table"><tr><th>Heiler</th><th>Heilung</th><th>Overheal</th><th>Größter Overheal</th><th>Ø Mana-Tiefstand</th><th>Manatränke</th><th>Dispels</th><th>Auf dem Tank</th></tr>${rows}</table>`;
 }
 
+// ---- Buffs: the raid buffs on the players of a fight (f.buffs, utils/logcheck/raidBuffs.js) ----
+//   paladins, expected[]  · players[] { name, type, role, diedAt, buffs: [{ key, label, icon, status: full|partial|none, uptimePct, expected, wrong, bands }], missing[], partial[], wrong[] }
+
+const BUFF_STATUS = { full: "da", partial: "ausgelaufen", none: "fehlt" };
+
+function buffTone(c) {
+    if (c.wrong) return "high";
+    if (!c.expected) return undefined;
+    return c.status === "full" ? "good" : c.status === "partial" ? "medium" : "high";
+}
+
+/** One player's chips: what was missing, what ran out, what sat on the wrong role. */
+function buffChips(p) {
+    const byKey = new Map((p.buffs || []).map((c) => [c.key, c]));
+    const chip = (key, cls, word) => {
+        const c = byKey.get(key) || { label: key, icon: "" };
+        return `<span class="tag ${cls}">${hicon(c.icon, "")}${esc(c.label)} ${word}</span>`;
+    };
+    return [
+        ...(p.missing || []).map((k) => chip(k, "tag-high", "fehlt")),
+        ...(p.partial || []).map((k) => chip(k, "tag-medium", "ausgelaufen")),
+        ...(p.wrong || []).map((k) => chip(k, "tag-medium", "· falsche Rolle")),
+    ].join("");
+}
+
+/**
+ * The Buffs topic of one fight: { count, html }, or null without data. On the
+ * raid page a list of who lacked what (a ribbon per player and buff would be
+ * two hundred rows); on the player page (`only`) that raider's buffs as
+ * ribbons, so a buff that ran out mid-fight is visible as such.
+ */
+function buffParts(f, only, common) {
+    const b = f.buffs;
+    if (!b || !(b.players || []).length) return null;
+    const expectedLabels = (b.expected || []).map((k) => {
+        const c = b.players.flatMap((p) => p.buffs || []).find((x) => x.key === k);
+        return c ? c.label : k;
+    });
+    const head = `<p class="note">${esc(b.paladins || 0)} Paladin${b.paladins === 1 ? "" : "e"} · erwartet: ${expectedLabels.length ? esc(expectedLabels.join(", ")) : "nichts"}</p>`;
+    if (only) {
+        const p = b.players.find((x) => x.name === only);
+        if (!p) return null;
+        const rows = (p.buffs || []).map((c) => ({
+            label: `${c.label}${c.wrong ? " (falsche Rolle)" : ""}`, icon: c.icon,
+            bands: c.bands || [],
+            value: `${c.uptimePct}%`,
+            sub: c.expected ? BUFF_STATUS[c.status] : (c.wrong ? "falsche Rolle" : "nicht erwartet"),
+            tone: buffTone(c),
+        }));
+        const issues = (p.missing || []).length + (p.partial || []).length + (p.wrong || []).length;
+        return { count: issues, html: head + ribbonChart({ ...common, rows }) };
+    }
+    const lacking = b.players.filter((p) => (p.missing || []).length || (p.partial || []).length || (p.wrong || []).length);
+    if (!lacking.length) return { count: 0, html: `${head}<p class="note">Alle erwarteten Buffs auf allen Spielern.</p>` };
+    const list = lacking.map((p) =>
+        `<li style="--cc:${esc(classColorOf(p.type) || "var(--text)")}"><span class="cn">${esc(p.name)}</span><span class="sritems">${esc(BUFF_ROLE_LABELS[p.role] || p.role)}${p.diedAt !== null && p.diedAt !== undefined ? ` · bis ${fmtTime(p.diedAt)}` : ""}</span><span class="buff-list">${buffChips(p)}</span></li>`).join("");
+    return { count: lacking.length, html: `${head}<ul class="fight-deaths buff-lacking">${list}</ul>` };
+}
+
+/** The Raid-Buffs tab: a player × buff matrix of "share of fights with the buff", the raid's coverage above. */
+function renderRaidBuffsPanel(raidBuffs, linkFor) {
+    const players = (raidBuffs.players || []).slice().sort((a, b) => (a.type + a.name).localeCompare(b.type + b.name));
+    const cols = (raidBuffs.rows || []).filter((r) => r.expected || r.seenPlayers > 0);
+    if (!players.length || !cols.length) return "<div class=\"empty\">Keine Raid-Buffs im Log.</div>";
+    const head = cols.map((r) => `<th class="bh">${hicon(r.icon, `${r.label} (${r.provider})`)}</th>`).join("");
+    const cover = cols.map((r) => `<td class="bc">${r.expected ? pctCell(r.coveragePct) : "<span class=\"pct pct-na\">–</span>"}</td>`).join("");
+    const body = players.map((p) => {
+        const href = linkFor && linkFor(p.name);
+        const name = href ? `<a class="cn" href="${esc(href)}">${esc(p.name)}</a>` : `<span class="cn">${esc(p.name)}</span>`;
+        const cells = cols.map((r) => {
+            const c = p.buffs && p.buffs[r.key];
+            if (!c) return "<td class=\"bc\"><span class=\"pct pct-na\">–</span></td>";
+            const tip = `${r.label}: ${c.full}× da, ${c.partial}× ausgelaufen, ${c.none}× gefehlt`;
+            if (c.wrong) return `<td class="bc"><span class="pct pct-wrong" title="${esc(`${r.label}: ${c.wrong}× auf der falschen Rolle`)}">${esc(c.pct)}%</span></td>`;
+            if (!c.expected) return `<td class="bc"><span class="pct pct-na" title="${esc(`${r.label}: nicht erwartet, ${c.present}× da`)}">${esc(c.pct)}%</span></td>`;
+            return `<td class="bc" title="${esc(tip)}">${pctCell(c.pct)}</td>`;
+        }).join("");
+        return `<tr style="--cc:${esc(classColorOf(p.type) || "var(--text)")}"><td>${name}<div class="sritems">${esc(p.type)} · ${esc(BUFF_ROLE_LABELS[p.role] || p.role)} · ${esc(p.fights)} ${p.fights === 1 ? "Kampf" : "Kämpfe"}</div></td>${cells}</tr>`;
+    }).join("");
+    const pal = raidBuffs.paladins || 0;
+    const note = `<p class="note">Anteil der Bosskämpfe, in denen der Buff die ganze Zeit auf dem Spieler lag (bis zu seinem Tod). Erwartet wird, was die Aufstellung hergibt: ${pal} Paladin${pal === 1 ? "" : "e"} heißt ${pal === 1 ? "ein Segen" : `${pal} Segen`} pro Spieler, Macht auf Tanks und Nahkämpfer, Weisheit auf Heiler und Caster. Grau: nicht erwartet; gestrichelt: Segen auf der falschen Rolle. Wer wann was nicht hatte, steht im Kampfverlauf unter „Buffs“.</p>`;
+    return `${note}<div style="overflow-x:auto"><table class="idx heal-table buff-matrix"><tr><th>Spieler</th>${head}</tr><tr class="cov"><td><b>Abdeckung</b><div class="sritems">Raid</div></td>${cover}</tr>${body}</table></div>`;
+}
+
 /** The DPS/HPS strip above the topic switch. */
 function fightSeries(f) {
     if (!f.series || !(f.series.dps || f.series.hps)) return "";
@@ -1259,7 +1355,7 @@ function renderTimelinePanel(timeline, linkFor) {
     const noSeries = fights.some((f) => f.series && (f.series.dps || f.series.hps))
         ? ""
         : " Raid-DPS/HPS und Boss-Leben brauchen den Warcraft-Logs-v2-Zugang (Einstellungen → Verbindungen → Warcraft Logs); bei einer neuen Auswertung erscheinen sie dann über dem Bereichs-Schalter.";
-    return `<p class="note">Ein Boss, ein Try, ein Bereich: Debuffs, Totems, Cooldowns, Aktivität, Heilung und Tode auf einer festen Zeitachse (${PX_PER_SEC} px pro Sekunde, seitlich scrollen). Jede Grafik hat darunter eine Tabellenansicht.${noSeries}</p>
+    return `<p class="note">Ein Boss, ein Try, ein Bereich: Debuffs, Totems, Cooldowns, Aktivität, Heilung, Buffs und Tode auf einer festen Zeitachse (${PX_PER_SEC} px pro Sekunde, seitlich scrollen). Jede Grafik hat darunter eine Tabellenansicht.${noSeries}</p>
     ${renderBossTabs(bosses)}${renderBossPanels(bosses, linkFor)}${TIMELINE_SCRIPT}`;
 }
 
@@ -1273,7 +1369,8 @@ function renderPlayerTimeline(timeline, name) {
         || ((f.mechanics && f.mechanics.players) || []).some((p) => p.name === name)
         || ((f.healers && f.healers.healers) || []).some((h) => h.name === name)
         || ((f.healers && f.healers.shields) || []).some((r) => r.source === name)
-        || !!(f.healers && f.healers.tank && f.healers.tank.name === name));
+        || !!(f.healers && f.healers.tank && f.healers.tank.name === name)
+        || ((f.buffs && f.buffs.players) || []).some((p) => p.name === name));
     if (fights.length === 0) return "";
     const bosses = groupByBoss(fights);
     return `<h2>Kampfverlauf</h2>${renderBossTabs(bosses, name)}${renderBossPanels(bosses, null, name)}${TIMELINE_SCRIPT}`;
@@ -1841,6 +1938,9 @@ function renderReportPage(report, user) {
     const hasBoss = report.bossUptimes && report.bossUptimes.rows && report.bossUptimes.rows.length;
     const hasTimeline = report.timeline && report.timeline.fights && report.timeline.fights.length;
     const hasHealers = report.healers && report.healers.players && report.healers.players.length;
+    const hasRaidBuffs = report.raidBuffs && report.raidBuffs.players && report.raidBuffs.players.length;
+    // the badge counts the expected buffs that fell short somewhere
+    const raidBuffsShort = hasRaidBuffs ? (report.raidBuffs.rows || []).filter((r) => r.expected && (r.none > 0 || r.partial > 0)).length : 0;
     // The tab shows for reviewers as soon as there are findings, for everyone else once something was approved.
     const recReviewed = report.recommendations ? applyReview(report.recommendations, report.recommendationReview) : null;
     const recItems = recReviewed ? [...recReviewed.raid, ...recReviewed.players.flatMap((p) => p.items)] : [];
@@ -1877,6 +1977,7 @@ function renderReportPage(report, user) {
         { id: "bosses", icon: "achievement_boss_illidan", label: "Bosse", show: hasBoss, count: hasBoss, html: renderBossUptimesPanel(report.bossUptimes) },
         { id: "timeline", icon: "inv_misc_pocketwatch_01", label: "Kampfverlauf", show: hasTimeline, count: hasTimeline, html: hasTimeline ? renderTimelinePanel(report.timeline, linkFor) : "" },
         { id: "healers", icon: "spell_holy_flashheal", label: "Heiler", show: hasHealers, count: hasHealers, html: hasHealers ? renderHealersPanel(report.healers, linkFor) : "" },
+        { id: "raidbuffs", icon: "spell_magic_greaterblessingofkings", label: "Raid-Buffs", show: hasRaidBuffs, count: raidBuffsShort, html: hasRaidBuffs ? renderRaidBuffsPanel(report.raidBuffs, linkFor) : "" },
         { id: "recommendations", icon: "inv_misc_note_01", label: "Empfehlungen", show: hasRec, count: recCount, html: hasRec ? renderRecommendationsPanel(report, user, linkFor) : "" },
         { id: "shadowresi", icon: "spell_shadow_antishadow", label: "Shadow-Resi", show: hasShadow, count: hasShadow, html: renderShadowResiPanel(report.shadowResi, linkFor) },
         // RPB sections. The damage tab counts deaths, the spell tab counts downrank

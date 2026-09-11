@@ -14,6 +14,7 @@
 const R = require("../../config/recommendationRules");
 const { DEBUFFS } = require("../../config/raidDebuffs");
 const { TANK_AURAS } = require("../../config/healerSpells");
+const { buffByKey, ROLE_LABELS } = require("../../config/raidBuffs");
 
 const IMPACT_ORDER = { high: 0, medium: 1, low: 2 };
 
@@ -255,7 +256,34 @@ function healerRules(report, name) {
     return out;
 }
 
-const PLAYER_RULES = [gearRules, consumableRules, debuffRules, totemRules, cooldownRules, activityRules, mechanicRules, rpbRules, shadowResiRules, healerRules];
+/**
+ * A raid buff the player should have carried and did not: addressed to the
+ * player (asking for it before the pull is theirs to do), while the raid rule
+ * below addresses whoever hands it out.
+ */
+function raidBuffRules(report, name) {
+    const p = report.raidBuffs && (report.raidBuffs.players || []).find((x) => x.name === name);
+    if (!p) return [];
+    const out = [];
+    for (const [key, c] of Object.entries(p.buffs || {})) {
+        if (!c || !c.expected) continue;
+        const short = (c.none || 0) + (c.partial || 0);
+        if (short < R.raidBuffs.missingFights) continue;
+        const def = buffByKey(key);
+        const label = def ? def.label : key;
+        const how = [c.none ? `${c.none}× gar nicht da` : "", c.partial ? `${c.partial}× im Kampf ausgelaufen` : ""].filter(Boolean).join(", ");
+        out.push(finding(
+            `raidBuffs.${key}`,
+            short / c.expected >= R.raidBuffs.missingHighShare ? "high" : "medium",
+            `${label} in ${short} von ${c.expected} Kämpfen gefehlt`,
+            `${how}. Vor dem Pull die eigenen Buffs prüfen und ${label} nach jedem Tod oder Wipe nachfordern.`,
+            [{ label: "Kämpfe ohne", value: `${short}/${c.expected}` }, { label: "Ausgelaufen", value: String(c.partial || 0) }],
+        ));
+    }
+    return out;
+}
+
+const PLAYER_RULES = [gearRules, consumableRules, debuffRules, totemRules, cooldownRules, activityRules, mechanicRules, rpbRules, shadowResiRules, healerRules, raidBuffRules];
 
 // ---- raid rules ---------------------------------------------------------
 
@@ -268,6 +296,19 @@ function raidRules(report) {
         }
         if (row.maxStacks && Number.isFinite(row.avgBelowMax) && row.avgBelowMax !== null && row.avgBelowMax > 25) {
             out.push(finding(`raid.stacks.${row.key}`, "medium", `${row.label} ${row.avgBelowMax} % der Zeit unter ${row.maxStacks} Stacks`, "Zu Beginn schneller hochstacken und die Stacks nicht abfallen lassen.", [{ label: "Unter Max-Stacks", value: `${row.avgBelowMax} %` }]));
+        }
+    }
+    // Raid buffs: for the providers. A buff short on several players is theirs
+    // to fix, a blessing on the wrong role is the paladins' distribution.
+    for (const row of (report.raidBuffs && report.raidBuffs.rows) || []) {
+        const def = buffByKey(row.key);
+        if (row.expected && row.missingPlayers >= R.raidBuffs.raidMissingPlayers) {
+            const who = def ? `Die ${def.provider === "Paladin" ? "Paladine" : `${def.provider}s`}` : "Wer den Buff liefert,";
+            const onto = def && def.roles && def.roles.length < 4 ? ` auf ${def.roles.map((r) => ROLE_LABELS[r] || r).join(", ")}` : " auf alle";
+            out.push(finding(`raid.buff.${row.key}`, Number.isFinite(row.coveragePct) && row.coveragePct < 50 ? "high" : "medium", `${row.label} fehlte auf ${row.missingPlayers} Spielern`, `${who}: ${row.label} vor dem Pull${onto} und nach jedem Wipe erneuern. Abdeckung ${row.coveragePct} % über ${row.fights} ${row.fights === 1 ? "Kampf" : "Kämpfe"}.`, [{ label: "Abdeckung", value: `${row.coveragePct} %` }, { label: "Spieler ohne", value: String(row.missingPlayers) }]));
+        }
+        if (row.wrong >= R.raidBuffs.wrongPlayers) {
+            out.push(finding(`raid.buffWrong.${row.key}`, "medium", `${row.label} ${row.wrong}× auf der falschen Rolle`, "Die Paladine teilen die Segen nach Rolle auf: Macht auf Tanks und Nahkämpfer, Weisheit auf Heiler und Caster, Könige auf alle.", [{ label: "Falsche Rolle", value: `${row.wrong}×` }]));
         }
     }
     const deaths = report.mechanics && report.mechanics.deaths;

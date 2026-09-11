@@ -13,6 +13,12 @@ module.exports = {
     debuffs: {
         uptimePct: 90,           // an expected raid debuff below this average is a gap
     },
+    raidBuffs: {
+        missingFights: 2,        // an expected buff missing or run out on at least this many fights is a finding for the player
+        missingHighShare: 0.5,   // ...and a high-impact one from this share of their fights on
+        raidMissingPlayers: 3,   // a buff short on at least this many players over the raid is a finding for whoever hands it out
+        wrongPlayers: 2,         // a blessing on this many players of the wrong role is a finding for the paladins
+    },
     totems: {
         wfUptimePct: 90,
         downtimeMs: 10000,       // total Windfury downtime over the raid worth mentioning
