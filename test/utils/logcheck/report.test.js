@@ -26,6 +26,9 @@ jest.mock("../../../src/utils/logcheck/potions.js", () => ({
 }));
 jest.mock("../../../src/utils/logcheck/sunder.js", () => ({ analyzeSunder: jest.fn(async () => null) }));
 jest.mock("../../../src/utils/logcheck/bossUptimes.js", () => ({ analyzeBossUptimes: jest.fn(async () => null) }));
+jest.mock("../../../src/utils/logcheck/fightTimeline.js", () => ({
+    analyzeFightTimeline: jest.fn(async () => ({ fights: [{ id: 1, deaths: [{ at: 1 }] }, { id: 2, deaths: [] }] })),
+}));
 jest.mock("../../../src/utils/logcheck/rpb/index.js", () => ({
     analyzeRpb: jest.fn(async () => ({ roles: {}, byRole: {} })),
     rpbSummaryLines: jest.fn(() => ["🎭 Rollen: Tank 2"]),
@@ -164,6 +167,25 @@ describe("logcheck/report — merging the two halves", () => {
         expect(report.sections).toEqual(expect.arrayContaining(["cla", "rpb"]));
     });
 
+    it("the timeline belongs to the CLA half: an RPB re-run keeps it, a CLA re-run replaces it", async () => {
+        const oldTimeline = { fights: [{ id: 9, deaths: [] }] };
+        mockGetReport.mockReturnValue({ id: "old1", sections: ["cla"], timeline: oldTimeline });
+        const rpbRun = await buildReport("RPT1", { sections: ["rpb"], mergeIntoId: "old1" });
+        expect(rpbRun.report.timeline).toBe(oldTimeline);
+
+        const claRun = await buildReport("RPT1", { sections: ["cla"], mergeIntoId: "old1" });
+        expect(claRun.report.timeline.fights.map((f) => f.id)).toEqual([1, 2]);
+    });
+
+    it("builds the timeline only for the CLA half", async () => {
+        const { analyzeFightTimeline } = require("../../../src/utils/logcheck/fightTimeline.js");
+        await buildReport("RPT1", { sections: ["rpb"] });
+        expect(analyzeFightTimeline).not.toHaveBeenCalled();
+        const { report } = await buildReport("RPT1", { sections: ["cla"] });
+        expect(analyzeFightTimeline).toHaveBeenCalledTimes(1);
+        expect(report.timeline.fights).toHaveLength(2);
+    });
+
     it("does not blank the roster's potion counts when the RPB half is added", async () => {
         // the regression: the Tränke tab kept its numbers while the Raider tab
         // showed nothing but zeros, because the RPB run rebuilt the roster without
@@ -246,6 +268,7 @@ describe("logcheck/report — stripSection", () => {
         potions: { players: [1] },
         sunder: [1],
         bossUptimes: { rows: [1] },
+        timeline: { fights: [1] },
         shadowResi: { players: [1] },
         rpb: { roles: {} },
     };
@@ -263,7 +286,7 @@ describe("logcheck/report — stripSection", () => {
         const { report, remaining } = stripSection(full, "cla");
         expect(remaining).toEqual(["rpb"]);
         expect(report.rpb).toEqual({ roles: {} });
-        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "shadowResi"]) {
+        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "timeline", "shadowResi"]) {
             expect(report[key]).toBeNull();
         }
     });
@@ -323,6 +346,15 @@ describe("logcheck/report — reportSummaryLines", () => {
 
     it("always names the raider count", () => {
         expect(reportSummaryLines(report, "rpb")[0]).toContain("Raider");
+    });
+
+    it("names the fight timeline with its fight and death counts, only in the CLA half", () => {
+        const withTimeline = { ...report, timeline: { fights: [{ deaths: [{}, {}] }, { deaths: [] }, { deaths: [{}] }] } };
+        const line = reportSummaryLines(withTimeline, "cla").find((l) => l.includes("Kampfverlauf"));
+        expect(line).toContain("3 Kämpfe");
+        expect(line).toContain("3 Tode");
+        expect(reportSummaryLines(withTimeline, "rpb").join("\n")).not.toContain("Kampfverlauf");
+        expect(reportSummaryLines(report, "cla").join("\n")).not.toContain("Kampfverlauf");
     });
 });
 

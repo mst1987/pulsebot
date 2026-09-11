@@ -1,0 +1,38 @@
+{
+  "_note": "Shaped like the WCL v1 responses (fights, tables/deaths, events/debuffs) for one short Gruul pull and a Maulgar wipe. Times in ms relative to report start. Names are made up.",
+  "fights": {
+    "title": "Gruul's Lair",
+    "zoneName": "Gruul's Lair",
+    "start": 0,
+    "end": 900000,
+    "fights": [
+      { "id": 1, "boss": 0, "name": "Trash", "start_time": 0, "end_time": 60000 },
+      { "id": 2, "boss": 649, "name": "High King Maulgar", "kill": false, "fightPercentage": 3250, "start_time": 100000, "end_time": 220000 },
+      { "id": 3, "boss": 650, "name": "Gruul the Dragonkiller", "kill": true, "start_time": 300000, "end_time": 480000 }
+    ]
+  },
+  "deaths": {
+    "entries": [
+      { "id": 12, "name": "Aldra", "type": "Mage", "timestamp": 130000, "fight": 2, "killingBlow": { "name": "Arcane Explosion", "guid": 33237, "abilityIcon": "spell_nature_wispsplode" } },
+      { "id": 17, "name": "Brokk", "type": "Warrior", "timestamp": 215000, "fight": 2, "killingBlow": { "name": "Whirlwind", "guid": 33238, "abilityIcon": "ability_whirlwind" } },
+      { "id": 12, "name": "Aldra", "type": "Mage", "timestamp": 402000, "fight": 3, "killingBlow": { "name": "Shatter", "guid": 33671, "abilityIcon": "spell_frost_glacier" } },
+      { "id": 40, "name": "Nobody", "type": "Priest", "timestamp": 30000, "fight": 1 }
+    ]
+  },
+  "sunderEvents": [
+    { "timestamp": 302000, "type": "applydebuff", "sourceID": 17, "targetID": 30, "ability": { "guid": 25225, "name": "Sunder Armor" } },
+    { "timestamp": 303600, "type": "applydebuffstack", "sourceID": 17, "targetID": 30, "stack": 2, "ability": { "guid": 25225, "name": "Sunder Armor" } },
+    { "timestamp": 305100, "type": "applydebuffstack", "sourceID": 17, "targetID": 30, "stack": 3, "ability": { "guid": 25225, "name": "Sunder Armor" } },
+    { "timestamp": 306700, "type": "applydebuffstack", "sourceID": 17, "targetID": 30, "stack": 4, "ability": { "guid": 25225, "name": "Sunder Armor" } },
+    { "timestamp": 308200, "type": "applydebuffstack", "sourceID": 17, "targetID": 30, "stack": 5, "ability": { "guid": 25225, "name": "Sunder Armor" } },
+    { "timestamp": 320000, "type": "refreshdebuff", "sourceID": 17, "targetID": 30, "stack": 5, "ability": { "guid": 25225, "name": "Sunder Armor" } },
+    { "timestamp": 350000, "type": "removedebuff", "sourceID": 17, "targetID": 30, "ability": { "guid": 25225, "name": "Sunder Armor" } },
+    { "timestamp": 361000, "type": "applydebuff", "sourceID": 17, "targetID": 30, "ability": { "guid": 25225, "name": "Sunder Armor" } },
+    { "timestamp": 362500, "type": "applydebuffstack", "sourceID": 17, "targetID": 30, "stack": 2, "ability": { "guid": 25225, "name": "Sunder Armor" } }
+  ],
+  "faerieFireBands": [
+    { "startTime": 290000, "endTime": 340000 },
+    { "startTime": 338000, "endTime": 380000 },
+    { "startTime": 420000 }
+  ]
+}

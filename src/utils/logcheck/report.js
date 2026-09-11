@@ -6,6 +6,7 @@ const { analyzeDrums } = require("./drums");
 const { analyzePotions, potionsByName } = require("./potions");
 const { analyzeSunder } = require("./sunder");
 const { analyzeBossUptimes } = require("./bossUptimes");
+const { analyzeFightTimeline } = require("./fightTimeline");
 const { analyzeRpb, rpbSummaryLines } = require("./rpb");
 const { selectPlayers } = require("./common");
 const { analyzeRaidProgress, progressSummary } = require("./raidProgress");
@@ -130,6 +131,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
     let shadowResi = null;
     let sunder = null;
     let bossUptimes = null;
+    let timeline = null;
     if (wantCla) {
         try { consumables = await analyzeConsumables(wcl, reportId, fights, playerEntries); } catch (e) { console.error("consumables failed:", e.message); }
         try { drums = await analyzeDrums(wcl, reportId, fights); } catch (e) { console.error("drums failed:", e.message); }
@@ -137,6 +139,9 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         try { shadowResi = analyzeShadowResi(table, fights); } catch (e) { console.error("shadowResi failed:", e.message); }
         try { sunder = await analyzeSunder(wcl, reportId, fights, idToPlayer); } catch (e) { console.error("sunder failed:", e.message); }
         try { bossUptimes = await analyzeBossUptimes(wcl, reportId, fights); } catch (e) { console.error("bossUptimes failed:", e.message); }
+        // The time axis every fight chart draws on: fight bounds and deaths now,
+        // debuff/totem/cooldown bands from the analyzers that build on it.
+        try { timeline = await analyzeFightTimeline(wcl, reportId, fights, idToPlayer); } catch (e) { console.error("timeline failed:", e.message); }
     }
 
     // RPB (Role Performance Breakdown) — the performance half of the analysis.
@@ -197,6 +202,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         potions,
         sunder,
         bossUptimes,
+        timeline,
         rpb,
         roster,
         icons,
@@ -226,7 +232,7 @@ function mergeReports(existing, fresh, sections) {
     }
     merged.roster = mergeRoster(existing.roster, fresh.roster, sections);
     if (sections.includes(SECTION_CLA)) {
-        for (const key of ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes"]) {
+        for (const key of CLA_FIELDS) {
             merged[key] = fresh[key];
         }
         merged.icons = { ...(existing.icons || {}), ...(fresh.icons || {}) };
@@ -261,7 +267,7 @@ function mergeRoster(existingRoster, freshRoster, sections) {
 
 // Report fields each half owns. Only these are dropped when a half is discarded;
 // the shared meta (title, players, roster, ...) belongs to the page itself.
-const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes"];
+const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes", "timeline"];
 const RPB_FIELDS = ["rpb"];
 
 /**
@@ -294,6 +300,10 @@ function stripSection(report, section) {
  *   used by the log-channel buttons so a CLA run does not report RPB numbers that
  *   happen to sit on the same merged page.
  */
+function timelineDeaths(timeline) {
+    return (timeline.fights || []).reduce((n, f) => n + ((f.deaths && f.deaths.length) || 0), 0);
+}
+
 function reportSummaryLines(report, only) {
     const wanted = only ? normalizeSections(only) : [...ALL_SECTIONS];
     const players = report.players || [];
@@ -309,6 +319,7 @@ function reportSummaryLines(report, only) {
             report.drums ? `🥁 Drums: ${report.drums.players.length}` : "",
             report.sunder ? `🪓 Sunder: ${report.sunder.length} Spieler` : "",
             report.bossUptimes ? `📊 Boss-Uptimes: ${report.bossUptimes.rows.length} Kämpfe` : "",
+            report.timeline ? `⏱️ Kampfverlauf: ${report.timeline.fights.length} Kämpfe, ${timelineDeaths(report.timeline)} Tode` : "",
         );
     }
     if (wanted.includes(SECTION_RPB)) {
