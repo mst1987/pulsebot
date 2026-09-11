@@ -33,6 +33,15 @@ module.exports = {
         hits: 3,
         hitsHigh: 6,
     },
+    healers: {
+        activePct: 60,           // a healer's activity only counts as low below this (waiting is part of the job)
+        overhealPct: 35,         // overheal share over the raid worth a word
+        overhealHighPct: 50,
+        potionLatePct: 15,       // a mana potion pressed below this mana level came late
+        dispelReactionMs: 3000,  // average reaction to a dispellable debuff slower than this
+        dispelsMissed: 2,        // dispellable debuffs nobody removed, over the raid
+        shieldUptimePct: 80,     // Earth Shield / Lifebloom on the tank below this average uptime
+    },
     rpb: {
         lowerRankPct: 50,        // a spell mostly cast below its max rank
     },

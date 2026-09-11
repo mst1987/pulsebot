@@ -44,6 +44,9 @@ jest.mock("../../../src/utils/logcheck/mechanics.js", () => ({
 jest.mock("../../../src/utils/logcheck/activityTimeline.js", () => ({
     analyzeActivityTimeline: jest.fn(async () => ({ players: [{ name: "Aldra", activeAvg: 90, gaps: 2, unexplainedMs: 8000 }] })),
 }));
+jest.mock("../../../src/utils/logcheck/healers.js", () => ({
+    analyzeHealers: jest.fn(async () => ({ players: [{ name: "Elun", healingTotal: 100, overhealTotal: 50, dispels: 2, manaLowFights: 1 }], raid: { dispelsMissed: 1 } })),
+}));
 jest.mock("../../../src/utils/logcheck/recommendations.js", () => ({
     buildRecommendations: jest.fn((report) => ({ generatedAt: 1, raid: [], players: (report.roster || []).map((p) => ({ name: p.name, type: p.type, items: [] })) })),
 }));
@@ -292,6 +295,7 @@ describe("logcheck/report — stripSection", () => {
         totems: { players: [1] },
         mechanics: { players: [1] },
         activity: { players: [1] },
+        healers: { players: [1] },
         shadowResi: { players: [1] },
         rpb: { roles: {} },
     };
@@ -309,7 +313,7 @@ describe("logcheck/report — stripSection", () => {
         const { report, remaining } = stripSection(full, "cla");
         expect(remaining).toEqual(["rpb"]);
         expect(report.rpb).toEqual({ roles: {} });
-        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems", "mechanics", "activity", "shadowResi"]) {
+        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems", "mechanics", "activity", "healers", "shadowResi"]) {
             expect(report[key]).toBeNull();
         }
     });
@@ -420,6 +424,15 @@ describe("logcheck/report — reportSummaryLines", () => {
         const withMech = { ...report, mechanics: { players: [], mechanics: [{ hits: 4 }, { hits: 2 }], deaths: { total: 3, avoidable: 1, early: 1, nearEnd: 0, repeat: 0 } } };
         expect(reportSummaryLines(withMech, "cla").find((l) => l.includes("Tode:"))).toBe("💀 Tode: 3 Tode, 1 vermeidbar, 1 früh · 6 Treffer durch Mechaniken");
         expect(reportSummaryLines(withMech, "rpb").join("\n")).not.toContain("Tode:");
+    });
+
+    it("sums the healers into one line: overheal share, dispels, what nobody removed, empty mana", () => {
+        const withHeal = { ...report, healers: { players: [{ healingTotal: 300, overhealTotal: 100, dispels: 3, manaLowFights: 1 }, { healingTotal: 500, overhealTotal: 100, dispels: 0, manaLowFights: 0 }], raid: { dispelsMissed: 2 } } };
+        expect(reportSummaryLines(withHeal, "cla").find((l) => l.includes("Heiler:"))).toBe("💧 Heiler: 2 Heiler, Ø Overheal 20 %, 3 Dispels, 2 nie entfernt, 1× unter 10 % Mana");
+        const clean = { ...report, healers: { players: [{ healingTotal: 300, overhealTotal: 0, dispels: 0, manaLowFights: 0 }], raid: { dispelsMissed: 0 } } };
+        expect(reportSummaryLines(clean, "cla").find((l) => l.includes("Heiler:"))).toBe("💧 Heiler: 1 Heiler, Ø Overheal 0 %, 0 Dispels");
+        expect(reportSummaryLines({ ...report, healers: { players: [] } }, "cla").find((l) => l.includes("Heiler:"))).toBe("💧 Heiler: keine Daten");
+        expect(reportSummaryLines(withHeal, "rpb").join("\n")).not.toContain("Heiler:");
     });
 
     it("averages the activity and counts the holes into one line", () => {
