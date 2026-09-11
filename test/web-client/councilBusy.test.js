@@ -43,9 +43,12 @@ describe("loot council — busy state", () => {
 
     it("shows a spinner in the button rather than blanking the page", () => {
         // A page overlay for a half-second row action loses the reader's place.
-        expect(src).toMatch(/<ButtonSpinner \/>Wird abgelegt/);
+        // The two icon buttons in the raider's head swap their icon for the
+        // spinner; the text buttons elsewhere keep their wording next to it.
+        expect(src).toMatch(/busy\.has\(`exclude:\$\{r\.character\}`\) \? <ButtonSpinner \/> : <ExcludeIcon \/>/);
+        expect(src).toMatch(/busy\.has\(`export:\$\{r\.character\}`\) \? <ButtonSpinner \/> : <ExportIcon \/>/);
         expect(src).toMatch(/<ButtonSpinner \/>Wird aufgenommen/);
-        expect(src).toMatch(/<ButtonSpinner \/>Wird geholt/);
+        expect(src).toMatch(/<ButtonSpinner \/>Wird geladen/);
     });
 
     it("clears the busy key even when the action fails", () => {

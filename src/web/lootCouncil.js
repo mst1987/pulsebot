@@ -341,6 +341,11 @@ function wornItemView(item, bisIds, tierId = "") {
         contentId: source.content || "",
         boss: source.boss || "",
         gemCount: (item.gems || []).filter(Boolean).length,
+        // The socketed gems and the enchant as ids, for the Wowhead tooltip
+        // (item=…&gems=…&ench=…) — it then shows the piece as the raider
+        // actually wears it, not the bare item.
+        gemIds: (item.gems || []).map((g) => Number(g) || 0).filter(Boolean),
+        enchantId: Number(item.enchantId) || 0,
         emptySockets: item.emptySockets,
         // "missing" is the one worth showing — an unenchanted slot is the most
         // common thing a council spots on a raider asking for an upgrade.
@@ -600,6 +605,10 @@ function councilRoster(opts = {}) {
                 // von gerade eben, und das wäre eine Lüge über die Herkunft.
                 source: gear.source || "log",
                 armoryAt: gear.armoryAt || 0,
+                // Ein von Hand geladenes Log (source "wcl"): wann es geholt
+                // wurde, und — wenn es nicht genommen wurde — warum nicht.
+                wclAt: gear.wclAt || 0,
+                logRejected: gear.logRejected || "",
                 unverifiedEnchants: gear.unverifiedEnchants || 0,
                 // Warum die Armory-Antwort nicht genommen wurde, obwohl es
                 // eine gibt: "pvp" (Arenaset) oder "role" (Heilset für einen

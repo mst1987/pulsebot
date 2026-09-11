@@ -15,6 +15,10 @@ jest.mock("../../src/web/armoryGear", () => ({
     armorySetFor: (...a) => mockArmorySetFor(...a),
     armoryItemInSlot: (...a) => mockArmoryItemInSlot(...a),
 }));
+// Von Hand geladene Logs ebenso: geprüft wird, wann so ein Set gewinnt, nicht
+// wie es geholt wird (das steht in logGearStore.test.js).
+const mockListLogGear = jest.fn(() => []);
+jest.mock("../../src/web/logGearStore", () => ({ listLogGear: (...a) => mockListLogGear(...a) }));
 
 const { gearByCharacter, gearFor, itemInSlot, charKey } = require("../../src/web/charGear");
 
@@ -269,6 +273,92 @@ describe("web/charGear", () => {
             const worn = itemInSlot(casterGear(), 12);
             expect(worn.itemId).toBe(trinket);
             expect(worn.replacedSituational).toBeNull();
+        });
+    });
+
+    // Ein von Hand geladenes Log: die ausdrückliche Antwort auf „das Set von
+    // Donnerstag, bitte". Es schlägt die Auswertung — bis eine Auswertung
+    // kommt, die neuer ist als der Klick.
+    describe("gear from a loaded log", () => {
+        const wowsims = require("../../src/config/wowsims");
+        const shadowIds = wowsims.bisFor("Priest-Shadow", "t6").items.map((e) => e.id);
+        const setOf = (ids, over = {}) => ids.slice(0, 16).map((itemId, i) => armoryItem({
+            slot: i, itemId: String(itemId), itemName: `Item ${itemId}`, gems: [],
+            enchant: { status: "ok", enchantId: "3002", reason: "" }, ...over,
+        }));
+        const casterSet = setOf(shadowIds);
+        const snapshot = (over = {}) => ({
+            key: "devihra", character: "Devihra", className: "Priest", reportId: "wcl1",
+            reportTitle: "BT Donnerstag", reportStart: 2500, fetchedAt: 5000, armory: casterSet, ...over,
+        });
+        const casterGear = () => gearByCharacter({ roleFor: () => "caster" }).get("devihra");
+
+        it("replaces the evaluation's set and says where it is from", () => {
+            setReports(report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: setOf(shadowIds).map((it) => ({ ...it, itemId: "11111" })) }]));
+            mockListLogGear.mockReturnValue([snapshot()]);
+            const gear = casterGear();
+            expect(gear.source).toBe("wcl");
+            expect(gear.reportId).toBe("wcl1");
+            expect(gear.reportTitle).toBe("BT Donnerstag");
+            // The stamp's date is the raid's, the fetch time rides along.
+            expect(gear.seenAt).toBe(2500);
+            expect(gear.wclAt).toBe(5000);
+            expect(itemInSlot(gear, 0).itemId).toBe(Number(shadowIds[0]));
+            expect(gear.logRejected).toBe("");
+        });
+
+        it("gives gear to a raider no evaluation knows", () => {
+            setReports();
+            mockListLogGear.mockReturnValue([snapshot()]);
+            const gear = casterGear();
+            expect(gear).not.toBeNull();
+            expect(gear.source).toBe("wcl");
+            expect(gear.className).toBe("Priest");
+        });
+
+        it("yields to an evaluation newer than the request", () => {
+            // Loaded at 5000, evaluated at 6000: "the set from Thursday" has
+            // been overtaken by a newer raid — that is the end of it.
+            setReports(report("neuer", 6000, [{ name: "Devihra", type: "Priest", armory: casterSet }]));
+            mockListLogGear.mockReturnValue([snapshot({ fetchedAt: 5000 })]);
+            const gear = casterGear();
+            expect(gear.source).toBe("log");
+            expect(gear.reportId).toBe("neuer");
+        });
+
+        it("refuses a set of the wrong role and says so, keeping the evaluation's", () => {
+            // Wer am Donnerstag geheilt hat, wird trotzdem an seinem Casterset
+            // gemessen — dieselbe Regel wie bei der Armory.
+            setReports(report("neu", 3000, [{ name: "Devihra", type: "Priest", armory: casterSet }]));
+            const healIds = Object.entries(require("../../src/config/wowsims/items.json").items)
+                .filter(([, it]) => (it.stats.healingPower || 0) > 60 && !it.stats.spellHit && it.ilvl >= 120)
+                .sort((a, b) => b[1].stats.healingPower - a[1].stats.healingPower)
+                .slice(0, 16)
+                .map(([id]) => Number(id));
+            mockListLogGear.mockReturnValue([snapshot({ armory: setOf(healIds) })]);
+            const gear = casterGear();
+            expect(gear.source).toBe("log");
+            expect(gear.reportId).toBe("neu");
+            expect(gear.logRejected).toBe("role");
+        });
+
+        it("still lets the armory win over a loaded log", () => {
+            setReports();
+            mockListLogGear.mockReturnValue([snapshot()]);
+            mockArmorySetFor.mockReturnValue({
+                at: 9000,
+                rows: shadowIds.slice(0, 16).map((itemId, slot) => ({
+                    slot, itemId: String(itemId), itemName: `Item ${itemId}`, icon: null, quality: null,
+                    itemLevel: 0, gems: [], emptySockets: 0, enchant: { status: "na", enchantId: null, reason: "" },
+                })),
+            });
+            expect(casterGear().source).toBe("armory");
+        });
+
+        it("ignores a snapshot without gear", () => {
+            setReports();
+            mockListLogGear.mockReturnValue([snapshot({ armory: [] })]);
+            expect(casterGear()).toBeUndefined();
         });
     });
 

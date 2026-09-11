@@ -539,6 +539,15 @@ describe("web/lootCouncil — the worn gear a council looks at", () => {
             expect(view.itemName).toBe("Hood of Absolution");
         });
 
+        it("carries the gem and enchant ids for the Wowhead tooltip, empty sockets left out", () => {
+            const view = wornItemView(worn({ gems: [25893, 0, 30600], enchantId: 3002 }), new Set());
+            expect(view.gemIds).toEqual([25893, 30600]);
+            expect(view.enchantId).toBe(3002);
+            const bare = wornItemView(worn({ gems: [], enchantId: 0 }), new Set());
+            expect(bare.gemIds).toEqual([]);
+            expect(bare.enchantId).toBe(0);
+        });
+
         it("falls back to the id for an item neither source knows", () => {
             const view = wornItemView(worn({ itemId: 999999, itemName: "" }), new Set());
             expect(view.itemName).toBe("Item 999999");

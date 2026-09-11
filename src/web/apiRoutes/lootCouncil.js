@@ -23,7 +23,8 @@ const { activeGuildFor } = require("../activeGuild");
 const { userCan } = require("../../config/permissions");
 const { councilRoster, bisGaps, candidateSplit, filterOptions, resolveContentFilter, itemView, bisSpecsView } = require("../lootCouncil");
 const { bisLists } = require("../bisLists");
-const { primeArmoryGear } = require("../armoryGear");
+const { primeArmoryGear, clearArmoryFor } = require("../armoryGear");
+const { loadLogGear, clearLogGear, recentLogs } = require("../logGearStore");
 const { sourceForItem } = require("../../config/tbcContent");
 const { startCouncilSim, getJob } = require("../simStore");
 const { searchItems } = require("../../config/wowsims");
@@ -99,6 +100,9 @@ async function getLootCouncil(req, res, url) {
     ok(res, {
         roster: rows,
         avgLootCount,
+        // The bot's newest logs, so the log panel at a raider can offer them
+        // to pick from instead of asking for a link every time.
+        recentLogs: recentLogs(),
         // Who the council has set aside, so the page can offer them back — and
         // say why a familiar name is missing instead of looking broken.
         excluded: Object.entries(councilStore.listExcluded())
@@ -345,6 +349,47 @@ async function postArmoryRefresh(req, res) {
 }
 
 /**
+ * POST /api/lootcouncil/loggear — load one raider's gear from a Warcraft-Logs
+ * report, or forget a loaded one.
+ * Body: { character, reportId?, link?, clear? }
+ *
+ * Without reportId/link the bot's newest logs are tried in turn. A loaded log
+ * replaces the armory's answer for that raider (it is the newer request), so
+ * the armory cache entry is dropped with it.
+ */
+async function postLogGear(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!userCan(user, "lootcouncil", "write")) return apiError(res, 403, "Kein Zugriff auf den Loot-Council.");
+    if (!requireCsrf(req, res)) return;
+
+    const body = await readJsonBody(req);
+    const character = String(body.character || "").trim();
+    if (!character) return apiError(res, 400, "Kein Charakter angegeben.");
+    if (body.clear) {
+        // "Zurück zur Auswertung": both hand-picked sources go, the loaded log
+        // and the armory answer, so the evaluations' set is what shows next.
+        const cleared = clearLogGear(character);
+        clearArmoryFor(character);
+        return ok(res, { cleared });
+    }
+    try {
+        const { snapshot, tried } = await loadLogGear(character, { reportId: body.reportId, link: body.link });
+        clearArmoryFor(character);
+        ok(res, {
+            reportId: snapshot.reportId,
+            reportTitle: snapshot.reportTitle,
+            reportStart: snapshot.reportStart,
+            items: snapshot.armory.length,
+            tried,
+        });
+    } catch (e) {
+        if (e && e.logGear) return apiError(res, e.status || 404, e.message);
+        throw e;
+    }
+}
+
+/**
  * GET /api/lootcouncil/bislists?tier=… — which gear set is BiS for which caster
  * DPS class and spec, as the matrix the tab draws (see web/bisLists.js).
  */
@@ -367,5 +412,5 @@ async function getLootCouncilSim(req, res, url) {
 
 module.exports = {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim,
-    getItemSearch, getBisLists, postExclude, postRole, getExport, postArmoryRefresh,
+    getItemSearch, getBisLists, postExclude, postRole, getExport, postArmoryRefresh, postLogGear,
 };
