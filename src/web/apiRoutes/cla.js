@@ -21,6 +21,7 @@ const { getConfig } = require("../settingsStore");
 const { buildReport, stripSection, ReportError } = require("../../utils/logcheck/report");
 const { applyReview } = require("../../utils/logcheck/recommendations");
 const { sendApproved, sendStatus } = require("../recommendationSend");
+const { phraseReport } = require("../../utils/logcheck/recommendationText");
 const { listAllAssignments } = require("../raiderCharactersStore");
 const { loadMatchableEvents, eventLinkFields } = require("../matchableEvents");
 const { linkLogByUrl } = require("../manualLog");
@@ -479,8 +480,48 @@ async function sendRecommendations(req, res) {
     ok(res, { reportId, sent: result.sent, skipped: result.skipped, message });
 }
 
+const PHRASE_SECTION = "phrase";
+
+/**
+ * POST /api/cla/recommendations/phrase — body: { reportId, players?: string[] }.
+ * Has Claude phrase the findings (all raiders, or the named ones) in the
+ * background; the client polls the status. Needs the Anthropic key from
+ * Einstellungen → Verbindungen → KI-Formulierung.
+ */
+async function phraseRecommendations(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const reportId = String(body.reportId || "").trim();
+    const report = reportId ? getReport(reportId) : null;
+    if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
+    const settings = (getConfig().anthropic) || {};
+    if (!settings.apiKey) return error(res, 400, "no_api_key", "Kein Anthropic-API-Key hinterlegt (Einstellungen → Verbindungen → KI-Formulierung).");
+    const only = Array.isArray(body.players) ? body.players.map((n) => String(n || "").trim()).filter(Boolean) : null;
+    const started = startJob(reportId, PHRASE_SECTION, async () => {
+        const fresh = getReport(reportId);
+        if (!fresh) return { ok: false, error: "Auswertung nicht gefunden." };
+        const result = await phraseReport(fresh, { apiKey: settings.apiKey, model: settings.model || undefined, only: only && only.length ? only : null });
+        saveReport(fresh, reportId);
+        return { ok: true, id: reportId, url: `${result.phrased}` };
+    });
+    ok(res, { reportId, status: started.status, alreadyRunning: started.alreadyRunning }, started.alreadyRunning ? 200 : 202);
+}
+
+/** GET /api/cla/recommendations/phrase?id=<reportId> — the job state plus the report's last phrasing record. */
+async function phraseStatus(req, res, url) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    const reportId = String((url && url.searchParams.get("id")) || "").trim();
+    const report = reportId ? getReport(reportId) : null;
+    if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
+    const job = getJob(reportId, PHRASE_SECTION);
+    ok(res, { reportId, job, last: report.recommendationPhrase || null, hasApiKey: !!((getConfig().anthropic || {}).apiKey) });
+}
+
 module.exports = {
-    recommendationSendStatus, sendRecommendations,
+    recommendationSendStatus, sendRecommendations, phraseRecommendations, phraseStatus,
     getClaData, createReport, reportStatus, evalLog, evalStatus, resetEval, scanLogs, deleteLogHandler,
     linkLog, linkLogUrl, unlinkLog, autoMatchLogs,
     deleteReportHandler, unlinkReport,

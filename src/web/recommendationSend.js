@@ -55,7 +55,8 @@ function buildRaiderMessage(report, player, items, { embed }) {
         .setDescription(`Hallo ${player.name}, hier sind die Punkte aus dem Log${report.date ? ` vom ${String(report.date).split(",")[0]}` : ""}, die die Raidleitung für dich freigegeben hat.`)
         .setURL(url);
     for (const item of items.slice(0, 10)) {
-        e.addFields({ name: `${IMPACT_MARK[item.impact] || "•"} ${item.title}`.slice(0, 256), value: String(item.custom || item.text || "–").slice(0, 1024) });
+        // the raid lead's words, else Claude's phrasing, else the rule's text
+        e.addFields({ name: `${IMPACT_MARK[item.impact] || "•"} ${item.title}`.slice(0, 256), value: String(item.custom || item.ai || item.text || "–").slice(0, 1024) });
     }
     if (items.length > 10) e.addFields({ name: "…", value: `und ${items.length - 10} weitere Punkte auf deiner Seite.` });
     e.setFooter({ text: "Alle Details, Grafiken und dein Gear findest du auf deiner Spielerseite." });

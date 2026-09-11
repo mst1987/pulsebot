@@ -73,7 +73,7 @@ async function getSettings(req, res) {
     ok(res, {
         // The access config is admin-only; a limited settings user never sees
         // (nor can save) it.
-        config: user.isAdmin ? config : omit(config, ACCESS_KEYS),
+        config: publicConfig(user.isAdmin ? config : omit(config, ACCESS_KEYS)),
         canManageAccess: !!user.isAdmin,
         areas: AREAS,
         userNames,
@@ -88,6 +88,12 @@ function omit(obj, keys) {
     const out = { ...obj };
     for (const k of keys) delete out[k];
     return out;
+}
+
+/** The config as the browser may see it: the Anthropic key never leaves the server, only whether one is set. */
+function publicConfig(config) {
+    const anthropic = config.anthropic || {};
+    return { ...config, anthropic: { model: anthropic.model || "", hasApiKey: !!anthropic.apiKey } };
 }
 
 /**
@@ -120,12 +126,18 @@ async function updateSettings(req, res) {
     if (body.logChannelIds !== undefined) partial.logChannelIds = asStringArray(body.logChannelIds);
     if (body.raidDefaults !== undefined && typeof body.raidDefaults === "object") partial.raidDefaults = body.raidDefaults;
     if (body.blizzard !== undefined && typeof body.blizzard === "object") partial.blizzard = body.blizzard;
+    // anthropic.apiKey follows the blizzard secret's contract: omit = keep, "" = clear.
+    if (body.anthropic !== undefined && typeof body.anthropic === "object") {
+        partial.anthropic = {};
+        if (body.anthropic.model !== undefined) partial.anthropic.model = String(body.anthropic.model || "").trim();
+        if (body.anthropic.apiKey !== undefined) partial.anthropic.apiKey = String(body.anthropic.apiKey || "").trim();
+    }
     if (body.categoryLootTool !== undefined) partial.categoryLootTool = normalizeCategoryLootTool(body.categoryLootTool);
     if (body.categorySheets !== undefined) partial.categorySheets = normalizeCategorySheets(body.categorySheets);
     // Sent as the complete list; settingsStore normalises it and replaces the
     // stored one, so removing an item is just leaving it out.
     if (body.topItems !== undefined) partial.topItems = Array.isArray(body.topItems) ? body.topItems : [];
-    ok(res, { config: saveConfig(partial) });
+    ok(res, { config: publicConfig(saveConfig(partial)) });
 }
 
 /**

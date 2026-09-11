@@ -49,6 +49,7 @@ type Draft = {
     blizzardRegion: string;
     blizzardRealmSlug: string;
     blizzardNamespace: string;
+    anthropicModel: string;
     categoryLootTool: Record<string, string>;
     // Part of the one big form since the per-category settings were merged into
     // one section — it used to save itself through a PATCH of its own.
@@ -78,6 +79,7 @@ function toDraft(config: AdminConfig): Draft {
         blizzardRegion: config.blizzard.region,
         blizzardRealmSlug: config.blizzard.realmSlug,
         blizzardNamespace: config.blizzard.namespace,
+        anthropicModel: (config.anthropic && config.anthropic.model) || "",
         categoryLootTool: config.categoryLootTool || {},
         categorySheets: config.categorySheets || {},
         topItems: config.topItems || [],
@@ -392,7 +394,17 @@ function IngestTokensTab({ csrfToken }: { csrfToken: string | null }) {
     );
 }
 
-function BlizzardSecretField({ hasStoredSecret, value, onChange }: {
+function BlizzardSecretField(props: { hasStoredSecret: boolean; value: string | undefined; onChange: (v: string | undefined) => void }) {
+    return <SecretField label="Battle.net Client-Secret" {...props} />;
+}
+
+/**
+ * A stored secret is never shown: the field says whether one exists and only
+ * opens an input once the admin chooses to change it. `value` undefined = keep,
+ * "" = clear, anything else = replace (the save sends it only when defined).
+ */
+function SecretField({ label, hasStoredSecret, value, onChange }: {
+    label: string;
     hasStoredSecret: boolean;
     value: string | undefined;
     onChange: (v: string | undefined) => void;
@@ -400,7 +412,7 @@ function BlizzardSecretField({ hasStoredSecret, value, onChange }: {
     if (value === undefined) {
         return (
             <div className="field">
-                <label>Battle.net Client-Secret</label>
+                <label>{label}</label>
                 <div className="row-actions">
                     <span className="hint">{hasStoredSecret ? "•••••••• (gespeichert)" : "Kein Secret hinterlegt"}</span>
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange("")}>Ändern</button>
@@ -410,7 +422,7 @@ function BlizzardSecretField({ hasStoredSecret, value, onChange }: {
     }
     return (
         <div className="field">
-            <label>Battle.net Client-Secret</label>
+            <label>{label}</label>
             <input
                 type="password"
                 value={value}
@@ -570,6 +582,7 @@ export default function SettingsPage() {
     const [data, setData] = useState<SettingsData | null>(null);
     const [draft, setDraft] = useState<Draft | null>(null);
     const [secretChange, setSecretChange] = useState<string | undefined>(undefined);
+    const [anthropicKeyChange, setAnthropicKeyChange] = useState<string | undefined>(undefined);
     const [error, setError] = useState<ApiError | null>(null);
     const [saving, setSaving] = useState(false);
     const toast = useToast();
@@ -585,6 +598,7 @@ export default function SettingsPage() {
                 setData(d);
                 setDraft(toDraft(d.config));
                 setSecretChange(undefined);
+                setAnthropicKeyChange(undefined);
             })
             .catch((err: ApiError) => setError(err));
     };
@@ -644,6 +658,10 @@ export default function SettingsPage() {
                     namespace: draft.blizzardNamespace.trim().toLowerCase(),
                     ...(secretChange !== undefined ? { clientSecret: secretChange } : {}),
                 },
+                anthropic: {
+                    model: draft.anthropicModel.trim(),
+                    ...(anthropicKeyChange !== undefined ? { apiKey: anthropicKeyChange } : {}),
+                },
                 categoryLootTool: draft.categoryLootTool,
                 // Sent whole: the store replaces the map, so clearing a url is
                 // what removes that category's sheet.
@@ -655,6 +673,7 @@ export default function SettingsPage() {
             setData({ ...data, config });
             setDraft(toDraft(config));
             setSecretChange(undefined);
+            setAnthropicKeyChange(undefined);
             toast("Gespeichert.");
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -726,6 +745,18 @@ export default function SettingsPage() {
                     <div className="field">
                         <label>Profile-Namespace (optional)</label>
                         <input type="text" value={draft.blizzardNamespace} onChange={(e) => patch({ blizzardNamespace: e.target.value })} placeholder={`leer = automatisch (profile-classicann-${draft.blizzardRegion || "eu"})`} />
+                    </div>
+                </>
+            );
+
+            case "anthropic": return (
+                <>
+                    <p className="hint">Optional: Mit einem Anthropic-API-Key formuliert Claude die Empfehlungen aus der Log-Auswertung in Klartext für die Raider. Die Regeln entscheiden weiterhin, <em>was</em> aufgefallen ist; das Modell schreibt nur, <em>wie</em> man es sagt, und nichts geht ohne deine Freigabe raus. Key anlegen unter <code>console.anthropic.com</code>.</p>
+                    <SecretField label="Anthropic API-Key" hasStoredSecret={!!data.config.anthropic?.hasApiKey} value={anthropicKeyChange} onChange={setAnthropicKeyChange} />
+                    <div className="field">
+                        <label>Modell</label>
+                        <input type="text" value={draft.anthropicModel} onChange={(e) => patch({ anthropicModel: e.target.value })} placeholder="claude-opus-5" autoComplete="off" />
+                        <div className="hint">Leer = <code>claude-opus-5</code>. Die Formulierung startet auf der Report-Seite im Tab „Empfehlungen“.</div>
                     </div>
                 </>
             );

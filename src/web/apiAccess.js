@@ -107,6 +107,7 @@ const AREA_BY_PATH = {
     "/api/cla/log-automatch": "cla",
     "/api/cla/recommendations": "cla",
     "/api/cla/recommendations/send": "cla",
+    "/api/cla/recommendations/phrase": "cla",
 };
 
 // Answers for anyone, logged in or not — the client bootstraps from it.

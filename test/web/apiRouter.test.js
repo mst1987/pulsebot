@@ -690,8 +690,20 @@ describe("web/apiRouter", () => {
             await handle("/api/settings", { method: "GET" }, res);
 
             const data = body(res).data;
-            expect(data.config).toEqual({ guildId: "g1" });
+            expect(data.config).toEqual({ guildId: "g1", anthropic: { model: "", hasApiKey: false } });
             expect(data.canManageAccess).toBe(false);
+        });
+
+        // The Anthropic key never leaves the server — the page only learns that one is stored.
+        it("masks the Anthropic key, reporting only whether one is set", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            settingsStore.getConfig.mockReturnValue({ guildId: "g1", anthropic: { apiKey: "sk-secret", model: "claude-opus-5" } });
+
+            const res = mockRes();
+            await handle("/api/settings", { method: "GET" }, res);
+
+            expect(body(res).data.config.anthropic).toEqual({ model: "claude-opus-5", hasApiKey: true });
+            expect(JSON.stringify(body(res))).not.toContain("sk-secret");
         });
     });
 
@@ -721,6 +733,20 @@ describe("web/apiRouter", () => {
                 categoryRoles: { cat1: ["role1"] },
                 blizzard: { clientSecret: "" },
             });
+        });
+
+        it("forwards the Anthropic key only when sent, and never echoes it back", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.saveConfig.mockReturnValue({ guildId: "g1", anthropic: { apiKey: "sk-new", model: "claude-opus-5" } });
+
+            const res = await patch("/api/settings", { anthropic: { model: " claude-opus-5 " } });
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({ anthropic: { model: "claude-opus-5" } });
+            expect(body(res).data.config.anthropic).toEqual({ model: "claude-opus-5", hasApiKey: true });
+            expect(JSON.stringify(body(res))).not.toContain("sk-new");
+
+            await patch("/api/settings", { anthropic: { apiKey: " sk-new ", model: "" } });
+            expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ anthropic: { apiKey: "sk-new", model: "" } });
         });
 
         it("stores the loot tool per category, dropping anything but the two known tools", async () => {
