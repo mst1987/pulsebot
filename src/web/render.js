@@ -8,6 +8,7 @@
 
 const { renderAdminChrome, CHROME_STYLE, ICONS } = require("./adminChrome");
 const rpbData = require("../config/rpbData");
+const { ribbonChart, markerChart, barChart, lineChart, fmtTime, CHART_STYLE } = require("./charts");
 
 const CLASS_COLORS = {
     Druid: "#FF7D0A", Hunter: "#ABD473", Mage: "#69CCF0", Paladin: "#F58CBA",
@@ -528,6 +529,24 @@ ${body}
   .discord-btn:hover { background:#4752C4; }
   .discord-btn svg { display:block; }
   footer { color:var(--muted); font-size:12px; margin-top:40px; text-align:center; }
+  /* fight timeline (Kampfverlauf) */
+  .fight-nav { display:flex; flex-wrap:wrap; gap:6px; margin:0 0 16px; }
+  .fight-nav a { display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border:1px solid var(--line); background:var(--panel2); color:var(--text); text-decoration:none; font-size:13px; }
+  .fight-nav a:hover { border-color:var(--accent); }
+  .fight-nav .wipe { color:var(--muted); font-size:11.5px; font-family:var(--font-mono); }
+  .fight { background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--accent); padding:14px 16px; margin:0 0 16px; }
+  .fight.fight-wipe { border-left-color:var(--high); }
+  .fight-head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin:0 0 10px; }
+  .fight-head h3 { margin:0; font-size:16px; }
+  .fight-head .meta { color:var(--muted); font-size:12.5px; font-family:var(--font-mono); }
+  .fight h4 { margin:14px 0 6px; font-size:12px; font-family:var(--font-mono); text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  .fight-deaths { margin:0; padding:0; list-style:none; font-size:13px; }
+  .fight-deaths li { padding:3px 0; border-bottom:1px solid var(--line-soft); }
+  .fight-deaths b { font-family:var(--font-mono); font-variant-numeric:tabular-nums; margin-right:8px; }
+  .fight-deaths .cn { color:var(--cc); }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .fight-deaths .cn { color:color-mix(in srgb, var(--cc) 70%, #000); } }
+  :root[data-theme="light"] .fight-deaths .cn { color:color-mix(in srgb, var(--cc) 70%, #000); }
+${CHART_STYLE}
 ${opts.extraStyle || ""}
 </style>
 </head>
@@ -814,6 +833,139 @@ function renderBossUptimesPanel(data) {
       <tr><th>Boss</th>${head}</tr>
       ${body}
     </table>`)}`;
+}
+
+// ---- Kampfverlauf: the fight timelines (report.timeline, utils/logcheck/fightTimeline.js) ----
+//
+// Every topic container on a fight is optional and drawn only when an analyzer
+// filled it, so a report from before those analyzers still renders — with the
+// bare fight axis and its deaths. The shapes the panel expects:
+//   debuffs[]   { key, label, icon, bands | stacks, maxStacks, uptimePct }
+//   totems[]    { name, type, rows: [{ label, icon, markers, band, downtimes, uptimePct }] }
+//   cooldowns   { windows: [{ label, from, to }], players: [{ name, type, rows: [{ label, icon, markers }] }] }
+//   activity[]  { name, type, bands, gaps: [{ from, to, reason }], activePct }
+//   series      { step, dps, hps, bossHp }
+
+const classColorOf = (type) => CLASS_COLORS[type] || "";
+
+function pctTone(v) {
+    return v >= 95 ? "good" : v >= 70 ? "medium" : "high";
+}
+
+function fightMeta(f) {
+    const outcome = f.kill
+        ? "Kill"
+        : `Wipe${Number.isFinite(f.fightPercentage) && f.fightPercentage !== null ? ` bei ${Math.round(f.fightPercentage)} %` : ""}`;
+    const deaths = (f.deaths || []).length;
+    return `${outcome} · ${fmtTime(f.duration)} · ${deaths} ${deaths === 1 ? "Tod" : "Tode"}`;
+}
+
+function fightAnchor(f) {
+    return `fight-${esc(f.id)}`;
+}
+
+function deathsList(deaths, linkFor) {
+    if (!deaths || deaths.length === 0) return "<div class=\"fc-empty\">Niemand ist gestorben.</div>";
+    return `<ul class="fight-deaths">${deaths.map((d) => {
+        const href = linkFor && linkFor(d.name);
+        const name = href ? `<a class="cn" href="${esc(href)}">${esc(d.name)}</a>` : `<span class="cn">${esc(d.name)}</span>`;
+        const why = d.ability ? ` <span class="sritems">· ${d.abilityIcon ? hicon(d.abilityIcon, "") : ""}${esc(d.ability)}</span>` : "";
+        return `<li style="--cc:${esc(classColorOf(d.type) || "var(--text)")}"><b>${fmtTime(d.at)}</b>${name}${why}</li>`;
+    }).join("")}</ul>`;
+}
+
+/** One fight's charts; `only` restricts the rows to one raider (the player page). */
+function renderFightSection(f, linkFor, only) {
+    const common = { duration: f.duration, deaths: f.deaths, classColor: classColorOf };
+    const mine = (name) => !only || name === only;
+    const parts = [];
+
+    if (!only && f.series && (f.series.dps || f.series.hps)) {
+        const series = [];
+        if (f.series.dps) series.push({ key: "a", label: "Raid-DPS", values: f.series.dps });
+        if (f.series.hps) series.push({ key: "b", label: "Raid-HPS", values: f.series.hps });
+        parts.push(`<h4>Verlauf</h4>${lineChart({ ...common, step: f.series.step, series, bossHp: f.series.bossHp, title: "" })}`);
+    }
+
+    if (!only && f.debuffs && f.debuffs.length) {
+        const rows = f.debuffs.map((d) => ({
+            label: d.label, icon: d.icon,
+            bands: d.stacks && d.stacks.length ? d.stacks : d.bands,
+            maxStacks: d.maxStacks || 0,
+            value: Number.isFinite(d.uptimePct) ? `${d.uptimePct}%` : undefined,
+            tone: Number.isFinite(d.uptimePct) ? pctTone(d.uptimePct) : undefined,
+        }));
+        parts.push(`<h4>Debuffs auf dem Boss</h4>${ribbonChart({ ...common, rows })}`);
+    }
+
+    const totems = (f.totems || []).filter((t) => mine(t.name));
+    if (totems.length) {
+        const rows = totems.flatMap((t) => (t.rows || []).map((r) => ({
+            ...r,
+            label: only ? r.label : `${t.name} · ${r.label}`,
+            value: Number.isFinite(r.uptimePct) ? `${r.uptimePct}%` : r.value,
+            tone: Number.isFinite(r.uptimePct) ? pctTone(r.uptimePct) : r.tone,
+        })));
+        parts.push(`<h4>Totems</h4>${markerChart({ ...common, rows })}`);
+    }
+
+    const cdPlayers = ((f.cooldowns && f.cooldowns.players) || []).filter((p) => mine(p.name));
+    if (cdPlayers.length) {
+        const rows = cdPlayers.flatMap((p) => (p.rows || []).map((r) => ({ ...r, label: only ? r.label : `${p.name} · ${r.label}` })));
+        parts.push(`<h4>Cooldowns</h4>${markerChart({ ...common, rows, windows: f.cooldowns.windows || [] })}`);
+    }
+
+    const activity = (f.activity || []).filter((a) => mine(a.name));
+    if (activity.length) {
+        const rows = activity.map((a) => ({
+            label: a.name, icon: a.icon,
+            bands: a.bands,
+            value: Number.isFinite(a.activePct) ? `${a.activePct}%` : undefined,
+            tone: Number.isFinite(a.activePct) ? pctTone(a.activePct) : undefined,
+        }));
+        parts.push(`<h4>Aktivität</h4>${ribbonChart({ ...common, rows })}`);
+    }
+
+    const deaths = only ? (f.deaths || []).filter((d) => d.name === only) : (f.deaths || []);
+    if (parts.length === 0) {
+        // nothing but the skeleton yet: the fight itself is the one band, so the
+        // axis and the deaths are still there to look at
+        parts.push(ribbonChart({ ...common, deaths, rows: [{ label: f.kill ? "Kampf (Kill)" : "Kampf (Wipe)", bands: [[0, f.duration]], tone: f.kill ? "good" : "high" }] }));
+    }
+    parts.push(`<h4>Tode</h4>${deathsList(deaths, linkFor)}`);
+
+    return `<section class="fight${f.kill ? "" : " fight-wipe"}" id="${fightAnchor(f)}">
+      <div class="fight-head"><h3>${esc(f.boss)}</h3><span class="meta">${esc(fightMeta(f))}</span></div>
+      ${parts.join("")}
+    </section>`;
+}
+
+function renderTimelinePanel(timeline, linkFor) {
+    const fights = (timeline && timeline.fights) || [];
+    if (fights.length === 0) return "<div class=\"empty\">Keine Boss-Kämpfe im Log.</div>";
+    const nav = `<nav class="fight-nav">${fights.map((f) =>
+        `<a href="#${fightAnchor(f)}">${esc(f.boss)}${f.kill ? "" : ` <span class="wipe">Wipe${Number.isFinite(f.fightPercentage) && f.fightPercentage !== null ? ` ${Math.round(f.fightPercentage)} %` : ""}</span>`}</a>`).join("")}</nav>`;
+    const overview = barChart({
+        title: "Tode pro Boss",
+        rows: fights.map((f) => ({
+            label: f.boss, value: (f.deaths || []).length, href: `#${fightAnchor(f)}`,
+            tone: (f.deaths || []).length === 0 ? "good" : (f.kill ? "medium" : "high"),
+        })),
+        max: Math.max(1, ...fights.map((f) => (f.deaths || []).length)),
+    });
+    return `<p class="note">Zeitleisten pro Boss-Kampf: Debuffs, Totems, Cooldowns, Aktivität und Tode auf einer gemeinsamen Zeitachse. Jede Grafik hat darunter eine Tabellenansicht.</p>
+    ${nav}${overview}${fights.map((f) => renderFightSection(f, linkFor)).join("")}`;
+}
+
+/** The player page's slice of the timeline: only the fights this raider shows up in. */
+function renderPlayerTimeline(timeline, name) {
+    const fights = ((timeline && timeline.fights) || []).filter((f) =>
+        (f.deaths || []).some((d) => d.name === name)
+        || (f.totems || []).some((t) => t.name === name)
+        || ((f.cooldowns && f.cooldowns.players) || []).some((p) => p.name === name)
+        || (f.activity || []).some((a) => a.name === name));
+    if (fights.length === 0) return "";
+    return `<h2>Kampfverlauf</h2>${fights.map((f) => renderFightSection(f, null, name)).join("")}`;
 }
 
 // Headline numbers for a report: raiders, gear issues, boss fights, consumable coverage.
@@ -1204,6 +1356,7 @@ function renderReportPage(report, user) {
     const hasRoster = report.roster && report.roster.length;
     const hasSunder = report.sunder && report.sunder.length;
     const hasBoss = report.bossUptimes && report.bossUptimes.rows && report.bossUptimes.rows.length;
+    const hasTimeline = report.timeline && report.timeline.fights && report.timeline.fights.length;
 
     const rpb = report.rpb || null;
     const rpbRoles = rpb && rpb.roles;
@@ -1233,6 +1386,7 @@ function renderReportPage(report, user) {
         { id: "drums", icon: "inv_misc_drum_01", label: "Drums", show: hasDrums, count: hasDrums, html: renderDrumsPanel(report.drums, linkFor) },
         { id: "sunder", icon: "ability_warrior_sunder", label: "Sunder Armor", show: hasSunder, count: hasSunder, html: renderSunderPanel(report.sunder, linkFor) },
         { id: "bosses", icon: "achievement_boss_illidan", label: "Bosse", show: hasBoss, count: hasBoss, html: renderBossUptimesPanel(report.bossUptimes) },
+        { id: "timeline", icon: "inv_misc_pocketwatch_01", label: "Kampfverlauf", show: hasTimeline, count: hasTimeline, html: hasTimeline ? renderTimelinePanel(report.timeline, linkFor) : "" },
         { id: "shadowresi", icon: "spell_shadow_antishadow", label: "Shadow-Resi", show: hasShadow, count: hasShadow, html: renderShadowResiPanel(report.shadowResi, linkFor) },
         // RPB sections. The damage tab counts deaths, the spell tab counts downrank
         // warnings and the log check counts unmet requirements, so every badge shows
@@ -1386,7 +1540,8 @@ function renderPlayerPage(report, idx, user) {
       </div>
       <div class="doll-bottom">${bottom}</div>
       <h2>Gear-Probleme</h2>
-      ${issues}`;
+      ${issues}
+      ${renderPlayerTimeline(report.timeline, p.name)}`;
 
     return shellPage(`${p.name} — ${report.title || ""}`, {
         user,
