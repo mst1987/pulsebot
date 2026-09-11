@@ -9,6 +9,7 @@ const { analyzeBossUptimes } = require("./bossUptimes");
 const { analyzeFightTimeline } = require("./fightTimeline");
 const { analyzeRaidDebuffs } = require("./raidDebuffs");
 const { analyzeCooldownTimeline } = require("./cooldownTimeline");
+const { analyzeTotems } = require("./totems");
 const { analyzeRpb, rpbSummaryLines } = require("./rpb");
 const { selectPlayers } = require("./common");
 const { analyzeRaidProgress, progressSummary } = require("./raidProgress");
@@ -136,6 +137,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
     let timeline = null;
     let raidDebuffs = null;
     let cooldowns = null;
+    let totems = null;
     if (wantCla) {
         try { consumables = await analyzeConsumables(wcl, reportId, fights, playerEntries); } catch (e) { console.error("consumables failed:", e.message); }
         try { drums = await analyzeDrums(wcl, reportId, fights); } catch (e) { console.error("drums failed:", e.message); }
@@ -150,6 +152,8 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         try { raidDebuffs = await analyzeRaidDebuffs(wcl, reportId, fights, playerEntries, timeline); } catch (e) { console.error("raidDebuffs failed:", e.message); }
         // Cooldown presses per player per fight, on the timeline; the summary is its own field.
         try { cooldowns = await analyzeCooldownTimeline(wcl, reportId, fights, idToPlayer, timeline); } catch (e) { console.error("cooldowns failed:", e.message); }
+        // Each shaman's totems per fight (drops, party-buff bands, twisting), written into the timeline.
+        try { totems = await analyzeTotems(wcl, reportId, fights, playerEntries, timeline); } catch (e) { console.error("totems failed:", e.message); }
     }
 
     // RPB (Role Performance Breakdown) — the performance half of the analysis.
@@ -213,6 +217,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         timeline,
         raidDebuffs,
         cooldowns,
+        totems,
         rpb,
         roster,
         icons,
@@ -277,7 +282,7 @@ function mergeRoster(existingRoster, freshRoster, sections) {
 
 // Report fields each half owns. Only these are dropped when a half is discarded;
 // the shared meta (title, players, roster, ...) belongs to the page itself.
-const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns"];
+const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems"];
 const RPB_FIELDS = ["rpb"];
 
 /**
@@ -310,7 +315,6 @@ function stripSection(report, section) {
  *   used by the log-channel buttons so a CLA run does not report RPB numbers that
  *   happen to sit on the same merged page.
  */
-/** "n erwartet, m mit Lücken" — the expected debuffs and how many of them fell short somewhere. */
 /** "genutzt 71 % der möglichen, n verpasst" — the raid's cooldown discipline in one line. */
 function cooldownsLine(cooldowns) {
     const players = cooldowns.players || [];
@@ -320,6 +324,16 @@ function cooldownsLine(cooldowns) {
     return `${Math.round(((possible - missed) / possible) * 100)} % der möglichen genutzt, ${missed} verpasst`;
 }
 
+/** "n Schamanen, m Kämpfe mit Twisting, Windfury Ø p %" — the melee shamans' twisting at a glance. */
+function totemsLine(totems) {
+    const players = totems.players || [];
+    const melee = players.filter((p) => p.wfFights > 0);
+    const twisting = melee.reduce((n, p) => n + p.twistingFights, 0);
+    const wf = melee.length ? Math.round(melee.reduce((n, p) => n + (p.wfUptimeAvg || 0), 0) / melee.length) : null;
+    return `${players.length} Schamane${players.length === 1 ? "" : "n"}${melee.length ? `, ${twisting} Kämpfe mit Twisting, Windfury Ø ${wf} %` : ""}`;
+}
+
+/** "n erwartet, m mit Lücken" — the expected debuffs and how many of them fell short somewhere. */
 function debuffsMissingLine(raidDebuffs) {
     const rows = (raidDebuffs.rows || []).filter((r) => r.expected);
     const short = rows.filter((r) => r.missing > 0 || r.avgUptime < 90);
@@ -348,6 +362,7 @@ function reportSummaryLines(report, only) {
             report.timeline ? `⏱️ Kampfverlauf: ${report.timeline.fights.length} Kämpfe, ${timelineDeaths(report.timeline)} Tode` : "",
             report.raidDebuffs ? `🎯 Raid-Debuffs: ${debuffsMissingLine(report.raidDebuffs)}` : "",
             report.cooldowns ? `⏳ Cooldowns: ${cooldownsLine(report.cooldowns)}` : "",
+            report.totems ? `🪶 Totems: ${totemsLine(report.totems)}` : "",
         );
     }
     if (wanted.includes(SECTION_RPB)) {
