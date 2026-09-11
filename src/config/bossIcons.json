@@ -1,0 +1,237 @@
+{
+  "generatedAt": "2026-09-11T17:57:35.784Z",
+  "zones": [
+    {
+      "id": 1007,
+      "name": "Karazhan",
+      "encounters": [
+        {
+          "id": 652,
+          "name": "Attumen the Huntsman"
+        },
+        {
+          "id": 653,
+          "name": "Moroes"
+        },
+        {
+          "id": 654,
+          "name": "Maiden of Virtue"
+        },
+        {
+          "id": 655,
+          "name": "Opera Hall"
+        },
+        {
+          "id": 656,
+          "name": "The Curator"
+        },
+        {
+          "id": 657,
+          "name": "Terestian Illhoof"
+        },
+        {
+          "id": 658,
+          "name": "Shade of Aran"
+        },
+        {
+          "id": 659,
+          "name": "Netherspite"
+        },
+        {
+          "id": 661,
+          "name": "Prince Malchezaar"
+        },
+        {
+          "id": 662,
+          "name": "Nightbane"
+        }
+      ]
+    },
+    {
+      "id": 1008,
+      "name": "Gruul / Magtheridon",
+      "encounters": [
+        {
+          "id": 649,
+          "name": "High King Maulgar"
+        },
+        {
+          "id": 650,
+          "name": "Gruul the Dragonkiller"
+        },
+        {
+          "id": 651,
+          "name": "Magtheridon"
+        }
+      ]
+    },
+    {
+      "id": 1010,
+      "name": "SSC / TK",
+      "encounters": [
+        {
+          "id": 623,
+          "name": "Hydross the Unstable"
+        },
+        {
+          "id": 624,
+          "name": "The Lurker Below"
+        },
+        {
+          "id": 625,
+          "name": "Leotheras the Blind"
+        },
+        {
+          "id": 626,
+          "name": "Fathom-Lord Karathress"
+        },
+        {
+          "id": 627,
+          "name": "Morogrim Tidewalker"
+        },
+        {
+          "id": 628,
+          "name": "Lady Vashj"
+        },
+        {
+          "id": 730,
+          "name": "Al'ar"
+        },
+        {
+          "id": 731,
+          "name": "Void Reaver"
+        },
+        {
+          "id": 732,
+          "name": "High Astromancer Solarian"
+        },
+        {
+          "id": 733,
+          "name": "Kael'thas Sunstrider"
+        }
+      ]
+    },
+    {
+      "id": 1011,
+      "name": "BT / Hyjal",
+      "encounters": [
+        {
+          "id": 601,
+          "name": "High Warlord Naj'entus"
+        },
+        {
+          "id": 602,
+          "name": "Supremus"
+        },
+        {
+          "id": 603,
+          "name": "Shade of Akama"
+        },
+        {
+          "id": 604,
+          "name": "Teron Gorefiend"
+        },
+        {
+          "id": 605,
+          "name": "Gurtogg Bloodboil"
+        },
+        {
+          "id": 606,
+          "name": "Reliquary of Souls"
+        },
+        {
+          "id": 607,
+          "name": "Mother Shahraz"
+        },
+        {
+          "id": 608,
+          "name": "The Illidari Council"
+        },
+        {
+          "id": 609,
+          "name": "Illidan Stormrage"
+        },
+        {
+          "id": 618,
+          "name": "Rage Winterchill"
+        },
+        {
+          "id": 619,
+          "name": "Anetheron"
+        },
+        {
+          "id": 620,
+          "name": "Kaz'rogal"
+        },
+        {
+          "id": 621,
+          "name": "Azgalor"
+        },
+        {
+          "id": 622,
+          "name": "Archimonde"
+        }
+      ]
+    },
+    {
+      "id": 1012,
+      "name": "Zul'Aman",
+      "encounters": [
+        {
+          "id": 1189,
+          "name": "Akil'zon"
+        },
+        {
+          "id": 1190,
+          "name": "Nalorakk"
+        },
+        {
+          "id": 1191,
+          "name": "Jan'alai"
+        },
+        {
+          "id": 1192,
+          "name": "Halazzi"
+        },
+        {
+          "id": 1193,
+          "name": "Hex Lord Malacrass"
+        },
+        {
+          "id": 1194,
+          "name": "Daakara"
+        }
+      ]
+    },
+    {
+      "id": 1013,
+      "name": "Sunwell Plateau",
+      "encounters": [
+        {
+          "id": 724,
+          "name": "Kalecgos"
+        },
+        {
+          "id": 725,
+          "name": "Brutallus"
+        },
+        {
+          "id": 726,
+          "name": "Felmyst"
+        },
+        {
+          "id": 727,
+          "name": "Eredar Twins"
+        },
+        {
+          "id": 728,
+          "name": "M'uru"
+        },
+        {
+          "id": 729,
+          "name": "Kil'jaeden"
+        }
+      ]
+    }
+  ]
+}
