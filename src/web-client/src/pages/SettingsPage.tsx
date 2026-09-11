@@ -50,6 +50,7 @@ type Draft = {
     blizzardRealmSlug: string;
     blizzardNamespace: string;
     anthropicModel: string;
+    wclClientId: string;
     categoryLootTool: Record<string, string>;
     // Part of the one big form since the per-category settings were merged into
     // one section — it used to save itself through a PATCH of its own.
@@ -80,6 +81,7 @@ function toDraft(config: AdminConfig): Draft {
         blizzardRealmSlug: config.blizzard.realmSlug,
         blizzardNamespace: config.blizzard.namespace,
         anthropicModel: (config.anthropic && config.anthropic.model) || "",
+        wclClientId: (config.warcraftlogsV2 && config.warcraftlogsV2.clientId) || "",
         categoryLootTool: config.categoryLootTool || {},
         categorySheets: config.categorySheets || {},
         topItems: config.topItems || [],
@@ -583,6 +585,7 @@ export default function SettingsPage() {
     const [draft, setDraft] = useState<Draft | null>(null);
     const [secretChange, setSecretChange] = useState<string | undefined>(undefined);
     const [anthropicKeyChange, setAnthropicKeyChange] = useState<string | undefined>(undefined);
+    const [wclSecretChange, setWclSecretChange] = useState<string | undefined>(undefined);
     const [error, setError] = useState<ApiError | null>(null);
     const [saving, setSaving] = useState(false);
     const toast = useToast();
@@ -599,6 +602,7 @@ export default function SettingsPage() {
                 setDraft(toDraft(d.config));
                 setSecretChange(undefined);
                 setAnthropicKeyChange(undefined);
+                setWclSecretChange(undefined);
             })
             .catch((err: ApiError) => setError(err));
     };
@@ -662,6 +666,10 @@ export default function SettingsPage() {
                     model: draft.anthropicModel.trim(),
                     ...(anthropicKeyChange !== undefined ? { apiKey: anthropicKeyChange } : {}),
                 },
+                warcraftlogsV2: {
+                    clientId: draft.wclClientId.trim(),
+                    ...(wclSecretChange !== undefined ? { clientSecret: wclSecretChange } : {}),
+                },
                 categoryLootTool: draft.categoryLootTool,
                 // Sent whole: the store replaces the map, so clearing a url is
                 // what removes that category's sheet.
@@ -674,6 +682,7 @@ export default function SettingsPage() {
             setDraft(toDraft(config));
             setSecretChange(undefined);
             setAnthropicKeyChange(undefined);
+            setWclSecretChange(undefined);
             toast("Gespeichert.");
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -758,6 +767,17 @@ export default function SettingsPage() {
                         <input type="text" value={draft.anthropicModel} onChange={(e) => patch({ anthropicModel: e.target.value })} placeholder="claude-opus-5" autoComplete="off" />
                         <div className="hint">Leer = <code>claude-opus-5</code>. Die Formulierung startet auf der Report-Seite im Tab „Empfehlungen“.</div>
                     </div>
+                </>
+            );
+
+            case "warcraftlogs": return (
+                <>
+                    <p className="hint">Optional: Mit einem Warcraft-Logs-API-Client (v2) zeichnet der Kampfverlauf pro Bosskampf Raid-DPS, Raid-HPS und das Boss-Leben über die Zeit. Alles andere der Log-Auswertung läuft weiter über den v1-Key in der <code>.env</code>. Client anlegen unter <code>warcraftlogs.com/api/clients</code> (ohne Redirect-URL, „Public Client“ aus); die Kurven erscheinen ab der nächsten Auswertung.</p>
+                    <div className="field">
+                        <label>Client-ID</label>
+                        <input type="text" value={draft.wclClientId} onChange={(e) => patch({ wclClientId: e.target.value })} placeholder="Client-ID von warcraftlogs.com/api/clients" autoComplete="off" />
+                    </div>
+                    <SecretField label="Client-Secret" hasStoredSecret={!!data.config.warcraftlogsV2?.hasClientSecret} value={wclSecretChange} onChange={setWclSecretChange} />
                 </>
             );
 

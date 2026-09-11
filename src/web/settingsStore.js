@@ -96,6 +96,10 @@ const CONFIG_DEFAULTS = {
     // Claude phrases the log recommendations for the raiders (Einstellungen →
     // Verbindungen → KI-Formulierung). Empty key = the rules' own text is shown.
     anthropic: { apiKey: "", model: "" },
+    // Warcraft Logs v2 API client (Einstellungen → Verbindungen → Warcraft
+    // Logs): the raid DPS/HPS and boss-health curves of the fight timeline.
+    // Empty = the report has no such curves; the v1 key in .env does the rest.
+    warcraftlogsV2: { clientId: "", clientSecret: "" },
 };
 
 function ensureDir() {
@@ -421,6 +425,7 @@ function getConfig() {
         logChannelIds: Array.isArray(stored.logChannelIds) ? stored.logChannelIds : CONFIG_DEFAULTS.logChannelIds,
         blizzard: { ...CONFIG_DEFAULTS.blizzard, ...(stored.blizzard || {}) },
         anthropic: { ...CONFIG_DEFAULTS.anthropic, ...(stored.anthropic || {}) },
+        warcraftlogsV2: { ...CONFIG_DEFAULTS.warcraftlogsV2, ...(stored.warcraftlogsV2 || {}) },
         categoryLootTool: (stored.categoryLootTool && typeof stored.categoryLootTool === "object")
             ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
         categorySheets: normalizeCategorySheets(stored.categorySheets),
@@ -523,6 +528,7 @@ function saveConfig(partial) {
     if (partial.raidDefaults) next.raidDefaults = { ...current.raidDefaults, ...partial.raidDefaults };
     if (partial.blizzard) next.blizzard = { ...current.blizzard, ...partial.blizzard };
     if (partial.anthropic) next.anthropic = { ...current.anthropic, ...partial.anthropic };
+    if (partial.warcraftlogsV2) next.warcraftlogsV2 = { ...current.warcraftlogsV2, ...partial.warcraftlogsV2 };
     if (partial.categoryLootTool) next.categoryLootTool = { ...current.categoryLootTool, ...partial.categoryLootTool };
     if (partial.categorySheets) {
         next.categorySheets = normalizeCategorySheets({ ...current.categorySheets, ...partial.categorySheets });

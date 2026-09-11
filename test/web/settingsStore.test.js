@@ -174,6 +174,15 @@ describe("web/settingsStore", () => {
             expect(cfg.raidDefaults.channelId).toBe("c2");
         });
 
+        it("keeps the WCL v2 client empty by default and deep-merges it like the other credentials", () => {
+            expect(getConfig().warcraftlogsV2).toEqual({ clientId: "", clientSecret: "" });
+            saveConfig({ warcraftlogsV2: { clientId: "cid", clientSecret: "sec" } });
+            saveConfig({ warcraftlogsV2: { clientSecret: "" } });
+            expect(getConfig().warcraftlogsV2).toEqual({ clientId: "cid", clientSecret: "" });
+            saveConfig({ warcraftlogsV2: { clientId: "cid2" } });
+            expect(getConfig().warcraftlogsV2).toEqual({ clientId: "cid2", clientSecret: "" });
+        });
+
         it("deep-merges blizzard credentials without dropping untouched fields", () => {
             saveConfig({ blizzard: { clientId: "cid", clientSecret: "sec" } });
             saveConfig({ blizzard: { clientSecret: "sec2" } });

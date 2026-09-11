@@ -1254,7 +1254,12 @@ function renderTimelinePanel(timeline, linkFor) {
     const fights = (timeline && timeline.fights) || [];
     if (fights.length === 0) return "<div class=\"empty\">Keine Boss-Kämpfe im Log.</div>";
     const bosses = groupByBoss(fights);
-    return `<p class="note">Ein Boss, ein Try, ein Bereich: Debuffs, Totems, Cooldowns, Aktivität, Heilung und Tode auf einer festen Zeitachse (${PX_PER_SEC} px pro Sekunde, seitlich scrollen). Jede Grafik hat darunter eine Tabellenansicht.</p>
+    // No fight carries a DPS/HPS strip: the v2 client is not set up (or the
+    // report predates it). Said once, here, instead of an empty gap per fight.
+    const noSeries = fights.some((f) => f.series && (f.series.dps || f.series.hps))
+        ? ""
+        : " Raid-DPS/HPS und Boss-Leben brauchen den Warcraft-Logs-v2-Zugang (Einstellungen → Verbindungen → Warcraft Logs); bei einer neuen Auswertung erscheinen sie dann über dem Bereichs-Schalter.";
+    return `<p class="note">Ein Boss, ein Try, ein Bereich: Debuffs, Totems, Cooldowns, Aktivität, Heilung und Tode auf einer festen Zeitachse (${PX_PER_SEC} px pro Sekunde, seitlich scrollen). Jede Grafik hat darunter eine Tabellenansicht.${noSeries}</p>
     ${renderBossTabs(bosses)}${renderBossPanels(bosses, linkFor)}${TIMELINE_SCRIPT}`;
 }
 

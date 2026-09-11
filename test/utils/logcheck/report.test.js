@@ -29,6 +29,17 @@ jest.mock("../../../src/utils/logcheck/bossUptimes.js", () => ({ analyzeBossUpti
 jest.mock("../../../src/utils/logcheck/fightTimeline.js", () => ({
     analyzeFightTimeline: jest.fn(async () => ({ fights: [{ id: 1, deaths: [{ at: 1 }] }, { id: 2, deaths: [] }] })),
 }));
+// The series analyzer writes into the timeline it is handed (the v2 client
+// comes from the settings; both are mocked so no credentials are read).
+jest.mock("../../../src/utils/logcheck/fightSeries.js", () => ({
+    analyzeFightSeries: jest.fn(async (wclV2, reportId, fights, timeline) => {
+        for (const f of (timeline && timeline.fights) || []) f.series = { step: 5000, dps: [1], hps: [1], bossHp: [100] };
+        return { fights: 2, withSeries: 2, withBossHp: 2 };
+    }),
+}));
+const mockV2Config = { clientId: "", clientSecret: "" };
+jest.mock("../../../src/web/settingsStore.js", () => ({ getConfig: jest.fn(() => ({ warcraftlogsV2: mockV2Config })) }));
+jest.mock("../../../src/classes/warcraftlogsV2.js", () => jest.fn().mockImplementation((opts) => ({ opts, isConfigured: () => !!(opts && opts.clientId) })));
 jest.mock("../../../src/utils/logcheck/raidDebuffs.js", () => ({
     analyzeRaidDebuffs: jest.fn(async () => ({ expected: ["sunder", "coe"], rows: [{ key: "sunder", expected: true, missing: 0, avgUptime: 95 }, { key: "coe", expected: true, missing: 1, avgUptime: 60 }] })),
 }));
@@ -205,6 +216,34 @@ describe("logcheck/report — merging the two halves", () => {
         const { report } = await buildReport("RPT1", { sections: ["cla"] });
         expect(analyzeFightTimeline).toHaveBeenCalledTimes(1);
         expect(report.timeline.fights).toHaveLength(2);
+    });
+
+    it("hands the timeline to the series analyzer with a v2 client built from the settings", async () => {
+        const { analyzeFightSeries } = require("../../../src/utils/logcheck/fightSeries.js");
+        const WarcraftLogsV2 = require("../../../src/classes/warcraftlogsV2.js");
+        mockV2Config.clientId = "cid";
+        mockV2Config.clientSecret = "sec";
+        const { report } = await buildReport("RPT1", { sections: ["cla"] });
+        expect(WarcraftLogsV2).toHaveBeenCalledWith({ clientId: "cid", clientSecret: "sec" });
+        expect(analyzeFightSeries).toHaveBeenCalledTimes(1);
+        const [client, reportId, fights, timeline] = analyzeFightSeries.mock.calls[0];
+        expect(client.isConfigured()).toBe(true);
+        expect(reportId).toBe("RPT1");
+        expect(fights.fights).toHaveLength(2);
+        expect(timeline).toBe(report.timeline);
+        // the series lives in the timeline, so it rides along with the CLA half
+        expect(report.timeline.fights.map((f) => f.series)).toEqual([
+            { step: 5000, dps: [1], hps: [1], bossHp: [100] },
+            { step: 5000, dps: [1], hps: [1], bossHp: [100] },
+        ]);
+    });
+
+    it("still builds the report when the series analyzer throws", async () => {
+        const { analyzeFightSeries } = require("../../../src/utils/logcheck/fightSeries.js");
+        analyzeFightSeries.mockRejectedValueOnce(new Error("v2 down"));
+        const { report } = await buildReport("RPT1", { sections: ["cla"] });
+        expect(report.timeline.fights).toHaveLength(2);
+        expect(report.timeline.fights[0].series).toBeUndefined();
     });
 
     it("does not blank the roster's potion counts when the RPB half is added", async () => {
