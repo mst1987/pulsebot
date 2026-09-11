@@ -565,6 +565,13 @@ ${body}
   .fight-deaths .cn { color:var(--cc); font-weight:600; }
   @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .fight-deaths .cn { color:color-mix(in srgb, var(--cc) 70%, #000); } }
   :root[data-theme="light"] .fight-deaths .cn { color:color-mix(in srgb, var(--cc) 70%, #000); }
+  /* Empfehlungen: send box */
+  .rec-send { background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--accent-2); padding:12px 14px; margin:0 0 18px; }
+  .rec-send-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  .rec-send-head b { font-size:15px; }
+  .rec-send-meta { color:var(--muted); font-size:13px; font-family:var(--font-mono); margin-right:auto; }
+  .rec-send-result { margin-top:10px; font-size:13.5px; display:flex; flex-direction:column; gap:4px; }
+  .rec-send-row.ok { color:var(--good); } .rec-send-row.warn { color:var(--medium); } .rec-send-row.muted { color:var(--muted); }
   /* Empfehlungen: verdict cards */
   .rec-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:14px; }
   .rec-card { background:var(--panel); border:1px solid var(--line); border-top:2px solid var(--cc); padding:12px 14px 6px; }
@@ -1209,12 +1216,45 @@ function renderRecommendationsPanel(report, user, linkFor) {
     return `<p class="note">${reviewer
         ? `Jede Empfehlung wird vor dem Versand freigegeben oder verworfen; der Text lässt sich umformulieren. ${open ? `<b>${open} offen.</b>` : "Alles entschieden."}`
         : "Was die Raidleitung aus der Auswertung für den nächsten Raid mitgibt."}</p>
+    ${reviewer ? renderSendBox(report) : ""}
     <h2>Für den Raid</h2>
     ${raidHtml}
     <h2>Pro Raider</h2>
     <div class="rec-grid">${cards || "<div class=\"fc-empty\">Noch keine freigegebenen Empfehlungen.</div>"}</div>
     ${reviewer ? REVIEW_SCRIPT : ""}`;
 }
+
+/**
+ * The send box for reviewers: how many raiders have approved points, who was
+ * already written to, and the button that sends the rest as Discord DMs. The
+ * per-raider mapping state is loaded from /api/cla/recommendations/send on
+ * demand, so the page itself needs no store access.
+ */
+function renderSendBox(report) {
+    const rec = reviewedRecommendations(report);
+    const approved = (rec.players || []).filter((p) => p.items.some((i) => i.approved === true));
+    const sent = report.recommendationSent || {};
+    const sentNames = approved.filter((p) => sent[p.name]);
+    return `<div class="rec-send" data-report="${esc(report.id)}">
+      <div class="rec-send-head">
+        <b>Versand an die Raider</b>
+        <span class="rec-send-meta">${approved.length} Raider mit freigegebenen Punkten · ${sentNames.length} bereits angeschrieben</span>
+        <button type="button" class="btn btn-sm" data-send="all"${approved.length ? "" : " disabled"}>Freigegebenes per DM senden</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-send="status">Zuordnung prüfen</button>
+      </div>
+      <div class="rec-send-result" hidden></div>
+    </div>${SEND_SCRIPT}`;
+}
+
+// The send button posts once and lists who got a DM and who was skipped and why;
+// "Zuordnung prüfen" fetches the per-raider mapping state without sending.
+const SEND_SCRIPT = `<script>(function(){if(window.__ehSend)return;window.__ehSend=1;
+var token=null;function csrf(){return token?Promise.resolve(token):fetch("/api/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(j){token=j.csrfToken||(j.data&&j.data.csrfToken)||"";return token;});}
+function row(cls,t){var d=document.createElement("div");d.className="rec-send-row "+cls;d.textContent=t;return d;}
+document.addEventListener("click",function(e){var b=e.target.closest("[data-send]");if(!b)return;var box=b.closest(".rec-send"),out=box.querySelector(".rec-send-result"),id=box.getAttribute("data-report");out.hidden=false;out.textContent="…";
+var p;if(b.getAttribute("data-send")==="status"){p=fetch("/api/cla/recommendations/send?id="+encodeURIComponent(id),{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(j){out.textContent="";var list=(j.data&&j.data.players)||[];if(!list.length)out.appendChild(row("muted","Nichts freigegeben."));list.forEach(function(x){out.appendChild(row(x.mapped?"ok":"warn",x.name+": "+x.approved+" Punkte · "+(x.mapped?"Konto zugeordnet":x.ambiguous?"mehrere Konten":"kein Konto zugeordnet")+(x.sentAt?" · gesendet "+new Date(x.sentAt).toLocaleString("de-DE")+(x.changed?" (seitdem geändert)":""):"")));});});}
+else{if(!confirm("Jetzt allen Raidern ihre freigegebenen Punkte als Discord-DM senden?")){out.hidden=true;return;}b.disabled=true;p=csrf().then(function(t){return fetch("/api/cla/recommendations/send",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":t},body:JSON.stringify({reportId:id})});}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j&&j.error&&j.error.message)||r.status);return j.data;});}).then(function(d){out.textContent="";out.appendChild(row("ok",d.message));(d.sent||[]).forEach(function(s){out.appendChild(row("ok","✓ "+s.name+" ("+s.items+" Punkte)"));});(d.skipped||[]).forEach(function(s){out.appendChild(row("warn","– "+s.name+": "+s.message));});}).finally(function(){b.disabled=false;});}
+p.catch(function(err){out.textContent="Fehler: "+err.message;});});})();</script>`;
 
 /** The player page's own items: all with verdicts for a reviewer, only the approved ones for the raider. */
 function renderPlayerRecommendations(report, name, user) {

@@ -687,8 +687,35 @@ async function resolveUserNames(guildId, userIds = []) {
     return out;
 }
 
+/**
+ * Send a direct message to one Discord user. A single-user fetch needs no
+ * privileged intent (see resolveUserNames). Fails when the user closed their
+ * DMs or blocked the bot — that is reported, never retried.
+ *
+ * @param {string} userId
+ * @param {object} payload  discord.js message payload ({ content, embeds, components })
+ * @returns {Promise<{ ok: true, messageId: string } | { ok: false, error: string }>}
+ */
+async function sendDirectMessage(userId, payload) {
+    if (!client) throw new Error("Bot nicht verbunden.");
+    try {
+        const user = await client.users.fetch(String(userId));
+        if (!user) return { ok: false, error: "Nutzer nicht gefunden." };
+        const sent = await user.send(payload);
+        return { ok: true, messageId: sent && sent.id ? String(sent.id) : "" };
+    } catch (e) {
+        return { ok: false, error: e && e.message ? e.message : String(e) };
+    }
+}
+
+/** An embed in the bot's colours; the caller fills title, description and fields. */
+function embed() {
+    return new EmbedBuilder().setColor(embedAccentColor);
+}
+
 module.exports = {
     setClient, getClient, listGuilds, getGuild, listTextChannels, listEmojis,
+    sendDirectMessage, embed,
     resolveUserNames,
     listCategories, listAllChannels, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,

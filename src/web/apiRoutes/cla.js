@@ -20,6 +20,8 @@ const { startJob, getJob } = require("../evalJobs");
 const { getConfig } = require("../settingsStore");
 const { buildReport, stripSection, ReportError } = require("../../utils/logcheck/report");
 const { applyReview } = require("../../utils/logcheck/recommendations");
+const { sendApproved, sendStatus } = require("../recommendationSend");
+const { listAllAssignments } = require("../raiderCharactersStore");
 const { loadMatchableEvents, eventLinkFields } = require("../matchableEvents");
 const { linkLogByUrl } = require("../manualLog");
 const discord = require("../discord");
@@ -438,7 +440,47 @@ async function reviewRecommendation(req, res) {
     ok(res, { reportId, scope, player, key, review: entry });
 }
 
+/**
+ * GET /api/cla/recommendations/send?id=<reportId> — per raider: approved
+ * points, whether a Discord account is assigned, when they were last sent.
+ */
+async function recommendationSendStatus(req, res, url) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    const reportId = String((url && url.searchParams.get("id")) || "").trim();
+    const report = reportId ? getReport(reportId) : null;
+    if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
+    ok(res, { reportId, players: sendStatus(report, listAllAssignments()) });
+}
+
+/**
+ * POST /api/cla/recommendations/send — body: { reportId, players?: string[], force?: boolean }.
+ * Sends every raider (or the named ones) their approved points as a Discord DM.
+ * Already-sent, unchanged sets are skipped unless `force`; raiders without an
+ * assigned account are listed, never guessed.
+ */
+async function sendRecommendations(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const reportId = String(body.reportId || "").trim();
+    const report = reportId ? getReport(reportId) : null;
+    if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
+    if (!discord.getClient()) return error(res, 503, "bot_offline", "Bot nicht verbunden – DMs können gerade nicht gesendet werden.");
+    const only = Array.isArray(body.players) ? body.players.map((n) => String(n || "").trim()).filter(Boolean) : null;
+    const result = await sendApproved(report, {
+        discord, assignments: listAllAssignments(), by: user.name || user.id || "", force: body.force === true, only: only && only.length ? only : null,
+    });
+    saveReport(result.report, reportId);
+    const message = result.sent.length
+        ? `${result.sent.length} Raider angeschrieben${result.skipped.length ? `, ${result.skipped.length} übersprungen` : ""}.`
+        : (result.skipped.length ? "Nichts gesendet – siehe Gründe." : "Nichts freigegeben.");
+    ok(res, { reportId, sent: result.sent, skipped: result.skipped, message });
+}
+
 module.exports = {
+    recommendationSendStatus, sendRecommendations,
     getClaData, createReport, reportStatus, evalLog, evalStatus, resetEval, scanLogs, deleteLogHandler,
     linkLog, linkLogUrl, unlinkLog, autoMatchLogs,
     deleteReportHandler, unlinkReport,
