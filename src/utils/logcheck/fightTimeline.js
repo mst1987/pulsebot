@@ -204,6 +204,8 @@ async function analyzeFightTimeline(wcl, reportId, fights, idToPlayer = {}) {
     const rows = bossFights.map((f) => ({
         id: f.id,
         boss: f.name,
+        // WCL's encounter id: groups the tries of one boss and names its icon
+        encounterId: f.boss,
         contentId: contentForBoss(f.name) || "",
         kill: !!f.kill,
         startTime: f.start_time,

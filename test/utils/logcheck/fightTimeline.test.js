@@ -136,7 +136,7 @@ describe("analyzeFightTimeline", () => {
         expect(result.fights).toHaveLength(2);
         const [maulgar, gruul] = result.fights;
         expect(maulgar).toMatchObject({
-            id: 2, boss: "High King Maulgar", contentId: "gruul", kill: false,
+            id: 2, boss: "High King Maulgar", encounterId: 649, contentId: "gruul", kill: false,
             startTime: 100000, endTime: 220000, duration: 120000, fightPercentage: 32.5,
             debuffs: null, totems: null, cooldowns: null, activity: null, buffs: null,
         });
