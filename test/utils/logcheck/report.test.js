@@ -41,6 +41,9 @@ jest.mock("../../../src/utils/logcheck/totems.js", () => ({
 jest.mock("../../../src/utils/logcheck/mechanics.js", () => ({
     analyzeMechanics: jest.fn(async () => ({ players: [], mechanics: [{ key: "damage:Whirlwind", hits: 4 }], deaths: { total: 3, avoidable: 1, early: 1, nearEnd: 0, repeat: 0 } })),
 }));
+jest.mock("../../../src/utils/logcheck/activityTimeline.js", () => ({
+    analyzeActivityTimeline: jest.fn(async () => ({ players: [{ name: "Aldra", activeAvg: 90, gaps: 2, unexplainedMs: 8000 }] })),
+}));
 jest.mock("../../../src/utils/logcheck/rpb/index.js", () => ({
     analyzeRpb: jest.fn(async () => ({ roles: {}, byRole: {} })),
     rpbSummaryLines: jest.fn(() => ["🎭 Rollen: Tank 2"]),
@@ -285,6 +288,7 @@ describe("logcheck/report — stripSection", () => {
         cooldowns: { players: [1] },
         totems: { players: [1] },
         mechanics: { players: [1] },
+        activity: { players: [1] },
         shadowResi: { players: [1] },
         rpb: { roles: {} },
     };
@@ -302,7 +306,7 @@ describe("logcheck/report — stripSection", () => {
         const { report, remaining } = stripSection(full, "cla");
         expect(remaining).toEqual(["rpb"]);
         expect(report.rpb).toEqual({ roles: {} });
-        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems", "mechanics", "shadowResi"]) {
+        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems", "mechanics", "activity", "shadowResi"]) {
             expect(report[key]).toBeNull();
         }
     });
@@ -413,6 +417,13 @@ describe("logcheck/report — reportSummaryLines", () => {
         const withMech = { ...report, mechanics: { players: [], mechanics: [{ hits: 4 }, { hits: 2 }], deaths: { total: 3, avoidable: 1, early: 1, nearEnd: 0, repeat: 0 } } };
         expect(reportSummaryLines(withMech, "cla").find((l) => l.includes("Tode:"))).toBe("💀 Tode: 3 Tode, 1 vermeidbar, 1 früh · 6 Treffer durch Mechaniken");
         expect(reportSummaryLines(withMech, "rpb").join("\n")).not.toContain("Tode:");
+    });
+
+    it("averages the activity and counts the holes into one line", () => {
+        const withAct = { ...report, activity: { players: [{ activeAvg: 90, gaps: 2, unexplainedMs: 8000 }, { activeAvg: 80, gaps: 1, unexplainedMs: 4400 }] } };
+        expect(reportSummaryLines(withAct, "cla").find((l) => l.includes("Aktivität:"))).toBe("🕒 Aktivität: Ø 85 % aktiv, 3 Lücken, 12 s unerklärt");
+        expect(reportSummaryLines({ ...report, activity: { players: [] } }, "cla").find((l) => l.includes("Aktivität:"))).toBe("🕒 Aktivität: keine Daten");
+        expect(reportSummaryLines(withAct, "rpb").join("\n")).not.toContain("Aktivität:");
     });
 });
 

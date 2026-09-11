@@ -11,6 +11,7 @@ const { analyzeRaidDebuffs } = require("./raidDebuffs");
 const { analyzeCooldownTimeline } = require("./cooldownTimeline");
 const { analyzeTotems } = require("./totems");
 const { analyzeMechanics } = require("./mechanics");
+const { analyzeActivityTimeline } = require("./activityTimeline");
 const { analyzeRpb, rpbSummaryLines } = require("./rpb");
 const { selectPlayers } = require("./common");
 const { analyzeRaidProgress, progressSummary } = require("./raidProgress");
@@ -140,6 +141,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
     let cooldowns = null;
     let totems = null;
     let mechanics = null;
+    let activity = null;
     if (wantCla) {
         try { consumables = await analyzeConsumables(wcl, reportId, fights, playerEntries); } catch (e) { console.error("consumables failed:", e.message); }
         try { drums = await analyzeDrums(wcl, reportId, fights); } catch (e) { console.error("drums failed:", e.message); }
@@ -158,6 +160,8 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         try { totems = await analyzeTotems(wcl, reportId, fights, playerEntries, timeline); } catch (e) { console.error("totems failed:", e.message); }
         // Avoidable hits and judged deaths per fight, on the timeline; the summary is its own field.
         try { mechanics = await analyzeMechanics(wcl, reportId, fights, idToPlayer, timeline); } catch (e) { console.error("mechanics failed:", e.message); }
+        // Activity bands and holes per player per fight (after mechanics, which label the holes).
+        try { activity = await analyzeActivityTimeline(wcl, reportId, fights, idToPlayer, timeline); } catch (e) { console.error("activity failed:", e.message); }
     }
 
     // RPB (Role Performance Breakdown) — the performance half of the analysis.
@@ -223,6 +227,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         cooldowns,
         totems,
         mechanics,
+        activity,
         rpb,
         roster,
         icons,
@@ -287,7 +292,7 @@ function mergeRoster(existingRoster, freshRoster, sections) {
 
 // Report fields each half owns. Only these are dropped when a half is discarded;
 // the shared meta (title, players, roster, ...) belongs to the page itself.
-const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems", "mechanics"];
+const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems", "mechanics", "activity"];
 const RPB_FIELDS = ["rpb"];
 
 /**
@@ -338,6 +343,16 @@ function totemsLine(totems) {
     return `${players.length} Schamane${players.length === 1 ? "" : "n"}${melee.length ? `, ${twisting} Kämpfe mit Twisting, Windfury Ø ${wf} %` : ""}`;
 }
 
+/** "Ø 87 % aktiv, n Lücken, davon m unerklärt" — how much of the fights the raid was doing something. */
+function activityLine(activity) {
+    const players = activity.players || [];
+    if (!players.length) return "keine Daten";
+    const avg = Math.round(players.reduce((n, p) => n + (p.activeAvg || 0), 0) / players.length);
+    const gaps = players.reduce((n, p) => n + (p.gaps || 0), 0);
+    const unexplained = players.reduce((n, p) => n + (p.unexplainedMs || 0), 0);
+    return `Ø ${avg} % aktiv, ${gaps} Lücken, ${Math.round(unexplained / 1000)} s unerklärt`;
+}
+
 /** "n Tode, m vermeidbar, k früh · x Treffer durch Mechaniken" — the raid's discipline in one line. */
 function deathsLine(mechanics) {
     const d = mechanics.deaths || { total: 0, avoidable: 0, early: 0 };
@@ -376,6 +391,7 @@ function reportSummaryLines(report, only) {
             report.cooldowns ? `⏳ Cooldowns: ${cooldownsLine(report.cooldowns)}` : "",
             report.totems ? `🪶 Totems: ${totemsLine(report.totems)}` : "",
             report.mechanics ? `💀 Tode: ${deathsLine(report.mechanics)}` : "",
+            report.activity ? `🕒 Aktivität: ${activityLine(report.activity)}` : "",
         );
     }
     if (wanted.includes(SECTION_RPB)) {
