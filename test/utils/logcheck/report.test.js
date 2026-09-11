@@ -32,6 +32,9 @@ jest.mock("../../../src/utils/logcheck/fightTimeline.js", () => ({
 jest.mock("../../../src/utils/logcheck/raidDebuffs.js", () => ({
     analyzeRaidDebuffs: jest.fn(async () => ({ expected: ["sunder", "coe"], rows: [{ key: "sunder", expected: true, missing: 0, avgUptime: 95 }, { key: "coe", expected: true, missing: 1, avgUptime: 60 }] })),
 }));
+jest.mock("../../../src/utils/logcheck/totems.js", () => ({
+    analyzeTotems: jest.fn(async () => ({ players: [{ name: "Dorn", wfFights: 2, wfUptimeAvg: 88, twistingFights: 1 }] })),
+}));
 jest.mock("../../../src/utils/logcheck/rpb/index.js", () => ({
     analyzeRpb: jest.fn(async () => ({ roles: {}, byRole: {} })),
     rpbSummaryLines: jest.fn(() => ["🎭 Rollen: Tank 2"]),
@@ -273,6 +276,7 @@ describe("logcheck/report — stripSection", () => {
         bossUptimes: { rows: [1] },
         timeline: { fights: [1] },
         raidDebuffs: { rows: [1] },
+        totems: { players: [1] },
         shadowResi: { players: [1] },
         rpb: { roles: {} },
     };
@@ -290,7 +294,7 @@ describe("logcheck/report — stripSection", () => {
         const { report, remaining } = stripSection(full, "cla");
         expect(remaining).toEqual(["rpb"]);
         expect(report.rpb).toEqual({ roles: {} });
-        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "shadowResi"]) {
+        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "totems", "shadowResi"]) {
             expect(report[key]).toBeNull();
         }
     });
@@ -374,6 +378,19 @@ describe("logcheck/report — reportSummaryLines", () => {
         const line = reportSummaryLines(withDebuffs, "cla").find((l) => l.includes("Raid-Debuffs"));
         expect(line).toContain("3 erwartet, 2 mit Lücken");
         expect(reportSummaryLines(withDebuffs, "rpb").join("\n")).not.toContain("Raid-Debuffs");
+    });
+
+    it("sums the shamans' twisting into one line, naming Windfury only when a melee shaman raided", () => {
+        const melee = { ...report, totems: { players: [
+            { name: "Dorn", wfFights: 3, wfUptimeAvg: 90, twistingFights: 2 },
+            { name: "Kel", wfFights: 3, wfUptimeAvg: 80, twistingFights: 0 },
+            { name: "Heal", wfFights: 0, wfUptimeAvg: null, twistingFights: 0 },
+        ] } };
+        const line = reportSummaryLines(melee, "cla").find((l) => l.includes("Totems"));
+        expect(line).toContain("3 Schamanen, 2 Kämpfe mit Twisting, Windfury Ø 85 %");
+        const healer = { ...report, totems: { players: [{ name: "Heal", wfFights: 0, twistingFights: 0 }] } };
+        expect(reportSummaryLines(healer, "cla").find((l) => l.includes("Totems"))).toBe("🪶 Totems: 1 Schamane");
+        expect(reportSummaryLines(melee, "rpb").join("\n")).not.toContain("Totems");
     });
 });
 
