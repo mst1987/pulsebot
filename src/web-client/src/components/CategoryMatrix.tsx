@@ -69,7 +69,7 @@ export default function CategoryMatrix({
                 const assigned = new Set(categoryRoles[cat.id] || []);
                 const sheet = categorySheets[cat.id] || { url: "", name: "" };
                 return (
-                    <section className="catcard" key={cat.id}>
+                    <section className={`catcard${active ? " is-on" : ""}`} key={cat.id}>
                         <div className={`catcard-head${active ? "" : " is-off"}`}>
                             <label className="switch-row">
                                 <span className="switch">
@@ -99,7 +99,7 @@ export default function CategoryMatrix({
                                             ? raidRoles.map((r) => (
                                                 <label className="rolebox" key={r.id}>
                                                     <input type="checkbox" checked={assigned.has(r.id)} onChange={() => onToggleRole(cat.id, r.id)} />
-                                                    @{r.name}
+                                                    <span>@{r.name}</span>
                                                 </label>
                                             ))
                                             : <span className="hint">Keine Rolle gefunden, deren Name „Raid" enthält.</span>}
@@ -123,20 +123,22 @@ export default function CategoryMatrix({
 
                                     <div className="field">
                                         <label htmlFor={`catsheet-url-${cat.id}`}>Festes Raidsheet</label>
-                                        <input
-                                            id={`catsheet-url-${cat.id}`}
-                                            type="url"
-                                            value={sheet.url}
-                                            onChange={(e) => onSheet(cat.id, { ...sheet, url: e.target.value })}
-                                            placeholder="https://docs.google.com/spreadsheets/… (leer = keins)"
-                                        />
-                                        <input
-                                            type="text"
-                                            style={{ marginTop: 6 }}
-                                            value={sheet.name}
-                                            onChange={(e) => onSheet(cat.id, { ...sheet, name: e.target.value })}
-                                            placeholder="Anzeigename (optional), z. B. „SSC/TK Setup“"
-                                        />
+                                        <div className="catcard-stack">
+                                            <input
+                                                id={`catsheet-url-${cat.id}`}
+                                                type="url"
+                                                value={sheet.url}
+                                                onChange={(e) => onSheet(cat.id, { ...sheet, url: e.target.value })}
+                                                placeholder="https://docs.google.com/spreadsheets/… (leer = keins)"
+                                            />
+                                            <input
+                                                type="text"
+                                                aria-label="Anzeigename des Sheets"
+                                                value={sheet.name}
+                                                onChange={(e) => onSheet(cat.id, { ...sheet, name: e.target.value })}
+                                                placeholder="Anzeigename (optional), z. B. „SSC/TK Setup“"
+                                            />
+                                        </div>
                                         <div className="hint">Jeder Raid dieser Kategorie verlinkt dieses Sheet — außer es wurde für den Raid selbst eins erstellt.</div>
                                     </div>
                                 </div>
