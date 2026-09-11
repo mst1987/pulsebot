@@ -4,7 +4,7 @@ export default [
     ignores: ["src/web-client/**"],
   },
   {
-    files: ["src/**/*.js"],
+    files: ["src/**/*.js", ".claude/hooks/**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",

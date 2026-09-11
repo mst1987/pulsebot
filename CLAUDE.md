@@ -28,6 +28,11 @@ node src/discordcommands/raidhelper.js  # Legacy command registration script
 
 **⚠️ Worktree-only, no exceptions — every agent must follow this.** All code changes (by any agent, on any task, however small) happen inside a feature worktree, never as edits to the primary checkout's working tree. The primary checkout at `d:/programming/eventhelper` stays on `main` with a clean working tree at all times — no uncommitted edits, no ad-hoc commits there. If you find yourself about to `Edit`/`Write` a file while the cwd is the primary checkout, stop and create/switch to a worktree first (see step 2). This holds even for "just a quick fix."
 
+**Two hooks in `.claude/settings.json` enforce this and the lint rule mechanically** (checked in, so every agent in every worktree gets them):
+- `.claude/hooks/guardMainCheckout.js` (PreToolUse on Edit/Write/MultiEdit/NotebookEdit) refuses any edit whose target lies in the *main* worktree of this repository, in whichever directory the session runs. Linked worktrees, other repositories, files outside git and git-ignored files (`.env.dev`, `data/`) pass. A deliberate one-off override is `EVENTHELPER_ALLOW_MAIN_EDITS=1`.
+- `.claude/hooks/lintChanged.js` (PostToolUse on Edit/Write/MultiEdit) runs ESLint on the file just written (`src/`, `test/`, the hooks, and `src/web-client/` with its own config) and feeds the problems straight back, so style errors are fixed at the edit, not at the PR. No ESLint installed yet (fresh worktree) means it stays silent.
+Both are plain Node scripts with tests under `test/claude-hooks/`; `npm run lint` covers them.
+
 0. **Sync `main` first — always, before touching anything.** Every unit of work starts by fetching and fast-forwarding `main` so the branch is cut from the current production state: `git fetch origin && git checkout main && git pull --ff-only origin main`. Never start editing on a stale `main` or a branch whose base has moved on.
 1. **Branch off `main`** for every new feature or fix: `git switch main && git pull && git switch -c feature/<name>`.
 2. **Use a git worktree** so the feature is developed in its own directory without disturbing the main checkout:

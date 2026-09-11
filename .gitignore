@@ -9,3 +9,6 @@ service-account.json
 
 # The wowsims binary is fetched, not committed (scripts/fetch-wowsimcli.js).
 bin/
+
+# Per-user Claude Code overrides (permissions etc.) stay local.
+.claude/settings.local.json
