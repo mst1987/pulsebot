@@ -1672,6 +1672,9 @@ export type CouncilLootItem = {
     itemName: string;
     itemIconUrl: string;
     itemQuality: number | null;
+    /** Equip slot (WCL numbering, the first of a doubled one); -1 when unknown. */
+    slot: number;
+    slotName: string;
     contentId: string;
     tier: string;
     boss: string;

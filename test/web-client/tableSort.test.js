@@ -44,7 +44,9 @@ function clientSources() {
 //     Schultern, …). That order is the point: it is how a raider reads their own
 //     gear, and it is what lets the eye find a gap. Alphabetical would read
 //     "Beine, Brust, Füße" and mean nothing.
-const ALLOWED_PLAIN_HEADERS = new Set(["Links", "WCL", "Token", "Bereich", "Lesen", "Schreiben", "Slot"]);
+//   * "Item" — the corner of the Loot-Vergleich matrix, same reason: its rows
+//     are grouped by raid and run in character-sheet order inside each.
+const ALLOWED_PLAIN_HEADERS = new Set(["Links", "WCL", "Token", "Bereich", "Lesen", "Schreiben", "Slot", "Item"]);
 
 describe("table sorting", () => {
     it("sorts every column that isn't a button or link column", () => {

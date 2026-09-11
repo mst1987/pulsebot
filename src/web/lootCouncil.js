@@ -45,6 +45,21 @@ const DAY = 24 * 60 * 60 * 1000;
 // — the character page has the full history.
 const RECENT_ITEMS = 8;
 
+/** The equip slot an item goes in first (a ring's first finger), -1 if unknown. */
+function firstSlotFor(itemId) {
+    const slots = wowsims.slotsFor(itemId);
+    return slots.length ? Number(slots[0]) : -1;
+}
+
+/** The slot's German name, "" when the item table does not know the item. */
+function slotNameFor(itemId) {
+    const slot = firstSlotFor(itemId);
+    if (slot < 0) return "";
+    // A doubled slot is named without its number: which finger a ring lands on
+    // is the raider's business, not the matrix's.
+    return (SLOT_NAMES[slot] || `Slot ${slot}`).replace(/ [12]$/, "");
+}
+
 /** The contents belonging to a set of tier ids. */
 function contentsForTiers(tierIds) {
     const wanted = new Set(tierIds || []);
@@ -542,6 +557,11 @@ function councilRoster(opts = {}) {
                 itemName: it.itemName || (wowsims.item(it.itemId) || {}).name || `Item ${it.itemId}`,
                 itemIconUrl: it.itemIconUrl,
                 itemQuality: typeof it.itemQuality === "number" ? it.itemQuality : null,
+                // Where the piece goes, so the comparison matrix can order its
+                // rows like a character sheet. The first slot of a doubled one
+                // (ring, trinket); -1 when the item table does not know it.
+                slot: firstSlotFor(it.itemId),
+                slotName: slotNameFor(it.itemId),
                 contentId: it.contentId,
                 tier: (contentMeta(it.contentId) || {}).tier || "",
                 boss: it.boss || "",
@@ -861,4 +881,5 @@ function filterOptions() {
 module.exports = {
     councilRoster, candidatesForItem, candidateSplit, bisGaps, filterOptions, currentTier, wornItemView, bisSpecsView,
     categoryMembers, upgradeValue, needScore, scoreItem, gearSpellHit, resolveContentFilter, itemView,
+    firstSlotFor, slotNameFor,
 };

@@ -31,7 +31,7 @@ jest.mock("../../src/web/reportStore", () => ({
 
 const {
     councilRoster, candidatesForItem, bisGaps, needScore, upgradeValue, currentTier, wornItemView,
-    gearSpellHit, resolveContentFilter,
+    gearSpellHit, resolveContentFilter, firstSlotFor, slotNameFor,
 } = require("../../src/web/lootCouncil");
 const { specByKey, hitCapFor } = require("../../src/config/casterSpecs");
 const wowsims = require("../../src/config/wowsims");
@@ -679,6 +679,32 @@ describe("web/lootCouncil — the loot history on a candidate", () => {
         const [candidate] = candidatesForItem(31064, councilRoster().rows);
         expect(candidate.recentItems).toEqual([]);
         expect(candidate.lootCount).toBe(0);
+    });
+});
+
+describe("web/lootCouncil — the slot on an awarded item (for the comparison matrix)", () => {
+    it("names the slot so the matrix can order its rows like a character sheet", () => {
+        // 31064 is a helm, 29305 a ring, 28770 a one-handed weapon.
+        expect(firstSlotFor(31064)).toBe(0);
+        expect(slotNameFor(31064)).toBe("Kopf");
+        // A doubled slot is named without its number — which finger a ring
+        // ends up on is nobody's business here.
+        expect(firstSlotFor(29305)).toBe(10);
+        expect(slotNameFor(29305)).toBe("Ring");
+        expect(slotNameFor(28770)).toBe("Waffe");
+    });
+
+    it("does not guess a slot for an item the table does not know", () => {
+        expect(firstSlotFor(1)).toBe(-1);
+        expect(slotNameFor(1)).toBe("");
+    });
+
+    it("carries slot and slot name on every item of a roster row", () => {
+        mockListAll.mockReturnValue([lootRow(), lootRow({ itemId: 29305, itemName: "Band of the Eternal Sage" })]);
+        mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+        mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([])]]));
+        const [row] = councilRoster().rows;
+        expect(row.items.map((i) => [i.slot, i.slotName])).toEqual([[0, "Kopf"], [10, "Ring"]]);
     });
 });
 
