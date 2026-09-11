@@ -1,0 +1,47 @@
+// Thresholds behind the player and raid recommendations, in one place so a
+// number is never buried in a rule. Percentages are 0–100, times in
+// milliseconds unless the name says seconds.
+//
+// Impact is the rough cost of a finding: "high" is measurable damage or a
+// wipe risk, "medium" a habit worth changing, "low" a nice-to-have.
+module.exports = {
+    consumables: {
+        buffedPct: 100,          // flask or both elixirs on fewer boss fights than this is a finding
+        foodPct: 100,
+        buffedLowPct: 50,        // below this it is a high-impact finding
+    },
+    debuffs: {
+        uptimePct: 90,           // an expected raid debuff below this average is a gap
+    },
+    totems: {
+        wfUptimePct: 90,
+        downtimeMs: 10000,       // total Windfury downtime over the raid worth mentioning
+        slotDowntimeMs: 30000,   // an element slot empty for longer than this over the raid
+    },
+    cooldowns: {
+        usedPct: 75,             // used fewer than this share of the possible presses
+        missed: 2,
+        firstAtMs: 15000,        // first class cooldown later than this into the pull
+        unstackedShare: 0.5,     // more than half of the class cooldowns outside a Bloodlust window
+    },
+    activity: {
+        activePct: 85,
+        unexplainedMs: 20000,    // unexplained holes over the raid
+        longestGapMs: 15000,
+    },
+    mechanics: {
+        hits: 3,
+        hitsHigh: 6,
+    },
+    rpb: {
+        lowerRankPct: 50,        // a spell mostly cast below its max rank
+    },
+    shadowResi: {
+        minSr: 365,              // gear shadow resistance for Mother Shahraz
+    },
+    raid: {
+        lustSpreadMs: 10000,     // groups lusted more than this apart
+        sunderMaxMs: 20000,      // Sunder took longer than this to reach five stacks
+        earlyDeaths: 2,
+    },
+};

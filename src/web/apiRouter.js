@@ -45,6 +45,7 @@ const {
     getClaData, createReport, reportStatus, evalLog, evalStatus, resetEval, scanLogs, deleteLogHandler,
     linkLog, linkLogUrl, unlinkLog, autoMatchLogs,
     deleteReportHandler, unlinkReport,
+    getRecommendations, reviewRecommendation,
 } = require("./apiRoutes/cla");
 
 /**
@@ -409,6 +410,14 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/cla/log-automatch" && req.method === "POST") {
         await autoMatchLogs(req, res);
+        return true;
+    }
+    if (pathname === "/api/cla/recommendations" && req.method === "GET") {
+        await getRecommendations(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/cla/recommendations" && req.method === "POST") {
+        await reviewRecommendation(req, res);
         return true;
     }
     error(res, 404, "not_found", "Unbekannter API-Endpunkt.");

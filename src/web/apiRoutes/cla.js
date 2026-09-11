@@ -19,6 +19,7 @@ const { evaluateLog, scanLogChannels, backfillLogTitles } = require("../logChann
 const { startJob, getJob } = require("../evalJobs");
 const { getConfig } = require("../settingsStore");
 const { buildReport, stripSection, ReportError } = require("../../utils/logcheck/report");
+const { applyReview } = require("../../utils/logcheck/recommendations");
 const { loadMatchableEvents, eventLinkFields } = require("../matchableEvents");
 const { linkLogByUrl } = require("../manualLog");
 const discord = require("../discord");
@@ -380,8 +381,66 @@ async function autoMatchLogs(req, res) {
     ok(res, { matched: matches.length, remaining: rest, message });
 }
 
+/**
+ * GET /api/cla/recommendations?id=<reportId> — the report's recommendations with
+ * the raid lead's review laid over them (approved / rejected / undecided, own text).
+ */
+async function getRecommendations(req, res, url) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    const reportId = String((url && url.searchParams.get("id")) || "").trim();
+    const report = reportId ? getReport(reportId) : null;
+    if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
+    ok(res, {
+        reportId,
+        title: report.title || "",
+        recommendations: applyReview(report.recommendations, report.recommendationReview),
+    });
+}
+
+/**
+ * POST /api/cla/recommendations — body: { reportId, scope: "raid"|"player",
+ * player?, key, approved?: true|false|null, text?: string }. Records the raid
+ * lead's verdict on one finding. Nothing is sent to anyone from here; approval
+ * is what the later send step reads.
+ */
+async function reviewRecommendation(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const reportId = String(body.reportId || "").trim();
+    const report = reportId ? getReport(reportId) : null;
+    if (!report) return error(res, 404, "not_found", "Auswertung nicht gefunden.");
+    const scope = body.scope === "raid" ? "raid" : "player";
+    const key = String(body.key || "").trim();
+    const player = String(body.player || "").trim();
+    if (!key || (scope === "player" && !player)) return error(res, 400, "bad_request", "Empfehlung nicht angegeben.");
+    const rec = report.recommendations || { raid: [], players: [] };
+    const known = scope === "raid"
+        ? (rec.raid || []).some((i) => i.key === key)
+        : (((rec.players || []).find((p) => p.name === player) || { items: [] }).items || []).some((i) => i.key === key);
+    if (!known) return error(res, 404, "not_found", "Diese Empfehlung gibt es in der Auswertung nicht.");
+
+    const review = report.recommendationReview || { raid: {}, players: {} };
+    review.raid = review.raid || {};
+    review.players = review.players || {};
+    const bucket = scope === "raid" ? review.raid : (review.players[player] = review.players[player] || {});
+    const entry = { ...(bucket[key] || {}) };
+    if (body.approved === true || body.approved === false) entry.approved = body.approved;
+    else if (body.approved === null) delete entry.approved;
+    if (typeof body.text === "string") entry.text = body.text.trim().slice(0, 1000);
+    entry.by = user.name || user.id || "";
+    entry.at = Date.now();
+    bucket[key] = entry;
+    report.recommendationReview = review;
+    saveReport(report, reportId);
+    ok(res, { reportId, scope, player, key, review: entry });
+}
+
 module.exports = {
     getClaData, createReport, reportStatus, evalLog, evalStatus, resetEval, scanLogs, deleteLogHandler,
     linkLog, linkLogUrl, unlinkLog, autoMatchLogs,
     deleteReportHandler, unlinkReport,
+    getRecommendations, reviewRecommendation,
 };

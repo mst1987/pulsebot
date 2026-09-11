@@ -44,6 +44,9 @@ jest.mock("../../../src/utils/logcheck/mechanics.js", () => ({
 jest.mock("../../../src/utils/logcheck/activityTimeline.js", () => ({
     analyzeActivityTimeline: jest.fn(async () => ({ players: [{ name: "Aldra", activeAvg: 90, gaps: 2, unexplainedMs: 8000 }] })),
 }));
+jest.mock("../../../src/utils/logcheck/recommendations.js", () => ({
+    buildRecommendations: jest.fn((report) => ({ generatedAt: 1, raid: [], players: (report.roster || []).map((p) => ({ name: p.name, type: p.type, items: [] })) })),
+}));
 jest.mock("../../../src/utils/logcheck/rpb/index.js", () => ({
     analyzeRpb: jest.fn(async () => ({ roles: {}, byRole: {} })),
     rpbSummaryLines: jest.fn(() => ["🎭 Rollen: Tank 2"]),

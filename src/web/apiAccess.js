@@ -105,6 +105,7 @@ const AREA_BY_PATH = {
     "/api/cla/log-link-url": "cla",
     "/api/cla/log-unlink": "cla",
     "/api/cla/log-automatch": "cla",
+    "/api/cla/recommendations": "cla",
 };
 
 // Answers for anyone, logged in or not — the client bootstraps from it.

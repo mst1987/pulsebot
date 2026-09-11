@@ -12,6 +12,7 @@ const { analyzeCooldownTimeline } = require("./cooldownTimeline");
 const { analyzeTotems } = require("./totems");
 const { analyzeMechanics } = require("./mechanics");
 const { analyzeActivityTimeline } = require("./activityTimeline");
+const { buildRecommendations } = require("./recommendations");
 const { analyzeRpb, rpbSummaryLines } = require("./rpb");
 const { selectPlayers } = require("./common");
 const { analyzeRaidProgress, progressSummary } = require("./raidProgress");
@@ -239,6 +240,12 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
     const existing = mergeIntoId ? getReport(mergeIntoId) : null;
     if (existing) report = mergeReports(existing, report, sections);
 
+    // The recommendations read the whole page, so they are rebuilt after every
+    // half; what the raid lead already approved or rewrote is kept beside them
+    // (recommendationReview, keyed by player and finding) and survives the rebuild.
+    report.recommendations = buildRecommendations(report);
+    if (existing && existing.recommendationReview) report.recommendationReview = existing.recommendationReview;
+
     const id = saveReport(report, existing ? mergeIntoId : undefined);
     const url = `${publicBaseUrl}/r/${id}`;
     return { id, url, report };
@@ -343,6 +350,12 @@ function totemsLine(totems) {
     return `${players.length} Schamane${players.length === 1 ? "" : "n"}${melee.length ? `, ${twisting} Kämpfe mit Twisting, Windfury Ø ${wf} %` : ""}`;
 }
 
+/** The three biggest raid-level findings, one line each — the Discord summary's "what to fix". */
+function raidRecommendationLines(recommendations) {
+    const raid = (recommendations && recommendations.raid) || [];
+    return raid.slice(0, 3).map((i) => `💡 ${i.title}`);
+}
+
 /** "Ø 87 % aktiv, n Lücken, davon m unerklärt" — how much of the fights the raid was doing something. */
 function activityLine(activity) {
     const players = activity.players || [];
@@ -392,6 +405,7 @@ function reportSummaryLines(report, only) {
             report.totems ? `🪶 Totems: ${totemsLine(report.totems)}` : "",
             report.mechanics ? `💀 Tode: ${deathsLine(report.mechanics)}` : "",
             report.activity ? `🕒 Aktivität: ${activityLine(report.activity)}` : "",
+            ...raidRecommendationLines(report.recommendations),
         );
     }
     if (wanted.includes(SECTION_RPB)) {
