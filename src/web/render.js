@@ -10,6 +10,7 @@ const { renderAdminChrome, CHROME_STYLE, ICONS } = require("./adminChrome");
 const rpbData = require("../config/rpbData");
 const { ribbonChart, markerChart, lineChart, fmtTime, CHART_STYLE, PX_PER_SEC } = require("./charts");
 const { bossIconUrl } = require("../config/bosses");
+const { applyReview } = require("../utils/logcheck/recommendations");
 
 const CLASS_COLORS = {
     Druid: "#FF7D0A", Hunter: "#ABD473", Mage: "#69CCF0", Paladin: "#F58CBA",
@@ -564,6 +565,33 @@ ${body}
   .fight-deaths .cn { color:var(--cc); font-weight:600; }
   @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .fight-deaths .cn { color:color-mix(in srgb, var(--cc) 70%, #000); } }
   :root[data-theme="light"] .fight-deaths .cn { color:color-mix(in srgb, var(--cc) 70%, #000); }
+  /* Empfehlungen: verdict cards */
+  .rec-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:14px; }
+  .rec-card { background:var(--panel); border:1px solid var(--line); border-top:2px solid var(--cc); padding:12px 14px 6px; }
+  .rec-card-head { display:flex; align-items:center; gap:10px; margin:0 0 8px; }
+  .rec-card-head img { width:28px; height:28px; border-radius:6px; border:1px solid var(--line); }
+  .rec-card-head h3 { margin:0; font-size:16px; }
+  .rec-card-head .cn, .rec-card-head .cn a { color:var(--cc); text-decoration:none; }
+  .rec-count { margin-left:auto; font-size:12px; font-family:var(--font-mono); padding:2px 8px; border-radius:10px; background:var(--panel2); color:var(--muted); }
+  .rec-clean { color:var(--good); font-size:14px; padding:6px 0 10px; }
+  .rec-list { list-style:none; margin:0; padding:0; }
+  .rec { border-left:3px solid var(--line); padding:8px 12px; margin:0 0 10px; background:var(--panel2); }
+  .rec-high { border-left-color:var(--high); } .rec-medium { border-left-color:var(--medium); } .rec-low { border-left-color:var(--muted); }
+  .rec-state-rejected { opacity:.55; }
+  .rec-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .rec-impact { font-size:11px; font-family:var(--font-mono); text-transform:uppercase; letter-spacing:.06em; padding:1px 6px; border-radius:3px; background:var(--panel3); color:var(--muted); }
+  .rec-high .rec-impact { background:var(--high-bg); color:var(--high); } .rec-medium .rec-impact { background:var(--medium-bg); color:var(--medium); }
+  .rec-title { font-size:15px; }
+  .rec-state { margin-left:auto; font-size:12px; font-family:var(--font-mono); color:var(--muted); }
+  .rec-state-approved .rec-state { color:var(--good); } .rec-state-rejected .rec-state { color:var(--high); }
+  .rec-body { margin:6px 0; font-size:14px; }
+  .rec-evidence { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--muted); }
+  .rec-ev b { margin-left:5px; font-family:var(--font-mono); color:var(--text); }
+  .rec-review { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:8px; padding-top:8px; border-top:1px solid var(--line-soft); }
+  .rec-text { flex:1 1 100%; font:inherit; font-size:13px; padding:6px 8px; background:var(--panel); color:var(--text); border:1px solid var(--line); resize:vertical; }
+  .rec-status { font-size:12px; color:var(--muted); }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .rec-card-head .cn, :root:not([data-theme="dark"]) .rec-card-head .cn a { color:color-mix(in srgb, var(--cc) 70%, #000); } }
+  :root[data-theme="light"] .rec-card-head .cn, :root[data-theme="light"] .rec-card-head .cn a { color:color-mix(in srgb, var(--cc) 70%, #000); }
 ${CHART_STYLE}
 ${opts.extraStyle || ""}
 </style>
@@ -1103,6 +1131,118 @@ function renderPlayerTimeline(timeline, name) {
     return `<h2>Kampfverlauf</h2>${renderBossTabs(bosses, name)}${renderBossPanels(bosses, null, name)}${TIMELINE_SCRIPT}`;
 }
 
+// ---- Empfehlungen: what each raider and the raid should do differently (report.recommendations) ----
+//
+// The rules (utils/logcheck/recommendations.js) produce the findings; the raid
+// lead approves, rejects or rewrites each one here before anything goes out to
+// a raider. A visitor without review rights sees only what was approved.
+
+const IMPACT_LABEL = { high: "hoch", medium: "mittel", low: "gering" };
+
+/** Whether this visitor may review: full admins and anyone with write access to the CLA area. */
+function canReview(user) {
+    if (!user) return false;
+    if (user.isAdmin) return true;
+    const cla = user.access && user.access.cla;
+    return !!(cla && cla.write);
+}
+
+function reviewedRecommendations(report) {
+    return applyReview(report.recommendations, report.recommendationReview);
+}
+
+function recItem(item, scope, player, reviewer) {
+    const state = item.approved === true ? "approved" : item.approved === false ? "rejected" : "open";
+    const stateLabel = { approved: "freigegeben", rejected: "nicht senden", open: "offen" }[state];
+    const evidence = (item.evidence || []).slice(0, 4).map((e) => `<span class="rec-ev"><span>${esc(e.label)}</span><b>${esc(e.value)}</b></span>`).join("");
+    const text = item.custom || item.text;
+    const controls = reviewer
+        ? `<div class="rec-review" data-scope="${esc(scope)}" data-player="${esc(player || "")}" data-key="${esc(item.key)}">
+          <button type="button" class="btn btn-sm${state === "approved" ? "" : " btn-ghost"}" data-review="approve">✓ Freigeben</button>
+          <button type="button" class="btn btn-sm${state === "rejected" ? "" : " btn-ghost"}" data-review="reject">✗ Nicht senden</button>
+          <button type="button" class="btn btn-sm btn-ghost" data-review="reset" title="Entscheidung zurücknehmen">○</button>
+          <textarea class="rec-text" rows="2" placeholder="Eigene Formulierung (leer = Vorschlag so lassen)">${esc(item.custom || "")}</textarea>
+          <button type="button" class="btn btn-sm btn-ghost" data-review="save">Text speichern</button>
+          <span class="rec-status"></span>
+        </div>`
+        : "";
+    return `<li class="rec rec-${esc(item.impact)} rec-state-${state}" data-key="${esc(item.key)}">
+      <div class="rec-head">
+        <span class="rec-impact">${esc(IMPACT_LABEL[item.impact] || item.impact)}</span>
+        <b class="rec-title">${esc(item.title)}</b>
+        ${reviewer || state !== "open" ? `<span class="rec-state">${stateLabel}</span>` : ""}
+      </div>
+      <p class="rec-body">${esc(text)}</p>
+      ${evidence ? `<div class="rec-evidence">${evidence}</div>` : ""}
+      ${controls}
+    </li>`;
+}
+
+/**
+ * The Empfehlungen tab: the raid's biggest costs on top, then one card per
+ * raider. Reviewers get the verdict controls; everyone else the approved items.
+ */
+function renderRecommendationsPanel(report, user, linkFor) {
+    const rec = reviewedRecommendations(report);
+    if (!rec) return "<div class=\"empty\">Noch keine Empfehlungen – die Auswertung ist älter als das Regelwerk. Neu auswerten.</div>";
+    const reviewer = canReview(user);
+    const visible = (items) => (reviewer ? items : items.filter((i) => i.approved === true));
+    const raid = visible(rec.raid || []);
+    const players = (rec.players || []).map((p) => ({ ...p, items: visible(p.items || []) })).filter((p) => p.items.length || reviewer);
+    const open = (rec.raid || []).filter((i) => i.approved === null).length + (rec.players || []).reduce((n, p) => n + p.items.filter((i) => i.approved === null).length, 0);
+
+    const raidHtml = raid.length
+        ? `<ul class="rec-list">${raid.map((i) => recItem(i, "raid", "", reviewer)).join("")}</ul>`
+        : "<div class=\"fc-empty\">Nichts, was den ganzen Raid gekostet hätte.</div>";
+    const cards = players.map((p) => {
+        const href = linkFor && linkFor(p.name);
+        const name = href ? `<a href="${esc(href)}">${esc(p.name)}</a>` : esc(p.name);
+        const body = p.items.length
+            ? `<ul class="rec-list">${p.items.map((i) => recItem(i, "player", p.name, reviewer)).join("")}</ul>`
+            : "<div class=\"rec-clean\">Nichts auszusetzen – weiter so.</div>";
+        return `<section class="rec-card" style="--cc:${esc(classColorOf(p.type) || "var(--text)")}">
+          <div class="rec-card-head"><img src="${esc(classIconUrl(p.type))}" alt=""><h3 class="cn">${name}</h3><span class="rec-count">${p.items.length}</span></div>
+          ${body}
+        </section>`;
+    }).join("");
+
+    return `<p class="note">${reviewer
+        ? `Jede Empfehlung wird vor dem Versand freigegeben oder verworfen; der Text lässt sich umformulieren. ${open ? `<b>${open} offen.</b>` : "Alles entschieden."}`
+        : "Was die Raidleitung aus der Auswertung für den nächsten Raid mitgibt."}</p>
+    <h2>Für den Raid</h2>
+    ${raidHtml}
+    <h2>Pro Raider</h2>
+    <div class="rec-grid">${cards || "<div class=\"fc-empty\">Noch keine freigegebenen Empfehlungen.</div>"}</div>
+    ${reviewer ? REVIEW_SCRIPT : ""}`;
+}
+
+/** The player page's own items: all with verdicts for a reviewer, only the approved ones for the raider. */
+function renderPlayerRecommendations(report, name, user) {
+    const rec = reviewedRecommendations(report);
+    if (!rec) return "";
+    const p = (rec.players || []).find((x) => x.name === name);
+    if (!p) return "";
+    const reviewer = canReview(user);
+    const items = reviewer ? p.items : p.items.filter((i) => i.approved === true);
+    if (!items.length) return "";
+    return `<h2>Empfehlungen</h2>
+    <ul class="rec-list">${items.map((i) => recItem(i, "player", p.name, reviewer)).join("")}</ul>
+    ${reviewer ? REVIEW_SCRIPT : ""}`;
+}
+
+// Verdict buttons and the text box post to /api/cla/recommendations. The CSRF
+// token is fetched once from /api/session, the page never carries it.
+const REVIEW_SCRIPT = `<script>(function(){if(window.__ehReview)return;window.__ehReview=1;
+var token=null;function csrf(){return token?Promise.resolve(token):fetch("/api/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(j){token=j.csrfToken||(j.data&&j.data.csrfToken)||"";return token;});}
+var reportId=(location.pathname.match(/^\\/r\\/([a-zA-Z0-9]+)/)||[])[1];
+document.addEventListener("click",function(e){var b=e.target.closest("[data-review]");if(!b)return;var box=b.closest(".rec-review"),li=b.closest(".rec"),st=box.querySelector(".rec-status");
+var body={reportId:reportId,scope:box.getAttribute("data-scope"),player:box.getAttribute("data-player"),key:box.getAttribute("data-key")};
+var a=b.getAttribute("data-review");if(a==="approve")body.approved=true;else if(a==="reject")body.approved=false;else if(a==="reset")body.approved=null;else if(a==="save")body.text=box.querySelector(".rec-text").value;
+st.textContent="…";csrf().then(function(t){return fetch("/api/cla/recommendations",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":t},body:JSON.stringify(body)});}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j&&j.error&&j.error.message)||(j&&j.message)||r.status);return j;});})
+.then(function(){var s=body.approved===true?"approved":body.approved===false?"rejected":(a==="reset"?"open":null);if(s){li.className=li.className.replace(/rec-state-\\w+/,"rec-state-"+s);var lbl=li.querySelector(".rec-state");if(lbl)lbl.textContent={approved:"freigegeben",rejected:"nicht senden",open:"offen"}[s];box.querySelectorAll("[data-review=approve],[data-review=reject]").forEach(function(x){x.classList.toggle("btn-ghost",!(s==="approved"&&x.getAttribute("data-review")==="approve"||s==="rejected"&&x.getAttribute("data-review")==="reject"));});}
+if(a==="save"){var p=li.querySelector(".rec-body");if(p&&body.text)p.textContent=body.text;}st.textContent="gespeichert";setTimeout(function(){st.textContent="";},1500);})
+.catch(function(err){st.textContent="Fehler: "+err.message;});});})();</script>`;
+
 // Headline numbers for a report: raiders, gear issues, boss fights, consumable coverage.
 function reportTiles(report) {
     const players = report.players || [];
@@ -1492,6 +1632,11 @@ function renderReportPage(report, user) {
     const hasSunder = report.sunder && report.sunder.length;
     const hasBoss = report.bossUptimes && report.bossUptimes.rows && report.bossUptimes.rows.length;
     const hasTimeline = report.timeline && report.timeline.fights && report.timeline.fights.length;
+    // The tab shows for reviewers as soon as there are findings, for everyone else once something was approved.
+    const recReviewed = report.recommendations ? applyReview(report.recommendations, report.recommendationReview) : null;
+    const recItems = recReviewed ? [...recReviewed.raid, ...recReviewed.players.flatMap((p) => p.items)] : [];
+    const recCount = canReview(user) ? recItems.filter((i) => i.approved === null).length : recItems.filter((i) => i.approved === true).length;
+    const hasRec = !!recReviewed && (canReview(user) ? recItems.length > 0 : recCount > 0);
 
     const rpb = report.rpb || null;
     const rpbRoles = rpb && rpb.roles;
@@ -1522,6 +1667,7 @@ function renderReportPage(report, user) {
         { id: "sunder", icon: "ability_warrior_sunder", label: "Sunder Armor", show: hasSunder, count: hasSunder, html: renderSunderPanel(report.sunder, linkFor) },
         { id: "bosses", icon: "achievement_boss_illidan", label: "Bosse", show: hasBoss, count: hasBoss, html: renderBossUptimesPanel(report.bossUptimes) },
         { id: "timeline", icon: "inv_misc_pocketwatch_01", label: "Kampfverlauf", show: hasTimeline, count: hasTimeline, html: hasTimeline ? renderTimelinePanel(report.timeline, linkFor) : "" },
+        { id: "recommendations", icon: "inv_misc_note_01", label: "Empfehlungen", show: hasRec, count: recCount, html: hasRec ? renderRecommendationsPanel(report, user, linkFor) : "" },
         { id: "shadowresi", icon: "spell_shadow_antishadow", label: "Shadow-Resi", show: hasShadow, count: hasShadow, html: renderShadowResiPanel(report.shadowResi, linkFor) },
         // RPB sections. The damage tab counts deaths, the spell tab counts downrank
         // warnings and the log check counts unmet requirements, so every badge shows
@@ -1674,6 +1820,7 @@ function renderPlayerPage(report, idx, user) {
         <div class="pd-col pd-col-right">${right}</div>
       </div>
       <div class="doll-bottom">${bottom}</div>
+      ${renderPlayerRecommendations(report, p.name, user)}
       <h2>Gear-Probleme</h2>
       ${issues}
       ${renderPlayerTimeline(report.timeline, p.name)}`;
