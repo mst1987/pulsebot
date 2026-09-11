@@ -125,16 +125,32 @@ class WarcraftLogs {
         }
     }
 
-    /** Fetch all events of a view across a window, following nextPageTimestamp. */
-    async getAllEvents(reportId, view, start, end, extra = {}) {
+    /**
+     * Fetch all events of a view across a window, following nextPageTimestamp.
+     *
+     * `maxPages` (default 50) bounds the walk. A whole boss fight's cast or
+     * damage events run to far more pages than a filtered debuff pull, so a
+     * caller that wants them all raises it explicitly rather than getting a
+     * silently truncated stream. The result carries `truncated` when the bound
+     * was hit, so an analyzer can say its number is a lower estimate.
+     *
+     * @returns {Array} events, with a `truncated` flag set on the array when cut short
+     */
+    async getAllEvents(reportId, view, start, end, extra = {}, { maxPages = 50 } = {}) {
         const all = [];
         let cursor = start;
-        for (let guard = 0; guard < 50; guard++) {
+        let truncated = false;
+        for (let guard = 0; ; guard++) {
+            if (guard >= maxPages) {
+                truncated = true;
+                break;
+            }
             const page = await this.getEvents(reportId, view, cursor, end, extra);
             if (page && Array.isArray(page.events)) all.push(...page.events);
             if (page && page.nextPageTimestamp && page.nextPageTimestamp > cursor) cursor = page.nextPageTimestamp;
             else break;
         }
+        if (truncated) all.truncated = true;
         return all;
     }
 }

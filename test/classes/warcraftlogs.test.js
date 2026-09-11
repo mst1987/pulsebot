@@ -247,5 +247,29 @@ describe("classes/WarcraftLogs", () => {
 
             expect(result).toEqual([]);
         });
+
+        it("stops at maxPages and marks the result as truncated", async () => {
+            const client = new WarcraftLogs();
+            let t = 0;
+            axios.get.mockImplementation(async () => {
+                t += 100;
+                return { data: { events: [{ t }], nextPageTimestamp: t } };
+            });
+
+            const result = await client.getAllEvents("rep1", "casts", 0, 100000, {}, { maxPages: 3 });
+
+            expect(axios.get).toHaveBeenCalledTimes(3);
+            expect(result).toHaveLength(3);
+            expect(result.truncated).toBe(true);
+        });
+
+        it("does not flag a walk that ends within the bound", async () => {
+            const client = new WarcraftLogs();
+            axios.get.mockResolvedValue({ data: { events: [{ t: 1 }] } });
+
+            const result = await client.getAllEvents("rep1", "casts", 0, 1000, {}, { maxPages: 3 });
+
+            expect(result.truncated).toBeUndefined();
+        });
     });
 });
