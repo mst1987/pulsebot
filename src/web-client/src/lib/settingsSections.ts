@@ -35,6 +35,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
 
     { id: "discord", group: "Verbindungen", label: "Discord & Raid-Helper", adminOnly: true },
     { id: "battlenet", group: "Verbindungen", label: "Battle.net / Armory" },
+    { id: "anthropic", group: "Verbindungen", label: "KI-Formulierung (Anthropic)", adminOnly: true },
     { id: "lootsync", group: "Verbindungen", label: "Loot-Sync (Addon)", adminOnly: true, standalone: true },
 
     { id: "kategorien", group: "Raid-Kategorien", label: "Kategorien" },

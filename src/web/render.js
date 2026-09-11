@@ -572,6 +572,8 @@ ${body}
   .rec-send-meta { color:var(--muted); font-size:13px; font-family:var(--font-mono); margin-right:auto; }
   .rec-send-result { margin-top:10px; font-size:13.5px; display:flex; flex-direction:column; gap:4px; }
   .rec-send-row.ok { color:var(--good); } .rec-send-row.warn { color:var(--medium); } .rec-send-row.muted { color:var(--muted); }
+  .rec-source { display:inline-block; font-size:10px; font-family:var(--font-mono); font-weight:700; letter-spacing:.06em; padding:1px 5px; margin-right:6px; border-radius:3px; background:var(--accent-soft); color:var(--accent); vertical-align:middle; }
+  .rec-phrase-meta { display:block; margin-top:8px; }
   /* Empfehlungen: verdict cards */
   .rec-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:14px; align-items:start; }
   .rec-card { background:var(--panel); border:1px solid var(--line); border-top:2px solid var(--cc); padding:0 14px 0; }
@@ -1171,7 +1173,9 @@ function recItem(item, scope, player, reviewer) {
     const state = item.approved === true ? "approved" : item.approved === false ? "rejected" : "open";
     const stateLabel = { approved: "freigegeben", rejected: "nicht senden", open: "offen" }[state];
     const evidence = (item.evidence || []).slice(0, 4).map((e) => `<span class="rec-ev"><span>${esc(e.label)}</span><b>${esc(e.value)}</b></span>`).join("");
-    const text = item.custom || item.text;
+    // the raid lead's own words first, then Claude's phrasing, then the rule's text
+    const text = item.custom || item.ai || item.text;
+    const source = item.custom ? "" : item.ai ? "<span class=\"rec-source\" title=\"Von Claude formuliert; der Regeltext steht im Tooltip der Karte\">KI</span>" : "";
     const controls = reviewer
         ? `<div class="rec-review" data-scope="${esc(scope)}" data-player="${esc(player || "")}" data-key="${esc(item.key)}">
           <button type="button" class="btn btn-sm${state === "approved" ? "" : " btn-ghost"}" data-review="approve">✓ Freigeben</button>
@@ -1188,7 +1192,7 @@ function recItem(item, scope, player, reviewer) {
         <b class="rec-title">${esc(item.title)}</b>
         ${reviewer || state !== "open" ? `<span class="rec-state">${stateLabel}</span>` : ""}
       </div>
-      <p class="rec-body">${esc(text)}</p>
+      <p class="rec-body"${item.ai && !item.custom ? ` title="${esc(item.text)}"` : ""}>${source}${esc(text)}</p>
       ${evidence ? `<div class="rec-evidence">${evidence}</div>` : ""}
       ${controls}
     </li>`;
@@ -1263,13 +1267,25 @@ function renderSendBox(report) {
         <span class="rec-send-meta">${approved.length} Raider mit freigegebenen Punkten · ${sentNames.length} bereits angeschrieben</span>
         <button type="button" class="btn btn-sm" data-send="all"${approved.length ? "" : " disabled"}>Freigegebenes per DM senden</button>
         <button type="button" class="btn btn-sm btn-ghost" data-send="status">Zuordnung prüfen</button>
+        <button type="button" class="btn btn-sm btn-ghost" data-phrase="all" title="Claude formuliert jeden Befund in Klartext; deine Freigabe bleibt nötig">KI-Formulierung erzeugen</button>
       </div>
+      ${report.recommendationPhrase ? `<div class="rec-send-meta rec-phrase-meta">KI-Formulierung vom ${esc(new Date(report.recommendationPhrase.at).toLocaleString("de-DE"))} (${esc(report.recommendationPhrase.model)}): ${esc(report.recommendationPhrase.phrased)} Texte für ${esc(report.recommendationPhrase.players)} Raider${(report.recommendationPhrase.errors || []).length ? `, ${report.recommendationPhrase.errors.length} Fehler` : ""}</div>` : ""}
       <div class="rec-send-result" hidden></div>
-    </div>${SEND_SCRIPT}`;
+    </div>${SEND_SCRIPT}${PHRASE_SCRIPT}`;
 }
 
 // The send button posts once and lists who got a DM and who was skipped and why;
 // "Zuordnung prüfen" fetches the per-raider mapping state without sending.
+// "KI-Formulierung erzeugen": starts the phrasing job and polls until it is done,
+// then reloads so the cards show Claude's texts.
+const PHRASE_SCRIPT = `<script>(function(){if(window.__ehPhrase)return;window.__ehPhrase=1;
+var token=null;function csrf(){return token?Promise.resolve(token):fetch("/api/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(j){token=j.csrfToken||(j.data&&j.data.csrfToken)||"";return token;});}
+document.addEventListener("click",function(e){var b=e.target.closest("[data-phrase]");if(!b)return;var box=b.closest(".rec-send"),out=box.querySelector(".rec-send-result"),id=box.getAttribute("data-report");out.hidden=false;out.textContent="KI-Formulierung läuft …";b.disabled=true;
+function poll(){return fetch("/api/cla/recommendations/phrase?id="+encodeURIComponent(id),{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(j){var job=j.data&&j.data.job;if(!job||job.status==="running"){return new Promise(function(res){setTimeout(res,2500);}).then(poll);}if(job.status==="error")throw new Error(job.error||"fehlgeschlagen");return j.data;});}
+csrf().then(function(t){return fetch("/api/cla/recommendations/phrase",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":t},body:JSON.stringify({reportId:id})});}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j&&j.error&&j.error.message)||r.status);return j;});}).then(poll)
+.then(function(d){var l=d.last||{};out.textContent="Fertig: "+(l.phrased||0)+" Texte für "+(l.players||0)+" Raider"+((l.errors||[]).length?", "+l.errors.length+" Fehler":"")+". Seite wird neu geladen …";setTimeout(function(){location.reload();},1200);})
+.catch(function(err){out.textContent="Fehler: "+err.message;b.disabled=false;});});})();</script>`;
+
 const SEND_SCRIPT = `<script>(function(){if(window.__ehSend)return;window.__ehSend=1;
 var token=null;function csrf(){return token?Promise.resolve(token):fetch("/api/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(j){token=j.csrfToken||(j.data&&j.data.csrfToken)||"";return token;});}
 function row(cls,t){var d=document.createElement("div");d.className="rec-send-row "+cls;d.textContent=t;return d;}

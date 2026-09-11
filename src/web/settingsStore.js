@@ -93,6 +93,9 @@ const CONFIG_DEFAULTS = {
     // matched against these ids for the dashboard's "Latest Loot" card
     // (see dashboardData.js's loadTopLoot()).
     topItems: [],
+    // Claude phrases the log recommendations for the raiders (Einstellungen →
+    // Verbindungen → KI-Formulierung). Empty key = the rules' own text is shown.
+    anthropic: { apiKey: "", model: "" },
 };
 
 function ensureDir() {
@@ -417,6 +420,7 @@ function getConfig() {
         categoryRoles: normalizeCategoryRoles(stored.categoryRoles),
         logChannelIds: Array.isArray(stored.logChannelIds) ? stored.logChannelIds : CONFIG_DEFAULTS.logChannelIds,
         blizzard: { ...CONFIG_DEFAULTS.blizzard, ...(stored.blizzard || {}) },
+        anthropic: { ...CONFIG_DEFAULTS.anthropic, ...(stored.anthropic || {}) },
         categoryLootTool: (stored.categoryLootTool && typeof stored.categoryLootTool === "object")
             ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
         categorySheets: normalizeCategorySheets(stored.categorySheets),
@@ -518,6 +522,7 @@ function saveConfig(partial) {
     const next = { ...current, ...partial };
     if (partial.raidDefaults) next.raidDefaults = { ...current.raidDefaults, ...partial.raidDefaults };
     if (partial.blizzard) next.blizzard = { ...current.blizzard, ...partial.blizzard };
+    if (partial.anthropic) next.anthropic = { ...current.anthropic, ...partial.anthropic };
     if (partial.categoryLootTool) next.categoryLootTool = { ...current.categoryLootTool, ...partial.categoryLootTool };
     if (partial.categorySheets) {
         next.categorySheets = normalizeCategorySheets({ ...current.categorySheets, ...partial.categorySheets });

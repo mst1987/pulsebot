@@ -46,6 +46,7 @@ const {
     linkLog, linkLogUrl, unlinkLog, autoMatchLogs,
     deleteReportHandler, unlinkReport,
     getRecommendations, reviewRecommendation, recommendationSendStatus, sendRecommendations,
+    phraseRecommendations, phraseStatus,
 } = require("./apiRoutes/cla");
 
 /**
@@ -426,6 +427,14 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/cla/recommendations/send" && req.method === "POST") {
         await sendRecommendations(req, res);
+        return true;
+    }
+    if (pathname === "/api/cla/recommendations/phrase" && req.method === "GET") {
+        await phraseStatus(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/cla/recommendations/phrase" && req.method === "POST") {
+        await phraseRecommendations(req, res);
         return true;
     }
     error(res, 404, "not_found", "Unbekannter API-Endpunkt.");
