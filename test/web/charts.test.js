@@ -198,6 +198,29 @@ describe("web/charts — barChart", () => {
     });
 });
 
+describe("web/charts — lineChart with a fixed scale and markers", () => {
+    const chart = { duration: 30000, step: 5000, max: 100, unit: "%", series: [{ key: "a", label: "Mana", values: [100, 80, 60, 20, 8, 40, 45] }], markers: [{ at: 20000, label: "Super-Manatrank", icon: "inv_potion_137", value: "bei 8 %" }] };
+
+    it("scales to the given maximum with the unit on the ticks and in the table", () => {
+        const html = lineChart(chart);
+        expect(html).toContain(">100%</span>");
+        expect(html).toContain(">50%</span>");
+        expect(html).toContain("<td>8%</td>");
+    });
+
+    it("draws every marker on the curve with its icon and tooltip, lists them under the table and counts them in the legend", () => {
+        const html = lineChart({ ...chart, markersLabel: "Regeneration" });
+        expect(html).toContain("fc-mark-pt");
+        expect(html).toContain("<title>0:20 · Super-Manatrank · bei 8 %</title>");
+        expect(html).toContain("inv_potion_137");
+        expect(html).toContain("Regeneration (1)");
+        expect(html).toContain("<li><b>0:20</b> Super-Manatrank · bei 8 %</li>");
+        const none = lineChart({ ...chart, markers: [] });
+        expect(none).not.toContain("fc-mark-pt");
+        expect(none).not.toContain("fc-marks");
+    });
+});
+
 describe("web/charts — lineChart", () => {
     const chart = {
         duration: 20000,

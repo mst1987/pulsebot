@@ -13,6 +13,7 @@
 // on the report) and merged in by the page.
 const R = require("../../config/recommendationRules");
 const { DEBUFFS } = require("../../config/raidDebuffs");
+const { TANK_AURAS } = require("../../config/healerSpells");
 
 const IMPACT_ORDER = { high: 0, medium: 1, low: 2 };
 
@@ -142,10 +143,22 @@ function cooldownRules(report, name) {
     return out;
 }
 
+/** Whether the healer analysis lists this raider as a healer. */
+function isHealer(report, name) {
+    return !!(report.healers && (report.healers.players || []).some((x) => x.name === name));
+}
+
 function activityRules(report, name) {
     const a = report.activity && (report.activity.players || []).find((x) => x.name === name);
     if (!a) return [];
     const out = [];
+    // A healer waits on purpose: only a really idle healer is a finding, and the holes are never one.
+    if (isHealer(report, name)) {
+        if (a.activeAvg < R.healers.activePct) {
+            out.push(finding("activity.low", "medium", `Nur ${a.activeAvg} % aktiv`, `${a.gaps} Lücken über ${Math.round(a.gapMs / 1000)} s, längste ${fmt(a.longestGap)}. Auch wenn niemand Schaden nimmt: HoTs vorlegen, Schilde erneuern, Ränge sparen.`, [{ label: "Ø aktiv", value: `${a.activeAvg} %` }, { label: "Längste Lücke", value: fmt(a.longestGap) }]));
+        }
+        return out;
+    }
     if (a.activeAvg < R.activity.activePct) {
         out.push(finding(
             "activity.low",
@@ -203,7 +216,46 @@ function shadowResiRules(report, name) {
     return [finding("shadowResi", "medium", `Nur ${p.sr} Schattenwiderstand für ${report.shadowResi.boss}`, `Ziel sind ${R.shadowResi.minSr} aus Gear (Verzauberungen, Edelsteine, Items).`, [{ label: "Schattenwiderstand", value: String(p.sr) }])];
 }
 
-const PLAYER_RULES = [gearRules, consumableRules, debuffRules, totemRules, cooldownRules, activityRules, mechanicRules, rpbRules, shadowResiRules];
+function healerRules(report, name) {
+    const h = report.healers && (report.healers.players || []).find((x) => x.name === name);
+    if (!h) return [];
+    const out = [];
+    if (h.overhealPct >= R.healers.overhealPct) {
+        const top = h.topOverheal;
+        out.push(finding(
+            "healers.overheal",
+            h.overhealPct >= R.healers.overhealHighPct ? "high" : "medium",
+            `${h.overhealPct} % Overheal`,
+            top
+                ? `Am meisten verpufft ${top.name}: ${top.overhealPct} % davon Overheal, ${top.overhealShare} % des gesamten Overheals. ${top.name} später ansetzen oder einen kleineren Zauber nehmen, wenn das Ziel fast voll ist.`
+                : "Heilung später ansetzen oder einen kleineren Zauber nehmen, wenn das Ziel fast voll ist.",
+            [{ label: "Overheal", value: `${h.overhealPct} %` }, ...(top ? [{ label: top.name, value: `${top.overhealPct} % Overheal` }] : [])],
+        ));
+    }
+    const late = (h.potionPcts || []).filter((p) => p <= R.healers.potionLatePct);
+    if (late.length) {
+        const avg = Math.round(late.reduce((n, p) => n + p, 0) / late.length);
+        out.push(finding("healers.potionLate", "medium", `Manatrank ${late.length}× erst bei ${avg} % Mana`, "Den ersten Manatrank früh drücken (ab etwa 50 %), dann ist er nach zwei Minuten ein zweites Mal bereit; bei 5 % ist er nur noch eine Notlösung.", [{ label: "Trank bei", value: late.map((p) => `${p} %`).join(", ") }]));
+    }
+    if (h.potionMissingFights >= 1) {
+        out.push(finding("healers.potionMissing", "medium", `Kein Manatrank in ${h.potionMissingFights} ${h.potionMissingFights === 1 ? "langen Kampf" : "langen Kämpfen"}`, "In langen Kämpfen mit knappem Mana gehört der Manatrank in jede zweite Minute, nicht in die Tasche.", [{ label: "Kämpfe ohne Trank", value: String(h.potionMissingFights) }]));
+    }
+    if (h.manaLowFights >= 1) {
+        out.push(finding("healers.mana", h.manaLowFights >= 2 ? "high" : "medium", `In ${h.manaLowFights} ${h.manaLowFights === 1 ? "Kampf" : "Kämpfen"} unter 10 % Mana`, `Tiefstand im Schnitt ${h.manaMinAvg} %. Günstigere Ränge nutzen, Anregen und Manaflut absprechen, Trank und Rune früher.`, [{ label: "Kämpfe unter 10 %", value: String(h.manaLowFights) }, { label: "Ø Tiefstand", value: `${h.manaMinAvg} %` }]));
+    }
+    if (h.dispels >= 2 && Number.isFinite(h.avgReactionMs) && h.avgReactionMs !== null && h.avgReactionMs > R.healers.dispelReactionMs) {
+        const s = (h.avgReactionMs / 1000).toFixed(1).replace(".", ",");
+        out.push(finding("healers.dispels", "low", `Dispels im Schnitt erst nach ${s} s`, "Dispelbare Debuffs im Raidframe hervorheben und sofort entfernen.", [{ label: "Ø Reaktion", value: `${s} s` }, { label: "Dispels", value: String(h.dispels) }]));
+    }
+    for (const sh of h.shields || []) {
+        const def = TANK_AURAS.find((a) => a.key === sh.key);
+        if (!def || !def.expectPct || sh.uptimeAvg >= R.healers.shieldUptimePct) continue;
+        out.push(finding(`healers.shield.${sh.key}`, "medium", `${sh.label} nur ${sh.uptimeAvg} % auf dem Tank`, `${sh.label} vor dem Pull setzen und nach jedem Ablauf sofort erneuern.`, [{ label: `${sh.label}-Uptime`, value: `${sh.uptimeAvg} %` }]));
+    }
+    return out;
+}
+
+const PLAYER_RULES = [gearRules, consumableRules, debuffRules, totemRules, cooldownRules, activityRules, mechanicRules, rpbRules, shadowResiRules, healerRules];
 
 // ---- raid rules ---------------------------------------------------------
 
@@ -234,6 +286,11 @@ function raidRules(report) {
     const lustSpreads = ((report.timeline && report.timeline.fights) || []).map((f) => f.cooldowns && f.cooldowns.lust).filter((l) => l && l.casts > 1 && l.spreadMs > R.raid.lustSpreadMs);
     if (lustSpreads.length) {
         out.push(finding("raid.lust", "medium", `Bloodlust in ${lustSpreads.length} Kämpfen ${Math.round(Math.max(...lustSpreads.map((l) => l.spreadMs)) / 1000)} s auseinander`, "Alle Gruppen lusten auf eine Ansage, sonst verpufft die Überlappung mit den Cooldowns.", [{ label: "Kämpfe", value: String(lustSpreads.length) }]));
+    }
+    const heal = report.healers && report.healers.raid;
+    if (heal && heal.dispelsMissed >= R.healers.dispelsMissed) {
+        const top = (heal.missedByAbility || [])[0];
+        out.push(finding("raid.dispels", "medium", `${heal.dispelsMissed} dispelbare Debuffs nie entfernt`, `${top ? `Am häufigsten ${top.ability} (${top.count}×). ` : ""}Wer dispellt, vor dem Pull festlegen.`, [{ label: "Nie entfernt", value: String(heal.dispelsMissed) }]));
     }
     const act = (report.activity && report.activity.players) || [];
     if (act.length >= 5) {

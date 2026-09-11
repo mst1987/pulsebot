@@ -10,6 +10,7 @@ const { renderAdminChrome, CHROME_STYLE, ICONS } = require("./adminChrome");
 const rpbData = require("../config/rpbData");
 const { ribbonChart, markerChart, lineChart, fmtTime, CHART_STYLE, PX_PER_SEC } = require("./charts");
 const { bossIconUrl } = require("../config/bosses");
+const { TANK_AURAS } = require("../config/healerSpells");
 const { applyReview } = require("../utils/logcheck/recommendations");
 
 const CLASS_COLORS = {
@@ -565,6 +566,24 @@ ${body}
   .fight-deaths .cn { color:var(--cc); font-weight:600; }
   @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .fight-deaths .cn { color:color-mix(in srgb, var(--cc) 70%, #000); } }
   :root[data-theme="light"] .fight-deaths .cn { color:color-mix(in srgb, var(--cc) 70%, #000); }
+  /* Heilung: one block per healer in the fight, the Heiler tab's table */
+  .heal-block { margin:0 0 18px; padding:0 0 14px; border-bottom:1px solid var(--line-soft); }
+  .heal-block:last-child { border-bottom:0; margin-bottom:0; }
+  .heal-h { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; margin:0 0 8px; font-size:17px; font-weight:700; }
+  .heal-h .cn, .heal-table .cn { color:var(--cc); font-weight:700; }
+  .heal-h .meta { color:var(--muted); font-size:13px; font-weight:500; font-family:var(--font-mono); }
+  .heal-chips { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 10px; }
+  .heal-chips .chip { display:inline-flex; gap:6px; align-items:baseline; padding:4px 10px; border:1px solid var(--line); background:var(--panel2); font-size:13px; color:var(--muted); }
+  .heal-chips .chip b { color:var(--text); font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+  .heal-chips .chip-good b { color:var(--good); }
+  .heal-chips .chip-medium b { color:var(--medium); }
+  .heal-chips .chip-high b { color:var(--high); }
+  .heal-spells { max-width:640px; }
+  .heal-spells td.hi, .heal-table td.hi { color:var(--high); font-weight:600; }
+  .heal-table td.mid { color:var(--medium); font-weight:600; }
+  .heal-table .sh { display:inline-flex; align-items:center; gap:2px; margin-right:8px; font-family:var(--font-mono); font-size:13px; }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .heal-h .cn, :root:not([data-theme="dark"]) .heal-table .cn { color:color-mix(in srgb, var(--cc) 70%, #000); } }
+  :root[data-theme="light"] .heal-h .cn, :root[data-theme="light"] .heal-table .cn { color:color-mix(in srgb, var(--cc) 70%, #000); }
   /* Empfehlungen: send box */
   .rec-send { background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--accent-2); padding:12px 14px; margin:0 0 18px; }
   .rec-send-head { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
@@ -1043,6 +1062,9 @@ function fightParts(f, linkFor, only) {
         parts.push({ id: key("mechanics"), label: "Mechaniken", count: mechRows.reduce((n, r) => n + r.markers.length, 0), html: markerChart({ ...common, rows: mechRows }) });
     }
 
+    const healing = healingParts(f, only, common);
+    if (healing) parts.push({ id: key("healing"), label: "Heilung", count: healing.count, html: healing.html });
+
     const deaths = only ? (f.deaths || []).filter((d) => d.name === only) : (f.deaths || []);
     if (parts.length === 0) {
         // nothing but the skeleton yet: the fight itself is the one band, so the
@@ -1051,6 +1073,106 @@ function fightParts(f, linkFor, only) {
     }
     parts.push({ id: key("deaths"), label: "Tode", count: deaths.length, html: deathsList(deaths, linkFor) });
     return parts;
+}
+
+// ---- Heilung: the healers' topic of a fight (f.healers, utils/logcheck/healers.js) ----
+//   healers[]  { name, type, diedAt, healing: { total, overheal, absorbs, overhealPct, spells[] }, mana: { available, step, values, min, minAt, regen[] }, potionMissing, dispels: { count, avgReactionMs } }
+//   tank       { name, type } · shields[] { key, label, icon, source, bands | stacks, maxStacks, uptimePct, gapCount, fullStacksPct }
+//   dispels    { total, missed: [{ at, ability, icon, target, targetType, durationMs }] }
+
+function fmtK(n) {
+    const v = Number(n) || 0;
+    if (v >= 100000) return `${Math.round(v / 1000)}k`;
+    if (v >= 1000) return `${(v / 1000).toFixed(1).replace(".", ",")}k`;
+    return String(Math.round(v));
+}
+
+function fmtSecs(ms) {
+    return `${(ms / 1000).toFixed(1).replace(".", ",")} s`;
+}
+
+/** One healer's block: headline chips, the mana curve with its regeneration, the spell table. */
+function healerBlock(x, f, common) {
+    const heal = x.healing || { total: 0, overheal: 0, absorbs: 0, overhealPct: 0, spells: [] };
+    const mana = x.mana || { available: false };
+    const tone = (v, hi, mid) => (v >= hi ? "high" : v >= mid ? "medium" : "good");
+    const chips = [
+        `<span class="chip"><b>${fmtK(heal.total)}</b> Heilung</span>`,
+        `<span class="chip chip-${tone(heal.overhealPct, 50, 35)}"><b>${esc(heal.overhealPct)} %</b> Overheal</span>`,
+        heal.absorbs ? `<span class="chip"><b>${fmtK(heal.absorbs)}</b> Absorb</span>` : "",
+        mana.available ? `<span class="chip chip-${mana.min < 10 ? "high" : mana.min < 20 ? "medium" : "good"}"><b>${esc(mana.min)} %</b> Mana-Tiefstand bei ${fmtTime(mana.minAt)}</span>` : "",
+        x.dispels && x.dispels.count ? `<span class="chip"><b>${esc(x.dispels.count)}</b> Dispels${x.dispels.avgReactionMs !== null && x.dispels.avgReactionMs !== undefined ? ` · Ø ${fmtSecs(x.dispels.avgReactionMs)}` : ""}</span>` : "",
+        x.potionMissing ? "<span class=\"chip chip-medium\"><b>kein</b> Manatrank</span>" : "",
+    ].filter(Boolean).join("");
+    const manaChart = mana.available
+        ? lineChart({
+            duration: f.duration, deaths: f.deaths, classColor: common.classColor, step: mana.step, max: 100, unit: "%", markersLabel: "Regeneration",
+            series: [{ key: "a", label: `Mana ${x.name}`, values: mana.values }],
+            markers: (mana.regen || []).map((r) => ({ at: r.at, icon: r.icon, label: r.label, value: r.pct !== null && r.pct !== undefined ? `bei ${r.pct} %` : undefined })),
+        })
+        : "<div class=\"fc-empty\">Kein Manaverlauf im Log (keine Ressourcen-Events).</div>";
+    const spells = (heal.spells || []).slice(0, 6);
+    const table = spells.length
+        ? `<table class="idx fc-table heal-spells"><tr><th>Zauber</th><th>Heilung</th><th>Overheal</th><th>Anteil</th></tr>${spells.map((s) =>
+            `<tr><td>${s.icon ? hicon(s.icon, "") : ""}${esc(s.name)}</td><td>${fmtK(s.total)}</td><td${s.overhealPct >= 50 ? " class=\"hi\"" : ""}>${esc(s.overhealPct)} %</td><td>${esc(s.share)} %</td></tr>`).join("")}</table>`
+        : "";
+    const died = x.diedAt !== null && x.diedAt !== undefined ? ` · gestorben ${fmtTime(x.diedAt)}` : "";
+    return `<div class="heal-block" style="--cc:${esc(classColorOf(x.type) || "var(--text)")}"><h4 class="heal-h"><span class="cn">${esc(x.name)}</span><span class="meta">${esc(x.type)}${died}</span></h4><div class="heal-chips">${chips}</div>${manaChart}${table}</div>`;
+}
+
+/** The Heilung topic of one fight: { count, html }, or null without healers. `only` restricts it to one raider. */
+function healingParts(f, only, common) {
+    const h = f.healers;
+    if (!h || !(h.healers || []).length) return null;
+    const healers = h.healers.filter((x) => !only || x.name === only);
+    // the tank sees every aura on them, a healer only their own
+    const isTank = !!(only && h.tank && h.tank.name === only);
+    const shields = (h.shields || []).filter((r) => !only || isTank || r.source === only);
+    if (!healers.length && !shields.length) return null;
+    const blocks = healers.map((x) => healerBlock(x, f, common)).join("");
+    let tank = "";
+    if (h.tank && shields.length) {
+        const rows = shields.map((r) => {
+            const def = TANK_AURAS.find((a) => a.key === r.key) || {};
+            return {
+                label: `${r.label} (${r.source})`, icon: r.icon,
+                bands: r.stacks && r.stacks.length ? r.stacks : r.bands, maxStacks: r.maxStacks || 0,
+                value: `${r.uptimePct}%`,
+                sub: r.maxStacks && r.fullStacksPct !== null && r.fullStacksPct !== undefined ? `${r.maxStacks}/${r.maxStacks}: ${r.fullStacksPct} %` : (r.gapCount ? `${r.gapCount} Lücke${r.gapCount === 1 ? "" : "n"}` : ""),
+                tone: def.expectPct ? pctTone(r.uptimePct) : undefined,
+            };
+        });
+        tank = `<div class="heal-block"><h4 class="heal-h">Schilde &amp; HoTs auf ${esc(h.tank.name)}<span class="meta">Tank · ${esc(h.tank.type)}</span></h4>${ribbonChart({ ...common, rows })}</div>`;
+    }
+    let missed = "";
+    const list = (h.dispels && h.dispels.missed) || [];
+    if (!only && list.length) {
+        missed = `<div class="heal-block"><h4 class="heal-h">Nie entfernte Debuffs<span class="meta">${list.length}</span></h4><ul class="fight-deaths">${list.map((m) =>
+            `<li style="--cc:${esc(classColorOf(m.targetType) || "var(--text)")}"><b>${fmtTime(m.at)}</b><span class="cn">${esc(m.target)}</span><span class="sritems">· ${m.icon ? hicon(m.icon, "") : ""}${esc(m.ability)} · ${fmtTime(m.durationMs)} lang</span></li>`).join("")}</ul></div>`;
+    }
+    return { count: healers.length, html: blocks + tank + missed };
+}
+
+/** The Heiler tab: one row per healer over the raid, the raid's missed dispels above. */
+function renderHealersPanel(healers, linkFor) {
+    const players = healers.players || [];
+    const rows = players.map((p) => {
+        const href = linkFor && linkFor(p.name);
+        const name = href ? `<a class="cn" href="${esc(href)}">${esc(p.name)}</a>` : `<span class="cn">${esc(p.name)}</span>`;
+        const top = p.topOverheal ? `${p.topOverheal.icon ? hicon(p.topOverheal.icon, "") : ""}${esc(p.topOverheal.name)} <span class="sritems">${esc(p.topOverheal.overhealPct)} %</span>` : "–";
+        const late = (p.potionPcts || []).filter((x) => x <= 15).length;
+        const potions = `${esc(p.potions)}${late ? ` <span class="tag tag-medium">${late}× spät</span>` : ""}${p.potionMissingFights ? ` <span class="tag tag-medium">${esc(p.potionMissingFights)}× keiner</span>` : ""}`;
+        const shields = (p.shields || []).map((s) => `<span class="sh" title="${esc(s.label)}: Ø ${esc(s.uptimeAvg)} % in ${esc(s.fights)} Kämpfen">${hicon(s.icon, s.label)}${esc(s.uptimeAvg)} %</span>`).join("") || "–";
+        const overClass = p.overhealPct >= 50 ? " class=\"hi\"" : p.overhealPct >= 35 ? " class=\"mid\"" : "";
+        const mana = p.manaMinAvg === null || p.manaMinAvg === undefined ? "–" : `${esc(p.manaMinAvg)} %`;
+        return `<tr style="--cc:${esc(classColorOf(p.type) || "var(--text)")}"><td>${name}<div class="sritems">${esc(p.type)} · ${esc(p.fights)} ${p.fights === 1 ? "Kampf" : "Kämpfe"}</div></td><td>${fmtK(p.healingTotal)}</td><td${overClass}>${esc(p.overhealPct)} %</td><td>${top}</td><td>${mana}${p.manaLowFights ? ` <span class="tag tag-high">${esc(p.manaLowFights)}× &lt; 10 %</span>` : ""}</td><td>${potions}</td><td>${esc(p.dispels)}${p.avgReactionMs !== null && p.avgReactionMs !== undefined ? ` <span class="sritems">Ø ${fmtSecs(p.avgReactionMs)}</span>` : ""}</td><td>${shields}</td></tr>`;
+    }).join("");
+    const raid = healers.raid || {};
+    const missed = raid.dispelsMissed
+        ? `<p class="note">${esc(raid.dispelsMissed)} dispelbare Debuffs hat niemand entfernt${(raid.missedByAbility || []).length ? `: ${raid.missedByAbility.slice(0, 4).map((m) => `${m.icon ? hicon(m.icon, "") : ""}${esc(m.ability)} (${esc(m.count)}×)`).join(", ")}` : ""}.</p>`
+        : "";
+    const tanks = (raid.tanks || []).length ? `<p class="note">Schild- und HoT-Uptimes gemessen auf dem aktiven Tank (${raid.tanks.map(esc).join(", ")}). Manaverlauf und Zauber pro Kampf stehen im Kampfverlauf unter „Heilung“.</p>` : "";
+    return `${tanks}${missed}<table class="idx heal-table"><tr><th>Heiler</th><th>Heilung</th><th>Overheal</th><th>Größter Overheal</th><th>Ø Mana-Tiefstand</th><th>Manatränke</th><th>Dispels</th><th>Auf dem Tank</th></tr>${rows}</table>`;
 }
 
 /** The DPS/HPS strip above the topic switch. */
@@ -1132,7 +1254,7 @@ function renderTimelinePanel(timeline, linkFor) {
     const fights = (timeline && timeline.fights) || [];
     if (fights.length === 0) return "<div class=\"empty\">Keine Boss-Kämpfe im Log.</div>";
     const bosses = groupByBoss(fights);
-    return `<p class="note">Ein Boss, ein Try, ein Bereich: Debuffs, Totems, Cooldowns, Aktivität und Tode auf einer festen Zeitachse (${PX_PER_SEC} px pro Sekunde, seitlich scrollen). Jede Grafik hat darunter eine Tabellenansicht.</p>
+    return `<p class="note">Ein Boss, ein Try, ein Bereich: Debuffs, Totems, Cooldowns, Aktivität, Heilung und Tode auf einer festen Zeitachse (${PX_PER_SEC} px pro Sekunde, seitlich scrollen). Jede Grafik hat darunter eine Tabellenansicht.</p>
     ${renderBossTabs(bosses)}${renderBossPanels(bosses, linkFor)}${TIMELINE_SCRIPT}`;
 }
 
@@ -1143,7 +1265,10 @@ function renderPlayerTimeline(timeline, name) {
         || (f.totems || []).some((t) => t.name === name)
         || ((f.cooldowns && f.cooldowns.players) || []).some((p) => p.name === name)
         || (f.activity || []).some((a) => a.name === name)
-        || ((f.mechanics && f.mechanics.players) || []).some((p) => p.name === name));
+        || ((f.mechanics && f.mechanics.players) || []).some((p) => p.name === name)
+        || ((f.healers && f.healers.healers) || []).some((h) => h.name === name)
+        || ((f.healers && f.healers.shields) || []).some((r) => r.source === name)
+        || !!(f.healers && f.healers.tank && f.healers.tank.name === name));
     if (fights.length === 0) return "";
     const bosses = groupByBoss(fights);
     return `<h2>Kampfverlauf</h2>${renderBossTabs(bosses, name)}${renderBossPanels(bosses, null, name)}${TIMELINE_SCRIPT}`;
@@ -1710,6 +1835,7 @@ function renderReportPage(report, user) {
     const hasSunder = report.sunder && report.sunder.length;
     const hasBoss = report.bossUptimes && report.bossUptimes.rows && report.bossUptimes.rows.length;
     const hasTimeline = report.timeline && report.timeline.fights && report.timeline.fights.length;
+    const hasHealers = report.healers && report.healers.players && report.healers.players.length;
     // The tab shows for reviewers as soon as there are findings, for everyone else once something was approved.
     const recReviewed = report.recommendations ? applyReview(report.recommendations, report.recommendationReview) : null;
     const recItems = recReviewed ? [...recReviewed.raid, ...recReviewed.players.flatMap((p) => p.items)] : [];
@@ -1745,6 +1871,7 @@ function renderReportPage(report, user) {
         { id: "sunder", icon: "ability_warrior_sunder", label: "Sunder Armor", show: hasSunder, count: hasSunder, html: renderSunderPanel(report.sunder, linkFor) },
         { id: "bosses", icon: "achievement_boss_illidan", label: "Bosse", show: hasBoss, count: hasBoss, html: renderBossUptimesPanel(report.bossUptimes) },
         { id: "timeline", icon: "inv_misc_pocketwatch_01", label: "Kampfverlauf", show: hasTimeline, count: hasTimeline, html: hasTimeline ? renderTimelinePanel(report.timeline, linkFor) : "" },
+        { id: "healers", icon: "spell_holy_flashheal", label: "Heiler", show: hasHealers, count: hasHealers, html: hasHealers ? renderHealersPanel(report.healers, linkFor) : "" },
         { id: "recommendations", icon: "inv_misc_note_01", label: "Empfehlungen", show: hasRec, count: recCount, html: hasRec ? renderRecommendationsPanel(report, user, linkFor) : "" },
         { id: "shadowresi", icon: "spell_shadow_antishadow", label: "Shadow-Resi", show: hasShadow, count: hasShadow, html: renderShadowResiPanel(report.shadowResi, linkFor) },
         // RPB sections. The damage tab counts deaths, the spell tab counts downrank

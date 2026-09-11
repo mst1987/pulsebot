@@ -330,7 +330,8 @@ function lineChart(chart) {
     const plotH = chart.height || LINE_H;
     const plotW = plotWidth(chart.duration, chart.pxPerSec);
     const sx = scale(chart.duration, plotW);
-    const max = Math.max(1, ...series.flatMap((s) => s.values.map((v) => Number(v) || 0)));
+    // a fixed maximum (100 for a percentage) keeps two charts comparable; otherwise the data sets it
+    const max = chart.max > 0 ? chart.max : Math.max(1, ...series.flatMap((s) => s.values.map((v) => Number(v) || 0)));
     const sy = (v) => PAD_TOP + plotH - (Math.max(0, Math.min(max, Number(v) || 0)) / max) * plotH;
     const step = Math.max(1, chart.step || 5000);
     const px = (i) => sx(i * step);
@@ -341,7 +342,7 @@ function lineChart(chart) {
     }).join("");
     const ticks = [0, 0.5, 1].map((f) => {
         const y = Math.round(PAD_TOP + plotH - f * plotH);
-        return `<span class="fc-ytick" style="top:${y}px">${fmtNumber(max * f)}</span>`;
+        return `<span class="fc-ytick" style="top:${y}px">${fmtNumber(max * f)}${esc(chart.unit || "")}</span>`;
     }).join("");
 
     const lines = series.map((s, i) => {
@@ -357,17 +358,34 @@ function lineChart(chart) {
         ? `<polyline class="fc-hp" points="${chart.bossHp.map((v, j) => `${px(j).toFixed(1)},${(PAD_TOP + plotH - (Math.max(0, Math.min(100, Number(v) || 0)) / 100) * plotH).toFixed(1)}`).join(" ")}"><title>Boss-Leben (%)</title></polyline>`
         : "";
 
+    // markers sit on the first series at their time: a potion on the mana curve
+    const valueAt = (at) => {
+        const s = series[0];
+        const i = Math.min(s.values.length - 1, Math.max(0, Math.floor(at / step)));
+        return s.values[i];
+    };
+    const markers = (chart.markers || []).filter((m) => m && Number.isFinite(m.at));
+    const marks = markers.map((m) => {
+        const x = sx(m.at);
+        const y = sy(valueAt(m.at));
+        const tip = `${fmtTime(m.at)} · ${m.label || ""}${m.value !== undefined && m.value !== null ? ` · ${m.value}` : ""}`;
+        const icon = m.icon ? `<image href="${esc(iconUrl(m.icon))}" x="${(x - 10).toFixed(1)}" y="${(y - 32).toFixed(1)}" width="20" height="20"/>` : "";
+        return `<g class="fc-mark"><circle class="fc-marker fc-mark-pt" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6"/>${icon}<title>${esc(tip)}</title></g>`;
+    }).join("");
+
     const legend = series.map((s, i) => `<span class="fc-key fc-key-${s.key || (i === 0 ? "a" : "b")}"></span>${esc(s.label)}`).join(" · ")
-        + (hp ? " · <span class=\"fc-key fc-key-hp\"></span>Boss-Leben" : "");
+        + (hp ? " · <span class=\"fc-key fc-key-hp\"></span>Boss-Leben" : "")
+        + (markers.length ? ` · <span class="fc-key fc-key-mark"></span>${esc(chart.markersLabel || "Markierungen")} (${markers.length})` : "");
     const deaths = deathMarkers(chart.deaths, chart.duration, plotW, PAD_TOP, PAD_TOP + plotH, chart.classColor);
     const height = PAD_TOP + plotH + AXIS_H + 4;
     const svg = `<div class="fc-scroll"><svg class="fchart fc-lines" width="${plotW + PAD_RIGHT}" height="${height}" viewBox="0 0 ${plotW + PAD_RIGHT} ${height}" role="img" aria-label="${esc(chart.title || "Verlauf")}">`
-        + grid + lines + hp + deaths + axisSvg(chart.duration, plotW, PAD_TOP + plotH + 4) + "</svg></div>";
+        + grid + lines + hp + marks + deaths + axisSvg(chart.duration, plotW, PAD_TOP + plotH + 4) + "</svg></div>";
     const left = `<div class="fc-col fc-yaxis" style="height:${PAD_TOP + plotH}px">${ticks}</div>`;
     const right = "<div class=\"fc-col fc-values\"></div>";
     const table = `<table class="idx fc-table"><tr><th>Zeit</th>${series.map((s) => `<th>${esc(s.label)}</th>`).join("")}${hp ? "<th>Boss-Leben</th>" : ""}</tr>`
-        + series[0].values.map((_, j) => `<tr><td>${fmtTime(j * step)}</td>${series.map((s) => `<td>${fmtNumber(s.values[j])}</td>`).join("")}${hp ? `<td>${Math.round(Number(chart.bossHp[j]) || 0)}%</td>` : ""}</tr>`).join("")
-        + "</table>";
+        + series[0].values.map((_, j) => `<tr><td>${fmtTime(j * step)}</td>${series.map((s) => `<td>${fmtNumber(s.values[j])}${esc(chart.unit || "")}</td>`).join("")}${hp ? `<td>${Math.round(Number(chart.bossHp[j]) || 0)}%</td>` : ""}</tr>`).join("")
+        + "</table>"
+        + (markers.length ? `<ul class="fc-marks">${markers.map((m) => `<li><b>${fmtTime(m.at)}</b> ${esc(m.label || "")}${m.value !== undefined && m.value !== null ? ` · ${esc(m.value)}` : ""}</li>`).join("")}</ul>` : "");
     return figure(chart.title, left + svg + right, table, `<div class="fc-legend">${legend}</div>`);
 }
 
@@ -385,6 +403,9 @@ const CHART_STYLE = `
   .fc-key { display:inline-block; width:16px; height:2px; vertical-align:middle; margin-right:6px; background:var(--accent); }
   .fc-key-b { background:var(--accent-2); }
   .fc-key-hp { background:var(--muted); }
+  .fc-key-mark { background:var(--accent-2); height:8px; width:8px; border-radius:50%; }
+  .fc-marks { margin:6px 0 0; padding:0 0 0 18px; font-size:13px; color:var(--muted); }
+  .fc-marks b { font-family:var(--font-mono); color:var(--text); }
   .fc-grid { display:flex; align-items:flex-start; }
   .fc-col { flex:0 0 auto; display:flex; flex-direction:column; box-sizing:border-box; }
   .fc-icons { width:72px; align-items:center; }
@@ -420,6 +441,7 @@ const CHART_STYLE = `
   .fchart .fc-window { fill:var(--accent-2); fill-opacity:.12; }
   .fchart .fc-marker { fill:var(--accent); stroke:var(--panel); stroke-width:2; }
   .fchart .fc-mark:hover .fc-marker { fill:var(--accent-2); }
+  .fchart .fc-mark-pt { fill:var(--accent-2); }
   .fchart .fc-hit { fill:transparent; }
   .fchart .fc-death line { stroke:var(--cc); stroke-width:2; }
   .fchart .fc-death:hover line { stroke-width:3; }

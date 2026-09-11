@@ -12,6 +12,7 @@ const { analyzeCooldownTimeline } = require("./cooldownTimeline");
 const { analyzeTotems } = require("./totems");
 const { analyzeMechanics } = require("./mechanics");
 const { analyzeActivityTimeline } = require("./activityTimeline");
+const { analyzeHealers } = require("./healers");
 const { buildRecommendations } = require("./recommendations");
 const { analyzeRpb, rpbSummaryLines } = require("./rpb");
 const { selectPlayers } = require("./common");
@@ -143,6 +144,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
     let totems = null;
     let mechanics = null;
     let activity = null;
+    let healers = null;
     if (wantCla) {
         try { consumables = await analyzeConsumables(wcl, reportId, fights, playerEntries); } catch (e) { console.error("consumables failed:", e.message); }
         try { drums = await analyzeDrums(wcl, reportId, fights); } catch (e) { console.error("drums failed:", e.message); }
@@ -163,6 +165,8 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         try { mechanics = await analyzeMechanics(wcl, reportId, fights, idToPlayer, timeline); } catch (e) { console.error("mechanics failed:", e.message); }
         // Activity bands and holes per player per fight (after mechanics, which label the holes).
         try { activity = await analyzeActivityTimeline(wcl, reportId, fights, idToPlayer, timeline); } catch (e) { console.error("activity failed:", e.message); }
+        // Healers per fight (overheal, mana, dispels, the tank's shields), on the timeline; the summary is its own field.
+        try { healers = await analyzeHealers(wcl, reportId, fights, idToPlayer, timeline); } catch (e) { console.error("healers failed:", e.message); }
     }
 
     // RPB (Role Performance Breakdown) — the performance half of the analysis.
@@ -229,6 +233,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         totems,
         mechanics,
         activity,
+        healers,
         rpb,
         roster,
         icons,
@@ -299,7 +304,7 @@ function mergeRoster(existingRoster, freshRoster, sections) {
 
 // Report fields each half owns. Only these are dropped when a half is discarded;
 // the shared meta (title, players, roster, ...) belongs to the page itself.
-const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems", "mechanics", "activity"];
+const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems", "mechanics", "activity", "healers"];
 const RPB_FIELDS = ["rpb"];
 
 /**
@@ -339,6 +344,20 @@ function cooldownsLine(cooldowns) {
     const missed = players.reduce((n, p) => n + (p.missed || 0), 0);
     if (!possible) return `${players.length} Spieler`;
     return `${Math.round(((possible - missed) / possible) * 100)} % der möglichen genutzt, ${missed} verpasst`;
+}
+
+/** "n Heiler, Ø Overheal p %, n Dispels, n nie entfernt" — the healers' night in one line. */
+function healersLine(healers) {
+    const players = healers.players || [];
+    if (!players.length) return "keine Daten";
+    const raw = players.reduce((n, p) => n + (p.healingTotal || 0) + (p.overhealTotal || 0), 0);
+    const over = players.reduce((n, p) => n + (p.overhealTotal || 0), 0);
+    const dispels = players.reduce((n, p) => n + (p.dispels || 0), 0);
+    const missed = (healers.raid && healers.raid.dispelsMissed) || 0;
+    const empty = players.reduce((n, p) => n + (p.manaLowFights || 0), 0);
+    const parts = [`${players.length} Heiler`, `Ø Overheal ${raw ? Math.round((over / raw) * 100) : 0} %`, `${dispels} Dispels${missed ? `, ${missed} nie entfernt` : ""}`];
+    if (empty) parts.push(`${empty}× unter 10 % Mana`);
+    return parts.join(", ");
 }
 
 /** "n Schamanen, m Kämpfe mit Twisting, Windfury Ø p %" — the melee shamans' twisting at a glance. */
@@ -405,6 +424,7 @@ function reportSummaryLines(report, only) {
             report.totems ? `🪶 Totems: ${totemsLine(report.totems)}` : "",
             report.mechanics ? `💀 Tode: ${deathsLine(report.mechanics)}` : "",
             report.activity ? `🕒 Aktivität: ${activityLine(report.activity)}` : "",
+            report.healers ? `💧 Heiler: ${healersLine(report.healers)}` : "",
             ...raidRecommendationLines(report.recommendations),
         );
     }

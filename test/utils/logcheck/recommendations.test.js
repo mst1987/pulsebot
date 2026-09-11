@@ -106,6 +106,68 @@ describe("logcheck/recommendations — player rules", () => {
     });
 });
 
+describe("logcheck/recommendations — healer rules", () => {
+    function healer(over = {}) {
+        return {
+            name: "Elun", type: "Priest", fights: 4, healingTotal: 600000, overhealTotal: 400000, overhealPct: 40,
+            topOverheal: { name: "Großes Heilen", overhealPct: 55, overhealShare: 70 },
+            manaFights: 4, manaMinAvg: 12, manaLowFights: 2, potions: 3, potionPcts: [8, 55, 12], potionMissingFights: 1,
+            dispels: 6, avgReactionMs: 4200,
+            shields: [{ key: "earthShield", label: "Erdschild", uptimeAvg: 60 }, { key: "renew", label: "Erneuerung", uptimeAvg: 20 }],
+            ...over,
+        };
+    }
+    const rep = (h, activeAvg = 70) => ({
+        roster: [{ name: "Elun", type: "Priest" }], players: [],
+        healers: { players: [h], raid: { dispelsMissed: 3, missedByAbility: [{ ability: "Stille", count: 3 }] } },
+        activity: { players: [{ name: "Elun", activeAvg, gaps: 5, gapMs: 50000, unexplainedMs: 40000, mechanicMs: 0, longestGap: 20000 }] },
+    });
+    const items = (h, a) => buildRecommendations(rep(h, a)).players[0].items;
+
+    it("aims the overheal finding at the spell that wasted the most", () => {
+        const over = items(healer()).find((i) => i.key === "healers.overheal");
+        expect(over.title).toBe("40 % Overheal");
+        expect(over.impact).toBe("medium");
+        expect(over.text).toContain("Großes Heilen: 55 % davon Overheal, 70 % des gesamten Overheals");
+        expect(items(healer({ overhealPct: 55 })).find((i) => i.key === "healers.overheal").impact).toBe("high");
+        expect(items(healer({ overhealPct: 20 })).map((i) => i.key)).not.toContain("healers.overheal");
+    });
+
+    it("calls a potion at 8 % late and one at 55 % fine", () => {
+        const late = items(healer()).find((i) => i.key === "healers.potionLate");
+        expect(late.title).toBe("Manatrank 2× erst bei 10 % Mana");
+        expect(late.evidence[0].value).toBe("8 %, 12 %");
+        expect(items(healer({ potionPcts: [55, 48] })).map((i) => i.key)).not.toContain("healers.potionLate");
+    });
+
+    it("reports empty mana, a missing potion, slow dispels and the tank shield, but not a HoT nobody expects", () => {
+        const keys = items(healer()).map((i) => i.key);
+        expect(keys).toEqual(expect.arrayContaining(["healers.mana", "healers.potionMissing", "healers.dispels", "healers.shield.earthShield"]));
+        expect(keys).not.toContain("healers.shield.renew");
+        const all = items(healer());
+        expect(all.find((i) => i.key === "healers.mana")).toMatchObject({ impact: "high", title: "In 2 Kämpfen unter 10 % Mana" });
+        expect(all.find((i) => i.key === "healers.dispels").title).toBe("Dispels im Schnitt erst nach 4,2 s");
+        expect(all.find((i) => i.key === "healers.shield.earthShield").title).toBe("Erdschild nur 60 % auf dem Tank");
+        const quiet = items(healer({ manaLowFights: 0, potionMissingFights: 0, avgReactionMs: 1500, shields: [{ key: "earthShield", label: "Erdschild", uptimeAvg: 95 }] })).map((i) => i.key);
+        expect(quiet).not.toEqual(expect.arrayContaining(["healers.mana", "healers.potionMissing", "healers.dispels", "healers.shield.earthShield"]));
+    });
+
+    it("judges a healer's activity by the healer threshold and never nags about holes", () => {
+        expect(items(healer(), 70).map((i) => i.key)).not.toEqual(expect.arrayContaining(["activity.low", "activity.gaps"]));
+        const low = items(healer(), 50).find((i) => i.key === "activity.low");
+        expect(low).toMatchObject({ impact: "medium", title: "Nur 50 % aktiv" });
+        expect(low.text).toContain("HoTs vorlegen");
+    });
+
+    it("tells the raid which dispellable debuffs nobody removed", () => {
+        const raid = raidRules(rep(healer()));
+        const d = raid.find((i) => i.key === "raid.dispels");
+        expect(d.title).toBe("3 dispelbare Debuffs nie entfernt");
+        expect(d.text).toContain("Am häufigsten Stille (3×)");
+        expect(raidRules({ healers: { players: [], raid: { dispelsMissed: 1 } } })).toEqual([]);
+    });
+});
+
 describe("logcheck/recommendations — raid rules", () => {
     it("names the raid's biggest costs, high impact first, at most five", () => {
         const raid = raidRules(fullReport());
