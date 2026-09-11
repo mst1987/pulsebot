@@ -8,6 +8,8 @@
 
 const { renderAdminChrome, CHROME_STYLE, ICONS } = require("./adminChrome");
 const rpbData = require("../config/rpbData");
+const { ribbonChart, markerChart, lineChart, fmtTime, CHART_STYLE, PX_PER_SEC } = require("./charts");
+const { bossIconUrl } = require("../config/bosses");
 
 const CLASS_COLORS = {
     Druid: "#FF7D0A", Hunter: "#ABD473", Mage: "#69CCF0", Paladin: "#F58CBA",
@@ -528,6 +530,41 @@ ${body}
   .discord-btn:hover { background:#4752C4; }
   .discord-btn svg { display:block; }
   footer { color:var(--muted); font-size:12px; margin-top:40px; text-align:center; }
+  /* fight timeline (Kampfverlauf): boss tabs → try pills → topic switch */
+  [hidden] { display:none !important; }
+  .boss-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px; }
+  .boss-tab { display:inline-flex; align-items:center; gap:10px; padding:8px 16px 8px 8px; border:1px solid var(--line); background:var(--panel); color:var(--muted); font:inherit; font-size:16px; font-weight:600; cursor:pointer; }
+  .boss-tab img { width:36px; height:36px; border-radius:6px; border:1px solid var(--line); display:block; }
+  .boss-tab:hover { color:var(--text); border-color:var(--muted); }
+  .boss-tab.active { color:var(--text); border-color:var(--accent); box-shadow:inset 0 -3px 0 var(--accent); }
+  .boss-tries { font-size:12px; font-weight:600; padding:2px 8px; border-radius:10px; background:var(--panel2); color:var(--muted); font-family:var(--font-mono); }
+  .boss-tab.active .boss-kill { background:var(--good-bg); color:var(--good); }
+  .boss-tab.active .boss-wipe { background:var(--high-bg); color:var(--high); }
+  .try-pills { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px; }
+  .try-pill { display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border:1px solid var(--line); background:var(--panel2); color:var(--muted); font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
+  .try-pill .s { font-size:12px; font-weight:500; font-family:var(--font-mono); }
+  .try-pill:hover { color:var(--text); border-color:var(--muted); }
+  .try-pill.active { color:var(--accent-ink); background:var(--accent); border-color:var(--accent); }
+  .try-pill.active .s { color:var(--accent-ink); opacity:.85; }
+  .fight { background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--accent); padding:16px 18px 18px; }
+  .fight.fight-wipe { border-left-color:var(--high); }
+  .fight-head { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; margin:0 0 14px; }
+  .fight-head h3 { margin:0; font-size:22px; font-weight:700; }
+  .fight-head .meta { color:var(--muted); font-size:14px; font-family:var(--font-mono); }
+  .fight-series { margin:0 0 16px; padding:0 0 12px; border-bottom:1px solid var(--line); }
+  .seg { display:inline-flex; border:1px solid var(--line); background:var(--panel2); margin:0 0 14px; }
+  .seg-btn { padding:10px 18px; border:0; border-right:1px solid var(--line); background:transparent; color:var(--muted); font:inherit; font-size:15px; font-weight:600; cursor:pointer; }
+  .seg-btn:last-child { border-right:0; }
+  .seg-btn:hover { color:var(--text); }
+  .seg-btn.active { background:var(--panel); color:var(--text); box-shadow:inset 0 -3px 0 var(--accent-2); }
+  .seg-btn .n { margin-left:8px; font-size:12px; color:var(--muted); font-family:var(--font-mono); }
+  .fight-deaths { margin:0; padding:0; list-style:none; font-size:15px; }
+  .fight-deaths li { padding:6px 0; border-bottom:1px solid var(--line-soft); display:flex; align-items:center; gap:10px; }
+  .fight-deaths b { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+  .fight-deaths .cn { color:var(--cc); font-weight:600; }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .fight-deaths .cn { color:color-mix(in srgb, var(--cc) 70%, #000); } }
+  :root[data-theme="light"] .fight-deaths .cn { color:color-mix(in srgb, var(--cc) 70%, #000); }
+${CHART_STYLE}
 ${opts.extraStyle || ""}
 </style>
 </head>
@@ -814,6 +851,218 @@ function renderBossUptimesPanel(data) {
       <tr><th>Boss</th>${head}</tr>
       ${body}
     </table>`)}`;
+}
+
+// ---- Kampfverlauf: the fight timelines (report.timeline, utils/logcheck/fightTimeline.js) ----
+//
+// One boss at a time, one try at a time, one topic at a time: boss tabs (with
+// the WCL boss icon), try pills under them, and a segmented switch for the
+// topic — the DPS strip stays on top whichever topic is open. Every topic
+// container on a fight is optional and drawn only when an analyzer filled it,
+// so a report from before those analyzers still renders — with the bare fight
+// axis and its deaths. The shapes the panel expects:
+//   debuffs[]   { key, label, icon, bands | stacks, maxStacks, uptimePct, gapCount, longestGap, firstAt, timeToMax }
+//   totems[]    { name, type, rows: [{ label, icon, markers, band, downtimes, uptimePct }] }
+//   cooldowns   { windows: [{ label, from, to }], players: [{ name, type, rows: [{ label, icon, markers }] }] }
+//   activity[]  { name, type, bands, gaps: [{ from, to, reason }], activePct }
+//   series      { step, dps, hps, bossHp }
+
+const classColorOf = (type) => CLASS_COLORS[type] || "";
+
+function pctTone(v) {
+    return v >= 95 ? "good" : v >= 70 ? "medium" : "high";
+}
+
+function fightOutcome(f) {
+    if (f.kill) return "Kill";
+    return `Wipe${Number.isFinite(f.fightPercentage) && f.fightPercentage !== null ? ` bei ${Math.round(f.fightPercentage)} %` : ""}`;
+}
+
+function fightAnchor(f) {
+    return `fight-${esc(f.id)}`;
+}
+
+function classIconName(type) {
+    return type ? `classicon_${String(type).toLowerCase()}` : "";
+}
+
+function deathsList(deaths, linkFor) {
+    if (!deaths || deaths.length === 0) return "<div class=\"fc-empty\">Niemand ist gestorben.</div>";
+    return `<ul class="fight-deaths">${deaths.map((d) => {
+        const href = linkFor && linkFor(d.name);
+        const name = href ? `<a class="cn" href="${esc(href)}">${esc(d.name)}</a>` : `<span class="cn">${esc(d.name)}</span>`;
+        const why = d.ability ? ` <span class="sritems">· ${d.abilityIcon ? hicon(d.abilityIcon, "") : ""}${esc(d.ability)}</span>` : "";
+        return `<li style="--cc:${esc(classColorOf(d.type) || "var(--text)")}"><b>${fmtTime(d.at)}</b>${name}${why}</li>`;
+    }).join("")}</ul>`;
+}
+
+/** One line under a debuff's headline number: when it reached full stacks, or its worst gap. */
+function debuffSub(d) {
+    if (d.maxStacks && Number.isFinite(d.timeToMax) && d.timeToMax !== null) return `${d.maxStacks}/${d.maxStacks} ab ${fmtTime(d.timeToMax)}`;
+    if (d.missing) return "fehlt";
+    if (d.longestGap > 3000) return `Lücke ${fmtTime(d.longestGap)}`;
+    if (Number.isFinite(d.firstAt) && d.firstAt !== null) return `ab ${fmtTime(d.firstAt)}`;
+    return "";
+}
+
+/**
+ * The topic parts of one fight: { id, label, count, html }, only those with
+ * data. `only` restricts the rows to one raider (the player page).
+ */
+function fightParts(f, linkFor, only) {
+    const common = { duration: f.duration, deaths: f.deaths, classColor: classColorOf };
+    const mine = (name) => !only || name === only;
+    const parts = [];
+    const key = (k) => `fp-${esc(f.id)}-${k}`;
+
+    if (!only && f.debuffs && f.debuffs.length) {
+        const rows = f.debuffs.map((d) => ({
+            label: d.label, icon: d.icon,
+            bands: d.stacks && d.stacks.length ? d.stacks : d.bands,
+            maxStacks: d.maxStacks || 0,
+            value: Number.isFinite(d.uptimePct) ? `${d.uptimePct}%` : undefined,
+            sub: debuffSub(d),
+            tone: Number.isFinite(d.uptimePct) ? pctTone(d.uptimePct) : undefined,
+        }));
+        parts.push({ id: key("debuffs"), label: "Debuffs", count: rows.length, html: ribbonChart({ ...common, rows }) });
+    }
+
+    const totems = (f.totems || []).filter((t) => mine(t.name));
+    if (totems.length) {
+        const rows = totems.flatMap((t) => (t.rows || []).map((r) => ({
+            ...r,
+            label: only ? r.label : `${t.name} · ${r.label}`,
+            value: Number.isFinite(r.uptimePct) ? `${r.uptimePct}%` : r.value,
+            sub: r.sub || ((r.downtimes || []).length ? `${r.downtimes.length} Lücke${r.downtimes.length === 1 ? "" : "n"}` : ""),
+            tone: Number.isFinite(r.uptimePct) ? pctTone(r.uptimePct) : r.tone,
+        })));
+        parts.push({ id: key("totems"), label: "Totems", count: rows.length, html: markerChart({ ...common, rows }) });
+    }
+
+    const cdPlayers = ((f.cooldowns && f.cooldowns.players) || []).filter((p) => mine(p.name));
+    if (cdPlayers.length) {
+        const rows = cdPlayers.flatMap((p) => (p.rows || []).map((r) => {
+            const n = (r.markers || []).length;
+            return { ...r, label: only ? r.label : `${p.name} · ${r.label}`, value: r.value !== undefined ? r.value : `${n}×`, sub: r.sub };
+        }));
+        parts.push({ id: key("cooldowns"), label: "Cooldowns", count: rows.length, html: markerChart({ ...common, rows, windows: f.cooldowns.windows || [] }) });
+    }
+
+    const activity = (f.activity || []).filter((a) => mine(a.name));
+    if (activity.length) {
+        const rows = activity.map((a) => ({
+            label: a.name, icon: a.icon || classIconName(a.type),
+            bands: a.bands,
+            value: Number.isFinite(a.activePct) ? `${a.activePct}%` : undefined,
+            sub: (a.gaps || []).length ? `${a.gaps.length} Lücke${a.gaps.length === 1 ? "" : "n"}` : "",
+            tone: Number.isFinite(a.activePct) ? pctTone(a.activePct) : undefined,
+        }));
+        parts.push({ id: key("activity"), label: "Aktivität", count: rows.length, html: ribbonChart({ ...common, rows }) });
+    }
+
+    const deaths = only ? (f.deaths || []).filter((d) => d.name === only) : (f.deaths || []);
+    if (parts.length === 0) {
+        // nothing but the skeleton yet: the fight itself is the one band, so the
+        // axis and the deaths are still there to look at
+        parts.push({ id: key("fight"), label: "Kampf", count: 1, html: ribbonChart({ ...common, deaths, rows: [{ label: f.kill ? "Kampf (Kill)" : "Kampf (Wipe)", bands: [[0, f.duration]], tone: f.kill ? "good" : "high", value: fmtTime(f.duration) }] }) });
+    }
+    parts.push({ id: key("deaths"), label: "Tode", count: deaths.length, html: deathsList(deaths, linkFor) });
+    return parts;
+}
+
+/** The DPS/HPS strip above the topic switch. */
+function fightSeries(f) {
+    if (!f.series || !(f.series.dps || f.series.hps)) return "";
+    const series = [];
+    if (f.series.dps) series.push({ key: "a", label: "Raid-DPS", values: f.series.dps });
+    if (f.series.hps) series.push({ key: "b", label: "Raid-HPS", values: f.series.hps });
+    return `<div class="fight-series">${lineChart({ duration: f.duration, deaths: f.deaths, classColor: classColorOf, step: f.series.step, series, bossHp: f.series.bossHp })}</div>`;
+}
+
+/** One try: its head line, the DPS strip, the topic switch and the topic panels. */
+function renderFightSection(f, linkFor, only, tryNo, tries, active) {
+    const parts = fightParts(f, linkFor, only);
+    const deaths = (f.deaths || []).length;
+    const seg = parts.map((p, i) =>
+        `<button type="button" class="seg-btn${i === 0 ? " active" : ""}" data-show="${p.id}">${esc(p.label)}<span class="n">${esc(p.count)}</span></button>`).join("");
+    const panels = parts.map((p, i) => `<div id="${p.id}" class="fight-part"${i === 0 ? "" : " hidden"}>${p.html}</div>`).join("");
+    return `<section class="fight${f.kill ? "" : " fight-wipe"}" id="${fightAnchor(f)}"${active ? "" : " hidden"}>
+      <div class="fight-head">
+        <h3>${esc(f.boss)}</h3>
+        <span class="meta">${tries > 1 ? `Try ${tryNo}/${tries} · ` : ""}${esc(fightOutcome(f))} · ${fmtTime(f.duration)} · ${deaths} ${deaths === 1 ? "Tod" : "Tode"}</span>
+      </div>
+      ${only ? "" : fightSeries(f)}
+      <nav class="seg">${seg}</nav>
+      ${panels}
+    </section>`;
+}
+
+/** Fights grouped per boss (by encounter id, else name), in pull order. */
+function groupByBoss(fights) {
+    const bosses = [];
+    const byKey = new Map();
+    for (const f of fights) {
+        const k = f.encounterId ? `e${f.encounterId}` : `n${f.boss}`;
+        if (!byKey.has(k)) {
+            const boss = { key: k, name: f.boss, encounterId: f.encounterId, fights: [] };
+            byKey.set(k, boss);
+            bosses.push(boss);
+        }
+        byKey.get(k).fights.push(f);
+    }
+    return bosses;
+}
+
+// The one script the tab shares: a click on [data-show] activates that button
+// among its siblings and shows the matching panel among the siblings' panels.
+const TIMELINE_SCRIPT = `<script>(function(){if(window.__ehShow)return;window.__ehShow=1;
+document.addEventListener("click",function(e){var b=e.target.closest("[data-show]");if(!b)return;
+var nav=b.parentElement,btns=nav.querySelectorAll("[data-show]");
+for(var i=0;i<btns.length;i++){var x=btns[i],p=document.getElementById(x.getAttribute("data-show"));x.classList.toggle("active",x===b);if(p)p.hidden=x!==b;}});})();</script>`;
+
+function renderBossTabs(bosses, only) {
+    const tabs = bosses.map((b, i) => {
+        const icon = bossIconUrl(b.encounterId);
+        const kills = b.fights.filter((f) => f.kill).length;
+        const state = kills ? "kill" : "wipe";
+        return `<button type="button" class="boss-tab${i === 0 ? " active" : ""}" data-show="fb-${only ? "p-" : ""}${esc(b.key)}">`
+            + (icon ? `<img src="${esc(icon)}" alt="">` : "")
+            + `<span class="boss-name">${esc(b.name)}</span>`
+            + `<span class="boss-tries boss-${state}">${b.fights.length} ${b.fights.length === 1 ? "Try" : "Tries"}</span></button>`;
+    }).join("");
+    return `<nav class="boss-tabs">${tabs}</nav>`;
+}
+
+function renderBossPanels(bosses, linkFor, only) {
+    return bosses.map((b, i) => {
+        const pills = b.fights.map((f, j) =>
+            `<button type="button" class="try-pill${j === 0 ? " active" : ""}${f.kill ? " try-kill" : " try-wipe"}" data-show="${fightAnchor(f)}">Try ${j + 1}<span class="s">${esc(fightOutcome(f))} · ${fmtTime(f.duration)}</span></button>`).join("");
+        const sections = b.fights.map((f, j) => renderFightSection(f, linkFor, only, j + 1, b.fights.length, j === 0)).join("");
+        return `<div id="fb-${only ? "p-" : ""}${esc(b.key)}" class="fight-boss"${i === 0 ? "" : " hidden"}>
+          ${b.fights.length > 1 ? `<nav class="try-pills">${pills}</nav>` : ""}
+          ${sections}
+        </div>`;
+    }).join("");
+}
+
+function renderTimelinePanel(timeline, linkFor) {
+    const fights = (timeline && timeline.fights) || [];
+    if (fights.length === 0) return "<div class=\"empty\">Keine Boss-Kämpfe im Log.</div>";
+    const bosses = groupByBoss(fights);
+    return `<p class="note">Ein Boss, ein Try, ein Bereich: Debuffs, Totems, Cooldowns, Aktivität und Tode auf einer festen Zeitachse (${PX_PER_SEC} px pro Sekunde, seitlich scrollen). Jede Grafik hat darunter eine Tabellenansicht.</p>
+    ${renderBossTabs(bosses)}${renderBossPanels(bosses, linkFor)}${TIMELINE_SCRIPT}`;
+}
+
+/** The player page's slice of the timeline: only the fights this raider shows up in. */
+function renderPlayerTimeline(timeline, name) {
+    const fights = ((timeline && timeline.fights) || []).filter((f) =>
+        (f.deaths || []).some((d) => d.name === name)
+        || (f.totems || []).some((t) => t.name === name)
+        || ((f.cooldowns && f.cooldowns.players) || []).some((p) => p.name === name)
+        || (f.activity || []).some((a) => a.name === name));
+    if (fights.length === 0) return "";
+    const bosses = groupByBoss(fights);
+    return `<h2>Kampfverlauf</h2>${renderBossTabs(bosses, name)}${renderBossPanels(bosses, null, name)}${TIMELINE_SCRIPT}`;
 }
 
 // Headline numbers for a report: raiders, gear issues, boss fights, consumable coverage.
@@ -1204,6 +1453,7 @@ function renderReportPage(report, user) {
     const hasRoster = report.roster && report.roster.length;
     const hasSunder = report.sunder && report.sunder.length;
     const hasBoss = report.bossUptimes && report.bossUptimes.rows && report.bossUptimes.rows.length;
+    const hasTimeline = report.timeline && report.timeline.fights && report.timeline.fights.length;
 
     const rpb = report.rpb || null;
     const rpbRoles = rpb && rpb.roles;
@@ -1233,6 +1483,7 @@ function renderReportPage(report, user) {
         { id: "drums", icon: "inv_misc_drum_01", label: "Drums", show: hasDrums, count: hasDrums, html: renderDrumsPanel(report.drums, linkFor) },
         { id: "sunder", icon: "ability_warrior_sunder", label: "Sunder Armor", show: hasSunder, count: hasSunder, html: renderSunderPanel(report.sunder, linkFor) },
         { id: "bosses", icon: "achievement_boss_illidan", label: "Bosse", show: hasBoss, count: hasBoss, html: renderBossUptimesPanel(report.bossUptimes) },
+        { id: "timeline", icon: "inv_misc_pocketwatch_01", label: "Kampfverlauf", show: hasTimeline, count: hasTimeline, html: hasTimeline ? renderTimelinePanel(report.timeline, linkFor) : "" },
         { id: "shadowresi", icon: "spell_shadow_antishadow", label: "Shadow-Resi", show: hasShadow, count: hasShadow, html: renderShadowResiPanel(report.shadowResi, linkFor) },
         // RPB sections. The damage tab counts deaths, the spell tab counts downrank
         // warnings and the log check counts unmet requirements, so every badge shows
@@ -1386,7 +1637,8 @@ function renderPlayerPage(report, idx, user) {
       </div>
       <div class="doll-bottom">${bottom}</div>
       <h2>Gear-Probleme</h2>
-      ${issues}`;
+      ${issues}
+      ${renderPlayerTimeline(report.timeline, p.name)}`;
 
     return shellPage(`${p.name} — ${report.title || ""}`, {
         user,

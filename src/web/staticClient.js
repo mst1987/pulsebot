@@ -19,6 +19,8 @@ const CONTENT_TYPES = {
     ".json": "application/json; charset=utf-8",
     ".ico": "image/x-icon",
     ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
 };
 
 async function readFromDist(relPath) {
