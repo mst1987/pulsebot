@@ -105,7 +105,11 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
     return (
         <div className="app">
             <aside className={`side${menuOpen ? " open" : ""}`}>
-                <div className="brand">
+                {/* The crest is the way home: "/" is the dashboard, or — for an
+                    account without dashboard access — App.tsx's redirect to the
+                    first section that account may open. The menu closes on the
+                    click like a nav item, so on a phone the page shows. */}
+                <Link className="brand" to="/" aria-label="Zur Übersicht" onClick={() => setMenuOpen(false)}>
                     <div className="crest"><CrestIcon /></div>
                     <div>
                         <div className="brand-name">EventHelper</div>
@@ -113,7 +117,7 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
                             looking up loot, not officers. */}
                         <div className="brand-sub">Gildenmenü</div>
                     </div>
-                </div>
+                </Link>
                 <AdminNav user={user} />
                 <div className="side-foot">
                     <div className="avatar">{initial}</div>
