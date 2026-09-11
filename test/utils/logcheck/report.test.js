@@ -32,6 +32,9 @@ jest.mock("../../../src/utils/logcheck/fightTimeline.js", () => ({
 jest.mock("../../../src/utils/logcheck/raidDebuffs.js", () => ({
     analyzeRaidDebuffs: jest.fn(async () => ({ expected: ["sunder", "coe"], rows: [{ key: "sunder", expected: true, missing: 0, avgUptime: 95 }, { key: "coe", expected: true, missing: 1, avgUptime: 60 }] })),
 }));
+jest.mock("../../../src/utils/logcheck/cooldownTimeline.js", () => ({
+    analyzeCooldownTimeline: jest.fn(async () => ({ players: [{ name: "Aldra", possible: 4, missed: 1 }] })),
+}));
 jest.mock("../../../src/utils/logcheck/rpb/index.js", () => ({
     analyzeRpb: jest.fn(async () => ({ roles: {}, byRole: {} })),
     rpbSummaryLines: jest.fn(() => ["🎭 Rollen: Tank 2"]),
@@ -273,6 +276,7 @@ describe("logcheck/report — stripSection", () => {
         bossUptimes: { rows: [1] },
         timeline: { fights: [1] },
         raidDebuffs: { rows: [1] },
+        cooldowns: { players: [1] },
         shadowResi: { players: [1] },
         rpb: { roles: {} },
     };
@@ -290,7 +294,7 @@ describe("logcheck/report — stripSection", () => {
         const { report, remaining } = stripSection(full, "cla");
         expect(remaining).toEqual(["rpb"]);
         expect(report.rpb).toEqual({ roles: {} });
-        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "shadowResi"]) {
+        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "shadowResi"]) {
             expect(report[key]).toBeNull();
         }
     });
@@ -374,6 +378,14 @@ describe("logcheck/report — reportSummaryLines", () => {
         const line = reportSummaryLines(withDebuffs, "cla").find((l) => l.includes("Raid-Debuffs"));
         expect(line).toContain("3 erwartet, 2 mit Lücken");
         expect(reportSummaryLines(withDebuffs, "rpb").join("\n")).not.toContain("Raid-Debuffs");
+    });
+
+    it("sums the cooldown discipline into one line", () => {
+        const withCds = { ...report, cooldowns: { players: [{ name: "A", possible: 6, missed: 1 }, { name: "B", possible: 4, missed: 2 }] } };
+        expect(reportSummaryLines(withCds, "cla").find((l) => l.includes("Cooldowns"))).toBe("⏳ Cooldowns: 70 % der möglichen genutzt, 3 verpasst");
+        const none = { ...report, cooldowns: { players: [{ name: "A", possible: 0, missed: 0 }] } };
+        expect(reportSummaryLines(none, "cla").find((l) => l.includes("Cooldowns"))).toBe("⏳ Cooldowns: 1 Spieler");
+        expect(reportSummaryLines(withCds, "rpb").join("\n")).not.toContain("Cooldowns:");
     });
 });
 
