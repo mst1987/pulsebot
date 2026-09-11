@@ -10,6 +10,7 @@ const { analyzeFightTimeline } = require("./fightTimeline");
 const { analyzeRaidDebuffs } = require("./raidDebuffs");
 const { analyzeCooldownTimeline } = require("./cooldownTimeline");
 const { analyzeTotems } = require("./totems");
+const { analyzeMechanics } = require("./mechanics");
 const { analyzeRpb, rpbSummaryLines } = require("./rpb");
 const { selectPlayers } = require("./common");
 const { analyzeRaidProgress, progressSummary } = require("./raidProgress");
@@ -138,6 +139,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
     let raidDebuffs = null;
     let cooldowns = null;
     let totems = null;
+    let mechanics = null;
     if (wantCla) {
         try { consumables = await analyzeConsumables(wcl, reportId, fights, playerEntries); } catch (e) { console.error("consumables failed:", e.message); }
         try { drums = await analyzeDrums(wcl, reportId, fights); } catch (e) { console.error("drums failed:", e.message); }
@@ -154,6 +156,8 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         try { cooldowns = await analyzeCooldownTimeline(wcl, reportId, fights, idToPlayer, timeline); } catch (e) { console.error("cooldowns failed:", e.message); }
         // Each shaman's totems per fight (drops, party-buff bands, twisting), written into the timeline.
         try { totems = await analyzeTotems(wcl, reportId, fights, playerEntries, timeline); } catch (e) { console.error("totems failed:", e.message); }
+        // Avoidable hits and judged deaths per fight, on the timeline; the summary is its own field.
+        try { mechanics = await analyzeMechanics(wcl, reportId, fights, idToPlayer, timeline); } catch (e) { console.error("mechanics failed:", e.message); }
     }
 
     // RPB (Role Performance Breakdown) — the performance half of the analysis.
@@ -218,6 +222,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         raidDebuffs,
         cooldowns,
         totems,
+        mechanics,
         rpb,
         roster,
         icons,
@@ -282,7 +287,7 @@ function mergeRoster(existingRoster, freshRoster, sections) {
 
 // Report fields each half owns. Only these are dropped when a half is discarded;
 // the shared meta (title, players, roster, ...) belongs to the page itself.
-const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems"];
+const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems", "mechanics"];
 const RPB_FIELDS = ["rpb"];
 
 /**
@@ -333,6 +338,13 @@ function totemsLine(totems) {
     return `${players.length} Schamane${players.length === 1 ? "" : "n"}${melee.length ? `, ${twisting} Kämpfe mit Twisting, Windfury Ø ${wf} %` : ""}`;
 }
 
+/** "n Tode, m vermeidbar, k früh · x Treffer durch Mechaniken" — the raid's discipline in one line. */
+function deathsLine(mechanics) {
+    const d = mechanics.deaths || { total: 0, avoidable: 0, early: 0 };
+    const hits = (mechanics.mechanics || []).reduce((n, m) => n + (m.hits || 0), 0);
+    return `${d.total} Tode, ${d.avoidable} vermeidbar, ${d.early} früh · ${hits} Treffer durch Mechaniken`;
+}
+
 /** "n erwartet, m mit Lücken" — the expected debuffs and how many of them fell short somewhere. */
 function debuffsMissingLine(raidDebuffs) {
     const rows = (raidDebuffs.rows || []).filter((r) => r.expected);
@@ -363,6 +375,7 @@ function reportSummaryLines(report, only) {
             report.raidDebuffs ? `🎯 Raid-Debuffs: ${debuffsMissingLine(report.raidDebuffs)}` : "",
             report.cooldowns ? `⏳ Cooldowns: ${cooldownsLine(report.cooldowns)}` : "",
             report.totems ? `🪶 Totems: ${totemsLine(report.totems)}` : "",
+            report.mechanics ? `💀 Tode: ${deathsLine(report.mechanics)}` : "",
         );
     }
     if (wanted.includes(SECTION_RPB)) {

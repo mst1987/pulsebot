@@ -171,6 +171,7 @@ function deathsForFight(entries, fight, idToPlayer) {
             type: e.type || (player && player.type) || "",
             ability: blow ? blow.name || "" : "",
             abilityIcon: blow ? blow.abilityIcon || "" : "",
+            abilityId: blow && blow.guid !== undefined && blow.guid !== null ? Number(blow.guid) : null,
         });
     }
     return out.sort((a, b) => a.at - b.at);
