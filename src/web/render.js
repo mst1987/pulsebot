@@ -892,8 +892,40 @@ function deathsList(deaths, linkFor) {
         const href = linkFor && linkFor(d.name);
         const name = href ? `<a class="cn" href="${esc(href)}">${esc(d.name)}</a>` : `<span class="cn">${esc(d.name)}</span>`;
         const why = d.ability ? ` <span class="sritems">· ${d.abilityIcon ? hicon(d.abilityIcon, "") : ""}${esc(d.ability)}</span>` : "";
-        return `<li style="--cc:${esc(classColorOf(d.type) || "var(--text)")}"><b>${fmtTime(d.at)}</b>${name}${why}</li>`;
+        const tags = [
+            d.avoidable ? "<span class=\"tag tag-high\">vermeidbar</span>" : "",
+            d.early ? "<span class=\"tag tag-medium\">früh</span>" : "",
+            d.repeat ? "<span class=\"tag tag-medium\">nach Kampfrez</span>" : "",
+            d.nearEnd ? "<span class=\"tag\">kurz vor dem Kill</span>" : "",
+        ].filter(Boolean).join("");
+        return `<li style="--cc:${esc(classColorOf(d.type) || "var(--text)")}"><b>${fmtTime(d.at)}</b>${name}${why}${tags}</li>`;
     }).join("")}</ul>`;
+}
+
+/** Avoidable hits as marker rows: one row per mechanic (raid view) or per mechanic the raider took (player view). */
+function mechanicRows(mech, only) {
+    if (!mech) return [];
+    if (only) {
+        const p = (mech.players || []).find((x) => x.name === only);
+        if (!p) return [];
+        return Object.entries(p.byMechanic).map(([mkey, m]) => ({
+            label: m.label, icon: m.icon,
+            markers: p.hits.filter((h) => h.key === mkey).map((h) => ({ at: h.at, icon: h.icon, label: h.amount ? `${m.label} · ${h.amount.toLocaleString("de-DE")}` : m.label })),
+            value: `${m.hits}×`,
+            sub: m.amount ? `${Math.round(m.amount / 1000)}k Schaden` : "Debuff",
+            tone: m.hits >= 3 ? "high" : m.hits === 2 ? "medium" : undefined,
+        })).sort((a, b) => (b.markers.length - a.markers.length));
+    }
+    return (mech.mechanics || []).map((m) => {
+        const hits = (mech.players || []).flatMap((p) => p.hits.filter((h) => h.key === m.key).map((h) => ({ at: h.at, icon: h.icon, label: `${p.name} · ${m.label}${h.amount ? ` · ${h.amount.toLocaleString("de-DE")}` : ""}` })));
+        return {
+            label: m.label, icon: m.icon,
+            markers: hits.sort((a, b) => a.at - b.at),
+            value: `${m.hits}×`,
+            sub: `${m.players} Spieler${m.amount ? ` · ${Math.round(m.amount / 1000)}k` : ""}`,
+            tone: m.players >= 5 ? "high" : m.players >= 2 ? "medium" : undefined,
+        };
+    });
 }
 
 /** One line under a debuff's headline number: when it reached full stacks, or its worst gap. */
@@ -958,6 +990,11 @@ function fightParts(f, linkFor, only) {
             tone: Number.isFinite(a.activePct) ? pctTone(a.activePct) : undefined,
         }));
         parts.push({ id: key("activity"), label: "Aktivität", count: rows.length, html: ribbonChart({ ...common, rows }) });
+    }
+
+    const mechRows = mechanicRows(f.mechanics, only);
+    if (mechRows.length) {
+        parts.push({ id: key("mechanics"), label: "Mechaniken", count: mechRows.reduce((n, r) => n + r.markers.length, 0), html: markerChart({ ...common, rows: mechRows }) });
     }
 
     const deaths = only ? (f.deaths || []).filter((d) => d.name === only) : (f.deaths || []);
@@ -1059,7 +1096,8 @@ function renderPlayerTimeline(timeline, name) {
         (f.deaths || []).some((d) => d.name === name)
         || (f.totems || []).some((t) => t.name === name)
         || ((f.cooldowns && f.cooldowns.players) || []).some((p) => p.name === name)
-        || (f.activity || []).some((a) => a.name === name));
+        || (f.activity || []).some((a) => a.name === name)
+        || ((f.mechanics && f.mechanics.players) || []).some((p) => p.name === name));
     if (fights.length === 0) return "";
     const bosses = groupByBoss(fights);
     return `<h2>Kampfverlauf</h2>${renderBossTabs(bosses, name)}${renderBossPanels(bosses, null, name)}${TIMELINE_SCRIPT}`;

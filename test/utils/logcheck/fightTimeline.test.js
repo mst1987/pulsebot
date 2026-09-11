@@ -112,15 +112,15 @@ describe("deathsForFight", () => {
     it("picks the fight's deaths by fight id, fight-relative and sorted", () => {
         const deaths = deathsForFight(fixture.deaths.entries, fixture.fights.fights[1], {});
         expect(deaths).toEqual([
-            { at: 30000, name: "Aldra", type: "Mage", ability: "Arcane Explosion", abilityIcon: "spell_nature_wispsplode" },
-            { at: 115000, name: "Brokk", type: "Warrior", ability: "Whirlwind", abilityIcon: "ability_whirlwind" },
+            { at: 30000, name: "Aldra", type: "Mage", ability: "Arcane Explosion", abilityIcon: "spell_nature_wispsplode", abilityId: 33237 },
+            { at: 115000, name: "Brokk", type: "Warrior", ability: "Whirlwind", abilityIcon: "ability_whirlwind", abilityId: 33238 },
         ]);
     });
 
     it("falls back to the time window when the table names no fight, and to the roster for names", () => {
         const entries = [{ id: 7, timestamp: 310000 }, { id: 8, timestamp: 50 }];
         const deaths = deathsForFight(entries, GRUUL, { 7: { name: "Cyra", type: "Rogue" } });
-        expect(deaths).toEqual([{ at: 10000, name: "Cyra", type: "Rogue", ability: "", abilityIcon: "" }]);
+        expect(deaths).toEqual([{ at: 10000, name: "Cyra", type: "Rogue", ability: "", abilityIcon: "", abilityId: null }]);
     });
 });
 
@@ -143,7 +143,7 @@ describe("analyzeFightTimeline", () => {
         expect(maulgar.deaths.map((d) => d.name)).toEqual(["Aldra", "Brokk"]);
         expect(gruul).toMatchObject({ id: 3, kill: true, fightPercentage: 0, duration: 180000 });
         expect(gruul.deaths).toEqual([
-            { at: 102000, name: "Aldra", type: "Mage", ability: "Shatter", abilityIcon: "spell_frost_glacier" },
+            { at: 102000, name: "Aldra", type: "Mage", ability: "Shatter", abilityIcon: "spell_frost_glacier", abilityId: 33671 },
         ]);
     });
 
