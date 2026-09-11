@@ -41,6 +41,32 @@ function fullReport() {
     };
 }
 
+/** The raid-buff half apart from fullReport(): the raid rules keep at most five, and these would push the others out. */
+function buffReport() {
+    return {
+        ...fullReport(),
+        raidBuffs: {
+            fights: 4, paladins: 2,
+            players: [
+                { name: "Farin", type: "Warlock", role: "caster", fights: 4, missing: 2, partial: 1, wrong: 0, buffs: {
+                    kings: { expected: 4, full: 2, partial: 0, none: 2, present: 2, wrong: 0, pct: 50 },
+                    wisdom: { expected: 4, full: 3, partial: 1, none: 0, present: 4, wrong: 0, pct: 75 },
+                    fortitude: { expected: 4, full: 4, partial: 0, none: 0, present: 4, wrong: 0, pct: 100 },
+                } },
+                { name: "Dorn", type: "Shaman", role: "melee", fights: 4, missing: 0, partial: 0, wrong: 4, buffs: {
+                    kings: { expected: 4, full: 4, partial: 0, none: 0, present: 4, wrong: 0, pct: 100 },
+                    wisdom: { expected: 0, full: 0, partial: 0, none: 0, present: 4, wrong: 4, pct: 100 },
+                } },
+            ],
+            rows: [
+                { key: "kings", label: "Segen der Könige", provider: "Paladin", expected: true, fights: 4, slots: 40, full: 30, partial: 2, none: 8, present: 32, wrong: 0, coveragePct: 75, missingPlayers: 4, seenPlayers: 10 },
+                { key: "wisdom", label: "Segen der Weisheit", provider: "Paladin", expected: true, fights: 4, slots: 20, full: 19, partial: 1, none: 0, present: 24, wrong: 4, coveragePct: 95, missingPlayers: 1, seenPlayers: 6 },
+                { key: "motw", label: "Mal der Wildnis", provider: "Druid", expected: true, fights: 4, slots: 40, full: 40, partial: 0, none: 0, present: 40, wrong: 0, coveragePct: 100, missingPlayers: 0, seenPlayers: 10 },
+            ],
+        },
+    };
+}
+
 describe("logcheck/recommendations — player rules", () => {
     const rec = buildRecommendations(fullReport());
     const farin = rec.players.find((p) => p.name === "Farin");
@@ -165,6 +191,54 @@ describe("logcheck/recommendations — healer rules", () => {
         expect(d.title).toBe("3 dispelbare Debuffs nie entfernt");
         expect(d.text).toContain("Am häufigsten Stille (3×)");
         expect(raidRules({ healers: { players: [], raid: { dispelsMissed: 1 } } })).toEqual([]);
+    });
+});
+
+describe("logcheck/recommendations — raid buff rules", () => {
+    const rec = buildRecommendations(buffReport());
+    const farin = rec.players.find((p) => p.name === "Farin");
+
+    it("tells the raider which expected buff they lacked in how many fights, high impact from half the fights on", () => {
+        const kings = farin.items.find((i) => i.key === "raidBuffs.kings");
+        expect(kings.impact).toBe("high");
+        expect(kings.title).toBe("Segen der Könige in 2 von 4 Kämpfen gefehlt");
+        expect(kings.text).toContain("2× gar nicht da");
+        expect(kings.evidence).toEqual([{ label: "Kämpfe ohne", value: "2/4" }, { label: "Ausgelaufen", value: "0" }]);
+        // one run-out Wisdom is below the threshold, full Fortitude is nothing
+        expect(farin.items.map((i) => i.key)).not.toContain("raidBuffs.wisdom");
+        expect(farin.items.map((i) => i.key)).not.toContain("raidBuffs.fortitude");
+    });
+
+    it("says when a buff ran out rather than never came", () => {
+        const all = buffReport();
+        all.raidBuffs.players[0].buffs.wisdom = { expected: 4, full: 1, partial: 3, none: 0, present: 4, wrong: 0, pct: 25 };
+        const wisdom = buildRecommendations(all).players.find((p) => p.name === "Farin").items.find((i) => i.key === "raidBuffs.wisdom");
+        expect(wisdom.impact).toBe("high");
+        expect(wisdom.title).toBe("Segen der Weisheit in 3 von 4 Kämpfen gefehlt");
+        expect(wisdom.text).toContain("3× im Kampf ausgelaufen");
+        expect(wisdom.text).not.toContain("gar nicht");
+    });
+
+    it("gives the shaman nothing for a blessing outside his role — that is the paladins' finding", () => {
+        expect(rec.players.find((p) => p.name === "Dorn").items.map((i) => i.key).filter((k) => k.startsWith("raidBuffs"))).toEqual([]);
+    });
+
+    it("addresses the raid rule to the providers: a buff short on several players, a blessing on the wrong role", () => {
+        const raid = raidRules({ raidBuffs: buffReport().raidBuffs });
+        const kings = raid.find((i) => i.key === "raid.buff.kings");
+        expect(kings.impact).toBe("medium");
+        expect(kings.title).toBe("Segen der Könige fehlte auf 4 Spielern");
+        expect(kings.text).toContain("Die Paladine: Segen der Könige vor dem Pull auf alle und nach jedem Wipe erneuern. Abdeckung 75 % über 4 Kämpfe.");
+        const wrong = raid.find((i) => i.key === "raid.buffWrong.wisdom");
+        expect(wrong.title).toBe("Segen der Weisheit 4× auf der falschen Rolle");
+        expect(raid.map((i) => i.key)).not.toContain("raid.buff.wisdom");
+        expect(raid.map((i) => i.key)).not.toContain("raid.buff.motw");
+    });
+
+    it("names the roles a class buff belongs on and calls a coverage under half high impact", () => {
+        const raid = raidRules({ raidBuffs: { rows: [{ key: "intellect", label: "Arkane Intelligenz", provider: "Mage", expected: true, fights: 3, slots: 30, full: 9, none: 21, partial: 0, wrong: 0, coveragePct: 30, missingPlayers: 7 }] } });
+        expect(raid[0].impact).toBe("high");
+        expect(raid[0].text).toContain("Die Mages: Arkane Intelligenz vor dem Pull auf Heiler, Caster und nach jedem Wipe erneuern.");
     });
 });
 

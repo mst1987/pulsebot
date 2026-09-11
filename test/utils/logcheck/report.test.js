@@ -47,6 +47,9 @@ jest.mock("../../../src/utils/logcheck/activityTimeline.js", () => ({
 jest.mock("../../../src/utils/logcheck/healers.js", () => ({
     analyzeHealers: jest.fn(async () => ({ players: [{ name: "Elun", healingTotal: 100, overhealTotal: 50, dispels: 2, manaLowFights: 1 }], raid: { dispelsMissed: 1 } })),
 }));
+jest.mock("../../../src/utils/logcheck/raidBuffs.js", () => ({
+    analyzeRaidBuffs: jest.fn(async () => ({ fights: 2, paladins: 1, players: [{ name: "Dorn", missing: 1 }], rows: [{ key: "kings", label: "Segen der Könige", expected: true, none: 1, partial: 0, missingPlayers: 1 }] })),
+}));
 jest.mock("../../../src/utils/logcheck/recommendations.js", () => ({
     buildRecommendations: jest.fn((report) => ({ generatedAt: 1, raid: [], players: (report.roster || []).map((p) => ({ name: p.name, type: p.type, items: [] })) })),
 }));
@@ -296,6 +299,7 @@ describe("logcheck/report — stripSection", () => {
         mechanics: { players: [1] },
         activity: { players: [1] },
         healers: { players: [1] },
+        raidBuffs: { players: [1] },
         shadowResi: { players: [1] },
         rpb: { roles: {} },
     };
@@ -313,7 +317,7 @@ describe("logcheck/report — stripSection", () => {
         const { report, remaining } = stripSection(full, "cla");
         expect(remaining).toEqual(["rpb"]);
         expect(report.rpb).toEqual({ roles: {} });
-        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems", "mechanics", "activity", "healers", "shadowResi"]) {
+        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems", "mechanics", "activity", "healers", "raidBuffs", "shadowResi"]) {
             expect(report[key]).toBeNull();
         }
     });
@@ -433,6 +437,21 @@ describe("logcheck/report — reportSummaryLines", () => {
         expect(reportSummaryLines(clean, "cla").find((l) => l.includes("Heiler:"))).toBe("💧 Heiler: 1 Heiler, Ø Overheal 0 %, 0 Dispels");
         expect(reportSummaryLines({ ...report, healers: { players: [] } }, "cla").find((l) => l.includes("Heiler:"))).toBe("💧 Heiler: keine Daten");
         expect(reportSummaryLines(withHeal, "rpb").join("\n")).not.toContain("Heiler:");
+    });
+
+    it("counts the expected raid buffs, how many fell short and where it hurt most", () => {
+        const withBuffs = { ...report, raidBuffs: { rows: [
+            { key: "kings", label: "Segen der Könige", expected: true, none: 3, partial: 0, missingPlayers: 5 },
+            { key: "fortitude", label: "Machtwort: Seelenstärke", expected: true, none: 0, partial: 2, missingPlayers: 2 },
+            { key: "motw", label: "Mal der Wildnis", expected: true, none: 0, partial: 0, missingPlayers: 0 },
+            { key: "wisdom", label: "Segen der Weisheit", expected: false, none: 0, partial: 0, missingPlayers: 0 },
+        ] } };
+        expect(reportSummaryLines(withBuffs, "cla").find((l) => l.includes("Raid-Buffs"))).toBe("✨ Raid-Buffs: 3 erwartet, 2 mit Lücken (Segen der Könige auf 5 Spielern)");
+        const one = { ...report, raidBuffs: { rows: [{ key: "motw", label: "Mal der Wildnis", expected: true, none: 1, partial: 0, missingPlayers: 1 }] } };
+        expect(reportSummaryLines(one, "cla").find((l) => l.includes("Raid-Buffs"))).toBe("✨ Raid-Buffs: 1 erwartet, 1 mit Lücken (Mal der Wildnis auf 1 Spieler)");
+        expect(reportSummaryLines({ ...report, raidBuffs: { rows: [] } }, "cla").find((l) => l.includes("Raid-Buffs"))).toBe("✨ Raid-Buffs: keine erwartet");
+        expect(reportSummaryLines(withBuffs, "rpb").join("\n")).not.toContain("Raid-Buffs");
+        expect(reportSummaryLines(report, "cla").join("\n")).not.toContain("Raid-Buffs");
     });
 
     it("averages the activity and counts the holes into one line", () => {
