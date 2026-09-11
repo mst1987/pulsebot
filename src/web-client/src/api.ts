@@ -1707,6 +1707,9 @@ export type WornItem = {
     contentId: string;
     boss: string;
     gemCount: number;
+    /** Socketed gem ids and the enchant id, for the Wowhead tooltip. */
+    gemIds: number[];
+    enchantId: number;
     emptySockets: number;
     /** "ok" | "missing" | "bad" | "na" — "missing" is the one worth showing. */
     enchantStatus: string;
@@ -1909,12 +1912,20 @@ export type CouncilRaider = {
         /** Newer raids skipped to find a set of the right role. */
         skippedReports: number;
         /**
-         * Where this set comes from: "log" — the last evaluation, "armory" —
+         * Where this set comes from: "log" — the last evaluation, "wcl" — a
+         * Warcraft-Logs report somebody loaded for this raider, "armory" —
          * what the character has on now, because somebody pressed the button.
          */
-        source: "log" | "armory";
+        source: "log" | "wcl" | "armory";
         /** When the armory answered (0 for a log set). */
         armoryAt: number;
+        /** When the loaded log was fetched (0 unless source is "wcl"). */
+        wclAt: number;
+        /**
+         * A log was loaded for this raider but not taken: "pvp" — an arena
+         * set, "role" — the other role's set. The evaluation's set stays.
+         */
+        logRejected: "" | "pvp" | "role";
         /**
          * Why the armory's answer was *not* taken although there is one:
          * "pvp" — the character is in arena gear right now, which makes no
@@ -1993,9 +2004,19 @@ export type ExcludedRaider = {
     by: string;
 };
 
+/** One of the bot's newest logs, offered at a raider to load their gear from. */
+export type CouncilLog = {
+    reportId: string;
+    title: string;
+    postedAt: number;
+    eventLabel: string;
+    link: string;
+};
+
 export type LootCouncilData = {
     roster: CouncilRaider[];
     avgLootCount: number;
+    recentLogs: CouncilLog[];
     /** Set aside, and offerable back. */
     excluded: ExcludedRaider[];
     gaps: CouncilGap[];
@@ -2227,6 +2248,19 @@ export function refreshCouncilArmory(
     characters: string[],
 ): Promise<{ asked: number; answered: number; configured: boolean }> {
     return send("POST", "/api/lootcouncil/armory", csrfToken, { characters });
+}
+
+/**
+ * Load one raider's gear from a Warcraft-Logs report (one of the bot's logs by
+ * id, any report by link, or — with neither — the newest log they are in), or
+ * forget a loaded one with `clear`. The council data has to be reloaded
+ * afterwards to show it.
+ */
+export function loadCouncilLogGear(
+    csrfToken: string | null,
+    body: { character: string; reportId?: string; link?: string; clear?: boolean },
+): Promise<{ cleared?: boolean; reportId?: string; reportTitle?: string; reportStart?: number; items?: number; tried?: number }> {
+    return send("POST", "/api/lootcouncil/loggear", csrfToken, body);
 }
 
 /**

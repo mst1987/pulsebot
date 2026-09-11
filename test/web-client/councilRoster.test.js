@@ -48,7 +48,7 @@ describe("loot council — raider blocks", () => {
         // Die Gear-Zeile gehört in den Block, nie daneben.
         const block = fn("RaiderBlock");
         expect(block).toMatch(/<article className="lc-raider" style=\{classColorProps\(r\.classColor\)\.style\}/);
-        expect(block).toMatch(/<GearBand raider=\{r\} \/>/);
+        expect(block).toMatch(/<GearBand\s+raider=\{r\}/);
         // The rail is the class colour handed down as --cc.
         expect(rule(".lc-raider")).toMatch(/border-left: 4px solid var\(--cc/);
     });

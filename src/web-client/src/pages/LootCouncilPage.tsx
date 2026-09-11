@@ -37,10 +37,12 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type React
 import { useOutletContext } from "react-router-dom";
 import {
     getLootCouncil, runCouncilSim, searchCouncilItems, setCouncilExcluded, getCouncilExport, getBisLists, refreshCouncilArmory, setCouncilRole, canAccess,
+    loadCouncilLogGear,
     type ApiError, type CouncilCandidate, type CouncilGap, type CouncilItem, type CouncilLootItem, type CouncilRaider, type WornItem,
     type CouncilExport, type CouncilFocus, type ItemSearchResult, type LootCouncilData, type SimResult,
-    type BisListsData, type CouncilItemHit,
+    type BisListsData, type CouncilItemHit, type CouncilLog,
 } from "../api";
+import { refreshWowheadLinks } from "../lib/wowheadTooltips";
 import { useJobs, useToast } from "../components/Jobs";
 import ItemSearchPicker from "../components/ItemSearchPicker";
 import type { ShellContext } from "../components/Shell";
@@ -419,12 +421,29 @@ function NeedBar({ subject }: { subject: NeedSubject }) {
 }
 
 /**
- * One worn piece as its icon, with everything about it behind the hover.
+ * The Wowhead link for a worn piece *as worn*: with the raider's gems and
+ * enchant in the url, so the widget tooltip (power.js, index.html) shows the
+ * socketed, enchanted item like the in-game tooltip — the same url shape the
+ * character page uses for its gear tiles.
+ */
+function wornWowheadUrl(item: WornItem): string {
+    const params: string[] = [];
+    if (item.enchantId) params.push(`ench=${item.enchantId}`);
+    if (item.gemIds.length) params.push(`gems=${item.gemIds.join(":")}`);
+    return `https://www.wowhead.com/tbc/item=${item.itemId}${params.length ? `?${params.join("&")}` : ""}`;
+}
+
+/**
+ * One worn piece as its icon, with Wowhead's own tooltip behind it.
  *
  * The icon is the whole cell on purpose: a row of sixteen item names is
- * unreadable, a row of sixteen icons is a character sheet. A missing enchant
- * gets a corner mark, because that is what a council spots when someone asks
- * for an upgrade; a BiS piece gets one too.
+ * unreadable, a row of sixteen icons is a character sheet. The hover used to
+ * be a panel of our own — name, a few stats, a gem count — and it could never
+ * say what the real tooltip says: the socket bonus, the enchant by name, the
+ * set bonus with its progress. So the icon is a Wowhead link now and the
+ * widget draws the tooltip. What stays on the icon are the marks a council
+ * wants without hovering: a missing enchant, an empty socket, BiS — and the
+ * two about what the comparison can read on this slot.
  */
 function WornIcon({ item }: { item: WornItem }) {
     const noench = item.enchantStatus === "missing";
@@ -434,98 +453,47 @@ function WornIcon({ item }: { item: WornItem }) {
         item.situational ? "lc-worn-sit" : "",
     ].filter(Boolean).join(" ");
     return (
-        <HoverPanel
-            width={340}
-            className="lc-worn-trigger"
-            trigger={
-                <span className={`lc-worn ${marks}`}>
-                    {item.iconUrl
-                        ? <img src={item.iconUrl} alt="" loading="lazy" {...itemQualityProps(item.quality, "lc-worn-img")} />
-                        : <span className="lc-worn-img lc-worn-blank" />}
-                    {/* Each mark owns one corner, so the eye knows where to look
-                        before it reads anything: BiS bottom right, no enchant top
-                        left, an empty socket top right. A coloured border alone
-                        was the old way, and next to sixteen other borders it was
-                        invisible — the tag is what makes "BiS" legible at 30px. */}
-                    {item.isBis ? <span className="lc-worn-tag lc-worn-tag-bis" aria-label="BiS">BiS</span> : null}
-                    {noench ? <span className="lc-worn-tag lc-worn-tag-noench" title="keine Verzauberung">!</span> : null}
-                    {item.emptySockets > 0
-                        ? <span className="lc-worn-tag lc-worn-tag-socket" title={`${item.emptySockets} leere Sockel`} />
-                        : null}
-                    {/* Bottom left, both about what the comparison can read on
-                        this slot: an item that only counts against certain
-                        bosses, or one taken from an older raid because the
-                        newest raid had such a piece here. */}
-                    {item.situational ? <span className="lc-worn-mark lc-worn-mark-sit">!</span> : null}
-                    {item.replacedSituational ? <span className="lc-worn-mark lc-worn-mark-sub">↺</span> : null}
-                </span>
-            }
+        <a
+            className={`lc-worn ${marks}`}
+            href={wornWowheadUrl(item)}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`${item.itemName} (${item.slotName})`}
         >
-            <div className="lc-worn-detail">
-                <div>
-                    <ItemLink id={item.itemId} name={item.itemName} iconUrl={item.iconUrl} quality={item.quality} />
-                </div>
-                <div className="hint lc-worn-where">
-                    <ContentBadge contentId={item.contentId} />
-                    {item.slotName} · ilvl {item.itemLevel}
-                    {item.boss ? ` · ${item.boss}` : ""}
-                </div>
-                {item.bisSpecs.length ? (
-                    <div className="lc-worn-bisfor">
-                        <span className="hint">BiS für</span>
-                        <BisSpecs specs={item.bisSpecs} compact />
-                    </div>
-                ) : null}
-                {item.situational ? (
-                    <div className="hint lc-gear-warn">Zählt im Vergleich nicht: {item.situational.note}.</div>
-                ) : null}
-                {item.replacedSituational ? (
-                    // Named, never quietly swapped: whoever has the raider's
-                    // armory open next to this page must be able to see why the
-                    // page shows a piece they are not wearing tonight.
-                    <div className="hint">
-                        <div className="lc-worn-sub">
-                            <span>Steht hier statt</span>
-                            {item.replacedSituational.iconUrl
-                                ? <img src={item.replacedSituational.iconUrl} alt="" loading="lazy" />
-                                : null}
-                            <b>{item.replacedSituational.itemName}</b>
-                        </div>
-                        <div>
-                            Das {item.replacedSituational.note}. Gezeigt wird, was{" "}
-                            {item.replacedSituational.sameRaid
-                                ? <>im selben Raid{item.replacedSituational.fight ? ` bei ${item.replacedSituational.fight}` : ""} auf dem Slot steckte</>
-                                : <>{item.replacedSituational.reportTitle
-                                    ? `„${item.replacedSituational.reportTitle}“`
-                                    : "eine ältere Auswertung"} auf dem Slot zeigt</>}.
-                        </div>
-                    </div>
-                ) : null}
-                <div className="lc-worn-flags">
-                    {item.enchantStatus === "missing" ? <span className="lbadge lbadge-warn">keine Verzauberung</span> : null}
-                    {item.emptySockets > 0 ? <span className="lbadge lbadge-warn">{item.emptySockets} leere Sockel</span> : null}
-                    {item.gemCount > 0 ? <span className="lbadge lbadge-neutral">{item.gemCount} Edelsteine</span> : null}
-                </div>
-                {Object.keys(item.stats).length ? (
-                    <div className="lc-worn-stats">
-                        {Object.entries(item.stats).map(([stat, value]) => (
-                            <span key={stat}>{STAT_LABELS[stat] || stat} <b>+{value}</b></span>
-                        ))}
-                    </div>
-                ) : null}
-            </div>
-        </HoverPanel>
+            {item.iconUrl
+                ? <img src={item.iconUrl} alt="" loading="lazy" {...itemQualityProps(item.quality, "lc-worn-img")} />
+                : <span className="lc-worn-img lc-worn-blank" />}
+            {/* Each mark owns one corner, so the eye knows where to look before
+                it reads anything: BiS bottom right, no enchant top left, an
+                empty socket top right. A coloured border alone was the old way,
+                and next to sixteen other borders it was invisible — the tag is
+                what makes "BiS" legible at 30px. */}
+            {item.isBis ? <span className="lc-worn-tag lc-worn-tag-bis" aria-label="BiS">BiS</span> : null}
+            {noench ? <span className="lc-worn-tag lc-worn-tag-noench" title="keine Verzauberung">!</span> : null}
+            {item.emptySockets > 0
+                ? <span className="lc-worn-tag lc-worn-tag-socket" title={`${item.emptySockets} leere Sockel`} />
+                : null}
+            {/* Bottom left, both about what the comparison can read on this
+                slot: an item that only counts against certain bosses, or one
+                taken from an older raid because the newest raid had such a
+                piece here. Wowhead knows nothing of either, so the reason
+                stays on the mark itself. */}
+            {item.situational ? (
+                <span className="lc-worn-mark lc-worn-mark-sit" title={`Zählt im Vergleich nicht: ${item.situational.note}.`}>!</span>
+            ) : null}
+            {item.replacedSituational ? (
+                <span
+                    className="lc-worn-mark lc-worn-mark-sub"
+                    title={`Steht hier statt „${item.replacedSituational.itemName}“ — das ${item.replacedSituational.note}. Gezeigt wird, was ${item.replacedSituational.sameRaid
+                        ? `im selben Raid${item.replacedSituational.fight ? ` bei ${item.replacedSituational.fight}` : ""} auf dem Slot steckte`
+                        : `${item.replacedSituational.reportTitle ? `„${item.replacedSituational.reportTitle}“` : "eine ältere Auswertung"} auf dem Slot zeigt`}.`}
+                >
+                    ↺
+                </span>
+            ) : null}
+        </a>
     );
 }
-
-/** German labels for the stat keys the item table uses. */
-const STAT_LABELS: Record<string, string> = {
-    spellPower: "Zaubermacht", healingPower: "Heilung", spellHit: "Trefferwertung",
-    spellCrit: "Krit", spellHaste: "Tempo", spellPen: "Zauberdurchschlag",
-    intellect: "Intelligenz", spirit: "Willenskraft", stamina: "Ausdauer", mp5: "Mp5",
-    arcanePower: "Arkanschaden", firePower: "Feuerschaden", frostPower: "Frostschaden",
-    holyPower: "Heiliger Schaden", naturePower: "Naturschaden", shadowPower: "Schattenschaden",
-};
 
 /**
  * When the gear was seen — and whether it is the right *kind* of gear.
@@ -563,6 +531,16 @@ function GearStamp({ raider }: { raider: CouncilRaider }) {
             {/* Die Armory hat geantwortet, aber mit einem Set, das gegen einen
                 Boss nichts taugt — dann bleibt es beim letzten Raid, und das
                 steht hier, sonst sähe der Knopf aus, als hätte er nichts getan. */}
+            {g.logRejected === "pvp" ? (
+                <span className="lc-gear-warn" title="Das geladene Log zeigt diesen Raider in PvP-Gear. Gegen einen Boss zählt das nicht — bewertet wird weiter das Set aus der Auswertung.">
+                    {" "}· Log: PvP-Gear
+                </span>
+            ) : null}
+            {g.logRejected === "role" ? (
+                <span className="sub" title="Das geladene Log zeigt ein Set der anderen Rolle (Heilgear für einen Caster oder umgekehrt). Bewertet wird weiter das Set aus der Auswertung.">
+                    {" "}· Log: andere Rolle
+                </span>
+            ) : null}
             {g.armoryRejected === "pvp" ? (
                 <span className="lc-gear-warn" title="Die Armory zeigt gerade PvP-Gear (Abhärtung auf den meisten Teilen). Gegen einen Boss zählt das nicht — bewertet wird weiter das Set aus dem letzten Raid.">
                     {" "}· Armory: PvP-Gear
@@ -591,6 +569,18 @@ function GearStamp({ raider }: { raider: CouncilRaider }) {
         </>
     );
 
+    // Ein von Hand geladenes Log: das Datum ist das des Raids, und vorne steht,
+    // dass es kein Stand der Auswertung ist — sonst sähe ein Log von Donnerstag
+    // aus wie eine Auswertung von Donnerstag.
+    if (g.source === "wcl") {
+        return (
+            <span title={`Aus dem Log „${g.reportTitle}“, geladen ${fmtMs(g.wclAt, true)}. Gilt, bis eine neuere Auswertung kommt oder „Auswertung“ gewählt wird.${g.roleMismatch ? " Dort wurde offenbar geheilt — die Werte sind mit Vorsicht zu lesen." : ""}`}>
+                <span className="lc-gear-wcl">Log</span> {stamp}
+                {g.roleMismatch ? <span className="lc-gear-warn"> · <b>Heilgear</b></span> : null}
+                {slots}
+            </span>
+        );
+    }
     if (g.roleMismatch) {
         return (
             <span className="lc-gear-warn" title={`Aus „${g.reportTitle}“ — dort wurde offenbar geheilt. Für diesen Raider ist kein reines Caster-Set geloggt, die Werte sind daher mit Vorsicht zu lesen.`}>
@@ -625,9 +615,89 @@ const GEAR_GROUPS: number[][] = [[0, 1, 2, 14, 4, 8, 9, 5, 6, 7], [10, 11, 12, 1
  * and the counts a council asks for first (how many BiS pieces, what is missing
  * an enchant). The stamp on the right says how old the gear is.
  */
-function GearBand({ raider }: { raider: CouncilRaider }) {
+function GearBand({ raider, canWrite, busy, logOpen, onArmory, onLogToggle, onEvaluation }: {
+    raider: CouncilRaider;
+    canWrite: boolean;
+    busy: Set<string>;
+    /** Whether this raider's log panel is open — the "Log" segment shows it. */
+    logOpen: boolean;
+    onArmory: (character: string) => void;
+    onLogToggle: (character: string) => void;
+    onEvaluation: (character: string) => void;
+}) {
     const gear = raider.gear;
-    if (!gear || !gear.items.length) return null;
+    const source = gear ? gear.source : "log";
+    const armoryBusy = busy.has(`armory:${raider.character}`);
+    const backBusy = busy.has(`loggear:${raider.character}`);
+    // Where the set comes from, as one split pill with the active segment
+    // filled — three answers to one question, so one element (same shape as
+    // the role switch). It sits with the gear it describes, not among the
+    // raider's actions in the head. "Auswertung" is also the way back from a
+    // loaded log or the armory; "Log" opens the panel; "Armory" fetches.
+    const sourcePill = (
+        <span className="lc-gearsrc" role="group" aria-label={`Gear-Quelle für ${raider.character}`}>
+            <button
+                type="button"
+                className={`lc-srcopt${source === "log" ? " active" : ""}`}
+                disabled={!canWrite || source === "log" || backBusy}
+                title={source === "log"
+                    ? "Das Set aus der letzten Auswertung"
+                    : "Zurück zum Set aus der letzten Auswertung"}
+                onClick={() => onEvaluation(raider.character)}
+            >
+                {backBusy ? <ButtonSpinner /> : <EvalIcon />}
+                Auswertung
+            </button>
+            <button
+                type="button"
+                className={`lc-srcopt${source === "wcl" || logOpen ? " active" : ""}`}
+                disabled={!canWrite}
+                title={source === "wcl"
+                    ? "Gear aus einem geladenen Log — ein anderes Log wählen"
+                    : "Gear aus einem Log laden: eines der letzten Logs des Bots oder ein Warcraft-Logs-Link"}
+                onClick={() => onLogToggle(raider.character)}
+            >
+                <LogIcon />
+                Log
+            </button>
+            <button
+                type="button"
+                className={`lc-srcopt lc-srcopt-armory${source === "armory" ? " active" : ""}`}
+                disabled={!canWrite || armoryBusy}
+                title={source === "armory"
+                    ? "Gear noch einmal aus der Armory holen"
+                    : "Gear aus der Armory holen — der Stand von jetzt, nicht der der letzten Auswertung"}
+                onClick={() => onArmory(raider.character)}
+            >
+                {armoryBusy ? <ButtonSpinner /> : <ArmoryIcon />}
+                Armory
+            </button>
+        </span>
+    );
+    const armoryLink = raider.armoryUrl ? (
+        <a
+            className="lc-ibtn lc-ibtn-link"
+            href={raider.armoryUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Armory im Browser öffnen und selbst nachsehen"
+            aria-label="Armory im Browser öffnen"
+        >
+            <ExternalIcon />
+        </a>
+    ) : null;
+    if (!gear || !gear.items.length) {
+        // No gear from any source yet — the band still offers the sources,
+        // because that is exactly when somebody wants to load a log.
+        return (
+            <div className="lc-gear-band">
+                <div className="lc-gear-label"><span className="lc-kicker">Gear</span></div>
+                <span className="sub">Kein Gear bekannt — in keiner Auswertung gesehen.</span>
+                {sourcePill}
+                {armoryLink}
+            </div>
+        );
+    }
     const items = gear.items;
     const noench = items.filter((i) => i.enchantStatus === "missing").length;
     const sockets = items.reduce((n, i) => n + i.emptySockets, 0);
@@ -669,7 +739,118 @@ function GearBand({ raider }: { raider: CouncilRaider }) {
                     </Fragment>
                 ))}
             </div>
+            {sourcePill}
             <span className="lc-gear-seen sub"><GearStamp raider={raider} /></span>
+            {armoryLink}
+        </div>
+    );
+}
+
+/** Stroke icons for the source pill and the icon buttons — one style, 16px grid. */
+function EvalIcon() {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 19V5" /><path d="M4 15l4-4 4 3 5-6 3 2" /></svg>;
+}
+function LogIcon() {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 4h14v16H5z" /><path d="M9 9h6M9 13h6M9 17h3" /></svg>;
+}
+function ArmoryIcon() {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z" /></svg>;
+}
+function ExternalIcon() {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4h6v6" /><path d="M20 4 10 14" /><path d="M18 13v6H5V6h6" /></svg>;
+}
+function ExportIcon() {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 4v11" /><path d="m7 10 5 5 5-5" /><path d="M4 19h16" /></svg>;
+}
+function ExcludeIcon() {
+    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="10" cy="8" r="4" /><path d="M3 20a7 7 0 0 1 14 0" /><path d="M17 11h5" /></svg>;
+}
+
+/**
+ * The log panel under a raider: the bot's newest logs to pick from, a link
+ * field for any other report, and the way back to the evaluation's set.
+ *
+ * It opens at the raider it is about, like the sim export — a dialog at the
+ * top of the page would mean scrolling up to see what one's own click did.
+ * A log the raider is not in is only known after trying it, so every row is
+ * offered and the toast says "steht nicht in diesem Log".
+ */
+function LogPanel({ raider, logs, busy, onLoad, onClose }: {
+    raider: CouncilRaider;
+    logs: CouncilLog[];
+    busy: Set<string>;
+    onLoad: (character: string, pick: { reportId?: string; link?: string }) => void;
+    onClose: () => void;
+}) {
+    const [link, setLink] = useState("");
+    const loading = busy.has(`loggear:${raider.character}`);
+    const current = raider.gear && raider.gear.source === "wcl" ? raider.gear.reportId : "";
+    const submitLink = () => {
+        const value = link.trim();
+        if (!value || loading) return;
+        onLoad(raider.character, { link: value });
+    };
+    return (
+        <div className="lc-logpanel" role="region" aria-label={`Gear von ${raider.character} aus einem Log laden`}>
+            <div className="lc-logpanel-head">
+                <div>
+                    <div className="lc-logpanel-title">Gear aus einem Log laden</div>
+                    <div className="sub">
+                        Die letzten Logs des Bots, neueste zuerst — mit Sockeln und Verzauberungen, wie eine Auswertung.
+                        Ein Log ohne {raider.character} sagt es, statt leer zu bleiben.
+                    </div>
+                </div>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>Schließen</button>
+            </div>
+            <div className="lc-logrows">
+                <div className="lc-logrow">
+                    <span className="lc-logrow-name">
+                        Neuestes Log mit {raider.character}
+                        <span className="sub">probiert die letzten Logs der Reihe nach</span>
+                    </span>
+                    <span />
+                    <button
+                        type="button"
+                        className="btn btn-sm"
+                        disabled={loading || !logs.length}
+                        onClick={() => onLoad(raider.character, {})}
+                    >
+                        {loading ? <><ButtonSpinner />Wird geladen …</> : "Laden"}
+                    </button>
+                </div>
+                {logs.map((log) => (
+                    <div key={log.reportId} className={`lc-logrow${log.reportId === current ? " current" : ""}`}>
+                        <span className="lc-logrow-name">
+                            <span className="lc-logrow-title">{log.title || log.reportId}</span>
+                            {log.eventLabel ? <span className="sub">{log.eventLabel}</span> : null}
+                            {log.reportId === current ? <span className="lc-gchip lc-gchip-bis">geladen</span> : null}
+                        </span>
+                        <span className="lc-logrow-date">{log.postedAt ? fmtMs(log.postedAt, false) : ""}</span>
+                        <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            disabled={loading}
+                            onClick={() => onLoad(raider.character, { reportId: log.reportId })}
+                        >
+                            Laden
+                        </button>
+                    </div>
+                ))}
+                {!logs.length ? <div className="hint">Der Bot kennt noch kein Log — einen Warcraft-Logs-Link einfügen.</div> : null}
+            </div>
+            <div className="lc-loglink">
+                <input
+                    type="text"
+                    value={link}
+                    placeholder="https://classic.warcraftlogs.com/reports/…"
+                    aria-label="Warcraft-Logs-Link"
+                    onChange={(e) => setLink(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") submitLink(); }}
+                />
+                <button type="button" className="btn btn-ghost btn-sm btn-armory" disabled={loading || !link.trim()} onClick={submitLink}>
+                    Aus Link laden
+                </button>
+            </div>
         </div>
     );
 }
@@ -716,7 +897,10 @@ function SortHead({ sortKey, label, title, sort, dir, onSort }: {
  * names. The columns still line up with the header above the list, so the
  * numbers stay comparable down the page and every column still sorts.
  */
-function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude, onArmory, onRole, exportData, onCloseExport }: {
+function RaiderBlock({
+    raider: r, rank, sim, busy, canWrite, onExport, onExclude, onArmory, onRole, exportData, onCloseExport,
+    logs, logOpen, onLogToggle, onLogLoad, onEvaluation,
+}: {
     raider: CouncilRaider;
     rank: number;
     sim: SimResult | null;
@@ -729,6 +913,12 @@ function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude
     /** Der offene Sim-Export, wenn er zu diesem Raider gehört. */
     exportData: CouncilExport | null;
     onCloseExport: () => void;
+    /** Die Logs, die das Log-Panel anbietet, und ob es bei diesem Raider offen ist. */
+    logs: CouncilLog[];
+    logOpen: boolean;
+    onLogToggle: (character: string) => void;
+    onLogLoad: (character: string, pick: { reportId?: string; link?: string }) => void;
+    onEvaluation: (character: string) => void;
 }) {
     return (
         <article className="lc-raider" style={classColorProps(r.classColor).style} role="row">
@@ -779,67 +969,50 @@ function RaiderBlock({ raider: r, rank, sim, busy, canWrite, onExport, onExclude
                             ))}
                         </span>
                     ) : null}
-                    {/* Das Gear hier ist zuletzt *im Log gesehen*, nie live —
-                        ein Klick in die Armory macht das nachprüfbar, statt es
-                        einem Council zum Glauben vorzusetzen. */}
-                    {canWrite ? (
-                        <button
-                            type="button"
-                            className="btn btn-ghost btn-sm btn-armory"
-                            title={r.gear && r.gear.source === "armory"
-                                ? "Gear noch einmal aus der Armory holen"
-                                : "Gear aus der Armory holen — die Seite zeigt sonst den Stand der letzten Auswertung"}
-                            disabled={busy.has(`armory:${r.character}`)}
-                            onClick={() => onArmory(r.character)}
-                        >
-                            {busy.has(`armory:${r.character}`)
-                                ? <><ButtonSpinner />Armory …</>
-                                : "Armory laden"}
-                        </button>
-                    ) : null}
-                    {r.armoryUrl ? (
-                        <a
-                            className="btn btn-ghost btn-sm btn-armory-link"
-                            href={r.armoryUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Armory im Browser öffnen und selbst nachsehen"
-                        >
-                            Armory ↗
-                        </a>
-                    ) : null}
+                    {/* Der Kopf behält nur, was den Raider betrifft: die Rolle
+                        und zwei Icon-Knöpfe. Alles über das Gear — woher es
+                        stammt, Log laden, Armory holen, Armory öffnen — steht
+                        im Gear-Band beim Gear (GearBand). Fünf Textknöpfe
+                        nebeneinander mussten jedes Mal gelesen werden. */}
                     {r.gear && r.simSupported ? (
                         <button
                             type="button"
-                            className="btn btn-ghost btn-sm btn-sim"
-                            title="Loadout als WoWSims-Import, um die Zahl selbst nachzurechnen"
+                            className="lc-ibtn"
+                            title="Sim-Export: Loadout als WoWSims-Import, um die Zahl selbst nachzurechnen"
+                            aria-label="Sim-Export"
                             disabled={busy.has(`export:${r.character}`)}
                             onClick={() => onExport(r.character)}
                         >
-                            {busy.has(`export:${r.character}`)
-                                ? <><ButtonSpinner />Wird geholt …</>
-                                : "Sim-Export"}
+                            {busy.has(`export:${r.character}`) ? <ButtonSpinner /> : <ExportIcon />}
                         </button>
                     ) : null}
                     {canWrite ? (
                         <button
                             type="button"
-                            className="btn btn-ghost btn-sm btn-drop"
-                            title="Nicht mehr einplanen — bleibt in der Historie, verschwindet nur aus dieser Liste"
+                            className="lc-ibtn lc-ibtn-danger"
+                            title="Nicht einplanen — bleibt in der Historie, verschwindet nur aus dieser Liste"
+                            aria-label="Nicht einplanen"
                             disabled={busy.has(`exclude:${r.character}`)}
                             onClick={() => onExclude(r.character)}
                         >
-                            {busy.has(`exclude:${r.character}`)
-                                ? <><ButtonSpinner />Wird abgelegt …</>
-                                : "Nicht einplanen"}
+                            {busy.has(`exclude:${r.character}`) ? <ButtonSpinner /> : <ExcludeIcon />}
                         </button>
                     ) : null}
                 </div>
             </div>
-            <GearBand raider={r} />
-            {/* Der Export öffnet sich dort, wo geklickt wurde. Oben an der Seite
-                hieße: bei einem Raider weit unten erst hochscrollen, um zu
-                sehen, was der eigene Klick bewirkt hat. */}
+            <GearBand
+                raider={r}
+                canWrite={canWrite}
+                busy={busy}
+                logOpen={logOpen}
+                onArmory={onArmory}
+                onLogToggle={onLogToggle}
+                onEvaluation={onEvaluation}
+            />
+            {/* Das Log-Panel und der Export öffnen sich dort, wo geklickt wurde.
+                Oben an der Seite hieße: bei einem Raider weit unten erst
+                hochscrollen, um zu sehen, was der eigene Klick bewirkt hat. */}
+            {logOpen ? <LogPanel raider={r} logs={logs} busy={busy} onLoad={onLogLoad} onClose={() => onLogToggle(r.character)} /> : null}
             {exportData ? <ExportPanel data={exportData} onClose={onCloseExport} /> : null}
         </article>
     );
@@ -2305,6 +2478,52 @@ export default function LootCouncilPage() {
         toast(parts.join(" "), taken ? "ok" : "err");
     });
 
+    // Bei welchem Raider das Log-Panel offen ist — einer zur Zeit, wie der
+    // Sim-Export: zwei offene Panels sind zwei Screens Abstand zwischen Klick
+    // und Wirkung.
+    const [logPanelFor, setLogPanelFor] = useState("");
+    const toggleLogPanel = (character: string) => setLogPanelFor((open) => (open === character ? "" : character));
+
+    /**
+     * Gear aus einem Log laden — eines der letzten Logs des Bots, ein Link,
+     * oder ohne beides das neueste Log, in dem der Raider steht. Danach wird
+     * neu geladen, und der Toast sagt, was daraus wurde: genommen, oder als
+     * PvP-/Heilset abgelehnt (dann bleibt es beim Set aus der Auswertung).
+     */
+    const loadLogGear = (character: string, pick: { reportId?: string; link?: string }) => runFor(`loggear:${character}`, async () => {
+        const result = await jobs.run(
+            { label: "Log wird geladen", detail: character, quiet: true },
+            () => loadCouncilLogGear(csrfToken, { character, ...pick }),
+        );
+        // A failure ("steht nicht in diesem Log") is already on the toast.
+        if (!result) return;
+        const fresh = await reloadAll();
+        const row = fresh ? fresh.roster.find((r) => r.character.toLowerCase() === character.toLowerCase()) : null;
+        const when = result.reportStart ? ` (${fmtMs(result.reportStart, false)})` : "";
+        const from = `„${result.reportTitle || result.reportId}“${when}`;
+        if (row && row.gear && row.gear.logRejected === "pvp") {
+            toast(`${character} trägt in ${from} PvP-Gear — es bleibt beim Set aus der Auswertung.`, "err");
+            return;
+        }
+        if (row && row.gear && row.gear.logRejected === "role") {
+            toast(`${character} trägt in ${from} ein Set der anderen Rolle — es bleibt beim Set aus der Auswertung.`, "err");
+            return;
+        }
+        setLogPanelFor("");
+        toast(`Gear von ${character} aus ${from} geladen: ${result.items} Teile.`);
+    });
+
+    /** Zurück zum Set aus der Auswertung: geladenes Log und Armory-Antwort vergessen. */
+    const useEvaluation = (character: string) => runFor(`loggear:${character}`, async () => {
+        await loadCouncilLogGear(csrfToken, { character, clear: true });
+        await reloadAll();
+        toast(`${character} wird wieder nach der letzten Auswertung bewertet.`);
+    });
+
+    // Wowheads Tooltip-Widget hat die Seite vor React gescannt — nach jedem
+    // Render mit neuem Gear die Item-Links nachmelden.
+    useEffect(() => { refreshWowheadLinks(); }, [data, view.tab]);
+
     /**
      * Set a raider aside, or take them back in.
      *
@@ -2608,6 +2827,11 @@ export default function LootCouncilPage() {
                                         ? exportData
                                         : null}
                                     onCloseExport={() => setExportData(null)}
+                                    logs={data.recentLogs || []}
+                                    logOpen={logPanelFor === r.character}
+                                    onLogToggle={toggleLogPanel}
+                                    onLogLoad={loadLogGear}
+                                    onEvaluation={useEvaluation}
                                 />
                             ))}
                         </div>

@@ -27,6 +27,7 @@ const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 const { gearProfile, fitsRole, isPvpSet } = require("./gearProfile");
 const { situationalItem } = require("../config/situationalItems");
 const { armoryItemInSlot, armorySetFor } = require("./armoryGear");
+const { listLogGear } = require("./logGearStore");
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons/large";
 
@@ -421,6 +422,52 @@ function gearByCharacter({ roleFor } = {}) {
             pvpGear: isPvpSet(snapshot),
             skippedReports: 0,
         });
+    }
+    // A log somebody loaded by hand (logGearStore.js): the explicit answer to
+    // "das Set von Donnerstag, bitte". It replaces the evaluation's set — the
+    // request is newer than any evaluation it was made against — and stops
+    // winning the moment an evaluation newer than the request lands, which is
+    // the natural end of "that set". A raider no evaluation knows at all gets
+    // gear this way too. The same role and PvP rules as for the armory apply;
+    // a refused set stays on the snapshot as `logRejected` so the page can say
+    // why the button changed nothing.
+    for (const snap of listLogGear()) {
+        const key = snap && snap.key;
+        if (!key) continue;
+        const existing = out.get(key);
+        if (existing && existing.seenAt > (Number(snap.fetchedAt) || 0)) continue;
+        const items = armoryItems({ name: snap.character, armory: snap.armory }, snap.character);
+        if (!items.length) continue;
+        const loaded = {
+            key,
+            character: snap.character,
+            className: snap.className || (existing && existing.className) || "",
+            seenAt: Number(snap.reportStart) || Number(snap.fetchedAt) || 0,
+            reportId: snap.reportId,
+            reportTitle: snap.reportTitle || "",
+            items,
+            profile: gearProfile({ items }),
+            skippedReports: 0,
+            roleMismatch: false,
+            pvpGear: false,
+            dropped: [],
+            source: "wcl",
+            wclAt: Number(snap.fetchedAt) || 0,
+            armoryAt: 0,
+            unverifiedEnchants: 0,
+            armoryRejected: "",
+            logRejected: "",
+        };
+        const wanted = roleFor ? roleFor(key) : "";
+        const wrongRole = !!(wanted && !fitsRole(loaded.profile, wanted));
+        const pvp = isPvpSet(loaded);
+        if (existing && (wrongRole || pvp)) {
+            existing.logRejected = pvp ? "pvp" : "role";
+            continue;
+        }
+        loaded.roleMismatch = wrongRole;
+        loaded.pvpGear = pvp;
+        out.set(key, loaded);
     }
     for (const snapshot of out.values()) {
         // The armory wins where somebody asked for it: it is the only source

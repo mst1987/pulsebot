@@ -2233,3 +2233,127 @@ a.gear-row:hover { background: var(--panel2); }
 .lc-roleopt.active { background: var(--accent-soft); color: var(--accent); }
 .lc-roleopt:disabled { opacity: .55; cursor: not-allowed; }
 .lc-rolepin { font-size: 15px; line-height: 0; opacity: .85; }
+
+/* ── Loot-Council: woher das Gear stammt ──────────────────────────────────
+   Dieselbe geteilte Pille wie der Rollenschalter, im Gear-Band beim Gear, das
+   sie beschreibt: Auswertung · Log · Armory, das aktive Segment gefüllt. Die
+   Armory in Cyan wie ihr Link, damit „von jetzt" sich von „aus einem Log"
+   auch ohne Lesen unterscheidet. Ein abgeschaltetes Segment (kein Schreib-
+   recht, oder es ist ohnehin die aktive Quelle) bleibt lesbar — es ist dann
+   eine Anzeige, kein Knopf. */
+.lc-gearsrc {
+    display: inline-flex;
+    margin-left: auto;
+    flex: none;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--panel2);
+}
+.lc-srcopt {
+    appearance: none;
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0 11px;
+    min-height: 28px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    background: transparent;
+    color: var(--muted);
+    border: 0;
+    transition: background-color .12s, color .12s;
+}
+.lc-srcopt svg { width: 12px; height: 12px; flex: none; }
+.lc-srcopt .btn-spin { width: 11px; height: 11px; }
+.lc-srcopt + .lc-srcopt { border-left: 1px solid var(--line); }
+.lc-srcopt:hover:not(:disabled) { background: var(--panel3); color: var(--text); }
+.lc-srcopt.active { background: var(--accent-soft); color: var(--accent); }
+.lc-srcopt.active.lc-srcopt-armory { background: color-mix(in srgb, var(--accent-2) 14%, transparent); color: var(--accent-2); }
+.lc-srcopt:disabled { cursor: default; }
+.lc-srcopt:disabled:not(.active) { opacity: .55; }
+/* Der Stempel steht jetzt zwischen Pille und Link, nicht mehr ganz rechts. */
+.lc-gear-band .lc-gear-seen { margin-left: 0; }
+/* Gear aus einem von Hand geladenen Log — vorne im Stempel, in der Farbe
+   der aktiven Pille. */
+.lc-gear-wcl { color: var(--accent); font-weight: 600; }
+
+/* Icon-Knöpfe: ein Symbol, der Name im Tooltip. Für die zwei Aktionen im
+   Kopf des Raiders (Sim-Export, Nicht einplanen) und den Armory-Link im Band
+   — die Farbe trägt weiter die Bedeutung (rot entfernt, cyan führt hinaus). */
+.lc-ibtn {
+    width: var(--ctl-h-sm);
+    height: var(--ctl-h-sm);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    padding: 0;
+    font: inherit;
+    cursor: pointer;
+    border-radius: var(--ctl-radius);
+    background: var(--panel2);
+    border: 1px solid var(--line);
+    color: var(--muted);
+    text-decoration: none;
+    transition: background-color .12s, color .12s, border-color .12s;
+}
+.lc-ibtn svg { width: 15px; height: 15px; }
+.lc-ibtn:hover:not(:disabled) { background: var(--panel3); color: var(--text); border-color: var(--accent); }
+.lc-ibtn:disabled { opacity: .55; cursor: not-allowed; }
+.lc-ibtn-danger { color: var(--high); border-color: color-mix(in srgb, var(--high) 45%, transparent); }
+.lc-ibtn-danger:hover:not(:disabled) { background: var(--high-bg); border-color: var(--high); color: var(--high); }
+.lc-ibtn-link { width: 28px; height: 28px; color: var(--accent-2); border-color: color-mix(in srgb, var(--accent-2) 55%, transparent); }
+.lc-ibtn-link:hover { background: color-mix(in srgb, var(--accent-2) 14%, transparent); border-color: var(--accent-2); color: var(--accent-2); }
+
+/* Das Gear-Icon ist ein Wowhead-Link — der Tooltip kommt vom Widget. */
+a.lc-worn { text-decoration: none; color: inherit; }
+.lc-worn-mark { cursor: help; }
+
+/* ── Loot-Council: das Log-Panel unter einem Raider ───────────────────────
+   Öffnet sich im Block, unter dem Gear-Band, wie der Sim-Export: die
+   Wirkung eines Klicks gehört dorthin, wo geklickt wurde. */
+.lc-logpanel {
+    display: grid;
+    gap: 10px;
+    padding: 12px 12px 14px 11px;
+    border-top: 1px solid var(--line);
+    background: var(--panel);
+}
+.lc-logpanel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.lc-logpanel-title { font-size: 13.5px; font-weight: 700; }
+.lc-logpanel-head .sub { margin: 2px 0 0; }
+.lc-logrows { display: flex; flex-direction: column; gap: 6px; }
+.lc-logrow {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: var(--ctl-radius);
+    background: var(--panel2);
+    border: 1px solid var(--line);
+}
+.lc-logrow.current { border-color: var(--accent); background: var(--accent-soft); }
+.lc-logrow-name { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 13.5px; font-weight: 700; flex-wrap: wrap; }
+.lc-logrow-name .sub { margin: 0; font-weight: 500; }
+.lc-logrow-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lc-logrow-date { font-family: var(--font-mono); font-size: 11px; color: var(--muted); white-space: nowrap; }
+.lc-loglink { display: flex; gap: 8px; align-items: center; }
+.lc-loglink input {
+    flex: 1;
+    min-width: 0;
+    min-height: var(--ctl-h-sm);
+    padding: 0 12px;
+    border-radius: var(--ctl-radius);
+    border: 1px solid var(--line);
+    background: var(--bg);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+}
+.lc-loglink input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.lc-loglink input::placeholder { color: var(--muted); }

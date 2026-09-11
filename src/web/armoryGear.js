@@ -168,7 +168,16 @@ function clearArmoryCache() {
     cache.clear();
 }
 
+/**
+ * Forget one character's armory answer. Loading a log for a raider means "judge
+ * them on that set" — an armory answer still in the cache would win over it
+ * (charGear.js), and the button would look as if it had done nothing.
+ */
+function clearArmoryFor(character) {
+    cache.delete(keyOf(character));
+}
+
 module.exports = {
-    primeArmoryGear, armoryItemInSlot, armorySetFor, hasArmoryGear, clearArmoryCache,
+    primeArmoryGear, armoryItemInSlot, armorySetFor, hasArmoryGear, clearArmoryCache, clearArmoryFor,
     toArmoryRows, SLOT_BY_TYPE, TTL_MS,
 };
