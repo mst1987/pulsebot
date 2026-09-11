@@ -2082,6 +2082,83 @@ a.gear-row:hover { background: var(--panel2); }
     .lc-blcol { width: 210px; }
 }
 
+/* ── Loot-Vergleich ───────────────────────────────────────────────────────
+   Dieselbe Matrix wie die BiS-Listen, nur andersherum gefragt: nicht „was
+   steht auf der Liste", sondern „wer hat es bekommen". Die Zeile ist das Item
+   und bleibt beim Scrollen stehen — sie ist breiter als eine Slot-Zeile, weil
+   sie Icon, Name, Slot und Boss trägt. Die Spalten sind Raider und schmaler
+   als eine BiS-Spalte, weil in der Zelle nur Datum und Grund stehen. */
+.lc-blslot.lc-cmpitem, .lc-blcorner.lc-cmpitem {
+    width: 280px;
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    white-space: normal;
+}
+.lc-blcorner.lc-cmpitem { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.lc-cmpcol { width: 172px; }
+.lc-cmpcol .lc-blcolhead img { width: 22px; height: 22px; }
+.lc-cmpcolsub { display: block; margin-top: 7px; font-size: 11px; font-weight: 600; color: var(--muted); }
+.lc-cmpslot { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+/* Die Zahl am Schalter: wie viele Items der Raider im Filter hat. */
+.lc-cmpcount { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+
+/* Ein Raid als Zwischenzeile — die Zeilen darunter gehören ihm. */
+.lc-cmpmatrix .lc-cmpgroup th {
+    padding: 22px 12px 8px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+}
+.lc-cmpmatrix .lc-cmpgroup th > * { vertical-align: middle; }
+.lc-cmpmatrix .lc-cmpgroup th > span { margin-left: 9px; }
+.lc-cmpmatrix .lc-cmpgroup th .hint { margin: 0 0 0 9px; font-weight: 500; }
+.lc-cmpmatrix tbody tr.lc-cmpgroup:hover th { background: var(--panel); }
+
+/* Die Zelle: bekommen ist getönt, offen ist umrandet, sonst nichts — so liest
+   sich eine Zeile als Muster, nicht als Text. */
+.lc-cmpcell { padding: 13px 14px; }
+.lc-cmpcell.got { background: color-mix(in srgb, var(--accent-2) 10%, transparent); box-shadow: inset 3px 0 0 var(--accent-2); }
+.lc-cmpcell.wants { box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent) 55%, transparent); }
+.lc-cmpaward { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lc-cmpaward + .lc-cmpaward { margin-top: 6px; }
+.lc-cmpdate { font-family: var(--font-mono); font-size: 12px; font-weight: 700; color: var(--text); }
+.lc-cmpwant {
+    display: inline-block;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--accent);
+    border: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+    border-radius: 5px;
+    padding: 2px 7px;
+}
+.lc-cmpwant.worn { color: var(--muted); border-style: solid; border-color: var(--line); }
+.lc-cmpbis {
+    display: inline-block;
+    margin-top: 7px;
+    font-family: var(--font-mono);
+    font-size: 8.5px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    padding: 0 4px;
+    line-height: 13px;
+    border-radius: 3px;
+    background: var(--accent-2);
+    color: var(--accent-ink);
+}
+
+@media (max-width: 720px) {
+    .lc-blslot.lc-cmpitem, .lc-blcorner.lc-cmpitem { width: 200px; }
+    .lc-cmpcol { width: 150px; }
+}
+
 /* ── Loot-Council: die Aktionen an einem Raider ───────────────────────────
    Vier Knöpfe nebeneinander, die vier verschiedene Dinge tun — Daten holen,
    woanders hin, etwas ausrechnen, jemanden aussortieren. Als vier identische
