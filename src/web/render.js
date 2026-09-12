@@ -368,6 +368,11 @@ ${body}
   .buff-matrix th.bh .hicon { width:22px; height:22px; margin:0; }
   .buff-matrix td.bc { text-align:center; padding:6px 4px; }
   .buff-matrix tr.cov td { border-bottom:2px solid var(--line); }
+  .debuff-matrix th.bh { vertical-align:bottom; min-width:96px; }
+  .debuff-matrix th.bh img { width:28px; height:28px; border-radius:6px; display:block; margin:0 auto 4px; }
+  .debuff-matrix th.bh .boss-name, .debuff-matrix th.bh .sritems { display:block; }
+  .debuff-matrix td.bc .sritems { font-size:11px; margin-top:2px; }
+  .debuff-matrix td.dn, table.idx td.dn { white-space:nowrap; }
   .buff-list .tag { display:inline-flex; align-items:center; gap:4px; margin:2px 4px 2px 0; }
   .buff-list .tag .hicon { width:16px; height:16px; margin:0; }
   .pname-cell { display:inline-flex; align-items:center; gap:8px; text-decoration:none; }
@@ -1271,6 +1276,100 @@ function renderRaidBuffsPanel(raidBuffs, linkFor) {
     return `${note}<div style="overflow-x:auto"><table class="idx heal-table buff-matrix"><tr><th>Spieler</th>${head}</tr><tr class="cov"><td><b>Abdeckung</b><div class="sritems">Raid</div></td>${cover}</tr>${body}</table></div>`;
 }
 
+// ---- Raid-Debuffs: what the raid put on the boss (report.raidDebuffs, utils/logcheck/raidDebuffs.js) ----
+//
+// The raid summary (one row per debuff: expected?, mean uptime, on how many
+// fights it was missing) comes from `raidDebuffs.rows`; the debuff × boss
+// matrix under it is rendered purely from the timeline's per-fight rows
+// (`timeline.fights[].debuffs`), nothing is stored for it.
+
+/** A percentage toned like the fight charts (pctTone), with an optional tooltip. */
+function toneCell(v, title) {
+    const cls = { good: "pct-full", medium: "pct-part", high: "pct-none" }[pctTone(v)];
+    return `<span class="pct ${cls}"${title ? ` title="${esc(title)}"` : ""}>${esc(v)}%</span>`;
+}
+
+function naCell(title, text) {
+    return `<span class="pct pct-na"${title ? ` title="${esc(title)}"` : ""}>${esc(text || "–")}</span>`;
+}
+
+/**
+ * Debuff × boss: per boss (in pull order, kills and wipes together) the mean
+ * uptime over its tries, the tries themselves in the tooltip.
+ *
+ * The expectation is raid-wide — raidDebuffs.js derives it once from the
+ * whole roster and stamps it on every fight's row as `expected` — so a debuff
+ * has a row on every fight or on none; the one exception is an exclusive
+ * group (Sunder/Expose, the judgements) covered by another member on that
+ * pull, whose row is dropped. A boss without any row for the debuff therefore
+ * reads "–": nothing was expected there. Expected and absent on every try is
+ * "fehlte" (0 % in the high tone), not a blank.
+ */
+function debuffMatrix(rows, timeline) {
+    const fights = (timeline && timeline.fights) || [];
+    if (!rows.length || !fights.length) return "";
+    const bosses = groupByBoss(fights);
+    const head = bosses.map((b) => {
+        const icon = bossIconUrl(b.encounterId);
+        const kills = b.fights.filter((f) => f.kill).length;
+        const state = kills ? `Kill${b.fights.length > 1 ? ` nach ${b.fights.length} Tries` : ""}` : `${b.fights.length} Wipe${b.fights.length === 1 ? "" : "s"}`;
+        return `<th class="bh">${icon ? `<img src="${esc(icon)}" alt="">` : ""}<span class="boss-name">${esc(b.name)}</span><span class="sritems">${esc(state)}</span></th>`;
+    }).join("");
+    const body = rows.map((r) => {
+        const cells = bosses.map((b) => {
+            const tries = b.fights.map((f, j) => ({ f, no: j + 1, d: (f.debuffs || []).find((d) => d.key === r.key) })).filter((t) => t.d);
+            if (!tries.length) return `<td class="bc">${naCell(`${r.label} auf ${b.name}: nicht erwartet`)}</td>`;
+            const pct = (t) => (Number.isFinite(t.d.uptimePct) ? t.d.uptimePct : 0);
+            const mean = Math.round(tries.reduce((n, t) => n + pct(t), 0) / tries.length);
+            const detail = tries.map((t) => `Try ${t.no} (${fightOutcome(t.f)}): ${pct(t)} %`).join(" · ");
+            const expected = tries.some((t) => t.d.expected);
+            let cell;
+            if (expected && tries.every((t) => t.d.missing || pct(t) === 0)) {
+                cell = `<span class="pct pct-none" title="${esc(`${r.label} fehlte auf ${b.name} · ${detail}`)}">0%</span>`;
+            } else if (!expected) {
+                cell = naCell(`${r.label} auf ${b.name}: nicht erwartet · ${detail}`, `${mean}%`);
+            } else {
+                cell = toneCell(mean, `${r.label} auf ${b.name}: ${detail}`);
+            }
+            let sub = "";
+            if (r.maxStacks) {
+                const ttm = tries.map((t) => t.d.timeToMax).filter((v) => Number.isFinite(v) && v !== null);
+                if (ttm.length) sub = `<div class="sritems">max ab ${fmtTime(ttm.reduce((n, v) => n + v, 0) / ttm.length)}</div>`;
+            }
+            return `<td class="bc">${cell}${sub}</td>`;
+        }).join("");
+        return `<tr><td class="dn">${hicon(r.icon, "")}${esc(r.label)}<div class="sritems">${esc(r.provider)}${r.maxStacks ? ` · ${esc(r.maxStacks)} Stacks` : ""}</div></td>${cells}</tr>`;
+    }).join("");
+    return `<h4 class="heal-h">Debuff × Boss</h4>
+    <p class="note">Mittlere Uptime über alle Tries eines Bosses (Kills und Wipes zusammen); die einzelnen Tries stehen im Tooltip. „–“: dort nicht erwartet, weil kein Anbieter dabei war oder ein anderer Debuff derselben Gruppe lag. Bei stackenden Debuffs darunter, ab wann im Mittel die vollen Stacks lagen. Die Kurven je Kampf stehen im Kampfverlauf unter „Debuffs“.</p>
+    <div style="overflow-x:auto"><table class="idx heal-table buff-matrix debuff-matrix"><tr><th>Debuff</th>${head}</tr>${body}</table></div>`;
+}
+
+/** The Raid-Debuffs tab: the raid summary per debuff, the debuff × boss matrix under it. */
+function renderRaidDebuffsPanel(raidDebuffs, timeline) {
+    const rows = (raidDebuffs && raidDebuffs.rows) || [];
+    if (!rows.length) return "<div class=\"empty\">Keine Raid-Debuffs im Log.</div>";
+    const body = rows.map((r) => {
+        const fights = r.fights || 0;
+        const stacks = r.maxStacks
+            ? (r.avgBelowMax !== null && r.avgBelowMax !== undefined ? `${esc(r.avgBelowMax)}% unter ${esc(r.maxStacks)}` : `bis ${esc(r.maxStacks)}`)
+            : "–";
+        return `<tr>
+          <td class="dn">${hicon(r.icon, "")}${esc(r.label)}<div class="sritems">${esc(r.provider)}</div></td>
+          <td>${yesNo(r.expected)}</td>
+          <td>${r.expected ? toneCell(r.avgUptime) : naCell("nicht erwartet", `${r.avgUptime}%`)}</td>
+          <td>${r.expected ? (r.missing ? `<span class="pct pct-none">${esc(r.missing)}/${esc(fights)}</span>` : `<span class="pct pct-full">0/${esc(fights)}</span>`) : naCell("", "–")}</td>
+          <td class="sritems">${stacks}</td>
+        </tr>`;
+    }).join("");
+    return `<p class="note">Debuffs auf dem Boss, gemittelt über alle Boss-Kämpfe. Erwartet wird, was die Aufstellung hergibt: ein Hexenmeister heißt Fluch der Elemente, ein Krieger Rüstung zerreißen; was nur eine Skillung liefert (Elend, Winterkälte), zählt erst, sobald es einmal im Log lag.</p>
+    ${panelBox(`<table class="idx">
+      <tr><th>Debuff</th><th>Erwartet</th><th>Ø Uptime</th><th>Gefehlt</th><th>Stacks</th></tr>
+      ${body}
+    </table>`)}
+    ${debuffMatrix(rows, timeline)}`;
+}
+
 /** The DPS/HPS strip above the topic switch. */
 function fightSeries(f) {
     if (!f.series || !(f.series.dps || f.series.hps)) return "";
@@ -1937,6 +2036,9 @@ function renderReportPage(report, user) {
     const hasSunder = report.sunder && report.sunder.length;
     const hasBoss = report.bossUptimes && report.bossUptimes.rows && report.bossUptimes.rows.length;
     const hasTimeline = report.timeline && report.timeline.fights && report.timeline.fights.length;
+    const hasRaidDebuffs = report.raidDebuffs && report.raidDebuffs.rows && report.raidDebuffs.rows.length;
+    // the badge counts the expected debuffs that were missing somewhere or sat below 95 % on average
+    const raidDebuffsShort = hasRaidDebuffs ? report.raidDebuffs.rows.filter((r) => r.expected && (r.missing > 0 || r.avgUptime < 95)).length : 0;
     const hasHealers = report.healers && report.healers.players && report.healers.players.length;
     const hasRaidBuffs = report.raidBuffs && report.raidBuffs.players && report.raidBuffs.players.length;
     // the badge counts the expected buffs that fell short somewhere
@@ -1975,6 +2077,7 @@ function renderReportPage(report, user) {
         { id: "drums", icon: "inv_misc_drum_01", label: "Drums", show: hasDrums, count: hasDrums, html: renderDrumsPanel(report.drums, linkFor) },
         { id: "sunder", icon: "ability_warrior_sunder", label: "Sunder Armor", show: hasSunder, count: hasSunder, html: renderSunderPanel(report.sunder, linkFor) },
         { id: "bosses", icon: "achievement_boss_illidan", label: "Bosse", show: hasBoss, count: hasBoss, html: renderBossUptimesPanel(report.bossUptimes) },
+        { id: "raiddebuffs", icon: "spell_shadow_chilltouch", label: "Raid-Debuffs", show: hasRaidDebuffs, count: raidDebuffsShort, html: hasRaidDebuffs ? renderRaidDebuffsPanel(report.raidDebuffs, report.timeline) : "" },
         { id: "timeline", icon: "inv_misc_pocketwatch_01", label: "Kampfverlauf", show: hasTimeline, count: hasTimeline, html: hasTimeline ? renderTimelinePanel(report.timeline, linkFor) : "" },
         { id: "healers", icon: "spell_holy_flashheal", label: "Heiler", show: hasHealers, count: hasHealers, html: hasHealers ? renderHealersPanel(report.healers, linkFor) : "" },
         { id: "raidbuffs", icon: "spell_magic_greaterblessingofkings", label: "Raid-Buffs", show: hasRaidBuffs, count: raidBuffsShort, html: hasRaidBuffs ? renderRaidBuffsPanel(report.raidBuffs, linkFor) : "" },
