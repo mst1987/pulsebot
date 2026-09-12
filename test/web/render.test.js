@@ -255,41 +255,46 @@ describe("web/render", () => {
             expect(html).toContain("→ Warcraft Logs");
         });
 
-        it("shows headline tiles for raiders, gear issues, bosses and consumables", () => {
+        it("shows KPI cards for bosses and consumables, the raider count in the view switch, the gear issues in the raid view", () => {
             const html = renderReportPage(sampleReport());
-            expect(html).toContain("class=\"tiles\"");
-            expect(html).toContain("Raider");
-            expect(html).toContain("Gear-Probleme");
-            expect(html).toContain("Boss-Kämpfe");
-            expect(html).toContain("1 Kill(s) · 1 Wipe(s)"); // 2 rows, one of them a wipe
-            expect(html).toContain("Ø Flask/Elixiere");
+            expect(html).toContain("class=\"kpis\"");
+            expect(html).toContain("Bosse</div>");
+            expect(html).toContain("1 Kill, 1 Wipe"); // 2 boss rows, one of them a wipe
+            expect(html).toContain("Flask / Elixiere");
+            expect(html).toContain("Raider<span class=\"n\">2</span>"); // 2 raiders
+            expect(html).toContain("<span>Gear-Probleme</span><span class=\"rec-count hot\">1</span>");
         });
 
-        it("labels every tab with a count badge", () => {
+        it("offers the three views, Raid first when there is no timeline", () => {
             const html = renderReportPage(sampleReport());
-            expect(html).toContain("<span class=\"tab-count\">2</span>"); // 2 raiders
+            expect(html).toContain("class=\"seg-btn active\" data-show=\"view-raid\"");
+            expect(html).toContain("data-show=\"view-bosse\"");
+            expect(html).toContain("data-show=\"view-raider\"");
+            expect(html).toContain("<div id=\"view-raid\" class=\"view\">");
+            expect(html).toContain("<div id=\"view-bosse\" class=\"view\" hidden>");
+            expect(html).toContain("<div id=\"view-raider\" class=\"view\" hidden>");
+            expect(html).toContain("window.__ehView");
         });
 
-        it("shows a tab for every populated section", () => {
+        it("shows a raid section for every populated raid-wide part", () => {
             const html = renderReportPage(sampleReport());
-            expect(html).toContain("data-tab=\"roster\"");
-            expect(html).toContain("data-tab=\"gear\"");
-            expect(html).toContain("data-tab=\"consumables\"");
-            expect(html).toContain("data-tab=\"potions\"");
-            expect(html).toContain("data-tab=\"drums\"");
-            expect(html).toContain("data-tab=\"sunder\"");
-            expect(html).toContain("data-tab=\"bosses\"");
-            expect(html).toContain("data-tab=\"shadowresi\"");
+            expect(html).toContain("id=\"rs-gear\"");
+            expect(html).toContain("id=\"rs-consumables\"");
+            expect(html).toContain("id=\"rs-potions\"");
+            expect(html).toContain("id=\"rs-drums\"");
+            expect(html).toContain("id=\"rs-sunder\"");
+            expect(html).toContain("id=\"rs-bosses\"");
+            expect(html).toContain("id=\"rs-shadowresi\"");
         });
 
-        it("says so in the Raider tab when the CLA half has not run yet", () => {
+        it("says so in the raider card when the CLA half has not run yet", () => {
             const report = reportWithRpb();
             delete report.potions;      // RPB evaluated, CLA not — zeros would mislead
             const html = renderReportPage(report);
             expect(html).toContain("nicht ausgewertet");
         });
 
-        it("shows the potion counts in the Raider tab once the CLA half is there", () => {
+        it("shows the potion counts in the raider card once the CLA half is there", () => {
             const html = renderReportPage(sampleReport());
             expect(html).not.toContain("nicht ausgewertet");
             expect(html).toContain("class=\"potions\"");
@@ -311,26 +316,32 @@ describe("web/render", () => {
             expect(legend).not.toContain("Zerstörungstrank");
         });
 
-        it("marks the first tab active", () => {
+        it("renders every raider as a closed card with the class icon, the role and the gear chip", () => {
             const html = renderReportPage(sampleReport());
-            // roster is the first defined tab and should carry the active class
-            expect(html).toContain("class=\"tab-btn active\" data-tab=\"roster\"");
+            expect(html).toContain("<details class=\"vcard raider-card\" id=\"raider-Alice\" data-name=\"Alice\" data-role=\"dps\"");
+            expect(html).toContain("<details class=\"vcard raider-card\" id=\"raider-Bob\" data-name=\"Bob\" data-role=\"dps\"");
+            expect(html).not.toContain("data-role=\"dps\" data-open=\"0\" data-report=\"abc123def456\" style=\"--cc:#69CCF0\" open");
+            expect(html).toContain("classicon_mage.jpg");
+            expect(html).toContain("<b>1</b> Gear</span>");
+            expect(html).toContain("<b>0</b> Gear</span>");
         });
 
-        it("hides every RPB tab when the report has no RPB section", () => {
+        it("hides every RPB section when the report has no RPB section", () => {
             const html = renderReportPage(sampleReport());
-            expect(html).not.toContain("data-tab=\"rpbdamage\"");
-            expect(html).not.toContain("data-tab=\"rpbactivity\"");
-            expect(html).not.toContain("data-tab=\"rpbvalidate\"");
+            expect(html).not.toContain("id=\"rs-rpbdamage\"");
+            expect(html).not.toContain("id=\"rs-rpbactivity\"");
+            expect(html).not.toContain("id=\"rs-rpbvalidate\"");
         });
 
-        it("shows the RPB tabs when the section is populated", () => {
+        it("shows the RPB sections when the section is populated", () => {
             const html = renderReportPage(reportWithRpb());
-            expect(html).toContain("data-tab=\"rpbdamage\"");
-            expect(html).toContain("data-tab=\"rpbactivity\"");
-            expect(html).toContain("data-tab=\"rpbusage\"");
-            expect(html).toContain("data-tab=\"rpbinterrupts\"");
-            expect(html).toContain("data-tab=\"rpbvalidate\"");
+            expect(html).toContain("id=\"rs-rpbdamage\"");
+            expect(html).toContain("id=\"rs-rpbactivity\"");
+            expect(html).toContain("id=\"rs-rpbusage\"");
+            expect(html).toContain("id=\"rs-rpbinterrupts\"");
+            expect(html).toContain("id=\"rs-rpbvalidate\"");
+            // and the RPB's roles sort the raiders into the role filter
+            expect(html).toContain("data-name=\"Bob\" data-role=\"tank\"");
         });
 
         it("splits the damage table into one tab per role", () => {
@@ -423,7 +434,7 @@ describe("web/render", () => {
 
         it("shows a spell tab listing each raider's tracked casts", () => {
             const html = renderReportPage(reportWithRpb());
-            expect(html).toContain("data-tab=\"rpbspells\"");
+            expect(html).toContain("id=\"rs-rpbspells\"");
             expect(html).toContain("spell_fire_flamebolt.jpg");
             expect(html).toContain("spell_frost_icestorm.jpg");
             expect(html).toContain("Frostblitz ×10");
@@ -455,25 +466,24 @@ describe("web/render", () => {
             expect(html).not.toContain("inv_misc_questionmark");
         });
 
-        it("counts the downrank warnings in the spell tab's badge", () => {
+        it("counts the downrank warnings in the spell section's badge", () => {
             const html = renderReportPage(reportWithRpb());
             // exactly one flagged spell in the fixture
-            expect(html).toContain("data-tab=\"rpbspells\"><img class=\"hicon\"");
-            expect(html).toMatch(/data-tab="rpbspells">[\s\S]*?<span class="tab-count">1<\/span>/);
+            expect(html).toMatch(/id="rs-rpbspells">\s*<summary><img class="hicon"[^>]*><span>Zauber<\/span><span class="rec-count hot">1<\/span>/);
         });
 
-        it("hides the spell tab when no tracked casts were recorded", () => {
+        it("hides the spell section when no tracked casts were recorded", () => {
             const report = reportWithRpb();
             report.rpb.activity.players[0].singleTargetCasts = [];
             report.rpb.activity.players[0].aoeCasts = [];
             const html = renderReportPage(report);
-            expect(html).not.toContain("data-tab=\"rpbspells\"");
-            expect(html).toContain("data-tab=\"rpbactivity\"");   // activity itself stays
+            expect(html).not.toContain("id=\"rs-rpbspells\"");
+            expect(html).toContain("id=\"rs-rpbactivity\"");   // activity itself stays
         });
 
-        it("labels the main tabs with WoW icons rather than emoji", () => {
+        it("labels the views and sections with WoW icons rather than emoji", () => {
             const html = renderReportPage(reportWithRpb());
-            expect(html).toContain("data-tab=\"roster\"><img class=\"hicon\"");
+            expect(html).toContain("data-show=\"view-raider\"><img class=\"hicon\"");
             expect(html).toContain("inv_misc_grouplooking.jpg");
             expect(html).not.toContain("👥");
             expect(html).not.toContain("🛡️");
@@ -511,11 +521,11 @@ describe("web/render", () => {
             const html = renderReportPage({ id: "x1", players: [] });
             expect(html).toContain("<title>Log-Check</title>");
             expect(html).toContain("<h1 class=\"page-title\">Log-Check</h1>");
-            // gear tab is always shown; empty-gear message appears
+            // gear section is always shown; empty-gear message appears
             expect(html).toContain("Keine Gear-Probleme gefunden");
             // optional sections absent
-            expect(html).not.toContain("data-tab=\"potions\"");
-            expect(html).not.toContain("data-tab=\"sunder\"");
+            expect(html).not.toContain("id=\"rs-potions\"");
+            expect(html).not.toContain("id=\"rs-sunder\"");
         });
 
         it("wraps the report in the admin menu chrome for a logged-in admin", () => {

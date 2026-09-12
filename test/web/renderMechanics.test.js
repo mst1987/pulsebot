@@ -60,7 +60,8 @@ describe("web/render — deaths with verdicts", () => {
 describe("web/render — Mechaniken topic", () => {
     it("draws one marker row per mechanic with every hit, who took it and how many raiders", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).toContain("data-show=\"fp-2-mechanics\">Mechaniken<span class=\"n\">3</span>");
+        expect(html).toContain("data-show=\"fp-2-mechanics\">");
+        expect(html).toContain("Mechaniken<span class=\"n\">3 · 3 Treffer</span>");
         expect(html).toContain("title=\"Wirbelwind\"");
         expect(html).toContain("<title>0:05 Alice · Wirbelwind · 3.000</title>");
         expect(html).toContain("<title>0:30 Bob · Stille</title>");
@@ -71,7 +72,8 @@ describe("web/render — Mechaniken topic", () => {
 
     it("gives the raider only their own hits, with the damage under the count", () => {
         const html = renderPlayerPage({ ...report(), timeline: timeline() }, 0); // Alice
-        expect(html).toContain("data-show=\"fp-2-mechanics\">Mechaniken<span class=\"n\">2</span>");
+        expect(html).toContain("data-show=\"p-fp-2-mechanics\">");
+        expect(html).toContain("Mechaniken<span class=\"n\">2 · 2 Treffer</span>");
         expect(html).toContain("<title>0:05 Wirbelwind · 3.000</title>");
         expect(html).not.toContain("Stille");
         expect(html).toContain("<b class=\"fc-medium\">2×</b><span>6k Schaden</span>");
@@ -85,7 +87,7 @@ describe("web/render — Mechaniken topic", () => {
         tl.fights[0].deaths = [];
         const html = renderPlayerPage({ ...report(), timeline: tl }, 1); // Bob: only a mechanic hit
         expect(html).toContain("<h2>Kampfverlauf</h2>");
-        expect(html).toContain("id=\"fight-2\">");
+        expect(html).toContain("id=\"p-fight-2\">");
     });
 
     it("skips the topic when a fight carries no mechanics", () => {

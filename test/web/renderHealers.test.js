@@ -69,7 +69,8 @@ function summary() {
 describe("web/render — Heilung topic of a fight", () => {
     it("adds a Heilung topic with one block per healer: chips, mana curve with its potion, spell table", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).toContain("data-show=\"fp-2-healing\">Heilung<span class=\"n\">2</span>");
+        expect(html).toContain("data-show=\"fp-2-healing\">");
+        expect(html).toContain("Heilung<span class=\"n\">2 · 2 Heiler</span>");
         expect(html).toContain("<span class=\"cn\">Elun</span>");
         expect(html).toContain("<b>23 %</b> Overheal");
         expect(html).toContain("<b>155k</b> Heilung");
@@ -112,11 +113,11 @@ describe("web/render — Heilung topic of a fight", () => {
     });
 });
 
-describe("web/render — Heiler tab", () => {
-    it("shows the tab with a row per healer and the raid's missed dispels above", () => {
+describe("web/render — Heiler section", () => {
+    it("shows the section with a row per healer and the raid's missed dispels above", () => {
         const html = renderReportPage({ ...report(), timeline: timeline(), healers: summary() });
-        expect(html).toContain("data-tab=\"healers\"");
-        expect(html).toContain("<span>Heiler</span><span class=\"tab-count\">2</span>");
+        expect(html).toContain("id=\"rs-healers\"");
+        expect(html).toContain("<span>Heiler</span><span class=\"rec-count\">2</span>");
         expect(html).toContain("3 dispelbare Debuffs hat niemand entfernt");
         expect(html).toContain("Stille (3×)");
         expect(html).toContain("gemessen auf dem aktiven Tank (Brokk)");
@@ -131,10 +132,18 @@ describe("web/render — Heiler tab", () => {
         expect(html).toContain("title=\"Erdschild: Ø 92 % in 3 Kämpfen\"");
     });
 
-    it("leaves the tab out without healer data", () => {
+    it("leaves the section out without healer data", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).not.toContain("data-tab=\"healers\"");
-        expect(renderReportPage({ ...report(), healers: { players: [], raid: {} } })).not.toContain("data-tab=\"healers\"");
+        expect(html).not.toContain("id=\"rs-healers\"");
+        expect(renderReportPage({ ...report(), healers: { players: [], raid: {} } })).not.toContain("id=\"rs-healers\"");
+    });
+
+    it("marks the healers as such in the raider cards and gives them a Heilung section", () => {
+        const html = renderReportPage({ ...report(), timeline: timeline(), healers: summary() });
+        expect(html).toContain("data-name=\"Elun\" data-role=\"healer\"");
+        expect(html).toContain("data-name=\"Brokk\" data-role=\"tank\""); // WCL's tank of the fight
+        expect(html).toContain("<b>43 %</b> Overheal</span>");
+        expect(html).toContain("Heilung &amp; Mana<span class=\"n\">3 Kämpfe</span>");
     });
 });
 

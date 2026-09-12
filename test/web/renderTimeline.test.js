@@ -47,14 +47,29 @@ function timeline() {
 describe("web/render — Kampfverlauf tab", () => {
     it("shows the tab with one boss tab per boss, carrying the WCL icon and the try count", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).toContain("data-tab=\"timeline\"");
-        expect(html.match(/<button type="button" class="boss-tab/g)).toHaveLength(2);
-        expect(html).toContain("<img src=\"/bosses/649.jpg\" alt=\"\"><span class=\"boss-name\">High King Maulgar</span><span class=\"boss-tries boss-kill\">2 Tries</span>");
-        expect(html).toContain("<img src=\"/bosses/650.jpg\" alt=\"\"><span class=\"boss-name\">Gruul the Dragonkiller</span><span class=\"boss-tries boss-kill\">1 Try</span>");
-        // the first boss is open, the second hidden
-        expect(html).toContain("class=\"boss-tab active\" data-show=\"fb-e649\"");
-        expect(html).toContain("<div id=\"fb-e649\" class=\"fight-boss\">");
-        expect(html).toContain("<div id=\"fb-e650\" class=\"fight-boss\" hidden>");
+        expect(html).toContain("class=\"seg-btn active\" data-show=\"view-bosse\"");
+        expect(html).toContain("Bosse<span class=\"n\">2</span>");
+        expect(html.match(/<details class="vcard boss-card"/g)).toHaveLength(2);
+        expect(html).toContain("<img class=\"vcard-icon\" src=\"/bosses/649.jpg\" alt=\"\"><div class=\"vcard-main\"><div class=\"vcard-title\">High King Maulgar</div><div class=\"vcard-meta\">2 Tries · Wipe bei 33 % · Kill 3:00 · 1 Tod</div>");
+        expect(html).toContain("<img class=\"vcard-icon\" src=\"/bosses/650.jpg\" alt=\"\"><div class=\"vcard-main\"><div class=\"vcard-title\">Gruul the Dragonkiller</div><div class=\"vcard-meta\">1 Try · Kill 3:20 · 0 Tode</div>");
+        // the first boss card is open, the second closed
+        expect(html).toContain("<details class=\"vcard boss-card\" id=\"boss-e649\" open>");
+        expect(html).toContain("<details class=\"vcard boss-card\" id=\"boss-e650\">");
+    });
+
+    it("sums a boss up in chips: missing debuffs and the raid DPS of the kill", () => {
+        const html = renderReportPage({ ...report(), timeline: timeline() });
+        expect(html).toContain("<span class=\"chip chip-x ok\"><b>0</b> Debuffs fehlten</span>");
+        expect(html).toContain("<span class=\"chip chip-x ok\"><b>1,0k</b> Raid-DPS</span>");
+    });
+
+    it("puts the fight's numbers in one row: Raid-DPS, Bloodlust, mean activity, expected debuffs, deaths", () => {
+        const html = renderReportPage({ ...report(), timeline: timeline() });
+        expect(html).toContain("Raid-DPS</div><div class=\"stat-v\">1,0k</div>");
+        expect(html).toContain("Raid-HPS</div><div class=\"stat-v\">300</div>");
+        expect(html).toContain("Bloodlust</div><div class=\"stat-v\">0:00 </div>");
+        expect(html).toContain("Aktivität Ø</div><div class=\"stat-v warn\">94 %</div>");
+        expect(html).toContain("Tode</div><div class=\"stat-v\">1 <small>· Alice 0:30</small></div>");
     });
 
     it("offers one try pill per pull of a boss and opens the first try", () => {
@@ -63,20 +78,35 @@ describe("web/render — Kampfverlauf tab", () => {
         expect(html).toContain("class=\"try-pill try-kill\" data-show=\"fight-3\">Try 2<span class=\"s\">Kill · 3:00</span>");
         expect(html).toContain("id=\"fight-2\">");
         expect(html).toContain("id=\"fight-3\" hidden>");
-        // a boss with a single pull needs no pills
-        expect(html.match(/<nav class="try-pills">/g)).toHaveLength(1);
-        expect(html).toContain("Try 1/2 · Wipe bei 33 % · 2:00 · 1 Tod");
+        // a boss with a single pull needs no pills (the raider cards' dialogs carry their own)
+        const bosse = html.slice(html.indexOf("<div id=\"view-bosse\""), html.indexOf("<div id=\"view-raider\""));
+        expect(bosse.match(/<nav class="try-pills">/g)).toHaveLength(1);
     });
 
-    it("switches topics with a segmented control, the first topic open, the DPS strip above it", () => {
+    it("switches topics with section buttons, the first topic open, the table first and the chart in a dialog", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).toContain("class=\"seg-btn active\" data-show=\"fp-3-debuffs\">Debuffs<span class=\"n\">1</span>");
-        expect(html).toContain("data-show=\"fp-3-totems\">Totems<span class=\"n\">1</span>");
-        expect(html).toContain("data-show=\"fp-3-cooldowns\">Cooldowns<span class=\"n\">1</span>");
-        expect(html).toContain("data-show=\"fp-3-activity\">Aktivität<span class=\"n\">1</span>");
-        expect(html).toContain("data-show=\"fp-3-deaths\">Tode<span class=\"n\">0</span>");
-        expect(html).toContain("<div id=\"fp-3-debuffs\" class=\"fight-part\">");
-        expect(html).toContain("<div id=\"fp-3-totems\" class=\"fight-part\" hidden>");
+        expect(html).toContain("class=\"sec active\" data-show=\"fp-3-debuffs\">");
+        expect(html).toContain("Debuffs<span class=\"n\">1</span>");
+        expect(html).toContain("data-show=\"fp-3-totems\">");
+        expect(html).toContain("Totems<span class=\"n\">1</span>");
+        expect(html).toContain("data-show=\"fp-3-cooldowns\">");
+        expect(html).toContain("Cooldowns<span class=\"n\">1</span>"); // no possibleUses on the row: no "genutzt" share
+        expect(html).toContain("data-show=\"fp-3-activity\">");
+        expect(html).toContain("Aktivität<span class=\"n\">1 · Ø 94 %</span>");
+        expect(html).toContain("data-show=\"fp-3-deaths\">");
+        expect(html).toContain("Tode<span class=\"n\">0</span>");
+        expect(html).toContain("<div id=\"fp-3-debuffs\" class=\"fight-part part\">");
+        expect(html).toContain("<div id=\"fp-3-totems\" class=\"fight-part part\" hidden>");
+        // the compact table sits in the card, the chart behind "Verlauf öffnen" in a <dialog>
+        expect(html).toContain("<table class=\"idx fc-table topic-table\"><tr><th>Zeile</th><th>Uptime</th><th>Details</th><th>Lücken</th><th>Längste Lücke</th></tr><tr><td><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/ability_warrior_sunder.jpg\" alt=\"\">Sunder Armor</td><td><span class=\"tv good\">100%</span></td><td>5/5 ab 0:08</td><td class=\"mono\">0</td><td class=\"mono\">–</td></tr></table>");
+        expect(html).toContain("data-dialog=\"dlg-fp-3-debuffs\"");
+        expect(html).toContain("Verlauf öffnen ⤢");
+        expect(html).toContain("<dialog class=\"dlg chart\" id=\"dlg-fp-3-debuffs\">");
+        expect(html).toContain("High King Maulgar · Debuffs</div>");
+        expect(html).toContain("window.__ehDlg");
+        // the DPS/HPS strip is the Kampfverlauf topic of the try
+        expect(html).toContain("data-show=\"fp-3-series\">");
+        expect(html).toContain("<dialog class=\"dlg chart\" id=\"dlg-fp-3-series\">");
         expect(html).toContain("<div class=\"fight-series\">");
         expect(html).toContain("Raid-DPS");
     });
@@ -96,7 +126,8 @@ describe("web/render — Kampfverlauf tab", () => {
 
     it("draws the bare fight axis with its deaths when no analyzer has filled a fight yet", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).toContain("data-show=\"fp-2-fight\">Kampf<span class=\"n\">1</span>");
+        expect(html).toContain("data-show=\"fp-2-fight\">");
+        expect(html).toContain("Kampf<span class=\"n\">1</span>");
         expect(html).toContain("<title>0:30 Alice († Arcane Explosion)</title>");
         expect(html).toContain("<li style=\"--cc:#69CCF0\"><b>0:30</b><a class=\"cn\" href=\"/r/abc123def456/p/0\">Alice</a>");
         expect(html).toContain("Niemand ist gestorben.");
@@ -124,19 +155,20 @@ describe("web/render — Kampfverlauf tab", () => {
         expect(renderReportPage({ ...report(), timeline: bare })).toContain(hint);
     });
 
-    it("leaves the tab out for a report without a timeline", () => {
+    it("opens the Raid view first and says so in the Bosse view for a report without a timeline", () => {
         const html = renderReportPage(report());
-        expect(html).not.toContain("data-tab=\"timeline\"");
-        expect(html).not.toContain("class=\"boss-tab");
+        expect(html).toContain("class=\"seg-btn active\" data-show=\"view-raid\"");
+        expect(html).toContain("Keine Boss-Kämpfe im Log.");
+        expect(html).not.toContain("class=\"vcard boss-card");
     });
 
     it("groups by boss name when the encounter id is missing, without an icon", () => {
         const tl = timeline();
         for (const f of tl.fights) delete f.encounterId;
         const html = renderReportPage({ ...report(), timeline: tl });
-        expect(html).toContain("data-show=\"fb-nHigh King Maulgar\"");
+        expect(html).toContain("id=\"boss-nHigh King Maulgar\"");
         expect(html).not.toContain("/bosses/");
-        expect(html.match(/<button type="button" class="boss-tab/g)).toHaveLength(2);
+        expect(html.match(/<details class="vcard boss-card"/g)).toHaveLength(2);
     });
 
     it("includes the chart styles and the switch script once", () => {
@@ -151,22 +183,26 @@ describe("web/render — Kampfverlauf on the player page", () => {
     it("gives the raider only their own rows and deaths, with own tab ids", () => {
         const html = renderPlayerPage({ ...report(), timeline: timeline() }, 0); // Alice
         expect(html).toContain("<h2>Kampfverlauf</h2>");
-        expect(html).toContain("data-show=\"fb-p-e649\"");
-        expect(html).toContain("id=\"fight-2\">");   // she died there
-        expect(html).toContain("id=\"fight-3\" hidden>");   // her cooldown and activity rows
+        expect(html).toContain("data-show=\"p-fb-e649\"");
+        expect(html).toContain("id=\"p-fight-2\">");   // she died there
+        expect(html).toContain("id=\"p-fight-3\" hidden>");   // her cooldown and activity rows
         expect(html).toContain("title=\"Icy Veins\"");
         expect(html).not.toContain("Bob · Windfury");
         expect(html).not.toContain("fp-3-debuffs"); // raid-wide, not hers
         expect(html).not.toContain("<div class=\"fight-series\">");
+        // the player page stacks the chart under its table instead of a dialog
+        expect(html).toContain("<div class=\"part-chart\">");
+        expect(html).not.toContain("Verlauf öffnen");
     });
 
     it("lists only the fights the raider shows up in, and nothing without any", () => {
         const html = renderPlayerPage({ ...report(), timeline: timeline() }, 1); // Bob: totems on fight 3 only
         expect(html).toContain("<h2>Kampfverlauf</h2>");
-        expect(html).toContain("id=\"fight-3\">");
-        expect(html).not.toContain("id=\"fight-2\"");
+        expect(html).toContain("id=\"p-fight-3\">");
+        expect(html).not.toContain("id=\"p-fight-2\"");
         expect(html).not.toContain("Gruul the Dragonkiller</span>");
-        expect(html).toContain("data-show=\"fp-3-totems\">Totems");
+        expect(html).toContain("data-show=\"p-fp-3-totems\">");
+        expect(html).toContain("Totems<span class=\"n\">1</span>");
         const none = renderPlayerPage({ ...report(), timeline: { fights: [] } }, 1);
         expect(none).not.toContain("<h2>Kampfverlauf</h2>");
         const legacy = renderPlayerPage(report(), 1);

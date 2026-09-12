@@ -85,7 +85,8 @@ function summary() {
 describe("web/render — Buffs topic of a fight", () => {
     it("adds a Buffs topic listing who lacked what: missing, run out, wrong role", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).toContain("data-show=\"fp-2-buffs\">Buffs<span class=\"n\">2</span>");
+        expect(html).toContain("data-show=\"fp-2-buffs\">");
+        expect(html).toContain("Buffs<span class=\"n\">2 · 2 fehlten</span>");
         expect(html).toContain("1 Paladin · erwartet: Segen der Könige, Machtwort: Seelenstärke");
         // Brokk: Fortitude ran out, Wisdom on a warrior
         expect(html).toContain("<span class=\"cn\">Brokk</span><span class=\"sritems\">Tank</span>");
@@ -100,18 +101,19 @@ describe("web/render — Buffs topic of a fight", () => {
 
     it("says so when everybody had everything, and leaves the topic out without data", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).toContain("data-show=\"fp-6-buffs\">Buffs<span class=\"n\">0</span>");
+        expect(html).toContain("data-show=\"fp-6-buffs\">");
+        expect(html).toContain("Buffs<span class=\"n\">0 · alle da</span>");
         expect(html).toContain("Alle erwarteten Buffs auf allen Spielern.");
         expect(html).not.toContain("fp-4-buffs");
     });
 });
 
-describe("web/render — Raid-Buffs tab", () => {
-    it("shows the tab with a player × buff matrix, coverage on top, only the buffs anyone had or should have had", () => {
+describe("web/render — Raid-Buffs section", () => {
+    it("shows the section with a player × buff matrix, coverage on top, only the buffs anyone had or should have had", () => {
         const html = renderReportPage({ ...report(), timeline: timeline(), raidBuffs: summary() });
-        expect(html).toContain("data-tab=\"raidbuffs\"");
+        expect(html).toContain("id=\"rs-raidbuffs\"");
         // two expected buffs fell short somewhere
-        expect(html).toContain("<span>Raid-Buffs</span><span class=\"tab-count\">2</span>");
+        expect(html).toContain("<span>Raid-Buffs</span><span class=\"rec-count hot\">2</span>");
         expect(html).toContain("data-tip=\"Segen der Könige (Paladin)\"");
         expect(html).toContain("data-tip=\"Wasserschild (Shaman)\"");
         expect(html).not.toContain("data-tip=\"Dornen (Druid)\"");
@@ -125,10 +127,20 @@ describe("web/render — Raid-Buffs tab", () => {
         expect(html).toContain("1 Paladin heißt ein Segen pro Spieler");
     });
 
-    it("leaves the tab out without data", () => {
+    it("leaves the section out without data", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).not.toContain("data-tab=\"raidbuffs\"");
-        expect(renderReportPage({ ...report(), raidBuffs: { players: [], rows: [] } })).not.toContain("data-tab=\"raidbuffs\"");
+        expect(html).not.toContain("id=\"rs-raidbuffs\"");
+        expect(renderReportPage({ ...report(), raidBuffs: { players: [], rows: [] } })).not.toContain("id=\"rs-raidbuffs\"");
+    });
+
+    it("gives every raider their own buff row: the chip in the head, the table in the Buffs section", () => {
+        const html = renderReportPage({ ...report(), timeline: timeline(), raidBuffs: summary() });
+        // Dorn lacked Kings twice
+        expect(html).toContain("<b>2</b> Buffs fehlten</span>");
+        expect(html).toContain("<b>0</b> Buffs fehlten</span>");
+        expect(html).toContain("Buffs<span class=\"n\">2 fehlten</span>");
+        expect(html).toContain("Nahkampf · 3 Kämpfe · fehlte 2×");
+        expect(html).toContain("<table class=\"mini\"><tr><th>Buff</th><th>Anteil</th><th>Da</th><th>Spät</th><th>Nicht durchgehend</th><th>Gefehlt</th><th></th></tr>");
     });
 });
 
@@ -136,7 +148,7 @@ describe("web/render — Buffs on the player page", () => {
     it("draws the raider's own buffs as ribbons with their status, nothing of the others", () => {
         const html = renderPlayerPage({ ...report(), timeline: timeline(), raidBuffs: summary() }, 2); // Dorn
         expect(html).toContain("<h2>Kampfverlauf</h2>");
-        expect(html).toContain("Buffs<span class=\"n\">1</span>");
+        expect(html).toContain("Buffs<span class=\"n\">1 · 1 fehlten</span>");
         expect(html).toContain("<title>Machtwort: Seelenstärke: 0:00–1:00</title>");
         expect(html).toContain("<b class=\"fc-high\">0%</b><span>fehlt</span>");
         expect(html).toContain("<b class=\"fc-good\">100%</b><span>da</span>");
@@ -147,7 +159,7 @@ describe("web/render — Buffs on the player page", () => {
 
     it("labels a blessing on the wrong role and a buff that was not there throughout", () => {
         const html = renderPlayerPage({ ...report(), timeline: timeline() }, 0); // Brokk
-        expect(html).toContain("Buffs<span class=\"n\">2</span>");
+        expect(html).toContain("Buffs<span class=\"n\">2 · 2 fehlten</span>");
         expect(html).toContain("<b class=\"fc-medium\">50%</b><span>nicht durchgehend</span>");
         expect(html).toContain("<b class=\"fc-high\">100%</b><span>falsche Rolle</span>");
         expect(html).toContain("<title>Segen der Weisheit (falsche Rolle): 0:00–2:00</title>");
@@ -165,13 +177,14 @@ describe("web/render — Buffs on the player page", () => {
         f.buffs.coverage[0] = { key: "kings", expected: 3, full: 1, late: 1, partial: 0, none: 1, present: 2, wrong: 0 };
         const raid = renderReportPage({ ...report(), timeline: tl });
         // the raid page lists her now, with the late chip
-        expect(raid).toContain("data-show=\"fp-2-buffs\">Buffs<span class=\"n\">3</span>");
+        expect(raid).toContain("data-show=\"fp-2-buffs\">");
+        expect(raid).toContain("Buffs<span class=\"n\">3 · 3 fehlten</span>");
         expect(raid).toContain("<span class=\"cn\">Elun</span><span class=\"sritems\">Heiler</span>");
         expect(raid).toContain("Segen der Könige spät gesetzt</span>");
         expect(raid).not.toContain("ausgelaufen");
         // the player page draws it as a medium ribbon with the neutral word
         const player = renderPlayerPage({ ...report(), timeline: tl }, 1); // Elun
-        expect(player).toContain("Buffs<span class=\"n\">1</span>");
+        expect(player).toContain("Buffs<span class=\"n\">1 · 1 fehlten</span>");
         expect(player).toContain("<b class=\"fc-medium\">92%</b><span>spät gesetzt</span>");
         expect(player).toContain("<title>Segen der Könige: 0:10–2:00</title>");
     });
@@ -179,6 +192,6 @@ describe("web/render — Buffs on the player page", () => {
     it("lists a fight for a raider who only shows up in its buffs", () => {
         const html = renderPlayerPage({ ...report(), timeline: { fights: [timeline().fights[2]] } }, 1); // Elun
         expect(html).toContain("<h2>Kampfverlauf</h2>");
-        expect(html).toContain("Buffs<span class=\"n\">0</span>");
+        expect(html).toContain("Buffs<span class=\"n\">0 · alle da</span>");
     });
 });

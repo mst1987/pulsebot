@@ -63,20 +63,20 @@ function cell(html, label, boss) {
     return m ? m[0] : null;
 }
 
-describe("web/render — Raid-Debuffs tab", () => {
-    it("shows the tab with the raid summary per debuff and counts the expected ones that fell short", () => {
+describe("web/render — Raid-Debuffs section", () => {
+    it("shows the section with the raid summary per debuff and counts the expected ones that fell short", () => {
         const html = renderReportPage({ ...report(), raidDebuffs: raidDebuffs() });
-        expect(html).toContain("data-tab=\"raiddebuffs\"");
-        expect(html).toContain("<span>Raid-Debuffs</span><span class=\"tab-count\">2</span>"); // coe at 83 %, Hunter's Mark missing
+        expect(html).toContain("id=\"rs-raiddebuffs\"");
+        expect(html).toContain("<span>Raid-Debuffs</span><span class=\"rec-count hot\">2</span>"); // coe at 83 %, Hunter's Mark missing
         expect(html).toContain("Fluch der Elemente<div class=\"sritems\">Warlock</div>");
         // the unexpected one is shown without a tone
         expect(html).toContain("<span class=\"pct pct-na\" title=\"nicht erwartet\">40%</span>");
         expect(html).toContain("<span class=\"pct pct-none\">3/3</span>");
     });
 
-    it("renders no matrix without a timeline, the tab otherwise as before", () => {
+    it("renders no matrix without a timeline, the section otherwise as before", () => {
         const html = renderReportPage({ ...report(), raidDebuffs: raidDebuffs() });
-        expect(html).toContain("data-tab=\"raiddebuffs\"");
+        expect(html).toContain("id=\"rs-raiddebuffs\"");
         expect(html).not.toContain("Debuff × Boss");
         expect(html).not.toContain("<table class=\"idx heal-table buff-matrix debuff-matrix\">");
         const noFights = renderReportPage({ ...report(), raidDebuffs: raidDebuffs(), timeline: { fights: [] } });
