@@ -1,4 +1,5 @@
-const { equipmentFor, playerFor, targetSlotFor, SLOT_ORDER } = require("../../../src/utils/wowsims/loadout");
+const { equipmentFor, playerFor, targetSlotFor, bisFittingFor, SLOT_ORDER } = require("../../../src/utils/wowsims/loadout");
+const wowsims = require("../../../src/config/wowsims");
 const { specByKey, aplForSpec } = require("../../../src/config/casterSpecs");
 const { presetFor } = require("../../../src/utils/wowsims/presets");
 
@@ -206,5 +207,45 @@ describe("utils/wowsims/loadout — every slot in play, not just the losing one"
 
     it("still returns null for an item that fits nowhere", () => {
         expect(targetSlotFor(armed, 999999)).toBeNull();
+    });
+});
+
+describe("utils/wowsims/loadout — how a swapped-in drop is fitted", () => {
+    const shadow = specByKey("Priest-Shadow");
+
+    it("takes the list's own gems and enchant for an item on the BiS list", () => {
+        // Hood of Absolution sits on the T6 shadow list with a meta and a blue gem.
+        expect(bisFittingFor({ specEntry: shadow, itemId: 31064 })).toEqual({ enchantId: 3002, gems: [25893, 30600], source: "bis-item" });
+    });
+
+    it("fits an item off the list with the slot's enchant and a gem per socket colour", () => {
+        // Cowl of the Illidari High Lord: a head with a meta and a blue socket, not on the shadow list.
+        expect(wowsims.item(32525).sockets).toEqual([1, 3]);
+        const fit = bisFittingFor({ specEntry: shadow, itemId: 32525 });
+        expect(fit.source).toBe("bis-slot");
+        expect(fit.enchantId).toBe(3002);                 // the head enchant the list uses
+        expect(fit.gems).toHaveLength(2);
+        expect(fit.gems[0]).toBe(25893);                  // the list's meta gem in the meta socket
+        expect(fit.gems[1]).toBeGreaterThan(0);           // the gem the list socketed most in blue
+    });
+
+    it("keeps the raider's own fitting when they already wear that very item", () => {
+        const replaced = { itemId: 31064, gems: [1, 2], enchantId: 9 };
+        expect(bisFittingFor({ specEntry: shadow, itemId: 31064, replaced })).toEqual({ enchantId: 9, gems: [1, 2], source: "worn" });
+    });
+
+    it("falls back to inheriting from the replaced piece for a spec without a WoWSims list", () => {
+        const replaced = { itemId: 1, gems: [5], enchantId: 7 };
+        expect(bisFittingFor({ specEntry: specByKey("Shaman-Restoration"), itemId: 32525, replaced })).toEqual({ enchantId: 7, gems: [5], source: "worn" });
+        expect(bisFittingFor({ specEntry: null, itemId: 32525 })).toEqual({ enchantId: 0, gems: [], source: "" });
+    });
+
+    it("carries the fitting into the simulated loadout", () => {
+        const fit = bisFittingFor({ specEntry: shadow, itemId: 32525 });
+        const { items } = equipmentFor(gear, { slot: 0, itemId: 32525, enchantId: fit.enchantId, gems: fit.gems });
+        // the meta gem may be dropped by stripInactiveMeta on this small fixture; the fitting itself is what is checked
+        expect(items[0].id).toBe(32525);
+        expect(items[0].enchant).toBe(3002);
+        expect(items[0].gems[1]).toBe(fit.gems[1]);
     });
 });

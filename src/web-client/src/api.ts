@@ -1813,6 +1813,10 @@ export type CouncilCandidate = {
      */
     inflatedBy: { itemName: string; note: string }[];
     isBis: boolean;
+    /** 1 when the item is on this raider's BiS list, else the server's non-BiS weight (0.5). */
+    bisWeight: number;
+    /** needScore × bisWeight: the need as it counts for this item. */
+    itemNeedScore: number;
     /** The fairness half — the same numbers the roster table shows. */
     needScore: number;
     needParts: { drought: number; share: number; need: number };

@@ -16,6 +16,8 @@
 //     build is what makes two raiders comparable.
 
 const { slotsFor, item: itemInfo } = require("../../config/wowsims");
+const { bisForSpec } = require("../../config/casterSpecs");
+const { bisTiers } = require("../../config/bisSets");
 const { metaGemActive } = require("../logcheck/gearIssues");
 const claData = require("../../config/claData");
 
@@ -83,6 +85,77 @@ const RACE_BY_CLASS = {
     Shaman: "RaceDraenei",
     Paladin: "RaceBloodElf",
 };
+
+// WoWSims' socket colour codes in the generated item table (`sockets`).
+const SOCKET_META = 1;
+
+/**
+ * The enchant and gems a swapped-in item is simulated with.
+ *
+ * A drop is simulated as the raider would wear it, not bare: an unsocketed,
+ * unenchanted piece against a fully fitted one understates every upgrade,
+ * and three empty sockets on a T6 chest are the difference between "sidegrade"
+ * and "+90 DPS". The fitting comes from the spec's BiS set (WoWSims, which
+ * carries gems and enchants per item):
+ *   - the item itself is on the list → exactly its gems and enchant;
+ *   - otherwise the enchant the list puts on that slot, and per socket the gem
+ *     the list uses for that socket colour (a meta socket takes the list's
+ *     meta gem, everything else the gem the list socketed most in that colour,
+ *     falling back to its most-used non-meta gem);
+ *   - the piece the raider already wears in that slot *is* the item → its own
+ *     gems and enchant, so "the item you already have" sims to a zero delta;
+ *   - a spec without a WoWSims list (healers, who are not simulated anyway) →
+ *     the replaced piece's fitting, as before.
+ *
+ * @param {object} args { specEntry, itemId, replaced?: { itemId, gems, enchantId } }
+ * @returns {{ enchantId: number, gems: number[], source: "worn" | "bis-item" | "bis-slot" | "" }}
+ */
+function bisFittingFor({ specEntry, itemId, replaced = null }) {
+    const id = Number(itemId);
+    const worn = () => ({
+        enchantId: Number((replaced && replaced.enchantId) || 0),
+        gems: (replaced && Array.isArray(replaced.gems)) ? replaced.gems.map((g) => Number(g) || 0) : [],
+        source: replaced ? "worn" : "",
+    });
+    if (!id || !specEntry) return worn();
+    if (replaced && Number(replaced.itemId) === id) return worn();
+
+    // the newest list that names the item, else the newest list at all
+    const tiers = bisTiers(specEntry.bisSpec && !bisTiers(specEntry.key).length ? specEntry.bisSpec : specEntry.key).slice().reverse();
+    let bis = null;
+    for (const tier of tiers) {
+        const list = bisForSpec(specEntry, tier);
+        if (list.source !== "wowsims" || !list.items.length) continue;
+        if (!bis) bis = list;
+        const own = list.items.find((e) => Number(e.id) === id);
+        if (own) return { enchantId: Number(own.enchant || 0), gems: (own.gems || []).map((g) => Number(g) || 0), source: "bis-item" };
+    }
+    if (!bis) return worn();
+
+    const slot = slotsFor(id)[0];
+    const sameSlot = bis.items.find((e) => slot !== undefined && slotsFor(e.id).includes(slot));
+    const enchantId = Number((sameSlot && sameSlot.enchant) || 0);
+
+    // gem per socket colour, as the list socketed them
+    const byColour = new Map();
+    const overall = new Map();
+    for (const e of bis.items) {
+        const sockets = ((itemInfo(e.id) || {}).sockets) || [];
+        (e.gems || []).forEach((gem, i) => {
+            const colour = sockets[i];
+            const g = Number(gem) || 0;
+            if (!colour || !g) return;
+            if (!byColour.has(colour)) byColour.set(colour, new Map());
+            byColour.get(colour).set(g, (byColour.get(colour).get(g) || 0) + 1);
+            if (colour !== SOCKET_META) overall.set(g, (overall.get(g) || 0) + 1);
+        });
+    }
+    const top = (map) => (map && map.size ? [...map.entries()].sort((a, b) => b[1] - a[1])[0][0] : 0);
+    const fallback = top(overall);
+    const sockets = ((itemInfo(id) || {}).sockets) || [];
+    const gems = sockets.map((colour) => top(byColour.get(colour)) || (colour === SOCKET_META ? 0 : fallback) || 0);
+    return { enchantId, gems, source: "bis-slot" };
+}
 
 /**
  * The equipment array for a gear snapshot, in WoWSims' slot order.
@@ -236,4 +309,4 @@ function targetSlotFor(gear, itemId) {
     };
 }
 
-module.exports = { equipmentFor, playerFor, targetSlotFor, SLOT_ORDER, RACE_BY_CLASS };
+module.exports = { equipmentFor, playerFor, targetSlotFor, bisFittingFor, SLOT_ORDER, RACE_BY_CLASS };

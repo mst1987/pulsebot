@@ -207,3 +207,27 @@ describe("web/simStore", () => {
         expect(simStore.getJob("nope")).toBeNull();
     });
 });
+
+describe("web/simStore — the drop is simulated as it would be worn", () => {
+    const subjects = [{ key: "devihra", specKey: "Priest-Shadow" }];
+
+    it("gives a swapped-in item the BiS list's gems and enchant instead of the replaced piece's", async () => {
+        // The worn hood is bare; the drop must not inherit that emptiness.
+        mockGearByCharacter.mockReturnValue(new Map([["devihra", gear([item(0, 31064)])]]));
+        simStore.startCouncilSim("fit1", subjects, [32525]);
+        const job = await settle("fit1");
+        expect(job.result.devihra.items[32525]).toMatchObject({ fitting: "bis-slot" });
+        const swapped = mockSimulate.mock.calls.find((c) => c[0].swap);
+        expect(swapped[0].swap).toMatchObject({ slot: 0, itemId: 32525, enchantId: 3002 });
+        expect(swapped[0].swap.gems).toHaveLength(2);
+        expect(swapped[0].swap.gems[0]).toBe(25893);
+    });
+
+    it("still answers the item the raider already wears from the cache", async () => {
+        mockGearByCharacter.mockReturnValue(new Map([["devihra", gear([item(0, 31064)])]]));
+        simStore.startCouncilSim("fit2", subjects, [31064]);
+        const job = await settle("fit2");
+        expect(job.result.devihra.items[31064]).toMatchObject({ delta: 0, cached: true, fitting: "worn" });
+        expect(mockSimulate).toHaveBeenCalledTimes(1);
+    });
+});

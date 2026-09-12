@@ -371,12 +371,12 @@ const needSubject = (r: CouncilRaider): NeedSubject => ({
 function NeedBar({ subject }: { subject: NeedSubject }) {
     const pct = Math.round(subject.needScore * 100);
     const p = subject.needParts;
-    // The bar is stacked in the weights the score itself uses (40/30/30), so
+    // The bar is stacked in the weights the score itself uses (50/40/10), so
     // the widths add up to exactly the score.
     const seg = [
-        { key: "drought", w: p.drought * 40, cls: "lc-seg-drought" },
-        { key: "share", w: p.share * 30, cls: "lc-seg-share" },
-        { key: "need", w: p.need * 30, cls: "lc-seg-need" },
+        { key: "drought", w: p.drought * 50, cls: "lc-seg-drought" },
+        { key: "share", w: p.share * 40, cls: "lc-seg-share" },
+        { key: "need", w: p.need * 10, cls: "lc-seg-need" },
     ];
     return (
         <HoverPanel
@@ -413,7 +413,7 @@ function NeedBar({ subject }: { subject: NeedSubject }) {
                     <b>{Math.round(p.need * 100)} %</b>
                 </div>
                 <div className="hint" style={{ marginTop: 6 }}>
-                    Gewichtet: 40 % Wartezeit, 30 % Loot-Anteil, 30 % BiS-Lücke.
+                    Gewichtet: 50 % Wartezeit, 40 % Loot-Anteil, 10 % BiS-Lücke.
                 </div>
             </div>
         </HoverPanel>
@@ -1255,7 +1255,9 @@ function CandidateRow({ candidate, simDelta, gainMax }: {
                 <span className="lc-cand-ident">
                     <SpecCell specLabel={candidate.specLabel} iconUrl={candidate.specIconUrl} />
                     <b {...classColorProps(candidate.classColor)}>{candidate.character}</b>
-                    {candidate.isBis ? <span className="lc-pill-bis" title="Steht auf der BiS-Liste dieses Raiders">BiS</span> : null}
+                    {candidate.isBis
+                        ? <span className="lc-pill-bis" title="Steht auf der BiS-Liste dieses Raiders">BiS</span>
+                        : <span className="lc-pill-nobis" title={`Nicht auf der BiS-Liste dieses Raiders — Zugewinn und Bedarf zählen mit ${Math.round(candidate.bisWeight * 100)} %`}>kein BiS · ½</span>}
                 </span>
             </td>
             <td><SlotOptions candidate={candidate} /></td>
@@ -1327,10 +1329,11 @@ function pickVerdict(candidates: CouncilCandidate[], sim: SimResult | null, item
     const measured = candidates
         .map((c) => ({ c, delta: deltaFor(sim, c, itemId) }))
         .filter((x): x is { c: CouncilCandidate; delta: number } => typeof x.delta === "number")
-        .sort((a, b) => b.delta - a.delta || b.c.needScore - a.c.needScore)[0];
+        // A candidate the item is not BiS for counts half — in the gain and in the need.
+        .sort((a, b) => b.delta * b.c.bisWeight - a.delta * a.c.bisWeight || b.c.itemNeedScore - a.c.itemNeedScore)[0];
     if (measured) return { basis: "sim", best: measured.c, delta: measured.delta };
     if (candidates.some((c) => c.simSupported && c.hasGear)) return { basis: "pending", best: null, delta: null };
-    const byNeed = [...candidates].sort((a, b) => b.needScore - a.needScore)[0];
+    const byNeed = [...candidates].sort((a, b) => b.itemNeedScore - a.itemNeedScore)[0];
     return byNeed ? { basis: "need", best: byNeed, delta: null } : { basis: "none", best: null, delta: null };
 }
 
@@ -1366,8 +1369,8 @@ function CandidateTable({ itemId, candidates, sim, sortState }: {
             case "character": return c.character.toLowerCase();
             case "spec": return c.specLabel.toLowerCase();
             case "slot": return c.replaces ? c.replaces.itemLevel : -1;
-            case "gain": return gainFor(sim, c, itemId);
-            case "need": return c.needScore;
+            case "gain": return gainFor(sim, c, itemId) * c.bisWeight;
+            case "need": return c.itemNeedScore;
             // Never having won anything is the longest wait there is, not the
             // shortest — so it sorts to the overdue end.
             case "waited": return c.daysSinceLoot === null ? Number.MAX_SAFE_INTEGER : c.daysSinceLoot;
@@ -1391,7 +1394,7 @@ function CandidateTable({ itemId, candidates, sim, sortState }: {
                     <SortTh sortKey="character" label="Raider" {...sortState} />
                     <SortTh sortKey="slot" label="Ersetzt" title="Das Stück, das dafür abgelegt würde — nach dessen Itemlevel sortiert, ein freier Slot zuerst" style={{ width: 70 }} {...sortState} />
                     <SortTh sortKey="gain" label="Zugewinn" title="Simulierte DPS-Differenz — leer, solange nicht simuliert wurde. Geschätzt wird nichts." {...sortState} />
-                    <SortTh sortKey="need" label="Bedarf" title="Wartezeit, Loot-Anteil und BiS-Lücke zusammengenommen" {...sortState} />
+                    <SortTh sortKey="need" label="Bedarf" title="Wartezeit, Loot-Anteil und BiS-Lücke zusammengenommen — halbiert, wenn das Item für den Raider nicht BiS ist" {...sortState} />
                     <SortTh sortKey="waited" label="Tage" title="Seit dem letzten Item" style={{ width: 70 }} {...sortState} />
                     <SortTh sortKey="loot" label="Items" title="Im aktuellen Content-Filter" style={{ width: 70 }} {...sortState} />
                 </tr>

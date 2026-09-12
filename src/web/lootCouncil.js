@@ -376,6 +376,16 @@ function wornItemView(item, bisIds, tierId = "") {
  * score so the page can show the reasoning, and a council can disagree with a
  * number it can see the parts of.
  */
+// How the three parts of the need score weigh: the wait counts most, the loot
+// share next, the BiS gap least — a raider far from BiS is not owed an item,
+// a raider who has waited is. (Changed from 40/30/30 on the raid lead's call.)
+const NEED_WEIGHTS = { drought: 0.5, share: 0.4, need: 0.1 };
+
+// A candidate for whom the drop is not on their BiS list is weighed at this
+// share of their need and gain: the item still helps them, but somebody it is
+// BiS for should come first unless the numbers are far apart.
+const NON_BIS_WEIGHT = 0.5;
+
 function needScore({ daysSinceLoot, lootCount, avgLootCount, bisOwned, bisTotal }) {
     // 30 days without an item is as much drought as this counts.
     const drought = Math.min(1, (daysSinceLoot === null ? 30 : daysSinceLoot) / 30);
@@ -384,7 +394,7 @@ function needScore({ daysSinceLoot, lootCount, avgLootCount, bisOwned, bisTotal 
         ? Math.max(0, Math.min(1, (avgLootCount - lootCount) / Math.max(1, avgLootCount)))
         : 0.5;
     const need = bisTotal > 0 ? 1 - (bisOwned / bisTotal) : 0.5;
-    const score = 0.4 * drought + 0.3 * share + 0.3 * need;
+    const score = NEED_WEIGHTS.drought * drought + NEED_WEIGHTS.share * share + NEED_WEIGHTS.need * need;
     return {
         score: Math.round(score * 1000) / 1000,
         parts: {
@@ -748,6 +758,10 @@ function candidateSplit(itemId, roster) {
             upgradeValue({ gear, specEntry, itemId, replaces: target.replaces }),
         );
         const isBis = row.bis.items.some((i) => i.id === Number(itemId));
+        // Not BiS for this raider: they are still a candidate, but a weighted
+        // one — half the need, half the gain in every ordering — so the raider
+        // it *is* BiS for is preferred unless the difference is large.
+        const bisWeight = isBis ? 1 : NON_BIS_WEIGHT;
         // A baseline the comparison cannot read: what would come off carries no
         // caster stats at all — a situational trinket the substitution could not
         // replace, a relic, an off-spec piece — so both the stat weights and the
@@ -795,6 +809,11 @@ function candidateSplit(itemId, roster) {
                 note: (off.situational || {}).note || "trägt keine Casterwerte, zählt im Vergleich wie ein leerer Slot",
             })),
             isBis,
+            bisWeight,
+            // The need as it counts for *this* item: the raider's need score
+            // times the BiS weight. The raw need stays beside it, so the bar
+            // can still show the fairness numbers unchanged.
+            itemNeedScore: Math.round(row.needScore * bisWeight * 1000) / 1000,
             // The fairness half of the decision, carried alongside the gear
             // gain rather than folded into it: "who would gain most" and "who
             // has waited longest" are two different questions, and a council
@@ -819,9 +838,10 @@ function candidateSplit(itemId, roster) {
             simSupported: row.simSupported,
         });
     }
-    // Biggest gear gain first; the need score only breaks ties, because a
-    // council weighs fairness itself and should see the raw upgrade unblurred.
-    out.sort((a, b) => b.value - a.value || b.needScore - a.needScore);
+    // Biggest weighted gear gain first (a non-BiS candidate's value counts
+    // half); the weighted need only breaks ties, because a council weighs
+    // fairness itself and should see the raw upgrade unblurred.
+    out.sort((a, b) => b.value * b.bisWeight - a.value * a.bisWeight || b.itemNeedScore - a.itemNeedScore);
     return { candidates: out, unwearable };
 }
 
@@ -888,7 +908,7 @@ function filterOptions() {
 }
 
 module.exports = {
-    councilRoster, candidatesForItem, candidateSplit, bisGaps, filterOptions, currentTier, wornItemView, bisSpecsView,
+    councilRoster, candidatesForItem, candidateSplit, bisGaps, filterOptions, currentTier, wornItemView, bisSpecsView, NEED_WEIGHTS, NON_BIS_WEIGHT,
     categoryMembers, upgradeValue, needScore, scoreItem, gearSpellHit, resolveContentFilter, itemView,
     firstSlotFor, slotNameFor,
 };
