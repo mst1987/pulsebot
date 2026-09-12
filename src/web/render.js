@@ -1385,14 +1385,27 @@ function renderHealersPanel(healers, linkFor) {
 // ---- Buffs: the raid buffs on the players of a fight (f.buffs, utils/logcheck/raidBuffs.js) ----
 //   paladins, expected[]  · players[] { name, type, role, diedAt, buffs: [{ key, label, icon, status: full|late|partial|none, uptimePct, expected, wrong, bands }], missing[], late[], partial[], wrong[] }
 //   (`late` — set after the pull, then kept — and `partial` — not there throughout: ran out or had a hole — were one
-//   status before Sept 2026; a stored report may lack `late` and its counters, so every read of them has a fallback)
+//   status before Sept 2026; a stored report may lack `late` and its counters, so every read of them has a fallback;
+//   `unknown` is an inferred buff — Fortitude / Mark of the Wild, which the client leaves out of the combatant info —
+//   that no event proved present or missing in this fight: never a finding, shown as "?")
 
-const BUFF_STATUS = { full: "da", late: "spät gesetzt", partial: "nicht durchgehend", none: "fehlt" };
+const BUFF_STATUS = { full: "da", late: "spät gesetzt", partial: "nicht durchgehend", none: "fehlt", unknown: "nicht nachweisbar" };
 
 function buffTone(c) {
     if (c.wrong) return "high";
-    if (!c.expected) return undefined;
+    if (!c.expected || c.status === "unknown") return undefined;
     return c.status === "full" ? "good" : c.status === "late" || c.status === "partial" ? "medium" : "high";
+}
+
+/** The one-line explanation of an inferred buff, for tooltips and notes. */
+const INFERRED_HOW = "Der Client loggt diesen Buff beim Pull nicht. Er gilt als da, wo der Log ihn später entfernt oder erneuert sieht (Tod, Auslaufen, Nachbuffen), und als fehlend, wo ein Tod alle anderen Buffs entfernt, diesen aber nicht. Ohne beides bleibt die Zelle offen (?) und zählt nicht als Fehlen.";
+
+/** "Aus dem Verlauf abgeleitet: Seelenstärke / Gebet…, Wildnis / Gabe…" — the note above a buff panel whose keys came from the events. */
+function inferredNote(list, unknownCells) {
+    if (!list || !list.length) return "";
+    const names = list.map((u) => `${hicon(u.icon, "")}${esc(u.label)}${u.groupLabel ? ` / ${esc(u.groupLabel)}` : ""}`).join(", ");
+    const open = unknownCells ? ` ${esc(unknownCells)} ${unknownCells === 1 ? "Zelle bleibt" : "Zellen bleiben"} ohne Nachweis.` : "";
+    return `<p class="note"><b>Aus dem Verlauf abgeleitet:</b> ${names}. ${esc(INFERRED_HOW)}${open}</p>`;
 }
 
 /** The number of things wrong with a player's buffs in a fight: missing, late, not throughout, wrong role. */
@@ -1428,7 +1441,15 @@ function buffParts(f, only, common) {
         const c = b.players.flatMap((p) => p.buffs || []).find((x) => x.key === k);
         return c ? c.label : k;
     });
-    const head = `<p class="note">${esc(b.paladins || 0)} Paladin${b.paladins === 1 ? "" : "e"} · erwartet: ${expectedLabels.length ? esc(expectedLabels.join(", ")) : "nichts"}</p>`;
+    const inferred = (b.inferred || []).map((k) => {
+        const c = b.players.flatMap((p) => p.buffs || []).find((x) => x.key === k);
+        return c ? c.label : k;
+    });
+    const open = b.players.reduce((n, p) => n + (p.buffs || []).filter((c) => c.status === "unknown").length, 0);
+    const inferredHint = inferred.length
+        ? ` · <span data-tip="${esc(INFERRED_HOW)}">aus dem Verlauf abgeleitet: ${esc(inferred.join(", "))}${open ? ` (${esc(open)} ohne Nachweis)` : ""}</span>`
+        : "";
+    const head = `<p class="note">${esc(b.paladins || 0)} Paladin${b.paladins === 1 ? "" : "e"} · erwartet: ${expectedLabels.length ? esc(expectedLabels.join(", ")) : "nichts"}${inferredHint}</p>`;
     if (only) {
         const p = b.players.find((x) => x.name === only);
         if (!p) return null;
@@ -1452,14 +1473,16 @@ function buffParts(f, only, common) {
 function renderRaidBuffsPanel(raidBuffs, linkFor) {
     const players = (raidBuffs.players || []).slice().sort((a, b) => (a.type + a.name).localeCompare(b.type + b.name));
     const blindKeys = new Set((raidBuffs.untracked || []).map((u) => u.key));
-    // a buff the log cannot show is not a column: a grey column of "fehlt" would read as a raid without Fortitude
-    const cols = (raidBuffs.rows || []).filter((r) => !blindKeys.has(r.key) && (r.expected || r.seenPlayers > 0));
+    // a buff the log cannot show is not a column: a grey column of "fehlt" would read as a raid without Fortitude;
+    // an inferred one is, even where every cell is still open
+    const cols = (raidBuffs.rows || []).filter((r) => !blindKeys.has(r.key) && (r.expected || r.seenPlayers > 0 || (r.unknown || 0) > 0));
     const blind = (raidBuffs.untracked || []).length
         ? `<p class="note"><b>Im Log nicht nachweisbar:</b> ${(raidBuffs.untracked || []).map((u) => `${hicon(u.icon, "")}${esc(u.label)}${u.groupLabel ? ` / ${esc(u.groupLabel)}` : ""}`).join(", ")}. Der Client loggt diese Buffs beim Pull nicht (nur beim Nachbuffen), deshalb werden sie nicht bewertet.</p>`
         : "";
-    if (!players.length || !cols.length) return `${blind}<div class="empty">Keine Raid-Buffs im Log.</div>`;
+    const inferred = inferredNote(raidBuffs.inferred, raidBuffs.unknownCells);
+    if (!players.length || !cols.length) return `${blind}${inferred}<div class="empty">Keine Raid-Buffs im Log.</div>`;
     // the group version counts like the single one, and the tooltip says so
-    const head = cols.map((r) => `<th class="bh">${hicon(r.icon, `${r.label}${r.groupLabel ? ` / ${r.groupLabel}` : ""} (${r.provider})`)}</th>`).join("");
+    const head = cols.map((r) => `<th class="bh">${hicon(r.icon, `${r.label}${r.groupLabel ? ` / ${r.groupLabel}` : ""} (${r.provider})${r.inferred ? " · aus dem Verlauf abgeleitet" : ""}`)}</th>`).join("");
     const cover = cols.map((r) => `<td class="bc">${r.expected ? pctCell(r.coveragePct) : "<span class=\"pct pct-na\">–</span>"}</td>`).join("");
     const body = players.map((p) => {
         const href = linkFor && linkFor(p.name);
@@ -1467,8 +1490,11 @@ function renderRaidBuffsPanel(raidBuffs, linkFor) {
         const cells = cols.map((r) => {
             const c = p.buffs && p.buffs[r.key];
             if (!c) return "<td class=\"bc\"><span class=\"pct pct-na\">–</span></td>";
-            const tip = `${r.label}: ${c.full}× da, ${c.late || 0}× spät gesetzt, ${c.partial}× nicht durchgehend, ${c.none}× gefehlt`;
+            const open = c.unknown ? `, ${c.unknown}× nicht nachweisbar` : "";
+            const tip = `${r.label}: ${c.full}× da, ${c.late || 0}× spät gesetzt, ${c.partial}× nicht durchgehend, ${c.none}× gefehlt${open}`;
             if (c.wrong) return `<td class="bc"><span class="pct pct-wrong" title="${esc(`${r.label}: ${c.wrong}× auf der falschen Rolle`)}">${esc(c.pct)}%</span></td>`;
+            // nothing judged, only open cells: a question mark, not a percentage of nothing
+            if (!c.expected && c.unknown) return `<td class="bc"><span class="pct pct-na" title="${esc(`${r.label}: ${c.unknown}× nicht nachweisbar`)}">?</span></td>`;
             if (!c.expected) return `<td class="bc"><span class="pct pct-na" title="${esc(`${r.label}: nicht erwartet, ${c.present}× da`)}">${esc(c.pct)}%</span></td>`;
             return `<td class="bc" title="${esc(tip)}">${pctCell(c.pct)}</td>`;
         }).join("");
@@ -1476,7 +1502,7 @@ function renderRaidBuffsPanel(raidBuffs, linkFor) {
     }).join("");
     const pal = raidBuffs.paladins || 0;
     const note = `<p class="note">Anteil der Bosskämpfe, in denen der Buff die ganze Zeit auf dem Spieler lag (bis zu seinem Tod). Erwartet wird, was die Aufstellung hergibt: ${pal} Paladin${pal === 1 ? "" : "e"} heißt ${pal === 1 ? "ein Segen" : `${pal} Segen`} pro Spieler, Macht auf Tanks und Nahkämpfer, Weisheit auf Heiler und Caster. Gruppenversionen (Große Segen, Gebete, Gabe der Wildnis, Arkane Brillanz) zählen wie die Einzelbuffs. Grau: nicht erwartet; gestrichelt: Segen auf der falschen Rolle. Wer wann was nicht hatte, steht im Kampfverlauf unter „Buffs“.</p>`;
-    return `${blind}${note}<div style="overflow-x:auto"><table class="idx heal-table buff-matrix"><tr><th>Spieler</th>${head}</tr><tr class="cov"><td><b>Abdeckung</b><div class="sritems">Raid</div></td>${cover}</tr>${body}</table></div>`;
+    return `${blind}${inferred}${note}<div style="overflow-x:auto"><table class="idx heal-table buff-matrix"><tr><th>Spieler</th>${head}</tr><tr class="cov"><td><b>Abdeckung</b><div class="sritems">Raid</div></td>${cover}</tr>${body}</table></div>`;
 }
 
 // ---- Raid-Debuffs: what the raid put on the boss (report.raidDebuffs, utils/logcheck/raidDebuffs.js) ----
@@ -2620,16 +2646,19 @@ function raiderConsumables(ctx, p) {
 /** The raider's own row of the raid-buff matrix, spelled out: per buff the share of fights it was fully there and the counts behind it. */
 function raiderBuffs(ctx, p) {
     const b = ctx.buffsByName.get(p.name);
-    const cols = ((ctx.report.raidBuffs && ctx.report.raidBuffs.rows) || []).filter((r) => r.expected || r.seenPlayers > 0);
+    const cols = ((ctx.report.raidBuffs && ctx.report.raidBuffs.rows) || []).filter((r) => r.expected || r.seenPlayers > 0 || (r.unknown || 0) > 0);
     const rows = cols.map((r) => {
         const c = b.buffs && b.buffs[r.key];
         if (!c) return "";
         let cell;
         let hint = "";
-        if (c.wrong) { cell = `<span class="pct pct-wrong">${esc(c.pct)}%</span>`; hint = `${c.wrong}× auf der falschen Rolle`; } else if (!c.expected) { cell = `<span class="pct pct-na">${esc(c.pct)}%</span>`; hint = "nicht erwartet"; } else cell = pctCell(c.pct);
+        if (c.wrong) { cell = `<span class="pct pct-wrong">${esc(c.pct)}%</span>`; hint = `${c.wrong}× auf der falschen Rolle`; } else if (!c.expected && c.unknown) { cell = "<span class=\"pct pct-na\">?</span>"; } else if (!c.expected) { cell = `<span class="pct pct-na">${esc(c.pct)}%</span>`; hint = "nicht erwartet"; } else cell = pctCell(c.pct);
+        if (c.unknown) hint = `${hint ? `${hint}, ` : ""}${c.unknown}× nicht nachweisbar`;
         return `<tr><td>${hicon(r.icon, "")}${esc(r.label)}<div class="sritems">${esc(r.provider)}</div></td><td>${cell}</td><td class="mono">${esc(c.full)}</td><td class="mono">${esc(c.late || 0)}</td><td class="mono">${esc(c.partial)}</td><td class="mono">${esc(c.none)}</td><td class="sritems">${esc(hint)}</td></tr>`;
     }).join("");
-    return `<p class="note">${esc(BUFF_ROLE_LABELS[b.role] || b.role)} · ${esc(b.fights)} ${b.fights === 1 ? "Kampf" : "Kämpfe"} · fehlte ${esc(b.missing)}×, spät ${esc(b.late || 0)}×, nicht durchgehend ${esc(b.partial)}×${b.wrong ? `, falsche Rolle ${esc(b.wrong)}×` : ""}. Wann welcher Buff fehlte, zeigt der Kampfverlauf.</p>
+    const inferred = (ctx.report.raidBuffs && ctx.report.raidBuffs.inferred) || [];
+    const open = inferred.length ? ` <span data-tip="${esc(INFERRED_HOW)}">${esc(inferred.map((u) => u.label).join(" und "))} aus dem Verlauf abgeleitet${b.unknown ? `, ${esc(b.unknown)}× ohne Nachweis` : ""}.</span>` : "";
+    return `<p class="note">${esc(BUFF_ROLE_LABELS[b.role] || b.role)} · ${esc(b.fights)} ${b.fights === 1 ? "Kampf" : "Kämpfe"} · fehlte ${esc(b.missing)}×, spät ${esc(b.late || 0)}×, nicht durchgehend ${esc(b.partial)}×${b.wrong ? `, falsche Rolle ${esc(b.wrong)}×` : ""}. Wann welcher Buff fehlte, zeigt der Kampfverlauf.${open}</p>
     <table class="mini"><tr><th>Buff</th><th>Anteil</th><th>Da</th><th>Spät</th><th>Nicht durchgehend</th><th>Gefehlt</th><th></th></tr>${rows}</table>`;
 }
 

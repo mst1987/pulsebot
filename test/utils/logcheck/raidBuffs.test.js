@@ -1,5 +1,5 @@
 const {
-    analyzeRaidBuffs, buffsForFight, summarize, buffRole, rosterFromSummary, rosterFromBands, statusOf, untrackedBuffs, FULL_PCT, PULL_WINDOW_MS,
+    analyzeRaidBuffs, buffsForFight, summarize, buffRole, rosterFromSummary, rosterFromBands, statusOf, untrackedBuffs, inferBands, FULL_PCT, PULL_WINDOW_MS, STRIP_WINDOW_MS,
 } = require("../../../src/utils/logcheck/raidBuffs");
 const { BUFFS, BLESSINGS, buffByGuid, buffByKey, buffFits, expectedBlessings, ROLES } = require("../../../src/config/raidBuffs");
 
@@ -495,26 +495,94 @@ describe("logcheck/raidBuffs — analyzeRaidBuffs", () => {
         expect(sum.rows.find((r) => r.key === "motw").groupLabel).toBe("Gabe der Wildnis");
     });
 
-    it("leaves a buff nobody ever carried at any pull unjudged instead of calling the whole raid unbuffed", async () => {
-        // The Anniversary client does not list Fortitude / Mark of the Wild in the
-        // combatant info, so WCL shows no band at the pull for anyone — only a
-        // re-cast mid-log makes one. Kings and Arcane Intellect are listed.
+    // The Anniversary client does not list Fortitude / Mark of the Wild in the
+    // combatant info, so WCL shows no band at the pull for anyone — only a
+    // re-cast mid-log makes one. Kings and Arcane Intellect are listed.
+    const blindTables = {
+        1: { auras: [aura(KINGS, FULL), aura(MIGHT, FULL), aura(WISDOM, FULL), aura(FORT, [band(330000, 400000)])] },   // Fortitude re-cast 30 s in, gone at 1:40
+        2: { auras: [aura(KINGS, FULL), aura(AI, FULL), aura(SPIRIT, FULL)] },
+        3: { auras: [aura(SALVATION, FULL), aura(AI, FULL), aura(SPIRIT, FULL)] },
+        4: { auras: [] },
+        5: { auras: [aura(KINGS, FULL), aura(AI, FULL), aura(SPIRIT, FULL)] },
+        6: { auras: [aura(KINGS, FULL), aura(AI, FULL)] },
+    };
+    const ev = (timestamp, type, targetID, guid) => ({ timestamp, type, targetID, ability: { guid } });
+
+    it("reads a buff the combatant info leaves out off the raw events: present where a death or refresh saw it, missing where a death stripped everything else, open otherwise", async () => {
+        expect(STRIP_WINDOW_MS).toBe(1500);
+        const wcl = wclMock();
+        wcl.getBuffs.mockImplementation(async (reportId, start, end, extra) => blindTables[extra.sourceid]);
+        wcl.getAllEvents = jest.fn(async () => [
+            // Dorn dies at 1:00 with Prayer of Fortitude and Gift of the Wild on him (Kings as the witness)
+            ev(360000, "removebuff", 4, KINGS), ev(360000, "removebuff", 4, PRAYER_FORT), ev(360000, "removebuff", 4, GIFT),
+            // Aldra dies at 1:30: Kings and the Gift go, no Fortitude — it was not on her
+            ev(390000, "removebuff", 3, KINGS), ev(390000, "removebuff", 3, GIFT),
+            // Elun gets the Prayer 30 s into the fight and has her Gift refreshed
+            ev(330000, "applybuff", 2, PRAYER_FORT), ev(350000, "refreshbuff", 2, GIFT),
+            // Uther loses the Gift on the trash after the boss: he had it all along
+            ev(450000, "removebuff", 6, GIFT),
+            // somebody the report does not know
+            ev(340000, "removebuff", 99, PRAYER_FORT),
+        ]);
+        const timeline = { fights: [{ id: 3, deaths: [...deaths, { at: 90000, name: "Aldra", type: "Mage" }], buffs: null }] };
+        const sum = await analyzeRaidBuffs(wcl, "abc", fights, players, idToPlayer, timeline);
+        // one walk over the buff events: the blind keys' ranks, plus every other raid buff's removes as death witnesses
+        expect(wcl.getAllEvents).toHaveBeenCalledTimes(1);
+        const [rid, view, from, to, extra] = wcl.getAllEvents.mock.calls[0];
+        expect([rid, view, from, to]).toEqual(["abc", "buffs", 0, 500000]);
+        expect(extra.filter).toMatch(/^\(ability\.id in \([\d,]*\b25392\b[\d,]*\b26991\b[\d,]*\)\) or \(type = 'removebuff' and ability\.id in \([\d,]*\b25898\b[\d,]*\)\)$/);
+        expect(extra.filter.split(" or ")[1]).not.toMatch(/\b25392\b/);
+        const fb = timeline.fights[0].buffs;
+        expect(fb.untracked).toEqual([]);
+        expect(fb.inferred).toEqual(["fortitude", "motw"]);
+        expect(fb.expected).toEqual(expect.arrayContaining(["fortitude", "motw"]));
+        const cell = (name, key) => fb.players.find((p) => p.name === name).buffs.find((b) => b.key === key);
+        expect(cell("Dorn", "fortitude")).toEqual(expect.objectContaining({ status: "full", expected: true, inferred: true }));
+        expect(cell("Dorn", "motw")).toEqual(expect.objectContaining({ status: "full" }));
+        expect(cell("Aldra", "fortitude")).toEqual(expect.objectContaining({ status: "none", expected: true }));
+        expect(cell("Aldra", "motw")).toEqual(expect.objectContaining({ status: "full" }));
+        expect(cell("Elun", "fortitude")).toEqual(expect.objectContaining({ status: "late", bands: [[30000, 120000]] }));
+        expect(cell("Elun", "motw")).toEqual(expect.objectContaining({ status: "full" }));
+        expect(cell("Brokk", "fortitude")).toEqual(expect.objectContaining({ status: "partial" }));   // the table's own re-cast band
+        expect(cell("Brokk", "motw")).toEqual(expect.objectContaining({ status: "unknown", expected: true, inferred: true, bands: [] }));
+        expect(cell("Leaf", "fortitude").status).toBe("unknown");
+        expect(cell("Uther", "motw").status).toBe("full");
+        expect(cell("Uther", "fortitude").status).toBe("unknown");
+        // open cells are no finding, a stripped death is
+        expect(fb.players.find((p) => p.name === "Aldra").missing).toContain("fortitude");
+        expect(fb.players.find((p) => p.name === "Leaf").missing).toEqual([]);
+        expect(fb.coverage.find((c) => c.key === "fortitude")).toEqual(expect.objectContaining({ expected: 4, full: 1, late: 1, partial: 1, none: 1, unknown: 2 }));
+        expect(fb.coverage.find((c) => c.key === "motw")).toEqual(expect.objectContaining({ expected: 4, full: 4, none: 0, unknown: 2 }));
+        // the summary carries the inferred keys, the open cells and per row what was judged
+        expect(sum.untracked).toEqual([]);
+        expect(sum.inferred.map((u) => u.key)).toEqual(["fortitude", "motw"]);
+        expect(sum.inferred[1]).toMatchObject({ label: "Mal der Wildnis", groupLabel: "Gabe der Wildnis" });
+        expect(sum.unknownCells).toBe(4);
+        expect(sum.rows.find((r) => r.key === "fortitude")).toEqual(expect.objectContaining({ inferred: true, untracked: false, expected: true, unknown: 2, coveragePct: 25, missingPlayers: 3, seenPlayers: 3 }));
+        expect(sum.rows.find((r) => r.key === "motw")).toEqual(expect.objectContaining({ inferred: true, expected: true, unknown: 2, coveragePct: 100, missingPlayers: 0, seenPlayers: 4 }));
+        const leaf = sum.players.find((p) => p.name === "Leaf");
+        expect(leaf.buffs.fortitude).toEqual(expect.objectContaining({ expected: 0, unknown: 1, present: 0, pct: 0 }));
+        expect(leaf.unknown).toBe(2);
+        expect(leaf.missing).toBe(0);
+    });
+
+    it("leaves a buff nobody ever carried at any pull unjudged when the events cannot be read", async () => {
         expect(PULL_WINDOW_MS).toBe(2000);
         const wcl = wclMock();
-        const midFight = [band(330000, 400000)];   // Fortitude re-cast on one player 30 s into the fight
-        const blindTables = {
-            1: { auras: [aura(KINGS, FULL), aura(MIGHT, FULL), aura(WISDOM, FULL), aura(FORT, midFight)] },
-            2: { auras: [aura(KINGS, FULL), aura(AI, FULL), aura(SPIRIT, FULL)] },
-            3: { auras: [aura(SALVATION, FULL), aura(AI, FULL), aura(SPIRIT, FULL)] },
-            4: { auras: [] },
-            5: { auras: [aura(KINGS, FULL), aura(AI, FULL), aura(SPIRIT, FULL)] },
-            6: { auras: [aura(KINGS, FULL), aura(AI, FULL)] },
-        };
+        wcl.getAllEvents = jest.fn(async () => { throw new Error("boom"); });
         wcl.getBuffs.mockImplementation(async (reportId, start, end, extra) => blindTables[extra.sourceid]);
         const timeline = { fights: [{ id: 3, deaths, buffs: null }] };
         const sum = await analyzeRaidBuffs(wcl, "abc", fights, players, idToPlayer, timeline);
         const fb = timeline.fights[0].buffs;
         expect(fb.untracked).toEqual(["fortitude", "motw"]);
+        expect(fb.inferred).toEqual([]);
+        expect(sum.inferred).toEqual([]);
+        // a client without the events walk (an older mock, a test double) takes the same path
+        const plain = wclMock();
+        plain.getBuffs.mockImplementation(async (reportId, start, end, extra) => blindTables[extra.sourceid]);
+        const tl2 = { fights: [{ id: 3, deaths, buffs: null }] };
+        await analyzeRaidBuffs(plain, "abc", fights, players, idToPlayer, tl2);
+        expect(tl2.fights[0].buffs.untracked).toEqual(["fortitude", "motw"]);
         expect(fb.expected).not.toContain("fortitude");
         expect(fb.expected).not.toContain("motw");
         for (const p of fb.players) {
@@ -532,16 +600,16 @@ describe("logcheck/raidBuffs — analyzeRaidBuffs", () => {
         expect(sum.rows.find((r) => r.key === "intellect")).toEqual(expect.objectContaining({ untracked: false, expected: true }));
     });
 
-    it("untrackedBuffs: tracked once half the raid carried it at some pull, a blind spot when only a stray re-cast did", () => {
+    it("untrackedBuffs: tracked once half the raid carried it at the typical pull, a blind spot when only a stray re-cast or one wipe did", () => {
         const bossFights = [{ start_time: 300000 }, { start_time: 600000 }];
         const bands = {
-            A: { byKey: { fortitude: [band(599500, 700000)], motw: [band(330000, 400000)], intellect: [band(0, 999999)] } },
-            B: { byKey: { fortitude: [band(599000, 700000)], intellect: [band(0, 999999)] } },
+            A: { byKey: { fortitude: [band(299500, 400000), band(599500, 700000)], motw: [band(330000, 400000)], intellect: [band(0, 999999)] } },
+            B: { byKey: { fortitude: [band(299000, 400000), band(599000, 700000)], intellect: [band(0, 999999)] } },
             C: { byKey: { kings: [band(0, 999999)], intellect: [band(0, 999999)] } },
             D: { byKey: { kings: [band(0, 999999)] } },
         };
         const blind = untrackedBuffs(bands, bossFights);
-        expect(blind.has("fortitude")).toBe(false);   // 2 of 4 at the second pull: tracked
+        expect(blind.has("fortitude")).toBe(false);   // 2 of 4 at both pulls: tracked
         expect(blind.has("motw")).toBe(true);         // only one player, only mid-fight
         expect(blind.has("intellect")).toBe(false);   // 3 of 4 at every pull
         expect(blind.has("kings")).toBe(false);       // blessings are never a blind spot
@@ -550,8 +618,80 @@ describe("logcheck/raidBuffs — analyzeRaidBuffs", () => {
         for (let i = 0; i < 25; i++) many[`P${i}`] = { byKey: { kings: [band(0, 999999)] } };
         many.P0.byKey.fortitude = [band(299000, 400000)];
         expect(untrackedBuffs(many, bossFights).has("fortitude")).toBe(true);
+        // nor does one wipe among many fights: a death removes every aura, and WCL draws a band
+        // from the pull to the death for each — the wipe shows the buff on everyone, the rest on nobody
+        const wipe = { start_time: 900000 };
+        const sixteen = [...Array(15)].map((_, i) => ({ start_time: 1000000 + i * 100000 }));
+        for (let i = 0; i < 25; i++) many[`P${i}`].byKey.fortitude = [band(900000, 950000)];
+        expect(untrackedBuffs(many, [wipe, ...sixteen]).has("fortitude")).toBe(true);
+        // two fights, one of them the wipe: the lower median is the other one
+        expect(untrackedBuffs(many, [wipe, sixteen[0]]).has("fortitude")).toBe(true);
+        // …but a buff really on everyone at every pull is tracked
+        for (let i = 0; i < 25; i++) many[`P${i}`].byKey.motw = [band(0, 9999999)];
+        expect(untrackedBuffs(many, [wipe, ...sixteen]).has("motw")).toBe(false);
         expect(untrackedBuffs(bands, []).size).toBe(0);
         expect(untrackedBuffs({}, bossFights).size).toBe(0);
+    });
+
+    describe("inferBands", () => {
+        const idToPlayer2 = { 1: { name: "Brokk" }, 2: { name: "Elun" } };
+        const keys = ["fortitude"];
+        const bandsOf = (events, deaths = [], logEnd = 1000000) => inferBands({ events, keys, idToPlayer: idToPlayer2, deaths, logEnd });
+
+        it("reads a refresh or a remove without an apply as present since the log's start, an apply as present from then on", () => {
+            const out = bandsOf([
+                ev(500, "refreshbuff", 1, PRAYER_FORT),      // had it before: since 0
+                ev(700, "removebuff", 1, PRAYER_FORT),       // expired
+                ev(900, "applybuff", 1, PRAYER_FORT),        // re-cast
+                ev(300, "removebuff", 2, FORT),              // died with it
+                ev(400, "applybuff", 2, FORT), ev(600, "removebuff", 2, FORT),
+            ]);
+            expect(out.Brokk.byKey.fortitude).toEqual([{ startTime: 0, endTime: 700 }, { startTime: 900, endTime: 1000000 }]);
+            expect(out.Elun.byKey.fortitude).toEqual([{ startTime: 0, endTime: 300 }, { startTime: 400, endTime: 600 }]);
+            expect(out.Brokk.absentAt).toEqual({ fortitude: [] });
+        });
+
+        it("after a remove the buff is open, not absent: the next remove reaches back to it, a later apply says nothing about the gap", () => {
+            const out = bandsOf([ev(300, "removebuff", 1, PRAYER_FORT), ev(800, "removebuff", 1, PRAYER_FORT)]);
+            expect(out.Brokk.byKey.fortitude).toEqual([{ startTime: 0, endTime: 300 }, { startTime: 300, endTime: 800 }]);
+            const gap = bandsOf([ev(300, "removebuff", 1, PRAYER_FORT), ev(800, "applybuff", 1, PRAYER_FORT)]);
+            expect(gap.Brokk.byKey.fortitude).toEqual([{ startTime: 0, endTime: 300 }, { startTime: 800, endTime: 1000000 }]);
+        });
+
+        it("takes a death that stripped other buffs but not this one as proof it was missing, and anchors the next remove there", () => {
+            const deaths2 = [{ name: "Brokk", at: 500 }, { name: "Elun", at: 500 }];
+            const out = bandsOf([
+                ev(200, "applybuff", 1, PRAYER_FORT),
+                ev(501, "removebuff", 1, KINGS),                                    // Brokk's death is witnessed, no Fortitude went
+                ev(3000, "removebuff", 1, PRAYER_FORT),                             // re-buffed unseen, died again with it
+                ev(500, "removebuff", 2, KINGS), ev(500, "removebuff", 2, PRAYER_FORT), // Elun's death took the Prayer: present until then
+            ], deaths2);
+            expect(out.Brokk.absentAt).toEqual({ fortitude: [500] });
+            // the open band from the apply is closed at the death, the later remove reaches back to the death only
+            expect(out.Brokk.byKey.fortitude).toEqual([{ startTime: 200, endTime: 500 }, { startTime: 500, endTime: 3000 }]);
+            expect(out.Elun.absentAt).toEqual({ fortitude: [] });
+            expect(out.Elun.byKey.fortitude).toEqual([{ startTime: 0, endTime: 500 }]);
+        });
+
+        it("ignores a death nothing was removed at — the log did not see it strip anything — and actors the report does not know", () => {
+            const out = bandsOf([ev(3000, "removebuff", 1, PRAYER_FORT), ev(100, "removebuff", 7, PRAYER_FORT)], [{ name: "Brokk", at: 500 }]);
+            expect(out.Brokk.absentAt).toEqual({ fortitude: [] });
+            expect(out.Brokk.byKey.fortitude).toEqual([{ startTime: 0, endTime: 3000 }]);
+            expect(Object.keys(out)).toEqual(["Brokk"]);
+            // a witnessed death without any event of the key still yields the absent point and no band
+            const only = bandsOf([ev(500, "removebuff", 1, KINGS)], [{ name: "Brokk", at: 500 }]);
+            expect(only.Brokk).toEqual({ byKey: {}, absentAt: { fortitude: [500] } });
+        });
+
+        it("tracks the single and the group rank apart and lets the union cover the whole time", () => {
+            const out = bandsOf([
+                ev(100, "refreshbuff", 1, PRAYER_FORT),
+                ev(300, "applybuff", 1, FORT), ev(600, "removebuff", 1, FORT),   // a Fortitude on top of the Prayer, gone again
+                ev(300, "applybuff", 1, FORT),                                    // a doubled apply changes nothing
+            ]);
+            expect(out.Brokk.byKey.fortitude).toEqual([{ startTime: 300, endTime: 600 }, { startTime: 0, endTime: 1000000 }]);
+            expect(inferBands({ events: [], keys, idToPlayer: idToPlayer2, logEnd: 10 })).toEqual({});
+        });
     });
 
     it("survives a failed buffs table and a failed summary", async () => {

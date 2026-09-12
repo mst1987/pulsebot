@@ -196,8 +196,62 @@ describe("web/render — Buffs on the player page", () => {
     });
 });
 
-describe("web/render — buffs the log cannot show", () => {
+describe("web/render — buffs read off the events", () => {
     const { renderReportPage } = require("../../src/web/render.js");
+    it("explains the inferred buffs above the matrix, keeps their columns and shows an open cell as a question mark", () => {
+        const report = {
+            id: "abc123def456", title: "T", players: [], roster: [{ name: "Brokk", type: "Warrior", issues: [], potions: {}, armory: [] }],
+            raidBuffs: {
+                fights: 2, paladins: 1,
+                players: [{ name: "Brokk", type: "Warrior", role: "tank", fights: 2, unknown: 3, buffs: {
+                    kings: { expected: 2, full: 2, late: 0, partial: 0, none: 0, unknown: 0, present: 2, wrong: 0, pct: 100 },
+                    fortitude: { expected: 1, full: 1, late: 0, partial: 0, none: 0, unknown: 1, present: 1, wrong: 0, pct: 100 },
+                    motw: { expected: 0, full: 0, late: 0, partial: 0, none: 0, unknown: 2, present: 0, wrong: 0, pct: 0 },
+                }, missing: 0, late: 0, partial: 0, wrong: 0 }],
+                rows: [
+                    { key: "kings", label: "Segen der Könige", icon: "spell_magic_greaterblessingofkings", provider: "Paladin", expected: true, untracked: false, inferred: false, unknown: 0, coveragePct: 100, seenPlayers: 1, missingPlayers: 0 },
+                    { key: "fortitude", label: "Machtwort: Seelenstärke", groupLabel: "Gebet der Seelenstärke", icon: "spell_holy_wordfortitude", provider: "Priest", expected: true, untracked: false, inferred: true, unknown: 1, coveragePct: 100, seenPlayers: 1, missingPlayers: 0 },
+                    { key: "motw", label: "Mal der Wildnis", groupLabel: "Gabe der Wildnis", icon: "spell_nature_regeneration", provider: "Druid", expected: false, untracked: false, inferred: true, unknown: 2, coveragePct: null, seenPlayers: 0, missingPlayers: 0 },
+                ],
+                untracked: [],
+                inferred: [
+                    { key: "fortitude", label: "Machtwort: Seelenstärke", groupLabel: "Gebet der Seelenstärke", icon: "spell_holy_wordfortitude", provider: "Priest" },
+                    { key: "motw", label: "Mal der Wildnis", groupLabel: "Gabe der Wildnis", icon: "spell_nature_regeneration", provider: "Druid" },
+                ],
+                unknownCells: 3,
+            },
+        };
+        const html = renderReportPage(report);
+        expect(html).toContain("<b>Aus dem Verlauf abgeleitet:</b>");
+        expect(html).toContain("Machtwort: Seelenstärke / Gebet der Seelenstärke");
+        expect(html).toContain("Mal der Wildnis / Gabe der Wildnis. Der Client loggt diesen Buff beim Pull nicht.");
+        expect(html).toContain("3 Zellen bleiben ohne Nachweis.");
+        expect(html).not.toContain("Im Log nicht nachweisbar");
+        // both inferred buffs are columns, the one nobody was judged on included, and the header says where they come from
+        expect(html).toMatch(/<th class="bh">[^<]*<img[^>]*spell_holy_wordfortitude[^>]*data-tip="Machtwort: Seelenstärke \/ Gebet der Seelenstärke \(Priest\) · aus dem Verlauf abgeleitet"/);
+        expect(html).toMatch(/<th class="bh">[^<]*<img[^>]*spell_nature_regeneration/);
+        expect(html).toContain("<td class=\"bc\"><span class=\"pct pct-na\" title=\"Mal der Wildnis: 2× nicht nachweisbar\">?</span></td>");
+        expect(html).toContain("title=\"Machtwort: Seelenstärke: 1× da, 0× spät gesetzt, 0× nicht durchgehend, 0× gefehlt, 1× nicht nachweisbar\"");
+        // the raider's own table says the same
+        expect(html).toContain("Machtwort: Seelenstärke und Mal der Wildnis aus dem Verlauf abgeleitet, 3× ohne Nachweis.</span>");
+        expect(html).toContain("<td><span class=\"pct pct-na\">?</span></td><td class=\"mono\">0</td><td class=\"mono\">0</td><td class=\"mono\">0</td><td class=\"mono\">0</td><td class=\"sritems\">2× nicht nachweisbar</td>");
+    });
+
+    it("names the inferred buffs and the open cells on a fight's Buffs topic and draws an open cell as a neutral ribbon row", () => {
+        const { renderPlayerPage } = require("../../src/web/render.js");
+        const tl = timeline();
+        const f = tl.fights[0];
+        f.buffs.inferred = ["fortitude"];
+        f.buffs.players[2].buffs.push({ key: "fortitude", label: "Machtwort: Seelenstärke", icon: "spell_holy_wordfortitude", status: "unknown", uptimePct: 0, expected: true, wrong: false, inferred: true, bands: [] });
+        const raid = renderReportPage({ ...report(), timeline: { fights: [f] } });
+        expect(raid).toContain("aus dem Verlauf abgeleitet: Machtwort: Seelenstärke (1 ohne Nachweis)</span></p>");
+        expect(raid).toContain("data-tip=\"Der Client loggt diesen Buff beim Pull nicht.");
+        const player = renderPlayerPage({ ...report(), timeline: { fights: [f] } }, 2); // Dorn
+        expect(player).toContain("<b class=\"\">0%</b><span>nicht nachweisbar</span>");
+    });
+});
+
+describe("web/render — buffs the log cannot show", () => {
     it("names the blind spot on the Raid-Buffs panel and drops its column instead of showing a raid without Fortitude", () => {
         const report = {
             id: "abc123def456", title: "T", players: [], roster: [{ name: "Brokk", type: "Warrior", issues: [], potions: {}, armory: [] }],
