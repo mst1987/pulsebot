@@ -62,9 +62,9 @@ describe("web/render — Mechaniken topic", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
         expect(html).toContain("data-show=\"fp-2-mechanics\">");
         expect(html).toContain("Mechaniken<span class=\"n\">3 · 3 Treffer</span>");
-        expect(html).toContain("title=\"Wirbelwind\"");
-        expect(html).toContain("<title>0:05 Alice · Wirbelwind · 3.000</title>");
-        expect(html).toContain("<title>0:30 Bob · Stille</title>");
+        expect(html).toContain("data-tip=\"Wirbelwind\"");
+        expect(html).toContain("data-tip=\"0:05 Alice · Wirbelwind · 3.000\"");
+        expect(html).toContain("data-tip=\"0:30 Bob · Stille\"");
         // the raid view tones by how many raiders a mechanic hit, not by the hit count
         expect(html).toContain("<b class=\"\">2×</b><span>1 Spieler · 6k</span>");
         expect(html).toContain("<b class=\"\">1×</b><span>1 Spieler</span>");
@@ -74,7 +74,7 @@ describe("web/render — Mechaniken topic", () => {
         const html = renderPlayerPage({ ...report(), timeline: timeline() }, 0); // Alice
         expect(html).toContain("data-show=\"p-fp-2-mechanics\">");
         expect(html).toContain("Mechaniken<span class=\"n\">2 · 2 Treffer</span>");
-        expect(html).toContain("<title>0:05 Wirbelwind · 3.000</title>");
+        expect(html).toContain("data-tip=\"0:05 Wirbelwind · 3.000\"");
         expect(html).not.toContain("Stille");
         expect(html).toContain("<b class=\"fc-medium\">2×</b><span>6k Schaden</span>");
         const bob = renderPlayerPage({ ...report(), timeline: timeline() }, 1);

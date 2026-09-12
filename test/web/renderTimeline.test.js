@@ -59,8 +59,8 @@ describe("web/render — Kampfverlauf tab", () => {
 
     it("sums a boss up in chips: missing debuffs and the raid DPS of the kill", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).toContain("<span class=\"chip chip-x ok\"><b>0</b> Debuffs fehlten</span>");
-        expect(html).toContain("<span class=\"chip chip-x ok\"><b>1,0k</b> Raid-DPS</span>");
+        expect(html).toMatch(/<span class="chip chip-x ok" data-tip="[^"]*" data-tip-sub="[^"]*"><b>0<\/b> Debuffs fehlten<\/span>/);
+        expect(html).toMatch(/<span class="chip chip-x ok" data-tip="[^"]*" data-tip-sub="[^"]*"><b>1,0k<\/b> Raid-DPS<\/span>/);
     });
 
     it("puts the fight's numbers in one row: Raid-DPS, Bloodlust, mean activity, expected debuffs, deaths", () => {
@@ -113,35 +113,35 @@ describe("web/render — Kampfverlauf tab", () => {
 
     it("draws icon-only rows with the name in the tooltip and the value with a sub line", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).toContain("title=\"Bob · Windfury\"");
-        expect(html).toContain("title=\"Alice · Icy Veins\"");
+        expect(html).toContain("data-tip=\"Bob · Windfury\"");
+        expect(html).toContain("data-tip=\"Alice · Icy Veins\"");
         expect(html).toContain("<b class=\"fc-good\">100%</b><span>5/5 ab 0:08</span>");
         expect(html).toContain("<b class=\"fc-medium\">94%</b><span>1 Lücke</span>");
         expect(html).toContain("<b class=\"\">1×</b>");
-        expect(html).toContain("Bloodlust: 0:00–0:40");
+        expect(html).toContain("data-tip=\"Bloodlust\" data-tip-sub=\"0:00–0:40\"");
         expect(html).toContain("5/5 Stacks");
         // the activity row of a raider without an icon uses the class icon
-        expect(html).toContain("<div class=\"fc-cell\" title=\"Alice\"><img src=\"https://wow.zamimg.com/images/wow/icons/medium/classicon_mage.jpg\"");
+        expect(html).toContain("<div class=\"fc-cell\" data-tip=\"Alice\"><img src=\"https://wow.zamimg.com/images/wow/icons/medium/classicon_mage.jpg\"");
     });
 
     it("draws the bare fight axis with its deaths when no analyzer has filled a fight yet", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
         expect(html).toContain("data-show=\"fp-2-fight\">");
         expect(html).toContain("Kampf<span class=\"n\">1</span>");
-        expect(html).toContain("<title>0:30 Alice († Arcane Explosion)</title>");
+        expect(html).toContain("data-tip=\"0:30 Alice\" data-tip-sub=\"† Arcane Explosion\"");
         expect(html).toContain("<li style=\"--cc:#69CCF0\"><b>0:30</b><a class=\"cn\" href=\"/r/abc123def456/p/0\">Alice</a>");
         expect(html).toContain("Niemand ist gestorben.");
     });
 
     it("draws the boss-health line beside the DPS/HPS strip when a fight carries one", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).toContain("<title>Boss-Leben (%)</title>");
+        expect(html).toContain("data-tip=\"Boss-Leben (%)\"");
         expect(html).toContain("<th>Boss-Leben</th>");
         const none = timeline();
         none.fights[1].series.bossHp = null;
         const without = renderReportPage({ ...report(), timeline: none });
         expect(without).toContain("<div class=\"fight-series\">");
-        expect(without).not.toContain("<title>Boss-Leben (%)</title>");
+        expect(without).not.toContain("data-tip=\"Boss-Leben (%)\"");
     });
 
     it("says what is missing when no fight has a DPS/HPS strip, and stays quiet when one has", () => {
@@ -186,7 +186,7 @@ describe("web/render — Kampfverlauf on the player page", () => {
         expect(html).toContain("data-show=\"p-fb-e649\"");
         expect(html).toContain("id=\"p-fight-2\">");   // she died there
         expect(html).toContain("id=\"p-fight-3\" hidden>");   // her cooldown and activity rows
-        expect(html).toContain("title=\"Icy Veins\"");
+        expect(html).toContain("data-tip=\"Icy Veins\"");
         expect(html).not.toContain("Bob · Windfury");
         expect(html).not.toContain("fp-3-debuffs"); // raid-wide, not hers
         expect(html).not.toContain("<div class=\"fight-series\">");

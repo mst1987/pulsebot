@@ -132,10 +132,11 @@ describe("web/render — boss cards", () => {
         expect(html).toContain("<details class=\"vcard boss-card\" id=\"boss-e649\" open>");
         expect(html).toContain("<img class=\"vcard-icon\" src=\"/bosses/649.jpg\" alt=\"\">");
         expect(html).toContain("<div class=\"vcard-meta\">2 Tries · Wipe bei 32 % · Kill 3:24 · 1 Tod</div>");
-        expect(html).toContain("<span class=\"chip chip-x bad\"><b>1</b> Debuff fehlte</span>");
-        expect(html).toContain("<span class=\"chip chip-x warn\"><b>1</b> Buffs fehlten</span>");
-        expect(html).toContain("<span class=\"chip chip-x\"><b>1</b> nie dispellt</span>");
-        expect(html).toContain("<span class=\"chip chip-x ok\"><b>11,9k</b> Raid-DPS</span>"); // the kill's mean, not the wipe's
+        // every chip explains itself in the page's tooltip box
+        expect(html).toMatch(/<span class="chip chip-x bad" data-tip="Erwartete Debuffs, die in mindestens einem Try kein einziges Mal auf dem Boss lagen" data-tip-sub="[^"]+"><b>1<\/b> Debuff fehlte<\/span>/);
+        expect(html).toMatch(/<span class="chip chip-x warn" data-tip="Spieler, denen[^"]*" data-tip-sub="[^"]+"><b>1<\/b> Buffs fehlten<\/span>/);
+        expect(html).toMatch(/<span class="chip chip-x" data-tip="Dispelbare Debuffs[^"]*" data-tip-sub="[^"]+"><b>1<\/b> nie dispellt<\/span>/);
+        expect(html).toMatch(/<span class="chip chip-x ok" data-tip="Schaden des ganzen Raids pro Sekunde im Kill-Try, im Mittel über den Kampf" data-tip-sub="[^"]+"><b>11,9k<\/b> Raid-DPS<\/span>/); // the kill's mean, not the wipe's
     });
 
     it("puts the try pills, the stats row and the section buttons into the open card", () => {
@@ -199,7 +200,7 @@ describe("web/render — raider cards", () => {
         expect(html).toContain("<div class=\"vcard-meta\">Warrior · Tank · 1 Kampf</div>");
         // chips: gear, consumables, buffs, overheal or activity, recommendations
         expect(html).toContain("<b>1</b> Gear</span>");
-        expect(html).toContain("<span class=\"chip chip-x warn\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_alchemy_endlessflask_05.jpg\" alt=\"\"><b>67 %</b> Consumables</span>");
+        expect(html).toContain("<span class=\"chip chip-x warn\" data-tip=\"Anteil der Boss-Kämpfe mit Flask oder beiden Elixieren\" data-tip-sub=\"Ab 90 % grün, unter 50 % rot. Food, Tränke und Drums stehen unter „Consumables &amp; Tränke“.\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_alchemy_endlessflask_05.jpg\" alt=\"\"><b>67 %</b> Consumables</span>");
         expect(html).toContain("<b>2</b> Buffs fehlten</span>");
         expect(html).toContain("<b>1</b> Buff fehlte</span>");
         expect(html).toContain("<b>21 %</b> Overheal</span>");
@@ -220,7 +221,7 @@ describe("web/render — raider cards", () => {
         expect(elun).toContain("<div id=\"rc1-recs\" class=\"part\">");
         expect(elun).toContain("<div id=\"rc1-gear\" class=\"part\" hidden>");
         expect(elun).toContain("data-scope=\"player\" data-player=\"Elun\" data-key=\"healers.mana\"");
-        expect(elun).toContain("<span class=\"rec-source\" title=\"Von Claude formuliert; der Regeltext steht im Tooltip der Karte\">KI</span>");
+        expect(elun).toContain("<span class=\"rec-source\" data-tip=\"Von Claude formuliert\" data-tip-sub=\"Der Regeltext dahinter steht im Tooltip des Textes.\">KI</span>");
         expect(elun).toContain("Keine Ausrüstung im Log.");
         expect(elun).toContain("<b>300k</b> Heilung in 2 Kämpfen");
         expect(elun).toContain("<th>Buff</th><th>Anteil</th>");

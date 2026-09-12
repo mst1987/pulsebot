@@ -65,8 +65,8 @@ describe("web/charts — ribbonChart", () => {
     it("puts the icons in their own column with the label as tooltip, initials without an icon", () => {
         const html = ribbonChart(chart);
         expect(html).toContain("<div class=\"fc-col fc-icons\"");
-        expect(html).toContain("<div class=\"fc-cell\" title=\"Sunder Armor\"><img src=\"https://wow.zamimg.com/images/wow/icons/medium/ability_warrior_sunder.jpg\" alt=\"\"></div>");
-        expect(html).toContain("<div class=\"fc-cell\" title=\"Faerie Fire\"><span class=\"fc-initial\">Fa</span></div>");
+        expect(html).toContain("<div class=\"fc-cell\" data-tip=\"Sunder Armor\"><img src=\"https://wow.zamimg.com/images/wow/icons/medium/ability_warrior_sunder.jpg\" alt=\"\"></div>");
+        expect(html).toContain("<div class=\"fc-cell\" data-tip=\"Faerie Fire\"><span class=\"fc-initial\">Fa</span></div>");
         expect(html).not.toContain("<text class=\"fc-label\"");
     });
 
@@ -86,8 +86,8 @@ describe("web/charts — ribbonChart", () => {
 
     it("marks every death across the rows in the class colour with the cause in the title", () => {
         const html = ribbonChart(chart);
-        expect(html).toContain("<g class=\"fc-death\" style=\"--cc:#69CCF0\">");
-        expect(html).toContain("<title>1:00 Aldra († Shatter)</title>");
+        expect(html).toContain("<g class=\"fc-death\" style=\"--cc:#69CCF0\" data-tip=\"1:00 Aldra\" data-tip-sub=\"† Shatter\">");
+        expect(html).toContain("data-tip=\"1:00 Aldra\" data-tip-sub=\"† Shatter\"");
         expect(html).toContain("x1=\"360.0\" y1=\"4\" x2=\"360.0\" y2=\"108\"");
     });
 
@@ -111,7 +111,7 @@ describe("web/charts — ribbonChart", () => {
             deaths: [{ at: 100, name: "\"Bob\"", type: "Priest" }],
         });
         expect(html).not.toContain("<b>x</b>");
-        expect(html).toContain("title=\"&lt;b&gt;x&lt;/b&gt;\"");
+        expect(html).toContain("data-tip=\"&lt;b&gt;x&lt;/b&gt;\"");
         expect(html).toContain("&quot;Bob&quot;");
     });
 
@@ -149,8 +149,8 @@ describe("web/charts — markerChart", () => {
         expect(html.match(/<circle class="fc-marker"/g)).toHaveLength(1);
         expect(html.match(/<image class="fc-marker-icon"/g)).toHaveLength(1);
         expect(html.match(/class="fc-hit"/g).length).toBeGreaterThanOrEqual(3); // two marks + the death
-        expect(html).toContain("<title>0:09 Grace of Air</title>");
-        expect(html).toContain("title=\"Dorn · Windfury\"");
+        expect(html).toContain("data-tip=\"0:09 Grace of Air\"");
+        expect(html).toContain("data-tip=\"Dorn · Windfury\"");
     });
 
     it("draws the buff band, the downtime and the shaded window", () => {
@@ -158,7 +158,7 @@ describe("web/charts — markerChart", () => {
         expect(html.match(/fc-band fc-band-soft/g)).toHaveLength(2);
         expect(html).toContain("Lücke 0:20–0:30 (0:10)");
         expect(html).toContain("<rect class=\"fc-window\"");
-        expect(html).toContain("Bloodlust: 0:00–0:40");
+        expect(html).toContain("data-tip=\"Bloodlust\" data-tip-sub=\"0:00–0:40\"");
         expect(html).toContain("<b class=\"fc-medium\">83%</b><span>1 Lücke</span>");
     });
 
@@ -211,7 +211,7 @@ describe("web/charts — lineChart with a fixed scale and markers", () => {
     it("draws every marker on the curve with its icon and tooltip, lists them under the table and counts them in the legend", () => {
         const html = lineChart({ ...chart, markersLabel: "Regeneration" });
         expect(html).toContain("fc-mark-pt");
-        expect(html).toContain("<title>0:20 · Super-Manatrank · bei 8 %</title>");
+        expect(html).toContain("data-tip=\"0:20 · Super-Manatrank · bei 8 %\"");
         expect(html).toContain("inv_potion_137");
         expect(html).toContain("Regeneration (1)");
         expect(html).toContain("<li><b>0:20</b> Super-Manatrank · bei 8 %</li>");

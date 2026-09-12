@@ -77,10 +77,12 @@ describe("web/render — Heilung topic of a fight", () => {
         expect(html).toContain("<b>20,0k</b> Absorb");
         expect(html).toContain("<b>5 %</b> Mana-Tiefstand bei 1:58");
         expect(html).toContain("<b>2</b> Dispels · Ø 1,2 s");
-        expect(html).toContain("<title>Mana Elun</title>");
-        expect(html).toContain("<title>1:00 · Super-Manatrank · bei 52 %</title>");
+        expect(html).toContain("data-tip=\"Mana Elun\"");
+        expect(html).toContain("data-tip=\"1:00 · Super-Manatrank · bei 52 %\"");
         expect(html).toContain("Regeneration (1)");
-        expect(html).toContain("Greater Heal</td><td>60,0k</td><td>40 %</td><td>50 %</td>");
+        // WCL-style bars: the healing relative to the strongest spell (60k of 95k), the overheal and the share as their own length
+        expect(html).toContain("Greater Heal</td><td><span class=\"bar\" data-tip=\"60.000 effektive Heilung · 30 Casts\"><i style=\"width:63%\"></i><b>60,0k</b></span></td><td><span class=\"bar\" data-tip=\"40.000 Overheal\"><i class=\"medium\" style=\"width:40%\"></i><b class=\"medium\">40 %</b></span></td><td><span class=\"bar\"><i style=\"width:50%\"></i><b>50 %</b></span></td>");
+        expect(html).toContain("Flash Heal</td><td><span class=\"bar\" data-tip=\"95.000 effektive Heilung · 80 Casts\"><i style=\"width:100%\"></i><b>95,0k</b></span></td>");
     });
 
     it("says when a healer's mana is not in the log, notes the missing potion and the death", () => {
@@ -93,7 +95,7 @@ describe("web/render — Heilung topic of a fight", () => {
     it("draws the tank's shields and HoTs as a ribbon per aura and source, judging only the expected ones", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
         expect(html).toContain("Schilde &amp; HoTs auf Brokk<span class=\"meta\">Tank · Warrior</span>");
-        expect(html).toContain("<title>Erdschild (Dorn): 0:02–1:02</title>");
+        expect(html).toContain("data-tip=\"Erdschild (Dorn)\" data-tip-sub=\"0:02–1:02\"");
         expect(html).toContain("<b class=\"fc-medium\">92%</b>");
         // a Renew's uptime is not a verdict: no tone on its value
         expect(html).toContain("<b class=\"\">25%</b>");
@@ -122,14 +124,15 @@ describe("web/render — Heiler section", () => {
         expect(html).toContain("Stille (3×)");
         expect(html).toContain("gemessen auf dem aktiven Tank (Brokk)");
         expect(html).toContain("<a class=\"cn\" href=\"/r/abc123def456/p/0\">Elun</a>");
-        expect(html).toContain("<td>450k</td>");
-        expect(html).toContain("<td class=\"mid\">43 %</td>");
+        expect(html).toContain("<td><span class=\"bar\" data-tip=\"450.000 effektive Heilung über 3 Kämpfe\"><i style=\"width:100%\"></i><b>450k</b></span></td>");
+        expect(html).toContain("<i style=\"width:53%\"></i><b>240k</b>");
+        expect(html).toContain("<i class=\"medium\" style=\"width:43%\"></i><b class=\"medium\">43 %</b>");
         expect(html).toContain("Greater Heal <span class=\"sritems\">40 %</span>");
         expect(html).toContain("9 % <span class=\"tag tag-high\">2× &lt; 10 %</span>");
         expect(html).toContain("3 <span class=\"tag tag-medium\">2× spät</span>");
         expect(html).toContain("0 <span class=\"tag tag-medium\">2× keiner</span>");
         expect(html).toContain("6 <span class=\"sritems\">Ø 1,2 s</span>");
-        expect(html).toContain("title=\"Erdschild: Ø 92 % in 3 Kämpfen\"");
+        expect(html).toContain("data-tip=\"Erdschild\" data-tip-sub=\"Ø 92 % Uptime auf dem aktiven Tank in 3 Kämpfen\"");
     });
 
     it("leaves the section out without healer data", () => {
