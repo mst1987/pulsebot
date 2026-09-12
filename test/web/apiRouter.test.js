@@ -3665,6 +3665,17 @@ describe("web/apiRouter", () => {
             expect(buildReport).toHaveBeenCalledWith("https://classic.warcraftlogs.com/reports/abc123", { force: false });
         });
 
+        it("passes the halves the form picked on to the build, and ignores unknown ones", async () => {
+            buildReport.mockReturnValue(new Promise(() => {}));
+            await post("/api/cla", { link: "https://classic.warcraftlogs.com/reports/abc123", sections: ["rpb", "nope"] });
+            await flushJobs();
+            expect(buildReport).toHaveBeenCalledWith("https://classic.warcraftlogs.com/reports/abc123", { force: false, sections: ["rpb"] });
+            buildReport.mockClear();
+            await post("/api/cla", { link: "https://classic.warcraftlogs.com/reports/abc123", sections: ["nope"] });
+            await flushJobs();
+            expect(buildReport).toHaveBeenCalledWith("https://classic.warcraftlogs.com/reports/abc123", { force: false });
+        });
+
         it("rejects an empty link outright instead of queueing a doomed job", async () => {
             const res = await post("/api/cla", { link: "  " });
 

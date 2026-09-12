@@ -1630,7 +1630,7 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
                             // es gerade hängt.
                             <p className="hint" style={{ margin: 0 }}>
                                 {simRunning
-                                    ? "Simulation läuft — der Fortschritt steht oben rechts. Die Empfehlung erscheint, sobald sie durch ist."
+                                    ? "Simulation läuft — der Fortschritt steht unten in der Mitte. Die Empfehlung erscheint, sobald sie durch ist."
                                     : simAvailable
                                         ? "Noch nicht simuliert. Ohne Simulation gibt es keine Empfehlung — geschätzt wird nichts."
                                         : "Keine Simulation verfügbar (WOWSIMCLI_PATH nicht gesetzt). Ohne sie gibt es keinen Zugewinn und keine Empfehlung — geschätzt wird nichts."}
@@ -2752,11 +2752,11 @@ export default function LootCouncilPage() {
                     </>
                 ) : null}
             >
-                {/* Der Fortschritt selbst steht im Job-Toast oben rechts — der
+                {/* Der Fortschritt selbst steht im Job-Toast unten in der Mitte — der
                     ist von überall auf der Seite zu sehen, dieser Abschnitt
                     nicht. Hier steht nur, woran man ist. */}
                 {simRunning
-                    ? <div className="hint">Simulation läuft — der Fortschritt steht oben rechts.</div>
+                    ? <div className="hint">Simulation läuft — der Fortschritt steht unten in der Mitte.</div>
                     : sim
                         ? <div className="hint">Ergebnisse liegen vor — sie stehen als DPS in den Tabellen.</div>
                         : <div className="hint">Noch nichts simuliert. Ein Zugewinn erscheint erst mit einer Simulation — die Seite zeigt keine Schätzungen aus Stat-Gewichten.</div>}

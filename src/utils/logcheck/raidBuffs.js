@@ -302,7 +302,7 @@ function summarize(fights) {
         for (const c of b.coverage || []) {
             if (!byKey.has(c.key)) {
                 const def = BUFFS.find((d) => d.key === c.key) || {};
-                byKey.set(c.key, { key: c.key, label: def.label || c.key, icon: def.icon || "", provider: def.provider || "", group: def.group || "", expect: def.expect || "", fights: 0, slots: 0, full: 0, late: 0, partial: 0, none: 0, present: 0, wrong: 0, missingNames: new Set(), seenNames: new Set() });
+                byKey.set(c.key, { key: c.key, label: def.label || c.key, groupLabel: def.groupLabel || "", icon: def.icon || "", provider: def.provider || "", group: def.group || "", expect: def.expect || "", fights: 0, slots: 0, full: 0, late: 0, partial: 0, none: 0, present: 0, wrong: 0, missingNames: new Set(), seenNames: new Set() });
             }
             const s = byKey.get(c.key);
             if (c.expected > 0) s.fights++;
@@ -337,7 +337,7 @@ function summarize(fights) {
     const rows = BUFFS.map((b) => b.key).filter((k) => byKey.has(k)).map((k) => {
         const s = byKey.get(k);
         return {
-            key: s.key, label: s.label, icon: s.icon, provider: s.provider, group: s.group, expect: s.expect,
+            key: s.key, label: s.label, groupLabel: s.groupLabel, icon: s.icon, provider: s.provider, group: s.group, expect: s.expect,
             expected: s.slots > 0, fights: s.fights, slots: s.slots, full: s.full, late: s.late, partial: s.partial, none: s.none,
             present: s.present, wrong: s.wrong,
             coveragePct: s.slots ? Math.round((s.full / s.slots) * 100) : null,

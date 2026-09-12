@@ -538,7 +538,7 @@ describe("web/render", () => {
             expect(html).toContain("href=\"/settings\"");
             expect(html).toContain("nav-item area-cla active");
             // breadcrumbs down to the report + the user footer
-            expect(html).toContain("CLA / Logcheck");
+            expect(html).toContain("Log-Auswertung");
             expect(html).toContain("<b>Test Raid</b>");
             expect(html).toContain("<div class=\"u-name\">Admin</div>");
             expect(html).toContain("href=\"/auth/logout\"");

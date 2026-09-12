@@ -26,7 +26,7 @@ const ICONS = {
 const TABS = [
     { id: "home", label: "Übersicht", href: "/", group: "Verwaltung", icon: ICONS.home },
     { id: "recruitment", label: "Recruitment", href: "/recruitment", group: "Verwaltung", icon: ICONS.recruitment },
-    { id: "cla", label: "CLA / Logcheck", href: "/cla", group: "Verwaltung", icon: ICONS.cla },
+    { id: "cla", label: "Log-Auswertung", href: "/cla", group: "Verwaltung", icon: ICONS.cla },
     { id: "raids", label: "Raid-Events", href: "/raids", group: "Verwaltung", icon: ICONS.raids },
     { id: "history", label: "Historie & Loot", href: "/history", group: "Verwaltung", icon: ICONS.history },
     { id: "channels", label: "Kanäle", href: "/channels", group: "Verwaltung", icon: ICONS.channels },

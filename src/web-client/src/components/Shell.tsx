@@ -19,7 +19,7 @@ type Tab = { id: string; areas: string[]; label: string; href: string; group: st
 export const TABS: Tab[] = [
     { id: "home", areas: ["dashboard"], label: "Übersicht", href: "/", group: "Verwaltung", icon: <HomeIcon /> },
     { id: "recruitment", areas: ["recruitment"], label: "Recruitment", href: "/recruitment", group: "Verwaltung", icon: <RecruitmentIcon /> },
-    { id: "cla", areas: ["cla"], label: "CLA / Logcheck", href: "/cla", group: "Verwaltung", icon: <ClaIcon /> },
+    { id: "cla", areas: ["cla"], label: "Log-Auswertung", href: "/cla", group: "Verwaltung", icon: <ClaIcon /> },
     { id: "raids", areas: ["raids"], label: "Raid-Events", href: "/raids", group: "Verwaltung", icon: <RaidsIcon /> },
     { id: "roster", areas: ["roster"], label: "Roster", href: "/roster", group: "Verwaltung", icon: <RosterIcon /> },
     { id: "history", areas: ["history", "loot"], label: "Historie & Loot", href: "/history", group: "Verwaltung", icon: <HistoryIcon /> },

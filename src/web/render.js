@@ -866,7 +866,7 @@ function shellPage(title, { user, body, crumbs = [] }) {
         const chrome = renderAdminChrome({
             user,
             activeTab: "cla",
-            crumbs: [{ label: "Menü", href: "/" }, { label: "CLA / Logcheck", href: "/cla" }, ...crumbs],
+            crumbs: [{ label: "Menü", href: "/" }, { label: "Log-Auswertung", href: "/cla" }, ...crumbs],
             body,
             actions: themeToggleBtn(),
             esc,
@@ -1453,7 +1453,8 @@ function renderRaidBuffsPanel(raidBuffs, linkFor) {
     const players = (raidBuffs.players || []).slice().sort((a, b) => (a.type + a.name).localeCompare(b.type + b.name));
     const cols = (raidBuffs.rows || []).filter((r) => r.expected || r.seenPlayers > 0);
     if (!players.length || !cols.length) return "<div class=\"empty\">Keine Raid-Buffs im Log.</div>";
-    const head = cols.map((r) => `<th class="bh">${hicon(r.icon, `${r.label} (${r.provider})`)}</th>`).join("");
+    // the group version counts like the single one, and the tooltip says so
+    const head = cols.map((r) => `<th class="bh">${hicon(r.icon, `${r.label}${r.groupLabel ? ` / ${r.groupLabel}` : ""} (${r.provider})`)}</th>`).join("");
     const cover = cols.map((r) => `<td class="bc">${r.expected ? pctCell(r.coveragePct) : "<span class=\"pct pct-na\">–</span>"}</td>`).join("");
     const body = players.map((p) => {
         const href = linkFor && linkFor(p.name);
@@ -1469,7 +1470,7 @@ function renderRaidBuffsPanel(raidBuffs, linkFor) {
         return `<tr style="--cc:${esc(classColorOf(p.type) || "var(--text)")}"><td>${name}<div class="sritems">${esc(p.type)} · ${esc(BUFF_ROLE_LABELS[p.role] || p.role)} · ${esc(p.fights)} ${p.fights === 1 ? "Kampf" : "Kämpfe"}</div></td>${cells}</tr>`;
     }).join("");
     const pal = raidBuffs.paladins || 0;
-    const note = `<p class="note">Anteil der Bosskämpfe, in denen der Buff die ganze Zeit auf dem Spieler lag (bis zu seinem Tod). Erwartet wird, was die Aufstellung hergibt: ${pal} Paladin${pal === 1 ? "" : "e"} heißt ${pal === 1 ? "ein Segen" : `${pal} Segen`} pro Spieler, Macht auf Tanks und Nahkämpfer, Weisheit auf Heiler und Caster. Grau: nicht erwartet; gestrichelt: Segen auf der falschen Rolle. Wer wann was nicht hatte, steht im Kampfverlauf unter „Buffs“.</p>`;
+    const note = `<p class="note">Anteil der Bosskämpfe, in denen der Buff die ganze Zeit auf dem Spieler lag (bis zu seinem Tod). Erwartet wird, was die Aufstellung hergibt: ${pal} Paladin${pal === 1 ? "" : "e"} heißt ${pal === 1 ? "ein Segen" : `${pal} Segen`} pro Spieler, Macht auf Tanks und Nahkämpfer, Weisheit auf Heiler und Caster. Gruppenversionen (Große Segen, Gebete, Gabe der Wildnis, Arkane Brillanz) zählen wie die Einzelbuffs. Grau: nicht erwartet; gestrichelt: Segen auf der falschen Rolle. Wer wann was nicht hatte, steht im Kampfverlauf unter „Buffs“.</p>`;
     return `${note}<div style="overflow-x:auto"><table class="idx heal-table buff-matrix"><tr><th>Spieler</th>${head}</tr><tr class="cov"><td><b>Abdeckung</b><div class="sritems">Raid</div></td>${cover}</tr>${body}</table></div>`;
 }
 

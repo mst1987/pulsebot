@@ -73,6 +73,28 @@ describe("config/raidBuffs", () => {
         }
     });
 
+    it("names the group version of every buff that has one, and every group rank resolves to that buff", () => {
+        const withGroup = BUFFS.filter((b) => b.groupIds);
+        expect(withGroup.map((b) => b.key)).toEqual(["kings", "might", "wisdom", "salvation", "sanctuary", "light", "fortitude", "spirit", "shadowProt", "motw", "intellect"]);
+        for (const b of withGroup) {
+            expect(b.groupLabel).toBeTruthy();
+            expect(b.groupIds.length).toBeGreaterThan(0);
+            for (const id of b.groupIds) {
+                expect(b.ids).toContain(id);
+                expect(buffByGuid(id).key).toBe(b.key);
+            }
+        }
+        expect(buffByKey("motw").groupLabel).toBe("Gabe der Wildnis");
+        expect(buffByKey("fortitude").groupLabel).toBe("Gebet der Seelenstärke");
+        expect(buffByKey("intellect").groupLabel).toBe("Arkane Brillanz");
+        expect(buffByGuid(25392).key).toBe("fortitude");   // Prayer of Fortitude rank 3
+        expect(buffByGuid(32999).key).toBe("spirit");      // Prayer of Spirit rank 2
+        expect(buffByGuid(39374).key).toBe("shadowProt");  // Prayer of Shadow Protection rank 2
+        expect(buffByGuid(27127).key).toBe("intellect");   // Arcane Brilliance rank 2
+        expect(buffByGuid(26991).key).toBe("motw");        // Gift of the Wild rank 3
+        expect(buffByGuid(27143).key).toBe("wisdom");      // Greater Blessing of Wisdom rank 3
+    });
+
     it("resolves single and group versions of any rank to the same buff", () => {
         expect(buffByGuid(MOTW).key).toBe("motw");
         expect(buffByGuid(GIFT).key).toBe("motw");
@@ -449,6 +471,28 @@ describe("logcheck/raidBuffs — analyzeRaidBuffs", () => {
         // the shadow protection on one paladin does not make it expected on the raid
         expect(fb.expected).not.toContain("shadowProt");
         expect(sum.rows.find((r) => r.key === "kings")).toEqual(expect.objectContaining({ slots: 5, full: 4, none: 1 }));
+    });
+
+    it("treats a player on the group version and a player on the single version alike", async () => {
+        // Elun carries every group version, Leaf the single ones of the same buffs: same status, same key.
+        const wcl = wclMock();
+        const mixed = {
+            ...tables,
+            2: { auras: [aura(25898, FULL), aura(25392, FULL), aura(27127, FULL), aura(32999, FULL), aura(26991, FULL)] },
+            5: { auras: [aura(20217, FULL), aura(25389, FULL), aura(27126, FULL), aura(27841, FULL), aura(26990, FULL)] },
+        };
+        wcl.getBuffs.mockImplementation(async (reportId, start, end, extra) => mixed[extra.sourceid]);
+        const timeline = { fights: [{ id: 3, deaths, buffs: null }] };
+        const sum = await analyzeRaidBuffs(wcl, "abc", fights, players, idToPlayer, timeline);
+        const fb = timeline.fights[0].buffs;
+        for (const name of ["Elun", "Leaf"]) {
+            const p = fb.players.find((x) => x.name === name);
+            expect(p.missing).toEqual([]);
+            for (const key of ["kings", "fortitude", "intellect", "spirit", "motw"]) {
+                expect(p.buffs.find((b) => b.key === key)).toEqual(expect.objectContaining({ status: "full", expected: true }));
+            }
+        }
+        expect(sum.rows.find((r) => r.key === "motw").groupLabel).toBe("Gabe der Wildnis");
     });
 
     it("survives a failed buffs table and a failed summary", async () => {

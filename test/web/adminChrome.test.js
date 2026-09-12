@@ -11,7 +11,7 @@ function render(opts = {}) {
     return renderAdminChrome({
         user: { name: "Admin" },
         activeTab: "cla",
-        crumbs: [{ label: "Menü", href: "/" }, { label: "CLA / Logcheck", href: "/cla" }, { label: "Test Raid" }],
+        crumbs: [{ label: "Menü", href: "/" }, { label: "Log-Auswertung", href: "/cla" }, { label: "Test Raid" }],
         body: "<p>inhalt</p>",
         actions: "<button id=\"themeBtn\"></button>",
         esc,
@@ -51,7 +51,7 @@ describe("web/adminChrome", () => {
     it("renders breadcrumbs with links for all but the last segment", () => {
         const html = render();
         expect(html).toContain("<a href=\"/\">Menü</a>");
-        expect(html).toContain("<a href=\"/cla\">CLA / Logcheck</a>");
+        expect(html).toContain("<a href=\"/cla\">Log-Auswertung</a>");
         expect(html).toContain("<b>Test Raid</b>");
     });
 
