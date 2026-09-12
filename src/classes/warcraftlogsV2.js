@@ -116,33 +116,61 @@ class WarcraftLogsV2 {
      * client is unconfigured, the request fails, or the response carries
      * GraphQL errors (recorded in `lastError`) — the analyzers treat null as
      * "no series", never as a reason to fail the report.
+     *
+     * A 401 on the query itself means the cached token is no longer good
+     * (revoked, or expired earlier than `expires_in` promised): the token is
+     * dropped and the query repeated exactly once with a fresh one. A 401 on
+     * the token request is a credentials problem and is not retried.
      */
     async query(query, variables = {}) {
         if (!this.isConfigured()) {
             this.lastError = { reason: "not_configured" };
             return null;
         }
-        try {
-            const token = await this.getToken();
-            const res = await axios.post(this.apiUrl, { query, variables }, {
-                headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-                httpsAgent: agent,
-                timeout: 30000,
-            });
-            const body = res && res.data;
-            if (body && Array.isArray(body.errors) && body.errors.length) {
-                this.lastError = { reason: "graphql", message: body.errors.map((e) => e && e.message).filter(Boolean).join("; ") };
-                console.warn(`WCL v2 query errors: ${this.lastError.message}`);
-                return body.data || null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+            let token;
+            try {
+                token = await this.getToken();
+            } catch (err) {
+                return this._fail(err);
             }
-            this.lastError = null;
-            return (body && body.data) || null;
-        } catch (err) {
-            const status = err.response && err.response.status;
-            this.lastError = { status: status || null, message: err.code || err.message || "unbekannt" };
-            console.warn(`WCL v2 request failed (${status || err.code || err.message})`);
-            return null;
+            try {
+                const res = await axios.post(this.apiUrl, { query, variables }, {
+                    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                    httpsAgent: agent,
+                    timeout: 30000,
+                });
+                const body = res && res.data;
+                if (body && Array.isArray(body.errors) && body.errors.length) {
+                    this.lastError = { reason: "graphql", message: body.errors.map((e) => e && e.message).filter(Boolean).join("; ") };
+                    console.warn(`WCL v2 query errors: ${this.lastError.message}`);
+                    return body.data || null;
+                }
+                this.lastError = null;
+                return (body && body.data) || null;
+            } catch (err) {
+                const status = err.response && err.response.status;
+                if (status === 401) {
+                    // a refused token is useless either way; retry only once
+                    this._token = null;
+                    this._tokenExpiry = 0;
+                    if (attempt === 0) {
+                        console.warn("WCL v2 query answered 401 — dropping the cached token and retrying once");
+                        continue;
+                    }
+                }
+                return this._fail(err);
+            }
         }
+        return null;
+    }
+
+    /** Record a failed request in `lastError` and answer null. */
+    _fail(err) {
+        const status = err.response && err.response.status;
+        this.lastError = { status: status || null, message: err.code || err.message || "unbekannt" };
+        console.warn(`WCL v2 request failed (${status || err.code || err.message})`);
+        return null;
     }
 
     /**

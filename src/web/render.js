@@ -1188,17 +1188,24 @@ function renderHealersPanel(healers, linkFor) {
 }
 
 // ---- Buffs: the raid buffs on the players of a fight (f.buffs, utils/logcheck/raidBuffs.js) ----
-//   paladins, expected[]  · players[] { name, type, role, diedAt, buffs: [{ key, label, icon, status: full|partial|none, uptimePct, expected, wrong, bands }], missing[], partial[], wrong[] }
+//   paladins, expected[]  · players[] { name, type, role, diedAt, buffs: [{ key, label, icon, status: full|late|partial|none, uptimePct, expected, wrong, bands }], missing[], late[], partial[], wrong[] }
+//   (`late` — set after the pull, then kept — and `partial` — not there throughout: ran out or had a hole — were one
+//   status before Sept 2026; a stored report may lack `late` and its counters, so every read of them has a fallback)
 
-const BUFF_STATUS = { full: "da", partial: "ausgelaufen", none: "fehlt" };
+const BUFF_STATUS = { full: "da", late: "spät gesetzt", partial: "nicht durchgehend", none: "fehlt" };
 
 function buffTone(c) {
     if (c.wrong) return "high";
     if (!c.expected) return undefined;
-    return c.status === "full" ? "good" : c.status === "partial" ? "medium" : "high";
+    return c.status === "full" ? "good" : c.status === "late" || c.status === "partial" ? "medium" : "high";
 }
 
-/** One player's chips: what was missing, what ran out, what sat on the wrong role. */
+/** The number of things wrong with a player's buffs in a fight: missing, late, not throughout, wrong role. */
+function buffIssues(p) {
+    return (p.missing || []).length + (p.late || []).length + (p.partial || []).length + (p.wrong || []).length;
+}
+
+/** One player's chips: what was missing, what came late, what was not there throughout, what sat on the wrong role. */
 function buffChips(p) {
     const byKey = new Map((p.buffs || []).map((c) => [c.key, c]));
     const chip = (key, cls, word) => {
@@ -1207,7 +1214,8 @@ function buffChips(p) {
     };
     return [
         ...(p.missing || []).map((k) => chip(k, "tag-high", "fehlt")),
-        ...(p.partial || []).map((k) => chip(k, "tag-medium", "ausgelaufen")),
+        ...(p.late || []).map((k) => chip(k, "tag-medium", BUFF_STATUS.late)),
+        ...(p.partial || []).map((k) => chip(k, "tag-medium", BUFF_STATUS.partial)),
         ...(p.wrong || []).map((k) => chip(k, "tag-medium", "· falsche Rolle")),
     ].join("");
 }
@@ -1216,7 +1224,7 @@ function buffChips(p) {
  * The Buffs topic of one fight: { count, html }, or null without data. On the
  * raid page a list of who lacked what (a ribbon per player and buff would be
  * two hundred rows); on the player page (`only`) that raider's buffs as
- * ribbons, so a buff that ran out mid-fight is visible as such.
+ * ribbons, so a buff that came late or ran out mid-fight is visible as such.
  */
 function buffParts(f, only, common) {
     const b = f.buffs;
@@ -1236,10 +1244,9 @@ function buffParts(f, only, common) {
             sub: c.expected ? BUFF_STATUS[c.status] : (c.wrong ? "falsche Rolle" : "nicht erwartet"),
             tone: buffTone(c),
         }));
-        const issues = (p.missing || []).length + (p.partial || []).length + (p.wrong || []).length;
-        return { count: issues, html: head + ribbonChart({ ...common, rows }) };
+        return { count: buffIssues(p), html: head + ribbonChart({ ...common, rows }) };
     }
-    const lacking = b.players.filter((p) => (p.missing || []).length || (p.partial || []).length || (p.wrong || []).length);
+    const lacking = b.players.filter((p) => buffIssues(p) > 0);
     if (!lacking.length) return { count: 0, html: `${head}<p class="note">Alle erwarteten Buffs auf allen Spielern.</p>` };
     const list = lacking.map((p) =>
         `<li style="--cc:${esc(classColorOf(p.type) || "var(--text)")}"><span class="cn">${esc(p.name)}</span><span class="sritems">${esc(BUFF_ROLE_LABELS[p.role] || p.role)}${p.diedAt !== null && p.diedAt !== undefined ? ` · bis ${fmtTime(p.diedAt)}` : ""}</span><span class="buff-list">${buffChips(p)}</span></li>`).join("");
@@ -1259,7 +1266,7 @@ function renderRaidBuffsPanel(raidBuffs, linkFor) {
         const cells = cols.map((r) => {
             const c = p.buffs && p.buffs[r.key];
             if (!c) return "<td class=\"bc\"><span class=\"pct pct-na\">–</span></td>";
-            const tip = `${r.label}: ${c.full}× da, ${c.partial}× ausgelaufen, ${c.none}× gefehlt`;
+            const tip = `${r.label}: ${c.full}× da, ${c.late || 0}× spät gesetzt, ${c.partial}× nicht durchgehend, ${c.none}× gefehlt`;
             if (c.wrong) return `<td class="bc"><span class="pct pct-wrong" title="${esc(`${r.label}: ${c.wrong}× auf der falschen Rolle`)}">${esc(c.pct)}%</span></td>`;
             if (!c.expected) return `<td class="bc"><span class="pct pct-na" title="${esc(`${r.label}: nicht erwartet, ${c.present}× da`)}">${esc(c.pct)}%</span></td>`;
             return `<td class="bc" title="${esc(tip)}">${pctCell(c.pct)}</td>`;
@@ -1940,7 +1947,7 @@ function renderReportPage(report, user) {
     const hasHealers = report.healers && report.healers.players && report.healers.players.length;
     const hasRaidBuffs = report.raidBuffs && report.raidBuffs.players && report.raidBuffs.players.length;
     // the badge counts the expected buffs that fell short somewhere
-    const raidBuffsShort = hasRaidBuffs ? (report.raidBuffs.rows || []).filter((r) => r.expected && (r.none > 0 || r.partial > 0)).length : 0;
+    const raidBuffsShort = hasRaidBuffs ? (report.raidBuffs.rows || []).filter((r) => r.expected && (r.none > 0 || r.partial > 0 || (r.late || 0) > 0)).length : 0;
     // The tab shows for reviewers as soon as there are findings, for everyone else once something was approved.
     const recReviewed = report.recommendations ? applyReview(report.recommendations, report.recommendationReview) : null;
     const recItems = recReviewed ? [...recReviewed.raid, ...recReviewed.players.flatMap((p) => p.items)] : [];

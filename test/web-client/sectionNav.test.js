@@ -82,12 +82,19 @@ describe("Einstellungen sections", () => {
     });
 
     it("sends the access fields only when the server would accept them", () => {
-        // All four sit behind canManageAccess in the submit — including the two
-        // server ids, which decide which guild the admin-role check runs against.
-        const guarded = settingsSrc.match(/\.\.\.\(data\.canManageAccess \? \{[\s\S]*?\} : \{\}\),/)[0];
-        for (const field of ["adminRoleIds:", "rolePermissions:", "guildId:", "raidhelperServerId:"]) {
+        // All of them sit behind canManageAccess in the submit — including the
+        // two server ids, which decide which guild the admin-role check runs
+        // against, and the two credential blocks the server refuses from a
+        // limited settings user (CREDENTIAL_KEYS in apiRoutes/settings.js).
+        // the block closes on its own line at the spread's indentation — the
+        // inner secret spreads (`? { apiKey } : {}),`) close on theirs
+        const guarded = settingsSrc.match(/\.\.\.\(data\.canManageAccess \? \{[\s\S]*?\n {16}\} : \{\}\),/)[0];
+        for (const field of ["adminRoleIds:", "rolePermissions:", "guildId:", "raidhelperServerId:", "anthropic:", "warcraftlogsV2:"]) {
             expect(guarded).toContain(field);
         }
+        const unguarded = settingsSrc.slice(settingsSrc.indexOf(guarded) + guarded.length);
+        expect(unguarded).not.toMatch(/^\s*anthropic: \{/m);
+        expect(unguarded).not.toMatch(/^\s*warcraftlogsV2: \{/m);
     });
 
     it("hides the shared save button under a section that saves itself", () => {

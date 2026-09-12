@@ -417,7 +417,7 @@ function debuffsMissingLine(raidDebuffs) {
 function raidBuffsLine(raidBuffs) {
     const rows = (raidBuffs.rows || []).filter((r) => r.expected);
     if (!rows.length) return "keine erwartet";
-    const short = rows.filter((r) => r.none > 0 || r.partial > 0);
+    const short = rows.filter((r) => r.none > 0 || r.partial > 0 || (r.late || 0) > 0);
     const worst = short.slice().sort((a, b) => b.missingPlayers - a.missingPlayers)[0];
     const detail = worst && worst.missingPlayers ? ` (${worst.label} auf ${worst.missingPlayers} Spieler${worst.missingPlayers === 1 ? "" : "n"})` : "";
     return `${rows.length} erwartet, ${short.length} mit Lücken${detail}`;

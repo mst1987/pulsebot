@@ -24,6 +24,12 @@
 //                that fight (Shadow Protection is a Shahraz thing, Thorns is
 //                a raid's own habit — the raid, not the table, decides);
 //   "never"    — party-bound or self-only, shown when present, never a finding.
+//
+// `neverWrong` marks a blessing that is usual on every role in TBC although
+// only one role really wants it: Light sits on the whole raid wherever a
+// paladin has a free blessing, Sanctuary lands on off-tanks WCL lists as dps.
+// Such a blessing counts as present (and fills a blessing slot on any role);
+// it is never reported as "on the wrong role".
 
 const ROLES = ["tank", "healer", "melee", "caster"];
 const ROLE_LABELS = { tank: "Tank", healer: "Heiler", melee: "Nahkampf", caster: "Caster" };
@@ -36,8 +42,8 @@ const BUFFS = [
     { key: "might", name: "Blessing of Might", label: "Segen der Macht", ids: [19740, 19834, 19835, 19836, 19837, 19838, 25291, 27140, 25782, 25916, 27141], provider: "Paladin", icon: "spell_holy_fistofjustice", group: "blessing", roles: ["tank", "melee"], priority: 2, expect: "blessing" },
     { key: "wisdom", name: "Blessing of Wisdom", label: "Segen der Weisheit", ids: [19742, 19850, 19852, 19853, 19854, 25290, 27142, 25894, 25918, 27143], provider: "Paladin", icon: "spell_holy_sealofwisdom", group: "blessing", roles: ["healer", "caster"], classes: MANA_MELEE, priority: 2, expect: "blessing" },
     { key: "salvation", name: "Blessing of Salvation", label: "Segen der Rettung", ids: [1038, 25895], provider: "Paladin", icon: "spell_holy_sealofsalvation", group: "blessing", roles: ["healer", "melee", "caster"], priority: 3, expect: "blessing" },
-    { key: "sanctuary", name: "Blessing of Sanctuary", label: "Segen des Refugiums", ids: [20911, 20912, 20913, 20914, 27168, 25899, 27169], provider: "Paladin", icon: "spell_nature_lightningshield", group: "blessing", roles: ["tank"], priority: 3, expect: "blessing" },
-    { key: "light", name: "Blessing of Light", label: "Segen des Lichts", ids: [19977, 19978, 19979, 27144, 25890, 27145], provider: "Paladin", icon: "spell_holy_prayerofhealing02", group: "blessing", roles: ["tank"], priority: 4, expect: "blessing" },
+    { key: "sanctuary", name: "Blessing of Sanctuary", label: "Segen des Refugiums", ids: [20911, 20912, 20913, 20914, 27168, 25899, 27169], provider: "Paladin", icon: "spell_nature_lightningshield", group: "blessing", roles: ["tank"], priority: 3, expect: "blessing", neverWrong: true },
+    { key: "light", name: "Blessing of Light", label: "Segen des Lichts", ids: [19977, 19978, 19979, 27144, 25890, 27145], provider: "Paladin", icon: "spell_holy_prayerofhealing02", group: "blessing", roles: ["tank"], priority: 4, expect: "blessing", neverWrong: true },
     // priest
     { key: "fortitude", name: "Power Word: Fortitude", label: "Machtwort: Seelenstärke", ids: [1243, 1244, 1245, 2791, 10937, 10938, 25389, 21562, 21564, 25392], provider: "Priest", icon: "spell_holy_wordfortitude", group: "stats", roles: ALL, expect: "class" },
     { key: "spirit", name: "Divine Spirit", label: "Göttlicher Willen", ids: [14752, 14818, 14819, 27841, 27681, 32999], provider: "Priest", icon: "spell_holy_divinespirit", group: "stats", roles: ["healer", "caster"], expect: "majority" },

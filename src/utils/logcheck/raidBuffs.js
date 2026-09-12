@@ -4,10 +4,19 @@
 // one says what the *others* put on them — Kings missing in group three, no
 // Mark of the Wild on the healers, Shadow Protection not renewed for the
 // Shahraz pull. Per boss fight and player it keeps, for every buff that was
-// there or should have been, whether it was up the whole fight, ran out
-// (band ends before the fight does) or never came, and the merged bands so
-// the page can draw them. Only derived intervals are stored, never raw events,
-// and a player is judged until their death, not until the fight's end.
+// there or should have been, whether it was up the whole fight (`full`), came
+// only after the pull but then stayed (`late`), was not there throughout —
+// ran out, or had a hole (`partial`) — or never came (`none`), and the merged
+// bands so the page can draw them. Only derived intervals are stored, never
+// raw events, and a player is judged until their death (the first one, if
+// they were resurrected and died again), not until the fight's end.
+//
+// Only a player whose buffs table was fetched is judged at all: someone in
+// the fight's roster without a table (the request failed, or they were not
+// among the selected players) would otherwise lack every buff and drive the
+// raid finding on nothing but a missing request. They still count towards
+// the roster's classes and paladins — they raided, and their blessings were
+// real — they are just not judged.
 //
 // What is expected comes from the roster of that fight, never from a fixed
 // list: no paladin means no blessing is missing, one paladin means one
@@ -92,9 +101,24 @@ function judgedBands(bands, until) {
     return out;
 }
 
-function statusOf(uptimePct) {
+/**
+ * A buff's status on a player from its judged bands: `full` from FULL_PCT
+ * uptime on, `none` without any, `late` for one single band that starts after
+ * the pull and reaches the end of the judged window (set after the pull, then
+ * kept), `partial` for everything else — ran out, or had a hole.
+ */
+function statusOf(bands, judgeEnd, uptimePct) {
     if (uptimePct >= FULL_PCT) return "full";
-    return uptimePct > 0 ? "partial" : "none";
+    if (!(uptimePct > 0) || !bands.length) return "none";
+    const [from, to] = bands[0];
+    return bands.length === 1 && from > 0 && to >= judgeEnd ? "late" : "partial";
+}
+
+/** Status -> which counter it is tallied under. */
+const STATUSES = ["full", "late", "partial", "none"];
+
+function emptyTally() {
+    return { expected: 0, full: 0, late: 0, partial: 0, none: 0, present: 0, wrong: 0 };
 }
 
 /**
@@ -104,17 +128,26 @@ function statusOf(uptimePct) {
  * @param {object} input.fight        WCL fight (start_time, end_time)
  * @param {Array}  input.roster       { name, type, role } per player in the fight
  * @param {Object<string, { byKey: Object<string, Array> }>} input.bandsByName
- *        per player, per buff key, the absolute WCL bands ({ startTime, endTime })
+ *        per player, per buff key, the absolute WCL bands ({ startTime, endTime });
+ *        a roster player without an entry here is not judged
  * @param {Array}  [input.deaths]     the fight's deaths ({ at, name }), fight-relative
  * @param {Object<string, string>} [input.icons]  buff key -> icon the log reported
  * @returns {null | { paladins, expected: string[], players: Array, coverage: Array }}
+ *          players[]: { name, type, role, judgedUntil, diedAt, buffs: [{ key, label,
+ *          icon, status: full|late|partial|none, uptimePct, expected, wrong, bands }],
+ *          missing[], late[], partial[], wrong[] }
  */
 function buffsForFight({ fight, roster, bandsByName, deaths, icons }) {
     if (!roster || roster.length === 0) return null;
     const start = fight.start_time;
     const end = fight.end_time;
     const duration = end - start;
-    const diedAt = new Map((deaths || []).map((d) => [d.name, d.at]).filter(([, at]) => Number.isFinite(at)));
+    // the first death ends the judged window — the same reading totems.js takes
+    const diedAt = new Map();
+    for (const d of deaths || []) {
+        if (!d || !Number.isFinite(d.at)) continue;
+        if (!diedAt.has(d.name) || d.at < diedAt.get(d.name)) diedAt.set(d.name, d.at);
+    }
     const classes = new Set(roster.map((p) => p.type));
     const paladins = roster.filter((p) => p.type === "Paladin").length;
 
@@ -123,15 +156,17 @@ function buffsForFight({ fight, roster, bandsByName, deaths, icons }) {
     const cells = new Map(); // name -> key -> { status, uptimePct, bands }
     const judged = new Map(); // name -> judgeEnd
     for (const p of roster) {
+        // no buffs table for this player: not judged (see the header)
+        if (!bandsByName || !bandsByName[p.name]) continue;
         const judgeEnd = diedAt.has(p.name) ? Math.min(duration, diedAt.get(p.name)) : duration;
         if (judgeEnd <= 0) continue;
         judged.set(p.name, judgeEnd);
-        const mine = (bandsByName[p.name] && bandsByName[p.name].byKey) || {};
+        const mine = bandsByName[p.name].byKey || {};
         const row = new Map();
         for (const def of BUFFS) {
             const bands = judgedBands(clipBands(mine[def.key] || [], start, end), judgeEnd);
             const gaps = gapsBetween(bands, judgeEnd);
-            row.set(def.key, { status: statusOf(gaps.uptimePct), uptimePct: gaps.uptimePct, bands });
+            row.set(def.key, { status: statusOf(bands, judgeEnd, gaps.uptimePct), uptimePct: gaps.uptimePct, bands });
         }
         cells.set(p.name, row);
     }
@@ -149,7 +184,7 @@ function buffsForFight({ fight, roster, bandsByName, deaths, icons }) {
     const players = [];
     const coverage = new Map();
     const tally = (key, field) => {
-        if (!coverage.has(key)) coverage.set(key, { key, expected: 0, full: 0, partial: 0, none: 0, present: 0, wrong: 0 });
+        if (!coverage.has(key)) coverage.set(key, { key, ...emptyTally() });
         coverage.get(key)[field]++;
     };
     for (const p of roster) {
@@ -165,18 +200,21 @@ function buffsForFight({ fight, roster, bandsByName, deaths, icons }) {
             } else if (def.expect === "majority") {
                 if (fits && majority.has(def.key)) expected.add(def.key);
             } else if (def.expect === "blessing") {
-                if (!fits && row.get(def.key).status !== "none") wrong.add(def.key);
+                // a `neverWrong` blessing (Light, Sanctuary) is usual on any
+                // role in TBC and never a wrong one — see config/raidBuffs.js
+                if (!fits && !def.neverWrong && row.get(def.key).status !== "none") wrong.add(def.key);
             }
         }
         // Blessings: the paladins limit how many, the role says which. A slot
         // filled by any fitting blessing is filled — the raid may hand a
         // caster Salvation over Wisdom on purpose; only a slot left empty
-        // names the highest-priority blessing that is not there.
+        // names the highest-priority blessing that is not there. A blessing
+        // that is never wrong fills a slot on any role.
         const wanted = expectedBlessings(p, paladins);
         let slots = wanted.length;
         for (const b of BLESSINGS) {
             if (slots === 0) break;
-            if (!buffFits(b, p) || row.get(b.key).status !== "full") continue;
+            if ((!buffFits(b, p) && !b.neverWrong) || row.get(b.key).status !== "full") continue;
             expected.add(b.key);
             slots--;
         }
@@ -189,6 +227,7 @@ function buffsForFight({ fight, roster, bandsByName, deaths, icons }) {
 
         const buffs = [];
         const missing = [];
+        const late = [];
         const partial = [];
         for (const def of BUFFS) {
             const c = row.get(def.key);
@@ -206,13 +245,14 @@ function buffsForFight({ fight, roster, bandsByName, deaths, icons }) {
                 tally(def.key, "expected");
                 tally(def.key, c.status);
                 if (c.status === "none") missing.push(def.key);
+                else if (c.status === "late") late.push(def.key);
                 else if (c.status === "partial") partial.push(def.key);
             }
         }
         players.push({
             name: p.name, type: p.type, role: p.role,
             judgedUntil: judgeEnd, diedAt: judgeEnd < duration ? judgeEnd : null,
-            buffs, missing, partial, wrong: [...wrong],
+            buffs, missing, late, partial, wrong: [...wrong],
         });
     }
     if (players.length === 0) return null;
@@ -240,33 +280,35 @@ function summarize(fights) {
         fightCount++;
         paladins = Math.max(paladins, b.paladins || 0);
         for (const p of b.players) {
-            if (!byName.has(p.name)) byName.set(p.name, { name: p.name, type: p.type, roles: {}, fights: 0, buffs: {}, missing: 0, partial: 0, wrong: 0 });
+            if (!byName.has(p.name)) byName.set(p.name, { name: p.name, type: p.type, roles: {}, fights: 0, buffs: {}, missing: 0, late: 0, partial: 0, wrong: 0 });
             const s = byName.get(p.name);
             s.fights++;
             s.roles[p.role] = (s.roles[p.role] || 0) + 1;
             s.missing += p.missing.length;
+            s.late += (p.late || []).length;
             s.partial += p.partial.length;
             s.wrong += (p.wrong || []).length;
             for (const c of p.buffs) {
-                if (!s.buffs[c.key]) s.buffs[c.key] = { expected: 0, full: 0, partial: 0, none: 0, present: 0, wrong: 0 };
+                if (!s.buffs[c.key]) s.buffs[c.key] = emptyTally();
                 const cell = s.buffs[c.key];
                 if (c.status !== "none") cell.present++;
                 if (c.wrong) cell.wrong++;
                 if (c.expected) {
                     cell.expected++;
-                    cell[c.status]++;
+                    if (STATUSES.includes(c.status)) cell[c.status]++;
                 }
             }
         }
         for (const c of b.coverage || []) {
             if (!byKey.has(c.key)) {
                 const def = BUFFS.find((d) => d.key === c.key) || {};
-                byKey.set(c.key, { key: c.key, label: def.label || c.key, icon: def.icon || "", provider: def.provider || "", group: def.group || "", expect: def.expect || "", fights: 0, slots: 0, full: 0, partial: 0, none: 0, present: 0, wrong: 0, missingNames: new Set(), seenNames: new Set() });
+                byKey.set(c.key, { key: c.key, label: def.label || c.key, icon: def.icon || "", provider: def.provider || "", group: def.group || "", expect: def.expect || "", fights: 0, slots: 0, full: 0, late: 0, partial: 0, none: 0, present: 0, wrong: 0, missingNames: new Set(), seenNames: new Set() });
             }
             const s = byKey.get(c.key);
             if (c.expected > 0) s.fights++;
             s.slots += c.expected;
             s.full += c.full;
+            s.late += c.late || 0;
             s.partial += c.partial;
             s.none += c.none;
             s.present += c.present;
@@ -290,13 +332,13 @@ function summarize(fights) {
             const pct = c.expected ? (c.full / c.expected) : (s.fights ? c.present / s.fights : 0);
             buffs[key] = { ...c, pct: Math.round(pct * 100) };
         }
-        return { name: s.name, type: s.type, role, fights: s.fights, buffs, missing: s.missing, partial: s.partial, wrong: s.wrong };
+        return { name: s.name, type: s.type, role, fights: s.fights, buffs, missing: s.missing, late: s.late, partial: s.partial, wrong: s.wrong };
     });
     const rows = BUFFS.map((b) => b.key).filter((k) => byKey.has(k)).map((k) => {
         const s = byKey.get(k);
         return {
             key: s.key, label: s.label, icon: s.icon, provider: s.provider, group: s.group, expect: s.expect,
-            expected: s.slots > 0, fights: s.fights, slots: s.slots, full: s.full, partial: s.partial, none: s.none,
+            expected: s.slots > 0, fights: s.fights, slots: s.slots, full: s.full, late: s.late, partial: s.partial, none: s.none,
             present: s.present, wrong: s.wrong,
             coveragePct: s.slots ? Math.round((s.full / s.slots) * 100) : null,
             missingPlayers: s.missingNames.size,
@@ -370,4 +412,4 @@ async function analyzeRaidBuffs(wcl, reportId, fights, players, idToPlayer, time
     return any ? summarize(timeline.fights) : null;
 }
 
-module.exports = { analyzeRaidBuffs, buffsForFight, summarize, buffRole, rosterFromSummary, rosterFromBands, FULL_PCT };
+module.exports = { analyzeRaidBuffs, buffsForFight, summarize, buffRole, rosterFromSummary, rosterFromBands, statusOf, FULL_PCT };

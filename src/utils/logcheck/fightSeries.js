@@ -28,32 +28,84 @@ function bucketCount(duration, step = STEP_MS) {
 }
 
 /**
+ * A WCL graph series carries its points in one of two shapes: a flat list of
+ * values on the `pointStart + i × pointInterval` grid, or Highcharts-style
+ * `[timestamp, value]` pairs whose x is the absolute report time itself. This
+ * reads either into `{ times, values }` (both absolute ms / plain numbers),
+ * or null when the series is unusable. In pair form `pointStart` and
+ * `pointInterval` need not be present: the start is the first x, the
+ * interval the first gap between two points.
+ */
+function seriesPoints(s) {
+    if (!s || !Array.isArray(s.data) || !s.data.length) return null;
+    const pairs = s.data.some((v) => Array.isArray(v));
+    if (!pairs) {
+        if (!Number.isFinite(s.pointInterval) || s.pointInterval <= 0 || !Number.isFinite(s.pointStart)) return null;
+        return {
+            pairs: false,
+            pointStart: s.pointStart,
+            pointInterval: s.pointInterval,
+            times: s.data.map((_, i) => s.pointStart + i * s.pointInterval),
+            values: s.data.map((v) => Number(v) || 0),
+        };
+    }
+    const times = [];
+    const values = [];
+    s.data.forEach((v, i) => {
+        const t = Array.isArray(v) ? Number(v[0]) : (Number.isFinite(s.pointStart) && Number.isFinite(s.pointInterval) ? s.pointStart + i * s.pointInterval : NaN);
+        if (!Number.isFinite(t)) return;
+        times.push(t);
+        values.push((Array.isArray(v) ? Number(v[1]) : Number(v)) || 0);
+    });
+    if (!times.length) return null;
+    const interval = Number.isFinite(s.pointInterval) && s.pointInterval > 0
+        ? s.pointInterval
+        : (times.length > 1 && times[1] - times[0] > 0 ? times[1] - times[0] : NaN);
+    if (!Number.isFinite(interval)) return null;
+    return { pairs: true, pointStart: times[0], pointInterval: interval, times, values };
+}
+
+/**
  * The one series of a WCL graph JSON that stands for the whole raid: the
  * "Total" series when the graph carries one, otherwise the per-source series
  * summed on their shared grid. Returns `{ pointStart, pointInterval, total,
- * data }` or null when there is nothing usable.
+ * data }` — plus `times` (absolute ms per value) when the points came as
+ * `[timestamp, value]` pairs, so `resample` places them where the log did
+ * rather than on an assumed grid — or null when there is nothing usable.
  */
 function totalSeries(graph) {
     const list = graph && graph.data && Array.isArray(graph.data.series) ? graph.data.series : null;
     if (!list || list.length === 0) return null;
-    const valid = list.filter((s) => s && Array.isArray(s.data) && s.data.length && Number.isFinite(s.pointInterval) && s.pointInterval > 0 && Number.isFinite(s.pointStart));
+    const valid = list.map((s) => ({ s, p: seriesPoints(s) })).filter((x) => x.p);
     if (valid.length === 0) return null;
-    const total = valid.find((s) => String(s.name || s.type || "").toLowerCase() === "total");
-    if (total) return { pointStart: total.pointStart, pointInterval: total.pointInterval, total: Number(total.total), data: total.data.map((v) => Number(v) || 0) };
-    // sum on the grid of the earliest series; a series on another interval cannot be summed and is skipped
-    const interval = valid[0].pointInterval;
-    const base = Math.min(...valid.map((s) => s.pointStart));
-    const sums = [];
+    const total = valid.find(({ s }) => String(s.name || s.type || "").toLowerCase() === "total");
+    if (total) {
+        const { s, p } = total;
+        return { pointStart: p.pointStart, pointInterval: p.pointInterval, total: Number(s.total), data: p.values, ...(p.pairs ? { times: p.times } : {}) };
+    }
+    // sum on the grid of the earliest series; a flat series on another interval
+    // cannot be summed and is skipped, a pair series places itself by its x
+    const interval = valid[0].p.pointInterval;
+    const base = Math.min(...valid.map(({ p }) => p.pointStart));
+    const byTime = new Map();
     let totalSum = 0;
     let anyTotal = false;
-    for (const s of valid) {
-        if (s.pointInterval !== interval) continue;
-        const offset = Math.round((s.pointStart - base) / interval);
-        s.data.forEach((v, i) => { sums[offset + i] = (sums[offset + i] || 0) + (Number(v) || 0); });
+    let anyPairs = false;
+    for (const { s, p } of valid) {
+        if (!p.pairs && p.pointInterval !== interval) continue;
+        anyPairs = anyPairs || p.pairs;
+        p.times.forEach((t, i) => { byTime.set(t, (byTime.get(t) || 0) + p.values[i]); });
         if (Number.isFinite(Number(s.total))) { totalSum += Number(s.total); anyTotal = true; }
     }
+    const out = { pointStart: base, pointInterval: interval, total: anyTotal ? totalSum : NaN };
+    if (anyPairs) {
+        const times = [...byTime.keys()].sort((a, b) => a - b);
+        return { ...out, times, data: times.map((t) => byTime.get(t)) };
+    }
+    const sums = [];
+    for (const [t, v] of byTime) sums[Math.round((t - base) / interval)] = v;
     for (let i = 0; i < sums.length; i++) if (sums[i] === undefined) sums[i] = 0;
-    return { pointStart: base, pointInterval: interval, total: anyTotal ? totalSum : NaN, data: sums };
+    return { ...out, data: sums };
 }
 
 /**
@@ -81,13 +133,16 @@ function asRate(series) {
  * takes the first. The result has exactly `bucketCount(duration)` entries,
  * rounded to whole units.
  *
- * @param {{ pointStart: number, pointInterval: number, data: number[] }} series  values already a rate
+ * @param {{ pointStart: number, pointInterval: number, data: number[], times?: number[] }} series
+ *        values already a rate; `times` (absolute ms per value) wins over the grid when present
  * @param {{ startTime: number, duration: number }} fight
  */
 function resample(series, fight, step = STEP_MS) {
     const n = bucketCount(fight.duration, step);
     const out = new Array(n).fill(0);
-    const times = series.data.map((_, i) => series.pointStart + i * series.pointInterval - fight.startTime);
+    const times = Array.isArray(series.times) && series.times.length === series.data.length
+        ? series.times.map((t) => t - fight.startTime)
+        : series.data.map((_, i) => series.pointStart + i * series.pointInterval - fight.startTime);
     if (!times.length) return out;
     let last = series.data[0];
     let j = 0;
@@ -108,7 +163,11 @@ function resample(series, fight, step = STEP_MS) {
 
 /**
  * The hit-point fraction an event reports for `actorId`, in percent, or null.
- * Reads the resource objects WCL attaches with `includeResources`.
+ * Reads the two shapes WCL attaches with `includeResources`: the
+ * `sourceResources` / `targetResources` objects, or `hitPoints` /
+ * `maxHitPoints` on the event itself (next to `classResources`), where
+ * `resourceActor` says whose numbers they are — 1 = source (the default),
+ * 2 = target — the same reading healers.js takes for the mana.
  */
 function hpPctOf(ev, actorId) {
     if (!ev) return null;
@@ -119,8 +178,18 @@ function hpPctOf(ev, actorId) {
         if (!Number.isFinite(hp) || !Number.isFinite(max) || max <= 0) return null;
         return Math.max(0, Math.min(100, (hp / max) * 100));
     };
-    if (ev.sourceID === actorId) return from(ev.sourceResources);
-    if (ev.targetID === actorId) return from(ev.targetResources);
+    const isSource = ev.sourceID === actorId;
+    const isTarget = ev.targetID === actorId;
+    if (isSource) {
+        const pct = from(ev.sourceResources);
+        if (pct !== null) return pct;
+    }
+    if (isTarget) {
+        const pct = from(ev.targetResources);
+        if (pct !== null) return pct;
+    }
+    const actor = Number(ev.resourceActor) === 2 ? "target" : "source";
+    if ((actor === "source" && isSource) || (actor === "target" && isTarget)) return from(ev);
     return null;
 }
 
@@ -233,6 +302,7 @@ module.exports = {
     STEP_MS,
     analyzeFightSeries,
     bucketCount,
+    seriesPoints,
     totalSeries,
     asRate,
     resample,
