@@ -1451,8 +1451,13 @@ function buffParts(f, only, common) {
 /** The Raid-Buffs tab: a player × buff matrix of "share of fights with the buff", the raid's coverage above. */
 function renderRaidBuffsPanel(raidBuffs, linkFor) {
     const players = (raidBuffs.players || []).slice().sort((a, b) => (a.type + a.name).localeCompare(b.type + b.name));
-    const cols = (raidBuffs.rows || []).filter((r) => r.expected || r.seenPlayers > 0);
-    if (!players.length || !cols.length) return "<div class=\"empty\">Keine Raid-Buffs im Log.</div>";
+    const blindKeys = new Set((raidBuffs.untracked || []).map((u) => u.key));
+    // a buff the log cannot show is not a column: a grey column of "fehlt" would read as a raid without Fortitude
+    const cols = (raidBuffs.rows || []).filter((r) => !blindKeys.has(r.key) && (r.expected || r.seenPlayers > 0));
+    const blind = (raidBuffs.untracked || []).length
+        ? `<p class="note"><b>Im Log nicht nachweisbar:</b> ${(raidBuffs.untracked || []).map((u) => `${hicon(u.icon, "")}${esc(u.label)}${u.groupLabel ? ` / ${esc(u.groupLabel)}` : ""}`).join(", ")}. Der Client loggt diese Buffs beim Pull nicht (nur beim Nachbuffen), deshalb werden sie nicht bewertet.</p>`
+        : "";
+    if (!players.length || !cols.length) return `${blind}<div class="empty">Keine Raid-Buffs im Log.</div>`;
     // the group version counts like the single one, and the tooltip says so
     const head = cols.map((r) => `<th class="bh">${hicon(r.icon, `${r.label}${r.groupLabel ? ` / ${r.groupLabel}` : ""} (${r.provider})`)}</th>`).join("");
     const cover = cols.map((r) => `<td class="bc">${r.expected ? pctCell(r.coveragePct) : "<span class=\"pct pct-na\">–</span>"}</td>`).join("");
@@ -1471,7 +1476,7 @@ function renderRaidBuffsPanel(raidBuffs, linkFor) {
     }).join("");
     const pal = raidBuffs.paladins || 0;
     const note = `<p class="note">Anteil der Bosskämpfe, in denen der Buff die ganze Zeit auf dem Spieler lag (bis zu seinem Tod). Erwartet wird, was die Aufstellung hergibt: ${pal} Paladin${pal === 1 ? "" : "e"} heißt ${pal === 1 ? "ein Segen" : `${pal} Segen`} pro Spieler, Macht auf Tanks und Nahkämpfer, Weisheit auf Heiler und Caster. Gruppenversionen (Große Segen, Gebete, Gabe der Wildnis, Arkane Brillanz) zählen wie die Einzelbuffs. Grau: nicht erwartet; gestrichelt: Segen auf der falschen Rolle. Wer wann was nicht hatte, steht im Kampfverlauf unter „Buffs“.</p>`;
-    return `${note}<div style="overflow-x:auto"><table class="idx heal-table buff-matrix"><tr><th>Spieler</th>${head}</tr><tr class="cov"><td><b>Abdeckung</b><div class="sritems">Raid</div></td>${cover}</tr>${body}</table></div>`;
+    return `${blind}${note}<div style="overflow-x:auto"><table class="idx heal-table buff-matrix"><tr><th>Spieler</th>${head}</tr><tr class="cov"><td><b>Abdeckung</b><div class="sritems">Raid</div></td>${cover}</tr>${body}</table></div>`;
 }
 
 // ---- Raid-Debuffs: what the raid put on the boss (report.raidDebuffs, utils/logcheck/raidDebuffs.js) ----

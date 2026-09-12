@@ -195,3 +195,28 @@ describe("web/render — Buffs on the player page", () => {
         expect(html).toContain("Buffs<span class=\"n\">0 · alle da</span>");
     });
 });
+
+describe("web/render — buffs the log cannot show", () => {
+    const { renderReportPage } = require("../../src/web/render.js");
+    it("names the blind spot on the Raid-Buffs panel and drops its column instead of showing a raid without Fortitude", () => {
+        const report = {
+            id: "abc123def456", title: "T", players: [], roster: [{ name: "Brokk", type: "Warrior", issues: [], potions: {}, armory: [] }],
+            raidBuffs: {
+                fights: 1, paladins: 1,
+                players: [{ name: "Brokk", type: "Warrior", role: "tank", fights: 1, buffs: { kings: { expected: 1, full: 1, late: 0, partial: 0, none: 0, present: 1, wrong: 0, pct: 100 }, fortitude: { expected: 0, full: 0, late: 0, partial: 1, none: 0, present: 1, wrong: 0, pct: 100 } }, missing: 0, late: 0, partial: 0, wrong: 0 }],
+                rows: [
+                    { key: "kings", label: "Segen der Könige", icon: "spell_magic_greaterblessingofkings", provider: "Paladin", expected: true, untracked: false, coveragePct: 100, seenPlayers: 1, missingPlayers: 0 },
+                    { key: "fortitude", label: "Machtwort: Seelenstärke", icon: "spell_holy_wordfortitude", provider: "Priest", expected: false, untracked: true, coveragePct: null, seenPlayers: 1, missingPlayers: 0 },
+                ],
+                untracked: [{ key: "fortitude", label: "Machtwort: Seelenstärke", groupLabel: "Gebet der Seelenstärke", icon: "spell_holy_wordfortitude", provider: "Priest" }],
+            },
+        };
+        const html = renderReportPage(report);
+        expect(html).toContain("Im Log nicht nachweisbar:");
+        expect(html).toContain("Machtwort: Seelenstärke / Gebet der Seelenstärke");
+        expect(html).toContain("beim Pull nicht");
+        // the blind buff is no column, the blessing still is
+        expect(html).toContain("spell_magic_greaterblessingofkings");
+        expect(html).not.toMatch(/<th class="bh">[^<]*<img[^>]*spell_holy_wordfortitude/);
+    });
+});

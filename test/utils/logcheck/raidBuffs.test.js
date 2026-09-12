@@ -1,5 +1,5 @@
 const {
-    analyzeRaidBuffs, buffsForFight, summarize, buffRole, rosterFromSummary, rosterFromBands, statusOf, FULL_PCT,
+    analyzeRaidBuffs, buffsForFight, summarize, buffRole, rosterFromSummary, rosterFromBands, statusOf, untrackedBuffs, FULL_PCT, PULL_WINDOW_MS,
 } = require("../../../src/utils/logcheck/raidBuffs");
 const { BUFFS, BLESSINGS, buffByGuid, buffByKey, buffFits, expectedBlessings, ROLES } = require("../../../src/config/raidBuffs");
 
@@ -493,6 +493,65 @@ describe("logcheck/raidBuffs — analyzeRaidBuffs", () => {
             }
         }
         expect(sum.rows.find((r) => r.key === "motw").groupLabel).toBe("Gabe der Wildnis");
+    });
+
+    it("leaves a buff nobody ever carried at any pull unjudged instead of calling the whole raid unbuffed", async () => {
+        // The Anniversary client does not list Fortitude / Mark of the Wild in the
+        // combatant info, so WCL shows no band at the pull for anyone — only a
+        // re-cast mid-log makes one. Kings and Arcane Intellect are listed.
+        expect(PULL_WINDOW_MS).toBe(2000);
+        const wcl = wclMock();
+        const midFight = [band(330000, 400000)];   // Fortitude re-cast on one player 30 s into the fight
+        const blindTables = {
+            1: { auras: [aura(KINGS, FULL), aura(MIGHT, FULL), aura(WISDOM, FULL), aura(FORT, midFight)] },
+            2: { auras: [aura(KINGS, FULL), aura(AI, FULL), aura(SPIRIT, FULL)] },
+            3: { auras: [aura(SALVATION, FULL), aura(AI, FULL), aura(SPIRIT, FULL)] },
+            4: { auras: [] },
+            5: { auras: [aura(KINGS, FULL), aura(AI, FULL), aura(SPIRIT, FULL)] },
+            6: { auras: [aura(KINGS, FULL), aura(AI, FULL)] },
+        };
+        wcl.getBuffs.mockImplementation(async (reportId, start, end, extra) => blindTables[extra.sourceid]);
+        const timeline = { fights: [{ id: 3, deaths, buffs: null }] };
+        const sum = await analyzeRaidBuffs(wcl, "abc", fights, players, idToPlayer, timeline);
+        const fb = timeline.fights[0].buffs;
+        expect(fb.untracked).toEqual(["fortitude", "motw"]);
+        expect(fb.expected).not.toContain("fortitude");
+        expect(fb.expected).not.toContain("motw");
+        for (const p of fb.players) {
+            expect(p.missing).not.toContain("fortitude");
+            expect(p.missing).not.toContain("motw");
+        }
+        // the mid-fight re-cast is still shown on that player, marked as the blind spot
+        const brokk = fb.players.find((p) => p.name === "Brokk");
+        expect(brokk.buffs.find((b) => b.key === "fortitude")).toEqual(expect.objectContaining({ status: "partial", expected: false, untracked: true }));
+        // Arcane Intellect is still judged: it was at the pull, and Dorn (enhancer on mana) lacks it
+        expect(fb.players.find((p) => p.name === "Dorn").missing).toContain("intellect");
+        expect(sum.untracked.map((u) => u.key)).toEqual(["fortitude", "motw"]);
+        expect(sum.untracked[0]).toMatchObject({ label: "Machtwort: Seelenstärke", groupLabel: "Gebet der Seelenstärke" });
+        expect(sum.rows.find((r) => r.key === "fortitude")).toEqual(expect.objectContaining({ untracked: true, expected: false }));
+        expect(sum.rows.find((r) => r.key === "intellect")).toEqual(expect.objectContaining({ untracked: false, expected: true }));
+    });
+
+    it("untrackedBuffs: tracked once half the raid carried it at some pull, a blind spot when only a stray re-cast did", () => {
+        const bossFights = [{ start_time: 300000 }, { start_time: 600000 }];
+        const bands = {
+            A: { byKey: { fortitude: [band(599500, 700000)], motw: [band(330000, 400000)], intellect: [band(0, 999999)] } },
+            B: { byKey: { fortitude: [band(599000, 700000)], intellect: [band(0, 999999)] } },
+            C: { byKey: { kings: [band(0, 999999)], intellect: [band(0, 999999)] } },
+            D: { byKey: { kings: [band(0, 999999)] } },
+        };
+        const blind = untrackedBuffs(bands, bossFights);
+        expect(blind.has("fortitude")).toBe(false);   // 2 of 4 at the second pull: tracked
+        expect(blind.has("motw")).toBe(true);         // only one player, only mid-fight
+        expect(blind.has("intellect")).toBe(false);   // 3 of 4 at every pull
+        expect(blind.has("kings")).toBe(false);       // blessings are never a blind spot
+        // one re-cast landing on a pull does not make the buff trackable for a raid of 25
+        const many = {};
+        for (let i = 0; i < 25; i++) many[`P${i}`] = { byKey: { kings: [band(0, 999999)] } };
+        many.P0.byKey.fortitude = [band(299000, 400000)];
+        expect(untrackedBuffs(many, bossFights).has("fortitude")).toBe(true);
+        expect(untrackedBuffs(bands, []).size).toBe(0);
+        expect(untrackedBuffs({}, bossFights).size).toBe(0);
     });
 
     it("survives a failed buffs table and a failed summary", async () => {
