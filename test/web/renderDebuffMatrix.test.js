@@ -58,7 +58,7 @@ function timeline() {
 
 function cell(html, label, boss) {
     // the <td> whose tooltip names this debuff on this boss
-    const re = new RegExp(`<td class="bc"><span class="pct [^"]*" title="${label} (auf|fehlte auf) ${boss}[^"]*">[^<]*</span>(<div class="sritems">[^<]*</div>)?</td>`);
+    const re = new RegExp(`<td class="bc"><span class="pct [^"]*" data-tip="${label} (auf|fehlte auf) ${boss}[^"]*">[^<]*</span>(<div class="sritems">[^<]*</div>)?</td>`);
     const m = html.match(re);
     return m ? m[0] : null;
 }
@@ -70,7 +70,7 @@ describe("web/render — Raid-Debuffs section", () => {
         expect(html).toContain("<span>Raid-Debuffs</span><span class=\"rec-count hot\">2</span>"); // coe at 83 %, Hunter's Mark missing
         expect(html).toContain("Fluch der Elemente<div class=\"sritems\">Warlock</div>");
         // the unexpected one is shown without a tone
-        expect(html).toContain("<span class=\"pct pct-na\" title=\"nicht erwartet\">40%</span>");
+        expect(html).toContain("<span class=\"pct pct-na\" data-tip=\"nicht erwartet\">40%</span>");
         expect(html).toContain("<span class=\"pct pct-none\">3/3</span>");
     });
 
@@ -108,7 +108,7 @@ describe("web/render — Raid-Debuffs section", () => {
 
     it("shows \"–\" without a tone where the debuff was not expected on that boss", () => {
         const html = renderReportPage({ ...report(), raidDebuffs: raidDebuffs(), timeline: timeline() });
-        expect(html).toContain("<td class=\"bc\"><span class=\"pct pct-na\" title=\"Elend auf Gruul the Dragonkiller: nicht erwartet\">–</span></td>");
+        expect(html).toContain("<td class=\"bc\"><span class=\"pct pct-na\" data-tip=\"Elend auf Gruul the Dragonkiller: nicht erwartet\">–</span></td>");
         // seen although not expected: the value, still without a tone
         const m = cell(html, "Elend", "High King Maulgar");
         expect(m).toContain("class=\"pct pct-na\"");
@@ -120,7 +120,7 @@ describe("web/render — Raid-Debuffs section", () => {
         const html = renderReportPage({ ...report(), raidDebuffs: raidDebuffs(), timeline: timeline() });
         const c = cell(html, "Mal des Jägers", "High King Maulgar");
         expect(c).toContain("class=\"pct pct-none\"");
-        expect(c).toContain("title=\"Mal des Jägers fehlte auf High King Maulgar · Try 1 (Wipe bei 33 %): 0 % · Try 2 (Kill): 0 %\"");
+        expect(c).toContain("data-tip=\"Mal des Jägers fehlte auf High King Maulgar · Try 1 (Wipe bei 33 %): 0 % · Try 2 (Kill): 0 %\"");
         expect(c).toContain(">0%</span>");
     });
 

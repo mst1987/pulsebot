@@ -85,8 +85,8 @@ function deathMarkers(deaths, duration, plotW, y0, y1, classColor) {
         const x = sx(d.at).toFixed(1);
         const color = (classColor && classColor(d.type)) || "";
         const style = color ? ` style="--cc:${esc(color)}"` : "";
-        const why = d.ability ? ` († ${d.ability})` : "";
-        return `<g class="fc-death"${style}><title>${esc(`${fmtTime(d.at)} ${d.name}${why}`)}</title>`
+        const why = d.ability ? ` data-tip-sub="${esc(`† ${d.ability}`)}"` : "";
+        return `<g class="fc-death"${style} data-tip="${esc(`${fmtTime(d.at)} ${d.name}`)}"${why}>`
             + `<line x1="${x}" y1="${y0}" x2="${x}" y2="${y1}"/>`
             + `<rect x="${(Number(x) - 6).toFixed(1)}" y="${y0}" width="12" height="${y1 - y0}" class="fc-hit"/></g>`;
     }).join("");
@@ -109,7 +109,7 @@ function iconColumn(rows) {
         const inner = row.icon
             ? `<img src="${esc(iconUrl(row.icon))}" alt="">`
             : `<span class="fc-initial">${esc(String(row.label || "?").slice(0, 2))}</span>`;
-        return `<div class="fc-cell" title="${esc(row.label)}">${inner}</div>`;
+        return `<div class="fc-cell" data-tip="${esc(row.label)}">${inner}</div>`;
     }).join("");
     return `<div class="fc-col fc-icons" style="padding-top:${PAD_TOP}px">${cells}</div>`;
 }
@@ -119,7 +119,7 @@ function valueColumn(rows) {
     const cells = rows.map((row) => {
         const value = row.value !== undefined && row.value !== null ? `<b class="${row.tone ? `fc-${row.tone}` : ""}">${esc(row.value)}</b>` : "";
         const sub = row.sub ? `<span>${esc(row.sub)}</span>` : "";
-        return `<div class="fc-cell" title="${esc(row.label)}">${value}${sub}</div>`;
+        return `<div class="fc-cell" data-tip="${esc(row.label)}"${row.sub ? ` data-tip-sub="${esc(row.sub)}"` : ""}>${value}${sub}</div>`;
     }).join("");
     return `<div class="fc-col fc-values" style="padding-top:${PAD_TOP}px">${cells}</div>`;
 }
@@ -166,7 +166,7 @@ function ribbonChart(chart) {
             const tip = max > 0
                 ? `${fmtTime(b.from)}–${fmtTime(b.to)} · ${b.stacks}/${max} Stacks`
                 : `${fmtTime(b.from)}–${fmtTime(b.to)}`;
-            return `<rect class="fc-band${row.tone ? ` fc-${row.tone}` : ""}" x="${x.toFixed(1)}" y="${by}" width="${w.toFixed(1)}" height="${BAND_H}" rx="3" fill-opacity="${level.toFixed(2)}"><title>${esc(`${row.label}: ${tip}`)}</title></rect>`;
+            return `<rect class="fc-band${row.tone ? ` fc-${row.tone}` : ""}" x="${x.toFixed(1)}" y="${by}" width="${w.toFixed(1)}" height="${BAND_H}" rx="3" fill-opacity="${level.toFixed(2)}" data-tip="${esc(row.label)}" data-tip-sub="${esc(tip)}"/>`;
         }).join("");
         return `<g class="fc-row"><line class="fc-track" x1="0" y1="${y + ROW_H / 2}" x2="${plotW}" y2="${y + ROW_H / 2}"/>${bands}</g>`;
     }).join("");
@@ -238,23 +238,23 @@ function markerChart(chart) {
     const windows = (chart.windows || []).map((w) => {
         const x = sx(w.from);
         const wd = Math.max(1, sx(w.to) - sx(w.from));
-        return `<rect class="fc-window" x="${x.toFixed(1)}" y="${PAD_TOP}" width="${wd.toFixed(1)}" height="${rowsBottom - PAD_TOP}"><title>${esc(`${w.label}: ${fmtTime(w.from)}–${fmtTime(w.to)}`)}</title></rect>`;
+        return `<rect class="fc-window" x="${x.toFixed(1)}" y="${PAD_TOP}" width="${wd.toFixed(1)}" height="${rowsBottom - PAD_TOP}" data-tip="${esc(w.label)}" data-tip-sub="${esc(`${fmtTime(w.from)}–${fmtTime(w.to)}`)}"/>`;
     }).join("");
 
     const body = rows.map((row, i) => {
         const y = PAD_TOP + i * ROW_H;
         const cy = y + ROW_H / 2;
         const band = (row.band || []).map(normalizeBand).filter((b) => b && b.to > b.from).map((b) =>
-            `<rect class="fc-band fc-band-soft" x="${sx(b.from).toFixed(1)}" y="${cy - 6}" width="${Math.max(1, sx(b.to) - sx(b.from)).toFixed(1)}" height="12" rx="3"><title>${esc(`${row.label}: ${fmtTime(b.from)}–${fmtTime(b.to)}`)}</title></rect>`).join("");
+            `<rect class="fc-band fc-band-soft" x="${sx(b.from).toFixed(1)}" y="${cy - 6}" width="${Math.max(1, sx(b.to) - sx(b.from)).toFixed(1)}" height="12" rx="3" data-tip="${esc(row.label)}" data-tip-sub="${esc(`${fmtTime(b.from)}–${fmtTime(b.to)}`)}"/>`).join("");
         const downtimes = (row.downtimes || []).map(normalizeBand).filter((b) => b && b.to > b.from).map((b) =>
-            `<rect class="fc-band fc-high" x="${sx(b.from).toFixed(1)}" y="${cy - 6}" width="${Math.max(1, sx(b.to) - sx(b.from)).toFixed(1)}" height="12" rx="3"><title>${esc(`${row.label}: Lücke ${fmtTime(b.from)}–${fmtTime(b.to)} (${fmtTime(b.to - b.from)})`)}</title></rect>`).join("");
+            `<rect class="fc-band fc-high" x="${sx(b.from).toFixed(1)}" y="${cy - 6}" width="${Math.max(1, sx(b.to) - sx(b.from)).toFixed(1)}" height="12" rx="3" data-tip="${esc(row.label)}" data-tip-sub="${esc(`Lücke ${fmtTime(b.from)}–${fmtTime(b.to)} (${fmtTime(b.to - b.from)})`)}"/>`).join("");
         const markers = (row.markers || []).filter((m) => m && Number.isFinite(m.at)).map((m) => {
             const cx = sx(m.at);
             const tip = `${fmtTime(m.at)} ${m.label || row.label}`;
             const dot = m.icon
                 ? `<image class="fc-marker-icon" href="${esc(iconUrl(m.icon))}" x="${(cx - mark / 2).toFixed(1)}" y="${cy - mark / 2}" width="${mark}" height="${mark}"/>`
                 : `<circle class="fc-marker" cx="${cx.toFixed(1)}" cy="${cy}" r="6"/>`;
-            return `<g class="fc-mark"><title>${esc(tip)}</title>${dot}<rect class="fc-hit" x="${(cx - 16).toFixed(1)}" y="${y}" width="32" height="${ROW_H}"/></g>`;
+            return `<g class="fc-mark" data-tip="${esc(tip)}">${dot}<rect class="fc-hit" x="${(cx - 16).toFixed(1)}" y="${y}" width="32" height="${ROW_H}"/></g>`;
         }).join("");
         return `<g class="fc-row"><line class="fc-track" x1="0" y1="${cy}" x2="${plotW}" y2="${cy}"/>${band}${downtimes}${markers}</g>`;
     }).join("");
@@ -297,11 +297,11 @@ function barChart(chart) {
         const v = Math.max(0, Math.min(max, Number(row.value) || 0));
         const w = (v / max) * plotW;
         const display = row.display !== undefined ? row.display : `${row.value}`;
-        const text = `<text class="fc-label" x="6" y="${y + BAR_ROW_H / 2 + 4}"><title>${esc(row.label)}</title>${esc(row.label)}</text>`;
+        const text = `<text class="fc-label" x="6" y="${y + BAR_ROW_H / 2 + 4}" data-tip="${esc(row.label)}">${esc(row.label)}</text>`;
         const label = row.href ? `<a href="${esc(row.href)}">${text}</a>` : text;
         // rounded at the data end only: square at the baseline
         const bar = w > 0
-            ? `<path class="fc-bar${row.tone ? ` fc-${row.tone}` : ""}" d="M${BAR_LABEL_W},${y + 6} h${Math.max(0, w - 4).toFixed(1)} a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h-${Math.max(0, w - 4).toFixed(1)} z"><title>${esc(`${row.label}: ${display}`)}</title></path>`
+            ? `<path class="fc-bar${row.tone ? ` fc-${row.tone}` : ""}" d="M${BAR_LABEL_W},${y + 6} h${Math.max(0, w - 4).toFixed(1)} a4,4 0 0 1 4,4 v8 a4,4 0 0 1 -4,4 h-${Math.max(0, w - 4).toFixed(1)} z" data-tip="${esc(row.label)}" data-tip-sub="${esc(display)}"/>`
             : "";
         return `<g class="fc-row">${label}<line class="fc-track" x1="${BAR_LABEL_W}" y1="${y + BAR_ROW_H / 2}" x2="${BAR_LABEL_W + plotW}" y2="${y + BAR_ROW_H / 2}"/>${bar}<text class="fc-value" x="${(BAR_LABEL_W + w + 6).toFixed(1)}" y="${y + BAR_ROW_H / 2 + 4}">${esc(display)}</text></g>`;
     }).join("");
@@ -350,12 +350,12 @@ function lineChart(chart) {
         const pts = s.values.map((v, j) => `${px(j).toFixed(1)},${sy(v).toFixed(1)}`);
         const area = `M${px(0).toFixed(1)},${(PAD_TOP + plotH).toFixed(1)} L${pts.join(" L")} L${px(s.values.length - 1).toFixed(1)},${(PAD_TOP + plotH).toFixed(1)} Z`;
         const last = s.values.length - 1;
-        return `<g class="fc-series fc-series-${key}"><title>${esc(s.label)}</title><path class="fc-area" d="${area}"/><polyline class="fc-line" points="${pts.join(" ")}"/>`
+        return `<g class="fc-series fc-series-${key}" data-tip="${esc(s.label)}"><path class="fc-area" d="${area}"/><polyline class="fc-line" points="${pts.join(" ")}"/>`
             + `<circle class="fc-end" cx="${px(last).toFixed(1)}" cy="${sy(s.values[last]).toFixed(1)}" r="5"/></g>`;
     }).join("");
 
     const hp = Array.isArray(chart.bossHp) && chart.bossHp.length
-        ? `<polyline class="fc-hp" points="${chart.bossHp.map((v, j) => `${px(j).toFixed(1)},${(PAD_TOP + plotH - (Math.max(0, Math.min(100, Number(v) || 0)) / 100) * plotH).toFixed(1)}`).join(" ")}"><title>Boss-Leben (%)</title></polyline>`
+        ? `<polyline class="fc-hp" points="${chart.bossHp.map((v, j) => `${px(j).toFixed(1)},${(PAD_TOP + plotH - (Math.max(0, Math.min(100, Number(v) || 0)) / 100) * plotH).toFixed(1)}`).join(" ")}" data-tip="Boss-Leben (%)"/>`
         : "";
 
     // markers sit on the first series at their time: a potion on the mana curve
@@ -370,7 +370,7 @@ function lineChart(chart) {
         const y = sy(valueAt(m.at));
         const tip = `${fmtTime(m.at)} · ${m.label || ""}${m.value !== undefined && m.value !== null ? ` · ${m.value}` : ""}`;
         const icon = m.icon ? `<image href="${esc(iconUrl(m.icon))}" x="${(x - 10).toFixed(1)}" y="${(y - 32).toFixed(1)}" width="20" height="20"/>` : "";
-        return `<g class="fc-mark"><circle class="fc-marker fc-mark-pt" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6"/>${icon}<title>${esc(tip)}</title></g>`;
+        return `<g class="fc-mark" data-tip="${esc(tip)}"><circle class="fc-marker fc-mark-pt" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6"/>${icon}</g>`;
     }).join("");
 
     const legend = series.map((s, i) => `<span class="fc-key fc-key-${s.key || (i === 0 ? "a" : "b")}"></span>${esc(s.label)}`).join(" · ")

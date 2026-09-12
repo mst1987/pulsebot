@@ -261,7 +261,7 @@ describe("web/render", () => {
             expect(html).toContain("Bosse</div>");
             expect(html).toContain("1 Kill, 1 Wipe"); // 2 boss rows, one of them a wipe
             expect(html).toContain("Flask / Elixiere");
-            expect(html).toContain("Raider<span class=\"n\">2</span>"); // 2 raiders
+            expect(html).toMatch(/Raider<span class="n(?: mid| bad)?">2<\/span>/); // 2 raiders
             expect(html).toContain("<span>Gear-Probleme</span><span class=\"rec-count hot\">1</span>");
         });
 
@@ -469,7 +469,7 @@ describe("web/render", () => {
         it("counts the downrank warnings in the spell section's badge", () => {
             const html = renderReportPage(reportWithRpb());
             // exactly one flagged spell in the fixture
-            expect(html).toMatch(/id="rs-rpbspells">\s*<summary><img class="hicon"[^>]*><span>Zauber<\/span><span class="rec-count hot">1<\/span>/);
+            expect(html).toMatch(/id="rs-rpbspells">\s*<summary><span class="tile bad"><img class="hicon"[^>]*><\/span><span>Zauber<\/span><span class="rec-count hot">1<\/span>/);
         });
 
         it("hides the spell section when no tracked casts were recorded", () => {

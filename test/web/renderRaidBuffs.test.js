@@ -86,7 +86,7 @@ describe("web/render — Buffs topic of a fight", () => {
     it("adds a Buffs topic listing who lacked what: missing, run out, wrong role", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
         expect(html).toContain("data-show=\"fp-2-buffs\">");
-        expect(html).toContain("Buffs<span class=\"n\">2 · 2 fehlten</span>");
+        expect(html).toMatch(/Buffs<span class="n(?: mid| bad)?">2 · 2 fehlten<\/span>/);
         expect(html).toContain("1 Paladin · erwartet: Segen der Könige, Machtwort: Seelenstärke");
         // Brokk: Fortitude ran out, Wisdom on a warrior
         expect(html).toContain("<span class=\"cn\">Brokk</span><span class=\"sritems\">Tank</span>");
@@ -102,7 +102,7 @@ describe("web/render — Buffs topic of a fight", () => {
     it("says so when everybody had everything, and leaves the topic out without data", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
         expect(html).toContain("data-show=\"fp-6-buffs\">");
-        expect(html).toContain("Buffs<span class=\"n\">0 · alle da</span>");
+        expect(html).toMatch(/Buffs<span class="n(?: mid| bad)?">0 · alle da<\/span>/);
         expect(html).toContain("Alle erwarteten Buffs auf allen Spielern.");
         expect(html).not.toContain("fp-4-buffs");
     });
@@ -120,10 +120,10 @@ describe("web/render — Raid-Buffs section", () => {
         expect(html).toContain("<tr class=\"cov\"><td><b>Abdeckung</b><div class=\"sritems\">Raid</div></td><td class=\"bc\"><span class=\"pct pct-part\">78%</span></td>");
         expect(html).toContain("<a class=\"cn\" href=\"/r/abc123def456/p/2\">Dorn</a><div class=\"sritems\">Shaman · Nahkampf · 3 Kämpfe</div>");
         // a summary from before the `late` counter existed: read as 0, not as "undefined×"
-        expect(html).toContain("title=\"Segen der Könige: 1× da, 0× spät gesetzt, 0× nicht durchgehend, 2× gefehlt\"><span class=\"pct pct-part\">33%</span>");
+        expect(html).toContain("data-tip=\"Segen der Könige\" data-tip-sub=\"1× da, 0× spät gesetzt, 0× nicht durchgehend, 2× gefehlt\"><span class=\"pct pct-part\">33%</span>");
         expect(html).toContain("<span class=\"pct pct-none\">0%</span>");
-        expect(html).toContain("<span class=\"pct pct-wrong\" title=\"Segen der Weisheit: 3× auf der falschen Rolle\">100%</span>");
-        expect(html).toContain("<span class=\"pct pct-na\" title=\"Wasserschild: nicht erwartet, 3× da\">100%</span>");
+        expect(html).toContain("<span class=\"pct pct-wrong\" data-tip=\"Segen der Weisheit\" data-tip-sub=\"3× auf der falschen Rolle\">100%</span>");
+        expect(html).toContain("<span class=\"pct pct-na\" data-tip=\"Wasserschild\" data-tip-sub=\"nicht erwartet, 3× da\">100%</span>");
         expect(html).toContain("1 Paladin heißt ein Segen pro Spieler");
     });
 
@@ -138,7 +138,7 @@ describe("web/render — Raid-Buffs section", () => {
         // Dorn lacked Kings twice
         expect(html).toContain("<b>2</b> Buffs fehlten</span>");
         expect(html).toContain("<b>0</b> Buffs fehlten</span>");
-        expect(html).toContain("Buffs<span class=\"n\">2 fehlten</span>");
+        expect(html).toMatch(/Buffs<span class="n(?: mid| bad)?">2 fehlten<\/span>/);
         expect(html).toContain("Nahkampf · 3 Kämpfe · fehlte 2×");
         expect(html).toContain("<table class=\"mini\"><tr><th>Buff</th><th>Anteil</th><th>Da</th><th>Spät</th><th>Nicht durchgehend</th><th>Gefehlt</th><th></th></tr>");
     });
@@ -148,8 +148,8 @@ describe("web/render — Buffs on the player page", () => {
     it("draws the raider's own buffs as ribbons with their status, nothing of the others", () => {
         const html = renderPlayerPage({ ...report(), timeline: timeline(), raidBuffs: summary() }, 2); // Dorn
         expect(html).toContain("<h2>Kampfverlauf</h2>");
-        expect(html).toContain("Buffs<span class=\"n\">1 · 1 fehlten</span>");
-        expect(html).toContain("<title>Machtwort: Seelenstärke: 0:00–1:00</title>");
+        expect(html).toMatch(/Buffs<span class="n(?: mid| bad)?">1 · 1 fehlten<\/span>/);
+        expect(html).toContain("data-tip=\"Machtwort: Seelenstärke\" data-tip-sub=\"0:00–1:00\"");
         expect(html).toContain("<b class=\"fc-high\">0%</b><span>fehlt</span>");
         expect(html).toContain("<b class=\"fc-good\">100%</b><span>da</span>");
         expect(html).toContain("<b class=\"\">100%</b><span>nicht erwartet</span>");
@@ -159,10 +159,10 @@ describe("web/render — Buffs on the player page", () => {
 
     it("labels a blessing on the wrong role and a buff that was not there throughout", () => {
         const html = renderPlayerPage({ ...report(), timeline: timeline() }, 0); // Brokk
-        expect(html).toContain("Buffs<span class=\"n\">2 · 2 fehlten</span>");
+        expect(html).toMatch(/Buffs<span class="n(?: mid| bad)?">2 · 2 fehlten<\/span>/);
         expect(html).toContain("<b class=\"fc-medium\">50%</b><span>nicht durchgehend</span>");
         expect(html).toContain("<b class=\"fc-high\">100%</b><span>falsche Rolle</span>");
-        expect(html).toContain("<title>Segen der Weisheit (falsche Rolle): 0:00–2:00</title>");
+        expect(html).toContain("data-tip=\"Segen der Weisheit (falsche Rolle)\" data-tip-sub=\"0:00–2:00\"");
     });
 
     // A buff set after the pull and then kept is its own status, not "ran out".
@@ -178,21 +178,21 @@ describe("web/render — Buffs on the player page", () => {
         const raid = renderReportPage({ ...report(), timeline: tl });
         // the raid page lists her now, with the late chip
         expect(raid).toContain("data-show=\"fp-2-buffs\">");
-        expect(raid).toContain("Buffs<span class=\"n\">3 · 3 fehlten</span>");
+        expect(raid).toMatch(/Buffs<span class="n(?: mid| bad)?">3 · 3 fehlten<\/span>/);
         expect(raid).toContain("<span class=\"cn\">Elun</span><span class=\"sritems\">Heiler</span>");
         expect(raid).toContain("Segen der Könige spät gesetzt</span>");
         expect(raid).not.toContain("ausgelaufen");
         // the player page draws it as a medium ribbon with the neutral word
         const player = renderPlayerPage({ ...report(), timeline: tl }, 1); // Elun
-        expect(player).toContain("Buffs<span class=\"n\">1 · 1 fehlten</span>");
+        expect(player).toMatch(/Buffs<span class="n(?: mid| bad)?">1 · 1 fehlten<\/span>/);
         expect(player).toContain("<b class=\"fc-medium\">92%</b><span>spät gesetzt</span>");
-        expect(player).toContain("<title>Segen der Könige: 0:10–2:00</title>");
+        expect(player).toContain("data-tip=\"Segen der Könige\" data-tip-sub=\"0:10–2:00\"");
     });
 
     it("lists a fight for a raider who only shows up in its buffs", () => {
         const html = renderPlayerPage({ ...report(), timeline: { fights: [timeline().fights[2]] } }, 1); // Elun
         expect(html).toContain("<h2>Kampfverlauf</h2>");
-        expect(html).toContain("Buffs<span class=\"n\">0 · alle da</span>");
+        expect(html).toMatch(/Buffs<span class="n(?: mid| bad)?">0 · alle da<\/span>/);
     });
 });
 
@@ -230,8 +230,8 @@ describe("web/render — buffs read off the events", () => {
         // both inferred buffs are columns, the one nobody was judged on included, and the header says where they come from
         expect(html).toMatch(/<th class="bh">[^<]*<img[^>]*spell_holy_wordfortitude[^>]*data-tip="Machtwort: Seelenstärke \/ Gebet der Seelenstärke \(Priest\) · aus dem Verlauf abgeleitet"/);
         expect(html).toMatch(/<th class="bh">[^<]*<img[^>]*spell_nature_regeneration/);
-        expect(html).toContain("<td class=\"bc\"><span class=\"pct pct-na\" title=\"Mal der Wildnis: 2× nicht nachweisbar\">?</span></td>");
-        expect(html).toContain("title=\"Machtwort: Seelenstärke: 1× da, 0× spät gesetzt, 0× nicht durchgehend, 0× gefehlt, 1× nicht nachweisbar\"");
+        expect(html).toContain("<td class=\"bc\"><span class=\"pct pct-na\" data-tip=\"Mal der Wildnis\" data-tip-sub=\"2× nicht nachweisbar\">?</span></td>");
+        expect(html).toContain("data-tip=\"Machtwort: Seelenstärke\" data-tip-sub=\"1× da, 0× spät gesetzt, 0× nicht durchgehend, 0× gefehlt, 1× nicht nachweisbar\"");
         // the raider's own table says the same
         expect(html).toContain("Machtwort: Seelenstärke und Mal der Wildnis aus dem Verlauf abgeleitet, 3× ohne Nachweis.</span>");
         expect(html).toContain("<td><span class=\"pct pct-na\">?</span></td><td class=\"mono\">0</td><td class=\"mono\">0</td><td class=\"mono\">0</td><td class=\"mono\">0</td><td class=\"sritems\">2× nicht nachweisbar</td>");

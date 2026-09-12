@@ -48,10 +48,10 @@ describe("web/render — Kampfverlauf tab", () => {
     it("shows the tab with one boss tab per boss, carrying the WCL icon and the try count", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
         expect(html).toContain("class=\"seg-btn active\" data-show=\"view-bosse\"");
-        expect(html).toContain("Bosse<span class=\"n\">2</span>");
+        expect(html).toMatch(/Bosse<span class="n(?: mid| bad)?">2<\/span>/);
         expect(html.match(/<details class="vcard boss-card"/g)).toHaveLength(2);
-        expect(html).toContain("<img class=\"vcard-icon\" src=\"/bosses/649.jpg\" alt=\"\"><div class=\"vcard-main\"><div class=\"vcard-title\">High King Maulgar</div><div class=\"vcard-meta\">2 Tries · Wipe bei 33 % · Kill 3:00 · 1 Tod</div>");
-        expect(html).toContain("<img class=\"vcard-icon\" src=\"/bosses/650.jpg\" alt=\"\"><div class=\"vcard-main\"><div class=\"vcard-title\">Gruul the Dragonkiller</div><div class=\"vcard-meta\">1 Try · Kill 3:20 · 0 Tode</div>");
+        expect(html).toContain("<img class=\"vcard-icon\" src=\"/bosses/649.jpg\" alt=\"\"><div class=\"vcard-main\"><div class=\"vcard-title\">High King Maulgar</div><div class=\"vcard-meta\"><span class=\"badge count\">2 Tries</span>");
+        expect(html).toContain("<img class=\"vcard-icon\" src=\"/bosses/650.jpg\" alt=\"\"><div class=\"vcard-main\"><div class=\"vcard-title\">Gruul the Dragonkiller</div><div class=\"vcard-meta\"><span class=\"badge count\">1 Try</span>");
         // the first boss card is open, the second closed
         expect(html).toContain("<details class=\"vcard boss-card\" id=\"boss-e649\" open>");
         expect(html).toContain("<details class=\"vcard boss-card\" id=\"boss-e650\">");
@@ -59,15 +59,15 @@ describe("web/render — Kampfverlauf tab", () => {
 
     it("sums a boss up in chips: missing debuffs and the raid DPS of the kill", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).toContain("<span class=\"chip chip-x ok\"><b>0</b> Debuffs fehlten</span>");
-        expect(html).toContain("<span class=\"chip chip-x ok\"><b>1,0k</b> Raid-DPS</span>");
+        expect(html).toMatch(/<span class="chip chip-x ok" data-tip="[^"]*" data-tip-sub="[^"]*">(?:<img[^>]*>)?<b>0<\/b> Debuffs fehlten<\/span>/);
+        expect(html).toMatch(/<span class="chip chip-x ok" data-tip="[^"]*" data-tip-sub="[^"]*">(?:<img[^>]*>)?<b>1,0k<\/b> Raid-DPS<\/span>/);
     });
 
-    it("puts the fight's numbers in one row: Raid-DPS, Bloodlust, mean activity, expected debuffs, deaths", () => {
+    it("puts the fight's numbers in one row: Raid-DPS, mean activity, expected debuffs, deaths — no Bloodlust stat", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
         expect(html).toContain("Raid-DPS</div><div class=\"stat-v\">1,0k</div>");
         expect(html).toContain("Raid-HPS</div><div class=\"stat-v\">300</div>");
-        expect(html).toContain("Bloodlust</div><div class=\"stat-v\">0:00 </div>");
+        expect(html).not.toContain("Bloodlust</div><div class=\"stat-v\">"); // dropped on request; the windows stay in the Cooldowns chart
         expect(html).toContain("Aktivität Ø</div><div class=\"stat-v warn\">94 %</div>");
         expect(html).toContain("Tode</div><div class=\"stat-v\">1 <small>· Alice 0:30</small></div>");
     });
@@ -83,18 +83,34 @@ describe("web/render — Kampfverlauf tab", () => {
         expect(bosse.match(/<nav class="try-pills">/g)).toHaveLength(1);
     });
 
+    it("groups cooldowns and totems under the player they belong to, with a result badge and the expand control", () => {
+        const html = renderReportPage({ ...report(), timeline: timeline() });
+        // Alice's Icy Veins under Alice: class tile, name in class colour, the badge, "Details" + the chevron button
+        expect(html).toContain("<div class=\"glist\"><details class=\"grp\" style=\"--cc:#69CCF0\">");
+        expect(html).toContain("<summary><span class=\"tile cls\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/classicon_mage.jpg\" alt=\"\"></span><span class=\"cn\">Alice</span><span class=\"sritems\">Mage</span><span class=\"badge\">1 Einsatz</span><span class=\"exp-lbl\"><span class=\"exp-w\">Details</span><span class=\"exp\"><svg");
+        // the row itself keeps the bare cooldown name; the chart row keeps "Alice · Icy Veins"
+        expect(html).toMatch(/<details class="grp"[^>]*>\s*<summary>[^]*?Alice[^]*?<\/summary>\s*<table class="idx fc-table topic-table">[^]*?Icy Veins<\/td>/);
+        // Bob's Windfury: nothing missing, so the group is closed and says ok
+        expect(html).toContain("<span class=\"cn\">Bob</span><span class=\"sritems\">Warrior</span><span class=\"badge ok\">ok</span>");
+        const bob = html.indexOf("<span class=\"cn\">Bob</span><span class=\"sritems\">Warrior</span><span class=\"badge ok\">ok</span>");
+        expect(html.slice(html.lastIndexOf("<details class=\"grp\"", bob), bob)).not.toContain(" open>");
+        // the player page stays a flat table of the raider's own rows
+        const own = renderPlayerPage({ ...report(), timeline: timeline() }, 0);
+        expect(own).not.toContain("<details class=\"grp\"");
+    });
+
     it("switches topics with section buttons, the first topic open, the table first and the chart in a dialog", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
         expect(html).toContain("class=\"sec active\" data-show=\"fp-3-debuffs\">");
-        expect(html).toContain("Debuffs<span class=\"n\">1</span>");
+        expect(html).toMatch(/Debuffs<span class="n(?: mid| bad)?">1<\/span>/);
         expect(html).toContain("data-show=\"fp-3-totems\">");
-        expect(html).toContain("Totems<span class=\"n\">1</span>");
+        expect(html).toMatch(/Totems<span class="n(?: mid| bad)?">1<\/span>/);
         expect(html).toContain("data-show=\"fp-3-cooldowns\">");
-        expect(html).toContain("Cooldowns<span class=\"n\">1</span>"); // no possibleUses on the row: no "genutzt" share
+        expect(html).toMatch(/Cooldowns<span class="n(?: mid| bad)?">1<\/span>/); // no possibleUses on the row: no "genutzt" share
         expect(html).toContain("data-show=\"fp-3-activity\">");
-        expect(html).toContain("Aktivität<span class=\"n\">1 · Ø 94 %</span>");
+        expect(html).toMatch(/Aktivität<span class="n(?: mid| bad)?">1 · Ø 94 %<\/span>/);
         expect(html).toContain("data-show=\"fp-3-deaths\">");
-        expect(html).toContain("Tode<span class=\"n\">0</span>");
+        expect(html).toMatch(/Tode<span class="n(?: mid| bad)?">0<\/span>/);
         expect(html).toContain("<div id=\"fp-3-debuffs\" class=\"fight-part part\">");
         expect(html).toContain("<div id=\"fp-3-totems\" class=\"fight-part part\" hidden>");
         // the compact table sits in the card, the chart behind "Verlauf öffnen" in a <dialog>
@@ -113,35 +129,35 @@ describe("web/render — Kampfverlauf tab", () => {
 
     it("draws icon-only rows with the name in the tooltip and the value with a sub line", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).toContain("title=\"Bob · Windfury\"");
-        expect(html).toContain("title=\"Alice · Icy Veins\"");
+        expect(html).toContain("data-tip=\"Bob · Windfury\"");
+        expect(html).toContain("data-tip=\"Alice · Icy Veins\"");
         expect(html).toContain("<b class=\"fc-good\">100%</b><span>5/5 ab 0:08</span>");
         expect(html).toContain("<b class=\"fc-medium\">94%</b><span>1 Lücke</span>");
         expect(html).toContain("<b class=\"\">1×</b>");
-        expect(html).toContain("Bloodlust: 0:00–0:40");
+        expect(html).toContain("data-tip=\"Bloodlust\" data-tip-sub=\"0:00–0:40\"");
         expect(html).toContain("5/5 Stacks");
         // the activity row of a raider without an icon uses the class icon
-        expect(html).toContain("<div class=\"fc-cell\" title=\"Alice\"><img src=\"https://wow.zamimg.com/images/wow/icons/medium/classicon_mage.jpg\"");
+        expect(html).toContain("<div class=\"fc-cell\" data-tip=\"Alice\"><img src=\"https://wow.zamimg.com/images/wow/icons/medium/classicon_mage.jpg\"");
     });
 
     it("draws the bare fight axis with its deaths when no analyzer has filled a fight yet", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
         expect(html).toContain("data-show=\"fp-2-fight\">");
-        expect(html).toContain("Kampf<span class=\"n\">1</span>");
-        expect(html).toContain("<title>0:30 Alice († Arcane Explosion)</title>");
+        expect(html).toMatch(/Kampf<span class="n(?: mid| bad)?">1<\/span>/);
+        expect(html).toContain("data-tip=\"0:30 Alice\" data-tip-sub=\"† Arcane Explosion\"");
         expect(html).toContain("<li style=\"--cc:#69CCF0\"><b>0:30</b><a class=\"cn\" href=\"/r/abc123def456/p/0\">Alice</a>");
         expect(html).toContain("Niemand ist gestorben.");
     });
 
     it("draws the boss-health line beside the DPS/HPS strip when a fight carries one", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
-        expect(html).toContain("<title>Boss-Leben (%)</title>");
+        expect(html).toContain("data-tip=\"Boss-Leben (%)\"");
         expect(html).toContain("<th>Boss-Leben</th>");
         const none = timeline();
         none.fights[1].series.bossHp = null;
         const without = renderReportPage({ ...report(), timeline: none });
         expect(without).toContain("<div class=\"fight-series\">");
-        expect(without).not.toContain("<title>Boss-Leben (%)</title>");
+        expect(without).not.toContain("data-tip=\"Boss-Leben (%)\"");
     });
 
     it("says what is missing when no fight has a DPS/HPS strip, and stays quiet when one has", () => {
@@ -186,7 +202,7 @@ describe("web/render — Kampfverlauf on the player page", () => {
         expect(html).toContain("data-show=\"p-fb-e649\"");
         expect(html).toContain("id=\"p-fight-2\">");   // she died there
         expect(html).toContain("id=\"p-fight-3\" hidden>");   // her cooldown and activity rows
-        expect(html).toContain("title=\"Icy Veins\"");
+        expect(html).toContain("data-tip=\"Icy Veins\"");
         expect(html).not.toContain("Bob · Windfury");
         expect(html).not.toContain("fp-3-debuffs"); // raid-wide, not hers
         expect(html).not.toContain("<div class=\"fight-series\">");
@@ -202,7 +218,7 @@ describe("web/render — Kampfverlauf on the player page", () => {
         expect(html).not.toContain("id=\"p-fight-2\"");
         expect(html).not.toContain("Gruul the Dragonkiller</span>");
         expect(html).toContain("data-show=\"p-fp-3-totems\">");
-        expect(html).toContain("Totems<span class=\"n\">1</span>");
+        expect(html).toMatch(/Totems<span class="n(?: mid| bad)?">1<\/span>/);
         const none = renderPlayerPage({ ...report(), timeline: { fights: [] } }, 1);
         expect(none).not.toContain("<h2>Kampfverlauf</h2>");
         const legacy = renderPlayerPage(report(), 1);

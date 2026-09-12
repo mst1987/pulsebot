@@ -50,16 +50,16 @@ describe("web/render — the player's own curve (issue #203)", () => {
     it("draws the raider's DPS against the raid mean per player = raid series over the raiders with a DPS curve", () => {
         const html = renderPlayerPage(report({ timeline: { fights: [fight()] } }), 0);
         expect(html).toContain("player-series");
-        expect(html).toContain("<title>DPS Alice</title>");
+        expect(html).toContain("data-tip=\"DPS Alice\"");
         // six raiders carry a DPS curve (the priest too), so the mean is 1000 / 6 ≈ 167 per bucket
-        expect(html).toContain("<title>Raid-Mittel pro Spieler (6)</title>");
+        expect(html).toContain("data-tip=\"Raid-Mittel pro Spieler (6)\"");
         expect(html).toContain("<th>Raid-Mittel pro Spieler (6)</th>");
         expect(html).toMatch(/<td>0:00<\/td><td>300<\/td><td>167<\/td>/);
         // the raid strip of the report page is not on the player page; on the report page it is the boss card's
         // Kampfverlauf topic, while the raider's own curve only sits in their card's dialog
-        expect(html).not.toContain("<title>Raid-DPS</title>");
+        expect(html).not.toContain("data-tip=\"Raid-DPS\"");
         const raid = renderReportPage(report({ timeline: { fights: [fight()] } }));
-        expect(raid).toContain("<title>Raid-DPS</title>");
+        expect(raid).toContain("data-tip=\"Raid-DPS\"");
         const bossCard = raid.slice(raid.indexOf("<details class=\"vcard boss-card\""), raid.indexOf("<div id=\"view-raider\""));
         expect(bossCard).not.toContain("player-series");
         expect(raid).toContain("<dialog class=\"dlg chart\" id=\"dlg-rt-0\">");
@@ -76,7 +76,7 @@ describe("web/render — the player's own curve (issue #203)", () => {
     it("marks only the raider's own death and the Bloodlust window, and counts dips up to the death", () => {
         const html = renderPlayerPage(report({ timeline: { fights: [fight()] } }), 0);
         // Alice died at 0:10; Bob's death at 0:15 is not her marker
-        expect(html).toContain("0:10 Alice († Cave In)");
+        expect(html).toContain("data-tip=\"0:10 Alice\" data-tip-sub=\"† Cave In\"");
         expect(html).not.toContain("0:15 Bob");
         expect(html).toContain("0:05 · Bloodlust · bis 0:45");
         expect(html).toContain("spell_nature_bloodlust");
@@ -88,7 +88,7 @@ describe("web/render — the player's own curve (issue #203)", () => {
 
     it("draws HPS for a healer of the fight, against the raid HPS over the raiders with an HPS curve", () => {
         const html = renderPlayerPage(report({ timeline: { fights: [fight()] } }), 1);
-        expect(html).toContain("<title>HPS Heal</title>");
+        expect(html).toContain("data-tip=\"HPS Heal\"");
         expect(html).toContain("Raid-Mittel pro Spieler (1)");
         expect(html).toMatch(/<td>0:00<\/td><td>400<\/td><td>400<\/td>/);
         expect(html).toContain("<b>0 %</b> der Zeit HPS-Einbrüche");
@@ -106,7 +106,7 @@ describe("web/render — the player's own curve (issue #203)", () => {
         const healer = renderPlayerPage({ ...base, fightSeries: { players: [{ name: "Heal", type: "Priest", measure: "hps", fights: 1, dipPct: 4, avgDps: 20, avgHps: 800 }] } }, 1);
         expect(healer).toContain("chip chip-ok");
         expect(healer).toContain("<b>4 %</b> HPS-Einbrüche");
-        expect(healer).toContain("über 1 Kampf\"");
+        expect(healer).toContain("über 1 Kampf. Ab 25 % gelb, ab 40 % rot.\"");
         // no summary, no hero chip (the per-fight chip under the curve says "der Zeit")
         expect(renderPlayerPage(base, 0)).not.toContain("</b> DPS-Einbrüche</span>");
     });
@@ -128,7 +128,7 @@ describe("web/render — the player's own curve (issue #203)", () => {
         f.series.players = [{ name: "Alice", type: "Mage", dps: [1, 2, 3, 4, 5] }];
         const html = renderPlayerPage(report({ timeline: { fights: [f] } }), 0);
         expect(html).toContain("Kampfverlauf");
-        expect(html).toContain("<title>DPS Alice</title>");
+        expect(html).toContain("data-tip=\"DPS Alice\"");
         expect(html).toContain("Raid-Mittel pro Spieler (1)");
     });
 });

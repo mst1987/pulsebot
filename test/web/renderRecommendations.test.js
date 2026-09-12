@@ -59,7 +59,7 @@ describe("web/render — Empfehlungen for a reviewer", () => {
         const html = renderReportPage(report({ raid: {}, players: { Farin: { gear: { approved: true } } } }), admin);
         expect(html).toContain("data-name=\"Farin\" data-role=\"dps\" data-open=\"1\"");
         expect(html).toContain("<b>2</b> Empfehlungen · 1 offen</span>");
-        expect(html).toContain("Empfehlungen<span class=\"n\">2 · 1 offen</span>");
+        expect(html).toMatch(/Empfehlungen<span class="n(?: mid| bad)?">2 · 1 offen<\/span>/);
         expect(html).toContain("<span class=\"note\">1 freigegeben · 1 offen · zuletzt gesendet: nie</span>");
         expect(html).toContain("data-phrase=\"player\"");
         expect(html).toContain("data-dialog=\"send-0\">Vorschau &amp; senden</button>");
@@ -107,7 +107,7 @@ describe("web/render — player page", () => {
     it("shows the raider their approved items only, and a reviewer all of them with controls", () => {
         const review = { raid: {}, players: { Farin: { gear: { approved: true } } } };
         const own = renderPlayerPage(report(review), 0, reader);
-        expect(own).toContain("Empfehlungen<span class=\"n\">1</span>");
+        expect(own).toMatch(/Empfehlungen<span class="n(?: mid| bad)?">1<\/span>/);
         expect(own).toContain("2 Gear-Probleme");
         expect(own).not.toContain("Essen 80 %");
         expect(own).not.toContain("data-review=");
@@ -116,7 +116,7 @@ describe("web/render — player page", () => {
         expect(mine).toContain("data-review=\"reject\"");
         expect(mine).toContain("window.__ehReview");
         // nothing approved, nothing to show
-        expect(renderPlayerPage(report(null), 0, reader)).not.toContain("Empfehlungen<span class=\"n\">");
+        expect(renderPlayerPage(report(null), 0, reader)).not.toMatch(/Empfehlungen<span class="n(?: mid| bad)?">/);
         expect(renderPlayerPage(report(review), 1, admin)).toContain("Nichts auszusetzen – weiter so.");
     });
 });
