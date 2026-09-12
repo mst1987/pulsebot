@@ -13,6 +13,7 @@ const { bossIconUrl } = require("../config/bosses");
 const { TANK_AURAS } = require("../config/healerSpells");
 const { ROLE_LABELS: BUFF_ROLE_LABELS } = require("../config/raidBuffs");
 const { applyReview } = require("../utils/logcheck/recommendations");
+const { dipShare } = require("../utils/logcheck/fightSeries");
 
 const CLASS_COLORS = {
     Druid: "#FF7D0A", Hunter: "#ABD473", Mage: "#69CCF0", Paladin: "#F58CBA",
@@ -1280,6 +1281,58 @@ function fightSeries(f) {
     return `<div class="fight-series">${lineChart({ duration: f.duration, deaths: f.deaths, classColor: classColorOf, step: f.series.step, series, bossHp: f.series.bossHp })}</div>`;
 }
 
+/**
+ * The player page's strip: the raider's own curve against the raid's mean
+ * per player (the raid series over the number of raiders with a curve), on
+ * the measure that is theirs — HPS for a healer of this fight or whoever
+ * healed more than they hit, DPS otherwise. Their own death is the marker,
+ * a Bloodlust window a mark at its start; the chips say how much of the
+ * fight (alive) their output sat below half their own mean. Nothing without
+ * a curve for this raider.
+ */
+function playerSeries(f, name) {
+    const s = f.series;
+    const mine = s && Array.isArray(s.players) ? s.players.find((p) => p && p.name === name) : null;
+    if (!mine) return "";
+    const sum = (arr) => (Array.isArray(arr) ? arr.reduce((a, v) => a + (Number(v) || 0), 0) : 0);
+    const healer = ((f.healers && f.healers.healers) || []).some((h) => h.name === name) || sum(mine.hps) > sum(mine.dps);
+    const key = healer && mine.hps ? "hps" : mine.dps ? "dps" : "hps";
+    const label = key.toUpperCase();
+    const own = mine[key];
+    if (!Array.isArray(own) || !own.length) return "";
+    const withKey = s.players.filter((p) => p && Array.isArray(p[key]) && p[key].length).length;
+    const raid = Array.isArray(s[key]) && s[key].length && withKey
+        ? s[key].map((v) => Math.round((Number(v) || 0) / withKey))
+        : null;
+    const series = [{ key: "a", label: `${label} ${name}`, values: own }];
+    if (raid) series.push({ key: "b", label: `Raid-Mittel pro Spieler (${withKey})`, values: raid });
+    const deaths = (f.deaths || []).filter((d) => d && d.name === name);
+    const death = deaths.find((d) => Number.isFinite(d.at));
+    const dips = dipShare(own, s.step, death ? death.at : null);
+    const markers = ((f.cooldowns && f.cooldowns.windows) || [])
+        .filter((w) => w && Number.isFinite(w.from))
+        .map((w) => ({ at: w.from, label: w.label || "Bloodlust", icon: "spell_nature_bloodlust", value: `bis ${fmtTime(w.to)}` }));
+    const tone = (v) => (v >= 40 ? "high" : v >= 25 ? "medium" : "good");
+    const raidMean = raid ? Math.round(raid.reduce((a, v) => a + v, 0) / raid.length) : null;
+    const chips = [
+        dips ? `<span class="chip chip-${tone(dips.pct)}" title="Anteil der Kampfzeit (bis zum eigenen Tod), in der der Wert unter der Hälfte des eigenen Schnitts lag"><b>${esc(dips.pct)} %</b> der Zeit ${esc(label)}-Einbrüche</span>` : "",
+        dips ? `<span class="chip"><b>Ø ${fmtK(dips.mean)}</b> ${esc(label)}</span>` : "",
+        raidMean !== null ? `<span class="chip"><b>Ø ${fmtK(raidMean)}</b> Raid-Mittel pro Spieler</span>` : "",
+    ].filter(Boolean).join("");
+    return `<div class="fight-series player-series"><div class="heal-chips">${chips}</div>${lineChart({
+        title: `${label}-Verlauf ${name}`, duration: f.duration, deaths, classColor: classColorOf, step: s.step, series, bossHp: s.bossHp, markers, markersLabel: "Bloodlust",
+    })}</div>`;
+}
+
+/** The hero chip of the player page: their dip share over the raid (report.fightSeries), or nothing. */
+function dipChip(report, name) {
+    const s = report.fightSeries && (report.fightSeries.players || []).find((x) => x && x.name === name);
+    if (!s || !Number.isFinite(s.dipPct) || s.dipPct === null) return "";
+    const label = s.measure === "hps" ? "HPS" : "DPS";
+    const cls = s.dipPct >= 40 ? "chip-warn" : s.dipPct >= 25 ? "" : "chip-ok";
+    return `<span class="chip ${cls}" title="Anteil der Kampfzeit (bis zum eigenen Tod), in der ${label} unter der Hälfte des eigenen Schnitts lag – über ${s.fights} ${s.fights === 1 ? "Kampf" : "Kämpfe"}"><b>${esc(s.dipPct)} %</b> ${label}-Einbrüche</span>`;
+}
+
 /** One try: its head line, the DPS strip, the topic switch and the topic panels. */
 function renderFightSection(f, linkFor, only, tryNo, tries, active) {
     const parts = fightParts(f, linkFor, only);
@@ -1292,7 +1345,7 @@ function renderFightSection(f, linkFor, only, tryNo, tries, active) {
         <h3>${esc(f.boss)}</h3>
         <span class="meta">${tries > 1 ? `Try ${tryNo}/${tries} · ` : ""}${esc(fightOutcome(f))} · ${fmtTime(f.duration)} · ${deaths} ${deaths === 1 ? "Tod" : "Tode"}</span>
       </div>
-      ${only ? "" : fightSeries(f)}
+      ${only ? playerSeries(f, only) : fightSeries(f)}
       <nav class="seg">${seg}</nav>
       ${panels}
     </section>`;
@@ -1370,7 +1423,8 @@ function renderPlayerTimeline(timeline, name) {
         || ((f.healers && f.healers.healers) || []).some((h) => h.name === name)
         || ((f.healers && f.healers.shields) || []).some((r) => r.source === name)
         || !!(f.healers && f.healers.tank && f.healers.tank.name === name)
-        || ((f.buffs && f.buffs.players) || []).some((p) => p.name === name));
+        || ((f.buffs && f.buffs.players) || []).some((p) => p.name === name)
+        || ((f.series && f.series.players) || []).some((p) => p && p.name === name));
     if (fights.length === 0) return "";
     const bosses = groupByBoss(fights);
     return `<h2>Kampfverlauf</h2>${renderBossTabs(bosses, name)}${renderBossPanels(bosses, null, name)}${TIMELINE_SCRIPT}`;
@@ -2113,6 +2167,7 @@ function renderPlayerPage(report, idx, user) {
           <div class="hero-sub">Stufe 70 · ${esc(p.type)}</div>
           <div class="chips">
             <span class="chip ${issueCount ? "chip-warn" : "chip-ok"}"><b>${issueCount}</b> Gear-Probleme</span>
+            ${dipChip(report, p.name)}
             ${potChip(ic.destruction, "Zerstörung", pot.destruction)}
             ${potChip(ic.haste, "Hast", pot.haste)}
             ${potChip(ic.mana, "Mana", pot.mana)}

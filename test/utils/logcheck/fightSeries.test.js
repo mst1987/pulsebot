@@ -176,7 +176,7 @@ describe("logcheck/fightSeries — analyzeFightSeries", () => {
         expect(tl.fights[0].series.dps).toHaveLength(bucketCount(10000));
         // the fight the API had nothing for stays without a series — no error
         expect(tl.fights[1].series).toBeNull();
-        expect(summary).toEqual({ fights: 2, withSeries: 1, withBossHp: 1 });
+        expect(summary).toEqual({ fights: 2, withSeries: 1, withBossHp: 1, withPlayers: 0 });
     });
 
     it("keeps bossHp null when the events carry no hit points, and survives a failing fetch", async () => {
@@ -190,7 +190,7 @@ describe("logcheck/fightSeries — analyzeFightSeries", () => {
         const summary = await analyzeFightSeries(wcl, "abc", fights, tl);
         expect(tl.fights[0].series).toEqual({ step: 5000, dps: [2, 2, 2], hps: null, bossHp: null });
         expect(tl.fights[1].series).toBeNull();
-        expect(summary).toEqual({ fights: 2, withSeries: 1, withBossHp: 0 });
+        expect(summary).toEqual({ fights: 2, withSeries: 1, withBossHp: 0, withPlayers: 0 });
     });
 
     it("names each boss's line on a council fight", async () => {
@@ -208,5 +208,114 @@ describe("logcheck/fightSeries — analyzeFightSeries", () => {
             step: 5000, dps: null, hps: null, bossHp: [75, 75],
             bossHpTargets: [{ id: 20, name: "Maulgar", hp: [100, 100] }, { id: 21, name: "Krosh", hp: [50, 50] }],
         });
+    });
+});
+
+describe("logcheck/fightSeries — the players' own curves", () => {
+    const { sourceSeries, playerSeries, dipShare, summarizeFightSeries } = require("../../../src/utils/logcheck/fightSeries.js");
+    const idToPlayer = { 1: { name: "Alice", type: "Mage" }, 2: { name: "Bob", type: "Warlock" }, 3: { name: "Heal", type: "Priest" } };
+    const src = (over) => ({ pointStart: 100000, pointInterval: 5000, total: NaN, ...over });
+
+    it("maps the per-source series onto the roster by actor id and drops what it cannot place", () => {
+        const graph = { data: { series: [
+            src({ name: "Total", data: [500, 500, 500] }),
+            src({ name: "Alice", id: 1, type: "Mage", data: [100, 200, 300] }),
+            src({ name: "Renamed", id: 2, type: "Warlock", data: [50, 50, 50] }),   // id wins over the name
+            src({ name: "Lair Brute", id: 77, type: "NPC", data: [10, 10, 10] }),   // not on the roster: dropped
+            src({ name: "Zero", id: 3, type: "Priest", data: [0, 0, 0] }),          // did nothing: left out
+        ] } };
+        const out = sourceSeries(graph, idToPlayer, fight({ duration: 10000 }));
+        expect([...out.keys()]).toEqual(["Alice", "Bob"]);
+        expect(out.get("Alice")).toEqual({ type: "Mage", values: [100, 200, 300] });
+        expect(out.get("Bob").values).toEqual([50, 50, 50]);
+        expect(sourceSeries(graph, null, fight()).size).toBe(0);
+        expect(sourceSeries(null, idToPlayer, fight()).size).toBe(0);
+    });
+
+    it("falls back to the name when the series carries no id, but never for a pet", () => {
+        const graph = { data: { series: [
+            src({ name: "Alice", data: [1, 1, 1] }),
+            src({ name: "Bob", type: "Pet", data: [9, 9, 9] }),
+        ] } };
+        const out = sourceSeries(graph, idToPlayer, fight({ duration: 10000 }));
+        expect([...out.keys()]).toEqual(["Alice"]);
+    });
+
+    it("adds a pet to its owner when the series names one, and calibrates per-bin amounts like the raid series", () => {
+        const graph = { data: { series: [
+            src({ name: "Bob", id: 2, total: 1500, data: [500, 500, 500] }),            // amounts per 5-s bin → 100/s
+            src({ name: "Felguard", id: 55, type: "Pet", petOwner: 2, total: 300, data: [100, 100, 100] }),
+            src({ name: "Imp", id: 56, type: "Pet", ownerID: 1, total: 150, data: [50, 50, 50] }),
+            src({ name: "Stray", id: 57, type: "Pet", data: [1, 1, 1] }),               // no owner named: dropped
+        ] } };
+        const out = sourceSeries(graph, idToPlayer, fight({ duration: 10000 }));
+        expect(out.get("Bob").values).toEqual([120, 120, 120]);
+        expect(out.get("Alice")).toEqual({ type: "Mage", values: [10, 10, 10] });
+        expect(out.size).toBe(2);
+    });
+
+    it("builds { name, type, dps?, hps? } per raider, hps only where there was any, sorted by name", () => {
+        const fetched = {
+            damage: { data: { series: [src({ name: "Bob", id: 2, data: [3, 3, 3] }), src({ name: "Alice", id: 1, data: [2, 2, 2] }), src({ name: "Heal", id: 3, data: [1, 0, 0] })] } },
+            healing: { data: { series: [src({ name: "Heal", id: 3, data: [40, 40, 40] }), src({ name: "Alice", id: 1, data: [0, 0, 0] })] } },
+        };
+        expect(playerSeries(fetched, idToPlayer, fight({ duration: 10000 }))).toEqual([
+            { name: "Alice", type: "Mage", dps: [2, 2, 2] },
+            { name: "Bob", type: "Warlock", dps: [3, 3, 3] },
+            { name: "Heal", type: "Priest", dps: [1, 0, 0], hps: [40, 40, 40] },
+        ]);
+        expect(playerSeries(fetched, null, fight())).toEqual([]);
+    });
+
+    it("writes the players next to the raid series through analyzeFightSeries, and the raid mean per player is the raid series over their count", async () => {
+        const five = { 1: { name: "A" }, 2: { name: "B" }, 3: { name: "C" }, 4: { name: "D" }, 5: { name: "E" } };
+        const perSource = [1, 2, 3, 4, 5].map((id) => src({ name: five[id].name, id, data: [100, 100, 100] }));
+        const tl = { fights: [fight({ duration: 10000, endTime: 110000 })] };
+        const wcl = { isConfigured: () => true, getFightSeries: jest.fn(async () => ({
+            damage: { data: { series: [src({ name: "Total", data: [500, 500, 500] }), ...perSource] } }, healing: null, enemyEvents: [],
+        })) };
+        const summary = await analyzeFightSeries(wcl, "abc", { enemies: [] }, tl, five);
+        const s = tl.fights[0].series;
+        expect(s.dps).toEqual([500, 500, 500]);
+        expect(s.players).toHaveLength(5);
+        expect(s.players.map((p) => p.name)).toEqual(["A", "B", "C", "D", "E"]);
+        expect(s.dps.map((v) => v / s.players.length)).toEqual([100, 100, 100]);
+        expect(summary).toEqual({ fights: 1, withSeries: 1, withBossHp: 0, withPlayers: 1 });
+        // without the roster map there is no players key at all — the old shape stays byte-for-byte
+        const tl2 = { fights: [fight({ duration: 10000, endTime: 110000 })] };
+        await analyzeFightSeries(wcl, "abc", { enemies: [] }, tl2);
+        expect(tl2.fights[0].series).toEqual({ step: 5000, dps: [500, 500, 500], hps: null, bossHp: null });
+    });
+
+    it("counts the buckets below half the own mean, leaving out everything after the death", () => {
+        // alive mean 100 → threshold 50: two of five buckets below; the zeros after the death at 25 s do not count
+        expect(dipShare([100, 40, 100, 160, 100, 0, 0, 0], 5000, 25000)).toEqual({ pct: 20, below: 1, buckets: 5, mean: 100 });
+        // without a death the zeros pull the mean down to 62.5 and count as dips themselves (40 is above 31.25)
+        expect(dipShare([100, 40, 100, 160, 100, 0, 0, 0], 5000, null)).toEqual({ pct: 38, below: 3, buckets: 8, mean: 63 });
+        expect(dipShare([0, 0, 0], 5000, null)).toBeNull();
+        expect(dipShare([100, 100], 5000, 0)).toBeNull();
+        expect(dipShare([], 5000, null)).toBeNull();
+    });
+
+    it("sums the dip share over the raid per raider on their own measure and sorts the worst first", () => {
+        const tl = { fights: [
+            { id: 1, deaths: [{ name: "Alice", at: 10000 }], series: { step: 5000, players: [
+                { name: "Alice", type: "Mage", dps: [100, 100, 0, 0] },              // alive: 2 buckets, no dip
+                { name: "Bob", type: "Warlock", dps: [100, 10, 10, 100] },           // 2 of 4 below
+                { name: "Heal", type: "Priest", dps: [10, 10, 10, 10], hps: [200, 200, 20, 200] },
+            ] } },
+            { id: 2, deaths: [], series: { step: 5000, players: [
+                { name: "Bob", type: "Warlock", dps: [100, 100, 100, 10] },          // 1 of 4 below
+            ] } },
+            { id: 3, deaths: [], series: null },
+        ] };
+        const out = summarizeFightSeries(tl);
+        expect(out.players).toEqual([
+            { name: "Bob", type: "Warlock", measure: "dps", fights: 2, dipPct: 38, avgDps: 66, avgHps: 0 },
+            { name: "Heal", type: "Priest", measure: "hps", fights: 1, dipPct: 25, avgDps: 10, avgHps: 155 },
+            { name: "Alice", type: "Mage", measure: "dps", fights: 1, dipPct: 0, avgDps: 50, avgHps: 0 },
+        ]);
+        expect(summarizeFightSeries({ fights: [{ id: 1, series: { step: 5000, dps: [1] } }] })).toBeNull();
+        expect(summarizeFightSeries(null)).toBeNull();
     });
 });

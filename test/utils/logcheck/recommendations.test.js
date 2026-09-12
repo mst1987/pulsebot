@@ -132,6 +132,43 @@ describe("logcheck/recommendations — player rules", () => {
     });
 });
 
+describe("logcheck/recommendations — series rules (DPS dips)", () => {
+    const withSeries = (players) => ({ ...fullReport(), fightSeries: { players } });
+    const item = (rec, name) => rec.players.find((p) => p.name === name).items.find((i) => i.key === "series.dips");
+
+    it("tells a DPS whose output sat below half their mean for a quarter of the time, high impact from 40 % on", () => {
+        const rec = buildRecommendations(withSeries([
+            { name: "Farin", type: "Warlock", measure: "dps", fights: 4, dipPct: 31, avgDps: 812, avgHps: 0 },
+            { name: "Clean", type: "Mage", measure: "dps", fights: 4, dipPct: 45, avgDps: 950, avgHps: 0 },
+            { name: "Dorn", type: "Shaman", measure: "dps", fights: 4, dipPct: 12, avgDps: 700, avgHps: 0 },
+        ]));
+        const farin = item(rec, "Farin");
+        expect(farin.impact).toBe("medium");
+        expect(farin.title).toBe("DPS in 31 % der Zeit eingebrochen");
+        expect(farin.text).toContain("Ø 812 DPS über 4 Kämpfe");
+        expect(farin.evidence).toEqual([
+            { label: "Zeit unter 50 % des Schnitts", value: "31 %" }, { label: "Ø DPS", value: "812" }, { label: "Kämpfe", value: "4" },
+        ]);
+        expect(item(rec, "Clean").impact).toBe("high");
+        expect(item(rec, "Dorn")).toBeUndefined();
+    });
+
+    it("leaves healers alone and needs more than one fight of curve", () => {
+        const report = withSeries([
+            { name: "Farin", type: "Warlock", measure: "dps", fights: 1, dipPct: 60, avgDps: 500, avgHps: 0 },
+            { name: "Dorn", type: "Shaman", measure: "hps", fights: 4, dipPct: 60, avgDps: 50, avgHps: 900 },
+            { name: "Clean", type: "Mage", measure: "dps", fights: 4, dipPct: 60, avgDps: 500, avgHps: 0 },
+        ]);
+        report.healers = { players: [{ name: "Clean" }] };
+        const rec = buildRecommendations(report);
+        expect(item(rec, "Farin")).toBeUndefined();
+        expect(item(rec, "Dorn")).toBeUndefined();
+        expect(item(rec, "Clean")).toBeUndefined();
+        // an older report without the field: nothing, never a false "alles gut"
+        expect(item(buildRecommendations(fullReport()), "Farin")).toBeUndefined();
+    });
+});
+
 describe("logcheck/recommendations — healer rules", () => {
     function healer(over = {}) {
         return {

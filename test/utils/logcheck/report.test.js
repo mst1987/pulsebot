@@ -34,8 +34,9 @@ jest.mock("../../../src/utils/logcheck/fightTimeline.js", () => ({
 jest.mock("../../../src/utils/logcheck/fightSeries.js", () => ({
     analyzeFightSeries: jest.fn(async (wclV2, reportId, fights, timeline) => {
         for (const f of (timeline && timeline.fights) || []) f.series = { step: 5000, dps: [1], hps: [1], bossHp: [100] };
-        return { fights: 2, withSeries: 2, withBossHp: 2 };
+        return { fights: 2, withSeries: 2, withBossHp: 2, withPlayers: 0 };
     }),
+    summarizeFightSeries: jest.fn((timeline) => (timeline ? { players: [{ name: "Alice", type: "Mage", measure: "dps", fights: 2, dipPct: 10, avgDps: 1, avgHps: 0 }] } : null)),
 }));
 const mockV2Config = { clientId: "", clientSecret: "" };
 jest.mock("../../../src/web/settingsStore.js", () => ({ getConfig: jest.fn(() => ({ warcraftlogsV2: mockV2Config })) }));
@@ -229,16 +230,22 @@ describe("logcheck/report — merging the two halves", () => {
         const { report } = await buildReport("RPT1", { sections: ["cla"] });
         expect(WarcraftLogsV2).toHaveBeenCalledWith({ clientId: "cid", clientSecret: "sec" });
         expect(analyzeFightSeries).toHaveBeenCalledTimes(1);
-        const [client, reportId, fights, timeline] = analyzeFightSeries.mock.calls[0];
+        const [client, reportId, fights, timeline, idToPlayer] = analyzeFightSeries.mock.calls[0];
         expect(client.isConfigured()).toBe(true);
         expect(reportId).toBe("RPT1");
         expect(fights.fights).toHaveLength(2);
         expect(timeline).toBe(report.timeline);
+        // the roster map (empty here: selectPlayers is mocked to nobody), so the per-source series can be mapped onto the raiders
+        expect(idToPlayer).toEqual({});
         // the series lives in the timeline, so it rides along with the CLA half
         expect(report.timeline.fights.map((f) => f.series)).toEqual([
             { step: 5000, dps: [1], hps: [1], bossHp: [100] },
             { step: 5000, dps: [1], hps: [1], bossHp: [100] },
         ]);
+        // ...and the dip summary is its own CLA field, built from the finished timeline
+        const { summarizeFightSeries } = require("../../../src/utils/logcheck/fightSeries.js");
+        expect(summarizeFightSeries).toHaveBeenCalledWith(report.timeline);
+        expect(report.fightSeries).toEqual({ players: [{ name: "Alice", type: "Mage", measure: "dps", fights: 2, dipPct: 10, avgDps: 1, avgHps: 0 }] });
     });
 
     it("still builds the report when the series analyzer throws", async () => {
@@ -356,7 +363,7 @@ describe("logcheck/report — stripSection", () => {
         const { report, remaining } = stripSection(full, "cla");
         expect(remaining).toEqual(["rpb"]);
         expect(report.rpb).toEqual({ roles: {} });
-        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems", "mechanics", "activity", "healers", "raidBuffs", "shadowResi"]) {
+        for (const key of ["consumables", "drums", "potions", "sunder", "bossUptimes", "timeline", "fightSeries", "raidDebuffs", "cooldowns", "totems", "mechanics", "activity", "healers", "raidBuffs", "shadowResi"]) {
             expect(report[key]).toBeNull();
         }
     });
