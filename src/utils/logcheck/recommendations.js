@@ -286,17 +286,28 @@ function raidBuffRules(report, name) {
     const out = [];
     for (const [key, c] of Object.entries(p.buffs || {})) {
         if (!c || !c.expected) continue;
-        const short = (c.none || 0) + (c.partial || 0);
+        // `late` (set after the pull, then kept) is a newer counter than
+        // `partial` (not there throughout); a report built before it has none
+        const late = c.late || 0;
+        const short = (c.none || 0) + (c.partial || 0) + late;
         if (short < R.raidBuffs.missingFights) continue;
         const def = buffByKey(key);
         const label = def ? def.label : key;
-        const how = [c.none ? `${c.none}× gar nicht da` : "", c.partial ? `${c.partial}× im Kampf ausgelaufen` : ""].filter(Boolean).join(", ");
+        const how = [
+            c.none ? `${c.none}× gar nicht da` : "",
+            late ? `${late}× erst nach dem Pull gesetzt` : "",
+            c.partial ? `${c.partial}× nicht durchgehend` : "",
+        ].filter(Boolean).join(", ");
         out.push(finding(
             `raidBuffs.${key}`,
             short / c.expected >= R.raidBuffs.missingHighShare ? "high" : "medium",
             `${label} in ${short} von ${c.expected} Kämpfen gefehlt`,
             `${how}. Vor dem Pull die eigenen Buffs prüfen und ${label} nach jedem Tod oder Wipe nachfordern.`,
-            [{ label: "Kämpfe ohne", value: `${short}/${c.expected}` }, { label: "Ausgelaufen", value: String(c.partial || 0) }],
+            [
+                { label: "Kämpfe ohne", value: `${short}/${c.expected}` },
+                { label: "Nicht durchgehend", value: String(c.partial || 0) },
+                ...(late ? [{ label: "Spät gesetzt", value: String(late) }] : []),
+            ],
         ));
     }
     return out;

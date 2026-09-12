@@ -52,6 +52,16 @@ function normalizeCategorySheets(raw) {
 // them, so a role with write access to "Einstellungen" can't grant itself more.
 const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermissions"];
 
+// Config keys that hold a credential to a foreign system the bot pays for or
+// acts through (the Anthropic key, the Warcraft Logs API client). Full-admin
+// only as well: a limited settings user neither sees whether one is set nor
+// can replace it with their own. The client mirrors this with `adminOnly` on
+// the section (src/web-client/src/lib/settingsSections.ts).
+const CREDENTIAL_KEYS = ["anthropic", "warcraftlogsV2"];
+
+// Everything a non-admin settings user may neither read nor write.
+const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS];
+
 /** GET /api/settings — config + raidsheets + the active guild's roles/categories. */
 async function getSettings(req, res) {
     const user = requireAdmin(req, res);
@@ -71,9 +81,9 @@ async function getSettings(req, res) {
         }
     }
     ok(res, {
-        // The access config is admin-only; a limited settings user never sees
-        // (nor can save) it.
-        config: publicConfig(user.isAdmin ? config : omit(config, ACCESS_KEYS)),
+        // The access config and the credentials are admin-only; a limited
+        // settings user never sees (nor can save) them.
+        config: publicConfig(user.isAdmin ? config : omit(config, FULL_ADMIN_KEYS)),
         canManageAccess: !!user.isAdmin,
         areas: AREAS,
         userNames,
@@ -91,34 +101,47 @@ function omit(obj, keys) {
 }
 
 /**
- * The config as the browser may see it: the Anthropic key and the WCL v2
- * client secret never leave the server, only whether one is set.
+ * The config as the browser may see it: the Battle.net client secret, the
+ * Anthropic key and the WCL v2 client secret never leave the server, only
+ * whether one is set (`hasClientSecret` / `hasApiKey`). A credential block
+ * the caller may not see (omitted above for a non-admin) stays absent.
  */
 function publicConfig(config) {
-    const anthropic = config.anthropic || {};
-    const wclV2 = config.warcraftlogsV2 || {};
-    return {
-        ...config,
-        anthropic: { model: anthropic.model || "", hasApiKey: !!anthropic.apiKey },
-        warcraftlogsV2: { clientId: wclV2.clientId || "", hasClientSecret: !!wclV2.clientSecret },
-    };
+    const out = { ...config };
+    if (config.blizzard !== undefined) {
+        const { clientSecret, ...rest } = config.blizzard || {};
+        out.blizzard = { ...rest, hasClientSecret: !!clientSecret };
+    }
+    if (config.anthropic !== undefined) {
+        const anthropic = config.anthropic || {};
+        out.anthropic = { model: anthropic.model || "", hasApiKey: !!anthropic.apiKey };
+    }
+    if (config.warcraftlogsV2 !== undefined) {
+        const wclV2 = config.warcraftlogsV2 || {};
+        out.warcraftlogsV2 = { clientId: wclV2.clientId || "", hasClientSecret: !!wclV2.clientSecret };
+    }
+    return out;
 }
+
+// The blizzard fields taken from a PATCH body besides the secret.
+const BLIZZARD_FIELDS = ["clientId", "region", "realmSlug", "namespace"];
 
 /**
  * PATCH /api/settings — merge-updates the admin config. Only keys present in
  * the body are changed (saveConfig() itself merges raidDefaults/blizzard).
  * blizzard.clientSecret: omit to keep the stored secret, send "" to clear it,
  * send a value to replace it (the client only includes it when the admin
- * actually chose to change it — see ChangeSecretField in SettingsPage.tsx).
- * adminRoleIds/rolePermissions are full-admin-only (see ACCESS_KEYS).
+ * actually chose to change it — see BlizzardSecretField in SettingsPage.tsx).
+ * adminRoleIds/rolePermissions (ACCESS_KEYS) and the Anthropic/WCL
+ * credentials (CREDENTIAL_KEYS) are full-admin-only.
  */
 async function updateSettings(req, res) {
     const user = requireAdmin(req, res);
     if (!user) return;
     if (!requireCsrf(req, res)) return;
     const body = await readJsonBody(req);
-    const touchesAccess = ACCESS_KEYS.some((k) => body[k] !== undefined);
-    if (touchesAccess && !requireFullAdmin(req, res)) return;
+    const touchesGuarded = FULL_ADMIN_KEYS.some((k) => body[k] !== undefined);
+    if (touchesGuarded && !requireFullAdmin(req, res)) return;
     const partial = {};
     if (body.adminRoleIds !== undefined) partial.adminRoleIds = asStringArray(body.adminRoleIds);
     if (body.rolePermissions !== undefined) partial.rolePermissions = normalizeRolePermissions(body.rolePermissions);
@@ -133,7 +156,14 @@ async function updateSettings(req, res) {
     if (body.categoryRoles !== undefined && typeof body.categoryRoles === "object") partial.categoryRoles = body.categoryRoles;
     if (body.logChannelIds !== undefined) partial.logChannelIds = asStringArray(body.logChannelIds);
     if (body.raidDefaults !== undefined && typeof body.raidDefaults === "object") partial.raidDefaults = body.raidDefaults;
-    if (body.blizzard !== undefined && typeof body.blizzard === "object") partial.blizzard = body.blizzard;
+    // blizzard: only the known fields, the secret only when sent (omit = keep, "" = clear)
+    if (body.blizzard !== undefined && typeof body.blizzard === "object") {
+        partial.blizzard = {};
+        for (const k of BLIZZARD_FIELDS) {
+            if (body.blizzard[k] !== undefined) partial.blizzard[k] = String(body.blizzard[k] || "").trim();
+        }
+        if (body.blizzard.clientSecret !== undefined) partial.blizzard.clientSecret = String(body.blizzard.clientSecret || "").trim();
+    }
     // anthropic.apiKey follows the blizzard secret's contract: omit = keep, "" = clear.
     if (body.anthropic !== undefined && typeof body.anthropic === "object") {
         partial.anthropic = {};
@@ -227,4 +257,5 @@ async function deleteIngestTokenHandler(req, res) {
 module.exports = {
     getSettings, updateSettings, getItemSearch, saveRaidsheetHandler, deleteRaidsheetHandler,
     getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler,
+    publicConfig, ACCESS_KEYS, CREDENTIAL_KEYS, FULL_ADMIN_KEYS,
 };

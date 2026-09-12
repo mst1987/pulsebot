@@ -17,9 +17,10 @@ export type SettingsSection = {
     group: string;
     /**
      * Full admins only. Mirrors what the API enforces (ACCESS_KEYS and
-     * requireFullAdmin in src/web/apiRoutes/settings.js) — plus the Discord and
-     * Raid-Helper server ids, which decide which guild the admin-role check runs
-     * against and have been admin-only ever since they shared the "Zugang" tab.
+     * CREDENTIAL_KEYS with requireFullAdmin in src/web/apiRoutes/settings.js)
+     * — plus the Discord and Raid-Helper server ids, which decide which guild
+     * the admin-role check runs against and have been admin-only ever since
+     * they shared the "Zugang" tab.
      */
     adminOnly?: boolean;
     /**

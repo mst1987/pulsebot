@@ -646,6 +646,16 @@ export default function SettingsPage() {
                     userPermissions: draft.userPermissions,
                     guildId: draft.guildId.trim(),
                     raidhelperServerId: draft.raidhelperServerId.trim(),
+                    // ...and the credentials to foreign systems (CREDENTIAL_KEYS
+                    // on the server): a limited settings user never gets them.
+                    anthropic: {
+                        model: draft.anthropicModel.trim(),
+                        ...(anthropicKeyChange !== undefined ? { apiKey: anthropicKeyChange } : {}),
+                    },
+                    warcraftlogsV2: {
+                        clientId: draft.wclClientId.trim(),
+                        ...(wclSecretChange !== undefined ? { clientSecret: wclSecretChange } : {}),
+                    },
                 } : {}),
                 officerRoleId: draft.officerRoleId.trim(),
                 applicationChannelId: draft.applicationChannelId.trim(),
@@ -661,14 +671,6 @@ export default function SettingsPage() {
                     realmSlug: draft.blizzardRealmSlug.trim().toLowerCase() || "thunderstrike",
                     namespace: draft.blizzardNamespace.trim().toLowerCase(),
                     ...(secretChange !== undefined ? { clientSecret: secretChange } : {}),
-                },
-                anthropic: {
-                    model: draft.anthropicModel.trim(),
-                    ...(anthropicKeyChange !== undefined ? { apiKey: anthropicKeyChange } : {}),
-                },
-                warcraftlogsV2: {
-                    clientId: draft.wclClientId.trim(),
-                    ...(wclSecretChange !== undefined ? { clientSecret: wclSecretChange } : {}),
                 },
                 categoryLootTool: draft.categoryLootTool,
                 // Sent whole: the store replaces the map, so clearing a url is
@@ -742,7 +744,7 @@ export default function SettingsPage() {
                         <label>Battle.net Client-ID</label>
                         <input type="text" value={draft.blizzardClientId} onChange={(e) => patch({ blizzardClientId: e.target.value })} placeholder="Client-ID von develop.battle.net" autoComplete="off" />
                     </div>
-                    <BlizzardSecretField hasStoredSecret={!!data.config.blizzard.clientSecret} value={secretChange} onChange={setSecretChange} />
+                    <BlizzardSecretField hasStoredSecret={!!data.config.blizzard.hasClientSecret} value={secretChange} onChange={setSecretChange} />
                     <div className="field">
                         <label>Region</label>
                         <input type="text" value={draft.blizzardRegion} onChange={(e) => patch({ blizzardRegion: e.target.value })} placeholder="eu" />

@@ -1,5 +1,5 @@
 const {
-    STEP_MS, analyzeFightSeries, bucketCount, totalSeries, asRate, resample, hpPctOf, bossActors, bossHpSeries,
+    STEP_MS, analyzeFightSeries, bucketCount, seriesPoints, totalSeries, asRate, resample, hpPctOf, bossActors, bossHpSeries,
 } = require("../../../src/utils/logcheck/fightSeries.js");
 
 const fight = (over = {}) => ({ id: 3, startTime: 100000, endTime: 160000, duration: 60000, kill: false, ...over });
@@ -56,6 +56,41 @@ describe("logcheck/fightSeries — reading the WCL graph", () => {
         expect(totalSeries(null)).toBeNull();
         expect(totalSeries({ data: { series: [] } })).toBeNull();
         expect(totalSeries({ data: { series: [{ name: "x", pointStart: 0, pointInterval: 0, data: [1] }] } })).toBeNull();
+        expect(seriesPoints({ data: [[NaN, 1]] })).toBeNull();
+        expect(seriesPoints({ data: [[5000, 1]] })).toBeNull(); // one pair, no interval to be had
+    });
+
+    // WCL hands the graph points out in two shapes: a flat list on the
+    // pointStart/pointInterval grid, or Highcharts-style [timestamp, value] pairs.
+    it("reads [timestamp, value] pairs by their own x, not by an assumed grid", () => {
+        const flat = seriesPoints({ pointStart: 1000, pointInterval: 500, data: [1, 2] });
+        expect(flat).toEqual({ pairs: false, pointStart: 1000, pointInterval: 500, times: [1000, 1500], values: [1, 2] });
+        // pairs with a gap in them: the x wins, the interval comes from the first gap
+        const pairs = seriesPoints({ data: [[1000, 4], [2000, "5"], [4000, 6]] });
+        expect(pairs).toEqual({ pairs: true, pointStart: 1000, pointInterval: 1000, times: [1000, 2000, 4000], values: [4, 5, 6] });
+        // a declared interval is kept even when the pairs say otherwise; a broken pair is dropped
+        expect(seriesPoints({ pointInterval: 500, data: [[1000, 4], ["x", 9], [4000, 6]] })).toEqual({ pairs: true, pointStart: 1000, pointInterval: 500, times: [1000, 4000], values: [4, 6] });
+
+        const withTotal = { data: { series: [
+            { name: "Total", pointStart: 0, pointInterval: 1000, total: 9, data: [[0, 4], [1000, 5]] },
+        ] } };
+        expect(totalSeries(withTotal)).toEqual({ pointStart: 0, pointInterval: 1000, total: 9, data: [4, 5], times: [0, 1000] });
+
+        // per-source pairs are summed by their timestamp; a flat series on the same grid joins in
+        const perSource = { data: { series: [
+            { name: "Alice", pointStart: 1000, pointInterval: 1000, total: 4, data: [[1000, 1], [3000, 3]] },
+            { name: "Bob", pointStart: 0, pointInterval: 1000, total: 6, data: [2, 2, 2] },
+        ] } };
+        expect(totalSeries(perSource)).toEqual({ pointStart: 0, pointInterval: 1000, total: 10, data: [2, 3, 2, 3], times: [0, 1000, 2000, 3000] });
+    });
+
+    it("resamples by the explicit times when the series carries them", () => {
+        // three points at 0.5 s, 4.9 s and 9.3 s — the same buckets as the grid test above, but placed by x
+        const series = { pointStart: 0, pointInterval: 1, times: [100500, 104900, 109300], data: [10, 30, 100] };
+        expect(resample(series, fight({ duration: 10000 }))).toEqual([20, 100, 100]);
+        // a times list that does not match the data falls back to the grid
+        const odd = { pointStart: 100000, pointInterval: 5000, times: [1], data: [1, 2, 3] };
+        expect(resample(odd, fight({ duration: 10000 }))).toEqual([1, 2, 3]);
     });
 
     it("calibrates the unit against the series total: per-bin amounts become a rate, rates stay", () => {
@@ -78,6 +113,28 @@ describe("logcheck/fightSeries — boss health", () => {
         expect(hpPctOf(ev, 7)).toBeNull();
         expect(hpPctOf({ sourceID: 20, sourceResources: { hitPoints: 5, maxHitPoints: 0 } }, 20)).toBeNull();
         expect(hpPctOf({ sourceID: 20 }, 20)).toBeNull();
+    });
+
+    // The other shape includeResources produces: hitPoints/maxHitPoints on the
+    // event itself next to classResources, resourceActor saying whose (1 = source).
+    it("reads hit points from the event's top-level fields, following resourceActor", () => {
+        const onSource = { sourceID: 20, targetID: 5, hitPoints: 300, maxHitPoints: 1000, classResources: [{ type: 0, amount: 1, max: 2 }] };
+        expect(hpPctOf(onSource, 20)).toBe(30);
+        expect(hpPctOf(onSource, 5)).toBeNull(); // the numbers are the source's, not the target's
+        expect(hpPctOf({ ...onSource, resourceActor: 1 }, 20)).toBe(30);
+        const onTarget = { sourceID: 5, targetID: 20, resourceActor: 2, hitPoints: 100, maxHitPoints: 1000 };
+        expect(hpPctOf(onTarget, 20)).toBe(10);
+        expect(hpPctOf(onTarget, 5)).toBeNull();
+        // the resource object of the event's own side still wins when present
+        expect(hpPctOf({ sourceID: 20, hitPoints: 300, maxHitPoints: 1000, sourceResources: { hitPoints: 250, maxHitPoints: 1000 } }, 20)).toBe(25);
+        // ...and a useless object falls through to the top-level fields
+        expect(hpPctOf({ sourceID: 20, hitPoints: 300, maxHitPoints: 1000, sourceResources: {} }, 20)).toBe(30);
+        // an event of the boss's own side with top-level hit points feeds the series like the object shape
+        const events = [
+            { timestamp: 100000, sourceID: 20, hitPoints: 1000, maxHitPoints: 1000 },
+            { timestamp: 105000, sourceID: 20, hitPoints: 400, maxHitPoints: 1000 },
+        ];
+        expect(bossHpSeries(events, bosses, fight({ duration: 5000 })).bossHp).toEqual([100, 40]);
     });
 
     it("names the fight's bosses from v1's enemy list", () => {
@@ -177,6 +234,20 @@ describe("logcheck/fightSeries — analyzeFightSeries", () => {
         // the fight the API had nothing for stays without a series — no error
         expect(tl.fights[1].series).toBeNull();
         expect(summary).toEqual({ fights: 2, withSeries: 1, withBossHp: 1, withPlayers: 0 });
+    });
+
+    it("draws a graph that came as [timestamp, value] pairs on the same buckets", async () => {
+        const tl = { fights: [fight({ duration: 10000, endTime: 110000 })] };
+        const wcl = client({
+            3: {
+                // 5-s bins as pairs: 1000 damage each → 200 DPS, placed by x
+                damage: { data: { series: [{ name: "Total", pointStart: 100000, pointInterval: 5000, total: 3000, data: [[100000, 1000], [105000, 1000], [110000, 1000]] }] } },
+                healing: null,
+                enemyEvents: [],
+            },
+        });
+        await analyzeFightSeries(wcl, "abc", fights, tl);
+        expect(tl.fights[0].series).toEqual({ step: 5000, dps: [200, 200, 200], hps: null, bossHp: null });
     });
 
     it("keeps bossHp null when the events carry no hit points, and survives a failing fetch", async () => {

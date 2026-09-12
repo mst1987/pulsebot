@@ -230,8 +230,12 @@ export function duplicateChannel(
 
 export type Role = { id: string; name: string };
 
+// The Battle.net client. The secret never comes back from the server — only
+// whether one is stored. Read: { …, hasClientSecret }. Write: { …, clientSecret? }
+// — omit clientSecret to keep the stored one, "" to clear it.
 export type BlizzardConfig = {
     clientId: string;
+    hasClientSecret?: boolean;
     clientSecret?: string;
     region: string;
     realmSlug: string;

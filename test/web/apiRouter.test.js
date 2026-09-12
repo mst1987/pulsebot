@@ -690,12 +690,48 @@ describe("web/apiRouter", () => {
             await handle("/api/settings", { method: "GET" }, res);
 
             const data = body(res).data;
-            expect(data.config).toEqual({
-                guildId: "g1",
-                anthropic: { model: "", hasApiKey: false },
-                warcraftlogsV2: { clientId: "", hasClientSecret: false },
-            });
+            expect(data.config).toEqual({ guildId: "g1" });
             expect(data.canManageAccess).toBe(false);
+        });
+
+        // The credentials to foreign systems are full-admin-only like the access
+        // config: a limited settings user does not even learn whether one is set.
+        it("hides the Anthropic and Warcraft Logs credentials from a non-admin settings user", async () => {
+            auth.getUser.mockReturnValue({
+                id: "7", name: "Bob", isAdmin: false,
+                access: { ...emptyAccess(), settings: { read: true, write: true } },
+            });
+            settingsStore.getConfig.mockReturnValue({
+                guildId: "g1",
+                anthropic: { apiKey: "sk-secret", model: "claude-opus-5" },
+                warcraftlogsV2: { clientId: "wcl-id", clientSecret: "wcl-secret" },
+                blizzard: { clientId: "bz-id", clientSecret: "bz-secret", region: "eu" },
+            });
+
+            const res = mockRes();
+            await handle("/api/settings", { method: "GET" }, res);
+
+            const data = body(res).data;
+            expect(data.config).toEqual({ guildId: "g1", blizzard: { clientId: "bz-id", region: "eu", hasClientSecret: true } });
+            expect(JSON.stringify(body(res))).not.toContain("secret");
+        });
+
+        // The Battle.net secret follows the same contract as the other two: the
+        // browser only learns that one is stored, never the value.
+        it("masks the Battle.net client secret, reporting only whether one is set", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            settingsStore.getConfig.mockReturnValue({ guildId: "g1", blizzard: { clientId: "bz-id", clientSecret: "bz-secret", region: "eu", realmSlug: "thunderstrike", namespace: "" } });
+
+            const res = mockRes();
+            await handle("/api/settings", { method: "GET" }, res);
+
+            expect(body(res).data.config.blizzard).toEqual({ clientId: "bz-id", region: "eu", realmSlug: "thunderstrike", namespace: "", hasClientSecret: true });
+            expect(JSON.stringify(body(res))).not.toContain("bz-secret");
+
+            settingsStore.getConfig.mockReturnValue({ guildId: "g1", blizzard: { clientId: "bz-id", clientSecret: "", region: "eu" } });
+            const res2 = mockRes();
+            await handle("/api/settings", { method: "GET" }, res2);
+            expect(body(res2).data.config.blizzard).toEqual({ clientId: "bz-id", region: "eu", hasClientSecret: false });
         });
 
         // Same for the WCL v2 client secret: the id is shown, the secret is only "set".
@@ -865,6 +901,24 @@ describe("web/apiRouter", () => {
             expect(settingsStore.saveConfig).toHaveBeenCalledWith({ officerRoleId: "off1" });
         });
 
+        it("forwards the Battle.net client secret only when sent (omit = keep, \"\" = clear), never echoing it", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.saveConfig.mockReturnValue({ guildId: "g1", blizzard: { clientId: "bz-id", clientSecret: "bz-new", region: "eu" } });
+
+            // the secret left out: the stored one stays; unknown fields are dropped
+            const res = await patch("/api/settings", { blizzard: { clientId: " bz-id ", region: "EU ", realmSlug: "thunderstrike", namespace: "", hasClientSecret: true, bogus: 1 } });
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({ blizzard: { clientId: "bz-id", region: "EU", realmSlug: "thunderstrike", namespace: "" } });
+            expect(body(res).data.config.blizzard).toEqual({ clientId: "bz-id", region: "eu", hasClientSecret: true });
+            expect(JSON.stringify(body(res))).not.toContain("bz-new");
+
+            await patch("/api/settings", { blizzard: { clientId: "bz-id", clientSecret: " bz-new " } });
+            expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ blizzard: { clientId: "bz-id", clientSecret: "bz-new" } });
+
+            await patch("/api/settings", { blizzard: { clientSecret: "" } });
+            expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ blizzard: { clientSecret: "" } });
+        });
+
         it("normalises rolePermissions before saving them", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             auth.checkCsrf.mockReturnValue(true);
@@ -926,6 +980,25 @@ describe("web/apiRouter", () => {
             expect(settingsStore.saveConfig).not.toHaveBeenCalled();
         });
 
+        // The client hides the Anthropic and Warcraft Logs sections from that
+        // user (adminOnly); the server has to refuse them just the same.
+        it("refuses the Anthropic and Warcraft Logs credentials from a non-admin settings user", async () => {
+            auth.getUser.mockReturnValue({
+                id: "7", name: "Bob", isAdmin: false,
+                access: { ...emptyAccess(), settings: { read: true, write: true } },
+            });
+            auth.checkCsrf.mockReturnValue(true);
+
+            let res = await patch("/api/settings", { officerRoleId: "off1", anthropic: { apiKey: "sk-mine" } });
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            res = await patch("/api/settings", { warcraftlogsV2: { clientId: "x", clientSecret: "y" } });
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            // even an empty block is a touch — it would clear the model / client id
+            res = await patch("/api/settings", { anthropic: {} });
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+        });
+
         it("still lets that user save ordinary settings", async () => {
             auth.getUser.mockReturnValue({
                 id: "7", name: "Bob", isAdmin: false,
@@ -933,9 +1006,9 @@ describe("web/apiRouter", () => {
             });
             auth.checkCsrf.mockReturnValue(true);
 
-            await patch("/api/settings", { officerRoleId: "off1" });
+            await patch("/api/settings", { officerRoleId: "off1", blizzard: { clientId: "bz", clientSecret: "s" } });
 
-            expect(settingsStore.saveConfig).toHaveBeenCalledWith({ officerRoleId: "off1" });
+            expect(settingsStore.saveConfig).toHaveBeenCalledWith({ officerRoleId: "off1", blizzard: { clientId: "bz", clientSecret: "s" } });
         });
     });
 

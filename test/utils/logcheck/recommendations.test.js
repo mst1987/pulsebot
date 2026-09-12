@@ -240,20 +240,33 @@ describe("logcheck/recommendations — raid buff rules", () => {
         expect(kings.impact).toBe("high");
         expect(kings.title).toBe("Segen der Könige in 2 von 4 Kämpfen gefehlt");
         expect(kings.text).toContain("2× gar nicht da");
-        expect(kings.evidence).toEqual([{ label: "Kämpfe ohne", value: "2/4" }, { label: "Ausgelaufen", value: "0" }]);
+        expect(kings.evidence).toEqual([{ label: "Kämpfe ohne", value: "2/4" }, { label: "Nicht durchgehend", value: "0" }]);
         // one run-out Wisdom is below the threshold, full Fortitude is nothing
         expect(farin.items.map((i) => i.key)).not.toContain("raidBuffs.wisdom");
         expect(farin.items.map((i) => i.key)).not.toContain("raidBuffs.fortitude");
     });
 
-    it("says when a buff ran out rather than never came", () => {
+    it("says when a buff was not there throughout rather than never came", () => {
         const all = buffReport();
         all.raidBuffs.players[0].buffs.wisdom = { expected: 4, full: 1, partial: 3, none: 0, present: 4, wrong: 0, pct: 25 };
         const wisdom = buildRecommendations(all).players.find((p) => p.name === "Farin").items.find((i) => i.key === "raidBuffs.wisdom");
         expect(wisdom.impact).toBe("high");
         expect(wisdom.title).toBe("Segen der Weisheit in 3 von 4 Kämpfen gefehlt");
-        expect(wisdom.text).toContain("3× im Kampf ausgelaufen");
+        expect(wisdom.text).toContain("3× nicht durchgehend");
         expect(wisdom.text).not.toContain("gar nicht");
+        expect(wisdom.text).not.toContain("ausgelaufen");
+    });
+
+    it("counts a buff set only after the pull as short too, and says so", () => {
+        const all = buffReport();
+        all.raidBuffs.players[0].buffs.wisdom = { expected: 4, full: 2, late: 2, partial: 0, none: 0, present: 4, wrong: 0, pct: 50 };
+        const wisdom = buildRecommendations(all).players.find((p) => p.name === "Farin").items.find((i) => i.key === "raidBuffs.wisdom");
+        expect(wisdom.impact).toBe("high");
+        expect(wisdom.title).toBe("Segen der Weisheit in 2 von 4 Kämpfen gefehlt");
+        expect(wisdom.text).toContain("2× erst nach dem Pull gesetzt");
+        expect(wisdom.evidence).toEqual([
+            { label: "Kämpfe ohne", value: "2/4" }, { label: "Nicht durchgehend", value: "0" }, { label: "Spät gesetzt", value: "2" },
+        ]);
     });
 
     it("gives the shaman nothing for a blessing outside his role — that is the paladins' finding", () => {

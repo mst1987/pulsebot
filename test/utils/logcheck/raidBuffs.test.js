@@ -1,5 +1,5 @@
 const {
-    analyzeRaidBuffs, buffsForFight, summarize, buffRole, rosterFromSummary, rosterFromBands, FULL_PCT,
+    analyzeRaidBuffs, buffsForFight, summarize, buffRole, rosterFromSummary, rosterFromBands, statusOf, FULL_PCT,
 } = require("../../../src/utils/logcheck/raidBuffs");
 const { BUFFS, BLESSINGS, buffByGuid, buffByKey, buffFits, expectedBlessings, ROLES } = require("../../../src/config/raidBuffs");
 
@@ -14,6 +14,8 @@ const GIFT = 26991;        // Gift of the Wild rank 3
 const AI = 27126;          // Arcane Intellect rank 6
 const SPIRIT = 32999;      // Prayer of Spirit rank 2
 const SHADOW_PROT = 39374; // Prayer of Shadow Protection rank 2
+const LIGHT = 27145;       // Greater Blessing of Light rank 2
+const SANCTUARY = 27169;   // Greater Blessing of Sanctuary rank 2
 
 const fight = { id: 3, boss: 650, name: "Gruul the Dragonkiller", kill: true, start_time: 300000, end_time: 420000 };
 const fights = { end: 500000, fights: [{ id: 1, boss: 0, name: "Trash", start_time: 0, end_time: 1000 }, fight] };
@@ -103,6 +105,19 @@ describe("config/raidBuffs", () => {
         expect(expectedBlessings(healer, 3).map((b) => b.key)).toEqual(["kings", "wisdom", "salvation"]);
         expect(expectedBlessings(tank, 9).map((b) => b.key)).toEqual(["kings", "might", "sanctuary", "light"]);
         expect(BLESSINGS[0].key).toBe("kings");
+    });
+
+    it("marks Light and Sanctuary as never wrong — TBC raids put them on everyone — and nothing else", () => {
+        expect(buffByKey("light").neverWrong).toBe(true);
+        expect(buffByKey("sanctuary").neverWrong).toBe(true);
+        expect(buffByGuid(LIGHT).key).toBe("light");
+        expect(buffByGuid(SANCTUARY).key).toBe("sanctuary");
+        for (const b of BUFFS) {
+            if (b.key === "light" || b.key === "sanctuary") continue;
+            expect({ key: b.key, neverWrong: !!b.neverWrong }).toEqual({ key: b.key, neverWrong: false });
+        }
+        // they are still only *expected* on the tank
+        expect(expectedBlessings({ type: "Mage", role: "caster" }, 9).map((b) => b.key)).toEqual(["kings", "wisdom", "salvation"]);
     });
 });
 
@@ -251,6 +266,95 @@ describe("logcheck/raidBuffs — buffsForFight", () => {
         expect(r.players[0].buffs.find((b) => b.key === "kings").icon).toBe("spell_magic_greaterblessingofkings.jpg");
         expect(r.players[0].buffs.find((b) => b.key === "fortitude").icon).toBe("spell_holy_wordfortitude");
     });
+
+    // A roster player without a buffs table (the request failed, or they were
+    // not selected) would otherwise lack every buff — and drive the raid
+    // finding on nothing but a missing request.
+    it("does not judge a roster player without a buffs table, but still counts their class", () => {
+        const b = bands();
+        delete b.Uther; // the paladin's table failed
+        const r = buffsForFight({ fight, roster: roster(), bandsByName: b, deaths: [] });
+        expect(r.players.map((p) => p.name)).not.toContain("Uther");
+        expect(r.players).toHaveLength(5);
+        // he raided: one paladin, so Kings is still expected on the others...
+        expect(r.paladins).toBe(1);
+        expect(r.expected).toContain("kings");
+        // ...and he himself is nowhere counted as lacking anything: Kings on
+        // four players (the shaman without), Intellect on four (he, a mana
+        // user, would have been the fifth; the shaman still lacks it)
+        const kings = r.coverage.find((c) => c.key === "kings");
+        expect(kings).toEqual(expect.objectContaining({ expected: 4, full: 3, none: 1 }));
+        const intellect = r.coverage.find((c) => c.key === "intellect");
+        expect(intellect).toEqual(expect.objectContaining({ expected: 4, full: 3, none: 1 }));
+        expect(buffsForFight({ fight, roster: roster(), bandsByName: bands(), deaths: [] }).coverage.find((c) => c.key === "intellect").expected).toBe(5);
+        // nobody with a table at all: nothing to judge
+        expect(buffsForFight({ fight, roster: roster(), bandsByName: {}, deaths: [] })).toBeNull();
+        expect(buffsForFight({ fight, roster: roster(), bandsByName: undefined, deaths: [] })).toBeNull();
+    });
+
+    it("never calls Light or Sanctuary a wrong-role blessing, and lets them fill a blessing slot", () => {
+        const two = [...roster(), { id: 7, name: "Tirion", type: "Paladin", role: "tank" }];
+        const b = bands();
+        // the mage carries Light instead of Wisdom, the shaman (a melee) Sanctuary next to nothing else
+        b.Aldra.byKey = { salvation: FULL, light: FULL, fortitude: FULL, motw: FULL, intellect: FULL, spirit: FULL };
+        b.Dorn.byKey = { sanctuary: FULL, fortitude: FULL, motw: FULL };
+        b.Tirion = { byKey: { kings: FULL, might: FULL, fortitude: FULL, motw: FULL, intellect: FULL } };
+        const r = buffsForFight({ fight, roster: two, bandsByName: b, deaths: [] });
+        const aldra = r.players.find((p) => p.name === "Aldra");
+        expect(aldra.wrong).toEqual([]);
+        expect(aldra.missing).toEqual([]);
+        // two paladins, two slots: Salvation and Light fill them, Kings is not asked for
+        expect(aldra.buffs.find((x) => x.key === "light")).toEqual(expect.objectContaining({ status: "full", expected: true, wrong: false }));
+        const dorn = r.players.find((p) => p.name === "Dorn");
+        expect(dorn.wrong).toEqual([]);
+        expect(dorn.buffs.find((x) => x.key === "sanctuary")).toEqual(expect.objectContaining({ status: "full", expected: true, wrong: false }));
+        // one slot filled, the other empty: Kings, the first in line, is the
+        // missing one (plus Intellect, as ever for the enhancer on mana)
+        expect(dorn.missing).toEqual(["kings", "intellect"]);
+        expect(r.coverage.find((c) => c.key === "light").wrong).toBe(0);
+        expect(r.coverage.find((c) => c.key === "sanctuary").wrong).toBe(0);
+        // Wisdom on the warrior stays wrong
+        expect(r.players.find((p) => p.name === "Brokk").wrong).toEqual(["wisdom"]);
+    });
+
+    it("tells a buff set after the pull (late) from one that was not there throughout (partial)", () => {
+        // 10 s after the pull until the end: late; from the pull to half-way: partial;
+        // a hole in the middle: partial too
+        expect(statusOf([[10000, 120000]], 120000, 91.7)).toBe("late");
+        expect(statusOf([[0, 60000]], 120000, 50)).toBe("partial");
+        expect(statusOf([[10000, 60000], [70000, 120000]], 120000, 83.3)).toBe("partial");
+        expect(statusOf([[10000, 110000]], 120000, 83.3)).toBe("partial");
+        expect(statusOf([[3000, 120000]], 120000, 97.5)).toBe("full");
+        expect(statusOf([], 120000, 0)).toBe("none");
+
+        const b = bands();
+        b.Leaf.byKey.kings = [band(310000, 500000)]; // Kings only from 0:10 on, then kept
+        const r = buffsForFight({ fight, roster: roster(), bandsByName: b, deaths: [] });
+        const leaf = r.players.find((p) => p.name === "Leaf");
+        expect(leaf.buffs.find((x) => x.key === "kings")).toEqual(expect.objectContaining({ status: "late", expected: true, uptimePct: 92, bands: [[10000, 120000]] }));
+        expect(leaf.late).toEqual(["kings"]);
+        expect(leaf.partial).toEqual([]);
+        expect(leaf.missing).toEqual([]);
+        expect(r.coverage.find((c) => c.key === "kings")).toEqual(expect.objectContaining({ expected: 5, full: 3, late: 1, partial: 0, none: 1 }));
+        // Brokk's Fortitude still ran out: partial, not late
+        expect(r.players.find((p) => p.name === "Brokk").partial).toEqual(["fortitude"]);
+        // ...and the summary carries the new counter through
+        const sum = summarize([{ id: 3, buffs: r }]);
+        expect(sum.players.find((p) => p.name === "Leaf")).toEqual(expect.objectContaining({ late: 1, partial: 0, missing: 0 }));
+        expect(sum.players.find((p) => p.name === "Leaf").buffs.kings).toEqual(expect.objectContaining({ expected: 1, late: 1, full: 0, pct: 0 }));
+        expect(sum.rows.find((row) => row.key === "kings")).toEqual(expect.objectContaining({ slots: 5, full: 3, late: 1, none: 1, missingPlayers: 2 }));
+    });
+
+    it("judges a player until their first death, not their last", () => {
+        // Dorn died at 0:30, was resurrected and died again at 1:00 — the order in the list is irrelevant
+        const twice = [{ at: 60000, name: "Dorn", type: "Shaman" }, { at: 30000, name: "Dorn", type: "Shaman" }];
+        const r = buffsForFight({ fight, roster: roster(), bandsByName: bands(), deaths: twice });
+        expect(of("Dorn").judgedUntil).toBe(60000);
+        const dorn = r.players.find((p) => p.name === "Dorn");
+        expect(dorn.judgedUntil).toBe(30000);
+        expect(dorn.diedAt).toBe(30000);
+        expect(dorn.buffs.find((x) => x.key === "motw").bands).toEqual([[0, 30000]]);
+    });
 });
 
 describe("logcheck/raidBuffs — summarize", () => {
@@ -365,6 +469,30 @@ describe("logcheck/raidBuffs — analyzeRaidBuffs", () => {
         expect(fb.players.find((p) => p.name === "Uther").role).toBe("healer");
         expect(fb.players.find((p) => p.name === "Brokk").role).toBe("melee");
         expect(sum.players.length).toBe(5);
+    });
+
+    // With a working summary the roster comes from WCL, so it lists the priest
+    // although his buffs table failed — he must not turn into "lacks everything".
+    it("leaves a roster player whose buffs table failed out of the judged players", async () => {
+        const wcl = wclMock();
+        wcl.getBuffs.mockImplementation(async (reportId, start, end, extra) => {
+            if (extra.sourceid === 2) throw new Error("boom");
+            return tables[extra.sourceid];
+        });
+        const spy = jest.spyOn(console, "error").mockImplementation(() => {});
+        const timeline = { fights: [{ id: 3, deaths, buffs: null }] };
+        const sum = await analyzeRaidBuffs(wcl, "abc", fights, players, idToPlayer, timeline);
+        spy.mockRestore();
+        const fb = timeline.fights[0].buffs;
+        expect(fb.players.map((p) => p.name).sort()).toEqual(["Aldra", "Brokk", "Dorn", "Leaf", "Uther"]);
+        // the summary still knows the tank and the healer roles
+        expect(fb.players.find((p) => p.name === "Brokk").role).toBe("tank");
+        // Fortitude is still expected — a priest raided — and nobody with a table lacked it
+        expect(fb.expected).toContain("fortitude");
+        expect(fb.coverage.find((c) => c.key === "fortitude")).toEqual(expect.objectContaining({ expected: 5, none: 0 }));
+        expect(sum.players.map((p) => p.name)).not.toContain("Elun");
+        expect(sum.rows.find((r) => r.key === "motw").missingPlayers).toBe(0);
+        expect(sum.rows.find((r) => r.key === "intellect").missingPlayers).toBe(1); // Dorn, as before
     });
 
     it("returns null without a timeline or without any fight it could fill", async () => {

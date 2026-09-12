@@ -89,7 +89,7 @@ describe("web/render — Buffs topic of a fight", () => {
         expect(html).toContain("1 Paladin · erwartet: Segen der Könige, Machtwort: Seelenstärke");
         // Brokk: Fortitude ran out, Wisdom on a warrior
         expect(html).toContain("<span class=\"cn\">Brokk</span><span class=\"sritems\">Tank</span>");
-        expect(html).toContain("Machtwort: Seelenstärke ausgelaufen</span>");
+        expect(html).toContain("Machtwort: Seelenstärke nicht durchgehend</span>");
         expect(html).toContain("Segen der Weisheit · falsche Rolle</span>");
         // Dorn: no Kings, judged until his death
         expect(html).toContain("<span class=\"cn\">Dorn</span><span class=\"sritems\">Nahkampf · bis 1:00</span>");
@@ -117,7 +117,8 @@ describe("web/render — Raid-Buffs tab", () => {
         expect(html).not.toContain("data-tip=\"Dornen (Druid)\"");
         expect(html).toContain("<tr class=\"cov\"><td><b>Abdeckung</b><div class=\"sritems\">Raid</div></td><td class=\"bc\"><span class=\"pct pct-part\">78%</span></td>");
         expect(html).toContain("<a class=\"cn\" href=\"/r/abc123def456/p/2\">Dorn</a><div class=\"sritems\">Shaman · Nahkampf · 3 Kämpfe</div>");
-        expect(html).toContain("title=\"Segen der Könige: 1× da, 0× ausgelaufen, 2× gefehlt\"><span class=\"pct pct-part\">33%</span>");
+        // a summary from before the `late` counter existed: read as 0, not as "undefined×"
+        expect(html).toContain("title=\"Segen der Könige: 1× da, 0× spät gesetzt, 0× nicht durchgehend, 2× gefehlt\"><span class=\"pct pct-part\">33%</span>");
         expect(html).toContain("<span class=\"pct pct-none\">0%</span>");
         expect(html).toContain("<span class=\"pct pct-wrong\" title=\"Segen der Weisheit: 3× auf der falschen Rolle\">100%</span>");
         expect(html).toContain("<span class=\"pct pct-na\" title=\"Wasserschild: nicht erwartet, 3× da\">100%</span>");
@@ -144,12 +145,35 @@ describe("web/render — Buffs on the player page", () => {
         expect(html).not.toContain("buff-lacking");
     });
 
-    it("labels a blessing on the wrong role and a buff that ran out", () => {
+    it("labels a blessing on the wrong role and a buff that was not there throughout", () => {
         const html = renderPlayerPage({ ...report(), timeline: timeline() }, 0); // Brokk
         expect(html).toContain("Buffs<span class=\"n\">2</span>");
-        expect(html).toContain("<b class=\"fc-medium\">50%</b><span>ausgelaufen</span>");
+        expect(html).toContain("<b class=\"fc-medium\">50%</b><span>nicht durchgehend</span>");
         expect(html).toContain("<b class=\"fc-high\">100%</b><span>falsche Rolle</span>");
         expect(html).toContain("<title>Segen der Weisheit (falsche Rolle): 0:00–2:00</title>");
+    });
+
+    // A buff set after the pull and then kept is its own status, not "ran out".
+    it("tells a buff set after the pull apart from one that ran out", () => {
+        const tl = timeline();
+        const f = tl.fights[0];
+        f.buffs.players[1] = {
+            name: "Elun", type: "Priest", role: "healer", judgedUntil: 120000, diedAt: null,
+            buffs: [kings("late", 92, [[10000, 120000]]), fort("full", 100, [[0, 120000]])],
+            missing: [], late: ["kings"], partial: [], wrong: [],
+        };
+        f.buffs.coverage[0] = { key: "kings", expected: 3, full: 1, late: 1, partial: 0, none: 1, present: 2, wrong: 0 };
+        const raid = renderReportPage({ ...report(), timeline: tl });
+        // the raid page lists her now, with the late chip
+        expect(raid).toContain("data-show=\"fp-2-buffs\">Buffs<span class=\"n\">3</span>");
+        expect(raid).toContain("<span class=\"cn\">Elun</span><span class=\"sritems\">Heiler</span>");
+        expect(raid).toContain("Segen der Könige spät gesetzt</span>");
+        expect(raid).not.toContain("ausgelaufen");
+        // the player page draws it as a medium ribbon with the neutral word
+        const player = renderPlayerPage({ ...report(), timeline: tl }, 1); // Elun
+        expect(player).toContain("Buffs<span class=\"n\">1</span>");
+        expect(player).toContain("<b class=\"fc-medium\">92%</b><span>spät gesetzt</span>");
+        expect(player).toContain("<title>Segen der Könige: 0:10–2:00</title>");
     });
 
     it("lists a fight for a raider who only shows up in its buffs", () => {

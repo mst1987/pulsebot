@@ -16,6 +16,9 @@ describe("classes/WarcraftLogsV2", () => {
     beforeEach(() => {
         jest.clearAllMocks();
         jest.restoreAllMocks();
+        // clearAllMocks keeps queued mockResolvedValueOnce values; a test that
+        // queues more than it consumes must not feed the next one
+        axios.post.mockReset();
     });
 
     describe("configuration", () => {
@@ -91,6 +94,53 @@ describe("classes/WarcraftLogsV2", () => {
             expect(await c.query("{ a }")).toBeNull();
             expect(c.lastError).toMatchObject({ status: 401 });
             expect(axios.post).toHaveBeenCalledTimes(1);
+        });
+
+        // A token WCL no longer honours (revoked, or expired before expires_in
+        // said) is dropped and the query repeated once with a fresh one.
+        it("on a 401 from the query drops the cached token and retries exactly once", async () => {
+            jest.spyOn(console, "warn").mockImplementation(() => {});
+            axios.post
+                .mockResolvedValueOnce(tokenResponse(3600, "stale"))
+                .mockRejectedValueOnce({ response: { status: 401 }, message: "Unauthorized" })
+                .mockResolvedValueOnce(tokenResponse(3600, "fresh"))
+                .mockResolvedValueOnce({ data: { data: { reportData: { report: { code: "abc" } } } } });
+            const c = configured();
+            expect(await c.query("{ a }")).toEqual({ reportData: { report: { code: "abc" } } });
+            expect(axios.post).toHaveBeenCalledTimes(4);
+            expect(axios.post.mock.calls[1][2].headers.Authorization).toBe("Bearer stale");
+            expect(axios.post.mock.calls[2][0]).toBe("https://www.warcraftlogs.com/oauth/token");
+            expect(axios.post.mock.calls[3][2].headers.Authorization).toBe("Bearer fresh");
+            expect(c.lastError).toBeNull();
+        });
+
+        it("gives up after the one retry when the query is refused again", async () => {
+            jest.spyOn(console, "warn").mockImplementation(() => {});
+            axios.post
+                .mockResolvedValueOnce(tokenResponse(3600, "one"))
+                .mockRejectedValueOnce({ response: { status: 401 }, message: "Unauthorized" })
+                .mockResolvedValueOnce(tokenResponse(3600, "two"))
+                .mockRejectedValueOnce({ response: { status: 401 }, message: "Unauthorized" });
+            const c = configured();
+            expect(await c.query("{ a }")).toBeNull();
+            expect(c.lastError).toMatchObject({ status: 401 });
+            expect(axios.post).toHaveBeenCalledTimes(4);
+            // and the next query does not keep the refused token
+            axios.post.mockResolvedValueOnce(tokenResponse(3600, "three")).mockResolvedValueOnce({ data: { data: {} } });
+            await c.query("{ b }");
+            expect(axios.post).toHaveBeenCalledTimes(6);
+            expect(axios.post.mock.calls[5][2].headers.Authorization).toBe("Bearer three");
+        });
+
+        it("does not retry any other failure of the query", async () => {
+            jest.spyOn(console, "warn").mockImplementation(() => {});
+            axios.post
+                .mockResolvedValueOnce(tokenResponse())
+                .mockRejectedValueOnce({ response: { status: 500 }, message: "Server Error" });
+            const c = configured();
+            expect(await c.query("{ a }")).toBeNull();
+            expect(c.lastError).toMatchObject({ status: 500 });
+            expect(axios.post).toHaveBeenCalledTimes(2);
         });
 
         it("answers null when the token response carries no access_token", async () => {
