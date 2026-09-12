@@ -63,11 +63,11 @@ describe("web/render — Kampfverlauf tab", () => {
         expect(html).toMatch(/<span class="chip chip-x ok" data-tip="[^"]*" data-tip-sub="[^"]*"><b>1,0k<\/b> Raid-DPS<\/span>/);
     });
 
-    it("puts the fight's numbers in one row: Raid-DPS, Bloodlust, mean activity, expected debuffs, deaths", () => {
+    it("puts the fight's numbers in one row: Raid-DPS, mean activity, expected debuffs, deaths — no Bloodlust stat", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
         expect(html).toContain("Raid-DPS</div><div class=\"stat-v\">1,0k</div>");
         expect(html).toContain("Raid-HPS</div><div class=\"stat-v\">300</div>");
-        expect(html).toContain("Bloodlust</div><div class=\"stat-v\">0:00 </div>");
+        expect(html).not.toContain("Bloodlust</div><div class=\"stat-v\">"); // dropped on request; the windows stay in the Cooldowns chart
         expect(html).toContain("Aktivität Ø</div><div class=\"stat-v warn\">94 %</div>");
         expect(html).toContain("Tode</div><div class=\"stat-v\">1 <small>· Alice 0:30</small></div>");
     });
