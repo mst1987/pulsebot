@@ -143,7 +143,7 @@ describe("web/render — boss cards", () => {
         const html = renderReportPage(report(), admin);
         expect(html).toContain("class=\"try-pill active try-wipe\" data-show=\"fight-2\">Try 1<span class=\"s\">Wipe bei 32 % · 2:00</span>");
         expect(html).toContain("Raid-DPS</div><div class=\"stat-v\">12,4k</div>");
-        expect(html).toContain("Bloodlust</div><div class=\"stat-v\">0:03 <small class=\"bad\">12 s auseinander</small></div>");
+        expect(html).not.toContain("Bloodlust</div><div class=\"stat-v\">"); // dropped from the stats row on request; the windows stay in the Cooldowns chart
         expect(html).toContain("Aktivität Ø</div><div class=\"stat-v warn\">92 %</div>");
         expect(html).toContain("Debuffs erwartet</div><div class=\"stat-v\">2 <small class=\"bad\">· 1 fehlte</small></div>");
         expect(html).toContain("Tode</div><div class=\"stat-v bad\">1 <small>· Brokk 0:40</small></div>");

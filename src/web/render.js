@@ -1766,18 +1766,7 @@ function fightStats(f) {
     const s = f.series || {};
     if (s.dps) out.push(stat("ability_dualwield", "Raid-DPS", fmtK(mean(s.dps)), "", "Schaden des ganzen Raids pro Sekunde, im Mittel über den Kampf", "Aus der 5-Sekunden-Kurve von Warcraft Logs (v2-Zugang). Der Verlauf steht unter „Kampfverlauf“."));
     if (s.hps) out.push(stat("spell_holy_renew", "Raid-HPS", fmtK(mean(s.hps)), "", "Heilung des ganzen Raids pro Sekunde, im Mittel über den Kampf", "Effektive Heilung ohne Overheal, aus der 5-Sekunden-Kurve von Warcraft Logs."));
-    const lust = f.cooldowns && f.cooldowns.lust;
-    const win = f.cooldowns && (f.cooldowns.windows || [])[0];
-    if (lust || win) {
-        const at = lust && Number.isFinite(lust.firstAt) ? lust.firstAt : (win ? win.from : 0);
-        const secs = lust ? Math.round(lust.spreadMs / 1000) : 0;
-        const together = !lust || lust.casts <= 1 || lust.spreadMs <= 5000;
-        const spread = lust && lust.casts > 1 ? (together ? "<small class=\"good\">gemeinsam</small>" : `<small class="bad">${secs} s auseinander</small>`) : "";
-        const how = lust && lust.casts > 1
-            ? `${lust.casts} Schamanen haben gezündet, der erste und der letzte ${secs} s auseinander. ${together ? "Innerhalb von 5 s zählt als gemeinsam." : "Gemeinsam gezündet überlappen die 40 Sekunden Tempo für den ganzen Raid; verteilt verpufft ein Teil davon."}`
-            : "Nur ein Einsatz im Log. Die Fenster stehen als Bänder unter „Cooldowns“.";
-        out.push(stat("spell_nature_bloodlust", "Bloodlust", `${fmtTime(at)} ${spread}`, "", `Erstes Bloodlust / Heldentum ${fmtTime(at)} nach dem Pull`, how));
-    }
+    // no Bloodlust stat: "0:08 · 13 s auseinander" told the raid lead nothing (their words); the windows stay in the Cooldowns chart
     const act = (f.activity || []).map((a) => Number(a.activePct)).filter(Number.isFinite);
     if (act.length) {
         const avg = Math.round(act.reduce((a, v) => a + v, 0) / act.length);
