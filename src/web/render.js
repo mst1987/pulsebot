@@ -92,6 +92,23 @@ function pctCell(v) {
     return `<span class="pct ${cls}">${v}%</span>`;
 }
 
+const CHEV_SVG = "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 9l6 6 6-6\"/></svg>";
+
+/** The expand control of a <summary>: "Details" and a round chevron button; the CSS turns and fills it when the details are open. */
+function expBtn() {
+    return `<span class="exp-lbl"><span class="exp-w">Details</span><span class="exp">${CHEV_SVG}</span></span>`;
+}
+
+/** An icon on a tinted tile; the tone (ok / mid / bad / none / cls) is the area's colour. */
+function tile(icon, tone) {
+    return `<span class="tile${tone ? ` ${tone}` : ""}">${hicon(icon, "")}</span>`;
+}
+
+/** A badge: a word, optionally an icon, a tone (ok / mid / bad / accent) and `count` for the round counter form. */
+function badge(text, tone, icon, count) {
+    return `<span class="badge${tone ? ` ${tone}` : ""}${count ? " count" : ""}">${icon ? hicon(icon, "") : ""}${esc(text)}</span>`;
+}
+
 /**
  * A WCL-style bar cell: the number on a bar whose length is `pct` (0–100) —
  * its share of the column's maximum, so the eye reads the ranking without
@@ -740,9 +757,60 @@ ${body}
   .vcard-title.cn { color:var(--cc); }
   .vcard-meta { color:var(--muted); font-size:13px; font-family:var(--font-mono); }
   .vcard-chips { display:flex; gap:8px; flex-wrap:wrap; flex:1 1 auto; }
-  .vcard-chev { font-family:var(--font-mono); color:var(--muted); font-size:18px; padding-left:6px; flex:0 0 auto; }
-  .vcard[open] .vcard-chev { transform:rotate(90deg); }
   .vcard-body { padding:0 16px 16px; }
+  /* ---- the three head levels: card head (2-px line), part head (tinted band with a tile), table head (tinted, mono) ---- */
+  .vcard[open] > summary { border-bottom:2px solid var(--line); }
+  .vcard-meta { display:flex; gap:6px; flex-wrap:wrap; margin-top:3px; }
+  table.idx th { background:var(--panel2); font-family:var(--font-mono); font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; }
+  /* badges: one word, an icon, a tone */
+  .badge { display:inline-flex; align-items:center; gap:5px; padding:2px 8px; border-radius:6px; font-size:12px; font-weight:700; font-family:var(--font-mono); font-variant-numeric:tabular-nums; background:var(--panel2); color:var(--muted); border:1px solid var(--line); white-space:nowrap; line-height:1.5; }
+  .badge.ok { background:var(--good-bg); color:var(--good); border-color:rgba(120,200,120,.35); }
+  .badge.mid, .badge.warn { background:var(--medium-bg); color:var(--medium); border-color:rgba(224,162,58,.35); }
+  .badge.bad { background:var(--high-bg); color:var(--high); border-color:rgba(224,82,79,.35); }
+  .badge.accent { background:var(--accent-soft); color:var(--accent); border-color:rgba(138,124,255,.35); }
+  .badge.count { border-radius:10px; padding:1px 7px; }
+  .badge .hicon { width:14px; height:14px; margin:0; }
+  /* icon tiles: an icon on a tinted square, the colour is the area's tone */
+  .tile { width:34px; height:34px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; background:var(--accent-soft); }
+  .tile .hicon { width:22px; height:22px; margin:0; }
+  .tile.bad { background:var(--high-bg); } .tile.mid { background:var(--medium-bg); } .tile.ok { background:var(--good-bg); } .tile.none { background:var(--panel2); }
+  .tile.cls { background:color-mix(in srgb, var(--cc) 18%, transparent); }
+  .tile.cls .hicon { border-radius:6px; }
+  /* the expand control: a round 30-px button with a chevron, filled and turned when open, "Details" before it when closed */
+  .exp-lbl { display:inline-flex; align-items:center; gap:8px; margin-left:auto; flex:0 0 auto; font-size:13px; font-weight:600; color:var(--muted); }
+  .exp { width:30px; height:30px; border-radius:50%; border:1px solid var(--line); background:var(--panel); display:inline-flex; align-items:center; justify-content:center; color:var(--accent); flex:0 0 auto; }
+  .exp svg { width:18px; height:18px; display:block; }
+  details[open] > summary .exp { background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  details[open] > summary .exp svg { transform:rotate(180deg); }
+  details[open] > summary .exp-w { display:none; }
+  /* healer list: one row per healer, the details under it */
+  .hlist { display:flex; flex-direction:column; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .hcols, .hrow > summary { display:grid; grid-template-columns:34px minmax(150px,1fr) 260px 150px 120px minmax(120px,1fr) auto; align-items:center; gap:12px; padding:9px 12px; }
+  .hcols { background:var(--panel2); border-bottom:1px solid var(--line); }
+  .hrow > summary { cursor:pointer; list-style:none; border-bottom:1px solid var(--line-soft); }
+  .hrow > summary::-webkit-details-marker { display:none; }
+  .hrow:last-child > summary { border-bottom:0; }
+  .hrow[open] > summary { background:var(--accent-soft); border-left:3px solid var(--accent); padding-left:9px; }
+  .hrow .who { display:flex; align-items:center; gap:10px; min-width:0; }
+  .hrow .who .hicon { width:30px; height:30px; border-radius:7px; border:1px solid var(--line); margin:0; }
+  .hrow .who .cn { color:var(--cc); font-weight:700; }
+  .hrow .who .sritems { display:block; }
+  .hrow .hints { display:flex; gap:6px; flex-wrap:wrap; }
+  .hrow-body { padding:12px 12px 14px 46px; border-left:3px solid var(--accent); border-bottom:1px solid var(--line-soft); background:color-mix(in srgb, var(--accent-soft) 40%, transparent); display:flex; flex-direction:column; gap:12px; }
+  .hrow-body .heal-chips { margin:0; }
+  .rank { width:26px; height:26px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-size:12.5px; font-weight:700; background:var(--panel2); color:var(--muted); }
+  .rank.top { background:var(--accent); color:var(--accent-ink); }
+  /* grouped lists: whatever belongs to a player sits under their head row */
+  .glist { display:flex; flex-direction:column; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .grp > summary { display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--panel2); border-top:1px solid var(--line); cursor:pointer; list-style:none; }
+  .grp:first-child > summary { border-top:0; }
+  .grp > summary::-webkit-details-marker { display:none; }
+  .grp > summary .cn { color:var(--cc); font-weight:800; font-size:15px; }
+  .grp[open] > summary { border-left:3px solid var(--cc); padding-left:9px; }
+  .grp .topic-table td:first-child { padding-left:56px; }
+  .grp .topic-table th:first-child { padding-left:56px; }
+  .grp .topic-table tr:last-child td { border-bottom:0; }
+  @media (max-width:900px) { .hcols { display:none; } .hrow > summary { grid-template-columns:34px 1fr; } .hrow > summary .bar-heal { width:100%; } }
   .chip.warn { border-color:rgba(224,162,58,.4); background:var(--medium-bg); } .chip.warn b { color:var(--medium); }
   .chip.bad { border-color:rgba(224,82,79,.4); background:var(--high-bg); } .chip.bad b { color:var(--high); }
   .chip.ok b { color:var(--good); }
@@ -758,17 +826,17 @@ ${body}
   .stat-v.warn { color:var(--medium); } .stat-v.bad { color:var(--high); }
   .secs { display:flex; gap:8px; flex-wrap:wrap; padding:14px 0 0; }
   .sec { display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border:1px solid var(--line); border-radius:9px; background:var(--panel); font:inherit; font-size:14px; font-weight:600; color:var(--text); cursor:pointer; }
-  .sec .n { font-family:var(--font-mono); font-size:12px; font-weight:500; color:var(--muted); }
+  .sec .n { font-family:var(--font-mono); font-size:12px; font-weight:600; color:var(--muted); background:var(--panel2); border-radius:10px; padding:1px 7px; }
+  .sec .n.mid { background:var(--medium-bg); color:var(--medium); } .sec .n.bad { background:var(--high-bg); color:var(--high); }
   .sec .hicon { margin:0; }
   .sec:hover { border-color:var(--muted); }
   .sec.active { border-color:var(--accent); background:var(--accent-soft); }
   .sec .dot { width:8px; height:8px; border-radius:50%; background:var(--good); flex:0 0 auto; }
   .sec .dot.mid { background:var(--medium); } .sec .dot.bad { background:var(--high); } .sec .dot.none { background:var(--line); }
   .part { padding:14px 0 4px; }
-  .part-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:0 0 10px; }
-  .part-title { display:flex; align-items:center; gap:8px; font-size:15px; font-weight:700; }
-  .part-title .hicon { width:22px; height:22px; margin:0; }
-  .part-title .kicker { margin-left:8px; }
+  .part-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:0 0 12px; padding:10px 14px; background:var(--panel2); border:1px solid var(--line); border-radius:10px; }
+  .part-title { display:flex; align-items:center; gap:10px; font-size:15px; font-weight:800; }
+  .part-title .kicker { display:block; margin:0; font-weight:500; }
   .topic-table { margin:0; }
   .topic-table td .hicon { width:22px; height:22px; border-radius:5px; }
   .topic-table .tv { font-family:var(--font-mono); font-weight:700; }
@@ -783,7 +851,7 @@ ${body}
   .rsec > summary { display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; list-style:none; font-size:16px; font-weight:700; }
   .rsec > summary::-webkit-details-marker { display:none; }
   .rsec > summary .hicon { width:22px; height:22px; margin:0; }
-  .rsec > summary .rec-count { margin-left:auto; }
+  .rsec > summary .rec-count { margin-left:8px; }
   .rsec > summary .rec-count.hot { background:var(--high-bg); color:var(--high); }
   .rsec[open] > summary { border-bottom:1px solid var(--line-soft); }
   .rsec-body { padding:14px 16px 16px; }
@@ -1210,6 +1278,23 @@ function topicTable(rows, duration, kind) {
 }
 
 /**
+ * Rows that belong to somebody, under that somebody: one <details> per
+ * player (class tile, name in class colour, a badge with their result), the
+ * rows as a topic table beneath. Ordered as given (the caller sorts by what
+ * needs attention); `open` on a group opens it. A flat list of
+ * "Dorn · Bloodlust, Brokk · Shield Wall, Dorn · Mana Tide" is unreadable —
+ * the raid lead's words.
+ *
+ * @param {Array<{ name, type, rows, badge: { text, tone }, open }>} groups
+ */
+function groupedTable(groups, duration, kind) {
+    return `<div class="glist">${groups.map((g) => `<details class="grp" style="--cc:${esc(classColorOf(g.type) || "var(--text)")}"${g.open ? " open" : ""}>
+      <summary>${tile(classIconName(g.type), "cls")}<span class="cn">${esc(g.name)}</span><span class="sritems">${esc(g.type || "")}</span>${g.badge ? badge(g.badge.text, g.badge.tone) : ""}${g.extra || ""}${expBtn()}</summary>
+      ${topicTable(g.rows, duration, kind)}
+    </details>`).join("")}</div>`;
+}
+
+/**
  * The topic parts of one fight, only those with data:
  *   { id, key, label, icon, count, tone, table, chart }
  * `table` is the compact view a card opens with, `chart` the timeline
@@ -1249,7 +1334,13 @@ function fightParts(f, linkFor, only, ns = "") {
             tone: Number.isFinite(r.uptimePct) ? pctTone(r.uptimePct) : r.tone,
         })));
         const twisting = totems.filter((t) => t.twisting && t.twisting.detected).length;
-        part("totems", { count: rows.length, tone: worst(rows), sub: twisting ? "Twisting" : "", table: topicTable(rows, f.duration, "markers"), chart: markerChart({ ...common, rows }) });
+        const groups = totems.map((t) => {
+            const own = (t.rows || []).map((r) => ({ ...r, value: Number.isFinite(r.uptimePct) ? `${r.uptimePct}%` : r.value, sub: r.sub || ((r.downtimes || []).length ? `${r.downtimes.length} Lücke${r.downtimes.length === 1 ? "" : "n"}` : ""), tone: Number.isFinite(r.uptimePct) ? pctTone(r.uptimePct) : r.tone }));
+            const gaps = own.reduce((n, r) => n + ((r.downtimes || []).length), 0);
+            const tw = t.twisting && t.twisting.detected;
+            return { name: t.name, type: t.type, rows: own, open: gaps > 0, badge: gaps ? { text: `${gaps} Lücke${gaps === 1 ? "" : "n"}`, tone: gaps >= 3 ? "bad" : "mid" } : { text: tw ? "Twisting" : "ok", tone: "ok" } };
+        }).sort((a, b) => (b.badge.tone === "ok" ? 0 : 1) - (a.badge.tone === "ok" ? 0 : 1));
+        part("totems", { count: rows.length, tone: worst(rows), sub: twisting ? "Twisting" : "", table: only ? topicTable(rows, f.duration, "markers") : groupedTable(groups, f.duration, "markers"), chart: markerChart({ ...common, rows }) });
     }
 
     const cdPlayers = ((f.cooldowns && f.cooldowns.players) || []).filter((p) => mine(p.name));
@@ -1261,7 +1352,15 @@ function fightParts(f, linkFor, only, ns = "") {
         const possible = rows.reduce((n, r) => n + (Number.isFinite(r.possibleUses) ? r.possibleUses : 0), 0);
         const missed = rows.reduce((n, r) => n + (Number.isFinite(r.missed) ? r.missed : 0), 0);
         const usedPct = possible ? Math.round(((possible - missed) / possible) * 100) : null;
-        part("cooldowns", { count: rows.length, tone: usedPct === null ? "ok" : usedPct >= 80 ? "ok" : usedPct >= 50 ? "mid" : "bad", sub: usedPct === null ? "" : `${usedPct} % genutzt`, table: topicTable(rows, f.duration, "markers"), chart: markerChart({ ...common, rows, windows: f.cooldowns.windows || [] }) });
+        // per player: their cooldowns under their name, the one who missed most first, nothing missed = closed
+        const groups = cdPlayers.map((p) => {
+            const own = (p.rows || []).map((r) => ({ ...r, value: r.value !== undefined ? r.value : `${(r.markers || []).length}×` }));
+            const pos = own.reduce((n, r) => n + (Number.isFinite(r.possibleUses) ? r.possibleUses : 0), 0);
+            const mis = own.reduce((n, r) => n + (Number.isFinite(r.missed) ? r.missed : 0), 0);
+            const used = pos - mis;
+            return { name: p.name, type: p.type, rows: own, missed: mis, open: mis > 0, badge: pos ? { text: `${used} von ${pos} genutzt`, tone: mis === 0 ? "ok" : used * 2 >= pos ? "mid" : "bad" } : { text: (() => { const u = own.reduce((n, r) => n + (r.markers || []).length, 0); return `${u} ${u === 1 ? "Einsatz" : "Einsätze"}`; })(), tone: "" } };
+        }).sort((a, b) => b.missed - a.missed || a.name.localeCompare(b.name));
+        part("cooldowns", { count: rows.length, tone: usedPct === null ? "ok" : usedPct >= 80 ? "ok" : usedPct >= 50 ? "mid" : "bad", sub: usedPct === null ? "" : `${usedPct} % genutzt`, table: only ? topicTable(rows, f.duration, "markers") : groupedTable(groups, f.duration, "markers"), chart: markerChart({ ...common, rows, windows: f.cooldowns.windows || [] }) });
     }
 
     const activity = (f.activity || []).filter((a) => mine(a.name));
@@ -1280,10 +1379,18 @@ function fightParts(f, linkFor, only, ns = "") {
     const mechRows = mechanicRows(f.mechanics, only);
     if (mechRows.length) {
         const hits = mechRows.reduce((n, r) => n + r.markers.length, 0);
-        part("mechanics", { count: hits, tone: worst(mechRows), sub: `${hits} Treffer`, table: topicTable(mechRows, f.duration, "markers"), chart: markerChart({ ...common, rows: mechRows }) });
+        // per raider: their hits under their name, the most-hit first, one hit = closed
+        const groups = only ? [] : ((f.mechanics && f.mechanics.players) || []).map((p) => {
+            const own = mechanicRows(f.mechanics, p.name);
+            const n = own.reduce((s, r) => s + r.markers.length, 0);
+            const deaths = (f.deaths || []).filter((d) => d.name === p.name);
+            const avoidable = deaths.filter((d) => d.avoidable).length;
+            return { name: p.name, type: p.type, rows: own, hits: n, open: n >= 2 || avoidable > 0, badge: { text: `${n} Treffer`, tone: n >= 3 ? "bad" : n === 2 ? "mid" : "" }, extra: avoidable ? badge(`${avoidable} vermeidbar${avoidable === 1 ? "er Tod" : "e Tode"}`, "bad", "ability_creature_cursed_05") : (deaths.length ? badge(`${deaths.length} ${deaths.length === 1 ? "Tod" : "Tode"}`, "", "ability_creature_cursed_05") : "") };
+        }).filter((g) => g.rows.length).sort((a, b) => b.hits - a.hits || a.name.localeCompare(b.name));
+        part("mechanics", { count: hits, tone: worst(mechRows), sub: `${hits} Treffer`, table: only || !groups.length ? topicTable(mechRows, f.duration, "markers") : groupedTable(groups, f.duration, "markers"), chart: markerChart({ ...common, rows: mechRows }) });
     }
 
-    const healing = healingParts(f, only, common);
+    const healing = healingParts(f, only, common, key("healing"));
     if (healing) part("healing", { count: healing.count, tone: healing.tone, sub: healing.sub, table: healing.table, chart: healing.chart });
 
     const buffs = buffParts(f, only, common);
@@ -1371,7 +1478,29 @@ function healerBlock(x, f, common) {
     const died = x.diedAt !== null && x.diedAt !== undefined ? ` · gestorben ${fmtTime(x.diedAt)}` : "";
     const head = `<h4 class="heal-h"><span class="cn">${esc(x.name)}</span><span class="meta">${esc(x.type)}${died}</span></h4>`;
     const style = `style="--cc:${esc(classColorOf(x.type) || "var(--text)")}"`;
+    // the list row: rank, who, the one bar, mana and dispels as badges, the rest as hints; the block opens under it
+    const row = (rank, maxRaw, dialogId) => {
+        const manaBadge = mana.available
+            ? badge(`${mana.min} % bei ${fmtTime(mana.minAt)}`, mana.min < 10 ? "bad" : mana.min < 20 ? "mid" : "ok", "inv_potion_137")
+            : badge("kein Verlauf", "", "inv_potion_137");
+        const dispelBadge = x.dispels && x.dispels.count
+            ? badge(`${x.dispels.count}${x.dispels.avgReactionMs !== null && x.dispels.avgReactionMs !== undefined ? ` · Ø ${fmtSecs(x.dispels.avgReactionMs)}` : ""}`, "ok", "spell_holy_dispelmagic")
+            : badge("0", "", "spell_holy_dispelmagic");
+        const hints = [
+            heal.absorbs ? badge(`${fmtK(heal.absorbs)} Absorb`, "", "inv_misc_gem_01") : "",
+            x.diedAt !== null && x.diedAt !== undefined ? badge(`gestorben ${fmtTime(x.diedAt)}`, "bad", "ability_creature_cursed_05") : "",
+            x.potionMissing ? badge("kein Manatrank", "mid", "inv_potion_137") : "",
+        ].filter(Boolean).join("");
+        const openChart = dialogId ? `<div style="display:flex;justify-content:flex-end"><button type="button" class="btn btn-ghost btn-sm" data-dialog="dlg-${esc(dialogId)}">${hicon("inv_misc_pocketwatch_01", "")}Manaverlauf öffnen ⤢</button></div>` : "";
+        return `<details class="hrow" ${style}${rank === 1 ? " open" : ""}>
+      <summary><span class="rank${rank === 1 ? " top" : ""}">${rank}</span><div class="who">${hicon(classIconName(x.type), "")}<div><span class="cn">${esc(x.name)}</span><span class="sritems">${esc(x.type)}</span></div></div>${healBar(heal.total, heal.overheal, maxRaw, heal.overhealPct, `${num(heal.total)} effektive Heilung, ${num(heal.overheal || 0)} Overheal (${heal.overhealPct} %)`, HEAL_BAR_HOW)}${manaBadge}${dispelBadge}<div class="hints">${hints}</div>${expBtn()}</summary>
+      <div class="hrow-body"><div class="heal-chips">${chips}</div>${table}${openChart}</div>
+    </details>`;
+    };
     return {
+        row,
+        raw: (Number(heal.total) || 0) + (Number(heal.overheal) || 0),
+        total: Number(heal.total) || 0,
         table: `<div class="heal-block" ${style}>${head}<div class="heal-chips">${chips}</div>${table}</div>`,
         chart: `<div class="heal-block" ${style}>${head}${manaChart}</div>`,
     };
@@ -1383,7 +1512,7 @@ function healerBlock(x, f, common) {
  * the healers' numbers and the never-removed debuffs, the chart half the mana
  * curves and the shields on the tank.
  */
-function healingParts(f, only, common) {
+function healingParts(f, only, common, partId) {
     const h = f.healers;
     if (!h || !(h.healers || []).length) return null;
     const healers = h.healers.filter((x) => !only || x.name === only);
@@ -1392,6 +1521,12 @@ function healingParts(f, only, common) {
     const shields = (h.shields || []).filter((r) => !only || isTank || r.source === only);
     if (!healers.length && !shields.length) return null;
     const blocks = healers.map((x) => healerBlock(x, f, common));
+    // on the raid page: every healer as one row, ranked by what landed, the strongest open; their block under it
+    const ranked = blocks.slice().sort((a, b) => b.total - a.total);
+    const maxRaw = Math.max(1, ...ranked.map((b) => b.raw));
+    const hlist = !only && ranked.length
+        ? `<div class="hlist"><div class="hcols"><span class="kicker">#</span><span class="kicker">Heiler</span><span class="kicker" data-tip="Heilung und Overheal in einem Balken" data-tip-sub="${esc(HEAL_BAR_HOW)}">Heilung · Overheal</span><span class="kicker" data-tip="Niedrigster Manastand im Kampf und wann">Mana-Tiefstand</span><span class="kicker" data-tip="Dispels und die mittlere Reaktionszeit">Dispels</span><span class="kicker">Hinweise</span><span></span></div>${ranked.map((b, i) => b.row(i + 1, maxRaw, partId)).join("")}</div>`
+        : "";
     let tankTable = "";
     let tankChart = "";
     if (h.tank && shields.length) {
@@ -1420,7 +1555,7 @@ function healingParts(f, only, common) {
     return {
         count: healers.length, tone,
         sub: only ? "" : `${healers.length} Heiler`,
-        table: blocks.map((b) => b.table).join("") + tankTable + missed,
+        table: (hlist || blocks.map((b) => b.table).join("")) + tankTable + missed,
         chart: blocks.map((b) => b.chart).join("") + tankChart,
     };
 }
@@ -1732,7 +1867,7 @@ function dipChip(report, name) {
 /** Section buttons + panels for the parts of one fight, in `mode` "card" (table, chart behind a dialog button) or "inline" (table and chart stacked). */
 function partPanels(f, parts, mode, ctx) {
     const seg = parts.map((p, i) =>
-        `<button type="button" class="sec${i === 0 ? " active" : ""}" data-show="${p.id}">${hicon(p.icon, "")}<span class="dot ${p.tone === "bad" ? "bad" : p.tone === "mid" ? "mid" : p.tone === "ok" ? "" : "none"}"></span>${esc(p.label)}${p.count === "" ? "" : `<span class="n">${esc(p.count)}${p.sub ? ` · ${esc(p.sub)}` : ""}</span>`}</button>`).join("");
+        `<button type="button" class="sec${i === 0 ? " active" : ""}" data-show="${p.id}">${hicon(p.icon, "")}${esc(p.label)}${p.count === "" ? "" : `<span class="n${p.tone === "bad" ? " bad" : p.tone === "mid" ? " mid" : ""}">${esc(p.count)}${p.sub ? ` · ${esc(p.sub)}` : ""}</span>`}</button>`).join("");
     const panels = parts.map((p, i) => {
         let chart = "";
         if (p.chart && mode === "inline") chart = `<div class="part-chart">${p.chart}</div>`;
@@ -1740,7 +1875,7 @@ function partPanels(f, parts, mode, ctx) {
         const open = p.chart && mode !== "inline" ? `<button type="button" class="btn btn-ghost btn-sm" data-dialog="dlg-${p.id}">${hicon("inv_misc_pocketwatch_01", "")}Verlauf öffnen ⤢</button>` : "";
         const crumb = ctx && ctx.crumb ? `<span class="kicker">${esc(ctx.crumb)} › ${esc(p.label)}</span>` : "";
         return `<div id="${p.id}" class="fight-part part"${i === 0 ? "" : " hidden"}>
-          <div class="part-head"><div class="part-title">${hicon(p.icon, "")}${esc(p.label)}${ctx && ctx.subject ? ` · ${esc(ctx.subject)}` : ""}${crumb}</div>${open}</div>
+          <div class="part-head"><div class="part-title">${tile(p.icon, p.tone === "bad" ? "bad" : p.tone === "mid" ? "mid" : p.tone === "ok" ? "ok" : "none")}<div>${esc(p.label)}${ctx && ctx.subject ? ` · ${esc(ctx.subject)}` : ""}${crumb}</div></div>${open}</div>
           ${p.table}${chart}
         </div>`;
     }).join("");
@@ -1837,27 +1972,27 @@ function tryPills(b, ns) {
 
 /** The chips in a boss card's head: missing debuffs, players short of buffs, never-removed debuffs, raid DPS of the best try. */
 function bossChips(b) {
-    const chip = (n, label, tone, tip, sub) => `<span class="chip chip-x${tone ? ` ${tone}` : ""}"${tip ? ` data-tip="${esc(tip)}"` : ""}${sub ? ` data-tip-sub="${esc(sub)}"` : ""}><b>${esc(n)}</b> ${esc(label)}</span>`;
+    const chip = (n, label, tone, tip, sub, icon) => `<span class="chip chip-x${tone ? ` ${tone}` : ""}"${tip ? ` data-tip="${esc(tip)}"` : ""}${sub ? ` data-tip-sub="${esc(sub)}"` : ""}>${icon ? hicon(icon, "") : ""}<b>${esc(n)}</b> ${esc(label)}</span>`;
     const out = [];
     if (b.fights.some((f) => f.debuffs && f.debuffs.length)) {
         const missing = new Set();
         for (const f of b.fights) for (const d of f.debuffs || []) if (d.expected && (d.missing || d.uptimePct === 0)) missing.add(d.key);
-        out.push(chip(missing.size, `Debuff${missing.size === 1 ? "" : "s"} fehlte${missing.size === 1 ? "" : "n"}`, missing.size ? "bad" : "ok", "Erwartete Debuffs, die in mindestens einem Try kein einziges Mal auf dem Boss lagen", "Erwartet wird, was die Aufstellung hergibt: kein Krieger, kein Sunder. Die Uptimes je Try stehen unter „Debuffs“."));
+        out.push(chip(missing.size, `Debuff${missing.size === 1 ? "" : "s"} fehlte${missing.size === 1 ? "" : "n"}`, missing.size ? "bad" : "ok", "Erwartete Debuffs, die in mindestens einem Try kein einziges Mal auf dem Boss lagen", "Erwartet wird, was die Aufstellung hergibt: kein Krieger, kein Sunder. Die Uptimes je Try stehen unter „Debuffs“.", "spell_shadow_chilltouch"));
     }
     if (b.fights.some((f) => f.buffs && (f.buffs.players || []).length)) {
         const lacking = new Set();
         for (const f of b.fights) for (const p of (f.buffs && f.buffs.players) || []) if (buffIssues(p) > 0) lacking.add(p.name);
-        out.push(chip(lacking.size, "Buffs fehlten", lacking.size ? "warn" : "ok", "Spieler, denen in mindestens einem Try ein erwarteter Raid-Buff fehlte, spät kam, ausging oder auf der falschen Rolle saß", "Wer was nicht hatte, steht unter „Buffs“."));
+        out.push(chip(lacking.size, "Buffs fehlten", lacking.size ? "warn" : "ok", "Spieler, denen in mindestens einem Try ein erwarteter Raid-Buff fehlte, spät kam, ausging oder auf der falschen Rolle saß", "Wer was nicht hatte, steht unter „Buffs“.", "spell_magic_greaterblessingofkings"));
     }
     if (b.fights.some((f) => f.healers && f.healers.dispels)) {
         const n = b.fights.reduce((s, f) => s + (((f.healers && f.healers.dispels && f.healers.dispels.missed) || []).length), 0);
-        out.push(chip(n, "nie dispellt", n >= 3 ? "warn" : "", "Dispelbare Debuffs auf Spielern, die in diesem Kampf niemand entfernt hat", "Dispelbar heißt: denselben Debuff hat im Log irgendwann jemand dispellt. Ab 3 gelb."));
+        out.push(chip(n, "nie dispellt", n >= 3 ? "warn" : "", "Dispelbare Debuffs auf Spielern, die in diesem Kampf niemand entfernt hat", "Dispelbar heißt: denselben Debuff hat im Log irgendwann jemand dispellt. Ab 3 gelb.", "spell_holy_dispelmagic"));
     }
     const withDps = b.fights.filter((f) => f.series && Array.isArray(f.series.dps) && f.series.dps.length);
     if (withDps.length) {
         const best = withDps.find((f) => f.kill) || withDps[withDps.length - 1];
         const mean = Math.round(best.series.dps.reduce((a, v) => a + (Number(v) || 0), 0) / best.series.dps.length);
-        out.push(chip(fmtK(mean), "Raid-DPS", "ok", `Schaden des ganzen Raids pro Sekunde im ${best.kill ? "Kill-Try" : "letzten Try"}, im Mittel über den Kampf`, "Aus der 5-Sekunden-Kurve von Warcraft Logs (v2-Zugang)."));
+        out.push(chip(fmtK(mean), "Raid-DPS", "ok", `Schaden des ganzen Raids pro Sekunde im ${best.kill ? "Kill-Try" : "letzten Try"}, im Mittel über den Kampf`, "Aus der 5-Sekunden-Kurve von Warcraft Logs (v2-Zugang).", "ability_dualwield"));
     }
     return out.join("");
 }
@@ -1868,11 +2003,13 @@ function bossMeta(b) {
     const kill = b.fights.find((f) => f.kill);
     const wipes = b.fights.filter((f) => !f.kill);
     const deaths = b.fights.reduce((s, f) => s + (f.deaths || []).length, 0);
-    const parts = [`${n} ${n === 1 ? "Try" : "Tries"}`];
-    if (wipes.length) parts.push(wipes.length === 1 ? fightOutcome(wipes[0]) : `${wipes.length} Wipes`);
-    if (kill) parts.push(`Kill ${fmtTime(kill.duration)}`);
-    parts.push(`${deaths} ${deaths === 1 ? "Tod" : "Tode"}`);
-    return parts.join(" · ");
+    const avoidable = b.fights.reduce((s, f) => s + (f.deaths || []).filter((d) => d.avoidable).length, 0);
+    return [
+        badge(`${n} ${n === 1 ? "Try" : "Tries"}`, "", "", true),
+        wipes.length ? badge(wipes.length === 1 ? fightOutcome(wipes[0]) : `${wipes.length} Wipes`, "bad", "achievement_boss_illidan") : "",
+        kill ? badge(`Kill ${fmtTime(kill.duration)}`, "ok", "achievement_boss_illidan") : "",
+        badge(`${deaths} ${deaths === 1 ? "Tod" : "Tode"}${avoidable ? ` · ${avoidable} vermeidbar` : ""}`, avoidable ? "bad" : deaths ? "mid" : "", "ability_creature_cursed_05"),
+    ].filter(Boolean).join("");
 }
 
 /** Raid recommendations that name this boss in their title, text or evidence. */
@@ -1892,7 +2029,7 @@ function bossCard(b, i, linkFor, raidRecs, reviewer) {
     const ctx = { iconUrl: icon, crumb: `Bosse › ${b.name}`, subject: `auf ${b.name}` };
     const sections = b.fights.map((f, j) => renderFightSection(f, linkFor, null, j + 1, b.fights.length, j === 0, "card", "", ctx)).join("");
     return `<details class="vcard boss-card" id="boss-${esc(b.key)}"${i === 0 ? " open" : ""}>
-      <summary>${icon ? `<img class="vcard-icon" src="${esc(icon)}" alt="">` : "<span class=\"vcard-icon\"></span>"}<div class="vcard-main"><div class="vcard-title">${esc(b.name)}</div><div class="vcard-meta">${esc(bossMeta(b))}</div></div><div class="vcard-chips">${bossChips(b)}</div><span class="vcard-chev" aria-hidden="true">▸</span></summary>
+      <summary>${icon ? `<img class="vcard-icon" src="${esc(icon)}" alt="">` : "<span class=\"vcard-icon\"></span>"}<div class="vcard-main"><div class="vcard-title">${esc(b.name)}</div><div class="vcard-meta">${bossMeta(b)}</div></div><div class="vcard-chips">${bossChips(b)}</div>${expBtn()}</summary>
       <div class="vcard-body">${tryPills(b, "")}${sections}${bossRecommendations(b, raidRecs, reviewer)}</div>
     </details>`;
 }
@@ -2538,9 +2675,9 @@ function reportContext(report, user) {
 
 /** One foldable section of Sicht Raid. */
 function raidSection(id, icon, label, count, html, opts = {}) {
-    const badge = count === undefined || count === null ? "" : `<span class="rec-count${opts.hot ? " hot" : ""}">${esc(count)}</span>`;
+    const counter = count === undefined || count === null ? "" : `<span class="rec-count${opts.hot ? " hot" : ""}">${esc(count)}</span>`;
     return `<details class="rsec" id="rs-${esc(id)}"${opts.open ? " open" : ""}>
-      <summary>${hicon(icon, "")}<span>${esc(label)}</span>${badge}</summary>
+      <summary>${tile(icon, opts.hot ? "bad" : count ? "" : "none")}<span>${esc(label)}</span>${counter}${expBtn()}</summary>
       <div class="rsec-body">${html}</div>
     </details>`;
 }
@@ -2887,7 +3024,7 @@ function raiderCard(ctx, p, i, opts = {}) {
             html: `<p class="note">${fights.length} ${fights.length === 1 ? "Kampf" : "Kämpfe"} mit eigenen Zeilen: Aktivität, Cooldowns, Buffs, Heilung, Mechaniken, Tode.</p><button type="button" class="btn btn-ghost btn-sm" data-dialog="dlg-rt-${i}">${hicon("inv_misc_pocketwatch_01", "")}Verlauf öffnen ⤢</button>${timelineDialog}` });
     }
     const secId = (k) => `rc${i}-${k}`;
-    const buttons = secs.map((s, j) => `<button type="button" class="sec${j === 0 ? " active" : ""}" data-show="${secId(s.key)}">${hicon(s.icon, "")}<span class="dot ${s.tone === "bad" ? "bad" : s.tone === "mid" ? "mid" : s.tone === "ok" ? "" : "none"}"></span>${esc(s.label)}${s.count !== "" ? `<span class="n">${esc(s.count)}</span>` : ""}</button>`).join("");
+    const buttons = secs.map((s, j) => `<button type="button" class="sec${j === 0 ? " active" : ""}" data-show="${secId(s.key)}">${hicon(s.icon, "")}${esc(s.label)}${s.count !== "" ? `<span class="n${s.tone === "bad" ? " bad" : s.tone === "mid" ? " mid" : ""}">${esc(s.count)}</span>` : ""}</button>`).join("");
     const panels = secs.map((s, j) => `<div id="${secId(s.key)}" class="part"${j === 0 ? "" : " hidden"}>${s.html}</div>`).join("");
 
     let foot = "";
@@ -2895,9 +3032,16 @@ function raiderCard(ctx, p, i, opts = {}) {
         const sent = ctx.sent[name];
         foot = `<div class="raider-foot"><span class="note">${approved} freigegeben · ${open} offen · zuletzt gesendet: ${sent ? esc(new Date(sent.at).toLocaleString("de-DE")) : "nie"}</span><span class="rec-send-result" hidden></span><div class="btns"><button type="button" class="btn btn-ghost btn-sm" data-phrase="player" data-tip="Claude formuliert die Befunde dieses Raiders in Klartext" data-tip-sub="Deine Freigabe bleibt nötig; der Regeltext bleibt erhalten.">KI-Formulierung erzeugen</button><button type="button" class="btn btn-sm" data-dialog="send-${i}"${approved ? "" : " disabled"}>Vorschau &amp; senden</button></div></div>${sendDialog(ctx, p, i, items)}`;
     }
-    const meta = [p.type, ROLE_LABEL[role], fights.length ? `${fights.length} ${fights.length === 1 ? "Kampf" : "Kämpfe"}` : ""].filter(Boolean).join(" · ");
+    const deathsN = fights.reduce((n, f) => n + (f.deaths || []).filter((d) => d.name === name).length, 0);
+    const roleIcon = { tank: "inv_shield_06", healer: "spell_holy_flashheal", dps: "ability_dualwield" }[role];
+    const meta = [
+        badge(p.type, ""),
+        ROLE_LABEL[role] ? badge(ROLE_LABEL[role], "accent", roleIcon) : "",
+        fights.length ? badge(`${fights.length} ${fights.length === 1 ? "Kampf" : "Kämpfe"}`, "", "", true) : "",
+        deathsN ? badge(`${deathsN} ${deathsN === 1 ? "Tod" : "Tode"}`, "bad", "ability_creature_cursed_05") : "",
+    ].filter(Boolean).join("");
     return `<details class="vcard raider-card" id="raider-${esc(name)}" data-name="${esc(name)}" data-role="${role}" data-open="${reviewer ? open : approved}" data-report="${esc(report.id)}" style="--cc:${esc(color)}"${opts.open ? " open" : ""}>
-      <summary><img class="vcard-icon" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}"><div class="vcard-main"><div class="vcard-title cn">${esc(name)}</div><div class="vcard-meta">${esc(meta)}</div></div><div class="vcard-chips">${chips}</div><span class="vcard-chev" aria-hidden="true">▸</span></summary>
+      <summary><img class="vcard-icon" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}"><div class="vcard-main"><div class="vcard-title cn">${esc(name)}</div><div class="vcard-meta">${meta}</div></div><div class="vcard-chips">${chips}</div>${expBtn()}</summary>
       <div class="vcard-body"><nav class="secs">${buttons}</nav>${panels}${foot}</div>
     </details>`;
 }

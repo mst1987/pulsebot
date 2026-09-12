@@ -70,7 +70,7 @@ describe("web/render — Heilung topic of a fight", () => {
     it("adds a Heilung topic with one block per healer: chips, mana curve with its potion, spell table", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
         expect(html).toContain("data-show=\"fp-2-healing\">");
-        expect(html).toContain("Heilung<span class=\"n\">2 · 2 Heiler</span>");
+        expect(html).toMatch(/Heilung<span class="n(?: mid| bad)?">2 · 2 Heiler<\/span>/);
         expect(html).toContain("<span class=\"cn\">Elun</span>");
         expect(html).toContain("<b>23 %</b> Overheal");
         expect(html).toContain("<b>155k</b> Heilung");
@@ -87,6 +87,26 @@ describe("web/render — Heilung topic of a fight", () => {
         expect(html).toContain("<td class=\"rank\">2</td><td><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/spell_holy_greaterheal.jpg\" alt=\"\">Greater Heal</td><td><span class=\"bar bar-heal\" data-tip=\"60.000 effektive Heilung, 40.000 Overheal (40 %) · 30 Casts\"");
         expect(html).toContain("<i class=\"main\" style=\"width:60%\"></i><i class=\"over\" style=\"left:60%;width:40%\"></i><b>60,0k</b><em class=\"medium\">40 %</em></span>");
         expect(html).toContain("<th></th><th>Zauber</th><th data-tip=\"Heilung und Overheal des Zaubers in einem Balken\"");
+    });
+
+    it("lists the healers as ranked rows — one bar, mana and dispel badges, hints — with the strongest open and the block under it", () => {
+        const html = renderReportPage({ ...report(), timeline: timeline() });
+        expect(html).toContain("<div class=\"hlist\"><div class=\"hcols\"><span class=\"kicker\">#</span><span class=\"kicker\">Heiler</span>");
+        // Elun: rank 1, open, 155k on the bar with 23 % overheal, mana low at 1:58 (bad), 2 dispels
+        expect(html).toMatch(/<details class="hrow" style="--cc:[^"]*" open>\s*<summary><span class="rank top">1<\/span><div class="who"><img class="hicon" src="https:\/\/wow\.zamimg\.com\/images\/wow\/icons\/large\/classicon_priest\.jpg" alt=""><div><span class="cn">Elun<\/span><span class="sritems">Priest<\/span><\/div><\/div><span class="bar bar-heal"/);
+        expect(html).toContain("<b>155k</b><em class=\"\">23 %</em></span><span class=\"badge bad\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_potion_137.jpg\" alt=\"\">5 % bei 1:58</span><span class=\"badge ok\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/spell_holy_dispelmagic.jpg\" alt=\"\">2 · Ø 1,2 s</span>");
+        expect(html).toContain("<div class=\"hints\"><span class=\"badge\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_misc_gem_01.jpg\" alt=\"\">20,0k Absorb</span></div><span class=\"exp-lbl\">");
+        // Dorn: rank 2, closed, no mana curve, died, no potion
+        expect(html).toMatch(/<details class="hrow" style="--cc:[^"]*">\s*<summary><span class="rank">2<\/span>/);
+        expect(html).toContain("<span class=\"badge\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_potion_137.jpg\" alt=\"\">kein Verlauf</span>");
+        expect(html).toContain("gestorben 1:30</span><span class=\"badge mid\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_potion_137.jpg\" alt=\"\">kein Manatrank</span>");
+        // the block under the row: chips, the spell table, the way to the mana curve
+        expect(html).toContain("<div class=\"hrow-body\"><div class=\"heal-chips\"><span class=\"chip\"");
+        expect(html).toContain("data-dialog=\"dlg-fp-2-healing\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_misc_pocketwatch_01.jpg\" alt=\"\">Manaverlauf öffnen ⤢</button>");
+        // the player page keeps the plain block
+        const own = renderPlayerPage({ ...report(), timeline: timeline() }, 1); // Elun
+        expect(own).not.toContain("<div class=\"hlist\">");
+        expect(own).toContain("<div class=\"heal-block\"");
     });
 
     it("says when a healer's mana is not in the log, notes the missing potion and the death", () => {
@@ -153,7 +173,7 @@ describe("web/render — Heiler section", () => {
         expect(html).toContain("data-name=\"Elun\" data-role=\"healer\"");
         expect(html).toContain("data-name=\"Brokk\" data-role=\"tank\""); // WCL's tank of the fight
         expect(html).toContain("<b>43 %</b> Overheal</span>");
-        expect(html).toContain("Heilung &amp; Mana<span class=\"n\">3 Kämpfe</span>");
+        expect(html).toMatch(/Heilung &amp; Mana<span class="n(?: mid| bad)?">3 Kämpfe<\/span>/);
     });
 });
 
@@ -161,7 +181,7 @@ describe("web/render — Heilung on the player page", () => {
     it("gives a healer their own block and their own tank rows, nothing of the other healer", () => {
         const html = renderPlayerPage({ ...report(), timeline: timeline(), healers: summary() }, 1); // Dorn
         expect(html).toContain("<h2>Kampfverlauf</h2>");
-        expect(html).toContain("Heilung<span class=\"n\">1</span>");
+        expect(html).toMatch(/Heilung<span class="n(?: mid| bad)?">1<\/span>/);
         expect(html).toContain("<span class=\"cn\">Dorn</span>");
         expect(html).not.toContain("<span class=\"cn\">Elun</span>");
         expect(html).toContain("Erdschild (Dorn)");

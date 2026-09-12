@@ -61,7 +61,7 @@ describe("web/render — Mechaniken topic", () => {
     it("draws one marker row per mechanic with every hit, who took it and how many raiders", () => {
         const html = renderReportPage({ ...report(), timeline: timeline() });
         expect(html).toContain("data-show=\"fp-2-mechanics\">");
-        expect(html).toContain("Mechaniken<span class=\"n\">3 · 3 Treffer</span>");
+        expect(html).toMatch(/Mechaniken<span class="n(?: mid| bad)?">3 · 3 Treffer<\/span>/);
         expect(html).toContain("data-tip=\"Wirbelwind\"");
         expect(html).toContain("data-tip=\"0:05 Alice · Wirbelwind · 3.000\"");
         expect(html).toContain("data-tip=\"0:30 Bob · Stille\"");
@@ -70,10 +70,21 @@ describe("web/render — Mechaniken topic", () => {
         expect(html).toContain("<b class=\"\">1×</b><span>1 Spieler</span>");
     });
 
+    it("groups the hits per raider on the raid page: the most-hit first and open, a single hit closed", () => {
+        const html = renderReportPage({ ...report(), timeline: timeline() });
+        const alice = html.indexOf("<span class=\"cn\">Alice</span><span class=\"sritems\">Mage</span><span class=\"badge mid\">2 Treffer</span>");
+        const bob = html.indexOf("<span class=\"cn\">Bob</span><span class=\"sritems\">Warrior</span><span class=\"badge\">1 Treffer</span>");
+        expect(alice).toBeGreaterThan(-1);
+        expect(bob).toBeGreaterThan(alice);
+        expect(html).toMatch(/<details class="grp" style="--cc:#69CCF0" open>\s*<summary>[^]*?Alice/);
+        const bobTag = html.lastIndexOf("<details class=\"grp\"", bob);
+        expect(html.slice(bobTag, bob)).not.toContain(" open>");
+    });
+
     it("gives the raider only their own hits, with the damage under the count", () => {
         const html = renderPlayerPage({ ...report(), timeline: timeline() }, 0); // Alice
         expect(html).toContain("data-show=\"p-fp-2-mechanics\">");
-        expect(html).toContain("Mechaniken<span class=\"n\">2 · 2 Treffer</span>");
+        expect(html).toMatch(/Mechaniken<span class="n(?: mid| bad)?">2 · 2 Treffer<\/span>/);
         expect(html).toContain("data-tip=\"0:05 Wirbelwind · 3.000\"");
         expect(html).not.toContain("Stille");
         expect(html).toContain("<b class=\"fc-medium\">2×</b><span>6k Schaden</span>");
