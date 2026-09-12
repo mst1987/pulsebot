@@ -22,23 +22,24 @@ const admin = { id: "u1", name: "Lead", isAdmin: true };
 const reader = { id: "u3", isAdmin: false, access: { cla: { read: true } } };
 
 describe("web/render — foldable raider cards", () => {
-    it("renders each raider as a closed details card with the counts in its summary", () => {
+    it("renders each raider as a closed details card with the counts in its chips", () => {
         const html = renderReportPage(report({ raid: {}, players: { Farin: { gear: { approved: true } } } }), admin);
-        expect(html.match(/<details class="rec-card/g)).toHaveLength(2);
-        expect(html).not.toContain("<details class=\"rec-card\" open");
-        expect(html).toContain("<summary class=\"rec-card-head\">");
-        expect(html).toContain("<span class=\"rec-count\">2 Punkte · 1 offen · 1 frei</span>");
-        expect(html).toContain("<span class=\"rec-count\">0 Punkte</span>");
-        // a card with undecided points is marked
-        expect(html).toContain("<details class=\"rec-card rec-card-open\"");
+        expect(html.match(/<details class="vcard raider-card"/g)).toHaveLength(2);
+        expect(html).not.toMatch(/<details class="vcard raider-card"[^>]*\sopen>/);
+        expect(html).toContain("<b>2</b> Empfehlungen · 1 offen</span>");
+        expect(html).toContain("<b>0</b> Empfehlungen</span>");
+        // a card with undecided points is marked for the "Offen" filter
+        expect(html).toContain("data-name=\"Farin\" data-role=\"dps\" data-open=\"1\"");
+        expect(html).toContain("data-rolefilter=\"open\">Offen <span class=\"n\">1</span>");
         expect(html).toContain("data-cards=\"open\">Alle aufklappen</button>");
         expect(html).toContain("data-cards=\"close\">Alle zuklappen</button>");
         expect(html).toContain("window.__ehCards");
     });
 
-    it("keeps the reader's summary to the count of approved points", () => {
+    it("keeps the reader's chip to the count of approved points", () => {
         const html = renderReportPage(report({ raid: {}, players: { Farin: { gear: { approved: true } } } }), reader);
-        expect(html).toContain("<span class=\"rec-count\">1 Punkt</span>");
+        expect(html).toContain("<b>1</b> Empfehlung</span>");
+        expect(html).toContain("data-rolefilter=\"open\">Empfehlungen <span class=\"n\">1</span>");
         expect(html).not.toContain("offen");
     });
 });

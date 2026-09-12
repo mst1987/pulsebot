@@ -24,6 +24,7 @@ const admin = { id: "u1", name: "Lead", isAdmin: true };
 describe("web/render — send box", () => {
     it("shows reviewers the counts and an active send button once something is approved", () => {
         const html = renderReportPage(report({ raid: {}, players: { Farin: { gear: { approved: true } } } }, { Farin: { at: 1 } }), admin);
+        expect(html).toContain("<span>Alle senden</span><span class=\"rec-count\">1</span>");
         expect(html).toContain("<div class=\"rec-send\" data-report=\"abc123def456\">");
         expect(html).toContain("1 Raider mit freigegebenen Punkten · 1 bereits angeschrieben");
         expect(html).toContain("<button type=\"button\" class=\"btn btn-sm\" data-send=\"all\">Freigegebenes per DM senden</button>");

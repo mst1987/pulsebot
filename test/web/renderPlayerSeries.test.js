@@ -55,11 +55,14 @@ describe("web/render — the player's own curve (issue #203)", () => {
         expect(html).toContain("<title>Raid-Mittel pro Spieler (6)</title>");
         expect(html).toContain("<th>Raid-Mittel pro Spieler (6)</th>");
         expect(html).toMatch(/<td>0:00<\/td><td>300<\/td><td>167<\/td>/);
-        // the raid strip of the report page is not on the player page, and the other way round
+        // the raid strip of the report page is not on the player page; on the report page it is the boss card's
+        // Kampfverlauf topic, while the raider's own curve only sits in their card's dialog
         expect(html).not.toContain("<title>Raid-DPS</title>");
         const raid = renderReportPage(report({ timeline: { fights: [fight()] } }));
         expect(raid).toContain("<title>Raid-DPS</title>");
-        expect(raid).not.toContain("player-series");
+        const bossCard = raid.slice(raid.indexOf("<details class=\"vcard boss-card\""), raid.indexOf("<div id=\"view-raider\""));
+        expect(bossCard).not.toContain("player-series");
+        expect(raid).toContain("<dialog class=\"dlg chart\" id=\"dlg-rt-0\">");
     });
 
     it("divides by exactly the raiders with a curve: five raiders → raid series / 5", () => {
