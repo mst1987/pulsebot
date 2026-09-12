@@ -81,8 +81,12 @@ describe("web/render — Heilung topic of a fight", () => {
         expect(html).toContain("data-tip=\"1:00 · Super-Manatrank · bei 52 %\"");
         expect(html).toContain("Regeneration (1)");
         // WCL-style bars: the healing relative to the strongest spell (60k of 95k), the overheal and the share as their own length
-        expect(html).toContain("Greater Heal</td><td><span class=\"bar\" data-tip=\"60.000 effektive Heilung · 30 Casts\"><i style=\"width:63%\"></i><b>60,0k</b></span></td><td><span class=\"bar\" data-tip=\"40.000 Overheal\"><i class=\"medium\" style=\"width:40%\"></i><b class=\"medium\">40 %</b></span></td><td><span class=\"bar\"><i style=\"width:50%\"></i><b>50 %</b></span></td>");
-        expect(html).toContain("Flash Heal</td><td><span class=\"bar\" data-tip=\"95.000 effektive Heilung · 80 Casts\"><i style=\"width:100%\"></i><b>95,0k</b></span></td>");
+        // one WCL-style bar per spell — the solid part landed, the hatched part is overheal, both as their share of the
+        // largest healing + overheal (100k here) — ranked by what landed: Flash Heal first, Greater Heal second
+        expect(html).toContain("<td class=\"rank\">1</td><td><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/spell_holy_flashheal.jpg\" alt=\"\">Flash Heal</td><td><span class=\"bar bar-heal\" data-tip=\"95.000 effektive Heilung, 5.000 Overheal (5 %) · 80 Casts\" data-tip-sub=\"Der gestreifte Teil ging über volle Lebenspunkte (Overheal). Der ganze Balken ist der Anteil am größten Wert der Spalte, Heilung und Overheal zusammen.\"><i class=\"main\" style=\"width:95%\"></i><i class=\"over\" style=\"left:95%;width:5%\"></i><b>95,0k</b><em class=\"\">5 %</em></span></td><td><span class=\"bar\"><i style=\"width:50%\"></i><b>50 %</b></span></td>");
+        expect(html).toContain("<td class=\"rank\">2</td><td><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/spell_holy_greaterheal.jpg\" alt=\"\">Greater Heal</td><td><span class=\"bar bar-heal\" data-tip=\"60.000 effektive Heilung, 40.000 Overheal (40 %) · 30 Casts\"");
+        expect(html).toContain("<i class=\"main\" style=\"width:60%\"></i><i class=\"over\" style=\"left:60%;width:40%\"></i><b>60,0k</b><em class=\"medium\">40 %</em></span>");
+        expect(html).toContain("<th></th><th>Zauber</th><th data-tip=\"Heilung und Overheal des Zaubers in einem Balken\"");
     });
 
     it("says when a healer's mana is not in the log, notes the missing potion and the death", () => {
@@ -124,9 +128,12 @@ describe("web/render — Heiler section", () => {
         expect(html).toContain("Stille (3×)");
         expect(html).toContain("gemessen auf dem aktiven Tank (Brokk)");
         expect(html).toContain("<a class=\"cn\" href=\"/r/abc123def456/p/0\">Elun</a>");
-        expect(html).toContain("<td><span class=\"bar\" data-tip=\"450.000 effektive Heilung über 3 Kämpfe\"><i style=\"width:100%\"></i><b>450k</b></span></td>");
-        expect(html).toContain("<i style=\"width:53%\"></i><b>240k</b>");
-        expect(html).toContain("<i class=\"medium\" style=\"width:43%\"></i><b class=\"medium\">43 %</b>");
+        // ranked by healing, one bar each: Elun 450k + 130k overheal = the column's 580k, Dorn 240k + 180k
+        expect(html).toMatch(/<td class="rank">1<\/td><td>(<a class="cn"[^>]*>|<span class="cn">)Elun/);
+        expect(html).toContain("<td><span class=\"bar bar-heal\" data-tip=\"450.000 effektive Heilung, 130.000 Overheal (22 %) über 3 Kämpfe\" data-tip-sub=\"Der gestreifte Teil ging über volle Lebenspunkte (Overheal). Der ganze Balken ist der Anteil am größten Wert der Spalte, Heilung und Overheal zusammen.\"><i class=\"main\" style=\"width:78%\"></i><i class=\"over\" style=\"left:78%;width:22%\"></i><b>450k</b><em class=\"\">22 %</em></span></td>");
+        expect(html).toMatch(/<td class="rank">2<\/td><td>(<a class="cn"[^>]*>|<span class="cn">)Dorn/);
+        expect(html).toContain("<i class=\"main\" style=\"width:41%\"></i><i class=\"over\" style=\"left:41%;width:31%\"></i><b>240k</b><em class=\"medium\">43 %</em></span>");
+        expect(html).toContain("<th></th><th>Heiler</th><th data-tip=\"Heilung und Overheal über alle Boss-Kämpfe in einem Balken, der stärkste Heiler zuerst\"");
         expect(html).toContain("Greater Heal <span class=\"sritems\">40 %</span>");
         expect(html).toContain("9 % <span class=\"tag tag-high\">2× &lt; 10 %</span>");
         expect(html).toContain("3 <span class=\"tag tag-medium\">2× spät</span>");

@@ -105,6 +105,26 @@ function barCell(text, pct, tone, tip, sub) {
     return `<span class="bar"${t}><i${cls} style="width:${w.toFixed(0)}%"></i><b${cls}>${esc(text)}</b></span>`;
 }
 
+/**
+ * Healing and overheal in one bar, the way Warcraft Logs draws it: the solid
+ * part is what landed, the hatched part what went over full health, and the
+ * whole bar is the row's share of `max` (the largest healing + overheal in
+ * the column). The effective amount sits on the left, the overheal share on
+ * the right, toned from 35 % (medium) and 50 % (high).
+ */
+function healBar(total, overheal, max, pct, tip, sub) {
+    const t = Math.max(0, Number(total) || 0);
+    const o = Math.max(0, Number(overheal) || 0);
+    const m = Math.max(1, Number(max) || 0);
+    const a = Math.min(100, (t / m) * 100);
+    const b = Math.min(100 - a, (o / m) * 100);
+    const tone = pct >= 50 ? "high" : pct >= 35 ? "medium" : "";
+    const tipAttr = tip ? ` data-tip="${esc(tip)}"${sub ? ` data-tip-sub="${esc(sub)}"` : ""}` : "";
+    return `<span class="bar bar-heal"${tipAttr}><i class="main" style="width:${a.toFixed(0)}%"></i><i class="over" style="left:${a.toFixed(0)}%;width:${b.toFixed(0)}%"></i><b>${esc(fmtK(t))}</b><em class="${tone}">${esc(pct)} %</em></span>`;
+}
+
+const HEAL_BAR_HOW = "Der gestreifte Teil ging über volle Lebenspunkte (Overheal). Der ganze Balken ist der Anteil am größten Wert der Spalte, Heilung und Overheal zusammen.";
+
 /** A percentage as a bar of its own length, toned like the fight charts (pctTone). */
 function barPct(v, tip, sub) {
     return barCell(`${v} %`, v, pctTone(v), tip, sub);
@@ -485,6 +505,12 @@ ${body}
   .bar b { position:relative; display:block; padding:0 8px; line-height:24px; font-weight:600; font-size:13px; font-family:var(--font-mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
   .bar b.high { color:var(--high); } .bar b.medium { color:var(--medium); }
   table.idx td:has(> .bar) { padding-top:5px; padding-bottom:5px; }
+  /* healing + overheal in one bar: the solid part landed, the hatched part went over full health */
+  .bar-heal { min-width:200px; }
+  .bar i.over { background:repeating-linear-gradient(135deg, var(--high-bg) 0 4px, transparent 4px 8px); border-right:2px solid var(--high); }
+  .bar em { position:absolute; right:8px; top:0; line-height:24px; font-size:12px; font-style:normal; font-family:var(--font-mono); font-variant-numeric:tabular-nums; color:var(--muted); }
+  .bar em.high { color:var(--high); } .bar em.medium { color:var(--medium); }
+  table.idx td.rank { width:28px; padding-right:0; color:var(--muted); font-family:var(--font-mono); font-size:12px; text-align:right; }
   /* table-orientation switch */
   .tblswitch { display:inline-flex; margin:0 0 12px; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
   .tblswitch button { appearance:none; background:var(--panel); border:0; color:var(--muted); font:inherit; font-size:13px; font-weight:600;
@@ -1334,11 +1360,12 @@ function healerBlock(x, f, common) {
             markers: (mana.regen || []).map((r) => ({ at: r.at, icon: r.icon, label: r.label, value: r.pct !== null && r.pct !== undefined ? `bei ${r.pct} %` : undefined })),
         })
         : "<div class=\"fc-empty\">Kein Manaverlauf im Log (keine Ressourcen-Events).</div>";
-    const spells = (heal.spells || []).slice(0, 6);
-    const maxTotal = Math.max(1, ...spells.map((s) => Number(s.total) || 0));
+    // ranked by what landed, the strongest spell first; the bar carries the overheal on top of it
+    const spells = (heal.spells || []).slice(0, 6).sort((a, b) => (Number(b.total) || 0) - (Number(a.total) || 0));
+    const maxRaw = Math.max(1, ...spells.map((s) => (Number(s.total) || 0) + (Number(s.overheal) || 0)));
     const table = spells.length
-        ? `<table class="idx fc-table heal-spells"><tr><th>Zauber</th><th data-tip="Effektive Heilung des Zaubers, Balken relativ zum stärksten Zauber">Heilung</th><th data-tip="Anteil der Heilung dieses Zaubers, die über volle Lebenspunkte ging" data-tip-sub="Ab 35 % gelb, ab 50 % rot.">Overheal</th><th data-tip="Anteil an der gesamten Heilung dieses Heilers im Kampf">Anteil</th></tr>${spells.map((s) =>
-            `<tr><td>${s.icon ? hicon(s.icon, "") : ""}${esc(s.name)}</td><td>${barCell(fmtK(s.total), (Number(s.total) || 0) / maxTotal * 100, "", `${num(s.total)} effektive Heilung${s.casts ? ` · ${s.casts} Casts` : ""}`)}</td><td>${barCell(`${s.overhealPct} %`, s.overhealPct, s.overhealPct >= 50 ? "high" : s.overhealPct >= 35 ? "medium" : "", s.overheal ? `${num(s.overheal)} Overheal` : "")}</td><td>${barCell(`${s.share} %`, s.share, "")}</td></tr>`).join("")}</table>`
+        ? `<table class="idx fc-table heal-spells"><tr><th></th><th>Zauber</th><th data-tip="Heilung und Overheal des Zaubers in einem Balken" data-tip-sub="${esc(HEAL_BAR_HOW)} Die Zahl rechts ist der Overheal-Anteil: ab 35 % gelb, ab 50 % rot.">Heilung · Overheal</th><th data-tip="Anteil an der gesamten Heilung dieses Heilers im Kampf">Anteil</th></tr>${spells.map((s, i) =>
+            `<tr><td class="rank">${i + 1}</td><td>${s.icon ? hicon(s.icon, "") : ""}${esc(s.name)}</td><td>${healBar(s.total, s.overheal, maxRaw, s.overhealPct, `${num(s.total)} effektive Heilung, ${num(s.overheal)} Overheal (${s.overhealPct} %)${s.casts ? ` · ${s.casts} Casts` : ""}`, HEAL_BAR_HOW)}</td><td>${barCell(`${s.share} %`, s.share, "")}</td></tr>`).join("")}</table>`
         : "";
     const died = x.diedAt !== null && x.diedAt !== undefined ? ` · gestorben ${fmtTime(x.diedAt)}` : "";
     const head = `<h4 class="heal-h"><span class="cn">${esc(x.name)}</span><span class="meta">${esc(x.type)}${died}</span></h4>`;
@@ -1400,24 +1427,24 @@ function healingParts(f, only, common) {
 /** The Heiler tab: one row per healer over the raid, the raid's missed dispels above. */
 function renderHealersPanel(healers, linkFor) {
     const players = healers.players || [];
-    const maxHeal = Math.max(1, ...players.map((p) => Number(p.healingTotal) || 0));
-    const rows = players.map((p) => {
+    const ranked = players.slice().sort((a, b) => (Number(b.healingTotal) || 0) - (Number(a.healingTotal) || 0));
+    const maxRaw = Math.max(1, ...ranked.map((p) => (Number(p.healingTotal) || 0) + (Number(p.overhealTotal) || 0)));
+    const rows = ranked.map((p, i) => {
         const href = linkFor && linkFor(p.name);
         const name = href ? `<a class="cn" href="${esc(href)}">${esc(p.name)}</a>` : `<span class="cn">${esc(p.name)}</span>`;
         const top = p.topOverheal ? `${p.topOverheal.icon ? hicon(p.topOverheal.icon, "") : ""}${esc(p.topOverheal.name)} <span class="sritems">${esc(p.topOverheal.overhealPct)} %</span>` : "–";
         const late = (p.potionPcts || []).filter((x) => x <= 15).length;
         const potions = `${esc(p.potions)}${late ? ` <span class="tag tag-medium">${late}× spät</span>` : ""}${p.potionMissingFights ? ` <span class="tag tag-medium">${esc(p.potionMissingFights)}× keiner</span>` : ""}`;
         const shields = (p.shields || []).map((s) => `<span class="sh" data-tip="${esc(s.label)}" data-tip-sub="${esc(`Ø ${s.uptimeAvg} % Uptime auf dem aktiven Tank in ${s.fights} Kämpfen`)}">${hicon(s.icon, "")}${esc(s.uptimeAvg)} %</span>`).join("") || "–";
-        const overTone = p.overhealPct >= 50 ? "high" : p.overhealPct >= 35 ? "medium" : "";
         const mana = p.manaMinAvg === null || p.manaMinAvg === undefined ? "–" : `${esc(p.manaMinAvg)} %`;
-        return `<tr style="--cc:${esc(classColorOf(p.type) || "var(--text)")}"><td>${name}<div class="sritems">${esc(p.type)} · ${esc(p.fights)} ${p.fights === 1 ? "Kampf" : "Kämpfe"}</div></td><td>${barCell(fmtK(p.healingTotal), (Number(p.healingTotal) || 0) / maxHeal * 100, "", `${num(p.healingTotal)} effektive Heilung über ${p.fights} ${p.fights === 1 ? "Kampf" : "Kämpfe"}`)}</td><td>${barCell(`${p.overhealPct} %`, p.overhealPct, overTone, "Anteil der Heilung über volle Lebenspunkte", "Ab 35 % gelb, ab 50 % rot.")}</td><td>${top}</td><td>${mana}${p.manaLowFights ? ` <span class="tag tag-high">${esc(p.manaLowFights)}× &lt; 10 %</span>` : ""}</td><td>${potions}</td><td>${esc(p.dispels)}${p.avgReactionMs !== null && p.avgReactionMs !== undefined ? ` <span class="sritems">Ø ${fmtSecs(p.avgReactionMs)}</span>` : ""}</td><td>${shields}</td></tr>`;
+        return `<tr style="--cc:${esc(classColorOf(p.type) || "var(--text)")}"><td class="rank">${i + 1}</td><td>${name}<div class="sritems">${esc(p.type)} · ${esc(p.fights)} ${p.fights === 1 ? "Kampf" : "Kämpfe"}</div></td><td>${healBar(p.healingTotal, p.overhealTotal, maxRaw, p.overhealPct, `${num(p.healingTotal)} effektive Heilung, ${num(p.overhealTotal || 0)} Overheal (${p.overhealPct} %) über ${p.fights} ${p.fights === 1 ? "Kampf" : "Kämpfe"}`, HEAL_BAR_HOW)}</td><td>${top}</td><td>${mana}${p.manaLowFights ? ` <span class="tag tag-high">${esc(p.manaLowFights)}× &lt; 10 %</span>` : ""}</td><td>${potions}</td><td>${esc(p.dispels)}${p.avgReactionMs !== null && p.avgReactionMs !== undefined ? ` <span class="sritems">Ø ${fmtSecs(p.avgReactionMs)}</span>` : ""}</td><td>${shields}</td></tr>`;
     }).join("");
     const raid = healers.raid || {};
     const missed = raid.dispelsMissed
         ? `<p class="note">${esc(raid.dispelsMissed)} dispelbare Debuffs hat niemand entfernt${(raid.missedByAbility || []).length ? `: ${raid.missedByAbility.slice(0, 4).map((m) => `${m.icon ? hicon(m.icon, "") : ""}${esc(m.ability)} (${esc(m.count)}×)`).join(", ")}` : ""}.</p>`
         : "";
     const tanks = (raid.tanks || []).length ? `<p class="note">Schild- und HoT-Uptimes gemessen auf dem aktiven Tank (${raid.tanks.map(esc).join(", ")}). Manaverlauf und Zauber pro Kampf stehen im Kampfverlauf unter „Heilung“.</p>` : "";
-    return `${tanks}${missed}<table class="idx heal-table"><tr><th>Heiler</th><th data-tip="Effektive Heilung über alle Boss-Kämpfe, Balken relativ zum stärksten Heiler">Heilung</th><th data-tip="Anteil der Heilung, die über volle Lebenspunkte ging">Overheal</th><th data-tip="Der Zauber mit dem höchsten Overheal-Anteil">Größter Overheal</th><th data-tip="Niedrigster Manastand je Kampf, im Mittel" data-tip-sub="Dahinter: in wie vielen Kämpfen es unter 10 % fiel.">Ø Mana-Tiefstand</th><th data-tip="Manatränke über alle Kämpfe" data-tip-sub="Spät: erst unter 15 % Mana getrunken. Keiner: kein Trank in einem Kampf, der ihn hergegeben hätte.">Manatränke</th><th data-tip="Entfernte Debuffs und die mittlere Reaktionszeit">Dispels</th><th data-tip="Uptime der Schilde und HoTs auf dem aktiven Tank">Auf dem Tank</th></tr>${rows}</table>`;
+    return `${tanks}${missed}<table class="idx heal-table"><tr><th></th><th>Heiler</th><th data-tip="Heilung und Overheal über alle Boss-Kämpfe in einem Balken, der stärkste Heiler zuerst" data-tip-sub="${esc(HEAL_BAR_HOW)} Die Zahl rechts ist der Overheal-Anteil: ab 35 % gelb, ab 50 % rot.">Heilung · Overheal</th><th data-tip="Der Zauber mit dem höchsten Overheal-Anteil">Größter Overheal</th><th data-tip="Niedrigster Manastand je Kampf, im Mittel" data-tip-sub="Dahinter: in wie vielen Kämpfen es unter 10 % fiel.">Ø Mana-Tiefstand</th><th data-tip="Manatränke über alle Kämpfe" data-tip-sub="Spät: erst unter 15 % Mana getrunken. Keiner: kein Trank in einem Kampf, der ihn hergegeben hätte.">Manatränke</th><th data-tip="Entfernte Debuffs und die mittlere Reaktionszeit">Dispels</th><th data-tip="Uptime der Schilde und HoTs auf dem aktiven Tank">Auf dem Tank</th></tr>${rows}</table>`;
 }
 
 // ---- Buffs: the raid buffs on the players of a fight (f.buffs, utils/logcheck/raidBuffs.js) ----
