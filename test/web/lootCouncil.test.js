@@ -31,7 +31,7 @@ jest.mock("../../src/web/reportStore", () => ({
 
 const {
     councilRoster, candidatesForItem, bisGaps, needScore, upgradeValue, currentTier, wornItemView,
-    gearSpellHit, resolveContentFilter, firstSlotFor, slotNameFor,
+    gearSpellHit, resolveContentFilter, firstSlotFor, slotNameFor, NEED_WEIGHTS, NON_BIS_WEIGHT,
 } = require("../../src/web/lootCouncil");
 const { specByKey, hitCapFor } = require("../../src/config/casterSpecs");
 const wowsims = require("../../src/config/wowsims");
@@ -199,6 +199,14 @@ describe("web/lootCouncil", () => {
             expect(score).toBeCloseTo(0.5, 5);
         });
 
+        it("weighs the wait most, the loot share next and the BiS gap least", () => {
+            expect(NEED_WEIGHTS).toEqual({ drought: 0.5, share: 0.4, need: 0.1 });
+            const only = (over) => needScore({ daysSinceLoot: 0, lootCount: 5, avgLootCount: 1, bisOwned: 10, bisTotal: 10, ...over }).score;
+            expect(only({ daysSinceLoot: 30 })).toBeCloseTo(0.5, 5);
+            expect(only({ lootCount: 0, avgLootCount: 4 })).toBeCloseTo(0.4, 5);
+            expect(only({ bisOwned: 0 })).toBeCloseTo(0.1, 5);
+        });
+
         it("caps the drought at 30 days, so an ancient date cannot dominate", () => {
             const a = needScore({ daysSinceLoot: 30, lootCount: 0, avgLootCount: 0, bisOwned: 0, bisTotal: 0 });
             const b = needScore({ daysSinceLoot: 900, lootCount: 0, avgLootCount: 0, bisOwned: 0, bisTotal: 0 });
@@ -319,7 +327,25 @@ describe("web/lootCouncil", () => {
             mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
             mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([])]]));
             const rows = councilRoster({ bisTier: "t6" }).rows;
-            expect(candidatesForItem(bisId, rows)[0].isBis).toBe(true);
+            const c = candidatesForItem(bisId, rows)[0];
+            expect(c.isBis).toBe(true);
+            expect(c.bisWeight).toBe(1);
+            expect(c.itemNeedScore).toBe(c.needScore);
+        });
+
+        it("weighs a candidate the item is not BiS for at half, in the need and in the ordering", () => {
+            expect(NON_BIS_WEIGHT).toBe(0.5);
+            const rows = twoCasters();
+            const candidates = candidatesForItem(32525, rows);
+            for (const c of candidates.filter((x) => !x.isBis)) {
+                expect(c.bisWeight).toBe(0.5);
+                expect(c.itemNeedScore).toBeCloseTo(c.needScore / 2, 3);
+            }
+            // the ordering follows the weighted value, so a BiS candidate with
+            // half the raw gain still comes first
+            for (let i = 1; i < candidates.length; i++) {
+                expect(candidates[i - 1].value * candidates[i - 1].bisWeight).toBeGreaterThanOrEqual(candidates[i].value * candidates[i].bisWeight);
+            }
         });
 
         it("returns nothing for an item nobody can equip", () => {
