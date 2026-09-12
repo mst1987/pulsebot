@@ -497,7 +497,8 @@ ${body}
   .stat[data-tip] .kicker, .kpi[data-tip] .kicker { text-decoration:underline dotted; text-decoration-color:var(--line); text-underline-offset:3px; }
   .chip[data-tip], .stat[data-tip], .kpi[data-tip] { cursor:default; }
   /* WCL-style bar cells: the number on a bar whose length is its share of the column's maximum */
-  .bar { position:relative; display:block; min-width:96px; height:24px; border-radius:5px; overflow:hidden; background:var(--panel2); }
+  /* every bar has the same fixed width, whatever the neighbouring columns hold: a shorter spell name must not make a longer bar */
+  .bar { position:relative; display:block; width:120px; height:24px; border-radius:5px; overflow:hidden; background:var(--panel2); }
   .bar i { position:absolute; left:0; top:0; bottom:0; background:var(--accent-soft); border-right:2px solid var(--accent); }
   .bar i.good { background:var(--good-bg); border-right-color:var(--good); }
   .bar i.medium { background:var(--medium-bg); border-right-color:var(--medium); }
@@ -506,7 +507,7 @@ ${body}
   .bar b.high { color:var(--high); } .bar b.medium { color:var(--medium); }
   table.idx td:has(> .bar) { padding-top:5px; padding-bottom:5px; }
   /* healing + overheal in one bar: the solid part landed, the hatched part went over full health */
-  .bar-heal { min-width:200px; }
+  .bar-heal { width:260px; }
   .bar i.over { background:repeating-linear-gradient(135deg, var(--high-bg) 0 4px, transparent 4px 8px); border-right:2px solid var(--high); }
   .bar em { position:absolute; right:8px; top:0; line-height:24px; font-size:12px; font-style:normal; font-family:var(--font-mono); font-variant-numeric:tabular-nums; color:var(--muted); }
   .bar em.high { color:var(--high); } .bar em.medium { color:var(--medium); }
