@@ -94,11 +94,13 @@ async function createReport(req, res) {
     // Sent once the client has asked whether a raid that is still running should
     // be evaluated regardless (see utils/logcheck/raidProgress.js).
     const force = !!body.force;
+    // Which halves to build: both by default, or the one the form picked.
+    const sections = Array.isArray(body.sections) ? body.sections.filter((s) => s === "cla" || s === "rpb") : undefined;
 
     const jobId = crypto.randomBytes(8).toString("hex");
     startJob(jobId, REPORT_SECTION, async () => {
         try {
-            const result = await buildReport(link, { force });
+            const result = await buildReport(link, sections && sections.length ? { force, sections } : { force });
             return { ok: true, id: result.id, url: result.url };
         } catch (e) {
             if (e && e.incomplete) return { ok: false, incomplete: true, error: e.message };

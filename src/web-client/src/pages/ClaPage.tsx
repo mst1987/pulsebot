@@ -24,6 +24,14 @@ type Dir = "asc" | "desc";
 const EVAL_SECONDS: Record<LogSection, number> = { cla: 25, rpb: 55 };
 const REPORT_SECONDS = 30;
 
+// What a pasted link builds: both halves unless the form says otherwise.
+type SectionChoice = "both" | "cla" | "rpb";
+const SECTION_CHOICES: { key: SectionChoice; label: string; sub: string; sections: LogSection[] }[] = [
+    { key: "both", label: "CLA + RPB", sub: "komplette Auswertung", sections: ["cla", "rpb"] },
+    { key: "cla", label: "nur CLA", sub: "Gear, Consumables, Kampfverlauf", sections: ["cla"] },
+    { key: "rpb", label: "nur RPB", sub: "Schaden, Tode, Aktivität, Cooldowns", sections: ["rpb"] },
+];
+
 // Default sort direction per column — mirrors renderAdmin.js's REPORT_DIR/LOG_DIR
 // maps used by claSortHeader().
 const REPORT_SORT_DEFAULTS: Record<string, Dir> = { title: "asc", zone: "asc", event: "asc", date: "desc", players: "desc", issues: "desc" };
@@ -108,6 +116,62 @@ function ReportEventCell({ r, busy, onUnlink }: { r: ReportSummary; busy: boolea
     );
 }
 
+/**
+ * The one thing this page is for, at the top of it and on both tabs: paste a
+ * Warcraft-Logs link, pick CLA + RPB (or one half), go. The build runs as a
+ * background job — the form clears at once and the toast at the bottom reports
+ * progress and the finished report, so the admin can carry on meanwhile.
+ */
+function NewEvaluationCard({ csrfToken, onChanged }: { csrfToken: string | null; onChanged: () => void }) {
+    const jobs = useJobs();
+    // A draft, so a link pasted here is still around after a look at the other tab.
+    const [draft, patchDraft, clearDraft] = useDraftState("cla-report-link", { link: "", sections: "both" as SectionChoice });
+    const link = draft.link;
+    const choice = SECTION_CHOICES.find((c) => c.key === draft.sections) || SECTION_CHOICES[0];
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const target = link.trim();
+        if (!target) return;
+        clearDraft();
+        const seconds = choice.key === "both" ? EVAL_SECONDS.cla + EVAL_SECONDS.rpb : (choice.key === "cla" ? REPORT_SECONDS : EVAL_SECONDS.rpb);
+        jobs.run({
+            label: `${choice.label === "CLA + RPB" ? "CLA + RPB" : choice.label.replace("nur ", "")}-Auswertung`,
+            detail: target,
+            expectedSeconds: seconds,
+            describe: (r) => ({
+                message: "Auswertung erstellt.",
+                link: { href: r.url, label: "Report ansehen ↗", external: true },
+            }),
+        }, () => withIncompleteConfirm((force) => createReport(csrfToken, target, { force, sections: choice.sections }))).then(onChanged);
+    };
+
+    return (
+        <form className="eval-card" onSubmit={submit}>
+            <h2>Log auswerten</h2>
+            <div className="eval-row">
+                <div className="field">
+                    <label>Warcraft-Logs-Report-Link oder Report-ID</label>
+                    <input
+                        type="text" value={link} onChange={(e) => patchDraft({ link: e.target.value })}
+                        placeholder="https://classic.warcraftlogs.com/reports/abc123…" required
+                    />
+                </div>
+                <button className="btn" type="submit"><RunIcon />Auswerten</button>
+            </div>
+            <div className="eval-choice" role="radiogroup" aria-label="Welche Analysen">
+                {SECTION_CHOICES.map((c) => (
+                    <label key={c.key} className={`eval-opt${choice.key === c.key ? " active" : ""}`}>
+                        <input type="radio" name="eval-sections" value={c.key} checked={choice.key === c.key} onChange={() => patchDraft({ sections: c.key })} />
+                        <b>{c.label}</b><span>{c.sub}</span>
+                    </label>
+                ))}
+            </div>
+            <div className="hint">Läuft im Hintergrund — der Fortschritt steht im Hinweis unten in der Mitte, die Seite bleibt nutzbar. Vom Bot erkannte Logs lassen sich auch direkt in der Liste „Erkannte Logs“ auswerten.</div>
+        </form>
+    );
+}
+
 function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
     reportPage: ClaPage<ReportSummary> | null;
     csrfToken: string | null;
@@ -116,29 +180,7 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
     onChanged: () => void;
 }) {
     const jobs = useJobs();
-    // A draft, so a link pasted here is still around after a look at the logs tab.
-    const [draft, patchDraft, clearDraft] = useDraftState("cla-report-link", { link: "" });
-    const link = draft.link;
     const [rowBusyId, setRowBusyId] = useState<string | null>(null);
-
-    // The build runs as a background job: the form clears immediately and the
-    // toast reports progress and the finished report, so the admin can carry on
-    // (even on another page) while it runs.
-    const submit = (e: React.FormEvent) => {
-        e.preventDefault();
-        const target = link.trim();
-        if (!target) return;
-        clearDraft();
-        jobs.run({
-            label: "Auswertung erstellen",
-            detail: target,
-            expectedSeconds: REPORT_SECONDS,
-            describe: (r) => ({
-                message: "Auswertung erstellt.",
-                link: { href: r.url, label: "Report ansehen ↗", external: true },
-            }),
-        }, () => withIncompleteConfirm((force) => createReport(csrfToken, target, { force }))).then(onChanged);
-    };
 
     // Deleting a report also resets its log back to "offen", so it can be
     // evaluated again — say so, the admin doesn't see the logs tab from here.
@@ -172,20 +214,6 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
 
     return (
         <>
-            <h2>Neue Auswertung</h2>
-            <form className="card-form" onSubmit={submit}>
-                <div className="field">
-                    <label>Warcraft-Logs-Report-Link oder Report-ID</label>
-                    <input
-                        type="text" value={link} onChange={(e) => patchDraft({ link: e.target.value })}
-                        placeholder="https://classic.warcraftlogs.com/reports/abc123…" required
-                    />
-                    <div className="hint">Läuft im Hintergrund — der Fortschritt steht im Hinweis oben rechts, die Seite bleibt nutzbar.</div>
-                </div>
-                <div className="row-actions">
-                    <button className="btn" type="submit"><RunIcon />Auswertung erstellen</button>
-                </div>
-            </form>
             <h2>Auswertungen</h2>
             {reportPage && reportPage.items.length
                 ? (
@@ -286,7 +314,7 @@ function LogTableRow({ l, runningSections, selectedEventId, onSelectChange, onEv
     runningSections: LogSection[];
     selectedEventId: string;
     onSelectChange: (eventId: string) => void;
-    onEvaluate: (section: LogSection) => void;
+    onEvaluate: (section: LogSection | "both") => void;
     onReset: (section: LogSection) => void;
     onDelete: () => void;
     onLink: () => void;
@@ -326,6 +354,19 @@ function LogTableRow({ l, runningSections, selectedEventId, onSelectChange, onEv
             <td className="small">{fmtMs(l.postedAt)}</td>
             <td className="cell-actions">
                 <div className="row-actions" style={{ justifyContent: "flex-end" }}>
+                    {/* Nothing evaluated yet: both halves in one click, CLA first, RPB into the same page. */}
+                    {!done.length && (
+                        <button
+                            className={`btn btn-run btn-sm${runningSections.length ? " is-running" : ""}`}
+                            type="button"
+                            title="CLA und RPB nacheinander auswerten (eine Report-Seite)"
+                            disabled={runningSections.length > 0}
+                            onClick={() => onEvaluate("both")}
+                        >
+                            {runningSections.length ? <span className="btn-spin" /> : <RunIcon />}
+                            CLA + RPB
+                        </button>
+                    )}
                     {LOG_ANALYSES.filter((a) => !done.includes(a.key)).map((a) => {
                         const running = runningSections.includes(a.key);
                         return (
@@ -397,7 +438,8 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
     // Hands the evaluation to JobsProvider: it runs server-side either way, but
     // owning the promise up there is what lets the admin leave this page (or this
     // tab of it) while the toast keeps reporting.
-    const evaluate = (l: LogRow, section: LogSection) => {
+    const evaluate = (l: LogRow, section: LogSection | "both") => {
+        if (section === "both") return evaluateBoth(l);
         const label = section.toUpperCase();
         const key = `${l.id}:${section}`;
         setRunning((keys) => [...keys, key]);
@@ -413,6 +455,29 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
             }),
         }, () => withIncompleteConfirm((force) => evalLog(csrfToken, l.id, section, { force }))).then(() => {
             setRunning((keys) => keys.filter((k) => k !== key));
+            onChanged();
+        });
+    };
+
+    // Both halves as one job: CLA first (it creates the page), then RPB into it.
+    // The "raid still running?" question is asked once and its answer reused.
+    const evaluateBoth = (l: LogRow) => {
+        const keys = (["cla", "rpb"] as LogSection[]).map((s) => `${l.id}:${s}`);
+        setRunning((r) => [...r, ...keys]);
+        jobs.run({
+            label: "CLA + RPB-Auswertung",
+            detail: l.title || l.reportId || "",
+            expectedSeconds: EVAL_SECONDS.cla + EVAL_SECONDS.rpb,
+            describe: (r) => ({
+                message: "CLA + RPB ausgewertet.",
+                link: r.url ? { href: r.url, label: "Report ansehen ↗", external: true } : undefined,
+            }),
+        }, async () => {
+            let force = false;
+            await withIncompleteConfirm((f) => { force = f; return evalLog(csrfToken, l.id, "cla", { force: f }); });
+            return evalLog(csrfToken, l.id, "rpb", { force });
+        }).then(() => {
+            setRunning((r) => r.filter((k) => !keys.includes(k)));
             onChanged();
         });
     };
@@ -562,7 +627,8 @@ export default function ClaPage() {
 
     return (
         <>
-            <h1 className="page-title">CLA / Logcheck</h1>
+            <h1 className="page-title">Log-Auswertung</h1>
+            <NewEvaluationCard csrfToken={csrfToken} onChanged={load} />
             <div className="subnav" role="tablist">
                 <button type="button" className={`subnav-item${view === "reports" ? " active" : ""}`} onClick={() => switchView("reports")}>
                     Auswertungen

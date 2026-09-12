@@ -1500,9 +1500,9 @@ export const RAID_INCOMPLETE = "raid_incomplete";
 export async function createReport(
     csrfToken: string | null,
     link: string,
-    opts: { force?: boolean } = {},
+    opts: { force?: boolean; sections?: LogSection[] } = {},
 ): Promise<{ id: string; url: string }> {
-    const started = await send<{ jobId: string }>("POST", "/api/cla", csrfToken, { link, force: !!opts.force });
+    const started = await send<{ jobId: string }>("POST", "/api/cla", csrfToken, { link, force: !!opts.force, sections: opts.sections });
     const state = await pollJob(
         () => get<JobPollStatus>(`/api/cla/report-status?jobId=${encodeURIComponent(started.jobId)}`),
         "Die Auswertung konnte nicht erstellt werden.",

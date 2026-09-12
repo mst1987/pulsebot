@@ -214,7 +214,7 @@ export default function DashboardPage() {
 
             <div className="dash-grid">
                 <div className="dash-card">
-                    <CardHead icon={<ClaIcon />} title="Letzte Auswertungen" link="/cla" />
+                    <CardHead icon={<ClaIcon />} title="Letzte Auswertungen" link="/cla" linkLabel="Log auswerten" />
                     <RecentReportsTable reports={data.recentReports} />
                 </div>
                 <div className="dash-card">

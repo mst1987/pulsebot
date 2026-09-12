@@ -30,6 +30,12 @@
 // paladin has a free blessing, Sanctuary lands on off-tanks WCL lists as dps.
 // Such a blessing counts as present (and fills a blessing slot on any role);
 // it is never reported as "on the wrong role".
+//
+// `ids` holds every rank of the single AND the group version (Greater
+// Blessings, Prayers, Gift of the Wild, Arcane Brilliance) — both resolve to
+// the same buff, a raid that casts the group version is never asked for the
+// single one. `groupIds` names the group ranks among them and `groupLabel` the
+// group spell, so the page can say "Mal / Gabe der Wildnis".
 
 const ROLES = ["tank", "healer", "melee", "caster"];
 const ROLE_LABELS = { tank: "Tank", healer: "Heiler", melee: "Nahkampf", caster: "Caster" };
@@ -38,21 +44,21 @@ const MANA_MELEE = ["Hunter", "Shaman", "Paladin"];
 
 const BUFFS = [
     // paladin blessings — one per paladin, the greater version lasts 30 min
-    { key: "kings", name: "Blessing of Kings", label: "Segen der Könige", ids: [20217, 25898], provider: "Paladin", icon: "spell_magic_greaterblessingofkings", group: "blessing", roles: ALL, priority: 1, expect: "blessing" },
-    { key: "might", name: "Blessing of Might", label: "Segen der Macht", ids: [19740, 19834, 19835, 19836, 19837, 19838, 25291, 27140, 25782, 25916, 27141], provider: "Paladin", icon: "spell_holy_fistofjustice", group: "blessing", roles: ["tank", "melee"], priority: 2, expect: "blessing" },
-    { key: "wisdom", name: "Blessing of Wisdom", label: "Segen der Weisheit", ids: [19742, 19850, 19852, 19853, 19854, 25290, 27142, 25894, 25918, 27143], provider: "Paladin", icon: "spell_holy_sealofwisdom", group: "blessing", roles: ["healer", "caster"], classes: MANA_MELEE, priority: 2, expect: "blessing" },
-    { key: "salvation", name: "Blessing of Salvation", label: "Segen der Rettung", ids: [1038, 25895], provider: "Paladin", icon: "spell_holy_sealofsalvation", group: "blessing", roles: ["healer", "melee", "caster"], priority: 3, expect: "blessing" },
-    { key: "sanctuary", name: "Blessing of Sanctuary", label: "Segen des Refugiums", ids: [20911, 20912, 20913, 20914, 27168, 25899, 27169], provider: "Paladin", icon: "spell_nature_lightningshield", group: "blessing", roles: ["tank"], priority: 3, expect: "blessing", neverWrong: true },
-    { key: "light", name: "Blessing of Light", label: "Segen des Lichts", ids: [19977, 19978, 19979, 27144, 25890, 27145], provider: "Paladin", icon: "spell_holy_prayerofhealing02", group: "blessing", roles: ["tank"], priority: 4, expect: "blessing", neverWrong: true },
+    { key: "kings", name: "Blessing of Kings", label: "Segen der Könige", ids: [20217, 25898], groupIds: [25898], groupLabel: "Großer Segen der Könige", provider: "Paladin", icon: "spell_magic_greaterblessingofkings", group: "blessing", roles: ALL, priority: 1, expect: "blessing" },
+    { key: "might", name: "Blessing of Might", label: "Segen der Macht", ids: [19740, 19834, 19835, 19836, 19837, 19838, 25291, 27140, 25782, 25916, 27141], groupIds: [25782, 25916, 27141], groupLabel: "Großer Segen der Macht", provider: "Paladin", icon: "spell_holy_fistofjustice", group: "blessing", roles: ["tank", "melee"], priority: 2, expect: "blessing" },
+    { key: "wisdom", name: "Blessing of Wisdom", label: "Segen der Weisheit", ids: [19742, 19850, 19852, 19853, 19854, 25290, 27142, 25894, 25918, 27143], groupIds: [25894, 25918, 27143], groupLabel: "Großer Segen der Weisheit", provider: "Paladin", icon: "spell_holy_sealofwisdom", group: "blessing", roles: ["healer", "caster"], classes: MANA_MELEE, priority: 2, expect: "blessing" },
+    { key: "salvation", name: "Blessing of Salvation", label: "Segen der Rettung", ids: [1038, 25895], groupIds: [25895], groupLabel: "Großer Segen der Rettung", provider: "Paladin", icon: "spell_holy_sealofsalvation", group: "blessing", roles: ["healer", "melee", "caster"], priority: 3, expect: "blessing" },
+    { key: "sanctuary", name: "Blessing of Sanctuary", label: "Segen des Refugiums", ids: [20911, 20912, 20913, 20914, 27168, 25899, 27169], groupIds: [25899, 27169], groupLabel: "Großer Segen des Refugiums", provider: "Paladin", icon: "spell_nature_lightningshield", group: "blessing", roles: ["tank"], priority: 3, expect: "blessing", neverWrong: true },
+    { key: "light", name: "Blessing of Light", label: "Segen des Lichts", ids: [19977, 19978, 19979, 27144, 25890, 27145], groupIds: [25890, 27145], groupLabel: "Großer Segen des Lichts", provider: "Paladin", icon: "spell_holy_prayerofhealing02", group: "blessing", roles: ["tank"], priority: 4, expect: "blessing", neverWrong: true },
     // priest
-    { key: "fortitude", name: "Power Word: Fortitude", label: "Machtwort: Seelenstärke", ids: [1243, 1244, 1245, 2791, 10937, 10938, 25389, 21562, 21564, 25392], provider: "Priest", icon: "spell_holy_wordfortitude", group: "stats", roles: ALL, expect: "class" },
-    { key: "spirit", name: "Divine Spirit", label: "Göttlicher Willen", ids: [14752, 14818, 14819, 27841, 27681, 32999], provider: "Priest", icon: "spell_holy_divinespirit", group: "stats", roles: ["healer", "caster"], expect: "majority" },
-    { key: "shadowProt", name: "Shadow Protection", label: "Schattenschutz", ids: [976, 10957, 10958, 25433, 27683, 39374], provider: "Priest", icon: "spell_shadow_antishadow", group: "protection", roles: ALL, expect: "majority" },
+    { key: "fortitude", name: "Power Word: Fortitude", label: "Machtwort: Seelenstärke", ids: [1243, 1244, 1245, 2791, 10937, 10938, 25389, 21562, 21564, 25392], groupIds: [21562, 21564, 25392], groupLabel: "Gebet der Seelenstärke", provider: "Priest", icon: "spell_holy_wordfortitude", group: "stats", roles: ALL, expect: "class" },
+    { key: "spirit", name: "Divine Spirit", label: "Göttlicher Willen", ids: [14752, 14818, 14819, 27841, 27681, 32999], groupIds: [27681, 32999], groupLabel: "Gebet des Willens", provider: "Priest", icon: "spell_holy_divinespirit", group: "stats", roles: ["healer", "caster"], expect: "majority" },
+    { key: "shadowProt", name: "Shadow Protection", label: "Schattenschutz", ids: [976, 10957, 10958, 25433, 27683, 39374], groupIds: [27683, 39374], groupLabel: "Gebet des Schattenschutzes", provider: "Priest", icon: "spell_shadow_antishadow", group: "protection", roles: ALL, expect: "majority" },
     // druid
-    { key: "motw", name: "Mark of the Wild", label: "Mal der Wildnis", ids: [1126, 5232, 6756, 5234, 8907, 9884, 9885, 26990, 21849, 21850, 26991], provider: "Druid", icon: "spell_nature_regeneration", group: "stats", roles: ALL, expect: "class" },
+    { key: "motw", name: "Mark of the Wild", label: "Mal der Wildnis", ids: [1126, 5232, 6756, 5234, 8907, 9884, 9885, 26990, 21849, 21850, 26991], groupIds: [21849, 21850, 26991], groupLabel: "Gabe der Wildnis", provider: "Druid", icon: "spell_nature_regeneration", group: "stats", roles: ALL, expect: "class" },
     { key: "thorns", name: "Thorns", label: "Dornen", ids: [467, 782, 1075, 8914, 9756, 9910, 26992], provider: "Druid", icon: "spell_nature_thorns", group: "protection", roles: ["tank"], expect: "majority" },
     // mage
-    { key: "intellect", name: "Arcane Intellect", label: "Arkane Intelligenz", ids: [1459, 1460, 1461, 10156, 10157, 27126, 23028, 27127], provider: "Mage", icon: "spell_holy_magicalsentry", group: "stats", roles: ["healer", "caster"], classes: MANA_MELEE, expect: "class" },
+    { key: "intellect", name: "Arcane Intellect", label: "Arkane Intelligenz", ids: [1459, 1460, 1461, 10156, 10157, 27126, 23028, 27127], groupIds: [23028, 27127], groupLabel: "Arkane Brillanz", provider: "Mage", icon: "spell_holy_magicalsentry", group: "stats", roles: ["healer", "caster"], classes: MANA_MELEE, expect: "class" },
     // shaman — Earth Shield is judged by the healer analysis (healerSpells.js), here only shown
     { key: "earthShield", name: "Earth Shield", label: "Erdschild", ids: [974, 32593, 32594], provider: "Shaman", icon: "spell_nature_skinofearth", group: "shield", roles: ["tank"], expect: "never" },
     { key: "waterShield", name: "Water Shield", label: "Wasserschild", ids: [24398, 33736], provider: "Shaman", icon: "ability_shaman_watershield", group: "shield", roles: ["healer", "caster"], expect: "never" },

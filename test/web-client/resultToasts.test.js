@@ -83,3 +83,24 @@ describe("action results are toasts", () => {
         expect(resolve).toMatch(/toast\(\(err as ApiError\)\.message, "err"\)/);
     });
 });
+
+describe("the toast stack sits where the eye is", () => {
+    it("is fixed to the bottom centre, not a corner, and slides up", () => {
+        const css = readClient("index.css");
+        const wrap = css.match(/\n\.toast-wrap \{[^}]*\}/);
+        expect(wrap).not.toBeNull();
+        expect(wrap[0]).toContain("bottom: 20px");
+        expect(wrap[0]).toContain("left: 50%");
+        expect(wrap[0]).toContain("translateX(-50%)");
+        expect(wrap[0]).not.toContain("right: 16px");
+        expect(css).toMatch(/@keyframes toast-in \{ from \{ opacity: 0; transform: translateY/);
+    });
+
+    it("has no page still pointing the reader at the top-right corner", () => {
+        for (const [name, source] of clientSources()) {
+            // the WoWSims import steps and the server switcher really are top right; the job toast is not
+            const lines = source.split("\n").filter((l) => /oben rechts/i.test(l) && !/Import|Rollencheck/.test(l));
+            expect({ name, lines }).toEqual({ name, lines: [] });
+        }
+    });
+});
