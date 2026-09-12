@@ -10,16 +10,32 @@ for (const zone of data.zones || []) {
     for (const enc of zone.encounters || []) BY_ID.set(Number(enc.id), { ...enc, zone: zone.name, zoneId: zone.id });
 }
 
+// The Anniversary realms log the same bosses under offset ids: Karazhan, Gruul
+// and BT/Hyjal as 50xxx (50609 = Illidan), SSC/TK as 100xxx (100623 = Hydross)
+// — the RPB's Kalecgos exclusion already matches by suffix for the same reason.
+// The icons and names are keyed by the original id, so the offsets fold back.
+const ID_OFFSETS = [0, 50000, 100000];
+
+/** The original TBC encounter id behind an Anniversary id (or the id itself), -1 when unknown. */
+function baseEncounterId(encounterId) {
+    const id = Number(encounterId);
+    if (!Number.isFinite(id)) return -1;
+    for (const off of ID_OFFSETS) {
+        if (id > off && BY_ID.has(id - off)) return id - off;
+    }
+    return -1;
+}
+
 /** The site-relative icon url for an encounter id, or "" when it is not a known TBC boss. */
 function bossIconUrl(encounterId) {
-    const id = Number(encounterId);
-    return BY_ID.has(id) ? `/bosses/${id}.jpg` : "";
+    const id = baseEncounterId(encounterId);
+    return id > 0 ? `/bosses/${id}.jpg` : "";
 }
 
 /** WCL's English encounter name for an id, or "". */
 function bossName(encounterId) {
-    const enc = BY_ID.get(Number(encounterId));
+    const enc = BY_ID.get(baseEncounterId(encounterId));
     return enc ? enc.name : "";
 }
 
-module.exports = { bossIconUrl, bossName, ZONES: data.zones || [] };
+module.exports = { bossIconUrl, bossName, baseEncounterId, ZONES: data.zones || [] };

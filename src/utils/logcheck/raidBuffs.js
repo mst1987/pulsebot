@@ -40,6 +40,51 @@ const { clipBands, mergeBands, gapsBetween } = require("./fightTimeline");
 // half-way is not.
 const FULL_PCT = 95;
 
+// A buff counts as "at the pull" when a band covers this much of the fight's
+// start — WCL synthesizes those bands from the combatant info.
+const PULL_WINDOW_MS = 2000;
+
+/**
+ * The buffs this log cannot show: class buffs that never sat on at least
+ * half of the raid at any pull. On the Anniversary client the combat log's
+ * combatant info lists the blessings, Arcane Brilliance, Prayer of Spirit and
+ * Shadow Protection at the pull, but not Fortitude or Mark of the Wild — those
+ * only ever show a band when somebody re-casts them during the log (verified:
+ * 3 of 25 players with a band, 0 of 25 in the combatant info). A raid does not
+ * run a night with Fortitude on three people, so a buff that is on nobody or
+ * a stray few at every single pull is the log's blind spot, not the raid's
+ * fault, and is left out of the judgement (shown as "im Log nicht
+ * nachweisbar"). A buff that half the raid demonstrably had is tracked, and
+ * missing it is a real finding. "Nobody at all" would be the wrong line: one
+ * re-cast that happens to land on a pull must not turn the blind spot back
+ * into 22 findings.
+ *
+ * @param {Object<string, { byKey }>} bandsByName
+ * @param {Array} bossFights   WCL fights with start_time
+ * @returns {Set<string>} buff keys
+ */
+function untrackedBuffs(bandsByName, bossFights) {
+    const out = new Set();
+    if (!bossFights || bossFights.length === 0) return out;
+    const entries = Object.values(bandsByName || {}).filter(Boolean);
+    if (entries.length === 0) return out;
+    for (const def of BUFFS) {
+        // only the class buffs: a majority buff nobody carried is simply not a majority
+        if (def.expect !== "class") continue;
+        let best = 0;
+        for (const f of bossFights) {
+            let atPull = 0;
+            for (const entry of entries) {
+                const bands = (entry.byKey && entry.byKey[def.key]) || [];
+                if (bands.length && overlaps(bands, f.start_time, f.start_time + PULL_WINDOW_MS)) atPull++;
+            }
+            best = Math.max(best, atPull);
+        }
+        if (best * 2 < entries.length) out.add(def.key);
+    }
+    return out;
+}
+
 const ROLE_OF = { Tank: "tank", Healer: "healer", Caster: "caster", Physical: "melee" };
 
 /**
@@ -132,13 +177,15 @@ function emptyTally() {
  *        a roster player without an entry here is not judged
  * @param {Array}  [input.deaths]     the fight's deaths ({ at, name }), fight-relative
  * @param {Object<string, string>} [input.icons]  buff key -> icon the log reported
- * @returns {null | { paladins, expected: string[], players: Array, coverage: Array }}
+ * @param {Set<string>} [input.untracked]  buff keys the log cannot show (untrackedBuffs): never expected
+ * @returns {null | { paladins, expected: string[], untracked: string[], players: Array, coverage: Array }}
  *          players[]: { name, type, role, judgedUntil, diedAt, buffs: [{ key, label,
  *          icon, status: full|late|partial|none, uptimePct, expected, wrong, bands }],
  *          missing[], late[], partial[], wrong[] }
  */
-function buffsForFight({ fight, roster, bandsByName, deaths, icons }) {
+function buffsForFight({ fight, roster, bandsByName, deaths, icons, untracked }) {
     if (!roster || roster.length === 0) return null;
+    const blind = untracked instanceof Set ? untracked : new Set(untracked || []);
     const start = fight.start_time;
     const end = fight.end_time;
     const duration = end - start;
@@ -195,6 +242,8 @@ function buffsForFight({ fight, roster, bandsByName, deaths, icons }) {
         const wrong = new Set();
         for (const def of BUFFS) {
             const fits = buffFits(def, p);
+            // the log cannot show it: never expected, whatever the roster says
+            if (blind.has(def.key)) continue;
             if (def.expect === "class") {
                 if (fits && classes.has(def.provider)) expected.add(def.key);
             } else if (def.expect === "majority") {
@@ -237,6 +286,7 @@ function buffsForFight({ fight, roster, bandsByName, deaths, icons }) {
             buffs.push({
                 key: def.key, label: def.label, icon: (icons && icons[def.key]) || def.icon,
                 status: c.status, uptimePct: c.uptimePct, expected: isExpected, wrong: isWrong,
+                untracked: blind.has(def.key) || undefined,
                 bands: c.status === "none" ? [] : c.bands,
             });
             if (c.status !== "none") tally(def.key, "present");
@@ -260,6 +310,7 @@ function buffsForFight({ fight, roster, bandsByName, deaths, icons }) {
     return {
         paladins,
         expected: expectedKeys,
+        untracked: BUFFS.map((b) => b.key).filter((k) => blind.has(k)),
         players,
         coverage: BUFFS.map((b) => b.key).filter((k) => coverage.has(k)).map((k) => coverage.get(k)),
     };
@@ -274,11 +325,13 @@ function summarize(fights) {
     const byKey = new Map();
     let fightCount = 0;
     let paladins = 0;
+    const untracked = new Set();
     for (const f of fights) {
         const b = f.buffs;
         if (!b || !Array.isArray(b.players)) continue;
         fightCount++;
         paladins = Math.max(paladins, b.paladins || 0);
+        for (const k of b.untracked || []) untracked.add(k);
         for (const p of b.players) {
             if (!byName.has(p.name)) byName.set(p.name, { name: p.name, type: p.type, roles: {}, fights: 0, buffs: {}, missing: 0, late: 0, partial: 0, wrong: 0 });
             const s = byName.get(p.name);
@@ -338,14 +391,16 @@ function summarize(fights) {
         const s = byKey.get(k);
         return {
             key: s.key, label: s.label, groupLabel: s.groupLabel, icon: s.icon, provider: s.provider, group: s.group, expect: s.expect,
-            expected: s.slots > 0, fights: s.fights, slots: s.slots, full: s.full, late: s.late, partial: s.partial, none: s.none,
+            expected: s.slots > 0, untracked: untracked.has(s.key), fights: s.fights, slots: s.slots, full: s.full, late: s.late, partial: s.partial, none: s.none,
             present: s.present, wrong: s.wrong,
             coveragePct: s.slots ? Math.round((s.full / s.slots) * 100) : null,
             missingPlayers: s.missingNames.size,
             seenPlayers: s.seenNames.size,
         };
     });
-    return { fights: fightCount, paladins, players, rows };
+    // the blind spot is named even when the buff never made a row (nobody ever re-cast it)
+    const untrackedRows = BUFFS.filter((b) => untracked.has(b.key)).map((b) => ({ key: b.key, label: b.label, groupLabel: b.groupLabel || "", icon: b.icon, provider: b.provider }));
+    return { fights: fightCount, paladins, players, rows, untracked: untrackedRows };
 }
 
 /**
@@ -394,6 +449,10 @@ async function analyzeRaidBuffs(wcl, reportId, fights, players, idToPlayer, time
         bandsByName[p.name] = { byKey, all };
     }
 
+    const bossFights = timeline.fights.map((row) => byId.get(row.id)).filter(Boolean);
+    const untracked = untrackedBuffs(bandsByName, bossFights);
+    if (untracked.size) console.warn(`raid buffs: not shown by this log at any pull, left unjudged: ${[...untracked].join(", ")}`);
+
     let any = false;
     for (const row of timeline.fights) {
         const f = byId.get(row.id);
@@ -406,10 +465,10 @@ async function analyzeRaidBuffs(wcl, reportId, fights, players, idToPlayer, time
             console.error(`raid buffs summary failed on ${f.name}:`, e.message);
         }
         if (roster.length === 0) roster = rosterFromBands(players, bandsByName, f);
-        row.buffs = buffsForFight({ fight: f, roster, bandsByName, deaths: row.deaths, icons });
+        row.buffs = buffsForFight({ fight: f, roster, bandsByName, deaths: row.deaths, icons, untracked });
         if (row.buffs) any = true;
     }
     return any ? summarize(timeline.fights) : null;
 }
 
-module.exports = { analyzeRaidBuffs, buffsForFight, summarize, buffRole, rosterFromSummary, rosterFromBands, statusOf, FULL_PCT };
+module.exports = { analyzeRaidBuffs, buffsForFight, summarize, buffRole, rosterFromSummary, rosterFromBands, statusOf, untrackedBuffs, FULL_PCT, PULL_WINDOW_MS };
