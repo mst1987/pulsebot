@@ -7,7 +7,7 @@ const { analyzePotions, potionsByName } = require("./potions");
 const { analyzeSunder } = require("./sunder");
 const { analyzeBossUptimes } = require("./bossUptimes");
 const { analyzeFightTimeline } = require("./fightTimeline");
-const { analyzeFightSeries } = require("./fightSeries");
+const { analyzeFightSeries, summarizeFightSeries } = require("./fightSeries");
 const { analyzeRaidDebuffs } = require("./raidDebuffs");
 const { analyzeCooldownTimeline } = require("./cooldownTimeline");
 const { analyzeTotems } = require("./totems");
@@ -143,6 +143,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
     let sunder = null;
     let bossUptimes = null;
     let timeline = null;
+    let fightSeries = null;
     let raidDebuffs = null;
     let cooldowns = null;
     let totems = null;
@@ -160,11 +161,14 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         // The time axis every fight chart draws on: fight bounds and deaths now,
         // debuff/totem/cooldown bands from the analyzers that build on it.
         try { timeline = await analyzeFightTimeline(wcl, reportId, fights, idToPlayer); } catch (e) { console.error("timeline failed:", e.message); }
-        // Raid DPS/HPS and boss health per fight, on the timeline. Needs the
-        // WCL v2 client from the settings; without one the series stays null.
+        // Raid DPS/HPS and boss health per fight, on the timeline, plus each
+        // raider's own curve from the same answer; the dip summary is its own
+        // field. Needs the WCL v2 client from the settings; without one the
+        // series stays null.
         try {
             const v2 = getConfig().warcraftlogsV2 || {};
-            await analyzeFightSeries(new WarcraftLogsV2(v2), reportId, fights, timeline);
+            await analyzeFightSeries(new WarcraftLogsV2(v2), reportId, fights, timeline, idToPlayer);
+            fightSeries = summarizeFightSeries(timeline);
         } catch (e) { console.error("fightSeries failed:", e.message); }
         // Debuffs on the boss per fight, written into the timeline; the summary is its own field.
         try { raidDebuffs = await analyzeRaidDebuffs(wcl, reportId, fights, playerEntries, timeline); } catch (e) { console.error("raidDebuffs failed:", e.message); }
@@ -241,6 +245,7 @@ async function buildReportForId(reportId, sections, mergeIntoId, force) {
         sunder,
         bossUptimes,
         timeline,
+        fightSeries,
         raidDebuffs,
         cooldowns,
         totems,
@@ -318,7 +323,7 @@ function mergeRoster(existingRoster, freshRoster, sections) {
 
 // Report fields each half owns. Only these are dropped when a half is discarded;
 // the shared meta (title, players, roster, ...) belongs to the page itself.
-const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes", "timeline", "raidDebuffs", "cooldowns", "totems", "mechanics", "activity", "healers", "raidBuffs"];
+const CLA_FIELDS = ["consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes", "timeline", "fightSeries", "raidDebuffs", "cooldowns", "totems", "mechanics", "activity", "healers", "raidBuffs"];
 const RPB_FIELDS = ["rpb"];
 
 /**

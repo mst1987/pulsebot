@@ -22,7 +22,7 @@ const path = require("path");
 const engine = require("../utils/wowsims/engine");
 const { specByKey } = require("../config/casterSpecs");
 const { canWear } = require("../config/wearable");
-const { equipmentFor, targetSlotFor } = require("../utils/wowsims/loadout");
+const { equipmentFor, targetSlotFor, bisFittingFor } = require("../utils/wowsims/loadout");
 const { gearByCharacter } = require("./charGear");
 
 const CACHE_DIR = path.join(__dirname, "..", "..", "data", "sim");
@@ -182,18 +182,26 @@ function startCouncilSim(id, subjects, itemIds = []) {
                             { spec: (specEntry && specEntry.spec) || "" },
                         );
                         if (!target || !wearable) { job.progress += 1; continue; }
+                        // The drop is simulated as it would be worn: gems and
+                        // enchant from the spec's BiS list (see bisFittingFor),
+                        // never bare and never with whatever happened to sit on
+                        // the piece it replaces.
+                        const replaced = (gear.items || []).find((it) => Number(it.slot) === Number(target.slot)) || null;
+                        const fit = bisFittingFor({ specEntry, itemId, replaced });
                         const run = await simulateCached({
                             specKey: subject.specKey, gear,
                             // `clears` matters for two-handers: without it the
                             // off hand stays equipped next to the staff and the
                             // run reports DPS off gear the raider cannot wear.
-                            swap: { slot: target.slot, itemId: Number(itemId), clears: target.clears },
+                            swap: { slot: target.slot, itemId: Number(itemId), clears: target.clears, enchantId: fit.enchantId, gems: fit.gems },
                         });
                         entry.items[itemId] = {
                             dps: run.dps,
                             delta: run.dps !== null && base.dps !== null ? Math.round((run.dps - base.dps) * 10) / 10 : null,
                             slot: target.slot,
                             cached: run.cached,
+                            // where the sockets and enchant of the simulated piece came from
+                            fitting: fit.source,
                         };
                         job.progress += 1;
                     }

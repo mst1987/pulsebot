@@ -12,6 +12,23 @@
 // resources for the boss health. Without a configured v2 client the series is
 // simply absent (`null`) — no error, the page shows nothing where it would be.
 //
+// The same `graph` answer carries one series per *source* next to "Total", so
+// the raiders' own curves cost no further request: `series.players` keeps
+// them as `[{ name, type, dps?, hps? }]` on the very same buckets, only for
+// the players of the roster (`idToPlayer`) and only where there is anything
+// (a value > 0). The player page draws one against the raid's mean per
+// player, and `summarizeFightSeries()` folds them into `report.fightSeries`:
+// per raider the share of the fight their output sat below half their own
+// mean ("Einbrüche") — buckets after their death excluded, dying is not a
+// dip — which is what the recommendation `series.dips` reads.
+//
+// Pets: WCL's damage-done graph folds a pet into its owner by default (the
+// site's "show pets separately" is off), so a warlock's series already holds
+// the felguard. A series that nevertheless names an owner (`petOwner` /
+// `ownerID`, which the schema leaves open) is added to that owner; one that
+// belongs to no roster player and names no owner is dropped, since guessing
+// whose pet it was would credit the wrong raider.
+//
 // Boss health is *measured*, never interpolated: a sample is what the log saw
 // on the boss at that moment, a bucket without a sample holds the last one
 // seen, and buckets before the first sample take the first (the boss is not
@@ -106,6 +123,105 @@ function totalSeries(graph) {
     for (const [t, v] of byTime) sums[Math.round((t - base) / interval)] = v;
     for (let i = 0; i < sums.length; i++) if (sums[i] === undefined) sums[i] = 0;
     return { ...out, data: sums };
+}
+
+/**
+ * The per-source series of a WCL graph, mapped onto the roster and resampled
+ * onto the fight's buckets. Returns `Map<name, { type, values }>` — only
+ * players of `idToPlayer` (matched by actor `id`, else by `name`), a pet
+ * folded into its owner where the series names one (`petOwner`/`ownerID`),
+ * every other source dropped (see the header). Values are a rate; a source
+ * whose values are all 0 is left out.
+ *
+ * @param {object|null} graph        WCL graph JSON
+ * @param {Object<string, { name, type }>} idToPlayer  actor id → roster entry
+ * @param {{ startTime: number, duration: number }} fight
+ */
+function sourceSeries(graph, idToPlayer, fight, step = STEP_MS) {
+    const out = new Map();
+    const list = graph && graph.data && Array.isArray(graph.data.series) ? graph.data.series : null;
+    if (!list || !idToPlayer) return out;
+    const byName = new Map(Object.values(idToPlayer).map((p) => [p.name, p]));
+    for (const s of list) {
+        if (!s || !Array.isArray(s.data) || !s.data.length || !Number.isFinite(s.pointInterval) || s.pointInterval <= 0 || !Number.isFinite(s.pointStart)) continue;
+        if (String(s.name || s.type || "").toLowerCase() === "total") continue;
+        const ownerId = s.petOwner !== undefined && s.petOwner !== null ? s.petOwner : s.ownerID;
+        const player = (ownerId !== undefined && ownerId !== null && idToPlayer[ownerId])
+            || (s.id !== undefined && idToPlayer[s.id])
+            || (String(s.type || "").toLowerCase() !== "pet" && s.name && byName.get(s.name))
+            || null;
+        if (!player) continue;
+        const values = resample({ pointStart: s.pointStart, pointInterval: s.pointInterval, data: asRate({ ...s, data: s.data.map((v) => Number(v) || 0), total: Number(s.total) }) }, fight, step);
+        if (!values.some((v) => v > 0)) continue;
+        const prev = out.get(player.name);
+        out.set(player.name, { type: player.type, values: prev ? prev.values.map((v, i) => v + values[i]) : values });
+    }
+    return out;
+}
+
+/**
+ * The share of a series' buckets that sit below half its own mean — where
+ * the raider's output broke in, for whatever reason. Buckets at or after
+ * `deathAt` (ms into the fight) are left out on both sides: a dead raider
+ * does no damage, and that is not a dip. Returns a whole percentage, or null
+ * when nothing is left to judge.
+ *
+ * @param {number[]} values
+ * @param {number} step
+ * @param {number|null} [deathAt]
+ * @returns {{ pct: number, below: number, buckets: number, mean: number } | null}
+ */
+function dipShare(values, step, deathAt) {
+    if (!Array.isArray(values) || !values.length) return null;
+    const alive = Number.isFinite(deathAt) && deathAt !== null ? values.filter((_, k) => k * (step || STEP_MS) < deathAt) : values;
+    if (!alive.length) return null;
+    const mean = alive.reduce((a, v) => a + (Number(v) || 0), 0) / alive.length;
+    if (mean <= 0) return null;
+    const below = alive.filter((v) => (Number(v) || 0) < mean / 2).length;
+    return { pct: Math.round((below / alive.length) * 100), below, buckets: alive.length, mean: Math.round(mean) };
+}
+
+/**
+ * The raid-wide summary of the players' series: per raider how many fights
+ * carry a curve, the mean output and the dip share over all of them (dip
+ * buckets over alive buckets, so a long fight weighs more than a short one).
+ * `measure` says which curve the numbers rest on: "hps" for a raider whose
+ * healing outweighs their damage, "dps" otherwise — the recommendation
+ * leaves healers alone, the page labels the chip accordingly.
+ *
+ * @returns {null | { players: Array<{ name, type, measure, fights, dipPct, avgDps, avgHps }> }}
+ */
+function summarizeFightSeries(timeline) {
+    const rows = (timeline && timeline.fights) || [];
+    const byName = new Map();
+    for (const f of rows) {
+        const players = f && f.series && Array.isArray(f.series.players) ? f.series.players : [];
+        const step = (f.series && f.series.step) || STEP_MS;
+        for (const p of players) {
+            if (!p || !p.name) continue;
+            const death = (f.deaths || []).find((d) => d && d.name === p.name);
+            const deathAt = death && Number.isFinite(death.at) ? death.at : null;
+            const acc = byName.get(p.name) || { name: p.name, type: p.type, fights: 0, dpsSum: 0, dpsN: 0, hpsSum: 0, hpsN: 0, dip: { dps: [0, 0], hps: [0, 0] } };
+            acc.fights++;
+            for (const key of ["dps", "hps"]) {
+                if (!Array.isArray(p[key]) || !p[key].length) continue;
+                acc[`${key}Sum`] += p[key].reduce((a, v) => a + (Number(v) || 0), 0);
+                acc[`${key}N`] += p[key].length;
+                const d = dipShare(p[key], step, deathAt);
+                if (d) { acc.dip[key][0] += d.below; acc.dip[key][1] += d.buckets; }
+            }
+            byName.set(p.name, acc);
+        }
+    }
+    if (byName.size === 0) return null;
+    const players = [...byName.values()].map((a) => {
+        const avgDps = a.dpsN ? Math.round(a.dpsSum / a.dpsN) : 0;
+        const avgHps = a.hpsN ? Math.round(a.hpsSum / a.hpsN) : 0;
+        const measure = avgHps > avgDps ? "hps" : "dps";
+        const [below, buckets] = a.dip[measure];
+        return { name: a.name, type: a.type, measure, fights: a.fights, dipPct: buckets ? Math.round((below / buckets) * 100) : null, avgDps, avgHps };
+    }).sort((x, y) => (y.dipPct || 0) - (x.dipPct || 0) || x.name.localeCompare(y.name));
+    return { players };
 }
 
 /**
@@ -261,15 +377,17 @@ function bossHpSeries(events, bosses, fight, step = STEP_MS) {
  * @param {string} reportId
  * @param {object} fights         WCL v1 fights response (for the boss actors)
  * @param {object|null} timeline  from analyzeFightTimeline
- * @returns {Promise<null | { fights: number, withSeries: number, withBossHp: number }>}
+ * @param {Object<string, { name, type }>} [idToPlayer]  actor id → roster entry; without it no player series
+ * @returns {Promise<null | { fights: number, withSeries: number, withBossHp: number, withPlayers: number }>}
  */
-async function analyzeFightSeries(wclV2, reportId, fights, timeline) {
+async function analyzeFightSeries(wclV2, reportId, fights, timeline, idToPlayer) {
     if (!wclV2 || typeof wclV2.isConfigured !== "function" || !wclV2.isConfigured()) return null;
     const rows = (timeline && timeline.fights) || [];
     if (rows.length === 0) return null;
 
     let withSeries = 0;
     let withBossHp = 0;
+    let withPlayers = 0;
     for (const f of rows) {
         f.series = null;
         let fetched = null;
@@ -284,23 +402,48 @@ async function analyzeFightSeries(wclV2, reportId, fights, timeline) {
         const dps = dmg ? resample({ ...dmg, data: asRate(dmg) }, f) : null;
         const hps = heal ? resample({ ...heal, data: asRate(heal) }, f) : null;
         const hp = bossHpSeries(fetched.enemyEvents, bossActors(fights, f.id), f);
-        if (!dps && !hps && !hp) continue;
+        const players = playerSeries(fetched, idToPlayer, f);
+        if (!dps && !hps && !hp && !players.length) continue;
         f.series = {
             step: STEP_MS,
             dps,
             hps,
             bossHp: hp ? hp.bossHp : null,
             ...(hp && hp.targets.length > 1 ? { bossHpTargets: hp.targets } : {}),
+            ...(players.length ? { players } : {}),
         };
         if (dps || hps) withSeries++;
         if (hp) withBossHp++;
+        if (players.length) withPlayers++;
     }
-    return { fights: rows.length, withSeries, withBossHp };
+    return { fights: rows.length, withSeries, withBossHp, withPlayers };
+}
+
+/**
+ * The roster's own curves of one fight from the fetched graphs:
+ * `[{ name, type, dps?, hps? }]`, each key only where the player did any of
+ * it, a player only where they did either. Roster order is not kept — the
+ * list is sorted by name so a re-run yields the same bytes.
+ */
+function playerSeries(fetched, idToPlayer, fight) {
+    if (!idToPlayer) return [];
+    const dmg = sourceSeries(fetched.damage, idToPlayer, fight);
+    const heal = sourceSeries(fetched.healing, idToPlayer, fight);
+    const names = [...new Set([...dmg.keys(), ...heal.keys()])].sort((a, b) => a.localeCompare(b));
+    return names.map((name) => {
+        const d = dmg.get(name);
+        const h = heal.get(name);
+        return { name, type: (d || h).type, ...(d ? { dps: d.values } : {}), ...(h ? { hps: h.values } : {}) };
+    });
 }
 
 module.exports = {
     STEP_MS,
     analyzeFightSeries,
+    summarizeFightSeries,
+    playerSeries,
+    sourceSeries,
+    dipShare,
     bucketCount,
     seriesPoints,
     totalSeries,
