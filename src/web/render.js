@@ -246,7 +246,7 @@ function tabbed(items, extraClass) {
 
 // A theme-toggle button. The shared script (below) paints its icon and wires the click.
 function themeToggleBtn() {
-    return "<button class=\"theme-toggle\" id=\"themeBtn\" type=\"button\" aria-label=\"Design umschalten\" title=\"Hell/Dunkel\"></button>";
+    return "<button class=\"theme-toggle\" id=\"themeBtn\" type=\"button\" aria-label=\"Design umschalten\" data-tip=\"Hell / Dunkel umschalten\"></button>";
 }
 
 /**
@@ -602,7 +602,7 @@ ${body}
   .gemicon img { width:100%; height:100%; display:block; }
   .gem-bad { filter:grayscale(.7); opacity:.65; }
   .gem-empty { background:transparent; border:1px dashed var(--high); }
-  .badge { position:absolute; right:-4px; bottom:-4px; width:17px; height:17px; border-radius:50%; font-size:11px; line-height:17px; text-align:center; font-weight:800; color:#fff; border:1px solid #0008; }
+  .slot-badge { position:absolute; right:-4px; bottom:-4px; width:17px; height:17px; border-radius:50%; font-size:11px; line-height:17px; text-align:center; font-weight:800; color:#fff; border:1px solid #0008; }
   .b-ok { background:#3a8a3a; } .b-bad { background:#b8862a; } .b-miss { background:#b33; }
   .empty-slot { opacity:.4; } .slot-ph { width:42px; height:42px; border:1px dashed var(--line); border-radius:8px; }
   @media (max-width:720px){ .doll { grid-template-columns:1fr; } .pd-center { order:-1; } .pd-col-left, .pd-col-right { align-items:stretch; } .slot { max-width:none; } }
@@ -785,7 +785,9 @@ ${body}
   details[open] > summary .exp-w { display:none; }
   /* healer list: one row per healer, the details under it */
   .hlist { display:flex; flex-direction:column; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
-  .hcols, .hrow > summary { display:grid; grid-template-columns:34px minmax(150px,1fr) 260px 150px 120px minmax(120px,1fr) auto; align-items:center; gap:12px; padding:9px 12px; }
+  .hcols, .hrow > summary { display:grid; grid-template-columns:34px minmax(130px,1fr) 260px 128px 96px minmax(70px,1fr) 104px; align-items:center; gap:10px; padding:9px 12px; min-width:0; }
+  .hrow > summary > * { min-width:0; }
+  .hrow .exp-lbl { justify-content:flex-end; }
   .hcols { background:var(--panel2); border-bottom:1px solid var(--line); }
   .hrow > summary { cursor:pointer; list-style:none; border-bottom:1px solid var(--line-soft); }
   .hrow > summary::-webkit-details-marker { display:none; }
@@ -810,7 +812,7 @@ ${body}
   .grp .topic-table td:first-child { padding-left:56px; }
   .grp .topic-table th:first-child { padding-left:56px; }
   .grp .topic-table tr:last-child td { border-bottom:0; }
-  @media (max-width:900px) { .hcols { display:none; } .hrow > summary { grid-template-columns:34px 1fr; } .hrow > summary .bar-heal { width:100%; } }
+  @media (max-width:1000px) { .hcols { display:none; } .hrow > summary { grid-template-columns:34px 1fr 104px; } .hrow > summary .bar-heal, .hrow > summary .badge, .hrow > summary .hints { grid-column:2; } .hrow > summary .bar-heal { width:100%; } .hrow > summary .exp-lbl { grid-column:3; grid-row:1; } }
   .chip.warn { border-color:rgba(224,162,58,.4); background:var(--medium-bg); } .chip.warn b { color:var(--medium); }
   .chip.bad { border-color:rgba(224,82,79,.4); background:var(--high-bg); } .chip.bad b { color:var(--high); }
   .chip.ok b { color:var(--good); }
@@ -3159,19 +3161,19 @@ function paperdollSlot(it, side) {
     let badge = "";
     let ench = "";
     if (it.enchant.status === "missing") {
-        badge = "<span class=\"badge b-miss\" title=\"keine Verzauberung\">✗</span>";
+        badge = "<span class=\"slot-badge b-miss\" data-tip=\"keine Verzauberung\">✗</span>";
         ench = "<div class=\"slot-ench miss\">keine Verzauberung</div>";
     } else if (it.enchant.status === "bad") {
-        badge = `<span class="badge b-bad" data-tip="${esc(it.enchant.reason || "suboptimale Verzauberung")}">!</span>`;
+        badge = `<span class="slot-badge b-bad" data-tip="${esc(it.enchant.reason || "suboptimale Verzauberung")}">!</span>`;
         ench = `<div class="slot-ench bad">suboptimale Verzauberung${it.enchant.reason ? ` · ${esc(it.enchant.reason)}` : ""}</div>`;
     } else if (it.enchant.status === "ok") {
-        badge = "<span class=\"badge b-ok\" title=\"verzaubert (Details im Tooltip)\">✓</span>";
+        badge = "<span class=\"slot-badge b-ok\" data-tip=\"verzaubert\" data-tip-sub=\"Details im Tooltip des Gegenstands\">✓</span>";
         ench = "<div class=\"slot-ench ok\">verzaubert</div>";
     }
     // real gem icons + empty sockets
     let gems = (it.gems || []).map((g) =>
         `<a class="gemicon ${g.bad ? "gem-bad" : ""}" href="https://www.wowhead.com/tbc/item=${esc(g.id)}" target="_blank" rel="noopener" data-tip="${g.bad ? "suboptimaler Edelstein" : "Edelstein"}"><img src="${esc(iconUrl(g.icon))}" alt=""></a>`).join("");
-    for (let i = 0; i < (it.emptySockets || 0); i++) gems += "<span class=\"gemicon gem-empty\" title=\"leerer Sockel\"></span>";
+    for (let i = 0; i < (it.emptySockets || 0); i++) gems += "<span class=\"gemicon gem-empty\" data-tip=\"leerer Sockel\"></span>";
     const gemsRow = gems ? `<div class="slot-gems">${gems}</div>` : "";
     return `<div class="slot slot-${side}">
       <a class="slot-icon" style="border-color:${q}" href="${href}" target="_blank" rel="noopener" data-tip="${esc(it.itemName)}">${img}${badge}</a>
