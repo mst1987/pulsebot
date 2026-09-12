@@ -51,6 +51,11 @@ module.exports = {
     rpb: {
         lowerRankPct: 50,        // a spell mostly cast below its max rank
     },
+    series: {
+        dipPct: 25,              // share of the fight time (alive) a DPS's output sat below half their own mean
+        dipHighPct: 40,          // ...and from this share on it is a high-impact finding
+        minFights: 2,            // one fight of curve is noise: a raider needs at least this many to be judged
+    },
     shadowResi: {
         minSr: 365,              // gear shadow resistance for Mother Shahraz
     },

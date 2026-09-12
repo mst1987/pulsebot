@@ -196,6 +196,25 @@ function mechanicRules(report, name) {
     return out;
 }
 
+/**
+ * The raider's own DPS curve broke in too often: the share of the fight
+ * (alive) their output sat below half their own mean, over the raid
+ * (report.fightSeries, from the WCL v2 series). Healers are left alone —
+ * their healing follows the damage taken, and a quiet phase is not a dip.
+ */
+function seriesRules(report, name) {
+    const s = report.fightSeries && (report.fightSeries.players || []).find((x) => x.name === name);
+    if (!s || s.measure === "hps" || isHealer(report, name)) return [];
+    if (!Number.isFinite(s.dipPct) || s.dipPct === null || s.fights < R.series.minFights || s.dipPct < R.series.dipPct) return [];
+    return [finding(
+        "series.dips",
+        s.dipPct >= R.series.dipHighPct ? "high" : "medium",
+        `DPS in ${s.dipPct} % der Zeit eingebrochen`,
+        `In ${s.dipPct} % der Kampfzeit lag der Schaden unter der Hälfte des eigenen Schnitts (Ø ${s.avgDps} DPS über ${s.fights} Kämpfe). Bewegung kürzer halten, nach Mechaniken sofort weitermachen, Cooldowns nicht in die Laufphase legen – die eigene Kurve steht auf der Spielerseite unter Kampfverlauf.`,
+        [{ label: "Zeit unter 50 % des Schnitts", value: `${s.dipPct} %` }, { label: "Ø DPS", value: String(s.avgDps) }, { label: "Kämpfe", value: String(s.fights) }],
+    )];
+}
+
 function rpbRules(report, name) {
     const a = report.rpb && report.rpb.activity && (report.rpb.activity.players || []).find((x) => x.name === name);
     if (!a) return [];
@@ -283,7 +302,7 @@ function raidBuffRules(report, name) {
     return out;
 }
 
-const PLAYER_RULES = [gearRules, consumableRules, debuffRules, totemRules, cooldownRules, activityRules, mechanicRules, rpbRules, shadowResiRules, healerRules, raidBuffRules];
+const PLAYER_RULES = [gearRules, consumableRules, debuffRules, totemRules, cooldownRules, activityRules, mechanicRules, seriesRules, rpbRules, shadowResiRules, healerRules, raidBuffRules];
 
 // ---- raid rules ---------------------------------------------------------
 
