@@ -93,6 +93,7 @@ describe("client state persistence", () => {
         ["pages/ClaPage.tsx", "cla-view"],
         ["pages/RecruitmentPage.tsx", "recruitment-view"],
         ["pages/RaidsPage.tsx", "raids-category"],
+        ["pages/RaidsPage.tsx", "raids-view"],
         ["pages/SettingsPage.tsx", "settings-section"],
     ];
 
