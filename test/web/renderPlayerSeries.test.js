@@ -95,20 +95,21 @@ describe("web/render — the player's own curve (issue #203)", () => {
         expect(html).not.toContain("DPS-Einbrüche");
     });
 
-    it("shows the dip share over the raid as a hero chip from report.fightSeries", () => {
+    it("shows a notable dip share over the raid as a badge in the raider's head, from report.fightSeries", () => {
         const base = report({ timeline: { fights: [fight()] } });
-        const html = renderPlayerPage({ ...base, fightSeries: { players: [
+        const html = renderReportPage({ ...base, fightSeries: { players: [
             { name: "Alice", type: "Mage", measure: "dps", fights: 3, dipPct: 42, avgDps: 500, avgHps: 0 },
             { name: "Heal", type: "Priest", measure: "hps", fights: 3, dipPct: 4, avgDps: 20, avgHps: 800 },
-        ] } }, 0);
-        expect(html).toContain("<b>42 %</b> DPS-Einbrüche");
-        expect(html).toContain("über 3 Kämpfe");
-        const healer = renderPlayerPage({ ...base, fightSeries: { players: [{ name: "Heal", type: "Priest", measure: "hps", fights: 1, dipPct: 4, avgDps: 20, avgHps: 800 }] } }, 1);
-        expect(healer).toContain("chip chip-ok");
-        expect(healer).toContain("<b>4 %</b> HPS-Einbrüche");
-        expect(healer).toContain("über 1 Kampf. Ab 25 % gelb, ab 40 % rot.\"");
-        // no summary, no hero chip (the per-fight chip under the curve says "der Zeit")
-        expect(renderPlayerPage(base, 0)).not.toContain("</b> DPS-Einbrüche</span>");
+        ] } });
+        const alice = html.slice(html.indexOf("id=\"raider-Alice\""), html.indexOf("</summary>", html.indexOf("id=\"raider-Alice\"")));
+        expect(alice).toContain("42 % Einbrüche</span>");
+        expect(alice).toContain("Bis zum eigenen Tod, über 3 Kämpfe. Ab 25 % gelb, ab 40 % rot.");
+        expect(alice).toContain("<span class=\"badge bad\" data-tip=\"Anteil der Kampfzeit, in der DPS unter der Hälfte des eigenen Schnitts lag\"");
+        // a small dip share is nothing worth a badge
+        const heal = html.slice(html.indexOf("id=\"raider-Heal\""), html.indexOf("</summary>", html.indexOf("id=\"raider-Heal\"")));
+        expect(heal).not.toContain("Einbrüche");
+        // no summary, no badge (the per-fight chip under the curve says "der Zeit")
+        expect(renderReportPage(base)).not.toContain("% Einbrüche</span>");
     });
 
     it("renders nothing for a raider without a curve and no timeline at all, without an error", () => {
@@ -116,9 +117,9 @@ describe("web/render — the player's own curve (issue #203)", () => {
         f.series.players = f.series.players.filter((p) => p.name !== "Alice");
         const none = renderPlayerPage(report({ timeline: { fights: [f] } }), 0);
         expect(none).not.toContain("player-series");
-        expect(none).not.toContain("<h2>Kampfverlauf</h2>");
+        expect(none).not.toContain("id=\"p-fights\"");
         const noSeries = renderPlayerPage(report({ timeline: { fights: [fight({ series: null, deaths: [{ at: 1000, name: "Alice", type: "Mage" }] })] } }), 0);
-        expect(noSeries).toContain("<h2>Kampfverlauf</h2>");
+        expect(noSeries).toContain("id=\"p-fights\"");
         expect(noSeries).not.toContain("player-series");
         expect(renderPlayerPage(report(), 0)).toContain("Alice");
     });

@@ -5,7 +5,7 @@ const { error } = require("./apiResponse");
 const auth = require("./auth");
 const { checkAccess } = require("./apiAccess");
 const { getSession, postActiveGuild } = require("./apiRoutes/session");
-const { getDashboard } = require("./apiRoutes/dashboard");
+const { getDashboard, getNextRaidDetails } = require("./apiRoutes/dashboard");
 const { getChannels, createChannel, duplicateChannel } = require("./apiRoutes/channels");
 const {
     getSettings, updateSettings, getItemSearch: getSettingsItemSearch,
@@ -14,7 +14,7 @@ const {
 } = require("./apiRoutes/settings");
 const { ingestLoot } = require("./apiRoutes/ingest");
 const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raiderCharacters");
-const { getRoster } = require("./apiRoutes/roster");
+const { getRoster, getRosterChar } = require("./apiRoutes/roster");
 const {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim,
     getItemSearch: getCouncilItemSearch, getBisLists: getCouncilBisLists,
@@ -38,7 +38,7 @@ const {
 } = require("./apiRoutes/recruitment");
 const {
     getHistoryData, getLootStats, getLootAwards, deleteHistoryLog, importLoot, setLootCategory, deleteLootItems, clearHistoryEvent, getHistoryEvent,
-    resolveCharacters, getHistoryChar, getLootPicker, addLootItem,
+    resolveCharacters, getHistoryChar, getLootPicker, addLootItem, previewLootImport,
     getLootInbox, acceptLootInbox, dismissLootInbox,
 } = require("./apiRoutes/history");
 const {
@@ -90,6 +90,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/dashboard" && req.method === "GET") {
         await getDashboard(req, res);
+        return true;
+    }
+    if (pathname === "/api/dashboard/next-raid" && req.method === "GET") {
+        await getNextRaidDetails(req, res, url);
         return true;
     }
     if (pathname === "/api/channels" && req.method === "GET") {
@@ -151,6 +155,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/roster" && req.method === "GET") {
         await getRoster(req, res);
+        return true;
+    }
+    if (pathname === "/api/roster/char" && req.method === "GET") {
+        await getRosterChar(req, res, url);
         return true;
     }
     if (pathname === "/api/lootcouncil" && req.method === "GET") {
@@ -319,6 +327,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/history/import" && req.method === "POST") {
         await importLoot(req, res);
+        return true;
+    }
+    if (pathname === "/api/history/import-preview" && req.method === "POST") {
+        await previewLootImport(req, res);
         return true;
     }
     if (pathname === "/api/history/inbox" && req.method === "GET") {

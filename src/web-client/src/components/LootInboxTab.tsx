@@ -1,35 +1,78 @@
-// "Addon-Inbox": raid sessions the WoW addon's companion uploader sent in,
-// waiting for someone to say which raid they belong to.
+// The Addon-Inbox's building blocks: one card per raid session the WoW addon's
+// uploader sent in, waiting for someone to say which raid it belongs to, and the
+// quiet list of sessions that were already accepted and keep flowing in.
+// The page around them is pages/HistoryInboxPage.tsx.
 //
 // The upload already did the guessing — it matched the session's own start time
 // against the Raid-Helper events of that day — so the common case is one glance
-// and one click on "Übernehmen". The event dropdown only has to be touched when
-// the match is ambiguous (two raids the same day) or wrong.
+// and one click on "Übernehmen". The event only has to be touched when the match
+// is ambiguous (two raids the same day: every candidate is shown, nothing is
+// preselected so nobody confirms a coin flip by reflex) or wrong.
 //
 // Accepting is remembered on the server: the rest of the raid night arrives in
 // the same event by itself, without anyone coming back here. Dismissing is
 // remembered too, so a session thrown away does not reappear on the next upload.
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
     acceptLootInbox, dismissLootInbox,
-    type ApiError, type Category, type HistoryEvent, type InboxSession,
+    type ApiError, type Category, type HistoryEvent, type InboxLinkedSession, type InboxMatchEvent, type InboxSession, type LootItem,
 } from "../api";
-import { fmtMs, formatEventTime } from "../lib/format";
+import { formatEventTime } from "../lib/format";
 import { LootTable } from "./LootTable";
 import { useToast } from "./Jobs";
-import { useConfirm } from "./ui/Modal";
+import { Modal, useConfirm } from "./ui/Modal";
+import { Button, IconButton } from "./ui/Button";
+import Badge from "./ui/Badge";
+import Expand from "./ui/Expand";
+import IconTile from "./ui/IconTile";
+import WowIcon from "./ui/WowIcon";
+import { TrashIcon } from "./icons";
+import { ItemIcon, contentIcon } from "./LootBadges";
+import { InfoIcon } from "./LootFilters";
+import { shortDay } from "./ItemAwardsDialog";
 
-/** "20:00 – 23:10" for a session's span; just the start when it has no end. */
-function timeSpan(s: InboxSession): string {
-    const start = fmtMs(s.startedAt);
-    if (!s.endedAt || s.endedAt <= s.startedAt) return start;
-    const end = new Date(s.endedAt);
-    const hh = String(end.getHours()).padStart(2, "0");
-    const mm = String(end.getMinutes()).padStart(2, "0");
-    return `${start} – ${hh}:${mm}`;
+const DISPLAY_TZ = "Europe/Berlin";
+const hhmm = (ms: number) => new Date(ms).toLocaleTimeString("de-DE", { timeZone: DISPLAY_TZ, hour: "2-digit", minute: "2-digit" });
+
+/** "Do 11.09. · 20:02–23:18"; just the start when the session has no end. */
+export function sessionSpan(s: { startedAt: number; endedAt: number }): string {
+    if (!s.startedAt) return "";
+    const start = `${shortDay(s.startedAt)} · ${hhmm(s.startedAt)}`;
+    return s.endedAt > s.startedAt ? `${start}–${hhmm(s.endedAt)}` : start;
 }
 
-function SessionCard({ session, events, categories, csrfToken, onDone }: {
+/** The raid most of the session's items come from — its icon heads the card. */
+export function dominantContent(items: LootItem[]): string {
+    const counts = new Map<string, number>();
+    for (const it of items) if (it.contentId) counts.set(it.contentId, (counts.get(it.contentId) || 0) + 1);
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || "";
+}
+
+// How many item icons the card shows before "+n".
+const ICONS_SHOWN = 6;
+
+/** A Raid-Helper event as a radio card. */
+function EventRadio({ ev, checked, onPick, aside }: {
+    ev: InboxMatchEvent;
+    checked: boolean;
+    onPick: () => void;
+    aside?: React.ReactNode;
+}) {
+    return (
+        <button type="button" role="radio" aria-checked={checked} className={`hl-radio${checked ? " on" : ""}`} onClick={onPick}>
+            <span className="dot" aria-hidden="true" />
+            <IconTile icon="inv_misc_note_02" tone={checked ? undefined : "none"} />
+            <span className="txt">
+                <b>{ev.eventLabel}</b>
+                <small>{[ev.startTime ? formatEventTime(ev.startTime) : "", ev.categoryName].filter(Boolean).join(" · ")}</small>
+            </span>
+            {aside}
+        </button>
+    );
+}
+
+export function InboxSessionCard({ session, events, categories, csrfToken, onDone }: {
     session: InboxSession;
     events: HistoryEvent[];
     categories: Category[];
@@ -37,17 +80,25 @@ function SessionCard({ session, events, categories, csrfToken, onDone }: {
     onDone: (msg: string) => void;
 }) {
     const ask = useConfirm();
+    const toast = useToast();
     const match = session.match;
-    // Preselect the suggestion; an ambiguous day deliberately preselects nothing
-    // so nobody confirms a coin flip by reflex.
-    const [eventId, setEventId] = useState(match?.suggested?.eventId || "");
+    const candidates = match?.candidates?.length
+        ? match.candidates
+        : (match?.suggested ? [match.suggested] : []);
+    // Preselect the suggestion; an ambiguous day deliberately preselects nothing.
+    const [eventId, setEventId] = useState(match?.ambiguous ? "" : (match?.suggested?.eventId || ""));
     const [manualLabel, setManualLabel] = useState("");
     const [categoryId, setCategoryId] = useState("");
     const [busy, setBusy] = useState<"" | "accept" | "dismiss">("");
-    const toast = useToast();
-    const [open, setOpen] = useState(false);
+    // "Anderes Event" — the full event list and the no-event path, folded away
+    // while a candidate card answers the question.
+    const [otherOpen, setOtherOpen] = useState(!candidates.length);
+    const [lootOpen, setLootOpen] = useState(false);
 
     const showManual = eventId === "__manual__" || eventId === "__auto__";
+    const isCandidate = candidates.some((c) => c.eventId === eventId);
+    const contentId = dominantContent(session.items);
+    const title = session.contentLabel || session.instance || "Unbekannter Raid";
 
     const accept = async () => {
         setBusy("accept");
@@ -65,7 +116,7 @@ function SessionCard({ session, events, categories, csrfToken, onDone }: {
     };
 
     const dismiss = async () => {
-        if (!(await ask({ title: "Session verwerfen?", text: `Session vom ${fmtMs(session.startedAt)} mit ${session.itemCount} Item(s). Sie wird nicht erneut angeboten, auch wenn das Addon sie nochmal hochlädt.`, action: "Verwerfen" }))) return;
+        if (!(await ask({ title: "Session verwerfen?", text: `${title}, ${sessionSpan(session)}, ${session.itemCount} Item(s). Sie wird nicht erneut angeboten, auch wenn das Addon sie nochmal hochlädt.`, action: "Verwerfen" }))) return;
         setBusy("dismiss");
         try {
             await dismissLootInbox(csrfToken, session.id);
@@ -76,152 +127,159 @@ function SessionCard({ session, events, categories, csrfToken, onDone }: {
         }
     };
 
+    const status = !match
+        ? <Badge tone="mid" tip="Events nicht geladen" tipSub="Beim Upload war Raid-Helper nicht erreichbar. Der Loot ist gesichert — das Event wird hier von Hand gewählt.">Events nicht geladen</Badge>
+        : match.ambiguous
+            ? <Badge tone="bad" tip="Mehrere Raids" tipSub="An diesem Tag gab es mehrere Events — bitte das passende selbst wählen.">{candidates.length} Raids an diesem Tag</Badge>
+            : match.suggested
+                ? <Badge tone="ok">Vorschlag eindeutig</Badge>
+                : <Badge tone="mid">Kein Event an diesem Tag</Badge>;
+
+    const uploadInfo = [
+        `Von ${session.reporter || "unbekannt"}${session.realm ? ` (${session.realm})` : ""}`,
+        session.tokenName ? `Token „${session.tokenName}"` : "",
+        session.addonVersion ? `Addon ${session.addonVersion}` : "",
+        session.updatedAt ? `zuletzt ${shortDay(session.updatedAt)} ${hhmm(session.updatedAt)}` : "",
+    ].filter(Boolean).join(" · ");
+
+    const shown = session.items.slice(0, ICONS_SHOWN);
+    const disabledReason = !eventId ? "Erst ein Event wählen" : "";
+
     return (
-        <div className="dash-card" style={{ marginBottom: 14 }}>
-            <div className="dash-card-head">
-                <h3>
-                    {session.contentLabel || session.instance || "Unbekannter Raid"}
-                    <span className="sub" style={{ marginLeft: 10, fontWeight: 400 }}>
-                        {timeSpan(session)} · {session.itemCount} Item(s)
-                        {/* Sichtbar machen, dass der Raidname erschlossen ist und
-                            nicht vom Addon kam — sonst liest er sich wie eine
-                            Tatsache, die niemand mehr hinterfragt. */}
+        <div className="dash-card hl-card hl-session">
+            <div className="hl-session-head">
+                <WowIcon name={contentIcon(contentId)} size={36} className="raid-ico" />
+                <div className="hl-session-title">
+                    <b>{title}</b>
+                    <div>
+                        {session.startedAt > 0 && <Badge>{sessionSpan(session)}</Badge>}
+                        <Badge count>{session.itemCount} Items</Badge>
+                        {/* Visible that the raid name was derived, not reported by
+                            the addon — otherwise it reads like a fact nobody
+                            questions any more. */}
                         {session.contentSource === "items" && (
-                            <> · <span data-tip={`Aus ${session.contentMatched} von ${session.itemCount} Item-IDs erkannt`}>
-                                Raid aus den Items erkannt
-                            </span></>
+                            <Badge tone="accent" tip="Aus den Items erkannt" tipSub={`Aus ${session.contentMatched} von ${session.itemCount} Item-IDs — das Addon hat keinen Raid gemeldet.`}>aus Items erkannt</Badge>
                         )}
-                    </span>
-                </h3>
-                <button className="btn ghost" type="button" onClick={() => setOpen((v) => !v)}>
-                    {open ? "Loot ausblenden" : "Loot ansehen"}
-                </button>
+                    </div>
+                </div>
+                {status}
+                <IconButton icon={<InfoIcon />} size="sm" tip="Upload" tipSub={uploadInfo} />
             </div>
 
-            <div style={{ padding: "12px 16px" }}>
-
-                <p className="sub" style={{ marginTop: 0 }}>
-                    Hochgeladen von {session.reporter || "unbekannt"}
-                    {session.realm ? ` (${session.realm})` : ""}
-                    {session.tokenName ? ` über „${session.tokenName}"` : ""}
-                    {" · "}zuletzt {fmtMs(session.updatedAt)}
-                    {session.addonVersion ? ` · Addon ${session.addonVersion}` : ""}
-                </p>
-
-                {match?.ambiguous && (
-                    <p className="sub" style={{ color: "var(--high)" }}>
-                        An diesem Tag gab es mehrere Raids — bitte das passende Event selbst wählen.
-                    </p>
-                )}
-                {!match && (
-                    <p className="sub">
-                        Beim Upload konnten keine Events geladen werden (Raid-Helper nicht erreichbar).
-                        Der Loot ist gesichert — das Event muss hier von Hand gewählt werden.
-                    </p>
-                )}
-
-                <div className="field">
-                    <label>Event</label>
-                    <select value={eventId} onChange={(e) => setEventId(e.target.value)}>
-                        <option value="">— bitte wählen —</option>
-                        {match?.suggested && (
-                            <option value={match.suggested.eventId}>
-                                ★ {match.suggested.eventLabel}
-                                {match.suggested.startTime ? ` · ${formatEventTime(match.suggested.startTime)}` : ""}
-                                {" (vorgeschlagen)"}
-                            </option>
-                        )}
-                        {events
-                            .filter((ev) => ev.id !== match?.suggested?.eventId)
-                            .map((ev) => (
-                                <option key={ev.id} value={ev.id}>
-                                    {ev.title || "(ohne Titel)"}{ev.startTime ? ` · ${formatEventTime(ev.startTime)}` : ""}
-                                </option>
+            <div className="hl-session-body">
+                <div>
+                    <span className="hl-lbl">{match?.ambiguous ? "Event wählen" : "Event"}</span>
+                    {candidates.length > 0 && (
+                        <div className={candidates.length > 1 ? "hl-radio-grid" : "hl-radio-list"} role="radiogroup" aria-label="Event">
+                            {candidates.map((c) => (
+                                <EventRadio key={c.eventId} ev={c} checked={eventId === c.eventId} onPick={() => setEventId(c.eventId)} />
                             ))}
-                        <option value="__auto__">— erneut automatisch anhand des Loot-Datums zuordnen —</option>
-                        <option value="__manual__">— ohne Raid-Helper-Event, eigener Titel —</option>
-                    </select>
-                </div>
-
-                {showManual && (
-                    <>
-                        <div className="field">
-                            <label>Titel (optional)</label>
-                            <input
-                                type="text" value={manualLabel}
-                                // Leer gelassen, aber mit dem erkannten Raid als
-                                // Platzhalter: der ist fast immer der Titel, den
-                                // man ohnehin tippen würde.
-                                placeholder={session.contentLabel
-                                    ? `${session.contentLabel} — ${fmtMs(session.startedAt, false)}`
-                                    : "z.B. SSC/TK — 12.07.2026"}
-                                onChange={(e) => setManualLabel(e.target.value)}
-                            />
                         </div>
-                        <div className="field">
-                            <label>Kategorie (optional)</label>
-                            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                                <option value="">— keine —</option>
-                                {categories.filter((c) => c.id).map((c) => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
-                            <div className="hint">
-                                Nur wirksam ohne zugeordnetes Event — sonst gilt die Kategorie des Events.
+                    )}
+                    <div style={{ marginTop: candidates.length ? 8 : 0 }}>
+                        {candidates.length > 0 && (
+                            <Expand open={otherOpen} onToggle={() => setOtherOpen((v) => !v)} label="Anderes Event oder ohne Event" />
+                        )}
+                        {otherOpen && (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: candidates.length ? 8 : 0 }}>
+                                <select aria-label="Anderes Event" value={isCandidate ? "" : eventId} onChange={(e) => setEventId(e.target.value)}>
+                                    <option value="">— Event wählen —</option>
+                                    {events
+                                        .filter((ev) => !candidates.some((c) => c.eventId === ev.id))
+                                        .map((ev) => (
+                                            <option key={ev.id} value={ev.id}>
+                                                {ev.title || "(ohne Titel)"}{ev.startTime ? ` · ${formatEventTime(ev.startTime)}` : ""}
+                                            </option>
+                                        ))}
+                                    <option value="__auto__">Erneut automatisch nach Datum zuordnen</option>
+                                    <option value="__manual__">Ohne Raid-Helper-Event, eigener Titel</option>
+                                </select>
+                                {showManual && (
+                                    <div className="hl-manual">
+                                        <input
+                                            type="text" value={manualLabel} aria-label="Titel"
+                                            // The recognised raid as placeholder: it is
+                                            // almost always the title one would type.
+                                            placeholder={session.contentLabel ? `${session.contentLabel} — ${shortDay(session.startedAt)}` : "Titel, z.B. SSC/TK — 12.07."}
+                                            onChange={(e) => setManualLabel(e.target.value)}
+                                        />
+                                        <select
+                                            aria-label="Kategorie" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
+                                            data-tip="Kategorie" data-tip-sub="Nur wirksam ohne zugeordnetes Event — sonst gilt die Kategorie des Events."
+                                        >
+                                            <option value="">Keine Kategorie</option>
+                                            {categories.filter((c) => c.id).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    </>
-                )}
-
-                <div className="row-actions">
-                    <button className="btn" type="button" onClick={accept} disabled={!!busy || !eventId}>
-                        {busy === "accept" ? "Übernimmt…" : "Übernehmen"}
-                    </button>
-                    <button className="btn ghost" type="button" onClick={dismiss} disabled={!!busy}>
-                        {busy === "dismiss" ? "Verwirft…" : "Verwerfen"}
-                    </button>
+                        )}
+                    </div>
+                </div>
+                <div>
+                    <span className="hl-lbl">Loot</span>
+                    <div className="hl-icons">
+                        {shown.map((it, i) => (
+                            <span key={`${it.itemId}-${i}`} data-tip={it.itemName || `Item ${it.itemId}`} data-tip-sub={it.character}>
+                                <ItemIcon url={it.itemIconUrl} quality={it.itemQuality} size="md" />
+                            </span>
+                        ))}
+                        {session.itemCount > shown.length && <Badge count>+{session.itemCount - shown.length}</Badge>}
+                    </div>
                 </div>
             </div>
 
-            {open && (
-                <div style={{ borderTop: "1px solid var(--line)" }}>
-                    <LootTable items={session.items} />
-                </div>
-            )}
+            <div className="hl-session-foot">
+                <Button icon="inv_misc_bag_10" onClick={accept} disabled={!!busy || !eventId} running={busy === "accept"}>Übernehmen</Button>
+                <Button variant="ghost" onClick={() => setLootOpen(true)}>Loot ansehen</Button>
+                {disabledReason && <span className="muted">{disabledReason}</span>}
+                <IconButton
+                    className="danger-end" icon={<TrashIcon />} tone="danger"
+                    tip="Session verwerfen" tipSub="Wird nicht erneut angeboten — mit Rückfrage."
+                    disabled={!!busy} onClick={dismiss}
+                />
+            </div>
+
+            <Modal
+                open={lootOpen}
+                initialFocus=".dlg-foot .btn:last-child"
+                onClose={() => setLootOpen(false)}
+                width={980}
+                icon={contentIcon(contentId)}
+                tone="history"
+                kicker={sessionSpan(session)}
+                title={`${title} · ${session.itemCount} Items`}
+                footer={<Button onClick={() => setLootOpen(false)}>Schließen</Button>}
+            >
+                <LootTable items={session.items} />
+            </Modal>
         </div>
     );
 }
 
-export function LootInboxTab({ sessions, events, categories, csrfToken, onChanged, error }: {
-    sessions: InboxSession[];
-    events: HistoryEvent[];
-    categories: Category[];
-    csrfToken: string | null;
-    onChanged: (msg: string) => void;
-    error: string | null;
-}) {
-    if (error) return <div className="empty">Inbox konnte nicht geladen werden: {error}</div>;
-    if (!sessions.length) {
-        return (
-            <div className="empty">
-                Keine offenen Addon-Uploads.<br />
-                Das WoW-Addon lädt Raid-Sessions über das Sync-Tool hoch; sie erscheinen hier zur Bestätigung.
-                Ein API-Token dafür wird in den <a className="mlink" href="/settings?section=lootsync">Einstellungen → Loot-Sync</a> erzeugt.
-            </div>
-        );
-    }
+/** Accepted sessions that keep appending by themselves — folded by default. */
+export function LinkedSessions({ linked }: { linked: InboxLinkedSession[] }) {
+    const [open, setOpen] = useState(false);
+    if (!linked.length) return null;
     return (
-        <>
-            <p className="sub">
-                {sessions.length} Raid-Session(s) vom Addon. Nach dem Übernehmen fließt weiterer Loot desselben
-                Raids automatisch in dasselbe Event — hier muss nur einmal bestätigt werden.
-            </p>
-            {sessions.map((s) => (
-                <SessionCard
-                    key={s.id} session={s} events={events} categories={categories}
-                    csrfToken={csrfToken} onDone={onChanged}
-                />
+        <div className="hl-linked">
+            <div className="hl-linked-head">
+                <span className="kicker">Verknüpft · laufen automatisch weiter</span>
+                <Badge count>{linked.length}</Badge>
+                <Expand open={open} onToggle={() => setOpen((v) => !v)} />
+            </div>
+            {open && linked.map((l) => (
+                <div className="hl-linked-row" key={l.sessionId}>
+                    <b>{l.contentLabel || "Raid"}</b>
+                    {l.startedAt > 0 && <span className="muted mono">{shortDay(l.startedAt)}</span>}
+                    <span className="muted">→ {l.eventId
+                        ? <Link className="mlink" to={`/history/event?event=${encodeURIComponent(l.eventId)}`}>{l.eventLabel || l.eventId}</Link>
+                        : (l.eventLabel || "—")}</span>
+                    {l.appended > 0
+                        ? <Badge tone="ok" count tip="Nachgeliefert" tipSub="Items, die spätere Uploads ohne Klick an das Event angehängt haben.">+{l.appended} nachgeliefert</Badge>
+                        : <Badge count>{l.itemCount} Items</Badge>}
+                </div>
             ))}
-        </>
+        </div>
     );
 }

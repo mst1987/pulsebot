@@ -1,0 +1,200 @@
+/* ── Loot-Council (pages/LootCouncilPage.tsx, pages/lootcouncil/*) ──────────
+   Design issue #223: a filter bar instead of three boxes, one compact line
+   per raider, the details in a dialog, the drop check as its own page. Built
+   on the shared blocks (badge, bar, segment, part head, dialog) — what is here
+   is only what the council itself needs. Tokens only, no gold. The raid hues
+   (.lc-h-*, .lc-cbadge, .lc-filter), the worn-item marks (.lc-worn*), the BiS
+   matrix and the loot comparison stay in index.css. */
+
+.lc-muted { color: var(--muted); }
+.lc-panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.lc-panel.empty { margin-bottom: 16px; }
+.lc-grow { flex: 1; }
+.lc-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.lc-unit { color: var(--muted); font-weight: 500; font-size: 12px; }
+.lc-th { font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.lc-hints { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-width: 0; }
+.lc-empty { padding: 28px; }
+.lc-note { font-size: 12.5px; margin-top: 8px; }
+
+/* ---- page head, filter bar, tabs ---- */
+.lc-filterbar { display: flex; align-items: center; gap: 10px; padding: 10px 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.lc-filterbar-badges { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.lc-sel { min-height: var(--ctl-h-sm); padding-top: 4px; padding-bottom: 4px; font-size: 13.5px; width: auto; }
+.lc-selwrap { display: inline-flex; }
+.lc-pop { position: relative; display: inline-flex; }
+.lc-selbtn {
+    display: inline-flex; align-items: center; gap: 8px; min-height: var(--ctl-h-sm); padding: 4px 10px;
+    background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: var(--ctl-radius);
+    font: inherit; font-size: 13.5px; cursor: pointer; white-space: nowrap;
+}
+.lc-selbtn:hover { border-color: var(--muted); }
+.lc-selbtn[aria-expanded="true"] { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.lc-selbtn svg { width: 15px; height: 15px; flex: none; color: var(--muted); }
+.lc-popmenu {
+    position: absolute; z-index: 40; top: calc(100% + 6px); left: 0; width: min(420px, calc(100vw - 48px));
+    display: flex; flex-direction: column; gap: 8px; padding: 12px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px -6px rgba(0, 0, 0, .4);
+}
+.lc-popmenu > .btn { align-self: flex-start; }
+.lc-popbtns { display: flex; flex-wrap: wrap; gap: 6px; }
+.lc-tabs { margin-top: 0; }
+
+/* ---- a raider's identity: spec icon on a class-coloured tile ---- */
+.lc-id { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.lc-id-tile {
+    display: grid; place-items: center; flex: none; border-radius: 9px;
+    background: color-mix(in srgb, var(--cc, var(--muted)) 18%, transparent);
+}
+.lc-id-tile img { display: block; border-radius: 6px; }
+.lc-id-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.lc-id-name { font-weight: 700; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; }
+a.lc-id-name:hover { text-decoration: underline; }
+.lc-id-name.class-colored { color: var(--cc); }
+.lc-id-sub { font-size: 12px; color: var(--muted); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lc-id.big .lc-id-name { font-size: 18px; font-weight: 800; }
+
+/* ---- the need bar: stacked in the score's weights, number on it ---- */
+.lc-needbar { position: relative; display: flex; height: 24px; border-radius: 5px; overflow: hidden; background: var(--panel2); flex: none; }
+.lc-needbar i { display: block; height: 100%; }
+.lc-needbar .s1, .lc-need-dot.s1 { background: color-mix(in srgb, var(--accent) 42%, transparent); }
+.lc-needbar .s2, .lc-need-dot.s2 { background: color-mix(in srgb, var(--accent-2) 38%, transparent); }
+.lc-needbar .s3, .lc-need-dot.s3 { background: color-mix(in srgb, #5badde 55%, transparent); }
+.lc-needbar i:last-of-type { border-right: 2px solid #5badde; }
+.lc-needbar b { position: absolute; left: 8px; top: 0; line-height: 24px; font: 700 13px/24px var(--font-mono); color: var(--text); }
+.lc-rtip-anchor { display: inline-flex; cursor: help; outline: none; border-radius: 5px; }
+.lc-rtip-anchor:focus-visible { box-shadow: 0 0 0 3px var(--accent-soft); }
+.tip.lc-rtip { white-space: normal; max-width: calc(100vw - 16px); }
+.lc-need-rows { display: grid; grid-template-columns: 10px 18px 1fr auto; align-items: center; gap: 8px; margin: 4px 0 6px; }
+.lc-need-row { display: contents; }
+.lc-need-dot { width: 10px; height: 10px; border-radius: 2px; }
+.lc-need-val { font-family: var(--font-mono); font-weight: 700; color: var(--text); }
+.lc-rtip .lc-loot-list { margin: 4px 0 6px; }
+.lc-rtip .lc-loot-row { font-size: 12.5px; }
+.lc-rtip i + i { margin-top: 4px; }
+
+/* ---- the roster list ---- */
+.lc-list { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; margin-bottom: 16px; }
+.lc-lrow {
+    display: grid; align-items: center; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line-soft);
+    grid-template-columns: 28px minmax(170px, 1.2fr) 150px 52px 44px 120px 52px minmax(120px, 1fr) auto;
+}
+.lc-lrow:last-child { border-bottom: 0; }
+.lc-lrow:not(.lc-lhead):hover { background: color-mix(in srgb, var(--panel2) 60%, transparent); }
+.lc-lrow.open { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.lc-lhead { background: var(--panel2); border-bottom: 1px solid var(--line); padding-top: 9px; padding-bottom: 9px; }
+.lc-lhead, .lc-lhead .sort-link { font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.lc-lhead .sort-link.active { color: var(--accent); }
+.lc-rank {
+    width: 26px; height: 26px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center;
+    font: 700 12.5px var(--font-mono); background: var(--panel2); color: var(--muted);
+}
+.lc-rank.top { background: var(--accent); color: var(--accent-ink); }
+.lc-lrow-act { display: flex; justify-content: flex-end; }
+.lc-lrow-act .btn svg { width: 14px; height: 14px; }
+.lc-bisbar { display: inline-flex; }
+.lc-bisbar .bar i { background: color-mix(in srgb, var(--accent-2) 16%, transparent); border-right-color: var(--accent-2); }
+
+/* A folded line: "Nicht eingeplant", "Können es nicht tragen". */
+.lc-fold { margin-bottom: 16px; }
+.lc-fold-head { display: flex; align-items: center; gap: 10px; padding: 8px 12px; }
+.lc-fold-names { color: var(--muted); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lc-fold-body { border-top: 1px solid var(--line-soft); padding: 8px 12px 12px; }
+
+/* A plain list of rows (loot, BiS gaps, logs) inside a panel or dialog. */
+.lc-dlist { display: flex; flex-direction: column; }
+.lc-dlist-row { display: flex; align-items: center; gap: 12px; padding: 7px 4px; border-bottom: 1px solid var(--line-soft); flex-wrap: wrap; font-size: 13.5px; }
+.lc-dlist-row:last-child { border-bottom: 0; }
+.lc-dlist-act { margin-left: auto; }
+.lc-dlist-date { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+
+/* ---- the raider dialog ---- */
+dialog.lc-dlg { width: min(960px, calc(100vw - 32px)); }
+.lc-dlg .dlg-head { gap: 12px; }
+.lc-dlg .dlg-head .kicker { display: block; }
+.lc-dlg-spec { color: var(--muted); font-size: 14px; font-weight: 600; align-self: flex-end; padding-bottom: 2px; }
+.lc-dlg-body { display: flex; flex-direction: column; gap: 14px; }
+.lc-dlg-body .part-head { margin: 0; }
+.lc-dlg-foot { justify-content: flex-start; }
+.lc-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.lc-stat2 { padding: 10px 14px; border-right: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.lc-stat2:last-child { border-right: 0; }
+.lc-stat2-v { font: 800 20px/1.1 var(--font-mono); font-variant-numeric: tabular-nums; }
+.lc-stat2-v small { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.lc-secs { display: flex; gap: 8px; flex-wrap: wrap; }
+.lc-sec {
+    display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border: 1px solid var(--line); border-radius: 9px;
+    background: var(--panel); color: var(--text); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.lc-sec:hover { border-color: var(--accent); }
+.lc-sec.active { border-color: var(--accent); background: var(--accent-soft); }
+.lc-sec .wi { width: 20px; height: 20px; }
+.lc-sec-n { font: 600 12px var(--font-mono); color: var(--muted); background: var(--panel2); border-radius: 10px; padding: 1px 7px; }
+.lc-sec-n.mid { background: var(--medium-bg); color: var(--medium); }
+.lc-gearbadges { gap: 8px; }
+.lc-extlink { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); text-decoration: none; }
+.lc-extlink:hover { color: var(--accent); }
+.lc-extlink svg { width: 13px; height: 13px; }
+.lc-sheet { display: grid; grid-template-columns: 1.35fr 1fr 1fr; gap: 20px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; }
+.lc-sheet-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.lc-sheet-col .lc-th { padding: 0 0 6px; }
+.lc-sheet-row { display: flex; align-items: center; gap: 10px; padding: 5px 6px; border-radius: 6px; min-width: 0; }
+.lc-sheet-row:hover { background: var(--panel2); }
+.lc-sheet-row .lc-worn-img { width: 30px; height: 30px; }
+.lc-sheet-text { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.lc-sheet-name { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-decoration: none; }
+.lc-sheet-name:hover { text-decoration: underline; }
+.lc-sheet-slot { font-size: 11.5px; color: var(--muted); }
+.lc-logpanel2 { display: flex; flex-direction: column; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); }
+.lc-logrow2 { display: flex; align-items: center; gap: 12px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.lc-logrow2.current { border-color: var(--accent); background: var(--accent-soft); }
+.lc-logrow2-name { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; font-size: 13.5px; flex-wrap: wrap; }
+.lc-logrow2-name .lc-muted { font-size: 12.5px; }
+.lc-logrow2-date { font: 11px var(--font-mono); color: var(--muted); white-space: nowrap; }
+.lc-export { display: flex; flex-direction: column; gap: 10px; }
+
+/* ---- candidates, gain bar ---- */
+.lc-tablewrap { overflow-x: auto; }
+.lc-candidates th, .lc-candidates td { vertical-align: middle; }
+.lc-gain { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
+.lc-gain .bar { width: 180px; }
+.lc-gain.half .bar i { background: repeating-linear-gradient(135deg, var(--medium-bg) 0 4px, transparent 4px 8px); }
+.lc-tablepanel { padding: 0; overflow: hidden; margin-bottom: 16px; }
+.lc-tablepanel table.idx tr:last-child td { border-bottom: 0; }
+
+/* ---- the drop check page ---- */
+.lc-drophead .ph-text { flex: 1; }
+.lc-dropsearch .hr-picker { width: min(380px, 100%); max-width: none; }
+.lc-dropitem2 { display: flex; align-items: center; gap: 16px; padding: 16px 18px; margin-bottom: 16px; flex-wrap: wrap; }
+.lc-dropitem2 .lc-bisspecs { justify-content: flex-end; }
+.lc-dropitem2-icon { width: 56px; height: 56px; border-radius: 8px; border: 2px solid var(--iq, var(--line)); display: block; flex: none; }
+.lc-dropitem2-text { flex: 1; min-width: 200px; }
+.lc-dropitem2-name { font-size: 19px; font-weight: 800; line-height: 1.25; text-decoration: none; }
+.lc-dropitem2-name:hover { text-decoration: underline; }
+.lc-dropitem2-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; font-size: 13px; color: var(--muted); }
+.lc-dropitem2-bis { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; margin-left: auto; max-width: 60%; }
+.lc-verdictpanel { padding: 0; overflow: hidden; margin-bottom: 16px; border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.lc-verdictpanel .part-head { margin: 0; border: 0; border-radius: 0; background: var(--accent-soft); }
+.lc-verdictrow { display: flex; align-items: center; gap: 18px; padding: 14px 18px; flex-wrap: wrap; }
+.lc-bigbadge { font-size: 16px; padding: 4px 12px; }
+.lc-vsep { width: 1px; align-self: stretch; background: var(--line); }
+.lc-vstat2 { display: flex; flex-direction: column; gap: 4px; }
+.lc-vstat2 .lc-num { line-height: 24px; }
+.lc-vstat2-end { margin-left: auto; }
+
+/* ---- the tabs that kept their content (BiS lists, comparison) ---- */
+.lc-part { margin-bottom: 16px; }
+.lc-part-body { padding: 14px 16px; }
+.lc-part-accent .lc-part-body { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.lc-part .lc-blcorner, .lc-part .lc-blslot { background: var(--panel); }
+.lc-gap-verdict .kicker { margin-right: 2px; }
+.lc-bisspecs .badge .class-colored { color: var(--cc); }
+
+@media (max-width: 900px) {
+    .lc-lrow { grid-template-columns: 28px minmax(140px, 1fr) 150px auto; }
+    .lc-lhead > :nth-child(n+4):not(:last-child), .lc-lrow > :nth-child(n+4):not(:nth-child(3)):not(:last-child) { display: none; }
+    .lc-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .lc-sheet { grid-template-columns: 1fr; }
+    .lc-filterbar-badges { margin-left: 0; }
+}
+dialog.lc-dlg:focus { outline: none; }

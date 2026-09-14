@@ -45,6 +45,10 @@ describe("Log-Auswertung: finding it", () => {
     });
 
     it("is one click from the dashboard", () => {
-        expect(read("pages", "DashboardPage.tsx")).toContain('link="/cla" linkLabel="Log auswerten"');
+        // The "Letzte Auswertung" tile leads to the report, or — before the
+        // first evaluation — to the page that makes one.
+        const dashboard = read("pages", "DashboardPage.tsx");
+        expect(dashboard).toContain('href="/cla"');
+        expect(dashboard).toContain('<Badge tone="accent">Log auswerten</Badge>');
     });
 });

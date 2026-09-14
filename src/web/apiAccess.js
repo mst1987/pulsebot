@@ -16,6 +16,8 @@ const { AREAS, userCanAny, userHasMenuAccess } = require("../config/permissions"
 
 const AREA_BY_PATH = {
     "/api/dashboard": "dashboard",
+    // The start page's "Raid-Details" modal, loaded when it opens.
+    "/api/dashboard/next-raid": "dashboard",
 
     "/api/channels": "channels",
     "/api/channels/duplicate": "channels",
@@ -34,6 +36,9 @@ const AREA_BY_PATH = {
     "/api/raider-characters": "settings",
 
     "/api/roster": "roster",
+    // The character page's attendance, role and item facts. The page is routed
+    // under the roster and under the history, so either area opens it.
+    "/api/roster/char": ["roster", "history"],
 
     // The caster loot council. Starting a simulation is a POST, so the method
     // rule already makes it write-level — a read-only council member sees the
@@ -84,6 +89,7 @@ const AREA_BY_PATH = {
     "/api/history/char": ["history", "loot"],
     "/api/history/log-delete": "history",
     "/api/history/import": "history",
+    "/api/history/import-preview": "history",
     "/api/history/inbox": "history",
     "/api/history/inbox-accept": "history",
     "/api/history/inbox-dismiss": "history",

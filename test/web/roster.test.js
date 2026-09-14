@@ -28,7 +28,19 @@ jest.mock("../../src/web/categoryNames", () => ({
     listKnownCategories: (...a) => mockListCategories(...a),
 }));
 
-const { buildRoster } = require("../../src/web/roster");
+// Attendance and role have their own test (rosterAttendance.test.js); here only
+// that every row and category gets them, per category.
+const mockAttendanceFor = jest.fn(() => ({ attended: 0, total: 0, pct: null, raids: [], missed: [] }));
+const mockCategoryInfo = jest.fn(() => ({ raids: 0, contents: [], icon: "" }));
+const mockRoleFor = jest.fn(() => "");
+jest.mock("../../src/web/rosterAttendance", () => ({
+    buildAttendanceContext: () => ({}),
+    attendanceFor: (...a) => mockAttendanceFor(...a),
+    categoryInfo: (...a) => mockCategoryInfo(...a),
+    roleFor: (...a) => mockRoleFor(...a),
+}));
+
+const { buildRoster, rosterCharacter } = require("../../src/web/roster");
 
 const lootChar = (over = {}) => ({
     key: "anna", character: "Anna", realm: "Thunderstrike", count: 2,
@@ -49,7 +61,47 @@ describe("web/roster buildRoster", () => {
     });
 
     it("returns an empty roster when nothing is known", () => {
-        expect(buildRoster("guild-1")).toEqual({ chars: [], categories: [] });
+        expect(buildRoster("guild-1")).toEqual({ chars: [], categories: [], categoryInfo: {} });
+    });
+
+    it("attaches role and per-category attendance, with the raiders assigned in that category", () => {
+        mockAnnotatedCharacters.mockReturnValue([lootChar({ categoryIds: ["cat1"] })]);
+        mockListAllAssignments.mockReturnValue({ cat2: { u1: "Anna" }, cat3: { u9: "Other" } });
+        mockRoleFor.mockReturnValue("dps");
+        mockAttendanceFor.mockImplementation((ctx, id) => ({
+            attended: 1, total: 2, pct: 50, raids: [{ eventId: `e-${id}` }], missed: [{ eventId: `e-${id}`, reason: "abgemeldet" }],
+        }));
+        mockCategoryInfo.mockImplementation((ctx, id) => ({ raids: 2, contents: ["BT"], icon: `icon-${id}` }));
+
+        const roster = buildRoster("guild-1");
+        const anna = byName(roster, "Anna");
+
+        expect(anna.role).toBe("dps");
+        expect(Object.keys(anna.attendance)).toEqual(["cat1", "cat2"]);
+        // the night-by-night list stays off the roster row
+        expect(anna.attendance.cat1).toEqual({ attended: 1, total: 2, pct: 50, missed: [{ eventId: "e-cat1", reason: "abgemeldet" }] });
+        expect(anna).not.toHaveProperty("raiderIdsByCategory");
+        const calls = mockAttendanceFor.mock.calls.map((c) => [c[1], c[3]]);
+        expect(calls).toEqual(expect.arrayContaining([["cat1", []], ["cat2", ["u1"]]]));
+        expect(roster.categoryInfo.cat2).toEqual({ raids: 2, contents: ["BT"], icon: "icon-cat2" });
+    });
+
+    it("answers one character with its categories and night-by-night attendance", () => {
+        mockListAllAssignments.mockReturnValue({ cat2: { u1: "Anna", u2: "Bob" } });
+        mockListCategories.mockReturnValue([{ id: "cat2", name: "Donnerstag" }]);
+        mockRoleFor.mockReturnValue("healer");
+        mockAttendanceFor.mockImplementation(() => ({ attended: 1, total: 1, pct: 100, raids: [{ eventId: "e1", attended: true }], missed: [] }));
+        mockCategoryInfo.mockReturnValue({ raids: 1, contents: [], icon: "" });
+
+        const facts = rosterCharacter("guild-1", "anna");
+
+        expect(facts.character).toBe("Anna");
+        expect(facts.role).toBe("healer");
+        expect(facts.categories).toEqual([{ id: "cat2", name: "Donnerstag", raids: 1, contents: [], icon: "" }]);
+        expect(facts.attendance.cat2.raids).toEqual([{ eventId: "e1", attended: true }]);
+        // only the raider playing this character is compared
+        expect(mockAttendanceFor.mock.calls.at(-1)[3]).toEqual(["u1"]);
+        expect(rosterCharacter("guild-1", "nobody")).toBeNull();
     });
 
     it("takes the loot characters with their categories, class/spec and loot preview", () => {

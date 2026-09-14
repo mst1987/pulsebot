@@ -13,6 +13,7 @@ import { SortTh } from "./SortTh";
 import { RaiderBadge, reasonToneClass } from "./LootBadges";
 import { TrashIcon } from "./icons";
 import { useConfirm } from "./ui/Modal";
+import { IconButton } from "./ui/Button";
 
 // "manual" is a row somebody entered in the admin menu rather than one an addon
 // exported (see lootImport.js's buildManualItem) — worth saying in the table,
@@ -132,11 +133,12 @@ export function LootTable({ items, showEvent = false, onDelete }: {
                         {onDelete && (
                             <td className="cell-actions">
                                 <div className="row-actions" style={{ justifyContent: "flex-end" }}>
-                                    <button
-                                        className="btn btn-danger btn-sm" type="button"
-                                        data-tip="Diesen Eintrag löschen" aria-label={`Eintrag „${it.itemName || `Item ${it.itemId}`}" von ${it.character} löschen`}
+                                    <IconButton
+                                        icon={<TrashIcon />} tone="danger" size="sm"
+                                        tip="Eintrag löschen" tipSub="Nur diese eine Vergabe — mit Rückfrage."
+                                        aria-label={`Eintrag „${it.itemName || `Item ${it.itemId}`}" von ${it.character} löschen`}
                                         disabled={busyId === it.id} onClick={() => remove(it)}
-                                    ><TrashIcon /></button>
+                                    />
                                 </div>
                             </td>
                         )}

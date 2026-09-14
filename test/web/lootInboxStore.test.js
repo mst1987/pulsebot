@@ -19,7 +19,7 @@ jest.mock("fs", () => {
 
 const fs = require("fs");
 const {
-    listPending, getPending, upsertPending, resolvePending, resolutionFor, pendingCount,
+    listPending, getPending, upsertPending, resolvePending, resolutionFor, pendingCount, noteAppended, listLinked,
 } = require("../../src/web/lootInboxStore.js");
 
 beforeEach(() => {
@@ -171,6 +171,53 @@ describe("web/lootInboxStore", () => {
         it("is null for a session nobody decided on", () => {
             expect(resolutionFor("never-seen")).toBeNull();
             expect(resolutionFor("")).toBeNull();
+        });
+    });
+
+    // The quiet "Verknüpft" list under the inbox cards.
+    describe("listLinked / noteAppended", () => {
+        it("lists accepted sessions with raid, start and item count, newest first", () => {
+            const a = upsertPending(session({ sessionId: "a", startedAt: 1000 }));
+            resolvePending(a.entry.id, "accepted", { eventId: "e1", eventLabel: "Montag", contentLabel: "SSC" });
+            const b = upsertPending(session({ sessionId: "b", startedAt: 5000 }));
+            resolvePending(b.entry.id, "accepted", { eventId: "e2", eventLabel: "Donnerstag", contentLabel: "BT" });
+            const linked = listLinked();
+            expect(linked.map((l) => l.sessionId)).toEqual(["b", "a"]);
+            expect(linked[1]).toMatchObject({
+                eventId: "e1", eventLabel: "Montag", contentLabel: "SSC", startedAt: 1000, itemCount: 1, appended: 0,
+            });
+        });
+
+        it("leaves dismissed sessions out, also when an older accept exists", () => {
+            const first = upsertPending(session());
+            resolvePending(first.entry.id, "accepted", { eventId: "e1" });
+            const second = upsertPending(session());
+            resolvePending(second.entry.id, "dismissed");
+            expect(listLinked()).toEqual([]);
+        });
+
+        it("counts what later uploads appended to an accepted session", () => {
+            const { entry } = upsertPending(session());
+            resolvePending(entry.id, "accepted", { eventId: "e1" });
+            expect(noteAppended("s1", 4)).toBe(true);
+            expect(noteAppended("s1", 2)).toBe(true);
+            expect(listLinked()[0].appended).toBe(6);
+        });
+
+        it("does not count onto an unknown or dismissed session, nor nothing", () => {
+            const { entry } = upsertPending(session());
+            resolvePending(entry.id, "dismissed");
+            expect(noteAppended("s1", 3)).toBe(false);
+            expect(noteAppended("nope", 3)).toBe(false);
+            expect(noteAppended("s1", 0)).toBe(false);
+        });
+
+        it("caps the list", () => {
+            for (let i = 0; i < 4; i += 1) {
+                const { entry } = upsertPending(session({ sessionId: `s${i}` }));
+                resolvePending(entry.id, "accepted", { eventId: `e${i}` });
+            }
+            expect(listLinked(2)).toHaveLength(2);
         });
     });
 });

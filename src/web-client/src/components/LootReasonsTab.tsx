@@ -1,22 +1,27 @@
-// "Loot-Gründe": what every raider got and why, split by the normalized award
-// reason (Mainspec, Offspec, PvP, …). One row per raider, one colour-coded
-// badge per reason, and the items behind a badge on hover — so "he only ever
-// takes mainspec" or "half her loot was offspec" is a glance, not a count.
+// "Gründe": what every raider got and why, split by the normalized award reason
+// (Mainspec, Offspec, PvP, …). One row per raider, the reasons as one stacked
+// bar in their colours — so "he only ever takes mainspec" or "half her loot was
+// offspec" is a glance, not a count — and a chip per reason that opens the
+// items behind it.
 //
 // The reason catalog, its labels and its colours all come from the server
 // (utils/lootReasons.js); this file only lays them out.
-import { useMemo } from "react";
-import type { CharReasonRow, LootReason, Category } from "../api";
+import { useMemo, useState } from "react";
+import type { CharReasonRow, LootContent, LootReason, Category } from "../api";
 import { usePersistedState } from "../lib/persistedState";
 import { sortRows, type Dir } from "../lib/tableSort";
-import { ClassSpecCell } from "./ClassSpec";
-import { SortTh } from "./SortTh";
-import { ReasonBadge, ReasonBadgeHover, RaiderBadge } from "./LootBadges";
+import { SortLabel, ariaSort } from "./SortTh";
+import { PartHead } from "./ui/PartHead";
+import Badge from "./ui/Badge";
+import Bar from "./ui/Bar";
+import { ReasonBadge, ReasonBadgeButton, RaiderBadge, StackBar } from "./LootBadges";
+import { ActiveFilters, SearchBox, type ActiveFilter } from "./LootFilters";
+import { RaiderReasonDialog } from "./ItemAwardsDialog";
 
-// The badge column sorts by the raider's strongest reason (the badges are laid
+// The reason column sorts by the raider's strongest reason (the chips are laid
 // out in that order anyway), so "wer nimmt nur Mainspec" is one click.
-type SortKey = "character" | "classSpec" | "count" | "reasons";
-const SORT_DEFAULTS: Record<SortKey, Dir> = { character: "asc", classSpec: "asc", count: "desc", reasons: "asc" };
+type SortKey = "character" | "count" | "reasons";
+const SORT_DEFAULTS: Record<SortKey, Dir> = { character: "asc", count: "desc", reasons: "asc" };
 
 type View = { search: string; reason: string; category: string; sort: SortKey; dir: Dir };
 const VIEW_DEFAULT: View = { search: "", reason: "", category: "", sort: "count", dir: "desc" };
@@ -24,7 +29,6 @@ const VIEW_DEFAULT: View = { search: "", reason: "", category: "", sort: "count"
 function sortValue(c: CharReasonRow, key: SortKey): string | number {
     switch (key) {
         case "character": return c.character.toLowerCase();
-        case "classSpec": return `${c.className} ${c.spec}`.toLowerCase().trim();
         case "count": return c.count;
         // `order` is the reason catalog's rank (0 = BiS); the buckets arrive
         // sorted by it, so the first one is the strongest. A raider without any
@@ -34,12 +38,15 @@ function sortValue(c: CharReasonRow, key: SortKey): string | number {
     }
 }
 
-export function LootReasonsTab({ characters, reasons, categories }: {
+export function LootReasonsTab({ characters, reasons, categories, contents }: {
     characters: CharReasonRow[];
     reasons: LootReason[];
     categories: Category[];
+    contents: LootContent[];
 }) {
     const [view, setView] = usePersistedState<View>("history-reasons-view", VIEW_DEFAULT);
+    // The raider and reason whose items the dialog shows.
+    const [openBucket, setOpenBucket] = useState<{ key: string; reason: string } | null>(null);
     const sort: SortKey = SORT_DEFAULTS[view.sort] ? view.sort : VIEW_DEFAULT.sort;
     const dir: Dir = view.dir === "asc" ? "asc" : "desc";
     const patch = (p: Partial<View>) => setView((v) => ({ ...v, ...p }));
@@ -78,84 +85,101 @@ export function LootReasonsTab({ characters, reasons, categories }: {
     });
 
     const sorted = sortRows(filtered, (c) => sortValue(c, sort), dir);
-
+    const maxCount = sorted.reduce((m, c) => Math.max(m, c.count), 0);
     const totalItems = characters.reduce((n, c) => n + c.count, 0);
-    const hasFilters = !!(view.search || view.reason || view.category);
 
-    if (!characters.length) return <p className="sub">Noch kein Loot importiert — die Gründe stammen aus dem RCLootcouncil-/Gargul-Export.</p>;
+    const active: ActiveFilter[] = view.category
+        ? [{ key: "category", label: categoryNameById.get(view.category) || view.category, tone: "accent", onRemove: () => patch({ category: "" }) }]
+        : [];
+
+    const openRaider = openBucket ? characters.find((c) => c.key === openBucket.key) || null : null;
+    const bucket = openRaider?.reasons.find((b) => b.reason === openBucket?.reason) || null;
+
+    const head = (
+        <PartHead
+            icon="inv_misc_book_09" tone="history" title="Gründe" crumb="Loot › Gründe"
+            tip="Gründe" tipSub="Je Raider, wofür er Items bekommen hat. Die Gründe stammen aus dem RCLootcouncil-/Gargul-Export."
+            action={characters.length ? (
+                <>
+                    <Badge count>{characters.length} Raider</Badge>
+                    <Badge tone="accent" count>{totalItems} Items</Badge>
+                </>
+            ) : undefined}
+        />
+    );
+
+    if (!characters.length) {
+        return (
+            <div className="dash-card hl-card">
+                {head}
+                <div className="empty">Noch kein Loot importiert — die Gründe stammen aus dem RCLootcouncil-/Gargul-Export.</div>
+            </div>
+        );
+    }
 
     return (
-        <div className="dash-card">
-            <div className="dash-card-head">
-                <h3>Loot nach Grund</h3>
-                <span className="small" style={{ marginLeft: "auto" }}>{characters.length} Raider · {totalItems} Items</span>
-            </div>
-            <div className="filter-bar" style={{ gap: 6 }}>
-                {totals.map((r) => <ReasonBadge key={r.id} label={r.label} tone={r.tone} count={r.count} />)}
-            </div>
-            <div className="filter-bar">
-                <div className="field" style={{ minWidth: 220 }}>
-                    <label htmlFor="reasons-search">Suche</label>
-                    <input id="reasons-search" type="text" placeholder="Charaktername …" value={view.search} onChange={(e) => patch({ search: e.target.value })} />
-                </div>
-                <div className="field" style={{ minWidth: 180 }}>
-                    <label htmlFor="reasons-reason">Grund</label>
-                    <select id="reasons-reason" value={view.reason} onChange={(e) => patch({ reason: e.target.value })}>
-                        <option value="">Alle Gründe</option>
-                        {totals.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-                    </select>
-                </div>
+        <div className="dash-card hl-card">
+            {head}
+            <div className="filter-bar hl-filters">
+                <SearchBox id="reasons-search" value={view.search} onChange={(search) => patch({ search })} placeholder="Charaktername …" />
+                <select id="reasons-reason" className="hl-sel" aria-label="Grund" value={view.reason} onChange={(e) => patch({ reason: e.target.value })}>
+                    <option value="">Alle Gründe</option>
+                    {totals.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                </select>
                 {categoryOptions.length > 1 && (
-                    <div className="field" style={{ minWidth: 180 }}>
-                        <label htmlFor="reasons-category">Kategorie</label>
-                        <select id="reasons-category" value={view.category} onChange={(e) => patch({ category: e.target.value })}>
-                            <option value="">Alle Kategorien</option>
-                            {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                        </select>
-                    </div>
+                    <select id="reasons-category" className="hl-sel" aria-label="Kategorie" value={view.category} onChange={(e) => patch({ category: e.target.value })}>
+                        <option value="">Alle Kategorien</option>
+                        {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                    </select>
                 )}
-                {hasFilters && (
-                    <div className="field">
-                        <button className="btn btn-ghost" type="button" onClick={() => patch({ search: "", reason: "", category: "" })}>
-                            Filter zurücksetzen
-                        </button>
-                    </div>
-                )}
+                <div className="badge-row" style={{ marginLeft: "auto" }}>
+                    {totals.map((r) => <ReasonBadge key={r.id} label={r.label} tone={r.tone} count={r.count} />)}
+                </div>
             </div>
+            <ActiveFilters filters={active} />
+
             {!sorted.length
-                ? <p className="sub" style={{ padding: "0 16px 14px" }}>Keine Raider für diese Filter.</p>
+                ? <div className="empty">Keine Raider für diese Filter.</div>
                 : (
-                    <table className="idx" style={{ margin: 0 }}>
-                        <thead>
-                            <tr>
-                                <SortTh sortKey="character" label="Charakter" sort={sort} dir={dir} onSort={onSort} />
-                                <SortTh sortKey="classSpec" label="Klasse & Spec" sort={sort} dir={dir} onSort={onSort} />
-                                <SortTh sortKey="count" label="Items" sort={sort} dir={dir} onSort={onSort} />
-                                <SortTh
-                                    sortKey="reasons" label="Gründe (Hover zeigt die Items)"
-                                    tip="Sortiert nach dem stärksten Grund des Raiders"
-                                    sort={sort} dir={dir} onSort={onSort}
-                                />
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {sorted.map((c) => (
-                                <tr key={c.key}>
-                                    <td><RaiderBadge character={c.character} classColor={c.classColor} iconUrl={c.iconUrl} /></td>
-                                    <td><ClassSpecCell className={c.className} spec={c.spec} classColor={c.classColor} iconUrl={c.iconUrl} /></td>
-                                    <td className="small">{c.count}</td>
-                                    <td>
-                                        <div className="badge-row">
-                                            {c.reasons.map((b) => (
-                                                <ReasonBadgeHover key={b.reason} label={b.label} reasonLabel={b.reasonLabel} tone={b.tone} count={b.count} items={b.items} />
-                                            ))}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                    <>
+                        <div className="hl-grid reasons hl-th" role="row">
+                            <span role="columnheader" aria-sort={ariaSort("character", sort, dir)}>
+                                <SortLabel sortKey="character" label="Raider" sort={sort} dir={dir} onSort={onSort} />
+                            </span>
+                            <span role="columnheader" aria-sort={ariaSort("count", sort, dir)} className="hl-col-opt">
+                                <SortLabel sortKey="count" label="Items" sort={sort} dir={dir} onSort={onSort} tip="Items" tipSub="Alle Items des Raiders; der Balken misst gegen den Raider mit den meisten." />
+                            </span>
+                            <span role="columnheader" aria-sort={ariaSort("reasons", sort, dir)} className="hl-col-opt">
+                                <SortLabel sortKey="reasons" label="Anteile" sort={sort} dir={dir} onSort={onSort} tip="Anteile" tipSub="Die Items nach Grund, in den Farben der Gründe. Sortiert nach dem stärksten Grund des Raiders." />
+                            </span>
+                            <span role="columnheader" className="tipped" data-tip="Gründe" data-tip-sub="Klick auf einen Grund zeigt die Items dahinter.">Gründe</span>
+                        </div>
+                        {sorted.map((c) => {
+                            const parts = c.reasons.map((b) => ({ id: b.reason, label: b.label, reasonLabel: b.reasonLabel, tone: b.tone, count: b.count, order: b.order }));
+                            const specLabel = c.className ? (c.spec ? `${c.spec} ${c.className}` : c.className) : "";
+                            return (
+                                <div className="hl-grid reasons" key={c.key}>
+                                    <span className="hl-raider">
+                                        <span><RaiderBadge character={c.character} classColor={c.classColor} iconUrl={c.iconUrl} className={c.className} spec={c.spec} /></span>
+                                        {specLabel && <span className="spec">{specLabel}</span>}
+                                    </span>
+                                    <span className="hl-col-opt"><Bar value={c.count} max={maxCount} label={c.count} /></span>
+                                    <span className="hl-col-opt"><StackBar parts={parts} size="mid" /></span>
+                                    <div className="badge-row">
+                                        {c.reasons.map((b) => (
+                                            <ReasonBadgeButton
+                                                key={b.reason} label={b.label} reasonLabel={b.reasonLabel} tone={b.tone} count={b.count}
+                                                onOpen={() => setOpenBucket({ key: c.key, reason: b.reason })}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </>
                 )}
+
+            <RaiderReasonDialog raider={openRaider} bucket={bucket} contents={contents} onClose={() => setOpenBucket(null)} />
         </div>
     );
 }

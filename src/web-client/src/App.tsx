@@ -11,10 +11,12 @@ import NotifyTemplatesPage from "./pages/NotifyTemplatesPage";
 import RecruitmentPage from "./pages/RecruitmentPage";
 import HistoryPage from "./pages/HistoryPage";
 import HistoryEventPage from "./pages/HistoryEventPage";
+import HistoryInboxPage from "./pages/HistoryInboxPage";
 import HistoryCharPage from "./pages/HistoryCharPage";
 import RosterPage from "./pages/RosterPage";
 import ClaPage from "./pages/ClaPage";
 import LootCouncilPage from "./pages/LootCouncilPage";
+import DropCheckPage from "./pages/lootcouncil/DropCheckPage";
 import { JobsProvider } from "./components/Jobs";
 import { ConfirmProvider } from "./components/ui/Modal";
 import { canAccess, canAccessAny, getSession, type ApiError, type Session, type SessionUser } from "./api";
@@ -134,6 +136,8 @@ export default function App() {
                         <Route path="recruitment" element={<Guard user={user} areas={["recruitment"]}><RecruitmentPage /></Guard>} />
                         {/* "loot" opens the same three pages, cut down to the loot views. */}
                         <Route path="history" element={<Guard user={user} areas={["history", "loot"]}><HistoryPage /></Guard>} />
+                        {/* The addon inbox is not open to the read-only "loot" area. */}
+                        <Route path="history/inbox" element={<Guard user={user} areas={["history"]}><HistoryInboxPage /></Guard>} />
                         <Route path="history/event" element={<Guard user={user} areas={["history", "loot"]}><HistoryEventPage /></Guard>} />
                         <Route path="history/char" element={<Guard user={user} areas={["history", "loot"]}><HistoryCharPage /></Guard>} />
                         <Route path="roster" element={<Guard user={user} areas={["roster"]}><RosterPage /></Guard>} />
@@ -142,6 +146,7 @@ export default function App() {
                         <Route path="roster/char" element={<Guard user={user} areas={["roster"]}><HistoryCharPage /></Guard>} />
                         <Route path="cla" element={<Guard user={user} areas={["cla"]}><ClaPage /></Guard>} />
                         <Route path="lootcouncil" element={<Guard user={user} areas={["lootcouncil"]}><LootCouncilPage /></Guard>} />
+                        <Route path="lootcouncil/drop/:itemId?" element={<Guard user={user} areas={["lootcouncil"]}><DropCheckPage /></Guard>} />
                         {/* Inside the shell on purpose: a mistyped path should still
                             leave the menu (and the way back) standing. */}
                         <Route path="*" element={<NotFound />} />

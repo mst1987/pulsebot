@@ -122,6 +122,8 @@ describe("web/lootStats", () => {
             expect(entry.awards.map((a) => a.character).sort()).toEqual(["Bar", "Foo"]);
             expect(entry.awards.map((a) => a.reason).sort()).toEqual(["bis", "offspec"]);
             expect(entry.awards[0].eventLabel).toBe("SSC-Raid");
+            // the stored row id, which the item-details dialog deletes by
+            expect(entry.awards.every((a) => typeof a.id === "string" && a.id.length > 0)).toBe(true);
         });
 
         it("resolves the content of a Gargul row that has no instance at all", () => {

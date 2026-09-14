@@ -1,4 +1,4 @@
-// The send box in the Empfehlungen tab: counts, button state, reviewer-only.
+// "Alle senden": the one action in the head of the raid's recommendations, a dialog with counts, mapping check, phrasing and send.
 const { renderReportPage } = require("../../src/web/render.js");
 
 function report(review, sent) {
@@ -22,26 +22,31 @@ function report(review, sent) {
 const admin = { id: "u1", name: "Lead", isAdmin: true };
 
 describe("web/render — send box", () => {
-    it("shows reviewers the counts and an active send button once something is approved", () => {
+    it("opens from the area head as a dialog with the counts and an active send button once something is approved", () => {
         const html = renderReportPage(report({ raid: {}, players: { Farin: { gear: { approved: true } } } }, { Farin: { at: 1 } }), admin);
-        expect(html).toContain("<span>Alle senden</span><span class=\"rec-count\">1</span>");
+        expect(html).toMatch(/<button type="button" class="btn btn-sm" data-dialog="dlg-rs-send"><img class="hicon"[^>]*inv_letter_15\.jpg" alt="">Alle senden …<\/button>/);
+        expect(html).toContain("<dialog class=\"dlg detail\" id=\"dlg-rs-send\">");
         expect(html).toContain("<div class=\"rec-send\" data-report=\"abc123def456\">");
-        expect(html).toContain("1 Raider mit freigegebenen Punkten · 1 bereits angeschrieben");
-        expect(html).toContain("<button type=\"button\" class=\"btn btn-sm\" data-send=\"all\">Freigegebenes per DM senden</button>");
+        expect(html).toContain("1 Raider mit freigegebenen Punkten</span>");
+        expect(html).toContain("1 bereits angeschrieben</span>");
+        expect(html).toMatch(/<button type="button" class="btn btn-sm" data-send="all"><img class="hicon"[^>]*>Freigegebenes per DM senden<\/button>/);
         expect(html).toContain("data-send=\"status\"");
+        expect(html).toMatch(/class="btn btn-run btn-sm" data-phrase="all"/);
         expect(html).toContain("window.__ehSend");
         expect(html).toContain("/api/cla/recommendations/send");
     });
 
     it("disables the button while nothing is approved", () => {
         const html = renderReportPage(report(null, {}), admin);
-        expect(html).toContain("0 Raider mit freigegebenen Punkten · 0 bereits angeschrieben");
+        expect(html).toContain("0 Raider mit freigegebenen Punkten</span>");
+        expect(html).toContain("0 bereits angeschrieben</span>");
         expect(html).toContain("data-send=\"all\" disabled>");
     });
 
     it("hides the box from everyone who cannot review", () => {
         const html = renderReportPage(report({ raid: {}, players: { Farin: { gear: { approved: true } } } }, {}), { id: "u3", isAdmin: false, access: { cla: { read: true } } });
         expect(html).not.toContain("class=\"rec-send\"");
+        expect(html).not.toContain("dlg-rs-send");
         expect(html).not.toContain("window.__ehSend");
     });
 });
