@@ -5,7 +5,8 @@ const fs = require("fs");
 const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
-const read = (...p) => fs.readFileSync(path.join(CLIENT, ...p), "utf8");
+// LF regardless of the checkout: git's autocrlf hands Windows the files with CRLF, and the patterns below match on \n
+const read = (...p) => fs.readFileSync(path.join(CLIENT, ...p), "utf8").replace(/\r\n/g, "\n");
 
 const roster = read("pages", "RosterPage.tsx");
 const charPage = read("pages", "HistoryCharPage.tsx");

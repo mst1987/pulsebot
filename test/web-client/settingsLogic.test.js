@@ -58,7 +58,8 @@ function stripTypes(src) {
 }
 
 function load() {
-    const js = stripTypes(fs.readFileSync(FILE, "utf8"));
+    // LF regardless of the checkout: git's autocrlf hands Windows the file with CRLF
+    const js = stripTypes(fs.readFileSync(FILE, "utf8").replace(/\r\n/g, "\n"));
     const names = [...js.matchAll(/^(?:function|const) (\w+)/gm)].map((m) => m[1]);
     return new Function(`${js}\nreturn { ${names.join(", ")} };`)();
 }
