@@ -160,14 +160,16 @@ describe("confirm dialog instead of window.confirm", () => {
     it("asks through useConfirm in every place that used to call confirm()", () => {
         const places = {
             "pages/ClaPage.tsx": 5,
-            "pages/RaidDetailPage.tsx": 3,
+            "pages/raid-detail/LootTab.tsx": 2,
+            "pages/raid-detail/LogsTab.tsx": 2,
             "pages/SettingsPage.tsx": 1,
             "components/SettingsConnections.tsx": 1,
             "pages/RecruitmentPage.tsx": 2,
             "pages/HistoryPage.tsx": 1,
             "pages/HistoryEventPage.tsx": 1,
             "pages/NotifyTemplatesPage.tsx": 1,
-            "pages/RaidCreatePage.tsx": 1,
+            // the Raid-Helper templates moved with the create dialog into their own
+            "components/RaidTemplatesDialog.tsx": 1,
             "components/LootInboxTab.tsx": 1,
             "components/LootTable.tsx": 1,
         };

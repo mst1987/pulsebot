@@ -606,23 +606,43 @@ export function getRosterChar(name: string, itemIds: number[] = []): Promise<Ros
     return get<RosterCharData>(`/api/roster/char?name=${encodeURIComponent(name)}${items}`);
 }
 
-export type RaidEvent = {
+// A row of the Raid-Events list — mirrors src/web/raidListing.js. `contentIds`
+// are the raid(s) the event is (for the boss icon), [] when nothing was
+// recognised; `contentSources` says where that came from.
+type RaidListBase = {
     id: string;
     title: string;
     startTime: number;
-    leaderId: string;
     channelId: string;
     channelName: string;
     categoryId: string;
-    templateId: string;
-    description: string;
-    signupCount: number;
+    categoryName: string;
+    contentIds: string[];
+    contentSources: string[];
+    softres: { url: string } | null;
 };
-export type RaidEventGroup = { categoryId: string; categoryName: string; events: RaidEvent[] };
-export type RaidsData = { groups: RaidEventGroup[]; error: string | null; activeGuildId: string };
+export type UpcomingRaid = RaidListBase & {
+    signupCount: number;
+    /** 10 for a ten-player night, else 25; `raidSizeKnown` false = only the default. */
+    raidSize: number;
+    raidSizeKnown: boolean;
+};
+export type PendingRaidLog = { title: string; alsoFits: string[] };
+export type PastRaid = RaidListBase & {
+    logs: EventLog[];
+    pendingLogs: PendingRaidLog[];
+    pendingLogCount: number;
+    lootCount: number;
+};
+export type RaidsData = { events: UpcomingRaid[]; error: string | null; activeGuildId: string; guildName: string };
+export type PastRaidsData = { events: PastRaid[]; error: string | null; activeGuildId: string };
 
 export function getRaids(): Promise<RaidsData> {
     return get<RaidsData>("/api/raids");
+}
+
+export function getPastRaids(): Promise<PastRaidsData> {
+    return get<PastRaidsData>("/api/raids/past");
 }
 
 // ===== Raid detail (per-event page) =====
@@ -649,9 +669,51 @@ export function deleteNotifyTemplate(csrfToken: string | null, id: string): Prom
     return send("POST", "/api/notify-templates/delete", csrfToken, { id });
 }
 
-export type SetupPlayer = { name: string; classColor: string; specName: string; className: string; iconUrl: string };
+/** Role bucket of a raidplan spec — mirrors roleOf() in src/utils/setupView.js. */
+export type SetupRole = "tank" | "healer" | "melee" | "ranged" | "dps";
+export type SetupPlayer = { name: string; classColor: string; specName: string; className: string; iconUrl: string; role?: SetupRole; group?: number };
 export type SetupGroup = { label: string; players: SetupPlayer[] };
-export type EventSetup = { total: number; groups: SetupGroup[] } | null;
+export type EventSetup = { total: number; groups: SetupGroup[]; roleCounts?: Partial<Record<SetupRole, number>> } | null;
+
+/** One step of the Raid-Detail progress bar — built by src/web/raidDetailSteps.js. */
+export type RaidStepKey = "signup" | "setup" | "sheet" | "softres" | "loot" | "logs";
+export type RaidDetailModal = "notify" | "sheet" | "softres" | "loot" | "log" | "ping";
+export type RaidStep = {
+    key: RaidStepKey;
+    label: string;
+    icon: string;
+    tone: "ok" | "mid" | "bad" | "none";
+    value: string;
+    unit: string;
+    fill?: number | null;
+    badge: { label: string; tone?: "ok" | "mid" | "bad" | "accent" };
+    tip: { head: string; sub: string };
+    open: { modal?: RaidDetailModal; tab?: "roster" | "loot" | "logs" };
+    done: boolean;
+    next: boolean;
+};
+export type RaidPrimaryAction = {
+    label: string;
+    icon: string;
+    modal?: RaidDetailModal;
+    href?: string;
+    evaluate?: { logId: string; section: LogSection };
+};
+export type RaidProgress = { steps: RaidStep[]; next: RaidStepKey | ""; primary: RaidPrimaryAction | null };
+
+/** What the player dialog shows beyond this raid — src/web/raidPlayerSummary.js. */
+export type RaidPlayerSummary = {
+    /** Raids of the category in the last 8 weeks the raider was in; null = unknown. */
+    raids: number | null;
+    raidsOf: number;
+    /** Real loot (no shards/bank/offspec) in the last 8 weeks. */
+    loot: number;
+    lastLootAt: number;
+    recent: Array<{
+        itemId: number; itemName: string; itemIconUrl: string; itemQuality: number | null; itemLink: string;
+        response: string; reasonLabel: string; reasonTone: string; awardedAt: number;
+    }>;
+};
 
 export type AttendanceProfile = { classColor: string; specName: string; className: string; iconUrl: string };
 // What the raider's reaction said — mirrors SIGNUP_STATUSES in
@@ -728,6 +790,10 @@ export type RaidDetailData = {
     lootTool: string;
     eventLogs: RaidLogRow[];
     unlinkedLogs: RaidLogRow[];
+    /** The progress bar and the head's primary action. */
+    progress: RaidProgress;
+    /** Keyed by the lowercased character name. */
+    playerSummaries: Record<string, RaidPlayerSummary>;
 };
 
 // Trimmed-down LogRow (see below) for the raid detail page's Logs tab — same
@@ -828,6 +894,10 @@ export type ReusableEvent = {
     description: string;
     channelId: string;
     channelName: string;
+    categoryId: string;
+    categoryName: string;
+    startTime: number;
+    contentIds: string[];
 };
 
 export type RaidCreateContext = {

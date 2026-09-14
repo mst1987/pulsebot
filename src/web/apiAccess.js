@@ -54,6 +54,7 @@ const AREA_BY_PATH = {
     "/api/lootcouncil/export": "lootcouncil",
 
     "/api/raids": "raids",
+    "/api/raids/past": "raids",
     "/api/raids/new": "raids",
     "/api/raids/detail": "raids",
     "/api/raids/notify": "raids",

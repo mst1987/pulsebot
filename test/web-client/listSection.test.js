@@ -48,13 +48,13 @@ describe("collection editor", () => {
     it("asks the server for no entry while creating", () => {
         // "new" is not an id: a page that passes it on as one would have the
         // server look up a template that does not exist.
-        expect(editorSrc).toContain('editId: open === "new" ? "" : open');
+        expect(editorSrc).toContain("editId: open === \"new\" ? \"\" : open");
     });
 
     it("falls back to the new-editor for an id that is gone", () => {
         // A stale link or an entry deleted in another tab must not leave the
         // editor on a blank screen.
-        expect(sectionSrc).toContain('entries.find((e) => idOf(e) === editor.editId) || null');
+        expect(sectionSrc).toContain("entries.find((e) => idOf(e) === editor.editId) || null");
     });
 });
 
@@ -62,8 +62,19 @@ describe("list sections", () => {
     // The sections that manage a collection, with the url param each one uses.
     const SECTIONS = [
         ["pages/SettingsPage.tsx", ["sheet"]],
-        ["pages/NotifyTemplatesPage.tsx", ["edit"]],
     ];
+
+    // The modal variant: the same url-held editor, opened as a dialog over the
+    // list instead of in its place (design issue #222).
+    it("pages/NotifyTemplatesPage.tsx opens its editor as a modal through the shared hook", () => {
+        const src = readClient("pages", "NotifyTemplatesPage.tsx");
+        expect(src).toContain("useCollectionEditor(\"edit\")");
+        expect(src).toMatch(/<Modal\s+open=\{!!editor\.open\}/);
+        // an id that is gone opens the new-editor, as ListSection does
+        expect(src).toContain("templates.find((t) => t.id === editor.editId) || null");
+        // no list-replacing editor panel any more
+        expect(src).not.toContain("<ListSection");
+    });
 
     it.each(SECTIONS)("%s opens its editor through the shared hook", (file, params) => {
         const [dir, name] = file.split("/");

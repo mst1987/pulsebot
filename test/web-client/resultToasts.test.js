@@ -33,7 +33,8 @@ describe("action results are toasts", () => {
         const jobs = readClient("components", "Jobs.tsx");
         expect(jobs).toContain("export function useToast()");
         // The provider has to sit above the router, or a toast would be torn down
-        // by the very navigation the action triggers (RaidCreatePage relies on it).
+        // by the very navigation the action triggers (RaidCreateDialog closes by
+        // navigating back to /raids and reports on the way).
         expect(readClient("App.tsx")).toMatch(/<JobsProvider>[\s\S]*<Routes>/);
     });
 

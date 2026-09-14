@@ -20,13 +20,15 @@ const {
 } = require("../../utils/attendance");
 const { resolveAssignmentProfiles } = require("../raiderCharactersStore");
 const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("../eventSheetStore");
-const { getRaidEvent } = require("../raidEventStore");
+const { getRaidEvent, listRaidEvents } = require("../raidEventStore");
 const {
     getEventSoftres, saveEventSoftres, setEventSoftresLink, markEventSoftresPosted,
 } = require("../eventSoftresStore");
 const softres = require("../../utils/softres");
 const wowhead = require("../../utils/wowhead");
-const { listByEvent: listLootByEvent } = require("../lootStore");
+const { listByEvent: listLootByEvent, listAll: listAllLoot } = require("../lootStore");
+const { raidSteps } = require("../raidDetailSteps");
+const { summarizePlayers } = require("../raidPlayerSummary");
 const { withClassLook: withLootClassLook } = require("../lootClassLook");
 const { listLogs, listLogsForEvent, evaluatedSections } = require("../logStore");
 const { backfillLogTitles } = require("../logChannel");
@@ -151,7 +153,7 @@ async function getRaidDetail(req, res, url) {
     // buttons independently without having to know about legacy log entries.
     for (const l of [...eventLogs, ...unlinkedLogs]) l.sections = evaluatedSections(l);
 
-    ok(res, {
+    const payload = {
         event: {
             id: found.e.id,
             title: found.e.title,
@@ -192,7 +194,17 @@ async function getRaidDetail(req, res, url) {
         lootTool: (getConfig().categoryLootTool || {})[found.g.categoryId] || "",
         eventLogs,
         unlinkedLogs,
-    });
+    };
+    // The progress bar and the head's primary action, from the same payload.
+    payload.progress = raidSteps(payload);
+    // What the player dialog shows beyond this raid (raids in the category's
+    // last eight weeks, recent loot), for every name the page can open.
+    const names = [
+        ...((setup && setup.groups) || []).flatMap((g) => g.players.map((p) => p.name)),
+        ...[...attendance.responded, ...attendance.missing].map((p) => p.character || ""),
+    ];
+    payload.playerSummaries = summarizePlayers(names, listAllLoot(), listRaidEvents(guildId), { categoryId: found.g.categoryId });
+    ok(res, payload);
 }
 
 /**

@@ -93,6 +93,7 @@ describe("client state persistence", () => {
         ["pages/ClaPage.tsx", "cla-view"],
         ["pages/RecruitmentPage.tsx", "recruitment-view"],
         ["pages/RaidsPage.tsx", "raids-category"],
+        ["pages/RaidsPage.tsx", "raids-view"],
         ["pages/SettingsPage.tsx", "settings-section"],
     ];
 
@@ -122,9 +123,10 @@ describe("client state persistence", () => {
 
     it("gives per-event and per-template drafts their own key", () => {
         // One shared key would offer raid A's pasted export inside raid B.
-        const detail = readClient("pages", "RaidDetailPage.tsx");
-        expect(detail).toContain("`raid-loot-import:${eventId}`");
-        expect(detail).toContain("`raid-softres:${eventId}`");
+        // The raid page's forms are dialogs now (pages/raid-detail/modals).
+        expect(readClient("pages", "raid-detail", "modals", "LootAddModal.tsx")).toContain("`raid-loot-import:${eventId}`");
+        expect(readClient("pages", "raid-detail", "modals", "SoftresModal.tsx")).toContain("`raid-softres:${eventId}`");
+        expect(readClient("pages", "raid-detail", "modals", "LogAssignModal.tsx")).toContain("`raid-log-url:${eventId}`");
         const recruitment = readClient("pages", "RecruitmentPage.tsx");
         expect(recruitment).toContain("`recruitment-template:${template?.id ?? \"new\"}`");
         expect(recruitment).toContain("`recruitment-post:${post.id}`");
