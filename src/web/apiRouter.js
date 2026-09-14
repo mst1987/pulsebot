@@ -5,7 +5,7 @@ const { error } = require("./apiResponse");
 const auth = require("./auth");
 const { checkAccess } = require("./apiAccess");
 const { getSession, postActiveGuild } = require("./apiRoutes/session");
-const { getDashboard } = require("./apiRoutes/dashboard");
+const { getDashboard, getNextRaidDetails } = require("./apiRoutes/dashboard");
 const { getChannels, createChannel, duplicateChannel } = require("./apiRoutes/channels");
 const {
     getSettings, updateSettings, getItemSearch: getSettingsItemSearch,
@@ -90,6 +90,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/dashboard" && req.method === "GET") {
         await getDashboard(req, res);
+        return true;
+    }
+    if (pathname === "/api/dashboard/next-raid" && req.method === "GET") {
+        await getNextRaidDetails(req, res, url);
         return true;
     }
     if (pathname === "/api/channels" && req.method === "GET") {
