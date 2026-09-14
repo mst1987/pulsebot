@@ -41,12 +41,32 @@ describe("one menu for both front ends", () => {
                 id: expect.stringMatching(/^[a-z]+$/),
                 label: expect.any(String),
                 href: expect.stringMatching(/^\//),
-                group: expect.stringMatching(/^(Verwaltung|System)$/),
+                group: expect.stringMatching(/^(Start|Raids|Loot|Gilde|System)$/),
                 areas: expect.arrayContaining([expect.any(String)]),
                 wowIcon: expect.stringMatching(/^[a-z0-9_'-]+$/),
             });
         }
         expect(new Set(MENU.map((e) => e.id)).size).toBe(MENU.length);
+    });
+
+    it("groups the menu by what the entries are about, never more than three under one heading", () => {
+        // one heading with eight entries under it ("Verwaltung") was the raid lead's complaint
+        const groups = [];
+        for (const entry of MENU) {
+            const last = groups[groups.length - 1];
+            if (last && last.name === entry.group) last.ids.push(entry.id);
+            else groups.push({ name: entry.group, ids: [entry.id] });
+        }
+        expect(groups).toEqual([
+            { name: "Start", ids: ["home"] },
+            { name: "Raids", ids: ["raids", "roster", "cla"] },
+            { name: "Loot", ids: ["history", "lootcouncil"] },
+            { name: "Gilde", ids: ["recruitment", "channels"] },
+            { name: "System", ids: ["settings"] },
+        ]);
+        // a group is one contiguous block, so its heading is printed once
+        expect(new Set(groups.map((g) => g.name)).size).toBe(groups.length);
+        for (const g of groups) expect(g.ids.length).toBeLessThanOrEqual(3);
     });
 
     it("uses the icons of the approved design", () => {

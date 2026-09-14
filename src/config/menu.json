@@ -1,11 +1,11 @@
 [
-    { "id": "home", "label": "Übersicht", "href": "/", "group": "Verwaltung", "areas": ["dashboard"], "wowIcon": "inv_misc_map_01" },
-    { "id": "recruitment", "label": "Recruitment", "href": "/recruitment", "group": "Verwaltung", "areas": ["recruitment"], "wowIcon": "inv_misc_grouplooking" },
-    { "id": "cla", "label": "Log-Auswertung", "href": "/cla", "group": "Verwaltung", "areas": ["cla"], "wowIcon": "inv_misc_pocketwatch_01" },
-    { "id": "raids", "label": "Raid-Events", "href": "/raids", "group": "Verwaltung", "areas": ["raids"], "wowIcon": "inv_misc_note_02" },
-    { "id": "roster", "label": "Roster", "href": "/roster", "group": "Verwaltung", "areas": ["roster"], "wowIcon": "achievement_guildperk_everybodysfriend" },
-    { "id": "history", "label": "Historie & Loot", "href": "/history", "group": "Verwaltung", "areas": ["history", "loot"], "wowIcon": "inv_misc_bag_10" },
-    { "id": "lootcouncil", "label": "Loot-Council", "href": "/lootcouncil", "group": "Verwaltung", "areas": ["lootcouncil"], "wowIcon": "inv_misc_coin_02" },
-    { "id": "channels", "label": "Kanäle", "href": "/channels", "group": "Verwaltung", "areas": ["channels"], "wowIcon": "inv_letter_15" },
+    { "id": "home", "label": "Übersicht", "href": "/", "group": "Start", "areas": ["dashboard"], "wowIcon": "inv_misc_map_01" },
+    { "id": "raids", "label": "Raid-Events", "href": "/raids", "group": "Raids", "areas": ["raids"], "wowIcon": "inv_misc_note_02" },
+    { "id": "roster", "label": "Roster", "href": "/roster", "group": "Raids", "areas": ["roster"], "wowIcon": "achievement_guildperk_everybodysfriend" },
+    { "id": "cla", "label": "Log-Auswertung", "href": "/cla", "group": "Raids", "areas": ["cla"], "wowIcon": "inv_misc_pocketwatch_01" },
+    { "id": "history", "label": "Historie & Loot", "href": "/history", "group": "Loot", "areas": ["history", "loot"], "wowIcon": "inv_misc_bag_10" },
+    { "id": "lootcouncil", "label": "Loot-Council", "href": "/lootcouncil", "group": "Loot", "areas": ["lootcouncil"], "wowIcon": "inv_misc_coin_02" },
+    { "id": "recruitment", "label": "Recruitment", "href": "/recruitment", "group": "Gilde", "areas": ["recruitment"], "wowIcon": "inv_misc_grouplooking" },
+    { "id": "channels", "label": "Kanäle", "href": "/channels", "group": "Gilde", "areas": ["channels"], "wowIcon": "inv_letter_15" },
     { "id": "settings", "label": "Einstellungen", "href": "/settings", "group": "System", "areas": ["settings"], "wowIcon": "trade_engineering" }
 ]
