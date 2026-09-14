@@ -9,6 +9,7 @@ import type { ShellContext } from "../components/Shell";
 import { SortTh } from "../components/SortTh";
 import { TrashIcon } from "../components/icons";
 import { useToast } from "../components/Jobs";
+import { useConfirm } from "../components/ui/Modal";
 
 type SortKey = "name" | "id";
 const SORT_DEFAULTS: Record<SortKey, Dir> = { name: "asc", id: "asc" };
@@ -32,6 +33,7 @@ function TemplatesPanel({ templates, csrfToken, onChanged }: {
     csrfToken: string | null;
     onChanged: (templates: RaidTemplate[]) => void;
 }) {
+    const ask = useConfirm();
     const [id, setId] = useState("");
     const [name, setName] = useState("");
     const [busy, setBusy] = useState(false);
@@ -62,7 +64,7 @@ function TemplatesPanel({ templates, csrfToken, onChanged }: {
     };
 
     const remove = async (templateId: string) => {
-        if (!confirm("Template aus der Liste entfernen?")) return;
+        if (!(await ask({ title: "Template entfernen?", text: "Das Template wird aus der Liste entfernt.", action: "Entfernen" }))) return;
         setBusy(true);
         try {
             await deleteRaidTemplate(csrfToken, templateId);

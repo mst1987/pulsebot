@@ -44,7 +44,7 @@ export default function TopLootList({ items }: { items: TopLootAward[] }) {
                         </span>
                     </span>
                     <span className="toploot-who">
-                        <span className="toploot-char" title={it.className ? [it.spec, it.className].filter(Boolean).join(" ") : undefined}>
+                        <span className="toploot-char" data-tip={it.className ? [it.spec, it.className].filter(Boolean).join(" ") : undefined}>
                             <ClassSpecIcon iconUrl={it.specIconUrl} />
                             <CharacterLink character={it.character} classColor={it.classColor} />
                         </span>

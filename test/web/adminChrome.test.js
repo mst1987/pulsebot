@@ -84,6 +84,35 @@ describe("web/adminChrome", () => {
         expect(CHROME_STYLE).toContain(".topbar");
     });
 
+    it("renders exactly the shared menu of config/menu.js, Roster and Loot-Council included", () => {
+        const { MENU, wowIconUrl } = require("../../src/config/menu.js");
+        expect(TABS.map((t) => t.id)).toEqual(MENU.map((e) => e.id));
+        const html = render();
+        const links = [...html.matchAll(/<a class="nav-item[^"]*" href="([^"]+)"><img class="wi" src="([^"]+)" alt=""><span>([^<]+)<\/span><\/a>/g)]
+            .map((m) => ({ href: m[1], icon: m[2], label: m[3] }));
+        expect(links).toEqual(MENU.map((e) => ({ href: e.href, icon: wowIconUrl(e.wowIcon, 24), label: e.label })));
+        expect(html).toContain("<span>Roster</span>");
+        expect(html).toContain("<span>Loot-Council</span>");
+        expect(html).toContain("inv_misc_coin_02.jpg");
+    });
+
+    it("colours the active entry of every section with its own area token", () => {
+        const { MENU } = require("../../src/config/menu.js");
+        for (const e of MENU) {
+            expect(CHROME_STYLE).toContain(`.nav-item.area-${e.id} { --area:var(--area-${e.id}); --area-soft:var(--area-${e.id}-soft); }`);
+        }
+        // ...and render.js, which ships the palette of the SSR pages, defines them all
+        const renderSrc = require("fs").readFileSync(require("path").join(__dirname, "..", "..", "src", "web", "render.js"), "utf8");
+        for (const e of MENU) {
+            expect((renderSrc.match(new RegExp(`--area-${e.id}:#`, "g")) || []).length).toBe(3);
+        }
+    });
+
+    it("draws the logout as an icon button with a tooltip", () => {
+        const html = render();
+        expect(html).toMatch(/<a class="ibtn sm u-logout" href="\/auth\/logout" aria-label="Logout" data-tip="Logout"[^>]*><svg/);
+    });
+
     it("places the topbar actions (theme toggle) in the top bar", () => {
         const html = render();
         expect(html).toContain("<div class=\"top-actions\"><button id=\"themeBtn\"></button></div>");

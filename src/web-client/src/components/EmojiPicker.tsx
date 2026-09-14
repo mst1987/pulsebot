@@ -56,7 +56,7 @@ export default function EmojiPicker({ emojis, textareaRef, value, onChange }: {
                 <div className="emoji-grid">
                     {filtered.length
                         ? filtered.map((e) => (
-                            <button key={e.id} type="button" className="emoji-item" title={`:${e.name}:`} onClick={() => pick(e.code)}>
+                            <button key={e.id} type="button" className="emoji-item" data-tip={`:${e.name}:`} aria-label={`:${e.name}:`} onClick={() => pick(e.code)}>
                                 <img src={e.url} alt={`:${e.name}:`} loading="lazy" />
                             </button>
                         ))

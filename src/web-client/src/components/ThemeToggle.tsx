@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SunIcon, MoonIcon } from "./icons";
+import { IconButton } from "./ui/Button";
 
 type Theme = "light" | "dark";
 
@@ -27,8 +28,11 @@ export default function ThemeToggle() {
     };
 
     return (
-        <button className="theme-toggle" type="button" aria-label="Design umschalten" title="Hell/Dunkel" onClick={toggle}>
-            {theme === "dark" ? <SunIcon /> : <MoonIcon />}
-        </button>
+        <IconButton
+            icon={theme === "dark" ? <SunIcon /> : <MoonIcon />}
+            tip="Hell / Dunkel umschalten"
+            aria-label="Design umschalten"
+            onClick={toggle}
+        />
     );
 }

@@ -2,36 +2,29 @@
 // An admin who opens a report at /r/<id> keeps the same navigation as the React
 // admin instead of landing on a bare public page.
 //
-// The tab list mirrors src/web-client/src/components/Shell.tsx's TABS and the
-// icons/styles mirror src/web-client/src/components/icons.tsx + the shell block
-// of src/web-client/src/index.css — keep both sides in sync when the admin shell
-// changes. (The report pages stay server-rendered because they are public links
-// posted to Discord; only the chrome around them is duplicated, not a page.)
+// The menu entries come from src/config/menu.js — the same list the React shell
+// (src/web-client/src/components/Shell.tsx) renders, WoW icons included — so the
+// two menus can no longer drift apart (this copy once lacked Roster and
+// Loot-Council). The styles mirror the shell block of
+// src/web-client/src/index.css. (The report pages stay server-rendered because
+// they are public links posted to Discord; only the chrome around them is
+// duplicated, not a page.)
+const { MENU, wowIconUrl } = require("../config/menu");
 
+// Line icons for the pure UI functions (brand, burger, logout) — everything with
+// a game meaning is a WoW icon.
 const ICONS = {
     crest: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\"><path d=\"M12 2 4 6v6c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V6l-8-4Z\"/><path d=\"m9 12 2 2 4-4\" stroke-linecap=\"round\"/></svg>",
     burger: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M4 6h16M4 12h16M4 18h16\"/></svg>",
-    home: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"9\" rx=\"1.5\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"5\" rx=\"1.5\"/><rect x=\"14\" y=\"12\" width=\"7\" height=\"9\" rx=\"1.5\"/><rect x=\"3\" y=\"16\" width=\"7\" height=\"5\" rx=\"1.5\"/></svg>",
-    recruitment: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/><path d=\"M19 8v6M22 11h-6\"/></svg>",
-    cla: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 3v16a2 2 0 0 0 2 2h16\"/><path d=\"m7 14 3-4 3 3 4-6\"/></svg>",
-    raids: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M16 2v4M8 2v4M3 10h18\"/></svg>",
-    history: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 3v5h5\"/><path d=\"M3.05 13A9 9 0 1 0 6 5.3L3 8\"/><path d=\"M12 7v5l3 2\"/></svg>",
-    channels: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 9h16M4 15h16M10 3 8 21M16 3l-2 18\"/></svg>",
-    settings: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z\"/></svg>",
+    logout: "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.9\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3\"/><path d=\"M10 17l5-5-5-5M15 12H4\"/></svg>",
 };
 
-// Same order/grouping as Shell.tsx's TABS, and now the same hrefs too: the
-// client is served from the site root (src/web/staticClient.js), so a link here
-// leads straight into it.
-const TABS = [
-    { id: "home", label: "Übersicht", href: "/", group: "Verwaltung", icon: ICONS.home },
-    { id: "recruitment", label: "Recruitment", href: "/recruitment", group: "Verwaltung", icon: ICONS.recruitment },
-    { id: "cla", label: "Log-Auswertung", href: "/cla", group: "Verwaltung", icon: ICONS.cla },
-    { id: "raids", label: "Raid-Events", href: "/raids", group: "Verwaltung", icon: ICONS.raids },
-    { id: "history", label: "Historie & Loot", href: "/history", group: "Verwaltung", icon: ICONS.history },
-    { id: "channels", label: "Kanäle", href: "/channels", group: "Verwaltung", icon: ICONS.channels },
-    { id: "settings", label: "Einstellungen", href: "/settings", group: "System", icon: ICONS.settings },
-];
+// The menu as the chrome renders it: every entry of config/menu.js with its
+// icon url resolved.
+const TABS = MENU.map((entry) => ({ ...entry, iconUrl: wowIconUrl(entry.wowIcon, 24) }));
+
+// One accent per section for the active entry, the --area-* tokens of render.js.
+const AREA_STYLE = MENU.map((e) => `  .nav-item.area-${e.id} { --area:var(--area-${e.id}); --area-soft:var(--area-${e.id}-soft); }`).join("\n");
 
 // Shell layout, ported from the "sidebar app shell" block of index.css so the
 // SSR pages line up pixel-wise with the React admin.
@@ -45,22 +38,24 @@ const CHROME_STYLE = `
   .brand-sub { font-size:10.5px; font-family:var(--font-mono); color:var(--muted); text-transform:uppercase; letter-spacing:1.2px; margin-top:1px; }
   nav.menu { padding:12px 10px; display:flex; flex-direction:column; gap:2px; flex:1; overflow-y:auto; }
   .menu-label { font-size:10.5px; font-family:var(--font-mono); text-transform:uppercase; letter-spacing:1.3px; color:var(--muted); opacity:.7; padding:14px 12px 6px; }
-  .nav-item { display:flex; align-items:center; gap:12px; padding:9px 12px; border-radius:8px; color:var(--muted); font-weight:600; font-size:14.5px; text-decoration:none; border:1px solid transparent; transition:background .12s, color .12s, border-color .12s; }
-  .nav-item svg { width:19px; height:19px; flex:0 0 auto; }
+  .nav-item { --area:var(--accent); --area-soft:var(--accent-soft); display:flex; align-items:center; gap:12px; padding:7px 12px; border-radius:8px; color:var(--muted); font-weight:600; font-size:14.5px; text-decoration:none; border:1px solid transparent; position:relative; transition:background .12s, color .12s, border-color .12s; }
+  .nav-item .wi { width:24px; height:24px; border-radius:6px; border:1px solid var(--line); flex:0 0 auto; object-fit:cover; filter:saturate(.45) brightness(.8); transition:filter .12s, box-shadow .12s, border-color .12s; }
   .nav-item:hover { background:var(--panel2); color:var(--text); }
-  .nav-item.active { background:var(--accent-soft); color:var(--text); border-color:var(--accent-soft); position:relative; }
-  .nav-item.active::before { content:""; position:absolute; left:-10px; top:8px; bottom:8px; width:3px; border-radius:3px; background:var(--accent); }
-  .nav-item.active svg { color:var(--accent); }
-  .nav-item.area-cla.active { background:var(--area-cla-soft); border-color:var(--area-cla-soft); }
-  .nav-item.area-cla.active::before { background:var(--area-cla); }
-  .nav-item.area-cla.active svg { color:var(--area-cla); }
+  .nav-item:hover .wi, .nav-item:focus-visible .wi { filter:none; }
+  .nav-item.active { background:var(--area-soft); color:var(--text); border-color:var(--area-soft); }
+  .nav-item.active::before { content:""; position:absolute; left:-10px; top:8px; bottom:8px; width:3px; border-radius:3px; background:var(--area); }
+  .nav-item.active .wi { filter:none; border-color:var(--area); box-shadow:0 0 0 2px var(--area-soft); }
+${AREA_STYLE}
   .side-foot { padding:12px 14px; border-top:1px solid var(--line-soft); display:flex; align-items:center; gap:10px; }
   .avatar { width:34px; height:34px; border-radius:50%; background:var(--panel2); display:grid; place-items:center; font-weight:800; color:var(--accent); border:1px solid var(--line); flex:0 0 auto; }
   .ub-meta { min-width:0; flex:1; }
   .u-name { font-size:13.5px; font-weight:700; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .u-role { font-size:11.5px; color:var(--muted); }
-  .u-logout { font-size:12px; color:var(--muted); text-decoration:none; }
-  .u-logout:hover { color:var(--accent); }
+  .ibtn { width:38px; height:38px; display:inline-grid; place-items:center; padding:0; flex:0 0 auto; border-radius:8px; border:1px solid var(--line); background:var(--panel2); color:var(--muted); cursor:pointer; text-decoration:none; transition:color .12s, border-color .12s, background-color .12s; }
+  .ibtn svg { width:17px; height:17px; }
+  .ibtn.sm { width:32px; height:32px; }
+  .ibtn.sm svg { width:15px; height:15px; }
+  .ibtn:hover { color:var(--text); border-color:var(--accent); background:var(--panel3); }
   .main { display:flex; flex-direction:column; min-width:0; }
   .topbar { display:flex; align-items:center; gap:14px; padding:12px 24px; border-bottom:1px solid var(--line); background:var(--bg); position:sticky; top:0; z-index:5; flex-wrap:wrap; }
   .crumbs { font-size:13.5px; color:var(--muted); }
@@ -69,14 +64,13 @@ const CHROME_STYLE = `
   .crumbs a:hover { color:var(--accent); text-decoration:underline; }
   .crumb-sep { opacity:.45; }
   .top-actions { margin-left:auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  .menu-toggle { display:none; }
+  .ibtn.menu-toggle { display:none; }
   .content { padding:24px; max-width:1080px; width:100%; }
   @media (max-width:900px) {
     .app { grid-template-columns:1fr; }
     .side { position:fixed; z-index:30; width:264px; transform:translateX(-102%); transition:transform .2s; box-shadow:0 8px 28px rgba(0,0,0,.35); }
     .side.open { transform:none; }
-    .menu-toggle { display:inline-grid; place-items:center; width:38px; height:38px; border-radius:8px; border:1px solid var(--line); background:var(--panel2); color:var(--text); cursor:pointer; }
-    .menu-toggle svg { width:18px; height:18px; }
+    .ibtn.menu-toggle { display:inline-grid; }
     .content { padding:18px 14px; }
   }`;
 
@@ -94,7 +88,7 @@ function navHtml(activeTab) {
         const label = tab.group !== lastGroup ? `<div class="menu-label">${tab.group}</div>` : "";
         lastGroup = tab.group;
         const active = tab.id === activeTab ? " active" : "";
-        return `${label}<a class="nav-item area-${tab.id}${active}" href="${tab.href}">${tab.icon}<span>${tab.label}</span></a>`;
+        return `${label}<a class="nav-item area-${tab.id}${active}" href="${tab.href}"><img class="wi" src="${tab.iconUrl}" alt=""><span>${tab.label}</span></a>`;
     }).join("");
 }
 
@@ -134,12 +128,12 @@ function renderAdminChrome({ user, activeTab, crumbs = [], body = "", actions = 
         <div class="u-name">${esc(name)}</div>
         <div class="u-role">Administrator</div>
       </div>
-      <a class="u-logout" href="/auth/logout">Logout</a>
+      <a class="ibtn sm u-logout" href="/auth/logout" aria-label="Logout" data-tip="Logout" data-tip-sub="Vom Gildenmenü abmelden">${ICONS.logout}</a>
     </div>
   </aside>
   <div class="main">
     <header class="topbar">
-      <button class="menu-toggle" id="menuBtn" type="button" aria-label="Menü">${ICONS.burger}</button>
+      <button class="ibtn menu-toggle" id="menuBtn" type="button" aria-label="Menü" data-tip="Menü">${ICONS.burger}</button>
       <div class="crumbs">${crumbHtml}</div>
       <div class="top-actions">${actions}</div>
     </header>

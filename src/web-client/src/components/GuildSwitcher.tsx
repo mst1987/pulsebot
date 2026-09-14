@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { switchGuild, type ApiError, type SessionGuild } from "../api";
 import { useToast } from "./Jobs";
+import WowIcon from "./ui/WowIcon";
+import Badge from "./ui/Badge";
+
+// The guild crest in front of every form of the switcher.
+const GUILD_ICON = "inv_misc_tabardpvp_01";
 
 // Topbar server switcher — mirrors src/web/renderAdmin.js's renderServerBar(),
 // but via fetch() instead of a form POST + redirect, so switching guilds
@@ -14,11 +19,20 @@ export default function GuildSwitcher({ guilds, activeGuildId, csrfToken }: {
     const toast = useToast();
 
     if (!guilds.length) {
-        return <span className="hint">Bot ist mit keinem Server verbunden (noch nicht bereit?).</span>;
+        return (
+            <Badge tone="mid" icon={GUILD_ICON} tip="Kein Server verbunden" tipSub="Der Bot ist mit keinem Discord-Server verbunden – vermutlich ist er noch nicht bereit.">
+                Kein Server
+            </Badge>
+        );
     }
 
     if (guilds.length === 1) {
-        return <span className="serverbar-single">{guilds[0].name}</span>;
+        return (
+            <span className="guild-sel is-single">
+                <WowIcon name={GUILD_ICON} size={22} />
+                <span>{guilds[0].name}</span>
+            </span>
+        );
     }
 
     const onChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -36,13 +50,17 @@ export default function GuildSwitcher({ guilds, activeGuildId, csrfToken }: {
     };
 
     return (
-        <div className="serverbar">
-            <label>Server:</label>
-            <select className="sel-sm" value={activeGuildId} onChange={onChange} disabled={busy}>
-                {!activeGuildId && <option value="">— Server wählen —</option>}
+        <div className="guild-sel">
+            <WowIcon name={GUILD_ICON} size={22} />
+            <select value={activeGuildId} onChange={onChange} disabled={busy} aria-label="Server wählen">
+                {!activeGuildId && <option value="">Server wählen</option>}
                 {guilds.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
-            {!activeGuildId && <span className="hint">← bitte zuerst einen Server wählen</span>}
+            {!activeGuildId && (
+                <Badge tone="mid" tip="Kein Server gewählt" tipSub="Bitte zuerst einen Server wählen – die Bereiche zeigen erst dann seine Daten.">
+                    Kein Server gewählt
+                </Badge>
+            )}
         </div>
     );
 }

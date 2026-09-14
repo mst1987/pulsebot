@@ -37,7 +37,7 @@ export function ReasonBadge({ label, tone, count, title }: {
     title?: string;
 }) {
     return (
-        <span className={reasonToneClass(tone)} title={title}>
+        <span className={reasonToneClass(tone)} data-tip={title}>
             {label}
             {count !== undefined && <span className="rbadge-count">{count}</span>}
         </span>
@@ -79,7 +79,7 @@ export function ReasonBadgeHover({ label, reasonLabel, tone, count, items }: {
                         ? <img className="loot-pop-ico" src={it.itemIconUrl} alt="" loading="lazy" />
                         : <span className="loot-pop-ico loot-pop-ico-ph" />}
                     <div className="loot-pop-body">
-                        <div {...itemQualityProps(it.itemQuality, "loot-pop-name")} title={it.itemName || `Item ${it.itemId}`}>{it.itemName || `Item ${it.itemId}`}</div>
+                        <div {...itemQualityProps(it.itemQuality, "loot-pop-name")} data-tip={it.itemName || `Item ${it.itemId}`}>{it.itemName || `Item ${it.itemId}`}</div>
                         <div className="loot-pop-meta">
                             {!!it.eventLabel && <span className="lbadge lbadge-neutral">{it.eventLabel}</span>}
                             {!!it.awardedAt && <span className="sub" style={{ margin: 0 }}>{fmtMs(it.awardedAt, false)}</span>}
@@ -108,7 +108,7 @@ export function RaiderBadge({ character, classColor, iconUrl, className, spec }:
 }) {
     const specLabel = className ? (spec ? `${spec} ${className}` : className) : "";
     return (
-        <Link className="raider-badge" to={`/history/char?name=${encodeURIComponent(character)}`} title={specLabel || undefined}>
+        <Link className="raider-badge" to={`/history/char?name=${encodeURIComponent(character)}`} data-tip={specLabel || undefined}>
             {iconUrl
                 ? <img className="raider-badge-ico" src={iconUrl} alt="" loading="lazy" />
                 : <span className="raider-badge-ico raider-badge-ico-ph" />}

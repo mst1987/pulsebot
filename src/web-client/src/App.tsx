@@ -16,6 +16,7 @@ import RosterPage from "./pages/RosterPage";
 import ClaPage from "./pages/ClaPage";
 import LootCouncilPage from "./pages/LootCouncilPage";
 import { JobsProvider } from "./components/Jobs";
+import { ConfirmProvider } from "./components/ui/Modal";
 import { canAccess, canAccessAny, getSession, type ApiError, type Session, type SessionUser } from "./api";
 
 /**
@@ -110,39 +111,43 @@ export default function App() {
 
     // JobsProvider wraps the router, not a page: that is what lets a running
     // CLA/RPB evaluation survive navigating to another section.
+    // ConfirmProvider sits there too: a job can still ask ("Raid nicht beendet")
+    // after its page is gone.
     return (
         <JobsProvider>
-            <Routes>
-                <Route element={<Shell user={user} csrfToken={csrfToken} guilds={guilds} activeGuildId={activeGuildId} />}>
-                    <Route index element={
-                        canAccess(user, "dashboard")
-                            ? <DashboardPage />
-                            : home
-                                ? <Navigate to={home.href} replace />
-                                : <NoAreaNotice />
-                    } />
-                    <Route path="channels" element={<Guard user={user} areas={["channels"]}><ChannelsPage /></Guard>} />
-                    <Route path="settings" element={<Guard user={user} areas={["settings"]}><SettingsPage /></Guard>} />
-                    <Route path="raids" element={<Guard user={user} areas={["raids"]}><RaidsPage /></Guard>} />
-                    <Route path="raids/new" element={<Guard user={user} areas={["raids"]} level="write"><RaidCreatePage /></Guard>} />
-                    <Route path="raids/detail" element={<Guard user={user} areas={["raids"]}><RaidDetailPage /></Guard>} />
-                    <Route path="raids/templates" element={<Guard user={user} areas={["raids"]}><NotifyTemplatesPage /></Guard>} />
-                    <Route path="recruitment" element={<Guard user={user} areas={["recruitment"]}><RecruitmentPage /></Guard>} />
-                    {/* "loot" opens the same three pages, cut down to the loot views. */}
-                    <Route path="history" element={<Guard user={user} areas={["history", "loot"]}><HistoryPage /></Guard>} />
-                    <Route path="history/event" element={<Guard user={user} areas={["history", "loot"]}><HistoryEventPage /></Guard>} />
-                    <Route path="history/char" element={<Guard user={user} areas={["history", "loot"]}><HistoryCharPage /></Guard>} />
-                    <Route path="roster" element={<Guard user={user} areas={["roster"]}><RosterPage /></Guard>} />
-                    {/* Same character page, reached from the roster — the page keeps
-                        its back-link pointing at wherever it was opened from. */}
-                    <Route path="roster/char" element={<Guard user={user} areas={["roster"]}><HistoryCharPage /></Guard>} />
-                    <Route path="cla" element={<Guard user={user} areas={["cla"]}><ClaPage /></Guard>} />
-                    <Route path="lootcouncil" element={<Guard user={user} areas={["lootcouncil"]}><LootCouncilPage /></Guard>} />
-                    {/* Inside the shell on purpose: a mistyped path should still
-                        leave the menu (and the way back) standing. */}
-                    <Route path="*" element={<NotFound />} />
-                </Route>
-            </Routes>
+            <ConfirmProvider>
+                <Routes>
+                    <Route element={<Shell user={user} csrfToken={csrfToken} guilds={guilds} activeGuildId={activeGuildId} />}>
+                        <Route index element={
+                            canAccess(user, "dashboard")
+                                ? <DashboardPage />
+                                : home
+                                    ? <Navigate to={home.href} replace />
+                                    : <NoAreaNotice />
+                        } />
+                        <Route path="channels" element={<Guard user={user} areas={["channels"]}><ChannelsPage /></Guard>} />
+                        <Route path="settings" element={<Guard user={user} areas={["settings"]}><SettingsPage /></Guard>} />
+                        <Route path="raids" element={<Guard user={user} areas={["raids"]}><RaidsPage /></Guard>} />
+                        <Route path="raids/new" element={<Guard user={user} areas={["raids"]} level="write"><RaidCreatePage /></Guard>} />
+                        <Route path="raids/detail" element={<Guard user={user} areas={["raids"]}><RaidDetailPage /></Guard>} />
+                        <Route path="raids/templates" element={<Guard user={user} areas={["raids"]}><NotifyTemplatesPage /></Guard>} />
+                        <Route path="recruitment" element={<Guard user={user} areas={["recruitment"]}><RecruitmentPage /></Guard>} />
+                        {/* "loot" opens the same three pages, cut down to the loot views. */}
+                        <Route path="history" element={<Guard user={user} areas={["history", "loot"]}><HistoryPage /></Guard>} />
+                        <Route path="history/event" element={<Guard user={user} areas={["history", "loot"]}><HistoryEventPage /></Guard>} />
+                        <Route path="history/char" element={<Guard user={user} areas={["history", "loot"]}><HistoryCharPage /></Guard>} />
+                        <Route path="roster" element={<Guard user={user} areas={["roster"]}><RosterPage /></Guard>} />
+                        {/* Same character page, reached from the roster — the page keeps
+                            its back-link pointing at wherever it was opened from. */}
+                        <Route path="roster/char" element={<Guard user={user} areas={["roster"]}><HistoryCharPage /></Guard>} />
+                        <Route path="cla" element={<Guard user={user} areas={["cla"]}><ClaPage /></Guard>} />
+                        <Route path="lootcouncil" element={<Guard user={user} areas={["lootcouncil"]}><LootCouncilPage /></Guard>} />
+                        {/* Inside the shell on purpose: a mistyped path should still
+                            leave the menu (and the way back) standing. */}
+                        <Route path="*" element={<NotFound />} />
+                    </Route>
+                </Routes>
+            </ConfirmProvider>
         </JobsProvider>
     );
 }

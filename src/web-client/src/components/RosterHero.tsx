@@ -52,9 +52,9 @@ function StatTile({ label, value, of, meter, tone, sub, title, onClick, active }
             {!!sub && <span className="stat-tile-sub">{sub}</span>}
         </>
     );
-    if (!onClick) return <div className={cls} title={title}>{body}</div>;
+    if (!onClick) return <div className={cls} data-tip={title}>{body}</div>;
     return (
-        <button type="button" className={cls} title={title} aria-pressed={active} onClick={onClick}>
+        <button type="button" className={cls} data-tip={title} aria-pressed={active} onClick={onClick}>
             {body}
         </button>
     );
@@ -147,7 +147,7 @@ export function RosterHero({ stats, activeClass, onToggleClass, onlyIssues, onTo
                                 key={c.className}
                                 className={`stat-seg${c.classColor ? " class-fill" : " is-unknown"}${activeClass && activeClass !== c.className ? " is-dim" : ""}`}
                                 style={{ flexGrow: c.count, ...(c.classColor ? { "--cc": c.classColor } as React.CSSProperties : {}) }}
-                                title={`${c.className} — ${c.count} (${share(c.count, classTotal)} %)`}
+                                data-tip={`${c.className} — ${c.count} (${share(c.count, classTotal)} %)`}
                             />
                         ))}
                     </div>
@@ -165,7 +165,7 @@ export function RosterHero({ stats, activeClass, onToggleClass, onlyIssues, onTo
                                     className={`stat-chip${on ? " is-active" : ""}`}
                                     aria-pressed={on}
                                     disabled={!filterable}
-                                    title={filterable
+                                    data-tip={filterable
                                         ? (on ? "Klassenfilter aufheben" : `Nur ${c.className} zeigen`)
                                         : "Sammelposten — kein einzelner Klassenfilter möglich"}
                                     onClick={() => filterable && onToggleClass(on ? "" : c.className)}

@@ -6,8 +6,10 @@ import ManualLootForm from "../components/ManualLootForm";
 import type { ShellContext } from "../components/Shell";
 import { TrashIcon } from "../components/icons";
 import { useToast } from "../components/Jobs";
+import { useConfirm } from "../components/ui/Modal";
 
 export default function HistoryEventPage() {
+    const ask = useConfirm();
     const { user, csrfToken } = useOutletContext<ShellContext>();
     // Reachable with the read-only "Loot-Ansichten" too, which sees the loot but
     // must not add to or delete from it (src/config/permissions.js).
@@ -25,7 +27,7 @@ export default function HistoryEventPage() {
     }, [eventId]);
 
     const clear = async () => {
-        if (!confirm("Loot für dieses Event wirklich löschen?")) return;
+        if (!(await ask({ title: "Event-Loot löschen?", text: "Der gesamte Loot dieses Events wird gelöscht.", action: "Löschen" }))) return;
         setBusy(true);
         try {
             const r = await clearHistoryEvent(csrfToken, eventId);

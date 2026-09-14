@@ -20,6 +20,65 @@ const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8");
 const appSrc = read("App.tsx");
 const shellSrc = read("components", "Shell.tsx");
 const historySrc = read("pages", "HistoryPage.tsx");
+const { MENU } = require("../../src/config/menu");
+
+// The routes App.tsx serves at the top level of the shell — every one of them
+// needs its menu entry (sub-routes like "raids/new" hang off their parent's).
+function topLevelRoutes() {
+    const paths = [...appSrc.matchAll(/<Route path="([^"*]+)"/g)].map((m) => `/${m[1].split("/")[0]}`);
+    return [...new Set(["/", ...paths])];
+}
+
+describe("one menu for both front ends", () => {
+    it("has an entry for every top-level route and a route for every entry", () => {
+        const hrefs = MENU.map((e) => e.href).sort();
+        expect(hrefs).toEqual(topLevelRoutes().sort());
+    });
+
+    it("gives every entry an id, a label, a group, its areas and a WoW icon", () => {
+        for (const entry of MENU) {
+            expect(entry).toEqual({
+                id: expect.stringMatching(/^[a-z]+$/),
+                label: expect.any(String),
+                href: expect.stringMatching(/^\//),
+                group: expect.stringMatching(/^(Verwaltung|System)$/),
+                areas: expect.arrayContaining([expect.any(String)]),
+                wowIcon: expect.stringMatching(/^[a-z0-9_'-]+$/),
+            });
+        }
+        expect(new Set(MENU.map((e) => e.id)).size).toBe(MENU.length);
+    });
+
+    it("uses the icons of the approved design", () => {
+        const icons = Object.fromEntries(MENU.map((e) => [e.id, e.wowIcon]));
+        expect(icons).toEqual({
+            home: "inv_misc_map_01",
+            recruitment: "inv_misc_grouplooking",
+            cla: "inv_misc_pocketwatch_01",
+            raids: "inv_misc_note_02",
+            roster: "achievement_guildperk_everybodysfriend",
+            history: "inv_misc_bag_10",
+            lootcouncil: "inv_misc_coin_02",
+            channels: "inv_letter_15",
+            settings: "trade_engineering",
+        });
+    });
+
+    it("is rendered by the React shell from the shared file, with WoW icons", () => {
+        expect(read("lib", "menu.ts")).toContain('import MENU_JSON from "../../../config/menu.json";');
+        expect(shellSrc).toContain('import { MENU, type MenuEntry } from "../lib/menu";');
+        expect(shellSrc).toContain("<WowIcon name={tab.wowIcon} size={24} />");
+    });
+
+    it("has an accent colour for every entry, in the dark and in both light blocks", () => {
+        const css = read("index.css");
+        for (const entry of MENU) {
+            const defs = css.match(new RegExp(`--area-${entry.id}: #[0-9a-f]{6}; --area-${entry.id}-soft: rgba\\(`, "g")) || [];
+            expect({ id: entry.id, defs: defs.length }).toEqual({ id: entry.id, defs: 3 });
+            expect(css).toContain(`.area-${entry.id} { --area: var(--area-${entry.id}); --area-soft: var(--area-${entry.id}-soft); }`);
+        }
+    });
+});
 
 // The menu is served from the site root, not from /admin — see server.js and
 // staticClient.js. A basename or an /admin link left behind in the client would
@@ -69,7 +128,8 @@ describe("menu access", () => {
     it("puts the logout in the sidebar unconditionally", () => {
         // It sits in the shell's footer, outside anything permission-dependent:
         // being locked out of every area is exactly when logging out matters.
-        expect(shellSrc).toContain('<a className="u-logout" href="/auth/logout">Logout</a>');
+        // An icon button with its tooltip — but still a plain link to the server.
+        expect(shellSrc).toMatch(/<a className="ibtn sm u-logout" href="\/auth\/logout" aria-label="Logout" data-tip="Logout"/);
         const foot = shellSrc.slice(shellSrc.indexOf('className="side-foot"'));
         expect(foot).not.toMatch(/canAccess\w*\(/);
     });
@@ -82,7 +142,8 @@ describe("menu access", () => {
     it("checks tabs and routes against a list of areas", () => {
         // One area per tab could not express "the loot views open the history
         // tab too" — every tab and guard takes the union of its areas.
-        expect(shellSrc).toMatch(/type Tab = \{ id: string; areas: string\[\];/);
+        expect(read("lib", "menu.ts")).toMatch(/export type MenuEntry = \{[\s\S]*?areas: string\[\];/);
+        expect(shellSrc).toContain("type Tab = MenuEntry;");
         expect(shellSrc).toContain("canAccessAny(user, t.areas)");
         expect(shellSrc).toContain("canAccessAny(user, tab.areas)");
         expect(appSrc).toContain("canAccessAny(user, areas, level)");
@@ -94,7 +155,7 @@ describe("menu access", () => {
             .map((m) => m[1]);
         expect(historyRoutes).toHaveLength(3); // /history, /history/event, /history/char
         for (const areas of historyRoutes) expect(areas).toBe('["history", "loot"]');
-        expect(shellSrc).toContain('areas: ["history", "loot"]');
+        expect(MENU.find((e) => e.id === "history").areas).toEqual(["history", "loot"]);
     });
 
     it("hides the history page's write actions without write access", () => {

@@ -12,6 +12,7 @@ import { itemQualityProps } from "../lib/itemQuality";
 import { SortTh } from "./SortTh";
 import { RaiderBadge, reasonToneClass } from "./LootBadges";
 import { TrashIcon } from "./icons";
+import { useConfirm } from "./ui/Modal";
 
 // "manual" is a row somebody entered in the admin menu rather than one an addon
 // exported (see lootImport.js's buildManualItem) — worth saying in the table,
@@ -53,7 +54,7 @@ export function LootResponseBadge({ response, offspec, reasonLabel, reasonTone }
     return (
         <span
             className={reasonToneClass(reasonTone)}
-            title={reasonLabel && reasonLabel !== label ? reasonLabel : undefined}
+            data-tip={reasonLabel && reasonLabel !== label ? reasonLabel : undefined}
         >
             {label}
         </span>
@@ -71,6 +72,7 @@ export function LootTable({ items, showEvent = false, onDelete }: {
      */
     onDelete?: (item: LootItem) => Promise<unknown> | void;
 }) {
+    const ask = useConfirm();
     // One shared memory for every place this table shows up (raid detail, event
     // loot, character history): it is the same table, so whoever sorts it by item
     // wants it that way in the next raid too.
@@ -81,7 +83,7 @@ export function LootTable({ items, showEvent = false, onDelete }: {
     const remove = async (it: LootItem) => {
         if (!onDelete) return;
         const label = it.itemName || `Item ${it.itemId}`;
-        if (!confirm(`„${label}" von ${it.character} wirklich aus dem Loot löschen?`)) return;
+        if (!(await ask({ title: "Loot-Eintrag löschen?", text: `„${label}" von ${it.character} wird aus dem Loot gelöscht.`, action: "Löschen" }))) return;
         setBusyId(it.id);
         try {
             await onDelete(it);
@@ -132,7 +134,7 @@ export function LootTable({ items, showEvent = false, onDelete }: {
                                 <div className="row-actions" style={{ justifyContent: "flex-end" }}>
                                     <button
                                         className="btn btn-danger btn-sm" type="button"
-                                        title="Diesen Eintrag löschen" aria-label={`Eintrag „${it.itemName || `Item ${it.itemId}`}" von ${it.character} löschen`}
+                                        data-tip="Diesen Eintrag löschen" aria-label={`Eintrag „${it.itemName || `Item ${it.itemId}`}" von ${it.character} löschen`}
                                         disabled={busyId === it.id} onClick={() => remove(it)}
                                     ><TrashIcon /></button>
                                 </div>

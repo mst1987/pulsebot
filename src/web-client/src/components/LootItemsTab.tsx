@@ -204,7 +204,7 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
                     </label>
                 </div>
                 <div className="field">
-                    <label title="Items, die niemand bekommen hat, sondern entzaubert wurden">
+                    <label data-tip="Items, die niemand bekommen hat, sondern entzaubert wurden">
                         <input
                             type="checkbox"
                             checked={hideDisenchanted}
@@ -240,7 +240,7 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
                                 <SortTh sortKey="count" label="Vergaben" sort={sort} dir={dir} onSort={onSort} />
                                 <SortTh
                                     sortKey="recipients" label="Erhalten von (Hover zeigt Raid & Grund)"
-                                    title="Sortiert nach dem alphabetisch ersten Empfänger"
+                                    tip="Sortiert nach dem alphabetisch ersten Empfänger"
                                     sort={sort} dir={dir} onSort={onSort}
                                 />
                             </tr>
@@ -262,8 +262,8 @@ export function LootItemsTab({ items, contents, tiers, reasons, categories, unkn
                                         </td>
                                         <td className="small">
                                             {content
-                                                ? <span className="lbadge lbadge-neutral" title={content.label}>{content.short}</span>
-                                                : <span className="sub" title="Nicht in der Content-Tabelle — siehe scripts/fetch-tbc-loot.js">unbekannt</span>}
+                                                ? <span className="lbadge lbadge-neutral" data-tip={content.label}>{content.short}</span>
+                                                : <span className="sub" data-tip="Nicht in der Content-Tabelle — siehe scripts/fetch-tbc-loot.js">unbekannt</span>}
                                         </td>
                                         <td className="small">{it.boss || ""}</td>
                                         <td className="small">{it.count}</td>
