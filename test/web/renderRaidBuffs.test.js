@@ -113,7 +113,8 @@ describe("web/render — Raid-Buffs section", () => {
         const html = renderReportPage({ ...report(), timeline: timeline(), raidBuffs: summary() });
         expect(html).toContain("id=\"rs-raidbuffs\"");
         // two expected buffs fell short somewhere
-        expect(html).toContain("<span>Raid-Buffs</span><span class=\"rec-count hot\">2</span>");
+        expect(html).toContain("<span class=\"badge mid\">2 Buffs lückenhaft</span>");
+        expect(html).toContain("<dialog class=\"dlg detail\" id=\"dlg-rs-raidbuffs\">");
         expect(html).toContain("data-tip=\"Segen der Könige (Paladin)\"");
         expect(html).toContain("data-tip=\"Wasserschild (Shaman)\"");
         expect(html).not.toContain("data-tip=\"Dornen (Druid)\"");
@@ -135,19 +136,18 @@ describe("web/render — Raid-Buffs section", () => {
 
     it("gives every raider their own buff row: the chip in the head, the table in the Buffs section", () => {
         const html = renderReportPage({ ...report(), timeline: timeline(), raidBuffs: summary() });
-        // Dorn lacked Kings twice
-        expect(html).toContain("<b>2</b> Buffs fehlten</span>");
-        expect(html).toContain("<b>0</b> Buffs fehlten</span>");
-        expect(html).toMatch(/Buffs<span class="n(?: mid| bad)?">2 fehlten<\/span>/);
-        expect(html).toContain("Nahkampf · 3 Kämpfe · fehlte 2×");
-        expect(html).toContain("<table class=\"mini\"><tr><th>Buff</th><th>Anteil</th><th>Da</th><th>Spät</th><th>Nicht durchgehend</th><th>Gefehlt</th><th></th></tr>");
+        // Dorn lacked Kings twice: a badge in his head, a box in his Vorbereitung
+        expect(html).toContain("spell_magic_greaterblessingofkings.jpg\" alt=\"\">Buff fehlte 2×</span>");
+        expect(html).toMatch(/<b>Buffs<\/b><span class="badge bad">2 lückenhaft<\/span>/);
+        expect(html).toMatch(/<b>Buffs<\/b><span class="badge ok">alle da<\/span>/);
+        expect(html).toContain("<span>Segen der Könige</span></span><span class=\"bar\"");
     });
 });
 
 describe("web/render — Buffs on the player page", () => {
     it("draws the raider's own buffs as ribbons with their status, nothing of the others", () => {
         const html = renderPlayerPage({ ...report(), timeline: timeline(), raidBuffs: summary() }, 2); // Dorn
-        expect(html).toContain("<h2>Kampfverlauf</h2>");
+        expect(html).toContain("id=\"p-fights\"");
         expect(html).toMatch(/Buffs<span class="n(?: mid| bad)?">1 · 1 fehlten<\/span>/);
         expect(html).toContain("data-tip=\"Machtwort: Seelenstärke\" data-tip-sub=\"0:00–1:00\"");
         expect(html).toContain("<b class=\"fc-high\">0%</b><span>fehlt</span>");
@@ -191,7 +191,7 @@ describe("web/render — Buffs on the player page", () => {
 
     it("lists a fight for a raider who only shows up in its buffs", () => {
         const html = renderPlayerPage({ ...report(), timeline: { fights: [timeline().fights[2]] } }, 1); // Elun
-        expect(html).toContain("<h2>Kampfverlauf</h2>");
+        expect(html).toContain("id=\"p-fights\"");
         expect(html).toMatch(/Buffs<span class="n(?: mid| bad)?">0 · alle da<\/span>/);
     });
 });
@@ -222,19 +222,20 @@ describe("web/render — buffs read off the events", () => {
             },
         };
         const html = renderReportPage(report);
-        expect(html).toContain("<b>Aus dem Verlauf abgeleitet:</b>");
-        expect(html).toContain("Machtwort: Seelenstärke / Gebet der Seelenstärke");
-        expect(html).toContain("Mal der Wildnis / Gabe der Wildnis. Der Client loggt diesen Buff beim Pull nicht.");
-        expect(html).toContain("3 Zellen bleiben ohne Nachweis.");
+        // one badge above the matrix, the explanation in its tooltip
+        expect(html).toContain("data-tip=\"Aus dem Verlauf abgeleitet: Machtwort: Seelenstärke / Gebet der Seelenstärke, Mal der Wildnis / Gabe der Wildnis\" data-tip-sub=\"Der Client loggt diesen Buff beim Pull nicht.");
+        expect(html).toContain("3 Zellen bleiben ohne Nachweis.\">");
+        expect(html).toContain("abgeleitet · 3 ?</span>");
         expect(html).not.toContain("Im Log nicht nachweisbar");
         // both inferred buffs are columns, the one nobody was judged on included, and the header says where they come from
         expect(html).toMatch(/<th class="bh">[^<]*<img[^>]*spell_holy_wordfortitude[^>]*data-tip="Machtwort: Seelenstärke \/ Gebet der Seelenstärke \(Priest\) · aus dem Verlauf abgeleitet"/);
         expect(html).toMatch(/<th class="bh">[^<]*<img[^>]*spell_nature_regeneration/);
         expect(html).toContain("<td class=\"bc\"><span class=\"pct pct-na\" data-tip=\"Mal der Wildnis\" data-tip-sub=\"2× nicht nachweisbar\">?</span></td>");
         expect(html).toContain("data-tip=\"Machtwort: Seelenstärke\" data-tip-sub=\"1× da, 0× spät gesetzt, 0× nicht durchgehend, 0× gefehlt, 1× nicht nachweisbar\"");
-        // the raider's own table says the same
-        expect(html).toContain("Machtwort: Seelenstärke und Mal der Wildnis aus dem Verlauf abgeleitet, 3× ohne Nachweis.</span>");
-        expect(html).toContain("<td><span class=\"pct pct-na\">?</span></td><td class=\"mono\">0</td><td class=\"mono\">0</td><td class=\"mono\">0</td><td class=\"mono\">0</td><td class=\"sritems\">2× nicht nachweisbar</td>");
+        // the raider's own box: the question mark as a count badge with the explanation, and the words
+        expect(html).toContain("<span class=\"badge count\" data-tip=\"Mal der Wildnis: nicht nachweisbar\" data-tip-sub=\"Der Client loggt diesen Buff beim Pull nicht.");
+        expect(html).toContain(">?</span><span class=\"mute\">nicht nachweisbar</span>");
+        expect(html).toContain("<span class=\"badge count\" data-tip=\"1× nicht nachweisbar\"");
     });
 
     it("names the inferred buffs and the open cells on a fight's Buffs topic and draws an open cell as a neutral ribbon row", () => {
