@@ -225,9 +225,15 @@ describe("tooltips instead of native title", () => {
 
     it("finds the tags it scans at all", () => {
         // Sanity: a broken tag scanner would make the test above vacuous.
-        const tags = intrinsicTags(read("pages", "LootCouncilPage.tsx"));
+        // The loot council page is split over pages/lootcouncil/ (#223) — scanned together.
+        const council = clientSources()
+            .filter(([name]) => name === "pages/LootCouncilPage.tsx" || name.startsWith("pages/lootcouncil/"))
+            .map(([, src]) => src).join("\n");
+        const tags = intrinsicTags(council);
         expect(tags.length).toBeGreaterThan(300);
-        expect(tags.filter((t) => /data-tip=/.test(t.attrs)).length).toBeGreaterThan(50);
+        // Most of its tooltips go through the Badge/Button `tip` props now, so
+        // fewer raw data-tip attributes are left to find.
+        expect(tags.filter((t) => /data-tip=/.test(t.attrs)).length).toBeGreaterThan(25);
     });
 
     it("draws one box for every data-tip, on hover, focus and tap", () => {
