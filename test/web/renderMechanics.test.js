@@ -97,7 +97,7 @@ describe("web/render — Mechaniken topic", () => {
         const tl = timeline();
         tl.fights[0].deaths = [];
         const html = renderPlayerPage({ ...report(), timeline: tl }, 1); // Bob: only a mechanic hit
-        expect(html).toContain("<h2>Kampfverlauf</h2>");
+        expect(html).toContain("id=\"p-fights\"");
         expect(html).toContain("id=\"p-fight-2\">");
     });
 

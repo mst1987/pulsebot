@@ -67,7 +67,9 @@ describe("web/render — Raid-Debuffs section", () => {
     it("shows the section with the raid summary per debuff and counts the expected ones that fell short", () => {
         const html = renderReportPage({ ...report(), raidDebuffs: raidDebuffs() });
         expect(html).toContain("id=\"rs-raiddebuffs\"");
-        expect(html).toContain("<span>Raid-Debuffs</span><span class=\"rec-count hot\">2</span>"); // coe at 83 %, Hunter's Mark missing
+        // the metric card: one of three expected debuffs missing, the mean uptime as its badge
+        expect(html).toContain("<div class=\"mc-val bad\">1<small>von 3 fehlten</small></div><div class=\"mc-foot\"><span class=\"badge bad\">Ø 61 % Uptime</span></div>");
+        expect(html).toContain("<dialog class=\"dlg detail\" id=\"dlg-rs-raiddebuffs\">");
         expect(html).toContain("Fluch der Elemente<div class=\"sritems\">Warlock</div>");
         // the unexpected one is shown without a tone
         expect(html).toContain("<span class=\"pct pct-na\" data-tip=\"nicht erwartet\">40%</span>");

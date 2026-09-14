@@ -252,7 +252,7 @@ describe("web/render", () => {
             expect(html).toContain("Zone: Karazhan");
             expect(html).toContain("2026-07-24");
             expect(html).toContain("https://www.warcraftlogs.com/reports/xyz");
-            expect(html).toContain("→ Warcraft Logs");
+            expect(html).toContain("Warcraft Logs<svg");
         });
 
         it("shows KPI cards for bosses and consumables, the raider count in the view switch, the gear issues in the raid view", () => {
@@ -262,7 +262,7 @@ describe("web/render", () => {
             expect(html).toContain("1 Kill, 1 Wipe"); // 2 boss rows, one of them a wipe
             expect(html).toContain("Flask / Elixiere");
             expect(html).toMatch(/Raider<span class="n(?: mid| bad)?">2<\/span>/); // 2 raiders
-            expect(html).toContain("<span>Gear-Probleme</span><span class=\"rec-count hot\">1</span>");
+            expect(html).toMatch(/id="rs-gear"[\s\S]*?<div class="mc-val bad">1<small>bei 1 Raider<\/small><\/div>/);
         });
 
         it("offers the three views, Raid first when there is no timeline", () => {
@@ -276,7 +276,12 @@ describe("web/render", () => {
             expect(html).toContain("window.__ehView");
         });
 
-        it("shows a raid section for every populated raid-wide part", () => {
+        it("shows a metric card with its detail dialog for every populated raid-wide part", () => {
+            const cards = renderReportPage(sampleReport());
+            for (const id of ["gear", "consumables", "potions", "drums", "sunder", "bosses", "shadowresi"]) {
+                expect(cards).toContain(`<div class="mcard" id="rs-${id}" role="button" tabindex="0" data-dialog="dlg-rs-${id}">`);
+                expect(cards).toContain(`<dialog class="dlg detail" id="dlg-rs-${id}">`);
+            }
             const html = renderReportPage(sampleReport());
             expect(html).toContain("id=\"rs-gear\"");
             expect(html).toContain("id=\"rs-consumables\"");
@@ -307,13 +312,13 @@ describe("web/render", () => {
             expect(html).toContain("inv_misc_rune_04.jpg"); // Dark Rune
             expect(html).toContain("Super-Manatrank");
             expect(html).toContain("Dunkle Rune");
-            expect(html).toContain("https://www.wowhead.com/tbc/item=22832");
+            expect(html).toContain("data-tip=\"Super-Manatrank\" data-tip-sub=\"Teil der Spalte „Mana“.\"");
         });
 
         it("only shows mana columns, not the destruction/haste types, in the breakdown", () => {
             const html = renderReportPage(sampleReport());
-            const legend = html.slice(html.indexOf("class=\"legend\""), html.indexOf("</table>"));
-            expect(legend).not.toContain("Zerstörungstrank");
+            expect(html).toContain("data-tip=\"Dunkle Rune\"");
+            expect(html).not.toContain("data-tip=\"Zerstörungstrank\"");
         });
 
         it("renders every raider as a closed card with the class icon, the role and the gear chip", () => {
@@ -322,8 +327,10 @@ describe("web/render", () => {
             expect(html).toContain("<details class=\"vcard raider-card\" id=\"raider-Bob\" data-name=\"Bob\" data-role=\"dps\"");
             expect(html).not.toContain("data-role=\"dps\" data-open=\"0\" data-report=\"abc123def456\" style=\"--cc:#69CCF0\" open");
             expect(html).toContain("classicon_mage.jpg");
-            expect(html).toContain("<b>1</b> Gear</span>");
-            expect(html).toContain("<b>0</b> Gear</span>");
+            expect(html).toContain("inv_shield_06.jpg\" alt=\"\">1 Gear-Problem</span>");
+            // nothing stands out about Bob: one badge in the ok tone
+            const bob = html.slice(html.indexOf("id=\"raider-Bob\""), html.indexOf("</summary>", html.indexOf("id=\"raider-Bob\"")));
+            expect(bob).toContain("<div class=\"vcard-chips\"><span class=\"badge ok\">");
         });
 
         it("hides every RPB section when the report has no RPB section", () => {
@@ -336,18 +343,24 @@ describe("web/render", () => {
         it("shows the RPB sections when the section is populated", () => {
             const html = renderReportPage(reportWithRpb());
             expect(html).toContain("id=\"rs-rpbdamage\"");
-            expect(html).toContain("id=\"rs-rpbactivity\"");
-            expect(html).toContain("id=\"rs-rpbusage\"");
+            // RPB activity and cooldowns go into the cards of their CLA counterparts, labelled RPB
+            expect(html).toContain("id=\"rs-activity\"");
+            expect(html).toContain("id=\"rs-cooldowns\"");
+            expect(html).toContain("<span class=\"badge accent\">RPB</span>");
             expect(html).toContain("id=\"rs-rpbinterrupts\"");
             expect(html).toContain("id=\"rs-rpbvalidate\"");
             // and the RPB's roles sort the raiders into the role filter
             expect(html).toContain("data-name=\"Bob\" data-role=\"tank\"");
         });
 
-        it("splits the damage table into one tab per role", () => {
+        it("filters the damage table by role and name from one tool row instead of role tabs", () => {
             const html = renderReportPage(reportWithRpb());
-            expect(html).toContain("data-tab=\"rpbdmg-tank\"");
-            expect(html).toContain("data-tab=\"rpbdmg-caster\"");
+            expect(html).toContain("data-frole=\"all\">Alle<span class=\"n\">2</span></button>");
+            expect(html).toMatch(/data-frole="Tank"><img class="hicon"[^>]*inv_shield_06\.jpg" alt="">Tanks<span class="n">1<\/span>/);
+            expect(html).toContain("data-frole=\"Caster\">");
+            expect(html).toContain("<tr data-role=\"Tank\" data-name=\"Bob\">");
+            expect(html).toContain("data-fsearch");
+            expect(html).not.toContain("data-tab=");
             expect(html).toContain("Feuerregen");
             // thousands separator for the German locale
             expect(html).toContain("1.200");
@@ -355,10 +368,9 @@ describe("web/render", () => {
 
         it("offers both table orientations, players first", () => {
             const html = renderReportPage(reportWithRpb());
-            expect(html).toContain("data-view=\"p\" class=\"active\"");
-            expect(html).toContain("data-view=\"a\"");
-            expect(html).toContain("Spieler als Zeilen");
-            expect(html).toContain("Fähigkeiten als Zeilen");
+            expect(html).toContain("class=\"seg-btn active\" data-orient=\"p\" data-tip=\"Spieler als Zeilen\"");
+            expect(html).toContain("data-orient=\"a\" data-tip=\"Fähigkeiten als Zeilen\"");
+            expect(html).not.toContain("tblswitch");
             // the transposed view puts every raider in a column head
             expect(html).toContain("class=\"rcol\"");
         });
@@ -370,7 +382,7 @@ describe("web/render", () => {
 
         it("names the sources of an avoidable ability in its tooltip", () => {
             const html = renderReportPage(reportWithRpb());
-            expect(html).toContain("data-tip=\"Feuerregen\" data-tip-sub=\"Boss\"");
+            expect(html).toContain("data-tip=\"Feuerregen\" data-tip-sub=\"Quelle: Boss. Der Balken ist der Anteil am höchsten Wert dieser Spalte im ganzen Raid");
         });
 
         it("uses its own tooltips instead of the native title box", () => {
@@ -383,8 +395,9 @@ describe("web/render", () => {
         it("colours damage values by their share of the raid's worst in that column", () => {
             const html = renderReportPage(reportWithRpb());
             // Alice took 1200 of the column's 1200 max -> top bucket; Bob 800 -> 66%
-            expect(html).toContain("<span class=\"dv dv-4\">1.200</span>");
-            expect(html).toContain("<span class=\"dv dv-3\">800</span>");
+            expect(html).toContain("<span class=\"bar\"><i class=\"high\" style=\"width:100%\"></i><b class=\"high\">1.200</b></span>");
+            expect(html).toContain("<span class=\"bar\"><i class=\"medium\" style=\"width:67%\"></i><b class=\"medium\">800</b></span>");
+            expect(html).not.toContain("class=\"dv ");
         });
 
         it("gives the numeric tables a fixed geometry so every role tab lines up", () => {
@@ -469,7 +482,7 @@ describe("web/render", () => {
         it("counts the downrank warnings in the spell section's badge", () => {
             const html = renderReportPage(reportWithRpb());
             // exactly one flagged spell in the fixture
-            expect(html).toMatch(/id="rs-rpbspells">\s*<summary><span class="tile bad"><img class="hicon"[^>]*><\/span><span>Zauber<\/span><span class="rec-count hot">1<\/span>/);
+            expect(html).toMatch(/id="rs-rpbspells"[\s\S]*?<div class="mc-val mid">1<small>Rang-Warnung<\/small><\/div>/);
         });
 
         it("hides the spell section when no tracked casts were recorded", () => {
@@ -478,7 +491,7 @@ describe("web/render", () => {
             report.rpb.activity.players[0].aoeCasts = [];
             const html = renderReportPage(report);
             expect(html).not.toContain("id=\"rs-rpbspells\"");
-            expect(html).toContain("id=\"rs-rpbactivity\"");   // activity itself stays
+            expect(html).toContain("id=\"rs-activity\"");   // activity itself stays
         });
 
         it("labels the views and sections with WoW icons rather than emoji", () => {
@@ -567,13 +580,14 @@ describe("web/render", () => {
             expect(html).toContain("<title>Alice — Test Raid</title>");
             expect(html).toContain("Alice");
             expect(html).toContain("Fancy Helm");
-            expect(html).toContain("Stufe 70 · Mage");
+            expect(html).toMatch(/<h1 class="page-title ptitle-cn">Alice<\/h1>\s*<div class="vcard-meta"><span class="badge">Mage<\/span>/);
         });
 
         it("computes the average item level badge", () => {
             const html = renderPlayerPage(sampleReport(), 0);
             // (120 + 100 + 110) / 3 = 110
-            expect(html).toContain("<b>110</b><span>⌀ iLvl</span>");
+            expect(html).toContain("<b>110</b><span>Ø iLvl</span>");
+            expect(html).toContain("Ø Itemlevel 110 · 3 Slots");
         });
 
         it("shows enchant states for slots", () => {
