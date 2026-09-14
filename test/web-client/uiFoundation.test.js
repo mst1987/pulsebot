@@ -160,7 +160,8 @@ describe("confirm dialog instead of window.confirm", () => {
     it("asks through useConfirm in every place that used to call confirm()", () => {
         const places = {
             "pages/ClaPage.tsx": 5,
-            "pages/RaidDetailPage.tsx": 3,
+            "pages/raid-detail/LootTab.tsx": 2,
+            "pages/raid-detail/LogsTab.tsx": 2,
             "pages/SettingsPage.tsx": 1,
             "components/SettingsConnections.tsx": 1,
             "pages/RecruitmentPage.tsx": 2,
