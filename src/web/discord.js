@@ -234,13 +234,27 @@ function listCategories(guildId) {
 }
 
 /**
- * All non-category channels of a guild, for the "duplicate this channel"
- * dropdown. Each carries its type label and parent category so the UI can show
- * where a clone would land.
+ * Whether the bot may see / post in a channel. Without a resolved own member
+ * (bot not fully connected) nothing is known, and "unknown" must not read as a
+ * missing right — the same stance listTextChannels() takes.
+ */
+function botRights(channel, me) {
+    if (!me || typeof channel.permissionsFor !== "function") return { botCanView: true, botCanSend: true };
+    const perms = channel.permissionsFor(me);
+    if (!perms) return { botCanView: false, botCanSend: false };
+    const botCanView = perms.has(PermissionsBitField.Flags.ViewChannel);
+    return { botCanView, botCanSend: botCanView && perms.has(PermissionsBitField.Flags.SendMessages) };
+}
+
+/**
+ * All non-category channels of a guild, for the Kanäle page. Each carries its
+ * type label, its parent category, and whether the bot may see and post there
+ * (botCanView / botCanSend), so the page can warn before something fails to arrive.
  */
 function listAllChannels(guildId) {
     const guild = getGuild(guildId);
     if (!guild) return [];
+    const me = guild.members ? guild.members.me : null;
     return [...guild.channels.cache.values()]
         .filter((c) => c.type !== ChannelType.GuildCategory)
         .sort((a, b) => (a.rawPosition || 0) - (b.rawPosition || 0))
@@ -251,6 +265,7 @@ function listAllChannels(guildId) {
             typeLabel: CHANNEL_TYPE_LABELS[c.type] || "Kanal",
             category: c.parent ? c.parent.name : "",
             parentId: c.parentId || "",
+            ...botRights(c, me),
         }));
 }
 
