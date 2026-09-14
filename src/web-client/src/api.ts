@@ -228,7 +228,8 @@ export function duplicateChannel(
     return send("POST", "/api/channels/duplicate", csrfToken, input);
 }
 
-export type Role = { id: string; name: string };
+/** `color`: the role's Discord colour as hex, "" when it has none. */
+export type Role = { id: string; name: string; color?: string };
 
 // The Battle.net client. The secret never comes back from the server — only
 // whether one is stored. Read: { …, hasClientSecret }. Write: { …, clientSecret? }
@@ -315,6 +316,11 @@ export type SettingsData = {
     raidsheets: Raidsheet[];
     roles: Role[];
     categories: Category[];
+    // The text channels the bot can post in, for the channel pickers; empty
+    // while the bot is offline (the fields then take a raw id).
+    channels?: TextChannel[];
+    // Status line of the "Discord & Raid-Helper" connection card.
+    bot?: { online: boolean; readySince: number; guildName: string };
     activeGuildId: string;
 };
 
