@@ -304,7 +304,7 @@ describe("tooltips and modal dialogs", () => {
             .map(([name]) => name);
         expect(layers).toEqual([]);
         const sources = Object.fromEntries(clientSources());
-        for (const name of ["components/ItemAwardsDialog.tsx", "components/LootInboxTab.tsx", "components/ManualLootForm.tsx"]) {
+        for (const name of ["components/ItemAwardsDialog.tsx", "components/LootInboxTab.tsx", "components/ManualLootForm.tsx", "pages/RecruitmentPage.tsx"]) {
             expect({ name, footFocus: /initialFocus="\.dlg-foot/.test(sources[name]) }).toEqual({ name, footFocus: false });
         }
     });
