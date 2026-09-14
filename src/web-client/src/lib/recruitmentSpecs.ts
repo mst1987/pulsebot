@@ -5,7 +5,9 @@
 // duplicated here — it comes from GET /api/recruitment's `specCatalog` field
 // (computed once server-side from config/classlist.js) to avoid data drift.
 
-export type SpecCatalogEntry = { key: string; name: string; icon: string; sodclazz: string };
+import type { Emoji } from "../api";
+
+export type SpecCatalogEntry ={ key: string; name: string; icon: string; sodclazz: string };
 
 export type SpecEntry = {
     index: number;
@@ -79,6 +81,43 @@ export function parseWantedBlock(body: string, catalog: SpecCatalogEntry[]): Par
         blockEnd: block ? block.start + block.entries.length - 1 : -1,
         entries: block ? block.entries : [],
     };
+}
+
+/** The server emoji named like a spec's icon, exact or by a shared prefix. */
+export function findGuildEmoji(icon: string, emojis: Emoji[]): Emoji | null {
+    const key = (icon || "").toLowerCase();
+    const exact = emojis.find((e) => (e.name || "").toLowerCase() === key);
+    if (exact) return exact;
+    const prefix = emojis.find((e) => {
+        const n = (e.name || "").toLowerCase();
+        return n.length > 3 && key.length > 3 && (n.startsWith(key) || key.startsWith(n));
+    });
+    return prefix || null;
+}
+
+/**
+ * The picture for a wanted spec: the server emoji the line itself carries (what
+ * actually ends up in the message), else the server emoji named like the spec.
+ * "" when the server has neither — the caller shows the question-mark icon, the
+ * same way the Discord preview shows such an emoji only by its name.
+ */
+export function specEmojiUrl(iconId: string, specIcon: string, emojis: Emoji[]): string {
+    const byId = iconId ? emojis.find((e) => e.id === iconId) : null;
+    if (byId?.url) return byId.url;
+    return findGuildEmoji(specIcon, emojis)?.url || "";
+}
+
+export type WantedSpec = { name: string; iconName: string; iconId: string };
+
+/**
+ * The specs a message asks for, in the order its wanted-specs block lists them —
+ * one entry per line that resolves to a known spec. Twin of specsInContent() in
+ * src/utils/recruitmentSpecs.js, which the tests exercise.
+ */
+export function specsInContent(body: string, catalog: SpecCatalogEntry[]): WantedSpec[] {
+    return parseWantedBlock(body, catalog).entries
+        .filter((e) => e.spec)
+        .map((e) => ({ name: e.spec!.name, iconName: e.iconName, iconId: e.iconId }));
 }
 
 /** Render a single "## <emoji> Name" line for a catalog spec. */

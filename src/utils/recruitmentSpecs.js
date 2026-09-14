@@ -119,6 +119,19 @@ function removeSpecLine(body, lineIndex) {
     return lines.join("\n");
 }
 
+/**
+ * The specs a message asks for, in the order its wanted-specs block lists them:
+ * `{ name, iconName, iconId }` per line that resolves to a known spec. Headings
+ * next to the block that are no spec ("## Raidzeiten") are left out. Feeds the
+ * "Gesucht" column of the recruitment lists — the client twin lives in
+ * src/web-client/src/lib/recruitmentSpecs.ts.
+ */
+function specsInContent(body) {
+    return parseWantedBlock(body).entries
+        .filter((e) => e.spec)
+        .map((e) => ({ name: e.spec.name, iconName: e.iconName, iconId: e.iconId }));
+}
+
 module.exports = {
-    SPEC_CATALOG, SPEC_LINE_RE, resolveSpec, parseWantedBlock, buildSpecLine, insertSpecLine, removeSpecLine,
+    SPEC_CATALOG, SPEC_LINE_RE, resolveSpec, parseWantedBlock, buildSpecLine, insertSpecLine, removeSpecLine, specsInContent,
 };
