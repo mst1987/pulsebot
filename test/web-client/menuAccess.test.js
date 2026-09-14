@@ -85,8 +85,8 @@ describe("one menu for both front ends", () => {
     });
 
     it("is rendered by the React shell from the shared file, with WoW icons", () => {
-        expect(read("lib", "menu.ts")).toContain('import MENU_JSON from "../../../config/menu.json";');
-        expect(shellSrc).toContain('import { MENU, type MenuEntry } from "../lib/menu";');
+        expect(read("lib", "menu.ts")).toContain("import MENU_JSON from \"../../../config/menu.json\";");
+        expect(shellSrc).toContain("import { MENU, type MenuEntry } from \"../lib/menu\";");
         expect(shellSrc).toContain("<WowIcon name={tab.wowIcon} size={24} />");
     });
 
@@ -125,7 +125,7 @@ describe("served from the root", () => {
     it("catches an unknown path in the client instead of leaving it blank", () => {
         // Every unknown GET reaches the SPA now (staticClient.js serves index.html),
         // so a path no route claims has to render something.
-        expect(appSrc).toContain('<Route path="*" element={<NotFound />} />');
+        expect(appSrc).toContain("<Route path=\"*\" element={<NotFound />} />");
         expect(appSrc).toMatch(/function NotFound\(\)/);
     });
 });
@@ -150,7 +150,7 @@ describe("menu access", () => {
         // being locked out of every area is exactly when logging out matters.
         // An icon button with its tooltip — but still a plain link to the server.
         expect(shellSrc).toMatch(/<a className="ibtn sm u-logout" href="\/auth\/logout" aria-label="Logout" data-tip="Logout"/);
-        const foot = shellSrc.slice(shellSrc.indexOf('className="side-foot"'));
+        const foot = shellSrc.slice(shellSrc.indexOf("className=\"side-foot\""));
         expect(foot).not.toMatch(/canAccess\w*\(/);
     });
 
@@ -171,19 +171,24 @@ describe("menu access", () => {
     });
 
     it("gives the history tab both of its areas, everywhere it is routed", () => {
-        const historyRoutes = [...appSrc.matchAll(/<Route path="history[^"]*" element=\{<Guard user=\{user\} areas=\{(\[[^\]]*\])\}/g)]
-            .map((m) => m[1]);
-        expect(historyRoutes).toHaveLength(3); // /history, /history/event, /history/char
-        for (const areas of historyRoutes) expect(areas).toBe('["history", "loot"]');
+        const historyRoutes = [...appSrc.matchAll(/<Route path="(history[^"]*)" element=\{<Guard user=\{user\} areas=\{(\[[^\]]*\])\}/g)]
+            .map((m) => ({ path: m[1], areas: m[2] }));
+        // /history, /history/inbox, /history/event, /history/char
+        expect(historyRoutes).toHaveLength(4);
+        for (const { path: route, areas } of historyRoutes) {
+            // The addon inbox is not a loot *view*: the read-only "loot" area
+            // cannot accept or dismiss sessions, and the API refuses it the list.
+            expect({ route, areas }).toEqual({ route, areas: route === "history/inbox" ? "[\"history\"]" : "[\"history\", \"loot\"]" });
+        }
         expect(MENU.find((e) => e.id === "history").areas).toEqual(["history", "loot"]);
     });
 
     it("hides the history page's write actions without write access", () => {
         // The API refuses them anyway; a button that only ever earns a 403 is
         // worse than no button.
-        expect(historySrc).toContain('canEdit={canAccess(user, "history", "write")}');
+        expect(historySrc).toContain("canEdit={canAccess(user, \"history\", \"write\")}");
         for (const file of ["HistoryEventPage.tsx", "HistoryCharPage.tsx"]) {
-            expect(read("pages", file)).toContain('const canEdit = canAccess(user, "history", "write");');
+            expect(read("pages", file)).toContain("const canEdit = canAccess(user, \"history\", \"write\");");
         }
     });
 });

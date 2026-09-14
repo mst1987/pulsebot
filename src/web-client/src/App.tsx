@@ -11,6 +11,7 @@ import NotifyTemplatesPage from "./pages/NotifyTemplatesPage";
 import RecruitmentPage from "./pages/RecruitmentPage";
 import HistoryPage from "./pages/HistoryPage";
 import HistoryEventPage from "./pages/HistoryEventPage";
+import HistoryInboxPage from "./pages/HistoryInboxPage";
 import HistoryCharPage from "./pages/HistoryCharPage";
 import RosterPage from "./pages/RosterPage";
 import ClaPage from "./pages/ClaPage";
@@ -134,6 +135,8 @@ export default function App() {
                         <Route path="recruitment" element={<Guard user={user} areas={["recruitment"]}><RecruitmentPage /></Guard>} />
                         {/* "loot" opens the same three pages, cut down to the loot views. */}
                         <Route path="history" element={<Guard user={user} areas={["history", "loot"]}><HistoryPage /></Guard>} />
+                        {/* The addon inbox is not open to the read-only "loot" area. */}
+                        <Route path="history/inbox" element={<Guard user={user} areas={["history"]}><HistoryInboxPage /></Guard>} />
                         <Route path="history/event" element={<Guard user={user} areas={["history", "loot"]}><HistoryEventPage /></Guard>} />
                         <Route path="history/char" element={<Guard user={user} areas={["history", "loot"]}><HistoryCharPage /></Guard>} />
                         <Route path="roster" element={<Guard user={user} areas={["roster"]}><RosterPage /></Guard>} />

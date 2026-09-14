@@ -88,6 +88,7 @@ const AREA_BY_PATH = {
     "/api/history/char": ["history", "loot"],
     "/api/history/log-delete": "history",
     "/api/history/import": "history",
+    "/api/history/import-preview": "history",
     "/api/history/inbox": "history",
     "/api/history/inbox-accept": "history",
     "/api/history/inbox-dismiss": "history",
