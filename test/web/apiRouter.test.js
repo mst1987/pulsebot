@@ -120,6 +120,7 @@ jest.mock("../../src/web/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 0, skipped: 0 })),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
+    listAll: jest.fn(() => []),
     eventsWithLoot: jest.fn(() => []),
     setEventCategory: jest.fn(() => 0),
     removeItems: jest.fn(() => 0),
@@ -1506,6 +1507,13 @@ describe("web/apiRouter", () => {
                 className: "", spec: "", classColor: "", specIconUrl: "",
             }]);
             expect(data.lootTool).toBe("gargul");
+            // The progress bar comes with the payload (raidDetailSteps.js): a past
+            // raid with loot but no log points at the logs.
+            expect(data.progress.steps.map((s) => s.key)).toEqual(["signup", "setup", "sheet", "softres", "loot", "logs"]);
+            expect(data.progress.next).toBe("logs");
+            expect(data.progress.primary).toMatchObject({ modal: "log" });
+            // …and the player dialog's summary for every name on the page.
+            expect(Object.keys(data.playerSummaries)).toEqual(["tankulus"]);
         });
 
         it("returns the logs already assigned to this event and the guild's still-unassigned ones", async () => {

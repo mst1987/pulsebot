@@ -486,9 +486,51 @@ export function deleteNotifyTemplate(csrfToken: string | null, id: string): Prom
     return send("POST", "/api/notify-templates/delete", csrfToken, { id });
 }
 
-export type SetupPlayer = { name: string; classColor: string; specName: string; className: string; iconUrl: string };
+/** Role bucket of a raidplan spec — mirrors roleOf() in src/utils/setupView.js. */
+export type SetupRole = "tank" | "healer" | "melee" | "ranged" | "dps";
+export type SetupPlayer = { name: string; classColor: string; specName: string; className: string; iconUrl: string; role?: SetupRole; group?: number };
 export type SetupGroup = { label: string; players: SetupPlayer[] };
-export type EventSetup = { total: number; groups: SetupGroup[] } | null;
+export type EventSetup = { total: number; groups: SetupGroup[]; roleCounts?: Partial<Record<SetupRole, number>> } | null;
+
+/** One step of the Raid-Detail progress bar — built by src/web/raidDetailSteps.js. */
+export type RaidStepKey = "signup" | "setup" | "sheet" | "softres" | "loot" | "logs";
+export type RaidDetailModal = "notify" | "sheet" | "softres" | "loot" | "log" | "ping";
+export type RaidStep = {
+    key: RaidStepKey;
+    label: string;
+    icon: string;
+    tone: "ok" | "mid" | "bad" | "none";
+    value: string;
+    unit: string;
+    fill?: number | null;
+    badge: { label: string; tone?: "ok" | "mid" | "bad" | "accent" };
+    tip: { head: string; sub: string };
+    open: { modal?: RaidDetailModal; tab?: "roster" | "loot" | "logs" };
+    done: boolean;
+    next: boolean;
+};
+export type RaidPrimaryAction = {
+    label: string;
+    icon: string;
+    modal?: RaidDetailModal;
+    href?: string;
+    evaluate?: { logId: string; section: LogSection };
+};
+export type RaidProgress = { steps: RaidStep[]; next: RaidStepKey | ""; primary: RaidPrimaryAction | null };
+
+/** What the player dialog shows beyond this raid — src/web/raidPlayerSummary.js. */
+export type RaidPlayerSummary = {
+    /** Raids of the category in the last 8 weeks the raider was in; null = unknown. */
+    raids: number | null;
+    raidsOf: number;
+    /** Real loot (no shards/bank/offspec) in the last 8 weeks. */
+    loot: number;
+    lastLootAt: number;
+    recent: Array<{
+        itemId: number; itemName: string; itemIconUrl: string; itemQuality: number | null; itemLink: string;
+        response: string; reasonLabel: string; reasonTone: string; awardedAt: number;
+    }>;
+};
 
 export type AttendanceProfile = { classColor: string; specName: string; className: string; iconUrl: string };
 // What the raider's reaction said — mirrors SIGNUP_STATUSES in
@@ -565,6 +607,10 @@ export type RaidDetailData = {
     lootTool: string;
     eventLogs: RaidLogRow[];
     unlinkedLogs: RaidLogRow[];
+    /** The progress bar and the head's primary action. */
+    progress: RaidProgress;
+    /** Keyed by the lowercased character name. */
+    playerSummaries: Record<string, RaidPlayerSummary>;
 };
 
 // Trimmed-down LogRow (see below) for the raid detail page's Logs tab — same
