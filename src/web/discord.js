@@ -58,7 +58,9 @@ function listRoles(guildId) {
     return [...guild.roles.cache.values()]
         .filter((r) => r.id !== guild.id) // drop @everyone
         .sort((a, b) => (b.rawPosition || 0) - (a.rawPosition || 0))
-        .map((r) => ({ id: r.id, name: r.name }));
+        // color: the role's hex colour, "" for an uncoloured role — the
+        // permission matrix tints a role's tile with it.
+        .map((r) => ({ id: r.id, name: r.name, color: r.color ? r.hexColor : "" }));
 }
 
 /**

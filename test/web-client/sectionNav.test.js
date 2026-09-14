@@ -11,8 +11,9 @@
 //     so a stray one would print its heading twice),
 //   * the sections holding a full-admin-only field are marked adminOnly, and
 //     those fields are still only sent when the server would accept them,
-//   * a section that saves itself is marked standalone, so the page's shared
-//     save button cannot appear under it,
+//   * an id merged away in the redesign (#224) still reaches its new section,
+//   * a section that saves itself is marked standalone, and the save bar
+//     follows the draft instead of a button at the end of a form,
 //   * every per-category setting is rendered in one place only,
 //   * every history tab belongs to exactly one group.
 const fs = require("fs");
@@ -31,13 +32,20 @@ const historySrc = readClient("pages", "HistoryPage.tsx");
 /** The SETTINGS_SECTIONS entries, parsed out of the source. */
 function sections() {
     const list = sectionsSrc.match(/export const SETTINGS_SECTIONS[\s\S]*?\n\];/)[0];
-    return [...list.matchAll(/\{ id: "([^"]+)", group: "([^"]+)", label: "([^"]+)"([^}]*)\}/g)].map((m) => ({
+    return [...list.matchAll(/\{ id: "([^"]+)", group: "([^"]+)", label: "([^"]+)", icon: "([^"]+)"([^}]*)\}/g)].map((m) => ({
         id: m[1],
         group: m[2],
         label: m[3],
-        adminOnly: /adminOnly: true/.test(m[4]),
-        standalone: /standalone: true/.test(m[4]),
+        icon: m[4],
+        adminOnly: /adminOnly: true/.test(m[5]),
+        standalone: /standalone: true/.test(m[5]),
     }));
+}
+
+/** The LEGACY_SECTIONS map, parsed out of the source. */
+function legacy() {
+    const block = sectionsSrc.match(/export const LEGACY_SECTIONS[\s\S]*?\n\};/)[0];
+    return Object.fromEntries([...block.matchAll(/(\w+): "([^"]+)"/g)].map((m) => [m[1], m[2]]));
 }
 
 /** The section ids the page actually renders a panel for. */
@@ -49,17 +57,21 @@ function panelIds() {
 describe("Einstellungen sections", () => {
     it("parses the section list at all", () => {
         // Sanity: a broken regex above would make every assertion below vacuous.
-        expect(sections().length).toBeGreaterThan(10);
+        expect(sections().length).toBe(9);
+    });
+
+    it("keeps nine sections in four groups, each with a WoW icon", () => {
+        expect(sections().map((s) => s.id)).toEqual([
+            "berechtigungen", "verbindungen", "kategorien",
+            "raids", "raidsheets", "topitems", "logs", "recruitment", "auktionen",
+        ]);
+        expect([...new Set(sections().map((s) => s.group))]).toEqual(["Zugang", "Verbindungen", "Raid-Kategorien", "Module"]);
+        for (const s of sections()) expect({ id: s.id, icon: /^[a-z0-9_]+$/.test(s.icon) }).toEqual({ id: s.id, icon: true });
     });
 
     it("gives every section a panel, and every panel a section", () => {
         const ids = sections().map((s) => s.id);
         expect([...ids].sort()).toEqual([...panelIds()].sort());
-    });
-
-    it("uses each section id once", () => {
-        const ids = sections().map((s) => s.id);
-        expect(ids).toEqual([...new Set(ids)]);
     });
 
     it("keeps the sections of a group together", () => {
@@ -71,62 +83,88 @@ describe("Einstellungen sections", () => {
         expect(collapsed).toEqual(firstSeen);
     });
 
-    it("marks every section holding a full-admin-only field as adminOnly", () => {
-        // The API is the real gate (ACCESS_KEYS / requireFullAdmin in
-        // apiRoutes/settings.js), but a field shown to someone who cannot save it
-        // is a trap: they fill it in and get a 403 for the whole form.
-        const byId = Object.fromEntries(sections().map((s) => [s.id, s]));
-        for (const id of ["zugang", "berechtigungen", "discord"]) {
-            expect({ id, adminOnly: byId[id].adminOnly }).toEqual({ id, adminOnly: true });
-        }
+    it("redirects every merged-away section id to a section that exists", () => {
+        // Links such as ?section=raidchars and ids remembered from older builds
+        // have to land where the setting lives now.
+        const ids = new Set(sections().map((s) => s.id));
+        const map = legacy();
+        expect(Object.keys(map).sort()).toEqual(["anthropic", "battlenet", "discord", "loot", "lootsync", "raidchars", "warcraftlogs", "zugang"]);
+        for (const [from, to] of Object.entries(map)) expect({ from, exists: ids.has(to) }).toEqual({ from, exists: true });
+        expect(map.raidchars).toBe("kategorien");
+        expect(map.loot).toBe("topitems");
+        // resolveSection follows the map, and the url accepts the old ids at all.
+        expect(sectionsSrc).toContain("const id = LEGACY_SECTIONS[stored] || stored;");
+        expect(settingsSrc).toContain('usePersistedSearchParam(\n        "settings-section", "section", "berechtigungen", SECTION_PARAM_IDS,');
+    });
+
+    it("marks the permission section adminOnly", () => {
+        // The API is the real gate (ACCESS_KEYS / requireFullAdmin), but a field
+        // shown to someone who cannot save it is a trap.
+        expect(sections().find((s) => s.id === "berechtigungen").adminOnly).toBe(true);
     });
 
     it("sends the access fields only when the server would accept them", () => {
-        // All of them sit behind canManageAccess in the submit — including the
-        // two server ids, which decide which guild the admin-role check runs
-        // against, and the two credential blocks the server refuses from a
-        // limited settings user (CREDENTIAL_KEYS in apiRoutes/settings.js).
-        // the block closes on its own line at the spread's indentation — the
-        // inner secret spreads (`? { apiKey } : {}),`) close on theirs
         const guarded = settingsSrc.match(/\.\.\.\(data\.canManageAccess \? \{[\s\S]*?\n {16}\} : \{\}\),/)[0];
-        for (const field of ["adminRoleIds:", "rolePermissions:", "guildId:", "raidhelperServerId:", "anthropic:", "warcraftlogsV2:"]) {
+        for (const field of ["adminRoleIds:", "rolePermissions:", "baseAccess:", "userPermissions:"]) {
             expect(guarded).toContain(field);
         }
-        const unguarded = settingsSrc.slice(settingsSrc.indexOf(guarded) + guarded.length);
-        expect(unguarded).not.toMatch(/^\s*anthropic: \{/m);
-        expect(unguarded).not.toMatch(/^\s*warcraftlogsV2: \{/m);
+        // The connection blocks are no longer part of the page's save at all —
+        // each modal sends its own (connectionPatch in settingsLogic.ts).
+        const submit = settingsSrc.match(/const submit = async \(\) => \{[\s\S]*?\n {4}\};/)[0];
+        for (const block of ["anthropic:", "warcraftlogsV2:", "blizzard:", "guildId:", "raidhelperServerId:"]) {
+            expect({ block, inSubmit: submit.includes(block) }).toEqual({ block, inSubmit: false });
+        }
     });
 
-    it("hides the shared save button under a section that saves itself", () => {
-        // Two save buttons doing different things is how a change gets lost.
-        for (const id of ["lootsync", "raidchars", "raidsheets"]) {
+    it("hides the credentials of a limited settings user in the connection cards", () => {
+        const logic = readClient("lib", "settingsLogic.ts");
+        expect(logic).toContain('return canManageAccess ? ["discord", "battlenet", "wcl", "anthropic", "lootsync"] : ["battlenet"];');
+        expect(readClient("components", "SettingsConnections.tsx")).toContain("visibleConnections(data.canManageAccess)");
+    });
+
+    it("marks the self-saving sections standalone, and the save bar follows the draft", () => {
+        for (const id of ["verbindungen", "raidsheets"]) {
             const section = sections().find((s) => s.id === id);
             expect({ id, standalone: section.standalone }).toEqual({ id, standalone: true });
         }
-        // ...and the button follows that flag instead of a hardcoded id list.
-        expect(settingsSrc).toContain("const inForm = savesWithForm(active);");
-        expect(settingsSrc).toMatch(/\{inForm \? \(/);
+        // The one save button of old sat at the end of the form; the bar appears
+        // as soon as the draft differs and counts the changes.
+        expect(settingsSrc).toContain("const changes = draftChanges(saved, draft, {");
+        expect(settingsSrc).toMatch(/\{changes\.length > 0 && \(\s*<div className="savebar"/);
+        expect(settingsSrc).toContain("setDraft(toDraft(data.config))");
+        expect(settingsSrc).not.toMatch(/<form className="card-form" onSubmit=\{submit\}/);
+    });
+
+    it("shows icons and count badges in the section column", () => {
+        const nav = readClient("components", "SectionNav.tsx");
+        expect(nav).toContain("icon?: string; badge?: NavBadge | null");
+        expect(nav).toContain("<WowIcon name={item.icon} size={24} />");
+        expect(nav).toMatch(/<Badge count tone=\{item\.badge\.tone\}/);
+        expect(settingsSrc).toContain("missingConnections(data, tokens, data.canManageAccess)");
     });
 
     it("configures each per-category setting in exactly one place", () => {
-        // The point of the "Kategorien" section: roles, loot tool and sheet used
-        // to live in three different tabs, each re-listing the categories.
         const matrix = readClient("components", "CategoryMatrix.tsx");
         for (const prop of ["categoryRoles", "categoryLootTool", "categorySheets"]) {
             expect(matrix).toContain(prop);
-            // In the page they appear only as draft state and as props handed to
-            // the matrix — never as a second editor of their own.
             const renderedElsewhere = settingsSrc.includes(`value={draft.${prop}}`);
             expect({ prop, renderedElsewhere }).toEqual({ prop, renderedElsewhere: false });
         }
+        // Raider → Charakter is no longer a section with its own category picker.
+        expect(settingsSrc).not.toContain("RaiderCharactersTab");
+        expect(matrix).toContain("<RaiderCharactersModal");
     });
 
     it("sends the whole sheet map, so clearing a url removes the assignment", () => {
-        // settingsStore replaces the stored map with what arrives; an entry left
-        // out is an entry deleted, so the page has to send every category it
-        // holds — including one whose url was just emptied.
         const submit = settingsSrc.match(/categorySheets: Object\.fromEntries\([\s\S]*?\),/)[0];
         expect(submit).toContain("Object.entries(draft.categorySheets)");
+    });
+
+    it("turns the hint paragraphs into tooltips", () => {
+        expect(settingsSrc).not.toContain('className="hint"');
+        expect(settingsSrc).not.toContain("<p className=\"note\">");
+        expect(readClient("components", "RolePermissions.tsx")).not.toContain('className="hint"');
+        expect(readClient("components", "CategoryMatrix.tsx")).not.toContain('className="hint"');
     });
 });
 

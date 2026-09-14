@@ -161,7 +161,8 @@ describe("confirm dialog instead of window.confirm", () => {
         const places = {
             "pages/ClaPage.tsx": 5,
             "pages/RaidDetailPage.tsx": 3,
-            "pages/SettingsPage.tsx": 2,
+            "pages/SettingsPage.tsx": 1,
+            "components/SettingsConnections.tsx": 1,
             "pages/RecruitmentPage.tsx": 2,
             "pages/HistoryPage.tsx": 1,
             "pages/HistoryEventPage.tsx": 1,

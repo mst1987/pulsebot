@@ -536,30 +536,6 @@ input[type=checkbox]:checked::after {
 
 .sheetcard { background: var(--panel2); border: 1px solid var(--line); border-radius: 0; padding: 14px; margin-bottom: 12px; }
 
-/* ===== section navigation (Einstellungen) =====
-   A page with a dozen sections outgrows a tab row: it wraps into three lines
-   that read as one undifferentiated list. The column carries a heading per
-   group instead, so a setting is found by *what kind* of setting it is. Below
-   the breakpoint it folds into chips — the headings stay, one per line, since
-   the grouping is the whole point. */
-.settings-layout { display: grid; grid-template-columns: 224px minmax(0, 1fr); gap: 26px; align-items: start; }
-.section-nav { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 74px; border-right: 1px solid var(--line); padding-right: 14px; }
-.section-nav-group { display: flex; flex-direction: column; gap: 2px; }
-.section-nav-label { font-size: 10.5px; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); opacity: .7; padding: 14px 10px 5px; }
-.section-nav-group:first-child .section-nav-label { padding-top: 2px; }
-.section-nav-item { appearance: none; background: none; border: 1px solid transparent; border-radius: 8px; text-align: left; font: inherit; font-size: 14px; font-weight: 600; color: var(--muted); padding: 8px 10px; cursor: pointer; transition: background .12s, color .12s, border-color .12s; }
-.section-nav-item:hover { background: var(--panel2); color: var(--text); }
-.section-nav-item.active { background: var(--accent-soft); border-color: var(--accent-soft); color: var(--text); }
-.settings-panel > .section-title { font-size: 19px; font-weight: 800; letter-spacing: -.01em; margin: 0 0 14px; }
-@media (max-width: 900px) {
-    .settings-layout { grid-template-columns: 1fr; gap: 18px; }
-    .section-nav { position: static; flex-direction: row; flex-wrap: wrap; gap: 6px; border-right: 0; padding-right: 0; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
-    .section-nav-group { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; flex-basis: 100%; }
-    .section-nav-label { flex-basis: 100%; padding: 6px 0 0; }
-    .section-nav-group:first-child .section-nav-label { padding-top: 0; }
-    .section-nav-item { border-color: var(--line); }
-}
-
 /* ===== list + editor sections (Raidsheets, Vorlagen, Nachrichten) =====
    The heading row above a list: title and note on the left, the one button that
    opens an editor on the right — and the same row in the editor view, with the
@@ -570,63 +546,6 @@ input[type=checkbox]:checked::after {
 .list-head-text h2 { margin: 0 0 4px; }
 .list-head-text .note { margin: 0; }
 .list-head > .btn { flex: 0 0 auto; margin-top: 2px; }
-
-/* ===== per-category settings card (Einstellungen → Kategorien) =====
-   One card per Discord category holding everything configured for it. A
-   category that isn't a raid category shows its switch and nothing else: those
-   fields would have no effect, and a guild has far more categories than raid
-   ones. */
-.catcard { position: relative; background: var(--panel2); border: 1px solid var(--line); margin-bottom: 12px; }
-/* An active card carries the clipped corner + accent tick of the other
-   structural panels (.sheetcard, form.card-form); an inactive one is the plain
-   row it is, with its name dimmed, so the eye finds the raid categories. */
-.catcard.is-on { clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%); }
-.catcard.is-on::after {
-    content: ""; position: absolute; top: 0; right: 0; width: 14px; height: 14px;
-    background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 42%, transparent 44%);
-    opacity: .85; pointer-events: none;
-}
-.catcard-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 16px; border-bottom: 1px solid var(--line-soft); }
-.catcard-head.is-off { border-bottom: 0; padding: 12px 16px; }
-.catcard-head.is-off b { color: var(--muted); }
-.catcard-head .switch-row { gap: 12px; min-width: 0; }
-.catcard-head b { font-size: 15px; font-weight: 700; letter-spacing: -.01em; line-height: 1.3; }
-.catcard-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-left: auto; }
-/* --- one spacing scale inside the card: body 16, block-to-block 20, label
-   to control 8, control to hint 6, stacked inputs 8. The generic .field
-   margin is dropped here — it stacked on top of the grid gap and made the
-   distance between the roles and the fields twice the one between a label
-   and its input. --- */
-.catcard-body { padding: 16px; display: grid; gap: 20px; }
-.catcard-body .field { margin: 0; min-width: 0; }
-/* The blocks of a card are titled with a kicker (mono, small caps), the
-   heading the stat tiles, the section nav and the Loot-Council use for the
-   same job — a heading over a group, not a label on a single field. */
-.catcard-body .field > label {
-    font-size: 10.5px; font-family: var(--font-mono); font-weight: 700; text-transform: uppercase;
-    letter-spacing: .09em; color: var(--muted); margin-bottom: 8px; line-height: 1.3;
-}
-.catcard-body .hint { margin-top: 6px; max-width: 56ch; line-height: 1.45; text-wrap: pretty; }
-.catcard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; }
-.catcard-stack { display: flex; flex-direction: column; gap: 8px; }
-/* Roles as proper rows: a 36px hit target with the box centred on the name
-   instead of a 28px line the checkbox sits above. */
-.catcard-body .rolegrid { padding: 8px; }
-.catcard-body .rolebox { align-items: center; min-height: 36px; padding: 0 10px; gap: 10px; }
-.catcard-body .rolebox input[type=checkbox] { margin-top: 0; }
-.catcard-body .rolebox > span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-/* role permission matrix (Einstellungen → Berechtigungen) */
-.perm-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-.perm-table th { text-align: left; font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 6px 10px; border-bottom: 1px solid var(--line); }
-.perm-table th:not(:first-child), .perm-table td:not(:first-child) { width: 130px; }
-.perm-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
-.perm-table tr:last-child td { border-bottom: 0; }
-.perm-table td .hint { margin-top: 2px; }
-@media (max-width: 720px) {
-    .perm-table th:not(:first-child), .perm-table td:not(:first-child) { width: 90px; }
-    .perm-table td .hint { display: none; }
-}
 
 /* ===== sidebar app shell ===== */
 .app { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }

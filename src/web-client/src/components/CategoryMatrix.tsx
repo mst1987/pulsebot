@@ -1,39 +1,39 @@
-import type { Category, Role } from "../api";
+import { Fragment, useCallback, useEffect, useState } from "react";
+import { getRaiderCharacters, type Category, type Role } from "../api";
+import { usePersistedState } from "../lib/persistedState";
+import {
+    categoryRows, splitCategoryRows, summarizeRaiderChars, type CategoryRow, type RaiderCharSummary,
+} from "../lib/settingsLogic";
+import { Button } from "./ui/Button";
+import Badge from "./ui/Badge";
+import Expand from "./ui/Expand";
+import PartHead from "./ui/PartHead";
+import Segment from "./ui/Segment";
+import WowIcon from "./ui/WowIcon";
+import RaiderCharactersModal from "./RaiderCharactersModal";
+import { CheckMark, FieldLabel, WarnIcon } from "./settingsUi";
 
-// Everything that is configured *per raid category*, on one card per category
-// instead of scattered over four tabs (Events / Loot / Raidsheets / Raider-Chars,
-// as it used to be): the raider roles, the loot addon in use and the fixed
-// sheet. Adding a category is one pass down one card, not four visits to the
-// same category list.
+// Everything that is configured *per raid category*, as one list instead of a
+// card per Discord category: active switch, raider roles, loot addon, fixed
+// sheet and the raider → character assignment, which used to be a section of
+// its own with a second category picker. One row opens at a time.
 //
-// A category that isn't an event category shows nothing but its switch — those
-// settings would have no effect, and the guild's Discord usually holds far more
-// categories than raid ones.
+// The guild's Discord holds far more categories than raid ones (typically 13 of
+// 17 are not), so the inactive ones fold away under one line; the part head's
+// segment shows them all. A configured id Discord no longer knows stays visible
+// with a `bad` badge — dropping it would delete its settings on the next save.
 
 export type CategorySheet = { url: string; name: string };
 
-type Row = { id: string; name: string; unknown: boolean };
-
-/**
- * The categories to render: the guild's live ones, plus any id that is
- * configured but no longer exists in Discord (a deleted or renamed category).
- * Dropping those silently would delete their settings on the next save without
- * anyone seeing it happen.
- */
-function rowsFor(categories: Category[], configured: string[]): Row[] {
-    const known = new Set(categories.map((c) => c.id));
-    const extra: Row[] = [];
-    for (const id of configured) {
-        if (known.has(id)) continue;
-        known.add(id);
-        extra.push({ id, name: id, unknown: true });
-    }
-    return [...categories.map((c) => ({ id: c.id, name: c.name, unknown: false })), ...extra];
-}
+const LOOT_TOOLS = [
+    { value: "gargul", label: "Gargul" },
+    { value: "rclc", label: "RCLootcouncil" },
+    { value: "", label: "keins" },
+];
 
 export default function CategoryMatrix({
-    categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySheets,
-    onToggleCategory, onToggleRole, onLootTool, onSheet,
+    categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySheets, savedCategoryRoles,
+    onToggleCategory, onToggleRole, onLootTool, onSheet, csrfToken, icon, crumb,
 }: {
     categories: Category[];
     roles: Role[];
@@ -41,112 +41,225 @@ export default function CategoryMatrix({
     categoryRoles: Record<string, string[]>;
     categoryLootTool: Record<string, string>;
     categorySheets: Record<string, CategorySheet>;
+    /** The saved roles — the assignment modal works on those, not on the draft. */
+    savedCategoryRoles: Record<string, string[]>;
     onToggleCategory: (id: string) => void;
     onToggleRole: (categoryId: string, roleId: string) => void;
     onLootTool: (categoryId: string, tool: string) => void;
     onSheet: (categoryId: string, sheet: CategorySheet) => void;
+    csrfToken: string | null;
+    icon: string;
+    crumb: string;
 }) {
+    const [showAll, setShowAll] = usePersistedState("settings-categories-all", false);
+    const [openId, setOpenId] = useState("");
+    const [foldOpen, setFoldOpen] = useState(false);
+    const [assigning, setAssigning] = useState<CategoryRow | null>(null);
+    const [chars, setChars] = useState<Record<string, RaiderCharSummary>>({});
+
     const configured = [
         ...categoryIds,
         ...Object.keys(categoryRoles),
         ...Object.keys(categoryLootTool),
         ...Object.keys(categorySheets),
     ];
-    const rows = rowsFor(categories, configured);
-    // Only roles whose name says "raid" are offered — the same filter the
-    // category/role matrix has always used, to keep a guild's dozens of cosmetic
-    // roles out of the picker.
-    const raidRoles = roles.filter((r) => /raid/i.test(r.name || ""));
+    const rows = categoryRows(categories, configured);
+    const { shown, folded } = splitCategoryRows(rows, categoryIds, showAll);
+    // Only roles whose name says "raid" are offered — plus any already assigned —
+    // to keep a guild's dozens of cosmetic roles out of the picker.
+    const roleOptions = (catId: string) => {
+        const assigned = new Set(categoryRoles[catId] || []);
+        return roles.filter((r) => /raid/i.test(r.name || "") || assigned.has(r.id));
+    };
+
+    // The "22 / 25" of every category that has saved raider roles. One request
+    // per category, best-effort: a failure leaves the cell at "–".
+    const savedKey = JSON.stringify(savedCategoryRoles);
+    const loadChars = useCallback((ids: string[]) => {
+        for (const id of ids) {
+            getRaiderCharacters(id)
+                .then((info) => setChars((prev) => ({ ...prev, [id]: summarizeRaiderChars(info) })))
+                .catch(() => undefined);
+        }
+    }, []);
+    useEffect(() => {
+        const withRoles = Object.entries(JSON.parse(savedKey) as Record<string, string[]>)
+            .filter(([, ids]) => ids && ids.length)
+            .map(([id]) => id);
+        loadChars(withRoles);
+    }, [savedKey, loadChars]);
+
+    const activeCount = categoryIds.filter((id) => rows.some((r) => r.id === id)).length;
+
+    const partHead = (
+        <PartHead
+            icon={icon}
+            tone="settings"
+            title="Kategorien"
+            crumb={`Einstellungen › ${crumb}`}
+            action={(
+                <Segment
+                    size="sm"
+                    ariaLabel="Welche Kategorien"
+                    value={showAll ? "all" : "raid"}
+                    onChange={(v) => setShowAll(v === "all")}
+                    options={[
+                        { value: "raid", label: `Raid-Kategorien ${activeCount}` },
+                        { value: "all", label: `Alle Discord-Kategorien ${rows.length}` },
+                    ]}
+                />
+            )}
+        />
+    );
 
     if (!rows.length) {
-        return <p className="hint">Keine Kategorien geladen (Server gewählt und Bot online?). Die Auswahl ist verfügbar, sobald der Bot verbunden ist.</p>;
+        return (
+            <>
+                {partHead}
+                <div className="empty">Keine Kategorien geladen (Server gewählt und Bot online?). Die Liste erscheint, sobald der Bot verbunden ist.</div>
+            </>
+        );
     }
 
-    return (
-        <>
-            {rows.map((cat) => {
-                const active = categoryIds.includes(cat.id);
-                const assigned = new Set(categoryRoles[cat.id] || []);
-                const sheet = categorySheets[cat.id] || { url: "", name: "" };
-                return (
-                    <section className={`catcard${active ? " is-on" : ""}`} key={cat.id}>
-                        <div className={`catcard-head${active ? "" : " is-off"}`}>
-                            <label className="switch-row">
-                                <span className="switch">
-                                    <input type="checkbox" checked={active} onChange={() => onToggleCategory(cat.id)} />
-                                    <span className="switch-track"><span className="switch-thumb" /></span>
-                                </span>
-                                <b>{cat.name}</b>
-                            </label>
-                            {cat.unknown && <span className="hint">unbekannte ID — abwählen zum Entfernen</span>}
-                            {active && (
-                                <span className="catcard-tags">
-                                    <span className="cat-badge">{assigned.size} {assigned.size === 1 ? "Rolle" : "Rollen"}</span>
-                                    {!!categoryLootTool[cat.id] && (
-                                        <span className="cat-badge">{categoryLootTool[cat.id] === "gargul" ? "Gargul" : "RCLootcouncil"}</span>
-                                    )}
-                                    {!!sheet.url && <span className="cat-badge">Sheet</span>}
-                                </span>
-                            )}
-                        </div>
-
-                        {active && (
-                            <div className="catcard-body">
-                                <div className="field">
-                                    <label>Raider-Rollen</label>
-                                    <div className="rolegrid">
-                                        {raidRoles.length
-                                            ? raidRoles.map((r) => (
-                                                <label className="rolebox" key={r.id}>
-                                                    <input type="checkbox" checked={assigned.has(r.id)} onChange={() => onToggleRole(cat.id, r.id)} />
-                                                    <span>@{r.name}</span>
-                                                </label>
-                                            ))
-                                            : <span className="hint">Keine Rolle gefunden, deren Name „Raid" enthält.</span>}
-                                    </div>
+    const row = (cat: CategoryRow) => {
+        const active = categoryIds.includes(cat.id);
+        const assigned = categoryRoles[cat.id] || [];
+        const tool = categoryLootTool[cat.id] || "";
+        const sheet = categorySheets[cat.id] || { url: "", name: "" };
+        const summary = chars[cat.id];
+        const isOpen = openId === cat.id && active;
+        const openCount = summary ? summary.members - summary.assigned : 0;
+        return (
+            <Fragment key={cat.id}>
+                <div className={`cat-row${active ? " is-on" : ""}${isOpen ? " is-open" : ""}`} data-category={cat.id}>
+                    <label className="switch" data-tip={active ? "Raid-Kategorie" : "keine Raid-Kategorie"} data-tip-sub="Kanäle dieser Kategorie enthalten Raid-Events.">
+                        <input type="checkbox" checked={active} onChange={() => onToggleCategory(cat.id)} aria-label={`${cat.name} als Raid-Kategorie`} />
+                        <span className="switch-track"><span className="switch-thumb" /></span>
+                    </label>
+                    <div className="cat-name">
+                        <span>{cat.name}</span>
+                        {cat.unknown && (
+                            <Badge tone="bad" icon={<WarnIcon />} tip="Unbekannte Kategorie" tipSub="Diese ID ist konfiguriert, existiert in Discord aber nicht mehr. Abwählen und speichern entfernt sie.">
+                                unbekannt
+                            </Badge>
+                        )}
+                    </div>
+                    {active ? (
+                        <>
+                            <div>{assigned.length
+                                ? <Badge tone="accent">{assigned.length} {assigned.length === 1 ? "Rolle" : "Rollen"}</Badge>
+                                : <Badge tone="bad" icon={<WarnIcon />}>keine</Badge>}
+                            </div>
+                            <div>{tool
+                                ? <Badge icon="inv_misc_bag_10">{tool === "gargul" ? "Gargul" : "RCLootcouncil"}</Badge>
+                                : <Badge tone="mid" icon={<WarnIcon />}>fehlt</Badge>}
+                            </div>
+                            <div>{sheet.url
+                                ? <Badge tone="ok" icon="inv_scroll_03" tip={sheet.name || "Festes Raidsheet"} tipSub={sheet.url}>{sheet.name || "Sheet"}</Badge>
+                                : <Badge>kein Sheet</Badge>}
+                            </div>
+                            <div>{summary && summary.members
+                                ? <Badge tone={openCount ? "mid" : "ok"} tip="Raider → Charakter" tipSub={`${summary.assigned} von ${summary.members} Raidern haben einen festen Charakter.`}>{summary.assigned} / {summary.members}</Badge>
+                                : <Badge>–</Badge>}
+                            </div>
+                            <Expand open={isOpen} onToggle={() => setOpenId(isOpen ? "" : cat.id)} showLabel={!isOpen} />
+                        </>
+                    ) : <div className="cat-off note">keine Raid-Events</div>}
+                </div>
+                {isOpen && (
+                    <div className="cat-detail">
+                        <div className="cat-detail-col">
+                            <div>
+                                <FieldLabel tip="Raider-Rollen" tipSub="Wer eine dieser Rollen hat, gilt bei Raids dieser Kategorie als erwarteter Raider (Anwesenheit, fehlende Anmeldungen, Charakter-Zuordnung). Angeboten werden Rollen mit „Raid“ im Namen.">Raider-Rollen</FieldLabel>
+                                <div className="chip-row">
+                                    {roleOptions(cat.id).length ? roleOptions(cat.id).map((r) => {
+                                        const on = assigned.includes(r.id);
+                                        return (
+                                            <button key={r.id} type="button" className={`badge chip${on ? " accent" : ""}`} aria-pressed={on} onClick={() => onToggleRole(cat.id, r.id)}>
+                                                {on && <CheckMark />}@{r.name}
+                                            </button>
+                                        );
+                                    }) : <span className="note">Keine Rolle gefunden, deren Name „Raid“ enthält.</span>}
                                 </div>
-
-                                <div className="catcard-grid">
-                                    <div className="field">
-                                        <label htmlFor={`loottool-${cat.id}`}>Loot-Tool</label>
-                                        <select
-                                            id={`loottool-${cat.id}`}
-                                            value={categoryLootTool[cat.id] || ""}
-                                            onChange={(e) => onLootTool(cat.id, e.target.value)}
-                                        >
-                                            <option value="">— nicht gesetzt —</option>
-                                            <option value="gargul">Gargul</option>
-                                            <option value="rclc">RCLootcouncil</option>
-                                        </select>
-                                        <div className="hint">Wählt beim Loot-Import den passenden Parser vor.</div>
-                                    </div>
-
-                                    <div className="field">
-                                        <label htmlFor={`catsheet-url-${cat.id}`}>Festes Raidsheet</label>
-                                        <div className="catcard-stack">
-                                            <input
-                                                id={`catsheet-url-${cat.id}`}
-                                                type="url"
-                                                value={sheet.url}
-                                                onChange={(e) => onSheet(cat.id, { ...sheet, url: e.target.value })}
-                                                placeholder="https://docs.google.com/spreadsheets/… (leer = keins)"
-                                            />
-                                            <input
-                                                type="text"
-                                                aria-label="Anzeigename des Sheets"
-                                                value={sheet.name}
-                                                onChange={(e) => onSheet(cat.id, { ...sheet, name: e.target.value })}
-                                                placeholder="Anzeigename (optional), z. B. „SSC/TK Setup“"
-                                            />
-                                        </div>
-                                        <div className="hint">Jeder Raid dieser Kategorie verlinkt dieses Sheet — außer es wurde für den Raid selbst eins erstellt.</div>
+                            </div>
+                            <div>
+                                <FieldLabel tip="Raider → Charakter" tipSub="Welchen Charakter ein Raider in dieser Kategorie spielt. Überschreibt auf der Event-Detailseite die automatische Erkennung aus vergangenen Anmeldungen.">Raider → Charakter</FieldLabel>
+                                <div className="rc-summary">
+                                    {summary && summary.members ? (
+                                        <>
+                                            <span><b>{summary.assigned}</b> <span className="note">von {summary.members} fest</span></span>
+                                            {openCount > 0 ? <Badge tone="mid">{openCount} offen</Badge> : <Badge tone="ok">alle fest</Badge>}
+                                        </>
+                                    ) : (
+                                        <span className="note">{(savedCategoryRoles[cat.id] || []).length ? "noch keine Raider gefunden" : "erst Raider-Rollen speichern"}</span>
+                                    )}
+                                    <span className="grow" />
+                                    <Button variant="ghost" size="sm" icon="ability_rogue_disguise" onClick={() => setAssigning(cat)}
+                                        disabled={!(savedCategoryRoles[cat.id] || []).length}>
+                                        Zuordnen
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="cat-detail-col">
+                            <div>
+                                <FieldLabel tip="Loot-Addon" tipSub="Wählt beim Loot-Import den passenden Parser vor und sagt dem Loot-Tab der Raid-Detailseite, welchen Export er erwartet.">Loot-Addon</FieldLabel>
+                                <Segment ariaLabel={`Loot-Addon ${cat.name}`} value={tool} onChange={(v) => onLootTool(cat.id, v)} options={LOOT_TOOLS} />
+                            </div>
+                            <div>
+                                <FieldLabel htmlFor={`catsheet-name-${cat.id}`} tip="Festes Raidsheet" tipSub="Jeder Raid dieser Kategorie verlinkt dieses Sheet — außer für den Raid selbst wurde eins erstellt. Vorlagen nach Keywords: Module › Raidsheets.">Festes Raidsheet</FieldLabel>
+                                <div className="sheet-field">
+                                    <WowIcon name="inv_scroll_03" size={20} />
+                                    <div className="sheet-inputs">
+                                        <input id={`catsheet-name-${cat.id}`} type="text" value={sheet.name} placeholder="Anzeigename, z. B. „T6 Setup – Hyjal/BT“"
+                                            onChange={(e) => onSheet(cat.id, { ...sheet, name: e.target.value })} />
+                                        <input type="url" className="mono" aria-label="Link des Sheets" value={sheet.url} placeholder="https://docs.google.com/spreadsheets/… (leer = keins)"
+                                            onChange={(e) => onSheet(cat.id, { ...sheet, url: e.target.value })} />
                                     </div>
                                 </div>
                             </div>
-                        )}
-                    </section>
-                );
-            })}
+                        </div>
+                    </div>
+                )}
+            </Fragment>
+        );
+    };
+
+    return (
+        <>
+            {partHead}
+            <div className="cat-list table-scroll">
+                <div className="cat-inner">
+                    <div className="cat-row cat-head" aria-hidden="true">
+                        <span>Aktiv</span><span>Kategorie</span><span>Raider-Rollen</span><span>Loot-Addon</span><span>Raidsheet</span><span>Chars</span><span />
+                    </div>
+                    {shown.map(row)}
+                    {!shown.length && <div className="empty">Noch keine Raid-Kategorie — unten eine Discord-Kategorie einschalten.</div>}
+                    {folded.length > 0 && (
+                        <>
+                            <div className="cat-fold">
+                                <span className="note">{folded.length} weitere Discord-{folded.length === 1 ? "Kategorie" : "Kategorien"} ohne Raid-Events</span>
+                                <span className="cat-fold-names mono">{folded.slice(0, 4).map((c) => c.name).join(", ")}{folded.length > 4 ? " …" : ""}</span>
+                                <Expand open={foldOpen} onToggle={() => setFoldOpen(!foldOpen)} />
+                            </div>
+                            {foldOpen && folded.map(row)}
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {assigning && (
+                <RaiderCharactersModal
+                    categoryId={assigning.id}
+                    categoryName={assigning.name}
+                    csrfToken={csrfToken}
+                    onClose={() => setAssigning(null)}
+                    onSaved={(info) => {
+                        setChars((prev) => ({ ...prev, [assigning.id]: summarizeRaiderChars(info) }));
+                        setAssigning(null);
+                    }}
+                />
+            )}
         </>
     );
 }

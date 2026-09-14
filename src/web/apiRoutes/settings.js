@@ -10,7 +10,9 @@ const {
 } = require("../ingestTokenStore");
 const discord = require("../discord");
 const wowhead = require("../../utils/wowhead");
-const { AREAS, normalizeRolePermissions, normalizeAreaAccess } = require("../../config/permissions");
+const {
+    AREAS, normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,
+} = require("../../config/permissions");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
 
@@ -90,8 +92,31 @@ async function getSettings(req, res) {
         raidsheets: listRaidsheets(),
         roles: discord.listRoles(guildId),
         categories: discord.listCategories(guildId),
+        // The module fields pick a channel by name instead of a typed id; an
+        // empty list (bot offline) makes the page fall back to the id field.
+        channels: typeof discord.listTextChannels === "function" ? discord.listTextChannels(guildId) : [],
+        bot: botStatus(guildId),
         activeGuildId: guildId,
     });
+}
+
+/**
+ * Whether the bot is logged in and which guild the settings run against — the
+ * status line of the "Discord & Raid-Helper" connection card. Best-effort: a
+ * missing client simply reads as offline.
+ */
+function botStatus(guildId) {
+    try {
+        const client = typeof discord.getClient === "function" ? discord.getClient() : null;
+        const guild = typeof discord.getGuild === "function" ? discord.getGuild(guildId) : null;
+        return {
+            online: !!(client && typeof client.isReady === "function" && client.isReady()),
+            readySince: client && client.readyTimestamp ? client.readyTimestamp : 0,
+            guildName: guild ? guild.name : "",
+        };
+    } catch {
+        return { online: false, readySince: 0, guildName: "" };
+    }
 }
 
 function omit(obj, keys) {
@@ -146,6 +171,9 @@ async function updateSettings(req, res) {
     if (body.adminRoleIds !== undefined) partial.adminRoleIds = asStringArray(body.adminRoleIds);
     if (body.rolePermissions !== undefined) partial.rolePermissions = normalizeRolePermissions(body.rolePermissions);
     if (body.baseAccess !== undefined) partial.baseAccess = normalizeAreaAccess(body.baseAccess);
+    // Guarded like the other access keys above, but it was never taken over
+    // into `partial` — a per-account grant set in the menu was silently dropped.
+    if (body.userPermissions !== undefined) partial.userPermissions = normalizeUserPermissions(body.userPermissions);
     if (body.guildId !== undefined) partial.guildId = String(body.guildId).trim();
     if (body.raidhelperServerId !== undefined) partial.raidhelperServerId = String(body.raidhelperServerId).trim();
     if (body.officerRoleId !== undefined) partial.officerRoleId = String(body.officerRoleId).trim();
