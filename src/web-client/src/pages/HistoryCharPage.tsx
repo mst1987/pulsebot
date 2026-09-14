@@ -1,36 +1,44 @@
+// One character (design issue #218): who is it and how does it stand — in one
+// hero —, then one of three parts behind a section switch: its equipment with
+// every finding of the last evaluation sitting on the slot it is about, its
+// loot history, and its attendance night by night. A click on a slot opens the
+// item's details in a modal.
+//
+// Two answers feed it: /api/history/char (loot, live Battle.net gear, the gear
+// findings) and /api/roster/char (role, categories, attendance, the drop source
+// and BiS specs of the worn items). The second is best-effort — without it the
+// page loses those parts, never the rest.
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { Link, useLocation, useOutletContext, useSearchParams } from "react-router-dom";
-import { getHistoryChar, deleteLootItems, canAccess, type ApiError, type CharGearReport, type GearItem, type HistoryCharData, type LootItem } from "../api";
+import { Link, useOutletContext, useSearchParams } from "react-router-dom";
+import {
+    getHistoryChar, getRosterChar, deleteLootItems, canAccess,
+    type ApiError, type CharGearReport, type GearIssue, type GearItem, type HistoryCharData, type LootItem, type RosterCharData,
+} from "../api";
 import { fmtMs } from "../lib/format";
-import { itemQualityColor, itemQualityProps } from "../lib/itemQuality";
+import { itemQualityColor, itemQualityProps, qualityName } from "../lib/itemQuality";
 import { usePersistedSearchParam } from "../lib/persistedState";
 import { refreshWowheadLinks } from "../lib/wowheadTooltips";
-import { CLASS_SOURCE_LABELS } from "../components/ClassSpec";
+import { classColorProps } from "../components/ClassSpec";
 import { LootTable } from "../components/LootTable";
 import type { ShellContext } from "../components/Shell";
 import { useToast } from "../components/Jobs";
+import { AttendanceBar, IconLink, RoleBadge } from "../components/RosterCommon";
+import { SLOT_LABELS, attendanceTone, combineAttendance, findingLabel, findingsForSlot, nightLabel } from "../lib/rosterView";
+import { Badge, Button, IconTile, Modal, PartHead, WowIcon, buttonClass } from "../components/ui";
+import { CheckIcon, XIcon } from "../components/icons";
+import "../styles/roster-charakter.css";
 
-type CharTab = "gear" | "loot";
+type CharTab = "gear" | "loot" | "attendance";
+const CHAR_TABS: CharTab[] = ["gear", "loot", "attendance"];
 
-// Classic character-sheet slot layout: armor down the left, accessories down
-// the right, weapons centered underneath (matches the in-game paperdoll).
-const GEAR_LEFT = ["HEAD", "NECK", "SHOULDER", "BACK", "CHEST", "SHIRT", "TABARD", "WRIST"];
+// Character-sheet order in two columns, weapons underneath. Shirt and tabard
+// are left out: they take a slot on the sheet and carry no raid value.
+const GEAR_LEFT = ["HEAD", "NECK", "SHOULDER", "BACK", "CHEST", "WRIST"];
 const GEAR_RIGHT = ["HANDS", "WAIST", "LEGS", "FEET", "FINGER_1", "FINGER_2", "TRINKET_1", "TRINKET_2"];
 const GEAR_BOTTOM = ["MAIN_HAND", "OFF_HAND", "RANGED"];
-const SLOT_LABELS: Record<string, string> = {
-    HEAD: "Kopf", NECK: "Hals", SHOULDER: "Schulter", BACK: "Rücken", CHEST: "Brust", SHIRT: "Hemd", TABARD: "Wappenrock",
-    WRIST: "Handgelenk", HANDS: "Hände", WAIST: "Taille", LEGS: "Beine", FEET: "Füße",
-    FINGER_1: "Ring 1", FINGER_2: "Ring 2", TRINKET_1: "Schmuck 1", TRINKET_2: "Schmuck 2",
-    MAIN_HAND: "Haupthand", OFF_HAND: "Nebenhand", RANGED: "Fernkampf",
-};
-const GEM_COLOR: Record<string, string> = {
-    RED: "#c0392b", YELLOW: "#e0b73a", BLUE: "#3d7dd6", META: "#d8d8d8",
-    PRISMATIC: "linear-gradient(135deg, #e05d5d, #e0c65d, #5d8ee0)",
-};
+const NO_RAID_VALUE = new Set(["SHIRT", "TABARD"]);
 const SOCKET_DE: Record<string, string> = { RED: "Rot", YELLOW: "Gelb", BLUE: "Blau", META: "Meta", PRISMATIC: "Prismatisch" };
-// The game's own empty-socket art (same files Wowhead's tooltips use), so an
-// unfilled socket looks like it does in the item tooltip instead of a coloured
-// square. Unknown/blank types fall back to the prismatic frame.
+// The game's own empty-socket art (same files Wowhead's tooltips use).
 const SOCKET_ICON: Record<string, string> = {
     RED: "socket-red", YELLOW: "socket-yellow", BLUE: "socket-blue", META: "socket-meta", PRISMATIC: "socket-prismatic",
 };
@@ -38,24 +46,20 @@ function socketIconUrl(type: string): string {
     return `https://wow.zamimg.com/images/icons/${SOCKET_ICON[type] || SOCKET_ICON.PRISMATIC}.gif`;
 }
 
-// Slots that can carry a permanent enchant in TBC — same set as the CLA's
-// gear audit (config/claData.js ENCHANTABLE_SLOTS), translated from WCL slot
-// indices to the Blizzard slot keys this page works with. Rings/neck/trinkets
-// are left out on purpose: they are enchanter-only or not enchantable at all,
-// so a red cross there would be a false alarm.
+// Slots that can carry a permanent enchant in TBC — same set as the CLA's gear
+// audit (config/claData.js ENCHANTABLE_SLOTS), in Blizzard slot keys. Rings are
+// enchanter-only, so a missing mark there would be a false alarm.
 const ENCHANTABLE_SLOTS = new Set(["HEAD", "SHOULDER", "CHEST", "LEGS", "FEET", "WRIST", "HANDS", "BACK", "MAIN_HAND", "OFF_HAND"]);
 
-// An off-hand *held* item (tome, orb, idol) sits in OFF_HAND but takes no
-// enchant — only shields and off-hand weapons do. Same heuristic the CLA uses
-// (gearIssues.js's isShieldMisc): those items' icons are the "_misc_" ones.
+// An off-hand *held* item (tome, orb) takes no enchant — only shields and
+// off-hand weapons do. Same heuristic as the CLA (gearIssues.js's isShieldMisc).
 function isEnchantable(g: GearItem, slot: string): boolean {
     if (!ENCHANTABLE_SLOTS.has(slot)) return false;
     if (slot === "OFF_HAND" && g.iconUrl.indexOf("_misc_") > -1) return false;
     return true;
 }
 
-// Wowhead item URL carrying the character's actual enchant + gems, so the
-// widget tooltip (power.js in index.html) shows them like the in-game tooltip.
+// Wowhead item URL carrying the character's actual enchant + gems.
 function gearWowheadUrl(g: GearItem): string {
     const params: string[] = [];
     if (g.enchantIds.length) params.push(`ench=${g.enchantIds[0]}`);
@@ -64,151 +68,6 @@ function gearWowheadUrl(g: GearItem): string {
     return `https://www.wowhead.com/tbc/item=${g.itemId}${params.length ? `?${params.join("&")}` : ""}`;
 }
 
-// One equipment row: icon (quality border, iLvl + enchant badges on its
-// corners) followed by the item name in its quality color and a slot/socket
-// line — the name and slot are readable at a glance instead of only via the
-// Wowhead hover tooltip. A missing item renders as a dimmed placeholder row
-// so the two columns keep their shape.
-function GearRow({ g, slot }: { g?: GearItem; slot: string }) {
-    const label = SLOT_LABELS[slot] || slot;
-    if (!g) {
-        return (
-            <div className="gear-row empty">
-                <span className="icon-wrap"><span className="ph" /></span>
-                <span className="body">
-                    <span className="item-name">— leer —</span>
-                    <span className="slot-line"><span className="slot-label">{label}</span></span>
-                </span>
-            </div>
-        );
-    }
-    const color = itemQualityColor(g.quality) || "var(--line)";
-    const inner = (
-        <>
-            <span className="icon-wrap">
-                {g.iconUrl ? <img src={g.iconUrl} alt="" loading="lazy" style={{ borderColor: color }} /> : <span className="ph" />}
-                {g.enchants.length
-                    ? <span className="ench-badge ok" data-tip={`Verzauberung: ${g.enchants.join(" · ")}`} aria-label="verzaubert">✓</span>
-                    : isEnchantable(g, slot) && <span className="ench-badge bad" data-tip="Keine Verzauberung" aria-label="nicht verzaubert">✕</span>}
-                {!!g.level && <span className="ilvl-badge">{g.level}</span>}
-            </span>
-            <span className="body">
-                <span {...itemQualityProps(g.quality, "item-name")}>{g.name || label}</span>
-                <span className="slot-line">
-                    <span className="slot-label">{label}</span>
-                    {g.sockets.map((s, i) => {
-                        const filled = !!(s.gemName || s.gemText);
-                        const tip = filled ? (s.gemName || s.gemText) : `Leerer Sockel (${SOCKET_DE[s.type] || s.type || "?"})`;
-                        // Socketed: the gem's own item icon. Empty: the game's
-                        // empty-socket frame in the socket's colour. A gem we
-                        // could not resolve an icon for keeps the coloured dot,
-                        // so it still reads as "filled" rather than as a hole.
-                        if (filled && !s.gemIconUrl) {
-                            return (
-                                <span
-                                    key={i}
-                                    className="gem-dot"
-                                    data-tip={tip}
-                                    style={{ background: GEM_COLOR[s.type] || "#888", borderColor: GEM_COLOR[s.type] || "var(--muted)" }}
-                                />
-                            );
-                        }
-                        return (
-                            <img
-                                key={i}
-                                className={`gem-ico${filled ? " filled" : ""}`}
-                                src={filled ? s.gemIconUrl : socketIconUrl(s.type)}
-                                alt=""
-                                loading="lazy"
-                                data-tip={tip}
-                            />
-                        );
-                    })}
-                </span>
-            </span>
-        </>
-    );
-    return g.itemId
-        ? <a className="gear-row" href={gearWowheadUrl(g)} target="_blank" rel="noopener noreferrer" data-tip={g.name || label}>{inner}</a>
-        : <div className="gear-row" data-tip={g.name || label}>{inner}</div>;
-}
-
-// The gear card: two columns of slot rows with the weapons underneath —
-// replaces the old icon-only paperdoll grid, which spent most of its width on
-// empty silhouette space and needed a hover per item just to read its name.
-// The portrait and the Ø iLvl / socket figures that used to sit on top live in
-// the page hero now, so they are not repeated here.
-function GearPaperdoll({ gear }: { gear: GearItem[] }) {
-    const bySlot = new Map(gear.map((g) => [g.slot, g]));
-    const known = new Set([...GEAR_LEFT, ...GEAR_RIGHT, ...GEAR_BOTTOM]);
-    const extras = gear.filter((g) => !known.has(g.slot));
-    return (
-        <div className="gear-card-new">
-            <div className="gear-grid">
-                <div>{GEAR_LEFT.map((slot) => <GearRow key={slot} g={bySlot.get(slot)} slot={slot} />)}</div>
-                <div>{GEAR_RIGHT.map((slot) => <GearRow key={slot} g={bySlot.get(slot)} slot={slot} />)}</div>
-            </div>
-            <div className="gear-weapons">
-                {GEAR_BOTTOM.map((slot) => <GearRow key={slot} g={bySlot.get(slot)} slot={slot} />)}
-                {extras.map((g, i) => <GearRow key={`x${i}`} g={g} slot={g.slot} />)}
-            </div>
-        </div>
-    );
-}
-
-// The gear findings of the character's newest CLA evaluation — the detail
-// behind the roster overview's issue count. Sits above the live Battle.net
-// paperdoll on purpose: the paperdoll says what is equipped now, this says what
-// was wrong with it the last time the raid was logged.
-//
-// One card per finding (not a wrapped badge row): the item keeps its own line,
-// slot and verdict read underneath, and the severity is a coloured rule down
-// the left, so "kein Item" is separable from a gem nit at a glance.
-function GearIssuesCard({ gear }: { gear: CharGearReport }) {
-    const when = gear.generatedAt ? fmtMs(gear.generatedAt, false) : "";
-    const high = gear.issues.filter((i) => i.severity === "high").length;
-    return (
-        <div className="dash-card" style={{ marginBottom: 16 }}>
-            <div className="dash-card-head">
-                <h3>Gear-Issues</h3>
-                {!!gear.issueCount && (
-                    <>
-                        <span className="lbadge lbadge-warn">{high} kritisch</span>
-                        <span className="lbadge lbadge-medium">{gear.issueCount - high} weitere</span>
-                    </>
-                )}
-                <span className="small" style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <span className="sub">{[gear.reportTitle, gear.zone, when].filter(Boolean).join(" · ")}</span>
-                    {!!gear.reportRefId && <a className="mlink" href={`/r/${gear.reportRefId}`} target="_blank" rel="noopener noreferrer">Auswertung ↗</a>}
-                    {!!gear.reportUrl && <a className="mlink" href={gear.reportUrl} target="_blank" rel="noopener noreferrer">Log ↗</a>}
-                </span>
-            </div>
-            {gear.issueCount
-                ? (
-                    <div className="gi-list">
-                        {gear.issues.map((issue, i) => (
-                            <div className={`gi-row${issue.severity === "high" ? " is-high" : ""}`} key={`${issue.itemId}-${issue.kind}-${i}`}>
-                                {issue.iconUrl
-                                    ? <img className="gi-ico" src={issue.iconUrl} alt="" loading="lazy" />
-                                    : <span className="gi-ico gi-ico-ph" />}
-                                <div className="gi-body">
-                                    <span className="gi-item" data-tip={issue.itemName}>{issue.itemName || "—"}</span>
-                                    <span className="gi-meta">
-                                        <span className="gi-label">{issue.label}</span>
-                                        {!!issue.slotName && <span className="gi-slot">{issue.slotName}</span>}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )
-                : <p className="sub" style={{ padding: "2px 16px 14px" }}>Keine Gear-Probleme in der letzten Auswertung.</p>}
-        </div>
-    );
-}
-
-// Ø item level: what the Battle.net summary reports, else the average over the
-// equipped items we actually got back.
 function averageItemLevel(data: HistoryCharData): number {
     if (data.charSummary?.itemLevel) return data.charSummary.itemLevel;
     const levels = (data.gear || []).map((g) => g.level || 0).filter((n) => n > 0);
@@ -216,166 +75,402 @@ function averageItemLevel(data: HistoryCharData): number {
     return Math.round(levels.reduce((a, b) => a + b, 0) / levels.length);
 }
 
-function HeroStat({ label, value, tone, title }: {
-    label: string;
-    value: number | string;
-    tone?: "total" | "warn" | "ok";
-    title?: string;
-}) {
+function HeroStat({ label, tip, tipSub, tone, children }: { label: string; tip: string; tipSub?: string; tone?: "total" | "ok" | "mid" | "warn"; children: ReactNode }) {
     return (
-        <div className={`hero-stat${tone ? ` is-${tone}` : ""}`} data-tip={title}>
-            <span className="hero-stat-label">{label}</span>
-            <span className="hero-stat-value">{value}</span>
+        <div className={`rc-hstat${tone ? ` is-${tone}` : ""}`}>
+            <span className="rc-hstat-label" data-tip={tip} data-tip-sub={tipSub}>{label}</span>
+            <span className="rc-hstat-value">{children}</span>
         </div>
     );
 }
 
-// The character's identity band above the tabs — same three-band hero the raid
-// detail page uses, with a class portrait instead of the calendar badge. It
-// absorbs what used to be scattered around the Gear tab (the reload button, the
-// namespace badge, the "Level 70 · Warrior · Ø iLvl …" diagnostics line), so
-// the page opens with one block that answers "wer ist das und wie steht er da".
-function CharHero({ data, onReload }: { data: HistoryCharData; onReload: () => void }) {
+function CharHero({ data, roster, loading, onReload }: { data: HistoryCharData; roster: RosterCharData | null; loading: boolean; onReload: () => void }) {
     const info = data.info;
     const summary = data.charSummary;
     const gear = data.gearIssues;
-    const classColor = info?.classColor || "";
     const avgIlvl = averageItemLevel(data);
-    const sockets = (data.gear || []).reduce((n, g) => n + g.sockets.length, 0);
     const realm = data.realm || summary?.realm || "";
+    const colored = classColorProps(info?.classColor);
+    const att = roster ? combineAttendance(Object.values(roster.attendance)) : null;
+    const high = gear ? gear.issues.filter((i) => i.severity === "high").length : 0;
+    const when = gear?.generatedAt ? fmtMs(gear.generatedAt, false) : "";
 
     return (
-        <header className="page-hero char-hero" style={{ "--class-color": classColor || undefined } as CSSProperties}>
-            <div className="hero-main">
-                <div className="hero-portrait">
-                    <span className="hero-portrait-ring" />
-                    {info?.iconUrl
-                        ? <img src={info.iconUrl} alt="" />
-                        : <span className="hero-portrait-ph">{(data.character || "?").slice(0, 1).toUpperCase()}</span>}
-                    {!!summary?.level && <span className="hero-portrait-level" data-tip="Level laut Battle.net-API">{summary.level}</span>}
+        <header className="dash-card rc-hero" style={{ "--class-color": info?.classColor || undefined } as CSSProperties}>
+            <div className="rc-hero-main">
+                <div className="rc-portrait">
+                    {info?.className
+                        ? <WowIcon name={`classicon_${info.className.toLowerCase()}`} size={46} />
+                        : <span className="rc-portrait-ph">{(data.character || "?").slice(0, 1).toUpperCase()}</span>}
+                    {!!summary?.level && <span className="rc-lvl" data-tip="Level" data-tip-sub="Laut Battle.net-Profil.">{summary.level}</span>}
                 </div>
-                <div className="hero-ident">
-                    <div className="hero-eyebrow">
-                        <span className="hero-kicker">Charakter</span>
-                        {!!info?.source && (
-                            <span className="lbadge" data-tip="Woher Klasse und Spec bekannt sind">
-                                {CLASS_SOURCE_LABELS[info.source] || info.source}
-                            </span>
-                        )}
-                    </div>
-                    {/* The name stays in the text colour — a class colour at
-                        title size is unreadable on the light theme's white
-                        panels (Priest is literally #ffffff). The class colour
-                        carries on the line below, the ring and the top rule. */}
-                    <h1 className="hero-title">{data.character}</h1>
-                    <div className="hero-sub">
+                <div className="rc-hero-ident">
+                    <div className="kicker">Charakter</div>
+                    <h1 className="rc-hero-title">{data.character}</h1>
+                    <div className="rc-hero-sub">
                         {info?.className
                             ? (
-                                <span className="hero-class">
+                                <span className={`rc-hero-class ${colored.className || ""}`} style={colored.style}>
                                     {!!info.iconUrl && <img src={info.iconUrl} alt="" />}
                                     {info.spec ? `${info.spec} ${info.className}` : info.className}
                                 </span>
                             )
-                            : <span className="sub">Klasse noch nicht aufgelöst</span>}
-                        {!!realm && <><span className="hero-dot">·</span><span>{realm}</span></>}
+                            : <span>Klasse noch nicht aufgelöst</span>}
+                        {!!realm && <><span aria-hidden="true">·</span><span>{realm}</span></>}
+                        {!!roster?.role && <RoleBadge role={roster.role} />}
+                        {roster?.categories.map((c) => (
+                            <Badge key={c.id} icon={c.icon || "achievement_guildperk_everybodysfriend"} tip={c.name} tipSub={c.contents.join(" · ") || undefined}>
+                                {c.name}
+                            </Badge>
+                        ))}
                     </div>
                 </div>
-                <div className="hero-actions">
-                    <div className="hero-actions-row">
-                        {!!data.wclUrl && <a className="btn btn-ghost btn-sm" href={data.wclUrl} target="_blank" rel="noopener noreferrer">Warcraft Logs ↗</a>}
-                        {!!data.armoryUrl && <a className="btn btn-ghost btn-sm" href={data.armoryUrl} target="_blank" rel="noopener noreferrer">Armory ↗</a>}
-                        {data.gearConfigured
-                            ? <button className="btn btn-ghost btn-sm" type="button" onClick={onReload}>↻ Gear neu laden</button>
-                            : <Link className="btn btn-ghost btn-sm" to="/settings">Battle.net einrichten</Link>}
-                    </div>
+                <div className="rc-hero-actions">
+                    <IconLink href={data.wclUrl} icon="inv_misc_pocketwatch_01" tip="Warcraft Logs" size="md" />
+                    <IconLink href={data.armoryUrl} icon="inv_shirt_guildtabard_01" tip="Armory" size="md" />
+                    {data.gearConfigured
+                        ? <Button variant="run" icon="trade_engineering" running={loading} onClick={onReload}>Gear neu laden</Button>
+                        : <Link className={buttonClass("ghost", "md", true)} to="/settings?section=battlenet"><WowIcon name="trade_engineering" size={22} />Battle.net einrichten</Link>}
                 </div>
             </div>
-
-            <dl className="hero-meta">
-                {!!summary?.faction && (
-                    <div className="hero-meta-item"><dt>Fraktion</dt><dd>{summary.faction}</dd></div>
+            <div className="rc-hero-foot">
+                <HeroStat
+                    label="Ø iLvl"
+                    tone="total"
+                    tip="Ø Item-Level"
+                    tipSub={data.charSummary?.itemLevel ? "Laut Battle.net-Profil." : "Mittel über das Gear, das die Battle.net-API zurückgegeben hat."}
+                >
+                    {avgIlvl || "–"}
+                </HeroStat>
+                {att && (
+                    <HeroStat
+                        label="Anwesenheit"
+                        tone={att.pct === null ? undefined : ({ ok: "ok", mid: "mid", bad: "warn" } as const)[attendanceTone(att.pct) || "ok"]}
+                        tip={att.total ? `${att.attended} von ${att.total} Raids` : "Keine Raids gezählt"}
+                        tipSub="Über alle Raid-Kategorien des Charakters, je Kategorie die letzten 11 Raids."
+                    >
+                        {att.pct === null ? "–" : <>{att.pct}<small>% · {att.attended}/{att.total}</small></>}
+                    </HeroStat>
                 )}
-                <div className="hero-meta-item">
-                    <dt>Zuletzt online</dt>
-                    <dd>{summary?.lastLogin ? fmtMs(summary.lastLogin, false) : <span className="sub">unbekannt</span>}</dd>
-                </div>
-                <div className="hero-meta-item">
-                    <dt>Letzte Auswertung</dt>
-                    <dd>{gear?.generatedAt
-                        ? (gear.reportRefId
-                            ? <a className="mlink" href={`/r/${gear.reportRefId}`} target="_blank" rel="noopener noreferrer">{fmtMs(gear.generatedAt, false)}</a>
-                            : fmtMs(gear.generatedAt, false))
-                        : <span className="sub">keine</span>}</dd>
-                </div>
-                {data.gearConfigured && !!data.gearNamespace && (
-                    <div className="hero-meta-item">
-                        <dt>Profile-Namespace</dt>
-                        <dd><span className="lbadge" data-tip="abgefragter Battle.net Profile-Namespace">{data.gearNamespace}</span></dd>
-                    </div>
-                )}
-            </dl>
-
-            <div className="hero-foot">
-                <div className="hero-stats">
-                    <HeroStat label="Ø iLvl" value={avgIlvl || "—"} tone="total" title="Durchschnittliches Item-Level des aktuellen Gears" />
-                    {!!sockets && <HeroStat label="Sockel" value={sockets} title="Sockel im aktuellen Gear" />}
-                    <HeroStat label="Loot" value={data.items.length} title="Importierte Items dieses Charakters" />
-                    {gear
-                        ? (
-                            <HeroStat
-                                label="Gear-Issues" value={gear.issueCount}
-                                tone={gear.issueCount ? "warn" : "ok"}
-                                title={gear.issueCount ? `${gear.issueCount} Befund(e) in der letzten Auswertung` : "Letzte Auswertung ohne Befund"}
-                            />
-                        )
-                        : <HeroStat label="Gear-Issues" value="—" title="In keiner der letzten Auswertungen enthalten" />}
-                </div>
+                <HeroStat
+                    label="Gear-Probleme"
+                    tone={gear ? (gear.issueCount ? "warn" : "ok") : undefined}
+                    tip={gear ? `${gear.issueCount} Befund${gear.issueCount === 1 ? "" : "e"}` : "nicht ausgewertet"}
+                    tipSub={gear ? `Auswertung ${[gear.reportTitle || gear.zone, when].filter(Boolean).join(" vom ")}.` : "In keiner der gespeicherten Auswertungen enthalten."}
+                >
+                    {gear ? <>{gear.issueCount}{!!high && <small>{high} schwer</small>}</> : "–"}
+                </HeroStat>
+                <HeroStat label="Loot" tip="Importierte Items" tipSub="Aus den Gargul-/RCLootcouncil-Importen.">
+                    {data.items.length}<small>Items</small>
+                </HeroStat>
+                {!!summary?.lastLogin && <span className="rc-hero-seen">zuletzt online {nightLabel(summary.lastLogin)}</span>}
             </div>
         </header>
     );
 }
 
-function GearTab({ data }: { data: HistoryCharData }) {
-    const s = data.charSummary;
-    // A level that isn't 70 means the profile lookup hit a different era's
-    // character — the gear shown would then be the wrong one entirely.
-    const wrongLevel = !!(s && s.level && s.level !== 70);
+function FindingBadge({ issue }: { issue: GearIssue }) {
+    return (
+        <Badge tone={issue.severity === "high" ? "bad" : "mid"} tip={findingLabel(issue)} tipSub={`${issue.itemName || issue.slotName}: ${issue.severity === "high" ? "schwer" : "leicht"}`}>
+            {findingLabel(issue)}
+        </Badge>
+    );
+}
 
-    let gearInner: ReactNode;
-    if (Array.isArray(data.gear) && data.gear.length) {
-        gearInner = (
-            <div className="dash-card gear-card">
-                <div className="dash-card-head"><h3>Aktuelles Gear</h3><span className="small" style={{ marginLeft: "auto" }}>Battle.net API</span></div>
-                <GearPaperdoll gear={data.gear} />
+function GearRow({ g, slot, issues, onOpen }: { g?: GearItem; slot: string; issues: GearIssue[]; onOpen: (slot: string) => void }) {
+    const label = SLOT_LABELS[slot] || slot;
+    const flagged = issues.some((i) => i.severity === "high");
+    if (!g) {
+        return (
+            <div className={`rc-gr is-empty${flagged ? " is-flag" : ""}`}>
+                <span className="rc-iw"><span className="rc-iw-ph" /></span>
+                <span className="rc-gb">
+                    <span className="rc-iname">leer</span>
+                    <span className="rc-sline"><span className="rc-slabel">{label}</span></span>
+                </span>
+                {issues.map((i, n) => <FindingBadge key={n} issue={i} />)}
             </div>
         );
-    } else if (data.gearConfigured) {
-        gearInner = (
+    }
+    const color = itemQualityColor(g.quality) || "var(--line)";
+    const enchantable = isEnchantable(g, slot);
+    const gems = g.sockets.map((s) => (s.gemName || s.gemText) || `leer (${SOCKET_DE[s.type] || s.type || "?"})`);
+    const tipSub = [
+        g.enchants.length ? `Verzauberung: ${g.enchants.join(", ")}` : (enchantable ? "Keine Verzauberung" : ""),
+        gems.length ? `Sockel: ${gems.join(", ")}` : "",
+        "Klick öffnet die Details.",
+    ].filter(Boolean).join("\n");
+    return (
+        <button
+            type="button"
+            className={`rc-gr${flagged ? " is-flag" : ""}`}
+            onClick={() => onOpen(slot)}
+            data-tip={`${g.name || label}${g.level ? ` · iLvl ${g.level}` : ""}`}
+            data-tip-sub={tipSub}
+        >
+            <span className="rc-iw">
+                {g.iconUrl ? <img src={g.iconUrl} alt="" loading="lazy" style={{ borderColor: color }} /> : <span className="rc-iw-ph" />}
+                {g.enchants.length
+                    ? <span className="rc-ench ok" aria-label="verzaubert"><CheckIcon /></span>
+                    : enchantable && <span className="rc-ench bad" aria-label="nicht verzaubert"><XIcon /></span>}
+                {!!g.level && <span className="rc-ilvl">{g.level}</span>}
+            </span>
+            <span className="rc-gb">
+                <span {...itemQualityProps(g.quality, "rc-iname")}>{g.name || label}</span>
+                <span className="rc-sline">
+                    <span className="rc-slabel">{label}</span>
+                    {g.sockets.map((s, i) => {
+                        const filled = !!(s.gemName || s.gemText);
+                        if (filled && s.gemIconUrl) return <img key={i} className="rc-gem" src={s.gemIconUrl} alt="" loading="lazy" />;
+                        if (filled) return <span key={i} className="rc-gem is-dot" />;
+                        return <img key={i} className="rc-gem is-socket" src={socketIconUrl(s.type)} alt="" loading="lazy" />;
+                    })}
+                </span>
+            </span>
+            {issues.map((i, n) => <FindingBadge key={n} issue={i} />)}
+        </button>
+    );
+}
+
+function EvaluationLink({ gear, variant = "ghost", size = "sm" }: { gear: CharGearReport | null; variant?: "ghost" | "primary"; size?: "sm" | "md" }) {
+    if (!gear?.reportRefId) return null;
+    return (
+        <a className={buttonClass(variant, size, true)} href={`/r/${gear.reportRefId}`} target="_blank" rel="noopener noreferrer">
+            <WowIcon name="inv_misc_pocketwatch_01" size={size === "sm" ? 18 : 22} />
+            Auswertung öffnen
+        </a>
+    );
+}
+
+function GearSection({ data, onOpen }: { data: HistoryCharData; onOpen: (slot: string) => void }) {
+    const s = data.charSummary;
+    const report = data.gearIssues;
+    const issues = report?.issues || [];
+    const high = issues.filter((i) => i.severity === "high").length;
+    const gear = Array.isArray(data.gear) ? data.gear.filter((g) => !NO_RAID_VALUE.has(g.slot)) : [];
+    const bySlot = new Map(gear.map((g) => [g.slot, g]));
+    const wrongLevel = !!(s && s.level && s.level !== 70);
+
+    const crumb = [
+        gear.length ? "Battle.net-Profil" : "",
+        report ? `Befunde aus ${report.reportTitle || report.zone || "der Auswertung"}${report.generatedAt ? ` vom ${fmtMs(report.generatedAt, false)}` : ""}` : "nicht ausgewertet",
+    ].filter(Boolean).join(" · ");
+
+    const slotsShown = new Set([...GEAR_LEFT, ...GEAR_RIGHT, ...GEAR_BOTTOM]);
+    const matched = new Set<GearIssue>();
+    const rowIssues = (slot: string) => {
+        const list = findingsForSlot(issues, slot, bySlot.get(slot)).filter((i) => !matched.has(i));
+        list.forEach((i) => matched.add(i));
+        return list;
+    };
+    const row = (slot: string) => <GearRow key={slot} slot={slot} g={bySlot.get(slot)} issues={rowIssues(slot)} onOpen={onOpen} />;
+
+    let body: ReactNode;
+    if (gear.length) {
+        const left = GEAR_LEFT.map(row);
+        const right = GEAR_RIGHT.map(row);
+        const bottom = GEAR_BOTTOM.map(row);
+        const extras = gear.filter((g) => !slotsShown.has(g.slot)).map((g) => row(g.slot));
+        const rest = issues.filter((i) => !matched.has(i));
+        body = (
             <>
-                <div className="flash flash-err" style={{ margin: "0 0 12px" }}>{data.gearError || "Kein Live-Gear von der Battle.net-API verfügbar."}</div>
-                <p className="sub">Nutze solange den Armory-Link oben. „Gear neu laden" fragt erneut ab.</p>
+                <div className="rc-gear-grid"><div>{left}</div><div>{right}</div></div>
+                <div className="rc-gear-weap">{bottom}{extras}</div>
+                {!!rest.length && (
+                    <div className="rc-gear-rest">
+                        <span className="kicker">Ohne Slot-Zuordnung</span>
+                        {rest.map((i, n) => (
+                            <span key={n} className="rc-rest-row"><span className="rc-iname">{i.itemName || "–"}</span><FindingBadge issue={i} /></span>
+                        ))}
+                    </div>
+                )}
             </>
         );
     } else {
-        gearInner = (
-            <div className="sheetcard">
-                <p className="sub" style={{ margin: 0 }}>
-                    Für Live-Gear Battle.net-Zugang in den <Link to="/settings">Einstellungen</Link> hinterlegen.
-                    Ohne Zugang steht der Armory-Link oben zur Verfügung.
-                </p>
-            </div>
+        // No live gear: the findings still belong somewhere — as slot rows of
+        // their own, so the page says what was wrong even without Battle.net.
+        body = (
+            <>
+                <div className="rc-note">
+                    {data.gearConfigured
+                        ? (data.gearError || "Kein Live-Gear von der Battle.net-API verfügbar. „Gear neu laden“ fragt erneut ab.")
+                        : <>Für Live-Gear den Battle.net-Zugang in den <Link to="/settings?section=battlenet">Einstellungen</Link> hinterlegen.</>}
+                </div>
+                {!!issues.length && (
+                    <div className="rc-gear-grid is-single">
+                        {issues.map((i, n) => (
+                            <div key={n} className={`rc-gr is-static${i.severity === "high" ? " is-flag" : ""}`}>
+                                <span className="rc-iw">{i.iconUrl ? <img src={i.iconUrl} alt="" loading="lazy" /> : <span className="rc-iw-ph" />}</span>
+                                <span className="rc-gb">
+                                    <span className="rc-iname">{i.itemName || "–"}</span>
+                                    <span className="rc-sline"><span className="rc-slabel">{i.slotName || "Slot unbekannt"}</span></span>
+                                </span>
+                                <FindingBadge issue={i} />
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </>
         );
     }
 
     return (
-        <>
+        <div className="dash-card rc-part">
+            <PartHead
+                icon="inv_helmet_98"
+                tone="roster"
+                title="Ausrüstung"
+                crumb={crumb}
+                tip="Ausrüstung"
+                tipSub="Was der Charakter laut Battle.net trägt; die Befunde der neuesten Log-Auswertung sitzen an ihrem Slot. Hemd und Wappenrock fehlen, sie haben keinen Raidwert."
+                action={(
+                    <>
+                        {!!high && <Badge tone="bad">{high} schwer</Badge>}
+                        {issues.length - high > 0 && <Badge tone="mid">{issues.length - high} leicht</Badge>}
+                        <EvaluationLink gear={report} />
+                    </>
+                )}
+            />
             {wrongLevel && (
-                <div className="flash flash-err" style={{ margin: "0 0 16px" }}>
-                    Die Blizzard-API meldet <strong>Level {s!.level}</strong> — wahrscheinlich der falsche Namespace/Char (nicht dein TBC-Char auf Level 70). Passe den Profile-Namespace in den <Link to="/settings">Einstellungen</Link> an (z.B. profile-classicann-…).
+                <div className="flash flash-err rc-flash">
+                    Die Blizzard-API meldet <strong>Level {s!.level}</strong> — wahrscheinlich der falsche Profile-Namespace
+                    ({data.gearNamespace || "?"}). Anpassen in den <Link to="/settings?section=battlenet">Einstellungen</Link>.
                 </div>
             )}
-            {data.gearIssues && <GearIssuesCard gear={data.gearIssues} />}
-            {gearInner}
+            {body}
+        </div>
+    );
+}
+
+function ItemDetailModal({ slot, data, roster, onClose }: { slot: string; data: HistoryCharData; roster: RosterCharData | null; onClose: () => void }) {
+    const g = (data.gear || []).find((x) => x.slot === slot);
+    if (!g) return null;
+    const issues = findingsForSlot(data.gearIssues?.issues || [], slot, g);
+    const facts = g.itemId ? roster?.items[String(g.itemId)] : undefined;
+    const received = data.items.filter((it) => g.itemId && it.itemId === g.itemId).sort((a, b) => b.awardedAt - a.awardedAt)[0];
+    const q = qualityName(g.quality).toLowerCase();
+    const enchantable = isEnchantable(g, slot);
+    const kicker = [SLOT_LABELS[slot] || slot, g.level ? `iLvl ${g.level}` : "", facts?.tier || ""].filter(Boolean).join(" · ");
+    const report = data.gearIssues;
+    return (
+        <Modal
+            open
+            onClose={onClose}
+            icon={g.iconUrl ? <img className="rc-dlg-icon" src={g.iconUrl} alt="" style={{ borderColor: itemQualityColor(g.quality) || undefined }} /> : "inv_misc_questionmark"}
+            kicker={kicker}
+            title={g.name || SLOT_LABELS[slot] || slot}
+            width={600}
+            footer={(
+                <>
+                    <Button variant="ghost" onClick={onClose}>Schließen</Button>
+                    {!!g.itemId && <a className={buttonClass("ghost")} href={gearWowheadUrl(g)} target="_blank" rel="noopener noreferrer">Auf Wowhead</a>}
+                    <EvaluationLink gear={report} variant="primary" size="md" />
+                </>
+            )}
+        >
+            <div className={`rc-item-body${q ? ` q-${q}` : ""}`}>
+                {issues.map((i, n) => (
+                    <div key={n} className={`rc-find${i.severity === "high" ? " is-high" : ""}`}>
+                        <IconTile icon={i.iconUrl ? <img src={i.iconUrl} alt="" /> : "inv_misc_gem_variety_02"} tone={i.severity === "high" ? "bad" : "mid"} />
+                        <div>
+                            <div className="rc-find-title">{findingLabel(i)} <Badge tone={i.severity === "high" ? "bad" : "mid"}>{i.severity === "high" ? "schwer" : "leicht"}</Badge></div>
+                            <div className="sub">
+                                Aus der Auswertung {report?.reportTitle || report?.zone || ""}{report?.generatedAt ? ` vom ${fmtMs(report.generatedAt, false)}` : ""}.
+                            </div>
+                        </div>
+                    </div>
+                ))}
+                <div className="rc-kv">
+                    <div className="k">Verzauberung</div>
+                    <div>
+                        {g.enchants.length
+                            ? <><span>{g.enchants.join(", ")}</span><Badge tone="ok" className="rc-kv-end">vorhanden</Badge></>
+                            : enchantable
+                                ? <><span className="sub">keine</span><Badge tone="bad" className="rc-kv-end">fehlt</Badge></>
+                                : <span className="sub">nicht verzauberbar</span>}
+                    </div>
+                    {g.sockets.length
+                        ? g.sockets.map((sk, i) => {
+                            const filled = !!(sk.gemName || sk.gemText);
+                            return [
+                                <div key={`k${i}`} className="k">{i === 0 ? "Sockel" : ""}</div>,
+                                <div key={`v${i}`}>
+                                    <img className="rc-kv-ico" src={filled && sk.gemIconUrl ? sk.gemIconUrl : socketIconUrl(sk.type)} alt="" />
+                                    <span className={filled ? "" : "sub"}>{filled ? (sk.gemName || sk.gemText) : "leer"}</span>
+                                    <Badge tone={filled ? undefined : "mid"} className="rc-kv-end">{SOCKET_DE[sk.type] || sk.type || "?"}</Badge>
+                                </div>,
+                            ];
+                        })
+                        : <><div className="k">Sockel</div><div><span className="sub">keine</span></div></>}
+                    <div className="k">Erhalten</div>
+                    <div>
+                        {received
+                            ? (
+                                <>
+                                    <span>{[nightLabel(received.awardedAt), received.eventLabel || facts?.content, received.boss || facts?.boss].filter(Boolean).join(" · ")}</span>
+                                    {!!(received.reasonLabel || received.response) && <Badge tone="accent" className="rc-kv-end">{received.reasonLabel || received.response}</Badge>}
+                                </>
+                            )
+                            : <span className="sub">nicht im Loot-Import{facts?.content ? ` · Drop: ${[facts.content, facts.boss].filter(Boolean).join(" · ")}` : ""}</span>}
+                    </div>
+                    <div className="k">BiS für</div>
+                    <div>
+                        {facts?.bisSpecs.length
+                            ? (
+                                <>
+                                    {facts.bisSpecs.map((b) => !!b.iconUrl && <img key={b.specKey} className="rc-kv-ico" src={b.iconUrl} alt="" />)}
+                                    <span>{facts.bisSpecs.map((b) => b.label).join(", ")}</span>
+                                    <span className="sub rc-kv-end">WoWSims{facts.bisSpecs[0]?.tier ? ` ${facts.bisSpecs[0].tier.toUpperCase()}` : ""}</span>
+                                </>
+                            )
+                            : (
+                                <span className="sub">
+                                    {!roster ? "nicht geladen" : facts?.contentId ? "auf keiner Caster-BiS-Liste" : "unbekannt – Item nicht in der Raid-Loot-Tabelle"}
+                                </span>
+                            )}
+                    </div>
+                </div>
+            </div>
+        </Modal>
+    );
+}
+
+function AttendanceSection({ roster }: { roster: RosterCharData | null }) {
+    if (!roster) return <p className="sub">Anwesenheit konnte nicht geladen werden.</p>;
+    if (!roster.categories.length) return <p className="sub">Der Charakter gehört zu keiner Raid-Kategorie.</p>;
+    return (
+        <>
+            {roster.categories.map((c) => {
+                const a = roster.attendance[c.id];
+                const raids = a?.raids || [];
+                return (
+                    <div key={c.id} className="dash-card rc-part">
+                        <PartHead
+                            icon={c.icon || "ability_warrior_rallyingcry"}
+                            tone="roster"
+                            title={c.name}
+                            crumb={[...c.contents, raids.length ? `letzte ${raids.length} Raids` : "keine Raids gezählt"].join(" · ")}
+                            action={<AttendanceBar attendance={a} categoryName={c.name} />}
+                        />
+                        {raids.length
+                            ? (
+                                <div className="rc-nights">
+                                    {raids.map((r) => (
+                                        <div key={r.eventId} className="rc-night">
+                                            <span className="rc-night-date">{nightLabel(r.startTime)}</span>
+                                            <span className="rc-night-title">{r.title || "Raid"}</span>
+                                            <Badge tone={r.attended ? "ok" : "bad"} icon={r.attended ? "ability_warrior_rallyingcry" : undefined}>
+                                                {r.attended ? "da" : "gefehlt"}
+                                            </Badge>
+                                            <span className="sub">{r.reason}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )
+                            : <p className="sub rc-empty">Kein zugeordnetes Log und keine Raider-Zuordnung mit Anmeldungen in dieser Kategorie.</p>}
+                    </div>
+                );
+            })}
         </>
     );
 }
@@ -384,29 +479,39 @@ export default function HistoryCharPage() {
     const { user, csrfToken } = useOutletContext<ShellContext>();
     // Also reachable read-only via "Loot-Ansichten" (src/config/permissions.js).
     const canEdit = canAccess(user, "history", "write");
-    const [searchParams] = useSearchParams();
-    const location = useLocation();
+    const [tab, switchTab] = usePersistedSearchParam<CharTab>("history-char-tab", "tab", "gear", CHAR_TABS);
+    const [searchParams, setSearchParams] = useSearchParams();
     const name = searchParams.get("name") || "";
-    // The same page is mounted under /history/char and /roster/char — the back
-    // link has to lead where the visitor came from, not always to the history.
-    const from = location.pathname.startsWith("/roster")
-        ? { href: "/roster", label: "← Zurück zum Roster" }
-        : { href: "/history?tab=chars", label: "← Zurück zur Historie" };
-    // Remembered across characters: whoever is comparing loot histories keeps
-    // that tab when opening the next raider (?name= is kept by the hook).
-    const [tab, switchTab] = usePersistedSearchParam<CharTab>("history-char-tab", "tab", "gear", ["gear", "loot"]);
+    // The open item-details modal is in the url (?item=<slot>), so a link can
+    // point straight at a piece and the back button closes it.
+    const itemSlot = searchParams.get("item") || "";
+    const setItemSlot = (slot: string) => {
+        const params = new URLSearchParams(searchParams);
+        if (slot) params.set("item", slot); else params.delete("item");
+        setSearchParams(params);
+    };
 
     const [data, setData] = useState<HistoryCharData | null>(null);
+    const [roster, setRoster] = useState<RosterCharData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
+    const [loading, setLoading] = useState(false);
     const toast = useToast();
 
     const load = () => {
-        getHistoryChar(name).then(setData).catch((err: ApiError) => setError(err));
+        setLoading(true);
+        getHistoryChar(name)
+            .then((d) => {
+                setData(d);
+                const ids = (d.gear || []).map((g) => g.itemId).filter((id): id is number => !!id);
+                // Best-effort: the page stands without role, attendance and BiS facts.
+                return getRosterChar(name, ids).then(setRoster).catch(() => setRoster(null));
+            })
+            .catch((err: ApiError) => setError(err))
+            .finally(() => setLoading(false));
     };
 
     // A wrongly assigned award usually shows up here — on the raider who did not
-    // get it. Drop the row locally instead of refetching the whole character
-    // (which would hit the Blizzard gear API again for one deleted item).
+    // get it. Drop the row locally instead of refetching the whole character.
     const removeItem = async (it: LootItem) => {
         try {
             await deleteLootItems(csrfToken, [it.id]);
@@ -419,40 +524,60 @@ export default function HistoryCharPage() {
 
     useEffect(load, [name]);
 
-    // Attach Wowhead tooltips to the freshly rendered item links (gear tiles +
-    // loot table) — the widget's own scan ran before React rendered them.
+    // Attach Wowhead tooltips to the freshly rendered item links (loot table).
     useEffect(() => { refreshWowheadLinks(); }, [data, tab]);
 
     if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
     if (!data) return <div className="empty">Lade…</div>;
 
+    const issueCount = data.gearIssues?.issueCount || 0;
+    const issueTone = data.gearIssues?.issues.some((i) => i.severity === "high") ? "bad" : "mid";
+    const att = roster ? combineAttendance(Object.values(roster.attendance)) : null;
+
+    const sections: { id: CharTab; label: string; icon: string; count: ReactNode; tone?: string }[] = [
+        { id: "gear", label: "Ausrüstung", icon: "inv_helmet_98", count: issueCount || null, tone: issueCount ? issueTone : "" },
+        { id: "loot", label: "Loot-Historie", icon: "inv_misc_bag_10", count: data.items.length || null },
+        { id: "attendance", label: "Anwesenheit", icon: "ability_warrior_rallyingcry", count: att?.total ? `${att.attended}/${att.total}` : null },
+    ];
+
     return (
         <>
-            <p className="note"><Link className="mlink" to={from.href}>{from.label}</Link></p>
+            <CharHero data={data} roster={roster} loading={loading} onReload={load} />
 
-            <CharHero data={data} onReload={load} />
-
-            <div className="tabs" role="tablist">
-                <button type="button" className={`tab-btn${tab === "gear" ? " active" : ""}`} role="tab" onClick={() => switchTab("gear")}>
-                    Gear
-                </button>
-                <button type="button" className={`tab-btn${tab === "loot" ? " active" : ""}`} role="tab" onClick={() => switchTab("loot")}>
-                    Loot-Historie
-                    {!!data.items.length && <span className="tab-count">{data.items.length}</span>}
-                </button>
+            <div className="rc-secs" role="tablist" aria-label="Bereich">
+                {sections.map((s) => (
+                    <button
+                        key={s.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={tab === s.id}
+                        className={`rc-sec${tab === s.id ? " is-active" : ""}`}
+                        onClick={() => switchTab(s.id)}
+                    >
+                        <WowIcon name={s.icon} size={20} />
+                        {s.label}
+                        {s.count !== null && <span className={`rc-sec-n${s.tone ? ` ${s.tone}` : ""}`}>{s.count}</span>}
+                    </button>
+                ))}
             </div>
 
-            {tab === "gear" && <GearTab data={data} />}
+            {tab === "gear" && <GearSection data={data} onOpen={setItemSlot} />}
             {tab === "loot" && (
-                data.items.length
-                    ? (
-                        <div className="dash-card">
-                            <div className="dash-card-head"><h3>Loot-Historie</h3><span className="small" style={{ marginLeft: "auto" }}>{data.items.length} Item(s)</span></div>
-                            <LootTable items={data.items} showEvent onDelete={canEdit ? removeItem : undefined} />
-                        </div>
-                    )
-                    : <p className="sub">Kein Loot für diesen Charakter gespeichert.</p>
+                <div className="dash-card rc-part">
+                    <PartHead
+                        icon="inv_misc_bag_10"
+                        tone="roster"
+                        title="Loot-Historie"
+                        crumb={`${data.items.length} Item${data.items.length === 1 ? "" : "s"} aus den Loot-Importen`}
+                    />
+                    {data.items.length
+                        ? <LootTable items={data.items} showEvent onDelete={canEdit ? removeItem : undefined} />
+                        : <p className="sub rc-empty">Kein Loot für diesen Charakter gespeichert.</p>}
+                </div>
             )}
+            {tab === "attendance" && <AttendanceSection roster={roster} />}
+
+            {!!itemSlot && <ItemDetailModal slot={itemSlot} data={data} roster={roster} onClose={() => setItemSlot("")} />}
         </>
     );
 }

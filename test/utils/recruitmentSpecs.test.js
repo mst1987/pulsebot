@@ -1,5 +1,7 @@
+const fs = require("fs");
+const path = require("path");
 const {
-    SPEC_CATALOG, resolveSpec, parseWantedBlock, buildSpecLine, insertSpecLine, removeSpecLine,
+    SPEC_CATALOG, resolveSpec, parseWantedBlock, buildSpecLine, insertSpecLine, removeSpecLine, specsInContent,
 } = require("../../src/utils/recruitmentSpecs.js");
 
 // A real recruitment message body (anonymized IDs), used as the reference
@@ -136,6 +138,31 @@ describe("utils/recruitmentSpecs", () => {
         it("is a no-op for an out-of-range index", () => {
             expect(removeSpecLine(REAL_BODY, 999)).toBe(REAL_BODY);
             expect(removeSpecLine(REAL_BODY, -1)).toBe(REAL_BODY);
+        });
+    });
+
+    describe("specsInContent", () => {
+        it("lists the wanted specs in block order with their emoji", () => {
+            expect(specsInContent(REAL_BODY)).toEqual([
+                { name: "Shadow Priest", iconName: "shadow", iconId: "1362785832133595177" },
+                { name: "Beastmaster Hunter", iconName: "beastmastery", iconId: "1362785557972914206" },
+            ]);
+        });
+
+        it("drops heading lines next to the block that are no spec", () => {
+            const body = "## <:shadow:1> Shadow Priest\n## Raidzeiten\n## Holy Paladin";
+            expect(specsInContent(body).map((s) => s.name)).toEqual(["Shadow Priest", "Holy Paladin"]);
+        });
+
+        it("finds nothing in a text without a spec block", () => {
+            expect(specsInContent("Allgemein, alle Klassen willkommen.")).toEqual([]);
+            expect(specsInContent("")).toEqual([]);
+        });
+
+        it("has a client twin with the same name", () => {
+            const twin = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web-client", "src", "lib", "recruitmentSpecs.ts"), "utf8");
+            expect(twin).toContain("export function specsInContent(");
+            expect(twin).toContain(".filter((e) => e.spec)");
         });
     });
 

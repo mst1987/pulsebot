@@ -18,7 +18,7 @@ const { rememberFromLoot } = require("../characterInfo");
 const { parseEventHelperSessions, enrichItemNames, LootParseError } = require("../../utils/lootImport");
 const { bestDayMatch } = require("../lootEventMatch");
 const { verifyToken, touchToken, bearerFrom } = require("../ingestTokenStore");
-const { upsertPending, resolutionFor } = require("../lootInboxStore");
+const { upsertPending, resolutionFor, noteAppended } = require("../lootInboxStore");
 
 /** The token behind the request, or null after sending the 401. */
 function requireToken(req, res) {
@@ -112,7 +112,11 @@ async function ingestLoot(req, res) {
                 categoryId: prior.categoryId,
                 eventLabel: prior.eventLabel,
             });
-            if (added) rememberFromLoot(session.items);
+            if (added) {
+                rememberFromLoot(session.items);
+                // Shown as "+n nachgeliefert" in the inbox's linked list.
+                noteAppended(session.sessionId, added);
+            }
             results.push({
                 sessionId: session.sessionId,
                 status: "appended",

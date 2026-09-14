@@ -102,7 +102,7 @@ describe("web/render — Heilung topic of a fight", () => {
         expect(html).toContain("gestorben 1:30</span><span class=\"badge mid\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_potion_137.jpg\" alt=\"\">kein Manatrank</span>");
         // the block under the row: chips, the spell table, the way to the mana curve
         expect(html).toContain("<div class=\"hrow-body\"><div class=\"heal-chips\"><span class=\"chip\"");
-        expect(html).toContain("data-dialog=\"dlg-fp-2-healing\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_misc_pocketwatch_01.jpg\" alt=\"\">Manaverlauf öffnen ⤢</button>");
+        expect(html).toContain("data-dialog=\"dlg-fp-2-healing\"><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/inv_misc_pocketwatch_01.jpg\" alt=\"\">Manaverlauf öffnen<svg");
         // the player page keeps the plain block
         const own = renderPlayerPage({ ...report(), timeline: timeline() }, 1); // Elun
         expect(own).not.toContain("<div class=\"hlist\">");
@@ -143,10 +143,12 @@ describe("web/render — Heiler section", () => {
     it("shows the section with a row per healer and the raid's missed dispels above", () => {
         const html = renderReportPage({ ...report(), timeline: timeline(), healers: summary() });
         expect(html).toContain("id=\"rs-healers\"");
-        expect(html).toContain("<span>Heiler</span><span class=\"rec-count\">2</span>");
-        expect(html).toContain("3 dispelbare Debuffs hat niemand entfernt");
-        expect(html).toContain("Stille (3×)");
-        expect(html).toContain("gemessen auf dem aktiven Tank (Brokk)");
+        // the metric card in Leistung, the table in its dialog
+        expect(html).toContain("<div class=\"mc-val\">2<small>Heiler</small></div>");
+        expect(html).toContain("<dialog class=\"dlg detail\" id=\"dlg-rs-healers\">");
+        // the raid's missed dispels and the tank as badges, the details in their tooltips
+        expect(html).toContain("data-tip=\"3 dispelbare Debuffs hat niemand entfernt\" data-tip-sub=\"Stille (3×)\"");
+        expect(html).toContain("Tank: Brokk</span>");
         expect(html).toContain("<a class=\"cn\" href=\"/r/abc123def456/p/0\">Elun</a>");
         // ranked by healing, one bar each: Elun 450k + 130k overheal = the column's 580k, Dorn 240k + 180k
         expect(html).toMatch(/<td class="rank">1<\/td><td>(<a class="cn"[^>]*>|<span class="cn">)Elun/);
@@ -172,15 +174,16 @@ describe("web/render — Heiler section", () => {
         const html = renderReportPage({ ...report(), timeline: timeline(), healers: summary() });
         expect(html).toContain("data-name=\"Elun\" data-role=\"healer\"");
         expect(html).toContain("data-name=\"Brokk\" data-role=\"tank\""); // WCL's tank of the fight
-        expect(html).toContain("<b>43 %</b> Overheal</span>");
-        expect(html).toMatch(/Heilung &amp; Mana<span class="n(?: mid| bad)?">3 Kämpfe<\/span>/);
+        expect(html).toContain("spell_holy_flashheal.jpg\" alt=\"\">Overheal 43 %</span>");
+        expect(html).toMatch(/Leistung<span class="n(?: mid| bad)?">\d+ % Overheal<\/span>/);
+        expect(html).toContain("<b>Heilung &amp; Mana</b>");
     });
 });
 
 describe("web/render — Heilung on the player page", () => {
     it("gives a healer their own block and their own tank rows, nothing of the other healer", () => {
         const html = renderPlayerPage({ ...report(), timeline: timeline(), healers: summary() }, 1); // Dorn
-        expect(html).toContain("<h2>Kampfverlauf</h2>");
+        expect(html).toContain("id=\"p-fights\"");
         expect(html).toMatch(/Heilung<span class="n(?: mid| bad)?">1<\/span>/);
         expect(html).toContain("<span class=\"cn\">Dorn</span>");
         expect(html).not.toContain("<span class=\"cn\">Elun</span>");
@@ -191,7 +194,7 @@ describe("web/render — Heilung on the player page", () => {
 
     it("lists the fight for the tank too, because the shields are on them", () => {
         const html = renderPlayerPage({ ...report(), timeline: timeline() }, 2); // Brokk
-        expect(html).toContain("<h2>Kampfverlauf</h2>");
+        expect(html).toContain("id=\"p-fights\"");
         expect(html).toContain("Schilde &amp; HoTs auf Brokk");
         expect(html).toContain("Erdschild (Dorn)");
         expect(html).toContain("Erneuerung (Elun)");

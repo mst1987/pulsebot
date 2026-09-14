@@ -164,10 +164,66 @@ function resolvePending(id, action, link = {}) {
         eventId: link.eventId || "",
         eventLabel: link.eventLabel || "",
         categoryId: link.categoryId || "",
+        // What the inbox's "Verknüpft" list shows for an accepted session: the
+        // raid it was, when it started and how much came with the first accept.
+        contentLabel: link.contentLabel || "",
+        startedAt: entry.startedAt || 0,
+        itemCount: entry.itemCount || (entry.items || []).length,
+        appended: 0,
         at: Date.now(),
     });
     writeState(state);
     return entry;
+}
+
+/**
+ * Count items that a later upload appended to an accepted session by itself —
+ * the "+6 nachgeliefert" in the inbox's list of linked sessions. Only the last
+ * decision on the session is touched, the same one resolutionFor() answers with.
+ * @returns {boolean} whether an accepted resolution was found
+ */
+function noteAppended(sessionId, added) {
+    const key = String(sessionId || "");
+    const n = Number(added) || 0;
+    if (!key || n <= 0) return false;
+    const state = readState();
+    for (let i = state.resolved.length - 1; i >= 0; i -= 1) {
+        const r = state.resolved[i];
+        if (r.sessionId !== key) continue;
+        if (r.action !== "accepted") return false;
+        r.appended = (Number(r.appended) || 0) + n;
+        r.lastAppendedAt = Date.now();
+        writeState(state);
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Accepted sessions, newest decision first, one per session: the quiet list
+ * under the inbox cards that says which raids keep flowing in by themselves.
+ */
+function listLinked(limit = 10) {
+    const seen = new Set();
+    const out = [];
+    const { resolved } = readState();
+    for (let i = resolved.length - 1; i >= 0 && out.length < limit; i -= 1) {
+        const r = resolved[i];
+        if (seen.has(r.sessionId)) continue;
+        seen.add(r.sessionId);
+        if (r.action !== "accepted") continue;
+        out.push({
+            sessionId: r.sessionId,
+            eventId: r.eventId || "",
+            eventLabel: r.eventLabel || "",
+            contentLabel: r.contentLabel || "",
+            startedAt: r.startedAt || 0,
+            itemCount: r.itemCount || 0,
+            appended: Number(r.appended) || 0,
+            at: r.at || 0,
+        });
+    }
+    return out;
 }
 
 /** How many sessions are waiting — for the badge in the nav. */
@@ -176,5 +232,5 @@ function pendingCount() {
 }
 
 module.exports = {
-    listPending, getPending, upsertPending, resolvePending, resolutionFor, pendingCount,
+    listPending, getPending, upsertPending, resolvePending, resolutionFor, pendingCount, noteAppended, listLinked,
 };

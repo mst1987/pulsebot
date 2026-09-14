@@ -13,41 +13,189 @@ const { logPostedAt } = require("./reportList");
 const { listAwards } = require("./lootAwards");
 const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const discord = require("./discord");
+const { getConfig, resolveEventSheetLink } = require("./settingsStore");
+const { loadEventGroups } = require("./raidEventGroups");
+const { listReports, getReport } = require("./reportStore");
+const { listPending } = require("./lootInboxStore");
+const { buildRoster } = require("./roster");
+const { rosterStats } = require("./rosterStats");
+const { resolveAssignmentProfiles } = require("./raiderCharactersStore");
+const { applyReview } = require("../utils/logcheck/recommendations");
+const softres = require("../utils/softres");
+const {
+    computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
+} = require("../utils/attendance");
+const {
+    zoneFor, raidSize, roleFill, classCounts, notSignedUp, isAttending,
+    lastReportArea, openRecommendations, newLootSince,
+} = require("./dashboardOverview");
 
-// Find the next few upcoming events that already have a Raid-Helper setup
-// (raidplan) built, annotated with whether their sheet was filled via the admin
-// tool. Events without a setup are skipped. `getSetup` is one HTTP call per
-// event, so `maxChecks` caps how deep we probe to keep the dashboard snappy.
-async function loadUpcomingSetups(guildId, limit = 3, maxChecks = 8) {
-    if (!guildId) return { events: [], error: null };
+const RH_ERROR = "Events konnten nicht geladen werden (Raid-Helper API).";
+
+/** The raidplan slots of an event, [] when none is built or Raid-Helper fails. */
+async function setupSlots(rh, eventId) {
+    try {
+        const result = await rh.getSetup(eventId);
+        return ((result && result.setup) || []).filter((s) => s && s.name);
+    } catch {
+        return [];
+    }
+}
+
+/** The link a raid's sheet resolves to (own filled copy, else the category's fixed sheet), or null. */
+function sheetFor(eventId, categoryId) {
+    const own = getEventSheet(eventId);
+    const link = resolveEventSheetLink(own, categoryId);
+    if (!link) return null;
+    return { url: link.url || "", playerCount: (own && own.playerCount) || 0, filledAt: (own && own.filledAt) || "" };
+}
+
+/**
+ * The next `count` raids of the guild (the "Nächster Raid" card and its "Danach"
+ * line): who fills which role against the size the raid is planned for, and
+ * whether sheet, setup and softres list are ready. One getSetup call per raid,
+ * best-effort — a raid without a raidplan simply counts its signups.
+ */
+async function loadNextRaids(guildId, count = 2) {
+    if (!guildId) return { raids: [], error: null };
     try {
         const rh = createRaidhelperClient();
-        const events = await rh.getAllEvents(); // sorted ascending by startTime
+        const events = await rh.getAllEvents(); // upcoming, sorted ascending by startTime
         const catMap = discord.getChannelCategoryMap(guildId);
-        const inGuild = events.filter((ev) => catMap[ev.channelId]);
-        const out = [];
-        let checked = 0;
-        for (const ev of inGuild) {
-            if (out.length >= limit || checked >= maxChecks) break;
-            checked += 1;
-            const result = await rh.getSetup(ev.id);
-            if (!result || !result.setup || !result.setup.length) continue;
+        const next = events.filter((ev) => catMap[ev.channelId]).slice(0, count);
+        const raids = [];
+        for (const ev of next) {
             const meta = catMap[ev.channelId] || {};
-            out.push({
+            const slots = await setupSlots(rh, ev.id);
+            const softresList = getEventSoftres(ev.id);
+            const zone = zoneFor(ev.title);
+            const size = raidSize(zone.contentId, softres.targetSizeForInstances((softresList && softresList.instances) || []));
+            raids.push({
                 id: ev.id,
                 title: ev.title,
                 startTime: ev.startTime,
                 channelId: ev.channelId,
                 channelName: meta.name || "",
-                signupCount: (ev.signUps || []).filter((s) => s.specName !== "Absence").length,
-                playerCount: result.setup.filter((s) => s && s.name).length,
-                sheet: getEventSheet(ev.id),
+                categoryId: meta.categoryId || "",
+                icon: zone.icon,
+                size,
+                signupCount: (ev.signUps || []).filter(isAttending).length,
+                setupCount: slots.length,
+                roles: roleFill({ setupSlots: slots, signUps: ev.signUps || [], size }),
+                sheet: sheetFor(ev.id, meta.categoryId || ""),
+                softres: softresList && softresList.url ? { url: softresList.url } : null,
             });
         }
-        return { events: out, error: null };
+        return { raids, error: null };
     } catch (e) {
-        return { events: [], error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
+        return { raids: [], error: (e && e.message) || RH_ERROR };
     }
+}
+
+/**
+ * Everything the "Raid-Details" modal shows for one upcoming raid, loaded only
+ * when it is opened: signups per role and class, the preparation checklist, and
+ * the raiders of the category who have not signed up (no answer, tentative,
+ * bench, absent). The last part needs the Discord member list and the category's
+ * raider roles; without either it is left empty and says why.
+ */
+async function loadNextRaidDetails(guildId, eventId) {
+    const { groups, error: groupsError } = await loadEventGroups(guildId);
+    const found = groups.flatMap((g) => g.events.map((e) => ({ e, g }))).find((x) => x.e.id === eventId);
+    if (!found) return { error: groupsError || "Event nicht gefunden.", notFound: !groupsError };
+    const { e: ev, g } = found;
+
+    const rh = createRaidhelperClient();
+    const slots = await setupSlots(rh, ev.id);
+    const softresList = getEventSoftres(ev.id);
+    const zone = zoneFor(ev.title);
+    const size = raidSize(zone.contentId, softres.targetSizeForInstances((softresList && softresList.instances) || []));
+    const signUps = ev.signUps || [];
+
+    const roleIds = (getConfig().categoryRoles || {})[g.categoryId] || [];
+    let missing = [];
+    let membersError = null;
+    let specHistory = {};
+    if (roleIds.length) {
+        const result = await discord.listMembersWithRoles(guildId, roleIds);
+        membersError = result.error;
+        const attendance = computeAttendance(result.members, signUps);
+        specHistory = buildSpecHistory(g.events);
+        const assignments = resolveAssignmentProfiles(g.categoryId);
+        const annotate = (people) => withCharacterAssignments(withSpecProfiles(people, specHistory), assignments);
+        missing = notSignedUp({ missing: annotate(attendance.missing), responded: annotate(attendance.responded), specHistory });
+    }
+
+    return {
+        error: null,
+        raid: {
+            id: ev.id,
+            title: ev.title,
+            startTime: ev.startTime,
+            channelId: ev.channelId,
+            channelName: ev.channelName || "",
+            icon: zone.icon,
+            size,
+            signupCount: signUps.filter(isAttending).length,
+            roles: roleFill({ setupSlots: slots, signUps, size }),
+            classes: classCounts(signUps),
+            setupCount: slots.length,
+            sheet: sheetFor(ev.id, g.categoryId),
+            softres: softresList && softresList.url ? { url: softresList.url } : null,
+            notSignedUp: missing,
+            rolesConfigured: roleIds.length > 0,
+            membersError,
+            fetchedAt: Date.now(),
+        },
+    };
+}
+
+/**
+ * The newest evaluation as the "Letzte Auswertung" tile needs it, plus how many
+ * of its recommendations are still unreviewed (the "Empfehlungen prüfen" task).
+ * Reads one report file; null when there is none or it cannot be read.
+ */
+function loadLatestReport() {
+    try {
+        const summary = listReports()[0];
+        if (!summary) return null;
+        const report = getReport(summary.id);
+        const area = lastReportArea(summary, report);
+        const reviewed = report && report.recommendations
+            ? applyReview(report.recommendations, report.recommendationReview)
+            : null;
+        return { ...area, open: openRecommendations(reviewed) };
+    } catch (e) {
+        console.error("dashboard latest report failed:", e.message);
+        return null;
+    }
+}
+
+/** Roster size and how many characters have no Discord account assigned; null when the roster cannot be built. */
+function loadRosterFigures(guildId) {
+    try {
+        const stats = rosterStats(buildRoster(guildId).chars);
+        return { total: stats.total, withoutDiscord: stats.fromLootOnly };
+    } catch (e) {
+        console.error("dashboard roster failed:", e.message);
+        return null;
+    }
+}
+
+/** The pending addon-inbox sessions (only what the task row counts). */
+function loadInbox() {
+    try {
+        return listPending().map((s) => ({ id: s.id, items: s.items || [] }));
+    } catch {
+        return [];
+    }
+}
+
+/** Top-item awards since the newest past raid started — the "Neuer Loot" tile. */
+function loadNewLoot(sinceStartTime) {
+    const { items } = listAwards({ topOnly: true, page: 1, pageSize: 500 });
+    const sinceMs = (Number(sinceStartTime) || 0) * 1000;
+    return { count: newLootSince(items, sinceMs), since: sinceMs };
 }
 
 // Find the raids that already took place, annotated with everything the
@@ -123,4 +271,7 @@ function loadTopLoot(limit = 5) {
     return { items, configured: topItemCount };
 }
 
-module.exports = { loadUpcomingSetups, loadRecentEvents, annotateUpcomingExtras, loadTopLoot };
+module.exports = {
+    loadNextRaids, loadNextRaidDetails, loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot,
+    loadRecentEvents, annotateUpcomingExtras, loadTopLoot,
+};

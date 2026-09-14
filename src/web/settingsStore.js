@@ -201,7 +201,12 @@ function saveRecruitmentPost(data) {
         title: data.title || "",
         body: data.body || "",
         buttonLabel: data.buttonLabel || "",
-        source: data.source || (match && match.source) || "web",
+        // A message the admin menu posted stays "web" when a later scan finds it
+        // again — the scan only knows that it exists, not where it came from.
+        source: (match && match.source === "web") ? "web" : (data.source || (match && match.source) || "web"),
+        // Which template it was posted from — kept across edits and re-scans; a
+        // message the scan found on its own has none.
+        templateId: data.templateId || (match && match.templateId) || "",
     };
     let saved;
     if (match) {

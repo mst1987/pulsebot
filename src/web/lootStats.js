@@ -97,6 +97,9 @@ function reasonsByCharacter() {
 // when, in which raid and for what reason.
 function award(it, known) {
     return {
+        // The stored row's id: the item-details dialog deletes a single award
+        // through it (POST /api/history/loot-delete).
+        id: it.id || "",
         character: it.character,
         characterKey: it.characterKey,
         className: known.className || "",

@@ -1,28 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Emoji } from "../api";
-import { parseWantedBlock, insertSpecLine, removeSpecLine, type SpecCatalogEntry } from "../lib/recruitmentSpecs";
+import {
+    parseWantedBlock, insertSpecLine, removeSpecLine, findGuildEmoji, specEmojiUrl, type SpecCatalogEntry,
+} from "../lib/recruitmentSpecs";
+import { Button } from "./ui/Button";
+import WowIcon from "./ui/WowIcon";
+import { XIcon } from "./icons";
 
 // Ported from renderAdmin.js's specPickerScript()/specPicker(). Unlike the SSR
 // version (which re-parses the textarea's raw DOM value), this re-derives the
 // pills from the controlled `value` prop on every render — no debounce needed,
 // parseWantedBlock is cheap and the body is never more than a few KB.
-function findGuildEmoji(icon: string, emojis: Emoji[]): Emoji | null {
-    const key = (icon || "").toLowerCase();
-    const exact = emojis.find((e) => (e.name || "").toLowerCase() === key);
-    if (exact) return exact;
-    const prefix = emojis.find((e) => {
-        const n = (e.name || "").toLowerCase();
-        return n.length > 3 && key.length > 3 && (n.startsWith(key) || key.startsWith(n));
-    });
-    return prefix || null;
-}
 
-// Prefer the real Discord server emoji (what actually ends up in the message);
-// fall back to the generic WoW spec icon only when the guild has none uploaded.
-function specIconUrl(spec: SpecCatalogEntry, emojis: Emoji[]): string {
-    const emoji = findGuildEmoji(spec.icon, emojis);
-    if (emoji?.url) return emoji.url;
-    return `https://wow.zamimg.com/images/wow/icons/large/${spec.icon.toLowerCase()}.jpg`;
+export function SpecImg({ url }: { url: string }) {
+    return url ? <img src={url} alt="" /> : <WowIcon name="inv_misc_questionmark" size={20} />;
 }
 
 export default function SpecPicker({ value, onChange, specCatalog, emojis }: {
@@ -61,22 +52,25 @@ export default function SpecPicker({ value, onChange, specCatalog, emojis }: {
 
     return (
         <div className="spec-picker" ref={rootRef}>
-            <div className="spec-pills">
-                {parsed.entries.length === 0 && <span className="hint">Noch nichts ausgewählt — mit „+ Klasse/Spec hinzufügen&quot; unten.</span>}
-                {parsed.entries.map((entry) => (
-                    <span key={entry.index} className={`spec-pill${entry.spec ? "" : " spec-pill-custom"}`}>
-                        {entry.spec ? <img src={specIconUrl(entry.spec, emojis)} alt="" /> : <span className="spec-pill-q">?</span>}
-                        <span>{entry.spec ? entry.spec.name : entry.label}</span>
-                        <button type="button" className="spec-pill-x" aria-label="Entfernen" onClick={() => onChange(removeSpecLine(value, entry.index))}>
-                            &times;
-                        </button>
-                    </span>
-                ))}
-            </div>
+            {parsed.entries.map((entry) => (
+                <span key={entry.index} className={`spec-pill${entry.spec ? "" : " spec-pill-custom"}`}>
+                    {entry.spec ? <SpecImg url={specEmojiUrl(entry.iconId, entry.spec.icon, emojis)} /> : <span className="spec-pill-q">?</span>}
+                    <span>{entry.spec ? entry.spec.name : entry.label}</span>
+                    <button
+                        type="button" className="spec-pill-x" aria-label={`${entry.spec ? entry.spec.name : entry.label} entfernen`}
+                        data-tip="Entfernen" onClick={() => onChange(removeSpecLine(value, entry.index))}
+                    >
+                        <XIcon />
+                    </button>
+                </span>
+            ))}
             <div className="spec-add">
-                <button type="button" className="btn btn-ghost btn-sm spec-add-trigger" onClick={() => { setOpen((o) => !o); setSearch(""); }}>
-                    + Klasse/Spec hinzufügen
-                </button>
+                <Button
+                    variant="ghost" size="sm" icon="inv_misc_grouplooking" className="spec-add-trigger" aria-expanded={open}
+                    onClick={() => { setOpen((o) => !o); setSearch(""); }}
+                >
+                    Spec hinzufügen
+                </Button>
                 <div className={`spec-add-panel${open ? " open" : ""}`}>
                     <input
                         ref={searchRef} className="spec-add-search" placeholder="Suchen …"
@@ -86,7 +80,7 @@ export default function SpecPicker({ value, onChange, specCatalog, emojis }: {
                         {filtered.length
                             ? filtered.map((s) => (
                                 <button type="button" key={s.key} className="spec-option" onClick={() => addSpec(s)}>
-                                    <img src={specIconUrl(s, emojis)} alt="" />
+                                    <SpecImg url={specEmojiUrl("", s.icon, emojis)} />
                                     <span>{s.name}</span>
                                 </button>
                             ))

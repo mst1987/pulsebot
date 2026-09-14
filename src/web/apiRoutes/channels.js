@@ -3,16 +3,45 @@ const { requireAdmin, requireCsrf } = require("../apiMiddleware");
 const { readJsonBody } = require("../apiBody");
 const { activeGuildFor } = require("../activeGuild");
 const discord = require("../discord");
+const { getConfig, listRecruitmentPosts } = require("../settingsStore");
+const { resolvePurposes, purposeSummary } = require("../channelPurposes");
 
-/** GET /api/channels — the active guild's categories + channels (for the create/duplicate forms). */
+/** How many tracked recruitment posts sit in each channel of the guild. */
+function recruitmentPostsByChannel(guildId) {
+    const counts = {};
+    for (const post of listRecruitmentPosts() || []) {
+        if (guildId && post.guildId && post.guildId !== guildId) continue;
+        if (post.channelId) counts[post.channelId] = (counts[post.channelId] || 0) + 1;
+    }
+    return counts;
+}
+
+/**
+ * GET /api/channels — the active guild's categories and channels (with the
+ * bot's rights per channel), plus what the bot uses which channel for
+ * (`purposes`, resolved from the admin config — still stored and edited as
+ * settings, see channelPurposes.js) and the recruitment posts per channel.
+ */
 function getChannels(req, res) {
     const user = requireAdmin(req, res);
     if (!user) return;
     const guildId = activeGuildFor(req);
+    const categories = discord.listCategories(guildId);
+    const channels = discord.listAllChannels(guildId);
+    const guild = (discord.listGuilds() || []).find((g) => g.id === guildId);
+    // The lists are only live while the bot is connected to this guild; without
+    // it every stored channel would read "nicht gefunden".
+    const connected = !!guild;
+    const purposes = resolvePurposes(getConfig(), channels, categories, connected);
     ok(res, {
-        categories: discord.listCategories(guildId),
-        channels: discord.listAllChannels(guildId),
+        categories,
+        channels,
         activeGuildId: guildId,
+        guildName: guild ? guild.name : "",
+        connected,
+        purposes,
+        purposeSummary: purposeSummary(purposes),
+        recruitmentPosts: recruitmentPostsByChannel(guildId),
     });
 }
 

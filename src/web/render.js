@@ -20,6 +20,165 @@ const CLASS_COLORS = {
     Priest: "#FFFFFF", Rogue: "#FFF569", Shaman: "#0070DE", Warlock: "#9482C9", Warrior: "#C79C6E",
 };
 
+// ---- report page, design #226: area groups with metric cards, detail dialogs, one-line findings,
+// icon buttons, the four-section raider card and the focused player page. Tokens only, light + dark. ----
+const REPORT_STYLE = `
+  /* buttons: .btn-run starts a job, .ibtn is the square icon button */
+  .btn .hicon, .btn-ghost .hicon { width:18px; height:18px; margin:0; border-radius:4px; }
+  .btn svg { width:15px; height:15px; flex:0 0 auto; }
+  .btn:disabled { opacity:.5; cursor:default; filter:none; transform:none; box-shadow:none; }
+  .btn-run { background:var(--panel2); color:var(--text); border:1px solid color-mix(in srgb, var(--accent-2) 55%, transparent); }
+  .btn-run::after { content:""; width:7px; height:7px; border-radius:50%; background:var(--accent-2); margin-left:2px; }
+  .btn-run:hover { filter:none; border-color:var(--accent-2); box-shadow:none; background:var(--panel3); }
+  .ibtn { width:32px; height:32px; border-radius:8px; border:1px solid var(--line); background:var(--panel2); display:inline-grid; place-items:center; color:var(--muted); flex:0 0 auto; padding:0; cursor:pointer; text-decoration:none; font:inherit; }
+  .ibtn svg { width:16px; height:16px; display:block; }
+  .ibtn .hicon { width:22px; height:22px; margin:0; border-radius:4px; }
+  .ibtn:hover { border-color:var(--accent); color:var(--text); }
+  .ibtn.ok { color:var(--good); border-color:color-mix(in srgb, var(--good) 45%, transparent); background:var(--good-bg); }
+  .ibtn.bad { color:var(--high); border-color:color-mix(in srgb, var(--high) 45%, transparent); background:var(--high-bg); }
+  .mute { color:var(--muted); }
+  .mono { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
+  .cn { color:var(--cc, var(--text)); font-weight:700; }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .who .cn, :root:not([data-theme="dark"]) .kv .cn, :root:not([data-theme="dark"]) .ptitle-cn { color:color-mix(in srgb, var(--cc) 70%, #000); } }
+  :root[data-theme="light"] .who .cn, :root[data-theme="light"] .kv .cn, :root[data-theme="light"] .ptitle-cn { color:color-mix(in srgb, var(--cc) 70%, #000); }
+  /* area group: a card with the area head and its metric cards */
+  .gcard { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:12px; }
+  .part-head.gh { margin:0; justify-content:flex-start; flex-wrap:nowrap; }
+  .gh-title { display:flex; flex-direction:column; line-height:1.25; min-width:0; }
+  .gh-title b { font-size:15px; font-weight:800; }
+  .gh .grow { flex:1 1 auto; }
+  .gh .btn { flex:0 0 auto; }
+  .mgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px; }
+  .mcard { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 14px; display:flex; flex-direction:column; gap:8px; min-width:0; cursor:pointer; transition:border-color .12s ease, box-shadow .12s ease; }
+  .mcard.wide { grid-column:span 2; }
+  .mcard:hover, .mcard:focus-visible { border-color:var(--accent); box-shadow:0 10px 26px -18px #000; outline:none; }
+  .mc-head { display:flex; align-items:center; gap:10px; }
+  .mc-head .hicon { width:30px; height:30px; border-radius:7px; border:1px solid var(--line); margin:0; }
+  .mc-label { font-weight:700; font-size:14px; flex:1; min-width:0; text-decoration:underline dotted var(--line); text-underline-offset:4px; }
+  .mc-open { color:var(--muted); width:26px; height:26px; border-radius:7px; display:grid; place-items:center; border:1px solid transparent; flex:0 0 auto; }
+  .mc-open svg { width:14px; height:14px; }
+  .mcard:hover .mc-open { color:var(--accent); border-color:var(--line); background:var(--panel2); }
+  .mc-row { display:flex; flex-direction:column; gap:8px; }
+  .mcard.wide .mc-row { flex-direction:row; align-items:baseline; gap:18px; flex-wrap:wrap; }
+  .mc-val { font-size:24px; font-weight:800; font-family:var(--font-mono); line-height:1.1; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  .mc-val small { font-size:12.5px; font-weight:600; color:var(--muted); font-family:-apple-system,Segoe UI,Roboto,sans-serif; letter-spacing:0; margin-left:6px; }
+  .mc-val.bad { color:var(--high); } .mc-val.mid { color:var(--medium); } .mc-val.ok { color:var(--good); }
+  .mc-foot { display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-height:24px; }
+  .mc-who { display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:13px; border-top:1px solid var(--line-soft); padding-top:8px; min-height:31px; margin-top:auto; }
+  .who { display:inline-flex; align-items:center; gap:6px; font-weight:700; white-space:nowrap; min-width:0; }
+  .who .cls { width:18px; height:18px; border-radius:4px; border:1px solid var(--line); }
+  .mc-table { border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .mc-table table.idx td { padding:5px 12px; }
+  @media (max-width:560px) { .mcard.wide { grid-column:auto; } }
+  /* one-line findings with a foldable body */
+  .rlist { display:flex; flex-direction:column; border:1px solid var(--line); border-radius:10px; overflow:hidden; margin:0; padding:0; }
+  .rec.rrow-d { border:0; margin:0; padding:0; background:transparent; border-bottom:1px solid var(--line-soft); }
+  .rec.rrow-d:last-child { border-bottom:0; }
+  .rrow { display:grid; grid-template-columns:78px minmax(0,1fr) auto 118px auto; align-items:center; gap:12px; padding:9px 12px; min-height:52px; cursor:pointer; list-style:none; }
+  .rrow::-webkit-details-marker { display:none; }
+  .rrow > * { min-width:0; }
+  .rrow .t { font-weight:700; font-size:14.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rrow .ev { display:flex; gap:6px; flex-wrap:wrap; }
+  .rrow .ev .badge { max-width:220px; overflow:hidden; text-overflow:ellipsis; }
+  .rrow .acts { display:flex; gap:6px; justify-content:flex-end; align-items:center; }
+  .rrow .acts .exp-lbl { margin-left:0; }
+  .rrow .acts.rec-review { margin:0; padding:0; border:0; flex-wrap:nowrap; }
+  .rec.rrow-d[open] > .rrow { background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent); }
+  .rec.rec-state-rejected { opacity:.62; }
+  .rbody { padding:10px 12px 14px 102px; background:color-mix(in srgb, var(--accent-soft) 40%, transparent); box-shadow:inset 3px 0 0 var(--accent); display:flex; flex-direction:column; gap:8px; }
+  .rbody p { margin:0; font-size:14px; }
+  .rbody .rec-rule { color:var(--muted); }
+  .rbody .row-btns { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .rbody .rec-edit { display:flex; flex-direction:column; gap:6px; }
+  .rbody .rec-text { flex:none; width:100%; border-radius:8px; }
+  .rec-empty { color:var(--muted); padding:14px; }
+  @media (max-width:760px) { .rrow { grid-template-columns:70px minmax(0,1fr) auto; } .rrow .ev, .rrow .st { display:none; } .rbody { padding-left:14px; } }
+  /* detail dialogs: tool row, WCL bars with fixed column width */
+  dialog.dlg.detail .dlg-body { display:flex; flex-direction:column; gap:12px; padding:16px 20px; }
+  dialog.dlg.detail .dlg-body > *, dialog.dlg.detail .dscope > * { flex-shrink:0; }
+  dialog.dlg .dlg-head .tile { flex:0 0 auto; }
+  .dtools { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .dtools .grow { flex:1 1 auto; }
+  .seg.sm { margin:0; }
+  .seg.sm .seg-btn { padding:5px 12px; font-size:13.5px; }
+  .seg.sm .seg-btn svg { width:16px; height:16px; }
+  .field { display:inline-flex; align-items:center; gap:8px; height:36px; border-radius:8px; border:1px solid var(--line); background:var(--panel2); color:var(--muted); padding:0 12px; }
+  .field svg { width:16px; height:16px; flex:0 0 auto; }
+  .field input { border:0; background:transparent; color:var(--text); font:inherit; font-size:14px; outline:none; width:170px; padding:0; }
+  .dsub { font-size:13px; font-weight:800; margin:6px 0 0; display:flex; align-items:center; gap:8px; }
+  .dscope { display:flex; flex-direction:column; gap:10px; }
+  .tbox { border:1px solid var(--line); border-radius:10px; overflow:auto; }
+  .tbox table.idx { margin:0; }
+  .tbox table.idx tr:last-child td { border-bottom:0; }
+  table.idx.rpb .bar { width:92px; }
+  table.idx th[data-tip] { text-decoration:underline dotted; text-decoration-color:var(--muted); text-underline-offset:4px; cursor:default; }
+  .badges { display:flex; gap:6px; flex-wrap:wrap; align-items:center; }
+  /* raider card: three badges, icon buttons in the head, four sections, boxes side by side */
+  .raider-card > summary .ibtn { margin-left:2px; }
+  .raider-card > summary .exp-lbl { margin-left:6px; }
+  .raider-card > summary .vcard-chips { justify-content:flex-start; }
+  .cols3 { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:10px; }
+  .box { border:1px solid var(--line); border-radius:10px; overflow:hidden; display:flex; flex-direction:column; min-width:0; }
+  .box-head { display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--panel2); border-bottom:1px solid var(--line); }
+  .box-head b { font-size:14px; flex:1; }
+  .box-head .hicon { width:20px; height:20px; margin:0; }
+  .kv { display:flex; align-items:center; gap:10px; padding:7px 12px; border-bottom:1px solid var(--line-soft); font-size:14px; min-height:40px; }
+  .kv:last-child { border-bottom:0; }
+  .kv .k { flex:1; display:flex; align-items:center; gap:8px; min-width:0; }
+  .kv .k > span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .kv .k .hicon { width:22px; height:22px; margin:0; border-radius:4px; }
+  .kv .bar { width:110px; flex:0 0 auto; }
+  .kv .iconrow { padding:0; }
+  .kv.stack { flex-direction:column; align-items:stretch; }
+  .raider-foot .btns { display:flex; gap:8px; flex-wrap:wrap; }
+  .raider-tools .field input { width:180px; }
+  /* player page */
+  .phead { align-items:center; }
+  .phead-icon { width:64px; height:64px; border-radius:12px; border:2px solid var(--cc); flex:0 0 auto; }
+  .ptitle-cn { color:var(--cc); }
+  .page-head .vcard-meta { margin-top:6px; }
+  .pgrp { background:var(--panel); border:1px solid var(--line); border-radius:12px; }
+  .pgrp > summary { list-style:none; cursor:pointer; padding:8px; }
+  .pgrp > summary::-webkit-details-marker { display:none; }
+  .pgrp > summary .exp-lbl { margin-left:8px; }
+  .pgrp-body { padding:4px 12px 12px; }
+  .pfights td .who .hicon { width:30px; height:30px; border-radius:6px; margin:0; }
+  .pfights td .bar.b90 { width:90px; }
+  .pfights tr[hidden] { display:none; }
+  .pstack { display:flex; flex-direction:column; gap:16px; }
+  /* send dialog: badges in the head, Discord look */
+  .send-item-head .hicon { width:18px; height:18px; margin:0; }
+  .dm-head { display:flex; align-items:center; gap:8px; }
+  .dm-head .crest { width:26px; height:26px; border-radius:7px; display:grid; place-items:center; background:linear-gradient(150deg, var(--accent), var(--accent-2)); color:var(--accent-ink); }
+  .dm-head .crest svg { width:15px; height:15px; }
+  .dm { border-left-color:#5865F2; }
+  .dm a { color:var(--accent); text-decoration:none; display:inline-flex; align-items:center; gap:4px; }
+  .dm a svg { width:13px; height:13px; }
+  /* icon tiles: an icon on a tinted square, the colour is the area's tone */
+  .tile { width:34px; height:34px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; background:var(--accent-soft); }
+  .tile .hicon { width:22px; height:22px; margin:0; }
+  .tile.bad { background:var(--high-bg); } .tile.mid { background:var(--medium-bg); } .tile.ok { background:var(--good-bg); } .tile.none { background:var(--panel2); }
+  .tile.cls { background:color-mix(in srgb, var(--cc) 18%, transparent); }
+  .tile.cls .hicon { border-radius:6px; }
+  /* boss tabs of a raider's own timeline (the Kampfverlauf dialog of the raider card) */
+  .boss-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px; }
+  .boss-tab { display:inline-flex; align-items:center; gap:10px; padding:8px 16px 8px 8px; border:1px solid var(--line); border-radius:10px; background:var(--panel); color:var(--muted); font:inherit; font-size:15px; font-weight:600; cursor:pointer; }
+  .boss-tab img { width:36px; height:36px; border-radius:6px; border:1px solid var(--line); display:block; }
+  .boss-tab:hover { color:var(--text); border-color:var(--muted); }
+  .boss-tab.active { color:var(--text); border-color:var(--accent); background:var(--accent-soft); }
+  .boss-tries { font-size:12px; font-weight:600; padding:2px 8px; border-radius:10px; background:var(--panel2); color:var(--muted); font-family:var(--font-mono); }
+  .boss-tab.active .boss-kill { background:var(--good-bg); color:var(--good); }
+  .boss-tab.active .boss-wipe { background:var(--high-bg); color:var(--high); }
+  .rec-text { font:inherit; font-size:14px; padding:8px 10px; background:var(--panel); color:var(--text); border:1px solid var(--line); resize:vertical; }
+  .badge.ev-b { font-weight:500; }
+  .badge.ev-b b { color:var(--text); font-weight:700; }
+  .slot-badge { display:grid; place-items:center; }
+  .slot-badge svg { width:11px; height:11px; }
+  .dscope .tview-a { display:none; }
+  .dscope.va .tview-p { display:none; }
+  .dscope.va .tview-a { display:block; }
+`;
+
 // Discord brand mark for the "Sign in with Discord" button
 const DISCORD_LOGO = "<svg viewBox=\"0 0 24 18\" width=\"22\" height=\"17\" fill=\"currentColor\" aria-hidden=\"true\"><path d=\"M20.317 1.492A19.79 19.79 0 0 0 15.4 0c-.21.38-.456.89-.626 1.295a18.27 18.27 0 0 0-5.548 0A12.6 12.6 0 0 0 8.6 0 19.74 19.74 0 0 0 3.677 1.492C.533 6.186-.32 10.763.099 15.276a19.9 19.9 0 0 0 6.063 3.058c.49-.666.927-1.375 1.302-2.118a12.9 12.9 0 0 1-2.05-.978c.172-.126.34-.258.502-.392a14.2 14.2 0 0 0 12.166 0c.164.14.332.272.502.392-.654.386-1.34.714-2.05.978.375.743.81 1.452 1.302 2.118a19.84 19.84 0 0 0 6.063-3.058c.5-5.234-.838-9.77-3.582-13.784ZM8.02 12.5c-1.183 0-2.157-1.085-2.157-2.42 0-1.334.955-2.42 2.157-2.42 1.21 0 2.176 1.095 2.157 2.42 0 1.335-.955 2.42-2.157 2.42Zm7.96 0c-1.183 0-2.157-1.085-2.157-2.42 0-1.334.955-2.42 2.157-2.42 1.21 0 2.176 1.095 2.157 2.42 0 1.335-.946 2.42-2.157 2.42Z\"/></svg>";
 
@@ -107,6 +266,84 @@ function tile(icon, tone) {
 /** A badge: a word, optionally an icon, a tone (ok / mid / bad / accent) and `count` for the round counter form. */
 function badge(text, tone, icon, count) {
     return `<span class="badge${tone ? ` ${tone}` : ""}${count ? " count" : ""}">${icon ? hicon(icon, "") : ""}${esc(text)}</span>`;
+}
+
+// ---- line icons: only for pure UI functions (close, search, external, back, expand, verdicts, orientation) ----
+const svgLine = (d, w = 2) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const LINE = {
+    check: svgLine("<path d=\"m5 12 5 5 9-10\"/>", 2.4),
+    ban: svgLine("<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"m5.7 5.7 12.6 12.6\"/>"),
+    pencil: svgLine("<path d=\"M12 20h9\"/><path d=\"M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z\"/>"),
+    close: svgLine("<path d=\"M6 6l12 12M18 6 6 18\"/>", 2.2),
+    search: svgLine("<circle cx=\"11\" cy=\"11\" r=\"7\"/><path d=\"m20 20-3.5-3.5\"/>"),
+    external: svgLine("<path d=\"M14 3h7v7M21 3l-9 9\"/><path d=\"M19 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5\"/>"),
+    back: svgLine("<path d=\"M19 12H5M11 18l-6-6 6-6\"/>"),
+    expand: svgLine("<path d=\"M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7\"/>"),
+    undo: svgLine("<path d=\"M9 14 4 9l5-5\"/><path d=\"M4 9h11a5 5 0 0 1 0 10h-3\"/>"),
+    rows: svgLine("<path d=\"M3 6h18M3 12h18M3 18h18\"/>"),
+    cols: svgLine("<path d=\"M6 3v18M12 3v18M18 3v18\"/>"),
+    expandAll: svgLine("<path d=\"m7 8 5 5 5-5M7 14l5 5 5-5\"/>"),
+    collapseAll: svgLine("<path d=\"m7 16 5-5 5 5M7 10l5-5 5 5\"/>"),
+};
+
+/** A square icon button (32 px) with the page's tooltip; `tone` ok / bad marks an active verdict. */
+function ibtn(inner, tip, sub, attrs = "", tone = "") {
+    return `<button type="button" class="ibtn${tone ? ` ${tone}` : ""}" data-tip="${esc(tip)}"${sub ? ` data-tip-sub="${esc(sub)}"` : ""} aria-label="${esc(tip)}"${attrs ? ` ${attrs}` : ""}>${inner}</button>`;
+}
+
+/** The close button of a dialog head. */
+function dlgClose() {
+    // no tooltip: the dialog focuses this button on open, and a box popping up there is noise
+    return `<button type="button" class="ibtn" data-close aria-label="Schließen">${LINE.close}</button>`;
+}
+
+/**
+ * The shared area head (Bereichskopf): a tinted band with the icon tile in the
+ * area's tone, the title, the breadcrumb under it and at most one action on
+ * the right (a button or a count badge).
+ */
+function groupHead(icon, tone, title, crumb, action) {
+    return `<div class="part-head gh">${tile(icon, tone)}<div class="gh-title"><b>${title}</b>${crumb ? `<span class="kicker">${esc(crumb)}</span>` : ""}</div><span class="grow"></span>${action || ""}</div>`;
+}
+
+/**
+ * A detail modal after the pattern of chartDialog: head with tile, title and
+ * breadcrumb, the body, a foot with only "Schließen". Opened by any
+ * [data-dialog="dlg-<id>"] through DIALOG_SCRIPT.
+ */
+function detailDialog(id, icon, tone, title, crumb, bodyHtml, footNote) {
+    return `<dialog class="dlg detail" id="dlg-${esc(id)}">
+      <div class="dlg-head">${tile(icon, tone)}<div class="dlg-main"><div class="dlg-title">${title}</div>${crumb ? `<div class="kicker">${esc(crumb)}</div>` : ""}</div>${dlgClose()}</div>
+      <div class="dlg-body">${bodyHtml}</div>
+      <div class="dlg-foot"><span class="note">${footNote ? esc(footNote) : ""}</span><div class="btns"><button type="button" class="btn btn-sm" data-close>Schließen</button></div></div>
+    </dialog>`;
+}
+
+/** "Auffällig" names: up to three raiders in class colour, an optional value after each, "+n" for the rest. */
+function whoList(label, list, valueOf) {
+    if (!list || !list.length) return "";
+    const shown = list.slice(0, 3).map((p) => `<span class="who"><img class="cls" src="${esc(classIconUrl(p.type))}" alt=""><span class="cn" style="--cc:${esc(classColorOf(p.type) || "var(--text)")}">${esc(p.name)}</span></span>${valueOf ? `<span class="mono mute">${esc(valueOf(p))}</span>` : ""}`).join("");
+    const more = list.length > 3 ? `<span class="mute">+${list.length - 3}</span>` : "";
+    return `<div class="mc-who"><span class="kicker">${esc(label)}</span>${shown}${more}</div>`;
+}
+
+/** The same line for things that are not raiders (bosses, trash). */
+function whatList(label, names) {
+    if (!names || !names.length) return "";
+    return `<div class="mc-who"><span class="kicker">${esc(label)}</span><span>${esc(names.slice(0, 3).join(", "))}${names.length > 3 ? ` +${names.length - 3}` : ""}</span></div>`;
+}
+
+/**
+ * A metric card (Kennzahl-Kachel): WoW icon, title with the explanation in the
+ * tooltip, one big value, one or two badges and the "Auffällig" line. The whole
+ * card opens its detail dialog.
+ */
+function metricCard({ id, icon, label, value, unit, tone, badges, who, tip, extra, wide }) {
+    return `<div class="mcard${wide ? " wide" : ""}" id="rs-${esc(id)}" role="button" tabindex="0" data-dialog="dlg-rs-${esc(id)}">
+      <div class="mc-head">${hicon(icon, "")}<span class="mc-label" data-tip="${esc(label)}"${tip ? ` data-tip-sub="${esc(tip)}"` : ""}>${esc(label)}</span><span class="mc-open">${LINE.expand}</span></div>
+      <div class="mc-row"><div class="mc-val${tone ? ` ${tone}` : ""}">${esc(value)}${unit ? `<small>${esc(unit)}</small>` : ""}</div><div class="mc-foot">${(badges || []).join("")}</div></div>
+      ${extra || ""}${who || ""}
+    </div>`;
 }
 
 /**
@@ -225,23 +462,6 @@ function iconTile(o) {
 function iconRow(tiles) {
     if (!tiles.length) return "<span class=\"sritems\">–</span>";
     return `<div class="iconrow">${tiles.join("")}</div>`;
-}
-
-/**
- * Build a tab bar + its panels. Panels are emitted as siblings of the nav, which
- * is what the click handler scopes on, so these nest safely inside a panel.
- * @param {Array<{id,label,icon?,count?,html}>} items
- */
-function tabbed(items, extraClass) {
-    if (items.length === 0) return "";
-    if (items.length === 1) return items[0].html;
-    const buttons = items.map((t, i) => {
-        const count = (t.count === undefined || t.count === null) ? "" : `<span class="tab-count">${esc(t.count)}</span>`;
-        return `<button class="tab-btn${i === 0 ? " active" : ""}" data-tab="${esc(t.id)}">${hicon(t.icon, "")}<span>${esc(t.label)}</span>${count}</button>`;
-    }).join("");
-    const panels = items.map((t, i) =>
-        `<div id="tab-${esc(t.id)}" class="tabpanel${i === 0 ? " active" : ""}">${t.html}</div>`).join("");
-    return `<nav class="tabs${extraClass ? ` ${extraClass}` : ""}">${buttons}</nav>${panels}`;
 }
 
 // A theme-toggle button. The shared script (below) paints its icon and wires the click.
@@ -368,29 +588,6 @@ ${body}
   .pubbar-name { font-weight:800; font-size:15px; line-height:1.15; }
   .pubbar-sub { font-size:10.5px; font-family:var(--font-mono); color:var(--muted); text-transform:uppercase; letter-spacing:1.2px; }
   .pubbar-actions { margin-left:auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-  .summary { background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--area-cla); padding:12px 16px; margin-bottom:16px; }
-  .summary strong { font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
-  /* ---- stat tiles + clipped panel geometry: the 2026-07 admin design signature ---- */
-  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin:0 0 20px; }
-  .tile { background:var(--panel); border:1px solid var(--line); border-top:2px solid var(--area-cla); padding:16px 18px; position:relative;
-    clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
-    transition:transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease, border-color .18s ease; }
-  .tile::after { content:""; position:absolute; top:0; right:0; width:14px; height:14px;
-    background:linear-gradient(135deg, var(--area-cla) 0%, var(--area-cla) 42%, transparent 44%); opacity:.85; pointer-events:none; }
-  .tile:hover { transform:translateY(-3px); border-color:var(--area-cla); box-shadow:0 14px 32px -14px var(--area-cla); }
-  .tile .t-label { font-size:11.5px; color:var(--muted); font-weight:600; font-family:var(--font-mono); text-transform:uppercase; letter-spacing:.04em; }
-  .tile .t-value { font-size:30px; font-weight:700; letter-spacing:-.02em; margin-top:6px; line-height:1; font-variant-numeric:tabular-nums; font-family:var(--font-mono); }
-  .tile .t-value.warn { color:var(--high); }
-  .tile .t-value.good { color:var(--good); }
-  .tile .t-sub { font-size:12.5px; color:var(--muted); margin-top:6px; }
-  .panel-box { background:var(--panel); border:1px solid var(--line); overflow:hidden; position:relative;
-    clip-path:polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%); }
-  .panel-box::after { content:""; position:absolute; top:0; right:0; width:14px; height:14px;
-    background:linear-gradient(135deg, var(--area-cla) 0%, var(--area-cla) 42%, transparent 44%); opacity:.85; pointer-events:none; }
-  .panel-box table.idx th, .panel-box table.idx td { padding:10px 16px; }
-  .panel-box table.idx th { background:var(--panel2); text-transform:uppercase; letter-spacing:.04em; font-family:var(--font-mono); font-size:11.5px; }
-  .panel-box table.idx tr:last-child td { border-bottom:0; }
-  @media (prefers-reduced-motion: reduce) { .tile { transition:none; } .tile:hover { transform:none; } }
   /* masonry-style columns: short cards fill the vertical space, no row gaps */
   .grid { column-width:330px; column-gap:14px; }
   .grid .card { break-inside:avoid; -webkit-column-break-inside:avoid; margin:0 0 14px; }
@@ -449,25 +646,8 @@ ${body}
   .sritems { color:var(--muted); font-size:12.5px; }
   .sritems a, a.pname-cell:hover span { text-decoration:underline; }
   .note { color:var(--muted); font-size:12.5px; margin:-6px 0 12px; }
-  /* tabs: same shape as the React admin's .tabs/.tab-btn/.tab-count */
-  nav.tabs { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 20px; border-bottom:1px solid var(--line); }
-  nav.tabs .tab-btn { appearance:none; background:transparent; border:1px solid transparent; border-bottom:none; color:var(--muted);
-    font:inherit; font-weight:600; padding:9px 16px; border-radius:9px 9px 0 0; cursor:pointer; margin-bottom:-1px;
-    display:inline-flex; align-items:center; gap:7px; }
-  nav.tabs .tab-btn:hover { color:var(--text); background:var(--panel2); }
-  nav.tabs .tab-btn.active { color:var(--text); background:var(--panel); border-color:var(--line); border-bottom-color:var(--panel); }
-  .tab-count { display:inline-block; padding:0 7px; border-radius:999px; font-size:11.5px; font-weight:700; font-family:var(--font-mono);
-    background:var(--panel2); color:var(--muted); border:1px solid var(--line); font-variant-numeric:tabular-nums; }
-  nav.tabs .tab-btn.active .tab-count { background:var(--area-cla-soft); color:var(--area-cla); border-color:var(--area-cla-soft); }
-  .tabpanel { display:none; }
-  .tabpanel.active { display:block; }
-  .rolehead { font-size:14px; margin:20px 0 8px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
-  .rolehead:first-child { margin-top:0; }
   .scrollx { overflow-x:auto; }
   /* ---- RPB panels: one shared geometry so every table lines up ---- */
-  nav.tabs.sub { border-bottom:0; margin:2px 0 14px; gap:4px; }
-  nav.tabs.sub .tab-btn { padding:6px 12px; font-size:13.5px; border-radius:8px; border:1px solid transparent; }
-  nav.tabs.sub .tab-btn.active { background:var(--panel2); border-color:var(--line); }
   table.idx.rpb th { white-space:nowrap; vertical-align:bottom; }
   table.idx.rpb td.n, table.idx.rpb th.n { text-align:right; font-family:var(--font-mono); font-variant-numeric:tabular-nums; white-space:nowrap; }
   /* the player column stays put while the ability columns scroll */
@@ -481,13 +661,6 @@ ${body}
   table.idx.rpb.fixed th.n, table.idx.rpb.fixed td.n { width:106px; }
   table.idx.rpb.fixed td { height:42px; }
   table.idx.rpb.fixed th { height:54px; }
-  /* damage severity scale — share of the highest value in that column raid-wide */
-  td.n .dv { display:inline-block; min-width:74px; padding:2px 8px; border-radius:6px; text-align:right; }
-  .dv-1 { background:var(--good-bg); color:var(--good); }
-  .dv-2 { background:rgba(214,196,60,.18); color:#c9ac26; }
-  .dv-3 { background:var(--medium-bg); color:var(--medium); }
-  .dv-4 { background:var(--high-bg); color:var(--high); font-weight:700; }
-  :root[data-theme="dark"] .dv-2, :root:not([data-theme="light"]) .dv-2 { color:#dfc84a; }
   /* transposed view: one column per raider */
   th.rcol { width:96px; min-width:96px; text-align:center; }
   th.rcol .rcol-in { display:flex; flex-direction:column; align-items:center; gap:3px; }
@@ -541,19 +714,6 @@ ${body}
   .bar em { position:absolute; right:8px; top:0; line-height:24px; font-size:12px; font-style:normal; font-family:var(--font-mono); font-variant-numeric:tabular-nums; color:var(--muted); }
   .bar em.high { color:var(--high); } .bar em.medium { color:var(--medium); }
   table.idx td.rank { width:28px; padding-right:0; color:var(--muted); font-family:var(--font-mono); font-size:12px; text-align:right; }
-  /* table-orientation switch */
-  .tblswitch { display:inline-flex; margin:0 0 12px; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
-  .tblswitch button { appearance:none; background:var(--panel); border:0; color:var(--muted); font:inherit; font-size:13px; font-weight:600;
-    padding:7px 14px; cursor:pointer; }
-  .tblswitch button + button { border-left:1px solid var(--line); }
-  .tblswitch button.active { background:var(--accent-soft); color:var(--accent); }
-  .viewroot .tview-a { display:none; }
-  .viewroot.va .tview-p { display:none; }
-  .viewroot.va .tview-a { display:block; }
-  .legend { display:flex; flex-wrap:wrap; gap:6px 16px; margin:0 0 12px; color:var(--muted); font-size:12.5px; align-items:center; }
-  .legend .lg { display:inline-flex; align-items:center; gap:6px; }
-  .legend .sw { width:15px; height:15px; border-radius:4px; border:1px solid var(--line); flex:0 0 auto; }
-  .legend .sw.warn { border-color:var(--high); background:var(--high-bg); }
   .armory { display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:8px; }
   .arow { display:flex; align-items:center; gap:10px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
   .aslot { width:80px; flex:0 0 auto; color:var(--muted); font-size:12px; }
@@ -566,18 +726,6 @@ ${body}
   .gem-empty { opacity:.7; }
   .hicon { width:18px; height:18px; border-radius:3px; vertical-align:-4px; margin-right:5px; }
   th .hicon { margin-right:4px; }
-  nav.tabs .tab-btn .hicon { margin-right:0; }
-  /* hero header */
-  .hero { position:relative; overflow:hidden; border:1px solid var(--line); border-top:2px solid var(--cc); background:var(--panel);
-    padding:18px 20px; margin:6px 0 22px; display:flex; align-items:center; gap:16px;
-    clip-path:polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%); }
-  .hero::after { content:""; position:absolute; top:0; right:0; width:16px; height:16px;
-    background:linear-gradient(135deg, var(--cc) 0%, var(--cc) 42%, transparent 44%); opacity:.85; pointer-events:none; }
-  .hero-bg { position:absolute; inset:0; background:radial-gradient(120% 160% at 0% 0%, color-mix(in srgb, var(--cc) 28%, transparent), transparent 60%); pointer-events:none; }
-  .hero-class { width:64px; height:64px; border-radius:12px; border:2px solid var(--cc); position:relative; z-index:1; }
-  .hero-main { position:relative; z-index:1; }
-  .hero-name { font-size:26px; font-weight:800; line-height:1.1; }
-  .hero-sub { color:var(--muted); margin-bottom:8px; }
   .chips { display:flex; flex-wrap:wrap; gap:8px; }
   .chip { background:var(--panel2); border:1px solid var(--line); border-radius:20px; padding:3px 11px; font-size:13px; display:inline-flex; align-items:center; gap:2px; }
   .chip b { margin-right:4px; font-family:var(--font-mono); font-variant-numeric:tabular-nums; }
@@ -635,14 +783,6 @@ ${body}
   footer { color:var(--muted); font-size:12px; margin-top:40px; text-align:center; }
   /* fight timeline (Kampfverlauf): boss tabs → try pills → topic switch */
   [hidden] { display:none !important; }
-  .boss-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px; }
-  .boss-tab { display:inline-flex; align-items:center; gap:10px; padding:8px 16px 8px 8px; border:1px solid var(--line); background:var(--panel); color:var(--muted); font:inherit; font-size:16px; font-weight:600; cursor:pointer; }
-  .boss-tab img { width:36px; height:36px; border-radius:6px; border:1px solid var(--line); display:block; }
-  .boss-tab:hover { color:var(--text); border-color:var(--muted); }
-  .boss-tab.active { color:var(--text); border-color:var(--accent); box-shadow:inset 0 -3px 0 var(--accent); }
-  .boss-tries { font-size:12px; font-weight:600; padding:2px 8px; border-radius:10px; background:var(--panel2); color:var(--muted); font-family:var(--font-mono); }
-  .boss-tab.active .boss-kill { background:var(--good-bg); color:var(--good); }
-  .boss-tab.active .boss-wipe { background:var(--high-bg); color:var(--high); }
   .try-pills { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 14px; }
   .try-pill { display:inline-flex; align-items:center; gap:8px; padding:8px 14px; border:1px solid var(--line); background:var(--panel2); color:var(--muted); font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
   .try-pill .s { font-size:12px; font-weight:500; font-family:var(--font-mono); }
@@ -694,42 +834,8 @@ ${body}
   .rec-send-row.ok { color:var(--good); } .rec-send-row.warn { color:var(--medium); } .rec-send-row.muted { color:var(--muted); }
   .rec-source { display:inline-block; font-size:10px; font-family:var(--font-mono); font-weight:700; letter-spacing:.06em; padding:1px 5px; margin-right:6px; border-radius:3px; background:var(--accent-soft); color:var(--accent); vertical-align:middle; }
   .rec-phrase-meta { display:block; margin-top:8px; }
-  /* Empfehlungen: verdict cards */
-  .rec-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:14px; align-items:start; }
-  .rec-card { background:var(--panel); border:1px solid var(--line); border-top:2px solid var(--cc); padding:0 14px 0; }
-  .rec-card[open] { padding-bottom:6px; }
-  .rec-card-head { display:flex; align-items:center; gap:10px; padding:12px 0; cursor:pointer; list-style:none; }
-  .rec-card-head::-webkit-details-marker { display:none; }
-  .rec-card-head:hover { color:var(--text); }
-  .rec-chev { width:8px; height:8px; border-right:2px solid var(--muted); border-bottom:2px solid var(--muted); transform:rotate(45deg); transition:transform .15s; flex:none; margin:0 4px 4px 0; }
-  .rec-card[open] .rec-chev { transform:rotate(-135deg); margin:4px 4px 0 0; }
-  .rec-card-open { border-top-color:var(--accent); }
-  .rec-players-head { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
-  .rec-players-head h2 { margin-right:auto; }
-  .rec-toggle-all { display:flex; gap:6px; }
-  .rec-card-head img { width:28px; height:28px; border-radius:6px; border:1px solid var(--line); }
-  .rec-card-head h3 { margin:0; font-size:16px; }
-  .rec-card-head .cn, .rec-card-head .cn a { color:var(--cc); text-decoration:none; }
-  .rec-count { margin-left:auto; font-size:12px; font-family:var(--font-mono); padding:2px 8px; border-radius:10px; background:var(--panel2); color:var(--muted); }
-  .rec-clean { color:var(--good); font-size:14px; padding:6px 0 10px; }
   .rec-list { list-style:none; margin:0; padding:0; }
-  .rec { border-left:3px solid var(--line); padding:8px 12px; margin:0 0 10px; background:var(--panel2); }
-  .rec-high { border-left-color:var(--high); } .rec-medium { border-left-color:var(--medium); } .rec-low { border-left-color:var(--muted); }
-  .rec-state-rejected { opacity:.55; }
-  .rec-head { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
-  .rec-impact { font-size:11px; font-family:var(--font-mono); text-transform:uppercase; letter-spacing:.06em; padding:1px 6px; border-radius:3px; background:var(--panel3); color:var(--muted); }
-  .rec-high .rec-impact { background:var(--high-bg); color:var(--high); } .rec-medium .rec-impact { background:var(--medium-bg); color:var(--medium); }
-  .rec-title { font-size:15px; }
-  .rec-state { margin-left:auto; font-size:12px; font-family:var(--font-mono); color:var(--muted); }
-  .rec-state-approved .rec-state { color:var(--good); } .rec-state-rejected .rec-state { color:var(--high); }
-  .rec-body { margin:6px 0; font-size:14px; }
-  .rec-evidence { display:flex; flex-wrap:wrap; gap:6px 14px; font-size:12px; color:var(--muted); }
-  .rec-ev b { margin-left:5px; font-family:var(--font-mono); color:var(--text); }
-  .rec-review { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:8px; padding-top:8px; border-top:1px solid var(--line-soft); }
-  .rec-text { flex:1 1 100%; font:inherit; font-size:13px; padding:6px 8px; background:var(--panel); color:var(--text); border:1px solid var(--line); resize:vertical; }
   .rec-status { font-size:12px; color:var(--muted); }
-  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .rec-card-head .cn, :root:not([data-theme="dark"]) .rec-card-head .cn a { color:color-mix(in srgb, var(--cc) 70%, #000); } }
-  :root[data-theme="light"] .rec-card-head .cn, :root[data-theme="light"] .rec-card-head .cn a { color:color-mix(in srgb, var(--cc) 70%, #000); }
   /* ---- report v2: head, KPI cards, three views, boss/raider cards, section buttons, dialogs ---- */
   .kicker { font-family:var(--font-mono); font-size:10.5px; text-transform:uppercase; letter-spacing:1.3px; color:var(--muted); }
   .kicker.icons { display:flex; align-items:center; gap:6px; }
@@ -742,7 +848,6 @@ ${body}
   .kpi-v small { font-size:14px; font-weight:600; color:var(--muted); }
   .kpi-v small.bad { color:var(--high); }
   .view-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin:0 0 16px; }
-  .view-bar .note { margin:0; }
   .seg { display:inline-flex; border:1px solid var(--line); background:var(--panel2); border-radius:10px; padding:3px; gap:2px; margin:0 0 14px; }
   .seg-btn { padding:8px 16px; border:0; border-radius:8px; background:transparent; color:var(--muted); font:inherit; font-size:14.5px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:8px; }
   .seg-btn:hover { color:var(--text); }
@@ -783,11 +888,6 @@ ${body}
   .badge.count { border-radius:10px; padding:1px 7px; }
   .badge .hicon { width:14px; height:14px; margin:0; }
   /* icon tiles: an icon on a tinted square, the colour is the area's tone */
-  .tile { width:34px; height:34px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; background:var(--accent-soft); }
-  .tile .hicon { width:22px; height:22px; margin:0; }
-  .tile.bad { background:var(--high-bg); } .tile.mid { background:var(--medium-bg); } .tile.ok { background:var(--good-bg); } .tile.none { background:var(--panel2); }
-  .tile.cls { background:color-mix(in srgb, var(--cc) 18%, transparent); }
-  .tile.cls .hicon { border-radius:6px; }
   /* the expand control: a round 30-px button with a chevron, filled and turned when open, "Details" before it when closed */
   .exp-lbl { display:inline-flex; align-items:center; gap:8px; margin-left:auto; flex:0 0 auto; font-size:13px; font-weight:600; color:var(--muted); }
   .exp { width:30px; height:30px; border-radius:50%; border:1px solid var(--line); background:var(--panel); display:inline-flex; align-items:center; justify-content:center; color:var(--accent); flex:0 0 auto; }
@@ -861,15 +961,6 @@ ${body}
   .fight { border:0; padding:0; background:transparent; }
   .fight.fight-wipe { border:0; }
   .try-pills { margin:14px 0 0; }
-  .rsec { background:var(--panel); border:1px solid var(--line); border-radius:12px; }
-  .rsec > summary { display:flex; align-items:center; gap:10px; padding:12px 16px; cursor:pointer; list-style:none; font-size:16px; font-weight:700; }
-  .rsec > summary::-webkit-details-marker { display:none; }
-  .rsec > summary .hicon { width:22px; height:22px; margin:0; }
-  .rsec > summary .rec-count { margin-left:8px; }
-  .rsec > summary .rec-count.hot { background:var(--high-bg); color:var(--high); }
-  .rsec[open] > summary { border-bottom:1px solid var(--line-soft); }
-  .rsec-body { padding:14px 16px 16px; }
-  .rsec-body > .note:first-child { margin-top:0; }
   .raider-tools { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
   .raider-tools input { padding:8px 12px; border:1px solid var(--line); border-radius:9px; background:var(--panel); color:var(--text); width:200px; font:inherit; }
   .raider-tools .seg { margin:0; }
@@ -912,6 +1003,7 @@ ${body}
   .dm { border-left:4px solid var(--accent); background:var(--panel); border-radius:6px; padding:10px 12px; display:flex; flex-direction:column; gap:6px; font-size:13px; }
   .dm .note { margin:0; }
   @media (max-width:760px) { .send-grid { grid-template-columns:1fr; } .send-items { border-right:0; border-bottom:1px solid var(--line-soft); } .raider-card .vcard-main { flex:1 1 auto; } }
+${REPORT_STYLE}
 ${CHART_STYLE}
 ${opts.extraStyle || ""}
 </style>
@@ -919,17 +1011,6 @@ ${opts.extraStyle || ""}
 <body${opts.bodyClass ? ` class="${opts.bodyClass}"` : ""}>
 ${inner}
 <script>
-/* Tabs are nested (report section > role), so a click may only touch the panels
-   that belong to the clicked nav — i.e. its own siblings, not every .tabpanel. */
-document.addEventListener("click",function(e){
-  var b=e.target.closest("[data-tab]"); if(!b) return;
-  var nav=b.closest("nav.tabs"); if(!nav) return;
-  nav.querySelectorAll("[data-tab]").forEach(function(x){x.classList.toggle("active",x===b);});
-  var t=b.getAttribute("data-tab"), scope=nav.parentElement; if(!scope) return;
-  Array.prototype.forEach.call(scope.children,function(p){
-    if(p.classList&&p.classList.contains("tabpanel")) p.classList.toggle("active",p.id==="tab-"+t);
-  });
-});
 /* Tooltips. One floating box for the whole page, driven by data-tip/data-tip-sub —
    the native title box takes a second to appear and cannot be styled. */
 (function(){
@@ -966,13 +1047,6 @@ document.addEventListener("click",function(e){
   });
   window.addEventListener("scroll",function(){ if(cur) place(cur); },true);
 })();
-/* Orientation switch for the damage table (players as rows <-> abilities as rows). */
-document.addEventListener("click",function(e){
-  var b=e.target.closest("[data-view]"); if(!b) return;
-  var root=b.closest(".viewroot"); if(!root) return;
-  root.querySelectorAll("[data-view]").forEach(function(x){x.classList.toggle("active",x===b);});
-  root.classList.toggle("va",b.getAttribute("data-view")==="a");
-});
 (function(){
   var root=document.documentElement, btn=document.getElementById("themeBtn"); if(!btn) return;
   var SUN='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
@@ -1021,19 +1095,19 @@ function shellPage(title, { user, body, crumbs = [] }) {
     return layout(title, `${publicBar(user)}${body}`);
 }
 
-// Table panels sit on a panel card; the gear grid brings its own cards.
-function panelBox(html) {
-    return `<div class="panel-box">${html}</div>`;
-}
-
 function renderGearPanel(players, linkFor) {
     if (!players || players.length === 0) {
-        return "<div class=\"empty\">✅ Keine Gear-Probleme gefunden!</div>";
+        return "<div class=\"empty\">Keine Gear-Probleme gefunden.</div>";
     }
     const total = players.reduce((n, p) => n + (p.issues || []).length, 0);
-    return `<div class="summary"><strong>${players.length}</strong> Spieler mit insgesamt <strong>${total}</strong> Problem(en).</div>
+    return `<div class="badges">${badge(`${players.length} Spieler`, "", "inv_shield_06")}${badge(`${total} ${total === 1 ? "Problem" : "Probleme"}`, total ? "mid" : "ok")}</div>
       <div class="grid">${players.map((p) => playerCard(p, linkFor(p.name))).join("")}</div>`;
 }
+
+const CONS_HOW = "Abdeckung in % der Boss-Kämpfe. Flask und Elixiere schließen sich aus: „Flask/Elixiere“ heißt Flask oder beide Elixiere aktiv.";
+const POTIONS_HOW = "Anzahl getrunkener Tränke. „Mana“ ist die Summe aller Manaquellen; die Spalten dahinter schlüsseln auf, welche, inklusive der zoneneigenen Gratis-Items und der Runen.";
+const SUNDER_HOW = "„< 5 Stacks“ sind Sunder, die angewandt wurden, während der Boss noch keine 5 Stacks hatte (Stack-Aufbau).";
+const DEBUFFS_HOW = "Debuffs auf dem Boss, gemittelt über alle Boss-Kämpfe. Erwartet wird, was die Aufstellung hergibt: ein Hexenmeister heißt Fluch der Elemente, ein Krieger Rüstung zerreißen; was nur eine Skillung liefert (Elend, Winterkälte), zählt erst, sobald es einmal im Log lag.";
 
 function renderConsumablesPanel(consumables, linkFor) {
     const rows = (consumables && consumables.players) || [];
@@ -1043,15 +1117,14 @@ function renderConsumablesPanel(consumables, linkFor) {
       <td>${classCell(p, linkFor(p.name))}</td>
       <td>${pctCell(p.flask)}</td>
       <td>${pctCell(p.elixir)}</td>
-      <td>${pctCell(p.buffed)}</td>
-      <td>${pctCell(p.food)}</td>
+      <td>${barPct(p.buffed)}</td>
+      <td>${barPct(p.food)}</td>
       <td>${yesNo(p.weaponOiled)}</td>
     </tr>`).join("");
-    return `<p class="note">Abdeckung in % der Boss-Kämpfe. Flask &amp; Elixiere schließen sich aus — „Flask/Elixiere" = Flask <em>oder</em> beide Elixiere aktiv.</p>
-    ${panelBox(`<table class="idx">
-      <tr><th>Spieler</th><th>${colHead(ic.flask, "Flask")}</th><th>${colHead(ic.battle, "Elixiere")}</th><th>Flask/Elixiere</th><th>${colHead(ic.food, "Food")}</th><th>Waffe geölt</th></tr>
+    return `<div class="tbox"><table class="idx">
+      <tr><th>Spieler</th><th>${colHead(ic.flask, "Flask")}</th><th>${colHead(ic.battle, "Elixiere")}</th><th data-tip="Flask oder beide Elixiere" data-tip-sub="${esc(CONS_HOW)}">Flask/Elixiere</th><th data-tip="Food" data-tip-sub="Anteil der Boss-Kämpfe mit Essensbuff.">${colHead(ic.food, "Food")}</th><th>Waffe geölt</th></tr>
       ${body}
-    </table>`)}`;
+    </table></div>`;
 }
 
 function renderPotionsPanel(potions, linkFor) {
@@ -1059,9 +1132,10 @@ function renderPotionsPanel(potions, linkFor) {
     if (rows.length === 0) return "<div class=\"empty\">Keine Tränke gefunden.</div>";
     const ic = (potions && potions.icons) || {};
     // Every mana source that actually turned up in this raid gets its own column,
-    // so "Mana" is not one opaque number any more.
+    // so "Mana" is not one opaque number any more; the column head names it.
     const manaTypes = ((potions && potions.types) || []).filter((t) => t.group === "mana");
-    const manaHead = manaTypes.map((t) => `<th class="n" data-tip="${esc(t.label)}">${hicon(t.icon, "")}</th>`).join("");
+    const manaHead = manaTypes.map((t) => `<th class="n" data-tip="${esc(t.label)}" data-tip-sub="Teil der Spalte „Mana“.">${hicon(t.icon, "")}</th>`).join("");
+    const maxTotal = Math.max(1, ...rows.map((p) => Number(p.total) || 0));
 
     const body = rows.map((p) => {
         const byType = p.byType || {};
@@ -1075,27 +1149,21 @@ function renderPotionsPanel(potions, linkFor) {
           <td class="n">${esc(p.haste)}</td>
           <td class="n"><strong>${esc(p.mana)}</strong></td>
           ${manaCells}
-          <td class="n">${esc(p.total)}</td>
+          <td>${barCell(String(p.total), ((Number(p.total) || 0) / maxTotal) * 100, "")}</td>
         </tr>`;
     }).join("");
 
-    const legend = manaTypes.length
-        ? `<div class="legend">${manaTypes.map((t) => `<span class="lg">${iconTile({ ...t, label: t.label })}${esc(t.label)}</span>`).join("")}</div>`
-        : "";
-
-    return `<p class="note">Anzahl getrunkener Tränke. „Mana" ist die Summe aller Manaquellen; die Spalten dahinter schlüsseln auf, <em>welche</em> — inklusive der zoneneigenen Gratis-Items und der Runen.</p>
-    ${legend}
-    ${panelBox(`<div class="scrollx"><table class="idx rpb">
+    return `<div class="tbox scrollx"><table class="idx rpb">
       <tr>
         <th class="pcol">Spieler</th>
         <th class="n">${colHead(ic.destruction, "Zerstörung")}</th>
         <th class="n">${colHead(ic.haste, "Hast")}</th>
-        <th class="n">${colHead(ic.mana, "Mana")}</th>
+        <th class="n" data-tip="Mana" data-tip-sub="${esc(POTIONS_HOW)}">${colHead(ic.mana, "Mana")}</th>
         ${manaHead}
-        <th class="n">Gesamt</th>
+        <th data-tip="Gesamt" data-tip-sub="Der Balken ist der Anteil am höchsten Wert im Raid.">Gesamt</th>
       </tr>
       ${body}
-    </table></div>`)}`;
+    </table></div>`;
 }
 
 function renderShadowResiPanel(sr, linkFor) {
@@ -1104,13 +1172,12 @@ function renderShadowResiPanel(sr, linkFor) {
         const items = p.items.map((it) =>
             `<a href="https://www.wowhead.com/tbc/item=${esc(it.itemId)}" target="_blank" rel="noopener">${esc(it.itemName)} (+${esc(it.sr)})</a>`
         ).join(", ");
-        return `<tr><td>${classCell(p, linkFor(p.name))}</td><td class="srval">${esc(p.sr)}</td><td class="sritems">${items || "—"}</td></tr>`;
+        return `<tr><td>${classCell(p, linkFor(p.name))}</td><td class="srval">${esc(p.sr)}</td><td class="sritems">${items || "–"}</td></tr>`;
     }).join("");
-    return `<p class="note">${esc(sr.note)}</p>
-    ${panelBox(`<table class="idx">
-      <tr><th>Spieler</th><th>SR (Gear)</th><th>Quellen</th></tr>
+    return `<div class="tbox"><table class="idx">
+      <tr><th>Spieler</th><th data-tip="Schattenwiderstand aus Gear"${sr.note ? ` data-tip-sub="${esc(sr.note)}"` : ""}>SR (Gear)</th><th>Quellen</th></tr>
       ${body}
-    </table>`)}`;
+    </table></div>`;
 }
 
 function renderDrumsPanel(drums, linkFor) {
@@ -1120,10 +1187,10 @@ function renderDrumsPanel(drums, linkFor) {
         const parts = Object.entries(p.byType).map(([k, v]) => `${k}: ${v}`).join(", ");
         return `<tr><td>${classCell(p, linkFor(p.name))}</td><td class="srval">${esc(p.total)}</td><td class="sritems">${esc(parts)}</td></tr>`;
     }).join("");
-    return panelBox(`<table class="idx">
+    return `<div class="tbox"><table class="idx">
       <tr><th>Spieler</th><th>${colHead(drums && drums.icon, "Drums gesamt")}</th><th>Aufschlüsselung</th></tr>
       ${body}
-    </table>`);
+    </table></div>`;
 }
 
 function potionCells(ic, pot) {
@@ -1134,38 +1201,35 @@ function potionCells(ic, pot) {
 function renderSunderPanel(rows, linkFor) {
     if (!rows || rows.length === 0) return "<div class=\"empty\">Keine Sunder-Armor-Daten gefunden.</div>";
     const body = rows.map((p) => {
-        const warn = p.below5 > 0 ? "pct-part" : "pct-full";
+        const warn = p.below5 > 0 ? "mid" : "ok";
         return `<tr>
           <td>${classCell(p, linkFor(p.name))}</td>
           <td class="srval">${esc(p.total)}</td>
-          <td><span class="pct ${warn}">${esc(p.below5)}</span></td>
+          <td>${badge(String(p.below5), warn, "", true)}</td>
         </tr>`;
     }).join("");
-    return `<p class="note">„&lt; 5 Stacks" = Sunder, die angewandt wurden, während der Boss noch keine 5 Stacks hatte (Stack-Aufbau).</p>
-    ${panelBox(`<table class="idx">
-      <tr><th>Spieler</th><th>Sunder gesamt</th><th>davon bei &lt; 5 Stacks</th></tr>
+    return `<div class="tbox"><table class="idx">
+      <tr><th>Spieler</th><th>Sunder gesamt</th><th data-tip="Davon bei weniger als 5 Stacks" data-tip-sub="${esc(SUNDER_HOW)}">davon bei &lt; 5 Stacks</th></tr>
       ${body}
-    </table>`)}`;
+    </table></div>`;
 }
 
 function uptimeCell(v) {
-    const cls = v >= 95 ? "pct-full" : v >= 70 ? "pct-part" : "pct-none";
-    return `<span class="pct ${cls}">${v}%</span>`;
+    return barPct(Number(v) || 0);
 }
 
 function renderBossUptimesPanel(data) {
     if (!data || !data.rows || data.rows.length === 0) return "<div class=\"empty\">Keine Boss-Daten gefunden.</div>";
-    const head = data.metrics.map((m) => `<th>${esc(m.label)}</th>`).join("");
+    const head = data.metrics.map((m) => `<th data-tip="${esc(m.label)}" data-tip-sub="Debuff-Uptime pro Boss-Kampf in % der Kampfdauer. Ab 95 % grün, ab 70 % gelb.">${esc(m.label)}</th>`).join("");
     const body = data.rows.map((r) => {
         const cells = data.metrics.map((m) => `<td>${uptimeCell(r[m.key] || 0)}</td>`).join("");
         const boss = r.kill ? esc(r.boss) : `${esc(r.boss)} <span class="sritems">(Wipe)</span>`;
         return `<tr><td>${boss}</td>${cells}</tr>`;
     }).join("");
-    return `<p class="note">Debuff-Uptime pro Boss-Kampf (in % der Kampfdauer).</p>
-    ${panelBox(`<table class="idx">
+    return `<div class="tbox scrollx"><table class="idx">
       <tr><th>Boss</th>${head}</tr>
       ${body}
-    </table>`)}`;
+    </table></div>`;
 }
 
 // ---- Kampfverlauf: the fight timelines (report.timeline, utils/logcheck/fightTimeline.js) ----
@@ -1505,7 +1569,7 @@ function healerBlock(x, f, common) {
             x.diedAt !== null && x.diedAt !== undefined ? badge(`gestorben ${fmtTime(x.diedAt)}`, "bad", "ability_creature_cursed_05") : "",
             x.potionMissing ? badge("kein Manatrank", "mid", "inv_potion_137") : "",
         ].filter(Boolean).join("");
-        const openChart = dialogId ? `<div style="display:flex;justify-content:flex-end"><button type="button" class="btn btn-ghost btn-sm" data-dialog="dlg-${esc(dialogId)}">${hicon("inv_misc_pocketwatch_01", "")}Manaverlauf öffnen ⤢</button></div>` : "";
+        const openChart = dialogId ? `<div style="display:flex;justify-content:flex-end"><button type="button" class="btn btn-ghost btn-sm" data-dialog="dlg-${esc(dialogId)}">${hicon("inv_misc_pocketwatch_01", "")}Manaverlauf öffnen${LINE.expand}</button></div>` : "";
         return `<details class="hrow" ${style}${rank === 1 ? " open" : ""}>
       <summary><span class="rank${rank === 1 ? " top" : ""}">${rank}</span><div class="who">${hicon(classIconName(x.type), "")}<div><span class="cn">${esc(x.name)}</span><span class="sritems">${esc(x.type)}</span></div></div>${healBar(heal.total, heal.overheal, maxRaw, heal.overhealPct, `${num(heal.total)} effektive Heilung, ${num(heal.overheal || 0)} Overheal (${heal.overhealPct} %)`, HEAL_BAR_HOW)}${manaBadge}${dispelBadge}<div class="hints">${hints}</div>${expBtn()}</summary>
       <div class="hrow-body"><div class="heal-chips">${chips}</div>${table}${openChart}</div>
@@ -1591,10 +1655,10 @@ function renderHealersPanel(healers, linkFor) {
     }).join("");
     const raid = healers.raid || {};
     const missed = raid.dispelsMissed
-        ? `<p class="note">${esc(raid.dispelsMissed)} dispelbare Debuffs hat niemand entfernt${(raid.missedByAbility || []).length ? `: ${raid.missedByAbility.slice(0, 4).map((m) => `${m.icon ? hicon(m.icon, "") : ""}${esc(m.ability)} (${esc(m.count)}×)`).join(", ")}` : ""}.</p>`
+        ? `<span class="badge mid" data-tip="${esc(`${raid.dispelsMissed} dispelbare Debuffs hat niemand entfernt`)}" data-tip-sub="${esc((raid.missedByAbility || []).slice(0, 4).map((m) => `${m.ability} (${m.count}×)`).join(", "))}">${hicon("spell_holy_dispelmagic", "")}${esc(raid.dispelsMissed)} nie dispellt</span>`
         : "";
-    const tanks = (raid.tanks || []).length ? `<p class="note">Schild- und HoT-Uptimes gemessen auf dem aktiven Tank (${raid.tanks.map(esc).join(", ")}). Manaverlauf und Zauber pro Kampf stehen im Kampfverlauf unter „Heilung“.</p>` : "";
-    return `${tanks}${missed}<table class="idx heal-table"><tr><th></th><th>Heiler</th><th data-tip="Heilung und Overheal über alle Boss-Kämpfe in einem Balken, der stärkste Heiler zuerst" data-tip-sub="${esc(HEAL_BAR_HOW)} Die Zahl rechts ist der Overheal-Anteil: ab 35 % gelb, ab 50 % rot.">Heilung · Overheal</th><th data-tip="Der Zauber mit dem höchsten Overheal-Anteil">Größter Overheal</th><th data-tip="Niedrigster Manastand je Kampf, im Mittel" data-tip-sub="Dahinter: in wie vielen Kämpfen es unter 10 % fiel.">Ø Mana-Tiefstand</th><th data-tip="Manatränke über alle Kämpfe" data-tip-sub="Spät: erst unter 15 % Mana getrunken. Keiner: kein Trank in einem Kampf, der ihn hergegeben hätte.">Manatränke</th><th data-tip="Entfernte Debuffs und die mittlere Reaktionszeit">Dispels</th><th data-tip="Uptime der Schilde und HoTs auf dem aktiven Tank">Auf dem Tank</th></tr>${rows}</table>`;
+    const tanks = (raid.tanks || []).length ? `<span class="badge" data-tip="Schild- und HoT-Uptimes gemessen auf dem aktiven Tank" data-tip-sub="Manaverlauf und Zauber pro Kampf stehen in der Sicht Bosse unter „Heilung“.">${hicon("inv_shield_06", "")}Tank: ${esc(raid.tanks.join(", "))}</span>` : "";
+    return `${tanks || missed ? `<div class="badges">${tanks}${missed}</div>` : ""}<div class="tbox scrollx"><table class="idx heal-table"><tr><th></th><th>Heiler</th><th data-tip="Heilung und Overheal über alle Boss-Kämpfe in einem Balken, der stärkste Heiler zuerst" data-tip-sub="${esc(HEAL_BAR_HOW)} Die Zahl rechts ist der Overheal-Anteil: ab 35 % gelb, ab 50 % rot.">Heilung · Overheal</th><th data-tip="Der Zauber mit dem höchsten Overheal-Anteil">Größter Overheal</th><th data-tip="Niedrigster Manastand je Kampf, im Mittel" data-tip-sub="Dahinter: in wie vielen Kämpfen es unter 10 % fiel.">Ø Mana-Tiefstand</th><th data-tip="Manatränke über alle Kämpfe" data-tip-sub="Spät: erst unter 15 % Mana getrunken. Keiner: kein Trank in einem Kampf, der ihn hergegeben hätte.">Manatränke</th><th data-tip="Entfernte Debuffs und die mittlere Reaktionszeit">Dispels</th><th data-tip="Uptime der Schilde und HoTs auf dem aktiven Tank">Auf dem Tank</th></tr>${rows}</table></div>`;
 }
 
 // ---- Buffs: the raid buffs on the players of a fight (f.buffs, utils/logcheck/raidBuffs.js) ----
@@ -1615,12 +1679,12 @@ function buffTone(c) {
 /** The one-line explanation of an inferred buff, for tooltips and notes. */
 const INFERRED_HOW = "Der Client loggt diesen Buff beim Pull nicht. Er gilt als da, wo der Log ihn später entfernt oder erneuert sieht (Tod, Auslaufen, Nachbuffen), und als fehlend, wo ein Tod alle anderen Buffs entfernt, diesen aber nicht. Ohne beides bleibt die Zelle offen (?) und zählt nicht als Fehlen.";
 
-/** "Aus dem Verlauf abgeleitet: Seelenstärke / Gebet…, Wildnis / Gabe…" — the note above a buff panel whose keys came from the events. */
-function inferredNote(list, unknownCells) {
+/** The same as a badge with the explanation in its tooltip, for the detail dialogs. */
+function inferredBadge(list, unknownCells) {
     if (!list || !list.length) return "";
-    const names = list.map((u) => `${hicon(u.icon, "")}${esc(u.label)}${u.groupLabel ? ` / ${esc(u.groupLabel)}` : ""}`).join(", ");
-    const open = unknownCells ? ` ${esc(unknownCells)} ${unknownCells === 1 ? "Zelle bleibt" : "Zellen bleiben"} ohne Nachweis.` : "";
-    return `<p class="note"><b>Aus dem Verlauf abgeleitet:</b> ${names}. ${esc(INFERRED_HOW)}${open}</p>`;
+    const names = list.map((u) => `${u.label}${u.groupLabel ? ` / ${u.groupLabel}` : ""}`).join(", ");
+    const open = unknownCells ? ` ${unknownCells} ${unknownCells === 1 ? "Zelle bleibt" : "Zellen bleiben"} ohne Nachweis.` : "";
+    return `<span class="badge accent" data-tip="Aus dem Verlauf abgeleitet: ${esc(names)}" data-tip-sub="${esc(INFERRED_HOW + open)}">${list.map((u) => hicon(u.icon, "")).join("")}abgeleitet${unknownCells ? ` · ${esc(unknownCells)} ?` : ""}</span>`;
 }
 
 /** The number of things wrong with a player's buffs in a fight: missing, late, not throughout, wrong role. */
@@ -1692,10 +1756,11 @@ function renderRaidBuffsPanel(raidBuffs, linkFor) {
     // an inferred one is, even where every cell is still open
     const cols = (raidBuffs.rows || []).filter((r) => !blindKeys.has(r.key) && (r.expected || r.seenPlayers > 0 || (r.unknown || 0) > 0));
     const blind = (raidBuffs.untracked || []).length
-        ? `<p class="note"><b>Im Log nicht nachweisbar:</b> ${(raidBuffs.untracked || []).map((u) => `${hicon(u.icon, "")}${esc(u.label)}${u.groupLabel ? ` / ${esc(u.groupLabel)}` : ""}`).join(", ")}. Der Client loggt diese Buffs beim Pull nicht (nur beim Nachbuffen), deshalb werden sie nicht bewertet.</p>`
+        ? `<span class="badge" data-tip="Im Log nicht nachweisbar: ${esc((raidBuffs.untracked || []).map((u) => `${u.label}${u.groupLabel ? ` / ${u.groupLabel}` : ""}`).join(", "))}" data-tip-sub="Der Client loggt diese Buffs beim Pull nicht (nur beim Nachbuffen), deshalb werden sie nicht bewertet.">${(raidBuffs.untracked || []).map((u) => hicon(u.icon, "")).join("")}nicht nachweisbar</span>`
         : "";
-    const inferred = inferredNote(raidBuffs.inferred, raidBuffs.unknownCells);
-    if (!players.length || !cols.length) return `${blind}${inferred}<div class="empty">Keine Raid-Buffs im Log.</div>`;
+    const inferred = inferredBadge(raidBuffs.inferred, raidBuffs.unknownCells);
+    const top = blind || inferred ? `<div class="badges">${blind}${inferred}</div>` : "";
+    if (!players.length || !cols.length) return `${top}<div class="empty">Keine Raid-Buffs im Log.</div>`;
     // the group version counts like the single one, and the tooltip says so
     const head = cols.map((r) => `<th class="bh">${hicon(r.icon, `${r.label}${r.groupLabel ? ` / ${r.groupLabel}` : ""} (${r.provider})${r.inferred ? " · aus dem Verlauf abgeleitet" : ""}`)}</th>`).join("");
     const cover = cols.map((r) => `<td class="bc">${r.expected ? pctCell(r.coveragePct) : "<span class=\"pct pct-na\">–</span>"}</td>`).join("");
@@ -1716,8 +1781,8 @@ function renderRaidBuffsPanel(raidBuffs, linkFor) {
         return `<tr style="--cc:${esc(classColorOf(p.type) || "var(--text)")}"><td>${name}<div class="sritems">${esc(p.type)} · ${esc(BUFF_ROLE_LABELS[p.role] || p.role)} · ${esc(p.fights)} ${p.fights === 1 ? "Kampf" : "Kämpfe"}</div></td>${cells}</tr>`;
     }).join("");
     const pal = raidBuffs.paladins || 0;
-    const note = `<p class="note">Anteil der Bosskämpfe, in denen der Buff die ganze Zeit auf dem Spieler lag (bis zu seinem Tod). Erwartet wird, was die Aufstellung hergibt: ${pal} Paladin${pal === 1 ? "" : "e"} heißt ${pal === 1 ? "ein Segen" : `${pal} Segen`} pro Spieler, Macht auf Tanks und Nahkämpfer, Weisheit auf Heiler und Caster. Gruppenversionen (Große Segen, Gebete, Gabe der Wildnis, Arkane Brillanz) zählen wie die Einzelbuffs. Grau: nicht erwartet; gestrichelt: Segen auf der falschen Rolle. Wer wann was nicht hatte, steht im Kampfverlauf unter „Buffs“.</p>`;
-    return `${blind}${inferred}${note}<div style="overflow-x:auto"><table class="idx heal-table buff-matrix"><tr><th>Spieler</th>${head}</tr><tr class="cov"><td><b>Abdeckung</b><div class="sritems">Raid</div></td>${cover}</tr>${body}</table></div>`;
+    const how = `Anteil der Bosskämpfe, in denen der Buff die ganze Zeit auf dem Spieler lag (bis zu seinem Tod). Erwartet wird, was die Aufstellung hergibt: ${pal} Paladin${pal === 1 ? "" : "e"} heißt ${pal === 1 ? "ein Segen" : `${pal} Segen`} pro Spieler, Macht auf Tanks und Nahkämpfer, Weisheit auf Heiler und Caster. Gruppenversionen (Große Segen, Gebete, Gabe der Wildnis, Arkane Brillanz) zählen wie die Einzelbuffs. Grau: nicht erwartet; gestrichelt: Segen auf der falschen Rolle. Wer wann was nicht hatte, steht in der Sicht Bosse unter „Buffs“.`;
+    return `${top}<div class="tbox" style="overflow-x:auto"><table class="idx heal-table buff-matrix"><tr><th data-tip="Raid-Buffs je Spieler" data-tip-sub="${esc(how)}">Spieler</th>${head}</tr><tr class="cov"><td><b>Abdeckung</b><div class="sritems">Raid</div></td>${cover}</tr>${body}</table></div>`;
 }
 
 // ---- Raid-Debuffs: what the raid put on the boss (report.raidDebuffs, utils/logcheck/raidDebuffs.js) ----
@@ -1784,9 +1849,8 @@ function debuffMatrix(rows, timeline) {
         }).join("");
         return `<tr><td class="dn">${hicon(r.icon, "")}${esc(r.label)}<div class="sritems">${esc(r.provider)}${r.maxStacks ? ` · ${esc(r.maxStacks)} Stacks` : ""}</div></td>${cells}</tr>`;
     }).join("");
-    return `<h4 class="heal-h">Debuff × Boss</h4>
-    <p class="note">Mittlere Uptime über alle Tries eines Bosses (Kills und Wipes zusammen); die einzelnen Tries stehen im Tooltip. „–“: dort nicht erwartet, weil kein Anbieter dabei war oder ein anderer Debuff derselben Gruppe lag. Bei stackenden Debuffs darunter, ab wann im Mittel die vollen Stacks lagen. Die Kurven je Kampf stehen im Kampfverlauf unter „Debuffs“.</p>
-    <div style="overflow-x:auto"><table class="idx heal-table buff-matrix debuff-matrix"><tr><th>Debuff</th>${head}</tr>${body}</table></div>`;
+    return `<div class="dsub"><span data-tip="Debuff × Boss" data-tip-sub="Mittlere Uptime über alle Tries eines Bosses (Kills und Wipes zusammen); die einzelnen Tries stehen im Tooltip. „–“: dort nicht erwartet, weil kein Anbieter dabei war oder ein anderer Debuff derselben Gruppe lag. Bei stackenden Debuffs darunter, ab wann im Mittel die vollen Stacks lagen.">Debuff × Boss</span></div>
+    <div class="tbox" style="overflow-x:auto"><table class="idx heal-table buff-matrix debuff-matrix"><tr><th>Debuff</th>${head}</tr>${body}</table></div>`;
 }
 
 /** The Raid-Debuffs tab: the raid summary per debuff, the debuff × boss matrix under it. */
@@ -1806,11 +1870,10 @@ function renderRaidDebuffsPanel(raidDebuffs, timeline) {
           <td class="sritems">${stacks}</td>
         </tr>`;
     }).join("");
-    return `<p class="note">Debuffs auf dem Boss, gemittelt über alle Boss-Kämpfe. Erwartet wird, was die Aufstellung hergibt: ein Hexenmeister heißt Fluch der Elemente, ein Krieger Rüstung zerreißen; was nur eine Skillung liefert (Elend, Winterkälte), zählt erst, sobald es einmal im Log lag.</p>
-    ${panelBox(`<table class="idx">
-      <tr><th>Debuff</th><th>Erwartet</th><th>Ø Uptime</th><th>Gefehlt</th><th>Stacks</th></tr>
+    return `<div class="tbox"><table class="idx">
+      <tr><th>Debuff</th><th data-tip="Erwartet" data-tip-sub="${esc(DEBUFFS_HOW)}">Erwartet</th><th data-tip="Ø Uptime" data-tip-sub="Gemittelt über alle Boss-Kämpfe. Ab 95 % grün, ab 70 % gelb.">Ø Uptime</th><th>Gefehlt</th><th>Stacks</th></tr>
       ${body}
-    </table>`)}
+    </table></div>
     ${debuffMatrix(rows, timeline)}`;
 }
 
@@ -1869,15 +1932,6 @@ function playerSeries(f, name) {
     };
 }
 
-/** The hero chip of the player page: their dip share over the raid (report.fightSeries), or nothing. */
-function dipChip(report, name) {
-    const s = report.fightSeries && (report.fightSeries.players || []).find((x) => x && x.name === name);
-    if (!s || !Number.isFinite(s.dipPct) || s.dipPct === null) return "";
-    const label = s.measure === "hps" ? "HPS" : "DPS";
-    const cls = s.dipPct >= 40 ? "chip-warn" : s.dipPct >= 25 ? "" : "chip-ok";
-    return `<span class="chip ${cls}" data-tip="Anteil der Kampfzeit, in der ${label} unter der Hälfte des eigenen Schnitts lag" data-tip-sub="Bis zum eigenen Tod, über ${s.fights} ${s.fights === 1 ? "Kampf" : "Kämpfe"}. Ab 25 % gelb, ab 40 % rot."><b>${esc(s.dipPct)} %</b> ${label}-Einbrüche</span>`;
-}
-
 /** Section buttons + panels for the parts of one fight, in `mode` "card" (table, chart behind a dialog button) or "inline" (table and chart stacked). */
 function partPanels(f, parts, mode, ctx) {
     const seg = parts.map((p, i) =>
@@ -1886,7 +1940,7 @@ function partPanels(f, parts, mode, ctx) {
         let chart = "";
         if (p.chart && mode === "inline") chart = `<div class="part-chart">${p.chart}</div>`;
         else if (p.chart) chart = chartDialog(p, f, ctx);
-        const open = p.chart && mode !== "inline" ? `<button type="button" class="btn btn-ghost btn-sm" data-dialog="dlg-${p.id}">${hicon("inv_misc_pocketwatch_01", "")}Verlauf öffnen ⤢</button>` : "";
+        const open = p.chart && mode !== "inline" ? `<button type="button" class="btn btn-ghost btn-sm" data-dialog="dlg-${p.id}">${hicon("inv_misc_pocketwatch_01", "")}Verlauf öffnen${LINE.expand}</button>` : "";
         const crumb = ctx && ctx.crumb ? `<span class="kicker">${esc(ctx.crumb)} › ${esc(p.label)}</span>` : "";
         return `<div id="${p.id}" class="fight-part part"${i === 0 ? "" : " hidden"}>
           <div class="part-head"><div class="part-title">${tile(p.icon, p.tone === "bad" ? "bad" : p.tone === "mid" ? "mid" : p.tone === "ok" ? "ok" : "none")}<div>${esc(p.label)}${ctx && ctx.subject ? ` · ${esc(ctx.subject)}` : ""}${crumb}</div></div>${open}</div>
@@ -1900,7 +1954,7 @@ function partPanels(f, parts, mode, ctx) {
 function chartDialog(p, f, ctx) {
     const icon = ctx && ctx.iconUrl ? `<img class="vcard-icon" src="${esc(ctx.iconUrl)}" alt="">` : "";
     return `<dialog class="dlg chart" id="dlg-${p.id}">
-      <div class="dlg-head">${icon}<div class="dlg-main"><div class="dlg-title">${hicon(p.icon, "")}${esc(f.boss)} · ${esc(p.label)}</div><div class="vcard-meta">${esc(fightOutcome(f))} · ${fmtTime(f.duration)} · ${PX_PER_SEC} px pro Sekunde, seitlich scrollen</div></div><button type="button" class="dlg-x" data-close aria-label="Schließen">×</button></div>
+      <div class="dlg-head">${icon}<div class="dlg-main"><div class="dlg-title">${hicon(p.icon, "")}${esc(f.boss)} · ${esc(p.label)}</div><div class="vcard-meta">${esc(fightOutcome(f))} · ${fmtTime(f.duration)} · ${PX_PER_SEC} px pro Sekunde, seitlich scrollen</div></div>${dlgClose()}</div>
       <div class="dlg-body">${p.chart}</div>
       <div class="dlg-foot"><span class="note">Tode als senkrechte Striche in Klassenfarbe · Tabellenansicht unter jeder Grafik aufklappbar</span><div class="btns"><button type="button" class="btn btn-ghost btn-sm" data-close>Schließen</button></div></div>
     </dialog>`;
@@ -1972,9 +2026,18 @@ for(var i=0;i<btns.length;i++){var x=btns[i],p=document.getElementById(x.getAttr
 
 // <dialog> open/close: [data-dialog="id"] opens it modally, [data-close] and a click on the backdrop close it.
 const DIALOG_SCRIPT = `<script>(function(){if(window.__ehDlg)return;window.__ehDlg=1;
-document.addEventListener("click",function(e){var o=e.target.closest("[data-dialog]");if(o){var d=document.getElementById(o.getAttribute("data-dialog"));if(d&&d.showModal){d.showModal();}return;}
+document.addEventListener("click",function(e){var o=e.target.closest("[data-dialog]");if(o){if(o.closest("summary"))e.preventDefault();if(o.disabled)return;var d=document.getElementById(o.getAttribute("data-dialog"));if(d&&d.showModal){d.showModal();}return;}
 var c=e.target.closest("[data-close]");if(c){var dl=c.closest("dialog");if(dl)dl.close();return;}
-var dg=e.target.closest("dialog.dlg");if(dg&&e.target===dg){dg.close();}});})();</script>`;
+var dg=e.target.closest("dialog.dlg");if(dg&&e.target===dg){dg.close();}});
+document.addEventListener("keydown",function(e){if(e.key!=="Enter"&&e.key!==" ")return;var o=e.target.closest&&e.target.closest("[role=button][data-dialog]");if(!o||o!==e.target)return;e.preventDefault();o.click();});})();</script>`;
+
+// Tool rows of the detail dialogs: role segment and search hide every [data-role] cell or row of their scope
+// (rows in the player orientation, whole columns in the ability orientation); the two icon buttons switch the orientation.
+const DTOOLS_SCRIPT = `<script>(function(){if(window.__ehTools)return;window.__ehTools=1;
+function apply(s){var role=s.getAttribute("data-frole")||"all",q=(s.getAttribute("data-fq")||"").toLowerCase();s.querySelectorAll("[data-role]").forEach(function(el){var ok=(role==="all"||el.getAttribute("data-role")===role)&&(!q||(el.getAttribute("data-name")||"").toLowerCase().indexOf(q)>=0);el.hidden=!ok;});}
+document.addEventListener("click",function(e){var b=e.target.closest("[data-frole]");if(b&&b.tagName==="BUTTON"){var s=b.closest(".dscope");s.setAttribute("data-frole",b.getAttribute("data-frole"));b.parentElement.querySelectorAll("button[data-frole]").forEach(function(x){x.classList.toggle("active",x===b);});apply(s);return;}
+var o=e.target.closest("[data-orient]");if(o){var sc=o.closest(".dscope"),a=o.getAttribute("data-orient")==="a";sc.classList.toggle("va",a);o.parentElement.querySelectorAll("[data-orient]").forEach(function(x){x.classList.toggle("active",x===o);});}});
+document.addEventListener("input",function(e){var i=e.target;if(!i||!i.hasAttribute||!i.hasAttribute("data-fsearch"))return;var s=i.closest(".dscope");s.setAttribute("data-fq",i.value.trim());apply(s);});})();</script>`;
 
 /** The try pills of a boss (one per pull; none for a single pull). */
 function tryPills(b, ns) {
@@ -2121,50 +2184,67 @@ function reviewedRecommendations(report) {
     return applyReview(report.recommendations, report.recommendationReview);
 }
 
-function recItem(item, scope, player, reviewer) {
+const IMPACT_TONE = { high: "bad", medium: "mid", low: "" };
+const STATE_LABEL = { approved: "freigegeben", rejected: "nicht senden", open: "offen" };
+const STATE_TONE = { approved: "ok", rejected: "bad", open: "mid" };
+
+/** Up to `max` evidence badges of a finding: the label muted, the value in text colour. */
+function evidenceBadges(item, max = 2) {
+    return (item.evidence || []).slice(0, max).map((e) =>
+        `<span class="badge ev-b" data-tip="${esc(e.label)}" data-tip-sub="${esc(e.value)}">${esc(e.label)} <b>${esc(e.value)}</b></span>`).join("");
+}
+
+/**
+ * One finding as one row (Befundzeile): impact badge, title, up to two
+ * evidence badges, the status badge and — for a reviewer — the three verdict
+ * icon buttons (approve, reject, edit). The text sits in the foldable body,
+ * with "Eigenen Text schreiben" and "Regeltext zeigen" for a reviewer.
+ * Clicking the active verdict again takes it back.
+ */
+function recItem(item, scope, player, reviewer, opts = {}) {
     const state = item.approved === true ? "approved" : item.approved === false ? "rejected" : "open";
-    const stateLabel = { approved: "freigegeben", rejected: "nicht senden", open: "offen" }[state];
-    const evidence = (item.evidence || []).slice(0, 4).map((e) => `<span class="rec-ev"><span>${esc(e.label)}</span><b>${esc(e.value)}</b></span>`).join("");
     // the raid lead's own words first, then Claude's phrasing, then the rule's text
     const text = item.custom || item.ai || item.text;
     const source = item.custom ? "" : item.ai ? "<span class=\"rec-source\" data-tip=\"Von Claude formuliert\" data-tip-sub=\"Der Regeltext dahinter steht im Tooltip des Textes.\">KI</span>" : "";
-    const controls = reviewer
-        ? `<div class="rec-review" data-scope="${esc(scope)}" data-player="${esc(player || "")}" data-key="${esc(item.key)}">
-          <button type="button" class="btn btn-sm${state === "approved" ? "" : " btn-ghost"}" data-review="approve">✓ Freigeben</button>
-          <button type="button" class="btn btn-sm${state === "rejected" ? "" : " btn-ghost"}" data-review="reject">✗ Nicht senden</button>
-          <button type="button" class="btn btn-sm btn-ghost" data-review="reset" data-tip="Entscheidung zurücknehmen">○</button>
-          <textarea class="rec-text" rows="2" placeholder="Eigene Formulierung (leer = Vorschlag so lassen)">${esc(item.custom || "")}</textarea>
-          <button type="button" class="btn btn-sm btn-ghost" data-review="save">Text speichern</button>
-          <span class="rec-status"></span>
-        </div>`
+    const status = reviewer || state !== "open" ? `<span class="badge rec-state ${STATE_TONE[state]}">${STATE_LABEL[state]}</span>` : "";
+    const acts = reviewer
+        ? `<span class="acts rec-review" data-scope="${esc(scope)}" data-player="${esc(player || "")}" data-key="${esc(item.key)}">${
+            ibtn(LINE.check, "Freigeben", "Geht erst nach der Freigabe an den Raider. Ein zweiter Klick nimmt die Entscheidung zurück.", "data-review=\"approve\"", state === "approved" ? "ok" : "")}${
+            ibtn(LINE.ban, "Nicht senden", "Der Punkt bleibt im Report, geht aber nicht raus. Ein zweiter Klick nimmt die Entscheidung zurück.", "data-review=\"reject\"", state === "rejected" ? "bad" : "")}${
+            ibtn(LINE.pencil, "Text bearbeiten", "Eine eigene Formulierung geht vor dem KI- und dem Regeltext.", "data-review=\"edit\"")}</span>`
+        : `<span class="acts">${expBtn()}</span>`;
+    const hasRule = !!(item.ai || item.custom) && item.text;
+    const tools = reviewer
+        ? `<div class="row-btns"><button type="button" class="btn btn-ghost btn-sm" data-review="edit">${LINE.pencil}Eigenen Text schreiben</button>${hasRule ? `<button type="button" class="btn btn-ghost btn-sm" data-review="rule">${LINE.undo}Regeltext zeigen</button>` : ""}<span class="rec-status"></span></div>
+        <div class="rec-edit" hidden><textarea class="rec-text" rows="3" placeholder="Eigene Formulierung (leer = Vorschlag so lassen)">${esc(item.custom || "")}</textarea><div class="row-btns"><button type="button" class="btn btn-sm" data-review="save">Text speichern</button></div></div>`
         : "";
-    return `<li class="rec rec-${esc(item.impact)} rec-state-${state}" data-key="${esc(item.key)}">
-      <div class="rec-head">
-        <span class="rec-impact">${esc(IMPACT_LABEL[item.impact] || item.impact)}</span>
-        <b class="rec-title">${esc(item.title)}</b>
-        ${reviewer || state !== "open" ? `<span class="rec-state">${stateLabel}</span>` : ""}
+    return `<details class="rec rrow-d rec-${esc(item.impact)} rec-state-${state}" data-key="${esc(item.key)}"${opts.open ? " open" : ""}>
+      <summary class="rrow"><span>${badge(IMPACT_LABEL[item.impact] || item.impact, IMPACT_TONE[item.impact] || "")}</span><span class="t rec-title" data-tip="${esc(item.title)}">${esc(item.title)}</span><span class="ev">${evidenceBadges(item)}</span><span class="st">${status}</span>${acts}</summary>
+      <div class="rbody">
+        <p class="rec-body"${item.ai && !item.custom ? ` data-tip="Regeltext" data-tip-sub="${esc(item.text)}"` : ""}>${source}${esc(text)}</p>
+        ${reviewer && hasRule ? `<p class="rec-rule" hidden><span class="rec-source">Regel</span>${esc(item.text)}</p>` : ""}
+        ${(item.evidence || []).length > 2 ? `<div class="badges">${(item.evidence || []).slice(2, 6).map((e) => `<span class="badge ev-b">${esc(e.label)} <b>${esc(e.value)}</b></span>`).join("")}</div>` : ""}
+        ${tools}
       </div>
-      <p class="rec-body"${item.ai && !item.custom ? ` data-tip="Regeltext" data-tip-sub="${esc(item.text)}"` : ""}>${source}${esc(text)}</p>
-      ${evidence ? `<div class="rec-evidence">${evidence}</div>` : ""}
-      ${controls}
-    </li>`;
+    </details>`;
 }
 
-/** The raid's biggest costs (Sicht Raid): every finding with verdict controls for a reviewer, the approved ones for everyone else. */
+/** The raid's findings (Sicht Raid): every finding with verdict controls for a reviewer, the approved ones for everyone else. */
 function renderRaidRecommendations(rec, reviewer) {
     const raid = reviewer ? (rec.raid || []) : (rec.raid || []).filter((i) => i.approved === true);
-    if (!raid.length) return "<div class=\"fc-empty\">Nichts, was den ganzen Raid gekostet hätte.</div>";
-    return `<ul class="rec-list">${raid.map((i) => recItem(i, "raid", "", reviewer)).join("")}</ul>`;
+    if (!raid.length) return "<div class=\"rlist rec-list\"><div class=\"rec-empty\">Nichts, was den ganzen Raid gekostet hätte.</div></div>";
+    return `<div class="rlist rec-list">${raid.map((i) => recItem(i, "raid", "", reviewer)).join("")}</div>`;
 }
 
-// "Alle aufklappen / zuklappen" for the raider cards; a single card is native <details>.
+// "Alle auf- oder zuklappen" for the raider cards: opens all visible cards unless all are open already.
 const CARDS_SCRIPT = `<script>(function(){if(window.__ehCards)return;window.__ehCards=1;
-document.addEventListener("click",function(e){var b=e.target.closest("[data-cards]");if(!b)return;var open=b.getAttribute("data-cards")==="open";
-document.querySelectorAll(".raider-card").forEach(function(d){if(!d.hidden)d.open=open;});});})();</script>`;
+document.addEventListener("click",function(e){var b=e.target.closest("[data-cards]");if(!b)return;var cards=[].slice.call(document.querySelectorAll(".raider-card")).filter(function(d){return !d.hidden;});var open=b.getAttribute("data-cards")==="open"||(b.getAttribute("data-cards")==="toggle"&&cards.some(function(d){return !d.open;}));
+cards.forEach(function(d){d.open=open;});});})();</script>`;
 
 /**
- * The send box for reviewers: how many raiders have approved points, who was
- * already written to, and the button that sends the rest as Discord DMs. The
+ * The body of the "Alle senden" dialog for reviewers: how many raiders have
+ * approved points, who was already written to, the mapping check, the
+ * phrasing job and the button that sends the rest as Discord DMs. The
  * per-raider mapping state is loaded from /api/cla/recommendations/send on
  * demand, so the page itself needs no store access.
  */
@@ -2173,23 +2253,26 @@ function renderSendBox(report) {
     const approved = (rec.players || []).filter((p) => p.items.some((i) => i.approved === true));
     const sent = report.recommendationSent || {};
     const sentNames = approved.filter((p) => sent[p.name]);
+    const phrase = report.recommendationPhrase;
+    const phraseBadge = phrase
+        ? `<span class="badge accent rec-phrase-meta" data-tip="${esc(`KI-Formulierung vom ${new Date(phrase.at).toLocaleString("de-DE")}`)}" data-tip-sub="${esc(`${phrase.model}: ${phrase.phrased} Texte für ${phrase.players} Raider${(phrase.errors || []).length ? `, ${phrase.errors.length} Fehler` : ""}`)}">${hicon("inv_scroll_03", "")}${esc(phrase.phrased)} KI-Texte</span>`
+        : "";
     return `<div class="rec-send" data-report="${esc(report.id)}">
-      <div class="rec-send-head">
-        <b>Versand an die Raider</b>
-        <span class="rec-send-meta">${approved.length} Raider mit freigegebenen Punkten · ${sentNames.length} bereits angeschrieben</span>
-        <button type="button" class="btn btn-sm" data-send="all"${approved.length ? "" : " disabled"}>Freigegebenes per DM senden</button>
-        <button type="button" class="btn btn-sm btn-ghost" data-send="status">Zuordnung prüfen</button>
-        <button type="button" class="btn btn-sm btn-ghost" data-phrase="all" data-tip="Claude formuliert jeden Befund in Klartext" data-tip-sub="Deine Freigabe bleibt nötig; der Regeltext bleibt erhalten.">KI-Formulierung erzeugen</button>
+      <div class="badges rec-send-meta">${badge(`${approved.length} Raider mit freigegebenen Punkten`, approved.length ? "ok" : "", "inv_misc_note_01")}${badge(`${sentNames.length} bereits angeschrieben`, "", "inv_letter_15")}${phraseBadge}</div>
+      <div class="dtools">
+        <button type="button" class="btn btn-ghost btn-sm" data-send="status">${LINE.search}Zuordnung prüfen</button>
+        <button type="button" class="btn btn-run btn-sm" data-phrase="all" data-tip="Claude formuliert jeden Befund in Klartext" data-tip-sub="Deine Freigabe bleibt nötig; der Regeltext bleibt erhalten.">${hicon("inv_scroll_03", "")}KI-Formulierung</button>
+        <span class="grow"></span>
+        <button type="button" class="btn btn-sm" data-send="all"${approved.length ? "" : " disabled"}>${hicon("inv_letter_15", "")}Freigegebenes per DM senden</button>
       </div>
-      ${report.recommendationPhrase ? `<div class="rec-send-meta rec-phrase-meta">KI-Formulierung vom ${esc(new Date(report.recommendationPhrase.at).toLocaleString("de-DE"))} (${esc(report.recommendationPhrase.model)}): ${esc(report.recommendationPhrase.phrased)} Texte für ${esc(report.recommendationPhrase.players)} Raider${(report.recommendationPhrase.errors || []).length ? `, ${report.recommendationPhrase.errors.length} Fehler` : ""}</div>` : ""}
       <div class="rec-send-result" hidden></div>
     </div>${SEND_SCRIPT}${PHRASE_SCRIPT}`;
 }
 
 // The send button posts once and lists who got a DM and who was skipped and why;
 // "Zuordnung prüfen" fetches the per-raider mapping state without sending.
-// "KI-Formulierung erzeugen": starts the phrasing job and polls until it is done,
-// then reloads so the cards show Claude's texts.
+// "KI-Formulierung": starts the phrasing job and polls until it is done,
+// then reloads so the rows show Claude's texts.
 const PHRASE_SCRIPT = `<script>(function(){if(window.__ehPhrase)return;window.__ehPhrase=1;
 var token=null;function csrf(){return token?Promise.resolve(token):fetch("/api/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(j){token=j.csrfToken||(j.data&&j.data.csrfToken)||"";return token;});}
 document.addEventListener("click",function(e){var b=e.target.closest("[data-phrase]");if(!b)return;var box=b.closest("[data-report]"),out=box.querySelector(".rec-send-result"),id=box.getAttribute("data-report"),who=box.getAttribute("data-name")||"";out.hidden=false;out.textContent="KI-Formulierung läuft …";b.disabled=true;
@@ -2203,21 +2286,26 @@ var token=null;function csrf(){return token?Promise.resolve(token):fetch("/api/s
 function row(cls,t){var d=document.createElement("div");d.className="rec-send-row "+cls;d.textContent=t;return d;}
 document.addEventListener("click",function(e){var b=e.target.closest("[data-send]");if(!b)return;var box=b.closest(".rec-send"),out=box.querySelector(".rec-send-result"),id=box.getAttribute("data-report");out.hidden=false;out.textContent="…";
 var p;if(b.getAttribute("data-send")==="status"){p=fetch("/api/cla/recommendations/send?id="+encodeURIComponent(id),{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(j){out.textContent="";var list=(j.data&&j.data.players)||[];if(!list.length)out.appendChild(row("muted","Nichts freigegeben."));list.forEach(function(x){out.appendChild(row(x.mapped?"ok":"warn",x.name+": "+x.approved+" Punkte · "+(x.mapped?"Konto zugeordnet":x.ambiguous?"mehrere Konten":"kein Konto zugeordnet")+(x.sentAt?" · gesendet "+new Date(x.sentAt).toLocaleString("de-DE")+(x.changed?" (seitdem geändert)":""):"")));});});}
-else{if(!confirm("Jetzt allen Raidern ihre freigegebenen Punkte als Discord-DM senden?")){out.hidden=true;return;}b.disabled=true;p=csrf().then(function(t){return fetch("/api/cla/recommendations/send",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":t},body:JSON.stringify({reportId:id})});}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j&&j.error&&j.error.message)||r.status);return j.data;});}).then(function(d){out.textContent="";out.appendChild(row("ok",d.message));(d.sent||[]).forEach(function(s){out.appendChild(row("ok","✓ "+s.name+" ("+s.items+" Punkte)"));});(d.skipped||[]).forEach(function(s){out.appendChild(row("warn","– "+s.name+": "+s.message));});}).finally(function(){b.disabled=false;});}
+else{if(!confirm("Jetzt allen Raidern ihre freigegebenen Punkte als Discord-DM senden?")){out.hidden=true;return;}b.disabled=true;p=csrf().then(function(t){return fetch("/api/cla/recommendations/send",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":t},body:JSON.stringify({reportId:id})});}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j&&j.error&&j.error.message)||r.status);return j.data;});}).then(function(d){out.textContent="";out.appendChild(row("ok",d.message));(d.sent||[]).forEach(function(s){out.appendChild(row("ok","Gesendet: "+s.name+" ("+s.items+" Punkte)"));});(d.skipped||[]).forEach(function(s){out.appendChild(row("warn","Übersprungen: "+s.name+": "+s.message));});}).finally(function(){b.disabled=false;});}
 p.catch(function(err){out.textContent="Fehler: "+err.message;});});})();</script>`;
 
 // Verdict buttons and the text box post to /api/cla/recommendations. The CSRF
-// token is fetched once from /api/session, the page never carries it.
+// token is fetched once from /api/session, the page never carries it. A click
+// on the active verdict takes it back; the pencil opens the row's text editor.
 const REVIEW_SCRIPT = `<script>(function(){if(window.__ehReview)return;window.__ehReview=1;
 var token=null;function csrf(){return token?Promise.resolve(token):fetch("/api/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(j){token=j.csrfToken||(j.data&&j.data.csrfToken)||"";return token;});}
 var reportId=(location.pathname.match(/^\\/r\\/([a-zA-Z0-9]+)/)||[])[1];
-document.addEventListener("click",function(e){var b=e.target.closest("[data-review]");if(!b)return;var box=b.closest(".rec-review"),li=b.closest(".rec"),st=box.querySelector(".rec-status");
-var body={reportId:reportId,scope:box.getAttribute("data-scope"),player:box.getAttribute("data-player"),key:box.getAttribute("data-key")};
-var a=b.getAttribute("data-review");if(a==="approve")body.approved=true;else if(a==="reject")body.approved=false;else if(a==="reset")body.approved=null;else if(a==="save")body.text=box.querySelector(".rec-text").value;
-st.textContent="…";csrf().then(function(t){return fetch("/api/cla/recommendations",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":t},body:JSON.stringify(body)});}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j&&j.error&&j.error.message)||(j&&j.message)||r.status);return j;});})
-.then(function(){var s=body.approved===true?"approved":body.approved===false?"rejected":(a==="reset"?"open":null);if(s){li.className=li.className.replace(/rec-state-\\w+/,"rec-state-"+s);var lbl=li.querySelector(".rec-state");if(lbl)lbl.textContent={approved:"freigegeben",rejected:"nicht senden",open:"offen"}[s];box.querySelectorAll("[data-review=approve],[data-review=reject]").forEach(function(x){x.classList.toggle("btn-ghost",!(s==="approved"&&x.getAttribute("data-review")==="approve"||s==="rejected"&&x.getAttribute("data-review")==="reject"));});}
-if(a==="save"){var p=li.querySelector(".rec-body");if(p&&body.text)p.textContent=body.text;}st.textContent="gespeichert";setTimeout(function(){st.textContent="";},1500);})
-.catch(function(err){st.textContent="Fehler: "+err.message;});});})();</script>`;
+var LBL={approved:"freigegeben",rejected:"nicht senden",open:"offen"},TONE={approved:"ok",rejected:"bad",open:"mid"};
+document.addEventListener("click",function(e){var b=e.target.closest("[data-review]");if(!b)return;if(b.closest("summary"))e.preventDefault();var li=b.closest(".rec");if(!li)return;var box=li.querySelector(".rec-review"),st=li.querySelector(".rec-status"),a=b.getAttribute("data-review");
+if(a==="edit"){li.open=true;var ed=li.querySelector(".rec-edit");if(ed){ed.hidden=false;var ta=ed.querySelector("textarea");if(ta)ta.focus();}return;}
+if(a==="rule"){var r=li.querySelector(".rec-rule");if(r){r.hidden=!r.hidden;b.lastChild.textContent=r.hidden?"Regeltext zeigen":"Regeltext verbergen";}return;}
+if(!box)return;var body={reportId:reportId,scope:box.getAttribute("data-scope"),player:box.getAttribute("data-player"),key:box.getAttribute("data-key")};
+if(a==="approve")body.approved=li.classList.contains("rec-state-approved")?null:true;else if(a==="reject")body.approved=li.classList.contains("rec-state-rejected")?null:false;else if(a==="reset")body.approved=null;else if(a==="save")body.text=li.querySelector(".rec-text").value;
+if(st)st.textContent="…";csrf().then(function(t){return fetch("/api/cla/recommendations",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","X-CSRF-Token":t},body:JSON.stringify(body)});}).then(function(r){return r.json().then(function(j){if(!r.ok)throw new Error((j&&j.error&&j.error.message)||(j&&j.message)||r.status);return j;});})
+.then(function(){if(a!=="save"){var s=body.approved===true?"approved":body.approved===false?"rejected":"open";li.className=li.className.replace(/rec-state-\\w+/,"rec-state-"+s);var lbl=li.querySelector(".rec-state");if(lbl){lbl.textContent=LBL[s];lbl.className="badge rec-state "+TONE[s];}
+var ap=box.querySelector("[data-review=approve]"),rj=box.querySelector("[data-review=reject]");if(ap)ap.classList.toggle("ok",s==="approved");if(rj)rj.classList.toggle("bad",s==="rejected");}
+if(a==="save"){var p=li.querySelector(".rec-body");if(p&&body.text)p.textContent=body.text;}if(st){st.textContent="gespeichert";setTimeout(function(){st.textContent="";},1500);}})
+.catch(function(err){li.open=true;if(st)st.textContent="Fehler: "+err.message;});});})();</script>`;
 
 /// ---- report head: the four KPI cards ------------------------------------------
 
@@ -2288,60 +2376,72 @@ function num(n) {
 }
 
 /** Group rows by the role the RPB assigned, in the sheet's own role order. */
-function groupByRole(rows, roles) {
-    const order = ["Tank", "Healer", "Caster", "Physical"];
-    const groups = new Map(order.map((r) => [r, []]));
-    for (const row of rows) {
-        const role = (roles && roles[row.name]) || "Physical";
-        if (!groups.has(role)) groups.set(role, []);
-        groups.get(role).push(row);
-    }
-    return [...groups.entries()].filter(([, list]) => list.length);
+const RPB_ROLE_ORDER = ["Tank", "Healer", "Caster", "Physical"];
+
+/** The RPB role of a raider; everyone the sheet did not place is Physical, as the sheet itself does. */
+function rpbRole(roles, name) {
+    return (roles && roles[name]) || "Physical";
 }
 
-// German label + icon per RPB role, for the role tab bars.
+/** Rows in the sheet's own role order (tanks, healers, casters, melee), the given order inside a role. */
+function sortByRole(rows, roles) {
+    const rank = (r) => {
+        const i = RPB_ROLE_ORDER.indexOf(rpbRole(roles, r.name));
+        return i < 0 ? RPB_ROLE_ORDER.length : i;
+    };
+    return rows.map((r, i) => ({ r, i })).sort((a, b) => rank(a.r) - rank(b.r) || a.i - b.i).map((x) => x.r);
+}
+
+// German label + icon per RPB role, for the role segment of the detail dialogs.
 const ROLE_META = {
     Tank: { label: "Tanks", icon: "inv_shield_06" },
     Healer: { label: "Heiler", icon: "spell_holy_flashheal" },
     Caster: { label: "Caster", icon: "spell_fire_flamebolt" },
-    Physical: { label: "Nahkampf", icon: "inv_sword_27" },
+    Physical: { label: "Nahkampf", icon: "ability_dualwield" },
 };
 
-/**
- * Turn the role groups of a panel into tab items. Roles differ enough (a tank's
- * numbers say nothing about a healer's) that stacking them in one table only made
- * them harder to compare — one tab per role keeps each table homogeneous.
- * @param {function(Array, string): string} renderGroup
- */
-function roleTabs(prefix, rows, roles, renderGroup) {
-    return groupByRole(rows, roles).map(([role, list]) => {
-        const meta = ROLE_META[role] || { label: role, icon: "" };
-        return {
-            id: `${prefix}-${role.toLowerCase()}`,
-            label: meta.label,
-            icon: meta.icon,
-            count: list.length,
-            html: renderGroup(list, role),
-        };
-    });
+/** `data-role` / `data-name` of one raider's row or column cell, for the tool row's filter. */
+function roleAttrs(roles, name) {
+    return ` data-role="${esc(rpbRole(roles, name))}" data-name="${esc(name)}"`;
 }
 
 /**
- * Colour a damage number by how it compares to the worst value in the same column
- * raid-wide (not just within the role tab, so a tank tab with two rows does not
- * paint one of them red for a harmless difference).
+ * The tool row of an RPB table: one role segment (Alle / Tanks / Heiler /
+ * Caster / Nahkampf with their counts), the raider search and — for the
+ * damage table — two icon buttons for the orientation. Replaces the role tabs,
+ * the orientation switch and the colour legend in one line.
+ */
+function rpbTools(rows, roles, orient) {
+    const counts = {};
+    for (const r of rows) {
+        const k = rpbRole(roles, r.name);
+        counts[k] = (counts[k] || 0) + 1;
+    }
+    const btn = (key, label, icon, n, active) => `<button type="button" class="seg-btn${active ? " active" : ""}" data-frole="${esc(key)}">${icon ? hicon(icon, "") : ""}${esc(label)}<span class="n">${esc(n)}</span></button>`;
+    const seg = [btn("all", "Alle", "", rows.length, true), ...RPB_ROLE_ORDER.filter((r) => counts[r]).map((r) => btn(r, ROLE_META[r].label, ROLE_META[r].icon, counts[r], false))].join("");
+    const o = orient
+        ? `<nav class="seg sm"><button type="button" class="seg-btn active" data-orient="p" data-tip="Spieler als Zeilen" aria-label="Spieler als Zeilen">${LINE.rows}</button><button type="button" class="seg-btn" data-orient="a" data-tip="Fähigkeiten als Zeilen" aria-label="Fähigkeiten als Zeilen">${LINE.cols}</button></nav>`
+        : "";
+    return `<div class="dtools"><nav class="seg sm">${seg}</nav><span class="grow"></span><label class="field">${LINE.search}<input type="search" data-fsearch placeholder="Raider suchen …" aria-label="Raider suchen"></label>${o}</div>`;
+}
+
+const DMG_SCALE_HOW = "Der Balken ist der Anteil am höchsten Wert dieser Spalte im ganzen Raid, also über alle Rollen vergleichbar. Ab 50 % gelb, ab 75 % rot.";
+
+/**
+ * A damage number as a WCL bar of fixed width: its share of the highest value
+ * in the same column raid-wide (not just within the role, so a tank with two
+ * rows does not paint one of them red for a harmless difference).
  */
 function dmgCell(v, max) {
-    if (!(v > 0)) return "<span class=\"sritems\">·</span>";
+    if (!(v > 0)) return "<span class=\"mute mono\">·</span>";
     const share = max > 0 ? v / max : 0;
-    const step = share > 0.75 ? 4 : share > 0.5 ? 3 : share > 0.25 ? 2 : 1;
-    return `<span class="dv dv-${step}">${num(v)}</span>`;
+    return barCell(num(v), share * 100, share >= 0.75 ? "high" : share >= 0.5 ? "medium" : "");
 }
 
-/** Column head for one avoidable ability: its icon plus the NPCs that cast it. */
+/** Column head for one avoidable ability: its icon, the NPCs that cast it and the scale in the tooltip. */
 function abilityHead(a) {
-    const sub = a.sources && a.sources.length ? ` data-tip-sub="${esc(a.sources.join(", "))}"` : "";
-    return `<th class="n" data-tip="${esc(a.label)}"${sub}>${abilityIcon(a)}${esc(a.label)}</th>`;
+    const src = a.sources && a.sources.length ? `Quelle: ${a.sources.join(", ")}. ` : "";
+    return `<th class="n" data-tip="${esc(a.label)}" data-tip-sub="${esc(src + DMG_SCALE_HOW)}">${abilityIcon(a)}${esc(a.label)}</th>`;
 }
 
 /** Small inline icon for an avoidable ability, config icon as the fallback. */
@@ -2363,49 +2463,47 @@ function damageScale(damage) {
     };
 }
 
+const deathBadge = (n) => badge(String(n || 0), n > 0 ? "bad" : "ok", "", true);
+
 /** Players as rows, abilities as columns (the classic orientation). */
-function damageByPlayer(abilities, list, linkFor, scale) {
+function damageByPlayer(abilities, list, linkFor, scale, roles) {
     const head = abilities.map(abilityHead).join("");
     const body = list.map((p) => {
         const cells = abilities.map((a, i) => `<td class="n">${dmgCell(p.perAbility[i], scale.perAbility[i])}</td>`).join("");
-        return `<tr>
+        return `<tr${roleAttrs(roles, p.name)}>
           <td class="pcol">${classCell(p, linkFor(p.name))}</td>
           ${cells}
           <td class="n">${dmgCell(p.avoidableTotal, scale.total)}</td>
           <td class="n">${dmgCell(p.reflected, scale.reflected)}</td>
           <td class="n">${dmgCell(p.hostile, scale.hostile)}</td>
-          <td class="n"><span class="pct ${p.deaths > 0 ? "pct-none" : "pct-full"}">${esc(p.deaths)}</span></td>
+          <td class="n">${deathBadge(p.deaths)}</td>
         </tr>`;
     }).join("");
-    return `<div class="scrollx"><table class="idx rpb fixed">
-      <tr><th class="pcol">Spieler</th>${head}<th class="n">Summe</th><th class="n">Reflektiert</th><th class="n">Auf Spieler</th><th class="n">Tode</th></tr>
+    return `<div class="tbox scrollx"><table class="idx rpb fixed">
+      <tr><th class="pcol">Spieler</th>${head}<th class="n" data-tip="Summe" data-tip-sub="${esc(`Vermeidbarer Schaden über alle Fähigkeiten. ${DMG_SCALE_HOW}`)}">Summe</th><th class="n" data-tip="Reflektiert" data-tip-sub="Auf den Raider zurückgeworfener Schaden.">Reflektiert</th><th class="n" data-tip="Auf Spieler" data-tip-sub="Schaden, den der Raider unter Gedankenkontrolle o. Ä. an Mitspielern verursacht hat.">Auf Spieler</th><th class="n">Tode</th></tr>
       ${body}
     </table></div>`;
 }
 
-/** Abilities as rows, one column per raider — the transposed view. */
-function damageByAbility(abilities, list, linkFor, scale) {
+/** Abilities as rows, one column per raider — the transposed view; every cell of a raider's column carries their role for the filter. */
+function damageByAbility(abilities, list, linkFor, scale, roles) {
     const head = list.map((p) => {
         const href = linkFor(p.name);
         const inner = `<span class="rcol-in"><img src="${esc(classIconUrl(p.type))}" alt=""><span>${esc(p.name)}</span></span>`;
-        return `<th class="rcol" data-tip="${esc(p.name)}" data-tip-sub="${esc(p.type)}">${href ? `<a href="${esc(href)}" style="text-decoration:none">${inner}</a>` : inner}</th>`;
+        return `<th class="rcol"${roleAttrs(roles, p.name)} data-tip="${esc(p.name)}" data-tip-sub="${esc(p.type)}">${href ? `<a href="${esc(href)}" style="text-decoration:none">${inner}</a>` : inner}</th>`;
     }).join("");
+    const cell = (p, html) => `<td class="n"${roleAttrs(roles, p.name)}>${html}</td>`;
 
     const abilityRows = abilities.map((a, i) => {
-        const cells = list.map((p) => `<td class="n">${dmgCell(p.perAbility[i], scale.perAbility[i])}</td>`).join("");
+        const cells = list.map((p) => cell(p, dmgCell(p.perAbility[i], scale.perAbility[i]))).join("");
         const sub = a.sources && a.sources.length ? ` data-tip-sub="${esc(a.sources.join(", "))}"` : "";
         return `<tr><td class="pcol" data-tip="${esc(a.label)}"${sub}>${abilityIcon(a)}${esc(a.label)}</td>${cells}</tr>`;
     }).join("");
 
-    const sumRow = (label, pick, max) => {
-        const cells = list.map((p) => `<td class="n">${dmgCell(pick(p), max)}</td>`).join("");
-        return `<tr><td class="pcol"><strong>${esc(label)}</strong></td>${cells}</tr>`;
-    };
-    const deathRow = `<tr><td class="pcol"><strong>Tode</strong></td>${
-        list.map((p) => `<td class="n"><span class="pct ${p.deaths > 0 ? "pct-none" : "pct-full"}">${esc(p.deaths)}</span></td>`).join("")
-    }</tr>`;
+    const sumRow = (label, pick, max) => `<tr><td class="pcol"><strong>${esc(label)}</strong></td>${list.map((p) => cell(p, dmgCell(pick(p), max))).join("")}</tr>`;
+    const deathRow = `<tr><td class="pcol"><strong>Tode</strong></td>${list.map((p) => cell(p, deathBadge(p.deaths))).join("")}</tr>`;
 
-    return `<div class="scrollx"><table class="idx rpb fixed">
+    return `<div class="tbox scrollx"><table class="idx rpb fixed">
       <tr><th class="pcol">Fähigkeit</th>${head}</tr>
       ${abilityRows}
       ${sumRow("Summe", (p) => p.avoidableTotal, scale.total)}
@@ -2421,52 +2519,37 @@ function renderRpbDamagePanel(damage, roles, linkFor) {
     }
     const abilities = damage.abilities || [];
     const scale = damageScale(damage);
-    const items = roleTabs("rpbdmg", damage.players, roles, (list) =>
-        `<div class="tview tview-p">${damageByPlayer(abilities, list, linkFor, scale)}</div>
-         <div class="tview tview-a">${damageByAbility(abilities, list, linkFor, scale)}</div>`);
-
-    return `<p class="note">${esc(damage.heading || "Vermeidbarer erhaltener Schaden")}. Die Farbe zeigt den Anteil am höchsten Wert derselben Spalte im gesamten Raid — sie ist also über alle Rollen-Tabs hinweg vergleichbar.</p>
-    <div class="legend">
-      <span class="lg"><span class="dv dv-1" style="min-width:0">bis 25%</span></span>
-      <span class="lg"><span class="dv dv-2" style="min-width:0">bis 50%</span></span>
-      <span class="lg"><span class="dv dv-3" style="min-width:0">bis 75%</span></span>
-      <span class="lg"><span class="dv dv-4" style="min-width:0">darüber</span></span>
-    </div>
-    <div class="viewroot">
-      <div class="tblswitch">
-        <button type="button" data-view="p" class="active">Spieler als Zeilen</button>
-        <button type="button" data-view="a">Fähigkeiten als Zeilen</button>
-      </div>
-      ${tabbed(items, "sub")}
+    const list = sortByRole(damage.players, roles);
+    return `<div class="dscope">${rpbTools(list, roles, true)}
+      <div class="tview tview-p">${damageByPlayer(abilities, list, linkFor, scale, roles)}</div>
+      <div class="tview tview-a">${damageByAbility(abilities, list, linkFor, scale, roles)}</div>
     </div>`;
 }
+
+const RPB_ACTIVITY_HOW = "Rekonstruierte Aktivität: getrackte Zauber × Zauberzeit, abzüglich Tempo-Effekten, geteilt durch die Kampfzeit des Raids. Für Nahkämpfer ungenau, weil der Combat Log keine Autoattacks erfasst.";
 
 function renderRpbActivityPanel(activity, roles, linkFor) {
     if (!activity || !activity.players || activity.players.length === 0) {
         return "<div class=\"empty\">Keine Aktivitätsdaten gefunden.</div>";
     }
-    const items = roleTabs("rpbact", activity.players, roles, (list) => {
-        const body = list.map((p) => {
-            const haste = p.gearSpellHaste
-                ? ` data-tip="${esc(p.name)}" data-tip-sub="Zaubertempo aus Ausrüstung: ${esc(p.gearSpellHaste)}"`
-                : "";
-            return `<tr>
-              <td class="pcol"${haste}>${classCell(p, linkFor(p.name))}</td>
-              <td class="n"><strong>${esc(p.secondsActive)}s</strong></td>
-              <td class="n">${uptimeCell(p.relativeTotal)}</td>
-              <td class="n">${esc(p.secondsActiveST)}s</td>
-              <td class="n">${esc(p.secondsActiveAoe)}s</td>
-              <td class="n" data-tip="Tempo-Abzug" data-tip-sub="Abzug für Tempo-Effekte">${esc(p.hasteSecondsSubtracted)}s</td>
-            </tr>`;
-        }).join("");
-        return `<div class="scrollx"><table class="idx rpb fixed">
-          <tr><th class="pcol">Spieler</th><th class="n">Aktiv gesamt</th><th class="n">Anteil Raidzeit</th><th class="n">Einzelziel</th><th class="n">Fläche</th><th class="n">Tempo-Abzug</th></tr>
-          ${body}
-        </table></div>`;
-    });
-
-    return `<p class="note">Rekonstruierte Aktivität: getrackte Zauber × Zauberzeit, abzüglich Tempo-Effekten, geteilt durch die Kampfzeit des Raids (${esc(activity.raidSeconds)}s).
-    <strong>Für Nahkämpfer ungenau</strong> — Autoattacks werden vom Combat Log nicht erfasst.</p>${tabbed(items, "sub")}`;
+    const list = sortByRole(activity.players, roles);
+    const body = list.map((p) => {
+        const haste = p.gearSpellHaste
+            ? ` data-tip="${esc(p.name)}" data-tip-sub="Zaubertempo aus Ausrüstung: ${esc(p.gearSpellHaste)}"`
+            : "";
+        return `<tr${roleAttrs(roles, p.name)}>
+          <td class="pcol"${haste}>${classCell(p, linkFor(p.name))}</td>
+          <td class="n"><strong>${esc(p.secondsActive)}s</strong></td>
+          <td class="n">${uptimeCell(p.relativeTotal)}</td>
+          <td class="n">${esc(p.secondsActiveST)}s</td>
+          <td class="n">${esc(p.secondsActiveAoe)}s</td>
+          <td class="n">${esc(p.hasteSecondsSubtracted)}s</td>
+        </tr>`;
+    }).join("");
+    return `<div class="dscope">${rpbTools(list, roles, false)}<div class="tbox scrollx"><table class="idx rpb fixed">
+      <tr><th class="pcol">Spieler</th><th class="n" data-tip="Aktiv gesamt" data-tip-sub="${esc(RPB_ACTIVITY_HOW)}">Aktiv gesamt</th><th class="n" data-tip="Anteil Raidzeit" data-tip-sub="${esc(`Aktive Zeit geteilt durch die Kampfzeit des Raids (${activity.raidSeconds}s). Ab 95 % grün, ab 70 % gelb.`)}">Anteil Raidzeit</th><th class="n">Einzelziel</th><th class="n">Fläche</th><th class="n" data-tip="Tempo-Abzug" data-tip-sub="Abzug für Tempo-Effekte">Tempo-Abzug</th></tr>
+      ${body}
+    </table></div></div>`;
 }
 
 /**
@@ -2494,44 +2577,38 @@ function spellTiles(rows) {
     });
 }
 
+const SPELLS_HOW = "Jedes Icon ist ein getrackter Zauber, die Zahl daran die Anzahl der Casts; ein Klick öffnet Wowhead. Rot umrandet: überwiegend in einem niedrigeren Rang gecastet.";
+
 function renderRpbSpellsPanel(activity, roles, linkFor) {
     const players = (activity && activity.players) || [];
     const withSpells = players.filter((p) => (p.singleTargetCasts || []).length || (p.aoeCasts || []).length);
     if (withSpells.length === 0) return "<div class=\"empty\">Keine getrackten Zauber gefunden.</div>";
-
-    const items = roleTabs("rpbspells", withSpells, roles, (list) => {
-        const body = list.map((p) => {
-            const st = p.singleTargetCasts || [];
-            const aoe = p.aoeCasts || [];
-            const downranked = [...st, ...aoe].filter((r) => r.mostlyLowerRank);
-            const rankCell = downranked.length
-                ? `<span class="pct pct-none" data-tip="Nicht im höchsten Rang" data-tip-sub="${esc(downranked.map((r) => r.label || r.name).join(", "))}">${downranked.length}</span>`
-                : "<span class=\"pct pct-full\">0</span>";
-            return `<tr>
-              <td class="pcol">${classCell(p, linkFor(p.name))}</td>
-              <td>${iconRow(spellTiles(st))}</td>
-              <td>${iconRow(spellTiles(aoe))}</td>
-              <td class="n">${rankCell}</td>
-            </tr>`;
-        }).join("");
-        return `<div class="scrollx"><table class="idx rpb">
-          <tr><th class="pcol">Spieler</th><th>Einzelziel</th><th>Fläche</th><th class="n">Rang-Warnungen</th></tr>
-          ${body}
-        </table></div>`;
-    });
-
-    return `<p class="note">Jedes Icon ist ein getrackter Zauber, die Zahl daran die Anzahl der Casts. Überfahren zeigt Name, Anzahl und ggf. die Uptime; ein Klick öffnet Wowhead.</p>
-    <div class="legend">
-      <span class="lg"><span class="sw warn"></span>rot umrandet = überwiegend in einem <strong>niedrigeren Rang</strong> gecastet</span>
-      <span class="lg">„Rang-Warnungen" = Anzahl solcher Zauber pro Spieler</span>
-    </div>
-    ${tabbed(items, "sub")}`;
+    const list = sortByRole(withSpells, roles);
+    const body = list.map((p) => {
+        const st = p.singleTargetCasts || [];
+        const aoe = p.aoeCasts || [];
+        const downranked = [...st, ...aoe].filter((r) => r.mostlyLowerRank);
+        const rankCell = downranked.length
+            ? `<span class="badge bad count" data-tip="Nicht im höchsten Rang" data-tip-sub="${esc(downranked.map((r) => r.label || r.name).join(", "))}">${downranked.length}</span>`
+            : badge("0", "ok", "", true);
+        return `<tr${roleAttrs(roles, p.name)}>
+          <td class="pcol">${classCell(p, linkFor(p.name))}</td>
+          <td>${iconRow(spellTiles(st))}</td>
+          <td>${iconRow(spellTiles(aoe))}</td>
+          <td class="n">${rankCell}</td>
+        </tr>`;
+    }).join("");
+    return `<div class="dscope">${rpbTools(list, roles, false)}<div class="tbox scrollx"><table class="idx rpb">
+      <tr><th class="pcol">Spieler</th><th data-tip="Einzelziel" data-tip-sub="${esc(SPELLS_HOW)}">Einzelziel</th><th data-tip="Fläche" data-tip-sub="${esc(SPELLS_HOW)}">Fläche</th><th class="n" data-tip="Rang-Warnungen" data-tip-sub="Anzahl der Zauber, die ein Raider überwiegend in einem niedrigeren Rang gecastet hat.">Rang-Warnungen</th></tr>
+      ${body}
+    </table></div></div>`;
 }
 
 function renderRpbInterruptsPanel(interrupts, linkFor) {
     if (!interrupts || !interrupts.players || interrupts.players.length === 0) {
         return "<div class=\"empty\">Keine Unterbrechungen gefunden.</div>";
     }
+    const max = Math.max(1, ...interrupts.players.map((p) => Number(p.count) || 0));
     const body = interrupts.players.map((p) => {
         const spells = (p.spells || []).map((s) => iconTile({
             icon: s.icon, spellId: s.spellId, label: s.name, count: s.count,
@@ -2539,22 +2616,25 @@ function renderRpbInterruptsPanel(interrupts, linkFor) {
         const kicks = (p.kicks || []).map((k) => `${esc(k.name)} ×${k.count}`).join(", ");
         return `<tr>
           <td class="pcol">${classCell(p, linkFor(p.name))}</td>
-          <td class="n"><strong>${esc(p.count)}</strong></td>
+          <td>${barCell(String(p.count), ((Number(p.count) || 0) / max) * 100, "")}</td>
           <td>${iconRow(spells)}</td>
           <td class="sritems">${kicks || "–"}</td>
         </tr>`;
     }).join("");
-    return `<p class="note">Welche gegnerischen Zauber wer unterbrochen hat — und womit.</p>
-    ${panelBox(`<div class="scrollx"><table class="idx rpb">
-      <tr><th class="pcol">Spieler</th><th class="n">Unterbrechungen</th><th>Unterbrochene Zauber</th><th>Eingesetzt mit</th></tr>
+    return `<div class="tbox scrollx"><table class="idx rpb">
+      <tr><th class="pcol">Spieler</th><th data-tip="Unterbrechungen" data-tip-sub="Welche gegnerischen Zauber wer unterbrochen hat. Der Balken ist der Anteil am höchsten Wert im Raid.">Unterbrechungen</th><th>Unterbrochene Zauber</th><th>Eingesetzt mit</th></tr>
       ${body}
-    </table></div>`)}`;
+    </table></div>`;
 }
 
 function renderRpbValidationPanel(v) {
     if (!v) return "<div class=\"empty\">Keine Validierungsdaten.</div>";
     const zones = (v.zones || []).join(", ") || "unbekannt";
-    const header = `<p class="note">Zone(n): <strong>${esc(zones)}</strong> · Bosse gelegt: <strong>${esc(v.bossesKilled)}</strong> von ${esc(v.bossesTotal)}</p>`;
+    const unmet = (v.requirements || []).filter((r) => !r.ok).length;
+    const verdict = !v.requirements || !v.requirements.length
+        ? ""
+        : v.valid ? badge("Trash-Anforderungen erfüllt", "ok") : badge(`${unmet} Anforderung${unmet === 1 ? "" : "en"} nicht erfüllt`, "bad");
+    const header = `<div class="badges">${badge(`Zone: ${zones}`, "")}${badge(`${v.bossesKilled} / ${v.bossesTotal} Bosse gelegt`, v.bossesKilled >= v.bossesTotal ? "ok" : "mid", "achievement_boss_illidan")}${verdict}</div>`;
 
     if (!v.requirements || v.requirements.length === 0) {
         return `${header}<div class="empty">${esc(v.note || "Keine Trash-Anforderungen hinterlegt.")}</div>`;
@@ -2564,66 +2644,55 @@ function renderRpbValidationPanel(v) {
       <td>${esc(r.zone)}</td>
       <td class="n"><strong>${esc(r.killed)}</strong></td>
       <td class="n">${esc(r.minimum)}</td>
-      <td class="n"><span class="pct ${r.ok ? "pct-full" : "pct-none"}">${r.ok ? "ok" : "zu wenig"}</span></td>
+      <td class="n">${badge(r.ok ? "ok" : "zu wenig", r.ok ? "ok" : "bad")}</td>
     </tr>`).join("");
 
-    const verdict = v.valid
-        ? "<p class=\"note\">✅ Der Log erfüllt alle hinterlegten Trash-Anforderungen.</p>"
-        : "<p class=\"note\">⚠️ Der Log erfüllt die Trash-Anforderungen <strong>nicht</strong>.</p>";
-
-    return `${header}${verdict}
-    ${panelBox(`<div class="scrollx"><table class="idx rpb">
+    return `${header}
+    <div class="tbox scrollx"><table class="idx rpb">
       <tr><th class="pcol">Trash</th><th>Zone</th><th class="n">Gelegt</th><th class="n">Nötig</th><th class="n"></th></tr>
       ${body}
-    </table></div>`)}`;
+    </table></div>`;
 }
+
+const USAGE_HOW = "Die Zahl am Icon ist die Anzahl der Einsätze. Bei Cooldowns steht im Tooltip, wie viele in der Bosskampfzeit theoretisch möglich gewesen wären (Kampfzeit ÷ Abklingzeit, eine grobe Obergrenze). Rot: weniger als die Hälfte davon.";
 
 function renderRpbUsagePanel(usage, roles, linkFor) {
     if (!usage || usage.length === 0) return "<div class=\"empty\">Keine Nutzungsdaten gefunden.</div>";
     const withData = usage.filter((u) => (u.classCooldowns || []).length || (u.trinketsAndRacials || []).length
         || (u.engineering || []).length || (u.absorbs || []).length);
     if (withData.length === 0) return "<div class=\"empty\">Keine Cooldowns oder Schmuckstücke erfasst.</div>";
-
-    const items = roleTabs("rpbuse", withData, roles, (list) => {
-        const body = list.map((p) => {
-            const cds = (p.classCooldowns || []).map((c) => {
-                // fewer than half the theoretically possible uses reads as "sat on it"
-                const under = c.possibleUses && c.total < c.possibleUses / 2;
-                return iconTile({
-                    icon: c.icon,
-                    name: c.name,
-                    spellId: c.spellId,
-                    label: c.label,
-                    count: c.total,
-                    note: c.possibleUses ? `${c.total} von ~${c.possibleUses} möglichen` : "",
-                    tone: under ? "warn" : "good",
-                });
+    const list = sortByRole(withData, roles);
+    const body = list.map((p) => {
+        const cds = (p.classCooldowns || []).map((c) => {
+            // fewer than half the theoretically possible uses reads as "sat on it"
+            const under = c.possibleUses && c.total < c.possibleUses / 2;
+            return iconTile({
+                icon: c.icon,
+                name: c.name,
+                spellId: c.spellId,
+                label: c.label,
+                count: c.total,
+                note: c.possibleUses ? `${c.total} von ~${c.possibleUses} möglichen` : "",
+                tone: under ? "warn" : "good",
             });
-            const trinkets = (p.trinketsAndRacials || []).map((t) => iconTile({
-                icon: t.icon, name: t.name, spellId: t.spellId, label: t.label, count: t.total,
-            }));
-            const consumables = [...(p.engineering || []), ...(p.absorbs || [])].map((t) => iconTile({
-                icon: t.icon, name: t.name, spellId: t.spellId, label: t.label, count: t.total,
-            }));
-            return `<tr>
-              <td class="pcol">${classCell(p, linkFor(p.name))}</td>
-              <td>${iconRow(cds)}</td>
-              <td>${iconRow(trinkets)}</td>
-              <td>${iconRow(consumables)}</td>
-            </tr>`;
-        }).join("");
-        return `<div class="scrollx"><table class="idx rpb">
-          <tr><th class="pcol">Spieler</th><th>Klassen-Cooldowns</th><th>Schmuckstücke &amp; Rassenfertigkeiten</th><th>Ingenieurskunst &amp; Schilde</th></tr>
-          ${body}
-        </table></div>`;
-    });
-
-    return `<p class="note">Die Zahl am Icon ist die Anzahl der Einsätze; beim Überfahren steht bei Cooldowns dahinter, wie viele in der Bosskampfzeit theoretisch möglich gewesen wären.</p>
-    <div class="legend">
-      <span class="lg"><span class="sw warn"></span>rot = weniger als die Hälfte der möglichen Einsätze</span>
-      <span class="lg">„möglich" = Bosskampfzeit ÷ Abklingzeit — eine grobe Obergrenze, kein Sollwert</span>
-    </div>
-    ${tabbed(items, "sub")}`;
+        });
+        const trinkets = (p.trinketsAndRacials || []).map((t) => iconTile({
+            icon: t.icon, name: t.name, spellId: t.spellId, label: t.label, count: t.total,
+        }));
+        const consumables = [...(p.engineering || []), ...(p.absorbs || [])].map((t) => iconTile({
+            icon: t.icon, name: t.name, spellId: t.spellId, label: t.label, count: t.total,
+        }));
+        return `<tr${roleAttrs(roles, p.name)}>
+          <td class="pcol">${classCell(p, linkFor(p.name))}</td>
+          <td>${iconRow(cds)}</td>
+          <td>${iconRow(trinkets)}</td>
+          <td>${iconRow(consumables)}</td>
+        </tr>`;
+    }).join("");
+    return `<div class="dscope">${rpbTools(list, roles, false)}<div class="tbox scrollx"><table class="idx rpb">
+      <tr><th class="pcol">Spieler</th><th data-tip="Klassen-Cooldowns" data-tip-sub="${esc(USAGE_HOW)}">Klassen-Cooldowns</th><th>Schmuckstücke &amp; Rassenfertigkeiten</th><th>Ingenieurskunst &amp; Schilde</th></tr>
+      ${body}
+    </table></div></div>`;
 }
 
 // ---- the report page: head, KPI cards, three views -------------------------------
@@ -2687,121 +2756,325 @@ function reportContext(report, user) {
     };
 }
 
-/** One foldable section of Sicht Raid. */
-function raidSection(id, icon, label, count, html, opts = {}) {
-    const counter = count === undefined || count === null ? "" : `<span class="rec-count${opts.hot ? " hot" : ""}">${esc(count)}</span>`;
-    return `<details class="rsec" id="rs-${esc(id)}"${opts.open ? " open" : ""}>
-      <summary>${tile(icon, opts.hot ? "bad" : count ? "" : "none")}<span>${esc(label)}</span>${counter}${expBtn()}</summary>
-      <div class="rsec-body">${html}</div>
-    </details>`;
-}
+// ---- Sicht Raid: four groups (Empfehlungen · Vorbereitung · Leistung · Fehler) ----
+//
+// Every raid-wide part is a metric card: one value, one or two badges and the
+// raiders who stand out; the explanation sits in the tooltip of its title and
+// the full table opens as a detail dialog. The render*Summary / render*Panel
+// functions are those dialogs' bodies.
+
+const sumOf = (list, pick) => (list || []).reduce((n, x) => n + (Number(pick(x)) || 0), 0);
+const avgOf = (list, pick) => ((list || []).length ? Math.round(sumOf(list, pick) / list.length) : 0);
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+const AREA_HOW = {
+    raidbuffs: "Anteil der erwarteten Buff-Zellen (Spieler × Bosskampf), in denen der Buff die ganze Zeit lag. Erwartet wird, was die Aufstellung hergibt. Klick öffnet die Matrix je Raider.",
+    raiddebuffs: `${DEBUFFS_HOW} Klick öffnet die Tabelle und die Matrix je Boss.`,
+    consumables: `${CONS_HOW} Ab 90 % grün, unter 50 % rot. Klick öffnet die Tabelle je Raider.`,
+    potions: `${POTIONS_HOW} Klick öffnet die Tabelle je Raider.`,
+    drums: "Drums-Einsätze über alle Boss-Kämpfe. Klick öffnet die Aufschlüsselung je Raider.",
+    shadowresi: "Schattenwiderstand aus der Ausrüstung beim Mother-Shahraz-Kampf, im Mittel über den Raid. Klick öffnet die Quellen je Raider.",
+    gear: "Fehlende oder schwache Verzauberungen, leere Sockel und inaktive Meta-Gems, aus der Ausrüstung, die Warcraft Logs beim Pull gesehen hat.",
+    activity: "Anteil der Kampfzeit mit laufenden Zaubern oder Angriffen, im Mittel über alle Boss-Kämpfe bis zum eigenen Tod. Lücken über der GCD-Toleranz zählen, „durch Mechanik“ ist der Teil in Bewegungsphasen. Ab 95 % grün, unter 85 % gelb. Klick öffnet die Tabelle je Raider.",
+    cooldowns: "Klassen-Cooldowns und Schmuckstücke über alle Boss-Kämpfe: Einsätze gegen die in der Kampfzeit möglichen, wann der erste Einsatz im Mittel kam und wie viele in ein Bloodlust-Fenster fielen.",
+    healers: "Heilung und Overheal über alle Boss-Kämpfe, der Mana-Tiefstand je Kampf, Manatränke, Dispels und die Schilde auf dem aktiven Tank.",
+    totems: "Je Schamane: wie lange Windfury auf der Gruppe lag, in wie vielen Kämpfen getwistet wurde und wie viel Zeit ein Totemplatz leer blieb.",
+    rpbspells: SPELLS_HOW,
+    rpbinterrupts: "Welche gegnerischen Zauber wer unterbrochen hat, und womit.",
+    sunder: SUNDER_HOW,
+    bosses: "Debuff-Uptime pro Boss-Kampf in % der Kampfdauer, im Mittel über alle Werte eines Bosses.",
+    mechanics: "Vermeidbare Treffer über alle Boss-Kämpfe und wie die Tode zu werten sind: vermeidbar (Todesstoß von einer Mechanik, der man ausweichen kann), früh, nach Kampfrez, kurz vor dem Kill.",
+    rpbdamage: `Vermeidbarer erhaltener Schaden je Fähigkeit. ${DMG_SCALE_HOW}`,
+    rpbvalidate: "Ob der Log die hinterlegten Trash-Anforderungen erfüllt und wie viele Bosse gelegt wurden.",
+};
 
 /** Raid-wide cooldown summary (report.cooldowns.players): uses against the possible, how fast the first press came, stacked with Bloodlust. */
 function renderCooldownSummary(cooldowns, linkFor) {
     const rows = (cooldowns.players || []).slice().sort((a, b) => (a.usedPct === null ? 101 : a.usedPct) - (b.usedPct === null ? 101 : b.usedPct));
     const body = rows.map((p) => `<tr><td>${classCell(p, linkFor(p.name))}</td><td class="mono">${esc(p.fights)}</td><td class="mono">${esc(p.uses)} / ${esc(p.possible)}</td><td>${p.usedPct === null ? naCell("", "–") : barPct(p.usedPct, "Genutzte Cooldowns gegen die in der Kampfzeit möglichen", "Ab 95 % grün, ab 70 % gelb, darunter rot.")}</td><td class="mono">${p.avgFirstAtMs === null || p.avgFirstAtMs === undefined ? "–" : fmtTime(p.avgFirstAtMs)}</td><td class="mono">${esc(p.stacked)} / ${esc(p.stacked + p.unstacked)}</td></tr>`).join("");
-    return `<p class="note">Klassen-Cooldowns und Schmuckstücke über alle Boss-Kämpfe: Einsätze gegen die in der Kampfzeit möglichen, wann der erste Einsatz im Mittel kam, und wie viele in ein Bloodlust-Fenster fielen. Die Zeitpunkte je Kampf stehen in der Sicht Bosse unter „Cooldowns“.</p>
-    ${panelBox(`<table class="idx"><tr><th>Spieler</th><th>Kämpfe</th><th>Einsätze / möglich</th><th>Genutzt</th><th>Ø erster Einsatz</th><th>Mit Bloodlust</th></tr>${body}</table>`)}`;
+    return `<div class="tbox"><table class="idx"><tr><th>Spieler</th><th>Kämpfe</th><th>Einsätze / möglich</th><th data-tip="Genutzt" data-tip-sub="Einsätze gegen die in der Kampfzeit möglichen. Die Zeitpunkte je Kampf stehen in der Sicht Bosse unter „Cooldowns“.">Genutzt</th><th data-tip="Ø erster Einsatz" data-tip-sub="Wann der erste Einsatz im Mittel über die Kämpfe kam.">Ø erster Einsatz</th><th data-tip="Mit Bloodlust" data-tip-sub="Einsätze, die in ein Bloodlust-Fenster fielen, gegen alle Einsätze.">Mit Bloodlust</th></tr>${body}</table></div>`;
 }
 
 /** Raid-wide activity summary (report.activity.players): mean active share, holes and what explains them. */
 function renderActivitySummary(activity, linkFor) {
     const rows = (activity.players || []).slice().sort((a, b) => a.activeAvg - b.activeAvg);
     const body = rows.map((p) => `<tr><td>${classCell(p, linkFor(p.name))}</td><td class="mono">${esc(p.fights)}</td><td>${barPct(p.activeAvg, "Anteil der Kampfzeit mit laufenden Zaubern oder Angriffen", "Im Mittel über die Kämpfe, bis zum eigenen Tod. Ab 95 % grün, ab 70 % gelb.")}</td><td class="mono">${esc(p.gaps)}</td><td class="mono">${fmtTime(p.longestGap)}</td><td class="mono">${fmtTime(p.unexplainedMs)}</td><td class="mono">${fmtTime(p.mechanicMs)}</td></tr>`).join("");
-    return `<p class="note">Anteil der Kampfzeit (bis zum eigenen Tod), in der der Spieler mit Zaubern oder Angriffen beschäftigt war; Lücken über der GCD-Toleranz zählen, „durch Mechanik“ ist der Teil davon, der auf eine Bewegungsphase fällt. Die Bänder je Kampf stehen in der Sicht Bosse unter „Aktivität“.</p>
-    ${panelBox(`<table class="idx"><tr><th>Spieler</th><th>Kämpfe</th><th>Ø aktiv</th><th>Lücken</th><th>Längste Lücke</th><th>Unerklärt</th><th>Durch Mechanik</th></tr>${body}</table>`)}`;
+    return `<div class="tbox"><table class="idx"><tr><th>Spieler</th><th>Kämpfe</th><th data-tip="Ø aktiv" data-tip-sub="${esc(AREA_HOW.activity)}">Ø aktiv</th><th data-tip="Lücken" data-tip-sub="Lücken über der GCD-Toleranz. Die Bänder je Kampf stehen in der Sicht Bosse unter „Aktivität“.">Lücken</th><th>Längste Lücke</th><th data-tip="Unerklärt" data-tip-sub="Lückenzeit, die auf keine Bewegungsphase fällt.">Unerklärt</th><th data-tip="Durch Mechanik" data-tip-sub="Lückenzeit in einer Bewegungsphase des Bosses.">Durch Mechanik</th></tr>${body}</table></div>`;
 }
 
 /** Raid-wide totem summary (report.totems.players): Windfury uptime, twisting, downtime per slot. */
 function renderTotemSummary(totems, linkFor) {
     const body = (totems.players || []).map((p) => {
         const slots = Object.entries(p.slotDowntimeMs || {}).filter(([, v]) => v > 0).map(([k, v]) => `${k}: ${fmtTime(v)}`).join(", ");
-        return `<tr><td>${classCell(p, linkFor(p.name))}<div class="sritems">${esc(p.role || "")}</div></td><td class="mono">${esc(p.fights)}</td><td>${p.wfUptimeAvg === null || p.wfUptimeAvg === undefined ? naCell("", "–") : toneCell(p.wfUptimeAvg)}</td><td class="mono">${esc(p.twistingFights)} / ${esc(p.wfFights)}</td><td class="mono">${esc(p.gapCount)}</td><td class="mono">${fmtTime(p.downtimeMs)}</td><td class="sritems">${esc(slots) || "–"}</td></tr>`;
+        return `<tr><td>${classCell(p, linkFor(p.name))}<div class="sritems">${esc(p.role || "")}</div></td><td class="mono">${esc(p.fights)}</td><td>${p.wfUptimeAvg === null || p.wfUptimeAvg === undefined ? naCell("", "–") : barPct(p.wfUptimeAvg)}</td><td class="mono">${esc(p.twistingFights)} / ${esc(p.wfFights)}</td><td class="mono">${esc(p.gapCount)}</td><td class="mono">${fmtTime(p.downtimeMs)}</td><td class="sritems">${esc(slots) || "–"}</td></tr>`;
     }).join("");
-    return `<p class="note">Je Schamane: wie lange Windfury auf der Gruppe lag, in wie vielen Kämpfen getwistet wurde, und wie viel Zeit ein Totemplatz leer blieb. Die Drops je Kampf stehen in der Sicht Bosse unter „Totems“.</p>
-    ${panelBox(`<table class="idx"><tr><th>Schamane</th><th>Kämpfe</th><th>Windfury Ø</th><th>Twisting</th><th>Lücken</th><th>Downtime</th><th>Leere Plätze</th></tr>${body}</table>`)}`;
+    return `<div class="tbox"><table class="idx"><tr><th>Schamane</th><th>Kämpfe</th><th data-tip="Windfury Ø" data-tip-sub="${esc(AREA_HOW.totems)}">Windfury Ø</th><th data-tip="Twisting" data-tip-sub="Kämpfe mit Windfury-Twisting gegen Kämpfe mit Windfury.">Twisting</th><th>Lücken</th><th>Downtime</th><th data-tip="Leere Plätze" data-tip-sub="Wie lange ein Totemplatz leer blieb. Die Drops je Kampf stehen in der Sicht Bosse unter „Totems“.">Leere Plätze</th></tr>${body}</table></div>`;
 }
 
 /** Raid-wide mechanics summary (report.mechanics): the mechanics that hit most, the raiders they hit, the judged deaths. */
 function renderMechanicsSummary(mech, linkFor) {
     const d = mech.deaths || {};
-    const deaths = `<div class="heal-chips"><span class="chip"><b>${esc(d.total || 0)}</b> Tode</span><span class="chip chip-${d.avoidable ? "high" : "good"}"><b>${esc(d.avoidable || 0)}</b> vermeidbar</span><span class="chip chip-${d.early ? "medium" : "good"}"><b>${esc(d.early || 0)}</b> früh</span><span class="chip"><b>${esc(d.repeat || 0)}</b> nach Kampfrez</span><span class="chip"><b>${esc(d.nearEnd || 0)}</b> kurz vor dem Kill</span></div>`;
-    const mechs = (mech.mechanics || []).map((m) => `<tr><td>${hicon(m.icon, "")}${esc(m.label)}<div class="sritems">${m.kind === "debuff" ? "Debuff" : "Schaden"}</div></td><td class="mono">${esc(m.hits)}</td><td class="mono">${m.amount ? fmtK(m.amount) : "–"}</td><td class="mono">${esc(m.fights)}</td></tr>`).join("");
-    const players = (mech.players || []).map((p) => `<tr><td>${classCell(p, linkFor(p.name))}</td><td class="mono">${esc(p.hits)}</td><td class="mono">${p.amount ? fmtK(p.amount) : "–"}</td><td class="mono">${esc(p.deaths || 0)}${p.avoidableDeaths ? ` <span class="tag tag-high">${esc(p.avoidableDeaths)} vermeidbar</span>` : ""}${p.earlyDeaths ? ` <span class="tag tag-medium">${esc(p.earlyDeaths)} früh</span>` : ""}</td><td class="sritems">${p.topMechanic ? `${hicon(p.topMechanic.icon, "")}${esc(p.topMechanic.label)} (${esc(p.topMechanic.hits)}×)` : "–"}</td></tr>`).join("");
-    return `<p class="note">Vermeidbare Treffer über alle Boss-Kämpfe und wie die Tode zu werten sind. Die Treffer je Kampf stehen in der Sicht Bosse unter „Mechaniken“.</p>${deaths}
-    ${mechs ? panelBox(`<table class="idx"><tr><th>Mechanik</th><th>Treffer</th><th>Schaden</th><th>Kämpfe</th></tr>${mechs}</table>`) : ""}
-    ${players ? `<h4 class="heal-h" style="margin-top:14px">Pro Raider</h4>${panelBox(`<table class="idx"><tr><th>Spieler</th><th>Treffer</th><th>Schaden</th><th>Tode</th><th>Am häufigsten</th></tr>${players}</table>`)}` : ""}`;
+    const deaths = `<div class="badges">${badge(plural(d.total || 0, "Tod", "Tode"), "", "ability_creature_cursed_05")}${badge(`${d.avoidable || 0} vermeidbar`, d.avoidable ? "bad" : "ok")}${badge(`${d.early || 0} früh`, d.early ? "mid" : "ok")}${badge(`${d.repeat || 0} nach Kampfrez`, "")}${badge(`${d.nearEnd || 0} kurz vor dem Kill`, "")}</div>`;
+    const maxHits = Math.max(1, ...(mech.mechanics || []).map((m) => Number(m.hits) || 0));
+    const mechs = (mech.mechanics || []).map((m) => `<tr><td>${hicon(m.icon, "")}${esc(m.label)}<div class="sritems">${m.kind === "debuff" ? "Debuff" : "Schaden"}</div></td><td>${barCell(String(m.hits), ((Number(m.hits) || 0) / maxHits) * 100, "")}</td><td class="mono">${m.amount ? fmtK(m.amount) : "–"}</td><td class="mono">${esc(m.fights)}</td></tr>`).join("");
+    const players = (mech.players || []).map((p) => `<tr><td>${classCell(p, linkFor(p.name))}</td><td class="mono">${esc(p.hits)}</td><td class="mono">${p.amount ? fmtK(p.amount) : "–"}</td><td class="mono">${esc(p.deaths || 0)}${p.avoidableDeaths ? ` ${badge(`${p.avoidableDeaths} vermeidbar`, "bad")}` : ""}${p.earlyDeaths ? ` ${badge(`${p.earlyDeaths} früh`, "mid")}` : ""}</td><td class="sritems">${p.topMechanic ? `${hicon(p.topMechanic.icon, "")}${esc(p.topMechanic.label)} (${esc(p.topMechanic.hits)}×)` : "–"}</td></tr>`).join("");
+    return `${deaths}
+    ${mechs ? `<div class="tbox"><table class="idx"><tr><th>Mechanik</th><th data-tip="Treffer" data-tip-sub="Vermeidbare Treffer über alle Boss-Kämpfe. Die Treffer je Kampf stehen in der Sicht Bosse unter „Mechaniken“.">Treffer</th><th>Schaden</th><th>Kämpfe</th></tr>${mechs}</table></div>` : ""}
+    ${players ? `<div class="dsub">Pro Raider</div><div class="tbox"><table class="idx"><tr><th>Spieler</th><th>Treffer</th><th>Schaden</th><th>Tode</th><th>Am häufigsten</th></tr>${players}</table></div>` : ""}`;
 }
 
-/** The sections of Sicht Raid, in reading order; only those with data. */
-function raidSections(ctx) {
+/** An RPB table under its CLA counterpart in the same dialog. */
+function rpbPart(title, html) {
+    return `<div class="dsub">${badge("RPB", "accent")}${esc(title)}</div>${html}`;
+}
+
+/** One area: a metric card and its detail dialog. `flag` marks it as auffällig for the group head. */
+function area(o) {
+    return {
+        id: o.id, flag: !!o.flag,
+        card: metricCard({ ...o, tip: o.tip || AREA_HOW[o.id] }),
+        dialog: detailDialog(`rs-${o.id}`, o.icon, o.dialogTone || (o.flag ? "mid" : ""), esc(o.label), o.crumb, o.body, o.footNote),
+    };
+}
+
+/** The four groups of Sicht Raid, only those with something in them: { id, icon, tone, label, crumb, head, body, dialogs, flagged }. */
+function raidGroups(ctx) {
     const { report, reviewer, rec, linkFor } = ctx;
-    const out = [];
     const has = (o, key) => !!(o && Array.isArray(o[key]) && o[key].length);
+    const rosterP = (name) => (report.roster || []).find((x) => x.name === name) || { name, type: "" };
+    const rpb = report.rpb || null;
+    const roles = rpb && rpb.roles;
+    const groups = [];
+
+    // --- Empfehlungen an den Raid ---
     if (rec) {
         const raid = rec.raid || [];
         const shown = reviewer ? raid : raid.filter((i) => i.approved === true);
         if (shown.length || reviewer) {
-            const n = reviewer ? raid.filter((i) => i.approved === null).length : shown.length;
-            const note = reviewer
-                ? `<p class="note">Jede Empfehlung wird vor dem Versand freigegeben oder verworfen; der Text lässt sich umformulieren. ${n ? `<b>${n} offen.</b>` : "Alles entschieden."}</p>`
-                : "<p class=\"note\">Was die Raidleitung aus der Auswertung für den nächsten Raid mitgibt.</p>";
-            out.push(raidSection("rec-raid", "inv_misc_note_01", "Empfehlungen an den Raid", n, note + renderRaidRecommendations(rec, reviewer), { open: true, hot: reviewer && n > 0 }));
+            const open = raid.filter((i) => i.approved === null).length;
+            const approved = raid.filter((i) => i.approved === true).length;
+            const crumb = reviewer ? `Raid › Empfehlungen · ${open} offen · ${approved} freigegeben` : `Raid › Empfehlungen · ${plural(shown.length, "Punkt", "Punkte")} von der Raidleitung`;
+            const players = (rec.players || []).filter((p) => p.items.some((i) => i.approved === true)).length;
+            const action = reviewer
+                ? `<button type="button" class="btn btn-sm" data-dialog="dlg-rs-send">${hicon("inv_letter_15", "")}Alle senden …</button>`
+                : badge(String(shown.length), "", "", true);
+            groups.push({
+                id: "recs", flagged: reviewer ? open : 0,
+                html: `<section class="gcard" id="rs-rec-raid">${groupHead("inv_misc_note_01", open && reviewer ? "mid" : "", "Empfehlungen an den Raid", crumb, action)}${renderRaidRecommendations(rec, reviewer)}${reviewer ? detailDialog("rs-send", "inv_letter_15", "", "Alle senden", `Raid › Empfehlungen › Versand · ${plural(players, "Raider", "Raider")} mit freigegebenen Punkten`, renderSendBox(report), "Ein unveränderter Satz wird nie zweimal geschickt.") : ""}</section>`,
+            });
         }
-        if (reviewer) {
-            const approved = (rec.players || []).filter((p) => p.items.some((i) => i.approved === true)).length;
-            out.push(raidSection("send", "inv_misc_note_02", "Alle senden", approved, renderSendBox(report)));
-        }
+    }
+
+    // --- Vorbereitung ---
+    const prep = [];
+    if (has(report.raidBuffs, "players")) {
+        const rows = (report.raidBuffs.rows || []).filter((r) => r.expected);
+        const short = rows.filter((r) => r.none > 0 || r.partial > 0 || (r.late || 0) > 0).length;
+        const cov = rows.length ? avgOf(rows, (r) => r.coveragePct) : null;
+        const lacking = report.raidBuffs.players.filter((p) => (p.missing || 0) > 0).sort((a, b) => b.missing - a.missing);
+        prep.push(area({ id: "raidbuffs", icon: "spell_magic_greaterblessingofkings", label: "Raid-Buffs", crumb: "Raid › Vorbereitung › Raid-Buffs · Spieler × Buff",
+            value: cov === null ? "–" : `${cov} %`, unit: "durchgehend", tone: cov === null ? "" : cov >= 95 ? "ok" : cov >= 80 ? "" : "mid",
+            badges: [short ? badge(`${short} ${short === 1 ? "Buff" : "Buffs"} lückenhaft`, "mid") : badge("alle da", "ok")],
+            who: whoList("Fehlte", lacking), flag: short > 0, body: renderRaidBuffsPanel(report.raidBuffs, linkFor) }));
     }
     if (has(report.raidDebuffs, "rows")) {
-        const short = report.raidDebuffs.rows.filter((r) => r.expected && (r.missing > 0 || r.avgUptime < 95)).length;
-        out.push(raidSection("raiddebuffs", "spell_shadow_chilltouch", "Raid-Debuffs", short, renderRaidDebuffsPanel(report.raidDebuffs, report.timeline), { hot: short > 0 }));
-    }
-    if (has(report.raidBuffs, "players")) {
-        const short = (report.raidBuffs.rows || []).filter((r) => r.expected && (r.none > 0 || r.partial > 0 || (r.late || 0) > 0)).length;
-        out.push(raidSection("raidbuffs", "spell_magic_greaterblessingofkings", "Raid-Buffs", short, renderRaidBuffsPanel(report.raidBuffs, linkFor), { hot: short > 0 }));
-    }
-    if (has(report.healers, "players")) out.push(raidSection("healers", "spell_holy_flashheal", "Heiler", report.healers.players.length, renderHealersPanel(report.healers, linkFor)));
-    if (has(report.cooldowns, "players")) out.push(raidSection("cooldowns", "ability_rogue_preparation", "Cooldowns", report.cooldowns.players.length, renderCooldownSummary(report.cooldowns, linkFor)));
-    if (has(report.activity, "players")) out.push(raidSection("activity", "inv_misc_pocketwatch_02", "Aktivität", report.activity.players.length, renderActivitySummary(report.activity, linkFor)));
-    if (has(report.totems, "players")) out.push(raidSection("totems", "spell_nature_windfury", "Totems", report.totems.players.length, renderTotemSummary(report.totems, linkFor)));
-    if (report.mechanics && (has(report.mechanics, "mechanics") || has(report.mechanics, "players") || report.mechanics.deaths)) {
-        const d = report.mechanics.deaths || {};
-        out.push(raidSection("mechanics", "spell_fire_selfdestruct", "Mechaniken & Tode", d.total || 0, renderMechanicsSummary(report.mechanics, linkFor), { hot: (d.avoidable || 0) > 0 }));
-    }
-    if (has(report, "sunder")) out.push(raidSection("sunder", "ability_warrior_sunder", "Sunder Armor", report.sunder.length, renderSunderPanel(report.sunder, linkFor)));
-    if (has(report.bossUptimes, "rows")) out.push(raidSection("bosses", "achievement_boss_illidan", "Boss-Uptimes", report.bossUptimes.rows.length, renderBossUptimesPanel(report.bossUptimes)));
-    if (has(report.consumables, "players")) out.push(raidSection("consumables", "inv_alchemy_endlessflask_05", "Consumables", report.consumables.players.length, renderConsumablesPanel(report.consumables, linkFor)));
-    if (has(report.potions, "players")) out.push(raidSection("potions", "inv_potion_137", "Tränke", report.potions.players.length, renderPotionsPanel(report.potions, linkFor)));
-    if (has(report.drums, "players")) out.push(raidSection("drums", "inv_misc_drum_01", "Drums", report.drums.players.length, renderDrumsPanel(report.drums, linkFor)));
-    if (has(report.shadowResi, "players")) out.push(raidSection("shadowresi", "spell_shadow_antishadow", "Shadow-Resi", report.shadowResi.players.length, renderShadowResiPanel(report.shadowResi, linkFor)));
-    const gearIssues = (report.players || []).reduce((n, p) => n + (p.issues || []).length, 0);
-    if (report.players) out.push(raidSection("gear", "inv_shield_06", "Gear-Probleme", gearIssues, renderGearPanel(report.players, linkFor), { hot: gearIssues > 0 }));
-
-    // RPB sections. The damage section counts deaths, the spell section counts
-    // downrank warnings and the log check counts unmet requirements, so every
-    // badge shows the number that actually needs attention.
-    const rpb = report.rpb || null;
-    const roles = rpb && rpb.roles;
-    if (rpb && has(rpb.damage, "players")) {
-        const deaths = rpb.damage.players.reduce((n, p) => n + (p.deaths || 0), 0);
-        out.push(raidSection("rpbdamage", "ability_creature_cursed_05", "Schaden & Tode (RPB)", deaths, renderRpbDamagePanel(rpb.damage, roles, linkFor), { hot: deaths > 0 }));
-    }
-    if (rpb && has(rpb.activity, "players")) {
-        out.push(raidSection("rpbactivity", "inv_misc_pocketwatch_02", "Aktivität (RPB)", rpb.activity.players.length, renderRpbActivityPanel(rpb.activity, roles, linkFor)));
-        const withSpells = rpb.activity.players.some((p) => (p.singleTargetCasts || []).length || (p.aoeCasts || []).length);
-        if (withSpells) {
-            const downranks = rpb.activity.players.reduce((n, p) => n + [...(p.singleTargetCasts || []), ...(p.aoeCasts || [])].filter((r) => r.mostlyLowerRank).length, 0);
-            out.push(raidSection("rpbspells", "inv_misc_book_11", "Zauber", downranks, renderRpbSpellsPanel(rpb.activity, roles, linkFor), { hot: downranks > 0 }));
+        const rows = report.raidDebuffs.rows.filter((r) => r.expected);
+        const missing = rows.filter((r) => r.missing > 0);
+        const avg = rows.length ? avgOf(rows, (r) => r.avgUptime) : 0;
+        const bosses = [];
+        for (const b of groupByBoss(ctx.fights)) {
+            if (b.fights.some((f) => (f.debuffs || []).some((d) => d.expected && (d.missing || d.uptimePct === 0)))) bosses.push(b.name);
         }
+        prep.push(area({ id: "raiddebuffs", icon: "spell_shadow_chilltouch", label: "Raid-Debuffs", crumb: "Raid › Vorbereitung › Raid-Debuffs · Boss-Kämpfe",
+            value: missing.length ? String(missing.length) : String(rows.length), unit: missing.length ? `von ${rows.length} fehlten` : "erwartet, alle da", tone: missing.length ? "bad" : "ok",
+            badges: [badge(`Ø ${avg} % Uptime`, avg >= 95 ? "ok" : avg >= 70 ? "mid" : "bad")],
+            who: whatList("Boss", bosses), flag: missing.length > 0 || avg < 95, body: renderRaidDebuffsPanel(report.raidDebuffs, report.timeline) }));
     }
-    if (rpb && has(rpb, "usage")) out.push(raidSection("rpbusage", "ability_rogue_preparation", "Cooldowns (RPB)", rpb.usage.length, renderRpbUsagePanel(rpb.usage, roles, linkFor)));
-    if (rpb && has(rpb.interrupts, "players")) out.push(raidSection("rpbinterrupts", "spell_frost_iceshock", "Interrupts", rpb.interrupts.players.length, renderRpbInterruptsPanel(rpb.interrupts, linkFor)));
+    if (has(report.consumables, "players")) {
+        const list = report.consumables.players;
+        const buffed = avgOf(list, (p) => p.buffed);
+        const food = avgOf(list, (p) => p.food);
+        prep.push(area({ id: "consumables", icon: "inv_alchemy_endlessflask_05", label: "Consumables", crumb: "Raid › Vorbereitung › Consumables · Abdeckung je Raider",
+            value: `${buffed} %`, unit: "Flask / Elixiere", tone: buffed >= 90 ? "ok" : buffed < 50 ? "bad" : "mid",
+            badges: [badge(`Ø Food ${food} %`, food >= 90 ? "ok" : food < 50 ? "bad" : "mid")],
+            who: whoList("Unter 50 %", list.filter((p) => p.buffed < 50).sort((a, b) => a.buffed - b.buffed), (p) => `${p.buffed} %`), flag: buffed < 90, body: renderConsumablesPanel(report.consumables, linkFor) }));
+    }
+    if (has(report.potions, "players")) {
+        const list = report.potions.players;
+        const total = sumOf(list, (p) => p.total);
+        const drank = new Set(list.filter((p) => (p.total || 0) > 0).map((p) => p.name));
+        const none = (report.roster || []).filter((p) => !drank.has(p.name));
+        prep.push(area({ id: "potions", icon: "inv_potion_137", label: "Tränke", crumb: "Raid › Vorbereitung › Tränke · je Raider und Trank",
+            value: String(total), unit: "im Raid", tone: "",
+            badges: [(report.roster || []).length ? (none.length ? badge(`${plural(none.length, "Raider", "Raider")} ohne Trank`, "mid") : badge("jeder hat getrunken", "ok")) : badge(plural(list.length, "Raider", "Raider"), "")],
+            who: none.length ? whoList("Keiner", none) : whoList("Meiste", list.slice().sort((a, b) => b.total - a.total), (p) => p.total), flag: none.length > 0, body: renderPotionsPanel(report.potions, linkFor) }));
+    }
+    if (has(report.drums, "players")) {
+        const list = report.drums.players.slice().sort((a, b) => b.total - a.total);
+        prep.push(area({ id: "drums", icon: "inv_misc_drum_01", label: "Drums", crumb: "Raid › Vorbereitung › Drums",
+            value: String(sumOf(list, (p) => p.total)), unit: "Einsätze", badges: [badge(plural(list.length, "Raider", "Raider"), "")],
+            who: whoList("Meiste", list, (p) => p.total), body: renderDrumsPanel(report.drums, linkFor) }));
+    }
+    if (has(report.shadowResi, "players")) {
+        const list = report.shadowResi.players.slice().sort((a, b) => a.sr - b.sr);
+        prep.push(area({ id: "shadowresi", icon: "spell_shadow_antishadow", label: "Shadow-Resi", crumb: "Raid › Vorbereitung › Shadow-Resi · Mother Shahraz",
+            value: String(avgOf(list, (p) => p.sr)), unit: "Ø aus Gear", badges: [badge(plural(list.length, "Raider", "Raider"), "")],
+            who: whoList("Niedrigste", list, (p) => p.sr), body: renderShadowResiPanel(report.shadowResi, linkFor) }));
+    }
+    if (report.players) {
+        const withIssues = (report.players || []).filter((p) => (p.issues || []).length);
+        const issues = withIssues.flatMap((p) => p.issues);
+        const high = issues.filter((x) => x.severity === "high").length;
+        prep.push(area({ id: "gear", icon: "inv_shield_06", label: "Gear-Probleme", crumb: "Raid › Vorbereitung › Gear-Probleme · je Raider",
+            value: String(issues.length), unit: issues.length ? `bei ${plural(withIssues.length, "Raider", "Raidern")}` : "keine", tone: high ? "bad" : issues.length ? "mid" : "ok",
+            badges: issues.length ? [high ? badge(`${high} schwer`, "bad") : "", issues.length - high ? badge(`${issues.length - high} leicht`, "mid") : ""].filter(Boolean) : [badge("alles verzaubert", "ok")],
+            who: whoList("Meiste", withIssues.slice().sort((a, b) => b.issues.length - a.issues.length), (p) => p.issues.length), flag: issues.length > 0, body: renderGearPanel(report.players, linkFor) }));
+    }
+
+    // --- Leistung ---
+    const perf = [];
+    if (has(report.activity, "players") || (rpb && has(rpb.activity, "players"))) {
+        const cla = has(report.activity, "players") ? report.activity.players : null;
+        const r = rpb && has(rpb.activity, "players") ? rpb.activity.players : null;
+        const list = cla ? cla.slice().sort((a, b) => a.activeAvg - b.activeAvg) : r.slice().sort((a, b) => a.relativeTotal - b.relativeTotal);
+        const val = (p) => (cla ? p.activeAvg : p.relativeTotal);
+        const avg = avgOf(list, val);
+        const low = list.filter((p) => val(p) < 85);
+        const body = (cla ? renderActivitySummary(report.activity, linkFor) : "") + (r ? (cla ? rpbPart("Aktivität", renderRpbActivityPanel(rpb.activity, roles, linkFor)) : renderRpbActivityPanel(rpb.activity, roles, linkFor)) : "");
+        perf.push(area({ id: "activity", icon: "inv_misc_pocketwatch_02", label: "Aktivität", crumb: `Raid › Leistung › Aktivität${cla ? "" : " · RPB"}`,
+            value: `${avg} %`, unit: cla ? "Ø aktiv" : "Ø Anteil Raidzeit", tone: avg >= 95 ? "ok" : avg >= 85 ? "" : "mid",
+            badges: [low.length ? badge(`${low.length} unter 85 %`, "mid") : badge("alle über 85 %", "ok"), r ? badge("RPB", "accent") : ""].filter(Boolean),
+            who: whoList("Niedrigste", list, (p) => `${val(p)} %`), flag: low.length > 0, body }));
+    }
+    if (has(report.cooldowns, "players") || (rpb && has(rpb, "usage"))) {
+        const cla = has(report.cooldowns, "players") ? report.cooldowns.players : null;
+        const usage = rpb && has(rpb, "usage") ? rpb.usage : null;
+        let value;
+        let unit;
+        let tone = "";
+        let badges;
+        let who;
+        let flag = false;
+        if (cla) {
+            const uses = sumOf(cla, (p) => p.uses);
+            const possible = sumOf(cla, (p) => p.possible);
+            const pct = possible ? Math.round((uses / possible) * 100) : null;
+            const stacked = sumOf(cla, (p) => p.stacked);
+            const all = stacked + sumOf(cla, (p) => p.unstacked);
+            value = pct === null ? String(uses) : `${pct} %`;
+            unit = pct === null ? "Einsätze" : "genutzt";
+            tone = pct === null ? "" : pct >= 80 ? "" : "mid";
+            badges = [badge(`${stacked} von ${all} im Lust`, ""), usage ? badge("RPB", "accent") : ""].filter(Boolean);
+            const ranked = cla.filter((p) => p.usedPct !== null && p.usedPct !== undefined).sort((a, b) => a.usedPct - b.usedPct);
+            who = whoList("Niedrigste", ranked, (p) => `${p.usedPct} %`);
+            flag = pct !== null && pct < 80;
+        } else {
+            const under = usage.map((u) => ({ ...rosterP(u.name), ...u, under: (u.classCooldowns || []).filter((c) => c.possibleUses && c.total < c.possibleUses / 2).length })).filter((u) => u.under > 0).sort((a, b) => b.under - a.under);
+            value = String(sumOf(usage, (u) => sumOf(u.classCooldowns, (c) => c.total)));
+            unit = "Klassen-Cooldowns";
+            badges = [under.length ? badge(`${under.length} unter der Hälfte`, "mid") : badge("keiner unter der Hälfte", "ok"), badge("RPB", "accent")];
+            who = whoList("Unter der Hälfte", under, (p) => p.under);
+            flag = under.length > 0;
+        }
+        const body = (cla ? renderCooldownSummary(report.cooldowns, linkFor) : "") + (usage ? (cla ? rpbPart("Cooldowns & Schmuckstücke", renderRpbUsagePanel(rpb.usage, roles, linkFor)) : renderRpbUsagePanel(rpb.usage, roles, linkFor)) : "");
+        perf.push(area({ id: "cooldowns", icon: "ability_rogue_preparation", label: "Cooldowns", crumb: `Raid › Leistung › Cooldowns${cla ? "" : " · RPB"}`, value, unit, tone, badges, who, flag, body }));
+    }
+    if (has(report.healers, "players")) {
+        const list = report.healers.players.slice().sort((a, b) => (b.healingTotal || 0) - (a.healingTotal || 0));
+        const heal = sumOf(list, (p) => p.healingTotal);
+        const over = sumOf(list, (p) => p.overhealTotal);
+        const overPct = heal + over > 0 && over ? Math.round((over / (heal + over)) * 100) : avgOf(list, (p) => p.overhealPct);
+        const low = sumOf(list, (p) => p.manaLowFights);
+        perf.push(area({ id: "healers", icon: "spell_holy_flashheal", label: "Heiler", crumb: "Raid › Leistung › Heiler · alle Boss-Kämpfe",
+            value: String(list.length), unit: list.length === 1 ? "Heiler" : "Heiler",
+            badges: [badge(`Ø Overheal ${overPct} %`, overPct >= 50 ? "bad" : overPct >= 35 ? "mid" : ""), low ? badge(`${low}× unter 10 % Mana`, "bad") : ""].filter(Boolean),
+            who: whoList("Oben", list.slice(0, 2)), flag: low > 0 || overPct >= 35, body: renderHealersPanel(report.healers, linkFor) }));
+    }
+    if (has(report.totems, "players")) {
+        const list = report.totems.players;
+        const wf = list.filter((p) => p.wfUptimeAvg !== null && p.wfUptimeAvg !== undefined);
+        const avg = wf.length ? avgOf(wf, (p) => p.wfUptimeAvg) : null;
+        perf.push(area({ id: "totems", icon: "spell_nature_windfury", label: "Totems", crumb: "Raid › Leistung › Totems · je Schamane",
+            value: avg === null ? String(list.length) : `${avg} %`, unit: avg === null ? "Schamanen" : "Windfury Ø", tone: avg === null ? "" : avg >= 95 ? "ok" : avg >= 70 ? "" : "mid",
+            badges: [badge(`Twisting ${sumOf(list, (p) => p.twistingFights)} / ${sumOf(list, (p) => p.wfFights)}`, "")],
+            who: whoList("Schamanen", list), flag: avg !== null && avg < 90, body: renderTotemSummary(report.totems, linkFor) }));
+    }
+    if (rpb && has(rpb.activity, "players") && rpb.activity.players.some((p) => (p.singleTargetCasts || []).length || (p.aoeCasts || []).length)) {
+        const down = rpb.activity.players.map((p) => ({ ...p, down: [...(p.singleTargetCasts || []), ...(p.aoeCasts || [])].filter((r) => r.mostlyLowerRank).length })).filter((p) => p.down > 0).sort((a, b) => b.down - a.down);
+        const n = sumOf(down, (p) => p.down);
+        perf.push(area({ id: "rpbspells", icon: "inv_misc_book_11", label: "Zauber", crumb: "Raid › Leistung › Zauber · RPB",
+            value: String(n), unit: n === 1 ? "Rang-Warnung" : "Rang-Warnungen", tone: n ? "mid" : "ok", badges: [badge("RPB", "accent")],
+            who: whoList("Betrifft", down, (p) => p.down), flag: n > 0, body: renderRpbSpellsPanel(rpb.activity, roles, linkFor) }));
+    }
+    if (rpb && has(rpb.interrupts, "players")) {
+        const list = rpb.interrupts.players.slice().sort((a, b) => b.count - a.count);
+        perf.push(area({ id: "rpbinterrupts", icon: "spell_frost_iceshock", label: "Interrupts", crumb: "Raid › Leistung › Interrupts · RPB",
+            value: String(sumOf(list, (p) => p.count)), unit: "Unterbrechungen", badges: [badge("RPB", "accent")],
+            who: whoList("Meiste", list, (p) => p.count), body: renderRpbInterruptsPanel(rpb.interrupts, linkFor) }));
+    }
+    if (has(report, "sunder")) {
+        const list = report.sunder.slice().sort((a, b) => b.total - a.total);
+        const below = sumOf(list, (p) => p.below5);
+        perf.push(area({ id: "sunder", icon: "ability_warrior_sunder", label: "Sunder Armor", crumb: "Raid › Leistung › Sunder Armor",
+            value: String(sumOf(list, (p) => p.total)), unit: "Sunder", badges: [badge(`${below} bei < 5 Stacks`, "")],
+            who: whoList("Meiste", list, (p) => p.total), body: renderSunderPanel(report.sunder, linkFor) }));
+    }
+    if (has(report.bossUptimes, "rows")) {
+        const { rows, metrics } = report.bossUptimes;
+        const meanOf = (r) => ((metrics || []).length ? avgOf(metrics, (m) => r[m.key] || 0) : 0);
+        const avg = avgOf(rows, meanOf);
+        const lowest = rows.slice().sort((a, b) => meanOf(a) - meanOf(b));
+        perf.push(area({ id: "bosses", icon: "achievement_boss_illidan", label: "Boss-Uptimes", crumb: "Raid › Leistung › Boss-Uptimes · je Boss-Kampf",
+            value: String(rows.length), unit: rows.length === 1 ? "Boss-Kampf" : "Boss-Kämpfe", badges: [badge(`Ø ${avg} % Uptime`, avg >= 95 ? "ok" : avg >= 70 ? "" : "mid")],
+            who: whatList("Niedrigste", lowest.length ? [lowest[0].boss] : []), flag: avg < 70, body: renderBossUptimesPanel(report.bossUptimes) }));
+    }
+
+    // --- Fehler ---
+    const err = [];
+    if (report.mechanics && (has(report.mechanics, "mechanics") || has(report.mechanics, "players") || report.mechanics.deaths)) {
+        const m = report.mechanics;
+        const d = m.deaths || {};
+        const top = (m.mechanics || []).slice().sort((a, b) => b.hits - a.hits).slice(0, 3);
+        const max = Math.max(1, ...top.map((x) => Number(x.hits) || 0));
+        const hitBy = (key) => (m.players || []).filter((p) => p.byMechanic && p.byMechanic[key]).length;
+        const table = top.length
+            ? `<div class="mc-table"><table class="idx"><tr><th>Mechanik</th><th>Treffer</th><th>Getroffen</th></tr>${top.map((x) => { const share = (Number(x.hits) || 0) / max; return `<tr><td>${hicon(x.icon, "")}${esc(x.label)}</td><td>${barCell(String(x.hits), share * 100, share >= 0.75 ? "high" : share >= 0.5 ? "medium" : "")}</td><td class="mute">${esc(plural(hitBy(x.key), "Raider", "Raider"))}</td></tr>`; }).join("")}</table></div>`
+            : "";
+        const avoidable = (m.players || []).filter((p) => p.avoidableDeaths > 0).sort((a, b) => b.avoidableDeaths - a.avoidableDeaths);
+        err.push(area({ id: "mechanics", icon: "ability_creature_cursed_05", label: "Mechaniken & Tode", crumb: "Raid › Fehler › Mechaniken & Tode · alle Boss-Kämpfe", wide: true,
+            value: String(d.total || 0), unit: (d.total || 0) === 1 ? "Tod" : "Tode", tone: d.avoidable ? "bad" : "",
+            badges: [badge(`${d.avoidable || 0} vermeidbar`, d.avoidable ? "bad" : "ok"), d.early ? badge(`${d.early} früh`, "mid") : "", d.nearEnd ? badge(`${d.nearEnd} kurz vor dem Kill`, "") : ""].filter(Boolean),
+            extra: table, who: whoList("Vermeidbar gestorben", avoidable, (p) => p.avoidableDeaths), flag: (d.avoidable || 0) > 0, dialogTone: d.avoidable ? "bad" : "", body: renderMechanicsSummary(m, linkFor) }));
+    }
+    if (rpb && has(rpb.damage, "players")) {
+        const list = rpb.damage.players.slice().sort((a, b) => (b.avoidableTotal || 0) - (a.avoidableTotal || 0));
+        const deaths = sumOf(list, (p) => p.deaths);
+        err.push(area({ id: "rpbdamage", icon: "spell_shadow_shadowwordpain", label: "Vermeidbarer Schaden", crumb: `Raid › Fehler › ${rpb.damage.heading || "Vermeidbarer Schaden"} · RPB · alle Boss-Kämpfe`,
+            value: fmtK(sumOf(list, (p) => p.avoidableTotal)), unit: "im Raid", badges: [badge("RPB", "accent"), deaths ? badge(plural(deaths, "Tod", "Tode"), "bad") : ""].filter(Boolean),
+            who: whoList("Meiste", list, (p) => fmtK(p.avoidableTotal)), flag: deaths > 0, dialogTone: "bad", body: renderRpbDamagePanel(rpb.damage, roles, linkFor), footNote: "Sortiert nach Rolle · Klick auf einen Raider öffnet seine Seite" }));
+    }
     if (rpb && rpb.validation) {
-        const unmet = (rpb.validation.requirements || []).filter((r) => !r.ok).length;
-        out.push(raidSection("rpbvalidate", "inv_misc_note_02", "Log-Prüfung", unmet, renderRpbValidationPanel(rpb.validation), { hot: unmet > 0 }));
+        const v = rpb.validation;
+        const unmet = (v.requirements || []).filter((r) => !r.ok);
+        err.push(area({ id: "rpbvalidate", icon: "inv_misc_note_02", label: "Log-Prüfung", crumb: "Raid › Fehler › Log-Prüfung · RPB",
+            value: String(unmet.length), unit: unmet.length === 1 ? "Anforderung offen" : "Anforderungen offen", tone: unmet.length ? "mid" : "ok",
+            badges: [badge(`${v.bossesKilled} / ${v.bossesTotal} Bosse gelegt`, "")],
+            who: whatList("Zu wenig", unmet.map((r) => r.label)), flag: unmet.length > 0, body: renderRpbValidationPanel(v) }));
     }
-    return out;
+
+    const groupOf = (id, icon, tone, label, crumb, list) => {
+        if (!list.length) return;
+        const flagged = list.filter((a) => a.flag).length;
+        const action = flagged ? badge(`${flagged} ${flagged === 1 ? "Bereich" : "Bereiche"} auffällig`, tone === "bad" ? "bad" : "mid", "", true) : badge("unauffällig", "ok", "", true);
+        groups.push({
+            id, flagged,
+            html: `<section class="gcard" id="rg-${id}">${groupHead(icon, flagged ? tone : "", label, crumb, action)}<div class="mgrid">${list.map((a) => a.card).join("")}</div>${list.map((a) => a.dialog).join("")}</section>`,
+        });
+    };
+    groupOf("prep", "trade_alchemy", "mid", "Vorbereitung", "Raid › Buffs · Debuffs · Consumables · Gear", prep);
+    groupOf("perf", "spell_nature_bloodlust", "mid", "Leistung", "Raid › Aktivität · Cooldowns · Heiler · Totems · Zauber", perf);
+    groupOf("err", "spell_fire_selfdestruct", "bad", "Fehler", "Raid › Mechaniken · Tode · vermeidbarer Schaden", err);
+    return groups;
 }
 
 // ---- Sicht Raider: one card per raider ------------------------------------------
@@ -2809,11 +3082,10 @@ function raidSections(ctx) {
 /** The armory paperdoll (character-sheet layout) with the mean item level, or a note without one. */
 function paperdoll(p) {
     const color = CLASS_COLORS[p.type] || "#ddd";
-    if (!(p.armory || []).length) return "<p class=\"note\">Keine Ausrüstung im Log.</p>";
+    if (!(p.armory || []).length) return "<div class=\"empty\">Keine Ausrüstung im Log.</div>";
     const bySlot = {};
     for (const it of p.armory || []) bySlot[it.slot] = it;
-    const ilvls = (p.armory || []).map((i) => i.itemLevel).filter((n) => n > 0);
-    const avgIlvl = ilvls.length ? Math.round(ilvls.reduce((a, b) => a + b, 0) / ilvls.length) : 0;
+    const avgIlvl = meanItemLevel(p);
     const LEFT = [0, 1, 2, 14, 4, 8];
     const RIGHT = [9, 5, 6, 7, 10, 11, 12, 13];
     const BOTTOM = [15, 16, 17];
@@ -2821,136 +3093,227 @@ function paperdoll(p) {
         <div class="pd-col pd-col-left">${LEFT.map((s) => paperdollSlot(bySlot[s], "left")).join("")}</div>
         <div class="pd-center">
           <div class="portrait" style="--cc:${color}"><img src="${esc(classIconUrl(p.type))}" alt=""></div>
-          <div class="ilvl-badge"><b>${avgIlvl}</b><span>⌀ iLvl</span></div>
+          <div class="ilvl-badge"><b>${avgIlvl}</b><span>Ø iLvl</span></div>
         </div>
         <div class="pd-col pd-col-right">${RIGHT.map((s) => paperdollSlot(bySlot[s], "right")).join("")}</div>
       </div>
       <div class="doll-bottom">${BOTTOM.map((s) => paperdollSlot(bySlot[s], "bottom")).join("")}</div>`;
 }
 
-/** Consumables & Tränke of one raider: coverage, the potions by type, drums and shadow resistance where present. */
-function raiderConsumables(ctx, p) {
+function meanItemLevel(p) {
+    const ilvls = (p.armory || []).map((i) => i.itemLevel).filter((n) => n > 0);
+    return ilvls.length ? Math.round(ilvls.reduce((a, b) => a + b, 0) / ilvls.length) : 0;
+}
+
+/** One key/value line of a box. */
+function kv(icon, label, right, attrs = "") {
+    return `<div class="kv"${attrs}><span class="k">${icon ? hicon(icon, "") : ""}<span>${label}</span></span>${right}</div>`;
+}
+
+/** A box of the raider sections: head with icon, title and one badge, then its lines. */
+function infoBox(icon, title, headBadge, rows) {
+    return `<div class="box"><div class="box-head">${hicon(icon, "")}<b>${esc(title)}</b>${headBadge || ""}</div>${rows || "<div class=\"kv mute\">Keine Daten.</div>"}</div>`;
+}
+
+/** Vorbereitung of one raider: gear problems, consumables, buffs as three boxes. { count, tone, badge, html, dialogs } */
+function raiderPrep(ctx, p, i) {
     const { report } = ctx;
-    const cons = ctx.consByName.get(p.name);
-    const pot = ctx.potByName.get(p.name) || p.potions || {};
+    const name = p.name;
+    const issues = ((ctx.gearByName.get(name) || {}).issues || p.issues || []);
+    const high = issues.some((x) => x.severity === "high");
+    const boxes = [];
+    let dialogs = "";
+
+    // Gear: only the problem items, the paperdoll behind "Ausrüstung"
+    const gearRows = issues.map((it) => {
+        const inner = `${it.icon ? hicon(it.icon, "") : ""}<span>${esc(it.itemName)}</span>`;
+        const label = it.itemId ? `<a class="item" href="https://www.wowhead.com/tbc/item=${esc(it.itemId)}" target="_blank" rel="noopener">${inner}</a>` : inner;
+        return `<div class="kv"><span class="k">${label}</span>${badge(it.label, it.severity === "high" ? "bad" : "mid")}</div>`;
+    }).join("");
+    const armory = (p.armory || []).length;
+    const gearFoot = armory
+        ? `<div class="kv"><span class="k mute"><span>Ø Itemlevel ${meanItemLevel(p)} · ${armory} Slots</span></span><button type="button" class="btn btn-ghost btn-sm" data-dialog="dlg-pd-${i}">${hicon("inv_shield_06", "")}Ausrüstung</button></div>`
+        : "<div class=\"kv mute\"><span class=\"k\"><span>Keine Ausrüstung im Log.</span></span></div>";
+    boxes.push(infoBox("inv_shield_06", "Gear", issues.length ? badge(plural(issues.length, "Problem", "Probleme"), high ? "bad" : "mid") : badge("ok", "ok"), gearRows + gearFoot));
+    if (armory) {
+        dialogs += detailDialog(`pd-${i}`, "inv_shield_06", "", `Ausrüstung · <span class="cn" style="--cc:${esc(classColorOf(p.type) || "var(--text)")}">${esc(name)}</span>`, `${name} › Vorbereitung › Ausrüstung · beim Pull gesehen`, paperdoll(p));
+    }
+
+    // Consumables
+    const cons = ctx.consByName.get(name);
+    const pot = ctx.potByName.get(name) || p.potions || {};
     const ic = report.icons || {};
-    const parts = [];
+    const consIcons = (report.consumables && report.consumables.icons) || ic;
+    let consRows = "";
     if (cons) {
-        parts.push(`<table class="mini"><tr><th>${colHead((report.consumables.icons || ic).flask, "Flask")}</th><th>${colHead((report.consumables.icons || ic).battle, "Elixiere")}</th><th>Flask/Elixiere</th><th>${colHead((report.consumables.icons || ic).food, "Food")}</th><th>Waffe geölt</th></tr>
-          <tr><td>${pctCell(cons.flask)}</td><td>${pctCell(cons.elixir)}</td><td>${pctCell(cons.buffed)}</td><td>${pctCell(cons.food)}</td><td>${yesNo(cons.weaponOiled)}</td></tr></table>
-          <p class="note" style="margin-top:8px">Abdeckung in % der Boss-Kämpfe. Flask &amp; Elixiere schließen sich aus — „Flask/Elixiere" = Flask <em>oder</em> beide Elixiere aktiv.</p>`);
+        consRows += kv(consIcons.flask || "inv_alchemy_endlessflask_05", "Flask / Elixiere", barPct(cons.buffed, "Flask oder beide Elixiere", CONS_HOW));
+        consRows += kv(consIcons.food, "Food", barPct(cons.food));
+        consRows += kv("", "Waffe geölt", cons.weaponOiled ? badge("ja", "ok") : badge("nein", "mid"));
     }
     const hasPotionData = !!(report.potions && report.potions.players && report.potions.players.length);
     if (hasPotionData) {
         const byType = pot.byType || {};
-        const tiles = ((report.potions && report.potions.types) || []).filter((t) => byType[t.key]).map((t) => iconTile({ ...t, count: byType[t.key] }));
-        parts.push(`<div class="heal-chips" style="margin-top:8px"><span class="chip"><span class="potions">${potionCells(ic, pot)}</span></span><span class="chip"><b>${esc(pot.total || (pot.destruction || 0) + (pot.haste || 0) + (pot.mana || 0))}</b> Tränke gesamt</span></div>${tiles.length ? `<div class="iconrow">${tiles.join("")}</div>` : ""}`);
+        const types = ((report.potions && report.potions.types) || []).filter((t) => byType[t.key]).sort((a, b) => byType[b.key] - byType[a.key]);
+        const total = pot.total || (pot.destruction || 0) + (pot.haste || 0) + (pot.mana || 0);
+        consRows += `<div class="kv"><span class="k">${hicon(ic.mana || "inv_potion_137", "")}<span>Tränke</span></span><span class="mono" data-tip="Tränke" data-tip-sub="${esc(`Zerstörung ${pot.destruction || 0} · Hast ${pot.haste || 0} · Mana ${pot.mana || 0}`)}"><span class="potions">${potionCells(ic, pot)}</span></span>${types.length ? badge(`${types[0].label} ${byType[types[0].key]}`, "") : badge(String(total), "", "", true)}</div>`;
     } else {
-        parts.push("<p class=\"note\">Tränke: <span class=\"sritems\" data-tip=\"Noch keine CLA-Auswertung für diesen Log\">nicht ausgewertet</span></p>");
+        consRows += kv("inv_potion_137", "Tränke", "<span class=\"mute\" data-tip=\"Noch keine CLA-Auswertung für diesen Log\">nicht ausgewertet</span>");
     }
-    const drums = ctx.drumsByName.get(p.name);
-    if (drums) parts.push(`<p class="note">${hicon(report.drums && report.drums.icon, "")}Drums: <b>${esc(drums.total)}</b> <span class="sritems">(${esc(Object.entries(drums.byType || {}).map(([k, v]) => `${k}: ${v}`).join(", "))})</span></p>`);
-    const sr = ctx.srByName.get(p.name);
-    if (sr) parts.push(`<p class="note">Schattenwiderstand aus Gear: <b class="srval">${esc(sr.sr)}</b> <span class="sritems">${(sr.items || []).map((it) => `<a href="https://www.wowhead.com/tbc/item=${esc(it.itemId)}" target="_blank" rel="noopener">${esc(it.itemName)} (+${esc(it.sr)})</a>`).join(", ") || "—"}</span></p>`);
-    return parts.join("");
+    const drums = ctx.drumsByName.get(name);
+    if (drums) consRows += kv(report.drums && report.drums.icon, "Drums", `<span class="mono" data-tip="Drums" data-tip-sub="${esc(Object.entries(drums.byType || {}).map(([k, v]) => `${k}: ${v}`).join(", "))}">${esc(drums.total)}</span>`);
+    const sr = ctx.srByName.get(name);
+    if (sr) consRows += kv("spell_shadow_antishadow", "Shadow-Resi", `<span class="mono" data-tip="Schattenwiderstand aus Gear" data-tip-sub="${esc((sr.items || []).map((it) => `${it.itemName} (+${it.sr})`).join(", ") || "–")}">${esc(sr.sr)}</span>`);
+    boxes.push(infoBox("inv_alchemy_endlessflask_05", "Consumables", cons ? (cons.buffed >= 90 ? badge("ok", "ok") : badge(`${cons.buffed} %`, cons.buffed < 50 ? "bad" : "mid")) : "", consRows));
+
+    // Buffs: one line per buff with its bar, "?" for a buff the log cannot prove
+    const b = ctx.buffsByName.get(name);
+    let buffIssuesN = 0;
+    if (b) {
+        const cols = ((report.raidBuffs && report.raidBuffs.rows) || []).filter((r) => r.expected || r.seenPlayers > 0 || (r.unknown || 0) > 0);
+        const rows = cols.map((r) => {
+            const c = b.buffs && b.buffs[r.key];
+            if (!c) return "";
+            const counts = `${c.full}× da, ${c.late || 0}× spät gesetzt, ${c.partial}× nicht durchgehend, ${c.none}× gefehlt${c.unknown ? `, ${c.unknown}× nicht nachweisbar` : ""}`;
+            let right;
+            if (c.wrong) right = badge(`${c.wrong}× falsche Rolle`, "mid");
+            else if (!c.expected && c.unknown) right = `<span class="badge count" data-tip="${esc(r.label)}: nicht nachweisbar" data-tip-sub="${esc(INFERRED_HOW)}">?</span><span class="mute">nicht nachweisbar</span>`;
+            else if (!c.expected) right = badge("nicht erwartet", "");
+            else right = `${barPct(c.pct, r.label, counts)}${c.unknown ? `<span class="badge count" data-tip="${esc(`${c.unknown}× nicht nachweisbar`)}" data-tip-sub="${esc(INFERRED_HOW)}">?</span>` : ""}`;
+            return kv(r.icon, esc(r.label), right, ` data-tip="${esc(r.label)}" data-tip-sub="${esc(`${r.provider}. ${counts}`)}"`);
+        }).join("");
+        buffIssuesN = (b.missing || 0) + (b.partial || 0) + (b.late || 0) + (b.wrong || 0);
+        boxes.push(infoBox("spell_magic_greaterblessingofkings", "Buffs", buffIssuesN ? badge(`${buffIssuesN} lückenhaft`, (b.missing || 0) >= 2 ? "bad" : "mid") : badge("alle da", "ok"), rows));
+    }
+
+    const problems = issues.length + (b ? (b.missing || 0) : 0) + (cons && cons.buffed < 90 ? 1 : 0);
+    const tone = high || (b && b.missing >= 2) || (cons && cons.buffed < 50) ? "bad" : problems ? "mid" : "ok";
+    const headBadge = issues.length ? badge(plural(issues.length, "Gear-Problem", "Gear-Probleme"), high ? "bad" : "mid") : b && b.missing ? badge(`Buff fehlte ${b.missing}×`, "mid") : badge("vorbereitet", "ok");
+    return { count: problems ? String(problems) : "ok", tone, badge: headBadge, html: `<div class="cols3">${boxes.join("")}</div>`, dialogs };
 }
 
-/** The raider's own row of the raid-buff matrix, spelled out: per buff the share of fights it was fully there and the counts behind it. */
-function raiderBuffs(ctx, p) {
-    const b = ctx.buffsByName.get(p.name);
-    const cols = ((ctx.report.raidBuffs && ctx.report.raidBuffs.rows) || []).filter((r) => r.expected || r.seenPlayers > 0 || (r.unknown || 0) > 0);
-    const rows = cols.map((r) => {
-        const c = b.buffs && b.buffs[r.key];
-        if (!c) return "";
-        let cell;
-        let hint = "";
-        if (c.wrong) { cell = `<span class="pct pct-wrong">${esc(c.pct)}%</span>`; hint = `${c.wrong}× auf der falschen Rolle`; } else if (!c.expected && c.unknown) { cell = "<span class=\"pct pct-na\">?</span>"; } else if (!c.expected) { cell = `<span class="pct pct-na">${esc(c.pct)}%</span>`; hint = "nicht erwartet"; } else cell = pctCell(c.pct);
-        if (c.unknown) hint = `${hint ? `${hint}, ` : ""}${c.unknown}× nicht nachweisbar`;
-        return `<tr><td>${hicon(r.icon, "")}${esc(r.label)}<div class="sritems">${esc(r.provider)}</div></td><td>${cell}</td><td class="mono">${esc(c.full)}</td><td class="mono">${esc(c.late || 0)}</td><td class="mono">${esc(c.partial)}</td><td class="mono">${esc(c.none)}</td><td class="sritems">${esc(hint)}</td></tr>`;
-    }).join("");
-    const inferred = (ctx.report.raidBuffs && ctx.report.raidBuffs.inferred) || [];
-    const open = inferred.length ? ` <span data-tip="${esc(INFERRED_HOW)}">${esc(inferred.map((u) => u.label).join(" und "))} aus dem Verlauf abgeleitet${b.unknown ? `, ${esc(b.unknown)}× ohne Nachweis` : ""}.</span>` : "";
-    return `<p class="note">${esc(BUFF_ROLE_LABELS[b.role] || b.role)} · ${esc(b.fights)} ${b.fights === 1 ? "Kampf" : "Kämpfe"} · fehlte ${esc(b.missing)}×, spät ${esc(b.late || 0)}×, nicht durchgehend ${esc(b.partial)}×${b.wrong ? `, falsche Rolle ${esc(b.wrong)}×` : ""}. Wann welcher Buff fehlte, zeigt der Kampfverlauf.${open}</p>
-    <table class="mini"><tr><th>Buff</th><th>Anteil</th><th>Da</th><th>Spät</th><th>Nicht durchgehend</th><th>Gefehlt</th><th></th></tr>${rows}</table>`;
+/** Leistung of one raider: activity & cooldowns, totems, healing & mana, the RPB's spells and cooldowns. */
+function raiderPerf(ctx, p) {
+    const name = p.name;
+    const act = ctx.actByName.get(name);
+    const cd = ctx.cdByName.get(name);
+    const tot = ctx.totByName.get(name);
+    const h = ctx.healByName.get(name);
+    const rAct = ctx.rpbActByName.get(name);
+    const use = ctx.rpbUseByName.get(name);
+    const boxes = [];
+    if (act || cd) {
+        let rows = "";
+        if (act) {
+            rows += kv("inv_misc_pocketwatch_02", "Aktivität", barPct(act.activeAvg, "Anteil der Kampfzeit mit laufenden Zaubern oder Angriffen", "Im Mittel über die Kämpfe, bis zum eigenen Tod."));
+            rows += kv("", "Lücken", `<span class="mono" data-tip="Lücken" data-tip-sub="${esc(`unerklärt ${fmtTime(act.unexplainedMs)}${act.mechanicMs ? ` · durch Mechanik ${fmtTime(act.mechanicMs)}` : ""}`)}">${esc(act.gaps)} · längste ${fmtTime(act.longestGap)}</span>`);
+        }
+        if (cd) {
+            rows += kv("ability_rogue_preparation", "Cooldowns", cd.usedPct === null || cd.usedPct === undefined ? naCell("", "–") : barPct(cd.usedPct, "Genutzte Cooldowns gegen die möglichen", `${cd.uses} von ${cd.possible} möglichen Einsätzen`));
+            rows += kv("spell_nature_bloodlust", "Ø erster Einsatz", `<span class="mono">${cd.avgFirstAtMs === null || cd.avgFirstAtMs === undefined ? "–" : fmtTime(cd.avgFirstAtMs)}</span>${badge(`${cd.stacked} im Lust`, "")}`);
+        }
+        const low = act && act.activeAvg < 85;
+        boxes.push(infoBox("inv_misc_pocketwatch_02", "Aktivität & Cooldowns", act ? badge(`${act.activeAvg} %`, act.activeAvg >= 95 ? "ok" : low ? "mid" : "") : "", rows));
+    }
+    if (tot) {
+        const rows = kv("spell_nature_windfury", "Windfury Ø", tot.wfUptimeAvg === null || tot.wfUptimeAvg === undefined ? naCell("", "–") : barPct(tot.wfUptimeAvg))
+            + kv("", "Twisting", `<span class="mono">${esc(tot.twistingFights)} von ${esc(tot.wfFights)} Kämpfen</span>`)
+            + kv("", "Downtime", `<span class="mono">${fmtTime(tot.downtimeMs)} · ${esc(tot.gapCount)} Lücken</span>`);
+        boxes.push(infoBox("spell_nature_windfury", "Totems", tot.gapCount ? badge(`${tot.gapCount} Lücken`, tot.gapCount >= 3 ? "mid" : "") : badge("ok", "ok"), rows));
+    }
+    if (h) {
+        const late = (h.potionPcts || []).filter((x) => x <= 15).length;
+        let rows = kv("spell_holy_flashheal", "Heilung", `<span class="mono">${fmtK(h.healingTotal)}</span><span class="mute">in ${plural(h.fights, "Kampf", "Kämpfen")}</span>`)
+            + kv("", "Overheal", barCell(`${h.overhealPct} %`, h.overhealPct, h.overhealPct >= 50 ? "high" : h.overhealPct >= 35 ? "medium" : "", "Anteil der Heilung über volle Lebenspunkte", `Ab 35 % gelb, ab 50 % rot.${h.topOverheal ? ` Am meisten: ${h.topOverheal.name} (${h.topOverheal.overhealPct} %).` : ""}`));
+        if (h.manaMinAvg !== null && h.manaMinAvg !== undefined) rows += kv("inv_potion_137", "Ø Mana-Tiefstand", `<span class="mono">${esc(h.manaMinAvg)} %</span>${h.manaLowFights ? badge(`${h.manaLowFights}× unter 10 %`, "bad") : ""}`);
+        rows += kv("", "Manatränke", `<span class="mono">${esc(h.potions)}</span>${late ? badge(`${late}× spät`, "mid") : ""}${h.potionMissingFights ? badge(`${h.potionMissingFights}× keiner`, "mid") : ""}`);
+        rows += kv("spell_holy_dispelmagic", "Dispels", `<span class="mono">${esc(h.dispels)}${h.avgReactionMs !== null && h.avgReactionMs !== undefined ? ` · Ø ${fmtSecs(h.avgReactionMs)}` : ""}</span>`);
+        rows += (h.shields || []).map((s) => kv(s.icon, `${esc(s.label)} auf dem Tank`, barPct(s.uptimeAvg))).join("");
+        boxes.push(infoBox("spell_holy_flashheal", "Heilung & Mana", h.manaLowFights ? badge(`${h.manaLowFights}× unter 10 % Mana`, "bad") : badge(`Overheal ${h.overhealPct} %`, h.overhealPct >= 35 ? "mid" : ""), rows));
+    }
+    if (rAct || use) {
+        let rows = "";
+        if (rAct) {
+            rows += kv("inv_misc_pocketwatch_02", "Aktiv (RPB)", barPct(rAct.relativeTotal, "Anteil Raidzeit", RPB_ACTIVITY_HOW));
+            const spells = spellTiles([...(rAct.singleTargetCasts || []), ...(rAct.aoeCasts || [])]);
+            if (spells.length) rows += `<div class="kv stack">${iconRow(spells)}</div>`;
+        }
+        if (use) {
+            const tiles = [
+                ...(use.classCooldowns || []).map((c) => iconTile({ icon: c.icon, name: c.name, spellId: c.spellId, label: c.label, count: c.total, note: c.possibleUses ? `${c.total} von ~${c.possibleUses} möglichen` : "", tone: c.possibleUses && c.total < c.possibleUses / 2 ? "warn" : "good" })),
+                ...(use.trinketsAndRacials || []).map((t) => iconTile({ icon: t.icon, name: t.name, spellId: t.spellId, label: t.label, count: t.total })),
+                ...[...(use.engineering || []), ...(use.absorbs || [])].map((t) => iconTile({ icon: t.icon, name: t.name, spellId: t.spellId, label: t.label, count: t.total })),
+            ];
+            if (tiles.length) rows += `<div class="kv stack"><span class="kicker">Cooldowns &amp; Schmuckstücke</span>${iconRow(tiles)}</div>`;
+        }
+        const down = rAct ? [...(rAct.singleTargetCasts || []), ...(rAct.aoeCasts || [])].filter((r) => r.mostlyLowerRank).length : 0;
+        boxes.push(infoBox("inv_misc_book_11", "Zauber & Cooldowns", `${down ? badge(`${down} Rang-Warnung${down === 1 ? "" : "en"}`, "mid") : ""}${badge("RPB", "accent")}`, rows));
+    }
+    if (!boxes.length) return null;
+    const dips = ctx.report.fightSeries && (ctx.report.fightSeries.players || []).find((x) => x && x.name === name);
+    const count = act ? `${act.activeAvg} %` : h ? `${h.overhealPct} % Overheal` : cd && cd.usedPct !== null && cd.usedPct !== undefined ? `${cd.usedPct} %` : "";
+    const tone = (act && act.activeAvg < 85) || (h && h.manaLowFights) ? (h && h.manaLowFights ? "bad" : "mid") : (cd && cd.usedPct !== null && cd.usedPct < 80) || (dips && dips.dipPct >= 25) ? "mid" : "ok";
+    const headBadge = cd && cd.usedPct !== null && cd.usedPct !== undefined ? badge(`Cooldowns ${cd.usedPct} %`, cd.usedPct < 80 ? "mid" : "") : act ? badge(`${act.activeAvg} % aktiv`, act.activeAvg < 85 ? "mid" : "") : h ? badge(`Overheal ${h.overhealPct} %`, h.overhealPct >= 35 ? "mid" : "") : badge("RPB", "accent");
+    return { count, tone, badge: headBadge, html: `<div class="cols3">${boxes.join("")}</div>` };
 }
 
-/** The healer's raid-wide numbers (report.healers.players): healing, overheal, mana, potions, dispels, the auras on the tank. */
-function raiderHealing(ctx, p) {
-    const h = ctx.healByName.get(p.name);
-    const late = (h.potionPcts || []).filter((x) => x <= 15).length;
-    const chips = [
-        `<span class="chip"><b>${fmtK(h.healingTotal)}</b> Heilung in ${esc(h.fights)} ${h.fights === 1 ? "Kampf" : "Kämpfen"}</span>`,
-        `<span class="chip chip-${h.overhealPct >= 50 ? "high" : h.overhealPct >= 35 ? "medium" : "good"}"><b>${esc(h.overhealPct)} %</b> Overheal</span>`,
-        h.topOverheal ? `<span class="chip">${h.topOverheal.icon ? hicon(h.topOverheal.icon, "") : ""}<b>${esc(h.topOverheal.overhealPct)} %</b> ${esc(h.topOverheal.name)}</span>` : "",
-        h.manaMinAvg !== null && h.manaMinAvg !== undefined ? `<span class="chip chip-${h.manaLowFights ? "high" : "good"}"><b>${esc(h.manaMinAvg)} %</b> Ø Mana-Tiefstand${h.manaLowFights ? ` · ${esc(h.manaLowFights)}× unter 10 %` : ""}</span>` : "",
-        `<span class="chip chip-${h.potionMissingFights ? "medium" : "good"}"><b>${esc(h.potions)}</b> Manatränke${late ? ` · ${late}× spät` : ""}${h.potionMissingFights ? ` · ${esc(h.potionMissingFights)}× keiner` : ""}</span>`,
-        `<span class="chip"><b>${esc(h.dispels)}</b> Dispels${h.avgReactionMs !== null && h.avgReactionMs !== undefined ? ` · Ø ${fmtSecs(h.avgReactionMs)}` : ""}</span>`,
-        ...(h.shields || []).map((s) => `<span class="chip">${hicon(s.icon, s.label)}<b>${esc(s.uptimeAvg)} %</b> ${esc(s.label)} auf dem Tank</span>`),
-    ].filter(Boolean).join("");
-    return `<div class="heal-chips">${chips}</div><p class="note">Manaverlauf und Zauber je Kampf stehen im Kampfverlauf unter „Heilung“.</p>`;
-}
-
-/** Activity, cooldowns and totems of one raider over the raid. */
-function raiderActivity(ctx, p) {
-    const act = ctx.actByName.get(p.name);
-    const cd = ctx.cdByName.get(p.name);
-    const tot = ctx.totByName.get(p.name);
-    const rows = [];
-    if (act) rows.push(`<tr><td>${hicon("inv_misc_pocketwatch_02", "")}Aktivität</td><td>${toneCell(act.activeAvg)}</td><td class="sritems">${esc(act.fights)} ${act.fights === 1 ? "Kampf" : "Kämpfe"} · ${esc(act.gaps)} Lücken · längste ${fmtTime(act.longestGap)} · unerklärt ${fmtTime(act.unexplainedMs)}${act.mechanicMs ? ` · durch Mechanik ${fmtTime(act.mechanicMs)}` : ""}</td></tr>`);
-    if (cd) rows.push(`<tr><td>${hicon("ability_rogue_preparation", "")}Cooldowns</td><td>${cd.usedPct === null || cd.usedPct === undefined ? naCell("", "–") : toneCell(cd.usedPct)}</td><td class="sritems">${esc(cd.uses)} von ${esc(cd.possible)} möglichen Einsätzen · Ø erster Einsatz ${cd.avgFirstAtMs === null || cd.avgFirstAtMs === undefined ? "–" : fmtTime(cd.avgFirstAtMs)} · ${esc(cd.stacked)} mit Bloodlust</td></tr>`);
-    if (tot) rows.push(`<tr><td>${hicon("spell_nature_windfury", "")}Totems</td><td>${tot.wfUptimeAvg === null || tot.wfUptimeAvg === undefined ? naCell("", "–") : toneCell(tot.wfUptimeAvg)}</td><td class="sritems">Windfury Ø · Twisting in ${esc(tot.twistingFights)} von ${esc(tot.wfFights)} Kämpfen · ${esc(tot.gapCount)} Lücken · Downtime ${fmtTime(tot.downtimeMs)}</td></tr>`);
-    return `<table class="mini"><tr><th>Bereich</th><th>Wert</th><th>Details</th></tr>${rows.join("")}</table><p class="note">Die Bänder und Zeitpunkte je Kampf stehen im Kampfverlauf.</p>`;
-}
-
-/** Damage taken and deaths of one raider: the CLA's mechanics summary and the RPB's per-player rows. */
-function raiderDamage(ctx, p) {
+/** Fehler of one raider: mechanics, deaths with the boss and the killing blow, the RPB's avoidable damage, interrupts and sunders. */
+function raiderErr(ctx, p) {
     const { report } = ctx;
-    const parts = [];
-    const mech = ctx.mechByName.get(p.name);
+    const name = p.name;
+    const mech = ctx.mechByName.get(name);
+    const dmg = ctx.rpbDmgByName.get(name);
+    const kicks = ctx.rpbIntByName.get(name);
+    const sunder = ctx.sunderByName.get(name);
+    const deaths = [];
+    for (const f of ctx.fights) for (const d of f.deaths || []) if (d.name === name) deaths.push({ ...d, boss: f.boss });
+    if (!mech && !dmg && !kicks && !sunder && !deaths.length) return null;
+    const boxes = [];
     if (mech) {
-        const by = Object.values(mech.byMechanic || {}).sort((a, b) => b.hits - a.hits).map((m) => `<span class="chip">${hicon(m.icon, "")}<b>${esc(m.hits)}×</b> ${esc(m.label)}${m.amount ? ` · ${fmtK(m.amount)}` : ""}</span>`).join("");
-        parts.push(`<div class="heal-chips"><span class="chip"><b>${esc(mech.hits)}</b> vermeidbare Treffer</span>${mech.amount ? `<span class="chip"><b>${fmtK(mech.amount)}</b> Schaden</span>` : ""}<span class="chip chip-${mech.avoidableDeaths ? "high" : "good"}"><b>${esc(mech.deaths || 0)}</b> Tode${mech.avoidableDeaths ? ` · ${esc(mech.avoidableDeaths)} vermeidbar` : ""}${mech.earlyDeaths ? ` · ${esc(mech.earlyDeaths)} früh` : ""}</span>${by}</div>`);
+        const rows = Object.values(mech.byMechanic || {}).sort((a, b) => b.hits - a.hits).map((m) => kv(m.icon, esc(m.label), `${badge(`${m.hits}×`, m.hits >= 3 ? "bad" : m.hits === 2 ? "mid" : "", "", true)}${m.amount ? `<span class="mono mute">${fmtK(m.amount)}</span>` : ""}`)).join("");
+        boxes.push(infoBox("spell_fire_selfdestruct", "Mechaniken", badge(`${mech.hits} Treffer`, mech.hits >= 3 ? "bad" : mech.hits ? "mid" : "ok"), rows || kv("", "Keine vermeidbaren Treffer", "")));
     }
-    const dmg = ctx.rpbDmgByName.get(p.name);
-    if (dmg) {
-        const abilities = (report.rpb.damage.abilities || []).map((a, i) => ({ a, v: dmg.perAbility[i] || 0 })).filter((x) => x.v > 0);
-        parts.push(`<h4 class="heal-h">Vermeidbarer Schaden (RPB)</h4><table class="mini"><tr><th>Fähigkeit</th><th>Schaden</th></tr>${abilities.map((x) => `<tr><td>${abilityIcon(x.a)}${esc(x.a.label)}<div class="sritems">${esc((x.a.sources || []).join(", "))}</div></td><td class="mono">${num(x.v)}</td></tr>`).join("")}<tr><td><strong>Summe</strong></td><td class="mono">${num(dmg.avoidableTotal)}</td></tr><tr><td>Reflektiert</td><td class="mono">${num(dmg.reflected)}</td></tr><tr><td>Auf Spieler</td><td class="mono">${num(dmg.hostile)}</td></tr><tr><td>Tode</td><td><span class="pct ${dmg.deaths > 0 ? "pct-none" : "pct-full"}">${esc(dmg.deaths)}</span></td></tr></table>`);
+    const nDeaths = mech ? mech.deaths || 0 : deaths.length || (dmg ? dmg.deaths || 0 : 0);
+    const avoidable = mech ? mech.avoidableDeaths || 0 : deaths.filter((d) => d.avoidable).length;
+    if (deaths.length || mech) {
+        const rows = deaths.map((d) => kv(d.abilityIcon || "ability_creature_cursed_05", `${esc(d.boss)} <span class="mono mute">${fmtTime(d.at)}</span>`, `${d.ability ? `<span class="mute">${esc(d.ability)}</span>` : ""}${d.avoidable ? badge("vermeidbar", "bad") : d.early ? badge("früh", "mid") : d.nearEnd ? badge("kurz vor dem Kill", "") : ""}`)).join("");
+        boxes.push(infoBox("ability_creature_cursed_05", "Tode", badge(`${nDeaths}${avoidable ? ` · ${avoidable} vermeidbar` : ""}`, avoidable ? "bad" : nDeaths ? "mid" : "ok"), rows || kv("", "Nicht gestorben", badge("0", "ok", "", true))));
     }
-    const act = ctx.rpbActByName.get(p.name);
-    if (act) {
-        const st = act.singleTargetCasts || [];
-        const aoe = act.aoeCasts || [];
-        parts.push(`<h4 class="heal-h">Aktivität &amp; Zauber (RPB)</h4><div class="heal-chips"><span class="chip"><b>${esc(act.secondsActive)}s</b> aktiv</span><span class="chip"><b>${esc(act.relativeTotal)} %</b> der Raidzeit</span><span class="chip"><b>${esc(act.secondsActiveST)}s</b> Einzelziel</span><span class="chip"><b>${esc(act.secondsActiveAoe)}s</b> Fläche</span></div>${st.length || aoe.length ? `<div class="iconrow">${spellTiles([...st, ...aoe]).join("")}</div>` : ""}`);
+    if (dmg || kicks || sunder) {
+        let rows = "";
+        if (dmg) {
+            const abilities = (report.rpb.damage.abilities || []).map((a, i) => ({ a, v: dmg.perAbility[i] || 0 })).filter((x) => x.v > 0).sort((a, b) => b.v - a.v);
+            rows += abilities.map((x) => `<div class="kv"><span class="k">${abilityIcon(x.a)}<span data-tip="${esc(x.a.label)}" data-tip-sub="${esc((x.a.sources || []).join(", "))}">${esc(x.a.label)}</span></span><span class="mono">${num(x.v)}</span></div>`).join("");
+            rows += kv("", "<b>Summe vermeidbar</b>", `<span class="mono">${num(dmg.avoidableTotal)}</span>`);
+        }
+        if (kicks) rows += kv("spell_frost_iceshock", "Unterbrechungen", `<span class="mono">${esc(kicks.count)}</span>${iconRow((kicks.spells || []).map((s) => iconTile({ icon: s.icon, spellId: s.spellId, label: s.name, count: s.count })))}`);
+        if (sunder) rows += kv("ability_warrior_sunder", "Sunder Armor", `<span class="mono">${esc(sunder.total)}</span>${badge(`${sunder.below5} bei < 5 Stacks`, "")}`);
+        boxes.push(infoBox("spell_shadow_shadowwordpain", dmg ? "Vermeidbarer Schaden" : "Weitere", badge("RPB", "accent"), rows));
     }
-    const use = ctx.rpbUseByName.get(p.name);
-    if (use) {
-        const tiles = [
-            ...(use.classCooldowns || []).map((c) => iconTile({ icon: c.icon, name: c.name, spellId: c.spellId, label: c.label, count: c.total, note: c.possibleUses ? `${c.total} von ~${c.possibleUses} möglichen` : "", tone: c.possibleUses && c.total < c.possibleUses / 2 ? "warn" : "good" })),
-            ...(use.trinketsAndRacials || []).map((t) => iconTile({ icon: t.icon, name: t.name, spellId: t.spellId, label: t.label, count: t.total })),
-            ...[...(use.engineering || []), ...(use.absorbs || [])].map((t) => iconTile({ icon: t.icon, name: t.name, spellId: t.spellId, label: t.label, count: t.total })),
-        ];
-        if (tiles.length) parts.push(`<h4 class="heal-h">Cooldowns &amp; Schmuckstücke (RPB)</h4>${iconRow(tiles)}`);
-    }
-    const kicks = ctx.rpbIntByName.get(p.name);
-    if (kicks) parts.push(`<h4 class="heal-h">Unterbrechungen (RPB)</h4><div class="heal-chips"><span class="chip"><b>${esc(kicks.count)}</b> Unterbrechungen</span></div>${iconRow((kicks.spells || []).map((s) => iconTile({ icon: s.icon, spellId: s.spellId, label: s.name, count: s.count })))}`);
-    const sunder = ctx.sunderByName.get(p.name);
-    if (sunder) parts.push(`<p class="note">Sunder Armor: <b>${esc(sunder.total)}</b>, davon ${esc(sunder.below5)} bei &lt; 5 Stacks.</p>`);
-    return parts.join("");
+    return {
+        count: plural(nDeaths, "Tod", "Tode"), tone: avoidable ? "bad" : nDeaths ? "mid" : "ok",
+        badge: avoidable ? badge(`${avoidable} vermeidbare${avoidable === 1 ? "r Tod" : " Tode"}`, "bad") : nDeaths ? badge(plural(nDeaths, "Tod", "Tode"), "mid") : badge("keine Tode", "ok"),
+        html: `<div class="cols3">${boxes.join("")}</div>`,
+    };
 }
 
-/** The send dialog of one raider (SendeFenster): the approved points with their text choice, the DM preview, save/send. */
+/**
+ * The send dialog of one raider (SendeFenster): head badges, the approved
+ * points with their text choice (KI / Regel / Eigener), the DM preview in the
+ * Discord look with the mapping state, save and send.
+ */
 function sendDialog(ctx, p, i, items) {
     const { report } = ctx;
     const approved = items.filter((it) => it.approved === true);
     const open = items.filter((it) => it.approved === null).length;
     const sent = ctx.sent[p.name];
     const idx = (report.roster || []).findIndex((x) => x.name === p.name);
+    const PRECEDENCE = "Der eigene Text geht vor dem KI-Text, der KI-Text vor dem Regeltext. Die Wahl wird im Report gespeichert.";
     const blocks = approved.map((it, j) => {
         const mode = it.custom ? "custom" : it.ai ? "ai" : "rule";
         const text = it.custom || it.ai || it.text || "";
         const segBtn = (m, label) => `<button type="button" class="seg-btn${mode === m ? " active" : ""}" data-txt="${m}">${label}</button>`;
         return `<div class="send-item${j === 0 ? " on" : ""}" data-key="${esc(it.key)}" data-title="${esc(it.title)}" data-ai="${esc(it.ai || "")}" data-rule="${esc(it.text || "")}" data-custom="${esc(it.custom || "")}" data-mode="${mode}">
-          <div class="send-item-head"><span class="tag tag-${esc(it.impact)}">${esc(IMPACT_LABEL[it.impact] || it.impact)}</span><b>${esc(it.title)}</b>${it.ai && !it.custom ? "<span class=\"rec-source\">KI</span>" : ""}<div class="seg">${it.ai ? segBtn("ai", "KI-Text") : ""}${segBtn("rule", "Regeltext")}${segBtn("custom", "Eigener")}</div></div>
+          <div class="send-item-head">${badge(IMPACT_LABEL[it.impact] || it.impact, IMPACT_TONE[it.impact] || "")}<b>${esc(it.title)}</b><nav class="seg sm" data-tip="Welcher Text geht raus?" data-tip-sub="${esc(PRECEDENCE)}">${it.ai ? segBtn("ai", `${hicon("inv_scroll_03", "")}KI`) : ""}${segBtn("rule", "Regel")}${segBtn("custom", `${LINE.pencil}Eigener`)}</nav></div>
           <textarea class="send-text" rows="3"${mode === "custom" ? "" : " readonly"}>${esc(text)}</textarea>
         </div>`;
     }).join("");
@@ -2958,109 +3321,129 @@ function sendDialog(ctx, p, i, items) {
         const text = it.custom || it.ai || it.text || "";
         return `<div><b>${esc(it.title)}</b><br>${esc(text.length > 160 ? `${text.slice(0, 160)} …` : text)}</div>`;
     }).join("");
+    const link = `/r/${esc(report.id)}${idx >= 0 ? `/p/${idx}` : ""}`;
+    const color = classColorOf(p.type) || "var(--text)";
     return `<dialog class="dlg send" id="send-${i}" data-report="${esc(report.id)}" data-player="${esc(p.name)}">
-      <div class="dlg-head"><img class="vcard-icon" src="${esc(classIconUrl(p.type))}" alt=""><div class="dlg-main"><div class="dlg-title">An ${esc(p.name)} senden</div><div class="vcard-meta">${approved.length} freigegebene${approved.length === 1 ? "r" : ""} Punkt${approved.length === 1 ? "" : "e"} · Vorschau der Nachricht${sent ? ` · zuletzt gesendet ${esc(new Date(sent.at).toLocaleString("de-DE"))}` : ""}</div></div><button type="button" class="dlg-x" data-close aria-label="Schließen">×</button></div>
+      <div class="dlg-head">${tile("inv_letter_15", "")}<div class="dlg-main"><div class="dlg-title">An <span class="cn" style="--cc:${esc(color)}">${esc(p.name)}</span> senden</div><div class="kicker">${esc(p.name)} › Empfehlungen › Versand · Discord-DM</div></div>${badge(`${approved.length} freigegeben`, approved.length ? "ok" : "")}${open ? `<span class="badge mid" data-tip="${esc(open === 1 ? "Der noch offene Punkt wird nicht gesendet." : `Die ${open} noch offenen Punkte werden nicht gesendet.`)}">${open} offen · wird nicht gesendet</span>` : ""}${dlgClose()}</div>
       <div class="send-grid">
-        <div class="send-items">${blocks || "<p class=\"note\">Noch nichts freigegeben.</p>"}<p class="note">Der eigene Text geht vor dem KI-Text, der KI-Text vor dem Regeltext. Die Bearbeitung wird im Report gespeichert.${open ? ` ${open === 1 ? "Der noch offene Punkt wird" : `Die ${open} noch offenen Punkte werden`} nicht gesendet.` : ""}</p></div>
-        <div class="send-preview"><div class="kicker">So kommt es an</div><div class="dm"><b>${esc(report.title || "Raid")} · Deine Auswertung</b><div class="note">${approved.length} Punkt${approved.length === 1 ? "" : "e"} von der Raidleitung geprüft</div><div class="dm-items">${preview}</div><div class="note">Report ansehen ↗ /r/${esc(report.id)}${idx >= 0 ? `/p/${idx}` : ""}</div></div><p class="note">Ein unveränderter Satz wird nie zweimal geschickt.</p></div>
+        <div class="send-items">${blocks || "<div class=\"rec-empty\">Noch nichts freigegeben.</div>"}</div>
+        <div class="send-preview"><div class="kicker">So kommt es an</div><div class="dm"><div class="dm-head"><span class="crest">${ICONS.crest}</span><b>EventHelper</b>${badge("BOT", "accent")}</div><b>${esc(report.title || "Raid")} · Deine Auswertung</b><span class="mute">${approved.length} Punkt${approved.length === 1 ? "" : "e"} von der Raidleitung geprüft</span><div class="dm-items">${preview}</div><a href="${link}" target="_blank" rel="noopener">Report ansehen${LINE.external}</a></div>
+        <div class="badges"><span class="badge map-badge">Zuordnung wird geprüft …</span>${sent ? badge(`gesendet ${new Date(sent.at).toLocaleString("de-DE")}`, "") : badge("noch nie gesendet", "")}</div></div>
       </div>
-      <div class="dlg-foot"><span class="note send-out"></span><div class="btns"><button type="button" class="btn btn-ghost btn-sm" data-close>Abbrechen</button><button type="button" class="btn btn-ghost btn-sm" data-sendact="save">Nur speichern</button><button type="button" class="btn btn-sm" data-sendact="send"${approved.length ? "" : " disabled"}>Per Bot senden</button></div></div>
+      <div class="dlg-foot"><span class="note send-out">Ein unveränderter Satz wird nie zweimal geschickt.</span><div class="btns"><button type="button" class="btn btn-ghost btn-sm" data-close>Abbrechen</button><button type="button" class="btn btn-ghost btn-sm" data-sendact="save">Nur speichern</button><button type="button" class="btn btn-sm" data-sendact="send"${approved.length ? "" : " disabled"}>${hicon("inv_letter_15", "")}Per Bot senden</button></div></div>
     </dialog>`;
 }
 
+/** What stands out about a raider, worst first, at most three badges; one in `ok` when nothing does. */
+function raiderBadges(ctx, p) {
+    const name = p.name;
+    const issues = ((ctx.gearByName.get(name) || {}).issues || p.issues || []);
+    const cons = ctx.consByName.get(name);
+    const buffs = ctx.buffsByName.get(name);
+    const heal = ctx.healByName.get(name);
+    const act = ctx.actByName.get(name);
+    const cd = ctx.cdByName.get(name);
+    const mech = ctx.mechByName.get(name);
+    const recP = ctx.recByName.get(name);
+    const items = recP ? (ctx.reviewer ? recP.items : recP.items.filter((x) => x.approved === true)) : [];
+    const open = items.filter((x) => x.approved === null).length;
+    const out = [];
+    const add = (tone, text, icon, tip, sub) => out.push({ tone, html: `<span class="badge ${tone}"${tip ? ` data-tip="${esc(tip)}"` : ""}${sub ? ` data-tip-sub="${esc(sub)}"` : ""}>${hicon(icon, "")}${esc(text)}</span>` });
+    if (mech && mech.avoidableDeaths) add("bad", `${mech.avoidableDeaths} vermeidbare${mech.avoidableDeaths === 1 ? "r Tod" : " Tode"}`, "ability_creature_cursed_05", "Tode durch eine Mechanik, der man ausweichen kann");
+    if (issues.length) add(issues.some((x) => x.severity === "high") ? "bad" : "mid", plural(issues.length, "Gear-Problem", "Gear-Probleme"), "inv_shield_06", "Gear-Probleme: Verzauberungen, Sockel, Meta-Gem", "Aus der Ausrüstung, die das Log beim Pull gesehen hat.");
+    if (heal && heal.manaLowFights) add("bad", `${heal.manaLowFights}× unter 10 % Mana`, "inv_potion_137", "Kämpfe, in denen das Mana unter 10 % fiel");
+    if (cons && cons.buffed < 90) add(cons.buffed < 50 ? "bad" : "mid", `Consumables ${cons.buffed} %`, "inv_alchemy_endlessflask_05", "Anteil der Boss-Kämpfe mit Flask oder beiden Elixieren", "Ab 90 % grün, unter 50 % rot.");
+    if (buffs && buffs.missing) add(buffs.missing >= 2 ? "bad" : "mid", `Buff fehlte ${buffs.missing}×`, "spell_magic_greaterblessingofkings", "Kämpfe, in denen ein erwarteter Raid-Buff gar nicht auf dem Raider lag");
+    if (heal && heal.overhealPct >= 35) add(heal.overhealPct >= 50 ? "bad" : "mid", `Overheal ${heal.overhealPct} %`, "spell_holy_flashheal", "Anteil der Heilung über volle Lebenspunkte", "Ab 35 % gelb, ab 50 % rot.");
+    if (!heal && act && act.activeAvg < 85) add("mid", `${act.activeAvg} % aktiv`, "inv_misc_pocketwatch_02", "Anteil der Kampfzeit mit laufenden Zaubern oder Angriffen", "Bis zum eigenen Tod. Unter 85 % gelb.");
+    if (cd && cd.usedPct !== null && cd.usedPct !== undefined && cd.usedPct < 80) add("mid", `Cooldowns ${cd.usedPct} %`, "ability_rogue_preparation", "Genutzte Cooldowns gegen die möglichen");
+    const dips = ctx.report.fightSeries && (ctx.report.fightSeries.players || []).find((x) => x && x.name === name);
+    if (dips && Number.isFinite(dips.dipPct) && dips.dipPct >= 25) add(dips.dipPct >= 40 ? "bad" : "mid", `${dips.dipPct} % Einbrüche`, "spell_nature_bloodlust", `Anteil der Kampfzeit, in der ${dips.measure === "hps" ? "HPS" : "DPS"} unter der Hälfte des eigenen Schnitts lag`, `Bis zum eigenen Tod, über ${plural(dips.fights || 0, "Kampf", "Kämpfe")}. Ab 25 % gelb, ab 40 % rot.`);
+    if (open) add("mid", `${open} offen`, "inv_misc_note_01", "Befunde, die noch niemand freigegeben oder verworfen hat");
+    if (!ctx.reviewer && items.length) add("accent", plural(items.length, "Empfehlung", "Empfehlungen"), "inv_misc_note_01", "Freigegebene Empfehlungen für diesen Raider");
+    const rank = { bad: 0, mid: 1, accent: 2 };
+    const shown = out.map((b, j) => ({ ...b, j })).sort((a, b) => rank[a.tone] - rank[b.tone] || a.j - b.j).slice(0, 3);
+    if (shown.length) return shown.map((b) => b.html).join("");
+    if (act) return badge(`${act.activeAvg} % aktiv`, "ok", "inv_misc_pocketwatch_02");
+    if (heal) return badge(`Overheal ${heal.overhealPct} %`, "ok", "spell_holy_flashheal");
+    if (cons) return badge(`Consumables ${cons.buffed} %`, "ok", "inv_alchemy_endlessflask_05");
+    return badge("Gear ok", "ok", "inv_shield_06");
+}
+
+/** The four sections of a raider (Empfehlungen · Vorbereitung · Leistung · Fehler), only those with data: [{ key, label, icon, count, tone, badge, html }] plus their dialogs. */
+function raiderSections(ctx, p, i, items, opts = {}) {
+    const name = p.name;
+    const recP = ctx.recByName.get(name);
+    const open = items.filter((x) => x.approved === null).length;
+    const secs = [];
+    if (recP && (items.length || ctx.reviewer)) {
+        secs.push({ key: "recs", label: "Empfehlungen", icon: "inv_misc_note_01", count: `${items.length}${open ? ` · ${open} offen` : ""}`, tone: open ? "mid" : "ok",
+            html: items.length ? `<div class="rlist rec-list">${items.map((it, j) => recItem(it, "player", name, ctx.reviewer, { open: opts.openFirst && j === 0 })).join("")}</div>` : "<div class=\"rlist\"><div class=\"rec-empty\">Nichts auszusetzen – weiter so.</div></div>" });
+    }
+    const prep = raiderPrep(ctx, p, i);
+    secs.push({ key: "prep", label: "Vorbereitung", icon: "trade_alchemy", crumb: "Gear · Consumables · Buffs", ...prep });
+    const perf = raiderPerf(ctx, p);
+    if (perf) secs.push({ key: "perf", label: "Leistung", icon: "spell_nature_bloodlust", crumb: ctx.healByName.get(name) ? "Heilung · Mana · Cooldowns" : "Aktivität · Cooldowns · Zauber", ...perf });
+    const err = raiderErr(ctx, p);
+    if (err) secs.push({ key: "err", label: "Fehler", icon: "spell_fire_selfdestruct", crumb: "Mechaniken · Tode · vermeidbarer Schaden", ...err });
+    return { secs, dialogs: prep.dialogs };
+}
+
 /**
- * One raider card (Sicht Raider, and the player page opened): class icon,
- * name, role, chips; sections behind buttons; for a reviewer the footer with
- * the phrasing job and the send dialog. `inline` (the player page) leaves the
- * timeline to the page instead of a dialog.
+ * One raider card (Sicht Raider): class icon, name, role and fight count, at
+ * most three badges, the Kampfverlauf and the Spielerseite as icon buttons in
+ * the head; four sections behind buttons; for a reviewer the footer with the
+ * phrasing job and the send dialog. The dialogs sit after the card, so they
+ * open from a closed card too.
  */
 function raiderCard(ctx, p, i, opts = {}) {
     const { report, reviewer } = ctx;
     const name = p.name;
     const color = classColorOf(p.type) || "var(--text)";
     const role = ctx.roleOf(name);
-    const issues = ((ctx.gearByName.get(name) || {}).issues || p.issues || []);
-    const cons = ctx.consByName.get(name);
-    const buffs = ctx.buffsByName.get(name);
-    const heal = ctx.healByName.get(name);
-    const act = ctx.actByName.get(name);
     const recP = ctx.recByName.get(name);
     const items = recP ? (reviewer ? recP.items : recP.items.filter((x) => x.approved === true)) : [];
     const open = items.filter((x) => x.approved === null).length;
     const approved = items.filter((x) => x.approved === true).length;
     const fights = playerFights(report.timeline, name);
+    const { secs, dialogs } = raiderSections(ctx, p, i, items);
 
-    const chip = (icon, n, label, tone, tip, sub) => `<span class="chip chip-x${tone ? ` ${tone}` : ""}"${tip ? ` data-tip="${esc(tip)}"` : ""}${sub ? ` data-tip-sub="${esc(sub)}"` : ""}>${hicon(icon, "")}<b>${esc(n)}</b> ${esc(label)}</span>`;
-    const chips = [
-        chip("inv_shield_06", issues.length, "Gear", issues.some((x) => x.severity === "high") ? "bad" : issues.length ? "warn" : "ok", "Gear-Probleme: Verzauberungen, Sockel, Meta-Gem", "Aus der Ausrüstung, die das Log beim Pull gesehen hat. Rot bei einem schweren Problem."),
-        cons ? chip("inv_alchemy_endlessflask_05", `${cons.buffed} %`, "Consumables", cons.buffed >= 90 ? "ok" : cons.buffed < 50 ? "bad" : "warn", "Anteil der Boss-Kämpfe mit Flask oder beiden Elixieren", "Ab 90 % grün, unter 50 % rot. Food, Tränke und Drums stehen unter „Consumables & Tränke“.") : "",
-        buffs ? chip("spell_magic_greaterblessingofkings", buffs.missing, buffs.missing === 1 ? "Buff fehlte" : "Buffs fehlten", buffs.missing >= 2 ? "bad" : buffs.missing ? "warn" : "ok", "Kämpfe, in denen ein erwarteter Raid-Buff gar nicht auf dem Raider lag", "Spät gesetzte oder ausgelaufene Buffs zählen hier nicht mit; sie stehen unter „Buffs“.") : "",
-        heal ? chip("spell_holy_flashheal", `${heal.overhealPct} %`, "Overheal", heal.overhealPct >= 50 ? "bad" : heal.overhealPct >= 35 ? "warn" : "ok", "Anteil der Heilung, die über volle Lebenspunkte ging, über alle Kämpfe", "Ab 35 % gelb, ab 50 % rot.") : "",
-        heal && heal.manaLowFights ? chip("spell_holy_flashheal", `${heal.manaLowFights}×`, "unter 10 % Mana", "bad", "Kämpfe, in denen das Mana unter 10 % fiel", "Die Kurven mit Tränken und Regeneration stehen unter „Heilung & Mana“.") : "",
-        !heal && act ? chip("inv_misc_pocketwatch_02", `${act.activeAvg} %`, "aktiv", act.activeAvg >= 95 ? "ok" : act.activeAvg >= 85 ? "" : "warn", "Anteil der Kampfzeit mit laufenden Zaubern oder Angriffen, im Mittel über die Kämpfe", "Bis zum eigenen Tod. Ab 95 % grün, unter 85 % gelb. Die Lücken stehen unter „Aktivität & Cooldowns“.") : "",
-        dipChip(report, name),
-        recP || items.length ? chip("inv_misc_note_01", items.length, reviewer ? `Empfehlungen${open ? ` · ${open} offen` : ""}` : (items.length === 1 ? "Empfehlung" : "Empfehlungen"), open >= 3 ? "bad" : open ? "warn" : items.length ? "" : "ok", reviewer ? "Befunde für diesen Raider; offen heißt noch nicht freigegeben oder verworfen" : "Freigegebene Empfehlungen für diesen Raider") : "",
-    ].filter(Boolean).join("");
-
-    // the sections: { key, label, icon, count, tone, html }
-    const secs = [];
-    if (recP && (items.length || reviewer)) {
-        secs.push({ key: "recs", label: "Empfehlungen", icon: "inv_misc_note_01", count: `${items.length}${open ? ` · ${open} offen` : ""}`, tone: open ? "mid" : "ok",
-            html: items.length ? `<ul class="rec-list">${items.map((it) => recItem(it, "player", name, reviewer)).join("")}</ul>` : "<div class=\"rec-clean\">Nichts auszusetzen – weiter so.</div>" });
-    }
-    secs.push({ key: "gear", label: "Gear", icon: "inv_shield_06", count: issues.length ? `${issues.length} Problem${issues.length === 1 ? "" : "e"}` : "ok", tone: issues.some((x) => x.severity === "high") ? "bad" : issues.length ? "mid" : "ok",
-        html: (issues.length ? panelBox(`<ul class="issues" style="padding:8px 16px">${issues.map(issueRow).join("")}</ul>`) : "<div class=\"rec-clean\">Keine Gear-Probleme 🎉</div>") + `<div style="margin-top:12px">${paperdoll(p)}</div>` });
-    if (cons || ctx.potByName.get(name) || (report.potions && report.potions.players) || ctx.drumsByName.get(name) || ctx.srByName.get(name) || report.consumables) {
-        secs.push({ key: "cons", label: "Consumables & Tränke", icon: "inv_alchemy_endlessflask_05", count: cons ? (cons.buffed >= 90 ? "ok" : `${cons.buffed} %`) : "", tone: cons ? (cons.buffed >= 90 ? "ok" : cons.buffed < 50 ? "bad" : "mid") : "none", html: raiderConsumables(ctx, p) });
-    }
-    if (buffs) secs.push({ key: "buffs", label: "Buffs", icon: "spell_magic_greaterblessingofkings", count: buffs.missing + (buffs.partial || 0) + (buffs.late || 0) + (buffs.wrong || 0) ? `${buffs.missing} fehlten` : "alle da", tone: buffs.missing >= 2 ? "bad" : buffs.missing || buffs.partial || buffs.late ? "mid" : "ok", html: raiderBuffs(ctx, p) });
-    if (heal) secs.push({ key: "heal", label: "Heilung & Mana", icon: "spell_holy_flashheal", count: `${heal.fights} ${heal.fights === 1 ? "Kampf" : "Kämpfe"}`, tone: heal.manaLowFights ? "bad" : heal.overhealPct >= 35 ? "mid" : "ok", html: raiderHealing(ctx, p) });
-    if (act || ctx.cdByName.get(name) || ctx.totByName.get(name)) {
-        const cd = ctx.cdByName.get(name);
-        const tone = act ? (act.activeAvg >= 95 ? "ok" : act.activeAvg >= 85 ? "mid" : "bad") : (cd && cd.usedPct !== null ? (cd.usedPct >= 80 ? "ok" : "mid") : "ok");
-        secs.push({ key: "act", label: "Aktivität & Cooldowns", icon: "inv_misc_pocketwatch_02", count: act ? `${act.activeAvg} %` : (cd && cd.usedPct !== null ? `${cd.usedPct} % genutzt` : ""), tone, html: raiderActivity(ctx, p) });
-    }
-    if (ctx.mechByName.get(name) || ctx.rpbDmgByName.get(name) || ctx.rpbActByName.get(name) || ctx.rpbUseByName.get(name) || ctx.rpbIntByName.get(name) || ctx.sunderByName.get(name)) {
-        const mech = ctx.mechByName.get(name);
-        const dmg = ctx.rpbDmgByName.get(name);
-        const deaths = mech ? mech.deaths || 0 : dmg ? dmg.deaths || 0 : 0;
-        secs.push({ key: "dmg", label: "Schaden & Tode", icon: "ability_creature_cursed_05", count: `${deaths} ${deaths === 1 ? "Tod" : "Tode"}`, tone: mech && mech.avoidableDeaths ? "bad" : deaths ? "mid" : "ok", html: raiderDamage(ctx, p) });
-    }
     let timelineDialog = "";
-    if (fights.length && !opts.inline) {
+    if (fights.length) {
         const ns = `r${i}-`;
         timelineDialog = `<dialog class="dlg chart" id="dlg-rt-${i}">
-          <div class="dlg-head"><img class="vcard-icon" src="${esc(classIconUrl(p.type))}" alt=""><div class="dlg-main"><div class="dlg-title">${hicon("inv_misc_pocketwatch_01", "")}Kampfverlauf · ${esc(name)}</div><div class="vcard-meta">${fights.length} ${fights.length === 1 ? "Kampf" : "Kämpfe"} · ${PX_PER_SEC} px pro Sekunde, seitlich scrollen</div></div><button type="button" class="dlg-x" data-close aria-label="Schließen">×</button></div>
+          <div class="dlg-head"><img class="vcard-icon" src="${esc(classIconUrl(p.type))}" alt=""><div class="dlg-main"><div class="dlg-title">${hicon("inv_misc_pocketwatch_01", "")}Kampfverlauf · ${esc(name)}</div><div class="vcard-meta">${plural(fights.length, "Kampf", "Kämpfe")} · ${PX_PER_SEC} px pro Sekunde, seitlich scrollen</div></div>${dlgClose()}</div>
           <div class="dlg-body">${renderPlayerTimeline(report.timeline, name, ns)}</div>
-          <div class="dlg-foot"><span class="note">Tode als senkrechte Striche in Klassenfarbe · Tabellenansicht unter jeder Grafik aufklappbar</span><div class="btns"><a class="btn btn-ghost btn-sm" href="${esc(ctx.linkFor(name) || "#")}">Spielerseite ↗</a><button type="button" class="btn btn-ghost btn-sm" data-close>Schließen</button></div></div>
+          <div class="dlg-foot"><span class="note">Tode als senkrechte Striche in Klassenfarbe · Tabellenansicht unter jeder Grafik aufklappbar</span><div class="btns">${ctx.linkFor(name) ? `<a class="btn btn-ghost btn-sm" href="${esc(ctx.linkFor(name))}">Spielerseite${LINE.external}</a>` : ""}<button type="button" class="btn btn-sm" data-close>Schließen</button></div></div>
         </dialog>`;
-        secs.push({ key: "tl", label: "Kampfverlauf", icon: "inv_misc_pocketwatch_01", count: "⤢", tone: "none",
-            html: `<p class="note">${fights.length} ${fights.length === 1 ? "Kampf" : "Kämpfe"} mit eigenen Zeilen: Aktivität, Cooldowns, Buffs, Heilung, Mechaniken, Tode.</p><button type="button" class="btn btn-ghost btn-sm" data-dialog="dlg-rt-${i}">${hicon("inv_misc_pocketwatch_01", "")}Verlauf öffnen ⤢</button>${timelineDialog}` });
     }
     const secId = (k) => `rc${i}-${k}`;
     const buttons = secs.map((s, j) => `<button type="button" class="sec${j === 0 ? " active" : ""}" data-show="${secId(s.key)}">${hicon(s.icon, "")}${esc(s.label)}${s.count !== "" ? `<span class="n${s.tone === "bad" ? " bad" : s.tone === "mid" ? " mid" : ""}">${esc(s.count)}</span>` : ""}</button>`).join("");
     const panels = secs.map((s, j) => `<div id="${secId(s.key)}" class="part"${j === 0 ? "" : " hidden"}>${s.html}</div>`).join("");
 
     let foot = "";
+    let sendDlg = "";
     if (reviewer && recP) {
         const sent = ctx.sent[name];
-        foot = `<div class="raider-foot"><span class="note">${approved} freigegeben · ${open} offen · zuletzt gesendet: ${sent ? esc(new Date(sent.at).toLocaleString("de-DE")) : "nie"}</span><span class="rec-send-result" hidden></span><div class="btns"><button type="button" class="btn btn-ghost btn-sm" data-phrase="player" data-tip="Claude formuliert die Befunde dieses Raiders in Klartext" data-tip-sub="Deine Freigabe bleibt nötig; der Regeltext bleibt erhalten.">KI-Formulierung erzeugen</button><button type="button" class="btn btn-sm" data-dialog="send-${i}"${approved ? "" : " disabled"}>Vorschau &amp; senden</button></div></div>${sendDialog(ctx, p, i, items)}`;
+        foot = `<div class="raider-foot"><span class="note">${approved} freigegeben · ${open} offen · zuletzt gesendet: ${sent ? esc(new Date(sent.at).toLocaleString("de-DE")) : "nie"}</span><span class="rec-send-result" hidden></span><div class="btns"><button type="button" class="btn btn-run btn-sm" data-phrase="player" data-tip="Claude formuliert die Befunde dieses Raiders in Klartext" data-tip-sub="Deine Freigabe bleibt nötig; der Regeltext bleibt erhalten.">${hicon("inv_scroll_03", "")}KI-Formulierung</button><button type="button" class="btn btn-sm" data-dialog="send-${i}"${approved ? "" : " disabled"}>${hicon("inv_letter_15", "")}Vorschau &amp; senden</button></div></div>`;
+        sendDlg = sendDialog(ctx, p, i, items);
     }
-    const deathsN = fights.reduce((n, f) => n + (f.deaths || []).filter((d) => d.name === name).length, 0);
     const roleIcon = { tank: "inv_shield_06", healer: "spell_holy_flashheal", dps: "ability_dualwield" }[role];
     const meta = [
         badge(p.type, ""),
         ROLE_LABEL[role] ? badge(ROLE_LABEL[role], "accent", roleIcon) : "",
-        fights.length ? badge(`${fights.length} ${fights.length === 1 ? "Kampf" : "Kämpfe"}`, "", "", true) : "",
-        deathsN ? badge(`${deathsN} ${deathsN === 1 ? "Tod" : "Tode"}`, "bad", "ability_creature_cursed_05") : "",
+        fights.length ? badge(plural(fights.length, "Kampf", "Kämpfe"), "", "", true) : "",
     ].filter(Boolean).join("");
+    const tlBtn = fights.length ? ibtn(hicon("inv_misc_pocketwatch_01", ""), "Kampfverlauf öffnen", `${plural(fights.length, "Kampf", "Kämpfe")} mit eigenen Zeilen: DPS gegen den Raid-Schnitt, Aktivität, Cooldowns, Buffs, Tode.`, `data-dialog="dlg-rt-${i}"`) : "";
+    const href = ctx.linkFor(name);
+    const pageBtn = href ? `<a class="ibtn" href="${esc(href)}" data-tip="Spielerseite öffnen" data-tip-sub="Die freigegebenen Punkte zuerst, dann die Kämpfe je Boss." aria-label="Spielerseite öffnen">${LINE.external}</a>` : "";
     return `<details class="vcard raider-card" id="raider-${esc(name)}" data-name="${esc(name)}" data-role="${role}" data-open="${reviewer ? open : approved}" data-report="${esc(report.id)}" style="--cc:${esc(color)}"${opts.open ? " open" : ""}>
-      <summary><img class="vcard-icon" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}"><div class="vcard-main"><div class="vcard-title cn">${esc(name)}</div><div class="vcard-meta">${meta}</div></div><div class="vcard-chips">${chips}</div>${expBtn()}</summary>
+      <summary><img class="vcard-icon" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}"><div class="vcard-main"><div class="vcard-title cn">${esc(name)}</div><div class="vcard-meta">${meta}</div></div><div class="vcard-chips">${raiderBadges(ctx, p)}</div>${tlBtn}${pageBtn}${expBtn()}</summary>
       <div class="vcard-body"><nav class="secs">${buttons}</nav>${panels}${foot}</div>
-    </details>`;
+    </details>${timelineDialog}${dialogs}${sendDlg}`;
 }
 
-/** Sicht Raider: search, role filter, one card per roster entry. `openName` opens that raider's card. */
+/** Sicht Raider: search, role filter with WoW icons, one icon button for all cards, one card per roster entry. `openName` opens that raider's card. */
 function renderRaiderView(ctx, openName) {
     const roster = ctx.report.roster || [];
     if (!roster.length) return "<div class=\"empty\">Keine Raider gefunden.</div>";
@@ -3069,7 +3452,8 @@ function renderRaiderView(ctx, openName) {
         return r && r.items.some((it) => (ctx.reviewer ? it.approved === null : it.approved === true));
     }).length;
     const cards = roster.map((p, i) => raiderCard(ctx, p, i, { open: openName === p.name })).join("");
-    return `<div class="view-bar"><div class="raider-tools"><input type="search" id="raiderSearch" placeholder="Raider suchen…" aria-label="Raider suchen"><nav class="seg"><button type="button" class="seg-btn active" data-rolefilter="all">Alle</button><button type="button" class="seg-btn" data-rolefilter="tank">Tank</button><button type="button" class="seg-btn" data-rolefilter="healer">Heiler</button><button type="button" class="seg-btn" data-rolefilter="dps">DPS</button><button type="button" class="seg-btn" data-rolefilter="open">${ctx.reviewer ? "Offen" : "Empfehlungen"} <span class="n">${withOpen}</span></button></nav></div><span class="rec-toggle-all"><button type="button" class="btn btn-sm btn-ghost" data-cards="open">Alle aufklappen</button><button type="button" class="btn btn-sm btn-ghost" data-cards="close">Alle zuklappen</button></span></div>
+    const btn = (key, label, icon, extra, active) => `<button type="button" class="seg-btn${active ? " active" : ""}" data-rolefilter="${key}">${icon ? hicon(icon, "") : ""}${label}${extra || ""}</button>`;
+    return `<div class="view-bar"><div class="raider-tools"><label class="field">${LINE.search}<input type="search" id="raiderSearch" placeholder="Raider suchen…" aria-label="Raider suchen"></label><nav class="seg sm">${btn("all", "Alle", "", "", true)}${btn("tank", "Tank", "inv_shield_06")}${btn("healer", "Heiler", "spell_holy_flashheal")}${btn("dps", "DPS", "ability_dualwield")}${btn("open", ctx.reviewer ? "Offen" : "Empfehlungen", "inv_misc_note_01", ` <span class="n${withOpen ? " mid" : ""}">${withOpen}</span>`)}</nav></div>${ibtn(LINE.expandAll, "Alle auf- oder zuklappen", "Betrifft die Karten, die Suche und Filter gerade zeigen.", "data-cards=\"toggle\"")}</div>
     ${cards}<div class="raider-empty" id="raiderEmpty" hidden>Kein Raider passt zu Suche und Filter.</div>`;
 }
 
@@ -3088,16 +3472,19 @@ function apply(){var any=false;document.querySelectorAll(".raider-card").forEach
 document.addEventListener("click",function(e){var b=e.target.closest("[data-rolefilter]");if(!b)return;role=b.getAttribute("data-rolefilter");b.parentElement.querySelectorAll("[data-rolefilter]").forEach(function(x){x.classList.toggle("active",x===b);});apply();});
 document.addEventListener("input",function(e){if(!e.target||e.target.id!=="raiderSearch")return;q=e.target.value.trim().toLowerCase();apply();});})();</script>`;
 
-// The send dialog: text choice per point (KI / rule / own), live DM preview,
+// The send dialog: text choice per point (KI / Regel / Eigener), live DM preview,
 // "Nur speichern" writes own texts through the review endpoint, "Per Bot senden"
 // saves and then sends this one raider; an unchanged, already sent set offers a
-// forced resend instead of silently doing nothing.
+// forced resend instead of silently doing nothing. Opening the dialog fetches the
+// mapping state (GET /api/cla/recommendations/send) for the badge under the preview.
 const SEND_DLG_SCRIPT = `<script>(function(){if(window.__ehSendDlg)return;window.__ehSendDlg=1;
 var token=null;function csrf(){return token?Promise.resolve(token):fetch("/api/session",{credentials:"same-origin"}).then(function(r){return r.json()}).then(function(j){token=j.csrfToken||(j.data&&j.data.csrfToken)||"";return token;});}
 function hdr(t){return {"Content-Type":"application/json","X-CSRF-Token":t};}
+var status={};function mapping(d){var b=d.querySelector(".map-badge");if(!b||b.getAttribute("data-done"))return;var id=d.getAttribute("data-report"),who=d.getAttribute("data-player");(status[id]||(status[id]=fetch("/api/cla/recommendations/send?id="+encodeURIComponent(id),{credentials:"same-origin"}).then(function(r){return r.json();}))).then(function(j){var x=((j.data&&j.data.players)||[]).find(function(y){return y.name===who;});b.setAttribute("data-done","1");if(!x){b.textContent="nichts freigegeben";return;}b.textContent=x.mapped?"Konto zugeordnet":x.ambiguous?"mehrere Konten":"kein Konto zugeordnet";b.className="badge map-badge "+(x.mapped?"ok":"bad");}).catch(function(){b.textContent="Zuordnung unbekannt";});}
 function preview(d){var box=d.querySelector(".dm-items");if(!box)return;box.innerHTML="";d.querySelectorAll(".send-item").forEach(function(it){var t=it.querySelector(".send-text").value.trim();if(!t)return;var el=document.createElement("div"),b=document.createElement("b");b.textContent=it.getAttribute("data-title");el.appendChild(b);el.appendChild(document.createElement("br"));el.appendChild(document.createTextNode(t.length>160?t.slice(0,160)+" …":t));box.appendChild(el);});}
 function save(d,t,id,who){var items=[].slice.call(d.querySelectorAll(".send-item"));return items.reduce(function(p,it){return p.then(function(){var m=it.getAttribute("data-mode"),v=it.querySelector(".send-text").value.trim(),text=m==="custom"?v:"";if(text===(it.getAttribute("data-custom")||""))return;return fetch("/api/cla/recommendations",{method:"POST",credentials:"same-origin",headers:hdr(t),body:JSON.stringify({reportId:id,scope:"player",player:who,key:it.getAttribute("data-key"),text:text})}).then(function(r){if(!r.ok)throw new Error("Speichern fehlgeschlagen ("+r.status+")");it.setAttribute("data-custom",text);});});},Promise.resolve());}
-document.addEventListener("click",function(e){var t=e.target.closest("[data-txt]");if(t){var it=t.closest(".send-item"),m=t.getAttribute("data-txt"),ta=it.querySelector(".send-text");it.setAttribute("data-mode",m);it.querySelectorAll("[data-txt]").forEach(function(x){x.classList.toggle("active",x===t);});ta.value=it.getAttribute("data-"+m)||"";ta.readOnly=m!=="custom";if(m==="custom")ta.focus();preview(t.closest("dialog"));return;}
+document.addEventListener("click",function(e){var o=e.target.closest("[data-dialog^='send-']");if(o){var dd=document.getElementById(o.getAttribute("data-dialog"));if(dd)mapping(dd);}
+var t=e.target.closest("[data-txt]");if(t){var it=t.closest(".send-item"),m=t.getAttribute("data-txt"),ta=it.querySelector(".send-text");it.setAttribute("data-mode",m);it.querySelectorAll("[data-txt]").forEach(function(x){x.classList.toggle("active",x===t);});ta.value=it.getAttribute("data-"+m)||"";ta.readOnly=m!=="custom";if(m==="custom")ta.focus();preview(t.closest("dialog"));return;}
 var a=e.target.closest("[data-sendact]");if(!a)return;var d=a.closest("dialog"),id=d.getAttribute("data-report"),who=d.getAttribute("data-player"),out=d.querySelector(".send-out"),act=a.getAttribute("data-sendact"),btns=d.querySelectorAll("[data-sendact]");
 out.textContent="…";btns.forEach(function(x){x.disabled=true;});
 csrf().then(function(t){return save(d,t,id,who).then(function(){if(act==="save"){out.textContent="Gespeichert.";return;}
@@ -3113,22 +3500,23 @@ function renderReportPage(report, user) {
 
     const hasTimeline = ctx.fights.length > 0;
     const bosses = hasTimeline ? groupByBoss(ctx.fights) : [];
-    const sections = raidSections(ctx);
+    const groups = raidGroups(ctx);
+    const flagged = groups.reduce((n, g) => n + (g.flagged ? 1 : 0), 0);
     const roster = report.roster || [];
 
     const isAdmin = !!(user && user.isAdmin);
     const actions = [
-        report.reportUrl ? `<a class="btn btn-ghost btn-sm" href="${esc(report.reportUrl)}" target="_blank" rel="noopener">${hicon("inv_misc_pocketwatch_01", "")}→ Warcraft Logs</a>` : "",
+        report.reportUrl ? `<a class="btn btn-ghost btn-sm" href="${esc(report.reportUrl)}" target="_blank" rel="noopener">${hicon("inv_misc_pocketwatch_01", "")}Warcraft Logs${LINE.external}</a>` : "",
         isAdmin ? `<a class="btn btn-ghost btn-sm" href="/cla">${hicon("ability_warrior_rallyingcry", "")}Alle Auswertungen</a>` : "",
     ].filter(Boolean).join("");
 
     const views = [
-        { id: "raid", icon: "ability_warrior_rallyingcry", label: "Raid", count: sections.length, html: sections.length ? sections.join("") : "<div class=\"empty\">Keine raid-weiten Auswertungen in diesem Report.</div>" },
+        { id: "raid", icon: "ability_warrior_rallyingcry", label: "Raid", count: groups.length, tone: flagged ? "mid" : "", html: groups.length ? groups.map((g) => g.html).join("") : "<div class=\"empty\">Keine raid-weiten Auswertungen in diesem Report.</div>" },
         { id: "bosse", icon: "achievement_boss_illidan", label: "Bosse", count: bosses.length, html: renderBossView(report.timeline, linkFor, rec ? rec.raid : [], reviewer) },
         { id: "raider", icon: "inv_misc_grouplooking", label: "Raider", count: roster.length, html: renderRaiderView(ctx, null) },
     ];
     const start = hasTimeline ? "bosse" : "raid";
-    const seg = views.map((v) => `<button type="button" class="seg-btn${v.id === start ? " active" : ""}" data-show="view-${v.id}">${hicon(v.icon, "")}${esc(v.label)}<span class="n">${esc(v.count)}</span></button>`).join("");
+    const seg = views.map((v) => `<button type="button" class="seg-btn${v.id === start ? " active" : ""}" data-show="view-${v.id}">${hicon(v.icon, "")}${esc(v.label)}<span class="n${v.tone ? ` ${v.tone}` : ""}">${esc(v.count)}</span></button>`).join("");
     const panels = views.map((v) => `<div id="view-${v.id}" class="view"${v.id === start ? "" : " hidden"}>${v.html}</div>`).join("");
 
     const body = `
@@ -3140,9 +3528,9 @@ function renderReportPage(report, user) {
         ${actions ? `<div class="page-actions">${actions}</div>` : ""}
       </div>
       ${kpiCards(report, ctx)}
-      <div class="view-bar"><nav class="seg views">${seg}</nav><span class="note">Ein Boss, ein Raider – alles Weitere klappt auf oder öffnet sich als Fenster.</span></div>
+      <div class="view-bar"><nav class="seg views">${seg}</nav></div>
       ${panels}
-      ${TIMELINE_SCRIPT}${DIALOG_SCRIPT}${VIEW_SCRIPT}${FILTER_SCRIPT}${CARDS_SCRIPT}${reviewer ? REVIEW_SCRIPT + PHRASE_SCRIPT + SEND_DLG_SCRIPT : ""}`;
+      ${TIMELINE_SCRIPT}${DIALOG_SCRIPT}${DTOOLS_SCRIPT}${VIEW_SCRIPT}${FILTER_SCRIPT}${CARDS_SCRIPT}${reviewer ? REVIEW_SCRIPT + PHRASE_SCRIPT + SEND_DLG_SCRIPT : ""}`;
 
     return shellPage(report.title ? `Log-Check: ${report.title}` : "Log-Check", {
         user,
@@ -3173,13 +3561,13 @@ function paperdollSlot(it, side) {
     let badge = "";
     let ench = "";
     if (it.enchant.status === "missing") {
-        badge = "<span class=\"slot-badge b-miss\" data-tip=\"keine Verzauberung\">✗</span>";
+        badge = `<span class="slot-badge b-miss" data-tip="keine Verzauberung">${LINE.close}</span>`;
         ench = "<div class=\"slot-ench miss\">keine Verzauberung</div>";
     } else if (it.enchant.status === "bad") {
         badge = `<span class="slot-badge b-bad" data-tip="${esc(it.enchant.reason || "suboptimale Verzauberung")}">!</span>`;
         ench = `<div class="slot-ench bad">suboptimale Verzauberung${it.enchant.reason ? ` · ${esc(it.enchant.reason)}` : ""}</div>`;
     } else if (it.enchant.status === "ok") {
-        badge = "<span class=\"slot-badge b-ok\" data-tip=\"verzaubert\" data-tip-sub=\"Details im Tooltip des Gegenstands\">✓</span>";
+        badge = `<span class="slot-badge b-ok" data-tip="verzaubert" data-tip-sub="Details im Tooltip des Gegenstands">${LINE.check}</span>`;
         ench = "<div class=\"slot-ench ok\">verzaubert</div>";
     }
     // real gem icons + empty sockets
@@ -3202,28 +3590,192 @@ function paperdollSlot(it, side) {
  * Kampfverlauf inline under it (charts stacked under their tables) — no
  * second layout to keep in step.
  */
+/**
+ * A raider's own output in one fight against the raid's mean per player, on
+ * the measure that is theirs (HPS for a healer, DPS otherwise, as
+ * playerSeries decides): { key, own, raid } or null without a curve.
+ */
+function fightMeasure(f, name) {
+    const s = f.series;
+    const mine = s && Array.isArray(s.players) ? s.players.find((p) => p && p.name === name) : null;
+    if (!mine) return null;
+    const sum = (arr) => (Array.isArray(arr) ? arr.reduce((a, v) => a + (Number(v) || 0), 0) : 0);
+    const healer = ((f.healers && f.healers.healers) || []).some((h) => h.name === name) || sum(mine.hps) > sum(mine.dps);
+    const key = healer && mine.hps ? "hps" : mine.dps ? "dps" : "hps";
+    const own = mine[key];
+    if (!Array.isArray(own) || !own.length) return null;
+    const withKey = s.players.filter((p) => p && Array.isArray(p[key]) && p[key].length).length;
+    const raidArr = Array.isArray(s[key]) && s[key].length && withKey ? s[key] : null;
+    return {
+        key,
+        own: Math.round(sum(own) / own.length),
+        raid: raidArr ? Math.round(sum(raidArr) / raidArr.length / withKey) : null,
+    };
+}
+
+/** The player page's four KPIs: activity against the raid, DPS/HPS against the raid, deaths, preparation. */
+function playerKpis(ctx, p) {
+    const { report } = ctx;
+    const name = p.name;
+    const out = [];
+    const act = ctx.actByName.get(name);
+    const heal = ctx.healByName.get(name);
+    if (act) {
+        const raidAvg = avgOf((report.activity && report.activity.players) || [], (x) => x.activeAvg);
+        out.push(kpi("inv_misc_pocketwatch_02", "Aktivität", `${act.activeAvg} %`, { text: `Raid Ø ${raidAvg} %` }, act.activeAvg >= raidAvg ? "good" : act.activeAvg >= 85 ? "" : "medium", "", "Anteil der Kampfzeit mit laufenden Zaubern oder Angriffen", "Im Mittel über die Boss-Kämpfe bis zum eigenen Tod, gegen den Schnitt des Raids."));
+    } else if (heal) {
+        out.push(kpi("spell_holy_flashheal", "Overheal", `${heal.overhealPct} %`, { text: `${fmtK(heal.healingTotal)} Heilung` }, heal.overhealPct >= 50 ? "high" : heal.overhealPct >= 35 ? "medium" : "good", "", "Anteil der Heilung über volle Lebenspunkte", "Ab 35 % gelb, ab 50 % rot."));
+    }
+    const measures = playerFights(report.timeline, name).map((f) => fightMeasure(f, name)).filter((m) => m && m.raid);
+    if (measures.length) {
+        const key = measures.filter((m) => m.key === "hps").length > measures.length / 2 ? "hps" : "dps";
+        const same = measures.filter((m) => m.key === key);
+        const diff = Math.round((same.reduce((n, m) => n + (m.own / m.raid - 1), 0) / same.length) * 100);
+        const label = key.toUpperCase();
+        out.push(kpi("spell_nature_bloodlust", label, `${diff >= 0 ? "+" : ""}${diff} %`, { text: diff >= 0 ? "über Raid-Schnitt" : "unter Raid-Schnitt" }, diff >= 0 ? "good" : diff >= -15 ? "medium" : "high", diff >= 0 ? "good" : "", `Eigener ${label} gegen den Raid-Schnitt pro Spieler`, `Im Mittel über ${plural(same.length, "Kampf", "Kämpfe")} mit eigener Kurve von Warcraft Logs.`));
+    }
+    const deaths = ctx.fights.reduce((n, f) => n + (f.deaths || []).filter((d) => d.name === name).length, 0);
+    const mech = ctx.mechByName.get(name);
+    const avoidable = mech ? mech.avoidableDeaths || 0 : ctx.fights.reduce((n, f) => n + (f.deaths || []).filter((d) => d.name === name && d.avoidable).length, 0);
+    if (ctx.fights.length || mech) {
+        out.push(kpi("ability_creature_cursed_05", "Tode", String(mech ? mech.deaths || 0 : deaths), avoidable ? { text: `${avoidable} vermeidbar`, bad: true } : null, avoidable ? "high" : deaths ? "medium" : "good", "", "Tode in allen Boss-Kämpfen", "Vermeidbar: der Todesstoß kam von einer Mechanik, der man ausweichen kann."));
+    }
+    const cons = ctx.consByName.get(name);
+    const issues = ((ctx.gearByName.get(name) || {}).issues || p.issues || []);
+    if (cons) {
+        out.push(kpi("inv_alchemy_endlessflask_05", "Vorbereitung", `${cons.buffed} %`, { text: issues.length ? plural(issues.length, "Gear-Problem", "Gear-Probleme") : "Gear ok" }, cons.buffed >= 90 && !issues.length ? "good" : cons.buffed < 50 ? "high" : "medium", cons.buffed >= 90 ? "good" : "", "Flask oder beide Elixiere, Anteil der Boss-Kämpfe", "Dahinter die Gear-Probleme aus der Ausrüstung beim Pull."));
+    }
+    return out.length ? `<div class="kpis">${out.join("")}</div>` : "";
+}
+
+/**
+ * "Deine Kämpfe": one row per boss the raider was in — WCL boss icon, tries,
+ * the own DPS/HPS as a bar against the raid mean per player, the activity bar
+ * and a hint badge; "Verlauf" opens that boss's charts in a dialog. The
+ * segment shows only the rows with a hint, or all.
+ */
+function playerFightTable(ctx, p) {
+    const name = p.name;
+    const bosses = groupByBoss(playerFights(ctx.report.timeline, name));
+    if (!bosses.length) return { html: "", dialogs: "" };
+    const rows = bosses.map((b, bi) => {
+        const ms = b.fights.map((f) => fightMeasure(f, name)).filter(Boolean);
+        const key = ms.length ? ms[0].key : "dps";
+        const own = ms.length ? Math.round(ms.reduce((n, m) => n + m.own, 0) / ms.length) : null;
+        const raidMs = ms.filter((m) => m.raid);
+        const raid = raidMs.length ? Math.round(raidMs.reduce((n, m) => n + m.raid, 0) / raidMs.length) : null;
+        const acts = b.fights.map((f) => (f.activity || []).find((a) => a.name === name)).filter((a) => a && Number.isFinite(a.activePct));
+        const act = acts.length ? Math.round(acts.reduce((n, a) => n + a.activePct, 0) / acts.length) : null;
+        const deaths = b.fights.flatMap((f) => (f.deaths || []).filter((d) => d.name === name));
+        const avoidable = deaths.filter((d) => d.avoidable).length;
+        const hints = [];
+        if (deaths.length) hints.push(badge(avoidable ? `${avoidable} vermeidbar` : plural(deaths.length, "Tod", "Tode"), avoidable ? "bad" : "mid", "ability_creature_cursed_05"));
+        if (own !== null && raid && own < raid * 0.9) hints.push(badge("unter Schnitt", "mid"));
+        if (act !== null && act < 85) hints.push(badge(`${act} % aktiv`, "mid"));
+        return { b, bi, key, own, raid, act, hints };
+    });
+    const maxOwn = Math.max(1, ...rows.map((r) => r.own || 0));
+    const flagged = rows.filter((r) => r.hints.length).length;
+    const onlyFlagged = flagged > 0 && flagged < rows.length;
+    const body = rows.map((r) => {
+        const icon = bossIconUrl(r.b.encounterId);
+        const label = r.key.toUpperCase();
+        const ownCell = r.own === null ? "<span class=\"mute\">–</span>" : barCell(fmtK(r.own), (r.own / maxOwn) * 100, r.raid ? (r.own >= r.raid ? "good" : r.own < r.raid * 0.9 ? "medium" : "") : "", `${label} ${name}`, r.raid ? `Raid-Schnitt pro Spieler: ${fmtK(r.raid)}. Grün ab dem Schnitt, gelb unter 90 % davon.` : "");
+        return `<tr data-flag="${r.hints.length ? 1 : 0}"${onlyFlagged && !r.hints.length ? " hidden" : ""}>
+          <td><span class="who">${icon ? `<img class="hicon" src="${esc(icon)}" alt="">` : ""}<span>${esc(r.b.name)}</span></span></td>
+          <td>${badge(String(r.b.fights.length), "", "", true)}</td>
+          <td>${ownCell}</td>
+          <td class="mono mute">${r.raid ? fmtK(r.raid) : "–"}</td>
+          <td class="act">${r.act === null ? "<span class=\"mute\">–</span>" : barPct(r.act)}</td>
+          <td><div class="badges">${r.hints.join("")}</div></td>
+          <td style="text-align:right"><button type="button" class="btn btn-ghost btn-sm" data-dialog="dlg-pf-${r.bi}">${LINE.expand}Verlauf</button></td>
+        </tr>`;
+    }).join("");
+    const dialogs = rows.map((r) => {
+        const ns = "p-"; // fight ids are unique across bosses, so every boss dialog can share the page prefix
+        const icon = bossIconUrl(r.b.encounterId);
+        const sections = r.b.fights.map((f, j) => renderFightSection(f, null, name, j + 1, r.b.fights.length, j === 0, "inline", ns, { crumb: "" })).join("");
+        return `<dialog class="dlg chart" id="dlg-pf-${r.bi}">
+          <div class="dlg-head">${icon ? `<img class="vcard-icon" src="${esc(icon)}" alt="">` : ""}<div class="dlg-main"><div class="dlg-title">${hicon("inv_misc_pocketwatch_01", "")}${esc(r.b.name)} · ${esc(name)}</div><div class="vcard-meta">${plural(r.b.fights.length, "Try", "Tries")} · ${PX_PER_SEC} px pro Sekunde, seitlich scrollen</div></div>${dlgClose()}</div>
+          <div class="dlg-body">${tryPills(r.b, ns)}${sections}</div>
+          <div class="dlg-foot"><span class="note">Tode als senkrechte Striche in Klassenfarbe · Tabellenansicht unter jeder Grafik aufklappbar</span><div class="btns"><button type="button" class="btn btn-sm" data-close>Schließen</button></div></div>
+        </dialog>`;
+    }).join("");
+    const seg = flagged && flagged < rows.length
+        ? `<nav class="seg sm pf-seg"><button type="button" class="seg-btn active" data-pfilter="flag">Auffällige<span class="n mid">${flagged}</span></button><button type="button" class="seg-btn" data-pfilter="all">Alle ${rows.length}</button></nav>`
+        : "";
+    const shown = onlyFlagged ? flagged : rows.length;
+    const html = `<section class="gcard" id="p-fights">${groupHead("inv_misc_pocketwatch_01", "", "Deine Kämpfe", `${name} › Kampfverlauf · ${shown} von ${plural(rows.length, "Boss", "Bossen")} gezeigt`, seg)}
+      <div class="tbox"><table class="idx pfights"><tr><th>Boss</th><th data-tip="Tries" data-tip-sub="Pulls dieses Bosses, in denen der Raider dabei war.">Tries</th><th data-tip="Dein DPS / HPS" data-tip-sub="Im Mittel über die Tries, aus der eigenen 5-Sekunden-Kurve von Warcraft Logs. Der Balken ist der Anteil am besten eigenen Boss.">Dein ${rows.some((r) => r.key === "hps") && rows.every((r) => r.key === "hps") ? "HPS" : "DPS"}</th><th data-tip="Raid Ø" data-tip-sub="Raid-Kurve geteilt durch die Zahl der Spieler mit einer Kurve.">Raid Ø</th><th data-tip="Aktiv" data-tip-sub="Anteil der Kampfzeit mit laufenden Zaubern oder Angriffen, bis zum eigenen Tod.">Aktiv</th><th>Hinweis</th><th></th></tr>${body}</table></div>
+    </section>`;
+    return { html, dialogs };
+}
+
+// "Auffällige / Alle" on the player page's fight table.
+const PFIGHTS_SCRIPT = `<script>(function(){if(window.__ehPf)return;window.__ehPf=1;
+document.addEventListener("click",function(e){var b=e.target.closest("[data-pfilter]");if(!b)return;var all=b.getAttribute("data-pfilter")==="all",s=b.closest("section");b.parentElement.querySelectorAll("[data-pfilter]").forEach(function(x){x.classList.toggle("active",x===b);});
+s.querySelectorAll("tr[data-flag]").forEach(function(tr){tr.hidden=!all&&tr.getAttribute("data-flag")!=="1";});});})();</script>`;
+
+/**
+ * The player page, focused: head with the class icon, name and badges; four
+ * personal KPIs; "Deine Punkte für den nächsten Raid" first (a reader sees
+ * only the approved ones, the first opened with its text); "Deine Kämpfe" per
+ * boss with the chart in a dialog; Vorbereitung / Leistung / Fehler as
+ * collapsed area heads with one badge each.
+ */
 function renderPlayerPage(report, idx, user) {
     const p = (report.roster || [])[idx];
     if (!p) return renderNotFound();
     const ctx = reportContext(report, user);
-    const body = `
-      <div class="page-head">
-        <div class="page-head-main">
-          <div class="kicker">${esc(report.title || "")}</div>
-          <h1 class="page-title">${esc(p.name)} <span class="sub" style="font-size:15px;font-weight:500">Stufe 70 · ${esc(p.type)}</span></h1>
-        </div>
-        <div class="page-actions"><a class="btn btn-ghost btn-sm" href="/r/${esc(report.id)}#raider">← zurück zum Report</a></div>
-      </div>
-      <div class="view">${raiderCard(ctx, p, idx, { open: true, inline: true })}</div>
-      ${renderPlayerTimeline(report.timeline, p.name, "p-")}
-      ${TIMELINE_SCRIPT}${DIALOG_SCRIPT}${ctx.reviewer ? REVIEW_SCRIPT + PHRASE_SCRIPT + SEND_DLG_SCRIPT : ""}`;
+    const { reviewer } = ctx;
+    const name = p.name;
+    const color = classColorOf(p.type) || "var(--text)";
+    const role = ctx.roleOf(name);
+    const recP = ctx.recByName.get(name);
+    const items = recP ? (reviewer ? recP.items : recP.items.filter((x) => x.approved === true)) : [];
+    const open = items.filter((x) => x.approved === null).length;
+    const approved = items.filter((x) => x.approved === true).length;
+    const fights = playerFights(report.timeline, name);
+    const { secs, dialogs } = raiderSections(ctx, p, idx, items, { openFirst: true });
 
-    return shellPage(`${p.name} — ${report.title || ""}`, {
+    const roleIcon = { tank: "inv_shield_06", healer: "spell_holy_flashheal", dps: "ability_dualwield" }[role];
+    const meta = [
+        badge(p.type, ""),
+        ROLE_LABEL[role] ? badge(ROLE_LABEL[role], "accent", roleIcon) : "",
+        fights.length ? badge(plural(fights.length, "Kampf", "Kämpfe"), "", "", true) : "",
+    ].filter(Boolean).join("");
+    const sendBtn = reviewer && recP ? `<button type="button" class="btn btn-sm" data-dialog="send-${idx}"${approved ? "" : " disabled"}>${hicon("inv_letter_15", "")}Vorschau &amp; senden</button>` : "";
+    const kicker = [report.title, report.date].filter(Boolean).map(esc).join(" · ");
+
+    const recs = secs.find((s) => s.key === "recs");
+    const points = `<section class="gcard" id="p-points">${groupHead("inv_misc_note_01", open ? "mid" : "", reviewer ? "Punkte für den nächsten Raid" : "Deine Punkte für den nächsten Raid", `${name} › Empfehlungen · ${reviewer ? `${approved} freigegeben · ${open} offen` : "von der Raidleitung geprüft"}`, badge(String(items.length), "", "", true))}${recs ? recs.html : "<div class=\"rlist\"><div class=\"rec-empty\">Noch keine freigegebenen Punkte.</div></div>"}${reviewer && recP ? `<div class="raider-foot" data-report="${esc(report.id)}" data-name="${esc(name)}"><span class="note">${approved} freigegeben · ${open} offen · zuletzt gesendet: ${ctx.sent[name] ? esc(new Date(ctx.sent[name].at).toLocaleString("de-DE")) : "nie"}</span><span class="rec-send-result" hidden></span><div class="btns"><button type="button" class="btn btn-run btn-sm" data-phrase="player" data-tip="Claude formuliert die Befunde dieses Raiders in Klartext" data-tip-sub="Deine Freigabe bleibt nötig; der Regeltext bleibt erhalten.">${hicon("inv_scroll_03", "")}KI-Formulierung</button></div></div>` : ""}</section>`;
+    const fightTable = playerFightTable(ctx, p);
+    const detail = secs.filter((s) => s.key !== "recs").map((s) => {
+        const tone = s.tone === "bad" ? "bad" : s.tone === "mid" ? "mid" : "";
+        return `<details class="pgrp" id="p-${s.key}"><summary>${groupHead(s.icon, tone, s.label, `${name} › ${s.crumb}`, `${s.badge || ""}${expBtn()}`)}</summary><div class="pgrp-body">${s.html}</div></details>`;
+    }).join("");
+
+    const body = `
+      <div class="page-head phead" style="--cc:${esc(color)}">
+        <img class="phead-icon" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}">
+        <div class="page-head-main">
+          <div class="kicker">${kicker}</div>
+          <h1 class="page-title ptitle-cn">${esc(name)}</h1>
+          <div class="vcard-meta">${meta}</div>
+        </div>
+        <div class="page-actions"><a class="btn btn-ghost btn-sm" href="/r/${esc(report.id)}#raider">${LINE.back}Zum Report</a>${sendBtn}</div>
+      </div>
+      ${playerKpis(ctx, p)}
+      <div class="pstack">${points}${fightTable.html}${detail}</div>
+      ${fightTable.dialogs}${dialogs}${reviewer && recP ? sendDialog(ctx, p, idx, items) : ""}
+      ${TIMELINE_SCRIPT}${DIALOG_SCRIPT}${PFIGHTS_SCRIPT}${reviewer ? REVIEW_SCRIPT + PHRASE_SCRIPT + SEND_DLG_SCRIPT : ""}`;
+
+    return shellPage(`${name} — ${report.title || ""}`, {
         user,
         body,
         crumbs: [
             { label: report.title || "Log-Check", href: `/r/${report.id}` },
-            { label: p.name },
+            { label: name },
         ],
     });
 }

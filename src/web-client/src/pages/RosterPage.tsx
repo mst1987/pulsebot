@@ -3,174 +3,151 @@
 // "Montagsraid", "Pug"). A character raiding under several categories shows up
 // in each group.
 //
-// Each row answers the three questions a raid lead has before an invite,
-// without leaving the page: where is the char on Warcraft Logs, what was wrong
-// with its gear last time, and what did it already get. Details (live gear,
-// full loot history) are one click away on the character page.
+// The page answers the raid lead's question before an invite (design issue
+// #218): what does the character play, was it there lately, is its gear in
+// order, what did it already get. Explanations live in tooltips, the full gear
+// findings and the loot history one click away on the character page.
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { getRoster, type ApiError, type CharGearReport, type RosterChar, type RosterData } from "../api";
-import { fmtMs } from "../lib/format";
+import { getRoster, type ApiError, type RosterChar, type RosterData, type RosterRole } from "../api";
 import { usePersistedState } from "../lib/persistedState";
-import { sortRows, type Dir } from "../lib/tableSort";
-import { ClassSpecCell } from "../components/ClassSpec";
-import { CharLootHover } from "../components/CharLootHover";
-import { HoverPanel } from "../components/HoverPanel";
-import { RosterHero } from "../components/RosterHero";
-import { SortTh } from "../components/SortTh";
+import { ClassSpecIdentity } from "../components/ClassSpec";
+import { RosterKpis } from "../components/RosterHero";
+import { AttendanceBar, GearStateBadge, IconLink, LootBadge, RoleBadge, TipLabel } from "../components/RosterCommon";
+import { CLASS_LABELS, ROLE_ORDER, classIconName } from "../lib/rosterView";
+import { Badge, Expand, IconTile, Segment, WowIcon } from "../components/ui";
+import { ChevronDownIcon, SearchIcon } from "../components/icons";
+import "../styles/roster-charakter.css";
 
-type SortKey = "character" | "classSpec" | "category" | "issues" | "loot";
+/** Rows a long group shows before "n weitere zeigen". */
+const GROUP_PREVIEW = 11;
 
-const SORT_DEFAULTS: Record<SortKey, Dir> = { character: "asc", classSpec: "asc", category: "asc", issues: "desc", loot: "desc" };
+type RoleFilter = "all" | "tank" | "healer" | "dps";
 
-// Search/filter/sort survive a reload and a visit to another page. Stored
-// values are untrusted: a sort key from an older build falls back to the
-// default instead of sorting by nothing.
-// `className` narrows to a whole class and is driven by the header's
-// distribution strip; `classSpec` is the select's finer class+spec pick. Both
-// exist because the strip has no spec to offer — a segment is a class.
-type View = { search: string; category: string; className: string; classSpec: string; onlyIssues: boolean; sort: SortKey; dir: Dir };
-const VIEW_DEFAULT: View = { search: "", category: "", className: "", classSpec: "", onlyIssues: false, sort: "character", dir: "asc" };
+// Search/filter/open groups survive a reload and a visit to another page.
+// Stored values are untrusted: an unknown role falls back to "all". `open` is
+// null until the visitor folds a group — then the first group is open.
+type View = { search: string; role: RoleFilter; className: string; onlyIssues: boolean; open: string[] | null };
+const VIEW_DEFAULT: View = { search: "", role: "all", className: "", onlyIssues: false, open: null };
+const ROLE_FILTERS: RoleFilter[] = ["all", "tank", "healer", "dps"];
 
-// `categoryNames` is passed in because the ids alone would sort by snowflake,
-// which is by channel creation date and reads as random.
-function sortValue(c: RosterChar, key: SortKey, categoryNames: (char: RosterChar) => string): string | number {
-    switch (key) {
-        case "character": return c.character.toLowerCase();
-        case "classSpec": return `${c.className} ${c.spec}`.toLowerCase().trim();
-        case "category": return categoryNames(c);
-        // Never evaluated (-1) is not the same as evaluated without findings (0)
-        // and sorts below it.
-        case "issues": return c.gear ? c.gear.issueCount : -1;
-        case "loot": return c.lootCount;
-        default: return "";
-    }
+const UNGROUPED = "__none";
+
+function byRoleThenName(a: RosterChar, b: RosterChar): number {
+    const r = (ROLE_ORDER[a.role] ?? 3) - (ROLE_ORDER[b.role] ?? 3);
+    return r || a.character.localeCompare(b.character);
 }
 
-// The gear issues of the character's latest evaluation, behind the issue count.
-// "0" is a result too (evaluated, nothing found) and reads differently from
-// "—" (never evaluated / not in any of the stored reports), so both are shown.
-function GearIssuesCell({ gear }: { gear: CharGearReport | null }) {
-    if (!gear) return <span className="sub" data-tip="In keiner der letzten Auswertungen enthalten">—</span>;
-    const when = gear.generatedAt ? fmtMs(gear.generatedAt, false) : "";
-    if (!gear.issueCount) {
-        return <span className="lbadge lbadge-ok" data-tip={`Ohne Befund${when ? ` — Auswertung vom ${when}` : ""}`}>✓</span>;
-    }
-    const high = gear.issues.filter((i) => i.severity === "high").length;
+function charHref(c: RosterChar, tab = ""): string {
+    return `/roster/char?name=${encodeURIComponent(c.character)}${tab ? `&tab=${tab}` : ""}`;
+}
+
+function RosterRow({ c, categoryId, categoryName }: { c: RosterChar; categoryId: string; categoryName: string }) {
     return (
-        <HoverPanel
-            className={high ? "loot-pop-trigger-high" : "loot-pop-trigger-warn"}
-            trigger={gear.issueCount}
-            head={
-                <>
-                    {gear.issueCount} Gear-Problem{gear.issueCount === 1 ? "" : "e"}
-                    {when ? ` · ${when}` : ""}
-                </>
-            }
-        >
-            {gear.issues.map((issue, i) => (
-                <div className="loot-pop-row" key={`${issue.itemId}-${issue.kind}-${i}`}>
-                    {issue.iconUrl
-                        ? <img className="loot-pop-ico" src={issue.iconUrl} alt="" loading="lazy" />
-                        : <span className="loot-pop-ico loot-pop-ico-ph" />}
-                    <div className="loot-pop-body">
-                        <div className="loot-pop-name" data-tip={issue.itemName}>{issue.itemName || "—"}</div>
-                        <div className="loot-pop-meta">
-                            <span className={`lbadge ${issue.severity === "high" ? "lbadge-warn" : "lbadge-medium"}`}>{issue.label}</span>
-                            {!!issue.slotName && <span className="sub">{issue.slotName}</span>}
-                        </div>
-                    </div>
-                </div>
-            ))}
-            <div className="loot-pop-row" style={{ justifyContent: "flex-end", gap: 10 }}>
-                {!!gear.reportRefId && (
-                    <a className="mlink small" href={`/r/${gear.reportRefId}`} target="_blank" rel="noopener noreferrer">
-                        Auswertung ↗
-                    </a>
+        <div className="rc-row">
+            <ClassSpecIdentity
+                character={c.character}
+                className={c.className}
+                spec={c.spec}
+                classColor={c.classColor}
+                iconUrl={c.iconUrl}
+                to={charHref(c)}
+                extra={!c.assigned && !!c.lootCount && (
+                    <Badge tone="accent" className="rc-mini" tip="nur Loot" tipSub="Nur aus dem Loot bekannt — noch keinem Raider in dieser Kategorie zugeordnet.">
+                        nur Loot
+                    </Badge>
                 )}
-                {!!gear.reportUrl && (
-                    <a className="mlink small" href={gear.reportUrl} target="_blank" rel="noopener noreferrer">
-                        Log ↗
-                    </a>
-                )}
-            </div>
-        </HoverPanel>
+            />
+            <span className="rc-cell"><RoleBadge role={c.role} /></span>
+            <span className="rc-cell">
+                {categoryId === UNGROUPED
+                    ? <span className="sub">–</span>
+                    : <AttendanceBar attendance={c.attendance?.[categoryId]} categoryName={categoryName} />}
+            </span>
+            <span className="rc-cell"><GearStateBadge gear={c.gear} /></span>
+            <span className="rc-cell"><LootBadge count={c.lootCount} items={c.items || []} to={charHref(c, "loot")} /></span>
+            <span className="rc-acts">
+                <IconLink href={c.wclUrl} icon="inv_misc_pocketwatch_01" tip="Warcraft Logs" />
+                <IconLink href={c.armoryUrl} icon="inv_shirt_guildtabard_01" tip="Armory" />
+            </span>
+            <Link className="exp-lbl rc-open" to={charHref(c)}>
+                <span>Öffnen</span>
+                <span className="exp go" aria-hidden="true"><ChevronDownIcon /></span>
+            </Link>
+        </div>
     );
 }
 
-function RosterTable({ chars, categoryNameById, sort, dir, onSort }: {
-    chars: RosterChar[];
-    categoryNameById: Map<string, string>;
-    sort: SortKey;
-    dir: Dir;
-    onSort: (key: SortKey) => void;
-}) {
+function GroupColumns() {
     return (
-        <table className="idx" style={{ margin: 0 }}>
-            <thead>
-                <tr>
-                    <SortTh sortKey="character" label="Charakter" sort={sort} dir={dir} onSort={onSort} />
-                    <SortTh sortKey="classSpec" label="Klasse & Spec" sort={sort} dir={dir} onSort={onSort} />
-                    <SortTh sortKey="category" label="Kategorie" sort={sort} dir={dir} onSort={onSort} />
-                    <SortTh sortKey="issues" label="Gear-Issues" sort={sort} dir={dir} onSort={onSort} />
-                    <SortTh sortKey="loot" label="Loot" sort={sort} dir={dir} onSort={onSort} />
-                    <th>Links</th>
-                </tr>
-            </thead>
-            <tbody>
-                {chars.map((c) => (
-                    <tr key={c.key}>
-                        <td>
-                            <Link className="mlink" to={`/roster/char?name=${encodeURIComponent(c.character)}`} style={{ color: c.classColor || undefined }}>
-                                {c.character}
-                            </Link>
-                            {!c.assigned && !!c.lootCount && (
-                                <span className="lbadge lbadge-neutral" style={{ marginLeft: 6 }} data-tip="Nur aus dem Loot bekannt — noch keinem Raider in dieser Kategorie zugeordnet">
-                                    aus Loot
-                                </span>
-                            )}
-                        </td>
-                        <td><ClassSpecCell className={c.className} spec={c.spec} classColor={c.classColor} iconUrl={c.iconUrl} /></td>
-                        <td className="small">
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                                {c.categoryIds.length
-                                    ? c.categoryIds.map((id) => <span key={id} className="lbadge lbadge-neutral">{categoryNameById.get(id) || id}</span>)
-                                    : <span className="sub">—</span>}
-                            </div>
-                        </td>
-                        <td className="small"><GearIssuesCell gear={c.gear} /></td>
-                        <td className="small">
-                            <CharLootHover
-                                items={c.items || []}
-                                count={c.lootCount}
-                                categoryNameById={categoryNameById}
-                                showCategory={c.categoryIds.length > 1}
-                            />
-                        </td>
-                        <td className="small">
-                            <div className="row-actions" style={{ gap: 6 }}>
-                                {!!c.wclUrl && <a className="btn btn-ghost btn-sm" href={c.wclUrl} target="_blank" rel="noopener noreferrer" data-tip="Warcraft Logs">WCL ↗</a>}
-                                {!!c.armoryUrl && <a className="btn btn-ghost btn-sm" href={c.armoryUrl} target="_blank" rel="noopener noreferrer" data-tip="Armory">Armory ↗</a>}
-                            </div>
-                        </td>
-                    </tr>
-                ))}
-            </tbody>
-        </table>
+        <div className="rc-cols" aria-hidden="true">
+            <span />
+            <TipLabel tip="Charakter" sub="Name in Klassenfarbe, darunter die Spec. Klick öffnet die Charakter-Seite.">Charakter</TipLabel>
+            <TipLabel tip="Rolle" sub="Die Rolle aus dem neuesten Log, in dem der Charakter vorkommt; ohne Log aus der Spec.">Rolle</TipLabel>
+            <TipLabel tip="Anwesenheit" sub={"Die letzten 11 Raids dieser Kategorie: im Log = da; ohne Log zählt die Raid-Helper-Anmeldung des zugeordneten Raiders.\nGrün ab 80 %, gelb ab 60 %."}>Anwesenheit</TipLabel>
+            <TipLabel tip="Gear-Stand" sub={"Befunde aus der neuesten Log-Auswertung, in der der Charakter vorkommt: fehlende Verzauberung, leere Sockel, inaktiver Meta-Gem.\n„nicht ausgewertet“ = in keiner gespeicherten Auswertung."}>Gear-Stand</TipLabel>
+            <TipLabel tip="Loot" sub="Importierte Items dieses Charakters; die neuesten im Tooltip.">Loot</TipLabel>
+            <span className="rc-cols-links">Links</span>
+            <span />
+        </div>
+    );
+}
+
+function RosterGroup({ id, title, crumb, icon, chars, open, onToggle }: {
+    id: string;
+    title: string;
+    crumb: string;
+    icon: string;
+    chars: RosterChar[];
+    open: boolean;
+    onToggle: () => void;
+}) {
+    const [showAll, setShowAll] = useState(false);
+    const withIssues = chars.filter((c) => c.gear && c.gear.issueCount).length;
+    const high = chars.some((c) => c.gear && c.gear.issues.some((i) => i.severity === "high"));
+    const shown = showAll ? chars : chars.slice(0, GROUP_PREVIEW);
+    return (
+        <section className={`rc-grp${open ? " is-open" : ""}`}>
+            <div className="rc-grp-head">
+                <IconTile icon={icon} tone={id === UNGROUPED ? "none" : "roster"} />
+                <div className="rc-grp-title">
+                    <span>{title}</span>
+                    <span className="kicker">{crumb}</span>
+                </div>
+                <Badge count tip={`${chars.length} Charakter${chars.length === 1 ? "" : "e"}`}>{chars.length}</Badge>
+                {!!withIssues && (
+                    <Badge tone={high ? "bad" : "mid"} icon="inv_misc_gem_variety_02">{withIssues} mit Gear-Problemen</Badge>
+                )}
+                <Expand open={open} onToggle={onToggle} showLabel={!open} label="Details" />
+            </div>
+            {open && (
+                <div className="rc-list">
+                    <GroupColumns />
+                    {shown.map((c) => <RosterRow key={c.key} c={c} categoryId={id} categoryName={title} />)}
+                    {chars.length > GROUP_PREVIEW && (
+                        <div className="rc-more">
+                            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowAll((v) => !v)}>
+                                {showAll ? "Weniger zeigen" : `${chars.length - GROUP_PREVIEW} weitere zeigen`}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            )}
+        </section>
     );
 }
 
 export default function RosterPage() {
     const [data, setData] = useState<RosterData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
-    const [view, setView] = usePersistedState<View>("roster-view", VIEW_DEFAULT);
+    const [stored, setView] = usePersistedState<View>("roster-view", VIEW_DEFAULT);
 
     useEffect(() => {
         getRoster().then(setData).catch((err: ApiError) => setError(err));
     }, []);
 
-    const chars = data?.chars || [];
-    const categories = data?.categories || [];
+    const chars = useMemo(() => data?.chars || [], [data]);
+    const categories = useMemo(() => data?.categories || [], [data]);
 
     const categoryNameById = useMemo(() => {
         const m = new Map<string, string>();
@@ -178,166 +155,148 @@ export default function RosterPage() {
         return m;
     }, [categories]);
 
-    const categoryOptions = useMemo(() => {
-        const ids = new Set<string>();
-        for (const c of chars) for (const id of c.categoryIds) ids.add(id);
-        return [...ids]
-            .map((id) => ({ id, label: categoryNameById.get(id) || id }))
-            .sort((a, b) => a.label.localeCompare(b.label));
-    }, [chars, categoryNameById]);
-
-    const classOptions = useMemo(() => {
-        const byKey = new Map<string, string>();
-        for (const c of chars) {
-            if (!c.className) continue;
-            const key = `${c.className}||${c.spec}`;
-            if (!byKey.has(key)) byKey.set(key, c.spec ? `${c.spec} ${c.className}` : c.className);
-        }
-        return [...byKey.entries()]
-            .map(([value, label]) => ({ value, label }))
-            .sort((a, b) => a.label.localeCompare(b.label));
+    // Class chips carry the count of the whole roster, like the KPI row.
+    const classCounts = useMemo(() => {
+        const m = new Map<string, number>();
+        for (const c of chars) if (c.className) m.set(c.className, (m.get(c.className) || 0) + 1);
+        return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
     }, [chars]);
 
     if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
     if (!data) return <div className="empty">Lade…</div>;
 
-    const sort: SortKey = SORT_DEFAULTS[view.sort] ? view.sort : VIEW_DEFAULT.sort;
-    const dir: Dir = view.dir === "desc" ? "desc" : "asc";
-    const patch = (p: Partial<View>) => setView((v) => ({ ...v, ...p }));
-    const onSort = (key: SortKey) => {
-        if (key === sort) { patch({ dir: dir === "asc" ? "desc" : "asc" }); return; }
-        patch({ sort: key, dir: SORT_DEFAULTS[key] });
+    // A stored view from an older build lacks fields or carries old ones
+    // (category, classSpec, sort) — only the known fields are read.
+    const view: View = {
+        search: typeof stored.search === "string" ? stored.search : "",
+        role: ROLE_FILTERS.includes(stored.role) ? stored.role : "all",
+        className: typeof stored.className === "string" ? stored.className : "",
+        onlyIssues: stored.onlyIssues === true,
+        open: Array.isArray(stored.open) ? stored.open : null,
     };
+    const patch = (p: Partial<View>) => setView(() => ({ ...view, ...p }));
 
     const searchLower = view.search.trim().toLowerCase();
     const filtered = chars.filter((c) => {
         if (searchLower && !c.character.toLowerCase().includes(searchLower)) return false;
-        if (view.category && !c.categoryIds.includes(view.category)) return false;
+        if (view.role !== "all" && c.role !== (view.role as RosterRole)) return false;
         if (view.className && c.className !== view.className) return false;
-        if (view.classSpec && `${c.className}||${c.spec}` !== view.classSpec) return false;
         if (view.onlyIssues && !(c.gear && c.gear.issueCount)) return false;
         return true;
-    });
+    }).sort(byRoleThenName);
 
-    // The character name is the tiebreak for every other column: pre-sorted by
-    // name, the (stable) sort below leaves equal rows in that order.
-    const categoryNames = (c: RosterChar) =>
-        c.categoryIds.map((id) => (categoryNameById.get(id) || id).toLowerCase()).sort().join(", ");
-    const byName = sortRows(filtered, (c) => c.character.toLowerCase(), "asc");
-    const sorted = sortRows(byName, (c) => sortValue(c, sort, categoryNames), dir);
+    const groups = [...new Set(chars.flatMap((c) => c.categoryIds))]
+        .map((id) => {
+            const info = data.categoryInfo?.[id];
+            const crumbParts = [...(info?.contents || [])];
+            crumbParts.push(info?.raids ? `letzte ${info.raids} Raid${info.raids === 1 ? "" : "s"}` : "noch keine Raids gezählt");
+            return {
+                id,
+                title: categoryNameById.get(id) || id,
+                crumb: crumbParts.join(" · "),
+                icon: info?.icon || "achievement_guildperk_everybodysfriend",
+                chars: filtered.filter((c) => c.categoryIds.includes(id)),
+            };
+        })
+        .filter((g) => g.chars.length)
+        .sort((a, b) => a.title.localeCompare(b.title));
+    const ungrouped = filtered.filter((c) => !c.categoryIds.length);
+    if (ungrouped.length) {
+        groups.push({ id: UNGROUPED, title: "Ohne Kategorie", crumb: "nur aus Loot-Importen bekannt", icon: "inv_misc_note_02", chars: ungrouped });
+    }
 
-    // Grouping and filtering by category are the same mechanism: picking one
-    // just narrows the groups down to it.
-    const groups = categoryOptions
-        .filter((o) => !view.category || o.id === view.category)
-        .map((o) => ({ ...o, chars: sorted.filter((c) => c.categoryIds.includes(o.id)) }))
-        .filter((g) => g.chars.length);
-    const ungrouped = sorted.filter((c) => !c.categoryIds.length);
-
-    const hasFilters = !!(view.search || view.category || view.className || view.classSpec || view.onlyIssues);
+    const openIds = view.open ?? (groups[0] ? [groups[0].id] : []);
+    const toggleGroup = (id: string) => {
+        patch({ open: openIds.includes(id) ? openIds.filter((x) => x !== id) : [...openIds, id] });
+    };
 
     return (
         <>
-            <h1 className="page-title">Roster</h1>
-            <p className="note">
-                Alle Charaktere je Raid-Kategorie — mit Warcraft-Logs-Link, den Gear-Problemen aus der letzten
-                Auswertung und dem erhaltenen Loot im Tooltip. Wer welchen Char in welchem Raid spielt, wird
-                im Raid-Detail unter „Anwesenheit" zugeordnet; zusätzlich zählt jeder Raid, in dem ein Char Loot bekommen hat.
-            </p>
-
-            {!!data.stats && (
-                <RosterHero
-                    stats={data.stats}
-                    activeClass={view.className}
-                    // The two class filters would fight each other ("Mage" plus
-                    // "Shadow Priest" matches nobody), so each one clears the other.
-                    onToggleClass={(className) => patch({ className, classSpec: "" })}
-                    onlyIssues={view.onlyIssues}
-                    onToggleIssues={() => patch({ onlyIssues: !view.onlyIssues })}
-                />
-            )}
-
-            <div className="dash-card">
-                <div className="dash-card-head">
-                    <h3>Charaktere</h3>
-                    <span className="small" style={{ marginLeft: "auto" }}>
-                        {hasFilters
-                            ? `${sorted.length} von ${chars.length} Charakter(e)`
-                            : `${chars.length} Charakter(e)`}
-                    </span>
+            <div className="page-head">
+                <IconTile icon="achievement_guildperk_everybodysfriend" tone="roster" size="lg" />
+                <div className="ph-text">
+                    <div className="kicker">{data.stats.categories} Raid-Kategorie{data.stats.categories === 1 ? "" : "n"}</div>
+                    <h1 className="rc-title">
+                        Roster
+                        <span
+                            className="rc-info"
+                            tabIndex={0}
+                            data-tip="Alle Charaktere je Raid-Kategorie"
+                            data-tip-sub={"Wer welchen Char in welchem Raid spielt, wird unter Einstellungen → Kategorien zugeordnet; zusätzlich zählt jeder Raid, in dem ein Char Loot bekommen hat.\nAnwesenheit aus Raid-Helper-Anmeldungen und zugeordneten Logs, Gear-Stand aus der letzten Auswertung."}
+                        >
+                            ?
+                        </span>
+                    </h1>
                 </div>
-                <div className="filter-bar">
-                    <div className="field" style={{ minWidth: 220 }}>
-                        <label htmlFor="roster-search">Suche</label>
+            </div>
+
+            <RosterKpis stats={data.stats} onlyIssues={view.onlyIssues} onToggleIssues={() => patch({ onlyIssues: !view.onlyIssues })} />
+
+            <div className="dash-card rc-panel">
+                <div className="rc-filters">
+                    <label className="rc-search">
+                        <SearchIcon />
                         <input
-                            id="roster-search"
-                            type="text"
-                            placeholder="Charaktername …"
+                            type="search"
+                            placeholder="Charakter suchen …"
+                            aria-label="Charakter suchen"
                             value={view.search}
                             onChange={(e) => patch({ search: e.target.value })}
                         />
-                    </div>
-                    <div className="field" style={{ minWidth: 180 }}>
-                        <label htmlFor="roster-category">Kategorie</label>
-                        <select id="roster-category" value={view.category} onChange={(e) => patch({ category: e.target.value })}>
-                            <option value="">Alle Kategorien</option>
-                            {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                        </select>
-                    </div>
-                    <div className="field" style={{ minWidth: 180 }}>
-                        <label htmlFor="roster-class">Klasse & Spec</label>
-                        <select id="roster-class" value={view.classSpec} onChange={(e) => patch({ classSpec: e.target.value, className: "" })}>
-                            <option value="">Alle Klassen</option>
-                            {classOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
-                    </div>
-                    <div className="field">
-                        <label>
-                            <input
-                                type="checkbox"
-                                checked={view.onlyIssues}
-                                onChange={(e) => patch({ onlyIssues: e.target.checked })}
-                            />
-                            Nur mit Gear-Problemen
-                        </label>
-                    </div>
-                    {hasFilters && (
-                        <div className="field">
-                            <button
-                                className="btn btn-ghost"
-                                type="button"
-                                data-tip="Suche und Filter zurücksetzen (werden lokal im Browser gespeichert)"
-                                onClick={() => patch({ search: "", category: "", className: "", classSpec: "", onlyIssues: false })}
-                            >
-                                Filter zurücksetzen
-                            </button>
+                    </label>
+                    <Segment<RoleFilter>
+                        ariaLabel="Rolle"
+                        value={view.role}
+                        onChange={(role) => patch({ role })}
+                        options={[
+                            { value: "all", label: "Alle" },
+                            { value: "tank", label: "Tank", icon: "inv_shield_06" },
+                            { value: "healer", label: "Heiler", icon: "spell_holy_flashheal" },
+                            { value: "dps", label: "DPS", icon: "ability_dualwield" },
+                        ]}
+                    />
+                    {!!classCounts.length && (
+                        <div className="rc-chips" role="group" aria-label="Klasse">
+                            {classCounts.map(([className, count]) => {
+                                const on = view.className === className;
+                                const label = CLASS_LABELS[className] || className;
+                                return (
+                                    <button
+                                        key={className}
+                                        type="button"
+                                        className={`rc-chip${on ? " is-on" : ""}${view.className && !on ? " is-dim" : ""}`}
+                                        aria-pressed={on}
+                                        aria-label={`${label} · ${count}`}
+                                        data-tip={`${label} · ${count}`}
+                                        data-tip-sub={on ? "Klick hebt den Klassenfilter auf." : `Nur ${label} zeigen.`}
+                                        onClick={() => patch({ className: on ? "" : className })}
+                                    >
+                                        <WowIcon name={classIconName(className)} size={26} />
+                                        <b>{count}</b>
+                                    </button>
+                                );
+                            })}
                         </div>
                     )}
                 </div>
                 {!chars.length && (
-                    <p className="sub" style={{ padding: "0 16px 14px" }}>
-                        Noch keine Charaktere bekannt — Loot importieren oder im Raid-Detail Raider ihren Chars zuordnen.
+                    <p className="sub rc-empty">
+                        Noch keine Charaktere bekannt — Loot importieren oder unter Einstellungen → Kategorien Raider ihren Chars zuordnen.
                     </p>
                 )}
-                {!!chars.length && !sorted.length && <p className="sub" style={{ padding: "0 16px 14px" }}>Keine Charaktere gefunden.</p>}
+                {!!chars.length && !filtered.length && <p className="sub rc-empty">Keine Charaktere zu diesem Filter.</p>}
                 {groups.map((g) => (
-                    <div key={g.id} style={{ marginBottom: 10 }}>
-                        <div className="dash-card-head" style={{ padding: "8px 16px" }}>
-                            <strong>{g.label}</strong>
-                            <span className="tab-count">{g.chars.length}</span>
-                        </div>
-                        <RosterTable chars={g.chars} categoryNameById={categoryNameById} sort={sort} dir={dir} onSort={onSort} />
-                    </div>
+                    <RosterGroup
+                        key={g.id}
+                        id={g.id}
+                        title={g.title}
+                        crumb={g.crumb}
+                        icon={g.icon}
+                        chars={g.chars}
+                        open={openIds.includes(g.id)}
+                        onToggle={() => toggleGroup(g.id)}
+                    />
                 ))}
-                {!!ungrouped.length && (
-                    <div>
-                        <div className="dash-card-head" style={{ padding: "8px 16px" }}>
-                            <strong>Ohne Kategorie</strong>
-                            <span className="tab-count">{ungrouped.length}</span>
-                        </div>
-                        <RosterTable chars={ungrouped} categoryNameById={categoryNameById} sort={sort} dir={dir} onSort={onSort} />
-                    </div>
-                )}
             </div>
         </>
     );

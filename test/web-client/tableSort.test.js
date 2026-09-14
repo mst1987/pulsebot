@@ -37,16 +37,16 @@ function clientSources() {
 //   * "Token"        — the loot-sync token column is "ehl_…" plus four
 //     characters of an otherwise unreadable secret; there is nothing in it an
 //     order could be about,
-//   * the permission matrix — a fixed checklist per role in the deliberate
-//     order of config/permissions.js, where sorting by a switch would make the
-//     row jump away under the cursor as it is toggled,
+//   * "Wer" — the permission matrix: rows grouped by owner (admins, base
+//     access, roles, accounts), columns in the order of config/permissions.js;
+//     sorting would make a row jump away under the cursor as a cell is toggled,
 //   * "Slot" — the BiS-Listen matrix runs in character-sheet order (Kopf, Hals,
 //     Schultern, …). That order is the point: it is how a raider reads their own
 //     gear, and it is what lets the eye find a gap. Alphabetical would read
 //     "Beine, Brust, Füße" and mean nothing.
 //   * "Item" — the corner of the Loot-Vergleich matrix, same reason: its rows
 //     are grouped by raid and run in character-sheet order inside each.
-const ALLOWED_PLAIN_HEADERS = new Set(["Links", "WCL", "Token", "Bereich", "Lesen", "Schreiben", "Slot", "Item"]);
+const ALLOWED_PLAIN_HEADERS = new Set(["Links", "WCL", "Token", "Wer", "Slot", "Item"]);
 
 describe("table sorting", () => {
     it("sorts every column that isn't a button or link column", () => {

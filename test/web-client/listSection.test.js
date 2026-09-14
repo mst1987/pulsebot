@@ -63,7 +63,6 @@ describe("list sections", () => {
     const SECTIONS = [
         ["pages/SettingsPage.tsx", ["sheet"]],
         ["pages/NotifyTemplatesPage.tsx", ["edit"]],
-        ["pages/RecruitmentPage.tsx", ["edit", "editpost"]],
     ];
 
     it.each(SECTIONS)("%s opens its editor through the shared hook", (file, params) => {
@@ -87,6 +86,34 @@ describe("list sections", () => {
             const offenders = src.match(/\.map\(\([^)]*\) => \(?\s*<\w+Form\b/g) || [];
             expect({ file: name, offenders }).toEqual({ file: name, offenders: [] });
         }
+    });
+
+    describe("Recruitment: the editor as a modal over the list", () => {
+        // Recruitment keeps the list visible and opens its editors as dialogs
+        // (design #215) — still one at a time and still in the url.
+        const src = readClient("pages", "RecruitmentPage.tsx");
+
+        it("opens both editors through the shared hook, each with its own param", () => {
+            expect(src).toContain('useCollectionEditor("edit")');
+            expect(src).toContain('useCollectionEditor("editpost")');
+            expect(src).not.toContain("<ListSection");
+        });
+
+        it("renders every editor in a Modal whose close ends the editor", () => {
+            for (const name of ["TemplateEditor", "PostEditor", "PostDialog"]) {
+                const body = src.match(new RegExp(`function ${name}\\([\\s\\S]*?\\n}\\n`))[0];
+                expect({ name, modal: body.includes("<Modal") }).toEqual({ name, modal: true });
+                expect({ name, onClose: body.includes("open onClose={onClose}") }).toEqual({ name, onClose: true });
+                expect({ name, cancel: body.includes(">Abbrechen</Button>") }).toEqual({ name, cancel: true });
+            }
+            expect(src).toContain("onSaved={afterChange} onClose={templateEditor.close}");
+            expect(src).toMatch(/onPosted=\{afterChange\} onClose=\{postEditor\.close\}/);
+        });
+
+        it("falls back to the new-editor for an id that is gone", () => {
+            expect(src).toContain("data.templates.find((t) => t.id === templateEditor.editId) || null");
+            expect(src).toContain("{postEditor.open && !editingPost && (");
+        });
     });
 
     it("puts the way back in every editor", () => {

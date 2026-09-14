@@ -9,7 +9,7 @@
 // class colour and all, so a typo does not silently open a second loot history
 // under "Thrallx" next to "Thrall"; typing a name that is not in the list stays
 // possible for a trial's first raid.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
     addLootItem, getLootPicker,
     type ApiError, type RaidDropItem, type LootPickerCharacter, type LootPickerData,
@@ -17,6 +17,8 @@ import {
 import { itemQualityProps } from "../lib/itemQuality";
 import { classColorProps } from "./ClassSpec";
 import { useToast } from "./Jobs";
+import { Modal } from "./ui/Modal";
+import { Button } from "./ui/Button";
 
 // Bosses that are not an encounter, in the order tbcContent.js files them.
 const TRASH = "Trash";
@@ -183,6 +185,8 @@ export default function ManualLootForm({ eventId, eventTitle = "", defaultAwarde
     onAdded: (msg: string) => void;
 }) {
     const [open, setOpen] = useState(false);
+    // The submit button sits in the dialog's foot, outside the <form>.
+    const formId = `manual-loot-${useId().replace(/:/g, "")}`;
     const [picker, setPicker] = useState<LootPickerData | null>(null);
     const [loadError, setLoadError] = useState("");
     const [contentId, setContentId] = useState("");
@@ -247,71 +251,73 @@ export default function ManualLootForm({ eventId, eventTitle = "", defaultAwarde
         }
     };
 
-    if (!open) {
-        return (
-            <div className="row-actions" style={{ marginBottom: 18 }}>
-                <button className="btn btn-ghost" type="button" onClick={() => setOpen(true)}>+ Item nachtragen</button>
-            </div>
-        );
-    }
-
+    // A button that opens the form in a dialog (design issue #225): the form has
+    // six fields, and unfolding it above the loot table pushed the table the
+    // form is about out of sight. The explanations sit in the labels' tooltips.
     return (
-        <div className="dash-card" style={{ marginBottom: 18 }}>
-            <div className="dash-card-head">
-                <h3>Item nachtragen</h3>
-                <button className="btn btn-sm btn-ghost" type="button" style={{ marginLeft: "auto" }} onClick={() => setOpen(false)}>Schließen</button>
-            </div>
-            {loadError && <p className="note" style={{ margin: "12px 16px" }}>Auswahl konnte nicht geladen werden: {loadError}</p>}
-            {!picker && !loadError && <p className="sub" style={{ padding: "12px 16px" }}>Lade Auswahl…</p>}
-            {picker && (
-                <form className="card-form" onSubmit={submit} style={{ padding: "14px 16px" }}>
-                    <div className="field">
-                        <label>Raid</label>
-                        <select value={contentId} onChange={(e) => { setContentId(e.target.value); setBoss(""); setItem(null); }}>
-                            {picker.contents.map((c) => (
-                                <option key={c.id} value={c.id}>{c.label}</option>
-                            ))}
-                        </select>
-                        <div className="hint">Zur Auswahl stehen nur Items, die in diesem Raid droppen können.</div>
-                    </div>
-                    <div className="field">
-                        <label>Boss</label>
-                        <select value={boss} onChange={(e) => { setBoss(e.target.value); setItem(null); }}>
-                            <option value="">Alle Bosse</option>
-                            {bosses.map((b) => (
-                                <option key={b || "none"} value={b}>{b || "ohne Boss (Marken-Items)"}</option>
-                            ))}
-                        </select>
-                        <div className="hint">{`${items.length} Item(s) zur Auswahl${boss === TRASH ? " (Trash-Drops)" : ""}.`}</div>
-                    </div>
-                    <div className="field">
-                        <label>Item</label>
-                        <ItemPicker items={items} value={item} onPick={setItem} />
-                    </div>
-                    <div className="field">
-                        <label>Raider</label>
-                        <RaiderPicker characters={picker.characters} roster={roster} value={character} onChange={setCharacter} />
-                    </div>
-                    <div className="field">
-                        <label>Grund</label>
-                        <select value={response} onChange={(e) => setResponse(e.target.value)}>
-                            {picker.reasons.map((r) => (
-                                <option key={r.id} value={r.label}>{r.label}</option>
-                            ))}
-                        </select>
-                    </div>
-                    <div className="field">
-                        <label>Zeitpunkt</label>
-                        <input type="datetime-local" value={awardedAt} onChange={(e) => setAwardedAt(e.target.value)} />
-                        <div className="hint">Vorbelegt mit dem Raidtermin — bestimmt, unter welchem Abend das Item in der Historie steht.</div>
-                    </div>
-                    <div className="row-actions">
-                        <button className="btn" type="submit" disabled={busy || !item || !character.trim()}>
-                            {busy ? "Trägt ein…" : "Item hinzufügen"}
-                        </button>
-                    </div>
-                </form>
-            )}
-        </div>
+        <>
+            <Button variant="ghost" icon="inv_misc_note_05" onClick={() => setOpen(true)}>Item nachtragen</Button>
+            <Modal
+                open={open}
+                initialFocus=".dlg-foot .btn-ghost"
+                onClose={() => setOpen(false)}
+                width={640}
+                icon="inv_misc_note_05"
+                tone="history"
+                kicker={eventTitle || "Event"}
+                title="Item nachtragen"
+                hint="Raid, Boss und Zeit bleiben für das nächste Item stehen."
+                footer={(
+                    <>
+                        <Button variant="ghost" onClick={() => setOpen(false)}>Schließen</Button>
+                        <Button type="submit" form={formId} disabled={busy || !item || !character.trim()} running={busy}>Item hinzufügen</Button>
+                    </>
+                )}
+            >
+                {loadError && <p className="note">Auswahl konnte nicht geladen werden: {loadError}</p>}
+                {!picker && !loadError && <p className="sub">Lade Auswahl…</p>}
+                {picker && (
+                    <form id={formId} className="card-form" onSubmit={submit}>
+                        <div className="field">
+                            <label className="tipped" data-tip="Raid" data-tip-sub="Zur Auswahl stehen nur Items, die in diesem Raid droppen können.">Raid</label>
+                            <select value={contentId} onChange={(e) => { setContentId(e.target.value); setBoss(""); setItem(null); }}>
+                                {picker.contents.map((c) => (
+                                    <option key={c.id} value={c.id}>{c.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="field">
+                            <label className="tipped" data-tip="Boss" data-tip-sub={`${items.length} Item(s) zur Auswahl${boss === TRASH ? " (Trash-Drops)" : ""}.`}>Boss</label>
+                            <select value={boss} onChange={(e) => { setBoss(e.target.value); setItem(null); }}>
+                                <option value="">Alle Bosse</option>
+                                {bosses.map((b) => (
+                                    <option key={b || "none"} value={b}>{b || "ohne Boss (Marken-Items)"}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="field">
+                            <label>Item</label>
+                            <ItemPicker items={items} value={item} onPick={setItem} />
+                        </div>
+                        <div className="field">
+                            <label>Raider</label>
+                            <RaiderPicker characters={picker.characters} roster={roster} value={character} onChange={setCharacter} />
+                        </div>
+                        <div className="field">
+                            <label>Grund</label>
+                            <select value={response} onChange={(e) => setResponse(e.target.value)}>
+                                {picker.reasons.map((r) => (
+                                    <option key={r.id} value={r.label}>{r.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="field">
+                            <label className="tipped" data-tip="Zeitpunkt" data-tip-sub="Vorbelegt mit dem Raidtermin — bestimmt, unter welchem Abend das Item in der Historie steht.">Zeitpunkt</label>
+                            <input type="datetime-local" value={awardedAt} onChange={(e) => setAwardedAt(e.target.value)} />
+                        </div>
+                    </form>
+                )}
+            </Modal>
+        </>
     );
 }

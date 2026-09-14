@@ -126,7 +126,7 @@ describe("client state persistence", () => {
         expect(detail).toContain("`raid-loot-import:${eventId}`");
         expect(detail).toContain("`raid-softres:${eventId}`");
         const recruitment = readClient("pages", "RecruitmentPage.tsx");
-        expect(recruitment).toContain("`recruitment-template:${editing?.id ?? \"new\"}`");
+        expect(recruitment).toContain("`recruitment-template:${template?.id ?? \"new\"}`");
         expect(recruitment).toContain("`recruitment-post:${post.id}`");
     });
 

@@ -66,9 +66,34 @@ describe("web/discord channel management", () => {
             setClientWithGuild(guild);
             const result = discord.listAllChannels("g1");
             expect(result).toEqual([
-                { id: "t1", name: "kara-signup", type: ChannelType.GuildText, typeLabel: "Text", category: "Raids", parentId: "cat" },
-                { id: "v1", name: "voice", type: ChannelType.GuildVoice, typeLabel: "Voice", category: "", parentId: "" },
+                { id: "t1", name: "kara-signup", type: ChannelType.GuildText, typeLabel: "Text", category: "Raids", parentId: "cat", botCanView: true, botCanSend: true },
+                { id: "v1", name: "voice", type: ChannelType.GuildVoice, typeLabel: "Voice", category: "", parentId: "", botCanView: true, botCanSend: true },
             ]);
+        });
+
+        it("reports what the bot may see and post per channel", () => {
+            const { PermissionsBitField } = require("discord.js");
+            const F = PermissionsBitField.Flags;
+            const withPerms = (id, flags) => ({
+                ...chan(id, id, ChannelType.GuildText),
+                permissionsFor: () => (flags === null ? null : { has: (f) => flags.includes(f) }),
+            });
+            const guild = makeGuild([
+                withPerms("all", [F.ViewChannel, F.SendMessages]),
+                withPerms("read", [F.ViewChannel]),
+                withPerms("hidden", [F.SendMessages]),
+                withPerms("none", null),
+            ]);
+            guild.members.me = { id: "bot" };
+            setClientWithGuild(guild);
+            const rights = Object.fromEntries(discord.listAllChannels("g1").map((c) => [c.id, [c.botCanView, c.botCanSend]]));
+            expect(rights).toEqual({
+                all: [true, true],
+                read: [true, false],
+                // Sending into a channel the bot cannot see is not possible either.
+                hidden: [false, false],
+                none: [false, false],
+            });
         });
     });
 
