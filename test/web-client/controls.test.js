@@ -104,7 +104,8 @@ describe("web-client control styles", () => {
         const pages = ["pages/HistoryPage.tsx", "pages/RosterPage.tsx", "components/LootItemsTab.tsx", "components/LootReasonsTab.tsx"];
         for (const file of pages) {
             const src = fs.readFileSync(path.join(CLIENT, file), "utf8");
-            expect(src).toContain("className=\"filter-bar\"");
+            // the loot views add their own row modifier (hl-filters) on top
+            expect(src).toMatch(/className="filter-bar( [\w-]+)*"/);
             // the inline copy of .filter-bar's layout that these used to carry
             expect(src).not.toContain("padding: \"14px 16px\", borderBottom");
         }

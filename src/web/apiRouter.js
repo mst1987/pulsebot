@@ -38,7 +38,7 @@ const {
 } = require("./apiRoutes/recruitment");
 const {
     getHistoryData, getLootStats, getLootAwards, deleteHistoryLog, importLoot, setLootCategory, deleteLootItems, clearHistoryEvent, getHistoryEvent,
-    resolveCharacters, getHistoryChar, getLootPicker, addLootItem,
+    resolveCharacters, getHistoryChar, getLootPicker, addLootItem, previewLootImport,
     getLootInbox, acceptLootInbox, dismissLootInbox,
 } = require("./apiRoutes/history");
 const {
@@ -315,6 +315,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/history/import" && req.method === "POST") {
         await importLoot(req, res);
+        return true;
+    }
+    if (pathname === "/api/history/import-preview" && req.method === "POST") {
+        await previewLootImport(req, res);
         return true;
     }
     if (pathname === "/api/history/inbox" && req.method === "GET") {

@@ -988,6 +988,8 @@ export type CharReasonRow = {
 
 /** One award of an item: who got it, when, in which raid and for what reason. */
 export type LootAward = {
+    /** The stored row's id — what deleteLootItems() removes. */
+    id: string;
     character: string;
     characterKey: string;
     className: string;
@@ -1241,8 +1243,46 @@ export type InboxSession = {
     match: InboxMatch | null;
 };
 
-export function getLootInbox(): Promise<{ sessions: InboxSession[] }> {
-    return get<{ sessions: InboxSession[] }>("/api/history/inbox");
+/** An accepted session whose later uploads append to its event by themselves. */
+export type InboxLinkedSession = {
+    sessionId: string;
+    eventId: string;
+    eventLabel: string;
+    contentLabel: string;
+    startedAt: number;
+    itemCount: number;
+    /** Items later uploads appended without a click ("+6 nachgeliefert"). */
+    appended: number;
+    at: number;
+};
+
+export function getLootInbox(): Promise<{ sessions: InboxSession[]; linked?: InboxLinkedSession[] }> {
+    return get<{ sessions: InboxSession[]; linked?: InboxLinkedSession[] }>("/api/history/inbox");
+}
+
+/** An event as the import preview names it; startTime in ms. */
+export type ImportPreviewEvent = { id: string; title: string; startTime: number };
+
+export type ImportPreview = {
+    count: number;
+    format: "rclc" | "gargul" | "eventhelper";
+    formatLabel: string;
+    /** Earliest award in the export (ms), 0 without any. */
+    detectedAt: number;
+    content: { contentIds: string[]; label: string; matched: number };
+    match: { ambiguous: boolean; suggested: ImportPreviewEvent | null; candidates: ImportPreviewEvent[] };
+    /** The event the rows would land in as far as known before importing. */
+    targetEventId: string;
+    /** Rows that event already holds — the import will skip them. */
+    duplicates: number;
+};
+
+/** What importLoot() would do with this export, without storing anything. */
+export function previewLootImport(
+    csrfToken: string | null,
+    input: { data: string; tool: string; event: string },
+): Promise<ImportPreview> {
+    return send("POST", "/api/history/import-preview", csrfToken, input);
 }
 
 /**

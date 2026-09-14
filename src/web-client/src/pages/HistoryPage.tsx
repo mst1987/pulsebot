@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
+import { Navigate, useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import {
-    getHistoryData, getLootStats, importLoot, setLootCategory, deleteHistoryLog, resolveCharacters,
-    getLootInbox, canAccess,
-    type ApiError, type HistoryData, type HistoryEvent, type LootEventSummary, type LootLog, type AnnotatedCharacter,
-    type Category, type LootStats, type InboxSession,
+    getHistoryData, getLootStats, setLootCategory, deleteHistoryLog, resolveCharacters,
+    getLootInbox, getSession, canAccess,
+    type ApiError, type HistoryData, type LootEventSummary, type LootLog, type AnnotatedCharacter,
+    type Category, type LootStats,
 } from "../api";
 import { formatEventTime, fmtMs, formatDate } from "../lib/format";
-import { usePersistedState, usePersistedSearchParam, useDraftState } from "../lib/persistedState";
+import { usePersistedState, usePersistedSearchParam } from "../lib/persistedState";
 import { sortRows, useTableSort, type Dir } from "../lib/tableSort";
 import RaidTable from "../components/RaidTable";
 import { SortTh } from "../components/SortTh";
@@ -16,160 +16,60 @@ import { ClassSpecCell, CharacterLink, CLASS_SOURCE_LABELS } from "../components
 import { LootReasonsTab } from "../components/LootReasonsTab";
 import { LootItemsTab } from "../components/LootItemsTab";
 import { LatestLootTab } from "../components/LatestLootTab";
-import { LootInboxTab } from "../components/LootInboxTab";
+import { ImportLootDialog } from "../components/ImportLootDialog";
 import type { ShellContext } from "../components/Shell";
-import { TrashIcon } from "../components/icons";
+import { ChevronRightIcon, ExternalIcon, TrashIcon } from "../components/icons";
 import { useToast } from "../components/Jobs";
 import { useConfirm } from "../components/ui/Modal";
+import { Button, IconButton } from "../components/ui/Button";
+import { PartHead } from "../components/ui/PartHead";
+import PageHead from "../components/ui/PageHead";
+import Segment from "../components/ui/Segment";
+import Badge from "../components/ui/Badge";
+import "../styles/historie-loot.css";
 
-type Tab ="raids" | "import" | "inbox" | "loot" | "awards" | "reasons" | "items" | "logs" | "chars";
+type Tab = "awards" | "items" | "reasons" | "loot" | "raids" | "logs" | "chars";
 
-const TABS: { id: Tab; label: string; count?: (d: HistoryData) => number }[] = [
-    { id: "raids", label: "Alle Raids", count: (d) => d.upcomingRaids.events.length + d.pastRaids.events.length },
-    { id: "import", label: "Import" },
-    // Count comes from its own request, not from HistoryData — see the render.
-    { id: "inbox", label: "Addon-Inbox" },
-    { id: "loot", label: "Importierter Loot", count: (d) => d.lootEvents.length },
-    { id: "awards", label: "Latest Loot" },
-    { id: "reasons", label: "Loot-Gründe" },
-    { id: "items", label: "Items" },
-    { id: "logs", label: "Warcraft Logs", count: (d) => d.logs.length },
-    { id: "chars", label: "Charaktere", count: (d) => d.chars.length },
+// Three areas instead of three groups of nine tabs (design issue #225): the
+// area says what kind of thing it is, the view which one. The import form and
+// the addon inbox are gone from the tab list — neither is a view; the import is
+// a dialog from the page head, the inbox its own page (/history/inbox).
+// The open area follows from the open view, so there is nothing extra to
+// remember or persist.
+// The "loot" area is also what the narrower "Loot-Ansichten" permission opens on
+// its own — see the page component and src/config/permissions.js.
+type AreaId = "loot" | "raids" | "chars";
+const AREAS: { id: AreaId; label: string; icon: string; views: { id: Tab; label: string }[] }[] = [
+    {
+        id: "loot", label: "Loot", icon: "inv_misc_bag_10", views: [
+            { id: "awards", label: "Vergaben" },
+            { id: "items", label: "Items" },
+            { id: "reasons", label: "Gründe" },
+            { id: "loot", label: "Nach Raid" },
+        ],
+    },
+    {
+        id: "raids", label: "Raids & Logs", icon: "inv_misc_note_02", views: [
+            { id: "raids", label: "Raids" },
+            { id: "logs", label: "Warcraft Logs" },
+        ],
+    },
+    { id: "chars", label: "Charaktere", icon: "achievement_guildperk_everybodysfriend", views: [{ id: "chars", label: "Charaktere" }] },
 ];
 
-// Nine tabs in one row asked the admin to remember which of them was a stock
-// list, which an evaluation and which a way to get data in. They are the same
-// nine, one level deeper: the group says what kind of thing it is, the tab
-// which one. The open group follows from the open tab, so there is nothing
-// extra to remember or persist.
-// The "loot" group is also what the narrower "Loot-Ansichten" permission opens
-// on its own — see the page component and src/config/permissions.js.
-const TAB_GROUPS: { id: string; label: string; tabs: Tab[] }[] = [
-    { id: "raids", label: "Raids", tabs: ["raids", "logs", "chars"] },
-    { id: "loot", label: "Loot", tabs: ["loot", "awards", "reasons", "items"] },
-    { id: "import", label: "Import", tabs: ["import", "inbox"] },
-];
+// The main view of the page — where the sidebar link lands.
+const DEFAULT_TAB: Tab = "items";
 
-// The two overview tabs carry every loot row ever imported, so they load on
-// demand instead of with the page — opening "Alle Raids" must not pay for them.
+// Old ?tab= values that are no longer views: "import" opens the dialog, "inbox"
+// goes to its page. Links to them are posted in Discord and must keep working.
+const LEGACY_IMPORT = "import";
+const LEGACY_INBOX = "inbox";
+
+// The two overview views carry every loot row ever imported, so they load on
+// demand instead of with the page — opening "Raids" must not pay for them.
 const STATS_TABS: Tab[] = ["reasons", "items"];
 
 const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil" };
-
-// Everything typed into the import form. Kept as a draft (see useDraftState), so
-// a pasted export survives a detour to another tab — re-pasting it is the one
-// step nobody can redo from memory.
-type ImportDraft = { eventId: string; manualLabel: string; categoryId: string; tool: string; text: string };
-const IMPORT_DRAFT_DEFAULT: ImportDraft = { eventId: "__auto__", manualLabel: "", categoryId: "", tool: "auto", text: "" };
-
-function ImportForm({ data, csrfToken, onImported }: {
-    data: HistoryData;
-    csrfToken: string | null;
-    onImported: (msg: string) => void;
-}) {
-    // categoryId is only used when the import lands without a Raid-Helper event:
-    // a real event brings its own Discord category along (see api.ts's
-    // ImportLootInput).
-    const [draft, patch] = useDraftState<ImportDraft>("history-import", IMPORT_DRAFT_DEFAULT);
-    const { eventId, manualLabel, categoryId, tool, text } = draft;
-    const [busy, setBusy] = useState(false);
-    const toast = useToast();
-    const fileRef = useRef<HTMLInputElement>(null);
-
-    const selectEvent = (id: string) => {
-        const ev = data.events.find((e) => e.id === id);
-        const preferred = ev ? (data.categoryLootTool[ev.categoryId || ""] || "") : "";
-        patch(preferred ? { eventId: id, tool: preferred } : { eventId: id });
-    };
-
-    const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = () => patch({ text: String(reader.result || "") });
-        reader.readAsText(file);
-    };
-
-    const submit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setBusy(true);
-        try {
-            const r = await importLoot(csrfToken, { data: text, tool, event: eventId, manualLabel, categoryId });
-            onImported(`${r.added} Item(s) importiert${r.skipped ? `, ${r.skipped} Duplikat(e) übersprungen` : ""}.`);
-            // Only the imported content goes — the event and tool choice stay, the
-            // next import of the evening usually belongs to the same raid.
-            patch({ text: "", manualLabel: "" });
-            if (fileRef.current) fileRef.current.value = "";
-        } catch (err) {
-            toast((err as ApiError).message, "err");
-        } finally {
-            setBusy(false);
-        }
-    };
-
-    const showManual = eventId === "__auto__" || eventId === "__manual__";
-
-    return (
-        <div className="dash-card" style={{ marginBottom: 18 }}>
-            <div className="dash-card-head"><h3>Loot importieren</h3></div>
-            <form className="card-form" onSubmit={submit} style={{ padding: "14px 16px" }}>
-                <div className="field">
-                    <label>Event</label>
-                    <select value={eventId} onChange={(e) => selectEvent(e.target.value)}>
-                        <option value="__auto__">— Automatisch anhand des Datums im Export zuordnen —</option>
-                        {data.events.map((ev: HistoryEvent) => (
-                            <option key={ev.id} value={ev.id}>
-                                {ev.title || "(ohne Titel)"}{ev.startTime ? ` · ${formatEventTime(ev.startTime)}` : ""}
-                            </option>
-                        ))}
-                        <option value="__manual__">— Anderes / vergangenes Event (manuell benennen) —</option>
-                    </select>
-                    <div className="hint">„Automatisch" ordnet dem Raid-Helper-Event des gleichen Tages zu; passt keins oder mehrere, muss unten manuell gewählt/benannt werden.</div>
-                </div>
-                {showManual && (
-                    <>
-                        <div className="field">
-                            <label>Titel (optional)</label>
-                            <input type="text" value={manualLabel} onChange={(e) => patch({ manualLabel: e.target.value })} placeholder="z.B. SSC/TK — 12.07.2026" />
-                            <div className="hint">Nur nötig, wenn kein Event automatisch gefunden wird oder ein eigener Titel gewünscht ist.</div>
-                        </div>
-                        <div className="field">
-                            <label>Kategorie (optional)</label>
-                            <select value={categoryId} onChange={(e) => patch({ categoryId: e.target.value })}>
-                                <option value="">— keine —</option>
-                                {data.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                            <div className="hint">
-                                Nur wirksam, wenn kein Event zugeordnet wird — dann fehlt dem Loot sonst die Kategorie (Pug, Montagsraid, …)
-                                und er taucht in den nach Kategorie gruppierten Übersichten nicht auf. Wird ein Event gefunden, gilt dessen eigene Kategorie.
-                            </div>
-                        </div>
-                    </>
-                )}
-                <div className="field">
-                    <label>Loot-Tool</label>
-                    <select value={tool} onChange={(e) => patch({ tool: e.target.value })}>
-                        <option value="auto">Auto-Erkennung</option>
-                        <option value="gargul">Gargul</option>
-                        <option value="rclc">RCLootcouncil</option>
-                        <option value="eventhelper">EventHelper-Addon</option>
-                    </select>
-                    <div className="hint">Wird aus der Kategorie-Markierung vorbelegt. „Auto" erkennt alle drei Formate selbst (JSON = RCLootcouncil, CSV = Gargul, Envelope = EventHelper-Addon).</div>
-                </div>
-                <div className="field">
-                    <label>Export einfügen</label>
-                    <textarea value={text} onChange={(e) => patch({ text: e.target.value })} rows={6} placeholder="RCLootcouncil-JSON, Gargul-CSV oder EventHelper-Addon-Export hier einfügen …" />
-                </div>
-                <div className="field">
-                    <label>… oder Datei hochladen</label>
-                    <input ref={fileRef} type="file" accept=".json,.csv,.txt,.tsv" onChange={onFile} />
-                    <div className="hint">Die Datei wird lokal in das Feld oben geladen — kein separater Upload.</div>
-                </div>
-                <div className="row-actions"><button className="btn" type="submit" disabled={busy}>{busy ? "Importiert…" : "Loot importieren"}</button></div>
-            </form>
-        </div>
-    );
-}
 
 type LootEventSortKey = "event" | "date" | "category" | "count" | "source";
 const LOOT_EVENT_SORT_DEFAULTS: Record<LootEventSortKey, Dir> = {
@@ -187,6 +87,7 @@ function LootEventsTab({ lootEvents, categories, csrfToken, onChanged, canEdit }
 }) {
     const [saving, setSaving] = useState<string | null>(null);
     const toast = useToast();
+    const navigate = useNavigate();
     // Newest import first by default — that is the one just pasted in, and the
     // reason this list is opened at all.
     const { sort, dir, onSort, apply } = useTableSort<LootEventSortKey>(
@@ -212,7 +113,15 @@ function LootEventsTab({ lootEvents, categories, csrfToken, onChanged, canEdit }
         }
     };
 
-    if (!lootEvents.length) return <p className="sub">Noch kein Loot importiert.</p>;
+    const head = (
+        <PartHead
+            icon="inv_misc_bag_10" tone="history" title="Nach Raid" crumb="Loot › Nach Raid"
+            tip="Nach Raid" tipSub="Der importierte Loot je Event. Die Kategorie ordnet Loot ohne Raid-Helper-Event einer Raid-Serie zu."
+            action={<Badge count>{lootEvents.length} Events</Badge>}
+        />
+    );
+
+    if (!lootEvents.length) return <div className="dash-card hl-card">{head}<div className="empty">Noch kein Loot importiert.</div></div>;
 
     const sorted = apply(lootEvents, (e, key) => {
         switch (key) {
@@ -228,14 +137,14 @@ function LootEventsTab({ lootEvents, categories, csrfToken, onChanged, canEdit }
     });
 
     return (
-        <div className="dash-card">
-            <div className="dash-card-head"><h3>Importierter Loot</h3><span className="small" style={{ marginLeft: "auto" }}>{lootEvents.length} Event(s)</span></div>
+        <div className="dash-card hl-card">
+            {head}
             <table className="idx" style={{ margin: 0 }}>
                 <thead>
                     <tr>
                         <SortTh sortKey="event" label="Event" sort={sort} dir={dir} onSort={onSort} />
                         <SortTh sortKey="date" label="Datum" sort={sort} dir={dir} onSort={onSort} />
-                        <SortTh sortKey="category" label="Kategorie" sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="category" label="Kategorie" sort={sort} dir={dir} onSort={onSort} tip="Kategorie" tipSub="Raid-Kategorie, unter der dieser Loot geführt wird — nötig für Loot ohne Event." />
                         <SortTh sortKey="count" label="Items" sort={sort} dir={dir} onSort={onSort} />
                         <SortTh sortKey="source" label="Quelle" sort={sort} dir={dir} onSort={onSort} />
                         <th />
@@ -249,9 +158,9 @@ function LootEventsTab({ lootEvents, categories, csrfToken, onChanged, canEdit }
                             <td className="small">
                                 {canEdit ? (
                                     <select
+                                        aria-label="Kategorie"
                                         value={e.categoryId || ""}
                                         disabled={saving === e.eventId}
-                                        data-tip="Raid-Kategorie, unter der dieser Loot geführt wird — nötig für Loot ohne Event"
                                         onChange={(ev) => save(e.eventId, ev.target.value)}
                                     >
                                         <option value="">— ohne Kategorie —</option>
@@ -264,11 +173,16 @@ function LootEventsTab({ lootEvents, categories, csrfToken, onChanged, canEdit }
                                     </select>
                                 ) : (categoryNameById.get(e.categoryId || "") || e.categoryId || "—")}
                             </td>
-                            <td className="small">{e.count}</td>
-                            <td className="small">{(e.sources || []).map((s) => <span key={s} className="lbadge">{LOOT_TOOL_LABELS[s] || s}</span>)}</td>
+                            <td className="small"><Badge count>{e.count}</Badge></td>
+                            <td className="small">
+                                <div className="badge-row">{(e.sources || []).map((s) => <Badge key={s}>{LOOT_TOOL_LABELS[s] || s}</Badge>)}</div>
+                            </td>
                             <td className="cell-actions">
                                 <div className="row-actions" style={{ justifyContent: "flex-end" }}>
-                                    <Link className="btn btn-ghost btn-sm" to={`/history/event?event=${encodeURIComponent(e.eventId)}`}>Loot ansehen</Link>
+                                    <IconButton
+                                        icon={<ChevronRightIcon />} size="sm" tip="Loot ansehen" tipSub="Alle Items dieses Events, mit Nachtragen und Löschen"
+                                        onClick={() => navigate(`/history/event?event=${encodeURIComponent(e.eventId)}`)}
+                                    />
                                 </div>
                             </td>
                         </tr>
@@ -288,7 +202,7 @@ function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: s
     const toast = useToast();
 
     const remove = async (l: LootLog) => {
-        if (!(await ask({ title: "Log entfernen?", text: "Das Log wird aus der Liste entfernt.", action: "Entfernen" }))) return;
+        if (!(await ask({ title: "Log entfernen?", text: `„${l.title || l.reportId || "Log"}" wird aus der Liste entfernt.`, action: "Entfernen" }))) return;
         try {
             await deleteHistoryLog(csrfToken, l.id);
             onChanged("Gelöscht.");
@@ -297,7 +211,15 @@ function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: s
         }
     };
 
-    if (!logs.length) return <p className="sub">Keine Warcraft-Logs erfasst (Log-Channels in den Einstellungen konfigurieren).</p>;
+    const head = (
+        <PartHead
+            icon="inv_misc_pocketwatch_01" tone="history" title="Warcraft Logs" crumb="Raids & Logs › Warcraft Logs"
+            tip="Warcraft Logs" tipSub="Die in den Log-Channels geposteten Logs. Log-Channels werden in den Einstellungen konfiguriert."
+            action={<Badge count>{logs.length} Logs</Badge>}
+        />
+    );
+
+    if (!logs.length) return <div className="dash-card hl-card">{head}<div className="empty">Keine Warcraft-Logs erfasst (Log-Channels in den Einstellungen konfigurieren).</div></div>;
 
     const sorted = apply(logs, (l, key) => {
         switch (key) {
@@ -313,8 +235,8 @@ function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: s
     });
 
     return (
-        <div className="dash-card">
-            <div className="dash-card-head"><h3>Warcraft Logs</h3><span className="small" style={{ marginLeft: "auto" }}>{logs.length}</span></div>
+        <div className="dash-card hl-card">
+            {head}
             <table className="idx" style={{ margin: 0 }}>
                 <thead>
                     <tr>
@@ -322,13 +244,14 @@ function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: s
                         <SortTh sortKey="date" label="Datum" sort={sort} dir={dir} onSort={onSort} />
                         <SortTh sortKey="zone" label="Zone" sort={sort} dir={dir} onSort={onSort} />
                         <SortTh sortKey="event" label="Event" sort={sort} dir={dir} onSort={onSort} />
-                        <SortTh sortKey="status" label="Status" sort={sort} dir={dir} onSort={onSort} />
+                        <SortTh sortKey="status" label="Status" sort={sort} dir={dir} onSort={onSort} tip="Status" tipSub="Ausgewertet heißt: eine Log-Auswertung liegt vor und kann geöffnet werden." />
                         <th />
                     </tr>
                 </thead>
                 <tbody>
                     {sorted.map((l) => {
                         const wclUrl = l.link || (l.reportId ? `https://classic.warcraftlogs.com/reports/${l.reportId}` : "");
+                        const reportUrl = l.status === "done" && (l.reportUrl || l.reportRefId) ? (l.reportUrl || `/r/${l.reportRefId}`) : "";
                         return (
                             <tr key={l.id}>
                                 <td>{wclUrl
@@ -336,14 +259,19 @@ function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: s
                                     : (l.title || "(Log)")}</td>
                                 <td className="small">{formatDate(l.postedAt || 0)}</td>
                                 <td className="small">{l.zone || ""}</td>
-                                <td className="small">{l.eventId ? <span className="pill" data-tip={l.eventStartTime ? formatEventTime(l.eventStartTime) : ""}>{l.eventLabel || l.eventId}</span> : <span className="sub">—</span>}</td>
-                                <td>{l.status === "done" ? <span className="pill good">ausgewertet</span> : <span className="pill">offen</span>}</td>
+                                <td className="small">{l.eventId
+                                    ? <Badge icon="inv_misc_note_02" tip={l.eventLabel || l.eventId} tipSub={l.eventStartTime ? formatEventTime(l.eventStartTime) : undefined}>{l.eventLabel || l.eventId}</Badge>
+                                    : <span className="sub">—</span>}</td>
+                                <td>{l.status === "done" ? <Badge tone="ok">ausgewertet</Badge> : <Badge tone="mid">offen</Badge>}</td>
                                 <td className="cell-actions">
                                     <div className="row-actions" style={{ justifyContent: "flex-end" }}>
-                                        {l.status === "done" && (l.reportUrl || l.reportRefId) && (
-                                            <a className="btn btn-ghost btn-sm" href={l.reportUrl || `/r/${l.reportRefId}`}>Öffnen</a>
+                                        {reportUrl && (
+                                            <IconButton
+                                                icon={<ExternalIcon />} size="sm" tip="Auswertung öffnen"
+                                                onClick={() => { window.location.href = reportUrl; }}
+                                            />
                                         )}
-                                        <button className="btn btn-danger btn-sm" type="button" onClick={() => remove(l)}><TrashIcon />Löschen</button>
+                                        <IconButton icon={<TrashIcon />} tone="danger" size="sm" tip="Log entfernen" tipSub="Nur aus dieser Liste — mit Rückfrage." onClick={() => remove(l)} />
                                     </div>
                                 </td>
                             </tr>
@@ -359,7 +287,7 @@ type CharSortKey = "character" | "classSpec" | "category" | "count" | "source";
 
 const CHAR_SORT_DEFAULTS: Record<CharSortKey, Dir> = { character: "asc", classSpec: "asc", category: "asc", count: "desc", source: "asc" };
 
-// Everything the Charaktere tab remembers between visits (see usePersistedState).
+// Everything the Charaktere view remembers between visits (see usePersistedState).
 type CharView = { search: string; category: string; classSpec: string; sort: CharSortKey; dir: Dir };
 const CHAR_VIEW_DEFAULT: CharView = { search: "", category: "", classSpec: "", sort: "count", dir: CHAR_SORT_DEFAULTS.count };
 
@@ -391,8 +319,8 @@ function CharTable({ chars, categoryNameById, sort, dir, onSort }: {
                     <SortTh sortKey="character" label="Charakter" sort={sort} dir={dir} onSort={onSort} />
                     <SortTh sortKey="classSpec" label="Klasse & Spec" sort={sort} dir={dir} onSort={onSort} />
                     <SortTh sortKey="category" label="Kategorie" sort={sort} dir={dir} onSort={onSort} />
-                    <SortTh sortKey="count" label="Items" sort={sort} dir={dir} onSort={onSort} />
-                    <SortTh sortKey="source" label="Quelle" sort={sort} dir={dir} onSort={onSort} />
+                    <SortTh sortKey="count" label="Items" sort={sort} dir={dir} onSort={onSort} tip="Items" tipSub="Hover über die Zahl zeigt die Items." />
+                    <SortTh sortKey="source" label="Quelle" sort={sort} dir={dir} onSort={onSort} tip="Quelle" tipSub="Woher Klasse und Spec stammen." />
                 </tr>
             </thead>
             <tbody>
@@ -403,7 +331,7 @@ function CharTable({ chars, categoryNameById, sort, dir, onSort }: {
                         <td className="small">
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                                 {c.categoryIds.length
-                                    ? c.categoryIds.map((id) => <span key={id} className="lbadge lbadge-neutral">{categoryNameById.get(id) || id}</span>)
+                                    ? c.categoryIds.map((id) => <Badge key={id} tone="accent">{categoryNameById.get(id) || id}</Badge>)
                                     : <span className="sub">—</span>}
                             </div>
                         </td>
@@ -416,7 +344,7 @@ function CharTable({ chars, categoryNameById, sort, dir, onSort }: {
                             />
                         </td>
                         <td className="small">{CLASS_SOURCE_LABELS[c.source]
-                            ? <span className="lbadge">{CLASS_SOURCE_LABELS[c.source]}</span>
+                            ? <Badge>{CLASS_SOURCE_LABELS[c.source]}</Badge>
                             : <span className="sub">—</span>}</td>
                     </tr>
                 ))}
@@ -434,7 +362,7 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
     const [busy, setBusy] = useState(false);
     const toast = useToast();
     // Search, filters, grouping and sort live in localStorage, so they survive a
-    // reload and switching away to another tab (which unmounts this component).
+    // reload and switching away to another view (which unmounts this component).
     // Stored values are treated as untrusted: a sort key from an older build
     // falls back to the default instead of sorting by nothing.
     const [view, setView] = usePersistedState<CharView>("history-chars-view", CHAR_VIEW_DEFAULT);
@@ -445,8 +373,7 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
     const dir: Dir = view.dir === "asc" ? "asc" : "desc";
     const patch = (p: Partial<CharView>) => setView((v) => ({ ...v, ...p }));
 
-    // The button for this sits under a long character table, which is exactly why
-    // its result has to be a toast: the old page-level flash line was rendered
+    // The result has to be a toast: the old page-level flash line was rendered
     // far above the fold, so a finished lookup looked like nothing had happened.
     const resolve = async () => {
         setBusy(true);
@@ -493,9 +420,28 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
         patch({ sort: key, dir: CHAR_SORT_DEFAULTS[key] });
     };
 
-    if (!chars.length) return <p className="sub">Noch keine Charaktere mit Loot.</p>;
-
     const missing = chars.filter((c) => !c.className || !c.spec).length;
+
+    const head = (
+        <PartHead
+            icon="achievement_guildperk_everybodysfriend" tone="history" title="Charaktere" crumb="Charaktere"
+            tip="Charaktere" tipSub="Jeder Charakter mit Loot, gruppiert nach Raid-Kategorie. Der Name öffnet die Loot-Historie samt Armory."
+            action={chars.length ? (
+                <Button
+                    variant="run"
+                    icon="inv_misc_spyglass_03"
+                    running={busy}
+                    data-tip="Klassen & Specs ergänzen"
+                    data-tip-sub="Nimmt die Klasse aus dem Loot-Export bzw. einer vorhandenen Auswertung und liest den Rest aus dem Warcraft-Log des Raids."
+                    onClick={resolve}
+                >
+                    {`Klassen & Specs ergänzen${missing ? ` (${missing} offen)` : ""}`}
+                </Button>
+            ) : undefined}
+        />
+    );
+
+    if (!chars.length) return <div className="dash-card hl-card">{head}<div className="empty">Noch keine Charaktere mit Loot.</div></div>;
 
     const searchLower = search.trim().toLowerCase();
     const filtered = chars.filter((c) => {
@@ -524,72 +470,49 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
     const hasFilters = !!(search || categoryFilter || classFilter);
 
     return (
-        <div className="dash-card">
-            <div className="dash-card-head">
-                <h3>Charaktere</h3>
-                <span style={{ marginLeft: "auto" }}>
-                    <button
-                        className="btn btn-ghost btn-sm"
-                        type="button"
-                        disabled={busy}
-                        data-tip="Nimmt die Klasse aus dem Loot-Export bzw. einer vorhandenen Auswertung und liest den Rest aus dem Warcraft-Log des Raids"
-                        onClick={resolve}
-                    >
-                        {busy ? "Suche läuft …" : `Klassen & Specs ergänzen${missing ? ` (${missing} offen)` : ""}`}
-                    </button>
-                </span>
-            </div>
-            <div className="filter-bar">
-                <div className="field" style={{ minWidth: 220 }}>
-                    <label htmlFor="chars-search">Suche</label>
-                    <input
-                        id="chars-search"
-                        type="text"
-                        placeholder="Charaktername …"
-                        value={search}
-                        onChange={(e) => patch({ search: e.target.value })}
-                    />
-                </div>
-                <div className="field" style={{ minWidth: 180 }}>
-                    <label htmlFor="chars-category">Kategorie</label>
-                    <select id="chars-category" value={categoryFilter} onChange={(e) => patch({ category: e.target.value })}>
-                        <option value="">Alle Kategorien</option>
-                        {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                    </select>
-                </div>
-                <div className="field" style={{ minWidth: 180 }}>
-                    <label htmlFor="chars-class">Klasse & Spec</label>
-                    <select id="chars-class" value={classFilter} onChange={(e) => patch({ classSpec: e.target.value })}>
-                        <option value="">Alle Klassen</option>
-                        {classOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                </div>
+        <div className="dash-card hl-card">
+            {head}
+            <div className="filter-bar hl-filters">
+                <input
+                    id="chars-search"
+                    type="search"
+                    aria-label="Charaktername"
+                    placeholder="Charaktername …"
+                    value={search}
+                    onChange={(e) => patch({ search: e.target.value })}
+                />
+                <select id="chars-category" className="hl-sel" aria-label="Kategorie" value={categoryFilter} onChange={(e) => patch({ category: e.target.value })}>
+                    <option value="">Alle Kategorien</option>
+                    {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                </select>
+                <select id="chars-class" className="hl-sel" aria-label="Klasse & Spec" value={classFilter} onChange={(e) => patch({ classSpec: e.target.value })}>
+                    <option value="">Alle Klassen</option>
+                    {classOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
                 {hasFilters && (
-                    <div className="field">
-                        <button
-                            className="btn btn-ghost"
-                            type="button"
-                            data-tip="Suche und Filter zurücksetzen (werden lokal im Browser gespeichert)"
-                            onClick={() => patch({ search: "", category: "", classSpec: "" })}
-                        >
-                            Filter zurücksetzen
-                        </button>
-                    </div>
+                    <Button
+                        variant="ghost"
+                        data-tip="Filter zurücksetzen"
+                        data-tip-sub="Suche und Filter werden lokal im Browser gespeichert."
+                        onClick={() => patch({ search: "", category: "", classSpec: "" })}
+                    >
+                        Filter zurücksetzen
+                    </Button>
                 )}
             </div>
-            {!sorted.length && <p className="sub" style={{ padding: "0 16px 14px" }}>Keine Charaktere gefunden.</p>}
+            {!sorted.length && <div className="empty">Keine Charaktere gefunden.</div>}
             {groups.map((g) => (
-                <div key={g.id} style={{ marginBottom: 10 }}>
-                    <div className="dash-card-head" style={{ padding: "8px 16px" }}>
+                <div key={g.id}>
+                    <div className="hl-linked-head">
                         <strong>{g.label}</strong>
-                        <span className="tab-count">{g.chars.length}</span>
+                        <Badge count>{g.chars.length}</Badge>
                     </div>
                     <CharTable chars={g.chars} categoryNameById={categoryNameById} sort={sort} dir={dir} onSort={onSort} />
                 </div>
             ))}
             {!!ungrouped.length && (
                 <div>
-                    <div className="dash-card-head" style={{ padding: "8px 16px" }}><strong>Ohne Kategorie</strong></div>
+                    <div className="hl-linked-head"><strong>Ohne Kategorie</strong><Badge count>{ungrouped.length}</Badge></div>
                     <CharTable chars={ungrouped} categoryNameById={categoryNameById} sort={sort} dir={dir} onSort={onSort} />
                 </div>
             )}
@@ -599,27 +522,31 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
 
 export default function HistoryPage() {
     const { user, csrfToken } = useOutletContext<ShellContext>();
-    // Two ways in: "history" opens the whole tab, the narrower "loot" only the
+    const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
+    // Two ways in: "history" opens the whole page, the narrower "loot" only the
     // loot views (see src/config/permissions.js). Everything below asks this one
     // flag; the server sends the loot-only caller a payload to match, so the
-    // hidden tabs would have nothing to show anyway (apiRoutes/history.js).
+    // hidden views would have nothing to show anyway (apiRoutes/history.js).
     const fullHistory = canAccess(user, "history");
-    const groups = fullHistory ? TAB_GROUPS : TAB_GROUPS.filter((g) => g.id === "loot");
-    const allowedTabs = groups.flatMap((g) => g.tabs);
+    const canWrite = canAccess(user, "history", "write");
+    const areas = fullHistory ? AREAS : AREAS.filter((a) => a.id === "loot");
+    const allowedTabs = areas.flatMap((a) => a.views.map((v) => v.id));
     // In the URL (linkable, survives a reload) and remembered on top of that, so
-    // coming back via the sidebar re-opens the tab that was last used here.
-    const [tab, setTab] = usePersistedSearchParam<Tab>("history-tab", "tab", allowedTabs[0], allowedTabs);
+    // coming back via the sidebar re-opens the view that was last used here.
+    const [tab, setTab] = usePersistedSearchParam<Tab>("history-tab", "tab", DEFAULT_TAB, allowedTabs);
+    const legacyTab = searchParams.get("tab");
 
     const [data, setData] = useState<HistoryData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const toast = useToast();
     const [stats, setStats] = useState<LootStats | null>(null);
     const [statsError, setStatsError] = useState<ApiError | null>(null);
-    // Loaded with the page rather than on tab open: the badge is the only hint
-    // that a raid is waiting to be filed, so it has to be there before anyone
-    // thinks to look.
-    const [inbox, setInbox] = useState<InboxSession[]>([]);
-    const [inboxError, setInboxError] = useState<string | null>(null);
+    // Loaded with the page: the head's count is the only hint that a raid is
+    // waiting to be filed, so it has to be there before anyone thinks to look.
+    const [inboxCount, setInboxCount] = useState(0);
+    const [importOpen, setImportOpen] = useState(legacyTab === LEGACY_IMPORT && canWrite);
+    const [guildName, setGuildName] = useState("");
 
     // Whether the overviews were ever asked for. A ref, not the state above:
     // after a failed load there is nothing in `stats`, and retrying on every
@@ -633,12 +560,10 @@ export default function HistoryPage() {
 
     const load = () => {
         getHistoryData().then(setData).catch((err: ApiError) => setError(err));
-        // Skipped without "history": the inbox tab isn't rendered then, and the
-        // call would only earn a 403.
+        // Skipped without "history": the inbox is not open to that caller, and
+        // the call would only earn a 403.
         if (fullHistory) {
-            getLootInbox()
-                .then((r) => { setInbox(r.sessions); setInboxError(null); })
-                .catch((err: ApiError) => setInboxError(err.message));
+            getLootInbox().then((r) => setInboxCount(r.sessions.length)).catch(() => setInboxCount(0));
         }
         // Only refresh the overviews once they have been opened — before that
         // there is nothing on screen that could go stale after an import.
@@ -647,7 +572,14 @@ export default function HistoryPage() {
 
     useEffect(load, []);
 
-    // Fetched on the first visit to one of the overview tabs, then kept.
+    // The kicker names the guild whose history this is.
+    useEffect(() => {
+        getSession()
+            .then((s) => setGuildName(s.guilds.find((g) => g.id === s.activeGuildId)?.name || ""))
+            .catch(() => setGuildName(""));
+    }, []);
+
+    // Fetched on the first visit to one of the overview views, then kept.
     useEffect(() => {
         if (STATS_TABS.includes(tab) && !statsRequested.current) loadStats();
     }, [tab]);
@@ -657,64 +589,87 @@ export default function HistoryPage() {
         load();
     };
 
-    if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
-    if (!data) return <div className="empty">Lade…</div>;
+    // ?tab=inbox from before the inbox became a page.
+    if (legacyTab === LEGACY_INBOX && fullHistory) return <Navigate to="/history/inbox" replace />;
 
-    const activeGroup = groups.find((g) => g.tabs.includes(tab)) || groups[0];
+    const activeArea = areas.find((a) => a.views.some((v) => v.id === tab)) || areas[0];
+    const counts: Partial<Record<Tab, number>> = data ? {
+        // No count on "Items": the view hides sharded loot by default, so the
+        // raw catalogue size would contradict the number in its own head.
+        reasons: stats?.characters.length,
+        loot: data.lootEvents.length,
+        raids: data.upcomingRaids.events.length + data.pastRaids.events.length,
+        logs: data.logs.length,
+    } : {};
+
+    const head = (
+        <div className="hl-page">
+            <PageHead
+                icon="inv_misc_bag_10"
+                tone="history"
+                kicker={guildName || "Gilde"}
+                title="Historie & Loot"
+                action={(fullHistory || canWrite) ? (
+                    <>
+                        {fullHistory && (
+                            <Button variant="ghost" icon="inv_letter_18" onClick={() => navigate("/history/inbox")}>
+                                Addon-Inbox
+                                {inboxCount > 0 && <Badge tone="mid" count>{inboxCount} offen</Badge>}
+                            </Button>
+                        )}
+                        {canWrite && (
+                            <Button icon="inv_scroll_03" disabled={!data} onClick={() => setImportOpen(true)}>Loot importieren</Button>
+                        )}
+                    </>
+                ) : undefined}
+            />
+        </div>
+    );
+
+    if (error) return <>{head}<div className="empty">Fehler beim Laden: {error.message}</div></>;
+    if (!data) return <>{head}<div className="empty">Lade…</div></>;
 
     return (
         <>
-            <h1 className="page-title">Historie &amp; Loot</h1>
-            <p className="note">{fullHistory
-                ? "Loot pro Event importieren (RCLootcouncil-JSON oder Gargul-CSV), Warcraft-Logs verlinken und pro Charakter die Loot-Historie samt Armory einsehen. „Loot-Gründe\" zeigt je Raider, wofür er Items bekommen hat, „Items\" alle Items mit ihren Empfängern — filterbar nach Raid und Tier."
-                : "Der Loot der letzten Raids: „Latest Loot\" zeigt die jüngsten Vergaben, „Loot-Gründe\" je Raider, wofür er Items bekommen hat, und „Items\" alle Items mit ihren Empfängern — filterbar nach Raid und Tier."}</p>
+            {head}
 
-            {/* A row with a single group would say nothing the subnav under it
-                doesn't — the loot-only view goes straight to its four tabs. */}
-            {groups.length > 1 && (
-                <div className="tabs" role="tablist">
-                    {groups.map((g) => (
-                        <button
-                            key={g.id} type="button" role="tab"
-                            className={`tab-btn${activeGroup.id === g.id ? " active" : ""}`}
-                            onClick={() => setTab(g.tabs[0])}
-                        >
-                            {g.label}
-                        </button>
-                    ))}
+            {/* A switch with a single area would say nothing the subnav under it
+                doesn't — the loot-only view goes straight to its views. */}
+            {areas.length > 1 && (
+                <div className="hl-areas">
+                    <Segment<AreaId>
+                        ariaLabel="Bereich"
+                        options={areas.map((a) => ({ value: a.id, label: a.label, icon: a.icon }))}
+                        value={activeArea.id}
+                        onChange={(id) => setTab((areas.find((a) => a.id === id) || areas[0]).views[0].id)}
+                    />
                 </div>
             )}
-            <div className="subnav" role="tablist">
-                {activeGroup.tabs.map((id) => {
-                    const t = TABS.find((x) => x.id === id)!;
-                    const count = t.id === "inbox" ? inbox.length : t.count?.(data);
-                    return (
-                        <button key={t.id} type="button" className={`subnav-item${tab === t.id ? " active" : ""}`} role="tab" onClick={() => setTab(t.id)}>
-                            {t.label}
-                            {!!count && <span className="subnav-count">{count}</span>}
-                        </button>
-                    );
-                })}
-            </div>
+            {activeArea.views.length > 1 && (
+                <div className="subnav" role="tablist">
+                    {activeArea.views.map((v) => {
+                        const count = counts[v.id];
+                        return (
+                            <button key={v.id} type="button" className={`subnav-item${tab === v.id ? " active" : ""}`} role="tab" aria-selected={tab === v.id} onClick={() => setTab(v.id)}>
+                                {v.label}
+                                {!!count && <span className="subnav-count">{count}</span>}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
 
             {tab === "raids" && (
                 <>
-                    <div className="dash-card" style={{ marginBottom: 18 }}>
-                        <div className="dash-card-head"><h3>Kommende Raids</h3><span className="small" style={{ marginLeft: "auto" }}>{data.upcomingRaids.events.length}</span></div>
+                    <div className="dash-card hl-card">
+                        <PartHead icon="inv_misc_note_02" tone="history" title="Kommende Raids" crumb="Raids & Logs › Raids" action={<Badge count>{data.upcomingRaids.events.length}</Badge>} />
                         <RaidTable events={data.upcomingRaids.events} guildId={data.activeGuildId} error={data.upcomingRaids.error} emptyMessage="Keine anstehenden Raids gefunden." sortKey="raids-upcoming-sort" initialDir="asc" />
                     </div>
-                    <div className="dash-card">
-                        <div className="dash-card-head"><h3>Vergangene Raids</h3><span className="small" style={{ marginLeft: "auto" }}>{data.pastRaids.events.length}</span></div>
+                    <div className="dash-card hl-card">
+                        <PartHead icon="inv_misc_note_02" tone="history" title="Vergangene Raids" crumb="Raids & Logs › Raids" action={<Badge count>{data.pastRaids.events.length}</Badge>} />
                         <RaidTable events={data.pastRaids.events} guildId={data.activeGuildId} error={data.pastRaids.error} emptyMessage="Keine vergangenen Raids gefunden." sortKey="raids-past-sort" />
                     </div>
                 </>
-            )}
-            {tab === "import" && <ImportForm data={data} csrfToken={csrfToken} onImported={afterChange} />}
-            {tab === "inbox" && (
-                <LootInboxTab
-                    sessions={inbox} events={data.events} categories={data.categories}
-                    csrfToken={csrfToken} onChanged={afterChange} error={inboxError}
-                />
             )}
             {tab === "loot" && (
                 <LootEventsTab
@@ -730,7 +685,7 @@ export default function HistoryPage() {
                     : !stats
                         ? <div className="empty">Lade…</div>
                         : tab === "reasons"
-                            ? <LootReasonsTab characters={stats.characters} reasons={stats.reasons} categories={data.categories} />
+                            ? <LootReasonsTab characters={stats.characters} reasons={stats.reasons} categories={data.categories} contents={stats.contents} />
                             : (
                                 <LootItemsTab
                                     items={stats.items}
@@ -739,11 +694,24 @@ export default function HistoryPage() {
                                     reasons={stats.reasons}
                                     categories={data.categories}
                                     unknownContentCount={stats.unknownContentCount}
+                                    canEdit={canWrite}
+                                    csrfToken={csrfToken}
+                                    onChanged={afterChange}
                                 />
                             )
             )}
             {tab === "logs" && <LogsTab logs={data.logs} csrfToken={csrfToken} onChanged={afterChange} />}
             {tab === "chars" && <CharactersTab chars={data.chars} categories={data.categories} csrfToken={csrfToken} onChanged={afterChange} />}
+
+            {canWrite && (
+                <ImportLootDialog
+                    open={importOpen}
+                    onClose={() => { setImportOpen(false); if (legacyTab === LEGACY_IMPORT) setTab(DEFAULT_TAB); }}
+                    data={data}
+                    csrfToken={csrfToken}
+                    onImported={afterChange}
+                />
+            )}
         </>
     );
 }

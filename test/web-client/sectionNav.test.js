@@ -1,5 +1,5 @@
 // Guards for the two navigations that were split into groups (see
-// src/web-client/src/lib/settingsSections.ts and the tab groups in
+// src/web-client/src/lib/settingsSections.ts and the areas in
 // HistoryPage.tsx).
 //
 // The client is TSX and this project has no React test renderer, so what is
@@ -14,7 +14,7 @@
 //   * a section that saves itself is marked standalone, so the page's shared
 //     save button cannot appear under it,
 //   * every per-category setting is rendered in one place only,
-//   * every history tab belongs to exactly one group.
+//   * every history view belongs to exactly one area.
 const fs = require("fs");
 const path = require("path");
 
@@ -130,40 +130,54 @@ describe("Einstellungen sections", () => {
     });
 });
 
-describe("Historie & Loot tab groups", () => {
+describe("Historie & Loot areas", () => {
     function tabIds() {
-        const list = historySrc.match(/const TABS: \{[\s\S]*?\n\];/)[0];
-        return [...list.matchAll(/\{ id: "([^"]+)"/g)].map((m) => m[1]);
+        const union = historySrc.match(/type Tab = ([^;]+);/)[1];
+        return [...union.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
     }
 
-    function groupedTabIds() {
-        const list = historySrc.match(/const TAB_GROUPS: \{[\s\S]*?\n\];/)[0];
-        return [...list.matchAll(/tabs: \[([^\]]+)\]/g)]
-            .flatMap((m) => [...m[1].matchAll(/"([^"]+)"/g)].map((x) => x[1]));
+    function areaViewIds() {
+        const list = historySrc.match(/const AREAS: \{[\s\S]*?\n\];/)[0];
+        return [...list.matchAll(/\{ id: "([^"]+)", label: "[^"]+" \}/g)].map((m) => m[1]);
     }
 
-    it("puts every tab in exactly one group", () => {
-        // A tab missing from the groups is unreachable — the row only renders
-        // the open group's tabs; a tab in two groups jumps around when clicked.
-        const grouped = groupedTabIds();
-        expect(grouped).toEqual([...new Set(grouped)]);
-        expect([...grouped].sort()).toEqual([...tabIds()].sort());
+    it("puts every view in exactly one area", () => {
+        // A view missing from the areas is unreachable — the subnav only renders
+        // the open area's views; a view in two areas jumps around when clicked.
+        const views = areaViewIds();
+        expect(views).toEqual([...new Set(views)]);
+        expect([...views].sort()).toEqual([...tabIds()].sort());
     });
 
-    it("derives the open group from the open tab", () => {
-        // Persisting the group as well would let the two drift apart — a link to
-        // ?tab=items could open the group that doesn't contain it. Resolved
-        // against the groups the user may see, so the loot-only view lands in
-        // its own group instead of falling back to "Raids".
-        expect(historySrc).toContain("const activeGroup = groups.find((g) => g.tabs.includes(tab)) || groups[0];");
-        expect(historySrc).not.toMatch(/usePersisted\w*\(\s*"history-group"/);
+    it("has three areas, the import and the inbox no longer among the views", () => {
+        const list = historySrc.match(/const AREAS: \{[\s\S]*?\n\];/)[0];
+        expect([...list.matchAll(/^ {4}\{\s*id: "([^"]+)"/gm)].map((m) => m[1])).toEqual(["loot", "raids", "chars"]);
+        expect(tabIds()).not.toContain("import");
+        expect(tabIds()).not.toContain("inbox");
     });
 
-    it("offers only the groups the visitor's permissions cover", () => {
-        // The narrower "loot" area opens the loot group alone (permissions.js);
-        // rendering TAB_GROUPS directly would put tabs on screen whose data the
+    it("derives the open area from the open view", () => {
+        // Persisting the area as well would let the two drift apart — a link to
+        // ?tab=items could open the area that doesn't contain it. Resolved
+        // against the areas the user may see, so the loot-only view lands in
+        // its own area instead of falling back to "Raids & Logs".
+        expect(historySrc).toContain("const activeArea = areas.find((a) => a.views.some((v) => v.id === tab)) || areas[0];");
+        expect(historySrc).not.toMatch(/usePersisted\w*\(\s*"history-(group|area)"/);
+    });
+
+    it("offers only the areas the visitor's permissions cover", () => {
+        // The narrower "loot" area opens the loot area alone (permissions.js);
+        // rendering AREAS directly would put views on screen whose data the
         // server refuses to send.
-        expect(historySrc).toContain('const groups = fullHistory ? TAB_GROUPS : TAB_GROUPS.filter((g) => g.id === "loot");');
-        expect(historySrc).toMatch(/\{groups\.map\(\(g\) => \(/);
+        expect(historySrc).toContain("const areas = fullHistory ? AREAS : AREAS.filter((a) => a.id === \"loot\");");
+        expect(historySrc).toContain("{areas.length > 1 && (");
+    });
+
+    it("keeps the old ?tab=import and ?tab=inbox links working", () => {
+        // Posted in Discord before the import became a dialog and the inbox a page.
+        expect(historySrc).toContain("const LEGACY_IMPORT = \"import\";");
+        expect(historySrc).toContain("const LEGACY_INBOX = \"inbox\";");
+        expect(historySrc).toContain("useState(legacyTab === LEGACY_IMPORT && canWrite)");
+        expect(historySrc).toContain("if (legacyTab === LEGACY_INBOX && fullHistory) return <Navigate to=\"/history/inbox\" replace />;");
     });
 });

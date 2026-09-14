@@ -1,8 +1,8 @@
-// "Latest Loot": the dashboard card's list in full — every award, newest first,
+// "Vergaben": the dashboard card's list in full — every award, newest first,
 // filterable and paged 25 at a time.
 //
 // Server-side filtering and paging (GET /api/history/loot-awards): the loot
-// store holds every row ever imported, and this tab only ever shows one page of
+// store holds every row ever imported, and this view only ever shows one page of
 // it, so shipping the lot to the browser to slice it there would be wasted
 // payload. Every filter change therefore refetches — the search box debounced,
 // so typing doesn't fire a request per keystroke.
@@ -13,12 +13,11 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { getLootAwards, type ApiError, type Category, type LootAwardsData } from "../api";
 import { usePersistedState } from "../lib/persistedState";
+import { PartHead } from "./ui/PartHead";
+import Badge from "./ui/Badge";
 import Pager from "./Pager";
 import TopLootList from "./TopLootList";
-
-// Same value and meaning as the Items tab: loot whose raid the content table
-// doesn't know, kept findable instead of filed into a wrong raid.
-const UNKNOWN = "__unknown__";
+import { ActiveFilters, FilterPopover, RaidChips, SearchBox, SwitchRow, type ActiveFilter } from "./LootFilters";
 
 type View = { search: string; category: string; content: string; reason: string; topOnly: boolean };
 const VIEW_DEFAULT: View = { search: "", category: "", content: "", reason: "", topOnly: true };
@@ -29,7 +28,7 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
     const [data, setData] = useState<LootAwardsData | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
-    // Only the search box is debounced; a dropdown change should feel immediate.
+    // Only the search box is debounced; a chip or select change should feel immediate.
     const [search, setSearch] = useState(view.search);
     const firstLoad = useRef(true);
 
@@ -62,69 +61,74 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
         return () => { cancelled = true; };
     }, [view.topOnly, view.search, view.category, view.content, view.reason, page]);
 
-    if (error) return <div className="empty">Loot konnte nicht geladen werden: {error}</div>;
-    if (!data) return <div className="empty">Lade…</div>;
-
     const categoryOptions = categories.filter((c) => c.id);
-    return (
-        <>
-            <div className="filter-bar">
-                <div className="field" style={{ minWidth: 220 }}>
-                    <label htmlFor="awards-search">Suche</label>
-                    <input
-                        id="awards-search" type="text" placeholder="Item, Item-ID oder Charakter …"
-                        value={search} onChange={(e) => setSearch(e.target.value)}
-                    />
-                </div>
-                <div className="field" style={{ minWidth: 180 }}>
-                    <label htmlFor="awards-category">Raidtyp</label>
-                    <select id="awards-category" value={view.category} onChange={(e) => patch({ category: e.target.value })}>
-                        <option value="">Alle Kategorien</option>
-                        {categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                    </select>
-                </div>
-                <div className="field" style={{ minWidth: 200 }}>
-                    <label htmlFor="awards-content">Content</label>
-                    <select id="awards-content" value={view.content} onChange={(e) => patch({ content: e.target.value })}>
-                        <option value="">Alle Raids</option>
-                        {data.contents.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-                        {!!data.unknownContentCount && <option value={UNKNOWN}>Unbekannt ({data.unknownContentCount})</option>}
-                    </select>
-                </div>
-                <div className="field" style={{ minWidth: 170 }}>
-                    <label htmlFor="awards-reason">Grund</label>
-                    <select id="awards-reason" value={view.reason} onChange={(e) => patch({ reason: e.target.value })}>
-                        <option value="">Alle Gründe</option>
-                        {data.reasons.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
-                    </select>
-                </div>
-                <div className="field">
-                    <label className="switch-row">
-                        <span className="switch">
-                            <input
-                                type="checkbox" checked={view.topOnly}
-                                onChange={(e) => patch({ topOnly: e.target.checked, content: "", reason: "" })}
-                            />
-                            <span className="switch-track"><span className="switch-thumb" /></span>
-                        </span>
-                        Nur Top-Items
-                    </label>
-                </div>
-            </div>
+    const categoryName = categoryOptions.find((c) => c.id === view.category)?.name || view.category;
+    const active: ActiveFilter[] = view.category
+        ? [{ key: "category", label: categoryName, tone: "accent", onRemove: () => patch({ category: "" }) }]
+        : [];
 
-            {!data.items.length ? (
-                <div className="empty">
-                    {view.topOnly && !data.topItemCount
-                        ? <>Noch keine Top-Items festgelegt — <Link className="mlink" to="/settings?section=loot">Einstellungen → Loot</Link>.</>
-                        : "Keine Vergaben für diese Filter."}
-                </div>
-            ) : (
-                <div className="dash-card" style={{ opacity: busy ? .6 : 1 }}>
-                    <TopLootList items={data.items} />
+    return (
+        <div className="dash-card hl-card">
+            <PartHead
+                icon="inv_misc_coin_02" tone="history" title="Vergaben" crumb="Loot › Vergaben"
+                tip="Vergaben" tipSub="Jede Vergabe einzeln, neueste zuerst. „Nur Top-Items“ zeigt dieselbe Liste wie die Übersicht."
+                action={data ? <Badge count>{data.total} Vergaben</Badge> : undefined}
+            />
+            <div className="filter-bar hl-filters">
+                <SearchBox id="awards-search" value={search} onChange={setSearch} placeholder="Item, Item-ID oder Charakter …" />
+                {data && (
+                    <RaidChips
+                        contents={data.contents}
+                        value={view.content}
+                        onChange={(content) => patch({ content })}
+                        unknownCount={data.unknownContentCount}
+                    />
+                )}
+                <select id="awards-reason" className="hl-sel" aria-label="Grund" value={view.reason} onChange={(e) => patch({ reason: e.target.value })}>
+                    <option value="">Alle Gründe</option>
+                    {(data?.reasons || []).map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+                </select>
+                <SwitchRow
+                    checked={view.topOnly}
+                    onChange={(topOnly) => patch({ topOnly, content: "", reason: "" })}
+                    label="Nur Top-Items"
+                    tip="Nur die in den Einstellungen festgelegten Top-Items"
+                />
+                <FilterPopover active={view.category ? 1 : 0}>
+                    <div>
+                        <label className="hl-lbl" htmlFor="awards-category">Raidtyp</label>
+                        <select id="awards-category" value={view.category} onChange={(e) => patch({ category: e.target.value })}>
+                            <option value="">Alle Kategorien</option>
+                            {categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                    </div>
+                </FilterPopover>
+            </div>
+            <ActiveFilters filters={active} />
+
+            {error
+                ? <div className="empty">Loot konnte nicht geladen werden: {error}</div>
+                : !data
+                    ? <div className="empty">Lade…</div>
+                    : !data.items.length
+                        ? (
+                            <div className="empty">
+                                {view.topOnly && !data.topItemCount
+                                    ? <>Noch keine Top-Items festgelegt — <Link className="mlink" to="/settings?section=loot">Einstellungen → Loot</Link>.</>
+                                    : "Keine Vergaben für diese Filter."}
+                            </div>
+                        )
+                        : (
+                            <div style={{ opacity: busy ? 0.6 : 1 }}>
+                                <TopLootList items={data.items} />
+                            </div>
+                        )}
+            {data && data.totalPages > 1 && (
+                <div className="hl-foot">
+                    <span className="muted">{data.items.length} von {data.total} · neueste zuerst</span>
+                    <Pager page={data} onPage={setPage} />
                 </div>
             )}
-
-            <Pager page={data} onPage={setPage} />
-        </>
+        </div>
     );
 }
