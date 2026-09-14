@@ -91,6 +91,7 @@ describe("web/charGearIssues", () => {
             itemId: "28963",
             itemName: "Spellstrike Hood",
             slotName: "Kopf",
+            slotKey: "HEAD",
             iconUrl: "https://wow.zamimg.com/images/wow/icons/large/inv_helmet_21.jpg",
         }]);
     });
@@ -99,6 +100,14 @@ describe("web/charGearIssues", () => {
         mockListReports.mockReturnValue([meta("a1", 200)]);
         mockGetReport.mockReturnValue({ roster: [{ name: "Anna", issues: [issue({ slot: undefined })] }] });
         expect(load().latestIssuesByCharacter().anna.issues[0].slotName).toBe("");
+        expect(load().latestIssuesByCharacter().anna.issues[0].slotKey).toBe("");
+    });
+
+    it("maps the WCL slot index onto the paperdoll's slot key", () => {
+        mockListReports.mockReturnValue([meta("a1", 200)]);
+        mockGetReport.mockReturnValue({ roster: [{ name: "Anna", issues: [issue({ slot: 14 }), issue({ slot: 0, itemId: 2 })] }] });
+        const keys = load().latestIssuesByCharacter().anna.issues.map((i) => i.slotKey).sort();
+        expect(keys).toEqual(["BACK", "HEAD"]);
     });
 
     it("puts high findings before medium ones", () => {

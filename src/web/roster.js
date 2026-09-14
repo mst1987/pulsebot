@@ -1,8 +1,8 @@
 // The guild roster: every known character, tagged with the raid categories
 // (Discord category = one recurring raid series, e.g. "Montagsraid", "Pug") it
 // belongs to, plus what the admin wants to see at a glance for each — the
-// Warcraft-Logs link, the gear issues from its latest evaluation, and the loot
-// it received.
+// Warcraft-Logs link, the gear issues from its latest evaluation, the loot it
+// received, the role it plays and how often it was there (rosterAttendance.js).
 //
 // Two sources say which character raids where, and both are needed:
 //   1. the manual raider->character-per-category assignments (see
@@ -20,6 +20,7 @@ const { characterKey: lootCharacterKey, splitPlayer } = require("../utils/lootIm
 const { CLASS_COLORS, classSpecIconUrl } = require("../utils/setupView");
 const { armoryUrlFor, wclUrlFor } = require("./charLinks");
 const { listKnownCategories } = require("./categoryNames");
+const { buildAttendanceContext, attendanceFor, categoryInfo, roleFor } = require("./rosterAttendance");
 
 // How much loot a roster row carries for its hover panel. The overview shows
 // the newest pieces, not a full history — the character page has that.
@@ -33,8 +34,10 @@ function charKey(character) {
 /**
  * Assemble the roster of one guild.
  *
- * @param {string} guildId  active guild — only used to resolve category names
- * @returns {{chars: object[], categories: {id: string, name: string}[]}}
+ * @param {string} guildId  active guild — resolves category names and limits
+ *                          the raid events attendance counts
+ * @returns {{chars: object[], categories: {id: string, name: string}[],
+ *            categoryInfo: Object<string, {raids: number, contents: string[], icon: string}>}}
  */
 function buildRoster(guildId) {
     const rows = new Map();
@@ -53,6 +56,9 @@ function buildRoster(guildId) {
                 // data error, and the UI says so instead of showing a blank row.
                 assigned: false,
                 raiderIds: [],
+                // category id -> the raiders assigned to this character there;
+                // attendance compares their Raid-Helper signups per category.
+                raiderIdsByCategory: {},
                 lootCount: 0,
                 items: [],
                 className: "",
@@ -90,18 +96,31 @@ function buildRoster(guildId) {
             addCategory(row, categoryId);
             row.assigned = true;
             const uid = String(userId || "").trim();
-            if (uid && !row.raiderIds.includes(uid)) row.raiderIds.push(uid);
+            if (!uid) continue;
+            if (!row.raiderIds.includes(uid)) row.raiderIds.push(uid);
+            const list = row.raiderIdsByCategory[categoryId] || (row.raiderIdsByCategory[categoryId] = []);
+            if (!list.includes(uid)) list.push(uid);
         }
     }
 
-    // 3. annotate: class/spec for the rows loot didn't cover, links, gear issues
+    // 3. annotate: class/spec for the rows loot didn't cover, links, gear
+    //    issues, role and attendance per category
     const known = characterMap();
     const issuesByKey = latestIssuesByCharacter();
-    const chars = [...rows.values()].map((row) => {
+    const ctx = buildAttendanceContext(guildId);
+    const chars = [...rows.values()].map(({ raiderIdsByCategory, ...row }) => {
         const info = known[row.key] || {};
         const className = row.className || info.className || "";
         const spec = row.spec || info.spec || "";
         const gear = issuesByKey[row.key] || null;
+        const attendance = {};
+        for (const id of row.categoryIds) {
+            // The row carries the verdict and the missed nights (its tooltip);
+            // the night-by-night list belongs to the character page.
+            const summary = attendanceFor(ctx, id, row.character, raiderIdsByCategory[id] || []);
+            delete summary.raids;
+            attendance[id] = summary;
+        }
         return {
             ...row,
             className,
@@ -112,14 +131,47 @@ function buildRoster(guildId) {
             armoryUrl: armoryUrlFor(row.character),
             wclUrl: wclUrlFor(row.character),
             gear,
+            role: roleFor(ctx, row.character, className, spec),
+            attendance,
         };
     });
     chars.sort((a, b) => a.character.localeCompare(b.character));
 
+    const info = {};
+    for (const id of new Set(chars.flatMap((c) => c.categoryIds))) info[id] = categoryInfo(ctx, id);
+
     // Names, not a pick list: a category that Discord no longer offers (gateway
     // offline, category deleted) still has to label the rows it owns instead of
     // leaving a raw snowflake in the table — see categoryNames.js.
-    return { chars, categories: listKnownCategories(guildId) };
+    return { chars, categories: listKnownCategories(guildId), categoryInfo: info };
 }
 
-module.exports = { buildRoster, MAX_LOOT_PREVIEW };
+/**
+ * One character's roster facts for the character page: role, the categories it
+ * raids in with their attendance night by night.
+ */
+function rosterCharacter(guildId, name) {
+    const key = charKey(name);
+    if (!key) return null;
+    const roster = buildRoster(guildId);
+    const row = roster.chars.find((c) => c.key === key);
+    if (!row) return null;
+    const ctx = buildAttendanceContext(guildId);
+    const assignments = listAllAssignments();
+    const attendance = {};
+    for (const id of row.categoryIds) {
+        const userIds = Object.entries(assignments[id] || {})
+            .filter(([, charName]) => charKey(charName) === key)
+            .map(([userId]) => userId);
+        attendance[id] = attendanceFor(ctx, id, row.character, userIds);
+    }
+    const names = new Map(roster.categories.map((c) => [c.id, c.name]));
+    return {
+        character: row.character,
+        role: row.role,
+        categories: row.categoryIds.map((id) => ({ id, name: names.get(id) || id, ...(roster.categoryInfo[id] || {}) })),
+        attendance,
+    };
+}
+
+module.exports = { buildRoster, rosterCharacter, MAX_LOOT_PREVIEW };

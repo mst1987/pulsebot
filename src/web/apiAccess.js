@@ -36,6 +36,9 @@ const AREA_BY_PATH = {
     "/api/raider-characters": "settings",
 
     "/api/roster": "roster",
+    // The character page's attendance, role and item facts. The page is routed
+    // under the roster and under the history, so either area opens it.
+    "/api/roster/char": ["roster", "history"],
 
     // The caster loot council. Starting a simulation is a POST, so the method
     // rule already makes it write-level — a read-only council member sees the

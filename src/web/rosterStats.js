@@ -68,6 +68,17 @@ function classDistribution(chars) {
     return head;
 }
 
+/** A character's attendance over all its categories (0..1), or null when no night counted. */
+function attendanceShare(c) {
+    let attended = 0;
+    let total = 0;
+    for (const a of Object.values((c && c.attendance) || {})) {
+        attended += Number(a && a.attended) || 0;
+        total += Number(a && a.total) || 0;
+    }
+    return total ? attended / total : null;
+}
+
 /**
  * The header's stat block for a roster.
  *
@@ -77,6 +88,7 @@ function classDistribution(chars) {
  *   categories: number, uncategorized: number, loot: number,
  *   evaluated: number, withIssues: number, clean: number,
  *   issues: number, highIssues: number,
+ *   avgAttendance: number|null, attendanceCounted: number,
  *   classes: {className: string, classColor: string, count: number}[]
  * }}
  */
@@ -90,6 +102,11 @@ function rosterStats(chars) {
     let withIssues = 0;
     let issues = 0;
     let highIssues = 0;
+    // Ø attendance is the mean of each character's own share over all its
+    // categories, so a raider in two raids is not weighted twice. Characters
+    // without a single counted night stay out instead of pulling it towards 0.
+    let attendanceSum = 0;
+    let attendanceCounted = 0;
 
     for (const c of rows) {
         if (c.assigned) assigned += 1;
@@ -97,6 +114,11 @@ function rosterStats(chars) {
         if (!ids.length) uncategorized += 1;
         for (const id of ids) categoryIds.add(id);
         loot += Number(c.lootCount) || 0;
+        const share = attendanceShare(c);
+        if (share !== null) {
+            attendanceSum += share;
+            attendanceCounted += 1;
+        }
         if (!isEvaluated(c)) continue;
         evaluated += 1;
         const n = issueCount(c);
@@ -117,8 +139,10 @@ function rosterStats(chars) {
         clean: evaluated - withIssues,
         issues,
         highIssues,
+        avgAttendance: attendanceCounted ? Math.round((attendanceSum / attendanceCounted) * 100) : null,
+        attendanceCounted,
         classes: classDistribution(rows),
     };
 }
 
-module.exports = { rosterStats, classDistribution, MAX_CLASS_SEGMENTS };
+module.exports = { rosterStats, classDistribution, attendanceShare, MAX_CLASS_SEGMENTS };

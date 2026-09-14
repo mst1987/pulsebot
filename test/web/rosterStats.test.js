@@ -1,5 +1,5 @@
 // Pure fold over roster rows — nothing to mock, the input is the whole world.
-const { rosterStats, classDistribution, MAX_CLASS_SEGMENTS } = require("../../src/web/rosterStats");
+const { rosterStats, classDistribution, attendanceShare, MAX_CLASS_SEGMENTS } = require("../../src/web/rosterStats");
 
 const char = (over = {}) => ({
     key: "anna",
@@ -24,8 +24,26 @@ describe("web/rosterStats rosterStats", () => {
             total: 0, assigned: 0, fromLootOnly: 0,
             categories: 0, uncategorized: 0, loot: 0,
             evaluated: 0, withIssues: 0, clean: 0,
-            issues: 0, highIssues: 0, classes: [],
+            issues: 0, highIssues: 0, avgAttendance: null, attendanceCounted: 0, classes: [],
         });
+    });
+
+    it("averages each character's own attendance share, ignoring characters without a counted night", () => {
+        const stats = rosterStats([
+            // 9/11 in one raid + 1/1 in another = 10/12 for this character
+            char({ key: "a", attendance: { cat1: { attended: 9, total: 11 }, cat2: { attended: 1, total: 1 } } }),
+            char({ key: "b", attendance: { cat1: { attended: 1, total: 2 } } }),
+            char({ key: "c", attendance: { cat1: { attended: 0, total: 0 } } }),
+            char({ key: "d" }),
+        ]);
+        // (10/12 + 1/2) / 2 = 0.6667
+        expect(stats.avgAttendance).toBe(67);
+        expect(stats.attendanceCounted).toBe(2);
+    });
+
+    it("reads a character's share over all categories", () => {
+        expect(attendanceShare(char({ attendance: { x: { attended: 3, total: 4 } } }))).toBe(0.75);
+        expect(attendanceShare(char())).toBeNull();
     });
 
     it("survives a missing/garbage roster instead of throwing", () => {
