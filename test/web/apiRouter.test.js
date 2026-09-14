@@ -223,6 +223,12 @@ jest.mock("../../src/web/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
     eventLookbackSince: jest.fn(() => 0),
 }));
+// The row shaping is pure and runs for real; the past-raid load rescans the
+// event snapshot and has its own test (raidListing.test.js).
+jest.mock("../../src/web/raidListing", () => ({
+    ...jest.requireActual("../../src/web/raidListing"),
+    loadPastRaids: jest.fn(() => Promise.resolve({ events: [], error: null })),
+}));
 const mockGetTemplates = jest.fn(() => Promise.resolve([]));
 const mockCreateEvent = jest.fn(() => Promise.resolve({ id: "ev1" }));
 const mockGetPastEvents = jest.fn(() => Promise.resolve([]));
@@ -288,6 +294,7 @@ const dashboardData = require("../../src/web/dashboardData");
 const discord = require("../../src/web/discord");
 const raidEventGroups = require("../../src/web/raidEventGroups");
 const raidEventStore = require("../../src/web/raidEventStore");
+const raidListing = require("../../src/web/raidListing");
 const logStore = require("../../src/web/logStore");
 const lootStore = require("../../src/web/lootStore");
 const lootAwards = require("../../src/web/lootAwards");
@@ -1339,13 +1346,17 @@ describe("web/apiRouter", () => {
             expect(raidEventGroups.loadEventGroups).not.toHaveBeenCalled();
         });
 
-        it("returns the active guild's upcoming events grouped by category", async () => {
+        it("returns the active guild's upcoming events as flat rows with content and raid size", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             activeGuildFor.mockReturnValue("guild-1");
             raidEventGroups.loadEventGroups.mockResolvedValue({
-                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", title: "Kara" }] }],
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [
+                    { id: "e1", title: "Kara", startTime: 100, channelId: "c1", channelName: "kara-mo", signupCount: 7 },
+                ] }],
                 error: null,
             });
+            eventSoftresStore.getEventSoftres.mockReturnValueOnce({ url: "https://softres.it/raid/x", editUrl: "secret" });
+            discord.listGuilds.mockReturnValueOnce([{ id: "guild-0", name: "Andere" }, { id: "guild-1", name: "Pulse" }]);
 
             const res = mockRes();
             await handle("/api/raids", { method: "GET" }, res);
@@ -1353,9 +1364,16 @@ describe("web/apiRouter", () => {
             expect(raidEventGroups.loadEventGroups).toHaveBeenCalledWith("guild-1");
             expect(body(res)).toEqual({
                 data: {
-                    groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", title: "Kara" }] }],
+                    events: [{
+                        id: "e1", title: "Kara", startTime: 100, channelId: "c1", channelName: "kara-mo",
+                        categoryId: "cat1", categoryName: "Raids", signupCount: 7,
+                        contentIds: ["kara"], contentSources: ["title"], raidSize: 10, raidSizeKnown: true,
+                        // only the public link — the edit url is the softres admin key
+                        softres: { url: "https://softres.it/raid/x" },
+                    }],
                     error: null,
                     activeGuildId: "guild-1",
+                    guildName: "Pulse",
                 },
             });
         });
@@ -1370,8 +1388,30 @@ describe("web/apiRouter", () => {
 
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
             expect(body(res)).toEqual({
-                data: { groups: [], error: "Raid-Helper nicht erreichbar.", activeGuildId: "guild-1" },
+                data: { events: [], error: "Raid-Helper nicht erreichbar.", activeGuildId: "guild-1", guildName: "" },
             });
+        });
+    });
+
+    describe("GET /api/raids/past", () => {
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = mockRes();
+            await handle("/api/raids/past", { method: "GET" }, res);
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+            expect(raidListing.loadPastRaids).not.toHaveBeenCalled();
+        });
+
+        it("returns the active guild's past raids", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            raidListing.loadPastRaids.mockResolvedValueOnce({ events: [{ id: "p1", title: "BT" }], error: null });
+
+            const res = mockRes();
+            await handle("/api/raids/past", { method: "GET" }, res);
+
+            expect(raidListing.loadPastRaids).toHaveBeenCalledWith("guild-1");
+            expect(body(res)).toEqual({ data: { events: [{ id: "p1", title: "BT" }], error: null, activeGuildId: "guild-1" } });
         });
     });
 
@@ -1391,21 +1431,27 @@ describe("web/apiRouter", () => {
             discord.listTextChannels.mockReturnValue([{ id: "c1", name: "kara", category: "Raids" }]);
             raidEventGroups.loadEventGroups.mockResolvedValue({
                 groups: [{ categoryId: "cat1", categoryName: "Raids", events: [
-                    { id: "e1", title: "Kara", templateId: "t1", description: "desc", channelId: "c1", channelName: "kara" },
+                    { id: "e1", title: "Kara", templateId: "t1", description: "desc", channelId: "c1", channelName: "kara", startTime: 50 },
                 ] }],
                 error: null,
             });
+            raidEventGroups.eventLookbackSince.mockReturnValueOnce(1234);
 
             const res = mockRes();
             await handle("/api/raids/new", { method: "GET" }, res);
 
+            // Past raids of the lookback window can be repeated too.
+            expect(raidEventGroups.loadEventGroups).toHaveBeenCalledWith("guild-1", { sinceSeconds: 1234 });
             expect(body(res)).toEqual({
                 data: {
                     defaults: { templateId: "t1", channelId: "c1" },
                     leaderId: "42",
                     channels: [{ id: "c1", name: "kara", category: "Raids" }],
                     templates: [{ id: "t1", name: "GDKP Kara" }],
-                    reusableEvents: [{ id: "e1", title: "Kara", templateId: "t1", description: "desc", channelId: "c1", channelName: "kara" }],
+                    reusableEvents: [{
+                        id: "e1", title: "Kara", templateId: "t1", description: "desc", channelId: "c1", channelName: "kara",
+                        categoryId: "cat1", categoryName: "Raids", startTime: 50, contentIds: ["kara"],
+                    }],
                 },
             });
         });

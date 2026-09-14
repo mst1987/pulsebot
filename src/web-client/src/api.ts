@@ -606,23 +606,43 @@ export function getRosterChar(name: string, itemIds: number[] = []): Promise<Ros
     return get<RosterCharData>(`/api/roster/char?name=${encodeURIComponent(name)}${items}`);
 }
 
-export type RaidEvent = {
+// A row of the Raid-Events list — mirrors src/web/raidListing.js. `contentIds`
+// are the raid(s) the event is (for the boss icon), [] when nothing was
+// recognised; `contentSources` says where that came from.
+type RaidListBase = {
     id: string;
     title: string;
     startTime: number;
-    leaderId: string;
     channelId: string;
     channelName: string;
     categoryId: string;
-    templateId: string;
-    description: string;
-    signupCount: number;
+    categoryName: string;
+    contentIds: string[];
+    contentSources: string[];
+    softres: { url: string } | null;
 };
-export type RaidEventGroup = { categoryId: string; categoryName: string; events: RaidEvent[] };
-export type RaidsData = { groups: RaidEventGroup[]; error: string | null; activeGuildId: string };
+export type UpcomingRaid = RaidListBase & {
+    signupCount: number;
+    /** 10 for a ten-player night, else 25; `raidSizeKnown` false = only the default. */
+    raidSize: number;
+    raidSizeKnown: boolean;
+};
+export type PendingRaidLog = { title: string; alsoFits: string[] };
+export type PastRaid = RaidListBase & {
+    logs: EventLog[];
+    pendingLogs: PendingRaidLog[];
+    pendingLogCount: number;
+    lootCount: number;
+};
+export type RaidsData = { events: UpcomingRaid[]; error: string | null; activeGuildId: string; guildName: string };
+export type PastRaidsData = { events: PastRaid[]; error: string | null; activeGuildId: string };
 
 export function getRaids(): Promise<RaidsData> {
     return get<RaidsData>("/api/raids");
+}
+
+export function getPastRaids(): Promise<PastRaidsData> {
+    return get<PastRaidsData>("/api/raids/past");
 }
 
 // ===== Raid detail (per-event page) =====
@@ -828,6 +848,10 @@ export type ReusableEvent = {
     description: string;
     channelId: string;
     channelName: string;
+    categoryId: string;
+    categoryName: string;
+    startTime: number;
+    contentIds: string[];
 };
 
 export type RaidCreateContext = {
