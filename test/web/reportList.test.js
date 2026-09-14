@@ -237,3 +237,57 @@ describe("web/reportList annotateReportEvents", () => {
         expect(prepareReportList(reports, { sort: "event", dir: "desc" }).items[0].id).toBe("r1");
     });
 });
+
+describe("prepareClaList — the Log-Auswertung's one list", () => {
+    const { prepareClaList, claRowFromLog, CLA_FILTERS } = require("../../src/web/reportList.js");
+    const hyjal = { contentId: "hyjal", label: "Hyjal", killed: 5, total: 5, finalKilled: true, finalBoss: "Archimonde", missing: [], bosses: [] };
+
+    const logs = [
+        { id: "open", reportId: "A", postedAt: 4000, messageId: "m1", channelId: "c1", guildId: "g1", raids: [hyjal] },
+        { id: "half", reportId: "B", postedAt: 3000, sections: ["cla"], reportRefId: "r1", eventId: "e1", eventLabel: "BT" },
+        { id: "legacy", reportId: "C", postedAt: 2000, status: "done", reportRefId: "r2", eventId: "e2", eventLabel: "Kara" },
+    ];
+    const reports = [
+        { id: "r1", title: "BT", generatedAt: 3500, playerCount: 25, issueCount: 7, raids: [{ ...hyjal, contentId: "bt", label: "BT" }] },
+        { id: "r2", title: "Kara", generatedAt: 2500 },
+        { id: "r3", title: "Per Link", generatedAt: 1000, sections: ["cla", "rpb"], reportId: "Z" },
+    ];
+
+    it("makes one row per log and one per report no log points at", () => {
+        const { page } = prepareClaList(logs, reports, {});
+        expect(page.items.map((r) => r.id)).toEqual(["open", "half", "legacy", "report:r3"]);
+        expect(page.items[3]).toMatchObject({ kind: "report", source: "link", sections: ["cla", "rpb"], wclUrl: "https://classic.warcraftlogs.com/reports/Z" });
+        expect(page.items[0]).toMatchObject({ kind: "log", source: "channel", sections: [], report: null, raids: [hyjal] });
+    });
+
+    it("carries the report's numbers and raids on the log's row, and reads a legacy done log as CLA", () => {
+        const { page } = prepareClaList(logs, reports, {});
+        const half = page.items.find((r) => r.id === "half");
+        expect(half.report).toEqual({ id: "r1", url: "/r/r1", generatedAt: 3500, playerCount: 25, issueCount: 7 });
+        expect(half.raids[0].contentId).toBe("bt");
+        expect(page.items.find((r) => r.id === "legacy").sections).toEqual(["cla"]);
+    });
+
+    it("counts and filters open, unlinked and done", () => {
+        const { counts } = prepareClaList(logs, reports, {});
+        expect(counts).toEqual({ all: 4, open: 1, unlinked: 1, done: 3 });
+        expect(prepareClaList(logs, reports, { filter: "unlinked" }).page.items.map((r) => r.id)).toEqual(["open"]);
+        expect(prepareClaList(logs, reports, { filter: "done" }).page.items.map((r) => r.id)).toEqual(["half", "legacy", "report:r3"]);
+        expect(prepareClaList(logs, reports, { filter: "bogus" }).filter).toBe("all");
+        expect(CLA_FILTERS).toEqual(["all", "open", "unlinked", "done"]);
+    });
+
+    it("does not list a report as a link report when its log belongs to another guild", () => {
+        const { page } = prepareClaList([logs[0]], reports, {}, { allLogs: logs });
+        expect(page.items.map((r) => r.id)).toEqual(["open", "report:r3"]);
+    });
+
+    it("sorts by event with the unassigned logs first, and by status", () => {
+        expect(prepareClaList(logs, [], { sort: "event", dir: "asc" }).page.items.map((r) => r.id)).toEqual(["open", "half", "legacy"]);
+        expect(prepareClaList(logs, [], { sort: "status", dir: "asc" }).page.items[0].id).toBe("open");
+    });
+
+    it("marks a log that was never posted in a channel as a link", () => {
+        expect(claRowFromLog({ id: "x", reportId: "Q", link: "https://w/reports/Q" }, null)).toMatchObject({ source: "link", wclUrl: "https://w/reports/Q" });
+    });
+});

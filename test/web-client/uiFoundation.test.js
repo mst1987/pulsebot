@@ -159,7 +159,8 @@ describe("confirm dialog instead of window.confirm", () => {
 
     it("asks through useConfirm in every place that used to call confirm()", () => {
         const places = {
-            "pages/ClaPage.tsx": 5,
+            // verwerfen, Log löschen, Report löschen, Zuordnung entfernen
+            "pages/ClaPage.tsx": 4,
             "pages/RaidDetailPage.tsx": 3,
             "pages/SettingsPage.tsx": 2,
             "pages/RecruitmentPage.tsx": 2,
@@ -181,7 +182,7 @@ describe("confirm dialog instead of window.confirm", () => {
     it("turns the unfinished-raid refusal into the dialog", () => {
         const lib = read("lib", "confirmIncomplete.ts");
         expect(lib).toContain("export async function withIncompleteConfirm<T>(ask: ConfirmFn, run: (force: boolean) => Promise<T>)");
-        expect(lib).toContain("title: \"Raid nicht beendet\"");
+        expect(lib).toContain("title: \"Raid noch nicht abgeschlossen\"");
         expect(lib).toContain("action: \"Trotzdem auswerten\"");
         for (const [name, src] of clientSources()) {
             for (const [call] of src.matchAll(/withIncompleteConfirm\([^,)]*/g)) {

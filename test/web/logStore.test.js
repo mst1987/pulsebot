@@ -22,7 +22,7 @@ jest.mock("fs", () => {
 const fs = require("fs");
 const {
     listLogs, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
-    markEvaluated, evaluatedSections, clearEvaluation, clearSection, setLogTitle, deleteLog,
+    markEvaluated, evaluatedSections, clearEvaluation, clearSection, setLogTitle, setLogRaids, deleteLog,
     linkEvent, unlinkEvent, listLogsForEvent,
 } = require("../../src/web/logStore.js");
 
@@ -86,6 +86,23 @@ describe("web/logStore", () => {
 
         it("returns null for an unknown id", () => {
             expect(setButtonMessage("nope", {})).toBeNull();
+        });
+    });
+
+    describe("setLogRaids", () => {
+        it("stores the raids of a log with the time they were read", () => {
+            const a = saveLog(base());
+            const raids = [{ contentId: "hyjal", label: "Hyjal", killed: 3, total: 5, finalKilled: false }];
+            const updated = setLogRaids(a.id, raids);
+            expect(updated.raids).toEqual(raids);
+            expect(typeof getLog(a.id).raidsAt).toBe("number");
+        });
+
+        it("ignores an unknown id and anything that is not a list", () => {
+            const a = saveLog(base());
+            expect(setLogRaids("nope", [])).toBeNull();
+            expect(setLogRaids(a.id, null)).toBeNull();
+            expect(getLog(a.id).raids).toBeUndefined();
         });
     });
 

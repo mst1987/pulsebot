@@ -167,6 +167,18 @@ describe("web/reportStore", () => {
             expect(byId[neither]).toMatchObject({ reportId: "", reportUrl: "" });
         });
 
+        it("carries the halves and the raids with their boss count for the log list", () => {
+            const withProgress = saveReport({
+                title: "Hyjal", sections: ["cla"], players: [],
+                raidProgress: { raids: [{ contentId: "hyjal", short: "Hyjal", done: false, finalBosses: ["Archimonde"], bosses: [{ name: "Rage Winterchill", killed: true }, { name: "Archimonde", killed: false }] }] },
+            });
+            const old = saveReport({ title: "Alt", players: [] });
+            const byId = Object.fromEntries(listReports().map((r) => [r.id, r]));
+            expect(byId[withProgress].sections).toEqual(["cla"]);
+            expect(byId[withProgress].raids).toEqual([expect.objectContaining({ contentId: "hyjal", killed: 1, total: 2, finalKilled: false })]);
+            expect(byId[old]).toMatchObject({ sections: [], raids: null });
+        });
+
         it("skips unreadable files", () => {
             saveReport({ title: "Good", players: [] });
             fs.__store.set(path.join(REPORTS_DIR, "corrupt99.json"), "{broken");

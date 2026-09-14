@@ -138,3 +138,51 @@ describe("progressSummary", () => {
         expect(progressSummary(p)).toBe("");
     });
 });
+
+describe("raidProgress — the encounter grid and the list summary", () => {
+    const { raidSummary, encountersFor } = require("../../../src/utils/logcheck/raidProgress");
+
+    it("lists every encounter of a raid with what lies", () => {
+        const p = analyzeRaidProgress(report([
+            { name: "Rage Winterchill", kill: true },
+            { name: "Anetheron", kill: true },
+            { name: "Kaz'rogal", kill: true },
+            { name: "Azgalor", kill: false },
+        ], "Hyjal Summit"));
+        expect(p.raids[0].short).toBe("Hyjal");
+        expect(p.raids[0].bosses).toEqual([
+            { name: "Rage Winterchill", killed: true },
+            { name: "Anetheron", killed: true },
+            { name: "Kaz'rogal", killed: true },
+            { name: "Azgalor", killed: false },
+            { name: "Archimonde", killed: false },
+        ]);
+        expect(raidSummary(p)).toEqual([{
+            contentId: "hyjal", label: "Hyjal", killed: 3, total: 5, finalKilled: false, finalBoss: "Archimonde",
+            missing: ["Azgalor", "Archimonde"], bosses: p.raids[0].bosses,
+        }]);
+    });
+
+    it("counts Karazhan by its encounters: one opera, no rare spawns", () => {
+        expect(encountersFor("kara")).toHaveLength(11);
+        expect(encountersFor("kara")).toContain("Opera Event");
+        expect(encountersFor("kara")).not.toContain("The Big Bad Wolf");
+        const p = analyzeRaidProgress(report([{ name: "The Big Bad Wolf", kill: true }, { name: "Prince Malchezaar", kill: true }]));
+        const [kara] = raidSummary(p);
+        expect(kara).toMatchObject({ killed: 2, total: 11, finalKilled: true });
+    });
+
+    it("marks a final boss killed under its German name as down in the grid", () => {
+        const p = analyzeRaidProgress(report([{ name: "Illidan Sturmgrimm", kill: true }]));
+        const bt = p.raids.find((r) => r.contentId === "bt");
+        expect(bt.bosses[bt.bosses.length - 1]).toEqual({ name: "Illidan Stormrage", killed: true });
+    });
+
+    it("reads a progress stored before the grid existed", () => {
+        const [ssc] = raidSummary({ raids: [{ contentId: "ssc", label: "Höhle des Schlangenschreins", finalBosses: ["Lady Vashj"], done: false, killed: 4 }] });
+        expect(ssc).toEqual({
+            contentId: "ssc", label: "SSC", killed: 4, total: 6, finalKilled: false, finalBoss: "Lady Vashj", missing: ["Lady Vashj"], bosses: [],
+        });
+        expect(raidSummary(null)).toEqual([]);
+    });
+});

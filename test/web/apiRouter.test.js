@@ -88,6 +88,9 @@ jest.mock("../../src/web/reportList", () => ({
     annotateLogCategories: jest.fn((items) => items),
     annotateReportEvents: jest.fn((reports) => reports),
     logPostedAt: jest.fn((l) => (l && l.postedAt) || 0),
+    // the Log-Auswertung list is pure; the route tests run the real one
+    prepareClaList: jest.fn((...args) => jest.requireActual("../../src/web/reportList").prepareClaList(...args)),
+    claRowFromLog: jest.fn((...args) => jest.requireActual("../../src/web/reportList").claRowFromLog(...args)),
 }));
 jest.mock("../../src/web/logEventMatch", () => ({
     annotateMatches: jest.fn((items) => items),
@@ -3546,48 +3549,72 @@ describe("web/apiRouter", () => {
             expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
         });
 
-        it("defaults to the reports view: unfiltered report count, guild-filtered log count", async () => {
+        it("lists the guild's logs and the link reports in one page, with a count per filter", async () => {
             activeGuildFor.mockReturnValue("guild-1");
             logStore.listLogs.mockReturnValue([
-                { id: "l1", guildId: "guild-1", eventId: "e1" },
-                { id: "l2", guildId: "guild-2" },
-                { id: "l3", guildId: "" },
+                { id: "l1", guildId: "guild-1", eventId: "e1", sections: ["cla"], reportRefId: "r1", postedAt: 3000 },
+                { id: "l2", guildId: "guild-2", reportRefId: "r2", postedAt: 2000 },
+                { id: "l3", guildId: "", postedAt: 1000 },
             ]);
-            reportStore.listReports.mockReturnValue([{ id: "r1" }, { id: "r2" }, { id: "r3" }]);
+            reportStore.listReports.mockReturnValue([
+                { id: "r1", playerCount: 25, issueCount: 3, generatedAt: 5 },
+                { id: "r2" }, // its log lives in another guild — not a link report
+                { id: "r3", title: "Kara per Link", generatedAt: 500 },
+            ]);
+
+            const res = await get("/api/cla");
+            const data = body(res).data;
+
+            expect(data.filter).toBe("all");
+            expect(data.page.items.map((r) => r.id)).toEqual(["l1", "l3", "report:r3"]);
+            expect(data.page.items[0].report).toMatchObject({ id: "r1", url: "/r/r1", playerCount: 25, issueCount: 3 });
+            expect(data.page.items[2]).toMatchObject({ kind: "report", source: "link", title: "Kara per Link" });
+            expect(data.counts).toEqual({ all: 3, open: 1, unlinked: 1, done: 2 });
+            expect(data.matchEventsError).toBeNull();
+            expect(data.activeGuildId).toBe("guild-1");
+        });
+
+        it("passes filter/sort/dir/page through to prepareClaList", async () => {
+            await get("/api/cla", { filter: "unlinked", sort: "event", dir: "asc", page: "2" });
+            expect(reportList.prepareClaList).toHaveBeenCalledWith(
+                [], [], { filter: "unlinked", sort: "event", dir: "asc", page: "2" }, { allLogs: [] },
+            );
+        });
+
+        it("reads title and bosses of the page's logs from WCL, and only of those", async () => {
+            logStore.listLogs.mockReturnValue([{ id: "l1", reportId: "AAA" }]);
+            logChannel.backfillLogTitles.mockImplementationOnce(async (logs) => {
+                logs[0].title = "Hyjal";
+                logs[0].raids = [{ contentId: "hyjal", label: "Hyjal", killed: 3, total: 5, finalKilled: false, finalBoss: "Archimonde", missing: ["Azgalor", "Archimonde"], bosses: [] }];
+                return 1;
+            });
 
             const res = await get("/api/cla");
 
-            expect(body(res).data.view).toBe("reports");
-            expect(body(res).data.reportPage).not.toBeNull();
-            expect(body(res).data.logPage).toBeNull();
-            expect(body(res).data.reportPage.items).toEqual([{ id: "r1" }, { id: "r2" }, { id: "r3" }]);
-            // counts.reports is unfiltered (reports carry no guildId); counts.logs is
-            // the guild-filtered count (l2 belongs to another guild and is excluded).
-            expect(body(res).data.counts).toEqual({ reports: 3, logs: 2 });
-            expect(body(res).data.unlinkedCount).toBe(1); // l1 is linked, l3 is not (l2 filtered out)
-            expect(body(res).data.matchEventsError).toBeNull();
-            expect(body(res).data.activeGuildId).toBe("guild-1");
+            expect(logChannel.backfillLogTitles).toHaveBeenCalledWith([expect.objectContaining({ id: "l1" })]);
+            expect(body(res).data.page.items[0]).toMatchObject({ title: "Hyjal", raids: [expect.objectContaining({ killed: 3, total: 5 })] });
         });
 
-        it("annotates the reports with their raid assignment from ALL logs, not just the active guild's", async () => {
-            activeGuildFor.mockReturnValue("guild-1");
-            const logs = [{ id: "l1", guildId: "guild-1" }, { id: "l2", guildId: "guild-2", reportRefId: "r1" }];
-            logStore.listLogs.mockReturnValue(logs);
-            reportStore.listReports.mockReturnValue([{ id: "r1" }]);
+        it("offers candidates for assigned logs too, and counts what auto-assign would link", async () => {
+            logStore.listLogs.mockReturnValue([{ id: "l1", eventId: "e9" }, { id: "l2" }]);
+            logEventMatch.annotateMatches.mockImplementationOnce((items) => {
+                for (const it of items) {
+                    it.candidates = [{ eventId: "e1", title: "Hyjal + BT", startTime: 1, diffMs: 0, sameCategory: true }];
+                    it.matchAmbiguous = false;
+                }
+                return items;
+            });
+            logEventMatch.autoMatches.mockReturnValueOnce([{ log: { id: "l2" }, event: { id: "e1" } }]);
 
-            await get("/api/cla");
+            const res = await get("/api/cla");
+            const items = body(res).data.page.items;
 
-            expect(reportList.annotateReportEvents).toHaveBeenCalledWith([{ id: "r1" }], logs);
-        });
-
-        it("passes sort/dir/page through to prepareReportList", async () => {
-            await get("/api/cla", { sort: "title", dir: "asc", page: "2" });
-            expect(reportList.prepareReportList).toHaveBeenCalledWith([], { sort: "title", dir: "asc", page: "2" });
-        });
-
-        it("only computes the active view (reports) — prepareLogList is not called", async () => {
-            await get("/api/cla");
-            expect(reportList.prepareLogList).not.toHaveBeenCalled();
+            // annotateMatches skips linked logs, so the route hands them over without their event
+            expect(logEventMatch.annotateMatches.mock.calls[0][0].every((it) => it.eventId === "")).toBe(true);
+            expect(items.find((r) => r.id === "l1").eventId).toBe("e9");
+            expect(items.find((r) => r.id === "l1").candidates[0]).toMatchObject({ eventId: "e1", contentId: "hyjal" });
+            expect(body(res).data.autoMatchCount).toBe(1);
+            expect(logEventMatch.autoMatches.mock.calls[0][0].map((l) => l.id)).toEqual(["l2"]);
         });
 
         it("logChannelsConfigured is false when no log channels are configured", async () => {
@@ -3602,44 +3629,32 @@ describe("web/apiRouter", () => {
             expect(body(res).data.logChannelsConfigured).toBe(true);
         });
 
-        describe("view=logs", () => {
-            it("computes only the logs view — prepareReportList is not called — and annotates/matches", async () => {
-                activeGuildFor.mockReturnValue("guild-1");
-                logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "guild-1", channelId: "c1" }]);
-                discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "log-chan", categoryId: "cat1", categoryName: "Raids" } });
-                mockGetPastEvents.mockResolvedValue([{ id: "e1", title: "Kara", startTime: 100, channelId: "c1" }]);
+        it("annotates categories and matches against the guild's events", async () => {
+            activeGuildFor.mockReturnValue("guild-1");
+            logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "guild-1", channelId: "c1" }]);
+            discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "log-chan", categoryId: "cat1", categoryName: "Raids" } });
+            mockGetPastEvents.mockResolvedValue([{ id: "e1", title: "Kara", startTime: 100, channelId: "c1" }]);
 
-                const res = await get("/api/cla", { view: "logs" });
+            await get("/api/cla");
 
-                expect(body(res).data.view).toBe("logs");
-                expect(body(res).data.reportPage).toBeNull();
-                expect(body(res).data.logPage).not.toBeNull();
-                expect(reportList.prepareReportList).not.toHaveBeenCalled();
-                expect(logChannel.backfillLogTitles).toHaveBeenCalledWith(body(res).data.logPage.items);
-                expect(reportList.annotateLogCategories).toHaveBeenCalledWith(
-                    expect.any(Array),
-                    { c1: { name: "log-chan", categoryId: "cat1", categoryName: "Raids" } },
-                );
-                expect(logEventMatch.annotateMatches).toHaveBeenCalledWith(
-                    expect.any(Array),
-                    [{ id: "e1", title: "Kara", startTime: 100, channelId: "c1", channelName: "log-chan", categoryId: "cat1", categoryName: "Raids" }],
-                );
-            });
+            expect(reportList.annotateLogCategories).toHaveBeenCalledWith(
+                expect.any(Array),
+                { c1: { name: "log-chan", categoryId: "cat1", categoryName: "Raids" } },
+            );
+            expect(logEventMatch.annotateMatches).toHaveBeenCalledWith(
+                expect.any(Array),
+                [{ id: "e1", title: "Kara", startTime: 100, channelId: "c1", channelName: "log-chan", categoryId: "cat1", categoryName: "Raids" }],
+            );
+        });
 
-            it("passes sort/dir/page through to prepareLogList", async () => {
-                activeGuildFor.mockReturnValue("guild-1");
-                await get("/api/cla", { view: "logs", sort: "status", dir: "asc", page: "3" });
-                expect(reportList.prepareLogList).toHaveBeenCalledWith([], { sort: "status", dir: "asc", page: "3" });
-            });
+        it("surfaces the Raid-Helper error as matchEventsError and offers no auto-assign", async () => {
+            activeGuildFor.mockReturnValue("guild-1");
+            mockGetPastEvents.mockRejectedValue(new Error("API down"));
 
-            it("surfaces the Raid-Helper error as matchEventsError", async () => {
-                activeGuildFor.mockReturnValue("guild-1");
-                mockGetPastEvents.mockRejectedValue(new Error("API down"));
+            const res = await get("/api/cla");
 
-                const res = await get("/api/cla", { view: "logs" });
-
-                expect(body(res).data.matchEventsError).toBe("API down");
-            });
+            expect(body(res).data.matchEventsError).toBe("API down");
+            expect(body(res).data.autoMatchCount).toBe(0);
         });
     });
 
@@ -3717,6 +3732,27 @@ describe("web/apiRouter", () => {
             expect(body(res).data).toMatchObject({
                 status: "error", error: "Unerwarteter Fehler beim Erstellen der Auswertung.",
             });
+        });
+
+        it("hands an unfinished raid back with its bosses, for the question dialog", async () => {
+            const err = new ReportError("Der Raid sieht noch nicht abgeschlossen aus.");
+            err.incomplete = true;
+            err.progress = {
+                raids: [{
+                    contentId: "hyjal", short: "Hyjal", done: false, finalBosses: ["Archimonde"],
+                    bosses: [{ name: "Rage Winterchill", killed: true }, { name: "Archimonde", killed: false }],
+                }],
+            };
+            buildReport.mockRejectedValue(err);
+
+            const started = await post("/api/cla", { link: "https://x/reports/abc" });
+            await flushJobs();
+            const res = await get("/api/cla/report-status", { jobId: body(started).data.jobId });
+
+            expect(body(res).data).toMatchObject({ status: "error", incomplete: true });
+            expect(body(res).data.raids).toEqual([expect.objectContaining({
+                contentId: "hyjal", label: "Hyjal", killed: 1, total: 2, finalKilled: false, missing: ["Archimonde"],
+            })]);
         });
 
         it("answers unknown for a job id nobody started", async () => {

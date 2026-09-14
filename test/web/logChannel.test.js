@@ -222,7 +222,7 @@ describe("web/logChannel — backfillLogTitles", () => {
         mockGetFights.mockResolvedValue({ title: "  Karazhan 24/07 ", zoneName: "Karazhan" });
         const logs = [
             { id: "l1", reportId: "AAA" },
-            { id: "l2", reportId: "BBB", title: "Kept" }, // already has a title → skipped
+            { id: "l2", reportId: "BBB", title: "Kept", raids: [] }, // title and raids known → skipped
         ];
         const filled = await backfillLogTitles(logs);
         expect(filled).toBe(1);
@@ -232,9 +232,43 @@ describe("web/logChannel — backfillLogTitles", () => {
         expect(logs[1].title).toBe("Kept");
     });
 
-    it("is a no-op without any untitled logs", async () => {
-        expect(await backfillLogTitles([{ id: "x", reportId: "Y", title: "T" }])).toBe(0);
+    it("is a no-op when every log has its title and its raids", async () => {
+        expect(await backfillLogTitles([{ id: "x", reportId: "Y", title: "T", raids: [] }])).toBe(0);
         expect(mockGetFights).not.toHaveBeenCalled();
+    });
+
+    it("reads the raids and their boss count from the same request, and stores them", async () => {
+        mockGetFights.mockResolvedValue({
+            title: "Hyjal",
+            zoneName: "Hyjal Summit",
+            fights: [
+                { id: 1, boss: 1, name: "Rage Winterchill", kill: true },
+                { id: 2, boss: 2, name: "Anetheron", kill: true },
+                { id: 3, boss: 3, name: "Kaz'rogal", kill: true },
+                { id: 4, boss: 4, name: "Azgalor", kill: false },
+            ],
+        });
+        const logs = [{ id: "l1", reportId: "AAA", title: "Hyjal" }];
+        await backfillLogTitles(logs, 1_000_000);
+        expect(logStore.setLogTitle).not.toHaveBeenCalled();
+        expect(logStore.setLogRaids).toHaveBeenCalledWith("l1", [expect.objectContaining({
+            contentId: "hyjal", label: "Hyjal", killed: 3, total: 5, finalKilled: false, missing: ["Azgalor", "Archimonde"],
+        })]);
+        expect(logs[0].raids[0].killed).toBe(3);
+    });
+
+    it("re-reads an unfinished raid of a fresh post, but not a finished, evaluated or old one", async () => {
+        const now = 100 * 60 * 60 * 1000;
+        const unfinished = [{ contentId: "hyjal", finalKilled: false }];
+        mockGetFights.mockResolvedValue({ title: "x", fights: [] });
+        await backfillLogTitles([
+            { id: "fresh", reportId: "A", title: "t", raids: unfinished, postedAt: now - 60 * 60 * 1000, raidsAt: now - 30 * 60 * 1000 },
+            { id: "justRead", reportId: "B", title: "t", raids: unfinished, postedAt: now - 60 * 60 * 1000, raidsAt: now - 60 * 1000 },
+            { id: "old", reportId: "C", title: "t", raids: unfinished, postedAt: now - 48 * 60 * 60 * 1000, raidsAt: 0 },
+            { id: "evaluated", reportId: "D", title: "t", raids: unfinished, sections: ["cla"], postedAt: now, raidsAt: 0 },
+            { id: "done", reportId: "E", title: "t", raids: [{ contentId: "bt", finalKilled: true }], postedAt: now, raidsAt: 0 },
+        ], now);
+        expect(mockGetFights.mock.calls.map((c) => c[0])).toEqual(["A"]);
     });
 
     it("skips silently when the WCL API key is missing", async () => {

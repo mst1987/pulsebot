@@ -1395,25 +1395,8 @@ export type ClaPage<T> = {
     pageSize: number;
 };
 
-export type ReportSummary = {
-    id: string;
-    title: string;
-    zone: string;
-    generatedAt: number;
-    reportId: string;
-    reportUrl: string;
-    playerCount: number;
-    issueCount: number;
-    // Raid assignment, resolved via the tracked log this report came from
-    // (annotateReportEvents). All empty when there is no log / no raid.
-    logId: string;
-    eventId: string;
-    eventLabel: string;
-    eventStartTime: number;
-};
-
 // A candidate raid event a detected log could belong to, ranked by how close
-// its start time is to the log's post time — mirrors matchOptionLabel()'s input.
+// its start time is to the log's post time (web/logEventMatch.js).
 export type MatchCandidate = {
     eventId: string;
     title: string;
@@ -1421,52 +1404,73 @@ export type MatchCandidate = {
     categoryName: string;
     diffMs: number;
     sameCategory: boolean;
+    /** The raid the event title names ("hyjal"), for its boss icon; "" when none. */
+    contentId?: string;
 };
 
-export type LogRow = {
+// One raid a log covers and how far it got — raidProgress.raidSummary().
+export type ClaRaid = {
+    contentId: string;
+    /** Short raid name, "Hyjal". */
+    label: string;
+    killed: number;
+    total: number;
+    finalKilled: boolean;
+    finalBoss: string;
+    /** Encounters still standing, in raid order. */
+    missing: string[];
+    /** Every encounter with its state; empty for a report stored before the grid existed. */
+    bosses: { name: string; killed: boolean }[];
+};
+
+// A row of the Log-Auswertung list (web/reportList.js prepareClaList): a tracked
+// log, or a report built from a pasted link that has no log ("report").
+export type ClaRow = {
+    kind: "log" | "report";
     id: string;
+    logId: string;
+    title: string;
+    zone: string;
+    reportId: string;
+    wclUrl: string;
+    /** Post time in the log channel (a link report: its build time), epoch ms. */
+    postedAt: number;
+    source: "channel" | "link";
     guildId: string;
     channelId: string;
     messageId: string;
-    reportId: string;
-    link: string;
-    title: string;
-    status: "open" | "done";
-    postedAt: number;
-    detectedAt: number;
+    channelName: string;
     categoryId: string;
     categoryName: string;
-    channelName: string;
+    /** Which analyses already ran ("cla" / "rpb"). */
+    sections: LogSection[];
+    report: { id: string; url: string; generatedAt: number; playerCount: number; issueCount: number } | null;
+    raids: ClaRaid[];
     eventId: string;
     eventLabel: string;
     eventStartTime: number;
     eventLinkSource: "manual" | "auto" | "";
-    reportUrl: string;
-    reportRefId: string;
-    /**
-     * Time-matched event candidates. Absent for logs that are already linked —
-     * the backend's annotateMatches() skips those, so this must stay optional.
-     */
+    /** Time-matched events; absent on linked logs and link reports. */
     candidates?: MatchCandidate[];
     matchAmbiguous?: boolean;
-    /** Which analyses already ran for this log ("cla" / "rpb"). */
-    sections?: string[];
 };
 
+export type ClaFilter = "all" | "open" | "unlinked" | "done";
+
 export type ClaData = {
-    view: "reports" | "logs";
-    reportPage: ClaPage<ReportSummary> | null;
-    logPage: ClaPage<LogRow> | null;
+    filter: ClaFilter;
+    page: ClaPage<ClaRow>;
+    counts: Record<ClaFilter, number>;
+    /** How many open logs "Automatisch zuordnen" would assign right now. */
+    autoMatchCount: number;
     matchEventsError: string | null;
-    unlinkedCount: number;
-    counts: { reports: number; logs: number };
     logChannelsConfigured: boolean;
     activeGuildId: string;
 };
 
-export function getClaData(view: "reports" | "logs", sort?: string, dir?: string, page?: number): Promise<ClaData> {
+export function getClaData(filter: ClaFilter, sort?: string, dir?: string, page?: number): Promise<ClaData> {
     const qs = new URLSearchParams();
-    qs.set("view", view);
+    qs.set("filter", filter);
     if (sort) qs.set("sort", sort);
     if (dir) qs.set("dir", dir);
     if (page) qs.set("page", String(page));
@@ -1480,7 +1484,12 @@ export type JobPollStatus = {
     error?: string;
     /** The job stopped because the raid's final boss is not down yet. */
     incomplete?: boolean;
+    /** With `incomplete`: the raids of the log and which bosses still stand. */
+    raids?: ClaRaid[];
 };
+
+/** A refused evaluation over a raid that is still running (code RAID_INCOMPLETE). */
+export type IncompleteRaidError = ApiError & { raids?: ClaRaid[] };
 
 /**
  * The error code a refused evaluation carries — the raid was still running.
@@ -1531,7 +1540,7 @@ async function pollJob(
             // A raid that is still running is a question, not a failure — the
             // caller offers "evaluate anyway" on this code.
             const code = state.incomplete ? RAID_INCOMPLETE : "job_failed";
-            throw { code, message: state.error || failMessage } as ApiError;
+            throw { code, message: state.error || failMessage, raids: state.raids } as IncompleteRaidError;
         }
         if (state.status === "unknown") {
             // the job vanished without leaving a result (server restart mid-run)
@@ -1551,13 +1560,6 @@ export function deleteReport(
     reportId: string,
 ): Promise<{ reportId: string; logId: string; message: string }> {
     return send("POST", "/api/cla/report-delete", csrfToken, { reportId });
-}
-
-export function unlinkReport(
-    csrfToken: string | null,
-    reportId: string,
-): Promise<{ reportId: string; logId: string; message: string }> {
-    return send("POST", "/api/cla/report-unlink", csrfToken, { reportId });
 }
 
 /**
@@ -1580,6 +1582,7 @@ export type EvalStatus = {
     id?: string;
     error?: string;
     incomplete?: boolean;
+    raids?: ClaRaid[];
     section?: LogSection;
     runningMs?: number;
 };

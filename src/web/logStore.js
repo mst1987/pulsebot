@@ -218,6 +218,23 @@ function setLogTitle(id, title) {
 }
 
 /**
+ * Store which raids a log covers and how far each got (raidProgress.raidSummary()
+ * of its WCL fight list), with the time it was read — backfilled lazily when the
+ * list is viewed, so "Hyjal 3/5" is there before anyone evaluated the log.
+ * Returns the saved log, or null for an unknown id / a non-array.
+ */
+function setLogRaids(id, raids) {
+    if (!Array.isArray(raids)) return null;
+    const logs = readAll();
+    const log = logs.find((l) => l.id === id);
+    if (!log) return null;
+    log.raids = raids;
+    log.raidsAt = Date.now();
+    writeAll(logs);
+    return log;
+}
+
+/**
  * Link a log to the Raid-Helper event it belongs to. Stores a snapshot of the
  * event's title/start time as well, because Raid-Helper drops past events from
  * its list — without the snapshot an old assignment would lose its label.
@@ -277,6 +294,6 @@ function deleteLog(id) {
 
 module.exports = {
     listLogs, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
-    markEvaluated, evaluatedSections, clearEvaluation, clearSection, setLogTitle, deleteLog, LOGS_FILE,
+    markEvaluated, evaluatedSections, clearEvaluation, clearSection, setLogTitle, setLogRaids, deleteLog, LOGS_FILE,
     linkEvent, unlinkEvent, listLogsForEvent,
 };

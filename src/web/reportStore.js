@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { raidSummary } = require("../utils/logcheck/raidProgress");
 
 // Reports are stored as JSON files under data/reports/<id>.json
 const REPORTS_DIR = path.join(__dirname, "..", "..", "data", "reports");
@@ -78,6 +79,10 @@ function listReports() {
                 reportUrl: r.reportUrl || (r.reportId ? `https://classic.warcraftlogs.com/reports/${r.reportId}` : ""),
                 playerCount: (r.players || []).length,
                 issueCount: (r.players || []).reduce((n, p) => n + (p.issues || []).length, 0),
+                sections: Array.isArray(r.sections) ? r.sections : [],
+                // Which raids the log covered and how far each got ("Hyjal 3/5");
+                // null for a report built before the progress was kept on it.
+                raids: r.raidProgress ? raidSummary(r.raidProgress) : null,
             });
         } catch {
             // skip unreadable file
