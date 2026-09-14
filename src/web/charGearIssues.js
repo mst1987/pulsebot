@@ -35,8 +35,17 @@ function issueIconUrl(icon) {
     return `${ICON_BASE}/${String(icon).replace(/\.(jpg|jpeg|png|gif)$/i, "").toLowerCase()}.jpg`;
 }
 
+// WCL's gear slot index -> the Battle.net equipment slot key the character
+// page's paperdoll rows use, so a finding can sit on the row it is about.
+const SLOT_KEYS = {
+    0: "HEAD", 1: "NECK", 2: "SHOULDER", 3: "SHIRT", 4: "CHEST", 5: "WAIST", 6: "LEGS", 7: "FEET",
+    8: "WRIST", 9: "HANDS", 10: "FINGER_1", 11: "FINGER_2", 12: "TRINKET_1", 13: "TRINKET_2",
+    14: "BACK", 15: "MAIN_HAND", 16: "OFF_HAND", 17: "RANGED", 18: "TABARD",
+};
+
 function trimIssue(issue) {
-    const slot = Number(issue.slot);
+    const hasSlot = issue.slot !== null && issue.slot !== undefined && issue.slot !== "";
+    const slot = hasSlot ? Number(issue.slot) : NaN;
     return {
         kind: issue.kind || "",
         label: issue.label || "",
@@ -46,6 +55,8 @@ function trimIssue(issue) {
         // "Ring 1" reads better than a bare slot index, and two findings on two
         // different rings are otherwise indistinguishable in the list.
         slotName: Number.isFinite(slot) ? (SLOT_NAMES[slot] || "") : "",
+        // The paperdoll row the finding belongs to ("" without a slot).
+        slotKey: Number.isFinite(slot) ? (SLOT_KEYS[slot] || "") : "",
         iconUrl: issueIconUrl(issue.icon),
     };
 }
@@ -136,4 +147,4 @@ function issuesForCharacter(character, opts = {}) {
     return latestIssuesByCharacter(opts)[key] || null;
 }
 
-module.exports = { latestIssuesByCharacter, issuesForCharacter, issueIconUrl, MAX_REPORTS, MAX_ISSUES };
+module.exports = { latestIssuesByCharacter, issuesForCharacter, issueIconUrl, SLOT_KEYS, MAX_REPORTS, MAX_ISSUES };

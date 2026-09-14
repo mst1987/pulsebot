@@ -9,6 +9,7 @@ const {
 } = require("../settingsStore");
 const discord = require("../discord");
 const { SPEC_CATALOG } = require("../../utils/recruitmentSpecs");
+const { annotateApplication } = require("../recruitmentApplications");
 
 /**
  * GET /api/recruitment?view=posts|templates|applications&edit=<id>&editpost=<id>
@@ -28,12 +29,14 @@ async function getRecruitmentData(req, res, url) {
     let applicationsError = null;
     if (view === "applications" && !editId && !editPostId) {
         const result = await discord.listApplications(applicationChannelId);
-        applications = result.applications;
+        applications = (result.applications || []).map((a) => annotateApplication(a));
         applicationsError = result.error;
     }
+    const guild = guildId ? discord.listGuilds().find((g) => g.id === guildId) : null;
 
     ok(res, {
         view,
+        guildName: guild ? guild.name : "",
         templates: listRecruitment(),
         editing: editId ? getRecruitment(editId) : null,
         editingPost: editPostId ? getRecruitmentPost(editPostId) : null,
@@ -90,6 +93,7 @@ async function postRecruitmentTemplate(req, res) {
             body: template.body,
             buttonLabel: template.buttonLabel,
             source: "web",
+            templateId: template.id,
         });
         ok(res, saved, 201);
     } catch (e) {

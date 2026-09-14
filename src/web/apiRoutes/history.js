@@ -24,8 +24,10 @@ const { parseLoot, buildManualItem, detectImportDate, enrichItemNames, LootParse
 const { bestDayMatch, formatDayDisplay, dayKey } = require("../lootEventMatch");
 const {
     listPending: listPendingSessions, getPending: getPendingSession, resolvePending: resolvePendingSession,
+    listLinked: listLinkedSessions,
 } = require("../lootInboxStore");
 const { sessionContentLabel } = require("../lootSessionContent");
+const { previewImport } = require("../lootImportPreview");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setupView");
 const { armoryUrlFor, wclUrlFor } = require("../charLinks");
 const Blizzard = require("../../classes/blizzard");
@@ -288,6 +290,32 @@ async function importLoot(req, res) {
 }
 
 /**
+ * POST /api/history/import-preview — body: { data, tool, event }. What the
+ * import would do with this export, without storing anything: item count,
+ * format, the raid(s) the items come from, the event the export's date matches
+ * and how many rows that event already holds (see lootImportPreview.js). The
+ * events are loaded with the same lookback the import's own date match uses, so
+ * the suggestion is the event the import would pick.
+ */
+async function previewLootImport(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const { groups } = await loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
+    const result = previewImport({
+        data: body.data,
+        tool: body.tool,
+        event: body.event,
+        events: groups.flatMap((g) => g.events),
+    });
+    if (!result.ok) return error(res, 400, "parse_failed", result.error);
+    const preview = { ...result };
+    delete preview.ok;
+    ok(res, preview);
+}
+
+/**
  * GET /api/history/loot-picker?event=<id> — everything the "Item nachtragen"
  * form offers: the raid drop tables to pick an item from, which raid(s) this
  * event was, the award reasons, and the raiders already known by name.
@@ -446,7 +474,9 @@ async function getLootInbox(req, res) {
             contentMatched: content.derived.matched,
         };
     });
-    ok(res, { sessions });
+    // Accepted sessions that keep appending by themselves — the quiet list under
+    // the cards, so nobody wonders where last night's second half went.
+    ok(res, { sessions, linked: listLinkedSessions() });
 }
 
 /**
@@ -488,6 +518,7 @@ async function acceptLootInbox(req, res) {
         eventId: target.eventId,
         eventLabel: target.eventLabel,
         categoryId,
+        contentLabel: sessionContentLabel(entry).label,
     });
     ok(res, { eventId: target.eventId, eventLabel: target.eventLabel, categoryId, added, skipped }, 201);
 }
@@ -609,6 +640,6 @@ function enrichCharInfo(info) {
 module.exports = {
     getLootInbox, acceptLootInbox, dismissLootInbox,
     getHistoryData, getLootStats, getLootAwards, deleteHistoryLog, importLoot, setLootCategory, deleteLootItems, clearHistoryEvent, getHistoryEvent,
-    getLootPicker, addLootItem,
+    getLootPicker, addLootItem, previewLootImport,
     resolveCharacters, getHistoryChar,
 };

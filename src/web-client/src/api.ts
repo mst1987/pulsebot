@@ -41,19 +41,6 @@ export function canAccessAny(user: SessionUser | null, areas: string[], level: "
     return areas.some((area) => canAccess(user, area, level));
 }
 
-export type EventSheet = { filledAt: string; playerCount?: number } | null;
-
-export type UpcomingEvent = {
-    id: string;
-    title: string;
-    startTime: number;
-    channelId: string;
-    channelName: string;
-    signupCount: number;
-    playerCount: number;
-    sheet: EventSheet;
-};
-
 export type EventLog = {
     title?: string;
     reportId?: string;
@@ -77,14 +64,6 @@ export type RecentEvent = {
     pendingLogCount?: number;
     lootCount: number;
     softres: { url?: string } | null;
-};
-
-export type RecentReport = {
-    id: string;
-    title: string;
-    zone: string;
-    generatedAt: number;
-    issueCount: number;
 };
 
 // One awarded top item on the dashboard's "Latest Loot" card: the loot row's
@@ -117,18 +96,77 @@ export type TopLootAward = {
     specIconUrl: string;
 };
 
+// ---- Übersicht (src/web/dashboardOverview.js decides each part) ----
+
+export type DashboardRole = { key: "tank" | "healer" | "dps"; label: string; icon: string; filled: number; target: number };
+
+/** A raid's sheet: its own filled copy or the category's fixed sheet; null = missing. */
+export type DashboardSheet = { url: string; playerCount: number; filledAt: string } | null;
+
+export type DashboardRaid = {
+    id: string;
+    title: string;
+    startTime: number;
+    channelId: string;
+    channelName: string;
+    categoryId: string;
+    /** WoW icon name of the raid's final boss. */
+    icon: string;
+    size: number;
+    signupCount: number;
+    setupCount: number;
+    roles: DashboardRole[];
+    sheet: DashboardSheet;
+    softres: { url: string } | null;
+};
+
+export type DashboardTaskTone = "ok" | "mid" | "bad" | "accent";
+
+export type DashboardTask = {
+    id: "sheet" | "recommendations" | "logs" | "inbox";
+    tone: DashboardTaskTone;
+    /** Tile tint when it differs from the tone (the inbox wears the history area's colour). */
+    tile?: string;
+    icon: string;
+    title: string;
+    /** What the task is about: a raid/report with its date, or a ready text. */
+    ref: { title?: string; at?: number; text?: string };
+    count: number;
+    href: string;
+    tip: string;
+    tipSub: string;
+};
+
+export type DashboardLastReport = {
+    id: string;
+    title: string;
+    zone: string;
+    icon: string;
+    generatedAt: number;
+    bosses: number;
+    kills: number;
+    deaths: number | null;
+    avoidableDeaths: number | null;
+    gear: number;
+    consumables: number;
+    buffs: number;
+    problems: number;
+    open: number;
+};
+
 export type DashboardData = {
-    stats: {
-        reportsTotal: number;
-        reportsWithIssues: number;
-        templates: number;
-        posts: number;
-        categories: number;
-        adminRoles: number;
+    kicker: { guild: string; realm: string };
+    nextRaid: DashboardRaid | null;
+    followingRaid: DashboardRaid | null;
+    nextRaidError: string | null;
+    tasks: DashboardTask[];
+    areas: {
+        lastReport: DashboardLastReport | null;
+        newLoot: { count: number; since: number };
+        recruitment: { posts: number };
+        roster: { total: number; withoutDiscord: number } | null;
     };
-    recentReports: RecentReport[];
-    upcoming: { events: UpcomingEvent[]; error: string | null };
-    recentEvents: { events: RecentEvent[]; error: string | null };
+    recentEvents: { events: (RecentEvent & { icon: string })[]; error: string | null };
     // Latest awards of the items defined as "top items" in Einstellungen → Loot.
     // `configured` is how many are defined at all, which distinguishes "nothing
     // configured" from "configured, but nothing dropped yet".
@@ -144,8 +182,53 @@ export type Channel = {
     typeLabel: string;
     category: string;
     parentId: string;
+    // Whether the bot may see / post in the channel (true while unknown).
+    botCanView?: boolean;
+    botCanSend?: boolean;
 };
-export type ChannelsData = { categories: Category[]; channels: Channel[]; activeGuildId: string };
+
+export type PurposeStatus = { tone: "ok" | "mid" | "bad" | ""; label: string; tip: string };
+
+// What the bot uses which channel for (src/web/channelPurposes.js). Stored in
+// the admin config like before; `key` is the config key a change is saved under.
+export type ChannelPurpose = {
+    id: string;
+    label: string;
+    icon: string;
+    key: string;
+    kind: "channel" | "category";
+    multiple: boolean;
+    need: "send" | "read" | null;
+    section: string;
+    hint: string;
+    ids: string[];
+    items: { id: string; name: string; found: boolean; status: PurposeStatus }[];
+    status: PurposeStatus;
+};
+
+export type ChannelsData = {
+    categories: Category[];
+    channels: Channel[];
+    activeGuildId: string;
+    guildName: string;
+    connected: boolean;
+    purposes: ChannelPurpose[];
+    purposeSummary: { set: number; missing: number; warnings: number };
+    /** Tracked recruitment posts per channel id. */
+    recruitmentPosts: Record<string, number>;
+};
+
+/**
+ * Store a purpose's channels (or categories). The assignment is a setting, so
+ * it goes through PATCH /api/settings and needs write access to Einstellungen.
+ */
+export function saveChannelPurpose(csrfToken: string | null, purpose: ChannelPurpose, ids: string[]): Promise<{ config: AdminConfig }> {
+    const clean = [...new Set(ids.filter(Boolean))];
+    const partial: Record<string, unknown> = purpose.key === "raidDefaults.channelId"
+        ? { raidDefaults: { channelId: clean[0] || "" } }
+        : { [purpose.key]: purpose.multiple ? clean : (clean[0] || "") };
+    return send("PATCH", "/api/settings", csrfToken, partial);
+}
 
 /**
  * Read a response body as JSON without letting a non-JSON body escape as a bare
@@ -210,6 +293,29 @@ export function getDashboard(): Promise<DashboardData> {
     return get<DashboardData>("/api/dashboard");
 }
 
+export type NextRaidNotSigned = {
+    id: string;
+    name: string;
+    className: string;
+    classColor: string;
+    role: string;
+    status: "none" | "tentative" | "bench" | "absence";
+    statusLabel: string;
+};
+
+export type NextRaidDetails = DashboardRaid & {
+    classes: { className: string; label: string; classColor: string; icon: string; count: number }[];
+    notSignedUp: NextRaidNotSigned[];
+    rolesConfigured: boolean;
+    membersError: string | null;
+    fetchedAt: number;
+};
+
+/** The "Raid-Details" modal of the start page, loaded when it opens. */
+export function getNextRaidDetails(eventId: string): Promise<{ raid: NextRaidDetails; activeGuildId: string }> {
+    return get(`/api/dashboard/next-raid?event=${encodeURIComponent(eventId)}`);
+}
+
 export function getChannels(): Promise<ChannelsData> {
     return get<ChannelsData>("/api/channels");
 }
@@ -228,7 +334,8 @@ export function duplicateChannel(
     return send("POST", "/api/channels/duplicate", csrfToken, input);
 }
 
-export type Role = { id: string; name: string };
+/** `color`: the role's Discord colour as hex, "" when it has none. */
+export type Role = { id: string; name: string; color?: string };
 
 // The Battle.net client. The secret never comes back from the server — only
 // whether one is stored. Read: { …, hasClientSecret }. Write: { …, clientSecret? }
@@ -315,6 +422,11 @@ export type SettingsData = {
     raidsheets: Raidsheet[];
     roles: Role[];
     categories: Category[];
+    // The text channels the bot can post in, for the channel pickers; empty
+    // while the bot is offline (the fields then take a raw id).
+    channels?: TextChannel[];
+    // Status line of the "Discord & Raid-Helper" connection card.
+    bot?: { online: boolean; readySince: number; guildName: string };
     activeGuildId: string;
 };
 
@@ -375,6 +487,8 @@ export type GearIssue = {
     itemName: string;
     /** "Kopf", "Ring 1", … — empty when the report carried no usable slot. */
     slotName: string;
+    /** Paperdoll slot key ("HEAD", "FINGER_1", …) the finding belongs to; "" without a slot. */
+    slotKey?: string;
     iconUrl: string;
 };
 
@@ -412,7 +526,28 @@ export type RosterChar = {
     armoryUrl: string;
     wclUrl: string;
     gear: CharGearReport | null;
+    /** The newest log's role, else the spec's; "" when unknown (web/rosterAttendance.js). */
+    role: RosterRole;
+    /** Per category id: attendance over its last raid nights. */
+    attendance: Record<string, RosterAttendance>;
 };
+
+export type RosterRole = "tank" | "healer" | "dps" | "";
+
+export type RosterNight = { eventId: string; title: string; startTime: number; attended: boolean; reason: string };
+
+export type RosterAttendance = {
+    attended: number;
+    total: number;
+    /** null when no night could be counted. */
+    pct: number | null;
+    missed: Omit<RosterNight, "attended">[];
+    /** Night by night — only in the character page's answer. */
+    raids?: RosterNight[];
+};
+
+/** What a category's group head says: counted nights, its raids, the newest raid's boss icon. */
+export type RosterCategoryInfo = { raids: number; contents: string[]; icon: string };
 
 /** One segment of the roster's class distribution — see web/rosterStats.js. */
 export type RosterClassShare = { className: string; classColor: string; count: number };
@@ -434,13 +569,41 @@ export type RosterStats = {
     clean: number;
     issues: number;
     highIssues: number;
+    /** Mean attendance share in percent; null when no character had a counted night. */
+    avgAttendance: number | null;
+    attendanceCounted: number;
     classes: RosterClassShare[];
 };
 
-export type RosterData = { chars: RosterChar[]; categories: Category[]; stats: RosterStats; activeGuildId: string };
+export type RosterData = {
+    chars: RosterChar[];
+    categories: Category[];
+    categoryInfo: Record<string, RosterCategoryInfo>;
+    stats: RosterStats;
+    activeGuildId: string;
+};
 
 export function getRoster(): Promise<RosterData> {
     return get<RosterData>("/api/roster");
+}
+
+/** A spec whose BiS list carries an item — see lootCouncil.js's bisSpecsView(). */
+export type RosterBisSpec = { specKey: string; label: string; iconUrl: string; classColor: string; role: string; tier: string; alsoFor: string[] };
+
+export type RosterItemFacts = { itemId: number; contentId: string; content: string; boss: string; tier: string; bisSpecs: RosterBisSpec[] };
+
+export type RosterCharData = {
+    character: string;
+    role: RosterRole;
+    categories: (RosterCategoryInfo & { id: string; name: string })[];
+    attendance: Record<string, RosterAttendance>;
+    items: Record<string, RosterItemFacts>;
+};
+
+/** The character page's roster facts: role, attendance night by night, drop source and BiS per worn item. */
+export function getRosterChar(name: string, itemIds: number[] = []): Promise<RosterCharData> {
+    const items = itemIds.length ? `&items=${itemIds.join(",")}` : "";
+    return get<RosterCharData>(`/api/roster/char?name=${encodeURIComponent(name)}${items}`);
 }
 
 export type RaidEvent = {
@@ -779,6 +942,8 @@ export type RecruitmentPost = {
     body: string;
     buttonLabel: string;
     source: "web" | "scan";
+    /** The template it was posted from; "" for a message the scan found. */
+    templateId?: string;
     postedAt?: number;
     updatedAt?: number;
 };
@@ -798,6 +963,13 @@ export type Application = {
     description: string;
     discordName: string;
     date: string;
+    // Added by src/web/recruitmentApplications.js.
+    className: string;
+    spec: string;
+    classColor: string;
+    classIcon: string;
+    specIcon: string;
+    status: "neu" | "offen" | "archiviert";
 };
 
 export type TextChannel = { id: string; name: string; category: string };
@@ -807,6 +979,8 @@ export type RecruitmentView = "templates" | "posts" | "applications";
 
 export type RecruitmentData = {
     view: RecruitmentView | "";
+    /** The active Discord server's name, "" without one. */
+    guildName: string;
     templates: RecruitmentTemplate[];
     editing: RecruitmentTemplate | null;
     editingPost: RecruitmentPost | null;
@@ -1034,6 +1208,8 @@ export type CharReasonRow = {
 
 /** One award of an item: who got it, when, in which raid and for what reason. */
 export type LootAward = {
+    /** The stored row's id — what deleteLootItems() removes. */
+    id: string;
     character: string;
     characterKey: string;
     className: string;
@@ -1287,8 +1463,46 @@ export type InboxSession = {
     match: InboxMatch | null;
 };
 
-export function getLootInbox(): Promise<{ sessions: InboxSession[] }> {
-    return get<{ sessions: InboxSession[] }>("/api/history/inbox");
+/** An accepted session whose later uploads append to its event by themselves. */
+export type InboxLinkedSession = {
+    sessionId: string;
+    eventId: string;
+    eventLabel: string;
+    contentLabel: string;
+    startedAt: number;
+    itemCount: number;
+    /** Items later uploads appended without a click ("+6 nachgeliefert"). */
+    appended: number;
+    at: number;
+};
+
+export function getLootInbox(): Promise<{ sessions: InboxSession[]; linked?: InboxLinkedSession[] }> {
+    return get<{ sessions: InboxSession[]; linked?: InboxLinkedSession[] }>("/api/history/inbox");
+}
+
+/** An event as the import preview names it; startTime in ms. */
+export type ImportPreviewEvent = { id: string; title: string; startTime: number };
+
+export type ImportPreview = {
+    count: number;
+    format: "rclc" | "gargul" | "eventhelper";
+    formatLabel: string;
+    /** Earliest award in the export (ms), 0 without any. */
+    detectedAt: number;
+    content: { contentIds: string[]; label: string; matched: number };
+    match: { ambiguous: boolean; suggested: ImportPreviewEvent | null; candidates: ImportPreviewEvent[] };
+    /** The event the rows would land in as far as known before importing. */
+    targetEventId: string;
+    /** Rows that event already holds — the import will skip them. */
+    duplicates: number;
+};
+
+/** What importLoot() would do with this export, without storing anything. */
+export function previewLootImport(
+    csrfToken: string | null,
+    input: { data: string; tool: string; event: string },
+): Promise<ImportPreview> {
+    return send("POST", "/api/history/import-preview", csrfToken, input);
 }
 
 /**

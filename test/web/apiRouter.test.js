@@ -42,7 +42,12 @@ jest.mock("../../src/web/settingsStore", () => ({
 }));
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
 jest.mock("../../src/web/dashboardData", () => ({
-    loadUpcomingSetups: jest.fn(() => Promise.resolve({ events: [], error: null })),
+    loadNextRaids: jest.fn(() => Promise.resolve({ raids: [], error: null })),
+    loadNextRaidDetails: jest.fn(() => Promise.resolve({ error: "Event nicht gefunden.", notFound: true })),
+    loadLatestReport: jest.fn(() => null),
+    loadRosterFigures: jest.fn(() => null),
+    loadInbox: jest.fn(() => []),
+    loadNewLoot: jest.fn(() => ({ count: 0, since: 0 })),
     loadRecentEvents: jest.fn(() => Promise.resolve({ events: [], error: null })),
     annotateUpcomingExtras: jest.fn((events) => events),
     loadTopLoot: jest.fn(() => ({ items: [], configured: 0 })),
@@ -506,46 +511,103 @@ describe("web/apiRouter", () => {
             expect(body(res)).toEqual({ error: { code: "forbidden", message: expect.any(String) } });
         });
 
-        it("assembles stats, recent reports, upcoming/recent events, and the active guild for an admin", async () => {
+        it("assembles next raid, tasks, area figures, loot and last raids for an admin", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
-            reportStore.listReports.mockReturnValue([
-                { id: "r1", title: "Report 1", zone: "MC", generatedAt: 100, issueCount: 2 },
-                { id: "r2", title: "Report 2", zone: "BWL", generatedAt: 200, issueCount: 0 },
-            ]);
-            settingsStore.getConfig.mockReturnValue({ categoryIds: ["a", "b"], adminRoleIds: ["r"] });
-            settingsStore.listRecruitment.mockReturnValue([{ id: "t1" }]);
-            settingsStore.listRecruitmentPosts.mockReturnValue([{ id: "p1" }, { id: "p2" }]);
             activeGuildFor.mockReturnValue("guild-1");
-            dashboardData.loadUpcomingSetups.mockResolvedValue({ events: [{ id: "u1" }], error: null });
-            dashboardData.loadRecentEvents.mockResolvedValue({ events: [{ id: "e1" }], error: null });
+            discord.listGuilds.mockReturnValue([{ id: "guild-1", name: "Pulse" }]);
+            settingsStore.getConfig.mockReturnValue({ blizzard: { realmSlug: "thunderstrike", region: "eu" } });
+            settingsStore.listRecruitmentPosts.mockReturnValue([{ id: "p1" }, { id: "p2" }]);
+            const next = { id: "n1", title: "Black Temple", startTime: 2000, sheet: null };
+            const after = { id: "n2", title: "Hyjal", startTime: 3000, sheet: { url: "u" } };
+            dashboardData.loadNextRaids.mockResolvedValue({ raids: [next, after], error: null });
+            dashboardData.loadRecentEvents.mockResolvedValue({
+                events: [{ id: "e1", title: "Hyjal", startTime: 1000, pendingLogCount: 2, logs: [] }], error: null,
+            });
+            dashboardData.loadLatestReport.mockReturnValue({ id: "r1", zone: "Black Temple", generatedAt: 5, problems: 3, open: 7 });
+            dashboardData.loadInbox.mockReturnValue([{ id: "s1", items: [1, 2] }]);
+            dashboardData.loadRosterFigures.mockReturnValue({ total: 27, withoutDiscord: 2 });
+            dashboardData.loadNewLoot.mockReturnValue({ count: 3, since: 1000000 });
             dashboardData.loadTopLoot.mockReturnValue({ items: [{ itemId: 30883, character: "Kilrogg" }], configured: 3 });
 
             const res = mockRes();
             const handled = await handle("/api/dashboard", { method: "GET" }, res);
 
             expect(handled).toBe(true);
-            expect(dashboardData.loadUpcomingSetups).toHaveBeenCalledWith("guild-1", 3);
+            expect(dashboardData.loadNextRaids).toHaveBeenCalledWith("guild-1", 2);
             expect(dashboardData.loadRecentEvents).toHaveBeenCalledWith("guild-1", 5);
-            expect(body(res)).toEqual({
-                data: {
-                    stats: {
-                        reportsTotal: 2,
-                        reportsWithIssues: 1,
-                        templates: 1,
-                        posts: 2,
-                        categories: 2,
-                        adminRoles: 1,
-                    },
-                    recentReports: [
-                        { id: "r1", title: "Report 1", zone: "MC", generatedAt: 100, issueCount: 2 },
-                        { id: "r2", title: "Report 2", zone: "BWL", generatedAt: 200, issueCount: 0 },
-                    ],
-                    upcoming: { events: [{ id: "u1" }], error: null },
-                    recentEvents: { events: [{ id: "e1" }], error: null },
-                    topLoot: { items: [{ itemId: 30883, character: "Kilrogg" }], configured: 3 },
-                    activeGuildId: "guild-1",
-                },
+            // "Neuer Loot" counts from the newest past raid's start
+            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(1000);
+            const data = body(res).data;
+            expect(data.kicker).toEqual({ guild: "Pulse", realm: "Thunderstrike EU" });
+            expect(data.nextRaid).toEqual(next);
+            expect(data.followingRaid).toEqual(after);
+            expect(data.tasks.map((t) => t.id)).toEqual(["sheet", "recommendations", "logs", "inbox"]);
+            expect(data.areas).toEqual({
+                lastReport: { id: "r1", zone: "Black Temple", generatedAt: 5, problems: 3, open: 7 },
+                newLoot: { count: 3, since: 1000000 },
+                recruitment: { posts: 2 },
+                roster: { total: 27, withoutDiscord: 2 },
             });
+            expect(data.recentEvents.events[0]).toMatchObject({ id: "e1", icon: "achievement_boss_archimonde-" });
+            expect(data.topLoot).toEqual({ items: [{ itemId: 30883, character: "Kilrogg" }], configured: 3 });
+            expect(data.activeGuildId).toBe("guild-1");
+            // the old configuration counters are gone
+            expect(data.stats).toBeUndefined();
+            expect(data.recentReports).toBeUndefined();
+        });
+
+        it("shows no tasks and no next raid when nothing is due", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            dashboardData.loadNextRaids.mockResolvedValue({ raids: [], error: "Raid-Helper down" });
+            dashboardData.loadRecentEvents.mockResolvedValue({ events: [], error: null });
+            dashboardData.loadLatestReport.mockReturnValue(null);
+            dashboardData.loadInbox.mockReturnValue([]);
+            const res = mockRes();
+            await handle("/api/dashboard", { method: "GET" }, res);
+            const data = body(res).data;
+            expect(data.nextRaid).toBeNull();
+            expect(data.nextRaidError).toBe("Raid-Helper down");
+            expect(data.tasks).toEqual([]);
+            expect(dashboardData.loadNewLoot).toHaveBeenCalledWith(0);
+        });
+    });
+
+    describe("GET /api/dashboard/next-raid", () => {
+        it("needs an event id", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            const res = mockRes();
+            await handle("/api/dashboard/next-raid", { method: "GET" }, res, new URL("http://x/api/dashboard/next-raid"));
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+        });
+
+        it("answers 404 for an unknown event and 400 when Raid-Helper failed", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            const url = new URL("http://x/api/dashboard/next-raid?event=ev9");
+            dashboardData.loadNextRaidDetails.mockResolvedValueOnce({ error: "Event nicht gefunden.", notFound: true });
+            let res = mockRes();
+            await handle("/api/dashboard/next-raid", { method: "GET" }, res, url);
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+            dashboardData.loadNextRaidDetails.mockResolvedValueOnce({ error: "down", notFound: false });
+            res = mockRes();
+            await handle("/api/dashboard/next-raid", { method: "GET" }, res, url);
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+        });
+
+        it("returns the raid details for the active guild", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            dashboardData.loadNextRaidDetails.mockResolvedValueOnce({ error: null, raid: { id: "ev1", classes: [] } });
+            const res = mockRes();
+            await handle("/api/dashboard/next-raid", { method: "GET" }, res, new URL("http://x/api/dashboard/next-raid?event=ev1"));
+            expect(dashboardData.loadNextRaidDetails).toHaveBeenCalledWith("guild-1", "ev1");
+            expect(body(res)).toEqual({ data: { raid: { id: "ev1", classes: [] }, activeGuildId: "guild-1" } });
+        });
+
+        it("is closed to anonymous callers", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = mockRes();
+            await handle("/api/dashboard/next-raid", { method: "GET" }, res, new URL("http://x/api/dashboard/next-raid?event=ev1"));
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
         });
     });
 
@@ -567,12 +629,46 @@ describe("web/apiRouter", () => {
             await handle("/api/channels", { method: "GET" }, res);
 
             expect(body(res)).toEqual({
-                data: {
+                data: expect.objectContaining({
                     categories: [{ id: "cat1", name: "Raids" }],
                     channels: [{ id: "c1", name: "kara", type: 0, typeLabel: "Text", category: "Raids", parentId: "cat1" }],
                     activeGuildId: "guild-1",
-                },
+                }),
             });
+        });
+
+        it("resolves the channel purposes from the config and counts recruitment posts per channel", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            discord.listGuilds.mockReturnValue([{ id: "guild-1", name: "Pulse" }]);
+            discord.listCategories.mockReturnValue([{ id: "cat1", name: "Raids" }]);
+            discord.listAllChannels.mockReturnValue([
+                { id: "c1", name: "logs", type: 0, typeLabel: "Text", category: "Raids", parentId: "cat1", botCanView: true, botCanSend: true },
+                { id: "c2", name: "bewerbungen", type: 0, typeLabel: "Text", category: "", parentId: "", botCanView: true, botCanSend: false },
+            ]);
+            settingsStore.getConfig.mockReturnValue({
+                logChannelIds: ["c1"], applicationChannelId: "c2", highestBidsChannelId: "", categoryIds: ["cat1"],
+                raidDefaults: { templateId: "t", channelId: "" },
+            });
+            settingsStore.listRecruitmentPosts.mockReturnValue([
+                { guildId: "guild-1", channelId: "c2" }, { guildId: "guild-1", channelId: "c2" }, { guildId: "other", channelId: "x" },
+            ]);
+
+            const res = mockRes();
+            await handle("/api/channels", { method: "GET" }, res);
+            const data = body(res).data;
+
+            expect(data.guildName).toBe("Pulse");
+            expect(data.connected).toBe(true);
+            expect(data.recruitmentPosts).toEqual({ c2: 2 });
+            const byId = Object.fromEntries(data.purposes.map((p) => [p.id, p]));
+            expect(byId.logs.status).toMatchObject({ tone: "ok", label: "Bot liest mit" });
+            expect(byId.application.status).toMatchObject({ tone: "mid", label: "Bot darf nicht schreiben" });
+            expect(byId.raid.status).toMatchObject({ tone: "bad", label: "fehlt" });
+            expect(data.purposeSummary).toEqual({ set: 3, missing: 2, warnings: 1 });
+            settingsStore.getConfig.mockReturnValue({});
+            settingsStore.listRecruitmentPosts.mockReturnValue([]);
+            discord.listGuilds.mockReturnValue([]);
         });
     });
 
@@ -2531,17 +2627,27 @@ describe("web/apiRouter", () => {
 
         it("fetches applications only on the applications tab and returns them", async () => {
             settingsStore.getConfig.mockReturnValue({ applicationChannelId: "chan1" });
-            discord.listApplications.mockResolvedValue({ applications: [{ threadId: "a1" }], error: null });
+            discord.listApplications.mockResolvedValue({
+                applications: [{ threadId: "a1", classSpec: "Druid – Balance", createdAt: Date.now(), archived: false }],
+                error: null,
+            });
 
             const res = await get("/api/recruitment", { view: "applications" });
 
             expect(discord.listApplications).toHaveBeenCalledWith("chan1");
             expect(body(res).data).toMatchObject({
                 view: "applications",
-                applications: [{ threadId: "a1" }],
+                applications: [{ threadId: "a1", className: "Druid", spec: "Balance", classIcon: "classicon_druid", status: "neu" }],
                 applicationsError: null,
                 applicationChannelId: "chan1",
             });
+        });
+
+        it("names the active guild for the page head", async () => {
+            activeGuildFor.mockReturnValueOnce("g1");
+            discord.listGuilds.mockReturnValueOnce([{ id: "g0", name: "Andere" }, { id: "g1", name: "Pulse" }]);
+            const res = await get("/api/recruitment", { view: "posts" });
+            expect(body(res).data.guildName).toBe("Pulse");
         });
 
         it("resolves editing/editingPost from the id query params", async () => {
@@ -2624,7 +2730,7 @@ describe("web/apiRouter", () => {
 
             expect(discord.postRecruitment).toHaveBeenCalledWith("c1", expect.objectContaining({ id: "t1" }));
             expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledWith(expect.objectContaining({
-                guildId: "g1", channelId: "c1", messageId: "m1", source: "web",
+                guildId: "g1", channelId: "c1", messageId: "m1", source: "web", templateId: "t1",
             }));
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
         });

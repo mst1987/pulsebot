@@ -1,39 +1,77 @@
-const { ok } = require("../apiResponse");
+const { ok, error } = require("../apiResponse");
 const { requireAdmin } = require("../apiMiddleware");
-const { listReports } = require("../reportStore");
-const { getConfig, listRecruitment, listRecruitmentPosts } = require("../settingsStore");
+const { listRecruitmentPosts, getConfig } = require("../settingsStore");
 const { activeGuildFor } = require("../activeGuild");
-const { loadUpcomingSetups, loadRecentEvents, loadTopLoot } = require("../dashboardData");
+const discord = require("../discord");
+const {
+    loadNextRaids, loadNextRaidDetails, loadRecentEvents, loadTopLoot,
+    loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot,
+} = require("../dashboardData");
+const { buildTasks, zoneFor } = require("../dashboardOverview");
 
-/** GET /api/dashboard — the admin start page's key figures + quick lists. */
+/** The page head's kicker parts: the managed guild and the realm the loot lookups use ("Thunderstrike EU"). */
+function kickerFor(guildId) {
+    const guild = (discord.listGuilds() || []).find((g) => g.id === guildId);
+    const bnet = getConfig().blizzard || {};
+    const slug = String(bnet.realmSlug || "").replace(/-/g, " ");
+    const realm = slug ? `${slug.replace(/\b\w/g, (c) => c.toUpperCase())} ${String(bnet.region || "").toUpperCase()}`.trim() : "";
+    return { guild: (guild && guild.name) || "", realm };
+}
+
+/**
+ * GET /api/dashboard — the start page: the next raid (and the one after), the
+ * open tasks, one figure per area, the newest top-item awards and the last
+ * raids. See dashboardOverview.js for what decides each part.
+ */
 async function getDashboard(req, res) {
     const user = requireAdmin(req, res);
     if (!user) return;
-    const reports = listReports();
-    const cfg = getConfig();
-    const stats = {
-        reportsTotal: reports.length,
-        reportsWithIssues: reports.filter((r) => (r.issueCount || 0) > 0).length,
-        templates: listRecruitment().length,
-        posts: listRecruitmentPosts().length,
-        categories: (cfg.categoryIds || []).length,
-        adminRoles: (cfg.adminRoleIds || []).length,
-    };
     const guildId = activeGuildFor(req);
-    const [upcoming, recentEvents] = await Promise.all([
-        loadUpcomingSetups(guildId, 3),
+    const [next, recentEvents] = await Promise.all([
+        loadNextRaids(guildId, 2),
         loadRecentEvents(guildId, 5),
     ]);
+    const report = loadLatestReport();
+    const inbox = loadInbox();
+    const lastRaid = recentEvents.events[0];
+
     ok(res, {
-        stats,
-        recentReports: reports.slice(0, 8).map((r) => ({
-            id: r.id, title: r.title, zone: r.zone, generatedAt: r.generatedAt, issueCount: r.issueCount || 0,
-        })),
-        upcoming,
-        recentEvents,
+        kicker: kickerFor(guildId),
+        nextRaid: next.raids[0] || null,
+        followingRaid: next.raids[1] || null,
+        nextRaidError: next.error,
+        tasks: buildTasks({ nextRaids: next.raids, recentEvents: recentEvents.events, report, inbox }),
+        areas: {
+            lastReport: report,
+            newLoot: loadNewLoot(lastRaid ? lastRaid.startTime : 0),
+            recruitment: { posts: listRecruitmentPosts().length },
+            roster: loadRosterFigures(guildId),
+        },
         topLoot: loadTopLoot(5),
+        recentEvents: {
+            ...recentEvents,
+            events: recentEvents.events.map((ev) => ({ ...ev, icon: zoneFor(ev.title).icon })),
+        },
         activeGuildId: guildId,
     });
 }
 
-module.exports = { getDashboard };
+/**
+ * GET /api/dashboard/next-raid?event=<id> — the "Raid-Details" modal of an
+ * upcoming raid: signups per role and class, preparation, who has not signed
+ * up. Loaded when the modal opens, because the member list is a Discord call.
+ */
+async function getNextRaidDetails(req, res, url) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    const eventId = String((url && url.searchParams.get("event")) || "").trim();
+    if (!eventId) return error(res, 400, "missing_event", "Kein Event angegeben.");
+    const guildId = activeGuildFor(req);
+    const result = await loadNextRaidDetails(guildId, eventId);
+    if (result.error) {
+        return error(res, result.notFound ? 404 : 400, result.notFound ? "not_found" : "events_unavailable", result.error);
+    }
+    ok(res, { raid: result.raid, activeGuildId: guildId });
+}
+
+module.exports = { getDashboard, getNextRaidDetails };

@@ -116,7 +116,7 @@ describe("web/render — Kampfverlauf tab", () => {
         // the compact table sits in the card, the chart behind "Verlauf öffnen" in a <dialog>
         expect(html).toContain("<table class=\"idx fc-table topic-table\"><tr><th>Zeile</th><th>Uptime</th><th>Details</th><th>Lücken</th><th>Längste Lücke</th></tr><tr><td><img class=\"hicon\" src=\"https://wow.zamimg.com/images/wow/icons/large/ability_warrior_sunder.jpg\" alt=\"\">Sunder Armor</td><td><span class=\"tv good\">100%</span></td><td>5/5 ab 0:08</td><td class=\"mono\">0</td><td class=\"mono\">–</td></tr></table>");
         expect(html).toContain("data-dialog=\"dlg-fp-3-debuffs\"");
-        expect(html).toContain("Verlauf öffnen ⤢");
+        expect(html).toContain("Verlauf öffnen<svg");
         expect(html).toContain("<dialog class=\"dlg chart\" id=\"dlg-fp-3-debuffs\">");
         expect(html).toContain("High King Maulgar · Debuffs</div>");
         expect(html).toContain("window.__ehDlg");
@@ -198,30 +198,32 @@ describe("web/render — Kampfverlauf tab", () => {
 describe("web/render — Kampfverlauf on the player page", () => {
     it("gives the raider only their own rows and deaths, with own tab ids", () => {
         const html = renderPlayerPage({ ...report(), timeline: timeline() }, 0); // Alice
-        expect(html).toContain("<h2>Kampfverlauf</h2>");
-        expect(html).toContain("data-show=\"p-fb-e649\"");
+        // one row per boss in "Deine Kämpfe", the charts of that boss in its dialog
+        expect(html).toContain("id=\"p-fights\"");
+        expect(html).toContain("data-dialog=\"dlg-pf-0\"");
+        expect(html).toContain("<dialog class=\"dlg chart\" id=\"dlg-pf-0\">");
         expect(html).toContain("id=\"p-fight-2\">");   // she died there
         expect(html).toContain("id=\"p-fight-3\" hidden>");   // her cooldown and activity rows
         expect(html).toContain("data-tip=\"Icy Veins\"");
         expect(html).not.toContain("Bob · Windfury");
         expect(html).not.toContain("fp-3-debuffs"); // raid-wide, not hers
         expect(html).not.toContain("<div class=\"fight-series\">");
-        // the player page stacks the chart under its table instead of a dialog
+        // inside the boss dialog the chart is stacked under its table
         expect(html).toContain("<div class=\"part-chart\">");
         expect(html).not.toContain("Verlauf öffnen");
     });
 
     it("lists only the fights the raider shows up in, and nothing without any", () => {
         const html = renderPlayerPage({ ...report(), timeline: timeline() }, 1); // Bob: totems on fight 3 only
-        expect(html).toContain("<h2>Kampfverlauf</h2>");
+        expect(html).toContain("id=\"p-fights\"");
         expect(html).toContain("id=\"p-fight-3\">");
         expect(html).not.toContain("id=\"p-fight-2\"");
         expect(html).not.toContain("Gruul the Dragonkiller</span>");
         expect(html).toContain("data-show=\"p-fp-3-totems\">");
         expect(html).toMatch(/Totems<span class="n(?: mid| bad)?">1<\/span>/);
         const none = renderPlayerPage({ ...report(), timeline: { fights: [] } }, 1);
-        expect(none).not.toContain("<h2>Kampfverlauf</h2>");
+        expect(none).not.toContain("id=\"p-fights\"");
         const legacy = renderPlayerPage(report(), 1);
-        expect(legacy).not.toContain("<h2>Kampfverlauf</h2>");
+        expect(legacy).not.toContain("id=\"p-fights\"");
     });
 });

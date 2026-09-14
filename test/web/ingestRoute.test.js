@@ -22,6 +22,8 @@ jest.mock("../../src/web/lootInboxStore", () => ({
     getPending: jest.fn(),
     resolvePending: jest.fn(),
     pendingCount: jest.fn(() => 0),
+    noteAppended: jest.fn(() => true),
+    listLinked: jest.fn(() => []),
 }));
 jest.mock("../../src/web/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 1, skipped: 0 })),
@@ -205,6 +207,9 @@ describe("POST /api/ingest/loot", () => {
             expect(body(res).data.results[0]).toMatchObject({
                 status: "appended", eventId: "e1", added: 1,
             });
+            // counted for the inbox's "+n nachgeliefert"
+            const { noteAppended } = require("../../src/web/lootInboxStore");
+            expect(noteAppended).toHaveBeenCalledWith(expect.any(String), 1);
         });
 
         it("silently drops a session that was dismissed", async () => {

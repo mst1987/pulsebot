@@ -1,22 +1,20 @@
 // The caster loot council.
 //
-// It answers the questions a council actually asks, in that order:
-//   "Wer war zuletzt dran?"    — the roster table: what each caster got in the
-//                                selected content, how long ago, how far their
-//                                gear is from BiS, and their whole gear as a
-//                                row of icons under their name
-//   "Wer sollte mal wieder?"   — the same table sorted by need, with the
-//                                reasoning in the bar itself rather than hidden
-//                                in a score
-//   "Das ist gerade gedroppt   — the drop check: pick the item, see everyone it
-//    — wer kriegt es?"           fits, what it would replace, what it would
-//                                gain them and what they have coming to them
+// One question per view, in the order a council asks them:
+//   "Wer ist dran?"            — the Raider tab: one compact line per raider
+//                                (need, wait, loot, BiS, DPS, a few badges);
+//                                everything else about a raider opens in their
+//                                details (lootcouncil/RaiderDialog.tsx)
+//   "Was fehlt noch?"          — the open BiS items, each with its candidates
+//   "Das ist gerade gedroppt   — its own page, /lootcouncil/drop/:itemId
+//    — wer kriegt es?"           (lootcouncil/DropCheckPage.tsx), so a drop is a
+//                                link and seven candidates have room
 //
-// Two rules run through the whole page:
+// Two rules run through the whole module:
 //
-//   Icons over words. A spec, an item, a wait, a loot count — each is one glyph
-//   with the detail behind a hover, because a council reads this table under
-//   time pressure while a boss corpse cools.
+//   Tooltips over words. A filter, a column, a number explains itself in the
+//   tooltip box; the page carries no paragraphs, because a council reads it
+//   under time pressure while a boss corpse cools.
 //
 //   Gain and fairness stay apart. What an item would *do* and what a raider has
 //   *coming to them* are two different questions, shown as two bars side by
@@ -24,38 +22,37 @@
 //   the judgement a council is there to make.
 //
 // The DPS numbers come from a background simulation (wowsimcli). There are no
-// estimates on this page: a gain is shown once it has been simulated and not
-// before — until then a candidate says "nicht simuliert", and a spec the sim
-// cannot answer (healers) is ranked by need and says so. A picked drop is
-// simulated on the spot (seconds); the whole BiS list is a button (minutes).
-//
-// Everything that takes a moment — a reload, the armory, a simulation — is
-// reported through the shared job toasts (components/Jobs.tsx), anchored to
-// the viewport: the page is long, and a progress bar three screens up is one
-// nobody sees.
+// estimates: a gain is shown once it has been simulated and not before. Every
+// wait — a reload, the armory, a simulation — is a job toast (components/Jobs.tsx).
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { useOutletContext } from "react-router-dom";
+import { Link, useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import {
-    getLootCouncil, runCouncilSim, searchCouncilItems, setCouncilExcluded, getCouncilExport, getBisLists, refreshCouncilArmory, setCouncilRole, canAccess,
+    getLootCouncil, searchCouncilItems, setCouncilExcluded, getCouncilExport, getBisLists, refreshCouncilArmory, setCouncilRole, canAccess,
     loadCouncilLogGear,
-    type ApiError, type CouncilCandidate, type CouncilGap, type CouncilItem, type CouncilLootItem, type CouncilRaider, type WornItem,
-    type CouncilExport, type CouncilFocus, type ItemSearchResult, type LootCouncilData, type SimResult,
-    type BisListsData, type CouncilItemHit, type CouncilLog,
+    type ApiError, type CouncilGap, type CouncilLootItem, type CouncilRaider,
+    type CouncilExport, type LootCouncilData, type SimResult,
+    type BisListsData, type CouncilItemHit,
 } from "../api";
 import { refreshWowheadLinks } from "../lib/wowheadTooltips";
 import { useJobs, useToast } from "../components/Jobs";
-import ItemSearchPicker from "../components/ItemSearchPicker";
 import type { ShellContext } from "../components/Shell";
 import { fmtMs } from "../lib/format";
 import { itemQualityProps } from "../lib/itemQuality";
 import { usePersistedState } from "../lib/persistedState";
-import { useTableSort, type Dir, type TableSort } from "../lib/tableSort";
-import { SortLabel, SortTh, ariaSort } from "../components/SortTh";
+import { useTableSort, type TableSort } from "../lib/tableSort";
 import { classColorProps, ClassSpecIcon } from "../components/ClassSpec";
-import { ClockIcon, LootBagIcon, EmptySlotIcon, CouncilIcon } from "../components/icons";
 import { ReasonBadge } from "../components/LootBadges";
-import { HoverPanel } from "../components/HoverPanel";
 import PageLoader from "../components/PageLoader";
+import { Badge, Button, Expand, PageHead, PartHead, WowIcon, buttonClass, useConfirm } from "../components/ui";
+import {
+    CANDIDATE_SORT, ROLE_LABEL, ROSTER_SORT, VIEW_KEY, dropHref, pickVerdict, useCouncilSim,
+    type CandidateSortKey, type RosterSortKey, type Verdict,
+} from "./lootcouncil/council";
+import { BisSpecs, CandidateTable, ContentBadge, FoldRow, ItemHead, ItemLink, RaiderIdent } from "./lootcouncil/parts";
+import FilterBar from "./lootcouncil/FilterBar";
+import RosterList from "./lootcouncil/RosterList";
+import RaiderDialog, { ExportDialog } from "./lootcouncil/RaiderDialog";
+import "../styles/loot-council.css";
 
 type View = {
     role: string;
@@ -63,9 +60,8 @@ type View = {
     contents: string[];
     category: string;
     bisTier: string;
+    /** "drop" is a stored value from before the drop check became its own page; it opens the Raider tab. */
     tab: "roster" | "bis" | "drop" | "bislists" | "compare";
-    /** The item the "Drop prüfen" tab is asking about (0 = none picked). */
-    dropItem: number;
     /** BiS-Listen: which tier's sets, which specs are switched off, what is marked. */
     listTier: string;
     listOff: string[];
@@ -74,1360 +70,62 @@ type View = {
     cmpOff: string[];
 };
 const VIEW_DEFAULT: View = {
-    role: "caster", tiers: [], contents: [], category: "", bisTier: "", tab: "roster", dropItem: 0,
+    role: "caster", tiers: [], contents: [], category: "", bisTier: "", tab: "roster",
     listTier: "t6", listOff: [], listFocus: 0, cmpOff: [],
 };
 
 // The tier buttons wear the hue of the raids they stand for — the same table
-// the raid badges use (.lc-h-* in index.css), so "still T5" and "already T6"
-// separate at a glance instead of being four identical grey buttons.
-// Wie die Rollen am Raider heißen. Kurz, weil sie in einer Knopfreihe stehen.
-const ROLE_LABEL: Record<string, string> = { caster: "DPS", healer: "Heiler" };
-
+// the raid badges use (.lc-h-* in index.css).
 const TIER_HUE: Record<string, string> = { t4: "kara", t5: "ssc", t6: "bt", t65: "swp" };
 const TIER_LABEL: Record<string, string> = { t4: "T4", t5: "T5", t6: "T6", t65: "SWP" };
 
-// The direction each column's first click picks: names ascending, everything
-// that measures "how much / how long" descending, because that is the end
-// somebody clicking it is looking for.
-type RosterSortKey = "character" | "spec" | "need" | "loot" | "last" | "bis" | "dps" | "gear";
-const ROSTER_SORT: Record<RosterSortKey, Dir> = {
-    character: "asc", spec: "asc", need: "desc", loot: "desc",
-    last: "asc", bis: "asc", dps: "desc", gear: "desc",
-};
-
-type CandidateSortKey = "character" | "spec" | "slot" | "gain" | "need" | "waited" | "loot";
-const CANDIDATE_SORT: Record<CandidateSortKey, Dir> = {
-    character: "asc", spec: "asc", slot: "asc", gain: "desc", need: "desc", waited: "desc", loot: "desc",
-};
-
-const WOWHEAD = (id: number) => `https://www.wowhead.com/tbc/item=${id}`;
-
 /**
- * One bordered block with a heading — the page's unit of "this is one thing".
- *
- * Everything used to run together in one long card, so the eye had to find the
- * seams itself: which filter belongs to what, where the item ends and the
- * candidates begin. A council reads this under time pressure, and a heading
- * plus a border is the cheapest way to say "this part answers that question".
+ * One part of a tab: the tinted part head (icon tile, title, at most one
+ * action) over a panel. What used to be a hint paragraph under the heading is
+ * the title's tooltip.
  */
-function Section({ title, hint, actions, children, tone = "" }: {
+function Part({ icon, crumb, title, hint, actions, tone = "", children }: {
+    icon: string;
+    crumb?: string;
     title: string;
-    hint?: ReactNode;
-    /** Buttons that act on this block, kept in its header rather than loose. */
+    hint?: string;
     actions?: ReactNode;
     children: ReactNode;
-    /** "accent" lifts the one block that carries the answer. */
+    /** "accent" lifts the one part that carries the answer. */
     tone?: "" | "accent";
 }) {
     return (
-        <section className={`lc-section${tone ? ` lc-section-${tone}` : ""}`}>
-            <header className="lc-section-head">
-                <div>
-                    <h3>{title}</h3>
-                    {hint ? <div className="hint">{hint}</div> : null}
-                </div>
-                {actions ? <div className="row-actions">{actions}</div> : null}
-            </header>
-            <div className="lc-section-body">{children}</div>
+        <section className={`lc-part${tone ? ` lc-part-${tone}` : ""}`}>
+            <PartHead icon={icon} title={title} crumb={crumb} tip={hint ? title : undefined} tipSub={hint} action={actions} />
+            <div className="lc-panel lc-part-body">{children}</div>
         </section>
     );
 }
 
-/**
- * Why the roster is shorter than the reader expects — or empty.
- *
- * The category filter draws on three sources (the logs of that raid, the loot
- * awarded there, the maintained raider→character assignment). When it finds
- * nobody, the list is empty *on purpose* — falling back to "show everyone"
- * would mean picking a category changes nothing. But an empty table with no
- * explanation looks broken, so this says which sources were tried, what each
- * found, and what to do about it.
- */
-function CategoryNote({ data }: { data: LootCouncilData }) {
-    const { skipped, categorySources: src, categoryId } = data.filter;
-    if (!categoryId && !skipped.excluded) return null;
-
-    const nothingFound = src && !src.reports && !src.loot && !src.assigned;
-    const parts: string[] = [];
-    if (skipped.category) parts.push(`${skipped.category} Raider gehören nicht zu dieser Raid-Kategorie.`);
-    if (skipped.excluded) parts.push(`${skipped.excluded} sind als „nicht einplanen" abgelegt.`);
-
-    return (
-        <p className="hint">
-            {parts.join(" ")}
-            {src && !nothingFound ? (
-                <>
-                    {" "}Zugeordnet über: {[
-                        src.reports ? `${src.reports} aus Logs` : "",
-                        src.loot ? `${src.loot} über Loot` : "",
-                        src.assigned ? `${src.assigned} aus der Zuordnung` : "",
-                    ].filter(Boolean).join(", ")}.
-                    {!src.assigned ? (
-                        <> Ohne gepflegte Zuordnung (Einstellungen → Kategorien) fehlt, wer hier weder geloggt
-                            wurde noch etwas gewonnen hat.</>
-                    ) : null}
-                </>
-            ) : null}
-            {nothingFound ? (
-                <>
-                    {" "}Für diese Kategorie ist niemand zuzuordnen: keine ausgewerteten Logs, kein Loot mit
-                    dieser Kategorie und keine Raider-Zuordnung. Am schnellsten behoben in
-                    Einstellungen → Kategorien (Raider ↔ Charakter), oder indem ein Log dieses Raids
-                    ausgewertet und dem Event zugeordnet wird.
-                </>
-            ) : null}
-        </p>
-    );
-}
-
-/**
- * A raider's loadout as a WoWSims import, so anyone can check our number.
- *
- * The JSON is shown rather than downloaded: WoWSims takes it through
- * "Import → From JSON", which is a paste box. A download would only add a step.
- * The link goes to the sim page it belongs on, because the individual import
- * reads gear and talents from the JSON but *not* the class — pasted on the
- * wrong class's sim it silently produces nonsense.
- */
-function ExportPanel({ data, onClose }: { data: CouncilExport; onClose: () => void }) {
-    const [copied, setCopied] = useState(false);
-    const copy = async () => {
-        try {
-            await navigator.clipboard.writeText(data.json);
-            setCopied(true);
-            window.setTimeout(() => setCopied(false), 2000);
-        } catch {
-            // Clipboard blocked (no https, denied) — the textarea is still there
-            // to select by hand, which is why it is not hidden behind the button.
-            setCopied(false);
-        }
-    };
-    return (
-        <Section
-            title={`WoWSims-Export — ${data.character}`}
-            hint={`${data.specLabel} · Gear-Stand vom ${fmtMs(data.seenAt, false)}`}
-            actions={
-                <>
-                    <button type="button" className="btn btn-sm" onClick={copy}>
-                        {copied ? "Kopiert" : "JSON kopieren"}
-                    </button>
-                    <a className="btn btn-ghost btn-sm" href={data.simUrl} target="_blank" rel="noreferrer">
-                        WoWSims öffnen
-                    </a>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>Schließen</button>
-                </>
-            }
-        >
-            <ol className="lc-export-steps">
-                <li>WoWSims öffnen — <b>{data.simUrl.replace("https://", "")}</b> (die Seite muss zur Klasse passen)</li>
-                <li>Oben rechts <b>Import</b> → <b>From JSON</b></li>
-                <li>Das JSON unten einfügen und bestätigen</li>
-                <li><b>Simulate</b> — die DPS sollte der hier angezeigten entsprechen</li>
-            </ol>
-            {data.warnings.length ? (
-                <p className="hint">
-                    Hinweise zum Gear: {data.warnings.join(" ")}
-                </p>
-            ) : null}
-            <textarea className="lc-export-json" readOnly value={data.json} spellCheck={false} onFocus={(e) => e.currentTarget.select()} />
-        </Section>
-    );
-}
-
-/**
- * The spinner that lives inside a button while its action runs.
- *
- * Inline rather than a page overlay: the action belongs to one row, and
- * blanking the whole table for it would lose the reader's place over a
- * half-second request. `aria-hidden` because the button's own label already
- * changes — a screen reader hears "wird abgelegt", not a spinning glyph.
- */
-function ButtonSpinner() {
-    return <span className="lc-spin" aria-hidden="true" />;
-}
-
-/** A tier's readable name ("Tier 6"), falling back to its id. */
-function tierLabel(tiers: { id: string; label: string }[], id: string): string {
-    const tier = tiers.find((t) => t.id === id);
-    return tier ? tier.label : id.toUpperCase();
-}
-
-/** A raider's name in their class colour. */
-function RaiderName({ raider }: { raider: CouncilRaider }) {
-    return <b {...classColorProps(raider.classColor)}>{raider.character}</b>;
-}
-
-/**
- * The spec, as its icon alone in a narrow column of its own.
- *
- * The icon says the spec to anyone who plays the game, so a second column
- * spelling it out was only taking width from the columns that carry numbers.
- * The name stays reachable as the title, and the column still sorts by it.
- */
-function SpecCell({ specLabel, iconUrl, assumed }: { specLabel: string; iconUrl?: string; assumed?: boolean }) {
-    const title = assumed ? `${specLabel} — aus der Klasse abgeleitet, nicht aus einem Log` : specLabel;
-    if (!iconUrl) return <span className="sub" data-tip={title}>{specLabel.slice(0, 2)}</span>;
-    return (
-        <span className={`lc-spec${assumed ? " lc-spec-assumed" : ""}`} data-tip={title}>
-            <ClassSpecIcon iconUrl={iconUrl} />
-        </span>
-    );
-}
-
-/**
- * Which raid a drop comes from, as a badge in that raid's own colour.
- *
- * Nine raids across four tiers all looked alike before, which made the column
- * pure text to be read one entry at a time. The colours run by tier — T4 amber,
- * T5 teal, T6 violet, Sunwell gold — with each raid inside a tier a shade of
- * its own, so a glance down a list separates "still T5" from "already T6"
- * without reading a single label.
- *
- * The hue comes from `lc-h-<id>` in index.css — the same class the content
- * filter buttons carry, so a raid has one colour whether you are switching it
- * on or reading it off a row. Two palettes would be two codes to learn.
- */
-function ContentBadge({ contentId, tier, label }: { contentId: string; tier?: string; label?: string }) {
-    if (!contentId) return null;
-    return (
-        <span
-            className={`lc-cbadge lc-h-${contentId}`}
-            data-tip={[label || contentId.toUpperCase(), tier ? tier.toUpperCase() : ""].filter(Boolean).join(" · ")}
-        >
-            {contentId.toUpperCase()}
-        </span>
-    );
-}
-
-/** An item as icon + quality-coloured name, linked to Wowhead. */
-function ItemLink({ id, name, iconUrl, quality }: { id: number; name: string; iconUrl?: string; quality?: number | null }) {
-    return (
-        <a className="lc-item" href={WOWHEAD(id)} target="_blank" rel="noreferrer">
-            {iconUrl ? <img src={iconUrl} alt="" loading="lazy" /> : null}
-            <span {...itemQualityProps(quality ?? null)}>{name || `Item ${id}`}</span>
-        </a>
-    );
-}
-
-/**
- * For which specs an item is BiS — the question "BiS" alone never answers.
- *
- * Most caster drops are contested: 29 of the 50 items on a T6 caster BiS list
- * are wanted by more than one spec, so a bare "BiS" badge tells a council
- * nothing about whose list it is on. One chip per spec, icon plus name in the
- * class colour.
- *
- * A spec that borrows another's list (Fire/Frost from Arcane, the two other
- * warlock specs from Destruction) is folded into the chip of the list it
- * borrows and named in its title — otherwise a contested item would show nine
- * chips carrying five distinct claims.
- */
-function BisSpecs({ specs, compact = false }: { specs: CouncilItem["bisSpecs"]; compact?: boolean }) {
-    if (!specs.length) return null;
-    return (
-        <span className="lc-bisspecs">
-            {!compact ? <span className="lbadge lbadge-ok">BiS</span> : null}
-            {specs.map((s) => (
-                <span
-                    key={s.specKey}
-                    className="lc-bisspec"
-                    data-tip={s.alsoFor.length
-                        ? `${s.label} — dieselbe Liste gilt auch für ${s.alsoFor.join(" und ")} (WoWSims führt für die keine eigene)`
-                        : s.label}
-                >
-                    {s.iconUrl ? <img src={s.iconUrl} alt="" loading="lazy" /> : null}
-                    {!compact ? <span {...classColorProps(s.classColor)}>{s.label}</span> : null}
-                    {s.alsoFor.length ? <span className="lc-bisspec-more">+{s.alsoFor.length}</span> : null}
-                </span>
-            ))}
-        </span>
-    );
-}
-
-/** Everything the need bar needs, from a roster row or a candidate alike. */
-type NeedSubject = {
-    needScore: number;
-    needParts: { drought: number; share: number; need: number };
-    daysSinceLoot: number | null;
-    lootCount: number;
-    bisOwned: number;
-    bisTotal: number;
-};
-
-const needSubject = (r: CouncilRaider): NeedSubject => ({
-    needScore: r.needScore, needParts: r.needParts, daysSinceLoot: r.daysSinceLoot,
-    lootCount: r.lootCount, bisOwned: r.bis.owned, bisTotal: r.bis.total,
-});
-
-/**
- * The need score, with its parts behind a hover.
- *
- * Shown as a bar rather than a number because the number itself means nothing
- * to a reader — what matters is the ordering and what drives it, and the hover
- * says exactly that in words. The three segments are the three components, so
- * the bar shows not just how overdue someone is but why.
- */
-function NeedBar({ subject }: { subject: NeedSubject }) {
-    const pct = Math.round(subject.needScore * 100);
-    const p = subject.needParts;
-    // The bar is stacked in the weights the score itself uses (50/40/10), so
-    // the widths add up to exactly the score.
-    const seg = [
-        { key: "drought", w: p.drought * 50, cls: "lc-seg-drought" },
-        { key: "share", w: p.share * 40, cls: "lc-seg-share" },
-        { key: "need", w: p.need * 10, cls: "lc-seg-need" },
-    ];
-    return (
-        <HoverPanel
-            width={420}
-            trigger={
-                <span className="lc-need-wrap">
-                    <span className="lc-need" aria-label={`Bedarf ${pct} Prozent`}>
-                        {seg.map((s) => <span key={s.key} className={`lc-need-fill ${s.cls}`} style={{ width: `${s.w}%` }} />)}
-                    </span>
-                    {/* The number beside the bar: the bar orders the list, the
-                        number lets two raiders be compared out loud. */}
-                    <b className="lc-need-pct" aria-hidden="true">{pct} %</b>
-                </span>
-            }
-        >
-            <div className="lc-need-detail">
-                <div className="lc-need-head"><b>Bedarf {pct} %</b></div>
-                <div className="lc-need-part">
-                    <span className="lc-dot lc-seg-drought" />
-                    <ClockIcon />
-                    <span>{subject.daysSinceLoot === null ? "noch nie etwas bekommen" : `${subject.daysSinceLoot} Tage her`}</span>
-                    <b>{Math.round(p.drought * 100)} %</b>
-                </div>
-                <div className="lc-need-part">
-                    <span className="lc-dot lc-seg-share" />
-                    <LootBagIcon />
-                    <span>{subject.lootCount} Items im Filter</span>
-                    <b>{Math.round(p.share * 100)} %</b>
-                </div>
-                <div className="lc-need-part">
-                    <span className="lc-dot lc-seg-need" />
-                    <CouncilIcon />
-                    <span>{subject.bisTotal ? `${subject.bisOwned}/${subject.bisTotal} BiS getragen` : "keine BiS-Liste"}</span>
-                    <b>{Math.round(p.need * 100)} %</b>
-                </div>
-                <div className="hint" style={{ marginTop: 6 }}>
-                    Gewichtet: 50 % Wartezeit, 40 % Loot-Anteil, 10 % BiS-Lücke.
-                </div>
-            </div>
-        </HoverPanel>
-    );
-}
-
-/**
- * The Wowhead link for a worn piece *as worn*: with the raider's gems and
- * enchant in the url, so the widget tooltip (power.js, index.html) shows the
- * socketed, enchanted item like the in-game tooltip — the same url shape the
- * character page uses for its gear tiles.
- */
-function wornWowheadUrl(item: WornItem): string {
-    const params: string[] = [];
-    if (item.enchantId) params.push(`ench=${item.enchantId}`);
-    if (item.gemIds.length) params.push(`gems=${item.gemIds.join(":")}`);
-    return `https://www.wowhead.com/tbc/item=${item.itemId}${params.length ? `?${params.join("&")}` : ""}`;
-}
-
-/**
- * One worn piece as its icon, with Wowhead's own tooltip behind it.
- *
- * The icon is the whole cell on purpose: a row of sixteen item names is
- * unreadable, a row of sixteen icons is a character sheet. The hover used to
- * be a panel of our own — name, a few stats, a gem count — and it could never
- * say what the real tooltip says: the socket bonus, the enchant by name, the
- * set bonus with its progress. So the icon is a Wowhead link now and the
- * widget draws the tooltip. What stays on the icon are the marks a council
- * wants without hovering: a missing enchant, an empty socket, BiS — and the
- * two about what the comparison can read on this slot.
- */
-function WornIcon({ item }: { item: WornItem }) {
-    const noench = item.enchantStatus === "missing";
-    const marks = [
-        item.isBis ? "lc-worn-bis" : "",
-        noench ? "lc-worn-noench" : "",
-        item.situational ? "lc-worn-sit" : "",
-    ].filter(Boolean).join(" ");
-    return (
-        <a
-            className={`lc-worn ${marks}`}
-            href={wornWowheadUrl(item)}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={`${item.itemName} (${item.slotName})`}
-        >
-            {item.iconUrl
-                ? <img src={item.iconUrl} alt="" loading="lazy" {...itemQualityProps(item.quality, "lc-worn-img")} />
-                : <span className="lc-worn-img lc-worn-blank" />}
-            {/* Each mark owns one corner, so the eye knows where to look before
-                it reads anything: BiS bottom right, no enchant top left, an
-                empty socket top right. A coloured border alone was the old way,
-                and next to sixteen other borders it was invisible — the tag is
-                what makes "BiS" legible at 30px. */}
-            {item.isBis ? <span className="lc-worn-tag lc-worn-tag-bis" aria-label="BiS">BiS</span> : null}
-            {noench ? <span className="lc-worn-tag lc-worn-tag-noench" data-tip="keine Verzauberung">!</span> : null}
-            {item.emptySockets > 0
-                ? <span className="lc-worn-tag lc-worn-tag-socket" data-tip={`${item.emptySockets} leere Sockel`} />
-                : null}
-            {/* Bottom left, both about what the comparison can read on this
-                slot: an item that only counts against certain bosses, or one
-                taken from an older raid because the newest raid had such a
-                piece here. Wowhead knows nothing of either, so the reason
-                stays on the mark itself. */}
-            {item.situational ? (
-                <span className="lc-worn-mark lc-worn-mark-sit" data-tip={`Zählt im Vergleich nicht: ${item.situational.note}.`}>!</span>
-            ) : null}
-            {item.replacedSituational ? (
-                <span
-                    className="lc-worn-mark lc-worn-mark-sub"
-                    data-tip={`Steht hier statt „${item.replacedSituational.itemName}“ — das ${item.replacedSituational.note}. Gezeigt wird, was ${item.replacedSituational.sameRaid
-                        ? `im selben Raid${item.replacedSituational.fight ? ` bei ${item.replacedSituational.fight}` : ""} auf dem Slot steckte`
-                        : `${item.replacedSituational.reportTitle ? `„${item.replacedSituational.reportTitle}“` : "eine ältere Auswertung"} auf dem Slot zeigt`}.`}
-                >
-                    ↺
-                </span>
-            ) : null}
-        </a>
-    );
-}
-
-/**
- * When the gear was seen — and whether it is the right *kind* of gear.
- *
- * The council reads gear out of whatever raid log is newest, and shamans,
- * druids and priests routinely heal a night. A healing set judged as a damage
- * kit would give a DPS caster no DPS worth the name and let every drop
- * "replace" a healing piece it has nothing to do with, so the server walks back
- * to the newest raid where they played the right role. Two things then need
- * saying: that the gear is older than the last raid, and — when no fitting set
- * exists at all — that the numbers are built on the wrong one.
- */
-function GearStamp({ raider }: { raider: CouncilRaider }) {
-    const g = raider.gear;
-    if (!g) return <>—</>;
-    const hit = g.hitCap > 0 ? ` · Hit ${g.spellHit}/${g.hitCap}` : "";
-
-    // Aus der Armory heißt: der Stand von jetzt, nicht der der letzten
-    // Auswertung. Das muss vorne stehen, sonst liest sich ein frisches Datum
-    // wie ein frisches Log.
-    if (g.source === "armory") {
-        return (
-            <span className="lc-gear-armory" data-tip={`Aktuelles Gear aus der Armory, geholt ${fmtMs(g.armoryAt, true)}.${g.unverifiedEnchants ? ` ${g.unverifiedEnchants} Teil(e) sind seit der letzten Auswertung dazugekommen — für die ist keine Verzauberung bekannt, die Simulation rechnet sie unverzaubert.` : ""}`}>
-                Armory{hit}
-                {g.unverifiedEnchants ? <span className="sub"> · {g.unverifiedEnchants} ohne VZ-Info</span> : null}
-            </span>
-        );
-    }
-
-    const stamp = `${fmtMs(g.seenAt, false)}${hit}`;
-    // What the set is *not* purely their normal kit for. Rides along with every
-    // branch below, because it is orthogonal to how the set was found.
-    const slots = (
-        <>
-            {/* Die Armory hat geantwortet, aber mit einem Set, das gegen einen
-                Boss nichts taugt — dann bleibt es beim letzten Raid, und das
-                steht hier, sonst sähe der Knopf aus, als hätte er nichts getan. */}
-            {g.logRejected === "pvp" ? (
-                <span className="lc-gear-warn" data-tip="Das geladene Log zeigt diesen Raider in PvP-Gear. Gegen einen Boss zählt das nicht — bewertet wird weiter das Set aus der Auswertung.">
-                    {" "}· Log: PvP-Gear
-                </span>
-            ) : null}
-            {g.logRejected === "role" ? (
-                <span className="sub" data-tip="Das geladene Log zeigt ein Set der anderen Rolle (Heilgear für einen Caster oder umgekehrt). Bewertet wird weiter das Set aus der Auswertung.">
-                    {" "}· Log: andere Rolle
-                </span>
-            ) : null}
-            {g.armoryRejected === "pvp" ? (
-                <span className="lc-gear-warn" data-tip="Die Armory zeigt gerade PvP-Gear (Abhärtung auf den meisten Teilen). Gegen einen Boss zählt das nicht — bewertet wird weiter das Set aus dem letzten Raid.">
-                    {" "}· Armory: PvP-Gear
-                </span>
-            ) : null}
-            {g.armoryRejected === "role" ? (
-                <span className="sub" data-tip="Die Armory zeigt ein Set der anderen Rolle (Heilgear für einen Caster oder umgekehrt). Bewertet wird weiter das Set aus dem letzten Raid.">
-                    {" "}· Armory: andere Rolle
-                </span>
-            ) : null}
-            {g.pvpGear ? (
-                <span className="lc-gear-warn" data-tip="Jede der letzten Auswertungen zeigt diesen Raider in PvP-Gear. Ein anderes Set ist nicht bekannt, die Werte sind daher mit Vorsicht zu lesen.">
-                    {" "}· <b>PvP-Gear</b>
-                </span>
-            ) : null}
-            {g.substituted > 0 ? (
-                <span className="sub" data-tip={`${g.substituted} Slot(s) tragen heute ein Teil, das nur gegen bestimmte Bosse zählt — verglichen wird mit dem, was dort sonst steckt (Icon mit ↺).`}>
-                    {" "}· {g.substituted}× ersetzt
-                </span>
-            ) : null}
-            {g.situational > 0 ? (
-                <span className="lc-gear-warn" data-tip={`${g.situational} Slot(s) tragen ein bossabhängiges Teil, und keine ältere Auswertung zeigt dort etwas anderes. Der Vergleich liest den Slot als leer (Icon mit !).`}>
-                    {" "}· {g.situational} Slot situativ
-                </span>
-            ) : null}
-        </>
-    );
-
-    // Ein von Hand geladenes Log: das Datum ist das des Raids, und vorne steht,
-    // dass es kein Stand der Auswertung ist — sonst sähe ein Log von Donnerstag
-    // aus wie eine Auswertung von Donnerstag.
-    if (g.source === "wcl") {
-        return (
-            <span data-tip={`Aus dem Log „${g.reportTitle}“, geladen ${fmtMs(g.wclAt, true)}. Gilt, bis eine neuere Auswertung kommt oder „Auswertung“ gewählt wird.${g.roleMismatch ? " Dort wurde offenbar geheilt — die Werte sind mit Vorsicht zu lesen." : ""}`}>
-                <span className="lc-gear-wcl">Log</span> {stamp}
-                {g.roleMismatch ? <span className="lc-gear-warn"> · <b>Heilgear</b></span> : null}
-                {slots}
-            </span>
-        );
-    }
-    if (g.roleMismatch) {
-        return (
-            <span className="lc-gear-warn" data-tip={`Aus „${g.reportTitle}“ — dort wurde offenbar geheilt. Für diesen Raider ist kein reines Caster-Set geloggt, die Werte sind daher mit Vorsicht zu lesen.`}>
-                {stamp} <b>· Heilgear</b>{slots}
-            </span>
-        );
-    }
-    if (g.skippedReports > 0) {
-        return (
-            <span data-tip={`Aus „${g.reportTitle}“. ${g.skippedReports} neuere Auswertung(en) übersprungen, weil dort geheilt wurde oder PvP-Gear getragen wurde.`}>
-                {stamp} <span className="sub">· {g.skippedReports} übersprungen</span>{slots}
-            </span>
-        );
-    }
-    return <span data-tip={`Aus der Auswertung „${g.reportTitle}“`}>{stamp}{slots}</span>;
-}
-
-// The slot groups a character sheet reads in (slot ids from
-// utils/logcheck/gearIssues.js): armour top to bottom, then rings and trinkets,
-// then the weapons. A gap between the groups is what keeps seventeen icons from
-// reading as one ribbon.
-const GEAR_GROUPS: number[][] = [[0, 1, 2, 14, 4, 8, 9, 5, 6, 7], [10, 11, 12, 13], [15, 16, 17]];
-
-/**
- * Everything a raider wears, as the band under their numbers — inside their
- * block, never a row of its own.
- *
- * The old layout put the gear in a second table row, and with eleven raiders
- * that was eleven identical strips of icons between eleven names: nobody could
- * say whose gear a strip was without counting rows. Now the band sits inside
- * the raider's block, under the class-coloured rail, with its own "Gear" label
- * and the counts a council asks for first (how many BiS pieces, what is missing
- * an enchant). The stamp on the right says how old the gear is.
- */
-function GearBand({ raider, canWrite, busy, logOpen, onArmory, onLogToggle, onEvaluation }: {
-    raider: CouncilRaider;
-    canWrite: boolean;
-    busy: Set<string>;
-    /** Whether this raider's log panel is open — the "Log" segment shows it. */
-    logOpen: boolean;
-    onArmory: (character: string) => void;
-    onLogToggle: (character: string) => void;
-    onEvaluation: (character: string) => void;
-}) {
-    const gear = raider.gear;
-    const source = gear ? gear.source : "log";
-    const armoryBusy = busy.has(`armory:${raider.character}`);
-    const backBusy = busy.has(`loggear:${raider.character}`);
-    // Where the set comes from, as one split pill with the active segment
-    // filled — three answers to one question, so one element (same shape as
-    // the role switch). It sits with the gear it describes, not among the
-    // raider's actions in the head. "Auswertung" is also the way back from a
-    // loaded log or the armory; "Log" opens the panel; "Armory" fetches.
-    const sourcePill = (
-        <span className="lc-gearsrc" role="group" aria-label={`Gear-Quelle für ${raider.character}`}>
-            <button
-                type="button"
-                className={`lc-srcopt${source === "log" ? " active" : ""}`}
-                disabled={!canWrite || source === "log" || backBusy}
-                data-tip={source === "log"
-                    ? "Das Set aus der letzten Auswertung"
-                    : "Zurück zum Set aus der letzten Auswertung"}
-                onClick={() => onEvaluation(raider.character)}
-            >
-                {backBusy ? <ButtonSpinner /> : <EvalIcon />}
-                Auswertung
-            </button>
-            <button
-                type="button"
-                className={`lc-srcopt${source === "wcl" || logOpen ? " active" : ""}`}
-                disabled={!canWrite}
-                data-tip={source === "wcl"
-                    ? "Gear aus einem geladenen Log — ein anderes Log wählen"
-                    : "Gear aus einem Log laden: eines der letzten Logs des Bots oder ein Warcraft-Logs-Link"}
-                onClick={() => onLogToggle(raider.character)}
-            >
-                <LogIcon />
-                Log
-            </button>
-            <button
-                type="button"
-                className={`lc-srcopt lc-srcopt-armory${source === "armory" ? " active" : ""}`}
-                disabled={!canWrite || armoryBusy}
-                data-tip={source === "armory"
-                    ? "Gear noch einmal aus der Armory holen"
-                    : "Gear aus der Armory holen — der Stand von jetzt, nicht der der letzten Auswertung"}
-                onClick={() => onArmory(raider.character)}
-            >
-                {armoryBusy ? <ButtonSpinner /> : <ArmoryIcon />}
-                Armory
-            </button>
-        </span>
-    );
-    const armoryLink = raider.armoryUrl ? (
-        <a
-            className="lc-ibtn lc-ibtn-link"
-            href={raider.armoryUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-tip="Armory im Browser öffnen und selbst nachsehen"
-            aria-label="Armory im Browser öffnen"
-        >
-            <ExternalIcon />
-        </a>
-    ) : null;
-    if (!gear || !gear.items.length) {
-        // No gear from any source yet — the band still offers the sources,
-        // because that is exactly when somebody wants to load a log.
-        return (
-            <div className="lc-gear-band">
-                <div className="lc-gear-label"><span className="lc-kicker">Gear</span></div>
-                <span className="sub">Kein Gear bekannt — in keiner Auswertung gesehen.</span>
-                {sourcePill}
-                {armoryLink}
-            </div>
-        );
-    }
-    const items = gear.items;
-    const noench = items.filter((i) => i.enchantStatus === "missing").length;
-    const sockets = items.reduce((n, i) => n + i.emptySockets, 0);
-    const grouped = GEAR_GROUPS.map((slots) => items.filter((i) => slots.includes(i.slot)));
-    // A slot id the groups do not know still gets shown, at the end.
-    const rest = items.filter((i) => !GEAR_GROUPS.some((g) => g.includes(i.slot)));
-    if (rest.length) grouped.push(rest);
-    return (
-        <div className="lc-gear-band">
-            <div className="lc-gear-label">
-                <span className="lc-kicker">Gear</span>
-                {raider.bis.total ? (
-                    <span className="lc-gchip lc-gchip-bis" data-tip="Getragene Teile der BiS-Liste dieses Raiders">
-                        BiS {raider.bis.owned}/{raider.bis.total}
-                    </span>
-                ) : null}
-                {noench ? <span className="lc-gchip lc-gchip-warn" data-tip="Teile ohne Verzauberung">{noench} ohne VZ</span> : null}
-                {sockets ? <span className="lc-gchip lc-gchip-warn" data-tip="Leere Sockel">{sockets} Sockel leer</span> : null}
-                {/* Bossabhängige Teile fliegen aus dem Vergleich — sie sind für
-                    jeden anderen Boss so viel wert wie ein leerer Slot. Der Chip
-                    sagt, welcher Slot deshalb leer ist. */}
-                {gear.dropped.map((d) => (
-                    <span
-                        key={d.slot}
-                        className="lc-gchip lc-gchip-warn"
-                        data-tip={`„${d.itemName}" ${d.note}. Der Slot zählt hier als leer, weil keine andere Quelle sagt, was ${raider.character} dort sonst trägt.`}
-                    >
-                        {d.slotName} leer
-                    </span>
-                ))}
-            </div>
-            <div className="lc-gear">
-                {grouped.filter((g) => g.length).map((g, gi) => (
-                    <Fragment key={gi}>
-                        {gi > 0 ? <span className="lc-gear-sep" /> : null}
-                        <span className="lc-gear-group">
-                            {g.map((item) => <WornIcon key={`${item.slot}-${item.itemId}`} item={item} />)}
-                        </span>
-                    </Fragment>
-                ))}
-            </div>
-            {sourcePill}
-            <span className="lc-gear-seen sub"><GearStamp raider={raider} /></span>
-            {armoryLink}
-        </div>
-    );
-}
-
-/** Stroke icons for the source pill and the icon buttons — one style, 16px grid. */
-function EvalIcon() {
-    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 19V5" /><path d="M4 15l4-4 4 3 5-6 3 2" /></svg>;
-}
-function LogIcon() {
-    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 4h14v16H5z" /><path d="M9 9h6M9 13h6M9 17h3" /></svg>;
-}
-function ArmoryIcon() {
-    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z" /></svg>;
-}
-function ExternalIcon() {
-    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4h6v6" /><path d="M20 4 10 14" /><path d="M18 13v6H5V6h6" /></svg>;
-}
-function ExportIcon() {
-    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 4v11" /><path d="m7 10 5 5 5-5" /><path d="M4 19h16" /></svg>;
-}
-function ExcludeIcon() {
-    return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="10" cy="8" r="4" /><path d="M3 20a7 7 0 0 1 14 0" /><path d="M17 11h5" /></svg>;
-}
-
-/**
- * The log panel under a raider: the bot's newest logs to pick from, a link
- * field for any other report, and the way back to the evaluation's set.
- *
- * It opens at the raider it is about, like the sim export — a dialog at the
- * top of the page would mean scrolling up to see what one's own click did.
- * A log the raider is not in is only known after trying it, so every row is
- * offered and the toast says "steht nicht in diesem Log".
- */
-function LogPanel({ raider, logs, busy, onLoad, onClose }: {
-    raider: CouncilRaider;
-    logs: CouncilLog[];
-    busy: Set<string>;
-    onLoad: (character: string, pick: { reportId?: string; link?: string }) => void;
-    onClose: () => void;
-}) {
-    const [link, setLink] = useState("");
-    const loading = busy.has(`loggear:${raider.character}`);
-    const current = raider.gear && raider.gear.source === "wcl" ? raider.gear.reportId : "";
-    const submitLink = () => {
-        const value = link.trim();
-        if (!value || loading) return;
-        onLoad(raider.character, { link: value });
-    };
-    return (
-        <div className="lc-logpanel" role="region" aria-label={`Gear von ${raider.character} aus einem Log laden`}>
-            <div className="lc-logpanel-head">
-                <div>
-                    <div className="lc-logpanel-title">Gear aus einem Log laden</div>
-                    <div className="sub">
-                        Die letzten Logs des Bots, neueste zuerst — mit Sockeln und Verzauberungen, wie eine Auswertung.
-                        Ein Log ohne {raider.character} sagt es, statt leer zu bleiben.
-                    </div>
-                </div>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={onClose}>Schließen</button>
-            </div>
-            <div className="lc-logrows">
-                <div className="lc-logrow">
-                    <span className="lc-logrow-name">
-                        Neuestes Log mit {raider.character}
-                        <span className="sub">probiert die letzten Logs der Reihe nach</span>
-                    </span>
-                    <span />
-                    <button
-                        type="button"
-                        className="btn btn-sm"
-                        disabled={loading || !logs.length}
-                        onClick={() => onLoad(raider.character, {})}
-                    >
-                        {loading ? <><ButtonSpinner />Wird geladen …</> : "Laden"}
-                    </button>
-                </div>
-                {logs.map((log) => (
-                    <div key={log.reportId} className={`lc-logrow${log.reportId === current ? " current" : ""}`}>
-                        <span className="lc-logrow-name">
-                            <span className="lc-logrow-title">{log.title || log.reportId}</span>
-                            {log.eventLabel ? <span className="sub">{log.eventLabel}</span> : null}
-                            {log.reportId === current ? <span className="lc-gchip lc-gchip-bis">geladen</span> : null}
-                        </span>
-                        <span className="lc-logrow-date">{log.postedAt ? fmtMs(log.postedAt, false) : ""}</span>
-                        <button
-                            type="button"
-                            className="btn btn-ghost btn-sm"
-                            disabled={loading}
-                            onClick={() => onLoad(raider.character, { reportId: log.reportId })}
-                        >
-                            Laden
-                        </button>
-                    </div>
-                ))}
-                {!logs.length ? <div className="hint">Der Bot kennt noch kein Log — einen Warcraft-Logs-Link einfügen.</div> : null}
-            </div>
-            <div className="lc-loglink">
-                <input
-                    type="text"
-                    value={link}
-                    placeholder="https://classic.warcraftlogs.com/reports/…"
-                    aria-label="Warcraft-Logs-Link"
-                    onChange={(e) => setLink(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") submitLink(); }}
-                />
-                <button type="button" className="btn btn-ghost btn-sm btn-armory" disabled={loading || !link.trim()} onClick={submitLink}>
-                    Aus Link laden
-                </button>
-            </div>
-        </div>
-    );
-}
-
-/** What the corner marks on a worn item mean — in the roster's header, once. */
-function GearLegend() {
-    return (
-        <div className="lc-legend" aria-label="Legende der Item-Marken">
-            <span className="lc-legend-item">
-                <span className="lc-worn lc-worn-bis lc-worn-demo"><span className="lc-worn-img" /><span className="lc-worn-tag lc-worn-tag-bis">BiS</span></span>
-                auf der BiS-Liste des Raiders
-            </span>
-            <span className="lc-legend-item">
-                <span className="lc-worn lc-worn-noench lc-worn-demo"><span className="lc-worn-img" /><span className="lc-worn-tag lc-worn-tag-noench">!</span></span>
-                keine Verzauberung
-            </span>
-            <span className="lc-legend-item">
-                <span className="lc-worn lc-worn-demo"><span className="lc-worn-img" /><span className="lc-worn-tag lc-worn-tag-socket" /></span>
-                leerer Sockel
-            </span>
-        </div>
-    );
-}
-
-/** A sortable column header for the roster's grid — the `<th>` variant's twin. */
-function SortHead({ sortKey, label, tip, sort, dir, onSort }: {
-    sortKey: RosterSortKey;
-    label: string;
-    tip?: string;
-} & TableSort<RosterSortKey>) {
-    return (
-        <div role="columnheader" aria-sort={ariaSort(sortKey, sort, dir)}>
-            <SortLabel sortKey={sortKey} label={label} tip={tip} sort={sort} dir={dir} onSort={onSort} />
-        </div>
-    );
-}
-
-/**
- * One raider: their numbers on top, their gear in a band underneath, one box.
- *
- * The rail on the left carries the class colour, and the box is what answers
- * "whose gear is this" without a second look — the table it replaces had the
- * gear as a separate row, which put every strip of icons exactly between two
- * names. The columns still line up with the header above the list, so the
- * numbers stay comparable down the page and every column still sorts.
- */
-function RaiderBlock({
-    raider: r, rank, sim, busy, canWrite, onExport, onExclude, onArmory, onRole, exportData, onCloseExport,
-    logs, logOpen, onLogToggle, onLogLoad, onEvaluation,
-}: {
-    raider: CouncilRaider;
-    rank: number;
-    sim: SimResult | null;
-    busy: Set<string>;
-    canWrite: boolean;
-    onExport: (character: string) => void;
-    onExclude: (character: string) => void;
-    onArmory: (character: string) => void;
-    onRole: (character: string, role: "" | "caster" | "healer") => void;
-    /** Der offene Sim-Export, wenn er zu diesem Raider gehört. */
-    exportData: CouncilExport | null;
-    onCloseExport: () => void;
-    /** Die Logs, die das Log-Panel anbietet, und ob es bei diesem Raider offen ist. */
-    logs: CouncilLog[];
-    logOpen: boolean;
-    onLogToggle: (character: string) => void;
-    onLogLoad: (character: string, pick: { reportId?: string; link?: string }) => void;
-    onEvaluation: (character: string) => void;
-}) {
-    return (
-        <article className="lc-raider" style={classColorProps(r.classColor).style} role="row">
-            <div className="lc-raider-head">
-                <div className="lc-ident">
-                    <span className="lc-rank" aria-hidden="true">{rank}</span>
-                    <SpecCell specLabel={r.specLabel} iconUrl={r.specIconUrl} assumed={r.specAssumed} />
-                    <span className="lc-who">
-                        <RaiderName raider={r} />
-                        <span className="sub">{r.specLabel}{r.className ? ` · ${r.className}` : ""}</span>
-                    </span>
-                </div>
-                <div><NeedBar subject={needSubject(r)} /></div>
-                <div><LootCell raider={r} /></div>
-                <div>
-                    <span className="lc-stat" data-tip={r.lastAwardAt
-                        ? `Letztes Item am ${fmtMs(r.lastAwardAt, false)}`
-                        : "Hat noch nie ein Item bekommen"}
-                    >
-                        <ClockIcon />
-                        {r.lastAwardAt ? `${r.daysSinceLoot}` : "∞"}
-                    </span>
-                </div>
-                <div><BisCell raider={r} /></div>
-                <div><SimCell raider={r} sim={sim} /></div>
-                <div className="lc-raider-actions">
-                    {/* Als was jemand eingeplant ist — nur dort, wo es etwas zu
-                        wählen gibt: ein Magier ist nie Heiler. Danach wird ein
-                        Heiler im Offspec nach Casterset, Caster-BiS und
-                        Caster-Simulation beurteilt, ein eingeplanter Heiler nach
-                        seiner Heil-BiS-Liste (die von Wowhead kommt). */}
-                    {canWrite && r.roleOptions.length > 1 ? (
-                        <span className="lc-roleswitch" role="group" aria-label={`${r.character} einplanen als`}>
-                            {r.roleOptions.map((option) => (
-                                <button
-                                    key={option}
-                                    type="button"
-                                    className={`lc-roleopt${r.role === option ? " active" : ""}`}
-                                    disabled={busy.has(`role:${r.character}`)}
-                                    data-tip={r.roleOverride === option
-                                        ? "So festgelegt — noch einmal klicken nimmt die Festlegung zurück"
-                                        : `Als ${ROLE_LABEL[option] || option} einplanen`}
-                                    onClick={() => onRole(r.character, r.roleOverride === option ? "" : option as "caster" | "healer")}
-                                >
-                                    {ROLE_LABEL[option] || option}
-                                    {r.roleOverride === option ? <span className="lc-rolepin">•</span> : null}
-                                </button>
-                            ))}
-                        </span>
-                    ) : null}
-                    {/* Der Kopf behält nur, was den Raider betrifft: die Rolle
-                        und zwei Icon-Knöpfe. Alles über das Gear — woher es
-                        stammt, Log laden, Armory holen, Armory öffnen — steht
-                        im Gear-Band beim Gear (GearBand). Fünf Textknöpfe
-                        nebeneinander mussten jedes Mal gelesen werden. */}
-                    {r.gear && r.simSupported ? (
-                        <button
-                            type="button"
-                            className="lc-ibtn"
-                            data-tip="Sim-Export: Loadout als WoWSims-Import, um die Zahl selbst nachzurechnen"
-                            aria-label="Sim-Export"
-                            disabled={busy.has(`export:${r.character}`)}
-                            onClick={() => onExport(r.character)}
-                        >
-                            {busy.has(`export:${r.character}`) ? <ButtonSpinner /> : <ExportIcon />}
-                        </button>
-                    ) : null}
-                    {canWrite ? (
-                        <button
-                            type="button"
-                            className="lc-ibtn lc-ibtn-danger"
-                            data-tip="Nicht einplanen — bleibt in der Historie, verschwindet nur aus dieser Liste"
-                            aria-label="Nicht einplanen"
-                            disabled={busy.has(`exclude:${r.character}`)}
-                            onClick={() => onExclude(r.character)}
-                        >
-                            {busy.has(`exclude:${r.character}`) ? <ButtonSpinner /> : <ExcludeIcon />}
-                        </button>
-                    ) : null}
-                </div>
-            </div>
-            <GearBand
-                raider={r}
-                canWrite={canWrite}
-                busy={busy}
-                logOpen={logOpen}
-                onArmory={onArmory}
-                onLogToggle={onLogToggle}
-                onEvaluation={onEvaluation}
-            />
-            {/* Das Log-Panel und der Export öffnen sich dort, wo geklickt wurde.
-                Oben an der Seite hieße: bei einem Raider weit unten erst
-                hochscrollen, um zu sehen, was der eigene Klick bewirkt hat. */}
-            {logOpen ? <LogPanel raider={r} logs={logs} busy={busy} onLoad={onLogLoad} onClose={() => onLogToggle(r.character)} /> : null}
-            {exportData ? <ExportPanel data={exportData} onClose={onCloseExport} /> : null}
-        </article>
-    );
-}
-
-/** What the BiS column says, including why a list may not fit exactly. */
-function BisCell({ raider }: { raider: CouncilRaider }) {
-    if (!raider.bis.total) {
-        return (
-            <span className="sub" data-tip="Für diese Spec und dieses Tier gibt es keine BiS-Liste.">
-                keine Liste
-            </span>
-        );
-    }
-    const notes = [
-        raider.bis.source === "wowhead"
-            ? "Geschriebene Wowhead-Liste: nennt Items, keine Sockel und keine Verzauberungen"
-            : "",
-        raider.bis.borrowedFrom ? `Liste von ${raider.bis.borrowedFrom} (für diese Spec gibt es keine eigene)` : "",
-        !raider.bis.exact && raider.bis.tier ? `Neueste verfügbare Liste: ${raider.bis.tier.toUpperCase()}` : "",
-    ].filter(Boolean);
-    const pct = Math.round((raider.bis.owned / raider.bis.total) * 100);
-    return (
-        <span className="lc-bisfrac" data-tip={notes.join(" · ")}>
-            <span className="lc-bisfrac-num">
-                <b>{raider.bis.owned}</b>
-                <span className="sub">/{raider.bis.total}{notes.length ? " *" : ""}</span>
-            </span>
-            {/* A hairline meter under the fraction, so the column reads as a
-                bar chart of who is closest to their list. */}
-            <span className="lc-bisfrac-meter" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span>
-        </span>
-    );
-}
-
-// How many awards the hover shows. A peek, not the full history: past this the
-// panel would need to scroll, and a tooltip you have to scroll is one you
-// cannot read at a glance. The character page has the complete list.
-const HOVER_ITEMS = 8;
-
-/**
- * What a raider was given lately, behind a hover on their loot count.
- *
- * Shared by the roster table and the candidate list on purpose: "wer soll das
- * Item kriegen?" and "ja was hat der denn schon bekommen?" are asked in the
- * same breath, and sending the council to another tab for the second answer is
- * how a decision stalls.
- *
- * `total` is the real count; the list is capped so the panel never scrolls.
- */
-function LootHover({ items, total, other = 0, trigger, width = 560 }: {
-    items: CouncilLootItem[];
-    total: number;
-    /** Off-spec rolls, shards and bank items — counted nowhere, named here. */
-    other?: number;
-    trigger: ReactNode;
-    width?: number;
-}) {
-    if (!total) {
-        // Nothing that counts. If they did take shards or off-spec pieces, say
-        // so — "—" alone would look like they were never even in the raid.
-        return other
-            ? <span className="sub" data-tip={`${other} Item(s) für Offspec, Entzaubern oder die Bank — zählen nicht als erhaltener Loot.`}>—<sup>{other}</sup></span>
-            : <span className="sub">—</span>;
-    }
-    return (
-        // Wide enough that item name, raid, reason and date fit on one line —
-        // at the default width the row overflowed and the panel grew a
-        // horizontal scrollbar.
-        <HoverPanel width={width} head="Zuletzt bekommen" trigger={trigger}>
-            <div className="lc-loot-list">
-                {items.slice(0, HOVER_ITEMS).map((item, i) => (
-                    <div key={`${item.itemId}-${item.awardedAt}-${i}`} className="lc-loot-row">
-                        <ItemLink id={item.itemId} name={item.itemName} iconUrl={item.itemIconUrl} quality={item.itemQuality} />
-                        <ContentBadge contentId={item.contentId} tier={item.tier} />
-                        {item.reasonLabel ? <ReasonBadge label={item.reasonLabel} tone={item.reasonTone} title={item.reason} /> : null}
-                        <span className="sub lc-loot-date">{item.awardedAt ? fmtMs(item.awardedAt, false) : ""}</span>
-                    </div>
-                ))}
-                {total > items.slice(0, HOVER_ITEMS).length
-                    ? <div className="hint">… und {total - items.slice(0, HOVER_ITEMS).length} ältere</div>
-                    : null}
-                {/* Named, not listed: they are not upgrades and do not count,
-                    but hiding them entirely would make the number look wrong to
-                    anyone who remembers handing them out. */}
-                {other ? (
-                    <div className="hint lc-loot-other">
-                        Dazu {other} × Offspec, Entzaubern oder Bank — zählt nicht als erhaltener Loot.
-                    </div>
-                ) : null}
-            </div>
-        </HoverPanel>
-    );
-}
-
-/** The loot count in the roster table, with the items behind it. */
-function LootCell({ raider }: { raider: CouncilRaider }) {
-    return (
-        <LootHover
-            items={raider.items}
-            total={raider.lootCount}
-            other={raider.otherCount}
-            trigger={
-                <span className="lc-stat" data-tip={`${raider.lootCount} Items im Filter, ${raider.lootTotal} insgesamt`}>
-                    <LootBagIcon />
-                    {raider.lootCount}
-                </span>
-            }
-        />
-    );
-}
-
-/**
- * The DPS a raider's current gear is worth, once simulated.
- *
- * Deliberately shows nothing at all rather than a placeholder number when there
- * is no result: an invented DPS in a column that elsewhere holds a measured one
- * is the single most misleading thing this page could do.
- */
-function SimCell({ raider, sim }: { raider: CouncilRaider; sim: SimResult | null }) {
-    const entry = sim && sim[raider.key];
-    if (!raider.simSupported) return <span className="sub" data-tip="WoWSims-TBC simuliert diese Spec nicht.">—</span>;
-    if (!raider.gear) return <span className="sub" data-tip="Kein Gear bekannt: der Raider taucht in keiner der letzten CLA-Auswertungen auf.">kein Gear</span>;
-    if (!entry) return <span className="sub">nicht simuliert</span>;
-    if (entry.baseline === null) return <span className="sub" data-tip={entry.error || ""}>fehlgeschlagen</span>;
-    return <b>{Math.round(entry.baseline)}</b>;
-}
-
-/**
- * What the raider currently has in the slots this item could go into.
- *
- * Always *all* of them, which is the whole fix: a ring shows both rings, a
- * trinket both trinkets, and a two-handed staff both hands. Showing only the
- * piece that happens to lose out hid half the decision — which ring is kept
- * matters as much as which one goes, and a staff quietly costing the off hand
- * is the kind of thing a council notices only after the item is handed out.
- *
- * The piece that would actually be replaced is marked; a two-hander marks both,
- * because it takes both.
- */
-function SlotOptions({ candidate }: { candidate: CouncilCandidate }) {
-    const options = candidate.slotOptions.length
-        ? candidate.slotOptions
-        // Older payloads (or an item resolved before this existed) still render.
-        : [{ slot: candidate.slot, slotName: candidate.slotName, chosen: true, item: candidate.replaces }];
-    return (
-        <span className={`lc-slots${candidate.twoHanded ? " lc-slots-two" : ""}`}>
-            {options.map((opt) => (
-                <span
-                    key={opt.slot}
-                    className={`lc-slot${opt.chosen ? " lc-slot-chosen" : ""}`}
-                    data-tip={opt.chosen
-                        ? `${opt.slotName} — wird belegt`
-                        : `${opt.slotName} — bleibt, wie es ist`}
-                >
-                    {opt.item
-                        ? <WornIcon item={opt.item} />
-                        : <span className="lc-freeslot"><EmptySlotIcon /></span>}
-                </span>
-            ))}
-            {candidate.twoHanded ? (
-                <span className="lc-slots-note" data-tip="Zweihandwaffe: belegt Waffenhand und Nebenhand, beide Teile fallen weg">2H</span>
-            ) : null}
-        </span>
-    );
-}
-
-/**
- * What an item would do for one raider — measured, or nothing.
- *
- * No estimate is ever drawn here. Until the drop has been simulated the cell
- * says "nicht simuliert"; a spec the sim cannot answer says so; a raider
- * without gear says that. A stat-weight number in a column that elsewhere
- * holds simulated DPS is the one thing that would make the page lie.
- */
-function GainCell({ candidate, simDelta, gainMax }: {
-    candidate: CouncilCandidate;
-    simDelta: number | null | undefined;
-    gainMax: number;
-}) {
-    if (typeof simDelta !== "number") {
-        if (!candidate.simSupported) {
-            return <span className="sub" data-tip="Für diese Spec gibt es keine Simulation — WoWSims-TBC rechnet nur Caster-DPS.">—</span>;
-        }
-        if (!candidate.hasGear) {
-            return <span className="sub" data-tip="Kein Gear bekannt: der Raider taucht in keiner der letzten CLA-Auswertungen auf.">kein Gear</span>;
-        }
-        return <span className="sub" data-tip="Noch nicht simuliert — der Zugewinn erscheint, sobald die Simulation durch ist.">nicht simuliert</span>;
-    }
-    const gain = simDelta;
-    const pct = gainMax > 0 ? Math.max(0, Math.min(100, (gain / gainMax) * 100)) : 0;
-    return (
-        <span className={`lc-gain lc-gain-measured${gain < 0 ? " lc-gain-loss" : ""}`}>
-            <span className="lc-gain-bar"><span className="lc-gain-fill" style={{ width: `${pct}%` }} /></span>
-            <b data-tip="Simulierte DPS-Differenz (wowsimcli)">
-                {gain > 0 ? "+" : ""}{Math.round(gain)} DPS
-            </b>
-            {/* The number is honestly measured, the *comparison* is not:
-                what would come off reads as an empty slot, so this raider is
-                credited the item's full worth while the rest of the list only
-                gets a difference. Marked right at the number, since that is
-                where the wrong conclusion would be drawn. */}
-            {candidate.inflatedBy.length ? (
-                <span
-                    className="lc-gain-inflated"
-                    data-tip={`Nicht vergleichbar: ${candidate.inflatedBy
-                        .map((b) => `„${b.itemName}“ ${b.note}`)
-                        .join("; ")}. Der Zugewinn fällt dadurch höher aus als bei Raidern mit einem normalen Teil auf dem Slot.`}
-                >
-                    !
-                </span>
-            ) : null}
-        </span>
-    );
-}
-
-/**
- * One row of the "who would gain most" list.
- *
- * Two bars side by side, and they answer different questions on purpose: the
- * left one is what the item would *do* (simulated DPS — nothing until then),
- * the right one is what the raider has *coming to them*. A council weighs
- * those two against each other itself — the page must not multiply them into
- * one number and pretend that is the answer.
- *
- * `gainMax` is the strongest measured gain in this list, so the bars are
- * relative to the best candidate rather than to an absolute scale nobody knows.
- */
-function CandidateRow({ candidate, simDelta, gainMax }: {
-    candidate: CouncilCandidate;
-    simDelta: number | null | undefined;
-    gainMax: number;
-}) {
-    return (
-        <tr>
-            <td>
-                {/* Spec icon and name as one cell, the same identity the roster
-                    shows — a council switching between the two must not have to
-                    re-learn who is who. */}
-                <span className="lc-cand-ident">
-                    <SpecCell specLabel={candidate.specLabel} iconUrl={candidate.specIconUrl} />
-                    <b {...classColorProps(candidate.classColor)}>{candidate.character}</b>
-                    {candidate.isBis
-                        ? <span className="lc-pill-bis" data-tip="Steht auf der BiS-Liste dieses Raiders">BiS</span>
-                        : <span className="lc-pill-nobis" data-tip={`Nicht auf der BiS-Liste dieses Raiders — Zugewinn und Bedarf zählen mit ${Math.round(candidate.bisWeight * 100)} %`}>kein BiS · ½</span>}
-                </span>
-            </td>
-            <td><SlotOptions candidate={candidate} /></td>
-            <td><GainCell candidate={candidate} simDelta={simDelta} gainMax={gainMax} /></td>
-            <td><NeedBar subject={candidate} /></td>
-            <td>
-                <span className="lc-stat" data-tip={candidate.daysSinceLoot === null
-                    ? "Hat noch nie ein Item bekommen"
-                    : `Letztes Item vor ${candidate.daysSinceLoot} Tagen`}
-                >
-                    <ClockIcon />
-                    {candidate.daysSinceLoot === null ? "∞" : `${candidate.daysSinceLoot}`}
-                </span>
-            </td>
-            <td>
-                <LootHover
-                    items={candidate.recentItems}
-                    total={candidate.lootCount}
-                    other={candidate.otherCount}
-                    trigger={
-                        <span className="lc-stat" data-tip={`${candidate.lootCount} Items im Filter, ${candidate.lootTotal} insgesamt`}>
-                            <LootBagIcon />
-                            {candidate.lootCount}
-                        </span>
-                    }
-                />
-            </td>
-        </tr>
-    );
-}
-
-/**
- * The measured DPS delta of one item for one raider, or undefined when it has
- * not been simulated.
- */
-function deltaFor(sim: SimResult | null, candidate: CouncilCandidate, itemId: number): number | null | undefined {
-    const entry = sim && sim[candidate.key];
-    const item = entry && entry.items[String(itemId)];
-    return item ? item.delta : undefined;
-}
-
-/**
- * What a row is ranked by: the measured delta, and nothing else. A candidate
- * without a simulated number sorts below every measured one — there is no
- * estimate to rank them by, and the need score breaks the tie.
- */
-function gainFor(sim: SimResult | null, candidate: CouncilCandidate, itemId: number): number {
-    const delta = deltaFor(sim, candidate, itemId);
-    return typeof delta === "number" ? delta : Number.NEGATIVE_INFINITY;
-}
-
-/**
- * Who should get an item, and on what grounds.
- *
- *   sim      — the biggest simulated gain; the one answer with a number.
- *   pending  — somebody in the list could be simulated but has not been yet:
- *              no suggestion, rather than a guess dressed up as one.
- *   need     — nobody in the list can be simulated at all (healers; WoWSims-
- *              TBC sims no healing), so the suggestion follows the need score
- *              and is labelled as exactly that.
- *   none     — nobody could take the item.
- */
-type Verdict =
-    | { basis: "sim"; best: CouncilCandidate; delta: number }
-    | { basis: "need"; best: CouncilCandidate; delta: null }
-    | { basis: "pending" | "none"; best: null; delta: null };
-
-function pickVerdict(candidates: CouncilCandidate[], sim: SimResult | null, itemId: number): Verdict {
-    const measured = candidates
-        .map((c) => ({ c, delta: deltaFor(sim, c, itemId) }))
-        .filter((x): x is { c: CouncilCandidate; delta: number } => typeof x.delta === "number")
-        // A candidate the item is not BiS for counts half — in the gain and in the need.
-        .sort((a, b) => b.delta * b.c.bisWeight - a.delta * a.c.bisWeight || b.c.itemNeedScore - a.c.itemNeedScore)[0];
-    if (measured) return { basis: "sim", best: measured.c, delta: measured.delta };
-    if (candidates.some((c) => c.simSupported && c.hasGear)) return { basis: "pending", best: null, delta: null };
-    const byNeed = [...candidates].sort((a, b) => b.itemNeedScore - a.itemNeedScore)[0];
-    return byNeed ? { basis: "need", best: byNeed, delta: null } : { basis: "none", best: null, delta: null };
-}
-
-/** The pill next to the suggested name: measured DPS, or "höchster Bedarf". */
-function VerdictGain({ verdict, big = false }: { verdict: Verdict; big?: boolean }) {
-    const size = big ? " lc-verdict-big" : "";
+/** The badge next to a suggested name: measured DPS, or "höchster Bedarf". */
+function VerdictGain({ verdict }: { verdict: Verdict }) {
     if (verdict.basis === "sim") {
-        return (
-            <span className={`lc-verdict-gain lc-verdict-measured${size}`} data-tip="Simulierte DPS-Differenz (wowsimcli)">
-                {verdict.delta > 0 ? "+" : ""}{Math.round(verdict.delta)} DPS
-            </span>
-        );
+        return <Badge tone="ok" tip="Simulierte DPS-Differenz" tipSub="WoWSims, gleicher Seed für alle Kandidaten.">{verdict.delta > 0 ? "+" : ""}{Math.round(verdict.delta)} DPS</Badge>;
     }
     if (verdict.basis === "need") {
-        return (
-            <span className={`lc-verdict-gain lc-verdict-need${size}`} data-tip="Für diese Specs gibt es keine Simulation (WoWSims-TBC rechnet keine Heilung). Der Vorschlag folgt dem Bedarf — geschätzt wird kein Zugewinn.">
-                höchster Bedarf
-            </span>
-        );
+        return <Badge tone="accent" tip="Höchster Bedarf" tipSub="Für diese Specs gibt es keine Simulation (WoWSims-TBC rechnet keine Heilung). Der Vorschlag folgt dem Bedarf — geschätzt wird kein Zugewinn.">höchster Bedarf</Badge>;
     }
     return null;
 }
 
-/** The "who should get this" table — shared by the BiS cards and the drop check. */
-function CandidateTable({ itemId, candidates, sim, sortState }: {
-    itemId: number;
-    candidates: CouncilCandidate[];
-    sim: SimResult | null;
-    sortState: TableSort<CandidateSortKey>;
-}) {
-    const rows = sortState.apply(candidates, (c, key) => {
-        switch (key) {
-            case "character": return c.character.toLowerCase();
-            case "spec": return c.specLabel.toLowerCase();
-            case "slot": return c.replaces ? c.replaces.itemLevel : -1;
-            case "gain": return gainFor(sim, c, itemId) * c.bisWeight;
-            case "need": return c.itemNeedScore;
-            // Never having won anything is the longest wait there is, not the
-            // shortest — so it sorts to the overdue end.
-            case "waited": return c.daysSinceLoot === null ? Number.MAX_SAFE_INTEGER : c.daysSinceLoot;
-            case "loot": return c.lootCount;
-            default: return 0;
-        }
-    });
-    // The bars are relative to the strongest measured candidate, so the best
-    // one is always full and the rest read as a share of it.
-    const gainMax = Math.max(
-        0,
-        ...candidates.map((c) => {
-            const delta = deltaFor(sim, c, itemId);
-            return typeof delta === "number" ? delta : 0;
-        }),
-    );
-    return (
-        <table className="idx lc-candidates" style={{ marginTop: 8 }}>
-            <thead>
-                <tr>
-                    <SortTh sortKey="character" label="Raider" {...sortState} />
-                    <SortTh sortKey="slot" label="Ersetzt" tip="Das Stück, das dafür abgelegt würde — nach dessen Itemlevel sortiert, ein freier Slot zuerst" style={{ width: 70 }} {...sortState} />
-                    <SortTh sortKey="gain" label="Zugewinn" tip="Simulierte DPS-Differenz — leer, solange nicht simuliert wurde. Geschätzt wird nichts." {...sortState} />
-                    <SortTh sortKey="need" label="Bedarf" tip="Wartezeit, Loot-Anteil und BiS-Lücke zusammengenommen — halbiert, wenn das Item für den Raider nicht BiS ist" {...sortState} />
-                    <SortTh sortKey="waited" label="Tage" tip="Seit dem letzten Item" style={{ width: 70 }} {...sortState} />
-                    <SortTh sortKey="loot" label="Items" tip="Im aktuellen Content-Filter" style={{ width: 70 }} {...sortState} />
-                </tr>
-            </thead>
-            <tbody>
-                {rows.map((c) => (
-                    <CandidateRow key={c.key} candidate={c} simDelta={deltaFor(sim, c, itemId)} gainMax={gainMax} />
-                ))}
-            </tbody>
-        </table>
-    );
-}
-
 /** One open BiS item with everyone it would suit. */
-function GapCard({ gap, sim, expanded, onToggle, sortState, onCheck }: {
+function GapCard({ gap, sim, expanded, onToggle, sortState }: {
     gap: CouncilGap;
     sim: SimResult | null;
     expanded: boolean;
     onToggle: () => void;
     /** Shared across every card, so all of them stay ordered the same way. */
     sortState: TableSort<CandidateSortKey>;
-    /** Opens this item in the drop check, where it can be simulated on its own. */
-    onCheck: () => void;
 }) {
     // The suggestion is always the biggest measured gain, whatever the table
     // is sorted by — and none at all while nothing is simulated.
     const verdict = pickVerdict(gap.candidates, sim, gap.id);
     const best = verdict.best;
-
-    // Three bands: what the item is, who should get it, and — opened on
-    // demand — everyone else it would fit. The suggestion gets a band of its
-    // own rather than a hint line, because it is the one thing a council reads
-    // off this card.
     return (
         <article className={`lc-gap${expanded ? " lc-gap-open" : ""}`}>
             <div className="lc-gap-head">
@@ -1444,27 +142,22 @@ function GapCard({ gap, sim, expanded, onToggle, sortState, onCheck }: {
                 <BisSpecs specs={gap.bisSpecs} />
             </div>
             <div className="lc-gap-verdict">
-                <span className="lc-kicker">Vorschlag</span>
+                <span className="kicker">Vorschlag</span>
                 {best ? (
                     <>
-                        <SpecCell specLabel={best.specLabel} iconUrl={best.specIconUrl} />
-                        <b {...classColorProps(best.classColor)}>{best.character}</b>
+                        <RaiderIdent name={best.character} classColor={best.classColor} specIconUrl={best.specIconUrl} size={28} />
                         <VerdictGain verdict={verdict} />
                     </>
                 ) : verdict.basis === "pending" ? (
-                    <span className="hint" style={{ margin: 0 }}>
-                        Noch nicht simuliert — „Als Drop prüfen“ rechnet es in Sekunden, „Alle BiS-Items durchrechnen“ die ganze Liste.
-                    </span>
+                    <Badge tip="Noch nicht simuliert" tipSub="„Als Drop prüfen“ rechnet es in Sekunden, „Alle BiS-Items durchrechnen“ die ganze Liste.">nicht simuliert</Badge>
                 ) : (
-                    <span className="hint" style={{ margin: 0 }}>Für keinen der gefilterten Raider ein passender Slot.</span>
+                    <Badge tip="Kein Kandidat" tipSub="Für keinen der gefilterten Raider ein passender Slot.">kein Kandidat</Badge>
                 )}
                 <span className="lc-grow" />
-                <button type="button" className="btn btn-ghost btn-sm" onClick={onToggle}>
-                    {expanded ? "Kandidaten ausblenden" : `Alle ${gap.candidates.length} Kandidaten`}
-                </button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={onCheck}>
-                    Als Drop prüfen
-                </button>
+                <Link className={buttonClass("ghost", "sm", true)} to={dropHref(gap.id)}>
+                    <WowIcon name="inv_misc_bag_10" size={18} />Als Drop prüfen
+                </Link>
+                {gap.candidates.length ? <Expand open={expanded} onToggle={onToggle} label={`${gap.candidates.length} Kandidaten`} /> : null}
             </div>
             {expanded && gap.candidates.length
                 ? <CandidateTable itemId={gap.id} candidates={gap.candidates} sim={sim} sortState={sortState} />
@@ -1474,229 +167,11 @@ function GapCard({ gap, sim, expanded, onToggle, sortState, onCheck }: {
 }
 
 /**
- * An item as the head of a card: big icon in its quality colour, the name
- * linked to Wowhead, and under the name where it comes from.
- *
- * Shared by the BiS cards and the drop check, so a drop looks the same whether
- * the council found it in the gap list or typed it in.
- */
-function ItemHead({ id, name, iconUrl, quality, meta }: {
-    id: number;
-    name: string;
-    iconUrl?: string;
-    quality?: number | null;
-    meta: ReactNode;
-}) {
-    return (
-        <span className="lc-itemhead">
-            {iconUrl
-                ? <img src={iconUrl} alt="" loading="lazy" {...itemQualityProps(quality ?? null, "lc-itemhead-icon")} />
-                : <span className="lc-itemhead-icon lc-worn-blank" />}
-            <span className="lc-itemhead-text">
-                <a href={WOWHEAD(id)} target="_blank" rel="noreferrer" {...itemQualityProps(quality ?? null, "lc-itemhead-name")}>
-                    {name || `Item ${id}`}
-                </a>
-                <span className="hint lc-gap-meta">{meta}</span>
-            </span>
-        </span>
-    );
-}
-
-/**
- * "Das ist gerade gedroppt — wer soll es bekommen?"
- *
- * The one question a council asks under time pressure, so it gets its own tab
- * instead of being buried in the BiS list: pick the item, see everyone it fits
- * ranked by what it would actually gain them, and simulate exactly that one
- * item rather than the whole gap list (five raiders instead of a hundred runs —
- * seconds, not minutes).
- */
-function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, onClear, onSimulate }: {
-    focus: CouncilFocus | null;
-    sim: SimResult | null;
-    sortState: TableSort<CandidateSortKey>;
-    simAvailable: boolean;
-    simRunning: boolean;
-    onPick: (item: ItemSearchResult) => void;
-    onClear: () => void;
-    onSimulate: () => void;
-}) {
-    const verdict: Verdict = focus ? pickVerdict(focus.candidates, sim, focus.item.id) : { basis: "none", best: null, delta: null };
-    const best = verdict.best;
-
-    // Three blocks, because they answer three separate questions: which item,
-    // who should get it, and on what grounds. Running them together in one card
-    // made the reader find those seams themselves.
-    return (
-        <>
-            <Section
-                title="Welches Item ist gedroppt?"
-                hint="Gesucht wird in der Item-Tabelle des Bots. Wer das Teil nicht anlegen kann — falsche Klasse, Rüstungsart oder Waffentyp —, steht nicht unter den Kandidaten, sondern darunter."
-            >
-                <ItemSearchPicker
-                    search={searchCouncilItems}
-                    onPick={onPick}
-                    placeholder="Item-Namen tippen, z. B. Zhar'doom …"
-                />
-            </Section>
-
-            {!focus ? (
-                <div className="empty">Noch kein Item gewählt.</div>
-            ) : (
-                <>
-                    <Section
-                        title="Das Item"
-                        actions={<button type="button" className="btn btn-ghost btn-sm" onClick={onClear}>Anderes Item</button>}
-                    >
-                        <div className="lc-gap-head lc-dropitem">
-                            <ItemHead
-                                id={focus.item.id}
-                                name={focus.item.name}
-                                iconUrl={focus.item.iconUrl}
-                                quality={focus.item.quality}
-                                meta={<>
-                                    <ContentBadge contentId={focus.item.contentId} />
-                                    {focus.item.boss ? `${focus.item.boss} · ` : ""}ilvl {focus.item.ilvl}
-                                </>}
-                            />
-                            {focus.item.bisSpecs.length ? (
-                                <BisSpecs specs={focus.item.bisSpecs} />
-                            ) : (
-                                <p className="hint" style={{ margin: 0 }}>
-                                    Steht auf keiner BiS-Liste der gewählten Tier-Stufe — kann trotzdem ein Upgrade sein.
-                                </p>
-                            )}
-                        </div>
-                    </Section>
-
-                    {/* The answer, lifted out of the table so it is the thing you
-                        see first — the table below is the evidence for it. */}
-                    <Section
-                        title="Empfehlung"
-                        tone="accent"
-                        actions={simAvailable && focus.candidates.some((c) => c.simSupported && c.hasGear) ? (
-                            <button type="button" className="btn btn-sm" disabled={simRunning} onClick={onSimulate}>
-                                {simRunning ? "Simulation läuft …" : verdict.basis === "sim" ? "Erneut simulieren" : "DPS-Gewinn simulieren"}
-                            </button>
-                        ) : null}
-                    >
-                        {best ? (
-                            // Who, what it gains them, then the fairness side as
-                            // labelled values — a row of bare numbers read like a
-                            // table row torn out of context.
-                            <div className="lc-verdict" style={classColorProps(best.classColor).style}>
-                                <span className="lc-ident">
-                                    <SpecCell specLabel={best.specLabel} iconUrl={best.specIconUrl} />
-                                    <span className="lc-who">
-                                        <b {...classColorProps(best.classColor)}>{best.character}</b>
-                                        <span className="sub">{best.specLabel}</span>
-                                    </span>
-                                </span>
-                                <VerdictGain verdict={verdict} big />
-                                <span className="lc-verdict-sep" />
-                                <span className="lc-vstat">
-                                    <span className="lc-kicker">Bedarf</span>
-                                    <NeedBar subject={best} />
-                                </span>
-                                <span className="lc-vstat">
-                                    <span className="lc-kicker">Zuletzt</span>
-                                    <span className="lc-stat" data-tip={best.daysSinceLoot === null ? "Hat noch nie ein Item bekommen" : `Letztes Item vor ${best.daysSinceLoot} Tagen`}>
-                                        <ClockIcon />{best.daysSinceLoot === null ? "∞" : `${best.daysSinceLoot} Tage`}
-                                    </span>
-                                </span>
-                                <span className="lc-vstat">
-                                    <span className="lc-kicker">Items</span>
-                                    <LootHover
-                                        items={best.recentItems}
-                                        total={best.lootCount}
-                                        other={best.otherCount}
-                                        trigger={
-                                            <span className="lc-stat" data-tip={`${best.lootCount} Items im Filter`}>
-                                                <LootBagIcon />{best.lootCount}
-                                            </span>
-                                        }
-                                    />
-                                </span>
-                                <span className="lc-vstat">
-                                    <span className="lc-kicker">Ersetzt</span>
-                                    <SlotOptions candidate={best} />
-                                </span>
-                            </div>
-                        ) : verdict.basis === "pending" ? (
-                            // Keine Zahl, kein Name: eine Empfehlung aus
-                            // Stat-Gewichten wäre eine Schätzung, und die zeigt
-                            // die Seite nicht. Die Simulation startet beim
-                            // Wählen des Items von selbst; hier steht, woran
-                            // es gerade hängt.
-                            <p className="hint" style={{ margin: 0 }}>
-                                {simRunning
-                                    ? "Simulation läuft — der Fortschritt steht unten in der Mitte. Die Empfehlung erscheint, sobald sie durch ist."
-                                    : simAvailable
-                                        ? "Noch nicht simuliert. Ohne Simulation gibt es keine Empfehlung — geschätzt wird nichts."
-                                        : "Keine Simulation verfügbar (WOWSIMCLI_PATH nicht gesetzt). Ohne sie gibt es keinen Zugewinn und keine Empfehlung — geschätzt wird nichts."}
-                            </p>
-                        ) : (
-                            <p className="hint" style={{ margin: 0 }}>
-                                Für keinen Raider im aktuellen Filter ein passender Slot — Rolle oder Filter oben prüfen.
-                            </p>
-                        )}
-                        {verdict.basis === "need" ? (
-                            <p className="hint" style={{ marginBottom: 0 }}>
-                                Für diese Specs gibt es keine Simulation. Der Vorschlag ist der höchste Bedarf — was das Teil
-                                bringt, sagt die Seite nicht, weil sie es nicht messen kann.
-                            </p>
-                        ) : null}
-                    </Section>
-
-                    {focus.candidates.length ? (
-                        <Section
-                            title={`Alle Kandidaten (${focus.candidates.length})`}
-                            hint="Zugewinn und Bedarf getrennt: was das Item bringt (nur simuliert), und was dem Raider zusteht."
-                        >
-                            <CandidateTable itemId={focus.item.id} candidates={focus.candidates} sim={sim} sortState={sortState} />
-                        </Section>
-                    ) : null}
-
-                    {/* Wer es nicht anlegen kann, wird genannt statt still
-                        weggelassen — sonst sieht eine Liste mit drei Namen bei
-                        neun Raidern nach einem Fehler aus, und ein Council
-                        vergibt das Teil am Ende doch an den Magier. */}
-                    {focus.unwearable.length ? (
-                        <Section
-                            title={`Können es nicht tragen (${focus.unwearable.length})`}
-                            hint="Klasse, Rüstungsart oder Waffentyp lassen es nicht zu — sie stehen deshalb nicht unter den Kandidaten."
-                        >
-                            <ul className="lc-unwearable">
-                                {focus.unwearable.map((u) => (
-                                    <li key={u.key}>
-                                        <SpecCell specLabel={u.specLabel} iconUrl={u.specIconUrl} />
-                                        <b {...classColorProps(u.classColor)}>{u.character}</b>
-                                        <span className="lc-unwearable-why">{u.note}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </Section>
-                    ) : null}
-                </>
-            )}
-        </>
-    );
-}
-
-/**
  * The BiS lists themselves: which gear set is best in slot for which caster DPS
- * class and spec.
- *
- * A matrix, because the question is a comparison: slots are rows, the WoWSims
- * lists are columns. It reads in both directions — a column down is one
- * complete set, a row across answers "who wants this piece" — and that most
- * caster drops are contested needs no explaining, because such an item simply
- * stands in the same row more than once.
- *
- * Which specs stand next to each other is the reader's call (the toggles), and
- * the search goes the other way through the same data: name a piece, see for
- * whom it is BiS, and step from there into the list filtered to exactly that
- * spec.
+ * class and spec. A matrix, because the question is a comparison: slots are
+ * rows, the lists are columns. The search goes the other way through the same
+ * data: name a piece, see for whom it is BiS, step into the list filtered to
+ * exactly that spec.
  */
 // Die Listen kommen aus zwei Quellen, und das ist keine Kleinigkeit: eine
 // WoWSims-Liste ist ein simuliertes Loadout mit Sockeln und Verzauberungen, eine
@@ -1768,7 +243,9 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
 
     return (
         <>
-            <Section
+            <Part
+                icon="inv_misc_spyglass_03"
+                crumb="BiS-Listen › Suche"
                 title="Item nachschlagen"
                 hint="Der umgekehrte Weg: Teil eingeben, sehen für welche Specs es BiS ist — und von dort in die Liste springen, gefiltert auf genau die."
             >
@@ -1817,9 +294,11 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                         {!hits.length ? <div className="lc-blnobis">Kein Item mit diesem Namen.</div> : null}
                     </div>
                 ) : null}
-            </Section>
+            </Part>
 
-            <Section
+            <Part
+                icon="inv_misc_book_09"
+                crumb="BiS-Listen › Specs"
                 title="Welche Specs nebeneinander"
                 hint={`${data.specs.length} Specs, ${data.columns.length} Listen. Wer keine eigene hat, spielt die einer anderen Spec — das steht an der Spalte.`}
                 actions={
@@ -1881,16 +360,18 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                         </button>
                     ))}
                 </div>
-            </Section>
+            </Part>
 
-            <Section
+            <Part
                 tone="accent"
+                icon="inv_misc_gem_variety_02"
+                crumb="BiS-Listen › Matrix"
                 title={TIER_LABEL[data.tier] || data.tier.toUpperCase()}
                 hint={`${columns.length} von ${data.columns.length} Listen · ${data.contested} Teile stehen auf mehr als einer`}
                 actions={
                     <div className="lc-bllegend">
                         <span className="lc-blshare">×N</span>
-                        <span className="hint">steht auf mehreren Listen</span>
+                        <span className="lc-muted">steht auf mehreren Listen</span>
                     </div>
                 }
             >
@@ -1951,7 +432,7 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                 ) : (
                     <div className="empty">Keine Spec ausgewählt — oben wieder eine zuschalten.</div>
                 )}
-            </Section>
+            </Part>
         </>
     );
 }
@@ -2123,7 +604,9 @@ function CompareTab({ roster, view, patch, contents }: {
 
     return (
         <>
-            <Section
+            <Part
+                icon="achievement_guildperk_everybodysfriend"
+                crumb="Loot-Vergleich › Raider"
                 title="Welche Raider nebeneinander"
                 hint={`${active.length} von ${roster.length} Raidern aus dem Filter oben. Welcher Loot zählt, bestimmt der Content-Filter — Offspec, Entzaubern und Bank stehen hier nicht.`}
                 actions={
@@ -2162,16 +645,18 @@ function CompareTab({ roster, view, patch, contents }: {
                 ) : (
                     <div className="empty">Keine passenden Raider im Filter.</div>
                 )}
-            </Section>
+            </Part>
 
-            <Section
+            <Part
                 tone="accent"
+                icon="inv_misc_bag_10"
+                crumb="Loot-Vergleich › Matrix"
                 title="Loot-Vergleich"
                 hint={`${itemCount} Items in ${groups.length} Raid(s) · Zeilen wie ein Charakterbogen, Spalten sind die Raider — wer am längsten nichts bekommen hat, steht links.`}
                 actions={
                     <div className="lc-bllegend">
                         <span className="lc-cmpwant">BiS offen</span>
-                        <span className="hint">steht auf seiner Liste und fehlt noch</span>
+                        <span className="lc-muted">steht auf seiner Liste und fehlt noch</span>
                     </div>
                 }
             >
@@ -2205,7 +690,7 @@ function CompareTab({ roster, view, patch, contents }: {
                                             <th scope="rowgroup" colSpan={active.length + 1}>
                                                 <ContentBadge contentId={group.contentId} tier={group.tier} />
                                                 <span>{group.label}</span>
-                                                <span className="hint">{group.rows.length} Items</span>
+                                                <span className="lc-muted">{group.rows.length} Items</span>
                                             </th>
                                         </tr>
                                         {group.rows.map((row) => (
@@ -2235,7 +720,7 @@ function CompareTab({ roster, view, patch, contents }: {
                         </table>
                     </div>
                 )}
-            </Section>
+            </Part>
         </>
     );
 }
@@ -2244,13 +729,14 @@ export default function LootCouncilPage() {
     const { csrfToken, user } = useOutletContext<ShellContext>();
     // Setting a raider aside is an action on the server, so it takes write.
     const canWrite = canAccess(user, "lootcouncil", "write");
-    const [view, setView] = usePersistedState<View>("lootcouncil.view", VIEW_DEFAULT);
+    const navigate = useNavigate();
+    const ask = useConfirm();
+    const [view, setView] = usePersistedState<View>(VIEW_KEY, VIEW_DEFAULT);
+    // A stored "drop" tab is from before the drop check had its own page.
+    const tab = view.tab === "drop" ? "roster" : view.tab;
     const [data, setData] = useState<LootCouncilData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [loading, setLoading] = useState(true);
-    // Every wait on this page is a job toast: anchored to the viewport, so a
-    // reload, the armory or a simulation is visible from anywhere on a page
-    // that is three screens long.
     const jobs = useJobs();
     const toast = useToast();
     // Whether a first load has landed — after it, reloads run as quiet jobs
@@ -2258,26 +744,25 @@ export default function LootCouncilPage() {
     const loaded = useRef(false);
     // Sim results live next to the data, not in it: the page is complete
     // without them and they are only ever an improvement laid over the top.
-    const [sim, setSim] = useState<SimResult | null>(null);
-    const [simRunning, setSimRunning] = useState(false);
-    // The same flag as a ref, so an automatic run (see the drop effect) cannot
-    // start a second simulation while one is going.
-    const simBusy = useRef(false);
+    const { sim, setSim, simRunning, runSim } = useCouncilSim(csrfToken);
     // The open WoWSims export, if any — one raider at a time.
     const [exportData, setExportData] = useState<CouncilExport | null>(null);
-    // Which per-raider actions are in flight, as "action:character". A set
-    // rather than a single flag: two raiders can be worked on at once, and each
-    // button should only ever show its own spinner.
+    // Which per-raider actions are in flight, as "action:character" — two
+    // raiders can be worked on at once, each button shows only its own spinner.
     const [busy, setBusy] = useState<Set<string>>(new Set());
     const [expanded, setExpanded] = useState<Set<number>>(new Set());
+    const [excludedOpen, setExcludedOpen] = useState(false);
     const rosterSort = useTableSort<RosterSortKey>("lootcouncil.roster-sort", ROSTER_SORT, "need");
     // One sort for every candidate table, so the cards stay comparable.
     const candidateSort = useTableSort<CandidateSortKey>("lootcouncil.candidate-sort", CANDIDATE_SORT, "gain");
+    // The raider whose details are open lives in the url (?raider=<name>), so a
+    // link from the drop check or from Discord leads straight there.
+    const [params, setParams] = useSearchParams();
+    const openName = (params.get("raider") || "").toLowerCase();
 
     // Returns the promise (resolving with the fresh data, or null) so an action
-    // that reloads afterwards (setting a raider aside, the armory) can keep its
-    // spinner until the new list is actually on screen — not just until the
-    // write came back — and can report on what it sees there.
+    // that reloads afterwards can keep its spinner until the new list is on
+    // screen — and can report on what it sees there.
     const load = useCallback((): Promise<LootCouncilData | null> => {
         setLoading(true);
         const fetchData = () => getLootCouncil({
@@ -2287,9 +772,6 @@ export default function LootCouncilPage() {
             category: view.category,
             bisTier: view.bisTier,
         });
-        // The first load has the full-page loader; every later one is a quiet
-        // job toast — visible wherever the reader is, gone the moment it lands.
-        // A failure keeps the old list and reports through the toast.
         const request = loaded.current
             ? jobs.run({ label: "Loot-Council wird geladen", quiet: true }, fetchData)
             : fetchData().catch((err: ApiError) => { setError(err); return null; });
@@ -2301,116 +783,68 @@ export default function LootCouncilPage() {
             .finally(() => setLoading(false));
     }, [view.role, view.tiers, view.contents, view.category, view.bisTier, jobs]);
 
-    /**
-     * Alles neu holen, was von den Raiderdaten abhängt — die Liste *und* den
-     * geprüften Drop. Jede Aktion, die das Gear ändert, geht hier durch.
-     */
-    const reloadAll = useCallback(async () => {
-        setDataToken((t) => t + 1);
-        return load();
-    }, [load]);
+    /** Everything that depends on the raiders' data — every gear-changing action goes through here. */
+    const reloadAll = useCallback(async () => load(), [load]);
 
-    // The picked drop is fetched on its own rather than filtered out of the
-    // page's data: which slot it lands in and what it would replace is decided
-    // per raider on the server, and a dropped item is regularly one that is on
-    // nobody's BiS list and therefore in no payload the page already holds.
-    const [focus, setFocus] = useState<CouncilFocus | null>(null);
-    // Der geprüfte Drop hängt an denselben Daten wie die Liste: wer wie viel
-    // gewinnt, folgt aus dem Gear. Holt jemand die Armory oder legt einen
-    // Raider beiseite, ändert sich also auch der Drop-Check — die Filter stehen
-    // schon in den Abhängigkeiten, aber ein Nachladen ohne Filterwechsel wäre
-    // sonst unsichtbar geblieben und erst nach einem Neuladen der Seite da.
-    const [dataToken, setDataToken] = useState(0);
-    // Was nach dem Laden eines Drops passiert (die Simulation), als Ref: der
-    // Effekt darf nicht an der Identität von runSim hängen, sonst liefe er bei
-    // jedem Render neu.
-    const autoSimRef = useRef<(f: CouncilFocus) => void>(() => {});
-    useEffect(() => {
-        if (!view.dropItem) { setFocus(null); return; }
-        let alive = true;
-        jobs.run({ label: "Drop wird geprüft", quiet: true }, () => getLootCouncil({
-            role: view.role,
-            tiers: view.tiers,
-            contents: view.contents,
-            category: view.category,
-            bisTier: view.bisTier,
-            item: view.dropItem,
-        }))
-            .then((d) => {
-                if (!alive) return;
-                if (!d) { setFocus(null); return; }
-                setFocus(d.focus);
-                // Ohne Simulation gibt es keinen Zugewinn und keine Empfehlung
-                // — also wird der Drop sofort gerechnet, nicht erst auf Klick.
-                // Ein Item gegen seine Kandidaten sind Sekunden, und der
-                // Server hat den Großteil ohnehin im Cache.
-                if (d.focus && d.sim.available) autoSimRef.current(d.focus);
-            });
-        return () => { alive = false; };
-    }, [view.dropItem, view.role, view.tiers, view.contents, view.category, view.bisTier, dataToken, jobs]);
-
-    // Wrapped rather than passed directly: `load` returns a promise now, and a
+    // Wrapped rather than passed directly: `load` returns a promise, and a
     // promise handed to useEffect would be mistaken for a cleanup function.
     useEffect(() => { load(); }, [load]);
 
     // A changed filter changes which raiders and items were simulated, so the
-    // old results no longer describe what is on screen. Dropping them is the
-    // honest move — a stale delta under a new filter is worse than none.
-    useEffect(() => { setSim(null); }, [view.role, view.tiers, view.contents, view.category, view.bisTier]);
+    // old results no longer describe what is on screen.
+    useEffect(() => { setSim(null); }, [view.role, view.tiers, view.contents, view.category, view.bisTier, setSim]);
 
     const patch = (next: Partial<View>) => setView({ ...view, ...next });
 
-    const toggleIn = (list: string[], id: string) =>
-        (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
-
-    // Held stable across renders, so the memo below does not rebuild (and the
-    // sim's subject list does not change identity) on every keystroke.
     const roster = useMemo(() => (data ? data.roster : []), [data]);
     const gaps = data ? data.gaps : [];
     const simulatable = useMemo(
         () => roster.filter((r) => r.simSupported && r.gear).map((r) => ({ key: r.key, specKey: r.specKey })),
         [roster],
     );
-    /** Wie viele Raider gerade mit Armory-Gear bewertet werden statt mit dem Log. */
-    const armoryCount = useMemo(
-        () => roster.filter((r) => r.gear && r.gear.source === "armory").length,
-        [roster],
-    );
+    const armoryCount = roster.filter((r) => r.gear && r.gear.source === "armory").length;
+    const simulated = simulatable.filter((s) => sim && sim[s.key] && sim[s.key].baseline !== null).length;
 
-    // The table opens on the server's own order (most overdue first), which is
-    // the question the page is here to answer; every other column is one click.
+    // The list opens on the server's own order (most overdue first); every other column is one click.
     const sortedRoster = rosterSort.apply(roster, (r, key) => {
         switch (key) {
             case "character": return r.character.toLowerCase();
-            case "spec": return r.specLabel.toLowerCase();
             case "need": return r.needScore;
             case "loot": return r.lootCount;
-            // Never having won anything is not "long ago", it is further back
-            // than any date — so it sorts to the overdue end, not the fresh one.
+            // Never having won anything is further back than any date.
             case "last": return r.lastAwardAt || 0;
             case "bis": return r.bis.total ? r.bis.owned / r.bis.total : -1;
             case "dps": return (sim && sim[r.key] && sim[r.key].baseline) || 0;
-            case "gear": return r.gear ? r.gear.seenAt : 0;
             default: return 0;
         }
     });
+    const openIndex = openName ? sortedRoster.findIndex((r) => r.character.toLowerCase() === openName) : -1;
+    const openRaider: CouncilRaider | null = openIndex >= 0 ? sortedRoster[openIndex] : null;
+
+    const openDetails = (character: string) => setParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("raider", character);
+        return next;
+    });
+    const closeDetails = () => setParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("raider");
+        return next;
+    });
 
     /**
-     * Run one per-raider action with a visible busy state.
-     *
-     * Both actions here take a server round trip, and "Nicht einplanen" takes
-     * two — the call, then a full reload. Without feedback the row simply sits
-     * there and the natural response is to click again, which fires the request
-     * twice. The key is `action:character`, so two raiders can be worked on at
-     * once without either button claiming the other's spinner.
+     * Run one per-raider action with a visible busy state. Without feedback a
+     * row simply sits there and the natural response is to click again, which
+     * fires the request twice.
      */
-    const runFor = async (key: string, fn: () => Promise<unknown>) => {
+    const runFor = async <T,>(key: string, fn: () => Promise<T>): Promise<T | undefined> => {
         if (busy.has(key)) return;
         setBusy((prev) => new Set(prev).add(key));
         try {
-            await fn();
+            return await fn();
         } catch (err) {
             toast((err as ApiError).message || "Die Aktion ist fehlgeschlagen.", "err");
+            return undefined;
         } finally {
             setBusy((prev) => {
                 const next = new Set(prev);
@@ -2426,13 +860,7 @@ export default function LootCouncilPage() {
         async () => setExportData(await getCouncilExport(character)),
     );
 
-    /**
-     * Als was ein Raider eingeplant wird.
-     *
-     * Reicht bis ins Gear durch: die Rolle entscheidet, welches Set aus den
-     * Auswertungen überhaupt gesucht wird, also muss danach alles neu geholt
-     * werden — Liste und geprüfter Drop.
-     */
+    /** Als was ein Raider eingeplant wird — reicht bis ins Gear durch, also danach alles neu. */
     const setRole = (character: string, role: "" | "caster" | "healer") => runFor(
         `role:${character}`,
         async () => {
@@ -2445,16 +873,9 @@ export default function LootCouncilPage() {
     );
 
     /**
-     * Fetch current gear from the armory, then reload.
-     *
-     * The reload is the point: the armory answer changes the gear, which changes
-     * the BiS count, the upgrade values and the simulated DPS. Patching one row
-     * would leave the rest of the page arguing from the old set.
-     *
-     * What the reload shows is reported, not just that it happened: the armory
-     * regularly answers with an arena set, which the server refuses (PvP gear
-     * makes no sense against a boss) — and then the button looks as if it had
-     * done nothing unless the toast says why.
+     * Fetch current gear from the armory, then reload — and report what the
+     * reload shows: the armory regularly answers with an arena set, which the
+     * server refuses, and then the button looks as if it had done nothing.
      */
     const loadArmory = (characters: string[], key: string) => runFor(key, async () => {
         const result = await jobs.run(
@@ -2481,40 +902,33 @@ export default function LootCouncilPage() {
         toast(parts.join(" "), taken ? "ok" : "err");
     });
 
-    // Bei welchem Raider das Log-Panel offen ist — einer zur Zeit, wie der
-    // Sim-Export: zwei offene Panels sind zwei Screens Abstand zwischen Klick
-    // und Wirkung.
-    const [logPanelFor, setLogPanelFor] = useState("");
-    const toggleLogPanel = (character: string) => setLogPanelFor((open) => (open === character ? "" : character));
-
     /**
      * Gear aus einem Log laden — eines der letzten Logs des Bots, ein Link,
-     * oder ohne beides das neueste Log, in dem der Raider steht. Danach wird
-     * neu geladen, und der Toast sagt, was daraus wurde: genommen, oder als
-     * PvP-/Heilset abgelehnt (dann bleibt es beim Set aus der Auswertung).
+     * oder ohne beides das neueste Log, in dem der Raider steht. Resolves true
+     * when the set was taken, so the dialog can close its log panel.
      */
-    const loadLogGear = (character: string, pick: { reportId?: string; link?: string }) => runFor(`loggear:${character}`, async () => {
+    const loadLogGear = async (character: string, pick: { reportId?: string; link?: string }) => !!(await runFor(`loggear:${character}`, async () => {
         const result = await jobs.run(
             { label: "Log wird geladen", detail: character, quiet: true },
             () => loadCouncilLogGear(csrfToken, { character, ...pick }),
         );
         // A failure ("steht nicht in diesem Log") is already on the toast.
-        if (!result) return;
+        if (!result) return false;
         const fresh = await reloadAll();
         const row = fresh ? fresh.roster.find((r) => r.character.toLowerCase() === character.toLowerCase()) : null;
         const when = result.reportStart ? ` (${fmtMs(result.reportStart, false)})` : "";
         const from = `„${result.reportTitle || result.reportId}“${when}`;
         if (row && row.gear && row.gear.logRejected === "pvp") {
             toast(`${character} trägt in ${from} PvP-Gear — es bleibt beim Set aus der Auswertung.`, "err");
-            return;
+            return false;
         }
         if (row && row.gear && row.gear.logRejected === "role") {
             toast(`${character} trägt in ${from} ein Set der anderen Rolle — es bleibt beim Set aus der Auswertung.`, "err");
-            return;
+            return false;
         }
-        setLogPanelFor("");
         toast(`Gear von ${character} aus ${from} geladen: ${result.items} Teile.`);
-    });
+        return true;
+    }));
 
     /** Zurück zum Set aus der Auswertung: geladenes Log und Armory-Antwort vergessen. */
     const useEvaluation = (character: string) => runFor(`loggear:${character}`, async () => {
@@ -2528,13 +942,9 @@ export default function LootCouncilPage() {
     useEffect(() => { refreshWowheadLinks(); }, [data, view.tab]);
 
     /**
-     * Set a raider aside, or take them back in.
-     *
-     * Reloads afterwards rather than patching the list in place: the need score
-     * is relative to the group (the loot-share component divides by its
-     * average), so removing one raider changes everybody else's number. Faking
-     * that client-side would show figures the server disagrees with — and it is
-     * why this takes long enough to need a spinner.
+     * Set a raider aside, or take them back in. Reloads afterwards: the need
+     * score is relative to the group, so removing one raider changes
+     * everybody else's number.
      */
     const setExcluded = (character: string, excluded: boolean) => runFor(
         `exclude:${character}`,
@@ -2545,385 +955,209 @@ export default function LootCouncilPage() {
         },
     );
 
-    /**
-     * Simulate baselines plus the given items, as a job toast with the real
-     * progress ("7 von 24") — measured by the server, not estimated.
-     *
-     * `items` is the whole open BiS list for the overview button and a single
-     * id for the drop check; `subjects` is the whole roster for the buttons and
-     * only that drop's candidates when a drop is checked — the difference
-     * between minutes and seconds.
-     */
-    const runSim = async (items: number[], subjects = simulatable, what = "") => {
-        if (simBusy.current || !subjects.length) return;
-        simBusy.current = true;
-        setSimRunning(true);
-        const id = `council-${Date.now()}`;
-        const total = subjects.length * (1 + items.length);
-        const detail = what || `${subjects.length} Raider${items.length ? ` × ${items.length} Item(s)` : ""}`;
-        const result = await jobs.run<SimResult>(
-            {
-                label: "Simulation",
-                detail,
-                describe: (r) => ({
-                    message: items.length
-                        ? `Simulation fertig: ${Object.keys(r).length} Raider, ${items.length} Item(s). Die DPS stehen jetzt in den Tabellen.`
-                        : `DPS berechnet für ${Object.keys(r).length} Raider.`,
-                }),
-            },
-            (update) => runCouncilSim(csrfToken, id, subjects, items, (job) => update({
-                progress: job.total ? (job.progress ?? 0) / job.total : undefined,
-                detail: `${detail} · ${job.progress ?? 0} von ${job.total ?? total}`,
-            })),
-        );
-        simBusy.current = false;
-        setSimRunning(false);
-        // A failure is on the toast already; there is nothing to merge.
-        if (!result) return;
-        // Merged, not replaced: simulating one drop must not throw away the
-        // deltas of the BiS run somebody kicked off five minutes ago.
-        setSim((prev) => {
-            if (!prev) return result;
-            const merged: SimResult = { ...prev };
-            for (const [key, entry] of Object.entries(result)) {
-                const old = merged[key];
-                merged[key] = old ? { ...entry, items: { ...old.items, ...entry.items } } : entry;
-            }
-            return merged;
+    /** "Nicht einplanen" from the details — destructive enough to ask first. */
+    const excludeFromDialog = async (character: string) => {
+        const ok = await ask({
+            title: `${character} nicht einplanen?`,
+            text: "Bleibt in der Historie und lässt sich jederzeit wieder einplanen — verschwindet nur aus dieser Liste, und die Bedarfswerte der anderen verschieben sich.",
+            action: "Nicht einplanen",
+            tone: "danger",
+            icon: "ability_rogue_feigndeath",
         });
+        if (!ok) return;
+        closeDetails();
+        await setExcluded(character, true);
     };
-
-    /** The drop check's own run: this item against the raiders it fits. */
-    const simulateDrop = (f: CouncilFocus) => {
-        const subjects = f.candidates
-            .filter((c) => c.simSupported && c.hasGear)
-            .map((c) => ({ key: c.key, specKey: c.specKey }));
-        runSim([f.item.id], subjects, `Drop prüfen: ${f.item.name || `Item ${f.item.id}`}`);
-    };
-    autoSimRef.current = simulateDrop;
 
     if (loading && !data) return <PageLoader show text="Loot-Council wird geladen" />;
     if (error) return <div className="empty">{error.message}</div>;
     if (!data) return null;
 
     const o = data.options;
+    const kicker = [
+        o.bisTiers.find((t) => t.id === data.filter.bisTier)?.label || "",
+        [...o.tiers.filter((t) => view.tiers.includes(t.id)), ...o.contents.filter((c) => view.contents.includes(c.id))]
+            .map((c) => c.label).join(" + ") || "Aller Loot",
+        o.categories.find((c) => c.id === view.category)?.name || "Alle Raids",
+    ].filter(Boolean).join(" · ");
 
     return (
         <>
-            <Section title="Filter" hint="Wer gezählt wird, welcher Loot zählt und gegen welche BiS-Liste gemessen wird.">
-                <div className="field">
-                    <label>Rolle</label>
-                    <div className="row-actions">
-                        {o.roles.map((r) => (
-                            <button
-                                key={r.id}
-                                type="button"
-                                className={`btn btn-sm ${view.role === r.id ? "" : "btn-ghost"}`}
-                                onClick={() => patch({ role: r.id })}
-                            >
-                                {r.label}
-                            </button>
-                        ))}
-                        <button
-                            type="button"
-                            className={`btn btn-sm ${view.role === "" ? "" : "btn-ghost"}`}
-                            onClick={() => patch({ role: "" })}
-                        >
-                            Alle
-                        </button>
-                    </div>
-                </div>
+            <PageHead
+                icon="inv_misc_coin_02"
+                tone="lootcouncil"
+                kicker={kicker}
+                title="Loot-Council"
+                action={<Button icon="inv_misc_bag_10" onClick={() => navigate(dropHref())}>Drop prüfen</Button>}
+            />
 
-                <div className="field">
-                    <label>Content — welche Raids beim Loot zählen</label>
-                    <div className="row-actions" style={{ flexWrap: "wrap" }}>
-                        {o.tiers.map((t) => (
-                            <button
-                                key={t.id}
-                                type="button"
-                                className={`btn btn-sm lc-filter lc-filter-tier lc-h-${t.id}${view.tiers.includes(t.id) ? " on" : ""}`}
-                                data-tip={`Ganze Stufe ${t.label} ein-/ausschalten`}
-                                onClick={() => patch({ tiers: toggleIn(view.tiers, t.id) })}
-                            >
-                                {t.label}
-                            </button>
-                        ))}
-                        <span className="lc-filter-sep">|</span>
-                        {o.contents.map((c) => (
-                            <button
-                                key={c.id}
-                                type="button"
-                                className={`btn btn-sm lc-filter lc-h-${c.id}${view.contents.includes(c.id) ? " on" : ""}`}
-                                data-tip={c.label}
-                                onClick={() => patch({ contents: toggleIn(view.contents, c.id) })}
-                            >
-                                {c.short}
-                            </button>
-                        ))}
-                        {(view.tiers.length || view.contents.length) ? (
-                            <button type="button" className="btn btn-ghost btn-sm" onClick={() => patch({ tiers: [], contents: [] })}>
-                                Filter zurücksetzen
-                            </button>
-                        ) : null}
-                    </div>
-                    <div className="hint">
-                        Ohne Auswahl zählt aller Loot. Tiers und einzelne Raids lassen sich kombinieren
-                        („T5 plus Hyjal"), wenn die Gilde gerade wechselt.
-                    </div>
-                </div>
+            <FilterBar
+                data={data}
+                view={view}
+                patch={patch}
+                armoryCount={armoryCount}
+                simulated={simulated}
+                simulatable={simulatable.length}
+            />
 
-                <div className="row-actions" style={{ flexWrap: "wrap", alignItems: "flex-end" }}>
-                    <div className="field" style={{ marginBottom: 0 }}>
-                        <label>Raid-Kategorie</label>
-                        <select value={view.category} onChange={(e) => patch({ category: e.target.value })}>
-                            <option value="">Alle Raids</option>
-                            {o.categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                    </div>
-                    <div className="field" style={{ marginBottom: 0 }}>
-                        <label>BiS-Liste für</label>
-                        <select value={view.bisTier} onChange={(e) => patch({ bisTier: e.target.value })}>
-                            <option value="">Automatisch</option>
-                            {o.bisTiers.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-                        </select>
-                        {data.filter.bisTierDerived ? (
-                            <div className="hint">
-                                Aus dem neuesten Loot abgeleitet: {tierLabel(o.tiers, data.filter.bisTier)}.
-                            </div>
-                        ) : null}
-                    </div>
-                </div>
-            </Section>
-
-            {/* Gear-Herkunft: die Seite liest sonst den Stand der letzten
-                Auswertung, und zwischen zwei Raidnächten veraltet der mit jedem
-                Drop. Ein Knopf, weil es ein Aufruf je Raider an eine fremde API
-                ist — und weil „nimm den Stand von jetzt" eine Entscheidung des
-                Lesers ist, keine Nebenwirkung eines Seitenaufrufs. */}
-            <Section
-                title="Gear-Stand"
-                hint={armoryCount
-                    ? `${armoryCount} von ${roster.length} Raider(n) mit Gear aus der Armory, der Rest aus der letzten Auswertung.`
-                    : "Alles Gear stammt aus der letzten Auswertung. Wer seitdem etwas angezogen hat, wird hier noch mit dem alten Set bewertet."}
-                actions={canWrite ? (
-                    <button
-                        type="button"
-                        // Gefüllt, weil es die Hauptaktion des Abschnitts ist —
-                        // die Tönungen gelten nur für die Ghost-Knöpfe an einem
-                        // einzelnen Raider.
-                        className="btn btn-sm"
-                        disabled={!roster.length || busy.has("armory:all")}
-                        data-tip="Holt für jeden Raider der Liste das aktuelle Gear aus der Armory"
-                        onClick={() => loadArmory(roster.map((r) => r.character), "armory:all")}
-                    >
-                        {busy.has("armory:all")
-                            ? <><ButtonSpinner />Armory wird geladen …</>
-                            : `Gear aus Armory holen (${roster.length})`}
-                    </button>
-                ) : null}
-            >
-                <div className="hint">
-                    Verzauberungen kommen weiter aus den Auswertungen: Blizzards Verzauberungs-IDs sind nicht die,
-                    die WoWSims erwartet. Für ein Teil, das seit dem letzten Raid dazugekommen ist, wird deshalb
-                    keine Verzauberung behauptet — die Simulation rechnet es unverzaubert und fällt entsprechend
-                    etwas zu niedrig aus.
-                </div>
-            </Section>
-
-            <Section
-                title="Simulation"
-                hint={data.sim.available
-                    ? `WoWSims ${data.sim.version} — ${simulatable.length} von ${roster.length} Raider(n) simulierbar.`
-                    : data.sim.hint}
-                actions={data.sim.available ? (
-                    <>
-                        <button type="button" className="btn btn-sm" disabled={simRunning || !simulatable.length} onClick={() => runSim([])}>
-                            DPS der Raider berechnen
-                        </button>
-                        <button
-                            type="button"
-                            className="btn btn-sm"
-                            disabled={simRunning || !simulatable.length || !gaps.length}
-                            data-tip="Rechnet jedes offene BiS-Item gegen jeden Raider durch — gründlich, aber minutenlang. Für ein einzelnes Item ist „Drop prüfen“ schneller."
-                            onClick={() => runSim(gaps.map((g) => g.id))}
-                        >
-                            Alle BiS-Items durchrechnen ({gaps.length})
-                        </button>
-                    </>
-                ) : null}
-            >
-                {/* Der Fortschritt selbst steht im Job-Toast unten in der Mitte — der
-                    ist von überall auf der Seite zu sehen, dieser Abschnitt
-                    nicht. Hier steht nur, woran man ist. */}
-                {simRunning
-                    ? <div className="hint">Simulation läuft — der Fortschritt steht unten in der Mitte.</div>
-                    : sim
-                        ? <div className="hint">Ergebnisse liegen vor — sie stehen als DPS in den Tabellen.</div>
-                        : <div className="hint">Noch nichts simuliert. Ein Zugewinn erscheint erst mit einer Simulation — die Seite zeigt keine Schätzungen aus Stat-Gewichten.</div>}
-            </Section>
-
-            <div className="tabs">
-                <button type="button" className={`tab-btn${view.tab === "roster" ? " active" : ""}`} onClick={() => patch({ tab: "roster" })}>
-                    Raider ({roster.length})
+            <div className="tabs lc-tabs">
+                <button type="button" className={`tab-btn${tab === "roster" ? " active" : ""}`} onClick={() => patch({ tab: "roster" })}>
+                    Raider <span className="tab-count">{roster.length}</span>
                 </button>
-                <button type="button" className={`tab-btn${view.tab === "bis" ? " active" : ""}`} onClick={() => patch({ tab: "bis" })}>
-                    Offene BiS-Items ({gaps.length})
+                <button type="button" className={`tab-btn${tab === "bis" ? " active" : ""}`} onClick={() => patch({ tab: "bis" })}>
+                    Offene BiS-Items <span className="tab-count">{gaps.length}</span>
                 </button>
-                <button type="button" className={`tab-btn${view.tab === "bislists" ? " active" : ""}`} onClick={() => patch({ tab: "bislists" })}>
+                <button type="button" className={`tab-btn${tab === "bislists" ? " active" : ""}`} onClick={() => patch({ tab: "bislists" })}>
                     BiS-Listen
                 </button>
-                <button type="button" className={`tab-btn${view.tab === "compare" ? " active" : ""}`} onClick={() => patch({ tab: "compare" })}>
+                <button type="button" className={`tab-btn${tab === "compare" ? " active" : ""}`} onClick={() => patch({ tab: "compare" })}>
                     Loot-Vergleich
-                </button>
-                <button type="button" className={`tab-btn${view.tab === "drop" ? " active" : ""}`} onClick={() => patch({ tab: "drop" })}>
-                    Drop prüfen
                 </button>
             </div>
 
-            {/* Die Listen selbst — die einzige Ansicht hier, die nicht von den
-                Raidern und ihrem Loot abhängt, sondern nur von WoWSims. */}
-            {view.tab === "bislists" ? <BisListsTab view={view} patch={patch} /> : null}
-
-            {/* Wer hat was bekommen, nebeneinander: dieselben Raider und derselbe
-                Loot wie im Raider-Tab, nur als Matrix statt als Hover je Zeile. */}
-            {view.tab === "compare" ? <CompareTab roster={roster} view={view} patch={patch} contents={o.contents} /> : null}
-
-
-            {view.tab === "roster" ? (
-                <Section
-                    title={`Raider (${roster.length})`}
-                    hint="Wer am längsten nichts bekommen hat, steht oben. Das Gear jedes Raiders liegt in seinem Block."
-                    actions={<GearLegend />}
-                >
+            {tab === "roster" ? (
+                <>
+                    <PartHead
+                        icon="achievement_guildperk_everybodysfriend"
+                        crumb="Loot-Council › Raider"
+                        title="Wer ist dran?"
+                        tip="Wer ist dran?"
+                        tipSub="Wer am längsten nichts bekommen hat, steht oben. Die Details eines Raiders zeigen Gear, BiS-Lücken und Loot."
+                        action={data.sim.available ? (
+                            <Button
+                                variant="run"
+                                size="sm"
+                                icon="inv_gizmo_02"
+                                running={simRunning}
+                                disabled={!simulatable.length}
+                                onClick={() => runSim([], simulatable)}
+                            >
+                                DPS berechnen
+                            </Button>
+                        ) : undefined}
+                    />
                     {roster.length ? (
-                        // One block per raider instead of a table with two rows
-                        // each: the gear lives inside the block, under the rail in
-                        // the raider's class colour, so nobody has to count rows to
-                        // tell whose set a strip of icons is. The header keeps the
-                        // columns sortable.
-                        <div className="lc-roster" role="table" aria-label="Raider">
-                            <div className="lc-roster-head" role="row">
-                                <SortHead sortKey="character" label="Raider" {...rosterSort} />
-                                <SortHead sortKey="need" label="Bedarf" tip="Wartezeit, Loot-Anteil und BiS-Lücke zusammengenommen" {...rosterSort} />
-                                <SortHead sortKey="loot" label="Items" tip="Im aktuellen Content-Filter" {...rosterSort} />
-                                <SortHead sortKey="last" label="Zuletzt" tip="Tage seit dem letzten Item" {...rosterSort} />
-                                <SortHead sortKey="bis" label="BiS" tip="Anteil der getragenen BiS-Teile" {...rosterSort} />
-                                <SortHead sortKey="dps" label="DPS" {...rosterSort} />
-                                <div className="lc-roster-head-more">
-                                    <SortHead sortKey="spec" label="Spec" tip="Nach Spec sortieren" {...rosterSort} />
-                                    <SortHead sortKey="gear" label="Gear-Stand" tip="Wann der Raider zuletzt in einer Auswertung auftauchte" {...rosterSort} />
-                                </div>
-                            </div>
-                            {sortedRoster.map((r, i) => (
-                                <RaiderBlock
-                                    key={r.key}
-                                    raider={r}
-                                    rank={i + 1}
-                                    sim={sim}
-                                    busy={busy}
-                                    canWrite={canWrite}
-                                    onExport={showExport}
-                                    onExclude={(character) => setExcluded(character, true)}
-                                    onArmory={(character) => loadArmory([character], `armory:${character}`)}
-                                    onRole={setRole}
-                                    exportData={exportData && exportData.character.toLowerCase() === r.character.toLowerCase()
-                                        ? exportData
-                                        : null}
-                                    onCloseExport={() => setExportData(null)}
-                                    logs={data.recentLogs || []}
-                                    logOpen={logPanelFor === r.character}
-                                    onLogToggle={toggleLogPanel}
-                                    onLogLoad={loadLogGear}
-                                    onEvaluation={useEvaluation}
-                                />
-                            ))}
-                        </div>
+                        <RosterList
+                            rows={sortedRoster}
+                            sim={sim}
+                            sort={rosterSort}
+                            openKey={openRaider ? openRaider.key : ""}
+                            onOpen={openDetails}
+                        />
                     ) : (
-                        <div className="empty">
+                        <div className="lc-panel empty">
                             Keine passenden Raider. Der Loot-Council liest Klasse und Spec aus den Loot-Importen und den
                             CLA-Auswertungen — ohne die bleibt die Liste leer.
                         </div>
                     )}
-                </Section>
+                    {data.excluded.length ? (
+                        <FoldRow
+                            icon="ability_rogue_feigndeath"
+                            title="Nicht eingeplant"
+                            count={data.excluded.length}
+                            names={data.excluded.map((e) => e.character).join(", ")}
+                            open={excludedOpen}
+                            onToggle={() => setExcludedOpen((v) => !v)}
+                        >
+                            <div className="lc-dlist">
+                                {data.excluded.map((e) => (
+                                    <div key={e.key} className="lc-dlist-row">
+                                        <b>{e.character}</b>
+                                        <span className="lc-muted">seit {fmtMs(e.at, false)}{e.by ? ` · ${e.by}` : ""}</span>
+                                        {canWrite ? (
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="lc-dlist-act"
+                                                running={busy.has(`exclude:${e.character}`)}
+                                                disabled={busy.has(`exclude:${e.character}`)}
+                                                onClick={() => setExcluded(e.character, false)}
+                                            >
+                                                Wieder einplanen
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                ))}
+                            </div>
+                        </FoldRow>
+                    ) : null}
+                </>
             ) : null}
 
-            {/* Why a familiar name is not in the list — otherwise a working
-                filter looks like a bug. */}
-            {view.tab === "roster" ? <CategoryNote data={data} /> : null}
-
-            {view.tab === "roster" && data.excluded.length ? (
-                <Section
-                    title={`Nicht eingeplant (${data.excluded.length})`}
-                    hint="Bleiben in der Historie — sie tauchen nur in dieser Planung nicht auf."
-                >
-                    <div className="lc-excluded">
-                        {data.excluded.map((e) => (
-                            <span key={e.key} className="lc-excluded-item">
-                                <b>{e.character}</b>
-                                <span className="hint">seit {fmtMs(e.at, false)}{e.by ? ` · ${e.by}` : ""}</span>
-                                {canWrite ? (
-                                    <button
-                                        type="button"
-                                        className="btn btn-ghost btn-sm"
-                                        disabled={busy.has(`exclude:${e.character}`)}
-                                        onClick={() => setExcluded(e.character, false)}
-                                    >
-                                        {busy.has(`exclude:${e.character}`)
-                                            ? <><ButtonSpinner />Wird aufgenommen …</>
-                                            : "Wieder einplanen"}
-                                    </button>
-                                ) : null}
-                            </span>
-                        ))}
-                    </div>
-                </Section>
+            {tab === "bis" ? (
+                <>
+                    <PartHead
+                        icon="inv_misc_gem_variety_02"
+                        crumb="Loot-Council › Offene BiS-Items"
+                        title="Was fehlt noch?"
+                        tip="Offene BiS-Items"
+                        tipSub="Items, die auf mindestens einer BiS-Liste stehen und noch niemand aus der gefilterten Gruppe trägt — sortiert danach, wie viele darauf warten. Der Vorschlag ist der größte Zugewinn, nicht der längste Wartende: wer dran ist, entscheidet ihr."
+                        action={data.sim.available ? (
+                            <Button
+                                variant="run"
+                                size="sm"
+                                icon="inv_gizmo_02"
+                                running={simRunning}
+                                disabled={!simulatable.length || !gaps.length}
+                                data-tip="Alle BiS-Items durchrechnen"
+                                data-tip-sub="Rechnet jedes offene BiS-Item gegen jeden Raider durch — gründlich, aber minutenlang. Für ein einzelnes Item ist „Drop prüfen“ schneller."
+                                onClick={() => runSim(gaps.map((g) => g.id), simulatable)}
+                            >
+                                Alle BiS-Items durchrechnen ({gaps.length})
+                            </Button>
+                        ) : undefined}
+                    />
+                    {gaps.length ? gaps.map((gap) => (
+                        <GapCard
+                            key={gap.id}
+                            gap={gap}
+                            sim={sim}
+                            expanded={expanded.has(gap.id)}
+                            onToggle={() => {
+                                const next = new Set(expanded);
+                                if (next.has(gap.id)) next.delete(gap.id);
+                                else next.add(gap.id);
+                                setExpanded(next);
+                            }}
+                            sortState={candidateSort}
+                        />
+                    )) : (
+                        <div className="lc-panel empty">
+                            Keine offenen BiS-Items im gewählten Filter — entweder trägt die Gruppe schon alles,
+                            oder für ihre Specs gibt es zu diesem Tier keine BiS-Liste.
+                        </div>
+                    )}
+                </>
             ) : null}
 
-            {view.tab === "bis" ? (
-                gaps.length ? (
-                    <>
-                        <p className="hint">
-                            Items, die auf mindestens einer BiS-Liste stehen und noch niemand aus der gefilterten
-                            Gruppe trägt — sortiert danach, wie viele darauf warten. Der Vorschlag ist der größte
-                            Zugewinn, nicht der längste Wartende: wer dran ist, entscheidet ihr.
-                        </p>
-                        {gaps.map((gap) => (
-                            <GapCard
-                                key={gap.id}
-                                gap={gap}
-                                sim={sim}
-                                expanded={expanded.has(gap.id)}
-                                onToggle={() => {
-                                    const next = new Set(expanded);
-                                    if (next.has(gap.id)) next.delete(gap.id);
-                                    else next.add(gap.id);
-                                    setExpanded(next);
-                                }}
-                                sortState={candidateSort}
-                                onCheck={() => patch({ tab: "drop", dropItem: gap.id })}
-                            />
-                        ))}
-                    </>
-                ) : (
-                    <div className="empty">
-                        Keine offenen BiS-Items im gewählten Filter — entweder trägt die Gruppe schon alles,
-                        oder für ihre Specs gibt es zu diesem Tier keine BiS-Liste.
-                    </div>
-                )
-            ) : null}
+            {/* Die Listen selbst — die einzige Ansicht hier, die nicht von den
+                Raidern und ihrem Loot abhängt, sondern nur von WoWSims. */}
+            {tab === "bislists" ? <BisListsTab view={view} patch={patch} /> : null}
 
-            {view.tab === "drop" ? (
-                <DropPanel
-                    focus={focus}
+            {/* Wer hat was bekommen, nebeneinander: dieselben Raider und derselbe
+                Loot wie im Raider-Tab, nur als Matrix statt als Tooltip je Zeile. */}
+            {view.tab === "compare" ? <CompareTab roster={roster} view={view} patch={patch} contents={o.contents} /> : null}
+
+            {openRaider ? (
+                <RaiderDialog
+                    key={openRaider.key}
+                    raider={openRaider}
+                    rank={openIndex + 1}
+                    total={sortedRoster.length}
                     sim={sim}
-                    sortState={candidateSort}
-                    simAvailable={data.sim.available}
-                    simRunning={simRunning}
-                    onPick={(item: ItemSearchResult) => patch({ dropItem: item.id })}
-                    onClear={() => patch({ dropItem: 0 })}
-                    onSimulate={() => { if (focus) simulateDrop(focus); }}
+                    canWrite={canWrite}
+                    busy={busy}
+                    logs={data.recentLogs || []}
+                    onClose={closeDetails}
+                    onRole={setRole}
+                    onArmory={(character) => loadArmory([character], `armory:${character}`)}
+                    onLogLoad={loadLogGear}
+                    onEvaluation={useEvaluation}
+                    onExport={showExport}
+                    onExclude={excludeFromDialog}
                 />
             ) : null}
+            <ExportDialog data={exportData} onClose={() => setExportData(null)} />
         </>
     );
 }

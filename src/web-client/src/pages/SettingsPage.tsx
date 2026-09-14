@@ -1,13 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
-    getSettings, updateSettings, saveRaidsheet, deleteRaidsheet,
-    getRaiderCharacters, saveRaiderCharacters, searchSettingsItems,
-    getIngestTokens, createIngestToken, deleteIngestToken,
-    type ApiError, type SettingsData, type AdminConfig, type Category, type Raidsheet,
-    type RaiderCharactersData, type RolePermissions, type Access, type TopItem, type IngestToken,
+    getSettings, updateSettings, saveRaidsheet, deleteRaidsheet, searchSettingsItems, getIngestTokens,
+    type ApiError, type SettingsData, type AdminConfig, type Raidsheet,
+    type RolePermissions, type Access, type TopItem, type IngestToken, type TextChannel,
 } from "../api";
 import { useOutletContext } from "react-router-dom";
-import { fmtMs } from "../lib/format";
 import { usePersistedSearchParam } from "../lib/persistedState";
 import { useTableSort, type Dir } from "../lib/tableSort";
 import { SortTh } from "../components/SortTh";
@@ -15,74 +12,66 @@ import type { ShellContext } from "../components/Shell";
 import RolePermissionsEditor from "../components/RolePermissions";
 import ItemSearchPicker from "../components/ItemSearchPicker";
 import { itemQualityProps } from "../lib/itemQuality";
-import { TrashIcon } from "../components/icons";
+import { ExternalIcon, TrashIcon, XIcon } from "../components/icons";
 import { useToast } from "../components/Jobs";
 import SectionNav from "../components/SectionNav";
 import { ListSection } from "../components/ListSection";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import CategoryMatrix, { type CategorySheet } from "../components/CategoryMatrix";
-import { SETTINGS_SECTIONS, visibleSections, resolveSection, groupedSections, savesWithForm } from "../lib/settingsSections";
+import ConnectionsSection from "../components/SettingsConnections";
+import { ChannelPicker, FieldLabel, InfoTip, PenIcon, RolePicker } from "../components/settingsUi";
+import {
+    SECTION_PARAM_IDS, visibleSections, resolveSection, groupedSections, savesWithForm, type SettingsSection,
+} from "../lib/settingsSections";
+import { draftChanges, missingConnections } from "../lib/settingsLogic";
 import { useConfirm } from "../components/ui/Modal";
+import { Button, IconButton } from "../components/ui/Button";
+import IconTile from "../components/ui/IconTile";
+import PartHead from "../components/ui/PartHead";
+import "../styles/einstellungen.css";
 
 const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
-// Editable form state, mirroring src/web/renderAdmin.js's renderSettings() form
-// fields — comma lists stay as raw text while being edited, split on save.
+// The page's shared draft: everything the save bar counts. The connections are
+// not part of it — each connection modal saves its own block — and neither are
+// the raidsheets and the raider → character assignment, which save themselves.
 type Draft = {
-    adminRoleIdsText: string;
+    adminRoleIds: string[];
     rolePermissions: RolePermissions;
     // What every logged-in account gets without a role (see RolePermissions.tsx).
     baseAccess: Access;
     // Rights handed to single Discord accounts rather than to a role.
     userPermissions: RolePermissions;
-    guildId: string;
-    raidhelperServerId: string;
     officerRoleId: string;
     applicationChannelId: string;
     highestBidsChannelId: string;
     highestBidsMessageId: string;
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
-    logChannelIdsText: string;
+    logChannelIds: string[];
     raidTemplateId: string;
     raidChannelId: string;
-    blizzardClientId: string;
-    blizzardRegion: string;
-    blizzardRealmSlug: string;
-    blizzardNamespace: string;
-    anthropicModel: string;
-    wclClientId: string;
     categoryLootTool: Record<string, string>;
-    // Part of the one big form since the per-category settings were merged into
-    // one section — it used to save itself through a PATCH of its own.
     categorySheets: Record<string, CategorySheet>;
     topItems: TopItem[];
 };
 
 function toDraft(config: AdminConfig): Draft {
     return {
-        // Both are absent for a non-admin who only holds write on "Einstellungen".
-        adminRoleIdsText: (config.adminRoleIds || []).join(", "),
+        // The access keys are absent for a non-admin who only holds write on "Einstellungen".
+        adminRoleIds: config.adminRoleIds || [],
         rolePermissions: config.rolePermissions || {},
         baseAccess: config.baseAccess || {},
         userPermissions: config.userPermissions || {},
-        guildId: config.guildId,
-        raidhelperServerId: config.raidhelperServerId,
-        officerRoleId: config.officerRoleId,
-        applicationChannelId: config.applicationChannelId,
-        highestBidsChannelId: config.highestBidsChannelId,
-        highestBidsMessageId: config.highestBidsMessageId,
-        categoryIds: config.categoryIds,
-        categoryRoles: config.categoryRoles,
-        logChannelIdsText: config.logChannelIds.join(", "),
-        raidTemplateId: config.raidDefaults.templateId,
-        raidChannelId: config.raidDefaults.channelId,
-        blizzardClientId: config.blizzard.clientId,
-        blizzardRegion: config.blizzard.region,
-        blizzardRealmSlug: config.blizzard.realmSlug,
-        blizzardNamespace: config.blizzard.namespace,
-        anthropicModel: (config.anthropic && config.anthropic.model) || "",
-        wclClientId: (config.warcraftlogsV2 && config.warcraftlogsV2.clientId) || "",
+        officerRoleId: config.officerRoleId || "",
+        applicationChannelId: config.applicationChannelId || "",
+        highestBidsChannelId: config.highestBidsChannelId || "",
+        highestBidsMessageId: config.highestBidsMessageId || "",
+        categoryIds: config.categoryIds || [],
+        categoryRoles: config.categoryRoles || {},
+        logChannelIds: config.logChannelIds || [],
+        raidTemplateId: config.raidDefaults?.templateId || "",
+        raidChannelId: config.raidDefaults?.channelId || "",
         categoryLootTool: config.categoryLootTool || {},
         categorySheets: config.categorySheets || {},
         topItems: config.topItems || [],
@@ -91,8 +80,7 @@ function toDraft(config: AdminConfig): Draft {
 
 // The drops the guild counts as "big". Picked from the live Wowhead search and
 // stored with icon + quality, so the dashboard can render an award without
-// looking the item up again — and matched against imported loot by item id, so
-// a differently-named export row still counts.
+// looking the item up again — and matched against imported loot by item id.
 function TopItemsField({ items, onChange }: {
     items: TopItem[];
     onChange: (items: TopItem[]) => void;
@@ -103,340 +91,60 @@ function TopItemsField({ items, onChange }: {
     };
 
     return (
-        <div className="field">
-            <label>Top-Items</label>
+        <div className="set-field">
+            <FieldLabel tip="Top-Items" tipSub="Wird eines dieser Items importiert, taucht es auf dem Dashboard unter „Latest Loot“ auf — mit Charakter, Raid und Datum. Ohne Eintrag bleibt die Karte leer.">Item hinzufügen</FieldLabel>
             <ItemSearchPicker search={searchSettingsItems} onPick={add} />
-            {items.length > 0 && (
-                <ul className="hr-list">
+            {items.length > 0 ? (
+                <ul className="topitem-list">
                     {items.map((it) => (
-                        <li key={it.id} className="rolebox hr-chip">
-                            <span>
+                        <li key={it.id} className="topitem">
+                            <span className="topitem-name" data-tip={it.name || `Item ${it.id}`} data-tip-sub={`Item-ID ${it.id}`}>
                                 {it.iconUrl && <img src={it.iconUrl} alt="" loading="lazy" />}
                                 <span {...itemQualityProps(it.quality)}>{it.name || `Item ${it.id}`}</span>
-                                <span className="hint" style={{ marginLeft: 6 }}>#{it.id}</span>
                             </span>
-                            <button
-                                type="button" className="btn btn-sm" data-tip="Entfernen"
-                                onClick={() => onChange(items.filter((x) => x.id !== it.id))}
-                            >✕</button>
+                            <IconButton icon={<XIcon />} tip="Entfernen" size="sm" onClick={() => onChange(items.filter((x) => x.id !== it.id))} />
                         </li>
                     ))}
                 </ul>
-            )}
-            <div className="hint">
-                Wird eines dieser Items importiert, taucht es auf dem Dashboard unter „Latest Loot" auf —
-                mit Charakter, Raid und Datum. Ohne Eintrag bleibt die Karte leer.
-            </div>
+            ) : <div className="empty">Noch kein Top-Item.</div>}
         </div>
     );
 }
 
-// Manual raider->character assignment per category (see raiderCharactersStore.js):
-// overrides the automatic "last known spec" guess on the Raid-Detail attendance
-// tab, since raiders often play a different character on a different raid
-// day/type. Self-contained (own fetch/save cycle scoped to the chosen category),
-// same shape as the Raidsheets tab below.
-function RaiderCharactersTab({ categories, csrfToken }: { categories: Category[]; csrfToken: string | null }) {
-    const [categoryId, setCategoryId] = useState(categories[0]?.id ?? "");
-    const [info, setInfo] = useState<RaiderCharactersData | null>(null);
-    const [draftMap, setDraftMap] = useState<Record<string, string>>({});
-    const [loadError, setLoadError] = useState<string | null>(null);
-    const [saving, setSaving] = useState(false);
-    const toast = useToast();
-
-    const load = () => {
-        setInfo(null);
-        setLoadError(null);
-        if (!categoryId) return;
-        getRaiderCharacters(categoryId)
-            .then((d) => {
-                setInfo(d);
-                setDraftMap(d.assignments);
-            })
-            .catch((err: ApiError) => setLoadError(err.message));
-    };
-
-    useEffect(load, [categoryId]);
-
-    if (!categories.length) {
-        return <p className="hint">Keine Kategorien geladen (Server gewählt und Bot online?). Die Auswahl ist verfügbar, sobald der Bot verbunden ist.</p>;
-    }
-
-    const submit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setSaving(true);
-        try {
-            const { assignments } = await saveRaiderCharacters(csrfToken, categoryId, draftMap);
-            setDraftMap(assignments);
-            setInfo((prev) => (prev ? { ...prev, assignments } : prev));
-            toast("Gespeichert.");
-        } catch (err) {
-            toast((err as ApiError).message, "err");
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    return (
-        <>
-            <p className="hint">
-                Raider spielen je nach Raidtag/-typ oft unterschiedliche Charaktere. Hier lässt sich pro Kategorie
-                (siehe „Kategorien") festlegen, welchen Charakter ein Raider dort spielt — das überschreibt auf der
-                Event-Detailseite die automatische Erkennung aus vergangenen Anmeldungen.
-            </p>
-            <div className="field">
-                <label>Kategorie</label>
-                <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-            </div>
-            {loadError && <p className="sub" style={{ color: "var(--high)" }}>{loadError}</p>}
-            {!loadError && !info && <p className="sub">Lade…</p>}
-            {info && !info.roleIds.length && (
-                <p className="hint">Dieser Kategorie sind noch keine Raider-Rollen zugeordnet (siehe „Kategorien").</p>
-            )}
-            {info && info.membersError && (
-                <p className="sub" style={{ color: "var(--high)" }}>Mitglieder konnten nicht geladen werden: {info.membersError}</p>
-            )}
-            {info && !!info.roleIds.length && !info.membersError && (
-                <form className="card-form" onSubmit={submit}>
-                    {!info.members.length ? (
-                        <p className="sub">Keine Mitglieder mit den zugeordneten Rollen gefunden.</p>
-                    ) : (
-                        <>
-                            {info.members.map((m) => (
-                                <div className="field" key={m.id}>
-                                    <label>{m.displayName}</label>
-                                    <input
-                                        type="text"
-                                        list="raider-characters-known"
-                                        value={draftMap[m.id] || ""}
-                                        onChange={(e) => setDraftMap({ ...draftMap, [m.id]: e.target.value })}
-                                        placeholder="Charname (leer = keine feste Zuordnung)"
-                                    />
-                                </div>
-                            ))}
-                            <datalist id="raider-characters-known">
-                                {info.knownCharacters.map((c) => <option key={c} value={c} />)}
-                            </datalist>
-                            <div className="row-actions">
-                                <button className="btn" type="submit" disabled={saving}>{saving ? "Speichert…" : "Speichern"}</button>
-                            </div>
-                        </>
-                    )}
-                </form>
-            )}
-        </>
-    );
-}
-
-/**
- * API tokens for the loot-sync companion tool that ships with the WoW addon.
- *
- * The secret is shown exactly once, right after minting: the server stores only
- * a hash, so there is no "show again". The UI has to make that obvious *before*
- * someone navigates away, which is why the new token gets its own panel rather
- * than a row in the table.
- */
-type TokenSortKey = "name" | "created" | "createdBy" | "lastUsed" | "uses";
-const TOKEN_SORT_DEFAULTS: Record<TokenSortKey, Dir> = {
-    name: "asc", created: "desc", createdBy: "asc", lastUsed: "desc", uses: "desc",
-};
-
-function tokenSortValue(t: IngestToken, key: TokenSortKey): string | number {
-    switch (key) {
-        case "name": return t.name.toLowerCase();
-        case "created": return t.createdAt || 0;
-        case "createdBy": return (t.createdBy || "").toLowerCase();
-        case "lastUsed": return t.lastUsedAt || 0;
-        case "uses": return t.uses || 0;
-        default: return "";
-    }
-}
-
-function IngestTokensTab({ csrfToken }: { csrfToken: string | null }) {
-    const ask = useConfirm();
-    // Default "zuletzt benutzt": the question this table answers is usually
-    // "welcher Rechner lädt eigentlich noch hoch?".
-    const { sort, dir, onSort, apply } = useTableSort<TokenSortKey>(
-        "settings-ingest-tokens-sort", TOKEN_SORT_DEFAULTS, "lastUsed",
-    );
-    const [tokens, setTokens] = useState<IngestToken[] | null>(null);
-    // Only the *load* failure stays inline — it describes the state of the list
-    // below it, which a toast that fades after seven seconds cannot. Named
-    // loadError so it stays distinguishable from an action's result, which
-    // belongs in a toast.
-    const [loadError, setLoadError] = useState<string | null>(null);
-    const [name, setName] = useState("");
-    const [busy, setBusy] = useState(false);
-    const toast = useToast();
-    // The plaintext of the token just created — lives in this component's state
-    // only, and is gone on reload.
-    const [fresh, setFresh] = useState<{ token: string; name: string } | null>(null);
-    const [copied, setCopied] = useState(false);
-
-    const load = () => {
-        getIngestTokens()
-            .then((r) => { setTokens(r.tokens); setLoadError(null); })
-            .catch((err: ApiError) => setLoadError(err.message));
-    };
-    useEffect(load, []);
-
-    const create = async () => {
-        setBusy(true);
-        try {
-            const r = await createIngestToken(csrfToken, name);
-            setFresh({ token: r.token, name: r.record.name });
-            setName("");
-            setCopied(false);
-            load();
-            toast(`Token „${r.record.name}" erstellt.`);
-        } catch (err) {
-            toast((err as ApiError).message, "err");
-        } finally {
-            setBusy(false);
-        }
-    };
-
-    const revoke = async (t: IngestToken) => {
-        if (!(await ask({ title: `Token „${t.name}" zurückziehen?`, text: "Das Sync-Tool, das ihn benutzt, kann danach nichts mehr hochladen.", action: "Zurückziehen" }))) return;
-        try {
-            await deleteIngestToken(csrfToken, t.id);
-            load();
-            toast(`Token „${t.name}" zurückgezogen.`);
-        } catch (err) {
-            toast((err as ApiError).message, "err");
-        }
-    };
-
-    return (
-        <>
-            <p className="note">
-                Das WoW-Addon schreibt den Loot beider Addons (RCLootcouncil und Gargul) in seine SavedVariables;
-                das Sync-Tool auf dem Rechner des Raidleaders lädt sie hier hoch. Es meldet sich nicht per Discord an,
-                sondern mit einem dieser Tokens. Hochgeladene Raids landen in <strong>Historie &amp; Loot → Addon-Inbox</strong>
-                {" "}und werden dort einmal bestätigt.
-            </p>
-            {loadError && <p className="sub" style={{ color: "var(--high)" }}>{loadError}</p>}
-
-            {fresh && (
-                <div className="dash-card" style={{ marginBottom: 16 }}>
-                    <div className="dash-card-head"><h3>Token „{fresh.name}" erstellt</h3></div>
-                    <div style={{ padding: "12px 16px" }}>
-                        <p className="sub" style={{ marginTop: 0, color: "var(--high)" }}>
-                            Jetzt kopieren — der Token wird nur dieses eine Mal angezeigt und ist danach nicht mehr
-                            abrufbar (er liegt nur als Hash auf dem Server). Geht er verloren, einfach einen neuen erstellen.
-                        </p>
-                        <div className="field">
-                            <input type="text" readOnly value={fresh.token} onFocus={(e) => e.target.select()} />
-                        </div>
-                        <div className="row-actions">
-                            <button
-                                className="btn" type="button"
-                                onClick={() => { navigator.clipboard?.writeText(fresh.token); setCopied(true); }}
-                            >
-                                {copied ? "Kopiert ✓" : "Kopieren"}
-                            </button>
-                            <button className="btn ghost" type="button" onClick={() => setFresh(null)}>Fertig</button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            <div className="field" style={{ maxWidth: 420 }}>
-                <label>Neues Token</label>
-                <input
-                    type="text" value={name} onChange={(e) => setName(e.target.value)}
-                    placeholder="z.B. Raidlead-PC"
-                />
-                <div className="hint">Ein Name pro Rechner, damit ein einzelner gezielt zurückgezogen werden kann.</div>
-            </div>
-            <div className="row-actions" style={{ marginBottom: 18 }}>
-                <button className="btn" type="button" onClick={create} disabled={busy}>
-                    {busy ? "Erstellt…" : "Token erstellen"}
-                </button>
-            </div>
-
-            {!tokens ? <div className="empty">Lade…</div> : !tokens.length ? (
-                <div className="empty">Noch kein Token erstellt.</div>
-            ) : (
-                <table className="table">
-                    <thead>
-                        <tr>
-                            <SortTh sortKey="name" label="Name" sort={sort} dir={dir} onSort={onSort} />
-                            {/* Immer "ehl_…" plus vier Zeichen — nichts, wonach sich sortieren liesse. */}
-                            <th>Token</th>
-                            <SortTh sortKey="created" label="Erstellt" sort={sort} dir={dir} onSort={onSort} />
-                            <SortTh sortKey="createdBy" label="Von" sort={sort} dir={dir} onSort={onSort} />
-                            <SortTh sortKey="lastUsed" label="Zuletzt benutzt" sort={sort} dir={dir} onSort={onSort} />
-                            <SortTh sortKey="uses" label="Uploads" sort={sort} dir={dir} onSort={onSort} />
-                            <th />
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {apply(tokens, tokenSortValue).map((t) => (
-                            <tr key={t.id}>
-                                <td>{t.name}</td>
-                                <td><code>ehl_…{t.hint}</code></td>
-                                <td>{fmtMs(t.createdAt)}</td>
-                                <td>{t.createdBy || "—"}</td>
-                                <td>{t.lastUsedAt ? fmtMs(t.lastUsedAt) : <span className="sub">nie</span>}</td>
-                                <td>{t.uses || 0}</td>
-                                <td style={{ textAlign: "right" }}>
-                                    <button className="icon-btn" type="button" data-tip="Token zurückziehen" aria-label="Token zurückziehen" onClick={() => revoke(t)}>
-                                        <TrashIcon />
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            )}
-        </>
-    );
-}
-
-function BlizzardSecretField(props: { hasStoredSecret: boolean; value: string | undefined; onChange: (v: string | undefined) => void }) {
-    return <SecretField label="Battle.net Client-Secret" {...props} />;
-}
-
-/**
- * A stored secret is never shown: the field says whether one exists and only
- * opens an input once the admin chooses to change it. `value` undefined = keep,
- * "" = clear, anything else = replace (the save sends it only when defined).
- */
-function SecretField({ label, hasStoredSecret, value, onChange }: {
-    label: string;
-    hasStoredSecret: boolean;
-    value: string | undefined;
-    onChange: (v: string | undefined) => void;
+/** Several channels: chips with a remove button, plus a picker (or an id field while the bot is offline). */
+function ChannelListField({ ids, channels, onChange }: {
+    ids: string[];
+    channels: TextChannel[];
+    onChange: (ids: string[]) => void;
 }) {
-    if (value === undefined) {
-        return (
-            <div className="field">
-                <label>{label}</label>
-                <div className="row-actions">
-                    <span className="hint">{hasStoredSecret ? "•••••••• (gespeichert)" : "Kein Secret hinterlegt"}</span>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange("")}>Ändern</button>
-                </div>
-            </div>
-        );
-    }
+    const [typed, setTyped] = useState("");
+    const byId = new Map(channels.map((c) => [c.id, c]));
+    const add = (id: string) => {
+        const clean = id.trim();
+        if (clean && !ids.includes(clean)) onChange([...ids, ...splitList(clean).filter((x) => !ids.includes(x))]);
+    };
     return (
-        <div className="field">
-            <label>{label}</label>
-            <input
-                type="password"
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                placeholder="Neues Secret (leer speichern = löschen)"
-                autoComplete="off"
-            />
-            <div className="hint">
-                Leer speichern entfernt das Secret.{" "}
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange(undefined)}>Abbrechen</button>
-            </div>
-        </div>
+        <>
+            {ids.length > 0 && (
+                <div className="chip-row">
+                    {ids.map((id) => (
+                        <span key={id} className="badge chip accent" data-tip={byId.get(id) ? `#${byId.get(id)!.name}` : "Unbekannter Kanal"} data-tip-sub={`ID ${id}`}>
+                            {byId.get(id) ? `#${byId.get(id)!.name}` : <span className="mono">{id}</span>}
+                            <button type="button" className="chip-x" aria-label="Kanal entfernen" onClick={() => onChange(ids.filter((x) => x !== id))}><XIcon /></button>
+                        </span>
+                    ))}
+                </div>
+            )}
+            {channels.length ? (
+                <ChannelPicker value="" channels={channels.filter((c) => !ids.includes(c.id))} onChange={add} placeholder="+ Kanal hinzufügen" />
+            ) : (
+                <div className="inline-add">
+                    <input type="text" className="mono" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="Discord-Channel-ID"
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(typed); setTyped(""); } }} />
+                    <Button variant="ghost" onClick={() => { add(typed); setTyped(""); }} disabled={!typed.trim()}>Hinzufügen</Button>
+                </div>
+            )}
+        </>
     );
 }
 
@@ -461,15 +169,8 @@ function RaidsheetForm({ sheet, csrfToken, onSaved, onCancel }: {
         e.preventDefault();
         setBusy(true);
         try {
-            await saveRaidsheet(csrfToken, {
-                id: sheet?.id,
-                name,
-                spreadsheetId,
-                sheetName,
-                gid,
-                keywords: splitList(keywords),
-            });
-            onSaved(sheet ? `Raidsheet „${name}" gespeichert.` : `Raidsheet „${name}" angelegt.`);
+            await saveRaidsheet(csrfToken, { id: sheet?.id, name, spreadsheetId, sheetName, gid, keywords: splitList(keywords) });
+            onSaved(sheet ? `Raidsheet „${name}“ gespeichert.` : `Raidsheet „${name}“ angelegt.`);
         } catch (err) {
             toast((err as ApiError).message, "err");
         } finally {
@@ -478,27 +179,26 @@ function RaidsheetForm({ sheet, csrfToken, onSaved, onCancel }: {
     };
 
     return (
-        <form className="sheetcard" onSubmit={submit}>
-            <div className="field"><label>Name (Content)</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="z.B. Tier 6 / SWP" required /></div>
-            <div className="field"><label>Spreadsheet-ID</label><input type="text" value={spreadsheetId} onChange={(e) => setSpreadsheetId(e.target.value)} placeholder="Google-Sheet-ID" /></div>
-            <div className="field"><label>Tab-Name</label><input type="text" value={sheetName} onChange={(e) => setSheetName(e.target.value)} placeholder="Setup" /></div>
-            <div className="field"><label>Tab-GID</label><input type="text" value={gid} onChange={(e) => setGid(e.target.value)} placeholder="0" /></div>
-            <div className="field">
-                <label>Keywords (kommagetrennt)</label>
-                <input type="text" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="kara, gruul, maggi" />
-                <div className="hint">Passt ein Keyword auf den Event-Titel, wird dieses Sheet automatisch vorgeschlagen.</div>
+        <form className="sheetcard set-form" onSubmit={submit}>
+            <div className="set-field"><FieldLabel htmlFor="rs-name">Name (Content)</FieldLabel><input id="rs-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="z. B. Tier 6 / SWP" required /></div>
+            <div className="set-field"><FieldLabel htmlFor="rs-id" tip="Spreadsheet-ID" tipSub="Der lange Teil der Sheet-URL zwischen /d/ und /edit.">Spreadsheet-ID</FieldLabel><input id="rs-id" type="text" className="mono" value={spreadsheetId} onChange={(e) => setSpreadsheetId(e.target.value)} placeholder="Google-Sheet-ID" /></div>
+            <div className="set-grid">
+                <div className="set-field"><FieldLabel htmlFor="rs-tab">Tab-Name</FieldLabel><input id="rs-tab" type="text" value={sheetName} onChange={(e) => setSheetName(e.target.value)} placeholder="Setup" /></div>
+                <div className="set-field"><FieldLabel htmlFor="rs-gid" tip="Tab-GID" tipSub="Die Zahl hinter #gid= in der URL des Tabs.">Tab-GID</FieldLabel><input id="rs-gid" type="text" className="mono" value={gid} onChange={(e) => setGid(e.target.value)} placeholder="0" /></div>
+            </div>
+            <div className="set-field">
+                <FieldLabel htmlFor="rs-kw" tip="Keywords" tipSub="Kommagetrennt. Passt ein Keyword auf den Event-Titel, wird dieses Sheet automatisch vorgeschlagen.">Keywords</FieldLabel>
+                <input id="rs-kw" type="text" value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="kara, gruul, maggi" />
             </div>
             <div className="row-actions">
-                <button className="btn" type="submit" disabled={busy}>{sheet ? "Speichern" : "Raidsheet anlegen"}</button>
-                <button className="btn btn-ghost" type="button" disabled={busy} onClick={onCancel}>Abbrechen</button>
+                <Button type="submit" disabled={busy}>{sheet ? "Speichern" : "Raidsheet anlegen"}</Button>
+                <Button variant="ghost" disabled={busy} onClick={onCancel}>Abbrechen</Button>
             </div>
         </form>
     );
 }
 
-// The guild's raidsheet templates: the list first, one editor at a time. Every
-// sheet used to render its own five-field form below the previous one, which
-// turned a handful of templates into a page nobody could scan.
+// The guild's raidsheet templates: the list first, one editor at a time.
 function RaidsheetsSection({ sheets, csrfToken, onChanged }: {
     sheets: Raidsheet[];
     csrfToken: string | null;
@@ -510,10 +210,10 @@ function RaidsheetsSection({ sheets, csrfToken, onChanged }: {
     const { sort, dir, onSort, apply } = useTableSort<SheetSortKey>("raidsheets-sort", SHEET_SORT_DEFAULTS, "name");
 
     const remove = async (sheet: Raidsheet) => {
-        if (!(await ask({ title: `Raidsheet „${sheet.name}" löschen?`, action: "Löschen" }))) return;
+        if (!(await ask({ title: `Raidsheet „${sheet.name}“ löschen?`, action: "Löschen" }))) return;
         try {
             await deleteRaidsheet(csrfToken, sheet.id);
-            onChanged(`Raidsheet „${sheet.name}" gelöscht.`);
+            onChanged(`Raidsheet „${sheet.name}“ gelöscht.`);
         } catch (err) {
             toast((err as ApiError).message, "err");
         }
@@ -533,67 +233,65 @@ function RaidsheetsSection({ sheets, csrfToken, onChanged }: {
             editor={editor}
             entries={sheets}
             idOf={(s) => s.id}
-            title="Raidsheet-Vorlagen"
-            note={<>Google-Sheets nach Content aufgeteilt (Tier 4/5 usw.). Beim Füllen wird anhand der Keywords das passende Sheet vorgeschlagen. Ein festes Sheet für eine ganze Raidkategorie wird dagegen unter <b>Kategorien</b> zugewiesen.</>}
             newLabel="Neues Raidsheet"
-            editorTitle={(s) => (s ? `Raidsheet „${s.name || ""}" bearbeiten` : "Neues Raidsheet")}
+            editorTitle={(s) => (s ? `Raidsheet „${s.name || ""}“ bearbeiten` : "Neues Raidsheet")}
             editorFor={(s) => <RaidsheetForm sheet={s} csrfToken={csrfToken} onSaved={saved} onCancel={editor.close} />}
         >
             {sheets.length ? (
-                <table className="idx">
-                    <thead>
-                        <tr>
-                            <SortTh sortKey="name" label="Name" sort={sort} dir={dir} onSort={onSort} />
-                            <SortTh sortKey="sheetName" label="Tab" sort={sort} dir={dir} onSort={onSort} />
-                            <SortTh sortKey="keywords" label="Keywords" sort={sort} dir={dir} onSort={onSort} />
-                            <th />
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {sorted.map((s) => (
-                            <tr key={s.id}>
-                                <td>
-                                    <strong>{s.name || "(ohne Name)"}</strong>
-                                    {s.spreadsheetId && (
-                                        <>
-                                            {" "}
-                                            <a
-                                                className="mlink" target="_blank" rel="noopener noreferrer"
-                                                href={`https://docs.google.com/spreadsheets/d/${s.spreadsheetId}/edit${s.gid ? `#gid=${s.gid}` : ""}`}
-                                            >öffnen ↗</a>
-                                        </>
-                                    )}
-                                </td>
-                                <td className="sub" style={{ margin: 0 }}>{s.sheetName || "—"}</td>
-                                <td className="sub" style={{ margin: 0 }}>{s.keywords.length ? s.keywords.join(", ") : "—"}</td>
-                                <td className="row-actions">
-                                    <button className="btn btn-ghost" type="button" onClick={() => editor.startEdit(s.id)}>Bearbeiten</button>
-                                    <button className="btn btn-danger" type="button" onClick={() => remove(s)}><TrashIcon />Löschen</button>
-                                </td>
+                <div className="set-card table-scroll">
+                    <table className="idx">
+                        <thead>
+                            <tr>
+                                <SortTh sortKey="name" label="Name" sort={sort} dir={dir} onSort={onSort} />
+                                <SortTh sortKey="sheetName" label="Tab" sort={sort} dir={dir} onSort={onSort} />
+                                <SortTh sortKey="keywords" label="Keywords" sort={sort} dir={dir} onSort={onSort} />
+                                <th />
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
-            ) : <p className="sub">Noch keine Raidsheets angelegt.</p>}
+                        </thead>
+                        <tbody>
+                            {sorted.map((s) => (
+                                <tr key={s.id}>
+                                    <td><strong>{s.name || "(ohne Name)"}</strong></td>
+                                    <td className="small">{s.sheetName || "—"}</td>
+                                    <td className="small">{s.keywords.length ? s.keywords.join(", ") : "—"}</td>
+                                    <td className="cell-act">
+                                        {s.spreadsheetId && (
+                                            <a className="ibtn sm" target="_blank" rel="noopener noreferrer" aria-label="Sheet öffnen" data-tip="Sheet öffnen"
+                                                href={`https://docs.google.com/spreadsheets/d/${s.spreadsheetId}/edit${s.gid ? `#gid=${s.gid}` : ""}`}>
+                                                <ExternalIcon />
+                                            </a>
+                                        )}
+                                        <IconButton icon={<PenIcon />} tip="Bearbeiten" size="sm" onClick={() => editor.startEdit(s.id)} />
+                                        <IconButton icon={<TrashIcon />} tip="Löschen" size="sm" tone="danger" onClick={() => remove(s)} />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : <div className="empty">Noch keine Raidsheets angelegt.</div>}
         </ListSection>
     );
 }
 
+/** A module's fields on the panel card, each hint moved into its label's tooltip. */
+function ModuleCard({ children }: { children: ReactNode }) {
+    return <div className="set-card set-form">{children}</div>;
+}
 
 export default function SettingsPage() {
     const { csrfToken } = useOutletContext<ShellContext>();
     const [data, setData] = useState<SettingsData | null>(null);
     const [draft, setDraft] = useState<Draft | null>(null);
-    const [secretChange, setSecretChange] = useState<string | undefined>(undefined);
-    const [anthropicKeyChange, setAnthropicKeyChange] = useState<string | undefined>(undefined);
-    const [wclSecretChange, setWclSecretChange] = useState<string | undefined>(undefined);
+    const [tokens, setTokens] = useState<IngestToken[] | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [saving, setSaving] = useState(false);
     const toast = useToast();
     // In the url as well as remembered, so a hint elsewhere in the menu can link
     // straight at the section it names ("…siehe Einstellungen → Kategorien").
+    // Old ids stay allowed and are redirected by resolveSection().
     const [section, setSection] = usePersistedSearchParam(
-        "settings-section", "section", "zugang", SETTINGS_SECTIONS.map((s) => s.id),
+        "settings-section", "section", "berechtigungen", SECTION_PARAM_IDS,
     );
 
     const load = () => {
@@ -601,25 +299,30 @@ export default function SettingsPage() {
             .then((d) => {
                 setData(d);
                 setDraft(toDraft(d.config));
-                setSecretChange(undefined);
-                setAnthropicKeyChange(undefined);
-                setWclSecretChange(undefined);
             })
             .catch((err: ApiError) => setError(err));
+    };
+    const loadTokens = () => {
+        getIngestTokens().then((r) => setTokens(r.tokens)).catch(() => setTokens(null));
     };
 
     // load() only ever runs once.
     useEffect(load, []);
+    // The token list is full-admin-only; it feeds the Loot-Sync card and the
+    // "Verbindungen" badge.
+    const canManage = !!data?.canManageAccess;
+    useEffect(() => { if (canManage) loadTokens(); }, [canManage]);
 
     if (error) return <div className="empty">Fehler beim Laden der Einstellungen: {error.message}</div>;
     if (!data || !draft) return <div className="empty">Lade…</div>;
 
     // A user who only holds write on "Einstellungen" never sees the access
-    // sections; a remembered id that is gone (older build, or exactly that case)
-    // resolves to the first section they may open instead of hiding everything.
+    // section; a remembered id that is gone resolves to the first section they
+    // may open instead of hiding everything.
     const sections = visibleSections(data.canManageAccess);
     const active = resolveSection(section, sections);
     const activeSection = sections.find((s) => s.id === active)!;
+    const channels = data.channels || [];
 
     const patch = (fields: Partial<Draft>) => setDraft({ ...draft, ...fields });
 
@@ -633,30 +336,28 @@ export default function SettingsPage() {
         patch({ categoryRoles: { ...draft.categoryRoles, [catId]: [...current] } });
     };
 
-    const submit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const saved = toDraft(data.config);
+    const roleNames = new Map(data.roles.map((r) => [r.id, r.name]));
+    const areaNames = new Map(data.areas.map((a) => [a.id, a.label]));
+    const categoryNames = new Map(data.categories.map((c) => [c.id, c.name]));
+    const changes = draftChanges(saved, draft, {
+        role: (id) => (roleNames.has(id) ? `@${roleNames.get(id)}` : id),
+        user: (id) => (data.userNames || {})[id] || `Konto ${id}`,
+        area: (id) => areaNames.get(id) || id,
+        category: (id) => categoryNames.get(id) || id,
+    });
+
+    const submit = async () => {
         setSaving(true);
         try {
             const { config } = await updateSettings(csrfToken, {
                 // Access config is full-admin-only; sending it as anyone else
                 // would (rightly) be rejected with a 403.
                 ...(data.canManageAccess ? {
-                    adminRoleIds: splitList(draft.adminRoleIdsText),
+                    adminRoleIds: draft.adminRoleIds,
                     rolePermissions: draft.rolePermissions,
                     baseAccess: draft.baseAccess,
                     userPermissions: draft.userPermissions,
-                    guildId: draft.guildId.trim(),
-                    raidhelperServerId: draft.raidhelperServerId.trim(),
-                    // ...and the credentials to foreign systems (CREDENTIAL_KEYS
-                    // on the server): a limited settings user never gets them.
-                    anthropic: {
-                        model: draft.anthropicModel.trim(),
-                        ...(anthropicKeyChange !== undefined ? { apiKey: anthropicKeyChange } : {}),
-                    },
-                    warcraftlogsV2: {
-                        clientId: draft.wclClientId.trim(),
-                        ...(wclSecretChange !== undefined ? { clientSecret: wclSecretChange } : {}),
-                    },
                 } : {}),
                 officerRoleId: draft.officerRoleId.trim(),
                 applicationChannelId: draft.applicationChannelId.trim(),
@@ -664,15 +365,8 @@ export default function SettingsPage() {
                 highestBidsMessageId: draft.highestBidsMessageId.trim(),
                 categoryIds: draft.categoryIds,
                 categoryRoles: draft.categoryRoles,
-                logChannelIds: splitList(draft.logChannelIdsText),
+                logChannelIds: draft.logChannelIds,
                 raidDefaults: { templateId: draft.raidTemplateId.trim(), channelId: draft.raidChannelId.trim() },
-                blizzard: {
-                    clientId: draft.blizzardClientId.trim(),
-                    region: draft.blizzardRegion.trim() || "eu",
-                    realmSlug: draft.blizzardRealmSlug.trim().toLowerCase() || "thunderstrike",
-                    namespace: draft.blizzardNamespace.trim().toLowerCase(),
-                    ...(secretChange !== undefined ? { clientSecret: secretChange } : {}),
-                },
                 categoryLootTool: draft.categoryLootTool,
                 // Sent whole: the store replaces the map, so clearing a url is
                 // what removes that category's sheet.
@@ -683,9 +377,6 @@ export default function SettingsPage() {
             });
             setData({ ...data, config });
             setDraft(toDraft(config));
-            setSecretChange(undefined);
-            setAnthropicKeyChange(undefined);
-            setWclSecretChange(undefined);
             toast("Gespeichert.");
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -694,24 +385,19 @@ export default function SettingsPage() {
         }
     };
 
-    // The panel of the open section. Everything above "Loot-Sync" belongs to the
-    // page's one config form; the three standalone sections below save on their
-    // own and are rendered outside it (see settingsSections.ts).
+    const head = (s: SettingsSection, action?: ReactNode, tip?: string, tipSub?: string) => (
+        <PartHead icon={s.icon} tone="settings" title={s.label} crumb={`Einstellungen › ${s.crumb}`} action={action} tip={tip} tipSub={tipSub} />
+    );
+
+    // The panel of the open section.
     const panel = () => {
         switch (active) {
-            case "zugang": return (
-                <div className="field">
-                    <label>Admin-Rollen (Discord-Rollen-IDs, kommagetrennt)</label>
-                    <input type="text" value={draft.adminRoleIdsText} onChange={(e) => patch({ adminRoleIdsText: e.target.value })} placeholder="123456789012345678, 234567890123456789" />
-                    <div className="hint">Mitglieder mit einer dieser Rollen erhalten Admin-Zugang. Änderungen greifen für bereits angemeldete Nutzer innerhalb von ca. 5 Minuten, ohne erneuten Login. Die <code>ADMIN_USER_ID</code> aus der .env behält immer Zugang (Notfall-Zugang).</div>
-                </div>
-            );
-
             case "berechtigungen": return (
                 <RolePermissionsEditor
                     areas={data.areas}
                     roles={data.roles}
-                    adminRoleIds={splitList(draft.adminRoleIdsText)}
+                    adminRoleIds={draft.adminRoleIds}
+                    onAdminRoleIds={(adminRoleIds) => patch({ adminRoleIds })}
                     value={draft.rolePermissions}
                     onChange={(rolePermissions) => patch({ rolePermissions })}
                     baseAccess={draft.baseAccess}
@@ -719,199 +405,169 @@ export default function SettingsPage() {
                     userPermissions={draft.userPermissions}
                     onUserPermissionsChange={(userPermissions) => patch({ userPermissions })}
                     userNames={data.userNames || {}}
+                    icon={activeSection.icon}
+                    crumb={activeSection.crumb}
                 />
             );
 
-            case "discord": return (
-                <>
-                    <p className="hint">Gegen welchen Server der Bot arbeitet. Beides bleibt Voll-Admins vorbehalten: Die Guild-ID entscheidet, wo der Admin-Rollencheck greift.</p>
-                    <div className="field">
-                        <label>Discord-Server-ID (Guild-ID)</label>
-                        <input type="text" value={draft.guildId} onChange={(e) => patch({ guildId: e.target.value })} placeholder="Discord-Server-ID" />
-                        <div className="hint">Der Server, gegen den der Admin-Rollencheck läuft — und der im Menü oben rechts vorausgewählt ist, solange niemand aktiv einen anderen wählt (die Auswahl im Menü gilt nur für die eigene Sitzung). Leer gespeichert greift wieder der Standard-Server des Bots.</div>
-                    </div>
-                    <div className="field">
-                        <label>Raid-Helper Server-ID</label>
-                        <input type="text" value={draft.raidhelperServerId} onChange={(e) => patch({ raidhelperServerId: e.target.value })} placeholder="Server-ID von raid-helper.xyz" />
-                        <div className="hint">Wird für alle Raid-Helper-API-Aufrufe verwendet (Events, Setups, Anmeldungen). Der API-Key selbst bleibt in der .env.</div>
-                    </div>
-                </>
-            );
-
-            case "battlenet": return (
-                <>
-                    <p className="hint">Optional: Mit Battle.net-API-Zugang zeigt die Char-Historie das Live-Gear direkt an. Client anlegen unter <code>develop.battle.net</code>.</p>
-                    <div className="field">
-                        <label>Battle.net Client-ID</label>
-                        <input type="text" value={draft.blizzardClientId} onChange={(e) => patch({ blizzardClientId: e.target.value })} placeholder="Client-ID von develop.battle.net" autoComplete="off" />
-                    </div>
-                    <BlizzardSecretField hasStoredSecret={!!data.config.blizzard.hasClientSecret} value={secretChange} onChange={setSecretChange} />
-                    <div className="field">
-                        <label>Region</label>
-                        <input type="text" value={draft.blizzardRegion} onChange={(e) => patch({ blizzardRegion: e.target.value })} placeholder="eu" />
-                    </div>
-                    <div className="field">
-                        <label>Realm-Slug</label>
-                        <input type="text" value={draft.blizzardRealmSlug} onChange={(e) => patch({ blizzardRealmSlug: e.target.value })} placeholder="thunderstrike" />
-                    </div>
-                    <div className="field">
-                        <label>Profile-Namespace (optional)</label>
-                        <input type="text" value={draft.blizzardNamespace} onChange={(e) => patch({ blizzardNamespace: e.target.value })} placeholder={`leer = automatisch (profile-classicann-${draft.blizzardRegion || "eu"})`} />
-                    </div>
-                </>
-            );
-
-            case "anthropic": return (
-                <>
-                    <p className="hint">Optional: Mit einem Anthropic-API-Key formuliert Claude die Empfehlungen aus der Log-Auswertung in Klartext für die Raider. Die Regeln entscheiden weiterhin, <em>was</em> aufgefallen ist; das Modell schreibt nur, <em>wie</em> man es sagt, und nichts geht ohne deine Freigabe raus. Key anlegen unter <code>console.anthropic.com</code>.</p>
-                    <SecretField label="Anthropic API-Key" hasStoredSecret={!!data.config.anthropic?.hasApiKey} value={anthropicKeyChange} onChange={setAnthropicKeyChange} />
-                    <div className="field">
-                        <label>Modell</label>
-                        <input type="text" value={draft.anthropicModel} onChange={(e) => patch({ anthropicModel: e.target.value })} placeholder="claude-opus-5" autoComplete="off" />
-                        <div className="hint">Leer = <code>claude-opus-5</code>. Die Formulierung startet auf der Report-Seite im Tab „Empfehlungen“.</div>
-                    </div>
-                </>
-            );
-
-            case "warcraftlogs": return (
-                <>
-                    <p className="hint">Optional: Mit einem Warcraft-Logs-API-Client (v2) zeichnet der Kampfverlauf pro Bosskampf Raid-DPS, Raid-HPS und das Boss-Leben über die Zeit. Alles andere der Log-Auswertung läuft weiter über den v1-Key in der <code>.env</code>. Client anlegen unter <code>warcraftlogs.com/api/clients</code> (ohne Redirect-URL, „Public Client“ aus); die Kurven erscheinen ab der nächsten Auswertung.</p>
-                    <div className="field">
-                        <label>Client-ID</label>
-                        <input type="text" value={draft.wclClientId} onChange={(e) => patch({ wclClientId: e.target.value })} placeholder="Client-ID von warcraftlogs.com/api/clients" autoComplete="off" />
-                    </div>
-                    <SecretField label="Client-Secret" hasStoredSecret={!!data.config.warcraftlogsV2?.hasClientSecret} value={wclSecretChange} onChange={setWclSecretChange} />
-                </>
+            case "verbindungen": return (
+                <ConnectionsSection
+                    data={data}
+                    tokens={tokens}
+                    csrfToken={csrfToken}
+                    onConfig={(config) => setData({ ...data, config })}
+                    onTokensChanged={loadTokens}
+                    icon={activeSection.icon}
+                    crumb={activeSection.crumb}
+                />
             );
 
             case "kategorien": return (
-                <>
-                    <p className="hint">
-                        Welche Discord-Kategorien Raid-Events enthalten — und für jede davon alles, was sie betrifft:
-                        die erwarteten Raider-Rollen, das benutzte Loot-Addon und ein fest zugewiesenes Sheet.
-                    </p>
-                    <CategoryMatrix
-                        categories={data.categories}
-                        roles={data.roles}
-                        categoryIds={draft.categoryIds}
-                        categoryRoles={draft.categoryRoles}
-                        categoryLootTool={draft.categoryLootTool}
-                        categorySheets={draft.categorySheets}
-                        onToggleCategory={toggleCategory}
-                        onToggleRole={toggleRole}
-                        onLootTool={(id, tool) => patch({ categoryLootTool: { ...draft.categoryLootTool, [id]: tool } })}
-                        onSheet={(id, sheet) => patch({ categorySheets: { ...draft.categorySheets, [id]: sheet } })}
-                    />
-                </>
+                <CategoryMatrix
+                    categories={data.categories}
+                    roles={data.roles}
+                    categoryIds={draft.categoryIds}
+                    categoryRoles={draft.categoryRoles}
+                    categoryLootTool={draft.categoryLootTool}
+                    categorySheets={draft.categorySheets}
+                    savedCategoryRoles={data.config.categoryRoles || {}}
+                    onToggleCategory={toggleCategory}
+                    onToggleRole={toggleRole}
+                    onLootTool={(id, tool) => patch({ categoryLootTool: { ...draft.categoryLootTool, [id]: tool } })}
+                    onSheet={(id, sheet) => patch({ categorySheets: { ...draft.categorySheets, [id]: sheet } })}
+                    csrfToken={csrfToken}
+                    icon={activeSection.icon}
+                    crumb={activeSection.crumb}
+                />
             );
 
             case "raids": return (
                 <>
-                    <p className="hint">Womit ein neues Raid-Event vorbelegt wird, wenn beim Anlegen nichts anderes gewählt ist.</p>
-                    <div className="field">
-                        <label>Standard-Template-ID</label>
-                        <input type="text" value={draft.raidTemplateId} onChange={(e) => patch({ raidTemplateId: e.target.value })} placeholder="Raid-Helper Template-ID" />
-                    </div>
-                    <div className="field">
-                        <label>Standard-Channel-ID</label>
-                        <input type="text" value={draft.raidChannelId} onChange={(e) => patch({ raidChannelId: e.target.value })} placeholder="Discord-Channel-ID" />
-                    </div>
+                    {head(activeSection)}
+                    <ModuleCard>
+                        <div className="set-field">
+                            <FieldLabel htmlFor="set-raid-template" tip="Standard-Template" tipSub="Raid-Helper-Template, mit dem ein neues Raid-Event vorbelegt wird, wenn beim Anlegen nichts anderes gewählt ist.">Standard-Template-ID</FieldLabel>
+                            <input id="set-raid-template" type="text" className="mono" value={draft.raidTemplateId} onChange={(e) => patch({ raidTemplateId: e.target.value })} placeholder="Raid-Helper Template-ID" />
+                        </div>
+                        <div className="set-field">
+                            <FieldLabel htmlFor="set-raid-channel" tip="Standard-Kanal" tipSub="Der Kanal, in dem ein neues Raid-Event angelegt wird, wenn beim Anlegen keiner gewählt ist.">Standard-Kanal</FieldLabel>
+                            <ChannelPicker id="set-raid-channel" value={draft.raidChannelId} channels={channels} onChange={(raidChannelId) => patch({ raidChannelId })} />
+                        </div>
+                    </ModuleCard>
                 </>
             );
 
-            case "loot": return (
+            case "raidsheets": return (
                 <>
-                    <p className="hint">
-                        Die richtig großen Drops — Waffen, Legendary-Teile, alles was die Gilde als besonders
-                        wertet. Vergibt ein Raid eines dieser Items, hebt das Dashboard die Vergabe hervor.
-                        Welches Loot-Addon eine Kategorie benutzt, steht unter „Kategorien".
-                    </p>
-                    <TopItemsField items={draft.topItems} onChange={(topItems) => patch({ topItems })} />
+                    {head(activeSection, undefined, "Raidsheet-Vorlagen", "Google-Sheets nach Content (Tier 4/5 usw.). Beim Füllen wird anhand der Keywords das passende Sheet vorgeschlagen. Ein festes Sheet für eine ganze Raid-Kategorie wird unter Kategorien zugewiesen.")}
+                    <RaidsheetsSection sheets={data.raidsheets} csrfToken={csrfToken} onChanged={(msg) => { toast(msg); load(); }} />
+                </>
+            );
+
+            case "topitems": return (
+                <>
+                    {head(activeSection, undefined, "Top-Items", "Die richtig großen Drops — Waffen, Legendary-Teile, alles, was die Gilde als besonders wertet. Vergibt ein Raid eines davon, hebt das Dashboard die Vergabe hervor. Welches Loot-Addon eine Kategorie benutzt, steht unter Kategorien.")}
+                    <ModuleCard>
+                        <TopItemsField items={draft.topItems} onChange={(topItems) => patch({ topItems })} />
+                    </ModuleCard>
                 </>
             );
 
             case "logs": return (
-                <div className="field">
-                    <label>Log-Channel-IDs (kommagetrennt)</label>
-                    <input type="text" value={draft.logChannelIdsText} onChange={(e) => patch({ logChannelIdsText: e.target.value })} placeholder="111…, 222…" />
-                    <div className="hint">Channels, in denen automatisch Warcraft-Logs gepostet werden.</div>
-                </div>
+                <>
+                    {head(activeSection)}
+                    <ModuleCard>
+                        <div className="set-field">
+                            <FieldLabel tip="Log-Kanäle" tipSub="Kanäle, in denen automatisch Warcraft-Logs gepostet werden. Der Bot hängt dort die Auswertungs-Knöpfe an.">Log-Kanäle</FieldLabel>
+                            <ChannelListField ids={draft.logChannelIds} channels={channels} onChange={(logChannelIds) => patch({ logChannelIds })} />
+                        </div>
+                    </ModuleCard>
+                </>
             );
 
             case "recruitment": return (
                 <>
-                    <div className="field">
-                        <label>Bewerbungs-Channel-ID</label>
-                        <input type="text" value={draft.applicationChannelId} onChange={(e) => patch({ applicationChannelId: e.target.value })} placeholder="Discord-Channel-ID" />
-                        <div className="hint">Channel, in dem neue Bewerbungen als Thread gepostet werden.</div>
-                    </div>
-                    <div className="field">
-                        <label>Offizier-Rollen-ID</label>
-                        <input type="text" value={draft.officerRoleId} onChange={(e) => patch({ officerRoleId: e.target.value })} placeholder="Discord-Rollen-ID" />
-                        <div className="hint">Wird bei neuen Bewerbungen gepingt. Leer lassen für keinen Ping.</div>
-                    </div>
+                    {head(activeSection)}
+                    <ModuleCard>
+                        <div className="set-field">
+                            <FieldLabel htmlFor="set-app-channel" tip="Bewerbungs-Kanal" tipSub="Kanal, in dem neue Bewerbungen als Thread gepostet werden.">Bewerbungs-Kanal</FieldLabel>
+                            <ChannelPicker id="set-app-channel" value={draft.applicationChannelId} channels={channels} onChange={(applicationChannelId) => patch({ applicationChannelId })} />
+                        </div>
+                        <div className="set-field">
+                            <FieldLabel htmlFor="set-officer" tip="Offizier-Rolle" tipSub="Wird bei neuen Bewerbungen gepingt. Leer lassen für keinen Ping.">Offizier-Rolle</FieldLabel>
+                            <RolePicker id="set-officer" value={draft.officerRoleId} roles={data.roles} onChange={(officerRoleId) => patch({ officerRoleId })} placeholder="— kein Ping —" />
+                        </div>
+                    </ModuleCard>
                 </>
             );
 
             case "auktionen": return (
                 <>
-                    <div className="field">
-                        <label>Höchstgebote-Channel-ID</label>
-                        <input type="text" value={draft.highestBidsChannelId} onChange={(e) => patch({ highestBidsChannelId: e.target.value })} placeholder="Discord-Channel-ID" />
-                    </div>
-                    <div className="field">
-                        <label>Höchstgebote-Message-ID</label>
-                        <input type="text" value={draft.highestBidsMessageId} onChange={(e) => patch({ highestBidsMessageId: e.target.value })} placeholder="Discord-Message-ID" />
-                        <div className="hint">Die Nachricht mit der Höchstgebote-Übersicht, die der Bot aktualisiert.</div>
-                    </div>
+                    {head(activeSection)}
+                    <ModuleCard>
+                        <div className="set-field">
+                            <FieldLabel htmlFor="set-bids-channel" tip="Höchstgebote-Kanal" tipSub="Der Kanal mit der Höchstgebote-Übersicht der Legendary-Auktionen.">Höchstgebote-Kanal</FieldLabel>
+                            <ChannelPicker id="set-bids-channel" value={draft.highestBidsChannelId} channels={channels} onChange={(highestBidsChannelId) => patch({ highestBidsChannelId })} />
+                        </div>
+                        <div className="set-field">
+                            <FieldLabel htmlFor="set-bids-msg" tip="Höchstgebote-Nachricht" tipSub="Die Nachricht mit der Übersicht, die der Bot aktualisiert. In Discord per Rechtsklick → „ID kopieren“ (Entwicklermodus).">Höchstgebote-Message-ID</FieldLabel>
+                            <input id="set-bids-msg" type="text" className="mono" value={draft.highestBidsMessageId} onChange={(e) => patch({ highestBidsMessageId: e.target.value })} placeholder="Discord-Message-ID" />
+                        </div>
+                    </ModuleCard>
                 </>
-            );
-
-            case "lootsync": return <IngestTokensTab csrfToken={csrfToken} />;
-
-            case "raidchars": return <RaiderCharactersTab categories={data.categories} csrfToken={csrfToken} />;
-
-            case "raidsheets": return (
-                <RaidsheetsSection
-                    sheets={data.raidsheets}
-                    csrfToken={csrfToken}
-                    onChanged={(msg) => { toast(msg); load(); }}
-                />
             );
 
             default: return null;
         }
     };
 
+    // The badges of the column: what is open in a section, so nobody has to
+    // open each one to find the gap.
+    const missing = missingConnections(data, tokens, data.canManageAccess);
+    const activeCategories = draft.categoryIds.length;
+    const navGroups = groupedSections(sections).map((g) => ({
+        group: g.group,
+        items: g.items.map((s) => ({
+            id: s.id,
+            label: s.label,
+            icon: s.icon,
+            badge: s.id === "verbindungen" ? { count: missing, tone: "mid" as const, tip: `${missing} ${missing === 1 ? "Verbindung" : "Verbindungen"} nicht eingerichtet` }
+                : s.id === "kategorien" ? { count: activeCategories, tip: `${activeCategories} aktive Raid-Kategorien` }
+                    : null,
+        })),
+    }));
+
     const inForm = savesWithForm(active);
-    const body = (
-        <>
-            <h2 className="section-title">{activeSection.label}</h2>
-            {panel()}
-        </>
-    );
 
     return (
         <>
-            <h1 className="page-title">Einstellungen</h1>
-            <p className="note">Alle Werte werden in der Datenbank gespeichert und greifen ohne Bot-Neustart. IDs bekommst du in Discord per Rechtsklick → „ID kopieren" (Entwicklermodus).</p>
+            <div className="page-head settings-head">
+                <IconTile icon="trade_engineering" tone="settings" size="lg" />
+                <div className="ph-text">
+                    <div className="kicker">System · greift ohne Bot-Neustart</div>
+                    <h1>
+                        Einstellungen
+                        <InfoTip head="Einstellungen" sub={"Alle Werte werden in der Datenbank gespeichert und greifen ohne Bot-Neustart.\nIDs bekommst du in Discord per Rechtsklick → „ID kopieren“ (Entwicklermodus)."} />
+                    </h1>
+                </div>
+            </div>
 
             <div className="settings-layout">
-                <SectionNav
-                    groups={groupedSections(sections)}
-                    active={active}
-                    onSelect={setSection}
-                    ariaLabel="Einstellungs-Bereiche"
-                />
-                <div className="settings-panel">
-                    {inForm ? (
-                        <form className="card-form" onSubmit={submit}>
-                            {body}
-                            <div className="row-actions">
-                                <button className="btn" type="submit" disabled={saving}>{saving ? "Speichert…" : "Speichern"}</button>
-                            </div>
-                        </form>
-                    ) : body}
+                <SectionNav groups={navGroups} active={active} onSelect={setSection} ariaLabel="Einstellungs-Bereiche" />
+                <div className={`settings-panel${inForm ? " in-form" : ""}`}>
+                    {panel()}
+                    {changes.length > 0 && (
+                        <div className="savebar" role="status" aria-live="polite">
+                            <IconTile icon={activeSection.icon} tone="settings" />
+                            <b>{changes.length} ungespeicherte {changes.length === 1 ? "Änderung" : "Änderungen"}</b>
+                            <span className="savebar-list" data-tip="Ungespeichert" data-tip-sub={changes.join("\n")}>
+                                {changes.slice(0, 2).join(", ")}{changes.length > 2 ? ` +${changes.length - 2}` : ""}
+                            </span>
+                            <span className="grow" />
+                            <Button variant="ghost" onClick={() => setDraft(toDraft(data.config))} disabled={saving}>Verwerfen</Button>
+                            <Button onClick={submit} disabled={saving}>{saving ? "Speichert…" : "Speichern"}</Button>
+                        </div>
+                    )}
                 </div>
             </div>
         </>
