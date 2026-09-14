@@ -197,4 +197,3 @@ dialog.lc-dlg { width: min(960px, calc(100vw - 32px)); }
     .lc-sheet { grid-template-columns: 1fr; }
     .lc-filterbar-badges { margin-left: 0; }
 }
-dialog.lc-dlg:focus { outline: none; }

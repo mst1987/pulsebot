@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { CouncilExport, CouncilLog, CouncilRaider, SimResult, WornItem } from "../../api";
-import { Badge, Button, IconButton, Modal, PartHead, Segment, TipLayer, WowIcon, buttonClass } from "../../components/ui";
+import { Badge, Button, IconButton, Modal, PartHead, Segment, WowIcon, buttonClass } from "../../components/ui";
 import { AbsenceIcon, CopyIcon, ExternalIcon, XIcon } from "../../components/icons";
 import { ReasonBadge } from "../../components/LootBadges";
 import { fmtMs } from "../../lib/format";
@@ -228,9 +228,6 @@ export default function RaiderDialog({
         const dlg = ref.current;
         if (dlg && !dlg.open) {
             dlg.showModal();
-            // The dialog itself takes the focus, not the close button — a focused
-            // button would open its tooltip the moment the details appear.
-            dlg.focus();
         }
         return () => { if (dlg && dlg.open) dlg.close(); };
     }, []);
@@ -262,14 +259,10 @@ export default function RaiderDialog({
         <dialog
             ref={ref}
             className="dlg lc-dlg"
-            tabIndex={-1}
             aria-label={`Details zu ${r.character}`}
             onCancel={(e) => { e.preventDefault(); onClose(); }}
             onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
-            {/* The shell's tooltip box sits outside the dialog's top layer and
-                would stay behind the backdrop — this one draws inside it. */}
-            <TipLayer />
             <div className="dlg-inner">
                 <div className="dlg-head">
                     <RaiderIdent

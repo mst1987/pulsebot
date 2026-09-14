@@ -247,6 +247,67 @@ describe("tooltips instead of native title", () => {
     });
 });
 
+describe("tooltips and modal dialogs", () => {
+    const tip = read("components", "ui", "Tip.tsx");
+    const layer = tip.slice(tip.indexOf("export function TipLayer("));
+
+    it("draws the box in the top layer, above an open modal <dialog>", () => {
+        // a manual popover lives in the top layer like a modal dialog...
+        expect(layer).toContain("box.setAttribute(\"popover\", \"manual\");");
+        // ...and is shown again on every tip, which puts it above a dialog opened since
+        const raise = tip.match(/function raiseTipBox\(box: HTMLElement\): void \{[\s\S]*?\r?\n\}/)[0];
+        expect(raise).toContain("if (typeof box.showPopover !== \"function\") return;");
+        expect(raise).toContain("if (box.matches(\":popover-open\")) box.hidePopover();");
+        expect(raise).toContain("box.showPopover();");
+        const show = layer.match(/const show = \(t: Element\) => \{[\s\S]*?\r?\n {8}\};/)[0];
+        expect(show.indexOf("raiseTipBox(box);")).toBeGreaterThan(-1);
+        expect(show.indexOf("raiseTipBox(box);")).toBeLessThan(show.indexOf("place(t);"));
+    });
+
+    it("undoes the popover's centring, so left/top still place the box", () => {
+        const rule = css.match(/\n\.tip \{[^}]+\}/)[0];
+        for (const decl of ["position: fixed", "right: auto", "bottom: auto", "margin: 0", "overflow: visible"]) {
+            expect({ decl, set: rule.includes(decl) }).toEqual({ decl, set: true });
+        }
+    });
+
+    it("opens a focus tooltip only after a navigation key, never for a programmatic focus", () => {
+        expect(tip).toContain("export const NAV_KEYS = new Set([\"Tab\", \"ArrowUp\", \"ArrowDown\", \"ArrowLeft\", \"ArrowRight\", \"Home\", \"End\", \"PageUp\", \"PageDown\"]);");
+        expect(tip).toContain("return navAt > 0 && now - navAt <= NAV_FOCUS_WINDOW;");
+        const onFocus = layer.match(/const onFocus = \(e: FocusEvent\) => \{[\s\S]*?\r?\n {8}\};/)[0];
+        expect(onFocus).toContain("if (!focusFromNavigation(navAt, performance.now())) return;");
+        // any other key (Enter that opened a dialog) and any click forget the navigation
+        expect(layer).toContain("navAt = NAV_KEYS.has(e.key) ? performance.now() : 0;");
+        expect(layer.match(/const onDown = \(e: PointerEvent\) => \{\s*navAt = 0;/)).not.toBeNull();
+        // captured, so the key is known before a roving-focus handler moves the focus
+        expect(layer).toContain("document.addEventListener(\"keydown\", onKey, true);");
+        expect(layer).toContain("document.addEventListener(\"pointerdown\", onDown, true);");
+        expect(layer).toContain("document.removeEventListener(\"keydown\", onKey, true);");
+    });
+
+    it("keeps the navigation rule itself right", () => {
+        // The helper is plain arithmetic; evaluate it as written (types stripped).
+        const src = tip.match(/function focusFromNavigation\(navAt: number, now: number\): boolean \{\r?\n\s*(return [^\r\n]+)\r?\n\}/)[1];
+        const windowMs = Number(tip.match(/export const NAV_FOCUS_WINDOW = (\d+);/)[1]);
+        const fromNav = new Function("navAt", "now", "NAV_FOCUS_WINDOW", src);
+        expect(fromNav(0, 1000, windowMs)).toBe(false); // no key since the last click/other key
+        expect(fromNav(1000, 1001, windowMs)).toBe(true); // Tab moved the focus right away
+        expect(fromNav(1000, 1000 + windowMs, windowMs)).toBe(true);
+        expect(fromNav(1000, 1001 + windowMs, windowMs)).toBe(false); // a much later focus is the page's
+    });
+
+    it("leaves no module its own tooltip layer or focus workaround", () => {
+        const layers = clientSources()
+            .filter(([name, src]) => name !== "components/Shell.tsx" && name !== "components/ui/Tip.tsx" && /<TipLayer\s*\/>/.test(src))
+            .map(([name]) => name);
+        expect(layers).toEqual([]);
+        const sources = Object.fromEntries(clientSources());
+        for (const name of ["components/ItemAwardsDialog.tsx", "components/LootInboxTab.tsx", "components/ManualLootForm.tsx"]) {
+            expect({ name, footFocus: /initialFocus="\.dlg-foot/.test(sources[name]) }).toEqual({ name, footFocus: false });
+        }
+    });
+});
+
 describe("WoW icon url", () => {
     it("builds the zamimg url, large by default and medium for small icons", () => {
         expect(wowIconUrl("inv_misc_map_01")).toBe("https://wow.zamimg.com/images/wow/icons/large/inv_misc_map_01.jpg");

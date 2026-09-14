@@ -6,8 +6,10 @@ import { useEffect, useRef, type ReactNode } from "react";
 // Any element carrying `data-tip` (the head) and optionally `data-tip-sub` (the
 // explanation) gets it — HTML or SVG, set by hand, by <Tip>, or by a building
 // block like IconButton. One <TipLayer> in the shell draws the box for all of
-// them, on hover, on keyboard focus and on a tap. The report pages run the same
-// logic as an inline script (src/web/render.js), with the same look.
+// them, on hover, on keyboard focus and on a tap — also inside an open modal,
+// since the box lives in the top layer (raiseTipBox). No module needs a layer
+// of its own. The report pages run the same logic as an inline script
+// (src/web/render.js), with the same look.
 
 /** Wraps content that explains itself on hover/focus/tap. */
 export default function Tip({ head, sub, children, className }: {
@@ -37,6 +39,36 @@ export function tipParts(tip: string, sub: string | null): { head: string; sub: 
     return { head: tip, sub: "" };
 }
 
+/**
+ * Keys that move the focus on their own. A focus that follows one of them is
+ * the visitor walking the page and gets its tooltip; any other focus — a
+ * dialog's `showModal()` putting it on the close button, a form focusing its
+ * first field, an Enter that opened something — is the page's doing and does
+ * not. Otherwise every modal opened with its close button's tooltip showing.
+ */
+export const NAV_KEYS = new Set(["Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"]);
+
+/** How long after a navigation key a focus still counts as its result (ms). */
+export const NAV_FOCUS_WINDOW = 500;
+
+/** Whether a focus at `now` came from the navigation key pressed at `navAt` (0 = none since). */
+function focusFromNavigation(navAt: number, now: number): boolean {
+    return navAt > 0 && now - navAt <= NAV_FOCUS_WINDOW;
+}
+
+/**
+ * Lifts the box into the browser's top layer. A modal <dialog> is drawn there,
+ * above everything else however high its z-index — so a box in the page would
+ * sit behind the dialog and its backdrop. As a manual popover the box is in the
+ * top layer too, and showing it again puts it on top of whatever dialog opened
+ * since. Without popover support (old browsers) it stays a fixed box.
+ */
+function raiseTipBox(box: HTMLElement): void {
+    if (typeof box.showPopover !== "function") return;
+    if (box.matches(":popover-open")) box.hidePopover();
+    box.showPopover();
+}
+
 export function TipLayer() {
     const boxRef = useRef<HTMLDivElement>(null);
 
@@ -44,6 +76,9 @@ export function TipLayer() {
         const box = boxRef.current;
         if (!box) return undefined;
         let cur: Element | null = null;
+        // performance.now() of the last navigation key, 0 after any other key or a click.
+        let navAt = 0;
+        box.setAttribute("popover", "manual");
 
         const place = (t: Element) => {
             const r = t.getBoundingClientRect();
@@ -71,6 +106,7 @@ export function TipLayer() {
                 i.textContent = parts.sub;
                 box.appendChild(i);
             }
+            raiseTipBox(box);
             box.classList.add("on");
             place(t);
         };
@@ -86,31 +122,41 @@ export function TipLayer() {
             else if (cur) hide();
         };
         const onOut = (e: MouseEvent) => { if (cur && !e.relatedTarget) hide(); };
-        const onFocus = (e: FocusEvent) => { const t = target(e); if (t) show(t); };
+        const onFocus = (e: FocusEvent) => {
+            if (!focusFromNavigation(navAt, performance.now())) return;
+            const t = target(e);
+            if (t) show(t);
+        };
         // Touch has no hover: a tap toggles the box, a tap elsewhere closes it.
         const onDown = (e: PointerEvent) => {
+            navAt = 0;
             if (e.pointerType !== "touch") return;
             const t = target(e);
             if (!t) { hide(); return; }
             if (cur === t) hide(); else show(t);
         };
         const onScroll = () => { if (cur) place(cur); };
-        const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") hide(); };
+        // Captured, so the key is known before a roving-focus handler (Segment's
+        // arrow keys) moves the focus in its own keydown.
+        const onKey = (e: KeyboardEvent) => {
+            navAt = NAV_KEYS.has(e.key) ? performance.now() : 0;
+            if (e.key === "Escape") hide();
+        };
 
         document.addEventListener("mouseover", onOver);
         document.addEventListener("mouseout", onOut);
         document.addEventListener("focusin", onFocus);
         document.addEventListener("focusout", hide);
-        document.addEventListener("pointerdown", onDown);
-        document.addEventListener("keydown", onKey);
+        document.addEventListener("pointerdown", onDown, true);
+        document.addEventListener("keydown", onKey, true);
         window.addEventListener("scroll", onScroll, true);
         return () => {
             document.removeEventListener("mouseover", onOver);
             document.removeEventListener("mouseout", onOut);
             document.removeEventListener("focusin", onFocus);
             document.removeEventListener("focusout", hide);
-            document.removeEventListener("pointerdown", onDown);
-            document.removeEventListener("keydown", onKey);
+            document.removeEventListener("pointerdown", onDown, true);
+            document.removeEventListener("keydown", onKey, true);
             window.removeEventListener("scroll", onScroll, true);
         };
     }, []);
