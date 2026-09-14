@@ -77,10 +77,11 @@ describe("Log-Auswertung: one list", () => {
     it("shows each raid as a badge, yellow while the final boss stands", () => {
         const badges = fn("RaidBadges");
         expect(badges).toContain("tone={r.finalKilled ? \"ok\" : \"mid\"} icon={raidIcon(r.contentId)}");
-        const icons = read("lib", "raidIcons.ts");
-        expect(icons).toContain("hyjal: \"achievement_boss_archimonde-\"");
-        expect(icons).toContain("tk: \"spell_fire_burnout\"");
-        expect(icons).toContain("head: \"Raid nicht abgeschlossen\"");
+        // the boss icons are the shared table the Raid-Events use, the page only adds its fallback
+        const raids = read("lib", "logRaids.ts");
+        expect(raids).toContain("import { RAID_CONTENTS } from \"./raidIcons\";");
+        expect(raids).toContain("export const LOG_FALLBACK_ICON = \"inv_misc_pocketwatch_01\";");
+        expect(raids).toContain("head: \"Raid nicht abgeschlossen\"");
     });
 });
 

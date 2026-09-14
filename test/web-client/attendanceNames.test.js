@@ -1,48 +1,50 @@
-// Guards for the Anwesenheit name lists (src/web-client/src/pages/RaidDetailPage.tsx,
-// NameList).
+// Guards for the names in the Raid-Detail roster (src/web-client/src/pages/raid-detail/
+// meta.ts personLabel/personRef, RosterTab.tsx PersonChip).
 //
-// NameList is TSX and there is no React test renderer in this project, so what
-// is checked here is the invariant that regressed once and reads as a cosmetic
-// detail in a diff: the list used to render "DiscordName (Charname)", which is
-// noise as soon as the character is known. The character name must win the
-// label outright, with the Discord name demoted to the tooltip.
+// There is no React test renderer in this project, so what is checked is the
+// invariant that regressed once and reads as a cosmetic detail in a diff: the
+// list used to render "DiscordName (Charname)", which is noise as soon as the
+// character is known. The character name must win the label outright, with the
+// Discord name demoted to the tooltip and the player dialog.
 const fs = require("fs");
 const path = require("path");
 
-const SOURCE = path.join(
-    __dirname, "..", "..", "src", "web-client", "src", "pages", "RaidDetailPage.tsx",
-);
-const src = fs.readFileSync(SOURCE, "utf8");
+const DIR = path.join(__dirname, "..", "..", "src", "web-client", "src", "pages", "raid-detail");
+const meta = fs.readFileSync(path.join(DIR, "meta.ts"), "utf8");
+const roster = fs.readFileSync(path.join(DIR, "RosterTab.tsx"), "utf8");
 
-/** The body of a component, up to the next top-level declaration. */
-function componentBody(name) {
-    const start = src.indexOf(`function ${name}(`);
+/** The body of a function, up to the next top-level declaration. */
+function fnBody(src, name) {
+    const start = src.search(new RegExp(`function ${name}\\(`));
     expect(start).toBeGreaterThan(-1);
     const rest = src.slice(start + 1);
-    const end = rest.indexOf("\nfunction ");
+    const end = rest.search(/\n(export )?(default )?function /);
     return end === -1 ? rest : rest.slice(0, end);
 }
 
-describe("attendance name lists", () => {
-    // The naming lives in PersonBox, the one chip both lists render through.
-    const body = componentBody("PersonBox");
-
+describe("attendance names", () => {
     it("labels a person by their character name when one is known", () => {
-        expect(body).toMatch(/const label = p\.character \|\| discordName;/);
+        expect(fnBody(meta, "personLabel")).toContain("return p.character || p.displayName || p.id;");
     });
 
     it("never appends the character to the Discord name again", () => {
-        expect(body).not.toMatch(/\(\$\{p\.character\}\)/);
-        expect(body).not.toMatch(/displayName \|\| p\.id\) \+/);
+        for (const src of [meta, roster]) {
+            expect(src).not.toMatch(/\(\$\{p\.character\}\)/);
+            expect(src).not.toMatch(/displayName \|\| p\.id\) \+/);
+        }
     });
 
-    it("keeps the Discord name reachable in the tooltip", () => {
-        expect(body).toMatch(/const title = \[[\s\S]*?p\.character \? discordName/);
-        // Both branches (with and without a class/spec profile) carry it.
-        expect(body.match(/data-tip=\{title\}/g) || []).toHaveLength(2);
+    it("keeps the Discord name reachable in the tooltip and the player dialog", () => {
+        const chip = fnBody(roster, "PersonChip");
+        expect(chip).toContain("const label = personLabel(p);");
+        expect(chip).toMatch(/p\.character \? `@\$\{discordName\}`/);
+        expect(chip).toContain("data-tip={label} data-tip-sub={tipSub || undefined}");
+        expect(fnBody(meta, "personRef")).toContain("discordName: p.character ? (p.displayName || p.id) : undefined");
     });
 
     it("falls back to the Discord name when no character is assigned", () => {
-        expect(body).toMatch(/const discordName = p\.displayName \|\| p\.id;/);
+        const chip = fnBody(roster, "PersonChip");
+        expect(chip).toContain("const discordName = p.displayName || p.id;");
+        expect(chip).toContain("{!p.character && <Badge>kein Charakter</Badge>}");
     });
 });

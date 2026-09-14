@@ -1,7 +1,7 @@
 import type { ClaRaid } from "../api";
 import Badge from "./ui/Badge";
 import { CheckIcon } from "./icons";
-import { raidCount, raidIcon } from "../lib/raidIcons";
+import { raidCount, raidIcon } from "../lib/logRaids";
 import "../styles/log-auswertung.css";
 
 // The body of the "Raid noch nicht abgeschlossen" question (lib/confirmIncomplete.ts):

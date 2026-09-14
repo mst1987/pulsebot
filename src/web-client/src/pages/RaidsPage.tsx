@@ -1,128 +1,192 @@
-import { useEffect, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
-import { getRaids, type ApiError, type RaidEventGroup, type RaidEvent } from "../api";
-import { formatEventTime } from "../lib/format";
-import { usePersistedState } from "../lib/persistedState";
-import { useTableSort, type Dir } from "../lib/tableSort";
-import { eventPostUrl, raidplanUrl } from "../lib/discordLinks";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useLocation, useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
+import {
+    getRaids, getPastRaids, canAccess,
+    type ApiError, type PastRaidsData, type RaidsData, type PastRaid, type UpcomingRaid,
+} from "../api";
+import { usePersistedSearchParam, usePersistedState } from "../lib/persistedState";
+import { knownContents, raidIconName } from "../lib/raidIcons";
 import type { ShellContext } from "../components/Shell";
-import { SortTh } from "../components/SortTh";
+import { UpcomingRaidList, PastRaidList } from "../components/RaidList";
+import RaidCreateDialog from "../components/RaidCreateDialog";
+import IconTile from "../components/ui/IconTile";
+import Badge from "../components/ui/Badge";
+import WowIcon from "../components/ui/WowIcon";
+import { buttonClass } from "../components/ui/Button";
+import "../styles/raid-events.css";
 
-// The links column carries the same two links on every row — nothing to order
-// by, so it stays a plain header.
-type SortKey = "event" | "time" | "signups";
-const SORT_DEFAULTS: Record<SortKey, Dir> = { event: "asc", time: "asc", signups: "desc" };
+// Raid-Events: one page, two views of the same list — what is coming and what
+// took place — filtered by Discord category. "Neues Event" (/raids/new) is a
+// dialog over this page, not a page of its own.
 
-function CategoryTable({ group, guildId }: { group: RaidEventGroup; guildId: string }) {
-    // Pre-fill the "＋ Event" form from this category's most recently started
-    // event — mirrors renderAdmin.js's `g.events.slice().sort(...)[0]`, not just
-    // whichever event happens to be first in the (not necessarily sorted) list.
-    const latest = group.events.slice().sort((a, b) => (b.startTime || 0) - (a.startTime || 0))[0];
-    const newHref = `/raids/new${latest ? `?source=${latest.id}` : ""}`;
-    // One memory for all categories: they are the same table shown per raid
-    // series, and sorting one by date means wanting the next one that way too.
-    const { sort, dir, onSort, apply } = useTableSort<SortKey>("raids-events-sort", SORT_DEFAULTS, "time");
-    const events = apply(group.events, (ev, key) => {
-        switch (key) {
-            case "event": return (ev.title || "").toLowerCase();
-            case "time": return ev.startTime || 0;
-            case "signups": return ev.signupCount || 0;
-            default: return "";
-        }
-    });
+const VIEWS = ["upcoming", "past"] as const;
+type View = typeof VIEWS[number];
+
+// /raids and /raids/new are two routes, so opening the dialog remounts the page.
+// The last answer is kept here and shown at once while the fresh one loads,
+// instead of blanking the list behind the dialog.
+const lastLoaded: { upcoming: RaidsData | null; past: PastRaidsData | null } = { upcoming: null, past: null };
+
+/** The pill id of events outside any category — "" is taken by "Alle". */
+const NO_CATEGORY = "__none__";
+
+type Pill = { id: string; name: string; count: number; icon: string };
+
+/** One filter pill per category of the open view, with the raid icon its events show most. */
+function categoryPills(events: (UpcomingRaid | PastRaid)[]): Pill[] {
+    const byId = new Map<string, { name: string; count: number; contents: Map<string, number> }>();
+    for (const ev of events) {
+        const key = ev.categoryId || NO_CATEGORY;
+        const entry = byId.get(key) || { name: ev.categoryName || "Ohne Kategorie", count: 0, contents: new Map() };
+        entry.count += 1;
+        const first = knownContents(ev.contentIds)[0];
+        if (first) entry.contents.set(first, (entry.contents.get(first) || 0) + 1);
+        byId.set(key, entry);
+    }
+    return [...byId].map(([id, e]) => {
+        const top = [...e.contents].sort((a, b) => b[1] - a[1])[0];
+        return { id, name: e.name, count: e.count, icon: top ? raidIconName(top[0]) : "" };
+    }).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** The Kommend/Vergangen switch — the Segment look with a count badge per option. */
+function ViewSwitch({ value, onChange, counts }: { value: View; onChange: (v: View) => void; counts: Record<View, number | null> }) {
+    const opts: { v: View; label: string }[] = [{ v: "upcoming", label: "Kommend" }, { v: "past", label: "Vergangen" }];
     return (
-        <>
-            <div className="row-actions" style={{ justifyContent: "flex-end", marginBottom: 12 }}>
-                <Link className="btn btn-ghost btn-sm" to={newHref} data-tip="Neues Event in dieser Kategorie anlegen (Format vorbelegt)">＋ Event</Link>
-            </div>
-            <table className="idx" style={{ margin: 0 }}>
-                <thead>
-                    <tr>
-                        <SortTh sortKey="event" label="Event" sort={sort} dir={dir} onSort={onSort} />
-                        <SortTh sortKey="time" label="Termin" sort={sort} dir={dir} onSort={onSort} />
-                        <SortTh sortKey="signups" label="Anm." sort={sort} dir={dir} onSort={onSort} />
-                        <th>Links</th>
-                        <th />
-                    </tr>
-                </thead>
-                <tbody>
-                    {events.map((ev: RaidEvent) => (
-                        <tr key={ev.id}>
-                            <td><strong>{ev.title || "(ohne Titel)"}</strong><div className="small">#{ev.channelName || ev.channelId}</div></td>
-                            <td className="small">{formatEventTime(ev.startTime)}</td>
-                            <td className="small">{ev.signupCount || 0}</td>
-                            <td className="small">
-                                <a className="mlink" href={eventPostUrl(guildId, ev.channelId, ev.id)} target="_blank" rel="noopener noreferrer">Discord</a>
-                                {" · "}
-                                <a className="mlink" href={raidplanUrl(ev.id)} target="_blank" rel="noopener noreferrer">Setup/Comp</a>
-                            </td>
-                            <td className="cell-actions">
-                                <div className="row-actions" style={{ justifyContent: "flex-end" }}>
-                                    <Link className="btn btn-ghost btn-sm" to={`/raids/detail?event=${encodeURIComponent(ev.id)}`}>Details</Link>
-                                </div>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-        </>
+        <div className="seg re-seg" role="radiogroup" aria-label="Ansicht">
+            {opts.map((o) => (
+                <button key={o.v} type="button" role="radio" aria-checked={value === o.v} className={`seg-opt${value === o.v ? " active" : ""}`} onClick={() => onChange(o.v)}>
+                    {o.label}
+                    <Badge count tone={value === o.v ? "accent" : undefined}>{counts[o.v] ?? "…"}</Badge>
+                </button>
+            ))}
+        </div>
     );
 }
 
 export default function RaidsPage() {
-    useOutletContext<ShellContext>();
-    const [data, setData] = useState<{ groups: RaidEventGroup[]; error: string | null; activeGuildId: string } | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
-    // Remembered by category id, not by tab index: the groups come and go with the
-    // scheduled events, so an index would point at a different raid type next week.
+    const { user, csrfToken } = useOutletContext<ShellContext>();
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const canWrite = canAccess(user, "raids", "write");
+
+    const [view, setView] = usePersistedSearchParam<View>("raids-view", "view", "upcoming", VIEWS);
+    // Remembered by category id, not by position: categories come and go with
+    // the scheduled events, so a position would point at another raid next week.
     const [categoryId, setCategoryId] = usePersistedState("raids-category", "");
 
-    useEffect(() => {
-        getRaids()
-            .then(setData)
-            .catch((err: ApiError) => setError(err));
+    const [upcoming, setUpcoming] = useState<RaidsData | null>(lastLoaded.upcoming);
+    const [past, setPast] = useState<PastRaidsData | null>(lastLoaded.past);
+    const [error, setError] = useState<ApiError | null>(null);
+    const [pastError, setPastError] = useState<ApiError | null>(null);
+
+    const load = useCallback(() => {
+        getRaids().then((d) => { lastLoaded.upcoming = d; setUpcoming(d); }).catch((err: ApiError) => setError(err));
+        getPastRaids().then((d) => { lastLoaded.past = d; setPast(d); }).catch((err: ApiError) => setPastError(err));
     }, []);
+    useEffect(load, [load]);
+
+    const creating = location.pathname.replace(/\/+$/, "") === "/raids/new";
+    const closeCreate = () => navigate(view === "past" ? "/raids?view=past" : "/raids");
+    const repeat = (id: string) => navigate(`/raids/new?source=${encodeURIComponent(id)}`);
 
     if (error) return <div className="empty">Fehler beim Laden der Raid-Events: {error.message}</div>;
-    if (!data) return <div className="empty">Lade…</div>;
+    if (!upcoming) return <div className="empty">Lade…</div>;
+
+    const events: (UpcomingRaid | PastRaid)[] = view === "past" ? (past?.events || []) : upcoming.events;
+    const pills = categoryPills(events);
+    // A remembered category with nothing in this view shows everything instead of an empty list.
+    const activeCategory = categoryId && pills.some((p) => p.id === categoryId) ? categoryId : null;
+    const filtered = activeCategory === null ? events : events.filter((ev) => (ev.categoryId || NO_CATEGORY) === activeCategory);
 
     let listing: React.ReactNode;
-    if (!data.activeGuildId) {
-        listing = <p className="sub">Wähle oben einen Server, um die Events zu sehen.</p>;
-    } else if (data.error) {
-        listing = <div className="sub" style={{ color: "var(--high)" }}>{data.error}</div>;
-    } else if (!data.groups.length) {
-        listing = <p className="sub">Keine anstehenden Events gefunden.</p>;
-    } else {
-        // A remembered category whose events are all over falls back to the first
-        // group instead of showing an empty page.
-        const active = data.groups.find((g) => (g.categoryId || "") === categoryId) ?? data.groups[0];
+    if (!upcoming.activeGuildId) {
+        listing = <div className="glist re-glist"><div className="re-empty">Wähle oben einen Server, um die Events zu sehen.</div></div>;
+    } else if (view === "upcoming") {
         listing = (
-            <div className="tabwrap">
-                <div className="tabs" role="tablist">
-                    {data.groups.map((g) => (
-                        <button key={g.categoryId || "none"} type="button" className={`tab-btn${g === active ? " active" : ""}`} role="tab" onClick={() => setCategoryId(g.categoryId || "")}>
-                            {g.categoryName || "Ohne Kategorie"}
-                            <span className="tab-count">{g.events.length}</span>
-                        </button>
-                    ))}
-                </div>
-                <div className="tab-panel active" role="tabpanel">
-                    <CategoryTable group={active} guildId={data.activeGuildId} />
-                </div>
-            </div>
+            <>
+                {upcoming.error && <div className="re-warn">{upcoming.error}</div>}
+                <UpcomingRaidList
+                    events={filtered as UpcomingRaid[]}
+                    guildId={upcoming.activeGuildId}
+                    canWrite={canWrite}
+                    onRepeat={repeat}
+                    emptyMessage={upcoming.error ? "Keine Events geladen." : "Keine anstehenden Events gefunden."}
+                />
+            </>
+        );
+    } else if (pastError) {
+        listing = <div className="glist re-glist"><div className="re-empty">Fehler beim Laden der vergangenen Raids: {pastError.message}</div></div>;
+    } else if (!past) {
+        listing = <div className="glist re-glist"><div className="re-empty">Lade vergangene Raids…</div></div>;
+    } else {
+        listing = (
+            <>
+                {past.error && <div className="re-warn">{past.error}</div>}
+                <PastRaidList events={filtered as PastRaid[]} emptyMessage="Keine vergangenen Raids gefunden." />
+            </>
         );
     }
 
     return (
-        <>
-            <h1 className="page-title">Raid-Events</h1>
-            <p className="note">Alle anstehenden Events des Servers, gruppiert nach Discord-Kategorie. Über „Details" pro Event einen Anmelde-Aufruf posten oder das Raidsheet füllen.</p>
-            <div className="row-actions" style={{ marginBottom: 16 }}>
-                <Link className="btn" to="/raids/new">＋ Neues Event</Link>
-                <Link className="btn btn-ghost" to="/raids/templates">Aufruf-Vorlagen</Link>
+        <div className="re-page">
+            <div className="page-head">
+                <IconTile icon="inv_misc_note_02" size="lg" />
+                <div className="ph-text">
+                    <div className="kicker">Raid-Helper{upcoming.guildName ? ` · ${upcoming.guildName}` : ""}</div>
+                    <h1 className="re-h1">
+                        Raid-Events
+                        <span
+                            className="re-info" tabIndex={0}
+                            data-tip="Raid-Events"
+                            data-tip-sub="Alle Events des gewählten Servers aus Raid-Helper, kommende und vergangene. Anmelde-Aufruf, Raidsheet, Logs und Loot findest du im Event selbst."
+                        >i</span>
+                    </h1>
+                </div>
+                <div className="ph-act">
+                    <Link className={buttonClass("ghost", "md", true)} to="/raids/templates"><WowIcon name="inv_misc_horn_01" size={22} />Aufruf-Vorlagen</Link>
+                    {canWrite && <Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_05" size={22} />Neues Event</Link>}
+                </div>
             </div>
+
+            <div className="re-toolbar">
+                <ViewSwitch
+                    value={view}
+                    onChange={(v) => setView(v)}
+                    counts={{ upcoming: upcoming.events.length, past: past ? past.events.length : null }}
+                />
+                {pills.length > 0 && (
+                    <div className="re-pills" role="radiogroup" aria-label="Kategorie">
+                        <button type="button" role="radio" aria-checked={activeCategory === null} className={`re-pill noimg${activeCategory === null ? " on" : ""}`} onClick={() => setCategoryId("")}>
+                            Alle <Badge count>{events.length}</Badge>
+                        </button>
+                        {pills.map((p) => (
+                            <button
+                                key={p.id} type="button" role="radio" aria-checked={activeCategory === p.id}
+                                className={`re-pill${p.icon ? "" : " noimg"}${activeCategory === p.id ? " on" : ""}`}
+                                onClick={() => setCategoryId(p.id)}
+                            >
+                                {p.icon && <WowIcon name={p.icon} size={20} />}
+                                {p.name} <Badge count>{p.count}</Badge>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+
             {listing}
-        </>
+
+            {canWrite && (
+                <RaidCreateDialog
+                    open={creating}
+                    sourceId={creating ? searchParams.get("source") || "" : ""}
+                    csrfToken={csrfToken}
+                    userId={user?.id || ""}
+                    onClose={closeCreate}
+                    onCreated={() => { closeCreate(); load(); }}
+                />
+            )}
+        </div>
     );
 }

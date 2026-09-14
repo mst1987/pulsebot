@@ -8,7 +8,7 @@ import {
 import { formatEventTime } from "../lib/format";
 import { withIncompleteConfirm } from "../lib/confirmIncomplete";
 import { usePersistedState, usePersistedSearchParam, useDraftState } from "../lib/persistedState";
-import { raidCount, raidIcon, raidTip } from "../lib/raidIcons";
+import { raidCount, raidIcon, raidTip } from "../lib/logRaids";
 import type { ShellContext } from "../components/Shell";
 import { SortLabel, ariaSort } from "../components/SortTh";
 import { useJobs } from "../components/Jobs";

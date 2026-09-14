@@ -1,45 +1,51 @@
-// The icon a raid is recognised by in the Log-Auswertung: its final boss (Tempest
-// Keep, whose Kael'thas icon is unreadable at 14 px, by the burnout that ends it).
-// Keys are the content ids of src/config/tbcContent.js. Names checked against
-// zamimg — Archimonde's only exists with the trailing "-".
+// The boss icon each TBC raid is shown with — the achievement of its final boss,
+// the one thing every raider recognises at a glance. Keyed by the content ids of
+// src/config/tbcContent.js, which the server hands out per event
+// (src/web/raidListing.js). Names checked against the zamimg CDN: Archimonde's
+// only exists with the trailing "-", Kael'thas' with the apostrophe (WowIcon
+// encodes it).
 
-import type { ClaRaid } from "../api";
+export const RAID_ICON_FALLBACK = "inv_misc_note_02";
 
-export const RAID_ICONS: Record<string, string> = {
-    kara: "achievement_boss_princemalchezaar_02",
-    gruul: "achievement_boss_gruul",
-    mag: "achievement_boss_magtheridon",
-    ssc: "achievement_boss_ladyvashj",
-    tk: "spell_fire_burnout",
-    za: "achievement_boss_zuljin",
-    hyjal: "achievement_boss_archimonde-",
-    bt: "achievement_boss_illidan",
-    swp: "achievement_boss_kiljaedan",
+export const RAID_CONTENTS: Record<string, { icon: string; label: string; short: string }> = {
+    kara: { icon: "achievement_boss_princemalchezaar_02", label: "Karazhan", short: "Kara" },
+    gruul: { icon: "achievement_boss_gruulthedragonkiller", label: "Gruuls Unterschlupf", short: "Gruul" },
+    mag: { icon: "achievement_boss_magtheridon", label: "Magtheridons Kammer", short: "Magtheridon" },
+    ssc: { icon: "achievement_boss_ladyvashj", label: "Höhle des Schlangenschreins", short: "SSC" },
+    tk: { icon: "achievement_boss_kael'thassunstrider_01", label: "Festung der Stürme", short: "TK" },
+    za: { icon: "achievement_boss_zuljin", label: "Zul'Aman", short: "ZA" },
+    hyjal: { icon: "achievement_boss_archimonde-", label: "Hyjalgipfel", short: "Hyjal" },
+    bt: { icon: "achievement_boss_illidan", label: "Schwarzer Tempel", short: "BT" },
+    swp: { icon: "achievement_boss_kiljaedan", label: "Sonnenbrunnenplateau", short: "SWP" },
 };
 
-/** The page's own icon, for a log whose raid is not known (yet). */
-export const LOG_FALLBACK_ICON = "inv_misc_pocketwatch_01";
-
-export function raidIcon(contentId: string | undefined): string {
-    return RAID_ICONS[String(contentId || "")] || LOG_FALLBACK_ICON;
+/** Only the ids this table knows, in the order given. */
+export function knownContents(ids: string[] | undefined): string[] {
+    return (ids || []).filter((id) => RAID_CONTENTS[id]);
 }
 
-/** "Hyjal 3/5", or just "Hyjal" when the raid's encounter count is unknown. */
-export function raidCount(r: ClaRaid): string {
-    return r.total ? `${r.label} ${r.killed}/${r.total}` : r.label;
+/** The icon of a content id, the note for anything unknown. */
+export function raidIconName(id: string | undefined): string {
+    return (id && RAID_CONTENTS[id]?.icon) || RAID_ICON_FALLBACK;
 }
 
-/** Head and explanation of a raid badge's tooltip. */
-export function raidTip(r: ClaRaid): { head: string; sub: string } {
-    if (r.finalKilled) {
-        return {
-            head: `${r.label} abgeschlossen`,
-            sub: r.total ? `${r.killed} von ${r.total} Bossen im Log, der Endboss liegt.` : "Der Endboss liegt im Log.",
-        };
-    }
-    const standing = r.missing.length ? r.missing.join(", ") : r.finalBoss;
-    return {
-        head: "Raid nicht abgeschlossen",
-        sub: `${r.total ? `Im Log liegen ${r.killed} von ${r.total} ${r.label}-Bossen` : `${r.label} ist nicht beendet`}, ${standing} ${r.missing.length > 1 ? "stehen" : "steht"} noch. „Auswerten“ fragt vorher nach – ein abgebrochener Raid lässt sich trotzdem auswerten.`,
-    };
+/** "Hyjalgipfel + Schwarzer Tempel", "" when nothing was recognised. */
+export function raidLabel(ids: string[] | undefined): string {
+    return knownContents(ids).map((id) => RAID_CONTENTS[id].label).join(" + ");
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+    title: "Titel",
+    category: "Kategorie",
+    channel: "Kanalname",
+    logs: "Log-Zone",
+    loot: "Loot",
+};
+
+/** "erkannt aus Titel und Loot" — where the server found the content. */
+export function raidSourceText(sources: string[] | undefined): string {
+    const names = (sources || []).map((s) => SOURCE_LABELS[s]).filter(Boolean);
+    if (!names.length) return "";
+    const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} und ${names[names.length - 1]}` : names[0];
+    return `erkannt aus ${list}`;
 }

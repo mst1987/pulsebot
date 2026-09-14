@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { RAID_INCOMPLETE, type IncompleteRaidError } from "../api";
 import type { ConfirmFn } from "../components/ui/Modal";
 import IncompleteRaid from "../components/IncompleteRaid";
-import { raidIcon } from "./raidIcons";
+import { raidIcon } from "./logRaids";
 
 // The admin-menu half of the "is this raid actually over?" guard (the rule
 // itself lives in src/utils/logcheck/raidProgress.js).
