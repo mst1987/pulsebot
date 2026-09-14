@@ -1,0 +1,112 @@
+/* Kanäle (design issue #216) — the page, its two parts and its dialogs.
+   Everything is prefixed kn- so it cannot restyle another module. */
+
+.kn-page { max-width: 1080px; display: flex; flex-direction: column; gap: 22px; }
+.kn-page .page-head { margin-bottom: 0; }
+.kn-part { display: flex; flex-direction: column; }
+.kn-muted { color: var(--muted); font-size: 13px; }
+.kn-empty { padding: 14px 16px; color: var(--muted); font-size: 13.5px; }
+
+/* the teal "area" badge: a purpose on a channel, the event category */
+.badge.area { background: var(--area-channels-soft); color: var(--area-channels); border-color: color-mix(in srgb, var(--area-channels) 35%, transparent); }
+.badge.dashed { border-style: dashed; }
+
+/* ---- tables ---- */
+.kn-table { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
+.kn-th {
+    background: var(--panel2); text-transform: uppercase; letter-spacing: .04em; font-family: var(--font-mono);
+    font-size: 11.5px; color: var(--muted); font-weight: 600; padding-block: 9px !important;
+}
+.kn-th [data-tip] { text-decoration: underline dotted; text-decoration-color: var(--muted); text-underline-offset: 3px; cursor: help; }
+
+.kn-purpose { display: grid; grid-template-columns: minmax(180px, 290px) 1fr 190px 44px; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.kn-purpose:last-child { border-bottom: 0; }
+.kn-purpose:not(.kn-th):hover { background: var(--panel2); }
+.kn-purpose-name { display: flex; align-items: center; gap: 10px; font-weight: 700; min-width: 0; }
+.kn-chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-width: 0; }
+.kn-actions { display: flex; gap: 6px; justify-content: flex-end; }
+a.ibtn svg { width: 15px; height: 15px; }
+
+.kn-chan {
+    display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 6px; background: var(--bg);
+    border: 1px solid var(--line); font-family: var(--font-mono); font-size: 12.5px; color: var(--text); white-space: nowrap;
+}
+.kn-chan i { font-style: normal; color: var(--muted); }
+.kn-chan.cat { text-transform: uppercase; font-size: 11.5px; }
+.kn-chan.missing { border-style: dashed; border-color: var(--medium); color: var(--medium); cursor: help; }
+
+/* ---- channel tree ---- */
+.kn-search {
+    display: inline-flex; align-items: center; gap: 8px; min-width: 260px; min-height: var(--ctl-h-sm); padding: 0 12px;
+    background: var(--bg); border: 1px solid var(--line); border-radius: var(--ctl-radius); color: var(--muted);
+}
+.kn-search svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.kn-search input { flex: 1; min-width: 0; border: 0; background: none; color: var(--text); font: inherit; font-size: 14px; outline: none; }
+.kn-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+.kn-group + .kn-group .kn-cat-head { border-top: 1px solid var(--line); }
+.kn-cat-head { display: flex; align-items: center; gap: 10px; padding: 8px 16px; min-height: 48px; background: var(--panel2); flex-wrap: wrap; }
+.kn-cat-name { font-family: var(--font-mono); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.kn-chan-row { display: grid; grid-template-columns: 28px 1fr minmax(0, 330px) 76px; align-items: center; gap: 10px; padding: 7px 16px 7px 28px; border-top: 1px solid var(--line-soft); }
+.kn-chan-row:hover { background: var(--panel2); }
+.kn-chan-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kn-type { display: inline-grid; place-items: center; color: var(--muted); width: 20px; }
+.kn-type svg { width: 17px; height: 17px; }
+
+/* ---- dialogs ---- */
+.kn-dlg-stack { display: flex; flex-direction: column; gap: 16px; }
+.kn-dlg-toolbar { display: flex; gap: 10px; align-items: center; }
+.kn-dlg-toolbar .kn-search { flex: 1; min-height: var(--ctl-h); }
+.kn-dlg-note { font-size: 12.5px; color: var(--muted); }
+
+.kn-pick { border: 1px solid var(--line); border-radius: 10px; overflow: auto; max-height: 50vh; background: var(--panel); }
+.kn-pick-cat {
+    padding: 7px 14px; background: var(--panel2); border-bottom: 1px solid var(--line); font-family: var(--font-mono);
+    font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
+}
+.kn-pick-row { display: grid; grid-template-columns: 22px 20px 1fr auto; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--line-soft); font-size: 14px; cursor: pointer; }
+.kn-pick-row:hover { background: var(--panel2); }
+.kn-pick-row input { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.kn-pick-row.none .kn-pick-name { color: var(--muted); }
+.kn-pick-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kn-pick-name.mono { font-family: var(--font-mono); font-size: 12.5px; }
+
+.kn-field label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-bottom: 7px; font-weight: 600; }
+.kn-opt { font-weight: 500; }
+.kn-input {
+    display: flex; align-items: center; gap: 6px; min-height: var(--ctl-h); padding: 0 12px; background: var(--bg);
+    border: 1px solid var(--line); border-radius: var(--ctl-radius);
+}
+.kn-input span { color: var(--muted); }
+.kn-input input { flex: 1; min-width: 0; border: 0; background: none; color: var(--text); font: inherit; font-size: 14px; outline: none; }
+.kn-input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.kn-select {
+    width: 100%; min-height: var(--ctl-h); padding: 8px 12px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--line); border-radius: var(--ctl-radius); font: inherit; font-size: 14px;
+}
+.kn-type-seg { display: flex; width: 100%; }
+.kn-type-seg .seg-opt { flex: 1; justify-content: center; min-height: 36px; padding: 0 8px; }
+.kn-type-seg .seg-opt svg { width: 15px; height: 15px; }
+
+.kn-zwecke { display: flex; flex-wrap: wrap; gap: 8px; }
+.kn-zweck {
+    display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--bg); font: inherit; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer;
+}
+.kn-zweck .wi { width: 20px; height: 20px; }
+.kn-zweck:hover:not(:disabled) { color: var(--text); border-color: var(--area-channels); }
+.kn-zweck.on { border-color: var(--area-channels); background: var(--area-channels-soft); color: var(--text); }
+
+.kn-source { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; flex-wrap: wrap; }
+.kn-source-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+
+@media (max-width: 760px) {
+    .kn-purpose { grid-template-columns: 1fr auto; }
+    .kn-purpose.kn-th { display: none; }
+    .kn-purpose .kn-chips { grid-column: 1 / -1; order: 3; }
+    .kn-chan-row { grid-template-columns: 24px 1fr auto; padding-left: 16px; }
+    .kn-chan-row .kn-chips { grid-column: 2 / -1; order: 3; }
+    .kn-search { min-width: 0; width: 100%; }
+    .part-head .ph-act:has(.kn-search) { width: 100%; margin-left: 0; }
+    .kn-type-seg { flex-wrap: wrap; }
+}

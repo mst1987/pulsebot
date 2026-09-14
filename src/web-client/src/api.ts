@@ -144,8 +144,53 @@ export type Channel = {
     typeLabel: string;
     category: string;
     parentId: string;
+    // Whether the bot may see / post in the channel (true while unknown).
+    botCanView?: boolean;
+    botCanSend?: boolean;
 };
-export type ChannelsData = { categories: Category[]; channels: Channel[]; activeGuildId: string };
+
+export type PurposeStatus = { tone: "ok" | "mid" | "bad" | ""; label: string; tip: string };
+
+// What the bot uses which channel for (src/web/channelPurposes.js). Stored in
+// the admin config like before; `key` is the config key a change is saved under.
+export type ChannelPurpose = {
+    id: string;
+    label: string;
+    icon: string;
+    key: string;
+    kind: "channel" | "category";
+    multiple: boolean;
+    need: "send" | "read" | null;
+    section: string;
+    hint: string;
+    ids: string[];
+    items: { id: string; name: string; found: boolean; status: PurposeStatus }[];
+    status: PurposeStatus;
+};
+
+export type ChannelsData = {
+    categories: Category[];
+    channels: Channel[];
+    activeGuildId: string;
+    guildName: string;
+    connected: boolean;
+    purposes: ChannelPurpose[];
+    purposeSummary: { set: number; missing: number; warnings: number };
+    /** Tracked recruitment posts per channel id. */
+    recruitmentPosts: Record<string, number>;
+};
+
+/**
+ * Store a purpose's channels (or categories). The assignment is a setting, so
+ * it goes through PATCH /api/settings and needs write access to Einstellungen.
+ */
+export function saveChannelPurpose(csrfToken: string | null, purpose: ChannelPurpose, ids: string[]): Promise<{ config: AdminConfig }> {
+    const clean = [...new Set(ids.filter(Boolean))];
+    const partial: Record<string, unknown> = purpose.key === "raidDefaults.channelId"
+        ? { raidDefaults: { channelId: clean[0] || "" } }
+        : { [purpose.key]: purpose.multiple ? clean : (clean[0] || "") };
+    return send("PATCH", "/api/settings", csrfToken, partial);
+}
 
 /**
  * Read a response body as JSON without letting a non-JSON body escape as a bare

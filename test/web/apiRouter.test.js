@@ -566,12 +566,46 @@ describe("web/apiRouter", () => {
             await handle("/api/channels", { method: "GET" }, res);
 
             expect(body(res)).toEqual({
-                data: {
+                data: expect.objectContaining({
                     categories: [{ id: "cat1", name: "Raids" }],
                     channels: [{ id: "c1", name: "kara", type: 0, typeLabel: "Text", category: "Raids", parentId: "cat1" }],
                     activeGuildId: "guild-1",
-                },
+                }),
             });
+        });
+
+        it("resolves the channel purposes from the config and counts recruitment posts per channel", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            discord.listGuilds.mockReturnValue([{ id: "guild-1", name: "Pulse" }]);
+            discord.listCategories.mockReturnValue([{ id: "cat1", name: "Raids" }]);
+            discord.listAllChannels.mockReturnValue([
+                { id: "c1", name: "logs", type: 0, typeLabel: "Text", category: "Raids", parentId: "cat1", botCanView: true, botCanSend: true },
+                { id: "c2", name: "bewerbungen", type: 0, typeLabel: "Text", category: "", parentId: "", botCanView: true, botCanSend: false },
+            ]);
+            settingsStore.getConfig.mockReturnValue({
+                logChannelIds: ["c1"], applicationChannelId: "c2", highestBidsChannelId: "", categoryIds: ["cat1"],
+                raidDefaults: { templateId: "t", channelId: "" },
+            });
+            settingsStore.listRecruitmentPosts.mockReturnValue([
+                { guildId: "guild-1", channelId: "c2" }, { guildId: "guild-1", channelId: "c2" }, { guildId: "other", channelId: "x" },
+            ]);
+
+            const res = mockRes();
+            await handle("/api/channels", { method: "GET" }, res);
+            const data = body(res).data;
+
+            expect(data.guildName).toBe("Pulse");
+            expect(data.connected).toBe(true);
+            expect(data.recruitmentPosts).toEqual({ c2: 2 });
+            const byId = Object.fromEntries(data.purposes.map((p) => [p.id, p]));
+            expect(byId.logs.status).toMatchObject({ tone: "ok", label: "Bot liest mit" });
+            expect(byId.application.status).toMatchObject({ tone: "mid", label: "Bot darf nicht schreiben" });
+            expect(byId.raid.status).toMatchObject({ tone: "bad", label: "fehlt" });
+            expect(data.purposeSummary).toEqual({ set: 3, missing: 2, warnings: 1 });
+            settingsStore.getConfig.mockReturnValue({});
+            settingsStore.listRecruitmentPosts.mockReturnValue([]);
+            discord.listGuilds.mockReturnValue([]);
         });
     });
 
