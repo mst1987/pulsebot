@@ -401,6 +401,19 @@ describe("web/settingsStore", () => {
             expect(all[0].title).toBe("Updated");
         });
 
+        it("keeps the template id and a posted source when a scan finds the message again", () => {
+            saveRecruitmentPost({ ...post(), templateId: "t1" });
+            saveRecruitmentPost({ ...post(), source: "scan" });
+            const [only] = listRecruitmentPosts();
+            expect(only).toMatchObject({ templateId: "t1", source: "web" });
+        });
+
+        it("records a scanned message without a template", () => {
+            const saved = saveRecruitmentPost({ ...post(), source: "scan" });
+            expect(saved).toMatchObject({ templateId: "", source: "scan" });
+            expect(saved.updatedAt).toEqual(expect.any(Number));
+        });
+
         it("updates by id (e.g. an edited embed)", () => {
             const saved = saveRecruitmentPost(post());
             saveRecruitmentPost({ id: saved.id, title: "Edited", body: "new" });

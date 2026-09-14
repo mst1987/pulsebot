@@ -2523,17 +2523,27 @@ describe("web/apiRouter", () => {
 
         it("fetches applications only on the applications tab and returns them", async () => {
             settingsStore.getConfig.mockReturnValue({ applicationChannelId: "chan1" });
-            discord.listApplications.mockResolvedValue({ applications: [{ threadId: "a1" }], error: null });
+            discord.listApplications.mockResolvedValue({
+                applications: [{ threadId: "a1", classSpec: "Druid – Balance", createdAt: Date.now(), archived: false }],
+                error: null,
+            });
 
             const res = await get("/api/recruitment", { view: "applications" });
 
             expect(discord.listApplications).toHaveBeenCalledWith("chan1");
             expect(body(res).data).toMatchObject({
                 view: "applications",
-                applications: [{ threadId: "a1" }],
+                applications: [{ threadId: "a1", className: "Druid", spec: "Balance", classIcon: "classicon_druid", status: "neu" }],
                 applicationsError: null,
                 applicationChannelId: "chan1",
             });
+        });
+
+        it("names the active guild for the page head", async () => {
+            activeGuildFor.mockReturnValueOnce("g1");
+            discord.listGuilds.mockReturnValueOnce([{ id: "g0", name: "Andere" }, { id: "g1", name: "Pulse" }]);
+            const res = await get("/api/recruitment", { view: "posts" });
+            expect(body(res).data.guildName).toBe("Pulse");
         });
 
         it("resolves editing/editingPost from the id query params", async () => {
@@ -2616,7 +2626,7 @@ describe("web/apiRouter", () => {
 
             expect(discord.postRecruitment).toHaveBeenCalledWith("c1", expect.objectContaining({ id: "t1" }));
             expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledWith(expect.objectContaining({
-                guildId: "g1", channelId: "c1", messageId: "m1", source: "web",
+                guildId: "g1", channelId: "c1", messageId: "m1", source: "web", templateId: "t1",
             }));
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
         });

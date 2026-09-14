@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { Emoji } from "../api";
+import { Button } from "./ui/Button";
 
 // Ported from renderAdmin.js's EMOJI_PICKER_SCRIPT/emojiPicker(), adapted for a
 // controlled textarea: insertion reads the cursor position from the DOM ref
@@ -45,9 +46,14 @@ export default function EmojiPicker({ emojis, textareaRef, value, onChange }: {
 
     return (
         <div className="emoji-picker" ref={rootRef}>
-            <button type="button" className="btn btn-ghost emoji-trigger" onClick={() => { setOpen((o) => !o); setSearch(""); }}>
-                😀 Emoji einfügen
-            </button>
+            <Button
+                variant="ghost" size="sm" icon="inv_misc_head_murloc_01" className="emoji-trigger"
+                aria-expanded={open}
+                data-tip="Server-Emoji einfügen" data-tip-sub="Fügt den Code <:name:id> an der Cursor-Position ein."
+                onClick={() => { setOpen((o) => !o); setSearch(""); }}
+            >
+                Server-Emoji
+            </Button>
             <div className={`emoji-panel${open ? " open" : ""}`}>
                 <input
                     ref={searchRef} className="emoji-search" placeholder="Emoji suchen …"

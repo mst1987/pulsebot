@@ -733,6 +733,8 @@ export type RecruitmentPost = {
     body: string;
     buttonLabel: string;
     source: "web" | "scan";
+    /** The template it was posted from; "" for a message the scan found. */
+    templateId?: string;
     postedAt?: number;
     updatedAt?: number;
 };
@@ -752,6 +754,13 @@ export type Application = {
     description: string;
     discordName: string;
     date: string;
+    // Added by src/web/recruitmentApplications.js.
+    className: string;
+    spec: string;
+    classColor: string;
+    classIcon: string;
+    specIcon: string;
+    status: "neu" | "offen" | "archiviert";
 };
 
 export type TextChannel = { id: string; name: string; category: string };
@@ -761,6 +770,8 @@ export type RecruitmentView = "templates" | "posts" | "applications";
 
 export type RecruitmentData = {
     view: RecruitmentView | "";
+    /** The active Discord server's name, "" without one. */
+    guildName: string;
     templates: RecruitmentTemplate[];
     editing: RecruitmentTemplate | null;
     editingPost: RecruitmentPost | null;

@@ -977,13 +977,6 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 .guild-sel select { min-height: var(--ctl-h); max-width: 300px; padding-left: 38px; font-size: 14px; font-weight: 600; }
 .guild-sel.is-single { min-height: var(--ctl-h); padding: 0 12px 0 38px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--bg); font-size: 14px; font-weight: 600; }
 
-.applist { display: flex; flex-direction: column; gap: 12px; }
-.app-card-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
-.app-card-head .app-name { font-size: 15px; font-weight: 800; }
-dl.app-meta { display: grid; grid-template-columns: auto 1fr; gap: 5px 16px; margin: 0; font-size: 13.5px; align-items: baseline; }
-dl.app-meta dt { color: var(--muted); font-weight: 600; white-space: nowrap; }
-dl.app-meta dd { margin: 0; min-width: 0; word-break: break-word; }
-
 .emoji-picker { position: relative; display: inline-block; margin-top: 2px; }
 .emoji-panel {
     display: none; position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; width: 288px; background: var(--panel);
