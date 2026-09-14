@@ -14,7 +14,7 @@ const {
 } = require("./apiRoutes/settings");
 const { ingestLoot } = require("./apiRoutes/ingest");
 const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raiderCharacters");
-const { getRoster } = require("./apiRoutes/roster");
+const { getRoster, getRosterChar } = require("./apiRoutes/roster");
 const {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim,
     getItemSearch: getCouncilItemSearch, getBisLists: getCouncilBisLists,
@@ -151,6 +151,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/roster" && req.method === "GET") {
         await getRoster(req, res);
+        return true;
+    }
+    if (pathname === "/api/roster/char" && req.method === "GET") {
+        await getRosterChar(req, res, url);
         return true;
     }
     if (pathname === "/api/lootcouncil" && req.method === "GET") {

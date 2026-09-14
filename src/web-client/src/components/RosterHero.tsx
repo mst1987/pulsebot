@@ -1,187 +1,102 @@
-// The Roster page's header band: the line "51 Charakter(e) · 19 mit
-// Gear-Problemen" used to be a grey caption in the card head. It is the answer
-// to "wie steht mein Raid da", so it gets the room a headline deserves — one
-// hero figure, a row of stat tiles with meters, and the class composition as a
-// strip you can filter with.
+// The Roster page's KPI row (design issue #218): four tiles, each with a WoW
+// icon tile, one figure and — where a share is the point — a meter. It replaced
+// the hero band with its big figure, the class strip and the legend: the class
+// filter moved into the list's filter row, and the explanations into tooltips.
 //
-// Design rules this follows (see the project's other hero bands):
-//   - exactly one hero figure per view — the character count
-//   - a meter's fill carries the state, its track is the same hue lightened,
-//     so "19 von 44" reads across the whole bar and not just from the digits
-//   - text never wears the class colour; a coloured mark sits next to it. The
-//     legend is always present, so the strip's identity never rides on colour
-//     alone (the table below stays the exhaustive view)
-//   - every number here is folded server-side (web/rosterStats.js) over the
-//     same rows the table renders, so header and table cannot disagree
+// The "Gear-Probleme" tile *is* the filter switch that used to be a checkbox
+// plus a reset button. Every number is folded server-side (web/rosterStats.js)
+// over the same rows the list renders, so header and list cannot disagree, and
+// it stays on the whole roster: a headline that shrinks while you type would
+// answer a different question than the one it asks.
+import type { ReactNode } from "react";
 import type { RosterStats } from "../api";
+import { IconTile, type TileTone } from "./ui";
+import { attendanceTone, share } from "../lib/rosterView";
 
-/** Percent for a meter, clamped and safe for an empty roster. */
-function share(part: number, whole: number): number {
-    if (!whole || whole <= 0) return 0;
-    return Math.max(0, Math.min(100, Math.round((part / whole) * 100)));
-}
+type KpiTone = "accent" | "ok" | "mid" | "warn" | "none";
 
-type Tone = "accent" | "warn" | "ok";
-
-function StatTile({ label, value, of, meter, tone, sub, title, onClick, active }: {
+function Kpi({ icon, tone, label, tip, tipSub, value, of, meter, onClick, active }: {
+    icon: string;
+    tone: KpiTone;
     label: string;
-    value: number | string;
-    /** Denominator shown next to the value ("19 / 44") and used by the meter. */
-    of?: number;
-    /** Show a meter; needs `of`. */
-    meter?: boolean;
-    tone?: Tone;
-    sub?: React.ReactNode;
-    title?: string;
+    tip: string;
+    tipSub?: string;
+    value: ReactNode;
+    of?: ReactNode;
+    /** Meter fill in percent; no meter when undefined. */
+    meter?: number;
     /** Makes the tile a filter toggle instead of a read-only figure. */
     onClick?: () => void;
     active?: boolean;
 }) {
-    const pct = meter && of !== undefined ? share(Number(value) || 0, of) : 0;
-    const cls = `stat-tile${tone ? ` is-${tone}` : ""}${onClick ? " is-toggle" : ""}${active ? " is-active" : ""}`;
+    const tileTone: TileTone = tone === "warn" ? "bad" : tone === "accent" ? "roster" : tone;
     const body = (
         <>
-            <span className="stat-tile-label">{label}</span>
-            <span className="stat-tile-value">
-                {value}
-                {of !== undefined && <span className="stat-tile-of">/ {of}</span>}
+            <IconTile icon={icon} tone={tileTone} />
+            <span className="rc-kpi-body">
+                <span className="rc-kpi-label" data-tip={tip} data-tip-sub={tipSub}>{label}</span>
+                <span className="rc-kpi-value">{value}{of !== undefined && <span className="rc-kpi-of">{of}</span>}</span>
+                {meter !== undefined && <span className="rc-meter" aria-hidden="true"><i style={{ width: `${meter}%` }} /></span>}
             </span>
-            {meter && (
-                <span className="stat-meter" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span>
-            )}
-            {!!sub && <span className="stat-tile-sub">{sub}</span>}
         </>
     );
-    if (!onClick) return <div className={cls} data-tip={title}>{body}</div>;
-    return (
-        <button type="button" className={cls} data-tip={title} aria-pressed={active} onClick={onClick}>
-            {body}
-        </button>
-    );
+    const cls = `rc-kpi is-${tone}${onClick ? " is-toggle" : ""}${active ? " is-active" : ""}`;
+    if (!onClick) return <div className={cls}>{body}</div>;
+    return <button type="button" className={cls} aria-pressed={active} onClick={onClick}>{body}</button>;
 }
 
-export function RosterHero({ stats, activeClass, onToggleClass, onlyIssues, onToggleIssues }: {
+export function RosterKpis({ stats, onlyIssues, onToggleIssues }: {
     stats: RosterStats;
-    /** Class currently filtered on ("" = none), driven by the legend chips. */
-    activeClass: string;
-    onToggleClass: (className: string) => void;
     onlyIssues: boolean;
     onToggleIssues: () => void;
 }) {
-    const { total, categories, uncategorized, loot, evaluated, withIssues, issues, highIssues, assigned, fromLootOnly } = stats;
-    const unevaluated = Math.max(0, total - evaluated);
+    const { total, loot, evaluated, withIssues, issues, highIssues, assigned, fromLootOnly, avgAttendance, attendanceCounted } = stats;
     const avgLoot = total ? Math.round((loot / total) * 10) / 10 : 0;
-    const segments = stats.classes.filter((c) => c.count > 0);
-    const classTotal = segments.reduce((n, c) => n + c.count, 0);
-
+    const attTone = attendanceTone(avgAttendance);
     return (
-        <header className="page-hero stat-hero">
-            <div className="stat-hero-main">
-                <div className="stat-hero-lead">
-                    <span className="hero-kicker">Roster</span>
-                    <div className="stat-hero-figure">
-                        <span className="stat-hero-value">{total}</span>
-                        <span className="stat-hero-unit">Charakter{total === 1 ? "" : "e"}</span>
-                    </div>
-                    <p className="stat-hero-sub">
-                        in {categories} Raid-Kategorie{categories === 1 ? "" : "n"}
-                        {!!uncategorized && ` · ${uncategorized} ohne Kategorie`}
-                    </p>
-                </div>
-
-                <div className="stat-tiles">
-                    <StatTile
-                        label="Gear-Probleme"
-                        value={withIssues}
-                        of={evaluated}
-                        meter
-                        tone={withIssues ? "warn" : "ok"}
-                        active={onlyIssues}
-                        onClick={onToggleIssues}
-                        title={onlyIssues ? "Filter aufheben — wieder alle Charaktere zeigen" : "Nur Charaktere mit Gear-Problemen zeigen"}
-                        sub={issues
-                            ? <>{issues} Befund{issues === 1 ? "" : "e"}{highIssues ? `, ${highIssues} schwer` : ""}</>
-                            : <>keine Befunde</>}
-                    />
-                    <StatTile
-                        label="Ausgewertet"
-                        value={evaluated}
-                        of={total}
-                        meter
-                        tone="accent"
-                        title="Charaktere, die in einer der letzten Auswertungen vorkamen"
-                        sub={unevaluated ? <>{unevaluated} ohne Auswertung</> : <>vollständig</>}
-                    />
-                    <StatTile
-                        label="Zugeordnet"
-                        value={assigned}
-                        of={total}
-                        meter
-                        tone="accent"
-                        title="Charaktere mit einer Raider-Zuordnung im Raid-Detail"
-                        sub={fromLootOnly ? <>{fromLootOnly} nur aus Loot</> : <>alle zugeordnet</>}
-                    />
-                    <StatTile
-                        label="Loot-Items"
-                        value={loot}
-                        title="Importierte Items über den gesamten Roster"
-                        sub={<>Ø {avgLoot} je Charakter</>}
-                    />
-                </div>
-            </div>
-
-            {!!segments.length && (
-                <div className="stat-hero-foot">
-                    <div className="stat-strip-head">
-                        <span className="hero-stat-label">Klassenverteilung</span>
-                        <span className="sub">
-                            {segments.length} Klasse{segments.length === 1 ? "" : "n"}
-                            {activeClass ? ` · gefiltert auf ${activeClass}` : ""}
-                        </span>
-                    </div>
-                    {/* Part-to-whole: the 2px gaps are the surface showing through,
-                        not borders — the segments carry no stroke of their own. */}
-                    <div className="stat-strip">
-                        {segments.map((c) => (
-                            <span
-                                key={c.className}
-                                className={`stat-seg${c.classColor ? " class-fill" : " is-unknown"}${activeClass && activeClass !== c.className ? " is-dim" : ""}`}
-                                style={{ flexGrow: c.count, ...(c.classColor ? { "--cc": c.classColor } as React.CSSProperties : {}) }}
-                                data-tip={`${c.className} — ${c.count} (${share(c.count, classTotal)} %)`}
-                            />
-                        ))}
-                    </div>
-                    <div className="stat-legend">
-                        {segments.map((c) => {
-                            // "Unbekannt" and the folded "Weitere" carry no class
-                            // colour and cannot be filtered on — there is no single
-                            // class behind them to narrow the table to.
-                            const filterable = !!c.classColor;
-                            const on = activeClass === c.className;
-                            return (
-                                <button
-                                    key={c.className}
-                                    type="button"
-                                    className={`stat-chip${on ? " is-active" : ""}`}
-                                    aria-pressed={on}
-                                    disabled={!filterable}
-                                    data-tip={filterable
-                                        ? (on ? "Klassenfilter aufheben" : `Nur ${c.className} zeigen`)
-                                        : "Sammelposten — kein einzelner Klassenfilter möglich"}
-                                    onClick={() => filterable && onToggleClass(on ? "" : c.className)}
-                                >
-                                    <i
-                                        className={`stat-dot${c.classColor ? " class-fill" : " is-unknown"}`}
-                                        style={c.classColor ? { "--cc": c.classColor } as React.CSSProperties : undefined}
-                                    />
-                                    {c.className}
-                                    <b>{c.count}</b>
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
-        </header>
+        <div className="rc-kpis">
+            <Kpi
+                icon="achievement_guildperk_everybodysfriend"
+                tone="accent"
+                label="Charaktere"
+                tip={`${total} Charakter${total === 1 ? "" : "e"}`}
+                tipSub={`${evaluated} ausgewertet · ${assigned} zugeordnet · ${fromLootOnly} nur aus Loot`}
+                value={total}
+            />
+            <Kpi
+                icon="ability_warrior_rallyingcry"
+                tone={attTone === "bad" ? "warn" : attTone || "none"}
+                label="Ø Anwesenheit"
+                tip={avgAttendance === null ? "Noch keine Anwesenheit gezählt" : `Ø ${avgAttendance} % Anwesenheit`}
+                tipSub={avgAttendance === null
+                    ? "Gezählt wird aus Raid-Helper-Anmeldungen und den Logs, die einem Raid-Event zugeordnet sind."
+                    : `Mittel über ${attendanceCounted} Charakter${attendanceCounted === 1 ? "" : "e"} mit gezählten Raids, je Kategorie die letzten 11 Raids.`}
+                value={avgAttendance === null ? "–" : avgAttendance}
+                of={avgAttendance === null ? undefined : "%"}
+                meter={avgAttendance === null ? undefined : avgAttendance}
+            />
+            <Kpi
+                icon="inv_misc_gem_variety_02"
+                tone={withIssues ? "warn" : "ok"}
+                label="Gear-Probleme"
+                tip={onlyIssues ? "Filter aufheben" : "Nur Charaktere mit Gear-Problemen zeigen"}
+                tipSub={issues
+                    ? `${withIssues} von ${evaluated} ausgewerteten Charakteren · ${issues} Befund${issues === 1 ? "" : "e"}${highIssues ? `, ${highIssues} schwer` : ""}`
+                    : "Keine Befunde in den letzten Auswertungen."}
+                value={withIssues}
+                of={`/ ${evaluated}`}
+                meter={share(withIssues, evaluated)}
+                onClick={onToggleIssues}
+                active={onlyIssues}
+            />
+            <Kpi
+                icon="inv_misc_bag_10"
+                tone="none"
+                label="Loot-Items"
+                tip={`${loot} importierte Items`}
+                tipSub={`Ø ${avgLoot} je Charakter`}
+                value={loot}
+            />
+        </div>
     );
 }

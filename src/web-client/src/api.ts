@@ -375,6 +375,8 @@ export type GearIssue = {
     itemName: string;
     /** "Kopf", "Ring 1", … — empty when the report carried no usable slot. */
     slotName: string;
+    /** Paperdoll slot key ("HEAD", "FINGER_1", …) the finding belongs to; "" without a slot. */
+    slotKey?: string;
     iconUrl: string;
 };
 
@@ -412,7 +414,28 @@ export type RosterChar = {
     armoryUrl: string;
     wclUrl: string;
     gear: CharGearReport | null;
+    /** The newest log's role, else the spec's; "" when unknown (web/rosterAttendance.js). */
+    role: RosterRole;
+    /** Per category id: attendance over its last raid nights. */
+    attendance: Record<string, RosterAttendance>;
 };
+
+export type RosterRole = "tank" | "healer" | "dps" | "";
+
+export type RosterNight = { eventId: string; title: string; startTime: number; attended: boolean; reason: string };
+
+export type RosterAttendance = {
+    attended: number;
+    total: number;
+    /** null when no night could be counted. */
+    pct: number | null;
+    missed: Omit<RosterNight, "attended">[];
+    /** Night by night — only in the character page's answer. */
+    raids?: RosterNight[];
+};
+
+/** What a category's group head says: counted nights, its raids, the newest raid's boss icon. */
+export type RosterCategoryInfo = { raids: number; contents: string[]; icon: string };
 
 /** One segment of the roster's class distribution — see web/rosterStats.js. */
 export type RosterClassShare = { className: string; classColor: string; count: number };
@@ -434,13 +457,41 @@ export type RosterStats = {
     clean: number;
     issues: number;
     highIssues: number;
+    /** Mean attendance share in percent; null when no character had a counted night. */
+    avgAttendance: number | null;
+    attendanceCounted: number;
     classes: RosterClassShare[];
 };
 
-export type RosterData = { chars: RosterChar[]; categories: Category[]; stats: RosterStats; activeGuildId: string };
+export type RosterData = {
+    chars: RosterChar[];
+    categories: Category[];
+    categoryInfo: Record<string, RosterCategoryInfo>;
+    stats: RosterStats;
+    activeGuildId: string;
+};
 
 export function getRoster(): Promise<RosterData> {
     return get<RosterData>("/api/roster");
+}
+
+/** A spec whose BiS list carries an item — see lootCouncil.js's bisSpecsView(). */
+export type RosterBisSpec = { specKey: string; label: string; iconUrl: string; classColor: string; role: string; tier: string; alsoFor: string[] };
+
+export type RosterItemFacts = { itemId: number; contentId: string; content: string; boss: string; tier: string; bisSpecs: RosterBisSpec[] };
+
+export type RosterCharData = {
+    character: string;
+    role: RosterRole;
+    categories: (RosterCategoryInfo & { id: string; name: string })[];
+    attendance: Record<string, RosterAttendance>;
+    items: Record<string, RosterItemFacts>;
+};
+
+/** The character page's roster facts: role, attendance night by night, drop source and BiS per worn item. */
+export function getRosterChar(name: string, itemIds: number[] = []): Promise<RosterCharData> {
+    const items = itemIds.length ? `&items=${itemIds.join(",")}` : "";
+    return get<RosterCharData>(`/api/roster/char?name=${encodeURIComponent(name)}${items}`);
 }
 
 export type RaidEvent = {

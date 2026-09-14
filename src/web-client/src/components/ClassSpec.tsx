@@ -29,8 +29,9 @@ export function classColorProps(classColor?: string): { className?: string; styl
     return { className: "class-colored", style: { "--cc": classColor } as React.CSSProperties };
 }
 
-export function ClassSpecIcon({ iconUrl }: { iconUrl: string }) {
+export function ClassSpecIcon({ iconUrl, size = 18 }: { iconUrl: string; size?: 18 | 34 }) {
     if (!iconUrl) return null;
+    if (size === 34) return <img className="spec-ico-lg" src={iconUrl} alt="" width={34} height={34} loading="lazy" />;
     return (
         <img
             src={iconUrl}
@@ -39,6 +40,35 @@ export function ClassSpecIcon({ iconUrl }: { iconUrl: string }) {
             height={18}
             style={{ borderRadius: 4, verticalAlign: "-4px", marginRight: 6 }}
         />
+    );
+}
+
+/**
+ * The roster row's identity: a 34-px spec icon, the name in class colour (a
+ * link to the character page) and the spec line under it. `extra` sits next to
+ * the name (e.g. the "nur Loot" badge).
+ */
+export function ClassSpecIdentity({ character, className, spec, classColor, iconUrl, to, extra }: {
+    character: string;
+    className: string;
+    spec: string;
+    classColor?: string;
+    iconUrl?: string;
+    to: string;
+    extra?: React.ReactNode;
+}) {
+    const colored = classColorProps(classColor);
+    return (
+        <>
+            {iconUrl ? <ClassSpecIcon iconUrl={iconUrl} size={34} /> : <span className="spec-ico-lg is-empty" aria-hidden="true" />}
+            <span className="spec-ident">
+                <span className="spec-ident-name">
+                    <Link className={colored.className} style={colored.style} to={to}>{character}</Link>
+                    {extra}
+                </span>
+                <span className="spec-ident-spec">{className ? (spec ? `${spec} ${className}` : className) : "Klasse unbekannt"}</span>
+            </span>
+        </>
     );
 }
 

@@ -101,7 +101,9 @@ describe("web-client control styles", () => {
     });
 
     it("has every filter bar in the client use the shared class", () => {
-        const pages = ["pages/HistoryPage.tsx", "pages/RosterPage.tsx", "components/LootItemsTab.tsx", "components/LootReasonsTab.tsx"];
+        // The roster's filter row is its own design (search, role segment, class
+        // chips — rosterCharakter.test.js holds it), not the generic filter bar.
+        const pages = ["pages/HistoryPage.tsx", "components/LootItemsTab.tsx", "components/LootReasonsTab.tsx"];
         for (const file of pages) {
             const src = fs.readFileSync(path.join(CLIENT, file), "utf8");
             expect(src).toContain("className=\"filter-bar\"");
