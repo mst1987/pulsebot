@@ -693,23 +693,7 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
     opacity: .85; pointer-events: none;
 }
 
-/* ===== dashboard ===== */
-.dash-hero { position: relative; }
-.fx-orbs { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: .6; }
-.dash-hero-content { position: relative; z-index: 1; }
-/* Top row: key figures (2x2) on the left, the Latest-Loot card beside them.
-   The loot card sets the row height (head + five awards) and the 2x2 block
-   stretches to exactly that height — the two tile rows split whatever the loot
-   card is tall, so both columns end on the same line. */
-.dash-top { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: stretch; }
-.dash-top .dash-hero { display: flex; }
-.dash-top .dash-hero-content { flex: 1; display: flex; }
-.dash-top .tiles { flex: 1; grid-template-columns: repeat(2, 1fr); grid-template-rows: 1fr 1fr; margin-bottom: 16px; }
-.dash-top .tile { display: flex; flex-direction: column; justify-content: center; }
-/* Column, so the award list can take whatever height is left below the head and
-   hand it to its rows evenly. */
-.dash-top .dash-loot { margin-bottom: 16px; display: flex; flex-direction: column; }
-.dash-top .dash-loot .toploot { flex: 1; }
+/* ===== stat tiles (the start page's own layout is in styles/uebersicht.css) ===== */
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; }
 .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 0; padding: 20px 22px;
     transition: transform .18s cubic-bezier(.34, 1.56, .64, 1), box-shadow .18s ease, border-color .18s ease; }
@@ -732,7 +716,6 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 .tile.area-settings .t-icon { background: var(--area-settings-soft); color: var(--area-settings); }
 .tile.area-settings:hover { border-color: var(--area-settings); box-shadow: 0 14px 32px -14px var(--area-settings); }
 @media (prefers-reduced-motion: reduce) { .tile { transition: none; } .tile:hover { transform: none; } }
-.dash-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
 .dash-card { background: var(--panel); border: 1px solid var(--line); border-radius: 0; overflow: hidden; margin-bottom: 16px; }
 /* Card head: an accented icon tile (same idiom as the stat tiles' .t-icon and
    the quick-links' .qi), the title at heading size, an optional kicker, and the
@@ -755,73 +738,13 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
    row holding a control can still take itself back down inside a card. */
 .dash-card table.idx th, .dash-card table.idx td { padding-left: 16px; padding-right: 16px; }
 
-/* ===== dashboard "Latest Loot": the awards of the items configured as top
-   items (Einstellungen → Loot). Every row IS the highlight — the card holds
-   nothing else — so each carries the accent rail and the item's own quality
-   colour on the icon border, no per-row marker needed.
-
-   The rows share the card's height evenly (the card is sized against the 2x2
-   figure block next to it, see .dash-top), so five awards fill it exactly. ===== */
-.toploot { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100%; }
-.toploot-row {
-    position: relative; flex: 1; min-height: 56px;
-    display: flex; align-items: center; gap: 11px; padding: 8px 14px;
-    border-top: 1px solid var(--line-soft); border-left: 3px solid var(--accent);
-    background: linear-gradient(90deg, var(--accent-soft), transparent 60%);
-}
-.toploot-row:first-child { border-top: 0; }
-.toploot-row:hover { background: linear-gradient(90deg, var(--accent-soft), transparent 30%); }
-/* The row leads to that raid's loot. A stretched overlay rather than a wrapper,
-   so the item and character links inside stay real links (no nested anchors)
-   and simply sit above it. */
-.toploot-hit { position: absolute; inset: 0; z-index: 0; }
-.toploot-hit:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
-.toploot-row > :not(.toploot-hit) { position: relative; z-index: 1; }
-.toploot-ico { width: 34px; height: 34px; border-radius: 7px; border: 1px solid var(--line); flex: 0 0 auto; }
-.toploot-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.toploot-main > a, .toploot-main > span:first-child { font-weight: 600; }
-/* Half-width card: the item name gets an ellipsis instead of pushing the winner
-   out of the row. */
-.toploot-main > a, .toploot-main > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Boss and date as quiet chips — the raid itself is where the row links to. */
-.toploot-meta { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; overflow: hidden; }
-.toploot-badge {
-    display: inline-block; padding: 1px 8px; border-radius: 999px; max-width: 100%;
-    border: 1px solid var(--line); background: var(--panel2); color: var(--muted);
-    font-size: 11.5px; font-weight: 600; line-height: 1.6; white-space: nowrap;
-    overflow: hidden; text-overflow: ellipsis;
-}
-/* The winner: spec icon + class-coloured name over the award reason. */
-.toploot-who { margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: 0 0 auto; max-width: 45%; }
-.toploot-char { display: inline-flex; align-items: center; font-weight: 600; white-space: nowrap; }
-.toploot-char img { margin-right: 5px; }
-@media (max-width: 700px) {
-    .toploot-row { flex-wrap: wrap; }
-    .toploot-who { margin-left: 46px; align-items: flex-start; max-width: none; }
-}
-
-.quick { display: flex; flex-direction: column; }
-.quick a { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--line-soft); color: var(--text); text-decoration: none; font-weight: 600; font-size: 14px; }
-.quick a:first-child { border-top: 0; }
-.quick a:hover { background: var(--panel2); }
-.quick a .qi { width: 32px; height: 32px; border-radius: 8px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); flex: 0 0 auto; }
-.quick a .qi svg { width: 17px; height: 17px; }
-
-/* Not enough room for two columns side by side: loot moves below the figures,
-   which then spread back out into one row. */
-@media (max-width: 1200px) {
-    .dash-top { grid-template-columns: 1fr; }
-    .dash-top .tiles { grid-template-columns: repeat(4, 1fr); }
-}
-
 @media (max-width: 900px) {
     .app { grid-template-columns: 1fr; }
     .side { position: fixed; z-index: 30; width: 264px; transform: translateX(-102%); transition: transform .2s; box-shadow: 0 8px 28px rgba(0, 0, 0, .35); }
     .side.open { transform: none; }
     .ibtn.menu-toggle { display: inline-grid; }
     .content { padding: 18px 14px; }
-    .tiles, .dash-top .tiles { grid-template-columns: repeat(2, 1fr); }
-    .dash-grid { grid-template-columns: 1fr; }
+    .tiles { grid-template-columns: repeat(2, 1fr); }
     .dash-card-head h3 { font-size: 17px; }
 }
 

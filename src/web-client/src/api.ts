@@ -41,19 +41,6 @@ export function canAccessAny(user: SessionUser | null, areas: string[], level: "
     return areas.some((area) => canAccess(user, area, level));
 }
 
-export type EventSheet = { filledAt: string; playerCount?: number } | null;
-
-export type UpcomingEvent = {
-    id: string;
-    title: string;
-    startTime: number;
-    channelId: string;
-    channelName: string;
-    signupCount: number;
-    playerCount: number;
-    sheet: EventSheet;
-};
-
 export type EventLog = {
     title?: string;
     reportId?: string;
@@ -77,14 +64,6 @@ export type RecentEvent = {
     pendingLogCount?: number;
     lootCount: number;
     softres: { url?: string } | null;
-};
-
-export type RecentReport = {
-    id: string;
-    title: string;
-    zone: string;
-    generatedAt: number;
-    issueCount: number;
 };
 
 // One awarded top item on the dashboard's "Latest Loot" card: the loot row's
@@ -117,18 +96,77 @@ export type TopLootAward = {
     specIconUrl: string;
 };
 
+// ---- Übersicht (src/web/dashboardOverview.js decides each part) ----
+
+export type DashboardRole = { key: "tank" | "healer" | "dps"; label: string; icon: string; filled: number; target: number };
+
+/** A raid's sheet: its own filled copy or the category's fixed sheet; null = missing. */
+export type DashboardSheet = { url: string; playerCount: number; filledAt: string } | null;
+
+export type DashboardRaid = {
+    id: string;
+    title: string;
+    startTime: number;
+    channelId: string;
+    channelName: string;
+    categoryId: string;
+    /** WoW icon name of the raid's final boss. */
+    icon: string;
+    size: number;
+    signupCount: number;
+    setupCount: number;
+    roles: DashboardRole[];
+    sheet: DashboardSheet;
+    softres: { url: string } | null;
+};
+
+export type DashboardTaskTone = "ok" | "mid" | "bad" | "accent";
+
+export type DashboardTask = {
+    id: "sheet" | "recommendations" | "logs" | "inbox";
+    tone: DashboardTaskTone;
+    /** Tile tint when it differs from the tone (the inbox wears the history area's colour). */
+    tile?: string;
+    icon: string;
+    title: string;
+    /** What the task is about: a raid/report with its date, or a ready text. */
+    ref: { title?: string; at?: number; text?: string };
+    count: number;
+    href: string;
+    tip: string;
+    tipSub: string;
+};
+
+export type DashboardLastReport = {
+    id: string;
+    title: string;
+    zone: string;
+    icon: string;
+    generatedAt: number;
+    bosses: number;
+    kills: number;
+    deaths: number | null;
+    avoidableDeaths: number | null;
+    gear: number;
+    consumables: number;
+    buffs: number;
+    problems: number;
+    open: number;
+};
+
 export type DashboardData = {
-    stats: {
-        reportsTotal: number;
-        reportsWithIssues: number;
-        templates: number;
-        posts: number;
-        categories: number;
-        adminRoles: number;
+    kicker: { guild: string; realm: string };
+    nextRaid: DashboardRaid | null;
+    followingRaid: DashboardRaid | null;
+    nextRaidError: string | null;
+    tasks: DashboardTask[];
+    areas: {
+        lastReport: DashboardLastReport | null;
+        newLoot: { count: number; since: number };
+        recruitment: { posts: number };
+        roster: { total: number; withoutDiscord: number } | null;
     };
-    recentReports: RecentReport[];
-    upcoming: { events: UpcomingEvent[]; error: string | null };
-    recentEvents: { events: RecentEvent[]; error: string | null };
+    recentEvents: { events: (RecentEvent & { icon: string })[]; error: string | null };
     // Latest awards of the items defined as "top items" in Einstellungen → Loot.
     // `configured` is how many are defined at all, which distinguishes "nothing
     // configured" from "configured, but nothing dropped yet".
@@ -208,6 +246,29 @@ export function switchGuild(csrfToken: string | null, guildId: string): Promise<
 
 export function getDashboard(): Promise<DashboardData> {
     return get<DashboardData>("/api/dashboard");
+}
+
+export type NextRaidNotSigned = {
+    id: string;
+    name: string;
+    className: string;
+    classColor: string;
+    role: string;
+    status: "none" | "tentative" | "bench" | "absence";
+    statusLabel: string;
+};
+
+export type NextRaidDetails = DashboardRaid & {
+    classes: { className: string; label: string; classColor: string; icon: string; count: number }[];
+    notSignedUp: NextRaidNotSigned[];
+    rolesConfigured: boolean;
+    membersError: string | null;
+    fetchedAt: number;
+};
+
+/** The "Raid-Details" modal of the start page, loaded when it opens. */
+export function getNextRaidDetails(eventId: string): Promise<{ raid: NextRaidDetails; activeGuildId: string }> {
+    return get(`/api/dashboard/next-raid?event=${encodeURIComponent(eventId)}`);
 }
 
 export function getChannels(): Promise<ChannelsData> {

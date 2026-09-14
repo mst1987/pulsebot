@@ -16,6 +16,8 @@ const { AREAS, userCanAny, userHasMenuAccess } = require("../config/permissions"
 
 const AREA_BY_PATH = {
     "/api/dashboard": "dashboard",
+    // The start page's "Raid-Details" modal, loaded when it opens.
+    "/api/dashboard/next-raid": "dashboard",
 
     "/api/channels": "channels",
     "/api/channels/duplicate": "channels",
