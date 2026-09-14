@@ -20,6 +20,9 @@ export default defineConfig(() => ({
     plugins: [react()],
     server: {
         port: Number(process.env.WEB_CLIENT_PORT) || 4015,
+        // src/config/menu.json lives outside the client's own folder — the menu
+        // list is shared with the server-rendered report chrome.
+        fs: { allow: [__dirname, path.join(rootDir, "src", "config")] },
         proxy: {
             "/api": `http://localhost:${backendPort}`,
         },

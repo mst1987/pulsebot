@@ -1,32 +1,23 @@
-import { useState, type ReactNode } from "react";
+import { useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
 import GuildSwitcher from "./GuildSwitcher";
-import {
-    CrestIcon, BurgerIcon, HomeIcon, RecruitmentIcon, ClaIcon, RaidsIcon, ChannelsIcon, SettingsIcon, HistoryIcon,
-    RosterIcon, CouncilIcon,
-} from "./icons";
+import { CrestIcon, BurgerIcon, LogoutIcon } from "./icons";
+import WowIcon from "./ui/WowIcon";
+import { IconButton } from "./ui/Button";
+import { TipLayer } from "./ui/Tip";
+import { MENU, type MenuEntry } from "../lib/menu";
 import { canAccessAny, type SessionUser, type SessionGuild } from "../api";
 
 export type ShellContext = { user: SessionUser; csrfToken: string | null };
 
-// Same tab list/grouping as src/web/renderAdmin.js's TABS. `areas` are the
-// permission areas from src/config/permissions.js: a tab appears when the user's
-// rights cover *one* of them (the API enforces it for real, see
-// src/web/apiAccess.js). Only "Historie & Loot" has more than one — "loot" opens
-// its loot views alone, "history" the whole tab.
-type Tab = { id: string; areas: string[]; label: string; href: string; group: string; icon: ReactNode };
-export const TABS: Tab[] = [
-    { id: "home", areas: ["dashboard"], label: "Übersicht", href: "/", group: "Verwaltung", icon: <HomeIcon /> },
-    { id: "recruitment", areas: ["recruitment"], label: "Recruitment", href: "/recruitment", group: "Verwaltung", icon: <RecruitmentIcon /> },
-    { id: "cla", areas: ["cla"], label: "Log-Auswertung", href: "/cla", group: "Verwaltung", icon: <ClaIcon /> },
-    { id: "raids", areas: ["raids"], label: "Raid-Events", href: "/raids", group: "Verwaltung", icon: <RaidsIcon /> },
-    { id: "roster", areas: ["roster"], label: "Roster", href: "/roster", group: "Verwaltung", icon: <RosterIcon /> },
-    { id: "history", areas: ["history", "loot"], label: "Historie & Loot", href: "/history", group: "Verwaltung", icon: <HistoryIcon /> },
-    { id: "lootcouncil", areas: ["lootcouncil"], label: "Loot-Council", href: "/lootcouncil", group: "Verwaltung", icon: <CouncilIcon /> },
-    { id: "channels", areas: ["channels"], label: "Kanäle", href: "/channels", group: "Verwaltung", icon: <ChannelsIcon /> },
-    { id: "settings", areas: ["settings"], label: "Einstellungen", href: "/settings", group: "System", icon: <SettingsIcon /> },
-];
+// The menu entries come from src/config/menu.json, the one list the SSR chrome
+// of the report pages (src/web/adminChrome.js) renders too. `areas` are the
+// permission areas from src/config/permissions.js: a tab appears when the
+// user's rights cover *one* of them (the API enforces it for real, see
+// src/web/apiAccess.js).
+type Tab = MenuEntry;
+export const TABS: Tab[] = MENU;
 
 /** The first tab the user may open — where a limited user lands instead of "/". */
 export function firstAllowedTab(user: SessionUser): Tab | null {
@@ -56,7 +47,7 @@ function subCrumb(pathname: string, search: URLSearchParams): string | null {
     return null;
 }
 
-function AdminNav({ user }: { user: SessionUser }) {
+function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => void }) {
     let lastGroup: string | null = null;
     const allowed = TABS.filter((tab) => canAccessAny(user, tab.areas));
     // The sidebar is always rendered, so it has to say something when a member's
@@ -79,8 +70,13 @@ function AdminNav({ user }: { user: SessionUser }) {
                 return (
                     <div key={tab.id}>
                         {label && <div className="menu-label">{label}</div>}
-                        <NavLink to={tab.href} end={tab.href === "/"} className={({ isActive }) => `nav-item area-${tab.id}${isActive ? " active" : ""}`}>
-                            {tab.icon}
+                        <NavLink
+                            to={tab.href}
+                            end={tab.href === "/"}
+                            onClick={onNavigate}
+                            className={({ isActive }) => `nav-item area-${tab.id}${isActive ? " active" : ""}`}
+                        >
+                            <WowIcon name={tab.wowIcon} size={24} />
                             <span>{tab.label}</span>
                         </NavLink>
                     </div>
@@ -108,7 +104,8 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
                 {/* The crest is the way home: "/" is the dashboard, or — for an
                     account without dashboard access — App.tsx's redirect to the
                     first section that account may open. The menu closes on the
-                    click like a nav item, so on a phone the page shows. */}
+                    click like a nav item, so on a phone the page shows. The
+                    crest stays a line icon: it is the brand, not a game thing. */}
                 <Link className="brand" to="/" aria-label="Zur Übersicht" onClick={() => setMenuOpen(false)}>
                     <div className="crest"><CrestIcon /></div>
                     <div>
@@ -118,7 +115,7 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
                         <div className="brand-sub">Gildenmenü</div>
                     </div>
                 </Link>
-                <AdminNav user={user} />
+                <AdminNav user={user} onNavigate={() => setMenuOpen(false)} />
                 <div className="side-foot">
                     <div className="avatar">{initial}</div>
                     <div className="ub-meta">
@@ -127,18 +124,20 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
                             {user.isAdmin ? "Administrator" : firstAllowedTab(user) ? "Eingeschränkter Zugang" : "Kein Zugang"}
                         </div>
                     </div>
-                    <a className="u-logout" href="/auth/logout">Logout</a>
+                    {/* A real link, not a button: logging out is a navigation to
+                        the server, and it has to work without any script state. */}
+                    <a className="ibtn sm u-logout" href="/auth/logout" aria-label="Logout" data-tip="Logout" data-tip-sub="Vom Gildenmenü abmelden">
+                        <LogoutIcon />
+                    </a>
                 </div>
             </aside>
             <div className="main">
                 <header className="topbar">
-                    <button className="menu-toggle" type="button" aria-label="Menü" onClick={() => setMenuOpen((o) => !o)}>
-                        <BurgerIcon />
-                    </button>
+                    <IconButton className="menu-toggle" icon={<BurgerIcon />} tip="Menü" onClick={() => setMenuOpen((o) => !o)} />
                     <div className="crumbs">
-                        <Link to="/">Menü</Link> <span style={{ opacity: .45 }}>/</span>{" "}
+                        <Link to="/">Menü</Link> <span className="crumb-sep">/</span>{" "}
                         {crumb && tab ? <Link to={tab.href}>{label}</Link> : <b>{label}</b>}
-                        {crumb && <> <span style={{ opacity: .45 }}>/</span> <b>{crumb}</b></>}
+                        {crumb && <> <span className="crumb-sep">/</span> <b>{crumb}</b></>}
                     </div>
                     <div className="top-actions">
                         <GuildSwitcher guilds={guilds} activeGuildId={activeGuildId} csrfToken={csrfToken} />
@@ -149,6 +148,7 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
                     <Outlet context={{ user, csrfToken } satisfies ShellContext} />
                 </div>
             </div>
+            <TipLayer />
         </div>
     );
 }

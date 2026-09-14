@@ -28,7 +28,7 @@ export function CharLootHover({ items, count, categoryNameById, showCategory }: 
                         ? <img className="loot-pop-ico" src={it.itemIconUrl} alt="" loading="lazy" />
                         : <span className="loot-pop-ico loot-pop-ico-ph" />}
                     <div className="loot-pop-body">
-                        <div {...itemQualityProps(it.itemQuality, "loot-pop-name")} title={it.itemName || `Item ${it.itemId}`}>{it.itemName || `Item ${it.itemId}`}</div>
+                        <div {...itemQualityProps(it.itemQuality, "loot-pop-name")} data-tip={it.itemName || `Item ${it.itemId}`}>{it.itemName || `Item ${it.itemId}`}</div>
                         <div className="loot-pop-meta">
                             <LootResponseBadge response={it.response} offspec={it.offspec} reasonLabel={it.reasonLabel} reasonTone={it.reasonTone} />
                             {showCategory && !!it.categoryId && (

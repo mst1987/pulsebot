@@ -44,7 +44,7 @@ function SheetBadge({ sheet }: { sheet: UpcomingEvent["sheet"] }) {
     if (!sheet) return <span className="pill">Sheet fehlt</span>;
     const when = formatDate(new Date(sheet.filledAt).getTime());
     const title = `Gefüllt am ${when}${sheet.playerCount ? ` · ${sheet.playerCount} Spieler` : ""}`;
-    return <span className="pill good" title={title}>Sheet ✓</span>;
+    return <span className="pill good" data-tip={title}>Sheet ✓</span>;
 }
 
 type UpcomingSortKey = "event" | "channel" | "time" | "sheet";

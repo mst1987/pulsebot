@@ -323,3 +323,66 @@ export function LateIcon() {
         </svg>
     );
 }
+
+/* ---- UI-function line icons of the shared building blocks (components/ui) ---- */
+
+/** Expand / open a menu — the chevron of Expand, SplitButton and the sort header. */
+export function ChevronDownIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m6 9 6 6 6-6" />
+        </svg>
+    );
+}
+
+export function ChevronLeftIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m15 6-6 6 6 6" />
+        </svg>
+    );
+}
+
+export function ChevronRightIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m9 6 6 6-6 6" />
+        </svg>
+    );
+}
+
+export function LogoutIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3" />
+            <path d="M10 17l5-5-5-5M15 12H4" />
+        </svg>
+    );
+}
+
+export function CopyIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="9" width="11" height="11" rx="2" />
+            <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+        </svg>
+    );
+}
+
+/** The toast's "done" status dot. */
+export function CheckIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m4 12.5 5 5L20 6.5" />
+        </svg>
+    );
+}
+
+/** The toast's "failed" status dot. */
+export function AlertIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 5v9M12 19h.01" />
+        </svg>
+    );
+}

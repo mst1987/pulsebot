@@ -133,7 +133,7 @@ export function LootReasonsTab({ characters, reasons, categories }: {
                                 <SortTh sortKey="count" label="Items" sort={sort} dir={dir} onSort={onSort} />
                                 <SortTh
                                     sortKey="reasons" label="Gründe (Hover zeigt die Items)"
-                                    title="Sortiert nach dem stärksten Grund des Raiders"
+                                    tip="Sortiert nach dem stärksten Grund des Raiders"
                                     sort={sort} dir={dir} onSort={onSort}
                                 />
                             </tr>

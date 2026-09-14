@@ -88,8 +88,8 @@ function GearRow({ g, slot }: { g?: GearItem; slot: string }) {
             <span className="icon-wrap">
                 {g.iconUrl ? <img src={g.iconUrl} alt="" loading="lazy" style={{ borderColor: color }} /> : <span className="ph" />}
                 {g.enchants.length
-                    ? <span className="ench-badge ok" title={`Verzauberung: ${g.enchants.join(" · ")}`} aria-label="verzaubert">✓</span>
-                    : isEnchantable(g, slot) && <span className="ench-badge bad" title="Keine Verzauberung" aria-label="nicht verzaubert">✕</span>}
+                    ? <span className="ench-badge ok" data-tip={`Verzauberung: ${g.enchants.join(" · ")}`} aria-label="verzaubert">✓</span>
+                    : isEnchantable(g, slot) && <span className="ench-badge bad" data-tip="Keine Verzauberung" aria-label="nicht verzaubert">✕</span>}
                 {!!g.level && <span className="ilvl-badge">{g.level}</span>}
             </span>
             <span className="body">
@@ -108,7 +108,7 @@ function GearRow({ g, slot }: { g?: GearItem; slot: string }) {
                                 <span
                                     key={i}
                                     className="gem-dot"
-                                    title={tip}
+                                    data-tip={tip}
                                     style={{ background: GEM_COLOR[s.type] || "#888", borderColor: GEM_COLOR[s.type] || "var(--muted)" }}
                                 />
                             );
@@ -120,7 +120,7 @@ function GearRow({ g, slot }: { g?: GearItem; slot: string }) {
                                 src={filled ? s.gemIconUrl : socketIconUrl(s.type)}
                                 alt=""
                                 loading="lazy"
-                                title={tip}
+                                data-tip={tip}
                             />
                         );
                     })}
@@ -129,8 +129,8 @@ function GearRow({ g, slot }: { g?: GearItem; slot: string }) {
         </>
     );
     return g.itemId
-        ? <a className="gear-row" href={gearWowheadUrl(g)} target="_blank" rel="noopener noreferrer" title={g.name || label}>{inner}</a>
-        : <div className="gear-row" title={g.name || label}>{inner}</div>;
+        ? <a className="gear-row" href={gearWowheadUrl(g)} target="_blank" rel="noopener noreferrer" data-tip={g.name || label}>{inner}</a>
+        : <div className="gear-row" data-tip={g.name || label}>{inner}</div>;
 }
 
 // The gear card: two columns of slot rows with the weapons underneath —
@@ -192,7 +192,7 @@ function GearIssuesCard({ gear }: { gear: CharGearReport }) {
                                     ? <img className="gi-ico" src={issue.iconUrl} alt="" loading="lazy" />
                                     : <span className="gi-ico gi-ico-ph" />}
                                 <div className="gi-body">
-                                    <span className="gi-item" title={issue.itemName}>{issue.itemName || "—"}</span>
+                                    <span className="gi-item" data-tip={issue.itemName}>{issue.itemName || "—"}</span>
                                     <span className="gi-meta">
                                         <span className="gi-label">{issue.label}</span>
                                         {!!issue.slotName && <span className="gi-slot">{issue.slotName}</span>}
@@ -223,7 +223,7 @@ function HeroStat({ label, value, tone, title }: {
     title?: string;
 }) {
     return (
-        <div className={`hero-stat${tone ? ` is-${tone}` : ""}`} title={title}>
+        <div className={`hero-stat${tone ? ` is-${tone}` : ""}`} data-tip={title}>
             <span className="hero-stat-label">{label}</span>
             <span className="hero-stat-value">{value}</span>
         </div>
@@ -252,13 +252,13 @@ function CharHero({ data, onReload }: { data: HistoryCharData; onReload: () => v
                     {info?.iconUrl
                         ? <img src={info.iconUrl} alt="" />
                         : <span className="hero-portrait-ph">{(data.character || "?").slice(0, 1).toUpperCase()}</span>}
-                    {!!summary?.level && <span className="hero-portrait-level" title="Level laut Battle.net-API">{summary.level}</span>}
+                    {!!summary?.level && <span className="hero-portrait-level" data-tip="Level laut Battle.net-API">{summary.level}</span>}
                 </div>
                 <div className="hero-ident">
                     <div className="hero-eyebrow">
                         <span className="hero-kicker">Charakter</span>
                         {!!info?.source && (
-                            <span className="lbadge" title="Woher Klasse und Spec bekannt sind">
+                            <span className="lbadge" data-tip="Woher Klasse und Spec bekannt sind">
                                 {CLASS_SOURCE_LABELS[info.source] || info.source}
                             </span>
                         )}
@@ -310,7 +310,7 @@ function CharHero({ data, onReload }: { data: HistoryCharData; onReload: () => v
                 {data.gearConfigured && !!data.gearNamespace && (
                     <div className="hero-meta-item">
                         <dt>Profile-Namespace</dt>
-                        <dd><span className="lbadge" title="abgefragter Battle.net Profile-Namespace">{data.gearNamespace}</span></dd>
+                        <dd><span className="lbadge" data-tip="abgefragter Battle.net Profile-Namespace">{data.gearNamespace}</span></dd>
                     </div>
                 )}
             </dl>

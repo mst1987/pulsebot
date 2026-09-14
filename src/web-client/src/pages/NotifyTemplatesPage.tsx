@@ -12,6 +12,7 @@ import { ListSection } from "../components/ListSection";
 import { SortTh } from "../components/SortTh";
 import { TrashIcon } from "../components/icons";
 import { useToast } from "../components/Jobs";
+import { useConfirm } from "../components/ui/Modal";
 
 type SortKey = "name" | "title";
 const SORT_DEFAULTS: Record<SortKey, Dir> = { name: "asc", title: "asc" };
@@ -77,6 +78,7 @@ function NotifyTemplateForm({ csrfToken, editing, onSaved, onCancel }: {
 }
 
 export default function NotifyTemplatesPage() {
+    const ask = useConfirm();
     const { csrfToken } = useOutletContext<ShellContext>();
     const editor = useCollectionEditor("edit");
 
@@ -100,7 +102,7 @@ export default function NotifyTemplatesPage() {
     };
 
     const remove = async (t: NotifyTemplate) => {
-        if (!confirm("Vorlage wirklich löschen?")) return;
+        if (!(await ask({ title: "Vorlage löschen?", text: `„${t.name}" wird gelöscht.`, action: "Löschen" }))) return;
         try {
             await deleteNotifyTemplate(csrfToken, t.id);
             afterChange("Gelöscht.");

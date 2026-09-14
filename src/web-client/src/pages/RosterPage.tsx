@@ -51,10 +51,10 @@ function sortValue(c: RosterChar, key: SortKey, categoryNames: (char: RosterChar
 // "0" is a result too (evaluated, nothing found) and reads differently from
 // "—" (never evaluated / not in any of the stored reports), so both are shown.
 function GearIssuesCell({ gear }: { gear: CharGearReport | null }) {
-    if (!gear) return <span className="sub" title="In keiner der letzten Auswertungen enthalten">—</span>;
+    if (!gear) return <span className="sub" data-tip="In keiner der letzten Auswertungen enthalten">—</span>;
     const when = gear.generatedAt ? fmtMs(gear.generatedAt, false) : "";
     if (!gear.issueCount) {
-        return <span className="lbadge lbadge-ok" title={`Ohne Befund${when ? ` — Auswertung vom ${when}` : ""}`}>✓</span>;
+        return <span className="lbadge lbadge-ok" data-tip={`Ohne Befund${when ? ` — Auswertung vom ${when}` : ""}`}>✓</span>;
     }
     const high = gear.issues.filter((i) => i.severity === "high").length;
     return (
@@ -74,7 +74,7 @@ function GearIssuesCell({ gear }: { gear: CharGearReport | null }) {
                         ? <img className="loot-pop-ico" src={issue.iconUrl} alt="" loading="lazy" />
                         : <span className="loot-pop-ico loot-pop-ico-ph" />}
                     <div className="loot-pop-body">
-                        <div className="loot-pop-name" title={issue.itemName}>{issue.itemName || "—"}</div>
+                        <div className="loot-pop-name" data-tip={issue.itemName}>{issue.itemName || "—"}</div>
                         <div className="loot-pop-meta">
                             <span className={`lbadge ${issue.severity === "high" ? "lbadge-warn" : "lbadge-medium"}`}>{issue.label}</span>
                             {!!issue.slotName && <span className="sub">{issue.slotName}</span>}
@@ -125,7 +125,7 @@ function RosterTable({ chars, categoryNameById, sort, dir, onSort }: {
                                 {c.character}
                             </Link>
                             {!c.assigned && !!c.lootCount && (
-                                <span className="lbadge lbadge-neutral" style={{ marginLeft: 6 }} title="Nur aus dem Loot bekannt — noch keinem Raider in dieser Kategorie zugeordnet">
+                                <span className="lbadge lbadge-neutral" style={{ marginLeft: 6 }} data-tip="Nur aus dem Loot bekannt — noch keinem Raider in dieser Kategorie zugeordnet">
                                     aus Loot
                                 </span>
                             )}
@@ -149,8 +149,8 @@ function RosterTable({ chars, categoryNameById, sort, dir, onSort }: {
                         </td>
                         <td className="small">
                             <div className="row-actions" style={{ gap: 6 }}>
-                                {!!c.wclUrl && <a className="btn btn-ghost btn-sm" href={c.wclUrl} target="_blank" rel="noopener noreferrer" title="Warcraft Logs">WCL ↗</a>}
-                                {!!c.armoryUrl && <a className="btn btn-ghost btn-sm" href={c.armoryUrl} target="_blank" rel="noopener noreferrer" title="Armory">Armory ↗</a>}
+                                {!!c.wclUrl && <a className="btn btn-ghost btn-sm" href={c.wclUrl} target="_blank" rel="noopener noreferrer" data-tip="Warcraft Logs">WCL ↗</a>}
+                                {!!c.armoryUrl && <a className="btn btn-ghost btn-sm" href={c.armoryUrl} target="_blank" rel="noopener noreferrer" data-tip="Armory">Armory ↗</a>}
                             </div>
                         </td>
                     </tr>
@@ -306,7 +306,7 @@ export default function RosterPage() {
                             <button
                                 className="btn btn-ghost"
                                 type="button"
-                                title="Suche und Filter zurücksetzen (werden lokal im Browser gespeichert)"
+                                data-tip="Suche und Filter zurücksetzen (werden lokal im Browser gespeichert)"
                                 onClick={() => patch({ search: "", category: "", className: "", classSpec: "", onlyIssues: false })}
                             >
                                 Filter zurücksetzen

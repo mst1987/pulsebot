@@ -11,10 +11,13 @@ describe("Log-Auswertung: finding it", () => {
     const page = read("pages", "ClaPage.tsx");
 
     it("is what the menu calls the page, in the SPA and in the SSR chrome", () => {
-        expect(read("components", "Shell.tsx")).toContain('label: "Log-Auswertung", href: "/cla"');
+        // One list for both menus (src/config/menu.json), rendered by Shell.tsx and adminChrome.js.
+        const menu = require("../../src/config/menu.json");
+        expect(menu.find((e) => e.id === "cla")).toMatchObject({ label: "Log-Auswertung", href: "/cla" });
+        expect(read("components", "Shell.tsx")).toContain("export const TABS: Tab[] = MENU;");
         expect(page).toContain('<h1 className="page-title">Log-Auswertung</h1>');
         const chrome = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web", "adminChrome.js"), "utf8");
-        expect(chrome).toContain('label: "Log-Auswertung", href: "/cla"');
+        expect(chrome).toContain('require("../config/menu")');
     });
 
     it("puts the evaluation card above the tab switch, so it is there on both tabs", () => {

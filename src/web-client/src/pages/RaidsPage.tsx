@@ -33,7 +33,7 @@ function CategoryTable({ group, guildId }: { group: RaidEventGroup; guildId: str
     return (
         <>
             <div className="row-actions" style={{ justifyContent: "flex-end", marginBottom: 12 }}>
-                <Link className="btn btn-ghost btn-sm" to={newHref} title="Neues Event in dieser Kategorie anlegen (Format vorbelegt)">＋ Event</Link>
+                <Link className="btn btn-ghost btn-sm" to={newHref} data-tip="Neues Event in dieser Kategorie anlegen (Format vorbelegt)">＋ Event</Link>
             </div>
             <table className="idx" style={{ margin: 0 }}>
                 <thead>

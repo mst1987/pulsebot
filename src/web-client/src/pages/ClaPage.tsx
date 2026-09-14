@@ -14,6 +14,7 @@ import { SortTh } from "../components/SortTh";
 import { useJobs } from "../components/Jobs";
 import Pager from "../components/Pager";
 import { RunIcon, SearchIcon, LinkIcon, TrashIcon, ExternalIcon, XIcon } from "../components/icons";
+import { useConfirm } from "../components/ui/Modal";
 
 type View = "reports" | "logs";
 type Dir = "asc" | "desc";
@@ -100,16 +101,16 @@ function ClaSortTh({ sortKey, label, page, defaults, onSort }: {
 // dash; assigning is done in the logs tab / on the raid page.
 function ReportEventCell({ r, busy, onUnlink }: { r: ReportSummary; busy: boolean; onUnlink: () => void }) {
     if (!r.eventId) {
-        return <span className="sub" title={r.logId ? "Das zugehörige Log ist keinem Raid zugeordnet" : "Zu dieser Auswertung gibt es kein erkanntes Log"}>—</span>;
+        return <span className="sub" data-tip={r.logId ? "Das zugehörige Log ist keinem Raid zugeordnet" : "Zu dieser Auswertung gibt es kein erkanntes Log"}>—</span>;
     }
     const when = r.eventStartTime ? formatEventTime(r.eventStartTime) : "";
     const label = r.eventLabel || r.eventId;
     return (
-        <span className="pill pill-chip" title={`${label}${when ? ` — ${when}` : ""}`}>
+        <span className="pill pill-chip" data-tip={`${label}${when ? ` — ${when}` : ""}`}>
             {label}
             <button
                 className="chip-x" type="button"
-                title="Zuordnung entfernen" aria-label={`Zuordnung zu „${label}“ entfernen`}
+                data-tip="Zuordnung entfernen" aria-label={`Zuordnung zu „${label}“ entfernen`}
                 disabled={busy} onClick={onUnlink}
             ><XIcon /></button>
         </span>
@@ -123,6 +124,7 @@ function ReportEventCell({ r, busy, onUnlink }: { r: ReportSummary; busy: boolea
  * progress and the finished report, so the admin can carry on meanwhile.
  */
 function NewEvaluationCard({ csrfToken, onChanged }: { csrfToken: string | null; onChanged: () => void }) {
+    const ask = useConfirm();
     const jobs = useJobs();
     // A draft, so a link pasted here is still around after a look at the other tab.
     const [draft, patchDraft, clearDraft] = useDraftState("cla-report-link", { link: "", sections: "both" as SectionChoice });
@@ -143,7 +145,7 @@ function NewEvaluationCard({ csrfToken, onChanged }: { csrfToken: string | null;
                 message: "Auswertung erstellt.",
                 link: { href: r.url, label: "Report ansehen ↗", external: true },
             }),
-        }, () => withIncompleteConfirm((force) => createReport(csrfToken, target, { force, sections: choice.sections }))).then(onChanged);
+        }, () => withIncompleteConfirm(ask, (force) => createReport(csrfToken, target, { force, sections: choice.sections }))).then(onChanged);
     };
 
     return (
@@ -179,13 +181,14 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
     onPage: (p: number) => void;
     onChanged: () => void;
 }) {
+    const ask = useConfirm();
     const jobs = useJobs();
     const [rowBusyId, setRowBusyId] = useState<string | null>(null);
 
     // Deleting a report also resets its log back to "offen", so it can be
     // evaluated again — say so, the admin doesn't see the logs tab from here.
     const remove = async (r: ReportSummary) => {
-        if (!confirm(`Auswertung „${r.title || r.id}“ löschen? Das zugehörige Log bleibt erhalten und kann neu ausgewertet werden.`)) return;
+        if (!(await ask({ title: "Auswertung löschen?", text: `„${r.title || r.id}“ wird gelöscht. Das zugehörige Log bleibt erhalten und kann neu ausgewertet werden.`, action: "Löschen" }))) return;
         setRowBusyId(r.id);
         try {
             const res = await deleteReport(csrfToken, r.id);
@@ -199,7 +202,7 @@ function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
     };
 
     const unlink = async (r: ReportSummary) => {
-        if (!confirm(`Zuordnung zum Raid „${r.eventLabel || r.eventId}“ entfernen? Die Auswertung selbst bleibt bestehen.`)) return;
+        if (!(await ask({ title: "Zuordnung entfernen?", text: `Die Zuordnung zum Raid „${r.eventLabel || r.eventId}“ wird entfernt. Die Auswertung selbst bleibt bestehen.`, action: "Entfernen" }))) return;
         setRowBusyId(r.id);
         try {
             const res = await unlinkReport(csrfToken, r.id);
@@ -278,18 +281,18 @@ function EventCell({ log, selectedEventId, onSelectChange, onLink, onUnlink }: {
         const label = log.eventLabel || log.eventId;
         const title = `${label}${when ? ` — ${when}` : ""}${auto}`;
         return (
-            <span className="pill pill-chip" title={title}>
+            <span className="pill pill-chip" data-tip={title}>
                 {label}
                 <button
                     className="chip-x" type="button"
-                    title="Zuordnung entfernen" aria-label={`Zuordnung zu „${label}“ entfernen`}
+                    data-tip="Zuordnung entfernen" aria-label={`Zuordnung zu „${label}“ entfernen`}
                     onClick={onUnlink}
                 ><XIcon /></button>
             </span>
         );
     }
     const cands = log.candidates || [];
-    if (!cands.length) return <span className="sub" title="Kein Event mit passender Startzeit gefunden">—</span>;
+    if (!cands.length) return <span className="sub" data-tip="Kein Event mit passender Startzeit gefunden">—</span>;
     return (
         <div className="row-actions" style={{ gap: 6, flexWrap: "wrap" }}>
             <select className="sel-sm" value={selectedEventId} onChange={(e) => onSelectChange(e.target.value)}>
@@ -330,7 +333,7 @@ function LogTableRow({ l, runningSections, selectedEventId, onSelectChange, onEv
                 ? <a className="mlink" href={wclUrl} target="_blank" rel="noopener noreferrer">{name} ↗</a>
                 : name}</td>
             <td>{l.categoryName
-                ? <span className="cat-badge" title={l.channelName ? `#${l.channelName}` : undefined}>{l.categoryName}</span>
+                ? <span className="cat-badge" data-tip={l.channelName ? `#${l.channelName}` : undefined}>{l.categoryName}</span>
                 : <span className="sub">—</span>}</td>
             <td><EventCell log={l} selectedEventId={selectedEventId} onSelectChange={onSelectChange} onLink={onLink} onUnlink={onUnlink} /></td>
             <td>{l.guildId && l.channelId && l.messageId
@@ -344,7 +347,7 @@ function LogTableRow({ l, runningSections, selectedEventId, onSelectChange, onEv
                         <button
                             type="button"
                             className="pill-x"
-                            title={`${a.label}-Auswertung verwerfen (kann danach neu gestartet werden)`}
+                            data-tip={`${a.label}-Auswertung verwerfen (kann danach neu gestartet werden)`}
                             aria-label={`${a.label}-Auswertung verwerfen`}
                             onClick={() => onReset(a.key)}
                         >×</button>
@@ -359,7 +362,7 @@ function LogTableRow({ l, runningSections, selectedEventId, onSelectChange, onEv
                         <button
                             className={`btn btn-run btn-sm${runningSections.length ? " is-running" : ""}`}
                             type="button"
-                            title="CLA und RPB nacheinander auswerten (eine Report-Seite)"
+                            data-tip="CLA und RPB nacheinander auswerten (eine Report-Seite)"
                             disabled={runningSections.length > 0}
                             onClick={() => onEvaluate("both")}
                         >
@@ -374,7 +377,7 @@ function LogTableRow({ l, runningSections, selectedEventId, onSelectChange, onEv
                                 key={a.key}
                                 className={`btn btn-run btn-sm${running ? " is-running" : ""}`}
                                 type="button"
-                                title={running ? `${a.label}-Auswertung läuft im Hintergrund` : a.title}
+                                data-tip={running ? `${a.label}-Auswertung läuft im Hintergrund` : a.title}
                                 disabled={running}
                                 onClick={() => onEvaluate(a.key)}
                             >
@@ -398,6 +401,7 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
     onPage: (p: number) => void;
     onChanged: () => void;
 }) {
+    const ask = useConfirm();
     const jobs = useJobs();
     const [scanning, setScanning] = useState(false);
     const [automatching, setAutomatching] = useState(false);
@@ -453,7 +457,7 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
                     : `${label}-Auswertung erstellt.`,
                 link: r.url ? { href: r.url, label: "Report ansehen ↗", external: true } : undefined,
             }),
-        }, () => withIncompleteConfirm((force) => evalLog(csrfToken, l.id, section, { force }))).then(() => {
+        }, () => withIncompleteConfirm(ask, (force) => evalLog(csrfToken, l.id, section, { force }))).then(() => {
             setRunning((keys) => keys.filter((k) => k !== key));
             onChanged();
         });
@@ -474,7 +478,7 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
             }),
         }, async () => {
             let force = false;
-            await withIncompleteConfirm((f) => { force = f; return evalLog(csrfToken, l.id, "cla", { force: f }); });
+            await withIncompleteConfirm(ask, (f) => { force = f; return evalLog(csrfToken, l.id, "cla", { force: f }); });
             return evalLog(csrfToken, l.id, "rpb", { force });
         }).then(() => {
             setRunning((r) => r.filter((k) => !keys.includes(k)));
@@ -484,12 +488,12 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
 
     const reset = async (l: LogRow, section: LogSection) => {
         const label = section.toUpperCase();
-        if (!confirm(`${label}-Auswertung dieses Logs verwerfen? Sie kann danach neu gestartet werden.`)) return;
+        if (!(await ask({ title: `${label}-Auswertung verwerfen?`, text: "Die Auswertung dieses Logs wird verworfen und kann danach neu gestartet werden.", action: "Verwerfen" }))) return;
         await quick(() => resetEval(csrfToken, l.id, section));
     };
 
     const remove = async (l: LogRow) => {
-        if (!confirm("Log aus der Liste entfernen?")) return;
+        if (!(await ask({ title: "Log entfernen?", text: "Das Log wird aus der Liste entfernt.", action: "Entfernen" }))) return;
         await quick(async () => {
             await deleteLogEntry(csrfToken, l.id);
             return { message: "Gelöscht." };
@@ -505,7 +509,7 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
     };
 
     const doUnlink = async (l: LogRow) => {
-        if (!confirm("Zuordnung zu diesem Event entfernen?")) return;
+        if (!(await ask({ title: "Zuordnung entfernen?", text: "Die Zuordnung zu diesem Event wird entfernt.", action: "Entfernen" }))) return;
         await quick(() => unlinkLog(csrfToken, l.id));
     };
 
@@ -528,7 +532,7 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
                 {showAutomatch && (
                     <button
                         className={`btn btn-ghost${automatching ? " is-running" : ""}`} type="button" disabled={automatching}
-                        title="Ordnet jedes offene Log dem Event zu, dessen Startzeit eindeutig passt" onClick={automatch}
+                        data-tip="Ordnet jedes offene Log dem Event zu, dessen Startzeit eindeutig passt" onClick={automatch}
                     >
                         {automatching ? <span className="btn-spin" /> : <LinkIcon />}
                         {automatching ? "Ordne zu …" : "Logs automatisch Events zuordnen"}

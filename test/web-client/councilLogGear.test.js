@@ -152,7 +152,7 @@ describe("loot council — Wowhead tooltips on the worn gear", () => {
         expect(icon).toMatch(/lc-worn-tag-bis/);
         expect(icon).toMatch(/lc-worn-tag-noench/);
         expect(icon).toMatch(/lc-worn-tag-socket/);
-        expect(icon).toMatch(/lc-worn-mark-sit" title=\{`Zählt im Vergleich nicht/);
-        expect(icon).toMatch(/lc-worn-mark-sub"[\s\S]{0,80}title=\{`Steht hier statt/);
+        expect(icon).toMatch(/lc-worn-mark-sit" data-tip=\{`Zählt im Vergleich nicht/);
+        expect(icon).toMatch(/lc-worn-mark-sub"[\s\S]{0,80}data-tip=\{`Steht hier statt/);
     });
 });

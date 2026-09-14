@@ -15,6 +15,7 @@ import { ListSection } from "../components/ListSection";
 import { SortTh } from "../components/SortTh";
 import { TrashIcon } from "../components/icons";
 import { useToast } from "../components/Jobs";
+import { useConfirm } from "../components/ui/Modal";
 
 type View = "posts" | "templates" | "applications";
 const VIEWS: View[] = ["posts", "templates", "applications"];
@@ -128,6 +129,7 @@ function TemplatesTab({ data, csrfToken, editing, editor, onChanged }: {
     editor: CollectionEditor;
     onChanged: (msg: string) => void;
 }) {
+    const ask = useConfirm();
     const { sort, dir, onSort, apply } = useTableSort<TemplateSortKey>("recruitment-templates-sort", TEMPLATE_SORT_DEFAULTS, "name");
     const toast = useToast();
     const templates = apply(data.templates, (t, key) => (
@@ -135,7 +137,7 @@ function TemplatesTab({ data, csrfToken, editing, editor, onChanged }: {
     ));
 
     const remove = async (t: RecruitmentTemplate) => {
-        if (!confirm("Vorlage wirklich löschen?")) return;
+        if (!(await ask({ title: "Vorlage löschen?", text: `„${t.name}" wird gelöscht.`, action: "Löschen" }))) return;
         try {
             await deleteRecruitmentTemplate(csrfToken, t.id);
             onChanged("Gelöscht.");
@@ -263,6 +265,7 @@ function PostsTab({ data, csrfToken, editingPost, editor, onChanged }: {
     editor: CollectionEditor;
     onChanged: (msg: string) => void;
 }) {
+    const ask = useConfirm();
     const [target, patchTarget] = useDraftState("recruitment-post-target", {
         templateId: data.templates[0]?.id ?? "", channelId: "",
     });
@@ -306,7 +309,7 @@ function PostsTab({ data, csrfToken, editingPost, editor, onChanged }: {
     };
 
     const removePost = async (p: RecruitmentPost) => {
-        if (!confirm("Aus der Verwaltung entfernen? (Die Discord-Nachricht bleibt bestehen.)")) return;
+        if (!(await ask({ title: "Aus der Verwaltung entfernen?", text: "Die Discord-Nachricht selbst bleibt bestehen.", action: "Entfernen" }))) return;
         try {
             await deleteRecruitmentPost(csrfToken, p.id);
             onChanged("Gelöscht.");

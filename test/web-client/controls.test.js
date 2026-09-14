@@ -57,7 +57,7 @@ describe("web-client control styles", () => {
     it("sizes every control that shares a line from the height tokens", () => {
         expect(css).toMatch(/--ctl-h:\s*\d+px/);
         expect(css).toMatch(/--ctl-h-sm:\s*\d+px/);
-        for (const selector of [".btn ", ".btn-sm ", ".sel-sm ", ".inp-sm ", ".theme-toggle "]) {
+        for (const selector of [".btn ", ".btn-sm ", ".sel-sm ", ".inp-sm ", ".ibtn "]) {
             const rule = css.match(new RegExp(`\\n\\${selector}\\{[^}]+\\}`));
             expect(rule).not.toBeNull();
             expect(rule[0]).toMatch(/var\(--ctl-h(-sm)?\)/);

@@ -267,9 +267,9 @@ function RaiderName({ raider }: { raider: CouncilRaider }) {
  */
 function SpecCell({ specLabel, iconUrl, assumed }: { specLabel: string; iconUrl?: string; assumed?: boolean }) {
     const title = assumed ? `${specLabel} — aus der Klasse abgeleitet, nicht aus einem Log` : specLabel;
-    if (!iconUrl) return <span className="sub" title={title}>{specLabel.slice(0, 2)}</span>;
+    if (!iconUrl) return <span className="sub" data-tip={title}>{specLabel.slice(0, 2)}</span>;
     return (
-        <span className={`lc-spec${assumed ? " lc-spec-assumed" : ""}`} title={title}>
+        <span className={`lc-spec${assumed ? " lc-spec-assumed" : ""}`} data-tip={title}>
             <ClassSpecIcon iconUrl={iconUrl} />
         </span>
     );
@@ -293,7 +293,7 @@ function ContentBadge({ contentId, tier, label }: { contentId: string; tier?: st
     return (
         <span
             className={`lc-cbadge lc-h-${contentId}`}
-            title={[label || contentId.toUpperCase(), tier ? tier.toUpperCase() : ""].filter(Boolean).join(" · ")}
+            data-tip={[label || contentId.toUpperCase(), tier ? tier.toUpperCase() : ""].filter(Boolean).join(" · ")}
         >
             {contentId.toUpperCase()}
         </span>
@@ -332,7 +332,7 @@ function BisSpecs({ specs, compact = false }: { specs: CouncilItem["bisSpecs"]; 
                 <span
                     key={s.specKey}
                     className="lc-bisspec"
-                    title={s.alsoFor.length
+                    data-tip={s.alsoFor.length
                         ? `${s.label} — dieselbe Liste gilt auch für ${s.alsoFor.join(" und ")} (WoWSims führt für die keine eigene)`
                         : s.label}
                 >
@@ -469,9 +469,9 @@ function WornIcon({ item }: { item: WornItem }) {
                 and next to sixteen other borders it was invisible — the tag is
                 what makes "BiS" legible at 30px. */}
             {item.isBis ? <span className="lc-worn-tag lc-worn-tag-bis" aria-label="BiS">BiS</span> : null}
-            {noench ? <span className="lc-worn-tag lc-worn-tag-noench" title="keine Verzauberung">!</span> : null}
+            {noench ? <span className="lc-worn-tag lc-worn-tag-noench" data-tip="keine Verzauberung">!</span> : null}
             {item.emptySockets > 0
-                ? <span className="lc-worn-tag lc-worn-tag-socket" title={`${item.emptySockets} leere Sockel`} />
+                ? <span className="lc-worn-tag lc-worn-tag-socket" data-tip={`${item.emptySockets} leere Sockel`} />
                 : null}
             {/* Bottom left, both about what the comparison can read on this
                 slot: an item that only counts against certain bosses, or one
@@ -479,12 +479,12 @@ function WornIcon({ item }: { item: WornItem }) {
                 piece here. Wowhead knows nothing of either, so the reason
                 stays on the mark itself. */}
             {item.situational ? (
-                <span className="lc-worn-mark lc-worn-mark-sit" title={`Zählt im Vergleich nicht: ${item.situational.note}.`}>!</span>
+                <span className="lc-worn-mark lc-worn-mark-sit" data-tip={`Zählt im Vergleich nicht: ${item.situational.note}.`}>!</span>
             ) : null}
             {item.replacedSituational ? (
                 <span
                     className="lc-worn-mark lc-worn-mark-sub"
-                    title={`Steht hier statt „${item.replacedSituational.itemName}“ — das ${item.replacedSituational.note}. Gezeigt wird, was ${item.replacedSituational.sameRaid
+                    data-tip={`Steht hier statt „${item.replacedSituational.itemName}“ — das ${item.replacedSituational.note}. Gezeigt wird, was ${item.replacedSituational.sameRaid
                         ? `im selben Raid${item.replacedSituational.fight ? ` bei ${item.replacedSituational.fight}` : ""} auf dem Slot steckte`
                         : `${item.replacedSituational.reportTitle ? `„${item.replacedSituational.reportTitle}“` : "eine ältere Auswertung"} auf dem Slot zeigt`}.`}
                 >
@@ -516,7 +516,7 @@ function GearStamp({ raider }: { raider: CouncilRaider }) {
     // wie ein frisches Log.
     if (g.source === "armory") {
         return (
-            <span className="lc-gear-armory" title={`Aktuelles Gear aus der Armory, geholt ${fmtMs(g.armoryAt, true)}.${g.unverifiedEnchants ? ` ${g.unverifiedEnchants} Teil(e) sind seit der letzten Auswertung dazugekommen — für die ist keine Verzauberung bekannt, die Simulation rechnet sie unverzaubert.` : ""}`}>
+            <span className="lc-gear-armory" data-tip={`Aktuelles Gear aus der Armory, geholt ${fmtMs(g.armoryAt, true)}.${g.unverifiedEnchants ? ` ${g.unverifiedEnchants} Teil(e) sind seit der letzten Auswertung dazugekommen — für die ist keine Verzauberung bekannt, die Simulation rechnet sie unverzaubert.` : ""}`}>
                 Armory{hit}
                 {g.unverifiedEnchants ? <span className="sub"> · {g.unverifiedEnchants} ohne VZ-Info</span> : null}
             </span>
@@ -532,37 +532,37 @@ function GearStamp({ raider }: { raider: CouncilRaider }) {
                 Boss nichts taugt — dann bleibt es beim letzten Raid, und das
                 steht hier, sonst sähe der Knopf aus, als hätte er nichts getan. */}
             {g.logRejected === "pvp" ? (
-                <span className="lc-gear-warn" title="Das geladene Log zeigt diesen Raider in PvP-Gear. Gegen einen Boss zählt das nicht — bewertet wird weiter das Set aus der Auswertung.">
+                <span className="lc-gear-warn" data-tip="Das geladene Log zeigt diesen Raider in PvP-Gear. Gegen einen Boss zählt das nicht — bewertet wird weiter das Set aus der Auswertung.">
                     {" "}· Log: PvP-Gear
                 </span>
             ) : null}
             {g.logRejected === "role" ? (
-                <span className="sub" title="Das geladene Log zeigt ein Set der anderen Rolle (Heilgear für einen Caster oder umgekehrt). Bewertet wird weiter das Set aus der Auswertung.">
+                <span className="sub" data-tip="Das geladene Log zeigt ein Set der anderen Rolle (Heilgear für einen Caster oder umgekehrt). Bewertet wird weiter das Set aus der Auswertung.">
                     {" "}· Log: andere Rolle
                 </span>
             ) : null}
             {g.armoryRejected === "pvp" ? (
-                <span className="lc-gear-warn" title="Die Armory zeigt gerade PvP-Gear (Abhärtung auf den meisten Teilen). Gegen einen Boss zählt das nicht — bewertet wird weiter das Set aus dem letzten Raid.">
+                <span className="lc-gear-warn" data-tip="Die Armory zeigt gerade PvP-Gear (Abhärtung auf den meisten Teilen). Gegen einen Boss zählt das nicht — bewertet wird weiter das Set aus dem letzten Raid.">
                     {" "}· Armory: PvP-Gear
                 </span>
             ) : null}
             {g.armoryRejected === "role" ? (
-                <span className="sub" title="Die Armory zeigt ein Set der anderen Rolle (Heilgear für einen Caster oder umgekehrt). Bewertet wird weiter das Set aus dem letzten Raid.">
+                <span className="sub" data-tip="Die Armory zeigt ein Set der anderen Rolle (Heilgear für einen Caster oder umgekehrt). Bewertet wird weiter das Set aus dem letzten Raid.">
                     {" "}· Armory: andere Rolle
                 </span>
             ) : null}
             {g.pvpGear ? (
-                <span className="lc-gear-warn" title="Jede der letzten Auswertungen zeigt diesen Raider in PvP-Gear. Ein anderes Set ist nicht bekannt, die Werte sind daher mit Vorsicht zu lesen.">
+                <span className="lc-gear-warn" data-tip="Jede der letzten Auswertungen zeigt diesen Raider in PvP-Gear. Ein anderes Set ist nicht bekannt, die Werte sind daher mit Vorsicht zu lesen.">
                     {" "}· <b>PvP-Gear</b>
                 </span>
             ) : null}
             {g.substituted > 0 ? (
-                <span className="sub" title={`${g.substituted} Slot(s) tragen heute ein Teil, das nur gegen bestimmte Bosse zählt — verglichen wird mit dem, was dort sonst steckt (Icon mit ↺).`}>
+                <span className="sub" data-tip={`${g.substituted} Slot(s) tragen heute ein Teil, das nur gegen bestimmte Bosse zählt — verglichen wird mit dem, was dort sonst steckt (Icon mit ↺).`}>
                     {" "}· {g.substituted}× ersetzt
                 </span>
             ) : null}
             {g.situational > 0 ? (
-                <span className="lc-gear-warn" title={`${g.situational} Slot(s) tragen ein bossabhängiges Teil, und keine ältere Auswertung zeigt dort etwas anderes. Der Vergleich liest den Slot als leer (Icon mit !).`}>
+                <span className="lc-gear-warn" data-tip={`${g.situational} Slot(s) tragen ein bossabhängiges Teil, und keine ältere Auswertung zeigt dort etwas anderes. Der Vergleich liest den Slot als leer (Icon mit !).`}>
                     {" "}· {g.situational} Slot situativ
                 </span>
             ) : null}
@@ -574,7 +574,7 @@ function GearStamp({ raider }: { raider: CouncilRaider }) {
     // aus wie eine Auswertung von Donnerstag.
     if (g.source === "wcl") {
         return (
-            <span title={`Aus dem Log „${g.reportTitle}“, geladen ${fmtMs(g.wclAt, true)}. Gilt, bis eine neuere Auswertung kommt oder „Auswertung“ gewählt wird.${g.roleMismatch ? " Dort wurde offenbar geheilt — die Werte sind mit Vorsicht zu lesen." : ""}`}>
+            <span data-tip={`Aus dem Log „${g.reportTitle}“, geladen ${fmtMs(g.wclAt, true)}. Gilt, bis eine neuere Auswertung kommt oder „Auswertung“ gewählt wird.${g.roleMismatch ? " Dort wurde offenbar geheilt — die Werte sind mit Vorsicht zu lesen." : ""}`}>
                 <span className="lc-gear-wcl">Log</span> {stamp}
                 {g.roleMismatch ? <span className="lc-gear-warn"> · <b>Heilgear</b></span> : null}
                 {slots}
@@ -583,19 +583,19 @@ function GearStamp({ raider }: { raider: CouncilRaider }) {
     }
     if (g.roleMismatch) {
         return (
-            <span className="lc-gear-warn" title={`Aus „${g.reportTitle}“ — dort wurde offenbar geheilt. Für diesen Raider ist kein reines Caster-Set geloggt, die Werte sind daher mit Vorsicht zu lesen.`}>
+            <span className="lc-gear-warn" data-tip={`Aus „${g.reportTitle}“ — dort wurde offenbar geheilt. Für diesen Raider ist kein reines Caster-Set geloggt, die Werte sind daher mit Vorsicht zu lesen.`}>
                 {stamp} <b>· Heilgear</b>{slots}
             </span>
         );
     }
     if (g.skippedReports > 0) {
         return (
-            <span title={`Aus „${g.reportTitle}“. ${g.skippedReports} neuere Auswertung(en) übersprungen, weil dort geheilt wurde oder PvP-Gear getragen wurde.`}>
+            <span data-tip={`Aus „${g.reportTitle}“. ${g.skippedReports} neuere Auswertung(en) übersprungen, weil dort geheilt wurde oder PvP-Gear getragen wurde.`}>
                 {stamp} <span className="sub">· {g.skippedReports} übersprungen</span>{slots}
             </span>
         );
     }
-    return <span title={`Aus der Auswertung „${g.reportTitle}“`}>{stamp}{slots}</span>;
+    return <span data-tip={`Aus der Auswertung „${g.reportTitle}“`}>{stamp}{slots}</span>;
 }
 
 // The slot groups a character sheet reads in (slot ids from
@@ -640,7 +640,7 @@ function GearBand({ raider, canWrite, busy, logOpen, onArmory, onLogToggle, onEv
                 type="button"
                 className={`lc-srcopt${source === "log" ? " active" : ""}`}
                 disabled={!canWrite || source === "log" || backBusy}
-                title={source === "log"
+                data-tip={source === "log"
                     ? "Das Set aus der letzten Auswertung"
                     : "Zurück zum Set aus der letzten Auswertung"}
                 onClick={() => onEvaluation(raider.character)}
@@ -652,7 +652,7 @@ function GearBand({ raider, canWrite, busy, logOpen, onArmory, onLogToggle, onEv
                 type="button"
                 className={`lc-srcopt${source === "wcl" || logOpen ? " active" : ""}`}
                 disabled={!canWrite}
-                title={source === "wcl"
+                data-tip={source === "wcl"
                     ? "Gear aus einem geladenen Log — ein anderes Log wählen"
                     : "Gear aus einem Log laden: eines der letzten Logs des Bots oder ein Warcraft-Logs-Link"}
                 onClick={() => onLogToggle(raider.character)}
@@ -664,7 +664,7 @@ function GearBand({ raider, canWrite, busy, logOpen, onArmory, onLogToggle, onEv
                 type="button"
                 className={`lc-srcopt lc-srcopt-armory${source === "armory" ? " active" : ""}`}
                 disabled={!canWrite || armoryBusy}
-                title={source === "armory"
+                data-tip={source === "armory"
                     ? "Gear noch einmal aus der Armory holen"
                     : "Gear aus der Armory holen — der Stand von jetzt, nicht der der letzten Auswertung"}
                 onClick={() => onArmory(raider.character)}
@@ -680,7 +680,7 @@ function GearBand({ raider, canWrite, busy, logOpen, onArmory, onLogToggle, onEv
             href={raider.armoryUrl}
             target="_blank"
             rel="noopener noreferrer"
-            title="Armory im Browser öffnen und selbst nachsehen"
+            data-tip="Armory im Browser öffnen und selbst nachsehen"
             aria-label="Armory im Browser öffnen"
         >
             <ExternalIcon />
@@ -710,12 +710,12 @@ function GearBand({ raider, canWrite, busy, logOpen, onArmory, onLogToggle, onEv
             <div className="lc-gear-label">
                 <span className="lc-kicker">Gear</span>
                 {raider.bis.total ? (
-                    <span className="lc-gchip lc-gchip-bis" title="Getragene Teile der BiS-Liste dieses Raiders">
+                    <span className="lc-gchip lc-gchip-bis" data-tip="Getragene Teile der BiS-Liste dieses Raiders">
                         BiS {raider.bis.owned}/{raider.bis.total}
                     </span>
                 ) : null}
-                {noench ? <span className="lc-gchip lc-gchip-warn" title="Teile ohne Verzauberung">{noench} ohne VZ</span> : null}
-                {sockets ? <span className="lc-gchip lc-gchip-warn" title="Leere Sockel">{sockets} Sockel leer</span> : null}
+                {noench ? <span className="lc-gchip lc-gchip-warn" data-tip="Teile ohne Verzauberung">{noench} ohne VZ</span> : null}
+                {sockets ? <span className="lc-gchip lc-gchip-warn" data-tip="Leere Sockel">{sockets} Sockel leer</span> : null}
                 {/* Bossabhängige Teile fliegen aus dem Vergleich — sie sind für
                     jeden anderen Boss so viel wert wie ein leerer Slot. Der Chip
                     sagt, welcher Slot deshalb leer ist. */}
@@ -723,7 +723,7 @@ function GearBand({ raider, canWrite, busy, logOpen, onArmory, onLogToggle, onEv
                     <span
                         key={d.slot}
                         className="lc-gchip lc-gchip-warn"
-                        title={`„${d.itemName}" ${d.note}. Der Slot zählt hier als leer, weil keine andere Quelle sagt, was ${raider.character} dort sonst trägt.`}
+                        data-tip={`„${d.itemName}" ${d.note}. Der Slot zählt hier als leer, weil keine andere Quelle sagt, was ${raider.character} dort sonst trägt.`}
                     >
                         {d.slotName} leer
                     </span>
@@ -876,14 +876,14 @@ function GearLegend() {
 }
 
 /** A sortable column header for the roster's grid — the `<th>` variant's twin. */
-function SortHead({ sortKey, label, title, sort, dir, onSort }: {
+function SortHead({ sortKey, label, tip, sort, dir, onSort }: {
     sortKey: RosterSortKey;
     label: string;
-    title?: string;
+    tip?: string;
 } & TableSort<RosterSortKey>) {
     return (
         <div role="columnheader" aria-sort={ariaSort(sortKey, sort, dir)}>
-            <SortLabel sortKey={sortKey} label={label} title={title} sort={sort} dir={dir} onSort={onSort} />
+            <SortLabel sortKey={sortKey} label={label} tip={tip} sort={sort} dir={dir} onSort={onSort} />
         </div>
     );
 }
@@ -934,7 +934,7 @@ function RaiderBlock({
                 <div><NeedBar subject={needSubject(r)} /></div>
                 <div><LootCell raider={r} /></div>
                 <div>
-                    <span className="lc-stat" title={r.lastAwardAt
+                    <span className="lc-stat" data-tip={r.lastAwardAt
                         ? `Letztes Item am ${fmtMs(r.lastAwardAt, false)}`
                         : "Hat noch nie ein Item bekommen"}
                     >
@@ -958,7 +958,7 @@ function RaiderBlock({
                                     type="button"
                                     className={`lc-roleopt${r.role === option ? " active" : ""}`}
                                     disabled={busy.has(`role:${r.character}`)}
-                                    title={r.roleOverride === option
+                                    data-tip={r.roleOverride === option
                                         ? "So festgelegt — noch einmal klicken nimmt die Festlegung zurück"
                                         : `Als ${ROLE_LABEL[option] || option} einplanen`}
                                     onClick={() => onRole(r.character, r.roleOverride === option ? "" : option as "caster" | "healer")}
@@ -978,7 +978,7 @@ function RaiderBlock({
                         <button
                             type="button"
                             className="lc-ibtn"
-                            title="Sim-Export: Loadout als WoWSims-Import, um die Zahl selbst nachzurechnen"
+                            data-tip="Sim-Export: Loadout als WoWSims-Import, um die Zahl selbst nachzurechnen"
                             aria-label="Sim-Export"
                             disabled={busy.has(`export:${r.character}`)}
                             onClick={() => onExport(r.character)}
@@ -990,7 +990,7 @@ function RaiderBlock({
                         <button
                             type="button"
                             className="lc-ibtn lc-ibtn-danger"
-                            title="Nicht einplanen — bleibt in der Historie, verschwindet nur aus dieser Liste"
+                            data-tip="Nicht einplanen — bleibt in der Historie, verschwindet nur aus dieser Liste"
                             aria-label="Nicht einplanen"
                             disabled={busy.has(`exclude:${r.character}`)}
                             onClick={() => onExclude(r.character)}
@@ -1022,7 +1022,7 @@ function RaiderBlock({
 function BisCell({ raider }: { raider: CouncilRaider }) {
     if (!raider.bis.total) {
         return (
-            <span className="sub" title="Für diese Spec und dieses Tier gibt es keine BiS-Liste.">
+            <span className="sub" data-tip="Für diese Spec und dieses Tier gibt es keine BiS-Liste.">
                 keine Liste
             </span>
         );
@@ -1036,7 +1036,7 @@ function BisCell({ raider }: { raider: CouncilRaider }) {
     ].filter(Boolean);
     const pct = Math.round((raider.bis.owned / raider.bis.total) * 100);
     return (
-        <span className="lc-bisfrac" title={notes.join(" · ")}>
+        <span className="lc-bisfrac" data-tip={notes.join(" · ")}>
             <span className="lc-bisfrac-num">
                 <b>{raider.bis.owned}</b>
                 <span className="sub">/{raider.bis.total}{notes.length ? " *" : ""}</span>
@@ -1075,7 +1075,7 @@ function LootHover({ items, total, other = 0, trigger, width = 560 }: {
         // Nothing that counts. If they did take shards or off-spec pieces, say
         // so — "—" alone would look like they were never even in the raid.
         return other
-            ? <span className="sub" title={`${other} Item(s) für Offspec, Entzaubern oder die Bank — zählen nicht als erhaltener Loot.`}>—<sup>{other}</sup></span>
+            ? <span className="sub" data-tip={`${other} Item(s) für Offspec, Entzaubern oder die Bank — zählen nicht als erhaltener Loot.`}>—<sup>{other}</sup></span>
             : <span className="sub">—</span>;
     }
     return (
@@ -1116,7 +1116,7 @@ function LootCell({ raider }: { raider: CouncilRaider }) {
             total={raider.lootCount}
             other={raider.otherCount}
             trigger={
-                <span className="lc-stat" title={`${raider.lootCount} Items im Filter, ${raider.lootTotal} insgesamt`}>
+                <span className="lc-stat" data-tip={`${raider.lootCount} Items im Filter, ${raider.lootTotal} insgesamt`}>
                     <LootBagIcon />
                     {raider.lootCount}
                 </span>
@@ -1134,10 +1134,10 @@ function LootCell({ raider }: { raider: CouncilRaider }) {
  */
 function SimCell({ raider, sim }: { raider: CouncilRaider; sim: SimResult | null }) {
     const entry = sim && sim[raider.key];
-    if (!raider.simSupported) return <span className="sub" title="WoWSims-TBC simuliert diese Spec nicht.">—</span>;
-    if (!raider.gear) return <span className="sub" title="Kein Gear bekannt: der Raider taucht in keiner der letzten CLA-Auswertungen auf.">kein Gear</span>;
+    if (!raider.simSupported) return <span className="sub" data-tip="WoWSims-TBC simuliert diese Spec nicht.">—</span>;
+    if (!raider.gear) return <span className="sub" data-tip="Kein Gear bekannt: der Raider taucht in keiner der letzten CLA-Auswertungen auf.">kein Gear</span>;
     if (!entry) return <span className="sub">nicht simuliert</span>;
-    if (entry.baseline === null) return <span className="sub" title={entry.error || ""}>fehlgeschlagen</span>;
+    if (entry.baseline === null) return <span className="sub" data-tip={entry.error || ""}>fehlgeschlagen</span>;
     return <b>{Math.round(entry.baseline)}</b>;
 }
 
@@ -1164,7 +1164,7 @@ function SlotOptions({ candidate }: { candidate: CouncilCandidate }) {
                 <span
                     key={opt.slot}
                     className={`lc-slot${opt.chosen ? " lc-slot-chosen" : ""}`}
-                    title={opt.chosen
+                    data-tip={opt.chosen
                         ? `${opt.slotName} — wird belegt`
                         : `${opt.slotName} — bleibt, wie es ist`}
                 >
@@ -1174,7 +1174,7 @@ function SlotOptions({ candidate }: { candidate: CouncilCandidate }) {
                 </span>
             ))}
             {candidate.twoHanded ? (
-                <span className="lc-slots-note" title="Zweihandwaffe: belegt Waffenhand und Nebenhand, beide Teile fallen weg">2H</span>
+                <span className="lc-slots-note" data-tip="Zweihandwaffe: belegt Waffenhand und Nebenhand, beide Teile fallen weg">2H</span>
             ) : null}
         </span>
     );
@@ -1195,19 +1195,19 @@ function GainCell({ candidate, simDelta, gainMax }: {
 }) {
     if (typeof simDelta !== "number") {
         if (!candidate.simSupported) {
-            return <span className="sub" title="Für diese Spec gibt es keine Simulation — WoWSims-TBC rechnet nur Caster-DPS.">—</span>;
+            return <span className="sub" data-tip="Für diese Spec gibt es keine Simulation — WoWSims-TBC rechnet nur Caster-DPS.">—</span>;
         }
         if (!candidate.hasGear) {
-            return <span className="sub" title="Kein Gear bekannt: der Raider taucht in keiner der letzten CLA-Auswertungen auf.">kein Gear</span>;
+            return <span className="sub" data-tip="Kein Gear bekannt: der Raider taucht in keiner der letzten CLA-Auswertungen auf.">kein Gear</span>;
         }
-        return <span className="sub" title="Noch nicht simuliert — der Zugewinn erscheint, sobald die Simulation durch ist.">nicht simuliert</span>;
+        return <span className="sub" data-tip="Noch nicht simuliert — der Zugewinn erscheint, sobald die Simulation durch ist.">nicht simuliert</span>;
     }
     const gain = simDelta;
     const pct = gainMax > 0 ? Math.max(0, Math.min(100, (gain / gainMax) * 100)) : 0;
     return (
         <span className={`lc-gain lc-gain-measured${gain < 0 ? " lc-gain-loss" : ""}`}>
             <span className="lc-gain-bar"><span className="lc-gain-fill" style={{ width: `${pct}%` }} /></span>
-            <b title="Simulierte DPS-Differenz (wowsimcli)">
+            <b data-tip="Simulierte DPS-Differenz (wowsimcli)">
                 {gain > 0 ? "+" : ""}{Math.round(gain)} DPS
             </b>
             {/* The number is honestly measured, the *comparison* is not:
@@ -1218,7 +1218,7 @@ function GainCell({ candidate, simDelta, gainMax }: {
             {candidate.inflatedBy.length ? (
                 <span
                     className="lc-gain-inflated"
-                    title={`Nicht vergleichbar: ${candidate.inflatedBy
+                    data-tip={`Nicht vergleichbar: ${candidate.inflatedBy
                         .map((b) => `„${b.itemName}“ ${b.note}`)
                         .join("; ")}. Der Zugewinn fällt dadurch höher aus als bei Raidern mit einem normalen Teil auf dem Slot.`}
                 >
@@ -1256,15 +1256,15 @@ function CandidateRow({ candidate, simDelta, gainMax }: {
                     <SpecCell specLabel={candidate.specLabel} iconUrl={candidate.specIconUrl} />
                     <b {...classColorProps(candidate.classColor)}>{candidate.character}</b>
                     {candidate.isBis
-                        ? <span className="lc-pill-bis" title="Steht auf der BiS-Liste dieses Raiders">BiS</span>
-                        : <span className="lc-pill-nobis" title={`Nicht auf der BiS-Liste dieses Raiders — Zugewinn und Bedarf zählen mit ${Math.round(candidate.bisWeight * 100)} %`}>kein BiS · ½</span>}
+                        ? <span className="lc-pill-bis" data-tip="Steht auf der BiS-Liste dieses Raiders">BiS</span>
+                        : <span className="lc-pill-nobis" data-tip={`Nicht auf der BiS-Liste dieses Raiders — Zugewinn und Bedarf zählen mit ${Math.round(candidate.bisWeight * 100)} %`}>kein BiS · ½</span>}
                 </span>
             </td>
             <td><SlotOptions candidate={candidate} /></td>
             <td><GainCell candidate={candidate} simDelta={simDelta} gainMax={gainMax} /></td>
             <td><NeedBar subject={candidate} /></td>
             <td>
-                <span className="lc-stat" title={candidate.daysSinceLoot === null
+                <span className="lc-stat" data-tip={candidate.daysSinceLoot === null
                     ? "Hat noch nie ein Item bekommen"
                     : `Letztes Item vor ${candidate.daysSinceLoot} Tagen`}
                 >
@@ -1278,7 +1278,7 @@ function CandidateRow({ candidate, simDelta, gainMax }: {
                     total={candidate.lootCount}
                     other={candidate.otherCount}
                     trigger={
-                        <span className="lc-stat" title={`${candidate.lootCount} Items im Filter, ${candidate.lootTotal} insgesamt`}>
+                        <span className="lc-stat" data-tip={`${candidate.lootCount} Items im Filter, ${candidate.lootTotal} insgesamt`}>
                             <LootBagIcon />
                             {candidate.lootCount}
                         </span>
@@ -1342,14 +1342,14 @@ function VerdictGain({ verdict, big = false }: { verdict: Verdict; big?: boolean
     const size = big ? " lc-verdict-big" : "";
     if (verdict.basis === "sim") {
         return (
-            <span className={`lc-verdict-gain lc-verdict-measured${size}`} title="Simulierte DPS-Differenz (wowsimcli)">
+            <span className={`lc-verdict-gain lc-verdict-measured${size}`} data-tip="Simulierte DPS-Differenz (wowsimcli)">
                 {verdict.delta > 0 ? "+" : ""}{Math.round(verdict.delta)} DPS
             </span>
         );
     }
     if (verdict.basis === "need") {
         return (
-            <span className={`lc-verdict-gain lc-verdict-need${size}`} title="Für diese Specs gibt es keine Simulation (WoWSims-TBC rechnet keine Heilung). Der Vorschlag folgt dem Bedarf — geschätzt wird kein Zugewinn.">
+            <span className={`lc-verdict-gain lc-verdict-need${size}`} data-tip="Für diese Specs gibt es keine Simulation (WoWSims-TBC rechnet keine Heilung). Der Vorschlag folgt dem Bedarf — geschätzt wird kein Zugewinn.">
                 höchster Bedarf
             </span>
         );
@@ -1392,11 +1392,11 @@ function CandidateTable({ itemId, candidates, sim, sortState }: {
             <thead>
                 <tr>
                     <SortTh sortKey="character" label="Raider" {...sortState} />
-                    <SortTh sortKey="slot" label="Ersetzt" title="Das Stück, das dafür abgelegt würde — nach dessen Itemlevel sortiert, ein freier Slot zuerst" style={{ width: 70 }} {...sortState} />
-                    <SortTh sortKey="gain" label="Zugewinn" title="Simulierte DPS-Differenz — leer, solange nicht simuliert wurde. Geschätzt wird nichts." {...sortState} />
-                    <SortTh sortKey="need" label="Bedarf" title="Wartezeit, Loot-Anteil und BiS-Lücke zusammengenommen — halbiert, wenn das Item für den Raider nicht BiS ist" {...sortState} />
-                    <SortTh sortKey="waited" label="Tage" title="Seit dem letzten Item" style={{ width: 70 }} {...sortState} />
-                    <SortTh sortKey="loot" label="Items" title="Im aktuellen Content-Filter" style={{ width: 70 }} {...sortState} />
+                    <SortTh sortKey="slot" label="Ersetzt" tip="Das Stück, das dafür abgelegt würde — nach dessen Itemlevel sortiert, ein freier Slot zuerst" style={{ width: 70 }} {...sortState} />
+                    <SortTh sortKey="gain" label="Zugewinn" tip="Simulierte DPS-Differenz — leer, solange nicht simuliert wurde. Geschätzt wird nichts." {...sortState} />
+                    <SortTh sortKey="need" label="Bedarf" tip="Wartezeit, Loot-Anteil und BiS-Lücke zusammengenommen — halbiert, wenn das Item für den Raider nicht BiS ist" {...sortState} />
+                    <SortTh sortKey="waited" label="Tage" tip="Seit dem letzten Item" style={{ width: 70 }} {...sortState} />
+                    <SortTh sortKey="loot" label="Items" tip="Im aktuellen Content-Filter" style={{ width: 70 }} {...sortState} />
                 </tr>
             </thead>
             <tbody>
@@ -1600,7 +1600,7 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
                                 </span>
                                 <span className="lc-vstat">
                                     <span className="lc-kicker">Zuletzt</span>
-                                    <span className="lc-stat" title={best.daysSinceLoot === null ? "Hat noch nie ein Item bekommen" : `Letztes Item vor ${best.daysSinceLoot} Tagen`}>
+                                    <span className="lc-stat" data-tip={best.daysSinceLoot === null ? "Hat noch nie ein Item bekommen" : `Letztes Item vor ${best.daysSinceLoot} Tagen`}>
                                         <ClockIcon />{best.daysSinceLoot === null ? "∞" : `${best.daysSinceLoot} Tage`}
                                     </span>
                                 </span>
@@ -1611,7 +1611,7 @@ function DropPanel({ focus, sim, sortState, simAvailable, simRunning, onPick, on
                                         total={best.lootCount}
                                         other={best.otherCount}
                                         trigger={
-                                            <span className="lc-stat" title={`${best.lootCount} Items im Filter`}>
+                                            <span className="lc-stat" data-tip={`${best.lootCount} Items im Filter`}>
                                                 <LootBagIcon />{best.lootCount}
                                             </span>
                                         }
@@ -1802,7 +1802,7 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                                                     className="lc-bllink"
                                                     style={classColorProps(spec.classColor).style}
                                                     onClick={() => only(spec.specKey, hit.id)}
-                                                    title={`Liste auf ${spec.label} filtern und das Teil dort hervorheben`}
+                                                    data-tip={`Liste auf ${spec.label} filtern und das Teil dort hervorheben`}
                                                 >
                                                     {spec.label}
                                                 </button>
@@ -1830,7 +1830,7 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                                 type="button"
                                 className={`lc-filter lc-h-${TIER_HUE[t.id] || "bt"}${t.id === data.tier ? " active" : ""}`}
                                 onClick={() => patch({ listTier: t.id, listFocus: 0 })}
-                                title={t.missing.length
+                                data-tip={t.missing.length
                                     ? `Für ${t.missing.join(" und ")} gibt es kein Set dieses Tiers`
                                     : t.label}
                             >
@@ -1873,7 +1873,7 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                                     ? view.listOff.filter((k) => k !== spec.key)
                                     : [...view.listOff, spec.key],
                             })}
-                            title={spec.ownList ? "Eigene Liste" : "Spielt die Liste einer anderen Spec"}
+                            data-tip={spec.ownList ? "Eigene Liste" : "Spielt die Liste einer anderen Spec"} aria-label={spec.ownList ? "Eigene Liste" : "Spielt die Liste einer anderen Spec"}
                         >
                             <img src={spec.iconUrl} alt="" loading="lazy" />
                             <span className="class-colored">{spec.label}</span>
@@ -1907,7 +1907,7 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                                                 <span className="lc-blcolname class-colored">{col.label}</span>
                                             </span>
                                             {col.source === "wowhead" ? (
-                                                <span className="lc-blsource" title={SOURCE_NOTE[col.source]}>
+                                                <span className="lc-blsource" data-tip={SOURCE_NOTE[col.source]}>
                                                     {col.sourceLabel}
                                                 </span>
                                             ) : null}
@@ -1916,7 +1916,7 @@ function BisListsTab({ view, patch }: { view: View; patch: (p: Partial<View>) =>
                                                     <span
                                                         key={u.key}
                                                         className="lc-bluser"
-                                                        title={u.ownList
+                                                        data-tip={u.ownList
                                                             ? "Diese Liste gehört ihm"
                                                             : "Spielt diese Liste, hat keine eigene"}
                                                     >
@@ -1974,7 +1974,7 @@ function BisListCell({ cell, source, focused }: {
     return (
         <td
             className={`lc-blcell${shared > 1 ? " shared" : ""}${focused ? " focused" : ""}`}
-            title={[reference, shared > 1 ? `steht auf ${shared} Listen` : ""].filter(Boolean).join(" · ")}
+            data-tip={[reference, shared > 1 ? `steht auf ${shared} Listen` : ""].filter(Boolean).join(" · ")}
         >
             <span className="lc-blitem">
                 <img src={item.iconUrl} alt="" loading="lazy" {...itemQualityProps(item.quality, "lc-blicon")} />
@@ -2081,7 +2081,7 @@ function CompareCell({ raider, row, awards }: { raider: CouncilRaider; row: Comp
             <td className={`lc-blcell lc-cmpcell${entry.owned ? "" : " wants"}`}>
                 <span
                     className={`lc-cmpwant${entry.owned ? " worn" : ""}`}
-                    title={entry.owned
+                    data-tip={entry.owned
                         ? "Steht auf der BiS-Liste und wird getragen — nur nicht in diesem Loot vergeben"
                         : "Steht auf der BiS-Liste und fehlt noch"}
                 >
@@ -2091,14 +2091,14 @@ function CompareCell({ raider, row, awards }: { raider: CouncilRaider; row: Comp
         );
     }
     return (
-        <td className="lc-blcell lc-cmpcell got" title={awards.map((a) => a.eventLabel).filter(Boolean).join(" · ")}>
+        <td className="lc-blcell lc-cmpcell got" data-tip={awards.map((a) => a.eventLabel).filter(Boolean).join(" · ")}>
             {awards.map((a, i) => (
                 <span key={`${a.awardedAt}-${i}`} className="lc-cmpaward">
                     <span className="lc-cmpdate">{a.awardedAt ? fmtMs(a.awardedAt, false) : "erhalten"}</span>
                     {a.reasonLabel ? <ReasonBadge label={a.reasonLabel} tone={a.reasonTone} title={a.reason} /> : null}
                 </span>
             ))}
-            {entry ? <span className="lc-cmpbis" title="Steht auf der BiS-Liste dieses Raiders">BiS</span> : null}
+            {entry ? <span className="lc-cmpbis" data-tip="Steht auf der BiS-Liste dieses Raiders">BiS</span> : null}
         </td>
     );
 }
@@ -2150,7 +2150,7 @@ function CompareTab({ roster, view, patch, contents }: {
                                 className={`lc-blspec${off.has(r.key) ? " off" : ""}`}
                                 style={classColorProps(r.classColor).style}
                                 onClick={() => toggle(r.key)}
-                                title={`${r.specLabel} · ${r.lootCount} Items im Filter`}
+                                data-tip={`${r.specLabel} · ${r.lootCount} Items im Filter`} aria-label={`${r.specLabel} · ${r.lootCount} Items im Filter`}
                             >
                                 <ClassSpecIcon iconUrl={r.specIconUrl} />
                                 <span className="class-colored">{r.character}</span>
@@ -2642,7 +2642,7 @@ export default function LootCouncilPage() {
                                 key={t.id}
                                 type="button"
                                 className={`btn btn-sm lc-filter lc-filter-tier lc-h-${t.id}${view.tiers.includes(t.id) ? " on" : ""}`}
-                                title={`Ganze Stufe ${t.label} ein-/ausschalten`}
+                                data-tip={`Ganze Stufe ${t.label} ein-/ausschalten`}
                                 onClick={() => patch({ tiers: toggleIn(view.tiers, t.id) })}
                             >
                                 {t.label}
@@ -2654,7 +2654,7 @@ export default function LootCouncilPage() {
                                 key={c.id}
                                 type="button"
                                 className={`btn btn-sm lc-filter lc-h-${c.id}${view.contents.includes(c.id) ? " on" : ""}`}
-                                title={c.label}
+                                data-tip={c.label}
                                 onClick={() => patch({ contents: toggleIn(view.contents, c.id) })}
                             >
                                 {c.short}
@@ -2713,7 +2713,7 @@ export default function LootCouncilPage() {
                         // einzelnen Raider.
                         className="btn btn-sm"
                         disabled={!roster.length || busy.has("armory:all")}
-                        title="Holt für jeden Raider der Liste das aktuelle Gear aus der Armory"
+                        data-tip="Holt für jeden Raider der Liste das aktuelle Gear aus der Armory"
                         onClick={() => loadArmory(roster.map((r) => r.character), "armory:all")}
                     >
                         {busy.has("armory:all")
@@ -2744,7 +2744,7 @@ export default function LootCouncilPage() {
                             type="button"
                             className="btn btn-sm"
                             disabled={simRunning || !simulatable.length || !gaps.length}
-                            title="Rechnet jedes offene BiS-Item gegen jeden Raider durch — gründlich, aber minutenlang. Für ein einzelnes Item ist „Drop prüfen“ schneller."
+                            data-tip="Rechnet jedes offene BiS-Item gegen jeden Raider durch — gründlich, aber minutenlang. Für ein einzelnes Item ist „Drop prüfen“ schneller."
                             onClick={() => runSim(gaps.map((g) => g.id))}
                         >
                             Alle BiS-Items durchrechnen ({gaps.length})
@@ -2804,14 +2804,14 @@ export default function LootCouncilPage() {
                         <div className="lc-roster" role="table" aria-label="Raider">
                             <div className="lc-roster-head" role="row">
                                 <SortHead sortKey="character" label="Raider" {...rosterSort} />
-                                <SortHead sortKey="need" label="Bedarf" title="Wartezeit, Loot-Anteil und BiS-Lücke zusammengenommen" {...rosterSort} />
-                                <SortHead sortKey="loot" label="Items" title="Im aktuellen Content-Filter" {...rosterSort} />
-                                <SortHead sortKey="last" label="Zuletzt" title="Tage seit dem letzten Item" {...rosterSort} />
-                                <SortHead sortKey="bis" label="BiS" title="Anteil der getragenen BiS-Teile" {...rosterSort} />
+                                <SortHead sortKey="need" label="Bedarf" tip="Wartezeit, Loot-Anteil und BiS-Lücke zusammengenommen" {...rosterSort} />
+                                <SortHead sortKey="loot" label="Items" tip="Im aktuellen Content-Filter" {...rosterSort} />
+                                <SortHead sortKey="last" label="Zuletzt" tip="Tage seit dem letzten Item" {...rosterSort} />
+                                <SortHead sortKey="bis" label="BiS" tip="Anteil der getragenen BiS-Teile" {...rosterSort} />
                                 <SortHead sortKey="dps" label="DPS" {...rosterSort} />
                                 <div className="lc-roster-head-more">
-                                    <SortHead sortKey="spec" label="Spec" title="Nach Spec sortieren" {...rosterSort} />
-                                    <SortHead sortKey="gear" label="Gear-Stand" title="Wann der Raider zuletzt in einer Auswertung auftauchte" {...rosterSort} />
+                                    <SortHead sortKey="spec" label="Spec" tip="Nach Spec sortieren" {...rosterSort} />
+                                    <SortHead sortKey="gear" label="Gear-Stand" tip="Wann der Raider zuletzt in einer Auswertung auftauchte" {...rosterSort} />
                                 </div>
                             </div>
                             {sortedRoster.map((r, i) => (

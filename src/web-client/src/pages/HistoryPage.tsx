@@ -20,6 +20,7 @@ import { LootInboxTab } from "../components/LootInboxTab";
 import type { ShellContext } from "../components/Shell";
 import { TrashIcon } from "../components/icons";
 import { useToast } from "../components/Jobs";
+import { useConfirm } from "../components/ui/Modal";
 
 type Tab ="raids" | "import" | "inbox" | "loot" | "awards" | "reasons" | "items" | "logs" | "chars";
 
@@ -250,7 +251,7 @@ function LootEventsTab({ lootEvents, categories, csrfToken, onChanged, canEdit }
                                     <select
                                         value={e.categoryId || ""}
                                         disabled={saving === e.eventId}
-                                        title="Raid-Kategorie, unter der dieser Loot geführt wird — nötig für Loot ohne Event"
+                                        data-tip="Raid-Kategorie, unter der dieser Loot geführt wird — nötig für Loot ohne Event"
                                         onChange={(ev) => save(e.eventId, ev.target.value)}
                                     >
                                         <option value="">— ohne Kategorie —</option>
@@ -282,11 +283,12 @@ type LogSortKey = "log" | "date" | "zone" | "event" | "status";
 const LOG_SORT_DEFAULTS: Record<LogSortKey, Dir> = { log: "asc", date: "desc", zone: "asc", event: "asc", status: "asc" };
 
 function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: string | null; onChanged: (msg: string) => void }) {
+    const ask = useConfirm();
     const { sort, dir, onSort, apply } = useTableSort<LogSortKey>("history-logs-sort", LOG_SORT_DEFAULTS, "date");
     const toast = useToast();
 
     const remove = async (l: LootLog) => {
-        if (!confirm("Log aus der Liste entfernen?")) return;
+        if (!(await ask({ title: "Log entfernen?", text: "Das Log wird aus der Liste entfernt.", action: "Entfernen" }))) return;
         try {
             await deleteHistoryLog(csrfToken, l.id);
             onChanged("Gelöscht.");
@@ -334,7 +336,7 @@ function LogsTab({ logs, csrfToken, onChanged }: { logs: LootLog[]; csrfToken: s
                                     : (l.title || "(Log)")}</td>
                                 <td className="small">{formatDate(l.postedAt || 0)}</td>
                                 <td className="small">{l.zone || ""}</td>
-                                <td className="small">{l.eventId ? <span className="pill" title={l.eventStartTime ? formatEventTime(l.eventStartTime) : ""}>{l.eventLabel || l.eventId}</span> : <span className="sub">—</span>}</td>
+                                <td className="small">{l.eventId ? <span className="pill" data-tip={l.eventStartTime ? formatEventTime(l.eventStartTime) : ""}>{l.eventLabel || l.eventId}</span> : <span className="sub">—</span>}</td>
                                 <td>{l.status === "done" ? <span className="pill good">ausgewertet</span> : <span className="pill">offen</span>}</td>
                                 <td className="cell-actions">
                                     <div className="row-actions" style={{ justifyContent: "flex-end" }}>
@@ -530,7 +532,7 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
                         className="btn btn-ghost btn-sm"
                         type="button"
                         disabled={busy}
-                        title="Nimmt die Klasse aus dem Loot-Export bzw. einer vorhandenen Auswertung und liest den Rest aus dem Warcraft-Log des Raids"
+                        data-tip="Nimmt die Klasse aus dem Loot-Export bzw. einer vorhandenen Auswertung und liest den Rest aus dem Warcraft-Log des Raids"
                         onClick={resolve}
                     >
                         {busy ? "Suche läuft …" : `Klassen & Specs ergänzen${missing ? ` (${missing} offen)` : ""}`}
@@ -567,7 +569,7 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
                         <button
                             className="btn btn-ghost"
                             type="button"
-                            title="Suche und Filter zurücksetzen (werden lokal im Browser gespeichert)"
+                            data-tip="Suche und Filter zurücksetzen (werden lokal im Browser gespeichert)"
                             onClick={() => patch({ search: "", category: "", classSpec: "" })}
                         >
                             Filter zurücksetzen

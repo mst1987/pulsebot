@@ -1,4 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import WowIcon from "./ui/WowIcon";
+import { IconButton } from "./ui/Button";
+import { AlertIcon, CheckIcon, XIcon } from "./icons";
 
 // Background jobs + their toasts.
 //
@@ -33,6 +36,8 @@ export type BackgroundJob = {
     /** Result / error text, once finished. */
     message: string;
     link?: { href: string; label: string; external?: boolean };
+    /** WoW icon of the action (JobSpec.icon); the status sits on it as a dot. */
+    icon?: string;
 };
 
 /** How a finished job describes itself in its toast. */
@@ -51,6 +56,12 @@ export type JobSpec<T> = {
      * still reports. Without this every filter click would leave a ✓ behind.
      */
     quiet?: boolean;
+    /**
+     * WoW icon name of the action ("spell_holy_borrowedtime" for an evaluation,
+     * "inv_gizmo_02" for a simulation). The toast shows it with the status as a
+     * dot on its corner; without one the toast shows the dot alone.
+     */
+    icon?: string;
 };
 
 /** What a running job may report about itself while it runs. */
@@ -130,6 +141,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
             seconds: 0,
             expectedSeconds: spec.expectedSeconds,
             message: "",
+            icon: spec.icon,
         }]);
         const update: JobUpdate = (fields) => patch(id, fields);
         try {
@@ -216,8 +228,11 @@ function JobToast({ job, onDismiss }: { job: BackgroundJob; onDismiss: (id: numb
 
     return (
         <div className={`toast ${tone}${hiding ? " hide" : ""}`} role="status" aria-live="polite">
-            <span className="toast-ico" aria-hidden="true">
-                {running ? <span className="toast-spin" /> : job.state === "error" ? "!" : "✓"}
+            <span className={`toast-ico${job.icon ? "" : " is-bare"}`} aria-hidden="true">
+                {job.icon && <WowIcon name={job.icon} size={32} />}
+                <span className={`st ${running ? "run" : job.state === "error" ? "err" : "ok"}`}>
+                    {running ? <i /> : job.state === "error" ? <AlertIcon /> : <CheckIcon />}
+                </span>
             </span>
             <div className="toast-body">
                 {running
@@ -247,7 +262,7 @@ function JobToast({ job, onDismiss }: { job: BackgroundJob; onDismiss: (id: numb
                         </>
                     )}
             </div>
-            <button className="toast-x" type="button" aria-label="Schließen" onClick={() => setHiding(true)}>&times;</button>
+            <IconButton className="toast-x" size="sm" icon={<XIcon />} tip="Schließen" onClick={() => setHiding(true)} />
         </div>
     );
 }

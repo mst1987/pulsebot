@@ -22,6 +22,7 @@ import { ListSection } from "../components/ListSection";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import CategoryMatrix, { type CategorySheet } from "../components/CategoryMatrix";
 import { SETTINGS_SECTIONS, visibleSections, resolveSection, groupedSections, savesWithForm } from "../lib/settingsSections";
+import { useConfirm } from "../components/ui/Modal";
 
 const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
@@ -115,7 +116,7 @@ function TopItemsField({ items, onChange }: {
                                 <span className="hint" style={{ marginLeft: 6 }}>#{it.id}</span>
                             </span>
                             <button
-                                type="button" className="btn btn-sm" title="Entfernen"
+                                type="button" className="btn btn-sm" data-tip="Entfernen"
                                 onClick={() => onChange(items.filter((x) => x.id !== it.id))}
                             >✕</button>
                         </li>
@@ -254,6 +255,7 @@ function tokenSortValue(t: IngestToken, key: TokenSortKey): string | number {
 }
 
 function IngestTokensTab({ csrfToken }: { csrfToken: string | null }) {
+    const ask = useConfirm();
     // Default "zuletzt benutzt": the question this table answers is usually
     // "welcher Rechner lädt eigentlich noch hoch?".
     const { sort, dir, onSort, apply } = useTableSort<TokenSortKey>(
@@ -297,9 +299,7 @@ function IngestTokensTab({ csrfToken }: { csrfToken: string | null }) {
     };
 
     const revoke = async (t: IngestToken) => {
-        if (!window.confirm(
-            `Token „${t.name}" zurückziehen?\n\nDas Sync-Tool, das ihn benutzt, kann danach nichts mehr hochladen.`,
-        )) return;
+        if (!(await ask({ title: `Token „${t.name}" zurückziehen?`, text: "Das Sync-Tool, das ihn benutzt, kann danach nichts mehr hochladen.", action: "Zurückziehen" }))) return;
         try {
             await deleteIngestToken(csrfToken, t.id);
             load();
@@ -383,7 +383,7 @@ function IngestTokensTab({ csrfToken }: { csrfToken: string | null }) {
                                 <td>{t.lastUsedAt ? fmtMs(t.lastUsedAt) : <span className="sub">nie</span>}</td>
                                 <td>{t.uses || 0}</td>
                                 <td style={{ textAlign: "right" }}>
-                                    <button className="icon-btn" type="button" title="Token zurückziehen" onClick={() => revoke(t)}>
+                                    <button className="icon-btn" type="button" data-tip="Token zurückziehen" aria-label="Token zurückziehen" onClick={() => revoke(t)}>
                                         <TrashIcon />
                                     </button>
                                 </td>
@@ -504,12 +504,13 @@ function RaidsheetsSection({ sheets, csrfToken, onChanged }: {
     csrfToken: string | null;
     onChanged: (msg: string) => void;
 }) {
+    const ask = useConfirm();
     const editor = useCollectionEditor("sheet");
     const toast = useToast();
     const { sort, dir, onSort, apply } = useTableSort<SheetSortKey>("raidsheets-sort", SHEET_SORT_DEFAULTS, "name");
 
     const remove = async (sheet: Raidsheet) => {
-        if (!confirm(`Raidsheet „${sheet.name}" wirklich löschen?`)) return;
+        if (!(await ask({ title: `Raidsheet „${sheet.name}" löschen?`, action: "Löschen" }))) return;
         try {
             await deleteRaidsheet(csrfToken, sheet.id);
             onChanged(`Raidsheet „${sheet.name}" gelöscht.`);

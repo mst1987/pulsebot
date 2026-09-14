@@ -39,7 +39,7 @@ describe("attendance name lists", () => {
     it("keeps the Discord name reachable in the tooltip", () => {
         expect(body).toMatch(/const title = \[[\s\S]*?p\.character \? discordName/);
         // Both branches (with and without a class/spec profile) carry it.
-        expect(body.match(/title=\{title\}/g) || []).toHaveLength(2);
+        expect(body.match(/data-tip=\{title\}/g) || []).toHaveLength(2);
     });
 
     it("falls back to the Discord name when no character is assigned", () => {

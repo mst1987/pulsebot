@@ -22,6 +22,7 @@ import ManualLootForm from "../components/ManualLootForm";
 import type { ShellContext } from "../components/Shell";
 import { useJobs, useToast } from "../components/Jobs";
 import PageLoader from "../components/PageLoader";
+import { useConfirm } from "../components/ui/Modal";
 
 type Tab = "setup" | "attendance" | "actions" | "loot" | "softres" | "logs";
 const TABS: Tab[] = ["setup", "attendance", "actions", "loot", "softres", "logs"];
@@ -41,7 +42,7 @@ function HeroStat({ label, value, of, tone, fill, title }: {
     title?: string;
 }) {
     return (
-        <div className={`hero-stat${tone ? ` is-${tone}` : ""}`} title={title}>
+        <div className={`hero-stat${tone ? ` is-${tone}` : ""}`} data-tip={title}>
             <span className="hero-stat-label">{label}</span>
             <span className="hero-stat-value">
                 {value}
@@ -110,7 +111,7 @@ function RosterAvatars({ setup }: { setup: RaidDetailData["setup"] }) {
                 const color = p.classColor || "#9aa0aa";
                 const sub = p.specName || p.className;
                 return (
-                    <span key={`${p.name}-${i}`} className="av-item" title={sub ? `${p.name} · ${sub}` : p.name}>
+                    <span key={`${p.name}-${i}`} className="av-item" data-tip={sub ? `${p.name} · ${sub}` : p.name}>
                         <span className="av-name">{p.name}</span>
                         {p.iconUrl
                             ? <img className="av av-ico" src={p.iconUrl} alt={p.specName || p.className || ""} style={{ borderColor: color }} loading="lazy" />
@@ -139,7 +140,7 @@ function PlayerChip({ iconUrl, className, imgTitle, name }: {
     return (
         <>
             {iconUrl
-                ? <img className="setup-ico" src={iconUrl} alt={className || ""} title={imgTitle} loading="lazy" />
+                ? <img className="setup-ico" src={iconUrl} alt={className || ""} data-tip={imgTitle} loading="lazy" />
                 : <span className="setup-ico setup-ico-blank" />}
             <span className="sp-name">{name}</span>
         </>
@@ -173,7 +174,7 @@ function SetupTab({ data }: { data: RaidDetailData }) {
                                 <h4 className="setup-group-head">{g.label}<span className="setup-group-n">{g.players.length}</span></h4>
                                 <div className="setup-group-list">
                                     {g.players.map((p: SetupPlayer, pi) => (
-                                        <span key={pi} className="setup-player" style={{ borderLeftColor: p.classColor || "var(--line)" }} title={p.specName}>
+                                        <span key={pi} className="setup-player" style={{ borderLeftColor: p.classColor || "var(--line)" }} data-tip={p.specName}>
                                             <PlayerChip iconUrl={p.iconUrl} className={p.className} imgTitle={p.specName} name={p.name} />
                                         </span>
                                     ))}
@@ -204,7 +205,7 @@ const SIGNUP_META: Record<SignupStatus, { label: string; icon: () => JSX.Element
 function StatusIcon({ status }: { status: SignupStatus }) {
     const meta = SIGNUP_META[status];
     const Icon = meta.icon;
-    return <span className={`sig-ico sig-${status}`} aria-label={meta.label} title={meta.label}><Icon /></span>;
+    return <span className={`sig-ico sig-${status}`} aria-label={meta.label} data-tip={meta.label}><Icon /></span>;
 }
 
 /** One person as a rolebox, optionally led by their signup-status icon. */
@@ -218,9 +219,9 @@ function PersonBox({ p, status }: { p: AttendancePerson; status?: SignupStatus }
         p.character ? discordName : "",
     ].filter(Boolean).join(" · ");
     const icon = status ? <StatusIcon status={status} /> : null;
-    if (!prof) return <span className="rolebox" title={title}>{icon}{label}</span>;
+    if (!prof) return <span className="rolebox" data-tip={title}>{icon}{label}</span>;
     return (
-        <span className="rolebox setup-player" style={{ borderLeftColor: prof.classColor || "var(--line)" }} title={title}>
+        <span className="rolebox setup-player" style={{ borderLeftColor: prof.classColor || "var(--line)" }} data-tip={title}>
             {icon}
             <PlayerChip iconUrl={prof.iconUrl} className={prof.className} name={label} />
         </span>
@@ -408,14 +409,14 @@ function HeaderActions({ data, eventId, csrfToken, onSwitchTab, onDone }: {
                 <>
                     <a
                         className="btn btn-ghost" href={sheetLink.url} target="_blank" rel="noopener noreferrer"
-                        title={sheetLink.source === "category"
+                        data-tip={sheetLink.source === "category"
                             ? `Festes Sheet dieser Kategorie${sheetLink.name ? `: ${sheetLink.name}` : ""}`
                             : "Für diesen Raid gefülltes Sheet"}
                     >
                         <SheetIcon />Sheet öffnen
                     </a>
                     <button
-                        className="btn btn-ghost" type="button" disabled={busy} title={`Sheet-Link in #${channelLabel} posten`}
+                        className="btn btn-ghost" type="button" disabled={busy} data-tip={`Sheet-Link in #${channelLabel} posten`}
                         onClick={() => run(() => postRaidSheet(csrfToken, { event: eventId }))}
                     >
                         <SendIcon />Sheet posten
@@ -428,7 +429,7 @@ function HeaderActions({ data, eventId, csrfToken, onSwitchTab, onDone }: {
                         <LinkIcon />Softres öffnen
                     </a>
                     <button
-                        className="btn btn-ghost" type="button" disabled={busy} title={`Softres-Link in #${channelLabel} posten`}
+                        className="btn btn-ghost" type="button" disabled={busy} data-tip={`Softres-Link in #${channelLabel} posten`}
                         onClick={() => run(() => postRaidSoftres(csrfToken, { event: eventId }))}
                     >
                         <SendIcon />Softres posten
@@ -1070,10 +1071,11 @@ function LootTab({ data, eventId, csrfToken, onChanged }: {
     csrfToken: string | null;
     onChanged: (msg: string) => void;
 }) {
+    const ask = useConfirm();
     const [busy, setBusy] = useState(false);
 
     const clear = async () => {
-        if (!confirm("Gesamten Loot dieses Events löschen?")) return;
+        if (!(await ask({ title: "Event-Loot löschen?", text: "Der gesamte Loot dieses Events wird gelöscht.", action: "Löschen" }))) return;
         setBusy(true);
         try {
             const r = await clearHistoryEvent(csrfToken, eventId);
@@ -1174,7 +1176,7 @@ function LogRow({ l, runningSections, unlinkBusy, onEvaluate, onReset, onUnlink 
                             <button
                                 type="button"
                                 className="pill-x"
-                                title={`${a.label}-Auswertung verwerfen (kann danach neu gestartet werden)`}
+                                data-tip={`${a.label}-Auswertung verwerfen (kann danach neu gestartet werden)`}
                                 aria-label={`${a.label}-Auswertung verwerfen`}
                                 onClick={() => onReset(a.key)}
                             >×</button>
@@ -1190,7 +1192,7 @@ function LogRow({ l, runningSections, unlinkBusy, onEvaluate, onReset, onUnlink 
                             key={a.key}
                             className={`btn btn-run btn-sm${running ? " is-running" : ""}`}
                             type="button"
-                            title={running ? `${a.label}-Auswertung läuft im Hintergrund` : a.title}
+                            data-tip={running ? `${a.label}-Auswertung läuft im Hintergrund` : a.title}
                             disabled={running}
                             onClick={() => onEvaluate(a.key)}
                         >
@@ -1200,7 +1202,7 @@ function LogRow({ l, runningSections, unlinkBusy, onEvaluate, onReset, onUnlink 
                     );
                 })}
                 {reportHref ? <a className="btn btn-ghost btn-sm" href={reportHref}><ExternalIcon />Öffnen</a> : null}
-                <button className="btn btn-ghost btn-sm" type="button" disabled={unlinkBusy} title="Zuordnung entfernen" onClick={onUnlink}>✕</button>
+                <button className="btn btn-ghost btn-sm" type="button" disabled={unlinkBusy} data-tip="Zuordnung entfernen" onClick={onUnlink}>✕</button>
             </div>
         </div>
     );
@@ -1212,6 +1214,7 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
     csrfToken: string | null;
     onChanged: (msg: string) => void;
 }) {
+    const ask = useConfirm();
     const jobs = useJobs();
     // "<logId>:<section>" per analysis started here and still going — cosmetic and
     // page-local; the job itself lives in JobsProvider and outlives this page.
@@ -1232,7 +1235,7 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
                 message: r.alreadyEvaluated ? `${label}-Auswertung lag bereits vor.` : `${label}-Auswertung erstellt.`,
                 link: r.url ? { href: r.url, label: "Report ansehen ↗", external: true } : undefined,
             }),
-        }, () => withIncompleteConfirm((force) => evalLog(csrfToken, l.id, section, { force }))).then(() => {
+        }, () => withIncompleteConfirm(ask, (force) => evalLog(csrfToken, l.id, section, { force }))).then(() => {
             setRunning((keys) => keys.filter((k) => k !== key));
             onChanged("");
         });
@@ -1240,7 +1243,7 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
 
     const reset = async (l: RaidLogRow, section: LogSection) => {
         const label = section.toUpperCase();
-        if (!confirm(`${label}-Auswertung dieses Logs verwerfen? Sie kann danach neu gestartet werden.`)) return;
+        if (!(await ask({ title: `${label}-Auswertung verwerfen?`, text: "Die Auswertung dieses Logs wird verworfen und kann danach neu gestartet werden.", action: "Verwerfen" }))) return;
         try {
             const r = await resetEval(csrfToken, l.id, section);
             onChanged(r.message);
@@ -1250,7 +1253,7 @@ function LogsTab({ data, eventId, csrfToken, onChanged }: {
     };
 
     const unlink = async (l: RaidLogRow) => {
-        if (!confirm("Zuordnung zu diesem Raid entfernen?")) return;
+        if (!(await ask({ title: "Zuordnung entfernen?", text: "Die Zuordnung zu diesem Raid wird entfernt.", action: "Entfernen" }))) return;
         setUnlinkBusyId(l.id);
         try {
             const r = await unlinkLog(csrfToken, l.id);
@@ -1385,7 +1388,7 @@ export default function RaidDetailPage() {
 
             <header className="page-hero">
                 <div className="hero-main">
-                    <div className="hero-date" title={when?.full || undefined}>
+                    <div className="hero-date" data-tip={when?.full || undefined}>
                         <span className="hero-date-dow">{when?.weekday || "—"}</span>
                         <span className="hero-date-day">{when?.day || "··"}</span>
                         <span className="hero-date-mon">{when ? `${when.month} ${when.year}` : ""}</span>

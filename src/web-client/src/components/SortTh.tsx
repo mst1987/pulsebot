@@ -3,8 +3,9 @@
 // keyboard/screen-reader semantics are the same everywhere.
 //
 // `aria-sort` is what tells a screen reader that the column is sorted and in
-// which direction — the ▲/▼ glyph alone is decoration it never announces.
+// which direction — the chevron alone is decoration it never announces.
 import type { Dir } from "../lib/tableSort";
+import { ChevronDownIcon } from "./icons";
 
 export type SortLabelProps<K extends string> = {
     sortKey: K;
@@ -12,24 +13,28 @@ export type SortLabelProps<K extends string> = {
     sort: K;
     dir: Dir;
     onSort: (key: K) => void;
-    title?: string;
+    /** What the column means — shown in the tooltip box, not as a native title. */
+    tip?: string;
+    tipSub?: string;
 };
 
 /**
  * The button alone, for a sortable header that is not a `<th>` — the loot
  * council's roster is a list of blocks with a grid header above it, and a
- * table cell has no place there. Same glyph, same active state.
+ * table cell has no place there. Same chevron, same active state.
  */
-export function SortLabel<K extends string>({ sortKey, label, sort, dir, onSort, title }: SortLabelProps<K>) {
+export function SortLabel<K extends string>({ sortKey, label, sort, dir, onSort, tip, tipSub }: SortLabelProps<K>) {
     const active = sort === sortKey;
     return (
         <button
             type="button"
-            className={`sort-link${active ? " active" : ""}`}
-            title={title}
+            className={`sort-link${active ? " active" : ""}${tip ? " tipped" : ""}`}
+            data-tip={tip}
+            data-tip-sub={tipSub}
             onClick={() => onSort(sortKey)}
         >
-            {label}{active ? (dir === "asc" ? " ▲" : " ▼") : ""}
+            {label}
+            {active && <span className={`sort-chev${dir === "asc" ? " asc" : ""}`} aria-hidden="true"><ChevronDownIcon /></span>}
         </button>
     );
 }

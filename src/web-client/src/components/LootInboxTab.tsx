@@ -17,6 +17,7 @@ import {
 import { fmtMs, formatEventTime } from "../lib/format";
 import { LootTable } from "./LootTable";
 import { useToast } from "./Jobs";
+import { useConfirm } from "./ui/Modal";
 
 /** "20:00 – 23:10" for a session's span; just the start when it has no end. */
 function timeSpan(s: InboxSession): string {
@@ -35,6 +36,7 @@ function SessionCard({ session, events, categories, csrfToken, onDone }: {
     csrfToken: string | null;
     onDone: (msg: string) => void;
 }) {
+    const ask = useConfirm();
     const match = session.match;
     // Preselect the suggestion; an ambiguous day deliberately preselects nothing
     // so nobody confirms a coin flip by reflex.
@@ -63,10 +65,7 @@ function SessionCard({ session, events, categories, csrfToken, onDone }: {
     };
 
     const dismiss = async () => {
-        if (!window.confirm(
-            `Session vom ${fmtMs(session.startedAt)} mit ${session.itemCount} Item(s) verwerfen?`
-            + "\n\nSie wird nicht erneut angeboten, auch wenn das Addon sie nochmal hochlädt.",
-        )) return;
+        if (!(await ask({ title: "Session verwerfen?", text: `Session vom ${fmtMs(session.startedAt)} mit ${session.itemCount} Item(s). Sie wird nicht erneut angeboten, auch wenn das Addon sie nochmal hochlädt.`, action: "Verwerfen" }))) return;
         setBusy("dismiss");
         try {
             await dismissLootInbox(csrfToken, session.id);
@@ -88,7 +87,7 @@ function SessionCard({ session, events, categories, csrfToken, onDone }: {
                             nicht vom Addon kam — sonst liest er sich wie eine
                             Tatsache, die niemand mehr hinterfragt. */}
                         {session.contentSource === "items" && (
-                            <> · <span title={`Aus ${session.contentMatched} von ${session.itemCount} Item-IDs erkannt`}>
+                            <> · <span data-tip={`Aus ${session.contentMatched} von ${session.itemCount} Item-IDs erkannt`}>
                                 Raid aus den Items erkannt
                             </span></>
                         )}
