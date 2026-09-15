@@ -236,12 +236,15 @@ jest.mock("../../src/web/raidListing", () => ({
 const mockGetTemplates = jest.fn(() => Promise.resolve([]));
 const mockCreateEvent = jest.fn(() => Promise.resolve({ id: "ev1" }));
 const mockGetPastEvents = jest.fn(() => Promise.resolve([]));
+// The clone asks Raid-Helper for the one event it needs, by id.
+const mockGetEvent = jest.fn(() => Promise.resolve(null));
 const mockGetSetup = jest.fn(() => Promise.resolve({ setup: [] }));
 jest.mock("../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({
         getTemplates: mockGetTemplates,
         createEvent: mockCreateEvent,
         getPastEvents: mockGetPastEvents,
+        getEvent: mockGetEvent,
         getSetup: mockGetSetup,
     })));
 jest.mock("../../src/web/eventSheetStore", () => ({
@@ -1487,14 +1490,15 @@ describe("web/apiRouter", () => {
             expect(body(res)).toEqual({ data: { id: "ev1" } });
         });
 
-        it("clones the source event's channel when sourceEventId is given", async () => {
+        // The clone needs one thing from the source event: its channel. It is
+        // asked for BY ID — the window scan it used to be looked up in could
+        // drop it between opening the dialog and pressing the button, which is
+        // what "Ausgangs-Event nicht gefunden" used to mean.
+        it("clones the channel Raid-Helper names for the source event", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             auth.checkCsrf.mockReturnValue(true);
             activeGuildFor.mockReturnValue("guild-1");
-            raidEventGroups.loadEventGroups.mockResolvedValue({
-                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", channelId: "c-old" }] }],
-                error: null,
-            });
+            mockGetEvent.mockResolvedValue({ id: "e1", channelId: "c-old" });
             discord.duplicateChannel.mockResolvedValue({ id: "c-new", name: "kara-clone" });
             mockCreateEvent.mockResolvedValue({ id: "ev2" });
 
@@ -1502,9 +1506,60 @@ describe("web/apiRouter", () => {
                 date: "2026-07-12", time: "20:00", title: "Kara", sourceEventId: "e1", channelName: "kara-clone",
             });
 
+            expect(mockGetEvent).toHaveBeenCalledWith("e1");
             expect(discord.duplicateChannel).toHaveBeenCalledWith("c-old", "kara-clone");
             expect(mockCreateEvent).toHaveBeenCalledWith(expect.objectContaining({ channelId: "c-new" }));
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
+            // no window scan needed for a clone any more
+            expect(raidEventGroups.loadEventGroups).not.toHaveBeenCalled();
+        });
+
+        it("falls back to the stored snapshot when Raid-Helper does not know the event", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            mockGetEvent.mockResolvedValue(null);
+            raidEventStore.getRaidEvent.mockReturnValue({ id: "e1", channelId: "c-snap" });
+            discord.duplicateChannel.mockResolvedValue({ id: "c-new" });
+            mockCreateEvent.mockResolvedValue({ id: "ev2" });
+
+            await post("/api/raids", { date: "2026-07-12", time: "20:00", sourceEventId: "e1", channelName: "kara-clone" });
+
+            expect(discord.duplicateChannel).toHaveBeenCalledWith("c-snap", "kara-clone");
+        });
+
+        it("falls back to the window scan for an event whose channel Discord lost", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            mockGetEvent.mockResolvedValue(null);
+            raidEventStore.getRaidEvent.mockReturnValue(null);
+            raidEventGroups.loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", channelId: "c-old" }] }],
+                error: null,
+            });
+            discord.duplicateChannel.mockResolvedValue({ id: "c-new" });
+            mockCreateEvent.mockResolvedValue({ id: "ev2" });
+
+            await post("/api/raids", { date: "2026-07-12", time: "20:00", sourceEventId: "e1", channelName: "kara-clone" });
+
+            expect(discord.duplicateChannel).toHaveBeenCalledWith("c-old", "kara-clone");
+        });
+
+        it("tells an unreachable Raid-Helper apart from an event that is gone", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            raidEventStore.getRaidEvent.mockReturnValue(null);
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
+
+            mockGetEvent.mockResolvedValue(null);
+            const gone = await post("/api/raids", { date: "2026-07-12", time: "20:00", sourceEventId: "e1", channelName: "x" });
+            expect(gone.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(gone).error.code).toBe("source_not_found");
+
+            mockGetEvent.mockRejectedValue(new Error("ETIMEDOUT"));
+            const down = await post("/api/raids", { date: "2026-07-12", time: "20:00", sourceEventId: "e1", channelName: "x" });
+            expect(body(down).error.code).toBe("raidhelper_unreachable");
+            expect(body(down).error.message).toMatch(/Raid-Helper antwortet gerade nicht/);
+            expect(mockCreateEvent).not.toHaveBeenCalled();
         });
 
         it("returns 400 with Raid-Helper's reason when it rejects the event", async () => {

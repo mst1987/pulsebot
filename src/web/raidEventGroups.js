@@ -33,6 +33,17 @@ function cacheKeyFor(sinceSeconds) {
     return sinceSeconds ? `since:${Math.floor(sinceSeconds / 300)}` : "upcoming";
 }
 
+// ⚠️ The last-good fallback is keyed by the SHAPE of the request, not by that
+// bucket. Keyed by the bucket it fell away every five minutes — exactly when it
+// is needed, since a Raid-Helper outage rarely lines up with the bucket it
+// started in: the first failing call after the roll found nothing to fall back
+// to and every page that touches events reported "keine Events", "Ausgangs-Event
+// nicht gefunden" and the like. There is nothing to lose here: a lookback list
+// from five minutes ago is the same list.
+function shapeKeyFor(sinceSeconds) {
+    return sinceSeconds ? "since" : "upcoming";
+}
+
 // Raw Raid-Helper event list for one request shape, cached. Returns
 // { events, stale } — `stale` is true only when a fresh fetch failed and the
 // last known-good result for this shape was served instead. Throws only when
@@ -40,6 +51,7 @@ function cacheKeyFor(sinceSeconds) {
 // with Raid-Helper already down).
 async function fetchEventsCached(sinceSeconds) {
     const key = cacheKeyFor(sinceSeconds);
+    const shape = shapeKeyFor(sinceSeconds);
     const now = Date.now();
     const cached = cacheBySince.get(key);
     if (cached && now - cached.at < EVENTS_CACHE_TTL_MS) return { events: cached.events, stale: false };
@@ -48,10 +60,10 @@ async function fetchEventsCached(sinceSeconds) {
         const events = sinceSeconds ? await rh.fetchEvents(sinceSeconds) : await rh.getAllEvents();
         const entry = { at: now, events };
         cacheBySince.set(key, entry);
-        lastGoodBySince.set(key, entry);
+        lastGoodBySince.set(shape, entry);
         return { events, stale: false };
     } catch (e) {
-        const good = lastGoodBySince.get(key);
+        const good = lastGoodBySince.get(shape);
         if (good) return { events: good.events, stale: true };
         throw e;
     }
