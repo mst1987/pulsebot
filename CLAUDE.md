@@ -293,6 +293,14 @@ Access is **per area** (one admin-menu section) and **per level** (`read` = open
 
 **Rights can also go to one named account**, not just to a role: `config.userPermissions` is `{ [userId]: { [areaId]: { read, write } } }` — the same shape as `rolePermissions`, keyed by Discord user id, edited in Einstellungen → *Berechtigungen* under "Einzelne Konten" and unioned in exactly like the base access (it can only widen). It exists for areas that go to named people rather than to a group; inventing a Discord role for two players is a second list to keep in sync. Like the base access it is resolved **without Discord** (`BASE_ACCESS(userId)` in `auth.js`), so such a grant survives an offline bot, and it is full-admin-only (`ACCESS_KEYS`).
 
+### Roster (`roster` area)
+
+Every known character of the guild, grouped by raid category (design #218). Three things about the list itself:
+
+- **The column heads are the sort control** (`SortLabel`, the same one the loot council's grid uses), and the sort is applied **per group**, because the attendance column measures against *that* category — a roster sorted by attendance across groups would compare Monday's raid with the pug night. The sort lives in its own store (`useTableSort("roster-sort", …)`), the rest of the view (search, role, class, spec, open groups, which list) in `usePersistedState("roster-view", …)`.
+- **Class chips, then spec pills.** The spec row appears only once a class is picked and lists the specs that class actually has in the roster — thirty specs at once is not a filter. A stored spec the current class does not have filters nothing instead of emptying the page.
+- **Characters can be taken off the roster** (`src/web/rosterHiddenStore.js`, `POST /api/roster/hide`, `data/settings/roster-hidden.json`). A roster built from loot and logs keeps everyone who ever raided, and "40 % Anwesenheit" over a guild half of whom left says nothing about the half that is still here. Hiding **deletes nothing** — loot history, evaluations and the character page stay whole; `GET /api/roster` simply answers with `chars` (the roster) and `hiddenChars` (with the note who hid them and when) apart, and `stats` counts only the former. The page's "Ausgeblendet" tab lists them and puts them back. Like the council's exclude list this is an explicit decision, never a rule such as "nobody who has not raided in 60 days" — the difference between *gone* and *was ill* is one only a person knows.
+
 ### Loot-Council (`lootcouncil` area)
 
 The caster loot council: per raider, what they were given lately, how far their gear still is from BiS, and what a given drop would be worth to them — the page a council argues over when a boss dies. `src/web/lootCouncil.js` derives all of it **on read** from data the bot already keeps; nothing is stored.

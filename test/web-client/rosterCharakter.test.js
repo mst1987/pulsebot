@@ -53,10 +53,38 @@ describe("roster page", () => {
         expect(roster).not.toContain('type="checkbox"');
     });
 
-    it("persists a view without category/classSpec/sort, with role, and validates what it reads", () => {
-        expect(roster).toMatch(/type View = \{ search: string; role: RoleFilter; className: string; onlyIssues: boolean; open: string\[\] \| null \};/);
+    it("persists a view without category/classSpec, with role, spec and list, and validates what it reads", () => {
+        expect(roster).toMatch(/type View = \{ search: string; role: RoleFilter; className: string; spec: string; onlyIssues: boolean; tab: Tab; open: string\[\] \| null \};/);
         expect(roster).toContain('usePersistedState<View>("roster-view", VIEW_DEFAULT)');
         expect(roster).toContain('ROLE_FILTERS.includes(stored.role) ? stored.role : "all"');
+        expect(roster).toContain('stored.tab === "hidden" ? "hidden" : "active"');
+        // the sort lives in its own store, like every other table's
+        expect(roster).toContain('useTableSort<SortKey>("roster-sort", SORT_DEFAULTS, "name")');
+    });
+
+    // Sorting, the spec filter and hiding someone (Sept 2026).
+    it("sorts by column head, inside each group, against that group's attendance", () => {
+        expect(roster).toContain("<SortLabel<SortKey>");
+        expect(roster).toMatch(/case "attendance": return c\.attendance\?\.\[id\]\?\.pct \?\? -1;/);
+        for (const key of ["name", "role", "attendance", "gear", "loot"]) expect(roster).toContain(`head("${key}"`);
+    });
+
+    it("filters by spec with pills under the class chips, and only for the chosen class", () => {
+        expect(roster).toContain('className={`rc-spec${on ? " is-on" : ""}`}');
+        expect(roster).toContain("{!!view.className && specCounts.length > 1 && (");
+        // a stored spec the current class does not have filters nothing
+        expect(roster).toContain("const activeSpec = specCounts.some(([spec]) => spec === view.spec) ? view.spec : \"\";");
+    });
+
+    it("hides a character into its own list instead of deleting anything", () => {
+        expect(roster).toContain("<Segment<Tab>");
+        expect(roster).toContain("setRosterHidden(csrfToken, c.character, hide)");
+        expect(roster).toContain("<EyeOffIcon />");
+        expect(roster).toContain("<EyeIcon />");
+        // behind a confirm, and only with write access
+        expect(roster).toMatch(/await ask\(\{\s*\n\s*title: "Charakter ausblenden\?"/);
+        expect(roster).toContain('const canWrite = canAccess(user, "roster", "write");');
+        expect(roster).toContain("onHide={canWrite ? toggleHidden : undefined}");
     });
 
     it("makes the gear-problem KPI the filter switch", () => {

@@ -1,8 +1,11 @@
-const { ok } = require("../apiResponse");
-const { requireAdmin } = require("../apiMiddleware");
+const { ok, error: apiError } = require("../apiResponse");
+const { requireAdmin, requireCsrf } = require("../apiMiddleware");
+const { readJsonBody } = require("../apiBody");
+const { userCan } = require("../../config/permissions");
 const { activeGuildFor } = require("../activeGuild");
 const { buildRoster, rosterCharacter } = require("../roster");
 const { rosterStats } = require("../rosterStats");
+const rosterHidden = require("../rosterHiddenStore");
 const { repairItemNames: repairLootItemNames } = require("../lootStore");
 const { sourceForItem, content, tier } = require("../../config/tbcContent");
 const { bisSpecsView } = require("../lootCouncil");
@@ -19,9 +22,53 @@ async function getRoster(req, res) {
     await repairLootItemNames();
     const guildId = activeGuildFor(req);
     const { chars, categories, categoryInfo } = buildRoster(guildId);
+    // Characters somebody took off the roster (left the guild, one-off alt) go
+    // out in their own list instead of being dropped: the page's "Ausgeblendet"
+    // tab lists them and puts them back. The stats describe the roster that is
+    // left — an attendance average over people who are gone says nothing about
+    // the raid that is still running.
+    const hidden = rosterHidden.listHidden();
+    const isHidden = (c) => !!hidden[rosterHidden.characterKey(c.character)];
+    const active = chars.filter((c) => !isHidden(c));
+    const hiddenChars = chars.filter(isHidden).map((c) => ({ ...c, hidden: hidden[rosterHidden.characterKey(c.character)] }));
     // Aggregated server-side so the header band and the table can never
     // disagree, and so the numbers are covered by the test suite.
-    ok(res, { chars, categories, categoryInfo, stats: rosterStats(chars), activeGuildId: guildId });
+    ok(res, {
+        chars: active,
+        hiddenChars,
+        categories,
+        categoryInfo,
+        stats: rosterStats(active),
+        activeGuildId: guildId,
+    });
+}
+
+/**
+ * POST /api/roster/hide — take a character off the roster, or put it back.
+ * Body: { character, hide: boolean, reason? }
+ *
+ * Nothing is deleted: the loot history, the evaluations and the character page
+ * stay whole, the roster page simply stops listing them (see rosterHiddenStore).
+ */
+async function postRosterHide(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!userCan(user, "roster", "write")) return apiError(res, 403, "Kein Schreibzugriff auf das Roster.");
+    if (!requireCsrf(req, res)) return;
+
+    const body = await readJsonBody(req);
+    const character = String(body.character || "").trim();
+    if (!character) return apiError(res, 400, "Kein Charakter angegeben.");
+
+    if (body.hide === false) {
+        const removed = rosterHidden.unhide(character);
+        return ok(res, { character, hidden: false, changed: removed });
+    }
+    const entry = rosterHidden.hide(character, {
+        reason: String(body.reason || "").trim(),
+        by: user.name || user.id,
+    });
+    ok(res, { character, hidden: true, entry });
 }
 
 /**
@@ -71,4 +118,4 @@ async function getRosterChar(req, res, url) {
     });
 }
 
-module.exports = { getRoster, getRosterChar, itemFacts, MAX_ITEM_IDS };
+module.exports = { getRoster, postRosterHide, getRosterChar, itemFacts, MAX_ITEM_IDS };

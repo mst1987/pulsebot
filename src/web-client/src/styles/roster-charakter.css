@@ -48,7 +48,20 @@
 
 /* ---- the list panel: filters, groups, rows ---- */
 .rc-panel { padding: 0; }
+/* the two lists: the roster, and who was taken off it */
+.rc-tabs { display: flex; padding: 12px 14px 0; }
 .rc-filters { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+/* the spec pills under the class chips — same gesture, text instead of an icon */
+.rc-specs-row { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--panel2); }
+.rc-spec {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--bg); color: var(--muted); font: 600 12.5px/1.6 inherit;
+    transition: border-color .12s ease, color .12s ease, box-shadow .12s ease;
+}
+.rc-spec b { font: 700 10.5px/14px var(--font-mono); color: var(--text); }
+.rc-spec:hover { border-color: var(--accent); color: var(--text); }
+.rc-spec:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.rc-spec.is-on { border-color: var(--accent); color: var(--text); box-shadow: 0 0 0 2px var(--accent-soft); }
 .rc-search {
     display: flex; align-items: center; gap: 8px; min-height: var(--ctl-h); padding: 0 12px; width: 230px; max-width: 100%;
     border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--bg); color: var(--muted);
@@ -80,10 +93,13 @@
 
 .rc-cols, .rc-row {
     display: grid; align-items: center; gap: 12px; padding: 8px 14px;
-    grid-template-columns: 34px minmax(160px, 1fr) 104px 188px 150px 72px 72px 104px;
+    /* the links column carries the third action (ausblenden) since #244 */
+    grid-template-columns: 34px minmax(160px, 1fr) 104px 188px 150px 72px 110px 104px;
 }
 .rc-cols { background: var(--panel2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-.rc-cols > span { font: 600 11.5px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); white-space: nowrap; }
+/* the heads are sort buttons now (SortLabel), so they carry the head type too */
+.rc-cols > span, .rc-cols > .sort-link { font: 600 11.5px/1.3 var(--font-mono); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); white-space: nowrap; }
+.rc-cols > .sort-link:hover, .rc-cols > .sort-link.active { color: var(--accent); }
 .rc-cols .tipped { justify-self: start; }
 .rc-cols-links { text-align: right; }
 .rc-row { border-bottom: 1px solid var(--line-soft); }

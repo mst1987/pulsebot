@@ -36,6 +36,7 @@ const AREA_BY_PATH = {
     "/api/raider-characters": "settings",
 
     "/api/roster": "roster",
+    "/api/roster/hide": "roster",
     // The character page's attendance, role and item facts. The page is routed
     // under the roster and under the history, so either area opens it.
     "/api/roster/char": ["roster", "history"],

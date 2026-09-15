@@ -378,6 +378,28 @@ export function CheckIcon() {
     );
 }
 
+/** Take a row out of a list — a pure UI function, so a line icon. */
+export function EyeOffIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.6 6.2A9.9 9.9 0 0 1 12 6c5 0 9 4.5 9 6a10.7 10.7 0 0 1-2.4 3.3" />
+            <path d="M6.6 8.1C4.4 9.5 3 11.4 3 12c0 1.5 4 6 9 6a9.8 9.8 0 0 0 3.6-.7" />
+            <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+            <path d="m3 3 18 18" />
+        </svg>
+    );
+}
+
+/** …and put it back. */
+export function EyeIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12c0-1.5 4-6 9-6s9 4.5 9 6c0 1.5-4 6-9 6s-9-4.5-9-6z" />
+            <circle cx="12" cy="12" r="2.6" />
+        </svg>
+    );
+}
+
 /** The toast's "failed" status dot. */
 export function AlertIcon() {
     return (
