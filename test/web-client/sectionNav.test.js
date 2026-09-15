@@ -21,8 +21,9 @@ const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
 
+// LF regardless of the checkout: git's autocrlf hands Windows the files with CRLF, and the patterns below match on \n
 function readClient(...parts) {
-    return fs.readFileSync(path.join(CLIENT, ...parts), "utf8");
+    return fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
 }
 
 const sectionsSrc = readClient("lib", "settingsSections.ts");
