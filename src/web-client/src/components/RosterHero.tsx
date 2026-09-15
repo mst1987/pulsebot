@@ -33,14 +33,14 @@ function Kpi({ icon, tone, label, tip, tipSub, value, of, meter, onClick, active
     const body = (
         <>
             <IconTile icon={icon} tone={tileTone} />
-            <span className="rc-kpi-body">
-                <span className="rc-kpi-label" data-tip={tip} data-tip-sub={tipSub}>{label}</span>
-                <span className="rc-kpi-value">{value}{of !== undefined && <span className="rc-kpi-of">{of}</span>}</span>
-                {meter !== undefined && <span className="rc-meter" aria-hidden="true"><i style={{ width: `${meter}%` }} /></span>}
+            <span className="ros-kpi-body">
+                <span className="ros-kpi-label" data-tip={tip} data-tip-sub={tipSub}>{label}</span>
+                <span className="ros-kpi-value">{value}{of !== undefined && <span className="ros-kpi-of">{of}</span>}</span>
+                {meter !== undefined && <span className="ros-meter" aria-hidden="true"><i style={{ width: `${meter}%` }} /></span>}
             </span>
         </>
     );
-    const cls = `rc-kpi is-${tone}${onClick ? " is-toggle" : ""}${active ? " is-active" : ""}`;
+    const cls = `ros-kpi is-${tone}${onClick ? " is-toggle" : ""}${active ? " is-active" : ""}`;
     if (!onClick) return <div className={cls}>{body}</div>;
     return <button type="button" className={cls} aria-pressed={active} onClick={onClick}>{body}</button>;
 }
@@ -54,7 +54,7 @@ export function RosterKpis({ stats, onlyIssues, onToggleIssues }: {
     const avgLoot = total ? Math.round((loot / total) * 10) / 10 : 0;
     const attTone = attendanceTone(avgAttendance);
     return (
-        <div className="rc-kpis">
+        <div className="ros-kpis">
             <Kpi
                 icon="achievement_guildperk_everybodysfriend"
                 tone="accent"

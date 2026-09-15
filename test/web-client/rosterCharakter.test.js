@@ -70,7 +70,7 @@ describe("roster page", () => {
     });
 
     it("filters by spec with pills under the class chips, and only for the chosen class", () => {
-        expect(roster).toContain('className={`rc-spec${on ? " is-on" : ""}`}');
+        expect(roster).toContain('className={`ros-spec${on ? " is-on" : ""}`}');
         expect(roster).toContain("{!!view.className && specCounts.length > 1 && (");
         // a stored spec the current class does not have filters nothing
         expect(roster).toContain("const activeSpec = specCounts.some(([spec]) => spec === view.spec) ? view.spec : \"\";");
@@ -100,7 +100,7 @@ describe("roster page", () => {
     });
 
     it("draws attendance as a fixed-width bar toned ok ≥ 80 / mid ≥ 60 / bad", () => {
-        expect(css).toMatch(/\.bar\.rc-bar \{ width: 188px;/);
+        expect(css).toMatch(/\.bar\.ros-bar \{ width: 188px;/);
         expect(view).toMatch(/if \(pct >= 80\) return "ok";\s*if \(pct >= 60\) return "mid";\s*return "bad";/);
     });
 

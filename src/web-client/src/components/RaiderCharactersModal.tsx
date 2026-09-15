@@ -73,10 +73,10 @@ export default function RaiderCharactersModal({ categoryId, categoryName, csrfTo
             {info && info.membersError && <div className="empty is-bad">Mitglieder konnten nicht geladen werden: {info.membersError}</div>}
             {info && !!info.roleIds.length && !info.membersError && (
                 !info.members.length ? <div className="empty">Keine Mitglieder mit den zugeordneten Rollen gefunden.</div> : (
-                    <div className="rc-list">
+                    <div className="rch-list">
                         {info.members.map((m) => (
-                            <label className="rc-row" key={m.id}>
-                                <span className="rc-name">{m.displayName}</span>
+                            <label className="rch-row" key={m.id}>
+                                <span className="rch-name">{m.displayName}</span>
                                 <input
                                     type="text"
                                     list="raider-characters-known"

@@ -78,9 +78,9 @@ function averageItemLevel(data: HistoryCharData): number {
 
 function HeroStat({ label, tip, tipSub, tone, children }: { label: string; tip: string; tipSub?: string; tone?: "total" | "ok" | "mid" | "warn"; children: ReactNode }) {
     return (
-        <div className={`rc-hstat${tone ? ` is-${tone}` : ""}`}>
-            <span className="rc-hstat-label" data-tip={tip} data-tip-sub={tipSub}>{label}</span>
-            <span className="rc-hstat-value">{children}</span>
+        <div className={`ros-hstat${tone ? ` is-${tone}` : ""}`}>
+            <span className="ros-hstat-label" data-tip={tip} data-tip-sub={tipSub}>{label}</span>
+            <span className="ros-hstat-value">{children}</span>
         </div>
     );
 }
@@ -97,21 +97,21 @@ function CharHero({ data, roster, loading, onReload }: { data: HistoryCharData; 
     const when = gear?.generatedAt ? fmtMs(gear.generatedAt, false) : "";
 
     return (
-        <header className="dash-card rc-hero" style={{ "--class-color": info?.classColor || undefined } as CSSProperties}>
-            <div className="rc-hero-main">
-                <div className="rc-portrait">
+        <header className="dash-card ros-hero" style={{ "--class-color": info?.classColor || undefined } as CSSProperties}>
+            <div className="ros-hero-main">
+                <div className="ros-portrait">
                     {info?.className
                         ? <WowIcon name={`classicon_${info.className.toLowerCase()}`} size={46} />
-                        : <span className="rc-portrait-ph">{(data.character || "?").slice(0, 1).toUpperCase()}</span>}
-                    {!!summary?.level && <span className="rc-lvl" data-tip="Level" data-tip-sub="Laut Battle.net-Profil.">{summary.level}</span>}
+                        : <span className="ros-portrait-ph">{(data.character || "?").slice(0, 1).toUpperCase()}</span>}
+                    {!!summary?.level && <span className="ros-lvl" data-tip="Level" data-tip-sub="Laut Battle.net-Profil.">{summary.level}</span>}
                 </div>
-                <div className="rc-hero-ident">
+                <div className="ros-hero-ident">
                     <div className="kicker">Charakter</div>
-                    <h1 className="rc-hero-title">{data.character}</h1>
-                    <div className="rc-hero-sub">
+                    <h1 className="ros-hero-title">{data.character}</h1>
+                    <div className="ros-hero-sub">
                         {info?.className
                             ? (
-                                <span className={`rc-hero-class ${colored.className || ""}`} style={colored.style}>
+                                <span className={`ros-hero-class ${colored.className || ""}`} style={colored.style}>
                                     {!!info.iconUrl && <img src={info.iconUrl} alt="" />}
                                     {info.spec ? `${info.spec} ${info.className}` : info.className}
                                 </span>
@@ -126,7 +126,7 @@ function CharHero({ data, roster, loading, onReload }: { data: HistoryCharData; 
                         ))}
                     </div>
                 </div>
-                <div className="rc-hero-actions">
+                <div className="ros-hero-actions">
                     <IconLink href={data.wclUrl} icon="inv_misc_pocketwatch_01" tip="Warcraft Logs" size="md" />
                     <IconLink href={data.armoryUrl} icon="inv_shirt_guildtabard_01" tip="Armory" size="md" />
                     {data.gearConfigured
@@ -134,7 +134,7 @@ function CharHero({ data, roster, loading, onReload }: { data: HistoryCharData; 
                         : <Link className={buttonClass("ghost", "md", true)} to="/settings?section=battlenet"><WowIcon name="trade_engineering" size={22} />Battle.net einrichten</Link>}
                 </div>
             </div>
-            <div className="rc-hero-foot">
+            <div className="ros-hero-foot">
                 <HeroStat
                     label="Ø iLvl"
                     tone="total"
@@ -164,7 +164,7 @@ function CharHero({ data, roster, loading, onReload }: { data: HistoryCharData; 
                 <HeroStat label="Loot" tip="Importierte Items" tipSub="Aus den Gargul-/RCLootcouncil-Importen.">
                     {data.items.length}<small>Items</small>
                 </HeroStat>
-                {!!summary?.lastLogin && <span className="rc-hero-seen">zuletzt online {nightLabel(summary.lastLogin)}</span>}
+                {!!summary?.lastLogin && <span className="ros-hero-seen">zuletzt online {nightLabel(summary.lastLogin)}</span>}
             </div>
         </header>
     );
@@ -183,11 +183,11 @@ function GearRow({ g, slot, issues, onOpen }: { g?: GearItem; slot: string; issu
     const flagged = issues.some((i) => i.severity === "high");
     if (!g) {
         return (
-            <div className={`rc-gr is-empty${flagged ? " is-flag" : ""}`}>
-                <span className="rc-iw"><span className="rc-iw-ph" /></span>
-                <span className="rc-gb">
-                    <span className="rc-iname">leer</span>
-                    <span className="rc-sline"><span className="rc-slabel">{label}</span></span>
+            <div className={`ros-gr is-empty${flagged ? " is-flag" : ""}`}>
+                <span className="ros-iw"><span className="ros-iw-ph" /></span>
+                <span className="ros-gb">
+                    <span className="ros-iname">leer</span>
+                    <span className="ros-sline"><span className="ros-slabel">{label}</span></span>
                 </span>
                 {issues.map((i, n) => <FindingBadge key={n} issue={i} />)}
             </div>
@@ -204,27 +204,27 @@ function GearRow({ g, slot, issues, onOpen }: { g?: GearItem; slot: string; issu
     return (
         <button
             type="button"
-            className={`rc-gr${flagged ? " is-flag" : ""}`}
+            className={`ros-gr${flagged ? " is-flag" : ""}`}
             onClick={() => onOpen(slot)}
             data-tip={`${g.name || label}${g.level ? ` · iLvl ${g.level}` : ""}`}
             data-tip-sub={tipSub}
         >
-            <span className="rc-iw">
-                {g.iconUrl ? <img src={g.iconUrl} alt="" loading="lazy" style={{ borderColor: color }} /> : <span className="rc-iw-ph" />}
+            <span className="ros-iw">
+                {g.iconUrl ? <img src={g.iconUrl} alt="" loading="lazy" style={{ borderColor: color }} /> : <span className="ros-iw-ph" />}
                 {g.enchants.length
-                    ? <span className="rc-ench ok" aria-label="verzaubert"><CheckIcon /></span>
-                    : enchantable && <span className="rc-ench bad" aria-label="nicht verzaubert"><XIcon /></span>}
-                {!!g.level && <span className="rc-ilvl">{g.level}</span>}
+                    ? <span className="ros-ench ok" aria-label="verzaubert"><CheckIcon /></span>
+                    : enchantable && <span className="ros-ench bad" aria-label="nicht verzaubert"><XIcon /></span>}
+                {!!g.level && <span className="ros-ilvl">{g.level}</span>}
             </span>
-            <span className="rc-gb">
-                <span {...itemQualityProps(g.quality, "rc-iname")}>{g.name || label}</span>
-                <span className="rc-sline">
-                    <span className="rc-slabel">{label}</span>
+            <span className="ros-gb">
+                <span {...itemQualityProps(g.quality, "ros-iname")}>{g.name || label}</span>
+                <span className="ros-sline">
+                    <span className="ros-slabel">{label}</span>
                     {g.sockets.map((s, i) => {
                         const filled = !!(s.gemName || s.gemText);
-                        if (filled && s.gemIconUrl) return <img key={i} className="rc-gem" src={s.gemIconUrl} alt="" loading="lazy" />;
-                        if (filled) return <span key={i} className="rc-gem is-dot" />;
-                        return <img key={i} className="rc-gem is-socket" src={socketIconUrl(s.type)} alt="" loading="lazy" />;
+                        if (filled && s.gemIconUrl) return <img key={i} className="ros-gem" src={s.gemIconUrl} alt="" loading="lazy" />;
+                        if (filled) return <span key={i} className="ros-gem is-dot" />;
+                        return <img key={i} className="ros-gem is-socket" src={socketIconUrl(s.type)} alt="" loading="lazy" />;
                     })}
                 </span>
             </span>
@@ -275,13 +275,13 @@ function GearSection({ data, onOpen }: { data: HistoryCharData; onOpen: (slot: s
         const rest = issues.filter((i) => !matched.has(i));
         body = (
             <>
-                <div className="rc-gear-grid"><div>{left}</div><div>{right}</div></div>
-                <div className="rc-gear-weap">{bottom}{extras}</div>
+                <div className="ros-gear-grid"><div>{left}</div><div>{right}</div></div>
+                <div className="ros-gear-weap">{bottom}{extras}</div>
                 {!!rest.length && (
-                    <div className="rc-gear-rest">
+                    <div className="ros-gear-rest">
                         <span className="kicker">Ohne Slot-Zuordnung</span>
                         {rest.map((i, n) => (
-                            <span key={n} className="rc-rest-row"><span className="rc-iname">{i.itemName || "–"}</span><FindingBadge issue={i} /></span>
+                            <span key={n} className="ros-rest-row"><span className="ros-iname">{i.itemName || "–"}</span><FindingBadge issue={i} /></span>
                         ))}
                     </div>
                 )}
@@ -292,19 +292,19 @@ function GearSection({ data, onOpen }: { data: HistoryCharData; onOpen: (slot: s
         // their own, so the page says what was wrong even without Battle.net.
         body = (
             <>
-                <div className="rc-note">
+                <div className="ros-note">
                     {data.gearConfigured
                         ? (data.gearError || "Kein Live-Gear von der Battle.net-API verfügbar. „Gear neu laden“ fragt erneut ab.")
                         : <>Für Live-Gear den Battle.net-Zugang in den <Link to="/settings?section=battlenet">Einstellungen</Link> hinterlegen.</>}
                 </div>
                 {!!issues.length && (
-                    <div className="rc-gear-grid is-single">
+                    <div className="ros-gear-grid is-single">
                         {issues.map((i, n) => (
-                            <div key={n} className={`rc-gr is-static${i.severity === "high" ? " is-flag" : ""}`}>
-                                <span className="rc-iw">{i.iconUrl ? <img src={i.iconUrl} alt="" loading="lazy" /> : <span className="rc-iw-ph" />}</span>
-                                <span className="rc-gb">
-                                    <span className="rc-iname">{i.itemName || "–"}</span>
-                                    <span className="rc-sline"><span className="rc-slabel">{i.slotName || "Slot unbekannt"}</span></span>
+                            <div key={n} className={`ros-gr is-static${i.severity === "high" ? " is-flag" : ""}`}>
+                                <span className="ros-iw">{i.iconUrl ? <img src={i.iconUrl} alt="" loading="lazy" /> : <span className="ros-iw-ph" />}</span>
+                                <span className="ros-gb">
+                                    <span className="ros-iname">{i.itemName || "–"}</span>
+                                    <span className="ros-sline"><span className="ros-slabel">{i.slotName || "Slot unbekannt"}</span></span>
                                 </span>
                                 <FindingBadge issue={i} />
                             </div>
@@ -316,7 +316,7 @@ function GearSection({ data, onOpen }: { data: HistoryCharData; onOpen: (slot: s
     }
 
     return (
-        <div className="dash-card rc-part">
+        <div className="dash-card ros-part">
             <PartHead
                 icon="inv_helmet_98"
                 tone="roster"
@@ -333,7 +333,7 @@ function GearSection({ data, onOpen }: { data: HistoryCharData; onOpen: (slot: s
                 )}
             />
             {wrongLevel && (
-                <div className="flash flash-err rc-flash">
+                <div className="flash flash-err ros-flash">
                     Die Blizzard-API meldet <strong>Level {s!.level}</strong> — wahrscheinlich der falsche Profile-Namespace
                     ({data.gearNamespace || "?"}). Anpassen in den <Link to="/settings?section=battlenet">Einstellungen</Link>.
                 </div>
@@ -357,7 +357,7 @@ function ItemDetailModal({ slot, data, roster, onClose }: { slot: string; data: 
         <Modal
             open
             onClose={onClose}
-            icon={g.iconUrl ? <img className="rc-dlg-icon" src={g.iconUrl} alt="" style={{ borderColor: itemQualityColor(g.quality) || undefined }} /> : "inv_misc_questionmark"}
+            icon={g.iconUrl ? <img className="ros-dlg-icon" src={g.iconUrl} alt="" style={{ borderColor: itemQualityColor(g.quality) || undefined }} /> : "inv_misc_questionmark"}
             kicker={kicker}
             title={g.name || SLOT_LABELS[slot] || slot}
             width={600}
@@ -369,25 +369,25 @@ function ItemDetailModal({ slot, data, roster, onClose }: { slot: string; data: 
                 </>
             )}
         >
-            <div className={`rc-item-body${q ? ` q-${q}` : ""}`}>
+            <div className={`ros-item-body${q ? ` q-${q}` : ""}`}>
                 {issues.map((i, n) => (
-                    <div key={n} className={`rc-find${i.severity === "high" ? " is-high" : ""}`}>
+                    <div key={n} className={`ros-find${i.severity === "high" ? " is-high" : ""}`}>
                         <IconTile icon={i.iconUrl ? <img src={i.iconUrl} alt="" /> : "inv_misc_gem_variety_02"} tone={i.severity === "high" ? "bad" : "mid"} />
                         <div>
-                            <div className="rc-find-title">{findingLabel(i)} <Badge tone={i.severity === "high" ? "bad" : "mid"}>{i.severity === "high" ? "schwer" : "leicht"}</Badge></div>
+                            <div className="ros-find-title">{findingLabel(i)} <Badge tone={i.severity === "high" ? "bad" : "mid"}>{i.severity === "high" ? "schwer" : "leicht"}</Badge></div>
                             <div className="sub">
                                 Aus der Auswertung {report?.reportTitle || report?.zone || ""}{report?.generatedAt ? ` vom ${fmtMs(report.generatedAt, false)}` : ""}.
                             </div>
                         </div>
                     </div>
                 ))}
-                <div className="rc-kv">
+                <div className="ros-kv">
                     <div className="k">Verzauberung</div>
                     <div>
                         {g.enchants.length
-                            ? <><span>{g.enchants.join(", ")}</span><Badge tone="ok" className="rc-kv-end">vorhanden</Badge></>
+                            ? <><span>{g.enchants.join(", ")}</span><Badge tone="ok" className="ros-kv-end">vorhanden</Badge></>
                             : enchantable
-                                ? <><span className="sub">keine</span><Badge tone="bad" className="rc-kv-end">fehlt</Badge></>
+                                ? <><span className="sub">keine</span><Badge tone="bad" className="ros-kv-end">fehlt</Badge></>
                                 : <span className="sub">nicht verzauberbar</span>}
                     </div>
                     {g.sockets.length
@@ -396,9 +396,9 @@ function ItemDetailModal({ slot, data, roster, onClose }: { slot: string; data: 
                             return [
                                 <div key={`k${i}`} className="k">{i === 0 ? "Sockel" : ""}</div>,
                                 <div key={`v${i}`}>
-                                    <img className="rc-kv-ico" src={filled && sk.gemIconUrl ? sk.gemIconUrl : socketIconUrl(sk.type)} alt="" />
+                                    <img className="ros-kv-ico" src={filled && sk.gemIconUrl ? sk.gemIconUrl : socketIconUrl(sk.type)} alt="" />
                                     <span className={filled ? "" : "sub"}>{filled ? (sk.gemName || sk.gemText) : "leer"}</span>
-                                    <Badge tone={filled ? undefined : "mid"} className="rc-kv-end">{SOCKET_DE[sk.type] || sk.type || "?"}</Badge>
+                                    <Badge tone={filled ? undefined : "mid"} className="ros-kv-end">{SOCKET_DE[sk.type] || sk.type || "?"}</Badge>
                                 </div>,
                             ];
                         })
@@ -409,7 +409,7 @@ function ItemDetailModal({ slot, data, roster, onClose }: { slot: string; data: 
                             ? (
                                 <>
                                     <span>{[nightLabel(received.awardedAt), received.eventLabel || facts?.content, received.boss || facts?.boss].filter(Boolean).join(" · ")}</span>
-                                    {!!(received.reasonLabel || received.response) && <Badge tone="accent" className="rc-kv-end">{received.reasonLabel || received.response}</Badge>}
+                                    {!!(received.reasonLabel || received.response) && <Badge tone="accent" className="ros-kv-end">{received.reasonLabel || received.response}</Badge>}
                                 </>
                             )
                             : <span className="sub">nicht im Loot-Import{facts?.content ? ` · Drop: ${[facts.content, facts.boss].filter(Boolean).join(" · ")}` : ""}</span>}
@@ -419,9 +419,9 @@ function ItemDetailModal({ slot, data, roster, onClose }: { slot: string; data: 
                         {facts?.bisSpecs.length
                             ? (
                                 <>
-                                    {facts.bisSpecs.map((b) => !!b.iconUrl && <img key={b.specKey} className="rc-kv-ico" src={b.iconUrl} alt="" />)}
+                                    {facts.bisSpecs.map((b) => !!b.iconUrl && <img key={b.specKey} className="ros-kv-ico" src={b.iconUrl} alt="" />)}
                                     <span>{facts.bisSpecs.map((b) => b.label).join(", ")}</span>
-                                    <span className="sub rc-kv-end">WoWSims{facts.bisSpecs[0]?.tier ? ` ${facts.bisSpecs[0].tier.toUpperCase()}` : ""}</span>
+                                    <span className="sub ros-kv-end">WoWSims{facts.bisSpecs[0]?.tier ? ` ${facts.bisSpecs[0].tier.toUpperCase()}` : ""}</span>
                                 </>
                             )
                             : (
@@ -445,7 +445,7 @@ function AttendanceSection({ roster }: { roster: RosterCharData | null }) {
                 const a = roster.attendance[c.id];
                 const raids = a?.raids || [];
                 return (
-                    <div key={c.id} className="dash-card rc-part">
+                    <div key={c.id} className="dash-card ros-part">
                         <PartHead
                             icon={c.icon || "ability_warrior_rallyingcry"}
                             tone="roster"
@@ -455,11 +455,11 @@ function AttendanceSection({ roster }: { roster: RosterCharData | null }) {
                         />
                         {raids.length
                             ? (
-                                <div className="rc-nights">
+                                <div className="ros-nights">
                                     {raids.map((r) => (
-                                        <div key={r.eventId} className="rc-night">
-                                            <span className="rc-night-date">{nightLabel(r.startTime)}</span>
-                                            <span className="rc-night-title">{r.title || "Raid"}</span>
+                                        <div key={r.eventId} className="ros-night">
+                                            <span className="ros-night-date">{nightLabel(r.startTime)}</span>
+                                            <span className="ros-night-title">{r.title || "Raid"}</span>
                                             <Badge tone={r.attended ? "ok" : "bad"} icon={r.attended ? "ability_warrior_rallyingcry" : undefined}>
                                                 {r.attended ? "da" : "gefehlt"}
                                             </Badge>
@@ -468,7 +468,7 @@ function AttendanceSection({ roster }: { roster: RosterCharData | null }) {
                                     ))}
                                 </div>
                             )
-                            : <p className="sub rc-empty">Kein zugeordnetes Log und keine Raider-Zuordnung mit Anmeldungen in dieser Kategorie.</p>}
+                            : <p className="sub ros-empty">Kein zugeordnetes Log und keine Raider-Zuordnung mit Anmeldungen in dieser Kategorie.</p>}
                     </div>
                 );
             })}
@@ -545,26 +545,26 @@ export default function HistoryCharPage() {
         <>
             <CharHero data={data} roster={roster} loading={loading} onReload={load} />
 
-            <div className="rc-secs" role="tablist" aria-label="Bereich">
+            <div className="ros-secs" role="tablist" aria-label="Bereich">
                 {sections.map((s) => (
                     <button
                         key={s.id}
                         type="button"
                         role="tab"
                         aria-selected={tab === s.id}
-                        className={`rc-sec${tab === s.id ? " is-active" : ""}`}
+                        className={`ros-sec${tab === s.id ? " is-active" : ""}`}
                         onClick={() => switchTab(s.id)}
                     >
                         <WowIcon name={s.icon} size={20} />
                         {s.label}
-                        {s.count !== null && <span className={`rc-sec-n${s.tone ? ` ${s.tone}` : ""}`}>{s.count}</span>}
+                        {s.count !== null && <span className={`ros-sec-n${s.tone ? ` ${s.tone}` : ""}`}>{s.count}</span>}
                     </button>
                 ))}
             </div>
 
             {tab === "gear" && <GearSection data={data} onOpen={setItemSlot} />}
             {tab === "loot" && (
-                <div className="dash-card rc-part">
+                <div className="dash-card ros-part">
                     <PartHead
                         icon="inv_misc_bag_10"
                         tone="roster"
@@ -573,7 +573,7 @@ export default function HistoryCharPage() {
                     />
                     {data.items.length
                         ? <LootTable items={data.items} showEvent onDelete={canEdit ? removeItem : undefined} />
-                        : <p className="sub rc-empty">Kein Loot für diesen Charakter gespeichert.</p>}
+                        : <p className="sub ros-empty">Kein Loot für diesen Charakter gespeichert.</p>}
                 </div>
             )}
             {tab === "attendance" && <AttendanceSection roster={roster} />}
