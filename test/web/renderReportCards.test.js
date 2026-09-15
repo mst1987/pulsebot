@@ -438,3 +438,52 @@ describe("web/render — player page", () => {
         expect(html).toContain("window.__ehPf");
     });
 });
+
+describe("web/render — totem timeline and the armory link", () => {
+    function withTotems(names = ["Dorn", "Thrall"]) {
+        const r = report();
+        r.timeline.fights[0].totems = names.map((name, i) => ({
+            name, type: "Shaman",
+            twisting: { detected: i === 0 },
+            rows: [
+                { label: "Windfury-Totem", icon: "spell_nature_windfury", markers: [{ at: 3000 }], band: [[3000, 60000]], downtimes: i === 0 ? [[60000, 120000]] : [], uptimePct: i === 0 ? 48 : 96 },
+                { label: "Manaquellentotem", icon: "spell_frost_summonwaterelemental", markers: [{ at: 10000 }], uptimePct: 90 },
+            ],
+        }));
+        return r;
+    }
+
+    it("draws one chart per shaman, each under their name, with a filter over them", () => {
+        const html = renderReportPage(withTotems(), admin);
+        expect(html).toContain("<div class=\"dscope\" data-frole=\"all\">");
+        // the filter: everyone, then one button per shaman — the mechanism the RPB tables use
+        expect(html).toContain("data-frole=\"Dorn\"");
+        expect(html).toContain("data-frole=\"Thrall\"");
+        expect(html).toContain("<input type=\"search\" data-fsearch placeholder=\"Schamane suchen …\"");
+        // one block per shaman, filterable by name, with the owner above their own axis
+        expect(html).toContain("<section class=\"fc-block\" data-role=\"Dorn\" data-name=\"Dorn\"");
+        expect(html).toContain("<section class=\"fc-block\" data-role=\"Thrall\" data-name=\"Thrall\"");
+        expect(html).toMatch(/<div class="fc-owner">[\s\S]*?<span class="cn">Dorn<\/span>/);
+        expect((html.match(/class="fchart fc-markers"/g) || []).length).toBeGreaterThanOrEqual(2);
+    });
+
+    it("keeps one shaman on a single chart — nothing to group or filter there", () => {
+        const html = renderReportPage(withTotems(["Dorn"]), admin);
+        expect(html).not.toContain("data-fsearch placeholder=\"Schamane suchen …\"");
+        expect(html).not.toContain("<section class=\"fc-block\"");
+    });
+
+    it("gives the raider card and the player page a link to the armory", () => {
+        const html = renderReportPage(report(), admin);
+        expect(html).toMatch(/<a class="ibtn" href="[^"]*Dorn"[^>]*data-tip="Armory öffnen"/);
+        expect(html).toContain("data-tip-sub=\"Der Charakter, wie er jetzt aussieht. Der Report zeigt die Ausrüstung aus dem Log dieses Abends.\"");
+        const page = renderPlayerPage(report(), 2, admin);
+        expect(page).toMatch(/<a class="btn btn-ghost btn-sm" href="[^"]*Dorn"[^>]*>[\s\S]*?Armory<\/a>/);
+    });
+
+    it("shows the timeline's scrollbar instead of hiding it, and gives the chart dialog room", () => {
+        const html = renderReportPage(report(), admin);
+        expect(html).toContain("overflow-x:scroll");
+        expect(html).toContain("dialog.dlg.chart { max-width:min(1400px, 96vw); width:min(1400px, 96vw); }");
+    });
+});

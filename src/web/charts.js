@@ -421,7 +421,14 @@ const CHART_STYLE = `
   .fc-values span { font-size:11.5px; color:var(--muted); white-space:nowrap; }
   .fc-yaxis { width:72px; position:relative; }
   .fc-ytick { position:absolute; right:10px; transform:translateY(-50%); font-size:12px; font-family:var(--font-mono); color:var(--muted); }
-  .fc-scroll { flex:1 1 auto; min-width:0; overflow-x:auto; overflow-y:hidden; scrollbar-gutter:stable; }
+  /* The bar stays visible instead of appearing on hover: a chart drawn at a
+     fixed 6 px per second is almost always wider than its box, and a timeline
+     nobody can tell scrolls is a timeline that gets read to the end of the
+     screen. The gutter was reserved anyway. */
+  .fc-scroll { flex:1 1 auto; min-width:0; overflow-x:scroll; overflow-y:hidden; scrollbar-gutter:stable; }
+  .fc-scroll::-webkit-scrollbar { height:12px; }
+  .fc-scroll::-webkit-scrollbar-thumb { background:var(--line); border-radius:6px; border:3px solid transparent; background-clip:content-box; }
+  .fc-scroll::-webkit-scrollbar-thumb:hover { background:var(--muted); border:3px solid transparent; background-clip:content-box; }
   .fchart { display:block; font:12px -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; --cc:var(--muted); }
   .fchart text { fill:var(--text); }
   .fchart .fc-label { font-size:13px; }

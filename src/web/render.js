@@ -10,6 +10,7 @@ const { renderAdminChrome, CHROME_STYLE, ICONS } = require("./adminChrome");
 const rpbData = require("../config/rpbData");
 const { ribbonChart, markerChart, lineChart, fmtTime, bandStats, CHART_STYLE, PX_PER_SEC } = require("./charts");
 const { bossIconUrl } = require("../config/bosses");
+const { armoryUrlFor } = require("./charLinks");
 const { TANK_AURAS } = require("../config/healerSpells");
 const { ROLE_LABELS: BUFF_ROLE_LABELS } = require("../config/raidBuffs");
 const { applyReview } = require("../utils/logcheck/recommendations");
@@ -289,6 +290,28 @@ const LINE = {
 /** A square icon button (32 px) with the page's tooltip; `tone` ok / bad marks an active verdict. */
 function ibtn(inner, tip, sub, attrs = "", tone = "") {
     return `<button type="button" class="ibtn${tone ? ` ${tone}` : ""}" data-tip="${esc(tip)}"${sub ? ` data-tip-sub="${esc(sub)}"` : ""} aria-label="${esc(tip)}"${attrs ? ` ${attrs}` : ""}>${inner}</button>`;
+}
+
+// The armory of a raider, where the page's own gear numbers can be checked.
+// What the report shows is the gear the log SAW on that night — the armory is
+// what the character wears now, which is exactly the question anyone asks when
+// a gear finding looks wrong. "" when no armory template is configured
+// (web/charLinks.js), so a guild without one simply gets no button.
+const ARMORY_TIP = "Armory öffnen";
+const ARMORY_SUB = "Der Charakter, wie er jetzt aussieht. Der Report zeigt die Ausrüstung aus dem Log dieses Abends.";
+
+/** The armory as an icon button, for a card head. */
+function armoryButton(character) {
+    const url = armoryUrlFor(character);
+    if (!url) return "";
+    return `<a class="ibtn" href="${esc(url)}" target="_blank" rel="noopener" data-tip="${esc(ARMORY_TIP)}" data-tip-sub="${esc(ARMORY_SUB)}" aria-label="${esc(ARMORY_TIP)}">${hicon("inv_shirt_guildtabard_01", "")}</a>`;
+}
+
+/** The armory as a labelled link, for a page head. */
+function armoryLink(character, cls) {
+    const url = armoryUrlFor(character);
+    if (!url) return "";
+    return `<a class="${esc(cls)}" href="${esc(url)}" target="_blank" rel="noopener" data-tip="${esc(ARMORY_TIP)}" data-tip-sub="${esc(ARMORY_SUB)}">${hicon("inv_shirt_guildtabard_01", "")}Armory</a>`;
 }
 
 /** The close button of a dialog head. */
@@ -978,6 +1001,13 @@ ${body}
   dialog.dlg { border:1px solid var(--line); border-radius:14px; background:var(--panel); color:var(--text); padding:0; max-width:min(1040px, 96vw); width:min(1040px, 96vw); box-shadow:0 24px 60px rgba(0,0,0,.28); }
   dialog.dlg::backdrop { background:rgba(27,30,39,.45); }
   dialog.dlg.send { max-width:min(820px, 96vw); width:min(820px, 96vw); }
+  /* a timeline is read sideways, so it gets what the screen has */
+  dialog.dlg.chart { max-width:min(1400px, 96vw); width:min(1400px, 96vw); }
+  /* one chart per player (totems): whose rows these are, above their own axis */
+  .fc-block + .fc-block { margin-top:18px; padding-top:16px; border-top:1px solid var(--line); }
+  .fc-owner { display:flex; align-items:center; gap:10px; margin:0 0 6px; font-weight:800; }
+  .fc-owner .cn { color:var(--cc, var(--text)); }
+  .fc-owner .sritems { color:var(--muted); font-weight:500; font-size:12.5px; }
   .dlg-head { display:flex; align-items:center; gap:14px; padding:16px 20px; border-bottom:1px solid var(--line-soft); }
   .dlg-head img.vcard-icon { width:36px; height:36px; }
   .dlg-head .dlg-main { flex:1 1 auto; display:flex; flex-direction:column; min-width:0; }
@@ -1373,6 +1403,31 @@ function groupedTable(groups, duration, kind) {
 }
 
 /**
+ * The totem timeline, one chart per shaman instead of one flat list of rows.
+ *
+ * On a flat chart nothing says whose totem a row is — the rows carry an icon
+ * and a percentage, and three shamans dropping earth totems look alike. Here
+ * each shaman gets a head (class tile, name in class colour, their result) and
+ * their own time axis, and the segment above filters to one of them: the same
+ * `.dscope` mechanism the RPB tables use (DTOOLS_SCRIPT), so a name that is
+ * filtered away simply hides its block.
+ *
+ * @param {Array<{ name, type, rows, badge: { text, tone } }>} groups  as groupedTable takes them
+ */
+function totemCharts(groups, common) {
+    const seg = [
+        `<button type="button" class="seg-btn active" data-frole="all">Alle<span class="n">${groups.length}</span></button>`,
+        ...groups.map((g) => `<button type="button" class="seg-btn" data-frole="${esc(g.name)}">${tile(classIconName(g.type), "cls")}${esc(g.name)}<span class="n">${(g.rows || []).length}</span></button>`),
+    ].join("");
+    const tools = `<div class="dtools"><nav class="seg sm">${seg}</nav><span class="grow"></span><label class="field">${LINE.search}<input type="search" data-fsearch placeholder="Schamane suchen …" aria-label="Schamane suchen"></label></div>`;
+    const blocks = groups.map((g) => `<section class="fc-block" data-role="${esc(g.name)}" data-name="${esc(g.name)}" style="--cc:${esc(classColorOf(g.type) || "var(--text)")}">
+      <div class="fc-owner">${tile(classIconName(g.type), "cls")}<span class="cn">${esc(g.name)}</span><span class="sritems">${esc(g.type || "")}</span>${g.badge ? badge(g.badge.text, g.badge.tone) : ""}</div>
+      ${markerChart({ ...common, rows: g.rows })}
+    </section>`).join("");
+    return `<div class="dscope" data-frole="all">${tools}${blocks}</div>`;
+}
+
+/**
  * The topic parts of one fight, only those with data:
  *   { id, key, label, icon, count, tone, table, chart }
  * `table` is the compact view a card opens with, `chart` the timeline
@@ -1418,7 +1473,14 @@ function fightParts(f, linkFor, only, ns = "") {
             const tw = t.twisting && t.twisting.detected;
             return { name: t.name, type: t.type, rows: own, open: gaps > 0, badge: gaps ? { text: `${gaps} Lücke${gaps === 1 ? "" : "n"}`, tone: gaps >= 3 ? "bad" : "mid" } : { text: tw ? "Twisting" : "ok", tone: "ok" } };
         }).sort((a, b) => (b.badge.tone === "ok" ? 0 : 1) - (a.badge.tone === "ok" ? 0 : 1));
-        part("totems", { count: rows.length, tone: worst(rows), sub: twisting ? "Twisting" : "", table: only ? topicTable(rows, f.duration, "markers") : groupedTable(groups, f.duration, "markers"), chart: markerChart({ ...common, rows }) });
+        part("totems", {
+            count: rows.length, tone: worst(rows), sub: twisting ? "Twisting" : "",
+            table: only ? topicTable(rows, f.duration, "markers") : groupedTable(groups, f.duration, "markers"),
+            // One chart per shaman rather than one long list of icons: on a flat
+            // chart nothing says whose totem a row is, and with three shamans
+            // the rows of the one you are looking at sit apart from each other.
+            chart: only || groups.length < 2 ? markerChart({ ...common, rows }) : totemCharts(groups, common),
+        });
     }
 
     const cdPlayers = ((f.cooldowns && f.cooldowns.players) || []).filter((p) => mine(p.name));
@@ -3437,8 +3499,9 @@ function raiderCard(ctx, p, i, opts = {}) {
     const tlBtn = fights.length ? ibtn(hicon("inv_misc_pocketwatch_01", ""), "Kampfverlauf öffnen", `${plural(fights.length, "Kampf", "Kämpfe")} mit eigenen Zeilen: DPS gegen den Raid-Schnitt, Aktivität, Cooldowns, Buffs, Tode.`, `data-dialog="dlg-rt-${i}"`) : "";
     const href = ctx.linkFor(name);
     const pageBtn = href ? `<a class="ibtn" href="${esc(href)}" data-tip="Spielerseite öffnen" data-tip-sub="Die freigegebenen Punkte zuerst, dann die Kämpfe je Boss." aria-label="Spielerseite öffnen">${LINE.external}</a>` : "";
+    const armoryBtn = armoryButton(name);
     return `<details class="vcard raider-card" id="raider-${esc(name)}" data-name="${esc(name)}" data-role="${role}" data-open="${reviewer ? open : approved}" data-report="${esc(report.id)}" style="--cc:${esc(color)}"${opts.open ? " open" : ""}>
-      <summary><img class="vcard-icon" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}"><div class="vcard-main"><div class="vcard-title cn">${esc(name)}</div><div class="vcard-meta">${meta}</div></div><div class="vcard-chips">${raiderBadges(ctx, p)}</div>${tlBtn}${pageBtn}${expBtn()}</summary>
+      <summary><img class="vcard-icon" src="${esc(classIconUrl(p.type))}" alt="${esc(p.type)}"><div class="vcard-main"><div class="vcard-title cn">${esc(name)}</div><div class="vcard-meta">${meta}</div></div><div class="vcard-chips">${raiderBadges(ctx, p)}</div>${tlBtn}${armoryBtn}${pageBtn}${expBtn()}</summary>
       <div class="vcard-body"><nav class="secs">${buttons}</nav>${panels}${foot}</div>
     </details>${timelineDialog}${dialogs}${sendDlg}`;
 }
@@ -3763,7 +3826,7 @@ function renderPlayerPage(report, idx, user) {
           <h1 class="page-title ptitle-cn">${esc(name)}</h1>
           <div class="vcard-meta">${meta}</div>
         </div>
-        <div class="page-actions"><a class="btn btn-ghost btn-sm" href="/r/${esc(report.id)}#raider">${LINE.back}Zum Report</a>${sendBtn}</div>
+        <div class="page-actions">${armoryLink(name, "btn btn-ghost btn-sm")}<a class="btn btn-ghost btn-sm" href="/r/${esc(report.id)}#raider">${LINE.back}Zum Report</a>${sendBtn}</div>
       </div>
       ${playerKpis(ctx, p)}
       <div class="pstack">${points}${fightTable.html}${detail}</div>
