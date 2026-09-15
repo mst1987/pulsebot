@@ -8,15 +8,24 @@
 // order, what did it already get. Explanations live in tooltips, the full gear
 // findings and the loot history one click away on the character page.
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { getRoster, type ApiError, type RosterChar, type RosterData, type RosterRole } from "../api";
+import { Link, useOutletContext } from "react-router-dom";
+import {
+    canAccess, getRoster, setRosterHidden,
+    type ApiError, type RosterChar, type RosterData, type RosterHiddenNote, type RosterRole,
+} from "../api";
 import { usePersistedState } from "../lib/persistedState";
+import { sortRows, useTableSort, type Dir } from "../lib/tableSort";
 import { ClassSpecIdentity } from "../components/ClassSpec";
 import { RosterKpis } from "../components/RosterHero";
-import { AttendanceBar, GearStateBadge, IconLink, LootBadge, RoleBadge, TipLabel } from "../components/RosterCommon";
+import { AttendanceBar, GearStateBadge, IconLink, LootBadge, RoleBadge } from "../components/RosterCommon";
+import { SortLabel } from "../components/SortTh";
 import { CLASS_LABELS, ROLE_ORDER, classIconName } from "../lib/rosterView";
-import { Badge, Expand, IconTile, Segment, WowIcon } from "../components/ui";
-import { ChevronDownIcon, SearchIcon } from "../components/icons";
+import { Badge, Expand, IconButton, IconTile, Segment, WowIcon } from "../components/ui";
+import { ChevronDownIcon, EyeIcon, EyeOffIcon, SearchIcon } from "../components/icons";
+import type { ShellContext } from "../components/Shell";
+import { useToast } from "../components/Jobs";
+import { useConfirm } from "../components/ui/Modal";
+import { formatDate } from "../lib/format";
 import "../styles/roster-charakter.css";
 import RaidLoader from "../components/ui/RaidLoader";
 
@@ -25,11 +34,19 @@ const GROUP_PREVIEW = 11;
 
 type RoleFilter = "all" | "tank" | "healer" | "dps";
 
+/** Which list the panel shows: the roster, or who was taken off it. */
+type Tab = "active" | "hidden";
+
+// What the columns sort by. The attendance is the one that depends on where the
+// row stands — it is measured per raid category, so a group sorts by its own.
+type SortKey = "name" | "role" | "attendance" | "gear" | "loot";
+const SORT_DEFAULTS: Record<SortKey, Dir> = { name: "asc", role: "asc", attendance: "desc", gear: "desc", loot: "desc" };
+
 // Search/filter/open groups survive a reload and a visit to another page.
 // Stored values are untrusted: an unknown role falls back to "all". `open` is
 // null until the visitor folds a group — then the first group is open.
-type View = { search: string; role: RoleFilter; className: string; onlyIssues: boolean; open: string[] | null };
-const VIEW_DEFAULT: View = { search: "", role: "all", className: "", onlyIssues: false, open: null };
+type View = { search: string; role: RoleFilter; className: string; spec: string; onlyIssues: boolean; tab: Tab; open: string[] | null };
+const VIEW_DEFAULT: View = { search: "", role: "all", className: "", spec: "", onlyIssues: false, tab: "active", open: null };
 const ROLE_FILTERS: RoleFilter[] = ["all", "tank", "healer", "dps"];
 
 const UNGROUPED = "__none";
@@ -43,7 +60,15 @@ function charHref(c: RosterChar, tab = ""): string {
     return `/roster/char?name=${encodeURIComponent(c.character)}${tab ? `&tab=${tab}` : ""}`;
 }
 
-function RosterRow({ c, categoryId, categoryName }: { c: RosterChar; categoryId: string; categoryName: string }) {
+function RosterRow({ c, categoryId, categoryName, hidden, onHide }: {
+    c: RosterChar;
+    categoryId: string;
+    categoryName: string;
+    /** Set on a row of the "Ausgeblendet" list: when and by whom. */
+    hidden?: RosterHiddenNote;
+    /** Missing when the visitor may only read the roster. */
+    onHide?: (c: RosterChar, hide: boolean) => void;
+}) {
     return (
         <div className="rc-row">
             <ClassSpecIdentity
@@ -53,11 +78,20 @@ function RosterRow({ c, categoryId, categoryName }: { c: RosterChar; categoryId:
                 classColor={c.classColor}
                 iconUrl={c.iconUrl}
                 to={charHref(c)}
-                extra={!c.assigned && !!c.lootCount && (
-                    <Badge tone="accent" className="rc-mini" tip="nur Loot" tipSub="Nur aus dem Loot bekannt — noch keinem Raider in dieser Kategorie zugeordnet.">
-                        nur Loot
-                    </Badge>
-                )}
+                extra={hidden
+                    ? (
+                        <Badge
+                            className="rc-mini" tip="Ausgeblendet"
+                            tipSub={`${hidden.by ? `Von ${hidden.by}, ` : ""}seit ${formatDate(hidden.at)}${hidden.reason ? ` · ${hidden.reason}` : ""}`}
+                        >
+                            ausgeblendet
+                        </Badge>
+                    )
+                    : !c.assigned && !!c.lootCount && (
+                        <Badge tone="accent" className="rc-mini" tip="nur Loot" tipSub="Nur aus dem Loot bekannt — noch keinem Raider in dieser Kategorie zugeordnet.">
+                            nur Loot
+                        </Badge>
+                    )}
             />
             <span className="rc-cell"><RoleBadge role={c.role} /></span>
             <span className="rc-cell">
@@ -70,6 +104,21 @@ function RosterRow({ c, categoryId, categoryName }: { c: RosterChar; categoryId:
             <span className="rc-acts">
                 <IconLink href={c.wclUrl} icon="inv_misc_pocketwatch_01" tip="Warcraft Logs" />
                 <IconLink href={c.armoryUrl} icon="inv_shirt_guildtabard_01" tip="Armory" />
+                {onHide && (hidden
+                    ? (
+                        <IconButton
+                            size="sm" icon={<EyeIcon />} tip="Wieder ins Roster"
+                            tipSub="Der Charakter taucht wieder in den Listen und in den Zahlen oben auf."
+                            onClick={() => onHide(c, false)}
+                        />
+                    )
+                    : (
+                        <IconButton
+                            size="sm" icon={<EyeOffIcon />} tip="Ausblenden"
+                            tipSub="Nimmt den Charakter aus den Listen und den Zahlen oben — Loot, Auswertungen und die Charakter-Seite bleiben unverändert."
+                            onClick={() => onHide(c, true)}
+                        />
+                    ))}
             </span>
             <Link className="exp-lbl rc-open" to={charHref(c)}>
                 <span>Öffnen</span>
@@ -79,22 +128,29 @@ function RosterRow({ c, categoryId, categoryName }: { c: RosterChar; categoryId:
     );
 }
 
-function GroupColumns() {
+// The column head is the sort control (SortLabel, the same one the loot council
+// uses over its grid): a roster is read down a column — who was there least,
+// who has the most open gear findings — and clicking the head is where everyone
+// tries that first. The explanation stays in the head's tooltip.
+function GroupColumns({ sort, dir, onSort }: { sort: SortKey; dir: Dir; onSort: (key: SortKey) => void }) {
+    const head = (sortKey: SortKey, label: string, tip: string, tipSub: string) => (
+        <SortLabel<SortKey> sortKey={sortKey} label={label} sort={sort} dir={dir} onSort={onSort} tip={tip} tipSub={tipSub} />
+    );
     return (
-        <div className="rc-cols" aria-hidden="true">
+        <div className="rc-cols">
             <span />
-            <TipLabel tip="Charakter" sub="Name in Klassenfarbe, darunter die Spec. Klick öffnet die Charakter-Seite.">Charakter</TipLabel>
-            <TipLabel tip="Rolle" sub="Die Rolle aus dem neuesten Log, in dem der Charakter vorkommt; ohne Log aus der Spec.">Rolle</TipLabel>
-            <TipLabel tip="Anwesenheit" sub={"Die letzten 11 Raids dieser Kategorie: im Log = da; ohne Log zählt die Raid-Helper-Anmeldung des zugeordneten Raiders.\nGrün ab 80 %, gelb ab 60 %."}>Anwesenheit</TipLabel>
-            <TipLabel tip="Gear-Stand" sub={"Befunde aus der neuesten Log-Auswertung, in der der Charakter vorkommt: fehlende Verzauberung, leere Sockel, inaktiver Meta-Gem.\n„nicht ausgewertet“ = in keiner gespeicherten Auswertung."}>Gear-Stand</TipLabel>
-            <TipLabel tip="Loot" sub="Importierte Items dieses Charakters; die neuesten im Tooltip.">Loot</TipLabel>
+            {head("name", "Charakter", "Charakter", "Name in Klassenfarbe, darunter die Spec. Klick öffnet die Charakter-Seite.")}
+            {head("role", "Rolle", "Rolle", "Die Rolle aus dem neuesten Log, in dem der Charakter vorkommt; ohne Log aus der Spec.")}
+            {head("attendance", "Anwesenheit", "Anwesenheit", "Die letzten 11 Raids dieser Kategorie: im Log = da; ohne Log zählt die Raid-Helper-Anmeldung des zugeordneten Raiders.\nGrün ab 80 %, gelb ab 60 %.")}
+            {head("gear", "Gear-Stand", "Gear-Stand", "Befunde aus der neuesten Log-Auswertung, in der der Charakter vorkommt: fehlende Verzauberung, leere Sockel, inaktiver Meta-Gem.\n„nicht ausgewertet“ = in keiner gespeicherten Auswertung.")}
+            {head("loot", "Loot", "Loot", "Importierte Items dieses Charakters; die neuesten im Tooltip.")}
             <span className="rc-cols-links">Links</span>
             <span />
         </div>
     );
 }
 
-function RosterGroup({ id, title, crumb, icon, chars, open, onToggle }: {
+function RosterGroup({ id, title, crumb, icon, chars, open, onToggle, sort, dir, onSort, hiddenNotes, onHide }: {
     id: string;
     title: string;
     crumb: string;
@@ -102,11 +158,28 @@ function RosterGroup({ id, title, crumb, icon, chars, open, onToggle }: {
     chars: RosterChar[];
     open: boolean;
     onToggle: () => void;
+    sort: SortKey;
+    dir: Dir;
+    onSort: (key: SortKey) => void;
+    /** Only the hidden list passes these — per character key, since when. */
+    hiddenNotes?: Record<string, RosterHiddenNote>;
+    onHide?: (c: RosterChar, hide: boolean) => void;
 }) {
     const [showAll, setShowAll] = useState(false);
     const withIssues = chars.filter((c) => c.gear && c.gear.issueCount).length;
     const high = chars.some((c) => c.gear && c.gear.issues.some((i) => i.severity === "high"));
-    const shown = showAll ? chars : chars.slice(0, GROUP_PREVIEW);
+    // Sorted per group: the attendance column measures against *this* category.
+    const sorted = sortRows(chars, (c) => {
+        switch (sort) {
+            case "role": return ROLE_ORDER[c.role] ?? 3;
+            // no nights counted sorts below 0 %, never above it
+            case "attendance": return c.attendance?.[id]?.pct ?? -1;
+            case "gear": return c.gear ? c.gear.issueCount : -1;
+            case "loot": return c.lootCount || 0;
+            default: return c.character.toLowerCase();
+        }
+    }, dir);
+    const shown = showAll ? sorted : sorted.slice(0, GROUP_PREVIEW);
     return (
         <section className={`rc-grp${open ? " is-open" : ""}`}>
             <div className="rc-grp-head">
@@ -123,8 +196,13 @@ function RosterGroup({ id, title, crumb, icon, chars, open, onToggle }: {
             </div>
             {open && (
                 <div className="rc-list">
-                    <GroupColumns />
-                    {shown.map((c) => <RosterRow key={c.key} c={c} categoryId={id} categoryName={title} />)}
+                    <GroupColumns sort={sort} dir={dir} onSort={onSort} />
+                    {shown.map((c) => (
+                        <RosterRow
+                            key={c.key} c={c} categoryId={id} categoryName={title}
+                            hidden={hiddenNotes?.[c.key]} onHide={onHide}
+                        />
+                    ))}
                     {chars.length > GROUP_PREVIEW && (
                         <div className="rc-more">
                             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowAll((v) => !v)}>
@@ -139,16 +217,67 @@ function RosterGroup({ id, title, crumb, icon, chars, open, onToggle }: {
 }
 
 export default function RosterPage() {
+    const { user, csrfToken } = useOutletContext<ShellContext>();
     const [data, setData] = useState<RosterData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [stored, setView] = usePersistedState<View>("roster-view", VIEW_DEFAULT);
+    const { sort, dir, onSort } = useTableSort<SortKey>("roster-sort", SORT_DEFAULTS, "name");
+    const toast = useToast();
+    const ask = useConfirm();
+    const canWrite = canAccess(user, "roster", "write");
 
     useEffect(() => {
         getRoster().then(setData).catch((err: ApiError) => setError(err));
     }, []);
 
-    const chars = useMemo(() => data?.chars || [], [data]);
+    const showHidden = stored.tab === "hidden";
+    const chars = useMemo(() => (showHidden ? data?.hiddenChars : data?.chars) || [], [data, showHidden]);
     const categories = useMemo(() => data?.categories || [], [data]);
+    // Which of the hidden rows carries which note, for the badge in its row.
+    const hiddenNotes = useMemo(() => {
+        const m: Record<string, RosterHiddenNote> = {};
+        for (const c of data?.hiddenChars || []) m[c.key] = c.hidden;
+        return m;
+    }, [data]);
+
+    /**
+     * Take a character off the roster or put it back. The answer is applied to
+     * the loaded roster instead of re-fetching it: the endpoint rebuilds every
+     * character's gear and attendance, which is seconds of work for a decision
+     * whose outcome we already know.
+     */
+    const toggleHidden = async (c: RosterChar, hide: boolean) => {
+        if (hide && !(await ask({
+            title: "Charakter ausblenden?",
+            text: `„${c.character}" verschwindet aus den Listen und aus den Zahlen oben. Loot, Auswertungen und die Charakter-Seite bleiben unverändert — über den Tab „Ausgeblendet" kommt er jederzeit zurück.`,
+            action: "Ausblenden",
+        }))) return;
+        try {
+            await setRosterHidden(csrfToken, c.character, hide);
+            setData((prev) => {
+                if (!prev) return prev;
+                if (hide) {
+                    const note: RosterHiddenNote = { character: c.character, reason: "", at: Date.now(), by: user.name || "" };
+                    return {
+                        ...prev,
+                        chars: prev.chars.filter((x) => x.key !== c.key),
+                        hiddenChars: [...prev.hiddenChars, { ...c, hidden: note }],
+                    };
+                }
+                return {
+                    ...prev,
+                    chars: [...prev.chars, c],
+                    hiddenChars: prev.hiddenChars.filter((x) => x.key !== c.key),
+                };
+            });
+            toast(hide ? `${c.character} ausgeblendet.` : `${c.character} ist wieder im Roster.`, "ok");
+            // The KPI band is aggregated server-side, so it only agrees with the
+            // lists again once the roster comes back — quietly, in the background.
+            getRoster().then(setData).catch(() => undefined);
+        } catch (err) {
+            toast((err as ApiError).message, "err");
+        }
+    };
 
     const categoryNameById = useMemo(() => {
         const m = new Map<string, string>();
@@ -172,16 +301,32 @@ export default function RosterPage() {
         search: typeof stored.search === "string" ? stored.search : "",
         role: ROLE_FILTERS.includes(stored.role) ? stored.role : "all",
         className: typeof stored.className === "string" ? stored.className : "",
+        spec: typeof stored.spec === "string" ? stored.spec : "",
         onlyIssues: stored.onlyIssues === true,
+        tab: stored.tab === "hidden" ? "hidden" : "active",
         open: Array.isArray(stored.open) ? stored.open : null,
     };
     const patch = (p: Partial<View>) => setView(() => ({ ...view, ...p }));
+
+    // The specs to pick from follow the class filter — 30 specs in one list is
+    // not a filter, and the roster rarely carries more than a handful per class.
+    const specCounts = (() => {
+        const m = new Map<string, number>();
+        for (const c of chars) {
+            if (view.className && c.className !== view.className) continue;
+            if (c.spec) m.set(c.spec, (m.get(c.spec) || 0) + 1);
+        }
+        return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    })();
+    // A spec that the current class filter does not have is no filter at all.
+    const activeSpec = specCounts.some(([spec]) => spec === view.spec) ? view.spec : "";
 
     const searchLower = view.search.trim().toLowerCase();
     const filtered = chars.filter((c) => {
         if (searchLower && !c.character.toLowerCase().includes(searchLower)) return false;
         if (view.role !== "all" && c.role !== (view.role as RosterRole)) return false;
         if (view.className && c.className !== view.className) return false;
+        if (activeSpec && c.spec !== activeSpec) return false;
         if (view.onlyIssues && !(c.gear && c.gear.issueCount)) return false;
         return true;
     }).sort(byRoleThenName);
@@ -234,6 +379,25 @@ export default function RosterPage() {
             <RosterKpis stats={data.stats} onlyIssues={view.onlyIssues} onToggleIssues={() => patch({ onlyIssues: !view.onlyIssues })} />
 
             <div className="dash-card rc-panel">
+                {(!!data.hiddenChars.length || canWrite) && (
+                    <div className="rc-tabs">
+                        <Segment<Tab>
+                            ariaLabel="Liste"
+                            value={view.tab}
+                            onChange={(tab) => patch({ tab })}
+                            options={[
+                                {
+                                    value: "active", label: `Roster (${data.chars.length})`, icon: "achievement_guildperk_everybodysfriend",
+                                    tip: "Wer aktuell zählt",
+                                },
+                                {
+                                    value: "hidden", label: `Ausgeblendet (${data.hiddenChars.length})`, icon: "inv_misc_book_09",
+                                    tip: "Nicht mehr dabei",
+                                },
+                            ]}
+                        />
+                    </div>
+                )}
                 <div className="rc-filters">
                     <label className="rc-search">
                         <SearchIcon />
@@ -280,9 +444,36 @@ export default function RosterPage() {
                         </div>
                     )}
                 </div>
+                {/* Specs as their own row of pills, and only once a class is
+                    picked: 30 specs at once is not a filter, the four a class
+                    actually plays is. Same gesture as the class chips — a second
+                    click takes the filter back. */}
+                {!!view.className && specCounts.length > 1 && (
+                    <div className="rc-specs-row" role="group" aria-label="Spec">
+                        {specCounts.map(([spec, count]) => {
+                            const on = activeSpec === spec;
+                            return (
+                                <button
+                                    key={spec}
+                                    type="button"
+                                    className={`rc-spec${on ? " is-on" : ""}`}
+                                    aria-pressed={on}
+                                    data-tip={spec}
+                                    data-tip-sub={on ? "Klick hebt den Spec-Filter auf." : `Nur ${spec} zeigen.`}
+                                    onClick={() => patch({ spec: on ? "" : spec })}
+                                >
+                                    {spec}
+                                    <b>{count}</b>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
                 {!chars.length && (
                     <p className="sub rc-empty">
-                        Noch keine Charaktere bekannt — Loot importieren oder unter Einstellungen → Kategorien Raider ihren Chars zuordnen.
+                        {showHidden
+                            ? "Niemand ausgeblendet. Über das Augen-Symbol in einer Zeile kommt jemand hierher, der nicht mehr mitraidet."
+                            : "Noch keine Charaktere bekannt — Loot importieren oder unter Einstellungen → Kategorien Raider ihren Chars zuordnen."}
                     </p>
                 )}
                 {!!chars.length && !filtered.length && <p className="sub rc-empty">Keine Charaktere zu diesem Filter.</p>}
@@ -296,6 +487,11 @@ export default function RosterPage() {
                         chars={g.chars}
                         open={openIds.includes(g.id)}
                         onToggle={() => toggleGroup(g.id)}
+                        sort={sort}
+                        dir={dir}
+                        onSort={onSort}
+                        hiddenNotes={showHidden ? hiddenNotes : undefined}
+                        onHide={canWrite ? toggleHidden : undefined}
                     />
                 ))}
             </div>

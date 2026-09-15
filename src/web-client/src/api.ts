@@ -575,8 +575,13 @@ export type RosterStats = {
     classes: RosterClassShare[];
 };
 
+/** Why and since when a character is off the roster (web/rosterHiddenStore.js). */
+export type RosterHiddenNote = { character: string; reason: string; at: number; by: string };
+
 export type RosterData = {
     chars: RosterChar[];
+    /** Taken off the roster — the page's "Ausgeblendet" tab, not part of `stats`. */
+    hiddenChars: (RosterChar & { hidden: RosterHiddenNote })[];
     categories: Category[];
     categoryInfo: Record<string, RosterCategoryInfo>;
     stats: RosterStats;
@@ -585,6 +590,21 @@ export type RosterData = {
 
 export function getRoster(): Promise<RosterData> {
     return get<RosterData>("/api/roster");
+}
+
+/**
+ * Take a character off the roster, or put it back.
+ *
+ * Deletes nothing — the loot history, the evaluations and the character page
+ * stay whole; the roster simply stops listing them.
+ */
+export function setRosterHidden(
+    csrfToken: string | null,
+    character: string,
+    hidden: boolean,
+    reason = "",
+): Promise<{ character: string; hidden: boolean }> {
+    return send("POST", "/api/roster/hide", csrfToken, { character, hide: hidden, reason });
 }
 
 /** A spec whose BiS list carries an item — see lootCouncil.js's bisSpecsView(). */
