@@ -29,6 +29,7 @@ import { Button, IconButton } from "../components/ui/Button";
 import IconTile from "../components/ui/IconTile";
 import PartHead from "../components/ui/PartHead";
 import "../styles/einstellungen.css";
+import RaidLoader from "../components/ui/RaidLoader";
 
 const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
@@ -314,7 +315,7 @@ export default function SettingsPage() {
     useEffect(() => { if (canManage) loadTokens(); }, [canManage]);
 
     if (error) return <div className="empty">Fehler beim Laden der Einstellungen: {error.message}</div>;
-    if (!data || !draft) return <div className="empty">Lade…</div>;
+    if (!data || !draft) return <RaidLoader text="Einstellungen werden geladen" />;
 
     // A user who only holds write on "Einstellungen" never sees the access
     // section; a remembered id that is gone resolves to the first section they

@@ -27,6 +27,7 @@ import { SLOT_LABELS, attendanceTone, combineAttendance, findingLabel, findingsF
 import { Badge, Button, IconTile, Modal, PartHead, WowIcon, buttonClass } from "../components/ui";
 import { CheckIcon, XIcon } from "../components/icons";
 import "../styles/roster-charakter.css";
+import RaidLoader from "../components/ui/RaidLoader";
 
 type CharTab = "gear" | "loot" | "attendance";
 const CHAR_TABS: CharTab[] = ["gear", "loot", "attendance"];
@@ -528,7 +529,7 @@ export default function HistoryCharPage() {
     useEffect(() => { refreshWowheadLinks(); }, [data, tab]);
 
     if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
-    if (!data) return <div className="empty">Lade…</div>;
+    if (!data) return <RaidLoader text="Charakter wird geladen" />;
 
     const issueCount = data.gearIssues?.issueCount || 0;
     const issueTone = data.gearIssues?.issues.some((i) => i.severity === "high") ? "bad" : "mid";

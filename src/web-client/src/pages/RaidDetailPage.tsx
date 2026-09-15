@@ -24,6 +24,7 @@ import LootAddModal from "./raid-detail/modals/LootAddModal";
 import LogAssignModal from "./raid-detail/modals/LogAssignModal";
 import type { PlayerRef, RaidCtx } from "./raid-detail/meta";
 import "../styles/raid-detail.css";
+import RaidLoader from "../components/ui/RaidLoader";
 
 type Tab = "roster" | "loot" | "logs";
 const TABS: Tab[] = ["roster", "loot", "logs"];
@@ -88,7 +89,7 @@ export default function RaidDetailPage() {
 
     const backLink = <p className="note"><Link className="mlink" to="/raids">← Zurück zur Event-Übersicht</Link></p>;
     if (error) return <>{backLink}<div className="empty">Fehler beim Laden: {error.message}</div></>;
-    if (!data || !ctx) return <div className="empty">Lade…</div>;
+    if (!data || !ctx) return <RaidLoader text="Raid wird geladen" />;
 
     const openStep = (step: RaidStep) => {
         if (step.open.modal) setModal(step.open.modal);

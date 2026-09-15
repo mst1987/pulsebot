@@ -15,6 +15,7 @@ import { Button, IconButton } from "../components/ui/Button";
 import IconTile from "../components/ui/IconTile";
 import Badge from "../components/ui/Badge";
 import "../styles/raid-events.css";
+import RaidLoader from "../components/ui/RaidLoader";
 
 // Aufruf-Vorlagen: the list first, the editor as a dialog over it. The open
 // editor stays in the url (?edit=<id|new>), like every collection editor
@@ -197,7 +198,7 @@ export default function NotifyTemplatesPage() {
     };
 
     if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
-    if (!templates) return <div className="empty">Lade…</div>;
+    if (!templates) return <RaidLoader text="Vorlagen werden geladen" />;
 
     const sorted = apply(templates, (t, key) => (key === "name" ? (t.name || "") : (t.title || "")).toLowerCase());
     // An id that no longer exists opens the new-editor rather than nothing.

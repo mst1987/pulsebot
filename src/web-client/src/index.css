@@ -790,22 +790,59 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
     background: rgba(9, 11, 18, .66); backdrop-filter: blur(5px) saturate(1.1); -webkit-backdrop-filter: blur(5px) saturate(1.1);
     animation: pl-fade .18s ease both; }
 @keyframes pl-fade { from { opacity: 0 } to { opacity: 1 } }
-.pl-box { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 8px; }
-.pl-rune { position: relative; width: 96px; height: 96px; }
-.pl-rune span { position: absolute; border-radius: 50%; }
-.pl-rune .r1 { inset: 0; border: 3px solid transparent; border-top-color: var(--accent); border-right-color: var(--accent);
-    animation: pl-spin 1s cubic-bezier(.6, .2, .4, .8) infinite; }
-.pl-rune .r2 { inset: 13px; border: 3px solid transparent; border-bottom-color: var(--accent); opacity: .6;
-    animation: pl-spin 1.5s linear infinite reverse; }
-.pl-rune .r3 { inset: 32px; background: radial-gradient(circle at 50% 40%, #fff, var(--accent) 70%); box-shadow: 0 0 26px 2px var(--accent);
-    animation: pl-pulse 1.2s ease-in-out infinite; }
-@keyframes pl-spin { to { transform: rotate(360deg) } }
-@keyframes pl-pulse { 0%, 100% { transform: scale(.55); opacity: .55 } 50% { transform: scale(1); opacity: 1 } }
-.pl-text { color: #fff; font-weight: 800; letter-spacing: .4px; font-size: 15px; text-shadow: 0 1px 8px rgba(0, 0, 0, .5); }
-.pl-dots::after { content: ""; animation: pl-dots 1.4s steps(4, end) infinite; }
-@keyframes pl-dots { 0% { content: "" } 25% { content: "." } 50% { content: ".." } 75% { content: "..." } 100% { content: "" } }
+/* ---- the loading state, everywhere: a party going at a raid boss ----
+   "Lade…" in grey read like a page that had given up. This says the same in
+   the game's own vocabulary and is the same scene in all three places it can
+   appear: a page body, a card, and the overlay of a long operation
+   (components/ui/RaidLoader.tsx, components/PageLoader.tsx). Decorative only —
+   the icons are the ones the menu already mirrors, and nothing moves under
+   prefers-reduced-motion. */
+.rl { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 30px 18px; }
+.rl-stage { display: flex; align-items: flex-end; justify-content: center; gap: 14px; flex-wrap: wrap; }
+.rl-party { display: flex; align-items: flex-end; gap: 10px; }
+.rl-unit { display: inline-flex; flex-direction: column; align-items: center; gap: 5px; }
+.rl-name {
+    max-width: 78px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-family: var(--font-mono); font-size: 10.5px; line-height: 1; color: var(--muted);
+}
+.rl-icon { display: block; }
+.rl-icon .wi { width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); box-shadow: 0 2px 6px rgba(0, 0, 0, .4); }
+.rl-icon.attack { animation: rl-attack 1.1s ease-in-out infinite; }
+.rl-icon.flee { animation: rl-flee 1.4s ease-in-out infinite; }
+.rl-clash { color: var(--accent-2); margin-bottom: 9px; animation: rl-clash 1.1s ease-in-out infinite; }
+.rl-clash svg { display: block; width: 22px; height: 22px; }
+.rl-boss .rl-name { max-width: 96px; color: var(--high); font-weight: 700; }
+.rl-boss .wi {
+    width: 52px; height: 52px; border-radius: 10px; border: 2px solid color-mix(in srgb, var(--high) 55%, transparent);
+    box-shadow: 0 0 14px rgba(224, 82, 79, .35); animation: rl-hit 1.1s ease-in-out infinite;
+}
+.rl-caption { color: var(--muted); font-size: 13.5px; }
+/* inside a card instead of on a page of its own */
+.rl-compact { padding: 16px 12px; gap: 8px; }
+.rl-compact .rl-icon .wi { width: 26px; height: 26px; border-radius: 6px; }
+.rl-compact .rl-boss .wi { width: 38px; height: 38px; }
+.rl-compact .rl-clash svg { width: 17px; height: 17px; }
+/* the overlay: the same scene, on a panel over the dimmed page */
+.page-loader .rl { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 18px 50px rgba(0, 0, 0, .5); }
+.page-loader .rl-caption { color: var(--text); font-weight: 700; }
+@keyframes rl-attack {
+    0%, 100% { transform: translateX(0) rotate(0); }
+    40% { transform: translateX(14px) rotate(-9deg); }
+    55% { transform: translateX(9px) rotate(4deg); }
+}
+@keyframes rl-flee {
+    0%, 100% { transform: translateX(0) rotate(0); }
+    45% { transform: translateX(-22px) rotate(8deg); }
+}
+@keyframes rl-clash { 0%, 100% { transform: scale(1); } 45% { transform: scale(1.25) rotate(-12deg); } }
+@keyframes rl-hit {
+    0%, 100% { transform: translateX(0); filter: brightness(1); }
+    45% { transform: translateX(5px); filter: brightness(1.45); }
+    55% { transform: translateX(-3px); }
+}
 @media (prefers-reduced-motion: reduce) {
-    .pl-rune .r1, .pl-rune .r2, .pl-rune .r3, .pl-dots::after, .page-loader { animation-duration: .001ms; animation-iteration-count: 1; }
+    .rl-icon, .rl-clash, .rl-boss .wi { animation: none; }
+    .page-loader { animation-duration: .001ms; animation-iteration-count: 1; }
 }
 .hr-chip img { width: 18px; height: 18px; border-radius: 3px; margin-right: 6px; vertical-align: middle; }
 

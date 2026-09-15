@@ -18,6 +18,7 @@ import Badge from "./ui/Badge";
 import Pager from "./Pager";
 import TopLootList from "./TopLootList";
 import { ActiveFilters, FilterPopover, RaidChips, SearchBox, SwitchRow, type ActiveFilter } from "./LootFilters";
+import RaidLoader from "./ui/RaidLoader";
 
 type View = { search: string; category: string; content: string; reason: string; topOnly: boolean };
 const VIEW_DEFAULT: View = { search: "", category: "", content: "", reason: "", topOnly: true };
@@ -109,7 +110,7 @@ export function LatestLootTab({ categories }: { categories: Category[] }) {
             {error
                 ? <div className="empty">Loot konnte nicht geladen werden: {error}</div>
                 : !data
-                    ? <div className="empty">Lade…</div>
+                    ? <RaidLoader compact text="Vergaben werden geladen" />
                     : !data.items.length
                         ? (
                             <div className="empty">

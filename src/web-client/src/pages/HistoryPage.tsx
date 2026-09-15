@@ -27,6 +27,7 @@ import PageHead from "../components/ui/PageHead";
 import Segment from "../components/ui/Segment";
 import Badge from "../components/ui/Badge";
 import "../styles/historie-loot.css";
+import RaidLoader from "../components/ui/RaidLoader";
 
 type Tab = "awards" | "items" | "reasons" | "loot" | "raids" | "logs" | "chars";
 
@@ -635,7 +636,7 @@ export default function HistoryPage() {
     );
 
     if (error) return <>{head}<div className="empty">Fehler beim Laden: {error.message}</div></>;
-    if (!data) return <>{head}<div className="empty">Lade…</div></>;
+    if (!data) return <>{head}<RaidLoader text="Historie wird geladen" /></>;
 
     return (
         <>
@@ -707,7 +708,7 @@ export default function HistoryPage() {
                 statsError
                     ? <div className="empty">Fehler beim Laden: {statsError.message}</div>
                     : !stats
-                        ? <div className="empty">Lade…</div>
+                        ? <RaidLoader compact text="Übersicht wird geladen" />
                         : tab === "reasons"
                             ? <LootReasonsTab characters={stats.characters} reasons={stats.reasons} categories={data.categories} contents={stats.contents} />
                             : (

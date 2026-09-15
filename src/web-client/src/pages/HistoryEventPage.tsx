@@ -11,6 +11,7 @@ import { Button, IconButton } from "../components/ui/Button";
 import { PartHead } from "../components/ui/PartHead";
 import Badge from "../components/ui/Badge";
 import "../styles/historie-loot.css";
+import RaidLoader from "../components/ui/RaidLoader";
 
 export default function HistoryEventPage() {
     const ask = useConfirm();
@@ -58,7 +59,7 @@ export default function HistoryEventPage() {
     };
 
     if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
-    if (!data) return <div className="empty">Lade…</div>;
+    if (!data) return <RaidLoader text="Raid wird geladen" />;
 
     return (
         <>
