@@ -31,16 +31,27 @@
 .rc-subnav .subnav-count.accent,
 .rc-subnav .subnav-item.active .subnav-count.accent { color: var(--accent); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
 
-/* ---- the compact tables ---- */
+/* ---- the compact tables ----
+   Fixed columns, and every name on one line. A Discord channel is called
+   "🔎》recruitment" and sits in a category called "「・」TBC Montag": with
+   automatic columns the browser measured that against the other cells, squeezed
+   the Channel column down to the width of the longest word and broke the name
+   after every decorative symbol — three lines of "#", "🔎》", "recruitment" and
+   a table wider than its panel. The declared widths now hold at every window
+   width, the first column takes what is left, and what does not fit is cut with
+   an ellipsis; the whole name stays readable in the row's tooltip. */
 .rc-tbl { border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; background: var(--panel); }
-.rc-tbl table.idx { min-width: 760px; }
+.rc-tbl table.idx { table-layout: fixed; min-width: 860px; }
 .rc-tbl table.idx tr:last-child td { border-bottom: 0; }
+.rc-tbl .cname, .rc-tbl .csub, .rc-tbl .cell-cut, .rc-tbl td.mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rc-row { cursor: pointer; }
-.rc-specs { display: inline-flex; gap: 4px; align-items: center; vertical-align: middle; }
+/* Many wanted specs wrap inside their column instead of stretching the table. */
+.rc-specs { display: inline-flex; gap: 4px; align-items: center; vertical-align: middle; flex-wrap: wrap; }
 .rc-specs img, .rc-specs .wi { width: 24px; height: 24px; border-radius: 5px; object-fit: contain; box-shadow: 0 0 0 1px rgba(0, 0, 0, .35); }
 .rc-acts { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
 .rc-acts .exp-lbl { margin-left: 6px; }
-.rc-char { display: flex; align-items: center; gap: 10px; }
+.rc-char { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.rc-char > div { min-width: 0; }
 .rc-cls.tinted { --tile-bg: color-mix(in srgb, var(--cls) 18%, transparent); }
 .rc-cls .wi { border-radius: 6px; }
 

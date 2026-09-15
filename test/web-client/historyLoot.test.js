@@ -117,6 +117,20 @@ describe("Historie & Loot module", () => {
         expect(read("index.css")).not.toContain(".hl-");
     });
 
+    // The Raids view used to stack both lists with the coming raids on top —
+    // the list nobody opens this page for above the one they do.
+    it("opens the Raids view on the past raids and switches to the coming ones", () => {
+        const page = src["pages/HistoryPage.tsx"].replace(/\r\n/g, "\n");
+        expect(page).toContain("usePersistedState<RaidWhen>(\"history-raids-when\", \"past\")");
+        expect(page).toContain("<Segment<RaidWhen>");
+        const view = page.match(/\{tab === "raids" && \(\n[\s\S]*?\n {12}\)\}/)[0];
+        expect((view.match(/<RaidTable/g) || []).length).toBe(2);
+        expect(view).toContain("raidWhen === \"past\"");
+        // One card with one table at a time, not two cards under each other.
+        expect((view.match(/dash-card hl-card/g) || []).length).toBe(1);
+        expect((view.match(/<PartHead/g) || []).length).toBe(1);
+    });
+
     it("checks only verified WoW icon names for the raids", () => {
         const icons = src["components/LootBadges.tsx"].match(/export const CONTENT_ICONS[\s\S]*?\};/)[0];
         // Archimonde exists only with the trailing dash; Prince with the underscore.

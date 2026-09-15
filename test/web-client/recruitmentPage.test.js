@@ -55,6 +55,22 @@ describe("Recruitment page", () => {
         expect(page).toContain("{...classColorProps(a.classColor)}");
     });
 
+    // A Discord channel is called "🔎》recruitment" and its category
+    // "「・」TBC Montag": with automatic columns the browser broke such a name
+    // after every symbol and the row grew three lines tall.
+    it("keeps the tables' columns fixed and every name on one line", () => {
+        const css = read("styles", "recruitment.css").replace(/\r\n/g, "\n");
+        expect(css).toMatch(/\.rc-tbl table\.idx \{[^}]*table-layout: fixed/);
+        expect(css).toMatch(/\.rc-tbl \.cname[^{]*\{[^}]*white-space: nowrap/);
+        expect(css).toMatch(/\.rc-tbl \.cname[^{]*\{[^}]*text-overflow: ellipsis/);
+        // Many wanted specs wrap inside their column instead of widening the table.
+        expect(css).toMatch(/\.rc-specs \{[^}]*flex-wrap: wrap/);
+        // The channel column takes what is left, so no width of its own — and
+        // the full name stays readable in the tooltip box.
+        expect(page).toContain('<SortTh sortKey="channel" label="Channel" sort={sort} dir={dir} onSort={onSort} />');
+        expect(page).toContain("data-tip={`#${p.channelName || ch?.name || p.channelId}`}");
+    });
+
     it("styles itself in its own stylesheet", () => {
         expect(page).toContain('import "../styles/recruitment.css";');
         const css = read("styles", "recruitment.css");
