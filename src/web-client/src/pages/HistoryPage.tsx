@@ -60,6 +60,10 @@ const AREAS: { id: AreaId; label: string; icon: string; views: { id: Tab; label:
 // The main view of the page — where the sidebar link lands.
 const DEFAULT_TAB: Tab = "items";
 
+// The Raids view's two lists. They used to sit stacked in one view, the coming
+// raids on top — which put the list nobody comes here for above the one they do.
+type RaidWhen = "past" | "upcoming";
+
 // Old ?tab= values that are no longer views: "import" opens the dialog, "inbox"
 // goes to its page. Links to them are posted in Discord and must keep working.
 const LEGACY_IMPORT = "import";
@@ -547,6 +551,10 @@ export default function HistoryPage() {
     const [inboxCount, setInboxCount] = useState(0);
     const [importOpen, setImportOpen] = useState(legacyTab === LEGACY_IMPORT && canWrite);
     const [guildName, setGuildName] = useState("");
+    // The Raids view shows one list at a time, and it opens on the past raids:
+    // what already happened is what this page is for — the coming ones are
+    // planned on the Raid-Events page, not looked up here.
+    const [raidWhen, setRaidWhen] = usePersistedState<RaidWhen>("history-raids-when", "past");
 
     // Whether the overviews were ever asked for. A ref, not the state above:
     // after a failed load there is nothing in `stats`, and retrying on every
@@ -660,16 +668,32 @@ export default function HistoryPage() {
             )}
 
             {tab === "raids" && (
-                <>
-                    <div className="dash-card hl-card">
-                        <PartHead icon="inv_misc_note_02" tone="history" title="Kommende Raids" crumb="Raids & Logs › Raids" action={<Badge count>{data.upcomingRaids.events.length}</Badge>} />
-                        <RaidTable events={data.upcomingRaids.events} guildId={data.activeGuildId} error={data.upcomingRaids.error} emptyMessage="Keine anstehenden Raids gefunden." sortKey="raids-upcoming-sort" initialDir="asc" />
-                    </div>
-                    <div className="dash-card hl-card">
-                        <PartHead icon="inv_misc_note_02" tone="history" title="Vergangene Raids" crumb="Raids & Logs › Raids" action={<Badge count>{data.pastRaids.events.length}</Badge>} />
-                        <RaidTable events={data.pastRaids.events} guildId={data.activeGuildId} error={data.pastRaids.error} emptyMessage="Keine vergangenen Raids gefunden." sortKey="raids-past-sort" />
-                    </div>
-                </>
+                <div className="dash-card hl-card">
+                    <PartHead
+                        icon="inv_misc_note_02" tone="history"
+                        title={raidWhen === "past" ? "Vergangene Raids" : "Kommende Raids"}
+                        crumb="Raids & Logs › Raids"
+                        tip={raidWhen === "past" ? "Gelaufene Raids" : "Angesetzte Raids"}
+                        tipSub={raidWhen === "past"
+                            ? "Jeder Termin, der vorbei ist, mit seinen Logs und dem importierten Loot."
+                            : "Was im Kalender steht. Geplant wird er unter Raid-Events."}
+                        action={(
+                            <Segment<RaidWhen>
+                                ariaLabel="Zeitraum"
+                                size="sm"
+                                value={raidWhen}
+                                onChange={setRaidWhen}
+                                options={[
+                                    { value: "past", label: `Vergangene (${data.pastRaids.events.length})`, icon: "inv_misc_pocketwatch_01", tip: "Schon gelaufen" },
+                                    { value: "upcoming", label: `Kommende (${data.upcomingRaids.events.length})`, icon: "inv_misc_note_02", tip: "Noch angesetzt" },
+                                ]}
+                            />
+                        )}
+                    />
+                    {raidWhen === "past"
+                        ? <RaidTable events={data.pastRaids.events} guildId={data.activeGuildId} error={data.pastRaids.error} emptyMessage="Keine vergangenen Raids gefunden." sortKey="raids-past-sort" />
+                        : <RaidTable events={data.upcomingRaids.events} guildId={data.activeGuildId} error={data.upcomingRaids.error} emptyMessage="Keine anstehenden Raids gefunden." sortKey="raids-upcoming-sort" initialDir="asc" />}
+                </div>
             )}
             {tab === "loot" && (
                 <LootEventsTab

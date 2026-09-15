@@ -523,12 +523,14 @@ function PostsTab({ data, csrfToken, editor, onChanged, reload }: {
                         <table className="idx">
                             <thead>
                                 <tr>
-                                    <SortTh sortKey="channel" label="Channel" sort={sort} dir={dir} onSort={onSort} style={{ width: 230 }} />
-                                    <SortTh sortKey="wanted" label="Gesucht" sort={sort} dir={dir} onSort={onSort} tip="Gesuchte Specs" tipSub="Aus den „##“-Zeilen des Texts." style={{ width: 150 }} />
-                                    <SortTh sortKey="template" label="Vorlage" sort={sort} dir={dir} onSort={onSort} tip="Vorlage" tipSub="Aus welcher Vorlage gepostet. Per Scan gefundene Nachrichten haben keine." />
+                                    {/* The Channel column takes what the fixed ones leave: a channel
+                                        name is the one cell whose length nobody controls. */}
+                                    <SortTh sortKey="channel" label="Channel" sort={sort} dir={dir} onSort={onSort} />
+                                    <SortTh sortKey="wanted" label="Gesucht" sort={sort} dir={dir} onSort={onSort} tip="Gesuchte Specs" tipSub="Aus den „##“-Zeilen des Texts." style={{ width: 140 }} />
+                                    <SortTh sortKey="template" label="Vorlage" sort={sort} dir={dir} onSort={onSort} tip="Vorlage" tipSub="Aus welcher Vorlage gepostet. Per Scan gefundene Nachrichten haben keine." style={{ width: 190 }} />
                                     <SortTh sortKey="source" label="Quelle" sort={sort} dir={dir} onSort={onSort} tip="Quelle" tipSub="Gepostet = über dieses Menü. Gefunden = beim Durchsuchen des Servers entdeckt." style={{ width: 130 }} />
                                     <SortTh sortKey="updated" label="Aktualisiert" sort={sort} dir={dir} onSort={onSort} style={{ width: 130 }} />
-                                    <th style={{ width: 130 }} />
+                                    <th style={{ width: 132 }} />
                                 </tr>
                             </thead>
                             <tbody>
@@ -537,12 +539,14 @@ function PostsTab({ data, csrfToken, editor, onChanged, reload }: {
                                     const tpl = templateName(p.templateId);
                                     return (
                                         <tr key={p.id} className="rc-row" onClick={() => editor.startEdit(p.id)}>
-                                            <td>
+                                            {/* Cut off rather than wrapped (see recruitment.css) —
+                                                the tooltip keeps the full name readable. */}
+                                            <td data-tip={`#${p.channelName || ch?.name || p.channelId}`} data-tip-sub={ch?.category || undefined}>
                                                 <div className="cname">#{p.channelName || ch?.name || p.channelId}</div>
                                                 {ch?.category && <div className="csub">{ch.category}</div>}
                                             </td>
                                             <td><WantedIcons content={p.content} data={data} /></td>
-                                            <td>{tpl || <span className="csub">—</span>}</td>
+                                            <td>{tpl ? <div className="cell-cut" data-tip={tpl}>{tpl}</div> : <span className="csub">—</span>}</td>
                                             <td>
                                                 {p.source === "scan"
                                                     ? <Badge icon={ICONS.scan}>Gefunden</Badge>
