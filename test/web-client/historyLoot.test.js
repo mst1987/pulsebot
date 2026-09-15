@@ -131,6 +131,20 @@ describe("Historie & Loot module", () => {
         expect((view.match(/<PartHead/g) || []).length).toBe(1);
     });
 
+    // Every search on this page is the module's own field (icon, tokens, focus
+    // ring). The Charaktere view held the one bare <input> that was left, and
+    // it wore the browser's own look next to controls that did not.
+    it("searches with the module's own field, never a bare input", () => {
+        const page = src["pages/HistoryPage.tsx"].replace(/\r\n/g, "\n");
+        expect(page).toContain("<SearchBox id=\"chars-search\"");
+        expect(page).toContain("import { SearchBox } from \"../components/LootFilters\";");
+        for (const [file, code] of Object.entries(src)) {
+            // the box itself is where that one input belongs
+            if (file === "components/LootFilters.tsx") continue;
+            expect({ file, bare: /<input[^>]*type="search"/.test(code) }).toEqual({ file, bare: false });
+        }
+    });
+
     it("checks only verified WoW icon names for the raids", () => {
         const icons = src["components/LootBadges.tsx"].match(/export const CONTENT_ICONS[\s\S]*?\};/)[0];
         // Archimonde exists only with the trailing dash; Prince with the underscore.

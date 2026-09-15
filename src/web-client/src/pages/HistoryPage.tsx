@@ -13,6 +13,7 @@ import RaidTable from "../components/RaidTable";
 import { SortTh } from "../components/SortTh";
 import { CharLootHover } from "../components/CharLootHover";
 import { ClassSpecCell, CharacterLink, CLASS_SOURCE_LABELS } from "../components/ClassSpec";
+import { SearchBox } from "../components/LootFilters";
 import { LootReasonsTab } from "../components/LootReasonsTab";
 import { LootItemsTab } from "../components/LootItemsTab";
 import { LatestLootTab } from "../components/LatestLootTab";
@@ -478,14 +479,10 @@ function CharactersTab({ chars, categories, csrfToken, onChanged }: {
         <div className="dash-card hl-card">
             {head}
             <div className="filter-bar hl-filters">
-                <input
-                    id="chars-search"
-                    type="search"
-                    aria-label="Charaktername"
-                    placeholder="Charaktername …"
-                    value={search}
-                    onChange={(e) => patch({ search: e.target.value })}
-                />
+                {/* the module's own search field (icon, tokens, focus ring) —
+                    the bare input this used to be was the one control on the
+                    page still wearing the browser's own look */}
+                <SearchBox id="chars-search" value={search} onChange={(s) => patch({ search: s })} placeholder="Charaktername …" />
                 <select id="chars-category" className="hl-sel" aria-label="Kategorie" value={categoryFilter} onChange={(e) => patch({ category: e.target.value })}>
                     <option value="">Alle Kategorien</option>
                     {categoryOptions.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
