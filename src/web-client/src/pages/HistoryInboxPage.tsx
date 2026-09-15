@@ -18,6 +18,7 @@ import { ChevronLeftIcon } from "../components/icons";
 import { InboxSessionCard, LinkedSessions } from "../components/LootInboxTab";
 import { InfoTip } from "../components/LootFilters";
 import "../styles/historie-loot.css";
+import RaidLoader from "../components/ui/RaidLoader";
 
 export default function HistoryInboxPage() {
     const { csrfToken } = useOutletContext<ShellContext>();
@@ -72,7 +73,7 @@ export default function HistoryInboxPage() {
             </div>
 
             {loadError && <div className="empty">Inbox konnte nicht geladen werden: {loadError.message}</div>}
-            {!loadError && !sessions && <div className="empty">Lade…</div>}
+            {!loadError && !sessions && <RaidLoader text="Inbox wird geladen" />}
             {!loadError && sessions && !sessions.length && (
                 <div className="dash-card hl-card">
                     <div className="empty">

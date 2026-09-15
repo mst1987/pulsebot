@@ -15,6 +15,7 @@ import IconTile from "./ui/IconTile";
 import PartHead from "./ui/PartHead";
 import { CheckIcon, CopyIcon, ExternalIcon, TrashIcon } from "./icons";
 import { AdminOnlyBadge, CheckMark, FieldLabel, InfoTip, PenIcon, WarnIcon } from "./settingsUi";
+import RaidLoader from "./ui/RaidLoader";
 
 // Einstellungen → Verbindungen: one status card per foreign system instead of a
 // form per system. The card answers "is it set up?" at a glance; what the
@@ -451,7 +452,7 @@ function TokensModal({ open, tokens, csrfToken, onClose, onChanged }: {
                         <Button icon="inv_misc_punchcards_blue" onClick={create} disabled={busy}>{busy ? "Erstellt…" : "Token erstellen"}</Button>
                     </div>
                 </div>
-                {!tokens ? <div className="empty">Lade…</div> : !tokens.length ? (
+                {!tokens ? <RaidLoader compact text="Tokens werden geladen" /> : !tokens.length ? (
                     <div className="empty">Noch kein Token erstellt.</div>
                 ) : (
                     <div className="table-scroll">

@@ -26,6 +26,7 @@ import { eventPostUrl, raidplanUrl } from "../lib/discordLinks";
 import { relativeDayLabel } from "../lib/format";
 import { longDay, shortDate, dayDate, clock, raidWhen } from "../lib/overviewDates";
 import "../styles/uebersicht.css";
+import RaidLoader from "../components/ui/RaidLoader";
 
 /** A link inside the SPA, or a plain anchor for the server-rendered report pages (/r/…). */
 function RowLink({ href, className, tip, tipSub, children }: {
@@ -289,7 +290,7 @@ export default function DashboardPage() {
         return <div className="empty">Fehler beim Laden der Übersicht: {error.message}</div>;
     }
     if (!data) {
-        return <div className="empty">Lade…</div>;
+        return <RaidLoader text="Übersicht wird geladen" />;
     }
 
     const kicker = [data.kicker.guild, data.kicker.realm, longDay(Date.now())].filter(Boolean).join(" · ");

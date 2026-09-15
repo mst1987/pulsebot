@@ -4,6 +4,7 @@ import { useToast } from "./Jobs";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import Badge from "./ui/Badge";
+import RaidLoader from "./ui/RaidLoader";
 
 // Raider → Charakter for exactly one category (see raiderCharactersStore.js):
 // which character a raider plays on that raid day. Overrides the automatic
@@ -65,7 +66,7 @@ export default function RaiderCharactersModal({ categoryId, categoryName, csrfTo
             )}
         >
             {loadError && <div className="empty is-bad">{loadError}</div>}
-            {!loadError && !info && <div className="empty">Lade…</div>}
+            {!loadError && !info && <RaidLoader compact text="Charaktere werden geladen" />}
             {info && !info.roleIds.length && (
                 <div className="empty">Dieser Kategorie sind noch keine Raider-Rollen zugeordnet — erst in der Zeile Rollen wählen und speichern.</div>
             )}

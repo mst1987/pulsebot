@@ -14,6 +14,7 @@ import Badge from "../components/ui/Badge";
 import WowIcon from "../components/ui/WowIcon";
 import { buttonClass } from "../components/ui/Button";
 import "../styles/raid-events.css";
+import RaidLoader from "../components/ui/RaidLoader";
 
 // Raid-Events: one page, two views of the same list — what is coming and what
 // took place — filtered by Discord category. "Neues Event" (/raids/new) is a
@@ -92,7 +93,7 @@ export default function RaidsPage() {
     const repeat = (id: string) => navigate(`/raids/new?source=${encodeURIComponent(id)}`);
 
     if (error) return <div className="empty">Fehler beim Laden der Raid-Events: {error.message}</div>;
-    if (!upcoming) return <div className="empty">Lade…</div>;
+    if (!upcoming) return <RaidLoader text="Raids werden geladen" />;
 
     const events: (UpcomingRaid | PastRaid)[] = view === "past" ? (past?.events || []) : upcoming.events;
     const pills = categoryPills(events);

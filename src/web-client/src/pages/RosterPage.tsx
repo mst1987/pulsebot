@@ -18,6 +18,7 @@ import { CLASS_LABELS, ROLE_ORDER, classIconName } from "../lib/rosterView";
 import { Badge, Expand, IconTile, Segment, WowIcon } from "../components/ui";
 import { ChevronDownIcon, SearchIcon } from "../components/icons";
 import "../styles/roster-charakter.css";
+import RaidLoader from "../components/ui/RaidLoader";
 
 /** Rows a long group shows before "n weitere zeigen". */
 const GROUP_PREVIEW = 11;
@@ -163,7 +164,7 @@ export default function RosterPage() {
     }, [chars]);
 
     if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
-    if (!data) return <div className="empty">Lade…</div>;
+    if (!data) return <RaidLoader text="Roster wird geladen" />;
 
     // A stored view from an older build lacks fields or carries old ones
     // (category, classSpec, sort) — only the known fields are read.

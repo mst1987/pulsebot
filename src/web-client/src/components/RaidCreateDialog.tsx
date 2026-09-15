@@ -14,6 +14,7 @@ import WowIcon from "./ui/WowIcon";
 import RaidIcon from "./RaidIcon";
 import RaidTemplatesDialog from "./RaidTemplatesDialog";
 import { CheckIcon, ChevronRightIcon } from "./icons";
+import RaidLoader from "./ui/RaidLoader";
 
 // "Neues Event" as a guided dialog in three steps instead of a long page:
 //   1 Vorlage        — repeat the latest event of a category, or start empty,
@@ -229,7 +230,7 @@ export default function RaidCreateDialog({ open, sourceId, csrfToken, userId, on
     if (loadError) {
         body = <div className="re-empty">Fehler beim Laden: {loadError}</div>;
     } else if (!ctx) {
-        body = <div className="re-empty">Lade…</div>;
+        body = <RaidLoader compact text="Vorlagen werden geladen" />;
     } else if (step === 1) {
         body = (
             <>

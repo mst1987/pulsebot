@@ -20,6 +20,7 @@ import DropCheckPage from "./pages/lootcouncil/DropCheckPage";
 import { JobsProvider } from "./components/Jobs";
 import { ConfirmProvider } from "./components/ui/Modal";
 import { canAccess, canAccessAny, getSession, type ApiError, type Session, type SessionUser } from "./api";
+import RaidLoader from "./components/ui/RaidLoader";
 
 /**
  * Hides a page the user's rights don't cover. `areas` is an OR — one of them at
@@ -86,7 +87,7 @@ function useSession(): LoadState {
 export default function App() {
     const state = useSession();
 
-    if (state.status === "loading") return <div className="empty">Lade…</div>;
+    if (state.status === "loading") return <RaidLoader text="Menü wird geladen" />;
     if (state.status === "error") {
         return <div className="empty">Fehler beim Laden der Session: {state.error.message}</div>;
     }

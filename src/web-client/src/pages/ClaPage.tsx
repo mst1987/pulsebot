@@ -21,6 +21,7 @@ import PageHead from "../components/ui/PageHead";
 import Tip from "../components/ui/Tip";
 import WowIcon from "../components/ui/WowIcon";
 import "../styles/log-auswertung.css";
+import RaidLoader from "../components/ui/RaidLoader";
 
 // Log-Auswertung (design issue #217): one list, one row per log. What used to be
 // two tabs ("Auswertungen" / "Erkannte Logs") showing the same log twice is now
@@ -748,7 +749,7 @@ export default function ClaPage() {
     );
 
     if (error && !data) return <>{head}<div className="empty">Fehler beim Laden: {error.message}</div></>;
-    if (!data) return <>{head}<div className="empty">Lade…</div></>;
+    if (!data) return <>{head}<RaidLoader text="Logs werden geladen" /></>;
 
     const list = data.page;
     const columns: { key?: string; label: string; tip: string; sub: string }[] = [

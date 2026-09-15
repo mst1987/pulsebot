@@ -27,6 +27,7 @@ import PageHead from "../components/ui/PageHead";
 import { PartHead } from "../components/ui/PartHead";
 import WowIcon from "../components/ui/WowIcon";
 import "../styles/recruitment.css";
+import RaidLoader from "../components/ui/RaidLoader";
 
 // Recruitment (design issue #215): three tabs of compact tables — posted
 // messages, templates, applications — and everything that is more than a row
@@ -852,7 +853,7 @@ export default function RecruitmentPage() {
     };
 
     if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
-    if (!data) return <div className="empty">Lade…</div>;
+    if (!data) return <RaidLoader text="Recruitment wird geladen" />;
 
     // An id that no longer exists (deleted in another tab, stale link) falls
     // back to the new-editor resp. the posting dialog rather than to nothing.

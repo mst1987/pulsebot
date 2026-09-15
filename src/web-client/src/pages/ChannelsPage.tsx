@@ -12,6 +12,7 @@ import {
 } from "../components/channels/ChannelDialogs";
 import { groupByCategory, isTextLike } from "../lib/channels";
 import "../styles/kanaele.css";
+import RaidLoader from "../components/ui/RaidLoader";
 
 // Kanäle (design issue #216): what the bot uses which channel for, and every
 // channel of the server grouped by Discord category. Creating, duplicating and
@@ -217,7 +218,7 @@ export default function ChannelsPage() {
     };
 
     if (error) return <div className="empty">Fehler beim Laden der Kanäle: {error.message}</div>;
-    if (!data) return <div className="empty">Lade…</div>;
+    if (!data) return <RaidLoader text="Kanäle werden geladen" />;
 
     if (!data.activeGuildId) {
         return (
