@@ -237,20 +237,6 @@ select:focus { background-image: var(--ctl-arrow-hi); }
 /* discard button inside a status pill — drops just that one analysis */
 .pill-x { background: none; border: 0; color: inherit; opacity: .55; cursor: pointer; font: inherit; line-height: 1; padding: 0 0 0 5px; }
 .pill-x:hover { opacity: 1; }
-/* A pill whose assignment can be removed: label and ✕ are one chip, not a pill
-   with a full-size ghost button parked beside it (which read as a second, equally
-   important action). The ✕ only gains weight on hover/focus. */
-.pill-chip { display: inline-flex; align-items: center; gap: 2px; padding-right: 3px; line-height: 1.7; vertical-align: middle; }
-.chip-x {
-    display: inline-grid; place-items: center; flex: 0 0 auto;
-    width: 16px; height: 16px; padding: 0; border: 0; border-radius: 50%;
-    background: none; color: inherit; opacity: .5; cursor: pointer;
-    transition: opacity .12s ease, background-color .12s ease;
-}
-.chip-x svg { width: 9px; height: 9px; }
-.chip-x:hover:not(:disabled) { opacity: 1; background: color-mix(in srgb, currentColor 20%, transparent); }
-.chip-x:focus-visible { opacity: 1; outline: 2px solid currentColor; outline-offset: 1px; }
-.chip-x:disabled { opacity: .25; cursor: not-allowed; }
 .empty { color: var(--muted); padding: 40px; text-align: center; }
 .note { color: var(--muted); font-size: 12.5px; margin: -6px 0 12px; }
 code { font-family: ui-monospace, Consolas, monospace; font-size: 13px; padding: 2px 6px; border-radius: 4px; background: var(--panel2); color: var(--text); }
@@ -531,18 +517,6 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 
 /* ===== recruitment: sub-nav, emoji picker, spec picker, application cards ===== */
 .subnav { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin: 0 0 18px; flex-wrap: wrap; }
-/* Log-Auswertung: the "evaluate a log" card sits above both tabs — it is what the page is for */
-.eval-card { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 10px; padding: 14px 16px 16px; margin: 0 0 20px; }
-.eval-card h2 { margin: 0 0 10px; font-size: 16px; }
-.eval-row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
-.eval-row .field { flex: 1 1 320px; margin: 0; }
-.eval-row .btn { margin-top: 22px; }
-.eval-choice { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 0; }
-.eval-opt { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; }
-.eval-opt input { margin: 0; accent-color: var(--accent); }
-.eval-opt.active { border-color: var(--accent); color: var(--text); background: var(--panel2); }
-.eval-opt b { font-weight: 700; }
-.eval-opt span { font-size: 12px; }
 .subnav-item { display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; background: none; border: 0; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 14.5px; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; font: inherit; }
 .subnav-item:hover { color: var(--text); }
 .subnav-item.active { color: var(--accent); border-bottom-color: var(--accent); }

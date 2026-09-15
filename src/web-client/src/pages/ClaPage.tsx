@@ -1,23 +1,36 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import {
     getClaData, createReport, evalLog, resetEval, scanLogs, deleteLogEntry, linkLog, unlinkLog, autoMatchLogs,
-    deleteReport, unlinkReport,
-    type ApiError, type ClaData, type ClaPage, type ReportSummary, type LogRow, type MatchCandidate,
-    type LogSection,
+    deleteReport,
+    type ApiError, type ClaData, type ClaFilter, type ClaRow, type ClaRaid, type LogSection, type MatchCandidate,
 } from "../api";
-import { formatEventTime, fmtMs } from "../lib/format";
+import { formatEventTime } from "../lib/format";
 import { withIncompleteConfirm } from "../lib/confirmIncomplete";
 import { usePersistedState, usePersistedSearchParam, useDraftState } from "../lib/persistedState";
+import { raidCount, raidIcon, raidTip } from "../lib/logRaids";
 import type { ShellContext } from "../components/Shell";
-import { SortTh } from "../components/SortTh";
+import { SortLabel, ariaSort } from "../components/SortTh";
 import { useJobs } from "../components/Jobs";
 import Pager from "../components/Pager";
-import { RunIcon, SearchIcon, LinkIcon, TrashIcon, ExternalIcon, XIcon } from "../components/icons";
-import { useConfirm } from "../components/ui/Modal";
+import { CheckIcon, ExternalIcon, TrashIcon } from "../components/icons";
+import { useConfirm, Modal } from "../components/ui/Modal";
+import { Button, IconButton, buttonClass } from "../components/ui/Button";
+import Badge from "../components/ui/Badge";
+import PageHead from "../components/ui/PageHead";
+import Tip from "../components/ui/Tip";
+import WowIcon from "../components/ui/WowIcon";
+import "../styles/log-auswertung.css";
 
-type View = "reports" | "logs";
+// Log-Auswertung (design issue #217): one list, one row per log. What used to be
+// two tabs ("Auswertungen" / "Erkannte Logs") showing the same log twice is now
+// one list with a filter segment; the link form, the assignment and the
+// "raid still running" question are modals; each row has exactly one action
+// plus a row menu for everything that is needed rarely.
+
 type Dir = "asc" | "desc";
+
+const FILTERS: ClaFilter[] = ["all", "open", "unlinked", "done"];
 
 // Rough runtimes, used only to give the progress toast a bar to fill. RPB walks
 // the whole fight timeline and is the slow half; a report built from a pasted
@@ -25,29 +38,76 @@ type Dir = "asc" | "desc";
 const EVAL_SECONDS: Record<LogSection, number> = { cla: 25, rpb: 55 };
 const REPORT_SECONDS = 30;
 
-// What a pasted link builds: both halves unless the form says otherwise.
+// What a pasted link builds: both halves unless the dialog says otherwise.
 type SectionChoice = "both" | "cla" | "rpb";
-const SECTION_CHOICES: { key: SectionChoice; label: string; sub: string; sections: LogSection[] }[] = [
-    { key: "both", label: "CLA + RPB", sub: "komplette Auswertung", sections: ["cla", "rpb"] },
-    { key: "cla", label: "nur CLA", sub: "Gear, Consumables, Kampfverlauf", sections: ["cla"] },
-    { key: "rpb", label: "nur RPB", sub: "Schaden, Tode, Aktivität, Cooldowns", sections: ["rpb"] },
+const SECTION_CHOICES: { key: SectionChoice; label: string; sub: string; icon: string; seconds: number; sections: LogSection[] }[] = [
+    { key: "both", label: "CLA + RPB", sub: "Komplette Auswertung auf einer Report-Seite", icon: "inv_misc_book_09", seconds: EVAL_SECONDS.cla + EVAL_SECONDS.rpb, sections: ["cla", "rpb"] },
+    { key: "cla", label: "nur CLA", sub: "Gear, Consumables, Kampfverlauf", icon: "inv_chest_cloth_43", seconds: REPORT_SECONDS, sections: ["cla"] },
+    { key: "rpb", label: "nur RPB", sub: "Schaden, Tode, Aktivität, Cooldowns", icon: "ability_warrior_offensivestance", seconds: EVAL_SECONDS.rpb, sections: ["rpb"] },
 ];
 
-// Default sort direction per column — mirrors renderAdmin.js's REPORT_DIR/LOG_DIR
-// maps used by claSortHeader().
-const REPORT_SORT_DEFAULTS: Record<string, Dir> = { title: "asc", zone: "asc", event: "asc", date: "desc", players: "desc", issues: "desc" };
-const LOG_SORT_DEFAULTS: Record<string, Dir> = {
-    title: "asc", category: "asc", event: "asc", source: "asc", status: "asc", date: "desc",
+// The two halves of an analysis — label, icon and what each one looks at.
+const ANALYSES: { key: LogSection; label: string; icon: string; sub: string }[] = [
+    { key: "cla", label: "CLA", icon: "inv_chest_cloth_43", sub: "Gear, Verzauberungen, Sockel, Consumables, Drums, Potions & Shadow-Resi" },
+    { key: "rpb", label: "RPB", icon: "ability_warrior_offensivestance", sub: "Vermeidbarer Schaden, Tode, Aktivität, Cooldowns, Interrupts & Log-Prüfung" },
+];
+
+// Default direction per sortable column.
+const SORT_DEFAULTS: Record<string, Dir> = { date: "desc", content: "asc", status: "asc", event: "asc" };
+type Sorting = { sort: string; dir: Dir };
+const SORTING_DEFAULT: Sorting = { sort: "date", dir: "desc" };
+
+const FILTER_META: Record<ClaFilter, { label: string; tip: string; sub: string; empty: string }> = {
+    all: {
+        label: "Alle",
+        tip: "Alle Logs",
+        sub: "Vom Bot im Log-Channel erkannte Warcraft-Logs und per Link ausgewertete Reports, neueste Post-Zeit zuerst. Jeder Report wird nur einmal ausgewertet.",
+        empty: "Noch keine Logs. Sobald im Log-Channel ein Warcraft-Logs-Link gepostet wird, taucht er hier auf.",
+    },
+    open: {
+        label: "Offen",
+        tip: "Noch nicht ausgewertet",
+        sub: "Logs, für die weder CLA noch RPB gelaufen ist. Über den Log-Link vorab prüfen, dann „Auswerten“.",
+        empty: "Kein Log wartet auf eine Auswertung.",
+    },
+    unlinked: {
+        label: "Ohne Raid-Event",
+        tip: "Keinem Raid-Event zugeordnet",
+        sub: "Jedes Log gehört zu dem Raid, dessen Startzeit zur Post-Zeit passt. Der Vorschlag ist im Zuordnen-Dialog vorgewählt.",
+        empty: "Alle Logs sind einem Raid-Event zugeordnet.",
+    },
+    done: {
+        label: "Ausgewertet",
+        tip: "Mindestens eine Hälfte ausgewertet",
+        sub: "Logs mit CLA- oder RPB-Auswertung und die per Link erstellten Reports.",
+        empty: "Noch keine Auswertungen.",
+    },
 };
 
-// The remembered sort, per view: the two tables share no columns, so a single
-// common memory would hand the logs table a "players" column it doesn't have.
-type Sorting = Record<View, { sort: string; dir: Dir }>;
-const SORTING_DEFAULT: Sorting = { reports: { sort: "date", dir: "desc" }, logs: { sort: "date", dir: "desc" } };
-const SORT_COLUMNS: Record<View, Record<string, Dir>> = { reports: REPORT_SORT_DEFAULTS, logs: LOG_SORT_DEFAULTS };
+// ---- small formatting helpers ----
 
-// "vor/nach Start" hint for a candidate event — mirrors formatMatchOffset() in
-// renderAdmin.js exactly (hours+minutes, or "pünktlich zum Start" on an exact match).
+const TZ = "Europe/Berlin";
+
+/** "So 14.09. 21:58" (epoch ms). */
+function fmtPosted(ms: number): string {
+    if (!ms) return "";
+    const d = new Date(ms);
+    const wd = d.toLocaleString("de-DE", { timeZone: TZ, weekday: "short" }).replace(".", "");
+    const day = d.toLocaleString("de-DE", { timeZone: TZ, day: "2-digit", month: "2-digit" });
+    const time = d.toLocaleString("de-DE", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
+    return `${wd} ${day.endsWith(".") ? day : `${day}.`} ${time}`;
+}
+
+/** "Do 11.09." (event start in seconds). */
+function fmtEventDay(startTime: number): string {
+    if (!startTime) return "";
+    const d = new Date(startTime * 1000);
+    const wd = d.toLocaleString("de-DE", { timeZone: TZ, weekday: "short" }).replace(".", "");
+    const day = d.toLocaleString("de-DE", { timeZone: TZ, day: "2-digit", month: "2-digit" });
+    return `${wd} ${day.endsWith(".") ? day : `${day}.`}`;
+}
+
+/** "2 h 13 min nach Start" — how far a log's post lies from an event's start. */
 function formatMatchOffset(diffMs: number): string {
     const ms = Number(diffMs) || 0;
     const mins = Math.round(Math.abs(ms) / 60000);
@@ -58,75 +118,145 @@ function formatMatchOffset(diffMs: number): string {
     return ms >= 0 ? `${span} nach Start` : `${span} vor Start`;
 }
 
-// A candidate label for the assignment dropdown — mirrors matchOptionLabel().
-function matchOptionLabel(c: MatchCandidate): string {
-    const when = c.startTime ? formatEventTime(c.startTime) : "";
-    return `${c.title || c.eventId}${when ? ` · ${when}` : ""} (${formatMatchOffset(c.diffMs)})`;
+function discordUrl(row: ClaRow): string {
+    return row.guildId && row.channelId && row.messageId
+        ? `https://discord.com/channels/${row.guildId}/${row.channelId}/${row.messageId}`
+        : "";
 }
 
-// WCL report link for a detected log (prefer the stored link, else derive it
-// from the reportId) — mirrors logWclUrl().
-function logWclUrl(l: LogRow): string {
-    return l.link || (l.reportId ? `https://classic.warcraftlogs.com/reports/${l.reportId}` : "");
-}
-
-// The shared sortable <th>, adapted to this page's server-side sorting: the two
-// CLA tables are paginated by the API, so a click doesn't reorder an array here
-// but asks for a differently sorted page (and resets to page 1). Which
-// direction that is — toggled on the active column, else the column's
-// configured default — is decided here rather than in the shared component,
-// which only ever reports "this column was clicked".
-function ClaSortTh({ sortKey, label, page, defaults, onSort }: {
-    sortKey: string;
-    label: string;
-    page: { sort: string; dir: Dir };
-    defaults: Record<string, Dir>;
-    onSort: (key: string, dir: Dir) => void;
-}) {
-    const nextDir: Dir = page.sort === sortKey ? (page.dir === "asc" ? "desc" : "asc") : (defaults[sortKey] || "desc");
+// Line icons for pure UI functions that components/icons.tsx does not carry.
+function DotsIcon() {
     return (
-        <SortTh
-            sortKey={sortKey} label={label}
-            sort={page.sort} dir={page.dir}
-            onSort={() => onSort(sortKey, nextDir)}
-        />
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="5" cy="12" r="1.9" /><circle cx="12" cy="12" r="1.9" /><circle cx="19" cy="12" r="1.9" />
+        </svg>
+    );
+}
+function UndoIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+        </svg>
+    );
+}
+function QuestionIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+            <path d="M12 7v6" /><circle cx="12" cy="17" r=".6" />
+        </svg>
     );
 }
 
-
-// The "Raid" cell of a report row: the raid its log is assigned to, with a
-// button to remove that assignment. A report is never linked to a raid directly
-// — the link lives on the log it was generated from, so unassigning here means
-// unassigning that log. Reports without a log (or without an assignment) show a
-// dash; assigning is done in the logs tab / on the raid page.
-function ReportEventCell({ r, busy, onUnlink }: { r: ReportSummary; busy: boolean; onUnlink: () => void }) {
-    if (!r.eventId) {
-        return <span className="sub" data-tip={r.logId ? "Das zugehörige Log ist keinem Raid zugeordnet" : "Zu dieser Auswertung gibt es kein erkanntes Log"}>—</span>;
-    }
-    const when = r.eventStartTime ? formatEventTime(r.eventStartTime) : "";
-    const label = r.eventLabel || r.eventId;
-    return (
-        <span className="pill pill-chip" data-tip={`${label}${when ? ` — ${when}` : ""}`}>
-            {label}
-            <button
-                className="chip-x" type="button"
-                data-tip="Zuordnung entfernen" aria-label={`Zuordnung zu „${label}“ entfernen`}
-                disabled={busy} onClick={onUnlink}
-            ><XIcon /></button>
-        </span>
-    );
-}
+// ---- the filter segment with a count per option ----
 
 /**
- * The one thing this page is for, at the top of it and on both tabs: paste a
- * Warcraft-Logs link, pick CLA + RPB (or one half), go. The build runs as a
- * background job — the form clears at once and the toast at the bottom reports
- * progress and the finished report, so the admin can carry on meanwhile.
+ * The shared Segment's look (.seg / .seg-opt) with a round count badge per
+ * option — the shared component takes plain string labels, so the counts
+ * would not fit into it.
  */
-function NewEvaluationCard({ csrfToken, onChanged }: { csrfToken: string | null; onChanged: () => void }) {
+function FilterSegment({ value, counts, onChange }: {
+    value: ClaFilter;
+    counts: Record<ClaFilter, number>;
+    onChange: (f: ClaFilter) => void;
+}) {
+    return (
+        <div className="seg la-seg" role="radiogroup" aria-label="Logs filtern">
+            {FILTERS.map((f) => {
+                const active = f === value;
+                const warn = (f === "open" || f === "unlinked") && counts[f] > 0;
+                return (
+                    <button
+                        key={f}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        className={`seg-opt${active ? " active" : ""}`}
+                        data-tip={FILTER_META[f].tip}
+                        data-tip-sub={FILTER_META[f].sub}
+                        onClick={() => onChange(f)}
+                    >
+                        {FILTER_META[f].label}
+                        <Badge count tone={warn ? "mid" : undefined}>{counts[f] ?? 0}</Badge>
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+// ---- row menu ----
+
+type MenuItem = { id: string; label: string; icon: ReactNode; onSelect?: () => void; href?: string; external?: boolean; danger?: boolean } | "sep";
+
+/** "⋯" icon button with a popover of the row's rarely needed actions. */
+function RowMenu({ items, label }: { items: MenuItem[]; label: string }) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!open) return undefined;
+        const close = (e: MouseEvent | KeyboardEvent) => {
+            if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener("mousedown", close);
+        document.addEventListener("keydown", close);
+        return () => {
+            document.removeEventListener("mousedown", close);
+            document.removeEventListener("keydown", close);
+        };
+    }, [open]);
+
+    // no separator at the start, the end, or twice in a row
+    const clean = items.filter((it, i, all) => it !== "sep" || (i > 0 && i < all.length - 1 && all[i - 1] !== "sep"));
+
+    return (
+        <div className="la-menu" ref={ref}>
+            <IconButton
+                icon={<DotsIcon />} tip="Weitere Aktionen" size="sm" aria-label={label}
+                aria-haspopup="menu" aria-expanded={open}
+                className={open ? "on" : undefined}
+                onClick={() => setOpen((o) => !o)}
+            />
+            {open && (
+                <div className="la-menu-pop" role="menu">
+                    {clean.map((it, i) => {
+                        if (it === "sep") return <div key={`sep-${i}`} className="la-msep" role="separator" />;
+                        const cls = `la-mi${it.danger ? " danger" : ""}`;
+                        return it.href
+                            ? (
+                                <a
+                                    key={it.id} role="menuitem" className={cls} href={it.href}
+                                    {...(it.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+                                    onClick={() => setOpen(false)}
+                                >{it.icon}{it.label}</a>
+                            )
+                            : (
+                                <button key={it.id} type="button" role="menuitem" className={cls} onClick={() => { setOpen(false); it.onSelect?.(); }}>
+                                    {it.icon}{it.label}
+                                </button>
+                            );
+                    })}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ---- Modal "Neue Auswertung" ----
+
+/**
+ * Paste a Warcraft-Logs link, pick CLA + RPB (or one half), go. The build runs
+ * as a background job — the dialog closes at once and the toast at the bottom
+ * reports progress and the finished report. The link stays a draft until then.
+ */
+function NewEvaluationDialog({ open, onClose, csrfToken, onChanged }: {
+    open: boolean;
+    onClose: () => void;
+    csrfToken: string | null;
+    onChanged: () => void;
+}) {
     const ask = useConfirm();
     const jobs = useJobs();
-    // A draft, so a link pasted here is still around after a look at the other tab.
     const [draft, patchDraft, clearDraft] = useDraftState("cla-report-link", { link: "", sections: "both" as SectionChoice });
     const link = draft.link;
     const choice = SECTION_CHOICES.find((c) => c.key === draft.sections) || SECTION_CHOICES[0];
@@ -136,291 +266,382 @@ function NewEvaluationCard({ csrfToken, onChanged }: { csrfToken: string | null;
         const target = link.trim();
         if (!target) return;
         clearDraft();
-        const seconds = choice.key === "both" ? EVAL_SECONDS.cla + EVAL_SECONDS.rpb : (choice.key === "cla" ? REPORT_SECONDS : EVAL_SECONDS.rpb);
+        onClose();
         jobs.run({
-            label: `${choice.label === "CLA + RPB" ? "CLA + RPB" : choice.label.replace("nur ", "")}-Auswertung`,
+            label: `${choice.key === "both" ? "CLA + RPB" : choice.label.replace("nur ", "")}-Auswertung`,
             detail: target,
-            expectedSeconds: seconds,
+            expectedSeconds: choice.seconds,
             describe: (r) => ({
                 message: "Auswertung erstellt.",
-                link: { href: r.url, label: "Report ansehen ↗", external: true },
+                link: { href: r.url, label: "Report ansehen", external: true },
             }),
         }, () => withIncompleteConfirm(ask, (force) => createReport(csrfToken, target, { force, sections: choice.sections }))).then(onChanged);
     };
 
     return (
-        <form className="eval-card" onSubmit={submit}>
-            <h2>Log auswerten</h2>
-            <div className="eval-row">
-                <div className="field">
-                    <label>Warcraft-Logs-Report-Link oder Report-ID</label>
+        <Modal
+            open={open}
+            onClose={onClose}
+            icon="inv_misc_spyglass_02"
+            tone="cla"
+            kicker="Warcraft-Logs-Report per Link"
+            title="Neue Auswertung"
+            width={700}
+            initialFocus="#la-link"
+            hint="Läuft im Hintergrund – Fortschritt unten in der Mitte."
+            footer={(
+                <>
+                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
+                    <Button type="submit" form="la-new-eval" icon="inv_misc_pocketwatch_01" disabled={!link.trim()}>Auswerten</Button>
+                </>
+            )}
+        >
+            <form id="la-new-eval" className="la-form" onSubmit={submit}>
+                <div>
+                    <label className="la-lbl" htmlFor="la-link">
+                        Report-Link oder Report-ID
+                        <Tip
+                            className="la-qm"
+                            head="Report-Link oder -ID"
+                            sub="Der Link aus Warcraft Logs oder nur die ID dahinter. Vom Bot erkannte Logs stehen schon in der Liste und lassen sich dort direkt auswerten."
+                        >?</Tip>
+                    </label>
                     <input
-                        type="text" value={link} onChange={(e) => patchDraft({ link: e.target.value })}
+                        id="la-link" className="la-input" type="text" value={link}
+                        onChange={(e) => patchDraft({ link: e.target.value })}
                         placeholder="https://classic.warcraftlogs.com/reports/abc123…" required
                     />
                 </div>
-                <button className="btn" type="submit"><RunIcon />Auswerten</button>
-            </div>
-            <div className="eval-choice" role="radiogroup" aria-label="Welche Analysen">
-                {SECTION_CHOICES.map((c) => (
-                    <label key={c.key} className={`eval-opt${choice.key === c.key ? " active" : ""}`}>
-                        <input type="radio" name="eval-sections" value={c.key} checked={choice.key === c.key} onChange={() => patchDraft({ sections: c.key })} />
-                        <b>{c.label}</b><span>{c.sub}</span>
-                    </label>
-                ))}
-            </div>
-            <div className="hint">Läuft im Hintergrund — der Fortschritt steht im Hinweis unten in der Mitte, die Seite bleibt nutzbar. Vom Bot erkannte Logs lassen sich auch direkt in der Liste „Erkannte Logs“ auswerten.</div>
-        </form>
+                <div>
+                    <div className="la-lbl" id="la-opts-lbl">Welche Analysen</div>
+                    <div className="la-opts" role="radiogroup" aria-labelledby="la-opts-lbl">
+                        {SECTION_CHOICES.map((c) => {
+                            const on = choice.key === c.key;
+                            return (
+                                <button
+                                    key={c.key} type="button" role="radio" aria-checked={on}
+                                    className={`la-opt${on ? " on" : ""}`}
+                                    onClick={() => patchDraft({ sections: c.key })}
+                                >
+                                    <span className="la-opt-top">
+                                        <WowIcon name={c.icon} size={36} />
+                                        <b>{c.label}</b>
+                                        <span className={`la-radio${on ? " on" : ""}`} aria-hidden="true" />
+                                    </span>
+                                    <span className="la-opt-sub">{c.sub}</span>
+                                    <span><Badge>≈ {c.seconds} s</Badge></span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </form>
+        </Modal>
     );
 }
 
-function ReportsTab({ reportPage, csrfToken, onSort, onPage, onChanged }: {
-    reportPage: ClaPage<ReportSummary> | null;
-    csrfToken: string | null;
-    onSort: (key: string, dir: Dir) => void;
-    onPage: (p: number) => void;
-    onChanged: () => void;
+// ---- Modal "Raid-Event zuordnen" ----
+
+function AssignDialog({ row, onClose, onAssign, onUnlink }: {
+    row: ClaRow | null;
+    onClose: () => void;
+    onAssign: (row: ClaRow, eventId: string) => void;
+    onUnlink: (row: ClaRow) => void;
 }) {
-    const ask = useConfirm();
-    const jobs = useJobs();
-    const [rowBusyId, setRowBusyId] = useState<string | null>(null);
+    const cands: MatchCandidate[] = row?.candidates || [];
+    const [picked, setPicked] = useState("");
+    useEffect(() => {
+        if (!row) return;
+        const current = cands.find((c) => c.eventId === row.eventId);
+        setPicked(current ? current.eventId : (cands[0]?.eventId || ""));
+        // re-pick only when another row opens the dialog
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [row?.id]);
 
-    // Deleting a report also resets its log back to "offen", so it can be
-    // evaluated again — say so, the admin doesn't see the logs tab from here.
-    const remove = async (r: ReportSummary) => {
-        if (!(await ask({ title: "Auswertung löschen?", text: `„${r.title || r.id}“ wird gelöscht. Das zugehörige Log bleibt erhalten und kann neu ausgewertet werden.`, action: "Löschen" }))) return;
-        setRowBusyId(r.id);
-        try {
-            const res = await deleteReport(csrfToken, r.id);
-            jobs.notify(res.message);
-        } catch (err) {
-            jobs.notify((err as ApiError).message, "err");
-        } finally {
-            setRowBusyId(null);
-            onChanged();
-        }
-    };
-
-    const unlink = async (r: ReportSummary) => {
-        if (!(await ask({ title: "Zuordnung entfernen?", text: `Die Zuordnung zum Raid „${r.eventLabel || r.eventId}“ wird entfernt. Die Auswertung selbst bleibt bestehen.`, action: "Entfernen" }))) return;
-        setRowBusyId(r.id);
-        try {
-            const res = await unlinkReport(csrfToken, r.id);
-            jobs.notify(res.message);
-        } catch (err) {
-            jobs.notify((err as ApiError).message, "err");
-        } finally {
-            setRowBusyId(null);
-            onChanged();
-        }
-    };
+    const nearest = cands.length ? Math.min(...cands.map((c) => Math.abs(c.diffMs))) : 0;
 
     return (
+        <Modal
+            open={!!row}
+            onClose={onClose}
+            icon="inv_misc_note_02"
+            kicker={row ? `${row.title} · gepostet ${fmtPosted(row.postedAt)}` : ""}
+            title="Raid-Event zuordnen"
+            width={720}
+            hint={row?.eventId ? undefined : "Zuordnung jederzeit über das Zeilenmenü änderbar."}
+            footer={row && (
+                <>
+                    {row.eventId && (
+                        <Button variant="danger" icon={<TrashIcon />} className="la-foot-left" onClick={() => onUnlink(row)}>Zuordnung entfernen</Button>
+                    )}
+                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
+                    <Button icon="inv_misc_note_02" disabled={!picked || picked === row.eventId} onClick={() => onAssign(row, picked)}>Zuordnen</Button>
+                </>
+            )}
+        >
+            {row && (
+                <div className="la-assign">
+                    {row.eventId && (
+                        <div className="la-assign-now">
+                            <Badge tone="accent" icon="inv_misc_note_02" className="plain">
+                                {row.eventLabel || row.eventId}{row.eventStartTime ? ` · ${fmtEventDay(row.eventStartTime)}` : ""}
+                            </Badge>
+                            <span className="la-muted">ist zugeordnet ({row.eventLinkSource === "auto" ? "automatisch" : "manuell"})</span>
+                        </div>
+                    )}
+                    {row.matchAmbiguous && cands.length > 1 && (
+                        <div className="la-assign-now">
+                            <Badge tone="mid" icon={<QuestionIcon />}>{cands.length} Events passen</Badge>
+                            <span className="la-muted">nach Nähe zur Post-Zeit sortiert – der erste ist vorgewählt</span>
+                        </div>
+                    )}
+                    {cands.length
+                        ? (
+                            <div className="la-cands" role="radiogroup" aria-label="Passende Raid-Events">
+                                {cands.map((c) => {
+                                    const on = picked === c.eventId;
+                                    return (
+                                        <button
+                                            key={c.eventId} type="button" role="radio" aria-checked={on}
+                                            className={`la-cand${on ? " on" : ""}`}
+                                            onClick={() => setPicked(c.eventId)}
+                                        >
+                                            <span className={`la-radio${on ? " on" : ""}`} aria-hidden="true" />
+                                            <WowIcon name={raidIcon(c.contentId)} size={36} className="la-zicon" />
+                                            <span className="la-cell-main">
+                                                <span className="la-title">{c.title || c.eventId}</span>
+                                                <span className="la-meta">{formatEventTime(c.startTime)}{c.categoryName ? ` · ${c.categoryName}` : ""}</span>
+                                            </span>
+                                            <span className="la-badges la-badges-end">
+                                                <Badge tone={Math.abs(c.diffMs) === nearest ? "ok" : "mid"} icon="spell_holy_borrowedtime">{formatMatchOffset(c.diffMs)}</Badge>
+                                                {c.sameCategory && <Badge tone="accent" className="plain">gleiche Kategorie</Badge>}
+                                                {c.eventId === row.eventId && <Badge className="plain">aktuell</Badge>}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )
+                        : <p className="la-muted">Kein Raid-Event mit passender Startzeit gefunden.</p>}
+                </div>
+            )}
+        </Modal>
+    );
+}
+
+// ---- one list row ----
+
+function RaidBadges({ row }: { row: ClaRow }) {
+    if (!row.raids.length) {
+        return row.zone
+            ? <Badge className="plain" tip={row.zone} tipSub="Die Bosse dieses Logs sind noch nicht gelesen.">{row.zone}</Badge>
+            : <Badge className="plain" tip="Inhalt unbekannt" tipSub="Warcraft Logs hat die Kampfliste noch nicht geliefert – sie wird beim nächsten Laden erneut abgefragt.">–</Badge>;
+    }
+    return (
         <>
-            <h2>Auswertungen</h2>
-            {reportPage && reportPage.items.length
-                ? (
-                    <>
-                        <table className="idx">
-                            <thead>
-                                <tr>
-                                    <ClaSortTh sortKey="title" label="Report" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
-                                    <ClaSortTh sortKey="zone" label="Zone" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
-                                    <ClaSortTh sortKey="event" label="Raid" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
-                                    <ClaSortTh sortKey="date" label="Erstellt" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
-                                    <ClaSortTh sortKey="players" label="Spieler" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
-                                    <ClaSortTh sortKey="issues" label="Probleme" page={reportPage} defaults={REPORT_SORT_DEFAULTS} onSort={onSort} />
-                                    <th>WCL</th>
-                                    <th />
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {reportPage.items.map((r) => (
-                                    <tr key={r.id}>
-                                        <td><a href={`/r/${r.id}`}>{r.title || r.id}</a></td>
-                                        <td>{r.zone || ""}</td>
-                                        <td><ReportEventCell r={r} busy={rowBusyId === r.id} onUnlink={() => unlink(r)} /></td>
-                                        <td className="small">{fmtMs(r.generatedAt)}</td>
-                                        <td>{r.playerCount}</td>
-                                        <td><span className="pill">{r.issueCount}</span></td>
-                                        <td>{r.reportUrl
-                                            ? <a className="mlink" href={r.reportUrl} target="_blank" rel="noopener noreferrer">WCL ↗</a>
-                                            : <span className="sub">—</span>}</td>
-                                        <td className="cell-actions">
-                                            <div className="row-actions" style={{ justifyContent: "flex-end" }}>
-                                                <button
-                                                    className="btn btn-danger btn-sm" type="button"
-                                                    disabled={rowBusyId === r.id} onClick={() => remove(r)}
-                                                ><TrashIcon />Löschen</button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        <Pager page={reportPage} onPage={onPage} />
-                    </>
-                )
-                : <p className="sub">Noch keine Auswertungen.</p>}
+            {row.raids.map((r: ClaRaid) => {
+                const tip = raidTip(r);
+                return (
+                    <Badge key={r.contentId} tone={r.finalKilled ? "ok" : "mid"} icon={raidIcon(r.contentId)} tip={tip.head} tipSub={tip.sub}>
+                        {raidCount(r)}
+                    </Badge>
+                );
+            })}
         </>
     );
 }
 
-// The "Event" cell of a detected-log row: the existing assignment with a remove
-// button, a dropdown of time-matched candidates, or a dash — mirrors logEventCell().
-function EventCell({ log, selectedEventId, onSelectChange, onLink, onUnlink }: {
-    log: LogRow;
-    selectedEventId: string;
-    onSelectChange: (eventId: string) => void;
-    onLink: () => void;
-    onUnlink: () => void;
-}) {
-    if (log.eventId) {
-        const when = log.eventStartTime ? formatEventTime(log.eventStartTime) : "";
-        const auto = log.eventLinkSource === "auto" ? " · automatisch zugeordnet" : "";
-        const label = log.eventLabel || log.eventId;
-        const title = `${label}${when ? ` — ${when}` : ""}${auto}`;
+function EvalBadges({ row, running }: { row: ClaRow; running: LogSection[] }) {
+    const r = row.report;
+    const stats = r && r.generatedAt
+        ? `${fmtPosted(r.generatedAt)} · ${r.playerCount} Spieler · ${r.issueCount} Probleme`
+        : "";
+    const anyDone = row.sections.length > 0;
+    const badges = ANALYSES.flatMap((a) => {
+        if (running.includes(a.key)) {
+            return [<Badge key={a.key} tone="accent" icon={<span className="btn-spin" aria-hidden="true" />} tip={`${a.label} läuft`} tipSub="Fortschritt im Hinweis unten in der Mitte.">{a.label} läuft</Badge>];
+        }
+        if (row.sections.includes(a.key)) {
+            return [<Badge key={a.key} tone="ok" icon={<CheckIcon />} tip={`${a.label} ausgewertet`} tipSub={stats || a.sub}>{a.label}</Badge>];
+        }
+        // the missing half of a log that is half done; a link report cannot be completed
+        if (anyDone && row.kind === "log") {
+            return [<Badge key={a.key} tip={`${a.label} offen`} tipSub={a.sub}>{a.label} offen</Badge>];
+        }
+        return [];
+    });
+    if (!badges.length) {
+        return <Badge tip="Noch nicht ausgewertet" tipSub="„Auswerten“ startet CLA und RPB nacheinander, beide landen auf einer Report-Seite.">offen</Badge>;
+    }
+    return <>{badges}</>;
+}
+
+function EventCell({ row, eventsError, onAssign }: { row: ClaRow; eventsError: string | null; onAssign: () => void }) {
+    if (row.eventId) {
+        const when = row.eventStartTime ? formatEventTime(row.eventStartTime) : "";
         return (
-            <span className="pill pill-chip" data-tip={title}>
-                {label}
-                <button
-                    className="chip-x" type="button"
-                    data-tip="Zuordnung entfernen" aria-label={`Zuordnung zu „${label}“ entfernen`}
-                    onClick={onUnlink}
-                ><XIcon /></button>
-            </span>
+            <Badge
+                tone="accent" icon="inv_misc_note_02" className="plain la-event"
+                tip={row.eventLabel || "Raid-Event"}
+                tipSub={`${when ? `Start ${when} · ` : ""}${row.eventLinkSource === "auto" ? "automatisch zugeordnet" : "manuell zugeordnet"}. Ändern über das Zeilenmenü.`}
+            >
+                {row.eventLabel || row.eventId}{row.eventStartTime ? ` · ${fmtEventDay(row.eventStartTime)}` : ""}
+            </Badge>
         );
     }
-    const cands = log.candidates || [];
-    if (!cands.length) return <span className="sub" data-tip="Kein Event mit passender Startzeit gefunden">—</span>;
+    if (row.kind === "report") {
+        return <Badge className="plain" tip="Ohne Log nicht zuordenbar" tipSub="Dieser Report wurde per Link erstellt. Zugeordnet wird ein Log – postet den Link im Log-Channel, dann erscheint er als Log.">ohne Log</Badge>;
+    }
+    if (eventsError) {
+        return <Badge tone="bad" className="plain" tip="Raid-Events nicht geladen" tipSub={eventsError}>Events fehlen</Badge>;
+    }
+    const cands = row.candidates || [];
+    if (!cands.length) {
+        return <Badge className="plain" tip="Kein passendes Event" tipSub="Kein Raid-Event hat eine Startzeit, die zur Post-Zeit dieses Logs passt.">kein passendes Event</Badge>;
+    }
     return (
-        <div className="row-actions" style={{ gap: 6, flexWrap: "wrap" }}>
-            <select className="sel-sm" value={selectedEventId} onChange={(e) => onSelectChange(e.target.value)}>
-                {cands.map((c) => <option key={c.eventId} value={c.eventId}>{matchOptionLabel(c)}</option>)}
-            </select>
-            <button className="btn btn-ghost btn-sm" type="button" onClick={onLink}>Zuordnen</button>
-            {log.matchAmbiguous && <div className="hint">mehrere Events passen — bitte prüfen</div>}
+        <Button
+            variant="ghost" size="sm" icon="inv_misc_note_02" onClick={onAssign}
+            data-tip={row.matchAmbiguous ? "Mehrere Events passen" : "Passendes Event gefunden"}
+            data-tip-sub={row.matchAmbiguous ? "Die Startzeiten liegen nah beieinander – bitte prüfen." : `${cands[0].title} · ${formatMatchOffset(cands[0].diffMs)}`}
+        >
+            Zuordnen <Badge count tone={row.matchAmbiguous ? "mid" : undefined}>{cands.length}</Badge>
+        </Button>
+    );
+}
+
+function ListRow({ row, running, eventsError, onEvaluate, onAssign, onReset, onDeleteLog, onDeleteReport }: {
+    row: ClaRow;
+    running: LogSection[];
+    eventsError: string | null;
+    onEvaluate: (section: LogSection | "both") => void;
+    onAssign: () => void;
+    onReset: (section: LogSection) => void;
+    onDeleteLog: () => void;
+    onDeleteReport: () => void;
+}) {
+    const icon = raidIcon(row.raids[0]?.contentId);
+    const missing = ANALYSES.filter((a) => !row.sections.includes(a.key));
+    const discord = discordUrl(row);
+    const where = [row.categoryName, row.channelName ? `#${row.channelName}` : ""].filter(Boolean).join(" · ");
+
+    let action: ReactNode;
+    if (running.length) {
+        action = <Button variant="run" size="sm" running>läuft</Button>;
+    } else if (row.kind === "log" && !row.sections.length) {
+        action = (
+            <Button variant="run" size="sm" icon="inv_misc_pocketwatch_01" data-tip="CLA + RPB auswerten" data-tip-sub="Beide Hälften nacheinander, eine Report-Seite." onClick={() => onEvaluate("both")}>
+                Auswerten
+            </Button>
+        );
+    } else if (row.kind === "log" && missing.length) {
+        const a = missing[0];
+        action = (
+            <Button variant="run" size="sm" icon={a.icon} data-tip={`${a.label} auswerten`} data-tip-sub={a.sub} onClick={() => onEvaluate(a.key)}>
+                {a.label}
+            </Button>
+        );
+    } else if (row.report) {
+        action = <a className={buttonClass("ghost", "sm", true)} href={row.report.url}><WowIcon name="inv_scroll_03" size={18} />Report</a>;
+    }
+
+    const items: MenuItem[] = [
+        ...(row.report ? [{ id: "report", label: "Report öffnen", icon: <WowIcon name="inv_scroll_03" size={20} />, href: row.report.url }] : []),
+        ...(row.wclUrl ? [{ id: "wcl", label: "Log bei Warcraft Logs", icon: <ExternalIcon />, href: row.wclUrl, external: true }] : []),
+        ...(discord ? [{ id: "msg", label: "Nachricht im Log-Channel", icon: <WowIcon name="inv_letter_15" size={20} />, href: discord, external: true }] : []),
+        "sep",
+        ...(row.kind === "log"
+            ? [{ id: "assign", label: row.eventId ? "Zuordnung ändern" : "Raid-Event zuordnen", icon: <WowIcon name="inv_misc_note_02" size={20} />, onSelect: onAssign }]
+            : []),
+        ...(row.kind === "log"
+            ? ANALYSES.filter((a) => row.sections.includes(a.key)).map((a) => ({ id: `reset-${a.key}`, label: `${a.label}-Auswertung verwerfen`, icon: <UndoIcon />, onSelect: () => onReset(a.key) }))
+            : []),
+        "sep",
+        row.kind === "log"
+            ? { id: "delete", label: "Aus der Liste löschen", icon: <TrashIcon />, onSelect: onDeleteLog, danger: true }
+            : { id: "delete", label: "Auswertung löschen", icon: <TrashIcon />, onSelect: onDeleteReport, danger: true },
+    ];
+
+    return (
+        <div className={`la-row${running.length ? " running" : ""}`} role="row">
+            <WowIcon name={icon} size={36} className="la-zicon" />
+            <div className="la-cell-main" role="cell">
+                <span className="la-title" data-tip={row.title} data-tip-sub={where || (row.source === "link" ? "Per Link ausgewertet" : undefined)}>{row.title || row.reportId}</span>
+                <span className="la-meta">
+                    {fmtPosted(row.postedAt)}
+                    {row.source === "channel"
+                        ? <>{" · "}<WowIcon name="inv_letter_15" size={14} />{row.channelName ? `#${row.channelName}` : "Log-Channel"}</>
+                        : <>{" · "}<ExternalIcon />Link</>}
+                </span>
+            </div>
+            <div className="la-badges" role="cell" data-label="Inhalt"><RaidBadges row={row} /></div>
+            <div className="la-badges" role="cell" data-label="Auswertung"><EvalBadges row={row} running={running} /></div>
+            <div className="la-badges" role="cell" data-label="Raid-Event"><EventCell row={row} eventsError={eventsError} onAssign={onAssign} /></div>
+            <div className="la-actions" role="cell">
+                {action}
+                <RowMenu items={items} label={`Weitere Aktionen für „${row.title || row.reportId}“`} />
+            </div>
         </div>
     );
 }
 
-// The two analyses a log can be run through, each on its own button. Both write
-// into the same report page, so a log can be completed in two steps.
-const LOG_ANALYSES: { key: LogSection; label: string; title: string }[] = [
-    { key: "cla", label: "CLA", title: "Gear, Verzauberungen, Sockel, Consumables, Drums, Potions & Shadow-Resi" },
-    { key: "rpb", label: "RPB", title: "Vermeidbarer Schaden, Tode, Aktivität, Cooldowns, Interrupts & Log-Prüfung" },
-];
+// ---- the page ----
 
-function LogTableRow({ l, runningSections, selectedEventId, onSelectChange, onEvaluate, onReset, onDelete, onLink, onUnlink }: {
-    l: LogRow;
-    /** Analyses of this log started from this page and not finished yet. */
-    runningSections: LogSection[];
-    selectedEventId: string;
-    onSelectChange: (eventId: string) => void;
-    onEvaluate: (section: LogSection | "both") => void;
-    onReset: (section: LogSection) => void;
-    onDelete: () => void;
-    onLink: () => void;
-    onUnlink: () => void;
-}) {
-    const wclUrl = logWclUrl(l);
-    const name = l.title || l.reportId || "(unbekannt)";
-    const done = l.sections || [];
-    const reportHref = l.reportUrl || (l.reportRefId ? `/r/${l.reportRefId}` : "");
-    return (
-        <tr>
-            <td>{wclUrl
-                ? <a className="mlink" href={wclUrl} target="_blank" rel="noopener noreferrer">{name} ↗</a>
-                : name}</td>
-            <td>{l.categoryName
-                ? <span className="cat-badge" data-tip={l.channelName ? `#${l.channelName}` : undefined}>{l.categoryName}</span>
-                : <span className="sub">—</span>}</td>
-            <td><EventCell log={l} selectedEventId={selectedEventId} onSelectChange={onSelectChange} onLink={onLink} onUnlink={onUnlink} /></td>
-            <td>{l.guildId && l.channelId && l.messageId
-                ? <a className="mlink" href={`https://discord.com/channels/${l.guildId}/${l.channelId}/${l.messageId}`} target="_blank" rel="noopener noreferrer">Nachricht</a>
-                : <span className="sub">—</span>}</td>
-            <td>{done.length
-                ? LOG_ANALYSES.filter((a) => done.includes(a.key)).map((a) => (
-                    // the ✕ discards just this half, so an incomplete run can be repeated
-                    <span key={a.key} className="pill good" style={{ marginRight: 4 }}>
-                        {a.label}
-                        <button
-                            type="button"
-                            className="pill-x"
-                            data-tip={`${a.label}-Auswertung verwerfen (kann danach neu gestartet werden)`}
-                            aria-label={`${a.label}-Auswertung verwerfen`}
-                            onClick={() => onReset(a.key)}
-                        >×</button>
-                    </span>
-                ))
-                : <span className="pill">offen</span>}</td>
-            <td className="small">{fmtMs(l.postedAt)}</td>
-            <td className="cell-actions">
-                <div className="row-actions" style={{ justifyContent: "flex-end" }}>
-                    {/* Nothing evaluated yet: both halves in one click, CLA first, RPB into the same page. */}
-                    {!done.length && (
-                        <button
-                            className={`btn btn-run btn-sm${runningSections.length ? " is-running" : ""}`}
-                            type="button"
-                            data-tip="CLA und RPB nacheinander auswerten (eine Report-Seite)"
-                            disabled={runningSections.length > 0}
-                            onClick={() => onEvaluate("both")}
-                        >
-                            {runningSections.length ? <span className="btn-spin" /> : <RunIcon />}
-                            CLA + RPB
-                        </button>
-                    )}
-                    {LOG_ANALYSES.filter((a) => !done.includes(a.key)).map((a) => {
-                        const running = runningSections.includes(a.key);
-                        return (
-                            <button
-                                key={a.key}
-                                className={`btn btn-run btn-sm${running ? " is-running" : ""}`}
-                                type="button"
-                                data-tip={running ? `${a.label}-Auswertung läuft im Hintergrund` : a.title}
-                                disabled={running}
-                                onClick={() => onEvaluate(a.key)}
-                            >
-                                {running ? <span className="btn-spin" /> : <RunIcon />}
-                                {a.label}
-                            </button>
-                        );
-                    })}
-                    {reportHref ? <a className="btn btn-ghost btn-sm" href={reportHref}><ExternalIcon />Öffnen</a> : null}
-                    <button className="btn btn-danger btn-sm" type="button" onClick={onDelete}><TrashIcon />Löschen</button>
-                </div>
-            </td>
-        </tr>
-    );
-}
-
-function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
-    data: ClaData;
-    csrfToken: string | null;
-    onSort: (key: string, dir: Dir) => void;
-    onPage: (p: number) => void;
-    onChanged: () => void;
-}) {
+export default function ClaPage() {
+    const { csrfToken } = useOutletContext<ShellContext>();
     const ask = useConfirm();
     const jobs = useJobs();
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [filter, setFilter] = usePersistedSearchParam<ClaFilter>("cla-filter", "filter", "all", FILTERS);
+    const [sorting, setSorting] = usePersistedState<Sorting>("cla-sort", SORTING_DEFAULT);
+    const [newOpen, setNewOpen] = useState(false);
+    const [assignRow, setAssignRow] = useState<ClaRow | null>(null);
     const [scanning, setScanning] = useState(false);
     const [automatching, setAutomatching] = useState(false);
-    // "<logId>:<section>" for every analysis started here that is still going, so
-    // the row can show it. Purely cosmetic and page-local — the job itself lives
-    // in JobsProvider and keeps running if this page goes away.
+    // "<logId>:<section>" for every analysis started here that is still going.
+    // Purely cosmetic and page-local — the job itself lives in JobsProvider.
     const [running, setRunning] = useState<string[]>([]);
-    const [selected, setSelected] = useState<Record<string, string>>({});
 
-    if (!data.logChannelsConfigured) {
-        return (
-            <p className="sub">
-                Es sind noch keine Log-Channels konfiguriert. Lege sie in den <a href="/settings">Einstellungen</a> fest,
-                damit der Bot automatisch Logs erkennt.
-            </p>
-        );
-    }
+    // Old links (?view=logs / ?view=reports from the two-tab page) open the full list.
+    useEffect(() => {
+        if (!searchParams.has("view")) return;
+        const next = new URLSearchParams(searchParams);
+        next.delete("view");
+        setSearchParams(next, { replace: true });
+    }, [searchParams, setSearchParams]);
 
-    const logPage = data.logPage;
+    // An explicit ?sort/?dir wins; without one the remembered sort applies. Both are
+    // checked against the columns that exist, so a value stored by the old two-tab
+    // page (a different shape) cannot ask the API to sort by nothing.
+    const remembered = sorting && typeof sorting.sort === "string" && SORT_DEFAULTS[sorting.sort] ? sorting : SORTING_DEFAULT;
+    const sortParam = searchParams.get("sort") || "";
+    const sort = SORT_DEFAULTS[sortParam] ? sortParam : remembered.sort;
+    const dirParam = searchParams.get("dir");
+    const dir: Dir = dirParam ? (dirParam === "asc" ? "asc" : "desc") : (remembered.dir === "asc" ? "asc" : "desc");
+    // The page number is deliberately not remembered: the list grows at the top.
+    const page = Math.max(1, Number(searchParams.get("page")) || 1);
+
+    const [data, setData] = useState<ClaData | null>(null);
+    const [error, setError] = useState<ApiError | null>(null);
+
+    const load = () => {
+        getClaData(filter, sort, dir, page).then((d) => { setData(d); setError(null); }).catch((err: ApiError) => setError(err));
+    };
+    useEffect(load, [filter, sort, dir, page]);
+
+    const switchFilter = (f: ClaFilter) => setFilter(f, (p) => { p.delete("page"); });
+
+    const sortBy = (key: string) => {
+        const nextDir: Dir = sort === key ? (dir === "asc" ? "desc" : "asc") : (SORT_DEFAULTS[key] || "desc");
+        setSorting({ sort: key, dir: nextDir });
+        setFilter(filter, (p) => { p.set("sort", key); p.set("dir", nextDir); p.set("page", "1"); });
+    };
+
+    const goToPage = (p: number) => {
+        const next = new URLSearchParams(searchParams);
+        next.set("page", String(p));
+        setSearchParams(next);
+    };
 
     /** Run a short action, report its outcome as a toast, then refresh the list. */
     const quick = async (fn: () => Promise<{ message: string }>, setBusy?: (b: boolean) => void) => {
@@ -432,7 +653,7 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
             jobs.notify((err as ApiError).message, "err");
         } finally {
             if (setBusy) setBusy(false);
-            onChanged();
+            load();
         }
     };
 
@@ -440,212 +661,169 @@ function LogsTab({ data, csrfToken, onSort, onPage, onChanged }: {
     const automatch = () => quick(() => autoMatchLogs(csrfToken), setAutomatching);
 
     // Hands the evaluation to JobsProvider: it runs server-side either way, but
-    // owning the promise up there is what lets the admin leave this page (or this
-    // tab of it) while the toast keeps reporting.
-    const evaluate = (l: LogRow, section: LogSection | "both") => {
-        if (section === "both") return evaluateBoth(l);
+    // owning the promise up there is what lets the admin leave this page while
+    // the toast keeps reporting.
+    const evaluate = (row: ClaRow, section: LogSection | "both") => {
+        if (section === "both") return evaluateBoth(row);
         const label = section.toUpperCase();
-        const key = `${l.id}:${section}`;
+        const key = `${row.logId}:${section}`;
         setRunning((keys) => [...keys, key]);
         jobs.run({
             label: `${label}-Auswertung`,
-            detail: l.title || l.reportId || "",
+            detail: row.title || row.reportId,
             expectedSeconds: EVAL_SECONDS[section],
             describe: (r) => ({
-                message: r.alreadyEvaluated
-                    ? `${label}-Auswertung lag bereits vor.`
-                    : `${label}-Auswertung erstellt.`,
-                link: r.url ? { href: r.url, label: "Report ansehen ↗", external: true } : undefined,
+                message: r.alreadyEvaluated ? `${label}-Auswertung lag bereits vor.` : `${label}-Auswertung erstellt.`,
+                link: r.url ? { href: r.url, label: "Report ansehen", external: true } : undefined,
             }),
-        }, () => withIncompleteConfirm(ask, (force) => evalLog(csrfToken, l.id, section, { force }))).then(() => {
+        }, () => withIncompleteConfirm(ask, (force) => evalLog(csrfToken, row.logId, section, { force }))).then(() => {
             setRunning((keys) => keys.filter((k) => k !== key));
-            onChanged();
+            load();
         });
     };
 
     // Both halves as one job: CLA first (it creates the page), then RPB into it.
     // The "raid still running?" question is asked once and its answer reused.
-    const evaluateBoth = (l: LogRow) => {
-        const keys = (["cla", "rpb"] as LogSection[]).map((s) => `${l.id}:${s}`);
+    const evaluateBoth = (row: ClaRow) => {
+        const keys = (["cla", "rpb"] as LogSection[]).map((s) => `${row.logId}:${s}`);
         setRunning((r) => [...r, ...keys]);
         jobs.run({
             label: "CLA + RPB-Auswertung",
-            detail: l.title || l.reportId || "",
+            detail: row.title || row.reportId,
             expectedSeconds: EVAL_SECONDS.cla + EVAL_SECONDS.rpb,
             describe: (r) => ({
                 message: "CLA + RPB ausgewertet.",
-                link: r.url ? { href: r.url, label: "Report ansehen ↗", external: true } : undefined,
+                link: r.url ? { href: r.url, label: "Report ansehen", external: true } : undefined,
             }),
         }, async () => {
             let force = false;
-            await withIncompleteConfirm(ask, (f) => { force = f; return evalLog(csrfToken, l.id, "cla", { force: f }); });
-            return evalLog(csrfToken, l.id, "rpb", { force });
+            await withIncompleteConfirm(ask, (f) => { force = f; return evalLog(csrfToken, row.logId, "cla", { force: f }); });
+            return evalLog(csrfToken, row.logId, "rpb", { force });
         }).then(() => {
             setRunning((r) => r.filter((k) => !keys.includes(k)));
-            onChanged();
+            load();
         });
     };
 
-    const reset = async (l: LogRow, section: LogSection) => {
+    const reset = async (row: ClaRow, section: LogSection) => {
         const label = section.toUpperCase();
-        if (!(await ask({ title: `${label}-Auswertung verwerfen?`, text: "Die Auswertung dieses Logs wird verworfen und kann danach neu gestartet werden.", action: "Verwerfen" }))) return;
-        await quick(() => resetEval(csrfToken, l.id, section));
+        if (!(await ask({ title: `${label}-Auswertung verwerfen?`, text: `Die ${label}-Auswertung von „${row.title}“ wird verworfen und kann danach neu gestartet werden.`, action: "Verwerfen" }))) return;
+        await quick(() => resetEval(csrfToken, row.logId, section));
     };
 
-    const remove = async (l: LogRow) => {
-        if (!(await ask({ title: "Log entfernen?", text: "Das Log wird aus der Liste entfernt.", action: "Entfernen" }))) return;
+    const removeLog = async (row: ClaRow) => {
+        if (!(await ask({ title: "Log aus der Liste löschen?", text: `„${row.title}“ wird aus der Liste entfernt. Eine vorhandene Auswertung bleibt als Report erhalten.`, action: "Löschen" }))) return;
         await quick(async () => {
-            await deleteLogEntry(csrfToken, l.id);
+            await deleteLogEntry(csrfToken, row.logId);
             return { message: "Gelöscht." };
         });
     };
 
-    const doLink = async (l: LogRow) => {
-        // Logs that are already linked carry no candidates (annotateMatches skips
-        // them), so this has to stay optional.
-        const eventId = selected[l.id] || l.candidates?.[0]?.eventId;
-        if (!eventId) return;
-        await quick(() => linkLog(csrfToken, l.id, eventId));
+    const removeReport = async (row: ClaRow) => {
+        if (!row.report) return;
+        const reportId = row.report.id;
+        if (!(await ask({ title: "Auswertung löschen?", text: `„${row.title}“ wird gelöscht.`, action: "Löschen" }))) return;
+        await quick(() => deleteReport(csrfToken, reportId));
     };
 
-    const doUnlink = async (l: LogRow) => {
-        if (!(await ask({ title: "Zuordnung entfernen?", text: "Die Zuordnung zu diesem Event wird entfernt.", action: "Entfernen" }))) return;
-        await quick(() => unlinkLog(csrfToken, l.id));
+    const assign = async (row: ClaRow, eventId: string) => {
+        setAssignRow(null);
+        await quick(() => linkLog(csrfToken, row.logId, eventId));
     };
 
-    // Closest client-side equivalent of the legacy `unlinkedCount && matchEvents.length`
-    // condition — matchEvents themselves aren't part of this API contract, only
-    // matchEventsError, so "events loaded without error" stands in for "there's at
-    // least a chance of a match".
-    const showAutomatch = !data.matchEventsError && data.unlinkedCount > 0;
+    const unlink = async (row: ClaRow) => {
+        setAssignRow(null);
+        if (!(await ask({ title: "Zuordnung entfernen?", text: `Die Zuordnung von „${row.title}“ zu „${row.eventLabel || row.eventId}“ wird entfernt. Die Auswertung selbst bleibt bestehen.`, action: "Entfernen" }))) return;
+        await quick(() => unlinkLog(csrfToken, row.logId));
+    };
+
+    const head = (
+        <PageHead
+            icon="inv_misc_pocketwatch_01"
+            tone="cla"
+            kicker="Warcraft Logs · CLA & RPB"
+            title="Log-Auswertung"
+            action={<Button icon="inv_misc_spyglass_02" onClick={() => setNewOpen(true)}>Neue Auswertung</Button>}
+        />
+    );
+
+    if (error && !data) return <>{head}<div className="empty">Fehler beim Laden: {error.message}</div></>;
+    if (!data) return <>{head}<div className="empty">Lade…</div></>;
+
+    const list = data.page;
+    const columns: { key?: string; label: string; tip: string; sub: string }[] = [
+        { key: "date", label: "Log", tip: "Log", sub: "Titel aus Warcraft Logs, Post-Zeit und Kanal. Sortiert nach der Post-Zeit im Channel." },
+        { key: "content", label: "Inhalt", tip: "Inhalt", sub: "Welche Raids das Log enthält und wie viele Bosse liegen. Gelb: der Endboss fehlt, der Raid läuft vielleicht noch." },
+        { key: "status", label: "Auswertung", tip: "Auswertung", sub: "CLA (Gear, Consumables, Kampfverlauf) und RPB (Schaden, Tode, Aktivität). Zeit, Spieler und Probleme im Tooltip des Badges." },
+        { key: "event", label: "Raid-Event", tip: "Raid-Event", sub: "Das Raid-Helper-Event, zu dem das Log gehört – das Event, dessen Startzeit zur Post-Zeit passt." },
+    ];
 
     return (
         <>
-            <h2>Erkannte Logs aus dem Log-Channel</h2>
-            <p className="note">Vom Bot automatisch erkannte Warcraft-Logs, neueste zuerst (nach Post-Zeit im Channel). Über den WCL-Link vorab prüfen, dann „Auswerten" — jeder Report nur einmal.</p>
-            <p className="note">In der Spalte <strong>Event</strong> wird jedes Log dem Raid zugeordnet, dessen Startzeit zur Post-Zeit passt (Vorschlag vorausgewählt, Zuordnung jederzeit über „×" wieder entfernbar).</p>
-            <div className="row-actions" style={{ margin: "0 0 14px" }}>
-                <button className={`btn btn-ghost${scanning ? " is-running" : ""}`} type="button" disabled={scanning} onClick={scan}>
-                    {scanning ? <span className="btn-spin" /> : <SearchIcon />}
-                    {scanning ? "Suche läuft …" : "Log-Channels nach neuen Logs durchsuchen"}
-                </button>
-                {showAutomatch && (
-                    <button
-                        className={`btn btn-ghost${automatching ? " is-running" : ""}`} type="button" disabled={automatching}
-                        data-tip="Ordnet jedes offene Log dem Event zu, dessen Startzeit eindeutig passt" onClick={automatch}
-                    >
-                        {automatching ? <span className="btn-spin" /> : <LinkIcon />}
-                        {automatching ? "Ordne zu …" : "Logs automatisch Events zuordnen"}
-                    </button>
-                )}
+            {head}
+            <div className="part-head la-filter">
+                <FilterSegment value={data.filter} counts={data.counts} onChange={switchFilter} />
+                <div className="ph-act">
+                    {data.autoMatchCount > 0 && (
+                        <Button
+                            variant="ghost" size="sm" icon="spell_holy_borrowedtime" running={automatching} onClick={automatch}
+                            data-tip="Automatisch zuordnen" data-tip-sub="Ordnet jedes offene Log dem Raid-Event zu, dessen Startzeit eindeutig passt. Mehrdeutige bleiben für den Zuordnen-Dialog."
+                        >
+                            Automatisch zuordnen <Badge count tone="mid">{data.autoMatchCount}</Badge>
+                        </Button>
+                    )}
+                    {data.logChannelsConfigured
+                        ? (
+                            <IconButton
+                                icon={scanning ? <span className="btn-spin" aria-hidden="true" /> : "inv_misc_spyglass_03"}
+                                tip={scanning ? "Suche läuft …" : "Log-Channels durchsuchen"}
+                                tipSub="Sucht in den Log-Channels nach Warcraft-Logs-Links, die der Bot verpasst hat."
+                                disabled={scanning} onClick={scan}
+                            />
+                        )
+                        : (
+                            <a
+                                className={buttonClass("ghost", "sm", true)} href="/settings?section=logs"
+                                data-tip="Keine Log-Channels" data-tip-sub="Ohne Log-Channel erkennt der Bot keine Logs von selbst. In den Einstellungen festlegen."
+                            ><WowIcon name="inv_letter_15" size={18} />Log-Channels einrichten</a>
+                        )}
+                </div>
             </div>
-            {data.matchEventsError && <p className="hint">Events für die Zuordnung konnten nicht geladen werden: {data.matchEventsError}</p>}
-            {logPage && logPage.items.length
+            {list.items.length
                 ? (
                     <>
-                        <table className="idx">
-                            <thead>
-                                <tr>
-                                    <ClaSortTh sortKey="title" label="Log" page={logPage} defaults={LOG_SORT_DEFAULTS} onSort={onSort} />
-                                    <ClaSortTh sortKey="category" label="Kategorie" page={logPage} defaults={LOG_SORT_DEFAULTS} onSort={onSort} />
-                                    <ClaSortTh sortKey="event" label="Event" page={logPage} defaults={LOG_SORT_DEFAULTS} onSort={onSort} />
-                                    <ClaSortTh sortKey="source" label="Quelle" page={logPage} defaults={LOG_SORT_DEFAULTS} onSort={onSort} />
-                                    <ClaSortTh sortKey="status" label="Status" page={logPage} defaults={LOG_SORT_DEFAULTS} onSort={onSort} />
-                                    <ClaSortTh sortKey="date" label="Gepostet" page={logPage} defaults={LOG_SORT_DEFAULTS} onSort={onSort} />
-                                    <th />
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {logPage.items.map((l) => (
-                                    <LogTableRow
-                                        key={l.id}
-                                        l={l}
-                                        runningSections={LOG_ANALYSES
-                                            .map((a) => a.key)
-                                            .filter((s) => running.includes(`${l.id}:${s}`))}
-                                        selectedEventId={selected[l.id] ?? l.candidates?.[0]?.eventId ?? ""}
-                                        onSelectChange={(v) => setSelected((s) => ({ ...s, [l.id]: v }))}
-                                        onEvaluate={(section) => evaluate(l, section)}
-                                        onReset={(section) => reset(l, section)}
-                                        onDelete={() => remove(l)}
-                                        onLink={() => doLink(l)}
-                                        onUnlink={() => doUnlink(l)}
-                                    />
+                        <div className="la-list" role="table" aria-label="Logs">
+                            <div className="la-cols" role="row">
+                                <span aria-hidden="true" />
+                                {columns.map((c) => (
+                                    <span key={c.label} role="columnheader" aria-sort={c.key ? ariaSort(c.key, list.sort, list.dir) : undefined}>
+                                        {c.key
+                                            ? <SortLabel sortKey={c.key} label={c.label} sort={list.sort} dir={list.dir} onSort={sortBy} tip={c.tip} tipSub={c.sub} />
+                                            : c.label}
+                                    </span>
                                 ))}
-                            </tbody>
-                        </table>
-                        <Pager page={logPage} onPage={onPage} />
+                                <span aria-hidden="true" />
+                            </div>
+                            {list.items.map((row) => (
+                                <ListRow
+                                    key={row.id}
+                                    row={row}
+                                    running={ANALYSES.map((a) => a.key).filter((s) => running.includes(`${row.logId}:${s}`))}
+                                    eventsError={data.matchEventsError}
+                                    onEvaluate={(section) => evaluate(row, section)}
+                                    onAssign={() => setAssignRow(row)}
+                                    onReset={(section) => reset(row, section)}
+                                    onDeleteLog={() => removeLog(row)}
+                                    onDeleteReport={() => removeReport(row)}
+                                />
+                            ))}
+                        </div>
+                        <Pager page={list} onPage={goToPage} />
                     </>
                 )
-                : <p className="sub">Noch keine Logs erkannt. Sobald im Log-Channel ein Warcraft-Logs-Link gepostet wird, taucht er hier auf.</p>}
-        </>
-    );
-}
-
-export default function ClaPage() {
-    const { csrfToken } = useOutletContext<ShellContext>();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const [view, setView] = usePersistedSearchParam<View>("cla-view", "view", "reports", ["reports", "logs"]);
-    const [sorting, setSorting] = usePersistedState<Sorting>("cla-sort", SORTING_DEFAULT);
-
-    // An explicit ?sort/?dir wins; without one the view's remembered sort applies.
-    // Both are checked against the columns this view actually has, so a stored
-    // value from an older build can't ask the API to sort by nothing.
-    const columns = SORT_COLUMNS[view];
-    const remembered = sorting[view] || SORTING_DEFAULT[view];
-    const sortParam = searchParams.get("sort") || "";
-    const sort = columns[sortParam] ? sortParam : (columns[remembered.sort] ? remembered.sort : "date");
-    const dirParam = searchParams.get("dir");
-    const dir: Dir = dirParam ? (dirParam === "asc" ? "asc" : "desc") : remembered.dir;
-    // The page number is deliberately not remembered: the lists grow at the top,
-    // so page 3 of last week points at different rows today.
-    const page = Math.max(1, Number(searchParams.get("page")) || 1);
-
-    const [data, setData] = useState<ClaData | null>(null);
-    const [error, setError] = useState<ApiError | null>(null);
-
-    const load = () => {
-        getClaData(view, sort, dir, page).then(setData).catch((err: ApiError) => setError(err));
-    };
-
-    useEffect(load, [view, sort, dir, page]);
-
-    // Switching tabs drops the other tab's sort/dir/page from the URL — the new
-    // view brings its own remembered sort instead of inheriting a column it
-    // doesn't have.
-    const switchView = (v: View) => setView(v, (p) => { p.delete("sort"); p.delete("dir"); p.delete("page"); });
-
-    const sortBy = (key: string, nextDir: Dir) => {
-        setSorting((s) => ({ ...s, [view]: { sort: key, dir: nextDir } }));
-        setView(view, (p) => { p.set("sort", key); p.set("dir", nextDir); p.set("page", "1"); });
-    };
-
-    const goToPage = (p: number) => {
-        const next = new URLSearchParams(searchParams);
-        next.set("page", String(p));
-        setSearchParams(next);
-    };
-
-    if (error) return <div className="empty">Fehler beim Laden: {error.message}</div>;
-    if (!data) return <div className="empty">Lade…</div>;
-
-    return (
-        <>
-            <h1 className="page-title">Log-Auswertung</h1>
-            <NewEvaluationCard csrfToken={csrfToken} onChanged={load} />
-            <div className="subnav" role="tablist">
-                <button type="button" className={`subnav-item${view === "reports" ? " active" : ""}`} onClick={() => switchView("reports")}>
-                    Auswertungen
-                    {!!data.counts.reports && <span className="subnav-count">{data.counts.reports}</span>}
-                </button>
-                <button type="button" className={`subnav-item${view === "logs" ? " active" : ""}`} onClick={() => switchView("logs")}>
-                    Erkannte Logs
-                    {!!data.counts.logs && <span className="subnav-count">{data.counts.logs}</span>}
-                </button>
-            </div>
-            {view === "reports"
-                ? <ReportsTab reportPage={data.reportPage} csrfToken={csrfToken} onSort={sortBy} onPage={goToPage} onChanged={load} />
-                : <LogsTab data={data} csrfToken={csrfToken} onSort={sortBy} onPage={goToPage} onChanged={load} />}
+                : <div className="empty">{FILTER_META[data.filter].empty}</div>}
+            <NewEvaluationDialog open={newOpen} onClose={() => setNewOpen(false)} csrfToken={csrfToken} onChanged={load} />
+            <AssignDialog row={assignRow} onClose={() => setAssignRow(null)} onAssign={assign} onUnlink={unlink} />
         </>
     );
 }

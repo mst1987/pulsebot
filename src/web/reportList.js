@@ -155,8 +155,147 @@ function annotateReportEvents(reports, logs) {
     return reports;
 }
 
+// ---- the one list of the Log-Auswertung page (logs + reports without a log) ----
+//
+// The page used to show two tables for one thing: "Auswertungen" and "Erkannte
+// Logs", with an evaluated log in both. Now every log is one row, whatever has
+// been done with it, and a report built from a pasted link that has no log of
+// its own is a row too (source "link"). The report's numbers ride on the row for
+// the badge tooltip instead of being columns.
+
+const CLA_FILTERS = ["all", "open", "unlinked", "done"];
+
+const WCL_REPORT_URL = "https://classic.warcraftlogs.com/reports/";
+
+function reportMeta(r) {
+    if (!r) return null;
+    return {
+        id: r.id,
+        url: `/r/${r.id}`,
+        generatedAt: r.generatedAt || 0,
+        playerCount: r.playerCount || 0,
+        issueCount: r.issueCount || 0,
+    };
+}
+
+/** One list row for a tracked log, with the report it was evaluated into (if any). */
+function claRowFromLog(log, report) {
+    const l = log || {};
+    const sections = Array.isArray(l.sections) && l.sections.length
+        ? l.sections.filter((s) => s === "cla" || s === "rpb")
+        : (l.status === "done" ? ["cla"] : []);
+    // The report knows the raids of the whole night; a log's own reading may be
+    // from before the raid ended.
+    const raids = (report && Array.isArray(report.raids) && report.raids.length)
+        ? report.raids
+        : (Array.isArray(l.raids) ? l.raids : []);
+    return {
+        kind: "log",
+        id: l.id,
+        logId: l.id,
+        title: l.title || (report && report.title) || l.reportId || "",
+        zone: (report && report.zone) || l.zone || "",
+        reportId: l.reportId || "",
+        wclUrl: l.link || (l.reportId ? `${WCL_REPORT_URL}${l.reportId}` : ""),
+        postedAt: logPostedAt(l),
+        source: l.messageId ? "channel" : "link",
+        guildId: l.guildId || "",
+        channelId: l.channelId || "",
+        messageId: l.messageId || "",
+        channelName: l.channelName || "",
+        categoryId: l.categoryId || "",
+        categoryName: l.categoryName || "",
+        sections,
+        report: reportMeta(report) || (l.reportRefId ? { id: l.reportRefId, url: l.reportUrl || `/r/${l.reportRefId}`, generatedAt: 0, playerCount: 0, issueCount: 0 } : null),
+        raids,
+        eventId: l.eventId || "",
+        eventLabel: l.eventLabel || "",
+        eventStartTime: l.eventStartTime || 0,
+        eventLinkSource: l.eventLinkSource || "",
+    };
+}
+
+/** One list row for a report that has no tracked log (built from a pasted link). */
+function claRowFromReport(r) {
+    return {
+        kind: "report",
+        id: `report:${r.id}`,
+        logId: "",
+        title: r.title || r.id,
+        zone: r.zone || "",
+        reportId: r.reportId || "",
+        wclUrl: r.reportUrl || (r.reportId ? `${WCL_REPORT_URL}${r.reportId}` : ""),
+        postedAt: r.generatedAt || 0,
+        source: "link",
+        guildId: "",
+        channelId: "",
+        messageId: "",
+        channelName: "",
+        categoryId: "",
+        categoryName: "",
+        // a report file carries its own halves; one without is a full CLA build
+        sections: Array.isArray(r.sections) && r.sections.length ? r.sections : ["cla"],
+        report: reportMeta(r),
+        raids: Array.isArray(r.raids) ? r.raids : [],
+        eventId: "",
+        eventLabel: "",
+        eventStartTime: 0,
+        eventLinkSource: "",
+    };
+}
+
+const CLA_FILTER_TESTS = {
+    all: () => true,
+    // nothing evaluated yet
+    open: (row) => !row.sections.length,
+    // a log waiting for its raid (a report without a log cannot be assigned)
+    unlinked: (row) => row.kind === "log" && !row.eventId,
+    // at least one half evaluated
+    done: (row) => row.sections.length > 0,
+};
+
+const CLA_SORT_KEYS = {
+    date: (row) => row.postedAt || 0,
+    title: (row) => String(row.title || "").toLowerCase(),
+    content: (row) => String((row.raids[0] && row.raids[0].label) || "").toLowerCase(),
+    status: (row) => row.sections.length,
+    // logs still waiting for a raid lead the ascending order
+    event: (row) => String(row.eventLabel || "").toLowerCase(),
+};
+
+/**
+ * Build the page's one list: every log (already filtered to the active guild by
+ * the caller) plus every report no log at all points at, then filter, count and
+ * sort + paginate.
+ * @param {object[]} logs      tracked logs of the active guild
+ * @param {object[]} reports   report metadata (listReports())
+ * @param {object} query       { filter, sort, dir, page }
+ * @param {object} [opts]      { pageSize, allLogs } — allLogs: every guild's logs, so a
+ *   report whose log lives in another guild is not mistaken for a link report
+ * @returns {{ page, filter, counts: {all,open,unlinked,done} }}
+ */
+function prepareClaList(logs, reports, query = {}, opts = {}) {
+    const reportById = new Map((reports || []).map((r) => [r.id, r]));
+    const referenced = new Set((opts.allLogs || logs || []).map((l) => l && l.reportRefId).filter(Boolean));
+    const rows = [
+        ...(logs || []).map((l) => claRowFromLog(l, reportById.get(l.reportRefId))),
+        ...(reports || []).filter((r) => !referenced.has(r.id)).map(claRowFromReport),
+    ];
+    const counts = {};
+    for (const f of CLA_FILTERS) counts[f] = rows.filter(CLA_FILTER_TESTS[f]).length;
+    const filter = CLA_FILTERS.includes(query.filter) ? query.filter : "all";
+    const page = sortAndPaginate(rows.filter(CLA_FILTER_TESTS[filter]), query, {
+        sortKeys: CLA_SORT_KEYS,
+        defaultSort: "date",
+        pageSize: opts.pageSize,
+        tiebreak: (a, b) => (b.postedAt || 0) - (a.postedAt || 0),
+    });
+    return { page, filter, counts };
+}
+
 module.exports = {
     prepareReportList, prepareLogList, sortAndPaginate, annotateLogCategories, annotateReportEvents,
+    prepareClaList, claRowFromLog, claRowFromReport, CLA_FILTERS, CLA_SORT_KEYS,
     DEFAULT_PAGE_SIZE, REPORT_SORT_KEYS, LOG_SORT_KEYS,
     logPostedAt, snowflakeTimestamp,
 };

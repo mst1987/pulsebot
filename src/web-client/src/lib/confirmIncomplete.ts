@@ -1,5 +1,8 @@
-import { RAID_INCOMPLETE, type ApiError } from "../api";
+import { createElement } from "react";
+import { RAID_INCOMPLETE, type IncompleteRaidError } from "../api";
 import type { ConfirmFn } from "../components/ui/Modal";
+import IncompleteRaid from "../components/IncompleteRaid";
+import { raidIcon } from "./logRaids";
 
 // The admin-menu half of the "is this raid actually over?" guard (the rule
 // itself lives in src/utils/logcheck/raidProgress.js).
@@ -7,9 +10,9 @@ import type { ConfirmFn } from "../components/ui/Modal";
 // An evaluation of a raid whose final boss is still standing is refused rather
 // than silently produced — but it is a question, not a verdict: raids do get
 // called off, and then the numbers of the part that happened are what there is.
-// So the refusal comes back as an asking error, and this turns it into the
-// actual question — the "Raid nicht beendet" dialog — then repeats the call
-// with force.
+// So the refusal comes back as an asking error carrying the raids and their
+// bosses, and this turns it into the actual question — the "Raid noch nicht
+// abgeschlossen" dialog with the boss grid — then repeats the call with force.
 
 /**
  * Run an evaluation, asking before it goes ahead over a raid that is still
@@ -20,19 +23,21 @@ export async function withIncompleteConfirm<T>(ask: ConfirmFn, run: (force: bool
     try {
         return await run(false);
     } catch (err) {
-        if ((err as ApiError).code !== RAID_INCOMPLETE) throw err;
-        const message = (err as ApiError).message || "Der Raid sieht noch nicht abgeschlossen aus.";
+        const refusal = err as IncompleteRaidError;
+        if (refusal.code !== RAID_INCOMPLETE) throw err;
+        const message = refusal.message || "Der Raid sieht noch nicht abgeschlossen aus.";
+        const pending = (refusal.raids || []).find((r) => !r.finalKilled);
         const go = await ask({
-            title: "Raid nicht beendet",
-            text: `${message} Eine Auswertung wäre unfair für die Raider.`,
+            title: "Raid noch nicht abgeschlossen",
+            text: createElement(IncompleteRaid, { raids: refusal.raids, message }),
             action: "Trotzdem auswerten",
             tone: "run",
-            icon: "inv_misc_pocketwatch_01",
+            icon: pending ? raidIcon(pending.contentId) : "inv_misc_pocketwatch_01",
         });
         if (!go) {
             // Deliberately an error: it ends the job's toast as "abgebrochen"
             // rather than reporting a report that was never built.
-            throw { code: "cancelled", message: "Abgebrochen — der Raid läuft noch." } as ApiError;
+            throw { code: "cancelled", message: "Abgebrochen — der Raid läuft noch." } as IncompleteRaidError;
         }
         return run(true);
     }

@@ -1,0 +1,136 @@
+/* =====================================================================
+   Log-Auswertung (pages/ClaPage.tsx, design issue #217): one list with a
+   filter segment, a row menu, the "Neue Auswertung" and "Raid-Event
+   zuordnen" modals and the boss grid of the "Raid noch nicht abgeschlossen"
+   question (components/IncompleteRaid.tsx). Built on the shared blocks in
+   index.css (.badge, .btn, .ibtn, .seg, .part-head, dialog.dlg); tokens only.
+   ===================================================================== */
+
+/* ---- filter bar (a part head holding the segment) ---- */
+.la-filter { padding: 8px 10px 8px 12px; }
+.la-seg .seg-opt { gap: 8px; min-height: 34px; }
+.la-seg .seg-opt .badge { font-size: 11.5px; }
+.la-seg .seg-opt.active .badge:not(.mid) { color: var(--text); }
+.la-filter .btn .badge.count { margin-left: 2px; }
+
+/* ---- the list ---- */
+/* no overflow: hidden — the row menu has to be able to leave the list */
+.la-list { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.la-cols { border-radius: 9px 9px 0 0; }
+.la-row:last-child { border-radius: 0 0 9px 9px; }
+.la-cols, .la-row {
+    display: grid; align-items: center; gap: 12px; padding: 0 12px;
+    grid-template-columns: 40px minmax(0, 1fr) 180px 150px 210px 150px;
+}
+.la-cols { background: var(--panel2); border-bottom: 1px solid var(--line); min-height: 38px; }
+.la-cols > span { font-family: var(--font-mono); font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 600; }
+.la-row { min-height: 62px; padding-block: 8px; border-bottom: 1px solid var(--line-soft); transition: background-color .12s ease; }
+.la-row:last-child { border-bottom: 0; }
+.la-row:hover { background: var(--panel2); }
+.la-row.running { box-shadow: inset 3px 0 0 var(--accent); }
+
+.la-zicon.wi { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--line); }
+.la-cell-main { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.la-title { font-weight: 700; font-size: 14.5px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.la-meta { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--muted); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; }
+.la-meta .wi { width: 14px; height: 14px; border-radius: 3px; }
+.la-meta svg { width: 12px; height: 12px; flex: 0 0 auto; }
+.la-badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-width: 0; }
+.la-badges-end { justify-content: flex-end; }
+.badge.plain { font-family: inherit; font-weight: 600; }
+.badge .btn-spin { width: 11px; height: 11px; border-width: 2px; }
+.la-event { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.la-actions { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
+.la-muted { color: var(--muted); font-size: 13px; }
+
+/* ---- row menu ---- */
+.la-menu { position: relative; display: inline-flex; }
+.la-menu .ibtn.on { border-color: var(--accent); color: var(--text); background: var(--panel3); }
+.la-menu-pop {
+    position: absolute; z-index: 40; top: calc(100% + 6px); right: 0; width: 250px;
+    display: flex; flex-direction: column; gap: 1px; padding: 6px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .55);
+}
+.la-mi {
+    display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 0; border-radius: 7px; background: none;
+    color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; text-align: left; text-decoration: none; cursor: pointer;
+}
+.la-mi .wi { width: 20px; height: 20px; border-radius: 4px; }
+.la-mi svg { width: 16px; height: 16px; margin: 0 2px; color: var(--muted); flex: 0 0 auto; }
+.la-mi:hover, .la-mi:focus-visible { background: var(--panel2); color: var(--text); text-decoration: none; outline: none; }
+.la-mi.danger, .la-mi.danger svg { color: var(--high); }
+.la-mi.danger:hover { background: var(--high-bg); }
+.la-msep { height: 1px; background: var(--line-soft); margin: 4px 2px; }
+
+/* ---- modal: Neue Auswertung ---- */
+.la-form { display: flex; flex-direction: column; gap: 16px; }
+.la-lbl { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 7px; }
+.la-qm {
+    width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--line); display: inline-grid; place-items: center;
+    font-size: 10.5px; font-weight: 800; color: var(--muted); line-height: 1;
+}
+.la-input {
+    width: 100%; box-sizing: border-box; min-height: var(--ctl-h); padding: 8px 12px; border: 1px solid var(--line); border-radius: var(--ctl-radius);
+    background: var(--bg); color: var(--text); font-size: 14px; font-family: var(--font-mono);
+}
+.la-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.la-input::placeholder { color: var(--muted); }
+.la-opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.la-opt {
+    display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 12px; text-align: left;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--text); font: inherit; cursor: pointer;
+    transition: border-color .12s ease, background-color .12s ease;
+}
+.la-opt:hover { border-color: var(--accent); }
+.la-opt:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.la-opt.on { border-color: var(--accent); background: var(--accent-soft); }
+.la-opt-top { display: flex; align-items: center; gap: 10px; }
+.la-opt-top .wi { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--line); }
+.la-opt-top b { font-size: 14.5px; }
+.la-opt-sub { font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+.la-radio { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--muted); margin-left: auto; flex: 0 0 auto; box-sizing: border-box; }
+.la-radio.on { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 3px var(--panel); }
+
+/* ---- modal: Raid-Event zuordnen ---- */
+.la-assign { display: flex; flex-direction: column; gap: 14px; }
+.la-assign-now { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.la-cands { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.la-cand {
+    display: grid; grid-template-columns: 18px 36px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 12px 14px;
+    border: 0; border-bottom: 1px solid var(--line-soft); background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.la-cand:last-child { border-bottom: 0; }
+.la-cand:hover { background: var(--panel2); }
+.la-cand:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.la-cand.on { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.dlg-foot .la-foot-left { margin-right: auto; }
+
+/* ---- the unfinished-raid question ---- */
+.la-incomplete { display: flex; flex-direction: column; gap: 14px; color: var(--text); white-space: normal; }
+.la-incomplete p { margin: 0; font-size: 14px; line-height: 1.55; }
+.la-bossgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; }
+.la-boss {
+    border: 1px solid var(--line); border-radius: 10px; padding: 10px 4px; min-width: 0; overflow-wrap: anywhere; display: flex; flex-direction: column; align-items: center; gap: 6px;
+    text-align: center; font-size: 12px; font-weight: 600; line-height: 1.25;
+}
+.la-boss-i { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; }
+.la-boss-i svg { width: 15px; height: 15px; }
+.la-boss.ok { border-color: color-mix(in srgb, var(--good) 35%, transparent); }
+.la-boss.ok .la-boss-i { background: var(--good-bg); color: var(--good); }
+.la-boss.miss { border-style: dashed; color: var(--muted); }
+.la-boss.miss .la-boss-i { background: var(--panel2); color: var(--muted); }
+.la-incomplete-raids { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ---- narrow screens: a row becomes a card ---- */
+@media (max-width: 1100px) {
+    .la-cols, .la-row { grid-template-columns: 40px minmax(0, 1fr) auto; }
+    .la-cols > span:nth-child(n+3):not(:last-child) { display: none; }
+    .la-row > [data-label] { grid-column: 2 / -1; }
+    .la-row > .la-actions { grid-column: 3; grid-row: 1; }
+}
+@media (max-width: 640px) {
+    .la-opts { grid-template-columns: 1fr; }
+    .la-filter .seg { flex-wrap: wrap; }
+    .la-cand { grid-template-columns: 18px 36px minmax(0, 1fr); }
+    .la-cand .la-badges-end { grid-column: 2 / -1; justify-content: flex-start; }
+}

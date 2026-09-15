@@ -9,7 +9,8 @@ const { requireAdmin, requireCsrf } = require("../apiMiddleware");
 const { readJsonBody } = require("../apiBody");
 const { activeGuildFor } = require("../activeGuild");
 const { listReports, deleteReport, getReport, saveReport } = require("../reportStore");
-const { prepareReportList, prepareLogList, annotateLogCategories, annotateReportEvents } = require("../reportList");
+const { prepareClaList, claRowFromLog, annotateLogCategories } = require("../reportList");
+const { contentsForText } = require("../../config/tbcContent");
 const {
     listLogs, getLog, getByReportRefId, deleteLog, clearEvaluation, clearSection, evaluatedSections,
     linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent,
@@ -27,46 +28,62 @@ const { loadMatchableEvents, eventLinkFields } = require("../matchableEvents");
 const { linkLogByUrl } = require("../manualLog");
 const discord = require("../discord");
 
-/** GET /api/cla?view=reports|logs&sort=&dir=&page= */
+/**
+ * GET /api/cla?filter=all|open|unlinked|done&sort=&dir=&page= — the page's one
+ * list: every log of the active guild plus the reports built from a pasted link
+ * (reportList.prepareClaList), with a count per filter and how many open logs
+ * "Automatisch zuordnen" would assign.
+ */
 async function getClaData(req, res, url) {
     const user = requireAdmin(req, res);
     if (!user) return;
     const guildId = activeGuildFor(req);
     const allLogs = listLogs();
     const logs = guildId ? allLogs.filter((l) => !l.guildId || l.guildId === guildId) : allLogs;
-    // Reports are not guild-scoped, so annotate them from ALL logs — otherwise a
-    // report would look unassigned just because the guild switcher is elsewhere.
-    const reports = annotateReportEvents(listReports(), allLogs);
-    const view = url.searchParams.get("view") === "logs" ? "logs" : "reports";
-    const sortQuery = {
+    // which analyses already ran, normalised for legacy entries
+    for (const l of logs) l.sections = evaluatedSections(l);
+    annotateLogCategories(logs, discord.getChannelCategoryMap(guildId));
+    const query = {
+        filter: url.searchParams.get("filter"),
         sort: url.searchParams.get("sort"),
         dir: url.searchParams.get("dir"),
         page: url.searchParams.get("page"),
     };
-    // Category and channel name are sortable columns, so they have to sit on
-    // every log before the list is sorted and cut — annotating just the page
-    // would sort by a field that isn't filled in yet.
-    if (view === "logs") annotateLogCategories(logs, discord.getChannelCategoryMap(guildId));
-    // Only the active view is paginated; the other tab is just a link/count.
-    const reportPage = view === "reports" ? prepareReportList(reports, sortQuery) : null;
-    const logPage = view === "logs" ? prepareLogList(logs, sortQuery) : null;
+    const reports = listReports();
+    const { page, filter, counts } = prepareClaList(logs, reports, query, { allLogs });
 
-    let matchEvents = { events: [], error: null };
-    if (logPage) {
-        await backfillLogTitles(logPage.items);
-        matchEvents = await loadMatchableEvents(guildId);
-        annotateMatches(logPage.items, matchEvents.events);
-        // which analyses already ran, normalised for legacy entries
-        for (const l of logPage.items) l.sections = evaluatedSections(l);
+    // Title and boss count of the logs on this page, read from WCL once, then
+    // the rows rebuilt from the filled logs.
+    const logById = new Map(logs.map((l) => [l.id, l]));
+    const reportById = new Map(reports.map((r) => [r.id, r]));
+    const pageLogs = page.items.filter((row) => row.kind === "log").map((row) => logById.get(row.logId)).filter(Boolean);
+    await backfillLogTitles(pageLogs);
+    page.items = page.items.map((row) => (row.kind === "log" && logById.has(row.logId)
+        ? claRowFromLog(logById.get(row.logId), reportById.get(logById.get(row.logId).reportRefId))
+        : row));
+
+    const matchEvents = await loadMatchableEvents(guildId);
+    // Candidates for every log on the page, the assigned ones included —
+    // "Zuordnung ändern" offers the same choice. annotateMatches skips linked
+    // logs, so it gets them without their assignment.
+    const logRows = page.items.filter((row) => row.kind === "log");
+    const probes = logRows.map((row) => ({ ...row, eventId: "" }));
+    annotateMatches(probes, matchEvents.events);
+    logRows.forEach((row, i) => {
+        row.candidates = probes[i].candidates || [];
+        row.matchAmbiguous = !!probes[i].matchAmbiguous;
+    });
+    // The event's raid, for the boss icon in the assignment dialog.
+    for (const row of page.items) {
+        for (const c of row.candidates || []) c.contentId = contentsForText(c.title)[0] || "";
     }
 
     ok(res, {
-        view,
-        reportPage,
-        logPage,
+        filter,
+        page,
+        counts,
+        autoMatchCount: matchEvents.error ? 0 : autoMatches(logs.filter((l) => !l.eventId), matchEvents.events).length,
         matchEventsError: matchEvents.error,
-        unlinkedCount: logs.filter((l) => !l.eventId).length,
-        counts: { reports: reports.length, logs: logs.length },
         logChannelsConfigured: (getConfig().logChannelIds || []).length > 0,
         activeGuildId: guildId,
     });
@@ -103,7 +120,7 @@ async function createReport(req, res) {
             const result = await buildReport(link, sections && sections.length ? { force, sections } : { force });
             return { ok: true, id: result.id, url: result.url };
         } catch (e) {
-            if (e && e.incomplete) return { ok: false, incomplete: true, error: e.message };
+            if (e && e.incomplete) return { ok: false, incomplete: true, progress: e.progress, error: e.message };
             if (e instanceof ReportError) return { ok: false, error: e.message };
             console.error("CLA web build failed:", e);
             return { ok: false, error: "Unerwarteter Fehler beim Erstellen der Auswertung." };
@@ -125,7 +142,7 @@ function reportStatus(req, res, url) {
     if (!job) return ok(res, { status: "unknown" });
     ok(res, {
         status: job.status, url: job.url, id: job.id, error: job.error,
-        incomplete: job.incomplete, runningMs: job.runningMs,
+        incomplete: job.incomplete, raids: job.raids, runningMs: job.runningMs,
     });
 }
 
@@ -268,7 +285,7 @@ function evalStatus(req, res, url) {
     if (job) {
         return ok(res, {
             status: job.status, url: job.url, id: job.id,
-            error: job.error, incomplete: job.incomplete, section, runningMs: job.runningMs,
+            error: job.error, incomplete: job.incomplete, raids: job.raids, section, runningMs: job.runningMs,
         });
     }
 

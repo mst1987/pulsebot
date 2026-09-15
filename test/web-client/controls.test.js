@@ -77,27 +77,17 @@ describe("web-client control styles", () => {
         expect(css).toContain(".dash-card table.idx th, .dash-card table.idx td { padding-left: 16px; padding-right: 16px; }");
     });
 
-    it("draws the removable assignment chip's ✕ as part of the pill", () => {
-        // A full-size ghost button next to the pill read as a second, equally
-        // weighted action — the ✕ belongs inside the chip and only lights up on
-        // hover/focus.
-        const chip = css.match(/\n\.chip-x \{[^}]+\}/);
-        expect(chip).not.toBeNull();
-        expect(chip[0]).toContain("border-radius: 50%");
-        expect(css).toContain(".chip-x:hover:not(:disabled)");
-        expect(css).toContain(".chip-x:focus-visible");
-        expect(css).toContain(".chip-x:disabled");
-        expect(css).toMatch(/\n\.pill-chip \{[^}]*display: inline-flex/);
-    });
-
-    it("has the assignment cells use the chip instead of a ghost button", () => {
+    it("shows a log's raid assignment as a badge, removed only inside the assignment dialog", () => {
+        // The Log-Auswertung (#217) dropped the removable chip: the assignment is an
+        // accent badge, and "Zuordnung entfernen" is the danger button in the dialog.
         const src = fs.readFileSync(path.join(CLIENT, "pages/ClaPage.tsx"), "utf8");
-        expect(src.match(/className="chip-x"/g)).toHaveLength(2);
-        expect(src.match(/className="pill pill-chip"/g)).toHaveLength(2);
-        // the oversized button this replaced
-        expect(src).not.toMatch(/btn btn-ghost btn-sm"[^>]*Zuordnung entfernen/);
-        // every ✕ that only carries an icon needs a name for screen readers
-        expect(src.match(/aria-label=\{`Zuordnung zu/g)).toHaveLength(2);
+        expect(src).not.toContain("chip-x");
+        expect(src).not.toContain("pill-chip");
+        expect(src).toContain("tone=\"accent\" icon=\"inv_misc_note_02\" className=\"plain la-event\"");
+        expect(src).toMatch(/<Button variant="danger"[^\n]*>Zuordnung entfernen<\/Button>/);
+        // the classes went with it
+        expect(css).not.toMatch(/\n\.chip-x \{/);
+        expect(css).not.toMatch(/\n\.pill-chip \{/);
     });
 
     it("has every filter bar in the client use the shared class", () => {

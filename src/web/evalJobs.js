@@ -13,7 +13,9 @@
 // the *result* is persisted anyway (the report file plus the log's `sections`),
 // so the UI recovers the final state from the regular log list.
 
-// key -> { status, section, logId, url, id, error, startedAt, finishedAt }
+const { raidSummary } = require("../utils/logcheck/raidProgress");
+
+// key -> { status, section, logId, url, id, error, incomplete, raids, startedAt, finishedAt }
 const jobs = new Map();
 
 // How long a finished job stays queryable, so a client that polls slowly (or
@@ -59,6 +61,7 @@ function startJob(logId, section, runner) {
         error: "",
         already: false,
         incomplete: false,
+        raids: [],
     };
     jobs.set(key, job);
 
@@ -83,6 +86,9 @@ function startJob(logId, section, runner) {
                 // job like an error, but the client turns it into a question
                 // ("trotzdem auswerten?") rather than a red message.
                 job.incomplete = !!(res && res.incomplete);
+                // Which bosses lie and which still stand, so the question can
+                // show them instead of a sentence about them.
+                job.raids = job.incomplete && res.progress ? raidSummary(res.progress) : [];
             }
         })
         .catch((e) => {
@@ -110,6 +116,7 @@ function getJob(logId, section) {
         error: job.error,
         already: job.already,
         incomplete: !!job.incomplete,
+        raids: job.raids || [],
         runningMs: (job.finishedAt || Date.now()) - job.startedAt,
     };
 }
