@@ -263,6 +263,23 @@ describe("web/raidEventGroups", () => {
         nowSpy.mockRestore();
     });
 
+    // The dedupe bucket rolls every five minutes; the last-good fallback must
+    // not roll with it, or it is empty exactly when an outage needs it — which
+    // is one of the ways cloning a raid ended in "Ausgangs-Event nicht gefunden".
+    it("keeps the last good lookback list across the five-minute bucket", async () => {
+        const since = 1_700_000_000;
+        mockFetchEvents.mockResolvedValue([event()]);
+        discord.getChannelCategoryMap.mockReturnValue({ chan1: { name: "c", categoryId: "cat1", categoryName: "Raids" } });
+        await loadEventGroups("g1", { sinceSeconds: since });
+
+        mockFetchEvents.mockRejectedValue(new Error("Raid-Helper down"));
+        // a later request: another bucket (> 300 s apart), same shape
+        const { groups, stale } = await loadEventGroups("g1", { sinceSeconds: since + 400 });
+
+        expect(stale).toBe(true);
+        expect(groups[0].events.map((e) => e.id)).toEqual(["e1"]);
+    });
+
     it("falls back to the persisted store entirely when Raid-Helper fails and there is no cache at all", async () => {
         mockFetchEvents.mockRejectedValue(new Error("Raid-Helper down"));
         listRaidEvents.mockReturnValue([{
