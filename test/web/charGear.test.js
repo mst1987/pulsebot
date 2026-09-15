@@ -5,6 +5,8 @@ const mockGetReport = jest.fn(() => null);
 jest.mock("../../src/web/reportStore", () => ({
     listReports: (...a) => mockListReports(...a),
     getReport: (...a) => mockGetReport(...a),
+    // the slim slice of the same report — the fixtures carry roster/players
+    getReportRoster: (...a) => mockGetReport(...a),
 }));
 
 // Der Armory-Cache ist gemockt: geprüft wird, was charGear mit einer Antwort

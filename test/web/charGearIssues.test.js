@@ -5,6 +5,8 @@ const mockGetReport = jest.fn(() => null);
 jest.mock("../../src/web/reportStore", () => ({
     listReports: (...a) => mockListReports(...a),
     getReport: (...a) => mockGetReport(...a),
+    // the slim slice of the same report — the fixtures carry roster/players
+    getReportRoster: (...a) => mockGetReport(...a),
 }));
 
 // issueIconUrl is pure — the per-test fresh copies below (jest.resetModules)

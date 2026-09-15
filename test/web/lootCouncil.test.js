@@ -434,6 +434,19 @@ it("works for a healer too, off Wowhead's list", () => {
             expect(gaps[0].wantedBy.map((w) => w.character)).toContain("Heala");
         });
 
+        // Building the gear map reads every stored evaluation from disk, so
+        // asking for it per gap is what made this tab take minutes on a real
+        // guild's data.
+        it("reads the roster's gear once, not once per gap", () => {
+            mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
+            mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([])]]));
+            const rows = councilRoster({ bisTier: "t6" }).rows;
+            mockGearByCharacter.mockClear();
+            const gaps = bisGaps(rows);
+            expect(gaps.length).toBeGreaterThan(10);
+            expect(mockGearByCharacter).toHaveBeenCalledTimes(1);
+        });
+
         it("respects the content filter", () => {
             mockAnnotated.mockReturnValue([{ key: "devihra", className: "Priest", spec: "Shadow" }]);
             mockGearByCharacter.mockReturnValue(new Map([["devihra", gearOf([])]]));

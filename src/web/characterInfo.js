@@ -10,7 +10,8 @@
 // what is still unknown.
 
 const { characters: lootCharacters, listByCharacter } = require("./lootStore");
-const { listReports, getReport } = require("./reportStore");
+// The slim slice: only the roster is read here — see reportStore.js.
+const { listReports, getReportRoster } = require("./reportStore");
 const { listLogsForEvent } = require("./logStore");
 const charStore = require("./characterStore");
 const WarcraftLogs = require("../classes/warcraftlogs");
@@ -75,7 +76,7 @@ function reportIdsForCharacter(character) {
 function classesFromStoredReports(limit = MAX_LOCAL_REPORTS) {
     const byName = {};
     for (const meta of listReports().slice(0, limit)) {
-        const report = getReport(meta.id);
+        const report = getReportRoster(meta.id);
         for (const player of (report && report.roster) || []) {
             const name = String(player.name || "").trim();
             const className = normalizeClassName(player.type);

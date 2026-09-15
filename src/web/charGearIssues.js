@@ -9,7 +9,9 @@
 //
 // Keyed like characterStore.js/lootStore.js (lowercased, realm suffix dropped),
 // so a report's "Keslight" lines up with the loot history's "keslight".
-const { listReports, getReport } = require("./reportStore");
+// The slim slice: this reads the roster (or, on an old report, the players)
+// and nothing else — see reportStore.js.
+const { listReports, getReportRoster } = require("./reportStore");
 const { characterKey: lootCharacterKey, splitPlayer } = require("../utils/lootImport");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 
@@ -82,7 +84,7 @@ const condensedCache = new Map();
 function condenseReport(meta) {
     const cached = condensedCache.get(meta.id);
     if (cached) return cached;
-    const report = getReport(meta.id);
+    const report = getReportRoster(meta.id);
     const entries = [];
     const rows = (report && report.roster && report.roster.length)
         ? report.roster
