@@ -699,6 +699,18 @@ function councilRoster(opts = {}) {
 }
 
 /**
+ * The gear of everyone on the roster, read once.
+ *
+ * Same role gate as the roster itself: a drop must not be weighed against the
+ * healing set somebody wore on Thursday. The roster rows already carry the spec
+ * each raider is judged as, so this needs no second lookup.
+ */
+function rosterGear(roster) {
+    const roleByKey = new Map(roster.map((r) => [r.key, (specByKey(r.specKey) || {}).role || ""]));
+    return gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "" });
+}
+
+/**
  * For one item: who on the roster can wear it, what it would replace, and how
  * much it would be worth to each of them by stat weights — plus who *cannot*
  * wear it, and why.
@@ -716,17 +728,16 @@ function councilRoster(opts = {}) {
  * estimated gain, only a simulated one — but it still decides which candidate
  * is listed first while nothing is simulated yet.
  *
+ * ⚠️ `gearMap` is the roster's gear, and it must be handed in whenever this is
+ * asked for more than one item: building it reads every stored evaluation from
+ * disk, so the BiS overview — which asks per item — paid that price once per
+ * gap and took minutes on a real guild's data.
+ *
  * @returns {{candidates: object[], unwearable: object[]}}
  */
-function candidateSplit(itemId, roster) {
+function candidateSplit(itemId, roster, gearMap = rosterGear(roster)) {
     const item = wowsims.item(itemId);
     if (!item) return { candidates: [], unwearable: [] };
-    // Same role gate as the roster: the drop check must not weigh a caster's
-    // upgrade against the healing set they wore on Thursday either. The roster
-    // rows already carry the spec each raider is judged as, so it needs no
-    // second lookup.
-    const roleByKey = new Map(roster.map((r) => [r.key, (specByKey(r.specKey) || {}).role || ""]));
-    const gearMap = gearByCharacter({ roleFor: (key) => roleByKey.get(key) || "" });
     const out = [];
     const unwearable = [];
     for (const row of roster) {
@@ -846,8 +857,8 @@ function candidateSplit(itemId, roster) {
 }
 
 /** The candidates alone — everyone on the roster who can wear the item. */
-function candidatesForItem(itemId, roster) {
-    return candidateSplit(itemId, roster).candidates;
+function candidatesForItem(itemId, roster, gearMap) {
+    return candidateSplit(itemId, roster, gearMap).candidates;
 }
 
 /**
@@ -889,8 +900,11 @@ function bisGaps(roster, { contentIds = null } = {}) {
         }
     }
     const items = [...byItem.values()];
+    // Once for the whole list, not once per gap: this reads every stored
+    // evaluation, and a real guild's overview holds a hundred gaps.
+    const gearMap = rosterGear(roster);
     for (const item of items) {
-        item.candidates = candidatesForItem(item.id, roster);
+        item.candidates = candidatesForItem(item.id, roster, gearMap);
         item.best = item.candidates.length ? item.candidates[0] : null;
     }
     items.sort((a, b) => b.wantedBy.length - a.wantedBy.length || (b.best ? b.best.value : 0) - (a.best ? a.best.value : 0));

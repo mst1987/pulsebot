@@ -1,24 +1,41 @@
 // Mock fs with an in-memory store so tests never touch the repo's disk.
+// It keeps an mtime per file, because the store remembers what a report's
+// header said until that file changes — a mock without `statSync` would make
+// every listing look unreadable.
 jest.mock("fs", () => {
     const store = new Map();
+    const mtimes = new Map();
+    let tick = 0;
     const enoent = (p) => {
         const e = new Error(`ENOENT: no such file '${p}'`);
         e.code = "ENOENT";
         return e;
     };
+    const write = (p, data) => {
+        store.set(p, String(data));
+        mtimes.set(p, ++tick);
+    };
     return {
-        __store: store,
+        __store: {
+            clear: () => { store.clear(); mtimes.clear(); },
+            get: (p) => store.get(p),
+            set: write,
+            keys: () => store.keys(),
+        },
         mkdirSync: jest.fn(),
-        writeFileSync: jest.fn((p, data) => {
-            store.set(p, String(data));
-        }),
+        writeFileSync: jest.fn(write),
         readFileSync: jest.fn((p) => {
             if (!store.has(p)) throw enoent(p);
             return store.get(p);
         }),
+        statSync: jest.fn((p) => {
+            if (!store.has(p)) throw enoent(p);
+            return { mtimeMs: mtimes.get(p) || 0, size: store.get(p).length };
+        }),
         unlinkSync: jest.fn((p) => {
             if (!store.has(p)) throw enoent(p);
             store.delete(p);
+            mtimes.delete(p);
         }),
         readdirSync: jest.fn(() =>
             [...store.keys()].map((p) => p.split(/[\\/]/).pop())
@@ -31,13 +48,17 @@ const path = require("path");
 const {
     saveReport,
     getReport,
+    getReportRoster,
     deleteReport,
     listReports,
+    resetCache,
     REPORTS_DIR,
 } = require("../../src/web/reportStore.js");
 
 beforeEach(() => {
     fs.__store.clear();
+    // the cache outlives a test's files, so it starts empty like the store
+    resetCache();
 });
 
 describe("web/reportStore", () => {
@@ -185,6 +206,64 @@ describe("web/reportStore", () => {
             const list = listReports();
             expect(list).toHaveLength(1);
             expect(list[0].title).toBe("Good");
+        });
+    });
+
+    // What a report file's header said is remembered until the file changes —
+    // parsing a couple of megabytes per raider is what made the Loot-Council
+    // take minutes.
+    describe("was zwischengespeichert wird", () => {
+        it("liest eine unveränderte Datei nicht noch einmal", () => {
+            saveReport({ title: "Alt", players: [] });
+            listReports();
+            fs.readFileSync.mockClear();
+            expect(listReports()).toHaveLength(1);
+            expect(fs.readFileSync).not.toHaveBeenCalled();
+        });
+
+        it("liest sie wieder, sobald sie sich ändert", () => {
+            const id = saveReport({ title: "Alt", players: [] });
+            listReports();
+            saveReport({ title: "Neu", players: [] }, id);
+            expect(listReports()[0].title).toBe("Neu");
+        });
+
+        it("vergisst eine gelöschte Datei", () => {
+            const id = saveReport({ title: "Weg", players: [] });
+            listReports();
+            deleteReport(id);
+            expect(listReports()).toHaveLength(0);
+        });
+
+        it("gibt mit getReportRoster nur den Teil heraus, den die Gear-Auswertung liest", () => {
+            const id = saveReport({
+                title: "Hyjal",
+                generatedAt: 4000,
+                roster: [{ name: "Devihra", type: "Priest", armory: [{ slot: 0 }] }],
+                players: [{ name: "Devihra", issues: [] }],
+                // the bulk of a real report, and of no use to that walk
+                timeline: { fights: [{ id: 1, duration: 1000 }] },
+            });
+            const slim = getReportRoster(id);
+            expect(slim).toEqual({
+                id,
+                title: "Hyjal",
+                generatedAt: 4000,
+                roster: [{ name: "Devihra", type: "Priest", armory: [{ slot: 0 }] }],
+                players: [{ name: "Devihra", issues: [] }],
+            });
+            expect(slim.timeline).toBeUndefined();
+            // and the second call comes out of the store
+            fs.readFileSync.mockClear();
+            expect(getReportRoster(id).title).toBe("Hyjal");
+            expect(fs.readFileSync).not.toHaveBeenCalled();
+        });
+
+        it("beantwortet eine unbekannte oder kaputte Datei mit null", () => {
+            expect(getReportRoster("nichtshex")).toBeNull();
+            expect(getReportRoster("deadbeef01")).toBeNull();
+            fs.__store.set(path.join(REPORTS_DIR, "cafebabe01.json"), "{kaputt");
+            expect(getReportRoster("cafebabe01")).toBeNull();
         });
     });
 });

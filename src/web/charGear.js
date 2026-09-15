@@ -21,7 +21,9 @@
 //     generally: a boss-specific piece (see config/situationalItems.js) is
 //     substituted from an older raid rather than compared against.
 
-const { listReports, getReport } = require("./reportStore");
+// getReportRoster, not getReport: this walk reads the roster and three header
+// fields, and a stored report is mostly timeline (see reportStore.js).
+const { listReports, getReportRoster } = require("./reportStore");
 const { characterKey, splitPlayer } = require("../utils/lootImport");
 const { SLOT_NAMES } = require("../utils/logcheck/gearIssues");
 const { gearProfile, fitsRole, isPvpSet } = require("./gearProfile");
@@ -351,7 +353,7 @@ function gearByCharacter({ roleFor } = {}) {
     const pending = new Map();
     const reports = listReports().slice(0, MAX_REPORTS);
     for (const meta of reports) {
-        const report = getReport(meta.id);
+        const report = getReportRoster(meta.id);
         if (!report || !Array.isArray(report.roster)) continue;
         for (const entry of report.roster) {
             const key = charKey(entry.name);
