@@ -184,7 +184,7 @@ export default function CategoryMatrix({
                             </div>
                             <div>
                                 <FieldLabel tip="Raider → Charakter" tipSub="Welchen Charakter ein Raider in dieser Kategorie spielt. Überschreibt auf der Event-Detailseite die automatische Erkennung aus vergangenen Anmeldungen.">Raider → Charakter</FieldLabel>
-                                <div className="rc-summary">
+                                <div className="rch-summary">
                                     {summary && summary.members ? (
                                         <>
                                             <span><b>{summary.assigned}</b> <span className="note">von {summary.members} fest</span></span>

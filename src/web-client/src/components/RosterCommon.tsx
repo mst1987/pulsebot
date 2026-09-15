@@ -28,7 +28,7 @@ export function AttendanceBar({ attendance, categoryName }: { attendance: Roster
     if (!attendance || !attendance.total) {
         return (
             <span
-                className="bar rc-bar is-empty"
+                className="bar ros-bar is-empty"
                 data-tip="Keine Raids gezählt"
                 data-tip-sub={`${categoryName || "Diese Kategorie"}: kein zugeordnetes Log, in dem der Charakter vorkommen könnte, und keine Raider-Zuordnung, deren Anmeldungen zählen.`}
             >
@@ -41,7 +41,7 @@ export function AttendanceBar({ attendance, categoryName }: { attendance: Roster
     if (missed.length) lines.push(`Gefehlt: ${missed.map((m) => `${nightLabel(m.startTime)} (${m.reason})`).join(", ")}.`);
     else lines.push("Keinen gezählten Raid verpasst.");
     return (
-        <span className={`bar rc-bar ${attendanceTone(pct) || ""}`} data-tip={`${attended} von ${total} Raids · ${pct} %`} data-tip-sub={lines.join("\n")}>
+        <span className={`bar ros-bar ${attendanceTone(pct) || ""}`} data-tip={`${attended} von ${total} Raids · ${pct} %`} data-tip-sub={lines.join("\n")}>
             <i style={{ width: `${pct}%` }} />
             <span>{pct} %<small>{attended}/{total}</small></span>
         </span>
@@ -90,7 +90,7 @@ export function LootBadge({ count, items, to }: { count: number; items: CharLoot
     if (count > shown.length && shown.length) shown.push(`… und ${count - shown.length} weitere`);
     const sub = count ? `${shown.join("\n")}\nKlick öffnet die ganze Loot-Historie.` : "Noch kein Loot importiert.";
     return (
-        <Link className="rc-badge-link" to={to} data-tip={count ? `${plural(count, "Item", "Items")} erhalten` : "Kein Loot"} data-tip-sub={sub}>
+        <Link className="ros-badge-link" to={to} data-tip={count ? `${plural(count, "Item", "Items")} erhalten` : "Kein Loot"} data-tip-sub={sub}>
             <Badge icon="inv_misc_bag_10">{count}</Badge>
         </Link>
     );

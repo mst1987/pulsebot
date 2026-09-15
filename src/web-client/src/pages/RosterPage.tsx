@@ -70,7 +70,7 @@ function RosterRow({ c, categoryId, categoryName, hidden, onHide }: {
     onHide?: (c: RosterChar, hide: boolean) => void;
 }) {
     return (
-        <div className="rc-row">
+        <div className="ros-row">
             <ClassSpecIdentity
                 character={c.character}
                 className={c.className}
@@ -81,27 +81,27 @@ function RosterRow({ c, categoryId, categoryName, hidden, onHide }: {
                 extra={hidden
                     ? (
                         <Badge
-                            className="rc-mini" tip="Ausgeblendet"
+                            className="ros-mini" tip="Ausgeblendet"
                             tipSub={`${hidden.by ? `Von ${hidden.by}, ` : ""}seit ${formatDate(hidden.at)}${hidden.reason ? ` · ${hidden.reason}` : ""}`}
                         >
                             ausgeblendet
                         </Badge>
                     )
                     : !c.assigned && !!c.lootCount && (
-                        <Badge tone="accent" className="rc-mini" tip="nur Loot" tipSub="Nur aus dem Loot bekannt — noch keinem Raider in dieser Kategorie zugeordnet.">
+                        <Badge tone="accent" className="ros-mini" tip="nur Loot" tipSub="Nur aus dem Loot bekannt — noch keinem Raider in dieser Kategorie zugeordnet.">
                             nur Loot
                         </Badge>
                     )}
             />
-            <span className="rc-cell"><RoleBadge role={c.role} /></span>
-            <span className="rc-cell">
+            <span className="ros-cell"><RoleBadge role={c.role} /></span>
+            <span className="ros-cell">
                 {categoryId === UNGROUPED
                     ? <span className="sub">–</span>
                     : <AttendanceBar attendance={c.attendance?.[categoryId]} categoryName={categoryName} />}
             </span>
-            <span className="rc-cell"><GearStateBadge gear={c.gear} /></span>
-            <span className="rc-cell"><LootBadge count={c.lootCount} items={c.items || []} to={charHref(c, "loot")} /></span>
-            <span className="rc-acts">
+            <span className="ros-cell"><GearStateBadge gear={c.gear} /></span>
+            <span className="ros-cell"><LootBadge count={c.lootCount} items={c.items || []} to={charHref(c, "loot")} /></span>
+            <span className="ros-acts">
                 <IconLink href={c.wclUrl} icon="inv_misc_pocketwatch_01" tip="Warcraft Logs" />
                 <IconLink href={c.armoryUrl} icon="inv_shirt_guildtabard_01" tip="Armory" />
                 {onHide && (hidden
@@ -120,7 +120,7 @@ function RosterRow({ c, categoryId, categoryName, hidden, onHide }: {
                         />
                     ))}
             </span>
-            <Link className="exp-lbl rc-open" to={charHref(c)}>
+            <Link className="exp-lbl ros-open" to={charHref(c)}>
                 <span>Öffnen</span>
                 <span className="exp go" aria-hidden="true"><ChevronDownIcon /></span>
             </Link>
@@ -137,14 +137,14 @@ function GroupColumns({ sort, dir, onSort }: { sort: SortKey; dir: Dir; onSort: 
         <SortLabel<SortKey> sortKey={sortKey} label={label} sort={sort} dir={dir} onSort={onSort} tip={tip} tipSub={tipSub} />
     );
     return (
-        <div className="rc-cols">
+        <div className="ros-cols">
             <span />
             {head("name", "Charakter", "Charakter", "Name in Klassenfarbe, darunter die Spec. Klick öffnet die Charakter-Seite.")}
             {head("role", "Rolle", "Rolle", "Die Rolle aus dem neuesten Log, in dem der Charakter vorkommt; ohne Log aus der Spec.")}
             {head("attendance", "Anwesenheit", "Anwesenheit", "Die letzten 11 Raids dieser Kategorie: im Log = da; ohne Log zählt die Raid-Helper-Anmeldung des zugeordneten Raiders.\nGrün ab 80 %, gelb ab 60 %.")}
             {head("gear", "Gear-Stand", "Gear-Stand", "Befunde aus der neuesten Log-Auswertung, in der der Charakter vorkommt: fehlende Verzauberung, leere Sockel, inaktiver Meta-Gem.\n„nicht ausgewertet“ = in keiner gespeicherten Auswertung.")}
             {head("loot", "Loot", "Loot", "Importierte Items dieses Charakters; die neuesten im Tooltip.")}
-            <span className="rc-cols-links">Links</span>
+            <span className="ros-cols-links">Links</span>
             <span />
         </div>
     );
@@ -181,10 +181,10 @@ function RosterGroup({ id, title, crumb, icon, chars, open, onToggle, sort, dir,
     }, dir);
     const shown = showAll ? sorted : sorted.slice(0, GROUP_PREVIEW);
     return (
-        <section className={`rc-grp${open ? " is-open" : ""}`}>
-            <div className="rc-grp-head">
+        <section className={`ros-grp${open ? " is-open" : ""}`}>
+            <div className="ros-grp-head">
                 <IconTile icon={icon} tone={id === UNGROUPED ? "none" : "roster"} />
-                <div className="rc-grp-title">
+                <div className="ros-grp-title">
                     <span>{title}</span>
                     <span className="kicker">{crumb}</span>
                 </div>
@@ -195,7 +195,7 @@ function RosterGroup({ id, title, crumb, icon, chars, open, onToggle, sort, dir,
                 <Expand open={open} onToggle={onToggle} showLabel={!open} label="Details" />
             </div>
             {open && (
-                <div className="rc-list">
+                <div className="ros-list">
                     <GroupColumns sort={sort} dir={dir} onSort={onSort} />
                     {shown.map((c) => (
                         <RosterRow
@@ -204,7 +204,7 @@ function RosterGroup({ id, title, crumb, icon, chars, open, onToggle, sort, dir,
                         />
                     ))}
                     {chars.length > GROUP_PREVIEW && (
-                        <div className="rc-more">
+                        <div className="ros-more">
                             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowAll((v) => !v)}>
                                 {showAll ? "Weniger zeigen" : `${chars.length - GROUP_PREVIEW} weitere zeigen`}
                             </button>
@@ -362,10 +362,10 @@ export default function RosterPage() {
                 <IconTile icon="achievement_guildperk_everybodysfriend" tone="roster" size="lg" />
                 <div className="ph-text">
                     <div className="kicker">{data.stats.categories} Raid-Kategorie{data.stats.categories === 1 ? "" : "n"}</div>
-                    <h1 className="rc-title">
+                    <h1 className="ros-title">
                         Roster
                         <span
-                            className="rc-info"
+                            className="ros-info"
                             tabIndex={0}
                             data-tip="Alle Charaktere je Raid-Kategorie"
                             data-tip-sub={"Wer welchen Char in welchem Raid spielt, wird unter Einstellungen → Kategorien zugeordnet; zusätzlich zählt jeder Raid, in dem ein Char Loot bekommen hat.\nAnwesenheit aus Raid-Helper-Anmeldungen und zugeordneten Logs, Gear-Stand aus der letzten Auswertung."}
@@ -378,9 +378,9 @@ export default function RosterPage() {
 
             <RosterKpis stats={data.stats} onlyIssues={view.onlyIssues} onToggleIssues={() => patch({ onlyIssues: !view.onlyIssues })} />
 
-            <div className="dash-card rc-panel">
+            <div className="dash-card ros-panel">
                 {(!!data.hiddenChars.length || canWrite) && (
-                    <div className="rc-tabs">
+                    <div className="ros-tabs">
                         <Segment<Tab>
                             ariaLabel="Liste"
                             value={view.tab}
@@ -398,8 +398,8 @@ export default function RosterPage() {
                         />
                     </div>
                 )}
-                <div className="rc-filters">
-                    <label className="rc-search">
+                <div className="ros-filters">
+                    <label className="ros-search">
                         <SearchIcon />
                         <input
                             type="search"
@@ -421,7 +421,7 @@ export default function RosterPage() {
                         ]}
                     />
                     {!!classCounts.length && (
-                        <div className="rc-chips" role="group" aria-label="Klasse">
+                        <div className="ros-chips" role="group" aria-label="Klasse">
                             {classCounts.map(([className, count]) => {
                                 const on = view.className === className;
                                 const label = CLASS_LABELS[className] || className;
@@ -429,7 +429,7 @@ export default function RosterPage() {
                                     <button
                                         key={className}
                                         type="button"
-                                        className={`rc-chip${on ? " is-on" : ""}${view.className && !on ? " is-dim" : ""}`}
+                                        className={`ros-chip${on ? " is-on" : ""}${view.className && !on ? " is-dim" : ""}`}
                                         aria-pressed={on}
                                         aria-label={`${label} · ${count}`}
                                         data-tip={`${label} · ${count}`}
@@ -449,14 +449,14 @@ export default function RosterPage() {
                     actually plays is. Same gesture as the class chips — a second
                     click takes the filter back. */}
                 {!!view.className && specCounts.length > 1 && (
-                    <div className="rc-specs-row" role="group" aria-label="Spec">
+                    <div className="ros-specs-row" role="group" aria-label="Spec">
                         {specCounts.map(([spec, count]) => {
                             const on = activeSpec === spec;
                             return (
                                 <button
                                     key={spec}
                                     type="button"
-                                    className={`rc-spec${on ? " is-on" : ""}`}
+                                    className={`ros-spec${on ? " is-on" : ""}`}
                                     aria-pressed={on}
                                     data-tip={spec}
                                     data-tip-sub={on ? "Klick hebt den Spec-Filter auf." : `Nur ${spec} zeigen.`}
@@ -470,13 +470,13 @@ export default function RosterPage() {
                     </div>
                 )}
                 {!chars.length && (
-                    <p className="sub rc-empty">
+                    <p className="sub ros-empty">
                         {showHidden
                             ? "Niemand ausgeblendet. Über das Augen-Symbol in einer Zeile kommt jemand hierher, der nicht mehr mitraidet."
                             : "Noch keine Charaktere bekannt — Loot importieren oder unter Einstellungen → Kategorien Raider ihren Chars zuordnen."}
                     </p>
                 )}
-                {!!chars.length && !filtered.length && <p className="sub rc-empty">Keine Charaktere zu diesem Filter.</p>}
+                {!!chars.length && !filtered.length && <p className="sub ros-empty">Keine Charaktere zu diesem Filter.</p>}
                 {groups.map((g) => (
                     <RosterGroup
                         key={g.id}
