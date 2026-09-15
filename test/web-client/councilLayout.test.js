@@ -120,8 +120,10 @@ describe("loot council — the raider dialog", () => {
         expect(d).toMatch(/dlg\.showModal\(\)/);
         expect(d).toMatch(/onCancel=\{\(e\) => \{ e\.preventDefault\(\); onClose\(\); \}\}/);
         expect(d).toMatch(/Loot-Council › Raider · Rang \{rank\} von \{total\}/);
-        // Its own tooltip layer: the shell's box would sit behind the top layer.
-        expect(d).toMatch(/<TipLayer \/>/);
+        // No tooltip layer of its own and no focus trick any more: the shell's
+        // box rises into the top layer and ignores the focus showModal() sets.
+        expect(d).not.toMatch(/<TipLayer \/>/);
+        expect(d).not.toContain("dlg.focus()");
     });
 
     it("offers the role switch only where there is a choice", () => {

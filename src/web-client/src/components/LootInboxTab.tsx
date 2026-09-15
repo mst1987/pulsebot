@@ -242,7 +242,6 @@ export function InboxSessionCard({ session, events, categories, csrfToken, onDon
 
             <Modal
                 open={lootOpen}
-                initialFocus=".dlg-foot .btn:last-child"
                 onClose={() => setLootOpen(false)}
                 width={980}
                 icon={contentIcon(contentId)}

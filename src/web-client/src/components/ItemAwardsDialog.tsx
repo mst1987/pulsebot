@@ -86,7 +86,6 @@ export function ItemAwardsDialog({ item, contents, tiers, reasons, canEdit, csrf
         <Modal
             open={!!item}
             onClose={close}
-            initialFocus=".dlg-foot .btn:last-child"
             width={820}
             icon={item ? <ItemIcon url={item.itemIconUrl} quality={item.itemQuality} size="lg" /> : undefined}
             kicker={item ? [item.boss, content?.label].filter(Boolean).join(" · ") || "Item" : ""}
@@ -219,7 +218,6 @@ export function RaiderReasonDialog({ raider, bucket, contents, onClose }: {
         <Modal
             open={open}
             onClose={onClose}
-            initialFocus=".dlg-foot .btn:last-child"
             width={720}
             icon={raider?.iconUrl ? <img className="hl-tile-img" src={raider.iconUrl} alt="" /> : "inv_misc_bag_10"}
             tone="history"

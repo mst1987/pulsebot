@@ -259,7 +259,6 @@ export default function ManualLootForm({ eventId, eventTitle = "", defaultAwarde
             <Button variant="ghost" icon="inv_misc_note_05" onClick={() => setOpen(true)}>Item nachtragen</Button>
             <Modal
                 open={open}
-                initialFocus=".dlg-foot .btn-ghost"
                 onClose={() => setOpen(false)}
                 width={640}
                 icon="inv_misc_note_05"

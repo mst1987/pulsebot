@@ -1639,6 +1639,9 @@ table.idx th[data-tip] { text-decoration: underline dotted; text-decoration-colo
     padding: 8px 12px; font-size: 12.5px; line-height: 1.45; box-shadow: 0 14px 38px -12px rgba(0, 0, 0, .65);
     clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 9px, 100% 100%, 0 100%);
     transition: opacity .11s ease, transform .11s ease; white-space: pre-line;
+    /* <TipLayer> makes the box a manual popover (top layer, above an open modal):
+       undo the popover's centring defaults, placement comes from left/top. */
+    right: auto; bottom: auto; margin: 0; overflow: visible;
 }
 .tip.on { opacity: 1; transform: translateY(0); }
 .tip b { display: block; font-size: 13.5px; margin-bottom: 3px; }

@@ -686,7 +686,7 @@ function ApplicationDetails({ app, onClose }: { app: Application; onClose: () =>
     };
     return (
         <Modal
-            open onClose={onClose} width={680} initialFocus=".dlg-foot .btn-ghost"
+            open onClose={onClose} width={680}
             icon={app.classIcon || "inv_misc_questionmark"} tone="none"
             kicker={`Bewerbung · ${shortStamp(app.createdAt)}`}
             title={app.character || app.name || "Bewerbung"}
