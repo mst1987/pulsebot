@@ -13,6 +13,7 @@ const { getRaidEvent } = require("./raidEventStore");
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
 const { signupSourceFor } = require("./eventSources");
 const { postEventMessage } = require("./eventMessage");
+const { scheduleOverviewSync, RAIDHELPER_CREATE_DELAY_MS } = require("./talkOverview");
 const { raidContentIds } = require("./raidListing");
 const { getConfig, getRaidTemplate } = require("./settingsStore");
 const { createRaidhelperClient } = require("../utils/raidhelperClient");
@@ -197,6 +198,8 @@ async function createEvent({ guildId, user, body = {} }) {
             if (result && result.status === "failed") {
                 return fail(400, "create_failed", result.reason || result.message || "Raid-Helper hat die Erstellung abgelehnt.");
             }
+            // The talk server's overview lists it once Raid-Helper's cached list has it.
+            scheduleOverviewSync({ delayMs: RAIDHELPER_CREATE_DELAY_MS });
             return { status: 201, body: result };
         } catch (e) {
             return fail(400, "create_failed", e.message || "Event konnte nicht angelegt werden.");
@@ -226,6 +229,7 @@ async function createEvent({ guildId, user, body = {} }) {
     } catch (e) {
         messageError = e.message || "Die Event-Nachricht konnte nicht gepostet werden.";
     }
+    scheduleOverviewSync();
     const event = eventStore.getEvent(created.event.id) || created.event;
     return { status: 201, body: { id: event.id, source: "eventhelper", event, messageError } };
 }

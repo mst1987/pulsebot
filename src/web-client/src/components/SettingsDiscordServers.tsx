@@ -7,6 +7,7 @@ import { discordServersPatch, overlapBadge, serverCardState, type ServerFields }
 import { useToast } from "./Jobs";
 import RoleSyncPart from "./SettingsRoleSync";
 import RemindersPart from "./SettingsReminders";
+import TalkOverviewRow from "./SettingsTalkOverview";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import Badge from "./ui/Badge";
@@ -88,6 +89,7 @@ export default function DiscordServersSection({ csrfToken, onConfig, icon, crumb
                     {data.talk && (
                         <dl className="conn-rows">
                             <div><dt>Raid-Übersicht</dt><dd>{channelName(talkChannels, data.discordServers.talkOverviewChannelId)}</dd></div>
+                            {data.discordServers.talkOverviewChannelId && <TalkOverviewRow csrfToken={csrfToken} />}
                             <div><dt>Erinnerungen</dt><dd>{channelName(talkChannels, data.discordServers.talkPingChannelId)}</dd></div>
                             {overlap && (
                                 <div>
