@@ -285,6 +285,7 @@ describe("classes/Blizzard", () => {
             axios.get.mockResolvedValue({ data: {
                 name: "Foo", level: 70, average_item_level: 115, last_login_timestamp: 1784574268000,
                 realm: { name: "Thunderstrike" }, character_class: { name: "Shaman" }, faction: { name: "Horde" },
+                guild: { name: "Pulse" },
             } });
             const c = configured();
             const s = await c.getCharacterSummary("Foo");
@@ -292,7 +293,7 @@ describe("classes/Blizzard", () => {
             expect(axios.get.mock.calls[0][0]).toBe("https://eu.api.blizzard.com/profile/wow/character/thunderstrike/foo");
             expect(s).toMatchObject({
                 name: "Foo", level: 70, itemLevel: 115, lastLogin: 1784574268000,
-                realm: "Thunderstrike", className: "Shaman", faction: "Horde", namespace: "profile-classicann-eu",
+                realm: "Thunderstrike", className: "Shaman", faction: "Horde", guild: "Pulse", namespace: "profile-classicann-eu",
             });
         });
 

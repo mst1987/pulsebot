@@ -1,5 +1,6 @@
 [
     { "id": "home", "label": "Übersicht", "href": "/", "group": "Start", "areas": ["dashboard"], "wowIcon": "inv_misc_map_01" },
+    { "id": "profile", "label": "Mein Profil", "href": "/profile", "group": "Start", "areas": ["signup"], "wowIcon": "achievement_character_human_male" },
     { "id": "raids", "label": "Raid-Events", "href": "/raids", "group": "Raids", "areas": ["raids"], "wowIcon": "inv_misc_note_02" },
     { "id": "roster", "label": "Roster", "href": "/roster", "group": "Raids", "areas": ["roster"], "wowIcon": "achievement_guildperk_everybodysfriend" },
     { "id": "cla", "label": "Log-Auswertung", "href": "/cla", "group": "Raids", "areas": ["cla"], "wowIcon": "inv_misc_pocketwatch_01" },

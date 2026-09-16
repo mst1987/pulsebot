@@ -83,6 +83,37 @@ describe("web/apiAccess", () => {
             });
         });
 
+        // "Mein Profil" (#255): the member's own profile hangs on "signup", which
+        // is meant for the base access; another raider's profile is the orga's.
+        describe("the signup area", () => {
+            const member = limited({ signup: { read: true, write: true } });
+
+            it("opens the own-profile endpoints", () => {
+                expect(checkAccess("/api/profile", "GET", member)).toBeNull();
+                expect(checkAccess("/api/profile", "PUT", member)).toBeNull();
+                expect(checkAccess("/api/profile/log-characters", "GET", member)).toBeNull();
+                expect(checkAccess("/api/profile/characters", "POST", member)).toBeNull();
+                expect(checkAccess("/api/profile/raiders", "GET", member)).toBeNull();
+            });
+
+            it("does not open other profiles or the claims list", () => {
+                expect(checkAccess("/api/profile/user", "GET", member)).toMatchObject({ status: 403 });
+                expect(checkAccess("/api/roster/character-claims", "GET", member)).toMatchObject({ status: 403 });
+                expect(checkAccess("/api/roster", "GET", member)).toMatchObject({ status: 403 });
+            });
+
+            it("needs write to save, so a read-only grant only looks", () => {
+                const reader = limited({ signup: { read: true, write: false } });
+                expect(checkAccess("/api/profile", "PUT", reader)).toMatchObject({ status: 403 });
+            });
+
+            it("gives the orga other profiles and the claims through the roster", () => {
+                const orga = limited({ roster: { read: true, write: false } });
+                expect(checkAccess("/api/profile/user", "GET", orga)).toBeNull();
+                expect(checkAccess("/api/roster/character-claims", "GET", orga)).toBeNull();
+            });
+        });
+
         // Issue #259: editing, archiving and deleting channels need "channels" at write.
         it("gates every channel change behind channels write", () => {
             const reader = limited({ channels: { read: true, write: false } });

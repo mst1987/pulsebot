@@ -20,6 +20,9 @@ const { getBotCommands } = require("./apiRoutes/botCommands");
 const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raiderCharacters");
 const { getRoster, postRosterHide, getRosterChar } = require("./apiRoutes/roster");
 const {
+    getProfile, putProfile, getLogCharacters, postProfileCharacter, getRaiderSearch, getUserProfile, getCharacterClaims,
+} = require("./apiRoutes/profile");
+const {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim,
     getItemSearch: getCouncilItemSearch, getBisLists: getCouncilBisLists,
     postExclude: postCouncilExclude, postRole: postCouncilRole, getExport: getCouncilExport,
@@ -200,6 +203,34 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/roster/char" && req.method === "GET") {
         await getRosterChar(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/roster/character-claims" && req.method === "GET") {
+        await getCharacterClaims(req, res);
+        return true;
+    }
+    if (pathname === "/api/profile" && req.method === "GET") {
+        await getProfile(req, res);
+        return true;
+    }
+    if (pathname === "/api/profile" && req.method === "PUT") {
+        await putProfile(req, res);
+        return true;
+    }
+    if (pathname === "/api/profile/log-characters" && req.method === "GET") {
+        await getLogCharacters(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/profile/characters" && req.method === "POST") {
+        await postProfileCharacter(req, res);
+        return true;
+    }
+    if (pathname === "/api/profile/raiders" && req.method === "GET") {
+        await getRaiderSearch(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/profile/user" && req.method === "GET") {
+        await getUserProfile(req, res, url);
         return true;
     }
     if (pathname === "/api/lootcouncil" && req.method === "GET") {
