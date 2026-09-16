@@ -44,8 +44,20 @@ const { eventSignupList } = require("../signupView");
 const { getEvent } = require("../eventStore");
 const { setupSummary, raidHelperSlots } = require("../setupEditor");
 const {
-    normalizePingTarget, pingTargetInfo, deliverUserPing, deliverAnnouncement, dmSummary, TARGET_LABELS,
+    normalizePingTarget, pingTargetInfo, deliverAnnouncement, dmSummary, TARGET_LABELS,
 } = require("../pingDelivery");
+const { pingMissingRaiders } = require("../missingPing");
+
+/** The state "Event verwalten" (#288) sets on an own event, for the page head and the menu. */
+function manageState(eventId) {
+    const ev = getEvent(eventId) || {};
+    return {
+        status: ev.status || "active",
+        signupsClosed: !!ev.signupsClosed,
+        cancelReason: (ev.cancel && ev.cancel.reason) || "",
+        cancelArchived: !!(ev.cancel && ev.cancel.archived),
+    };
+}
 
 /**
  * GET /api/raids/detail?event=<id> — everything the event-detail page needs in
@@ -195,6 +207,8 @@ async function getRaidDetail(req, res, url) {
             // nothing was snapshotted); the UI must not render it as "0".
             signupsKnown,
             signUpsFromSnapshot: Boolean(found.e.signUpsFromSnapshot),
+            // Event verwalten (#288): cancelled / closed signup, with the reason.
+            ...(found.e.source === "eventhelper" ? manageState(eventId) : {}),
         },
         setupFromSnapshot,
         categoryName: found.g.categoryName,
@@ -299,52 +313,9 @@ async function postPingMissing(req, res) {
     const body = await readJsonBody(req);
     const eventId = String(body.event || "").trim();
     const guildId = activeGuildFor(req);
-    // Timings are logged because a slow step here is invisible from the outside:
-    // when the whole handler outlives the reverse proxy's 60s ceiling, the admin
-    // only ever sees a 504 gateway page and cannot tell which of the three
-    // external round trips (Raid-Helper, member fetch, Discord post) was to blame.
-    const t0 = Date.now();
-    const { groups, error: groupsError } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
-    const tEvents = Date.now();
-    if (groupsError) return error(res, 400, "events_unavailable", groupsError);
-    const found = groups.flatMap((g) => g.events.map((e) => ({ e, g }))).find((x) => x.e.id === eventId);
-    if (!found) return error(res, 404, "not_found", "Event nicht gefunden.");
-    const categoryRoleIds = (getConfig().categoryRoles || {})[found.g.categoryId] || [];
-    if (!categoryRoleIds.length) {
-        return error(res, 400, "no_roles", "Dieser Kategorie sind keine Rollen zugeordnet (Einstellungen → Kategorien).");
-    }
-    // A raid that already started expects no further signups — and once
-    // Raid-Helper drops its roster, everyone would count as "missing" and get
-    // pinged. Refuse instead of firing a pointless mass ping.
-    if (hasStarted(found.e)) {
-        return error(res, 400, "event_past", "Der Raid hat bereits begonnen — fehlende Raider zu pingen ergibt hier keinen Sinn mehr.");
-    }
-    const { members, error: membersError } = await discord.listMembersWithRoles(guildId, categoryRoleIds);
-    const tMembers = Date.now();
-    if (membersError) return error(res, 400, "members_unavailable", membersError);
-    const { missing } = computeAttendance(members, found.e.signUps || []);
-    if (!missing.length) {
-        return ok(res, { message: "Niemand fehlt — es haben schon alle reagiert." });
-    }
-    const target = normalizePingTarget(body.target);
-    try {
-        let delivery = null;
-        if (target === "event") {
-            await discord.postMissingPing(found.e.channelId, missing.map((m) => m.id), body.text);
-        } else {
-            delivery = await deliverUserPing({
-                target, event: found.e, userIds: missing.map((m) => m.id), text: body.text, guildId,
-            });
-        }
-        console.log(
-            `ping-missing (${target}): ${missing.length} Raider — events ${tEvents - t0}ms, members ${tMembers - tEvents}ms, post ${Date.now() - tMembers}ms`,
-        );
-        if (!delivery) return ok(res, { message: `${missing.length} fehlende Raider gepingt.` });
-        ok(res, { message: `${missing.length} fehlende Raider gepingt (${TARGET_LABELS[target]})${dmSummary(delivery.dm)}.`, delivery });
-    } catch (e) {
-        console.error("ping-missing failed:", e.message);
-        error(res, 500, "post_failed", e.message || "Posten fehlgeschlagen.");
-    }
+    const result = await pingMissingRaiders({ guildId, eventId, target: body.target, text: body.text });
+    if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
+    ok(res, result.delivery ? { message: result.message, delivery: result.delivery } : { message: result.message });
 }
 
 /**

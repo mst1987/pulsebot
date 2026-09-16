@@ -70,6 +70,21 @@ describe("web/talkOverview — buildOverviewMessage", () => {
         expect(JSON.stringify(payload)).not.toContain("Vorbei");
     });
 
+    it("strikes a cancelled event through and does not offer it for signing up (#288)", () => {
+        const payload = buildOverviewMessage([{
+            categoryId: "k1", categoryName: "Mi", events: [
+                ev({ id: "eh-x", source: "eventhelper", status: "cancelled", title: "Hyjal", startTime: sec(2026, 9, 18, 17, 30) }),
+                ev(),
+            ],
+        }], opts);
+        const lines = payload.embeds[0].fields[0].value.split("\n");
+        expect(lines).toContain("~~Hyjal~~ · **ABGESAGT** · Fr 18.09. 19:30");
+        expect(payload.components[0].components[0].options.map((o) => o.value)).toEqual(["e1"]);
+
+        const onlyCancelled = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev({ status: "cancelled" })] }], opts);
+        expect(onlyCancelled.components.some((r) => r.components.some((c) => c.custom_id === "talk-signup"))).toBe(false);
+    });
+
     it("offers the next raids in the select and three link buttons", () => {
         const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev()] }], opts);
         const [selectRow, buttonRow] = payload.components;

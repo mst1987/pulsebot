@@ -176,7 +176,7 @@ async function updateRaid(req, res) {
     if (!user) return;
     if (!requireCsrf(req, res)) return;
     const body = await readJsonBody(req);
-    const result = await updateEvent({ guildId: activeGuildFor(req), body });
+    const result = await updateEvent({ guildId: activeGuildFor(req), body, user, byName: user.name });
     if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
     ok(res, result.body, result.status);
 }

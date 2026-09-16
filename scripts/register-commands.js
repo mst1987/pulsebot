@@ -100,11 +100,18 @@ const commands = [
     { name: "profil", description: "Zeigt dein Raider-Profil kurz an, mit Link ins Web" },
     {
         name: "event",
-        description: "Events anlegen",
+        description: "Events anlegen und verwalten",
         options: [
             { name: "anlegen", description: "Event anlegen: Kategorie, Vorlage und Kanal wählen, dann Datum und Titel", type: 1 },
+            {
+                name: "verwalten", description: "Event bearbeiten, verschieben, Anmeldung schließen, Raider eintragen, absagen", type: 1,
+                options: [{ name: "event", description: "Event (leer = das Event dieses Kanals)", type: 3, required: false, autocomplete: true }],
+            },
         ],
     },
+    // Message context menu (#288): right click on the event's signup message → Apps.
+    // Message commands carry no description (Discord wants it empty).
+    { name: "Event verwalten", type: 3, description: "" },
     {
         name: "signup",
         description: "Sign up to the raid in this channel",

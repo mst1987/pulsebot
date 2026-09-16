@@ -125,6 +125,8 @@ async function runReminders({ now = Date.now(), config = getConfig() } = {}) {
             const rule = rules[group.categoryId];
             if (!rule) continue;
             for (const event of group.events || []) {
+                // A cancelled event (#288) reminds nobody.
+                if (event.status === "cancelled") continue;
                 for (const kind of dueReminders(event, rule, reminderStore.getSent(event.id), now)) {
                     const userIds = await recipients(kind, event, group.categoryId, guildId, config);
                     if (userIds === null) { summary.skipped += 1; continue; }
@@ -156,7 +158,7 @@ const AUTO_SUGGEST = "autoSuggest";
 
 /** Whether an own event is due for its automatic setup proposal now. */
 function autoSuggestDue(event, sent = {}, now = Date.now()) {
-    if (!event || !event.autoSuggest || event.setup || sent[AUTO_SUGGEST]) return false;
+    if (!event || !event.autoSuggest || event.setup || sent[AUTO_SUGGEST] || event.status === "cancelled") return false;
     const deadlineMs = toMs(event.signupDeadline);
     const startMs = toMs(event.startTime);
     return !!deadlineMs && now >= deadlineMs && (!startMs || now < startMs);

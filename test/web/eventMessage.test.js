@@ -68,6 +68,24 @@ describe("web/eventMessage", () => {
         expect(signupButtonId("x")).toBe("event-signup:x");
     });
 
+    it("marks a cancelled event ABGESAGT with its reason and disables the button (#288)", () => {
+        const payload = buildEventMessage(event({ status: "cancelled", cancel: { reason: "Zu wenig Heiler" } }), signups);
+        const embed = payload.embeds[0].toJSON();
+        expect(embed.title).toBe("ABGESAGT · Kara Donnerstag");
+        expect(embed.description.split("\n")[0]).toBe("❌ **Abgesagt** — Zu wenig Heiler");
+        expect(embed.color).toBe(0xe0524f);
+        expect(payload.components[0].toJSON().components[0]).toMatchObject({ label: "Abgesagt", disabled: true });
+    });
+
+    it("says when the signup is closed and keeps the button for signing off (#288)", () => {
+        const payload = buildEventMessage(event({ signupsClosed: true }), signups);
+        const embed = payload.embeds[0].toJSON();
+        expect(embed.title).toBe("Kara Donnerstag");
+        expect(embed.description).toContain("Anmeldung geschlossen");
+        expect(payload.components[0].toJSON().components[0]).toMatchObject({ label: "Anmelden" });
+        expect(payload.components[0].toJSON().components[0].disabled).toBeFalsy();
+    });
+
     it("posts the message and remembers where it sits", async () => {
         getEvent.mockReturnValue(event());
         const { channel } = fakeDiscord();

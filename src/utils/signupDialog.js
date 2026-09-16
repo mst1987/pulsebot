@@ -181,7 +181,9 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
         const what = mine.status === "absence" ? "" : pickText(profile, mine.character, mine.spec);
         lines.push(`Dein Status: **${STATUS_STATE[mine.status] || mine.status}**${what ? ` · ${what}` : ""}${mine.comment ? ` · „${mine.comment}“` : ""}`);
     }
-    if (win.started) lines.push("Der Raid hat schon begonnen – Anmeldungen sind geschlossen.");
+    if (event.status === "cancelled") lines.push(`Das Event wurde abgesagt${event.cancel && event.cancel.reason ? ` – ${event.cancel.reason}` : ""}.`);
+    else if (win.started) lines.push("Der Raid hat schon begonnen – Anmeldungen sind geschlossen.");
+    else if (event.signupsClosed) lines.push("Die Anmeldung ist geschlossen – nur noch Abmelden.");
     else if (win.deadlinePassed) lines.push("Anmeldeschluss vorbei – nur noch Abmelden oder „Spät“.");
     if (!chars.length) {
         lines.push(`Noch kein Charakter im Profil – Klasse und Spec hier wählen oder [Profil anlegen](${baseUrl()}/profile).`);

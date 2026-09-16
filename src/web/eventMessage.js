@@ -67,9 +67,12 @@ function buildEventMessage(event, signups) {
     const description = String(event.description || "").trim();
     if (description) lines.push("", description.slice(0, 1500));
 
+    const state = eventStateMark(event);
+    if (state) lines.unshift(state.line, "");
+
     const embed = new EmbedBuilder()
-        .setColor(embedAccentColor)
-        .setTitle(String(event.title || "Raid").slice(0, 256))
+        .setColor(state && state.color ? state.color : embedAccentColor)
+        .setTitle(`${state && state.titlePrefix ? state.titlePrefix : ""}${String(event.title || "Raid")}`.slice(0, 256))
         .setDescription(lines.join("\n") || "​")
         .addFields(
             { name: "🛡️ Tanks", value: against(c.tank, tanks), inline: true },
@@ -89,10 +92,33 @@ function buildEventMessage(event, signups) {
     const setupText = approvedSetupText(event);
     if (setupText) embed.addFields({ name: "✅ Setup", value: setupText, inline: false });
 
+    const cancelled = event.status === "cancelled";
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(signupButtonId(event.id)).setLabel("Anmelden").setStyle(ButtonStyle.Primary),
+        new ButtonBuilder().setCustomId(signupButtonId(event.id))
+            .setLabel(cancelled ? "Abgesagt" : "Anmelden")
+            .setStyle(cancelled ? ButtonStyle.Secondary : ButtonStyle.Primary)
+            .setDisabled(cancelled),
     );
     return { content: "", embeds: [embed], components: [row] };
+}
+
+const CANCELLED_COLOR = 0xe0524f;
+
+/**
+ * What "Event verwalten" (#288) puts on top of the message: a cancelled event
+ * is marked ABGESAGT with its reason, a closed signup says so. null otherwise.
+ */
+function eventStateMark(event) {
+    if (event && event.status === "cancelled") {
+        const reason = String((event.cancel && event.cancel.reason) || "").trim();
+        return {
+            titlePrefix: "ABGESAGT · ",
+            color: CANCELLED_COLOR,
+            line: `❌ **Abgesagt**${reason ? ` — ${reason.slice(0, 500)}` : ""}`,
+        };
+    }
+    if (event && event.signupsClosed) return { titlePrefix: "", color: null, line: "🔒 **Anmeldung geschlossen** — Abmelden geht weiter." };
+    return null;
 }
 
 async function textChannel(channelId) {
@@ -169,6 +195,6 @@ function startEventMessageSync({ debounceMs = EDIT_DEBOUNCE_MS } = {}) {
 }
 
 module.exports = {
-    SIGNUP_BUTTON_PREFIX, signupButtonId, rosterCounts, buildEventMessage, approvedSetupText,
+    SIGNUP_BUTTON_PREFIX, signupButtonId, rosterCounts, buildEventMessage, approvedSetupText, eventStateMark,
     postEventMessage, refreshEventMessage, startEventMessageSync,
 };
