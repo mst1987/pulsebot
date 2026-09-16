@@ -53,9 +53,9 @@ describe("SignupsPage", () => {
         expect(page).toMatch(/e\.id === openId && e\.source === "eventhelper"/);
     });
 
-    it("keeps the open dialog in the url so the Discord button can link to it", () => {
+    it("keeps the open dialog in the url so the Discord dialog's web button can link to it", () => {
         expect(page).toContain("params.get(\"event\")");
-        const button = fs.readFileSync(path.join(__dirname, "..", "..", "src", "commands", "setup", "eventSignup.js"), "utf8");
+        const button = fs.readFileSync(path.join(__dirname, "..", "..", "src", "utils", "signupDialog.js"), "utf8");
         expect(button).toContain("/signups?event=");
     });
 });
