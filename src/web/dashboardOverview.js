@@ -66,6 +66,24 @@ function zoneFor(text) {
     return { contentId, icon: ZONE_ICONS[contentId] || FALLBACK_ZONE_ICON };
 }
 
+/**
+ * The content of one event: an own EventHelper event names its raids
+ * (`instanceIds`, rule-set ids = tbcContent ids for TBC), so a title such as
+ * "Mittwoch" still gets its boss icon (#291); the last known one wins like in
+ * zoneFor(). Everything else — and an own event without a known raid — reads
+ * the title.
+ */
+function zoneForEvent(ev) {
+    const ids = (ev && ev.source === "eventhelper" && Array.isArray(ev.instanceIds)) ? ev.instanceIds : [];
+    const order = Object.keys(ZONE_ICONS); // release order, like CONTENTS
+    const known = ids.filter((id) => ZONE_ICONS[id]).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+    if (known.length) {
+        const contentId = known[known.length - 1];
+        return { contentId, icon: ZONE_ICONS[contentId] };
+    }
+    return zoneFor(ev && ev.title);
+}
+
 /** The raid size a night is planned for: the softres list's size wins, else the content, else 25. */
 function raidSize(contentId, softresSize = 0) {
     if (softresSize > 0) return softresSize <= 10 ? 10 : 25;
@@ -342,6 +360,6 @@ function eventSeriesTask(failures) {
 module.exports = {
     eventSeriesTask,
     ZONE_ICONS, FALLBACK_ZONE_ICON, ROLE_TARGETS, ROLES,
-    zoneFor, raidSize, roleBucket, roleFill, classCounts, notSignedUp,
+    zoneFor, zoneForEvent, raidSize, roleBucket, roleFill, classCounts, notSignedUp,
     openRecommendations, lastReportArea, newLootSince, buildTasks, roleDriftTask, isAttending,
 };

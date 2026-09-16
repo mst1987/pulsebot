@@ -98,6 +98,8 @@ export type DraftShape = {
     raidChannelId: string;
     categoryLootTool: Record<string, string>;
     categorySignupSource?: Record<string, string>;
+    /** The source of a category without an entry (#291); missing = "raidhelper". */
+    signupSourceDefault?: string;
     categorySetupDms?: Record<string, boolean>;
     categorySheets: Record<string, { url: string; name: string }>;
     categoryRaidTemplate?: Record<string, string>;
@@ -156,8 +158,8 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const toolWas = (saved.categoryLootTool || {})[id] || "";
         const toolIs = (draft.categoryLootTool || {})[id] || "";
         if (toolWas !== toolIs) out.push(`${name} · Loot-Addon → ${LOOT_TOOL_LABEL[toolIs] || toolIs}`);
-        const sourceWas = (saved.categorySignupSource || {})[id] || "raidhelper";
-        const sourceIs = (draft.categorySignupSource || {})[id] || "raidhelper";
+        const sourceWas = (saved.categorySignupSource || {})[id] || saved.signupSourceDefault || "raidhelper";
+        const sourceIs = (draft.categorySignupSource || {})[id] || draft.signupSourceDefault || saved.signupSourceDefault || "raidhelper";
         if (sourceWas !== sourceIs) out.push(`${name} · Neue Events → ${sourceIs === "eventhelper" ? "EventHelper" : "Raid-Helper"}`);
         const dmsWas = (saved.categorySetupDms || {})[id] === true;
         const dmsIs = (draft.categorySetupDms || {})[id] === true;

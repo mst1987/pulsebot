@@ -238,6 +238,19 @@ describe("POST /api/ingest/loot", () => {
             });
         });
 
+        it("suggests an own EventHelper event just like a Raid-Helper one (#291)", async () => {
+            loadEventGroups.mockResolvedValue({
+                groups: [{
+                    categoryId: "cat2",
+                    categoryName: "Mittwoch",
+                    events: [{ id: "eh-abc", source: "eventhelper", title: "SSC + TK", startTime: 1784574000 }],
+                }],
+            });
+            await upload(payload());
+            const [, meta] = upsertPending.mock.calls[0];
+            expect(meta.match.suggested).toEqual({ eventId: "eh-abc", eventLabel: "SSC + TK", startTime: 1784574000, categoryId: "cat2", categoryName: "Mittwoch" });
+        });
+
         it("flags two raids on the same day as ambiguous instead of guessing", async () => {
             loadEventGroups.mockResolvedValue({
                 groups: [{

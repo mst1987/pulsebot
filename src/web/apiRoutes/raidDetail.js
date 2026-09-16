@@ -175,7 +175,11 @@ async function getRaidDetail(req, res, url) {
     // guild only raids TBC, so restrict both the suggestion and the pickable
     // catalogue to the TBC edition.
     const softresEdition = "tbc";
-    const suggestedInstances = softres.parseInstancesFromTitle(found.e.title, softresEdition);
+    // An own event names its raids (instanceIds, #291) — those win over the title guess.
+    const ownCodes = found.e.source === "eventhelper" ? softres.codesForRulesetInstances(found.e.instanceIds, softresEdition) : [];
+    const suggestedInstances = ownCodes.length
+        ? ownCodes.map((code) => ({ code }))
+        : softres.parseInstancesFromTitle(found.e.title, softresEdition);
     const eventSoftres = getEventSoftres(eventId);
     // Signup counter target: the raid size implied by the created softres list,
     // falling back to the expected headcount from the attendance role(s).

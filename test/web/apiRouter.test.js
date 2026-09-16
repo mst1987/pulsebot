@@ -267,6 +267,7 @@ jest.mock("../../src/utils/softres", () => ({
     targetSizeForInstances: jest.fn(() => 0),
     catalogue: jest.fn(() => []),
     editionOf: jest.fn(() => ""),
+    codesForRulesetInstances: jest.fn((ids) => jest.requireActual("../../src/utils/softres").codesForRulesetInstances(ids, "tbc")),
     createRaid: jest.fn(),
 }));
 jest.mock("../../src/utils/raidsheets", () => ({
@@ -1731,6 +1732,9 @@ describe("web/apiRouter", () => {
             expect(data.setup).toEqual({ total: 0, groups: [], roleCounts: {} });
             expect(data.setupError).toBeNull();
             expect(data.signupTarget).toBe(10);
+            // #291: the softres suggestion comes from the event's raids, not from its title
+            expect(data.softresSuggested).toEqual(["kara"]);
+            expect(softres.parseInstancesFromTitle).not.toHaveBeenCalled();
             expect(data.attendance.responded.map((m) => [m.id, m.status])).toEqual([["1", "signed"]]);
             expect(data.attendance.missing.map((m) => m.id)).toEqual(["2"]);
             // no setup yet (#263): the way leads into the setup editor, and the payload names no raider

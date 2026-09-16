@@ -45,7 +45,7 @@ const SIGNUP_SOURCES = [
 ];
 
 export default function CategoryMatrix({
-    categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySignupSource = {}, categorySetupDms = {}, categorySheets, savedCategoryRoles,
+    categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySignupSource = {}, signupSourceDefault = "raidhelper", categorySetupDms = {}, categorySheets, savedCategoryRoles,
     onToggleCategory, onToggleRole, onLootTool, onSignupSource, onSetupDms, onSheet, csrfToken, icon, crumb, raidTemplates,
 }: {
     /** The default raid template per category (#266): the choices, the draft map and its setter. */
@@ -55,8 +55,10 @@ export default function CategoryMatrix({
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
     categoryLootTool: Record<string, string>;
-    /** Missing = "raidhelper". */
+    /** Missing = signupSourceDefault. */
     categorySignupSource?: Record<string, EventSource>;
+    /** The source of a category without an entry (#291): EventHelper for a new one. */
+    signupSourceDefault?: EventSource;
     /** Setup-DMs per category (#290); missing = off. */
     categorySetupDms?: Record<string, boolean>;
     categorySheets: Record<string, CategorySheet>;
@@ -113,13 +115,28 @@ export default function CategoryMatrix({
     }, [savedKey, loadChars]);
 
     const activeCount = categoryIds.filter((id) => rows.some((r) => r.id === id)).length;
+    // #291: the raid categories whose new events still go to Raid-Helper — one
+    // badge in the head, the names in its tooltip, the way out in Verbindungen.
+    const stillRaidhelper = rows.filter((r) => categoryIds.includes(r.id) && (categorySignupSource[r.id] || signupSourceDefault) === "raidhelper");
 
     const partHead = (
         <PartHead
             icon={icon}
             tone="settings"
             title="Kategorien"
-            crumb={`Einstellungen › ${crumb}`}
+            crumb={stillRaidhelper.length ? (
+                <>
+                    {`Einstellungen › ${crumb} `}
+                    <Badge
+                        tone="mid"
+                        icon={<WarnIcon />}
+                        tip={`${stillRaidhelper.length} noch auf Raid-Helper`}
+                        tipSub={`Neue Events von ${stillRaidhelper.map((r) => r.name).join(", ")} werden noch bei Raid-Helper angelegt. Umstellen: Kategorie öffnen › Neue Events. Die Abschalt-Checkliste steht unter Verbindungen › Raid-Helper.`}
+                    >
+                        {stillRaidhelper.length} noch Raid-Helper
+                    </Badge>
+                </>
+            ) : `Einstellungen › ${crumb}`}
             action={(
                 <Segment
                     size="sm"
@@ -148,7 +165,7 @@ export default function CategoryMatrix({
         const active = categoryIds.includes(cat.id);
         const assigned = categoryRoles[cat.id] || [];
         const tool = categoryLootTool[cat.id] || "";
-        const signupSource: EventSource = categorySignupSource[cat.id] || "raidhelper";
+        const signupSource: EventSource = categorySignupSource[cat.id] || signupSourceDefault;
         const sheet = categorySheets[cat.id] || { url: "", name: "" };
         const summary = chars[cat.id];
         const isOpen = openId === cat.id && active;

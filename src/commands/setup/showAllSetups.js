@@ -14,7 +14,13 @@ module.exports = {
     async execute(interaction, client) {
         const raidhelper = createRaidhelperClient();
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-        const rhEvents = await raidhelper.getUserSignUps(interaction.user.id);
+        // A Raid-Helper that does not answer (or is switched off, #291) leaves the own events.
+        let rhEvents = [];
+        try {
+            rhEvents = await raidhelper.getUserSignUps(interaction.user.id);
+        } catch (error) {
+            console.error("show-allsetups: Raid-Helper nicht erreichbar:", error && error.message);
+        }
         // Own EventHelper events count too; getSetupsFromEvents only shows their approved setup.
         const events = [...(Array.isArray(rhEvents) ? rhEvents : []), ...ownSignedUpEvents(interaction.user.id)];
         const setups = await getSetupsFromEvents(client, interaction, events);

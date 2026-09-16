@@ -7,6 +7,7 @@ import { Badge, Button, Modal, RaidLoader, Segment, WowIcon } from "../ui";
 import { classColorProps } from "../ClassSpec";
 import { SearchIcon } from "../icons";
 import { formatDate } from "../../lib/format";
+import type { CharacterSuggestion } from "../../lib/raidhelperRetirement";
 
 // "Charakter hinzufügen" — the three ways of #255 behind one segment:
 //   log    — "Das bin ich" on a character the evaluations already know,
@@ -25,8 +26,10 @@ const WAYS: { value: AddWay; label: string; icon: string }[] = [
 
 const MATCH_LABEL: Record<string, string> = { assigned: "dir zugeordnet", name: "Name passt" };
 
-export default function AddCharacterDialog({ way, onClose, classes, csrfToken, onAdded }: {
+export default function AddCharacterDialog({ way, onClose, classes, csrfToken, onAdded, suggestion = null }: {
     way: AddWay | null;
+    /** #291: class, specs and name from the raider's imported Raid-Helper signups — prefills "Von Hand". */
+    suggestion?: CharacterSuggestion | null;
     onClose: () => void;
     classes: GameClass[];
     csrfToken: string | null;
@@ -41,6 +44,15 @@ export default function AddCharacterDialog({ way, onClose, classes, csrfToken, o
     const [className, setClassName] = useState("");
     const [specs, setSpecs] = useState<string[]>([]);
 
+    const [suggested, setSuggested] = useState(false);
+    const applySuggestion = () => {
+        if (!suggestion || !classes.some((c) => c.id === suggestion.className)) return;
+        setName((cur) => cur || suggestion.name);
+        setClassName(suggestion.className);
+        setSpecs(suggestion.specs);
+        setSuggested(true);
+    };
+
     useEffect(() => {
         if (!way) return;
         setTab(way);
@@ -50,6 +62,9 @@ export default function AddCharacterDialog({ way, onClose, classes, csrfToken, o
         setRealm("");
         setClassName("");
         setSpecs([]);
+        setSuggested(false);
+        if (way === "manual") applySuggestion();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [way]);
 
     const submit = async (input: AddCharacterInput) => {
@@ -95,7 +110,7 @@ export default function AddCharacterDialog({ way, onClose, classes, csrfToken, o
                 </>
             )}
         >
-            <Segment<AddWay> ariaLabel="Weg" value={tab} onChange={(v) => { setTab(v); setError(""); }} options={WAYS} />
+            <Segment<AddWay> ariaLabel="Weg" value={tab} onChange={(v) => { setTab(v); setError(""); if (v === "manual" && !className) applySuggestion(); }} options={WAYS} />
 
             {tab === "log" && <LogList classes={classes} busy={busy} onPick={(c) => submit({ source: "log", name: c.character })} />}
 
@@ -114,7 +129,9 @@ export default function AddCharacterDialog({ way, onClose, classes, csrfToken, o
                     )}
                     {(tab === "manual" || needClass) && (
                         <div className="field">
-                            <label>Klasse</label>
+                            <label>Klasse{tab === "manual" && suggested && (
+                                <Badge tip="Vorschlag aus Raid-Helper" tipSub="Klasse, Specs und Name stammen aus deinen letzten Raid-Helper-Anmeldungen. Passt es nicht, einfach ändern.">aus Raid-Helper</Badge>
+                            )}</label>
                             <div className="pf-classes">
                                 {classes.map((c) => {
                                     const color = classColorProps(c.color);

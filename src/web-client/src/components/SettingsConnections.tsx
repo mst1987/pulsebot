@@ -16,6 +16,7 @@ import PartHead from "./ui/PartHead";
 import { CheckIcon, CopyIcon, ExternalIcon, TrashIcon } from "./icons";
 import { AdminOnlyBadge, CheckMark, FieldLabel, InfoTip, PenIcon, WarnIcon } from "./settingsUi";
 import RaidLoader from "./ui/RaidLoader";
+import RaidhelperRetirementCard from "./SettingsRaidhelperRetirement";
 
 // Einstellungen → Verbindungen: one status card per foreign system instead of a
 // form per system. The card answers "is it set up?" at a glance; what the
@@ -163,6 +164,8 @@ export default function ConnectionsSection({ data, tokens, csrfToken, onConfig, 
                     );
                 })}
             </div>
+            {/* #291: the switch-over checklist — full admins only, like the API. */}
+            {data.canManageAccess && <RaidhelperRetirementCard csrfToken={csrfToken} />}
 
             {editing && editing !== "lootsync" && (
                 <ConnectionModal

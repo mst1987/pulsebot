@@ -9,6 +9,7 @@ const { ok, error: apiError } = require("../apiResponse");
 const { requireAdmin, requireCsrf } = require("../apiMiddleware");
 const { readJsonBody } = require("../apiBody");
 const profiles = require("../raiderProfileStore");
+const specHistory = require("../specHistoryStore");
 const { logIndex, logSuggestions } = require("../profileLogs");
 const { profileView, lookupArmory } = require("../profileView");
 const { rulesFor, DEFAULT_VERSION, VERSIONS } = require("../../config/gameVersions");
@@ -45,7 +46,13 @@ function ownView(user) {
 async function getProfile(req, res) {
     const user = requireAdmin(req, res);
     if (!user) return;
-    ok(res, { profile: ownView(user), isNew: !profiles.hasProfile(user.id), ...pageContext() });
+    ok(res, {
+        profile: ownView(user),
+        isNew: !profiles.hasProfile(user.id),
+        // #291: the own specs imported from Raid-Helper — "Von Hand" prefills from them.
+        specHistory: specHistory.specHistoryOf(user.id).slice(0, 8),
+        ...pageContext(),
+    });
 }
 
 /**

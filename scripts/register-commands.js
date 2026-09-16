@@ -134,9 +134,9 @@ const commands = [
     },
     {
         name: "fillsetup",
-        description: "Befüllt das Setup-Sheet aus einem Raidhelper-Raidplan",
+        description: "Befüllt das Setup-Sheet aus dem freigegebenen Setup oder einem Raidhelper-Raidplan",
         options: [
-            { name: "setup_id", description: "Raidhelper Setup-ID (Nummer am Ende des Raidplan-Links)", type: 3, required: true },
+            { name: "setup_id", description: "Raidhelper Setup-ID oder EventHelper-Event (eh-…); leer = Event dieses Kanals", type: 3, required: false },
             { name: "tank3", description: "3. Tank (Charaktername fuer B13, optional)", type: 3, required: false },
         ],
     },

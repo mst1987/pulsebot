@@ -100,6 +100,18 @@ describe("commands/signup/eventJoin", () => {
         })).toMatchObject({ spec: "Mage-Arcane" });
     });
 
+    it("preselects the spec imported from Raid-Helper by spec alone, the main first (#291)", () => {
+        profiles.addCharacter(ANNA, { name: "Nerathil", className: "Mage", specs: [{ key: "Mage-Frost", gear: "ready" }, { key: "Mage-Fire", gear: "usable" }] });
+        profiles.addCharacter(ANNA, { name: "Twink", className: "Mage", specs: [{ key: "Mage-Fire", gear: "ready" }] });
+        const options = characterOptions(profiles.getProfile(ANNA));
+        // Raid-Helper only knew "Anna" as name — no profile character, the spec decides
+        expect(defaultPick(options, { last: { character: "Anna", spec: "Mage-Fire", imported: true } })).toMatchObject({ character: "nerathil", spec: "Mage-Fire" });
+        // a spec nobody in the profile plays falls through to the main's best spec
+        expect(defaultPick(options, { last: { character: "Anna", spec: "Priest-Shadow", imported: true } })).toMatchObject({ spec: "Mage-Frost" });
+        // an own last signup is never matched by spec alone
+        expect(defaultPick(options, { last: { character: "Anna", spec: "Mage-Fire" } })).toMatchObject({ spec: "Mage-Frost" });
+    });
+
     it("signs up at once when exactly one character · spec fits and the status is Dabei", async () => {
         profiles.addCharacter(ANNA, { name: "Brokk", className: "Warrior", specs: [{ key: "Warrior-Protection", gear: "ready" }, { key: "Warrior-Arms", gear: "none" }] });
         const i = pick("signed");

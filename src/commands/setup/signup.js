@@ -1,13 +1,31 @@
-﻿const { createRaidhelperClient } = require("../../utils/raidhelperClient");
+const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const messages = require("../../config/messages");
+const { publicBaseUrl } = require("../../config/variables");
 const { botReply, formatSpecs, formatSignUps } = require("../../utils/helper");
+const { ownEventInChannel } = require("../../web/eventSources");
 
+// Legacy: signs up at the Raid-Helper event of this channel with Raid-Helper
+// spec names. An own EventHelper event (#291) is not signed up for here — the
+// signup has rules this command cannot ask (character, deadline, raider role),
+// so it points at the two ways that know them: the "Anmelden …" select under
+// the event message and the web page.
 module.exports = {
     name: "signup",
     description: "Meldet dich zum Raid in diesem Kanal an",
     group: "signup",
     defaultAccess: "everyone",
     async execute(interaction, client) {
+        const own = ownEventInChannel(interaction.channel && interaction.channel.id);
+        if (own) {
+            const base = String(publicBaseUrl || "").replace(/\/+$/, "");
+            const link = base ? `\n[Im Web anmelden](${base}/signups?event=${encodeURIComponent(own.id)})` : "";
+            return botReply(
+                interaction,
+                "Anmeldung über den EventHelper",
+                `**${own.title}** läuft über den EventHelper. Melde dich mit „Anmelden …“ unter der Event-Nachricht in diesem Kanal an – dort wählst du Charakter und Spec.${link}`
+            );
+        }
+
         const raidhelper = createRaidhelperClient();
 
         let raidId;
@@ -53,6 +71,7 @@ module.exports = {
             );
         } catch (error) {
             console.log(error);
+            await botReply(interaction, messages.signup.errorTitle, `Anmeldung bei Raid-Helper fehlgeschlagen: ${error.message}`);
         }
     },
 };

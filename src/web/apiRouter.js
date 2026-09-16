@@ -16,6 +16,7 @@ const {
     getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers, getRoleSync, getReminders,
 } = require("./apiRoutes/settings");
 const { getTalkOverview, postTalkOverview } = require("./apiRoutes/talkOverview");
+const { getRetirement, postRetirement, postHistoryImport } = require("./apiRoutes/raidhelperRetirement");
 const { ingestLoot } = require("./apiRoutes/ingest");
 const { getBotCommands } = require("./apiRoutes/botCommands");
 const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raiderCharacters");
@@ -195,6 +196,18 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/settings/talk-overview" && req.method === "POST") {
         await postTalkOverview(req, res);
+        return true;
+    }
+    if (pathname === "/api/settings/raidhelper-retirement" && req.method === "GET") {
+        await getRetirement(req, res);
+        return true;
+    }
+    if (pathname === "/api/settings/raidhelper-retirement" && req.method === "POST") {
+        await postRetirement(req, res);
+        return true;
+    }
+    if (pathname === "/api/settings/raidhelper-history-import" && req.method === "POST") {
+        await postHistoryImport(req, res);
         return true;
     }
     if (pathname === "/api/settings/role-sync" && req.method === "GET") {

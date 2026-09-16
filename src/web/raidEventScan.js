@@ -5,7 +5,7 @@
 // view, see server.js's loadRecentEvents) and on a background interval, so a
 // finished raid shows up even if nobody opens the dashboard right after it ends.
 
-const { createRaidhelperClient } = require("../utils/raidhelperClient");
+const { createRaidhelperClient, raidhelperDisabled } = require("../utils/raidhelperClient");
 const discord = require("./discord");
 const { saveRaidEvents, getRaidEvent } = require("./raidEventStore");
 const { RECENT_WINDOW_DAYS } = require("./recentEvents");
@@ -30,6 +30,8 @@ const MAX_SETUP_FETCHES_PER_SCAN = 3;
  */
 async function scanRaidEvents(guildId, { windowDays = RECENT_WINDOW_DAYS } = {}) {
     if (!guildId) return { scanned: 0, error: null };
+    // Switched off (#291): nothing is asked, the stored snapshots stay as they are.
+    if (raidhelperDisabled()) return { scanned: 0, error: null, disabled: true };
     try {
         const rh = createRaidhelperClient();
         const sinceSeconds = Math.floor(Date.now() / 1000) - windowDays * 86400;

@@ -106,6 +106,30 @@ function listEditions() {
 
 const EDITION_LABELS = { classic: "Classic", tbc: "The Burning Crusade", wotlk: "Wrath of the Lich King" };
 
+// Rule-set instance id (config/gameVersions) → softres.it instance code. An own
+// EventHelper event names its raids by these ids, so its softres suggestion
+// needs no guess from the title (#291). The Forever raids have no softres list.
+const RULESET_TO_SOFTRES = {
+    kara: "kara", gruul: "gruul", mag: "magtheridon", ssc: "ssc", tk: "tempestkeep", za: "za",
+    hyjal: "hyjal", bt: "blacktemple", swp: "sunwellplateau",
+    ony: "onyxia", mc: "mc", bwl: "bwl", zg: "zg", aq20: "aq20", aq40: "aq40", naxx: "naxxramas",
+};
+
+/**
+ * softres.it codes for the rule-set instance ids of an own event, in the given
+ * order, restricted to `edition` when one is given. Unknown ids are skipped.
+ */
+function codesForRulesetInstances(instanceIds = [], edition = "") {
+    const out = [];
+    for (const id of instanceIds || []) {
+        const code = RULESET_TO_SOFTRES[String(id || "").trim()];
+        if (!code || out.includes(code)) continue;
+        if (edition && editionOf(code) !== edition) continue;
+        out.push(code);
+    }
+    return out;
+}
+
 /** Full instance catalogue grouped by edition: [{ edition, label, instances }]. */
 function catalogue() {
     return listEditions().map((edition) => ({
@@ -325,7 +349,7 @@ async function createRaid(opts = {}) {
 module.exports = {
     SOFTRES_BASE, VALID_FACTIONS,
     normalizeTitle, titleHasKeyword, parseInstancesFromTitle,
-    instancesForEdition, listEditions, editionOf, nameOf, catalogue, targetSizeForInstances,
+    instancesForEdition, listEditions, editionOf, nameOf, catalogue, targetSizeForInstances, codesForRulesetInstances, RULESET_TO_SOFTRES,
     instanceIdsForCodes, buildItemNotes, hardReserveIds, buildCreatePayload,
     parseCreatedLocation, raidUrls, createRaid,
 };

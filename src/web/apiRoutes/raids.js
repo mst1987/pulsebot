@@ -12,6 +12,7 @@ const { getChannelConfig } = require("../channelArchiveStore");
 const { publicVersions, DEFAULT_VERSION } = require("../../config/gameVersions");
 const { DEFAULT_SCHEMA } = require("../../utils/channelNames");
 const { deriveChannelName } = require("../channelNaming");
+const { signupSourceFor } = require("../eventSources");
 const discord = require("../discord");
 
 /**
@@ -50,6 +51,18 @@ function safeList(fn) {
     } catch {
         return [];
     }
+}
+
+/**
+ * `{ [categoryId]: source }` for every listed category and every category with
+ * a stored source, each resolved through signupSourceFor (#291), so the create
+ * dialog needs to know nothing about the default.
+ */
+function resolvedSignupSources(config, categories) {
+    const ids = new Set([...(categories || []).map((c) => String(c && c.id)), ...Object.keys(config.categorySignupSource || {})]);
+    ids.delete("");
+    ids.delete("undefined");
+    return Object.fromEntries([...ids].map((id) => [id, signupSourceFor(id, config)]));
 }
 
 /** The channel naming schema per category (Kanäle, #259); {} when unreadable. */
@@ -115,8 +128,10 @@ async function getRaidCreateContext(req, res, url) {
         channels,
         templates,
         reusableEvents,
-        // Which categories create their new events in the EventHelper (missing = Raid-Helper).
-        signupSources: config.categorySignupSource || {},
+        // Where each category creates its new events, resolved on the server
+        // (#291: a category nobody picked a source for follows signupSourceDefault,
+        // EventHelper for a new one) — the dialog only reads "eventhelper".
+        signupSources: resolvedSignupSources(config, safeList(() => discord.listCategories(guildId))),
         // The planning step (#261): categories, the raid templates with their
         // badges and the default per category, the rule set, the naming schemas.
         categories: safeList(() => discord.listCategories(guildId)),
