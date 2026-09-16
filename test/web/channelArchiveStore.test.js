@@ -30,6 +30,13 @@ describe("web/channelArchiveStore", () => {
         expect(store.saveCategorySchema("g1", "", {})).toBeNull();
     });
 
+    it("remembers the event time of a category and keeps it when a save leaves it out", () => {
+        store.saveCategorySchema("g1", "cat-do", { schema: "{tag}", raid: "", templateChannelId: "", time: "19:30" });
+        expect(store.getChannelConfig("g1").schemas["cat-do"].time).toBe("19:30");
+        store.saveCategorySchema("g1", "cat-do", { schema: "{tag}-{raid}", raid: "bt" });
+        expect(store.getChannelConfig("g1").schemas["cat-do"]).toEqual({ schema: "{tag}-{raid}", raid: "bt", templateChannelId: "", time: "19:30" });
+    });
+
     it("logs who archived what, and forgets it again", () => {
         store.recordArchived({ channelId: "c1", guildId: "g1", name: "mi-kara", fromCategory: "Mittwoch", by: "u1", byName: "Nerathil", at: 1000 });
         store.recordArchived({ channelId: "c2", guildId: "g2", name: "other", at: 2000 });

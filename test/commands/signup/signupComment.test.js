@@ -5,6 +5,8 @@ const path = require("path");
 
 jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/web/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
+jest.mock("../../../src/web/discord", () => require("../../helpers/signupMocks").discord());
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1 }));
 
 const mocks = require("../../helpers/signupMocks");

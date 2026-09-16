@@ -139,4 +139,21 @@ describe("web/eventStore", () => {
         expect(deleteEvent(event.id)).toBe(false);
         expect(getEvent(event.id)).toBeNull();
     });
+
+    it("stores a setup proposal only as a draft and never over an approved setup", () => {
+        const { saveSetupDraft } = require("../../src/web/eventStore");
+        const { event } = createEvent(base());
+        const proposal = { version: 1, groups: [{ index: 1, slots: [] }], bench: [], status: "approved" };
+        const saved = saveSetupDraft(event.id, proposal, { now: 1234 });
+        expect(saved.event.setup).toEqual({ version: 1, groups: [{ index: 1, slots: [] }], bench: [], status: "draft", createdBy: "auto", createdAt: 1234 });
+        expect(getEvent(event.id).setup.status).toBe("draft");
+        expect(saveSetupDraft("eh-missing", proposal)).toMatchObject({ code: "not_found" });
+
+        // an approved setup (#263) stays untouched
+        const raw = JSON.parse(fs.__store.get([...fs.__store.keys()][0]));
+        raw.events[0].setup = { status: "approved", groups: [] };
+        fs.__store.set([...fs.__store.keys()][0], JSON.stringify(raw));
+        expect(saveSetupDraft(event.id, proposal)).toMatchObject({ code: "approved" });
+        expect(getEvent(event.id).setup).toEqual({ status: "approved", groups: [] });
+    });
 });

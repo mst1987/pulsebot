@@ -1,10 +1,13 @@
 const { getEvent } = require("../../web/eventStore");
 const { SIGNUP_BUTTON_PREFIX } = require("../../web/eventMessage");
+const { checkRaiderRole } = require("../../web/signupService");
 const { buildSignupDialog } = require("../../utils/signupDialog");
 
 // The "Anmelden" button under an EventHelper event message
 // (customId `event-signup:<eventId>`, web/eventMessage.js). Opens the signup
-// dialog (utils/signupDialog.js) as a message only the member sees.
+// dialog (utils/signupDialog.js) as a message only the member sees — unless the
+// event's category wants a raider role the member does not have (the service's
+// rule; saving refuses it again).
 module.exports = {
     name: SIGNUP_BUTTON_PREFIX,
     description: "Anmelde-Button unter einer EventHelper-Event-Nachricht",
@@ -17,6 +20,8 @@ module.exports = {
         if (!event) {
             return interaction.reply({ content: "Dieses Event gibt es nicht mehr.", ephemeral: true });
         }
+        const access = await checkRaiderRole(event, interaction.user.id);
+        if (access.error) return interaction.reply({ content: access.error, ephemeral: true });
         return interaction.reply({ ...buildSignupDialog(event, interaction.user.id), ephemeral: true });
     },
 };

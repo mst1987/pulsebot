@@ -594,7 +594,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                 )}
                 <InstancePicker version={version} value={plan.instanceIds} onToggle={(id) => changePlan(withInstance(plan, version, id))} />
                 <SizePicker version={version} instanceIds={plan.instanceIds} size={plan.size} free={freeSize} onFree={setFreeSize}
-                    onSize={(size) => changePlan(withSize(plan, version, size))} />
+                    onSize={(size) => changePlan(withSize(plan, version, size ?? 0))} />
                 <CompositionEditor size={plan.size || null} value={{ tank: plan.tank, healer: plan.healer }}
                     onChange={(c) => changePlan({ ...plan, tank: c.tank, healer: c.healer })} />
                 <div className="re-fit" role="status">

@@ -176,7 +176,9 @@ export default function ChannelsPage() {
 
     const quickCreate = async (input: QuickCreateInput, count: number) => {
         setDialog(null);
-        await run({ label: "Kanäle anlegen", detail: `${count} nach Schema`, icon: "inv_letter_15", expectedSeconds: Math.max(2, count), describe: (m: string) => ({ message: m }) }, async () => {
+        const label = input.withEvent ? "Kanäle und Events anlegen" : "Kanäle anlegen";
+        // The message carries one line per channel whose event failed (the toast keeps the line breaks).
+        await run({ label, detail: `${count} nach Schema`, icon: "inv_letter_15", expectedSeconds: Math.max(2, count * (input.withEvent ? 3 : 1)), describe: (m: string) => ({ message: m }) }, async () => {
             const result = await quickCreateChannels(csrfToken, input);
             if (result.failed) throw new Error(result.message || "Anlegen fehlgeschlagen.");
             return result.message || "Kanäle angelegt.";

@@ -227,13 +227,19 @@ export type ChannelsData = {
     archive: ChannelArchive;
     /** Stored quick-create schema per category id. */
     schemas: Record<string, ChannelSchema>;
+    /** Whether the viewer may use "gleich Event anlegen" (raids write). */
+    canCreateEvents?: boolean;
+    /** Per category: its default raid template and the source of new events. */
+    eventDefaults?: Record<string, ChannelEventDefaults>;
     defaultSchema: string;
     placeholders: { key: string; hint: string }[];
 };
 
 export type ChannelDetails = { topic: string; rateLimitPerUser: number; permissionsLocked: boolean | null };
 export type ChannelEvent = { status: "event" | "past"; title: string; startTime: number; eventId: string };
-export type ChannelSchema = { schema: string; raid: string; templateChannelId: string };
+/** `time` = the start time "gleich Event anlegen" last used in the category. */
+export type ChannelSchema = { schema: string; raid: string; templateChannelId: string; time?: string };
+export type ChannelEventDefaults = { templateId: string; templateName: string; source: "raidhelper" | "eventhelper" };
 export type ChannelArchiveRow = {
     id: string;
     name: string;
@@ -253,7 +259,15 @@ export type ChannelArchive = {
 };
 
 /** One channel's outcome of a bulk action. */
-export type ChannelResult = { id: string; ok: boolean; error?: string; name?: string };
+export type ChannelResult = {
+    id: string;
+    ok: boolean;
+    error?: string;
+    name?: string;
+    /** Quick-create with "gleich Event anlegen": the event made in this channel, or why none. */
+    eventId?: string;
+    eventError?: string;
+};
 export type ChannelBulkResult = { results: ChannelResult[]; done: number; failed: number; message: string };
 export type ChannelChanges = { name?: string; topic?: string; parentId?: string; rateLimitPerUser?: number };
 
@@ -287,6 +301,9 @@ export type QuickCreateInput = {
     templateChannelId: string;
     saveSchema?: boolean;
     dryRun?: boolean;
+    /** "gleich Event anlegen": an event per created channel at `time` ("19:30"). */
+    withEvent?: boolean;
+    time?: string;
 };
 export type QuickCreatePlanRow = { date: string; name: string; exists: boolean };
 

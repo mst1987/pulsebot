@@ -19,9 +19,20 @@
 //     takes its mark back, so the next sweep retries it;
 //   - a window that opened while the bot was down still sends on the next sweep,
 //     as long as the raid has not started.
+//
+// The same sweep runs one more step, independent of the reminder rules:
+//
+//   autoSuggest — an own event with "Vorschlag bei Anmeldeschluss" whose
+//             deadline has passed and that has no setup yet gets a setup
+//             proposal (setupInput.proposeSetup), stored as a DRAFT only
+//             (eventStore.saveSetupDraft). Nothing is ever approved here, and
+//             nothing happens once the raid has started. Marked in reminderStore
+//             like a reminder (kind "autoSuggest"), so it runs once.
 const guildRoles = require("./guildRoles");
 const discord = require("./discord");
 const reminderStore = require("./reminderStore");
+const eventStore = require("./eventStore");
+const { proposeSetup } = require("./setupInput");
 const { deliverUserPing } = require("./pingDelivery");
 const { loadEventGroups } = require("./raidEventGroups");
 const { getConfig } = require("./settingsStore");
@@ -141,6 +152,42 @@ async function runReminders({ now = Date.now(), config = getConfig() } = {}) {
     }
 }
 
+const AUTO_SUGGEST = "autoSuggest";
+
+/** Whether an own event is due for its automatic setup proposal now. */
+function autoSuggestDue(event, sent = {}, now = Date.now()) {
+    if (!event || !event.autoSuggest || event.setup || sent[AUTO_SUGGEST]) return false;
+    const deadlineMs = toMs(event.signupDeadline);
+    const startMs = toMs(event.startTime);
+    return !!deadlineMs && now >= deadlineMs && (!startMs || now < startMs);
+}
+
+/**
+ * The auto-suggest step: a draft setup for every own event whose deadline just
+ * passed. Never approves; a failed proposal takes its mark back for the next sweep.
+ * @returns {{ drafted: string[], failed: number }}
+ */
+function runAutoSuggest({ now = Date.now() } = {}) {
+    const out = { drafted: [], failed: 0 };
+    for (const event of eventStore.listEvents("")) {
+        if (!autoSuggestDue(event, reminderStore.getSent(event.id), now)) continue;
+        if (!reminderStore.markSent(event.id, AUTO_SUGGEST, now)) continue;
+        try {
+            const proposal = proposeSetup([event.id], { now });
+            if (!proposal) throw new Error("Event nicht gefunden.");
+            const saved = eventStore.saveSetupDraft(event.id, proposal, { createdBy: "auto", now });
+            // An approved setup in the meantime is no failure: there is nothing left to propose.
+            if (saved.error && saved.code !== "approved") throw new Error(saved.error);
+            if (!saved.error) out.drafted.push(event.id);
+        } catch (e) {
+            reminderStore.clearSent(event.id, AUTO_SUGGEST);
+            out.failed += 1;
+            console.error(`[reminders] Setup-Vorschlag ${event.title || event.id}:`, e.message);
+        }
+    }
+    return out;
+}
+
 /** The last sweep's outcome for the settings page; null before the first one. */
 function lastReminderRun() {
     return lastRun;
@@ -151,7 +198,14 @@ let timer = null;
 /** Start the periodic reminder sweep (idempotent, unref'd), like logAutoLink. */
 function startReminders({ intervalMs = 5 * 60 * 1000 } = {}) {
     if (timer) return timer;
-    const run = () => runReminders().catch((e) => console.error("[reminders]", e.message));
+    const run = () => {
+        try {
+            runAutoSuggest();
+        } catch (e) {
+            console.error("[reminders] Setup-Vorschlag:", e.message);
+        }
+        return runReminders().catch((e) => console.error("[reminders]", e.message));
+    };
     run();
     timer = setInterval(run, intervalMs);
     if (timer.unref) timer.unref();
@@ -167,5 +221,6 @@ function _resetForTests() {
 }
 
 module.exports = {
-    KINDS, toMs, dueReminders, reminderText, runReminders, lastReminderRun, startReminders, _resetForTests,
+    KINDS, AUTO_SUGGEST, toMs, dueReminders, reminderText, runReminders, autoSuggestDue, runAutoSuggest,
+    lastReminderRun, startReminders, _resetForTests,
 };

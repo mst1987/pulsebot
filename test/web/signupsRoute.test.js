@@ -153,6 +153,22 @@ describe("PUT /api/signups", () => {
         expect(body(res).error.code).toBe("raidhelper");
     });
 
+    it("weist ohne Raider-Rolle der Kategorie mit 403 ab – die Orga nicht", async () => {
+        mockConfig = { categoryRoles: { "cat-kara": ["role-kara"] } };
+        mockRoleIds = ["role-other"];
+        profiles.addCharacter(ORGA.id, { name: "Brokk", className: "Warrior", specs: ["Warrior-Protection"] }, { name: "Orga" });
+        const res = await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane", status: "signed" } });
+        expect(status(res)).toBe(403);
+        expect(body(res).error).toEqual({ code: "raider_role", message: "Für diesen Raid brauchst du eine Raider-Rolle." });
+        expect(mockSignups.has(`eh-kara/${ANNA.id}`)).toBe(false);
+
+        const orga = await call(route.putSignup, ORGA, { json: { eventId: "eh-kara", character: "Brokk", spec: "Warrior-Protection", status: "signed" } });
+        expect(status(orga)).toBe(200);
+
+        mockRoleIds = ["role-kara"];
+        expect(status(await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane" } }))).toBe(200);
+    });
+
     it("weist einen fremden Charakter ab", async () => {
         const res = await call(route.putSignup, BERT, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane" } });
         expect(status(res)).toBe(400);

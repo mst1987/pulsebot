@@ -70,15 +70,21 @@ function saveChannelConfig(guildId, { archiveCategoryId, archiveDeleteHintDays }
     return getChannelConfig(id);
 }
 
-/** Remember the naming schema a category's quick-create starts with. */
-function saveCategorySchema(guildId, categoryId, { schema = "", raid = "", templateChannelId = "" } = {}) {
+/**
+ * Remember the naming schema a category's quick-create starts with. `time` is
+ * the start time of the events "gleich Event anlegen" creates ("19:30"); left
+ * out, the stored one stays.
+ */
+function saveCategorySchema(guildId, categoryId, { schema = "", raid = "", templateChannelId = "", time } = {}) {
     const id = clean(guildId);
     const cat = clean(categoryId);
     if (!id || !cat) return null;
     const all = readAll();
     const guild = all.guilds[id] || {};
     const schemas = { ...(guild.schemas || {}) };
-    schemas[cat] = { schema: clean(schema), raid: clean(raid), templateChannelId: clean(templateChannelId) };
+    const previous = schemas[cat] || {};
+    const eventTime = time === undefined ? clean(previous.time) : clean(time);
+    schemas[cat] = { schema: clean(schema), raid: clean(raid), templateChannelId: clean(templateChannelId), ...(eventTime ? { time: eventTime } : {}) };
     all.guilds[id] = { ...guild, schemas };
     writeAll(all);
     return schemas[cat];
