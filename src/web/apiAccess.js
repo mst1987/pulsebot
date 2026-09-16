@@ -93,6 +93,7 @@ const AREA_BY_PATH = {
     "/api/lootcouncil/role": "lootcouncil",
     "/api/lootcouncil/export": "lootcouncil",
 
+    // GET lists, POST creates, PATCH edits an own event (#261) — the method sets the level.
     "/api/raids": "raids",
     "/api/raids/past": "raids",
     "/api/raids/new": "raids",

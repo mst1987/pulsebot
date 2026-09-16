@@ -46,6 +46,7 @@ describe("web/eventStore", () => {
     it("fills size and tanks/healers from the rule set", () => {
         expect(normalizePlan({}).value).toEqual({
             versionId: "tbc", instanceIds: [], size: 25, composition: { tank: 3, healer: 6, melee: 0, ranged: 0 },
+            compositionMax: { melee: null, ranged: null }, requiredBuffs: [],
         });
         // the biggest instance of the night decides the size
         expect(normalizePlan({ instanceIds: ["kara", "gruul"] }).value.size).toBe(25);
@@ -62,6 +63,44 @@ describe("web/eventStore", () => {
         expect(normalizePlan({ size: "x" }).error).toMatch(/Raidgröße/);
         expect(normalizePlan({ size: 10, composition: { tank: 5, healer: 6 } }).error).toMatch(/größer als der Raid/);
         expect(normalizePlan({ composition: { tank: -1 } }).error).toMatch(/ab 0/);
+    });
+
+    // #261: melee/ranged as ranges, the required buffs
+    it("keeps melee/ranged ranges as minimum plus optional maximum", () => {
+        const plan = normalizePlan({ size: 25, composition: { tank: 3, healer: 6, melee: { min: 6, max: 8 }, ranged: 5 } }).value;
+        expect(plan.composition).toEqual({ tank: 3, healer: 6, melee: 6, ranged: 5 });
+        expect(plan.compositionMax).toEqual({ melee: 8, ranged: null });
+        // the maximum can also come on its own
+        expect(normalizePlan({ size: 25, composition: { ranged: 4 }, compositionMax: { ranged: 10 } }).value.compositionMax.ranged).toBe(10);
+    });
+
+    it("checks the ranges and the sum of the minimums against the size", () => {
+        expect(normalizePlan({ size: 25, composition: { melee: { min: 8, max: 6 } } }).error).toMatch(/Nahkampf: Minimum ist größer als Maximum/);
+        expect(normalizePlan({ size: 10, composition: { tank: 2, healer: 3, ranged: { min: 2, max: 12 } } }).error).toMatch(/Fernkampf: Maximum ist größer als die Größe 10/);
+        // the minimums count: 3 + 6 + 10 + 7 = 26 > 25
+        expect(normalizePlan({ size: 25, composition: { tank: 3, healer: 6, melee: { min: 10, max: 12 }, ranged: { min: 7, max: null } } }).error)
+            .toMatch(/Zusammensetzung \(26\) ist größer als der Raid \(25\)/);
+        // the maxima may add up to more than the size: they are upper bounds, not seats
+        expect(normalizePlan({ size: 25, composition: { tank: 3, healer: 6, melee: { min: 6, max: 16 }, ranged: { min: 6, max: 16 } } }).error).toBeUndefined();
+    });
+
+    it("takes required buffs only from the version's rule set", () => {
+        expect(normalizePlan({ requiredBuffs: ["windfury", "kings", "windfury"] }).value.requiredBuffs).toEqual(["windfury", "kings"]);
+        expect(normalizePlan({ requiredBuffs: ["heroism"] }).error).toMatch(/Buff „heroism“ gibt es in/);
+        // Totem of Wrath does not exist in Classic
+        expect(normalizePlan({ versionId: "classic", requiredBuffs: ["totemOfWrath"] }).error).toMatch(/totemOfWrath/);
+    });
+
+    it("stores ranges, buffs and the raid template on the event and keeps the maxima on unrelated edits", () => {
+        const { event } = createEvent(base({
+            instanceIds: ["ssc"], size: 25, composition: { tank: 3, healer: 6, melee: { min: 6, max: 8 } },
+            requiredBuffs: ["windfury"], raidTemplateId: "tpl-1",
+        }));
+        expect(event).toMatchObject({ compositionMax: { melee: 8, ranged: null }, requiredBuffs: ["windfury"], raidTemplateId: "tpl-1" });
+        expect(updateEvent(event.id, { size: 20 }).event.compositionMax).toEqual({ melee: 8, ranged: null });
+        // a new composition brings its own ranges
+        expect(updateEvent(event.id, { composition: { tank: 2, healer: 5 } }).event.compositionMax).toEqual({ melee: null, ranged: null });
+        expect(updateEvent(event.id, { requiredBuffs: ["nope"] }).error).toMatch(/nope/);
     });
 
     it("refuses an event without title, channel, date or with a deadline after the start", () => {
@@ -99,5 +138,34 @@ describe("web/eventStore", () => {
         expect(deleteEvent(event.id)).toBe(true);
         expect(deleteEvent(event.id)).toBe(false);
         expect(getEvent(event.id)).toBeNull();
+    });
+
+    it("stores a setup proposal only as a draft and never over an approved setup", () => {
+        const { saveSetupDraft } = require("../../src/web/eventStore");
+        const { event } = createEvent(base());
+        const proposal = { version: 1, groups: [{ index: 1, slots: [] }], bench: [], status: "approved", events: [{ eventId: "x" }] };
+        const saved = saveSetupDraft(event.id, proposal, { now: 1234 });
+        // stored in the setup editor's shape (#263): an automatic draft, version 1, nothing approved
+        expect(saved.event.setup).toMatchObject({
+            groups: [{ index: 1, slots: [] }], bench: [], status: "draft", origin: "auto", version: 1, proposalVersion: 1,
+            approved: null, changedSinceApproval: false, createdBy: "auto", createdAt: 1234, updatedAt: 1234,
+        });
+        expect(saved.event.setup.events).toBeUndefined();
+        expect(getEvent(event.id).setup.status).toBe("draft");
+        // a second automatic draft counts the version up
+        expect(saveSetupDraft(event.id, proposal, { now: 1235 }).event.setup.version).toBe(2);
+        expect(saveSetupDraft("eh-missing", proposal)).toMatchObject({ code: "not_found" });
+
+        // an approved setup (#263) stays untouched
+        const raw = JSON.parse(fs.__store.get([...fs.__store.keys()][0]));
+        raw.events[0].setup = { status: "approved", groups: [] };
+        fs.__store.set([...fs.__store.keys()][0], JSON.stringify(raw));
+        expect(saveSetupDraft(event.id, proposal)).toMatchObject({ code: "approved" });
+        expect(getEvent(event.id).setup).toEqual({ status: "approved", groups: [] });
+
+        // …and so does a draft changed after an approval: raiders still see that approval
+        raw.events[0].setup = { status: "draft", changedSinceApproval: true, groups: [], approved: { version: 1, groups: [], bench: [] } };
+        fs.__store.set([...fs.__store.keys()][0], JSON.stringify(raw));
+        expect(saveSetupDraft(event.id, proposal)).toMatchObject({ code: "approved" });
     });
 });

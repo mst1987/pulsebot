@@ -176,8 +176,10 @@ describe("setup editor page", () => {
     });
 
     it("says what state the setup is in and approves only the version it shows", () => {
-        for (const text of ["Freigegeben", "geändert seit Freigabe", "Entwurf"]) expect(editor).toContain(text);
-        expect(editor).toContain("approveRaidSetup(ctx.csrfToken, ctx.eventId, setup.version)");
+        for (const text of ["Freigegeben", "geändert seit Freigabe", "Entwurf", "automatischer Vorschlag"]) expect(editor).toContain(text);
+        expect(editor).toContain("if (setup.origin !== \"auto\") return draft;");
+        // after the moves still on their way, with the version the server confirmed last
+        expect(editor).toMatch(/await chain\.current;\s*const next = await approveRaidSetup\(ctx\.csrfToken, ctx\.eventId, confirmedVersion\.current\);/);
         expect(editor).toContain("title: \"Trotzdem freigeben?\"");
         // a reader never gets the editor, only the approved lineup
         expect(editor).toContain("if (!data.canWrite) return <ReadOnly data={data} />;");

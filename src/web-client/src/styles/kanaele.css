@@ -121,6 +121,8 @@ button.kn-figure:hover .kn-figure-val { color: var(--accent); }
 .kn-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .kn-qc-head { display: flex; align-items: center; gap: 10px; }
 .kn-qc-head .kn-select { flex: 1; }
+.kn-qc-event { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; min-height: 36px; }
+.kn-qc-event .kn-qc-time { width: 110px; }
 .kn-preview { display: flex; flex-direction: column; gap: 4px; max-height: 40vh; overflow: auto; }
 .kn-preview-row { display: flex; align-items: center; gap: 8px; min-height: 30px; }
 .kn-preview-name { font-family: var(--font-mono); font-size: 14px; font-weight: 600; }

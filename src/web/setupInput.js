@@ -100,11 +100,30 @@ function fixedFromSetup(event) {
     return out;
 }
 
-/** The required buffs of the category's raid template, [] without one. */
+/**
+ * The required buffs of an event: its own list once it was planned from a raid
+ * template or has one (#261 — changed per event, possibly to none), else those
+ * of the category's raid template, [] without one.
+ */
 function requiredBuffsFor(event, config) {
+    if (event.raidTemplateId || (Array.isArray(event.requiredBuffs) && event.requiredBuffs.length)) return event.requiredBuffs || [];
     const templateId = (config.categoryRaidTemplate || {})[event.categoryId];
     const template = templateId ? settingsStore.getRaidTemplate(templateId) : null;
     return template && Array.isArray(template.requiredBuffs) ? template.requiredBuffs : [];
+}
+
+/**
+ * The event's composition in the proposal's shape: melee/ranged become
+ * `{ min, max }` where the event stores a maximum (`compositionMax`, #261), a
+ * plain minimum otherwise.
+ */
+function compositionLimits(event) {
+    const comp = { ...(event.composition || {}) };
+    const max = event.compositionMax || {};
+    for (const role of ["melee", "ranged"]) {
+        if (max[role] !== null && max[role] !== undefined) comp[role] = { min: Number(comp[role]) || 0, max: max[role] };
+    }
+    return comp;
 }
 
 /**
@@ -141,7 +160,7 @@ function collectSetupInput(eventIds, { now = Date.now() } = {}) {
             id: e.id,
             title: e.title,
             size: e.size,
-            composition: e.composition,
+            composition: compositionLimits(e),
             requiredBuffs: requiredBuffsFor(e, config),
             fairness: e.fairness,
             wishes: e.wishes,

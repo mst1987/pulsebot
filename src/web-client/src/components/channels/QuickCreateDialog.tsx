@@ -4,15 +4,22 @@ import {
 } from "../../api";
 import { Badge, Button, Modal, Segment } from "../ui";
 import { ChannelsIcon } from "../icons";
+import { SwitchRow } from "../RaidPlanFields";
 import { PlaceholderChips } from "./ChannelBulk";
 import { isTextLike } from "../../lib/channels";
+
+const SOURCE_LABELS = { raidhelper: "Raid-Helper", eventhelper: "EventHelper" } as const;
+const DEFAULT_EVENT_TIME = "19:30";
 
 // Quick-create by naming schema (issue #259, artboard "Kanäle anlegen"): pick
 // the category, the first day and how often; the preview shows every name the
 // schema makes and which of them exist already — those are skipped, never
 // duplicated. Schema, raid and template channel are remembered per category.
 //
-// Not here yet: "gleich Event anlegen" — it needs the own event model (#254).
+// "Gleich Event anlegen" (raids write, a category chosen): one switch and one
+// time field; every channel created gets an event on its day, with the
+// category's default raid template and source — shown as one small badge, the
+// details in its tooltip. The job toast lists per channel what did not work.
 
 /** Today in the browser's calendar, as "2026-09-16". */
 function today(): string {
@@ -39,6 +46,8 @@ export function QuickCreateDialog({ data, csrfToken, initialCategoryId, onClose,
     const [raid, setRaid] = useState(stored?.raid || "");
     const [templateChannelId, setTemplate] = useState(stored?.templateChannelId || "");
     const [saveSchema, setSaveSchema] = useState(true);
+    const [withEvent, setWithEvent] = useState(false);
+    const [time, setTime] = useState(stored?.time || DEFAULT_EVENT_TIME);
     const [plan, setPlan] = useState<QuickCreatePlanRow[]>([]);
     const [planError, setPlanError] = useState("");
 
@@ -49,9 +58,17 @@ export function QuickCreateDialog({ data, csrfToken, initialCategoryId, onClose,
         setSchema(own?.schema || data.defaultSchema);
         setRaid(own?.raid || "");
         setTemplate(own?.templateChannelId || "");
+        if (own?.time) setTime(own.time);
     };
 
-    const input: QuickCreateInput = { categoryId, schema, raid, from, count: mode === "weekly" ? count : 1, interval: mode, templateChannelId, saveSchema };
+    // Events need a category (its template and source) and the right to create raids.
+    const eventsPossible = !!data.canCreateEvents && !!categoryId;
+    const eventOn = eventsPossible && withEvent;
+    const defaults = data.eventDefaults?.[categoryId];
+    const input: QuickCreateInput = {
+        categoryId, schema, raid, from, count: mode === "weekly" ? count : 1, interval: mode, templateChannelId, saveSchema,
+        ...(eventOn ? { withEvent: true, time } : {}),
+    };
 
     useEffect(() => {
         let alive = true;
@@ -84,7 +101,7 @@ export function QuickCreateDialog({ data, csrfToken, initialCategoryId, onClose,
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button icon="inv_letter_15" disabled={!todo} onClick={() => onCreate(input, todo)}>{todo} anlegen</Button>
+                    <Button icon="inv_letter_15" disabled={!todo || (eventOn && !time)} onClick={() => onCreate(input, todo)}>{todo} anlegen</Button>
                 </>
             )}
         >
@@ -116,6 +133,36 @@ export function QuickCreateDialog({ data, csrfToken, initialCategoryId, onClose,
                         </div>
                     )}
                 </div>
+                {eventsPossible && (
+                    <div className="kn-qc-event">
+                        <SwitchRow
+                            label="Gleich Event anlegen"
+                            tip="Jeder neue Kanal bekommt an seinem Tag ein Event – mit der Standard-Vorlage und der Anmeldung der Kategorie."
+                            checked={withEvent}
+                            onChange={setWithEvent}
+                        />
+                        {eventOn && (
+                            <>
+                                <input
+                                    aria-label="Uhrzeit"
+                                    className="kn-select kn-qc-time"
+                                    type="time"
+                                    value={time}
+                                    onChange={(e) => setTime(e.target.value)}
+                                />
+                                <Badge
+                                    tone={defaults?.templateId ? "accent" : "mid"}
+                                    tip={defaults?.templateId ? `Vorlage: ${defaults.templateName}` : "Ohne Vorlage"}
+                                    tipSub={defaults?.templateId
+                                        ? `Größe, Tanks/Heiler und Anmeldeschluss kommen aus der Standard-Vorlage der Kategorie. Anmeldung über ${SOURCE_LABELS[defaults.source]}. Ändern: Einstellungen → Kategorien.`
+                                        : `Die Kategorie hat keine Standard-Vorlage – das Event bekommt die Werte des Regelsatzes. Anmeldung über ${SOURCE_LABELS[defaults?.source || "raidhelper"]}. Festlegen: Einstellungen → Kategorien.`}
+                                >
+                                    {defaults?.templateName || "ohne Vorlage"} · {SOURCE_LABELS[defaults?.source || "raidhelper"]}
+                                </Badge>
+                            </>
+                        )}
+                    </div>
+                )}
                 {planError && <Badge tone="bad">{planError}</Badge>}
                 <div className="kn-preview" aria-live="polite">
                     {plan.map((p, i) => (

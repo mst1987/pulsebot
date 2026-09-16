@@ -3,7 +3,8 @@
 // sweep in reminders.js runs.
 //
 // `data/settings/reminders-sent.json` = { events: { [eventId]: { [kind]: at } } }
-// with kind "missing" | "signed" and `at` the ms timestamp it was marked. Old
+// with kind "missing" | "signed" | "autoSuggest" (the draft setup at the deadline)
+// and `at` the ms timestamp it was marked. Old
 // marks are pruned once the raid is long over; nothing else reads them.
 
 const fs = require("fs");

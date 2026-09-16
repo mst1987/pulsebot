@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import {
     getRaidTemplates, getGameVersions, saveRaidTemplate, deleteRaidTemplate, importRaidTemplates, canAccess,
-    type ApiError, type GameVersion, type RaidTemplate, type RaidTemplateInput, type RaidTemplatesData, type RoleRange,
+    type ApiError, type GameVersion, type RaidTemplate, type RaidTemplateInput, type RaidTemplatesData,
 } from "../api";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import { usePersistedState } from "../lib/persistedState";
 import {
     allowedSizes, draftOf, filterByVersion, instancesOf, newDraft, proposeComposition, templateLabel, validateDraft,
 } from "../lib/raidTemplates";
+import { BuffPicker, FieldLabel, InstancePicker, NumberInput, RoleRanges, SizePicker, SwitchRow } from "../components/RaidPlanFields";
 import type { ShellContext } from "../components/Shell";
 import { useToast } from "../components/Jobs";
 import { Modal, useConfirm } from "../components/ui/Modal";
@@ -29,10 +30,11 @@ import "../styles/raid-templates.css";
 // Everything else waits in the modal, and there behind "Mehr".
 //
 // Instances come only from the rule set (GET /api/game-versions). The open
-// editor lives in the url (?edit=<id|new>) like every collection editor.
+// editor lives in the url (?edit=<id|new>) like every collection editor. The
+// plan fields are the shared ones of components/RaidPlanFields.tsx, the same the
+// "Event anlegen" dialog uses (#261).
 
 const NO_ICON = "inv_misc_note_01";
-const FREE = "free";
 
 function InstanceIcons({ icons }: { icons: string[] }) {
     return (
@@ -53,38 +55,6 @@ function Value({ label, value }: { label: string; value: number | null }) {
 
 // ---- editor -----------------------------------------------------------------------
 
-function NumberField({ id, label, value, onChange, placeholder }: {
-    id: string;
-    label: string;
-    value: number | null;
-    onChange: (value: number | null) => void;
-    placeholder?: string;
-}) {
-    return (
-        <div className="rt-num-field">
-            <label htmlFor={id}>{label}</label>
-            <input id={id} className="inp-sm" type="number" min={0} max={40} value={value === null ? "" : value} placeholder={placeholder}
-                onChange={(e) => onChange(e.target.value === "" ? null : Math.max(0, Math.floor(Number(e.target.value) || 0)))} />
-        </div>
-    );
-}
-
-function RangeField({ label, idPrefix, value, onChange }: {
-    label: string;
-    idPrefix: string;
-    value: RoleRange | null;
-    onChange: (value: RoleRange | null) => void;
-}) {
-    const set = (min: number | null, max: number | null) => onChange(min === null && max === null ? null : { min: min || 0, max });
-    return (
-        <div className="rt-range">
-            <span className="rt-range-lbl">{label}</span>
-            <NumberField id={`${idPrefix}-min`} label="min" value={value ? value.min : null} onChange={(min) => set(min, value ? value.max : null)} placeholder="–" />
-            <NumberField id={`${idPrefix}-max`} label="max" value={value ? value.max : null} onChange={(max) => set(value ? value.min : null, max)} placeholder="–" />
-        </div>
-    );
-}
-
 function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, onClose }: {
     template: RaidTemplate | null;
     versions: GameVersion[];
@@ -101,8 +71,6 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
     const [saving, setSaving] = useState(false);
     const version = versions.find((v) => v.id === draft.versionId) || null;
     const chosen = instancesOf(version, draft.instanceIds);
-    const sizes = allowedSizes(version, draft.instanceIds);
-    const sizeIsFree = freeSize || (draft.size !== null && !sizes.includes(draft.size));
     const problem = validateDraft(draft);
     const patch = (fields: Partial<RaidTemplateInput>) => setDraft((d) => ({ ...d, ...fields }));
 
@@ -159,7 +127,6 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
         }
     };
 
-    const buffs = version ? [...version.raidBuffs, ...version.partyBuffs] : [];
     const moreCount = [draft.composition.melee, draft.composition.ranged, draft.signupDeadline].filter(Boolean).length
         + draft.requiredBuffs.length + (draft.fairness ? 1 : 0) + (draft.wishes ? 1 : 0) + (draft.raidhelperTemplateId ? 1 : 0);
 
@@ -186,47 +153,14 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
                 <input id="rt-name" type="text" value={draft.name} onChange={(e) => patch({ name: e.target.value })} placeholder="z. B. SSC + TK 25er" />
             </div>
             <div className="rt-field">
-                <span className="rt-flabel">Spielversion</span>
+                <FieldLabel text="Spielversion" />
                 <Segment size="sm" ariaLabel="Spielversion" value={draft.versionId} onChange={changeVersion}
                     options={versions.map((v) => ({ value: v.id, label: v.short, tip: v.label }))} />
             </div>
-            <div className="rt-field">
-                <span className="rt-flabel">Instanzen</span>
-                <div className="rt-insts" role="group" aria-label="Instanzen">
-                    {(version?.instances || []).map((inst) => {
-                        const on = draft.instanceIds.includes(inst.id);
-                        return (
-                            <button key={inst.id} type="button" className={`rt-inst${on ? " on" : ""}`} aria-pressed={on} onClick={() => toggleInstance(inst.id)}
-                                data-tip={inst.name} data-tip-sub={inst.status === "incomplete" ? "Infos fehlen: Bosse und Endboss sind noch nicht bekannt." : `${inst.sizes.join("/")} Spieler`}>
-                                <WowIcon name={inst.icon} size={20} />{inst.short}
-                                {inst.status === "incomplete" && <WarnIcon />}
-                            </button>
-                        );
-                    })}
-                </div>
-                {chosen.some((i) => i.status === "incomplete") && <Badge tone="mid" icon={<WarnIcon />}>Infos fehlen</Badge>}
-            </div>
-            <div className="rt-field">
-                <span className="rt-flabel">Größe</span>
-                <div className="rt-sizes">
-                    <Segment
-                        size="sm"
-                        ariaLabel="Größe"
-                        value={draft.size === null ? "" : (sizeIsFree ? FREE : String(draft.size))}
-                        onChange={(v) => {
-                            if (v === FREE) { setFreeSize(true); return; }
-                            setFreeSize(false);
-                            changeSize(Number(v));
-                        }}
-                        options={[...sizes.map((s) => ({ value: String(s), label: String(s) })), { value: FREE, label: "frei" }]}
-                    />
-                    {sizeIsFree && (
-                        <input className="inp-sm rt-size-input" type="number" min={1} max={40} aria-label="Freie Größe" value={draft.size === null ? "" : draft.size}
-                            onChange={(e) => changeSize(e.target.value === "" ? null : Math.floor(Number(e.target.value) || 0))} />
-                    )}
-                    {draft.size === null && <Badge tone="mid" icon={<WarnIcon />}>Größe ergänzen</Badge>}
-                </div>
-            </div>
+            <InstancePicker version={version} value={draft.instanceIds} onToggle={toggleInstance} />
+            <SizePicker version={version} instanceIds={draft.instanceIds} size={draft.size} free={freeSize} onFree={setFreeSize} onSize={(size) => changeSize(size)}>
+                {draft.size === null && <Badge tone="mid" icon={<WarnIcon />}>Größe ergänzen</Badge>}
+            </SizePicker>
             <CompositionEditor
                 size={draft.size}
                 value={{ tank: draft.composition.tank, healer: draft.composition.healer }}
@@ -235,29 +169,12 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
             <details className="rt-more">
                 <summary>Mehr: Nahkampf/Fernkampf, Pflicht-Buffs, Anmeldeschluss, Raid-Helper-Vorlage{moreCount ? <Badge count>{moreCount}</Badge> : null}</summary>
                 <div className="rt-more-body">
-                    <div className="rt-ranges">
-                        <RangeField label="Nahkampf" idPrefix="rt-melee" value={draft.composition.melee}
-                            onChange={(melee) => patch({ composition: { ...draft.composition, melee } })} />
-                        <RangeField label="Fernkampf" idPrefix="rt-ranged" value={draft.composition.ranged}
-                            onChange={(ranged) => patch({ composition: { ...draft.composition, ranged } })} />
-                    </div>
-                    <div className="rt-field">
-                        <span className="rt-flabel" data-tip="Pflicht-Buffs" data-tip-sub="Buffs, die der Raid dabeihaben soll — die Aufstellung warnt, wenn keiner sie mitbringt.">Pflicht-Buffs</span>
-                        <div className="rt-buffs">
-                            {buffs.map((b) => {
-                                const on = draft.requiredBuffs.includes(b.key);
-                                return (
-                                    <button key={`${b.scope}-${b.key}`} type="button" className={`rt-buff${on ? " on" : ""}`} aria-pressed={on} onClick={() => toggleBuff(b.key)}
-                                        data-tip={b.label} data-tip-sub={b.scope === "party" ? "Gruppen-Buff" : "Raid-Buff"}>
-                                        <WowIcon name={b.icon} size={24} />
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
+                    <RoleRanges idPrefix="rt" melee={draft.composition.melee} ranged={draft.composition.ranged}
+                        onChange={(r) => patch({ composition: { ...draft.composition, ...r } })} />
+                    <BuffPicker version={version} value={draft.requiredBuffs} onToggle={toggleBuff} />
                     <div className="rt-row2">
-                        <NumberField id="rt-deadline" label="Anmeldeschluss (Stunden vor Start)" value={draft.signupDeadline ? draft.signupDeadline.hoursBefore : null}
-                            onChange={(h) => patch({ signupDeadline: h === null ? null : { hoursBefore: h } })} placeholder="keiner" />
+                        <NumberInput id="rt-deadline" label="Anmeldeschluss (Stunden vor Start)" value={draft.signupDeadline ? draft.signupDeadline.hoursBefore : null}
+                            onChange={(h) => patch({ signupDeadline: h === null ? null : { hoursBefore: h } })} placeholder="keiner" max={336} />
                         <div className="rt-num-field">
                             <label htmlFor="rt-rh">Raid-Helper-Vorlage (ID)</label>
                             <input id="rt-rh" type="text" className="inp-sm mono" value={draft.raidhelperTemplateId} placeholder="z. B. 3"
@@ -265,20 +182,8 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
                         </div>
                     </div>
                     <div className="rt-switches">
-                        <label className="switch-row" data-tip="Fairness" data-tip-sub="Wer zuletzt auf der Bank saß, wird bei der Aufstellung bevorzugt.">
-                            <span className="switch">
-                                <input type="checkbox" checked={draft.fairness} onChange={(e) => patch({ fairness: e.target.checked })} />
-                                <span className="switch-track"><span className="switch-thumb" /></span>
-                            </span>
-                            Fairness
-                        </label>
-                        <label className="switch-row" data-tip="Wünsche" data-tip-sub="Raider können bei der Anmeldung Wunsch-Rolle und Charakter angeben.">
-                            <span className="switch">
-                                <input type="checkbox" checked={draft.wishes} onChange={(e) => patch({ wishes: e.target.checked })} />
-                                <span className="switch-track"><span className="switch-thumb" /></span>
-                            </span>
-                            Wünsche
-                        </label>
+                        <SwitchRow label="Fairness" tip="Wer zuletzt auf der Bank saß, wird beim Setup-Vorschlag bevorzugt." checked={draft.fairness} onChange={(fairness) => patch({ fairness })} />
+                        <SwitchRow label="Wünsche" tip="„Gerne zusammen raiden mit“ aus den Profilen fließt in den Setup-Vorschlag ein." checked={draft.wishes} onChange={(wishes) => patch({ wishes })} />
                     </div>
                 </div>
             </details>

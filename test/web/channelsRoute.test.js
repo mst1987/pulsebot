@@ -7,8 +7,10 @@ jest.mock("../../src/web/apiBody", () => ({ readJsonBody: jest.fn() }));
 jest.mock("../../src/web/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../src/web/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
+    getRaidTemplate: jest.fn((id) => (id === "tpl-kara" ? { id: "tpl-kara", name: "Karazhan 10er" } : null)),
     listRecruitmentPosts: jest.fn(() => []),
 }));
+jest.mock("../../src/web/eventCreate", () => ({ createEvent: jest.fn() }));
 jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
 jest.mock("../../src/web/raidEventGroups", () => ({ fetchEventsCached: jest.fn(async () => ({ events: [] })) }));
 jest.mock("../../src/web/channelOps", () => {
@@ -184,6 +186,83 @@ describe("POST /api/channels/batch", () => {
         expect(dc.createFromTemplate).toHaveBeenCalledWith("g1", { name: "mi-30-09-ssc", parentId: "cat1", templateChannelId: "c1" });
         expect(archiveStore.saveCategorySchema).toHaveBeenCalledWith("g1", "cat1", { schema: "{tag}-{dd}-{mm}-{raid}", raid: "ssc", templateChannelId: "c1" });
         expect(body(res).data.message).toBe("1 Kanal angelegt, 1 übersprungen (existiert)");
+    });
+
+    describe("gleich Event anlegen", () => {
+        const { getConfig } = require("../../src/web/settingsStore");
+        const eventCreate = require("../../src/web/eventCreate");
+        const input = { categoryId: "cat1", schema: "{tag}-{dd}-{mm}-{raid}", raid: "kara", from: "2026-09-23", count: 3, interval: "weekly", withEvent: true, time: "1930", saveSchema: true };
+
+        beforeEach(() => {
+            getConfig.mockReturnValue({ categoryRaidTemplate: { cat1: "tpl-kara" }, categorySignupSource: { cat1: "eventhelper" } });
+            discord.listAllChannels.mockReturnValue([...CHANNELS, { id: "x", name: "mi-30-09-kara", type: 0, parentId: "cat1" }]);
+        });
+        afterEach(() => getConfig.mockReturnValue({}));
+
+        it("creates an event per new channel with the category's template, source, the series' date and the time", async () => {
+            eventCreate.createEvent
+                .mockResolvedValueOnce({ status: 201, body: { id: "eh-1", source: "eventhelper", messageError: null } })
+                .mockResolvedValueOnce({ error: { status: 400, code: "invalid_plan", message: "Mehr Tanks und Heiler als Plätze." } });
+            readJsonBody.mockResolvedValue(input);
+            const res = mockRes();
+            await routes.batchCreate({}, res);
+            expect(status(res)).toBe(201);
+            expect(eventCreate.createEvent).toHaveBeenCalledTimes(2);
+            expect(eventCreate.createEvent.mock.calls[0][0]).toEqual({
+                guildId: "g1",
+                user: ADMIN,
+                body: { title: "Karazhan 10er", date: "2026-09-23", time: "19:30", channelId: "new-mi-23-09-kara", signupSource: "eventhelper", raidTemplateId: "tpl-kara" },
+            });
+            expect(eventCreate.createEvent.mock.calls[1][0].body.date).toBe("2026-10-07");
+            expect(archiveStore.saveCategorySchema).toHaveBeenCalledWith("g1", "cat1", { schema: input.schema, raid: "kara", templateChannelId: "", time: "19:30" });
+            const data = body(res).data;
+            expect(data.results.map((r) => [r.name, r.ok, r.eventId, r.eventError])).toEqual([
+                ["mi-23-09-kara", true, "eh-1", undefined],
+                ["mi-07-10-kara", true, undefined, "Mehr Tanks und Heiler als Plätze."],
+            ]);
+            expect(data.failed).toBe(1);
+            expect(data.message).toBe("2 Kanäle angelegt · 1 Event angelegt · 1 übersprungen (existiert)\nmi-07-10-kara: Event fehlgeschlagen – Mehr Tanks und Heiler als Plätze.");
+        });
+
+        it("names the event after the category without a template and uses Raid-Helper as its source", async () => {
+            getConfig.mockReturnValue({});
+            eventCreate.createEvent.mockResolvedValue({ status: 201, body: { id: "9001" } });
+            readJsonBody.mockResolvedValue({ ...input, count: 1 });
+            const res = mockRes();
+            await routes.batchCreate({}, res);
+            expect(eventCreate.createEvent.mock.calls[0][0].body).toEqual({ title: "Raids", date: "2026-09-23", time: "19:30", channelId: "new-mi-23-09-kara", signupSource: "raidhelper" });
+            expect(body(res).data).toMatchObject({ failed: 0, message: "1 Kanal angelegt · 1 Event angelegt" });
+        });
+
+        it("needs raids write, a category and a valid time — before anything is created", async () => {
+            requireAdmin.mockReturnValue({ id: "u2", isAdmin: false, access: { channels: { read: true, write: true } } });
+            readJsonBody.mockResolvedValue(input);
+            let res = mockRes();
+            await routes.batchCreate({}, res);
+            expect(status(res)).toBe(403);
+
+            requireAdmin.mockReturnValue(ADMIN);
+            readJsonBody.mockResolvedValue({ ...input, categoryId: "" });
+            res = mockRes();
+            await routes.batchCreate({}, res);
+            expect(body(res).error.code).toBe("no_category");
+
+            readJsonBody.mockResolvedValue({ ...input, time: "25:00" });
+            res = mockRes();
+            await routes.batchCreate({}, res);
+            expect(body(res).error.code).toBe("invalid_time");
+            expect(dc.createFromTemplate).not.toHaveBeenCalled();
+            expect(eventCreate.createEvent).not.toHaveBeenCalled();
+        });
+
+        it("offers the switch with the category defaults in GET /api/channels", async () => {
+            const res = mockRes();
+            await routes.getChannels({}, res);
+            const data = body(res).data;
+            expect(data.canCreateEvents).toBe(true);
+            expect(data.eventDefaults.cat1).toEqual({ templateId: "tpl-kara", templateName: "Karazhan 10er", source: "eventhelper" });
+            expect(data.eventDefaults.arch).toEqual({ templateId: "", templateName: "", source: "raidhelper" });
+        });
     });
 
     it("refuses a date that does not exist", async () => {

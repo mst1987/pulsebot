@@ -6,9 +6,8 @@
 // roster changes (signupStore.onSignupsChanged → startEventMessageSync). Where
 // the message sits is remembered on the event (eventStore.setEventMessage).
 //
-// The button's customId is `event-signup:<eventId>`; until the signup dialog in
-// Discord exists (#258) its handler answers with a link into the web
-// (commands/setup/eventSignup.js).
+// The button's customId is `event-signup:<eventId>`; its handler opens the
+// signup dialog in Discord (commands/signup/eventSignup.js, #258).
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require("discord.js");
 const { embedAccentColor } = require("../config/variables");
 const { getEvent, setEventMessage } = require("./eventStore");

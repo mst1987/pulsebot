@@ -1197,6 +1197,19 @@ describe("web/apiRouter", () => {
             expect(discord.postAnnouncement).not.toHaveBeenCalled();
         });
 
+        it("needs raids write to edit an event (PATCH /api/raids, #261)", async () => {
+            auth.getUser.mockReturnValue(readOnlyRaider);
+            auth.checkCsrf.mockReturnValue(true);
+            const denied = await patch("/api/raids", { id: "eh-1", title: "x" });
+            expect(denied.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            // a Raid-Helper event is edited at Raid-Helper, never here
+            const refused = await patch("/api/raids", { id: "123456", title: "x" });
+            expect(refused.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(refused).error.code).toBe("not_own_event");
+        });
+
         it("blocks an area the role was not given at all", async () => {
             auth.getUser.mockReturnValue(readOnlyRaider);
 
@@ -1498,7 +1511,7 @@ describe("web/apiRouter", () => {
 
             // Past raids of the lookback window can be repeated too.
             expect(raidEventGroups.loadEventGroups).toHaveBeenCalledWith("guild-1", { sinceSeconds: 1234 });
-            expect(body(res)).toEqual({
+            expect(body(res)).toMatchObject({
                 data: {
                     // the default channel's category decides the preselected Raid-Helper template
                     defaults: { templateId: "t1", channelId: "c1" },
@@ -1514,8 +1527,18 @@ describe("web/apiRouter", () => {
                         categoryId: "cat1", categoryName: "Raids", startTime: 50, contentIds: ["kara"],
                     }],
                     signupSources: {},
+                    // #261: the planning step's material
+                    categoryRaidTemplates: { cat1: "tpl1", cat2: "tpl2" },
+                    raidTemplates: [
+                        { id: "tpl1", defaultFor: ["cat1"], incomplete: false },
+                        { id: "tpl2", defaultFor: ["cat2"] },
+                    ],
+                    defaultVersion: "tbc",
+                    defaultSchema: "{tag}-{dd}-{mm}-{raid}",
+                    editEvent: null,
                 },
             });
+            expect(body(res).data.versions.map((v) => v.id)).toEqual(["tbc", "classic", "forever"]);
         });
     });
 

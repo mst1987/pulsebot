@@ -6,7 +6,8 @@
 // tab and which dialog is open, and wires the steps to them.
 import { useEffect, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
-import { getRaidDetail, type ApiError, type RaidDetailData, type RaidDetailModal, type RaidPrimaryAction, type RaidStep } from "../api";
+import { canAccess, getRaidDetail, type ApiError, type RaidDetailData, type RaidDetailModal, type RaidPrimaryAction, type RaidStep } from "../api";
+import RaidCreateDialog from "../components/RaidCreateDialog";
 import { usePersistedSearchParam } from "../lib/persistedState";
 import type { ShellContext } from "../components/Shell";
 import { useJobs } from "../components/Jobs";
@@ -51,7 +52,8 @@ const TAB_META: Record<Tab, { label: string; icon: string }> = {
 };
 
 export default function RaidDetailPage() {
-    const { csrfToken } = useOutletContext<ShellContext>();
+    const { csrfToken, user } = useOutletContext<ShellContext>();
+    const [editing, setEditing] = useState(false);
     const [searchParams] = useSearchParams();
     const eventId = searchParams.get("event") || "";
     // Remembered across raids: opening the next event lands on the tab that was
@@ -130,6 +132,7 @@ export default function RaidDetailPage() {
             <RaidDetailHero
                 data={data} onStep={openStep} onPrimary={runPrimary}
                 primaryRunning={!!primaryEval && evaluator.isRunning(primaryEval.logId, primaryEval.section)}
+                onEdit={data.event.source === "eventhelper" && canAccess(user, "raids", "write") ? () => setEditing(true) : undefined}
             />
 
             <div className="tabs rd-tabs" role="tablist">
@@ -154,6 +157,12 @@ export default function RaidDetailPage() {
             <LootAddModal ctx={ctx} open={modal === "loot"} onClose={close} />
             <LogAssignModal ctx={ctx} open={modal === "log"} onClose={close} />
             <PlayerModal ctx={ctx} player={player} onClose={() => setPlayer(null)} />
+            {editing && (
+                <RaidCreateDialog
+                    open sourceId="" editEventId={data.event.id} csrfToken={csrfToken} userId={user?.id || ""}
+                    onClose={() => setEditing(false)} onCreated={() => { setEditing(false); load(); }}
+                />
+            )}
         </div>
     );
 }

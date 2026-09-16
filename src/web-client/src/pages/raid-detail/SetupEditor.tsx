@@ -74,7 +74,16 @@ function StatusBadge({ setup }: { setup: StoredSetup }) {
             </Badge>
         );
     }
-    return <Badge tone="mid" tip="Entwurf" tipSub="Raider sehen noch nichts. Erst nach der Freigabe erscheint das Setup im Web, in der Event-Nachricht und im Bot.">Entwurf</Badge>;
+    const draft = <Badge tone="mid" tip="Entwurf" tipSub="Raider sehen noch nichts. Erst nach der Freigabe erscheint das Setup im Web, in der Event-Nachricht und im Bot.">Entwurf</Badge>;
+    if (setup.origin !== "auto") return draft;
+    return (
+        <>
+            {draft}
+            <Badge tone="accent" tip="Automatischer Vorschlag" tipSub={`Zum Anmeldeschluss vom EventHelper erstellt${setup.updatedAt ? ` (${dateTime(setup.updatedAt)})` : ""}. Prüfen, anpassen, freigeben.`}>
+                automatischer Vorschlag
+            </Badge>
+        </>
+    );
 }
 
 type Interaction = {

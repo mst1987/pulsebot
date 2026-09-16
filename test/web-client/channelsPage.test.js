@@ -134,6 +134,19 @@ describe("ChannelsPage", () => {
         expect(quick).toContain("Schema &amp; Vorlage");
     });
 
+    it("offers \"gleich Event anlegen\" calmly: a switch, a time only when on, the template as one badge", () => {
+        expect(quick).toContain("label=\"Gleich Event anlegen\"");
+        // only for whoever may create raids, and only with a category
+        expect(quick).toContain("const eventsPossible = !!data.canCreateEvents && !!categoryId;");
+        expect(quick).toMatch(/\{eventOn && \([\s\S]*type="time"[\s\S]*<Badge[\s\S]*tipSub=/);
+        expect(quick).toContain("...(eventOn ? { withEvent: true, time } : {})");
+        expect(api).toMatch(/withEvent\?: boolean;\s*time\?: string;/);
+        // the server gates it on raids write and creates through eventCreate
+        expect(routes).toContain("userCanAny(user, [\"raids\"], \"write\")");
+        expect(routes).toContain("eventCreate.createEvent({");
+        expect(page).toContain("\"Kanäle und Events anlegen\"");
+    });
+
     it("deletes only from the archive tab, with the name typed", () => {
         expect(tree).not.toContain("TrashIcon");
         expect(archive).toContain("TrashIcon");

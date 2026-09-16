@@ -1,6 +1,7 @@
 // Signing up for an EventHelper event (#256) — the rules, once, for every front
 // end: the web's "Anmeldungen" page today, the Discord signup dialog (#258)
-// tomorrow. Nothing in here knows about HTTP or Discord; a caller hands in who
+// tomorrow. Nothing in here knows about HTTP or Discord messages (only the
+// member's roles are read, for the raider-role rule); a caller hands in who
 // is acting and gets back either the stored signup or a German error with a
 // machine-readable code.
 //
@@ -11,13 +12,20 @@
 //     one of that character's specs (`character`, `spec`), and the spec exists in
 //     the event's game version (signupStore.normalizeSignup);
 //   * after the signup deadline a member can only sign off or say they come late,
-//     or keep the status and spec they already had — the orga still can (`deadline`).
+//     or keep the status and spec they already had — the orga still can (`deadline`);
+//   * a category with raider roles (`config.categoryRoles`) takes new signups only
+//     from holders of one of them (`raider_role`) — the rule that also hides such
+//     events on the page (categoryVisible). Roles that cannot be read let the
+//     signup through, an existing own signup may still be changed or withdrawn,
+//     the orga is exempt.
 //
 // Saving goes through signupStore.saveSignup, whose change event already edits
 // the event message (eventMessage.js) and feeds every other listener.
 const { getEvent, isOwnEventId } = require("./eventStore");
 const signupStore = require("./signupStore");
 const profiles = require("./raiderProfileStore");
+const settingsStore = require("./settingsStore");
+const discord = require("./discord");
 const { SIGNUP_STATUSES } = require("../utils/attendance");
 const { ROLES } = require("../config/gameVersions/classes");
 
@@ -146,6 +154,52 @@ function wishPartnersSignedUp(profile, signups) {
 
 const fail = (code, error) => ({ code, error });
 
+const RAIDER_ROLE_ERROR = "Für diesen Raid brauchst du eine Raider-Rolle.";
+
+/**
+ * Whether a member's roles let them into a category with raider roles
+ * (`config.categoryRoles`). No roles on the category, or roles that cannot be
+ * read (`roleIds` null/undefined), let everyone in — an event post in Discord is
+ * no secret, a missing raid is a real loss.
+ */
+function categoryRoleAllowed(categoryId, { config = {}, roleIds = null } = {}) {
+    const roles = ((config.categoryRoles || {})[String(categoryId || "")] || []).map(String);
+    if (!roles.length || !Array.isArray(roleIds)) return true;
+    return roles.some((r) => roleIds.map(String).includes(r));
+}
+
+/**
+ * Whether a member sees a category's events on the "Anmeldungen" page. Only the
+ * event categories count (`config.categoryIds`, when any are set); a category
+ * with raider roles is for the holders of one of them (categoryRoleAllowed).
+ * The orga sees everything.
+ */
+function categoryVisible(categoryId, { config = {}, roleIds = null, orga = false } = {}) {
+    if (orga) return true;
+    const cats = Array.isArray(config.categoryIds) ? config.categoryIds.map(String) : [];
+    if (cats.length && !cats.includes(String(categoryId || ""))) return false;
+    return categoryRoleAllowed(categoryId, { config, roleIds });
+}
+
+/**
+ * The raider-role rule for one member and one own event. Reads the config and
+ * the member's roles on the event's server (discord.memberRoleIds: one member
+ * fetch, no privileged intent) unless the caller hands them in. The orga
+ * (`byOrga`) and a member who already has a signup for the event always pass.
+ * @returns {Promise<{ ok: true } | { code: "raider_role", error: string }>}
+ */
+async function checkRaiderRole(event, userId, { byOrga = false, previous, roleIds, config } = {}) {
+    if (byOrga || !event) return { ok: true };
+    const cfg = config || settingsStore.getConfig();
+    const roles = (cfg.categoryRoles || {})[String(event.categoryId || "")] || [];
+    if (!roles.length) return { ok: true };
+    const uid = String(userId || "");
+    const prev = previous === undefined ? signupStore.getSignup(event.id, uid) : previous;
+    if (prev) return { ok: true };
+    const ids = roleIds !== undefined ? roleIds : await discord.memberRoleIds(event.guildId || cfg.guildId, uid);
+    return categoryRoleAllowed(event.categoryId, { config: cfg, roleIds: ids }) ? { ok: true } : fail("raider_role", RAIDER_ROLE_ERROR);
+}
+
 /**
  * Check a signup without saving it.
  * @param {object} event   an eventStore event (source "eventhelper")
@@ -204,10 +258,12 @@ function validateSignup(event, input = {}, { profile, previous = null, byOrga = 
 /**
  * Sign a user up for an own event (or change / withdraw their signup).
  * `userId` is who the signup belongs to; `byOrga` lifts the deadline and the
- * start for the orga entering somebody. The change event fires in the store.
- * @returns {{ signup?: object, event?: object, error?: string, code?: string }}
+ * start for the orga entering somebody, and the raider-role rule (checkRaiderRole;
+ * `roleIds` / `config` are optional, it reads them otherwise). The change event
+ * fires in the store.
+ * @returns {Promise<{ signup?: object, event?: object, error?: string, code?: string }>}
  */
-function submitSignup(eventId, userId, input = {}, { byOrga = false, now = Date.now() } = {}) {
+async function submitSignup(eventId, userId, input = {}, { byOrga = false, now = Date.now(), roleIds, config } = {}) {
     const uid = String(userId || "").trim();
     if (!uid) return fail("bad_request", "Kein Nutzer.");
     if (!isOwnEventId(eventId)) {
@@ -217,6 +273,8 @@ function submitSignup(eventId, userId, input = {}, { byOrga = false, now = Date.
     if (!event) return fail("not_found", "Event nicht gefunden.");
     const profile = profiles.getProfile(uid);
     const previous = signupStore.getSignup(event.id, uid);
+    const access = await checkRaiderRole(event, uid, { byOrga, previous, roleIds, config });
+    if (access.error) return access;
     const checked = validateSignup(event, input, { profile, previous, byOrga, now });
     if (checked.error) return checked;
     const saved = signupStore.saveSignup(event.id, uid, checked.value, { versionId: event.versionId });
@@ -227,12 +285,14 @@ function submitSignup(eventId, userId, input = {}, { byOrga = false, now = Date.
 /** HTTP status for a service error code. */
 function httpStatusFor(code) {
     if (code === "not_found") return 404;
+    if (code === "raider_role") return 403;
     if (code === "deadline" || code === "started" || code === "raidhelper") return 409;
     return 400;
 }
 
 module.exports = {
-    AFTER_DEADLINE, ATTENDING,
+    AFTER_DEADLINE, ATTENDING, RAIDER_ROLE_ERROR,
+    categoryRoleAllowed, categoryVisible, checkRaiderRole,
     rosterCounts, roleCounts, signupWindow, allowedStatuses,
     findCharacter, profileRoles, defaultCanAlso, wishPartnersSignedUp,
     validateSignup, submitSignup, httpStatusFor,

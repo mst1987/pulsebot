@@ -5,7 +5,8 @@
 // without Discord or Raid-Helper.
 const profiles = require("./raiderProfileStore");
 const { getEvent } = require("./eventStore");
-const { profileRoles, roleCounts, signupWindow, allowedStatuses, wishPartnersSignedUp } = require("./signupService");
+// categoryVisible lives in the service: the same raider-role rule guards saving a signup (submitSignup).
+const { categoryVisible, profileRoles, roleCounts, signupWindow, allowedStatuses, wishPartnersSignedUp } = require("./signupService");
 const { upcomingRows } = require("./raidListing");
 const { instanceById, rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { signupStatus } = require("../utils/attendance");
@@ -14,23 +15,6 @@ const { approvedPlacementFor } = require("./setupEditor");
 const CLASS_COLORS = new Map(rulesFor(DEFAULT_VERSION).classes.map((c) => [c.id, c.color]));
 
 const discordChannelUrl = (guildId, channelId) => (guildId && channelId ? `https://discord.com/channels/${guildId}/${channelId}` : "");
-
-/**
- * Whether a member sees a category's events on the page. Only the event
- * categories count (`config.categoryIds`, when any are set); a category with
- * raider roles (`config.categoryRoles`) is for the holders of one of them. When
- * the member's roles cannot be read (`roleIds === null`) the category shows —
- * an event post in Discord is no secret, a missing raid is a real loss. The
- * orga sees everything.
- */
-function categoryVisible(categoryId, { config = {}, roleIds = null, orga = false } = {}) {
-    if (orga) return true;
-    const cats = Array.isArray(config.categoryIds) ? config.categoryIds.map(String) : [];
-    if (cats.length && !cats.includes(String(categoryId || ""))) return false;
-    const roles = ((config.categoryRoles || {})[String(categoryId || "")] || []).map(String);
-    if (!roles.length || roleIds === null) return true;
-    return roles.some((r) => roleIds.includes(r));
-}
 
 /** A profile's characters as the signup dialog picks from them. */
 function profileForSignup(profile) {

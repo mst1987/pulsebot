@@ -6,11 +6,14 @@ const { activeGuildFor } = require("../activeGuild");
 const discord = require("../discord");
 const discordChannels = require("../discordChannels");
 const archiveStore = require("../channelArchiveStore");
-const { listStoredEvents, ownUpcomingRaw } = require("../eventSources");
+const { listStoredEvents, ownUpcomingRaw, signupSourceFor } = require("../eventSources");
 const { fetchEventsCached } = require("../raidEventGroups");
 const { runSerial, summarize, eventStatusByChannel } = require("../channelOps");
-const { getConfig, listRecruitmentPosts } = require("../settingsStore");
+const { getConfig, getRaidTemplate, listRecruitmentPosts } = require("../settingsStore");
 const { resolvePurposes, purposeSummary } = require("../channelPurposes");
+const eventCreate = require("../eventCreate");
+const { userCanAny } = require("../../config/permissions");
+const { parseClockTime } = require("../../utils/date");
 const { DEFAULT_SCHEMA, PLACEHOLDERS, planChannels, renderChannelName } = require("../../utils/channelNames");
 
 /** The word a bulk delete must be confirmed with (a single delete wants the channel's name). */
@@ -72,6 +75,27 @@ function archiveFor(guildId, channels, connected) {
 }
 
 /**
+ * What "gleich Event anlegen" in the quick-create would use per category: the
+ * category's default raid template (`categoryRaidTemplate`, #266) and the source
+ * of its new events (`categorySignupSource`). Only categories with either.
+ * @returns {Record<string, { templateId: string, templateName: string, source: string }>}
+ */
+function quickEventDefaults(categories, config = getConfig()) {
+    const out = {};
+    const templates = config.categoryRaidTemplate || {};
+    for (const c of categories || []) {
+        const templateId = String(templates[c.id] || "");
+        const template = templateId ? getRaidTemplate(templateId) : null;
+        out[c.id] = {
+            templateId: template ? template.id : "",
+            templateName: template ? template.name || template.id : "",
+            source: signupSourceFor(c.id),
+        };
+    }
+    return out;
+}
+
+/**
  * GET /api/channels — the active guild's categories and channels (with the
  * bot's rights, topic and slowmode per channel), what the bot uses which
  * channel for (`purposes`, settings — see channelPurposes.js), which channels
@@ -104,6 +128,9 @@ async function getChannels(req, res) {
         events: guildId ? eventStatusByChannel(await eventsFor(guildId)) : {},
         archive: archiveFor(guildId, channels, connected),
         schemas: config.schemas,
+        // "gleich Event anlegen" (quick-create): only offered to whoever may create raids.
+        canCreateEvents: userCanAny(user, ["raids"], "write"),
+        eventDefaults: quickEventDefaults(categories),
         defaultSchema: DEFAULT_SCHEMA,
         placeholders: PLACEHOLDERS,
     });
@@ -272,11 +299,35 @@ async function renamePreview(req, res) {
 }
 
 /**
+ * The job toast's text after a quick-create with events: the totals, then one
+ * line per channel whose event did not come about. `results` are runSerial's.
+ */
+function eventBatchMessage(results, skipped) {
+    const channels = summarize(results, "angelegt");
+    const withChannel = results.filter((r) => r.ok);
+    const events = withChannel.filter((r) => r.eventId).length;
+    const lines = [`${channels.message} · ${events} ${events === 1 ? "Event" : "Events"} angelegt${skipped ? ` · ${skipped} übersprungen (existiert)` : ""}`];
+    for (const r of results) {
+        if (!r.ok) lines.push(`${r.id}: Kanal fehlgeschlagen – ${r.error}`);
+        else if (!r.eventId) lines.push(`${r.name || r.id}: Event fehlgeschlagen – ${r.eventError}`);
+        else if (r.messageError) lines.push(`${r.name || r.id}: Event angelegt, Nachricht fehlt – ${r.messageError}`);
+    }
+    return { message: lines.join("\n"), failed: channels.failed + (withChannel.length - events) };
+}
+
+/**
  * POST /api/channels/batch — quick-create by naming schema. Body:
- * `{ categoryId, schema, raid, tag, from, count, interval, templateChannelId, dryRun, saveSchema }`.
+ * `{ categoryId, schema, raid, tag, from, count, interval, templateChannelId, dryRun, saveSchema, withEvent, time }`.
  * `dryRun` only answers the plan (names, and which exist already); otherwise the
  * missing ones are created one after another and existing names are skipped,
- * never duplicated. `saveSchema` remembers schema, raid and template for the category.
+ * never duplicated. `saveSchema` remembers schema, raid and template (and the
+ * time, with an event) for the category.
+ *
+ * `withEvent` ("gleich Event anlegen", needs `raids` write and a category) makes
+ * an event in every channel created, through eventCreate.createEvent — the one
+ * way in: date from the series, `time`, the category's default raid template
+ * and the category's source (Raid-Helper or EventHelper). A channel whose event
+ * fails stays; the result says so per channel (`eventId` / `eventError`).
  */
 async function batchCreate(req, res) {
     const user = requireAdmin(req, res);
@@ -294,15 +345,50 @@ async function batchCreate(req, res) {
     if (!plan.length) return error(res, 400, "invalid_date", "Kein gültiges Datum.");
     if (body.dryRun) return ok(res, { plan });
 
+    const withEvent = body.withEvent === true;
+    const time = withEvent ? parseClockTime(body.time) : "";
+    if (withEvent) {
+        if (!userCanAny(user, ["raids"], "write")) return error(res, 403, "forbidden", "Events anlegen braucht Schreibrechte für Raids.");
+        if (!categoryId) return error(res, 400, "no_category", "Für Events braucht es eine Kategorie.");
+        if (!time) return error(res, 400, "invalid_time", "Ungültige Uhrzeit.");
+    }
+
     if (body.saveSchema && categoryId) {
-        archiveStore.saveCategorySchema(guildId, categoryId, { schema, raid: body.raid || "", templateChannelId: body.templateChannelId || "" });
+        archiveStore.saveCategorySchema(guildId, categoryId, {
+            schema, raid: body.raid || "", templateChannelId: body.templateChannelId || "", ...(withEvent ? { time } : {}),
+        });
     }
     const todo = plan.filter((p) => !p.exists);
+    const dayByName = new Map(todo.map((p) => [p.name, p.date]));
     const templateChannelId = String(body.templateChannelId || "").trim();
-    const created = await runSerial(todo.map((p) => p.name), (name) => discordChannels.createFromTemplate(guildId, {
-        name, parentId: categoryId, templateChannelId,
-    }));
+    const defaults = withEvent ? quickEventDefaults([{ id: categoryId }])[categoryId] : null;
+    const title = defaults
+        ? defaults.templateName || ((discord.listCategories(guildId) || []).find((c) => c.id === categoryId) || {}).name || "Raid"
+        : "";
+    const created = await runSerial(todo.map((p) => p.name), async (name) => {
+        const channel = await discordChannels.createFromTemplate(guildId, { name, parentId: categoryId, templateChannelId });
+        if (!withEvent) return channel;
+        const made = await eventCreate.createEvent({
+            guildId,
+            user,
+            body: {
+                title,
+                date: dayByName.get(name),
+                time,
+                channelId: channel.id,
+                signupSource: defaults.source,
+                ...(defaults.templateId ? { raidTemplateId: defaults.templateId } : {}),
+            },
+        }).catch((e) => ({ error: { message: e.message || "Event konnte nicht angelegt werden." } }));
+        if (made.error) return { ...channel, channelId: channel.id, eventError: made.error.message };
+        const eventId = String((made.body && (made.body.id || made.body.eventId || (made.body.event && made.body.event.id))) || "created");
+        return { ...channel, channelId: channel.id, eventId, messageError: (made.body && made.body.messageError) || undefined };
+    });
     const skipped = plan.length - todo.length;
+    if (withEvent) {
+        const summary = eventBatchMessage(created, skipped);
+        return ok(res, { plan, results: created, skipped, done: created.filter((r) => r.ok).length, ...summary }, 201);
+    }
     const summary = summarize(created, "angelegt");
     ok(res, {
         plan,

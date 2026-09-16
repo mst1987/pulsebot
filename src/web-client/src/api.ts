@@ -227,13 +227,19 @@ export type ChannelsData = {
     archive: ChannelArchive;
     /** Stored quick-create schema per category id. */
     schemas: Record<string, ChannelSchema>;
+    /** Whether the viewer may use "gleich Event anlegen" (raids write). */
+    canCreateEvents?: boolean;
+    /** Per category: its default raid template and the source of new events. */
+    eventDefaults?: Record<string, ChannelEventDefaults>;
     defaultSchema: string;
     placeholders: { key: string; hint: string }[];
 };
 
 export type ChannelDetails = { topic: string; rateLimitPerUser: number; permissionsLocked: boolean | null };
 export type ChannelEvent = { status: "event" | "past"; title: string; startTime: number; eventId: string };
-export type ChannelSchema = { schema: string; raid: string; templateChannelId: string };
+/** `time` = the start time "gleich Event anlegen" last used in the category. */
+export type ChannelSchema = { schema: string; raid: string; templateChannelId: string; time?: string };
+export type ChannelEventDefaults = { templateId: string; templateName: string; source: "raidhelper" | "eventhelper" };
 export type ChannelArchiveRow = {
     id: string;
     name: string;
@@ -253,7 +259,15 @@ export type ChannelArchive = {
 };
 
 /** One channel's outcome of a bulk action. */
-export type ChannelResult = { id: string; ok: boolean; error?: string; name?: string };
+export type ChannelResult = {
+    id: string;
+    ok: boolean;
+    error?: string;
+    name?: string;
+    /** Quick-create with "gleich Event anlegen": the event made in this channel, or why none. */
+    eventId?: string;
+    eventError?: string;
+};
 export type ChannelBulkResult = { results: ChannelResult[]; done: number; failed: number; message: string };
 export type ChannelChanges = { name?: string; topic?: string; parentId?: string; rateLimitPerUser?: number };
 
@@ -287,6 +301,9 @@ export type QuickCreateInput = {
     templateChannelId: string;
     saveSchema?: boolean;
     dryRun?: boolean;
+    /** "gleich Event anlegen": an event per created channel at `time` ("19:30"). */
+    withEvent?: boolean;
+    time?: string;
 };
 export type QuickCreatePlanRow = { date: string; name: string; exists: boolean };
 
@@ -1170,6 +1187,36 @@ export type ReusableEvent = {
     contentIds: string[];
 };
 
+/** An EventHelper event as src/web/eventStore.js hands it out (the fields the dialog reads). */
+export type OwnEvent = {
+    id: string;
+    source: "eventhelper";
+    guildId: string;
+    categoryId: string;
+    categoryName: string;
+    channelId: string;
+    channelName: string;
+    title: string;
+    description: string;
+    leaderId: string;
+    /** unix seconds */
+    startTime: number;
+    versionId: string;
+    instanceIds: string[];
+    size: number;
+    /** melee/ranged: the minimum (0 = no target) */
+    composition: { tank: number; healer: number; melee: number; ranged: number };
+    /** the optional maxima of melee/ranged, null = open */
+    compositionMax: { melee: number | null; ranged: number | null };
+    requiredBuffs: string[];
+    raidTemplateId: string;
+    /** unix seconds, 0 = none */
+    signupDeadline: number;
+    fairness: boolean;
+    wishes: boolean;
+    autoSuggest: boolean;
+};
+
 export type RaidCreateContext = {
     /** templateId: the Raid-Helper template of the default channel's category */
     defaults: { templateId: string; channelId: string };
@@ -1179,13 +1226,44 @@ export type RaidCreateContext = {
     channels: Channel[];
     templates: RaidTemplate[];
     reusableEvents: ReusableEvent[];
+    /** category id → "eventhelper" for categories whose new events live in the EventHelper */
+    signupSources?: Record<string, EventSource>;
+    // The planning step (#261).
+    categories?: { id: string; name: string }[];
+    /** category id → raid template id of its default */
+    categoryRaidTemplates?: Record<string, string>;
+    /** the raid templates with their badges (needsSize, incomplete, defaultFor) */
+    raidTemplates?: RaidTemplate[];
+    versions?: GameVersion[];
+    defaultVersion?: string;
+    /** category id → its channel naming schema (Kanäle) */
+    channelSchemas?: Record<string, { schema: string; raid: string }>;
+    defaultSchema?: string;
+    /** the own event ?event= names, for the edit mode */
+    editEvent?: OwnEvent | null;
 };
 
-export function getRaidCreateContext(): Promise<RaidCreateContext> {
-    return get<RaidCreateContext>("/api/raids/new");
+/** The create dialog's material; with an own event id also that event, for editing it. */
+export function getRaidCreateContext(eventId = ""): Promise<RaidCreateContext> {
+    return get<RaidCreateContext>(eventId ? `/api/raids/new?event=${encodeURIComponent(eventId)}` : "/api/raids/new");
 }
 
-export type CreateRaidInput = {
+/** The planning fields of an EventHelper event, as POST and PATCH /api/raids take them. */
+export type EventPlanInput = {
+    raidTemplateId: string;
+    versionId: string;
+    instanceIds: string[];
+    size: number;
+    composition: { tank: number; healer: number; melee: RoleRange | null; ranged: RoleRange | null };
+    requiredBuffs: string[];
+    /** hours before the start, 0 = no deadline — counted in Berlin time on the server */
+    signupDeadlineHours: number;
+    fairness: boolean;
+    wishes: boolean;
+    autoSuggest: boolean;
+};
+
+export type CreateRaidInput = Partial<EventPlanInput> & {
     title: string;
     date: string;
     time: string;
@@ -1193,12 +1271,30 @@ export type CreateRaidInput = {
     channelId?: string;
     channelName?: string;
     sourceEventId?: string;
+    /** a new channel in the category; an empty name is filled from the category's schema (same shape as /event anlegen) */
+    newChannel?: { name: string; categoryId: string; templateChannelId?: string };
+    /** overrides the category's default source */
+    signupSource?: EventSource;
     leaderId: string;
     description: string;
 };
 
-export function createRaid(csrfToken: string | null, input: CreateRaidInput): Promise<{ id?: string }> {
+export function createRaid(csrfToken: string | null, input: CreateRaidInput): Promise<{ id?: string; messageError?: string | null }> {
     return send("POST", "/api/raids", csrfToken, input);
+}
+
+export type UpdateRaidInput = Partial<EventPlanInput> & {
+    id: string;
+    title: string;
+    date: string;
+    time: string;
+    leaderId: string;
+    description: string;
+};
+
+/** Edit an own (EventHelper) event with the same dialog (#261). */
+export function updateRaid(csrfToken: string | null, input: UpdateRaidInput): Promise<{ id: string; messageError?: string | null }> {
+    return send("PATCH", "/api/raids", csrfToken, input);
 }
 
 // Rule sets per game version (src/config/gameVersions, GET /api/game-versions).
@@ -3212,7 +3308,8 @@ export type SetupWeights = Record<string, number>;
 export type StoredSetup = {
     status: "draft" | "approved";
     version: number;
-    origin: "proposal" | "manual";
+    /** "auto" = drafted at the signup deadline without anybody asking (eventStore.saveSetupDraft). */
+    origin: "proposal" | "manual" | "auto";
     groups: SetupEditorGroup[];
     bench: SetupPerson[];
     checks: SetupChecks;
