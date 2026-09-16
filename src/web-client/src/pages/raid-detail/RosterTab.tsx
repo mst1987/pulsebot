@@ -214,7 +214,9 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
             </Button>
         )
         : null;
-    const action = addRaider && pingAction ? <span className="em-head-actions">{addRaider}{pingAction}</span> : addRaider || pingAction;
+    // The ping (or why the attendance check cannot run) stays; "Raider eintragen" sits beside it.
+    const own = pingAction || (attendanceOk ? null : state);
+    const action = addRaider && own ? <span className="em-head-actions">{addRaider}{own}</span> : addRaider || own;
 
     return (
         <section className="panel rd-panel">
@@ -222,7 +224,7 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
                 icon="achievement_guildperk_everybodysfriend"
                 title="Roster"
                 crumb={crumb}
-                action={action || (attendanceOk ? null : state)}
+                action={action}
             />
 
             {setupError && <div className="flash flash-err">Setup konnte nicht geladen werden: {setupError}</div>}

@@ -176,7 +176,7 @@ describe("the raid detail page", () => {
     });
 
     it("styles everything in its own stylesheet under em-", () => {
-        const css = read("styles", "event-manage.css");
+        const css = read("styles", "event-manage.css").replace(/\/\*[\s\S]*?\*\//g, "");
         const classes = [...css.matchAll(/\.([a-z][\w-]*)/g)].map((m) => m[1]).filter((c) => !["btn", "wi", "badge", "danger", "on", "is-loading"].includes(c));
         for (const c of classes) expect({ c, ok: c.startsWith("em-") }).toEqual({ c, ok: true });
         expect(page).toContain("import \"../styles/event-manage.css\";");

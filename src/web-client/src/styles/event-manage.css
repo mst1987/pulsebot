@@ -6,7 +6,8 @@
 .em-chev { display: inline-flex; margin-left: 2px; color: var(--muted); }
 .em-chev svg { width: 14px; height: 14px; }
 .em-pop {
-    position: absolute; z-index: 40; top: calc(100% + 6px); right: 0; width: 300px;
+    /* top/right come from the button (ManageMenu.tsx): portalled into <body>, out of the clipped head */
+    position: fixed; z-index: 60; width: 300px; max-height: calc(100vh - 24px); overflow-y: auto;
     display: flex; flex-direction: column; gap: 1px; padding: 6px;
     background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
     box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .55);
