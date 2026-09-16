@@ -93,6 +93,28 @@ function normalizeSignup(input = {}, { versionId = DEFAULT_VERSION } = {}) {
 }
 
 /**
+ * A user's most recently saved signup with a spec, over every event — the
+ * "zuletzt" of the Discord character select (#287). Null without one.
+ * @returns {{ eventId: string, character: string, spec: string }|null}
+ */
+function lastSignupOf(userId) {
+    const uid = String(userId || "");
+    if (!uid) return null;
+    let best = null;
+    let bestAt = -1;
+    for (const [eventId, byUser] of Object.entries(readAll())) {
+        const s = byUser && byUser[uid];
+        if (!s || !s.spec || s.status === "absence") continue;
+        const at = Number(s.updatedAt) || Number(s.at) || 0;
+        if (at > bestAt) {
+            best = { eventId, character: s.character || "", spec: s.spec };
+            bestAt = at;
+        }
+    }
+    return best;
+}
+
+/**
  * Create or replace a user's signup. `at` is kept from a previous signup, so
  * changing the spec does not move somebody to the end of the list.
  * @returns {{ signup?: object, error?: string }}
@@ -135,6 +157,6 @@ function deleteEventSignups(eventId) {
 }
 
 module.exports = {
-    listSignups, getSignup, saveSignup, removeSignup, deleteEventSignups,
+    listSignups, getSignup, lastSignupOf, saveSignup, removeSignup, deleteEventSignups,
     normalizeSignup, onSignupsChanged, SIGNUPS_FILE,
 };

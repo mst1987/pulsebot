@@ -1,4 +1,5 @@
-﻿const { createRaidhelperClient } = require("./raidhelperClient");
+﻿const { MessageFlags } = require("discord.js");
+const { createRaidhelperClient } = require("./raidhelperClient");
 const extendedClassList = require("../config/classlist.js");
 const { formatTimestampToDateString } = require("./date.js");
 const {
@@ -45,7 +46,7 @@ async function botReply(
                 description: message,
                 color: embedAccentColor,
             }, ],
-            ephemeral: ephemeral,
+            ...(ephemeral ? { flags: MessageFlags.Ephemeral } : {}),
             components,
         });
 
@@ -72,7 +73,6 @@ async function botEditReply(
                 description: message,
                 color: embedAccentColor,
             }, ],
-            ephemeral: ephemeral,
             components,
         });
     } catch (error) {
@@ -92,7 +92,7 @@ async function botFollowup(
             embeds: [{
                 description: message,
             }, ],
-            ephemeral: ephemeral,
+            ...(ephemeral ? { flags: MessageFlags.Ephemeral } : {}),
             components,
         });
 

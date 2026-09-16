@@ -1,4 +1,5 @@
 ﻿const { getAllSignUps } = require("../../utils/raidhelper");
+const { MessageFlags } = require("discord.js");
 const { botEditReply } = require("../../utils/helper");
 const messages = require("../../config/messages");
 
@@ -9,7 +10,7 @@ module.exports = {
     defaultAccess: "everyone",
     async execute(interaction, client) {
         try {
-            await interaction.deferReply({ ephemeral: true });
+            await interaction.deferReply({ flags: MessageFlags.Ephemeral });
             if (!interaction.channel.parent) {
                 return botEditReply(interaction, "Fehler", "Dieser Befehl muss in einem Kanal mit einer Kategorie ausgeführt werden.");
             }

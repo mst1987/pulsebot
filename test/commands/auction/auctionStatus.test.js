@@ -27,7 +27,7 @@ describe("commands/auction/auctionStatus", () => {
         expect(interaction.reply).toHaveBeenCalledTimes(1);
         const arg = interaction.reply.mock.calls[0][0];
         expect(arg.embeds[0].title).toBe("Auktionsübersicht");
-        // botReply called with ephemeral=false, timeout=0
-        expect(arg.ephemeral).toBe(false);
+        // botReply called non-ephemeral (no flags), timeout=0
+        expect(arg.flags).toBeUndefined();
     });
 });

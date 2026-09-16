@@ -13,7 +13,7 @@ jest.mock("fs", () => {
 
 const fs = require("fs");
 const {
-    listSignups, getSignup, saveSignup, removeSignup, deleteEventSignups, normalizeSignup, onSignupsChanged,
+    listSignups, getSignup, lastSignupOf, saveSignup, removeSignup, deleteEventSignups, normalizeSignup, onSignupsChanged,
 } = require("../../src/web/signupStore");
 
 describe("web/signupStore", () => {
@@ -28,6 +28,24 @@ describe("web/signupStore", () => {
             status: "signed", canAlso: ["healer"], comment: "komme später",
         });
         expect(getSignup("eh-1", "u1")).toEqual(signup);
+    });
+
+    it("knows the spec a user signed up with last, over every event (#287)", () => {
+        const now = jest.spyOn(Date, "now");
+        try {
+            now.mockReturnValue(1000);
+            saveSignup("eh-1", "u1", { character: "Schattenmann", spec: "Priest-Shadow", status: "signed" });
+            now.mockReturnValue(2000);
+            saveSignup("eh-2", "u1", { character: "Heilmann", spec: "Priest-Holy", status: "late" });
+            now.mockReturnValue(3000);
+            saveSignup("eh-3", "u1", { status: "absence" });
+            saveSignup("eh-3", "u2", { character: "Other", spec: "Mage-Frost", status: "signed" });
+        } finally {
+            now.mockRestore();
+        }
+        expect(lastSignupOf("u1")).toEqual({ eventId: "eh-2", character: "Heilmann", spec: "Priest-Holy" });
+        expect(lastSignupOf("nobody")).toBeNull();
+        expect(lastSignupOf("")).toBeNull();
     });
 
     it("knows every status Raid-Helper's normalised signups have", () => {

@@ -1,3 +1,4 @@
+const { MessageFlags } = require("discord.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
 jest.mock("../../../src/classes/raidhelper.js");
@@ -35,7 +36,7 @@ describe("commands/setup/showAllSetups", () => {
 
         await showAllSetups.execute(interaction, {});
 
-        expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+        expect(interaction.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
         expect(interaction.reply).not.toHaveBeenCalled();
     });
 

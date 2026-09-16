@@ -1,4 +1,5 @@
 // Der „Anmelden“-Button unter der Event-Nachricht öffnet den Anmelde-Dialog (#258).
+const { MessageFlags } = require("discord.js");
 const os = require("os");
 const path = require("path");
 
@@ -37,7 +38,7 @@ describe("commands/signup/eventSignup", () => {
         const interaction = mockInteraction({ customId: "event-signup:eh-kara", userId: ANNA });
         await command.execute(interaction);
         const payload = interaction.reply.mock.calls[0][0];
-        expect(payload.ephemeral).toBe(true);
+        expect(payload.flags).toBe(MessageFlags.Ephemeral);
         expect(payload.embeds[0].title).toBe("Karazhan");
         const ids = payload.components.flatMap((r) => r.components).map((c) => c.custom_id).filter(Boolean);
         expect(ids).toContain("signup-status:eh-kara:s:nerathil:Mage-Arcane:");
@@ -49,7 +50,7 @@ describe("commands/signup/eventSignup", () => {
         mocks.access.roleIds = ["role-other"];
         let interaction = mockInteraction({ customId: "event-signup:eh-kara", userId: ANNA });
         await command.execute(interaction);
-        expect(interaction.reply).toHaveBeenCalledWith({ content: "Für diesen Raid brauchst du eine Raider-Rolle.", ephemeral: true });
+        expect(interaction.reply).toHaveBeenCalledWith({ content: "Für diesen Raid brauchst du eine Raider-Rolle.", flags: MessageFlags.Ephemeral });
         expect(mocks.memberRoleIds).toHaveBeenCalledWith("g-event", ANNA);
 
         // …an own signup from before may still be changed
@@ -62,6 +63,6 @@ describe("commands/signup/eventSignup", () => {
     it("says so when the event is gone", async () => {
         const interaction = mockInteraction({ customId: "event-signup:eh-9" });
         await command.execute(interaction);
-        expect(interaction.reply).toHaveBeenCalledWith({ content: "Dieses Event gibt es nicht mehr.", ephemeral: true });
+        expect(interaction.reply).toHaveBeenCalledWith({ content: "Dieses Event gibt es nicht mehr.", flags: MessageFlags.Ephemeral });
     });
 });

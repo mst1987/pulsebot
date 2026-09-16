@@ -103,6 +103,8 @@ function mockInteraction(opts = {}) {
         deferUpdate: jest.fn().mockResolvedValue(undefined),
         // The picked entries of a select menu.
         values: opts.values || [],
+        // The bot client (application emojis, …); null unless a test hands one in.
+        client: opts.client || null,
         fetchReply: jest.fn().mockResolvedValue(sentMessage),
         options: {
             getString: jest.fn((name) => getOpt(name)),

@@ -5,6 +5,7 @@ jest.mock("../../src/web/discord", () => ({
     fetchGuildMembersCached: jest.fn(async () => []),
 }));
 
+const { MessageFlags } = require("discord.js");
 const settingsStore = require("../../src/web/settingsStore");
 const discord = require("../../src/web/discord");
 const { logcheckAdminIds } = require("../../src/config/variables");
@@ -170,7 +171,7 @@ describe("guardInteraction", () => {
     it("refuses with a message only the user sees", async () => {
         const interaction = mockInteraction({ userId: "555" });
         expect(await guardInteraction(interaction, COMMANDS.get("fillsetup"), COMMANDS)).toBe(false);
-        expect(interaction.reply).toHaveBeenCalledWith({ content: "Dieser Befehl ist Admins vorbehalten.", ephemeral: true });
+        expect(interaction.reply).toHaveBeenCalledWith({ content: "Dieser Befehl ist Admins vorbehalten.", flags: MessageFlags.Ephemeral });
     });
 
     it("lets a member with a granted role run a button of that command", async () => {

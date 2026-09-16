@@ -5,6 +5,7 @@ jest.mock("../../../src/utils/logcheck/report.js", () => ({
     reportSummaryLines: jest.fn(() => ["👥 Raider: **25**"]),
 }));
 
+const { MessageFlags } = require("discord.js");
 const command = require("../../../src/commands/logcheck/logeval.js");
 const { evaluateLog } = require("../../../src/web/logChannel.js");
 const { reportSummaryLines } = require("../../../src/utils/logcheck/report.js");
@@ -38,7 +39,7 @@ describe("commands/logcheck/logeval", () => {
 
         await command.execute(interaction);
 
-        expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+        expect(interaction.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
         expect(evaluateLog).toHaveBeenCalledWith("log1", "cla");
         expect(discord.finishLogButton).toHaveBeenCalledWith("logch", "btn1", {
             reportUrl: "https://host/r/abc123",

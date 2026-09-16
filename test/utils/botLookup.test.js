@@ -2,6 +2,7 @@ const {
     EMBED_LIMITS, clip, webUrl, clampEmbed, embedSize, linkRow, lookupReply, deferLookup,
     rankChoices, respondChoices, focusedName, discordTime, plural,
 } = require("../../src/utils/botLookup");
+const { MessageFlags } = require("discord.js");
 const { publicBaseUrl } = require("../../src/config/variables");
 const { mockInteraction } = require("../helpers/mockInteraction");
 
@@ -49,14 +50,14 @@ describe("utils/botLookup", () => {
     it("replies ephemerally, or edits after a defer", async () => {
         const i = mockInteraction();
         await lookupReply(i, { title: "T" }, [{ label: "Im Web öffnen", url: "https://x" }]);
-        expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ ephemeral: true, embeds: [expect.objectContaining({ title: "T" })] }));
+        expect(i.reply).toHaveBeenCalledWith(expect.objectContaining({ flags: MessageFlags.Ephemeral, embeds: [expect.objectContaining({ title: "T" })] }));
 
         const d = mockInteraction();
         await deferLookup(d);
-        expect(d.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+        expect(d.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
         await lookupReply(d, { title: "T" });
         expect(d.editReply).toHaveBeenCalled();
-        expect(d.editReply.mock.calls[0][0].ephemeral).toBeUndefined();
+        expect(d.editReply.mock.calls[0][0].flags).toBeUndefined();
     });
 
     it("ranks choices by prefix, then by substring, capped at 25 and 100 characters", () => {

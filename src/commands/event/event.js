@@ -2,6 +2,7 @@
 // ephemeral message with the selects. The selects and buttons are
 // eventCreateStep.js, the modal is eventCreateModal.js, the logic is
 // web/eventDraft.js and the creation itself web/eventCreate.js.
+const { MessageFlags } = require("discord.js");
 const { guildFor, initialState, stepMessage } = require("../../web/eventDraft");
 
 module.exports = {
@@ -14,12 +15,12 @@ module.exports = {
         const sub = interaction.options && typeof interaction.options.getSubcommand === "function"
             ? interaction.options.getSubcommand(false)
             : "";
-        if (sub !== "anlegen") return interaction.reply({ content: "Diese Aktion gibt es nicht.", ephemeral: true });
+        if (sub !== "anlegen") return interaction.reply({ content: "Diese Aktion gibt es nicht.", flags: MessageFlags.Ephemeral });
 
         const { guildId, error } = guildFor(interaction);
-        if (error) return interaction.reply({ content: error, ephemeral: true });
+        if (error) return interaction.reply({ content: error, flags: MessageFlags.Ephemeral });
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         const channel = interaction.channel || {};
         const parentId = String(channel.parentId || (channel.parent && channel.parent.id) || "");
         const { payload } = await stepMessage(guildId, initialState(guildId, parentId));

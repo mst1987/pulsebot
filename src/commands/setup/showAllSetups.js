@@ -1,4 +1,5 @@
 ﻿const { getSetupsFromEvents } = require("../../utils/raidhelper");
+const { MessageFlags } = require("discord.js");
 const { botEditReply } = require("../../utils/helper");
 const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const { setupResponse } = require("../../utils/responses");
@@ -12,7 +13,7 @@ module.exports = {
     defaultAccess: "everyone",
     async execute(interaction, client) {
         const raidhelper = createRaidhelperClient();
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         const rhEvents = await raidhelper.getUserSignUps(interaction.user.id);
         // Own EventHelper events count too; getSetupsFromEvents only shows their approved setup.
         const events = [...(Array.isArray(rhEvents) ? rhEvents : []), ...ownSignedUpEvents(interaction.user.id)];

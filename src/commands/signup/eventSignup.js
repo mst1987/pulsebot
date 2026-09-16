@@ -1,3 +1,4 @@
+const { MessageFlags } = require("discord.js");
 const { getEvent } = require("../../web/eventStore");
 const { SIGNUP_BUTTON_PREFIX } = require("../../web/eventMessage");
 const { checkRaiderRole } = require("../../web/signupService");
@@ -18,10 +19,10 @@ module.exports = {
         const eventId = String(interaction.customId || "").split(":")[1] || "";
         const event = getEvent(eventId);
         if (!event) {
-            return interaction.reply({ content: "Dieses Event gibt es nicht mehr.", ephemeral: true });
+            return interaction.reply({ content: "Dieses Event gibt es nicht mehr.", flags: MessageFlags.Ephemeral });
         }
         const access = await checkRaiderRole(event, interaction.user.id);
-        if (access.error) return interaction.reply({ content: access.error, ephemeral: true });
-        return interaction.reply({ ...buildSignupDialog(event, interaction.user.id), ephemeral: true });
+        if (access.error) return interaction.reply({ content: access.error, flags: MessageFlags.Ephemeral });
+        return interaction.reply({ ...buildSignupDialog(event, interaction.user.id), flags: MessageFlags.Ephemeral });
     },
 };

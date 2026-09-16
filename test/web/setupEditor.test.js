@@ -198,7 +198,7 @@ describe("what raiders see", () => {
         expect(reader.approved).toBeNull();
         expect(JSON.stringify(reader)).not.toContain(someone);
         const msg = buildEventMessage(event, []);
-        expect(JSON.stringify(msg.embeds[0].toJSON())).not.toContain("Setup");
+        expect(JSON.stringify(msg.embeds[0])).not.toContain("Setup");
     });
 
     it("shows the approved lineup — in the event message, as a placement and as raidplan slots", () => {
@@ -219,7 +219,7 @@ describe("what raiders see", () => {
     });
 
     function msg(event) {
-        return buildEventMessage(event, []).embeds[0].toJSON().fields.find((f) => f.name.includes("Setup"));
+        return buildEventMessage(event, []).embeds[0].fields.find((f) => f.name.includes("Setup"));
     }
 
     it("gives the orga the draft with names, defaults and the key flag", () => {

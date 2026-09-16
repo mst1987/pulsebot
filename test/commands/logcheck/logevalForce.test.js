@@ -13,6 +13,7 @@ jest.mock("../../../src/utils/logcheck/report.js", () => ({
     ReportError: class ReportError extends Error {},
 }));
 
+const { MessageFlags } = require("discord.js");
 const command = require("../../../src/commands/logcheck/logevalForce.js");
 const { evaluateLog } = require("../../../src/web/logChannel.js");
 const { buildReport } = require("../../../src/utils/logcheck/report.js");
@@ -106,7 +107,7 @@ describe("commands/logcheck/logevalForce — the submitted modal", () => {
         expect(interaction.deferReply).not.toHaveBeenCalled();
         expect(interaction.reply).toHaveBeenCalledWith(expect.objectContaining({
             content: expect.stringContaining("Abgebrochen"),
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
         }));
     });
 

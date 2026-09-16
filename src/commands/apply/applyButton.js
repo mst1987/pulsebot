@@ -1,4 +1,4 @@
-const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
+const { MessageFlags, ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
 const { CLASSES } = require("../../config/applyClasses");
 
 module.exports = {
@@ -29,7 +29,7 @@ module.exports = {
         await interaction.reply({
             content: "**Schritt 1:** Wähle deine Klasse:",
             components: [new ActionRowBuilder().addComponents(select)],
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
         });
     },
 };

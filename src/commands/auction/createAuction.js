@@ -34,7 +34,6 @@ module.exports = {
                 description: "message",
             }, ],
             components: [row],
-            ephemeral: false,
         });
         const replyMessage = await interaction.fetchReply();
 

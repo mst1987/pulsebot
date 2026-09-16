@@ -1,4 +1,5 @@
 ﻿ 
+const { MessageFlags } = require("discord.js");
 const { showBidModal } = require("../../utils/auction");
 const { bidForLegendary } = require("../../utils/auction");
 
@@ -20,7 +21,7 @@ module.exports = {
         if (isNaN(bid)) {
           await modalInteraction.reply({
             content: "Bitte gib eine gültige Zahl ein.",
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
           return;
         }

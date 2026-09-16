@@ -1,5 +1,5 @@
 const {
-    ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder,
+    MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder,
 } = require("discord.js");
 const { listRecruitment, saveRecruitmentPost } = require("../../web/settingsStore");
 const { embedAccentColor } = require("../../config/variables");
@@ -10,7 +10,7 @@ module.exports = {
     group: "recruitment",
     defaultAccess: "admins",
     async execute(interaction) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const wanted = interaction.options.getString("vorlage");
         const targetChannel = interaction.options.getChannel("channel");

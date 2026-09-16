@@ -6,6 +6,7 @@ jest.mock("../../../src/web/attendanceLookup", () => {
 jest.mock("../../../src/web/rosterAttendance", () => ({ buildAttendanceContext: jest.fn(() => ({ ctx: 1 })) }));
 jest.mock("../../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
 
+const { MessageFlags } = require("discord.js");
 const own = require("../../../src/commands/lookup/anwesenheit");
 const other = require("../../../src/commands/lookup/anwesenheitRaider");
 const { myCharacters: charactersForUser } = require("../../../src/web/userCharacters");
@@ -37,7 +38,7 @@ describe("/anwesenheit", () => {
         const i = mockInteraction({ userId: "u1" });
         await own.execute(i);
         expect(characterAttendance).toHaveBeenCalledWith("event-guild", "Elesham", { ctx: { ctx: 1 } });
-        expect(i.reply.mock.calls[0][0].ephemeral).toBe(true);
+        expect(i.reply.mock.calls[0][0].flags).toBe(MessageFlags.Ephemeral);
         expect(embed(i).description).toBe("**75 %** · 9 von 12 Raids");
         expect(embed(i).fields.map((f) => f.name)).toEqual(["Montag", "Donnerstag"]);
         expect(buttons(i)[0].url).toMatch(/\/roster\/char\?name=Elesham$/);

@@ -7,6 +7,7 @@ jest.mock("../../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => ""
 jest.mock("../../../src/web/eventCreate", () => ({ createEvent: jest.fn() }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.test", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
+const { MessageFlags } = require("discord.js");
 const discord = require("../../../src/web/discord");
 const archiveStore = require("../../../src/web/channelArchiveStore");
 const settings = require("../../../src/web/settingsStore");
@@ -66,7 +67,7 @@ describe("/event anlegen — access", () => {
         ]) {
             const i = mockInteraction({ commandName: customId ? undefined : "event", customId, modal });
             expect(await guardInteraction(i, command, commands)).toBe(false);
-            expect(i.reply).toHaveBeenCalledWith({ content: "Dieser Befehl ist Admins vorbehalten.", ephemeral: true });
+            expect(i.reply).toHaveBeenCalledWith({ content: "Dieser Befehl ist Admins vorbehalten.", flags: MessageFlags.Ephemeral });
             expect(i.showModal).not.toHaveBeenCalled();
         }
 
@@ -82,7 +83,7 @@ describe("/event anlegen — step 1", () => {
     it("answers only the user, starting in the category of the channel", async () => {
         const i = mockInteraction({ commandName: "event", options: { __subcommand: "anlegen" }, channel: { id: "c", parentId: CAT_RH } });
         await eventCommand.execute(i);
-        expect(i.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+        expect(i.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
         const payload = lastPayload(i.editReply);
         expect(payload.embeds[0].description).toContain("**Kategorie:** PuG");
         expect(payload.embeds[0].description).toContain("**Anmeldung über:** Raid-Helper");
@@ -93,7 +94,7 @@ describe("/event anlegen — step 1", () => {
         eventGuildId.mockReturnValue("other-guild");
         const i = mockInteraction({ commandName: "event", options: { __subcommand: "anlegen" } });
         await eventCommand.execute(i);
-        expect(i.reply).toHaveBeenCalledWith({ content: "Events legst du auf dem Event-Server an.", ephemeral: true });
+        expect(i.reply).toHaveBeenCalledWith({ content: "Events legst du auf dem Event-Server an.", flags: MessageFlags.Ephemeral });
     });
 
     it("a select redraws the message with the choice in every customId", async () => {
