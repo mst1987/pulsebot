@@ -5,15 +5,17 @@ import {
     type ApiError, type GameRole, type OwnSignup, type OwnSignupRow, type SignupClass, type SignupCounts, type SignupProfile, type SignupStatus,
 } from "../api";
 import { Badge, Button, Modal, WowIcon } from "./ui";
-import { classColorProps } from "./ClassSpec";
 import { CheckIcon } from "./icons";
 import { useToast } from "./Jobs";
+import SignupCharacterPicks from "./SignupCharacterPicks";
 import { formatEventTime } from "../lib/format";
 import {
-    CAN_ALSO, GEAR_LABEL, ROLE_ORDER, SIGNUP_STATUS, SIGNUP_STATUS_ORDER, defaultCanAlso, roleCountText,
+    CAN_ALSO, ROLE_ORDER, SIGNUP_STATUS, SIGNUP_STATUS_ORDER, defaultCanAlso, roleCountText,
 } from "../lib/signups";
+import { initialPicks, picksToInput, type CharacterPick } from "../lib/signupPicks";
 
-// The signup dialog (#256): character and spec from the profile, the status,
+// The signup dialog (#256): characters and specs from the profile (several since
+// #293: the first is the choice, the others "kann auch mit"), the status,
 // "Ich kann auch", a comment — and nothing else. The role counts sit in the
 // head's kicker line, the wish partner as one badge, every explanation in a
 // tooltip. The server checks it all again (src/web/signupService.js); the
@@ -29,10 +31,9 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
 }) {
     const toast = useToast();
     const mine = row?.mine || null;
-    const firstChar = profile.characters.find((c) => c.main) || profile.characters[0];
 
-    const [characterKey, setCharacterKey] = useState("");
-    const [spec, setSpec] = useState("");
+    // Several own characters (#293): the first is the choice, the rest "kann auch mit".
+    const [picks, setPicks] = useState<CharacterPick[]>([]);
     const [status, setStatus] = useState<SignupStatus>("signed");
     const [canAlso, setCanAlso] = useState<GameRole[]>([]);
     const [comment, setComment] = useState("");
@@ -42,20 +43,19 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
     useEffect(() => {
         if (!row) return;
         const allowed = row.allowedStatuses;
-        const char = profile.characters.find((c) => c.name.toLowerCase() === (mine?.character || "").toLowerCase()) || firstChar;
-        const specKey = mine?.spec && char?.specs.some((s) => s.key === mine.spec) ? mine.spec : (char?.specs[0]?.key || "");
-        const role = char?.specs.find((s) => s.key === specKey)?.role || "";
+        const start = initialPicks(profile, mine);
+        const first = profile.characters.find((c) => c.key === start[0]?.characterKey);
+        const role = first?.specs.find((s) => s.key === start[0]?.spec)?.role || "";
         const wanted = mine?.status || "signed";
-        setCharacterKey(char?.key || "");
-        setSpec(specKey);
+        setPicks(start);
         setStatus(allowed.includes(wanted) || !allowed.length ? wanted : allowed[0]);
-        setCanAlso(mine ? mine.canAlso : (char ? defaultCanAlso(profile, char.key, role) : []));
+        setCanAlso(mine ? mine.canAlso : (first ? defaultCanAlso(profile, first.key, role) : []));
         setComment(mine?.comment || "");
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [row?.id]);
 
-    const character = profile.characters.find((c) => c.key === characterKey) || null;
-    const cls = classes.find((c) => c.id === character?.className);
+    const character = profile.characters.find((c) => c.key === picks[0]?.characterKey) || null;
+    const spec = picks[0]?.spec || "";
     const ownRole = character?.specs.find((s) => s.key === spec)?.role || "";
     const alsoOptions = useMemo(() => ROLE_ORDER.filter((r) => r !== ownRole), [ownRole]);
 
@@ -65,20 +65,14 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
     const noCharacter = !profile.characters.length;
     const closed = !row.allowedStatuses.length;
     const canSubmit = !busy && !closed && (absent || (!!character && !!spec));
-    const color = classColorProps(cls?.color);
 
-    const pickCharacter = (key: string) => {
-        const next = profile.characters.find((c) => c.key === key);
-        const nextSpec = next?.specs[0]?.key || "";
-        setCharacterKey(key);
-        setSpec(nextSpec);
-        if (!mine && next) setCanAlso(defaultCanAlso(profile, next.key, next.specs[0]?.role || ""));
-    };
-
-    const pickSpec = (key: string) => {
-        setSpec(key);
-        const role = character?.specs.find((s) => s.key === key)?.role || "";
-        setCanAlso((list) => list.filter((r) => r !== role));
+    const changePicks = (next: CharacterPick[]) => {
+        const firstChanged = next[0]?.characterKey !== picks[0]?.characterKey;
+        setPicks(next);
+        const head = profile.characters.find((c) => c.key === next[0]?.characterKey);
+        const role = head?.specs.find((s) => s.key === next[0]?.spec)?.role || "";
+        if (!mine && head && firstChanged) setCanAlso(defaultCanAlso(profile, head.key, role));
+        else setCanAlso((list) => list.filter((r) => r !== role));
     };
 
     const submit = async () => {
@@ -86,8 +80,7 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
         try {
             const res = await saveSignup(csrfToken, {
                 eventId: row.id,
-                character: absent && !character ? "" : character?.name || "",
-                spec: absent ? "" : spec,
+                characters: picksToInput(profile, picks),
                 status,
                 canAlso: absent ? [] : canAlso.filter((r) => r !== ownRole),
                 comment,
@@ -135,27 +128,7 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
                         In deinem Profil steht noch kein Charakter. <Link to="/profile">Charakter anlegen</Link> – abmelden geht auch ohne.
                     </p>
                 ) : (
-                    <div className="an-grid">
-                        <div className="field">
-                            <label htmlFor="an-char">Charakter</label>
-                            <div className="an-pick">
-                                {cls && <WowIcon name={cls.icon} size={22} />}
-                                <select id="an-char" value={characterKey} disabled={absent} onChange={(e) => pickCharacter(e.target.value)} {...color}>
-                                    {profile.characters.map((c) => <option key={c.key} value={c.key}>{c.name}{c.main ? " (Main)" : ""}</option>)}
-                                </select>
-                            </div>
-                        </div>
-                        <div className="field">
-                            <label htmlFor="an-spec">Spec</label>
-                            <div className="an-pick">
-                                {character?.specs.find((s) => s.key === spec) && <WowIcon name={character.specs.find((s) => s.key === spec)!.icon} size={22} />}
-                                <select id="an-spec" value={spec} disabled={absent || !character?.specs.length} onChange={(e) => pickSpec(e.target.value)}>
-                                    {!character?.specs.length && <option value="">kein Spec im Profil</option>}
-                                    {character?.specs.map((s) => <option key={s.key} value={s.key}>{s.label} · {GEAR_LABEL[s.gear] || s.gear}</option>)}
-                                </select>
-                            </div>
-                        </div>
-                    </div>
+                    <SignupCharacterPicks profile={profile} classes={classes} picks={picks} onChange={changePicks} disabled={absent} />
                 )}
 
                 <div className="field">

@@ -3,12 +3,13 @@ import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import type { ShellContext } from "../components/Shell";
 import {
     getSignups,
-    type ApiError, type OwnSignup, type OwnSignupRow, type SignupCounts, type SignupEventRow, type SignupsData,
+    type ApiError, type BulkSignupResult, type OwnSignup, type OwnSignupRow, type SignupCounts, type SignupEventRow, type SignupsData,
 } from "../api";
-import { Badge, Bar, Button, PageHead, RaidLoader, WowIcon } from "../components/ui";
+import { Badge, Bar, Button, IconButton, PageHead, RaidLoader, WowIcon } from "../components/ui";
 import RaidIcon from "../components/RaidIcon";
 import SignupDialog from "../components/SignupDialog";
-import { ExternalIcon } from "../components/icons";
+import BulkSignupDialog from "../components/BulkSignupDialog";
+import { ExternalIcon, XIcon } from "../components/icons";
 import { SIGNUP_STATUS, fillTone, roleCountText, rowSubline, statusBadgeLabel } from "../lib/signups";
 import "../styles/anmeldung.css";
 
@@ -23,6 +24,9 @@ export default function SignupsPage() {
     const [data, setData] = useState<SignupsData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [params, setParams] = useSearchParams();
+    // Several raids at once (#293): the picked own raids, and whether the bulk dialog is open.
+    const [selected, setSelected] = useState<string[]>([]);
+    const [bulkOpen, setBulkOpen] = useState(false);
 
     useEffect(() => {
         getSignups().then(setData).catch(setError);
@@ -49,8 +53,24 @@ export default function SignupsPage() {
         open("");
     };
 
+    const onBulkDone = (results: BulkSignupResult[]) => {
+        const byId = new Map(results.filter((r) => r.ok && r.signup && r.counts).map((r) => [r.eventId, r]));
+        setData((d) => d && ({
+            ...d,
+            events: d.events.map((e) => {
+                const r = byId.get(e.id);
+                return r && e.source === "eventhelper" && r.signup && r.counts ? { ...e, mine: r.signup, counts: r.counts, attending: r.counts.attending } : e;
+            }),
+        }));
+        setSelected([]);
+    };
+
     const count = data.events.length;
     const noCharacter = !data.profile.characters.length;
+    // Only an own raid that still takes a signup can be picked.
+    const selectable = data.events.filter((e): e is OwnSignupRow => e.source === "eventhelper" && e.allowedStatuses.length > 0 && !noCharacter);
+    const selectedRows = selectable.filter((e) => selected.includes(e.id));
+    const toggle = (id: string) => setSelected((list) => (list.includes(id) ? list.filter((x) => x !== id) : [...list, id]));
 
     return (
         <div className="an-page">
@@ -72,9 +92,36 @@ export default function SignupsPage() {
                 ? <p className="an-empty">Gerade stehen keine Raids an, die du sehen darfst.</p>
                 : (
                     <div className="an-list">
-                        {data.events.map((row) => <SignupRow key={row.id} row={row} onOpen={() => open(row.id)} />)}
+                        {data.events.map((row) => (
+                            <SignupRow
+                                key={row.id} row={row} onOpen={() => open(row.id)}
+                                selectable={selectable.some((e) => e.id === row.id)}
+                                selected={selected.includes(row.id)}
+                                onToggle={() => toggle(row.id)}
+                            />
+                        ))}
                     </div>
                 )}
+
+            {selectedRows.length > 0 && (
+                <div className="an-bulk" role="toolbar" aria-label="Mehrere Raids anmelden">
+                    <span className="an-bulk-count">{selectedRows.length === 1 ? "1 Raid gewählt" : `${selectedRows.length} Raids gewählt`}</span>
+                    {selectedRows.length < selectable.length && (
+                        <Button size="sm" variant="ghost" onClick={() => setSelected(selectable.map((e) => e.id))}>Alle wählen</Button>
+                    )}
+                    <Button size="sm" onClick={() => setBulkOpen(true)}>Für alle gewählten anmelden</Button>
+                    <IconButton size="sm" icon={<XIcon />} tip="Auswahl aufheben" onClick={() => setSelected([])} />
+                </div>
+            )}
+
+            <BulkSignupDialog
+                rows={bulkOpen ? selectedRows : []}
+                profile={data.profile}
+                classes={data.classes}
+                csrfToken={csrfToken}
+                onClose={() => setBulkOpen(false)}
+                onDone={onBulkDone}
+            />
 
             <SignupDialog
                 row={openRow}
@@ -88,7 +135,13 @@ export default function SignupsPage() {
     );
 }
 
-function SignupRow({ row, onOpen }: { row: SignupEventRow; onOpen: () => void }) {
+function SignupRow({ row, onOpen, selectable, selected, onToggle }: {
+    row: SignupEventRow;
+    onOpen: () => void;
+    selectable: boolean;
+    selected: boolean;
+    onToggle: () => void;
+}) {
     const own = row.source === "eventhelper";
     const mine = row.mine;
     const size = row.size || 0;
@@ -98,7 +151,16 @@ function SignupRow({ row, onOpen }: { row: SignupEventRow; onOpen: () => void })
         : "Stand aus Raid-Helper.";
 
     return (
-        <div className={`an-row${mine && mine.status !== "absence" ? " is-mine" : ""}`}>
+        <div className={`an-row${mine && mine.status !== "absence" ? " is-mine" : ""}${selected ? " an-row-selected" : ""}`}>
+            <span className="an-check">
+                {selectable && (
+                    <input
+                        type="checkbox" checked={selected} onChange={onToggle}
+                        aria-label={`${row.title} auswählen`}
+                        data-tip="Auswählen" data-tip-sub="Mehrere Raids wählen und mit „Für alle gewählten anmelden“ auf einmal anmelden."
+                    />
+                )}
+            </span>
             <span className="an-ic">
                 {row.instanceIcon ? <WowIcon name={row.instanceIcon} size={44} /> : <RaidIcon contentIds={row.contentIds} sources={row.contentSources} />}
             </span>
@@ -130,8 +192,15 @@ function OwnAction({ row, onOpen }: { row: OwnSignupRow; onOpen: () => void }) {
     const mine = row.mine;
     if (mine) {
         const meta = SIGNUP_STATUS[mine.status];
-        const label = mine.status === "absence" ? statusBadgeLabel(mine.status) : `${meta.label}${mine.specLabel ? ` · ${mine.specLabel}` : ""}`;
-        const sub = [mine.character, mine.comment ? `„${mine.comment}“` : "", row.started ? "" : "Klick zum Ändern"].filter(Boolean).join(" · ");
+        const alternates = (mine.characters || []).length - 1;
+        const label = mine.status === "absence"
+            ? statusBadgeLabel(mine.status)
+            : `${meta.label}${mine.specLabel ? ` · ${mine.specLabel}` : ""}${alternates > 0 ? ` +${alternates}` : ""}`;
+        // every named character, the first as the choice, the rest "kann auch mit" (#293)
+        const who = (mine.characters || []).length
+            ? mine.characters.map((c, i) => `${i ? "+" : ""}${c.character}${c.specLabel ? ` (${c.specLabel})` : ""}`).join(", ")
+            : mine.character;
+        const sub = [who, mine.comment ? `„${mine.comment}“` : "", row.started ? "" : "Klick zum Ändern"].filter(Boolean).join(" · ");
         return (
             <button type="button" className={`badge an-status-badge${meta.tone ? ` ${meta.tone}` : ""}`} disabled={row.started} onClick={onOpen} data-tip={label} data-tip-sub={sub || undefined}>
                 <i className="an-dot" style={{ background: meta.color }} />

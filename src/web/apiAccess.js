@@ -78,6 +78,8 @@ const AREA_BY_PATH = {
     // the PUT handler only ever writes the session's account. All signups of an
     // event, with comments and "kann auch", are the orga's.
     "/api/signups": "signup",
+    // Several raids at once (#293) — again only the session's own account.
+    "/api/signups/bulk": "signup",
     "/api/signups/event": "raids",
 
     // The caster loot council. Starting a simulation is a POST, so the method

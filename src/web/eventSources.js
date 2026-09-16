@@ -68,6 +68,8 @@ function toSignUpShape(signup) {
         spec: specKey,
         role: (signup && signup.role) || "",
         character: (signup && signup.character) || "",
+        // Every named character in priority order (#293); the fields above are characters[0].
+        characters: (signup && Array.isArray(signup.characters)) ? signup.characters : [],
         canAlso: (signup && signup.canAlso) || [],
         comment: (signup && signup.comment) || "",
         at: (signup && signup.at) || 0,

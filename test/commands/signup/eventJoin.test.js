@@ -75,10 +75,12 @@ describe("commands/signup/eventJoin", () => {
         expect(options[1]).toMatchObject({ description: "Krieger · brauchbar · Tank", default: false });
         expect(options[1].emoji).toBeUndefined();
         expect(selectOf(payload).custom_id).toBe("event-join:eh-kara:s:c:nerathil:Mage-Arcane:t");
-        const [ok, also, comment, profile] = buttonsOf(payload);
+        const [ok, also, comment, multi, profile] = buttonsOf(payload);
         expect(ok).toMatchObject({ label: "Anmelden", custom_id: "signup-status:eh-kara:s:nerathil:Mage-Arcane:t", disabled: false });
         expect(also).toMatchObject({ label: "Kann auch …", custom_id: "event-join:eh-kara:s:m:nerathil:Mage-Arcane:t" });
         expect(comment).toMatchObject({ label: "Kommentar", disabled: true });
+        // two characters: first choice + "kann auch mit" in one modal (#293)
+        expect(multi).toMatchObject({ label: "Mehrere Charaktere …", custom_id: "signup-multi:e:eh-kara:s" });
         expect(profile).toMatchObject({ style: 5, url: "https://eh.example/profile" });
         expect(mocks.signups.size).toBe(0);
     });

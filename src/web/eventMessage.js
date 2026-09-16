@@ -117,13 +117,24 @@ function targetText(event, role) {
 
 const nameOf = (signup) => escapeMd(signup.character) || `<@${signup.userId}>`;
 
-/** One roster line: "<spec icon> `12` **Name**" — without the icon, the spec in words. */
+/**
+ * A small "+1" behind the name when the raider named alternates ("kann auch
+ * mit", #293). Only the first choice is listed — the alternates are the orga's
+ * business in the setup, not a second line in the roster.
+ */
+function alternatesMark(signup) {
+    const n = Array.isArray(signup.characters) ? Math.max(0, signup.characters.length - 1) : 0;
+    return n ? ` +${n}` : "";
+}
+
+/** One roster line: "<spec icon> `12` **Name** +1" — without the icon, the spec in words. */
 function rosterLine(signup, number, emojis) {
     const icon = emojiText(emojis, specEmojiName(signup.spec));
     const num = `\`${number}\``;
-    if (icon) return `${icon} ${num} **${nameOf(signup)}**`;
+    const alt = alternatesMark(signup);
+    if (icon) return `${icon} ${num} **${nameOf(signup)}**${alt}`;
     const spec = SPEC_BY_KEY.get(signup.spec);
-    return `${num} **${nameOf(signup)}**${spec ? ` · ${spec.label}` : ""}`;
+    return `${num} **${nameOf(signup)}**${spec ? ` · ${spec.label}` : ""}${alt}`;
 }
 
 /** Lines as one field value: at most `maxLines` lines and 1024 characters, "+N weitere" for the rest. */

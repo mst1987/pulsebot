@@ -75,7 +75,7 @@ describe("web/talkOverview — buildOverviewMessage", () => {
         const [selectRow, buttonRow] = payload.components;
         const select = selectRow.components[0];
         expect(select.custom_id).toBe("talk-signup");
-        expect(select.placeholder).toBe("Raid wählen, um dich anzumelden …");
+        expect(select.placeholder).toBe("Einzelnen Raid wählen …");
         expect(select.options).toEqual([{ label: "SSC + TK", description: "Do 17.09. 19:30 · Mi", value: "e1" }]);
         expect(buttonRow.components.map((b) => [b.label, b.url, b.style])).toEqual([
             ["Web-Übersicht", "https://eh.example/raids", 5],
@@ -83,6 +83,20 @@ describe("web/talkOverview — buildOverviewMessage", () => {
             ["Mein Profil", "https://eh.example/profile", 5],
         ]);
         expect(overviewLinks("https://x.y").profile).toBe("https://x.y/profile");
+    });
+
+    it("puts „Für alle Raids anmelden“ and „Mehrere Raids wählen …“ above the select once an own event is listed (#293)", () => {
+        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev(), ev({ id: "eh-1", source: "eventhelper", title: "Kara" })] }], opts);
+        const [signupRow, selectRow, linkRow] = payload.components;
+        expect(signupRow.components.map((b) => [b.custom_id, b.label, b.style])).toEqual([
+            ["talk-signup-all", "Für alle Raids anmelden", 1],
+            ["talk-signup-multi", "Mehrere Raids wählen …", 2],
+        ]);
+        expect(selectRow.components[0].custom_id).toBe("talk-signup");
+        expect(linkRow.components).toHaveLength(3);
+        // only Raid-Helper events: nothing to sign up for here, so no buttons
+        const rhOnly = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev()] }], opts);
+        expect(JSON.stringify(rhOnly)).not.toContain("talk-signup-all");
     });
 
     it("keeps only the configured event categories when there are any", () => {

@@ -90,7 +90,7 @@ function fixedFromSetup(event) {
     for (const g of Array.isArray(setup.groups) ? setup.groups : []) {
         for (const slot of Array.isArray(g.slots) ? g.slots : []) {
             if (slot && slot.locked && slot.userId) {
-                out.push({ userId: String(slot.userId), eventId: event.id, group: Number(g.index) || null, spec: slot.spec || "", role: slot.role || "" });
+                out.push({ userId: String(slot.userId), eventId: event.id, group: Number(g.index) || null, spec: slot.spec || "", role: slot.role || "", character: slot.character || "" });
             }
         }
     }

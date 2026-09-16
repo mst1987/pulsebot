@@ -110,6 +110,19 @@ describe("web/eventMessage", () => {
         expect(blocks[1].value).toMatch(/<:eh_priest_shadow:\d+> `6` \*\*Thalia\*\*/);
     });
 
+    it("lists only the first choice and marks alternates with a small +N (#293)", () => {
+        const multi = { ...su("9", "Zibbo", "Priest-Holy", "healer"), characters: [
+            { character: "Zibbo", spec: "Priest-Holy", role: "healer" },
+            { character: "Zibbowar", spec: "Warrior-Protection", role: "tank" },
+        ] };
+        const payload = buildEventMessage(event(), [...signups, multi], { emojis, now: NOW });
+        const json = JSON.stringify(payload);
+        expect(json).toMatch(/`\d+` \*\*Zibbo\*\* \+1/);
+        expect(json).not.toContain("Zibbowar");
+        const plain = buildEventMessage(event(), [...signups, multi], { now: NOW });
+        expect(JSON.stringify(plain)).toMatch(/`\d+` \*\*Zibbo\*\* · [^"+\\]+ \+1/);
+    });
+
     it("lists late, tentative, bench and absence as lines with number and name", () => {
         const payload = buildEventMessage(event(), [...signups, su("8", "Bänki", "Mage-Frost", "ranged", "bench")], { emojis, now: NOW });
         const other = payload.embeds[0].fields.find((f) => !f.inline && f.value.includes("Spät"));

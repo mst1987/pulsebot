@@ -70,7 +70,7 @@ function runOptions(options, extra = {}) {
 function lineupSignature(setup) {
     if (!setup) return "";
     const groups = (setup.groups || [])
-        .map((g) => `${g.index}:${(g.slots || []).map((s) => `${s.userId}/${s.spec}/${s.role}`).sort().join(",")}`)
+        .map((g) => `${g.index}:${(g.slots || []).map((s) => `${s.userId}/${String(s.character || "").toLowerCase()}/${s.spec}/${s.role}`).sort().join(",")}`)
         .sort();
     return groups.join("|");
 }

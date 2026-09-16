@@ -19,7 +19,7 @@ export function toInput(setup: StoredSetup): SetupPlacementInput {
         version: setup.version,
         groups: setup.groups.map((g) => ({
             index: g.index,
-            slots: g.slots.map((s) => ({ userId: s.userId, spec: s.spec, role: s.role, locked: !!s.locked })),
+            slots: g.slots.map((s) => ({ userId: s.userId, character: s.character, spec: s.spec, role: s.role, locked: !!s.locked })),
         })),
         bench: setup.bench.map((b) => ({ userId: b.userId, locked: !!b.locked })),
     };
@@ -62,7 +62,7 @@ function takeOut(input: SetupPlacementInput, userId: string, people: Map<string,
     if (b >= 0) {
         const entry = input.bench.splice(b, 1)[0];
         const person = people.get(userId);
-        return { userId, spec: person ? person.spec : "", role: person ? person.role : "", locked: entry.locked };
+        return { userId, character: person ? person.character : "", spec: person ? person.spec : "", role: person ? person.role : "", locked: entry.locked };
     }
     return null;
 }
