@@ -4,7 +4,9 @@
 // who has not reacted, and who reacted but is not in the plan.
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import type { AttendancePerson, SetupPlayer, SetupRole, SignupStatus } from "../../api";
+import type { AttendancePerson, EventSignupEntry, GameRole, SetupPlayer, SetupRole, SignupStatus } from "../../api";
+import { wowIconUrl } from "../../lib/wowIcon";
+import { CAN_ALSO } from "../../lib/signups";
 import { PartHead } from "../../components/ui/PartHead";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
@@ -43,6 +45,80 @@ function PersonChip({ p, status, onOpen }: { p: AttendancePerson; status?: Signu
             {!p.character && <Badge>kein Charakter</Badge>}
             {status && status !== "signed" && <Badge tone={SIGNUP_META[status].tone}>{SIGNUP_META[status].label}</Badge>}
         </button>
+    );
+}
+
+const OWN_ROLES: GameRole[] = ["tank", "healer", "melee", "ranged"];
+
+/**
+ * An own event's signups (#256) in role columns — one compact line per raider:
+ * spec tile, character, and two small marks when there is more to know. What
+ * they "can also" do and their comment sit in the tooltip, never in the row.
+ * The sign-offs are one badge with the names in its tooltip.
+ */
+function OwnSignupGroups({ signups, openPlayer }: { signups: EventSignupEntry[]; openPlayer: RaidCtx["openPlayer"] }) {
+    const coming = signups.filter((s) => s.status !== "absence");
+    const absent = signups.filter((s) => s.status === "absence");
+    if (!signups.length) return <p className="rd-empty">Noch niemand hat sich im EventHelper angemeldet.</p>;
+    return (
+        <>
+            <div className="rd-groups rd-own">
+                {OWN_ROLES.map((role) => {
+                    const list = coming.filter((s) => s.role === role);
+                    return (
+                        <div className="rd-group" key={role}>
+                            <div className="rd-group-head"><span className="kicker">{ROLE_META[role].label}</span><Badge count>{list.length}</Badge></div>
+                            <div className="rd-plist">
+                                {list.map((s) => {
+                                    const also = s.canAlso.map((r) => CAN_ALSO[r].label).join(", ");
+                                    const sub = [
+                                        s.specLabel,
+                                        s.status !== "signed" ? SIGNUP_META[s.status].label : "",
+                                        s.name ? `@${s.name}` : "",
+                                        also ? `kann auch: ${also}` : "",
+                                        s.comment ? `„${s.comment}“` : "",
+                                    ].filter(Boolean).join(" · ");
+                                    const color = classColorProps(s.classColor);
+                                    return (
+                                        <button
+                                            type="button" key={s.userId} className="rd-pl"
+                                            data-tip={s.character || s.name || s.userId} data-tip-sub={sub || undefined}
+                                            onClick={() => openPlayer({
+                                                name: s.character || s.name, discordName: s.name || undefined, classColor: s.classColor,
+                                                className: s.className, specName: s.specLabel, iconUrl: wowIconUrl(s.specIcon, 36),
+                                                role: s.role || undefined, status: s.status,
+                                            })}
+                                        >
+                                            <SpecTile iconUrl={s.specIcon ? wowIconUrl(s.specIcon, 36) : undefined} classColor={s.classColor} />
+                                            <span className="rd-pl-text">
+                                                <span className={`rd-pname ${color.className || ""}`} style={color.style}>{s.character || s.name}</span>
+                                                <span className="rd-pspec">{s.specLabel}</span>
+                                            </span>
+                                            <span className="rd-own-marks">
+                                                {s.canAlso.length > 0 && <span className="rd-own-mark" aria-label={`kann auch: ${also}`}>+{s.canAlso.length}</span>}
+                                                {s.comment && <span className="rd-own-mark" aria-label="Kommentar">…</span>}
+                                            </span>
+                                            {s.status !== "signed" && <span className={`rd-sig rd-sig-${s.status}`} aria-label={SIGNUP_META[s.status].label} />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+            {absent.length > 0 && (
+                <div className="rd-badges">
+                    <Badge
+                        tone="bad"
+                        tip={`${absent.length} abgemeldet`}
+                        tipSub={absent.map((s) => [s.character || s.name || s.userId, s.comment ? `„${s.comment}“` : ""].filter(Boolean).join(" ")).join(", ")}
+                    >
+                        {absent.length} abgemeldet
+                    </Badge>
+                </div>
+            )}
+        </>
     );
 }
 
@@ -116,7 +192,9 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
         .map((x) => `${x.n} ${SIGNUP_META[x.s].label.toLowerCase()}`)
         .join(" · ");
 
-    const crumb = setupFromSnapshot
+    const crumb = data.ownSignups
+        ? `Anmeldungen im EventHelper${data.categoryName ? ` · „${data.categoryName}“` : ""}`
+        : setupFromSnapshot
         ? `Raidplan · ${ev.isPast ? "Stand vom Raidtag" : "gespeicherter Stand"} (lokal gespeichert)`
         : `Raidplan aus Raid-Helper${data.categoryName ? ` · abgeglichen mit den Raider-Rollen von „${data.categoryName}“` : ""}`;
 
@@ -155,7 +233,9 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
                 </div>
             )}
 
-            {!setup?.total
+            {data.ownSignups
+                ? <OwnSignupGroups signups={data.ownSignups} openPlayer={openPlayer} />
+                : !setup?.total
                 ? !setupError && <p className="rd-empty">Für dieses Event ist noch kein Raidplan angelegt.</p>
                 : (
                     <div className="rd-groups">

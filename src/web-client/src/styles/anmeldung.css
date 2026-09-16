@@ -1,0 +1,54 @@
+/* =====================================================================
+   Anmeldungen (#256). Built on the shared blocks (badge, .bar, .seg, .btn,
+   the dialog) and the --sig-* status colours of index.css; everything
+   module-specific carries the an- prefix. One row per raid: title large,
+   the rest small, details in the dialog and in tooltips.
+   ===================================================================== */
+
+.an-page { display: flex; flex-direction: column; gap: 18px; }
+.an-empty { color: var(--muted); margin: 0; }
+
+.an-list { display: flex; flex-direction: column; gap: 10px; }
+.an-row {
+    display: flex; align-items: center; gap: 14px; padding: 12px 16px; position: relative;
+    background: var(--panel); border: 1px solid var(--line);
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+}
+.an-row.is-mine { border-color: var(--area-signups); }
+.an-ic { flex: 0 0 auto; display: inline-flex; }
+.an-ic > .wi { width: 44px; height: 44px; border-radius: 9px; border: 1px solid var(--line); }
+.an-text { flex: 1; min-width: 0; line-height: 1.25; }
+.an-title { font-weight: 800; font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.an-sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.an-act { display: flex; align-items: center; gap: 8px; justify-content: flex-end; min-width: 150px; }
+.an-status-badge { cursor: pointer; font-size: 12.5px; }
+.an-status-badge:disabled { cursor: default; }
+.an-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; }
+
+@media (max-width: 720px) {
+    .an-row { flex-wrap: wrap; }
+    .an-text { flex-basis: calc(100% - 60px); }
+    .an-act { min-width: 0; margin-left: auto; }
+}
+
+/* ---- dialog ---- */
+.an-dlg { display: flex; flex-direction: column; gap: 2px; }
+.an-dlg .field input:not([type=checkbox]) { max-width: none; }
+.an-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 640px) { .an-grid { grid-template-columns: minmax(0, 1fr); } }
+.an-pick { display: flex; align-items: center; gap: 8px; }
+.an-pick > .wi { width: 22px; height: 22px; border-radius: 50%; flex: 0 0 auto; }
+.an-pick select { flex: 1; max-width: none; font-weight: 600; }
+.an-status { flex-wrap: wrap; }
+.an-status .seg-opt { gap: 7px; }
+.an-also { display: flex; flex-wrap: wrap; gap: 8px; }
+.an-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px 3px 4px; border-radius: 999px;
+    background: var(--panel2); border: 1px solid var(--line); color: var(--muted); font: 600 13px/1.4 inherit; cursor: pointer;
+}
+.an-chip .wi { width: 20px; height: 20px; border-radius: 50%; }
+.an-chip:hover { border-color: var(--muted); }
+.an-chip.is-on { background: var(--area-signups-soft); border-color: var(--area-signups); color: var(--text); }
+.an-opt { font-weight: 400; }
+.an-note { margin: 0 0 14px; color: var(--muted); }
+.an-wish { display: flex; }
