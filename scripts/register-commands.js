@@ -99,6 +99,13 @@ const commands = [
     { name: "update-events", description: "Update event overview for the current category" },
     { name: "profil", description: "Zeigt dein Raider-Profil kurz an, mit Link ins Web" },
     {
+        name: "event",
+        description: "Events anlegen",
+        options: [
+            { name: "anlegen", description: "Event anlegen: Kategorie, Vorlage und Kanal wählen, dann Datum und Titel", type: 1 },
+        ],
+    },
+    {
         name: "signup",
         description: "Sign up to the raid in this channel",
         options: [{

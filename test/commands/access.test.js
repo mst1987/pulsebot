@@ -71,6 +71,16 @@ describe("bot command access declarations", () => {
         }
     });
 
+    it("keeps /event anlegen for admins (the orga role gets it in the menu) and hangs its flow under it (#260)", () => {
+        expect(normalizeRule(byName.get("event").defaultAccess).mode).toBe("admins");
+        expect(byName.get("event").group).toBe("raids");
+        expect(byName.get("event-new").accessOf).toBe("event");
+        expect(byName.get("event-form").accessOf).toBe("event");
+        const { commands } = require("../../scripts/register-commands");
+        const def = commands.find((c) => c.name === "event");
+        expect(def.options.map((o) => [o.name, o.type])).toEqual([["anlegen", 1]]);
+    });
+
     it("registers every lookup command, with descriptions Discord accepts", () => {
         const { commands } = require("../../scripts/register-commands");
         const registered = new Set(commands.map((c) => c.name));

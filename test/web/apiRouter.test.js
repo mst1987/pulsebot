@@ -1537,7 +1537,7 @@ describe("web/apiRouter", () => {
                 channelId: "c1", leaderId: "42", templateId: "t1", date: "12-07-2026", time: "20:00", title: "GDKP Kara", description: "",
             });
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
-            expect(body(res)).toEqual({ data: { id: "ev1" } });
+            expect(body(res)).toEqual({ data: { id: "ev1", channelId: "c1" } });
         });
 
         // The clone needs one thing from the source event: its channel. It is
