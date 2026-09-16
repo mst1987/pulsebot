@@ -39,6 +39,20 @@ const {
     getSetup: getRaidSetup, postPropose: postSetupPropose, putSetup: putRaidSetup,
     postApprove: postSetupApprove, postExplain: postSetupExplain, getExplain: getSetupExplain,
 } = require("./apiRoutes/setup");
+const eventManageRoutes = require("./apiRoutes/eventManage");
+
+/** Event verwalten (#288): the handler for a path and method, or null. */
+function eventManageHandler(pathname, method) {
+    const r = eventManageRoutes;
+    if (pathname === "/api/raids/manage" && method === "GET") return r.getManage;
+    if (pathname === "/api/raids/manage/move") return { GET: r.getMovePreview, POST: r.postMove }[method] || null;
+    if (pathname === "/api/raids/manage/signups" && method === "POST") return r.postSignups;
+    if (pathname === "/api/raids/manage/raider") return { GET: r.getRaiderCandidates, POST: r.postRaider }[method] || null;
+    if (pathname === "/api/raids/manage/raider/remove" && method === "POST") return r.postRaiderRemove;
+    if (pathname === "/api/raids/manage/cancel" && method === "POST") return r.postCancel;
+    if (pathname === "/api/raids/manage/reopen" && method === "POST") return r.postReopen;
+    return null;
+}
 const { getGameVersions } = require("./apiRoutes/gameVersions");
 const {
     getNotifyTemplates, saveNotifyTemplate, deleteNotifyTemplate,
@@ -361,6 +375,11 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/raids/setup/explain" && req.method === "GET") {
         await getSetupExplain(req, res, url);
+        return true;
+    }
+    const manageHandler = eventManageHandler(pathname, req.method);
+    if (manageHandler) {
+        await manageHandler(req, res, url);
         return true;
     }
     if (pathname === "/api/raids/notify" && req.method === "POST") {

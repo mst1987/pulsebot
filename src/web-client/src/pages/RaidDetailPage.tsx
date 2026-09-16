@@ -6,7 +6,18 @@
 // tab and which dialog is open, and wires the steps to them.
 import { useEffect, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
-import { canAccess, getRaidDetail, type ApiError, type RaidDetailData, type RaidDetailModal, type RaidPrimaryAction, type RaidStep } from "../api";
+import {
+    canAccess, getRaidDetail, reopenRaid, setRaidSignupsOpen,
+    type ApiError, type RaidDetailData, type RaidDetailModal, type RaidPrimaryAction, type RaidStep,
+} from "../api";
+import { useConfirm } from "../components/ui/Modal";
+import type { ManageAction } from "../lib/eventManage";
+import ManageMenu from "./raid-detail/manage/ManageMenu";
+import MoveModal from "./raid-detail/manage/MoveModal";
+import CancelModal from "./raid-detail/manage/CancelModal";
+import RaiderModal from "./raid-detail/manage/RaiderModal";
+import HistoryModal from "./raid-detail/manage/HistoryModal";
+import "../styles/event-manage.css";
 import RaidCreateDialog from "../components/RaidCreateDialog";
 import { usePersistedSearchParam } from "../lib/persistedState";
 import type { ShellContext } from "../components/Shell";
@@ -65,6 +76,7 @@ export default function RaidDetailPage() {
     const legacy = tabParam === "setup" ? undefined : LEGACY_TABS[tabParam];
 
     const jobs = useJobs();
+    const ask = useConfirm();
     const [data, setData] = useState<RaidDetailData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [modal, setModal] = useState<RaidDetailModal | null>(legacy?.modal || null);
@@ -92,6 +104,7 @@ export default function RaidDetailPage() {
 
     const ctx: RaidCtx | null = data && {
         data, eventId, csrfToken, onChanged: afterChange, openModal: setModal, openPlayer: setPlayer,
+        canManage: data.event.source === "eventhelper" && canAccess(user, "raids", "write"),
     };
     const evaluator = useEvaluate({ csrfToken, onChanged: afterChange });
 
@@ -125,6 +138,45 @@ export default function RaidDetailPage() {
     };
     const close = () => setModal(null);
 
+    // Event verwalten (#288): one menu for an own event, only with raids write.
+    // Editing reuses the create dialog (#261), everything else is a dialog or one question.
+    const canManage = !!ctx.canManage;
+    const runManage = async (action: ManageAction) => {
+        const ev = data.event;
+        if (action === "edit") setEditing(true);
+        else if (action === "move") setModal("move");
+        else if (action === "raider") setModal("raider");
+        else if (action === "ping") setModal("ping");
+        else if (action === "history") setModal("history");
+        else if (action === "cancel") setModal("cancel");
+        else if (action === "setup") switchTab("setup");
+        else if (action === "signups") {
+            const open = !!ev.signupsClosed;
+            const ok = await ask(open
+                ? { title: "Anmeldung wieder öffnen?", text: "Raider können sich wieder an- und ummelden. Die Event-Nachricht wird aktualisiert.", action: "Öffnen", tone: "primary", icon: "inv_misc_note_02" }
+                : { title: "Anmeldung schließen?", text: "Neue Anmeldungen gehen nicht mehr — abmelden bleibt möglich, und die Orga kann weiter eintragen. Die Event-Nachricht zeigt „Anmeldung geschlossen“.", action: "Schließen", tone: "primary", icon: "inv_misc_note_02" });
+            if (!ok) return;
+            try {
+                const r = await setRaidSignupsOpen(csrfToken, { event: ev.id, open });
+                afterChange([r.message, ...(r.warnings || [])].join("\n"));
+            } catch (err) {
+                jobs.notify((err as ApiError).message, "err");
+            }
+        } else if (action === "reopen") {
+            const ok = await ask({
+                title: "Absage zurücknehmen?", action: "Zurücknehmen", tone: "primary", icon: "spell_holy_divineintervention",
+                text: `Das Event ist wieder offen für Anmeldungen, die Nachricht verliert „ABGESAGT“.${ev.cancelArchived ? " Der Kanal bleibt im Archiv — zurückholen unter Kanäle." : ""} Wer eine Absage-DM bekam, erfährt davon nichts.`,
+            });
+            if (!ok) return;
+            try {
+                const r = await reopenRaid(csrfToken, { event: ev.id });
+                afterChange([r.message, ...(r.warnings || [])].join("\n"));
+            } catch (err) {
+                jobs.notify((err as ApiError).message, "err");
+            }
+        }
+    };
+
     return (
         <div className="rd-page">
             {data.eventsWarning && <div className="flash flash-err">{data.eventsWarning}</div>}
@@ -132,7 +184,12 @@ export default function RaidDetailPage() {
             <RaidDetailHero
                 data={data} onStep={openStep} onPrimary={runPrimary}
                 primaryRunning={!!primaryEval && evaluator.isRunning(primaryEval.logId, primaryEval.section)}
-                onEdit={data.event.source === "eventhelper" && canAccess(user, "raids", "write") ? () => setEditing(true) : undefined}
+                manage={canManage ? (
+                    <ManageMenu
+                        state={{ cancelled: data.event.status === "cancelled", signupsClosed: !!data.event.signupsClosed, isPast: !!data.event.isPast, logCount: data.event.logCount || 0 }}
+                        onAction={runManage}
+                    />
+                ) : undefined}
             />
 
             <div className="tabs rd-tabs" role="tablist">
@@ -157,6 +214,14 @@ export default function RaidDetailPage() {
             <LootAddModal ctx={ctx} open={modal === "loot"} onClose={close} />
             <LogAssignModal ctx={ctx} open={modal === "log"} onClose={close} />
             <PlayerModal ctx={ctx} player={player} onClose={() => setPlayer(null)} />
+            {canManage && (
+                <>
+                    <MoveModal ctx={ctx} open={modal === "move"} onClose={close} />
+                    <CancelModal ctx={ctx} open={modal === "cancel"} onClose={close} />
+                    <RaiderModal ctx={ctx} open={modal === "raider"} onClose={close} />
+                    <HistoryModal ctx={ctx} open={modal === "history"} onClose={close} />
+                </>
+            )}
             {editing && (
                 <RaidCreateDialog
                     open sourceId="" editEventId={data.event.id} csrfToken={csrfToken} userId={user?.id || ""}

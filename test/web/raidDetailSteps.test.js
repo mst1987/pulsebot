@@ -25,6 +25,17 @@ describe("raidSteps", () => {
         expect(raidSteps(base()).steps.map((s) => s.key)).toEqual(["signup", "setup", "sheet", "softres", "loot", "logs"]);
     });
 
+    it("marks the signup step of a cancelled event and of a closed signup (#288)", () => {
+        const own = { ...base().event, id: "eh-1", source: "eventhelper", signupCount: 4 };
+        const cancelled = step(raidSteps(base({ event: { ...own, status: "cancelled", cancelReason: "Zu wenig Heiler" } })), "signup");
+        expect(cancelled).toMatchObject({ tone: "bad", badge: { label: "abgesagt", tone: "bad" }, tip: { sub: "Grund: Zu wenig Heiler" } });
+        const res = raidSteps(base({ event: { ...own, status: "cancelled" } }));
+        expect(res).toMatchObject({ next: "", primary: null });
+        expect(res.steps.some((s) => s.next)).toBe(false);
+        const closed = step(raidSteps(base({ event: { ...own, signupsClosed: true } })), "signup");
+        expect(closed).toMatchObject({ tone: "mid", badge: { label: "geschlossen" }, value: "4" });
+    });
+
     it("offers the Raid-Helper raidplan only for a Raid-Helper event", () => {
         const signedUp = { ...base().event, signupCount: 10 };
         const rh = raidSteps(base({ event: signedUp }));

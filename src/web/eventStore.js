@@ -180,6 +180,18 @@ function complete(e) {
         // snapshot — one shape, see setupEditor.js (#263).
         setup: e.setup || null,
         message: e.message && e.message.messageId ? { channelId: e.message.channelId || "", messageId: e.message.messageId } : null,
+        // Event verwalten (#288): "active" or "cancelled"; a closed signup takes
+        // only sign-offs; the cancellation's reason; who did what, oldest first.
+        status: e.status === "cancelled" ? "cancelled" : "active",
+        signupsClosed: !!e.signupsClosed,
+        cancel: e.cancel && typeof e.cancel === "object" ? {
+            reason: String(e.cancel.reason || ""),
+            at: Number(e.cancel.at) || 0,
+            by: String(e.cancel.by || ""),
+            byName: String(e.cancel.byName || ""),
+            archived: !!e.cancel.archived,
+        } : null,
+        log: Array.isArray(e.log) ? e.log : [],
         createdBy: e.createdBy || "",
         createdAt: Number(e.createdAt) || 0,
         updatedAt: Number(e.updatedAt) || 0,
@@ -331,6 +343,49 @@ function setEventSetup(id, setup) {
     return complete(events[idx]);
 }
 
+/**
+ * Set the state fields of "Event verwalten" (#288) — status, signupsClosed,
+ * cancel — without touching the plan. Only the keys present change. Returns
+ * the event or null.
+ */
+function setEventState(id, patch = {}) {
+    const events = readAll();
+    const idx = events.findIndex((e) => e && e.id === str(id));
+    if (idx < 0) return null;
+    const next = { ...events[idx] };
+    if (patch.status !== undefined) next.status = patch.status === "cancelled" ? "cancelled" : "active";
+    if (patch.signupsClosed !== undefined) next.signupsClosed = patch.signupsClosed === true;
+    if (patch.cancel !== undefined) next.cancel = patch.cancel && typeof patch.cancel === "object" ? patch.cancel : null;
+    next.updatedAt = Date.now();
+    events[idx] = next;
+    writeAll(events);
+    return complete(next);
+}
+
+// The log keeps the newest entries only; an event is managed a handful of times.
+const MAX_LOG = 100;
+
+/**
+ * Note who did what on an event (#288): `{ action, by, byName, detail, at }`,
+ * appended; past MAX_LOG the oldest entries go. Returns the event or null.
+ */
+function appendEventLog(id, entry = {}) {
+    const events = readAll();
+    const idx = events.findIndex((e) => e && e.id === str(id));
+    if (idx < 0) return null;
+    const row = {
+        at: Number(entry.at) || Date.now(),
+        action: str(entry.action),
+        by: str(entry.by),
+        byName: str(entry.byName),
+        detail: String(entry.detail || "").trim().slice(0, 300),
+    };
+    const log = [...(Array.isArray(events[idx].log) ? events[idx].log : []), row].slice(-MAX_LOG);
+    events[idx] = { ...events[idx], log };
+    writeAll(events);
+    return complete(events[idx]);
+}
+
 /** Delete an own event. Returns true when one was removed. */
 function deleteEvent(id) {
     const events = readAll();
@@ -387,5 +442,6 @@ function saveSetupDraft(id, proposal, { createdBy = "auto", now = Date.now() } =
 
 module.exports = {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft,
+    setEventState, appendEventLog, MAX_LOG,
     normalizePlan, isOwnEventId, EVENTS_FILE, ID_PREFIX, COMPOSITION_ROLES,
 };

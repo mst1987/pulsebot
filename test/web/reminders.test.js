@@ -112,6 +112,14 @@ describe("runReminders", () => {
         expect(reminderStore.getSent("e1")).toEqual({ missing: NOW, signed: NOW });
     });
 
+    it("never reminds anybody of a cancelled event (#288)", async () => {
+        loadEventGroups.mockResolvedValue(groups([{ ...soon, status: "cancelled" }]));
+        const r = await reminders.runReminders({ now: NOW, config });
+        expect(r.sent).toBe(0);
+        expect(deliverUserPing).not.toHaveBeenCalled();
+        expect(reminderStore.getSent("e1")).toEqual({});
+    });
+
     it("never sends for a raid that already started", async () => {
         loadEventGroups.mockResolvedValue(groups([{ ...soon, startTime: sec(NOW - 60 * 1000) }]));
         const r = await reminders.runReminders({ now: NOW, config });
@@ -181,6 +189,8 @@ describe("runAutoSuggest (Vorschlag bei Anmeldeschluss)", () => {
         expect(reminders.autoSuggestDue(own({ signupDeadline: 0 }), {}, NOW)).toBe(false);
         expect(reminders.autoSuggestDue(own({ startTime: sec(NOW - 60 * 1000) }), {}, NOW)).toBe(false);
         expect(reminders.autoSuggestDue(own(), { autoSuggest: 1 }, NOW)).toBe(false);
+        // a cancelled event (#288) gets no setup proposal
+        expect(reminders.autoSuggestDue(own({ status: "cancelled" }), {}, NOW)).toBe(false);
         expect(reminders.autoSuggestDue(own(), {}, NOW)).toBe(true);
     });
 

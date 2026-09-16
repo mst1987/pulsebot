@@ -389,6 +389,14 @@ function namingBody(naming, channelName) {
     };
 }
 
+// The fields an edit logs by name (#288); two keys share one label.
+const EDIT_FIELD_LABELS = {
+    title: "Titel", description: "Beschreibung", leaderId: "Raidleitung", startTime: "Termin", versionId: "Spielversion",
+    instanceIds: "Instanzen", size: "Größe", composition: "Zusammensetzung", compositionMax: "Zusammensetzung",
+    requiredBuffs: "Pflicht-Buffs", signupDeadline: "Anmeldeschluss", fairness: "Fairness", wishes: "Wünsche",
+    autoSuggest: "Vorschlag bei Anmeldeschluss",
+};
+
 /**
  * Change an own event from the same dialog (PATCH /api/raids, #261).
  *
@@ -400,11 +408,12 @@ function namingBody(naming, channelName) {
  *
  * @param {{ guildId: string, body: object }} input
  */
-async function updateEvent({ guildId, body = {} }) {
+async function updateEvent({ guildId, body = {}, user = null, byName = "" }) {
     const id = String(body.id || "").trim();
     if (!eventStore.isOwnEventId(id)) return fail(400, "not_own_event", "Nur EventHelper-Events lassen sich hier bearbeiten.");
     const current = eventStore.getEvent(id);
     if (!current || (guildId && current.guildId && current.guildId !== guildId)) return fail(404, "not_found", "Event nicht gefunden.");
+    if (current.status === "cancelled") return fail(409, "cancelled", "Das Event ist abgesagt — erst die Absage zurücknehmen.");
 
     const patch = {};
     for (const key of ["title", "description", "leaderId", "instanceIds", ...PLAN_KEYS]) {
@@ -426,6 +435,16 @@ async function updateEvent({ guildId, body = {} }) {
 
     const updated = eventStore.updateEvent(id, patch);
     if (updated.error) return fail(400, "invalid_plan", updated.error);
+    // Who changed what, on the event (#288) — the fields that really changed, named in German.
+    const changed = [...new Set(Object.keys(EDIT_FIELD_LABELS)
+        .filter((k) => JSON.stringify(current[k]) !== JSON.stringify(updated.event[k]))
+        .map((k) => EDIT_FIELD_LABELS[k]))];
+    eventStore.appendEventLog(id, {
+        action: "edit",
+        by: String((user && user.id) || ""),
+        byName: String(byName || (user && (user.name || user.username)) || ""),
+        detail: changed.join(", ") || "nichts geändert",
+    });
 
     let messageError = null;
     try {

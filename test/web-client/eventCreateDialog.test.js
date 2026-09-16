@@ -264,10 +264,11 @@ describe("Event anlegen: dialog", () => {
         expect(dialog).toContain(">Als Vorlage speichern</Button>");
         expect(dialog).toContain("updateRaid(csrfToken, { id: editEventId,");
         expect(read("api.ts")).toContain("send(\"PATCH\", \"/api/raids\", csrfToken, input)");
-        // the raid detail gets one icon button, only for an own event and raids write
+        // the raid detail edits from its one "Verwalten" menu (#288), only for an own event and raids write
         expect(detail).toContain("data.event.source === \"eventhelper\" && canAccess(user, \"raids\", \"write\")");
         expect(detail).toContain("editEventId={data.event.id}");
-        expect(hero).toContain("aria-label=\"Event bearbeiten\"");
+        expect(detail).toContain("if (action === \"edit\") setEditing(true);");
+        expect(hero).toContain("{manage}");
     });
 
     it("explains in tooltips, not hint paragraphs", () => {

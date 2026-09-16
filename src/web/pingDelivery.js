@@ -205,5 +205,5 @@ function dmSummary(dm) {
 module.exports = {
     PING_TARGETS, TARGET_LABELS,
     normalizePingTarget, talkPingChannel, pingTargetInfo,
-    deliverUserPing, deliverAnnouncement, dmSummary, dmContent, mapRoles,
+    deliverUserPing, deliverAnnouncement, dmSummary, dmContent, mapRoles, sendDms,
 };

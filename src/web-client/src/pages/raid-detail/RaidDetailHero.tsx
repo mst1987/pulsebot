@@ -1,6 +1,7 @@
 // The page head: date block, kicker + category, title, time and the relative
 // day, two icon buttons (event post, raidplan), the one primary action — and
 // under it the progress bar, where every step is figure, status and entry at once.
+import type { ReactNode } from "react";
 import type { RaidDetailData, RaidPrimaryAction, RaidStep } from "../../api";
 import { eventTimeParts, relativeDayLabel } from "../../lib/format";
 import { eventPostUrl, raidplanUrl } from "../../lib/discordLinks";
@@ -39,19 +40,21 @@ function StepCell({ step, onOpen }: { step: RaidStep; onOpen: (step: RaidStep) =
     );
 }
 
-export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning, onEdit }: {
+export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning, manage }: {
     data: RaidDetailData;
     onStep: (step: RaidStep) => void;
     onPrimary: (action: RaidPrimaryAction) => void;
     primaryRunning: boolean;
-    /** only for an own event and write access: opens the create dialog in edit mode (#261) */
-    onEdit?: () => void;
+    /** only for an own event and write access: the "Verwalten" menu (#288) — editing (#261) is its first entry */
+    manage?: ReactNode;
 }) {
     const ev = data.event;
     const when = eventTimeParts(ev.startTime);
     const relDay = relativeDayLabel(ev.startTime);
     const channel = ev.channelName || ev.channelId;
-    const primary = data.progress?.primary || null;
+    const cancelled = ev.status === "cancelled";
+    // A cancelled raid has no next step to push.
+    const primary = cancelled ? null : data.progress?.primary || null;
 
     return (
         <header className="page-hero rd-hero">
@@ -71,14 +74,20 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                         <span className="hero-time">{when?.time || "—"}</span>
                         <span className="hero-time-unit">Uhr</span>
                         {relDay && <Badge tone={ev.isPast ? undefined : "accent"}>{relDay}</Badge>}
+                        {cancelled && (
+                            <Badge tone="bad" className="em-state" tip="Abgesagt" tipSub={[ev.cancelReason, ev.cancelArchived ? "Kanal im Archiv" : ""].filter(Boolean).join(" · ") || undefined}>
+                                abgesagt
+                            </Badge>
+                        )}
+                        {!cancelled && ev.signupsClosed && (
+                            <Badge tone="mid" className="em-state" tip="Anmeldung geschlossen" tipSub="Raider können sich nur noch abmelden. Die Orga trägt weiter ein.">
+                                Anmeldung geschlossen
+                            </Badge>
+                        )}
                     </div>
                 </div>
                 <div className="rd-hero-actions">
-                    {onEdit && (
-                        <button type="button" className="ibtn" onClick={onEdit} data-tip="Event bearbeiten" data-tip-sub="Termin, Raid und Anmeldeschluss — im selben Dialog wie beim Anlegen" aria-label="Event bearbeiten">
-                            <WowIcon name="inv_misc_note_05" size={24} />
-                        </button>
-                    )}
+                    {manage}
                     <a
                         className="ibtn" href={eventPostUrl(data.guildId, ev.channelId, ev.id)} target="_blank" rel="noopener noreferrer"
                         data-tip="Event-Post in Discord" data-tip-sub={channel ? `#${channel}` : undefined} aria-label="Event-Post in Discord öffnen"

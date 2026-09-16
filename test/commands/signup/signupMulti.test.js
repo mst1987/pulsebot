@@ -250,6 +250,14 @@ describe("utils/multiSignup", () => {
         expect(multi.oneEventId(`eh-${"x".repeat(20)}`, "signed").length).toBeLessThanOrEqual(100);
     });
 
+    it("offers only raids that still take signups: not begun, not cancelled, not closed (#288)", () => {
+        raids(4, (n) => (n === 2 ? { status: "cancelled" } : n === 3 ? { signupsClosed: true } : {}));
+        mocks.events.set("eh-begun", mocks.ownEvent({ id: "eh-begun", startTime: sec() - 60 }));
+        expect(multi.signableRaids().map((e) => e.id)).toEqual(["eh-r1", "eh-r4"]);
+        mocks.access.config = { categoryIds: ["cat-x"] };
+        expect(multi.signableRaids()).toEqual([]);
+    });
+
     it("orders the picks as the modal listed them, not as Discord returns them", () => {
         const order = [{ value: "a|X" }, { value: "b|Y" }, { value: "c|Z" }];
         expect(multi.orderedPicks(["c|Z", "a|X", "nope|Q"], order)).toEqual([{ character: "a", spec: "X" }, { character: "c", spec: "Z" }]);

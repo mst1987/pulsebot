@@ -78,18 +78,23 @@ const clip = (text, max) => {
 const escapeMd = (text) => String(text || "").replace(/([\\*_~`|>[\]()])/g, "\\$1").replace(/@/g, "@\u200b");
 
 /**
- * Where the event stands for its message: `cancelled` / `closed` (the event
- * management's `event.status`, #288), `started`, `deadline` (passed, not
- * started) or `open`.
+ * Where the event stands for its message: `cancelled` (the event management's
+ * `event.status`, #288), `started`, `closed` (`event.signupsClosed`, or a
+ * `status` of "closed"), `deadline` (passed, not started) or `open`.
  */
 function messagePhase(event, now = Date.now()) {
     const status = String((event && event.status) || "");
     if (status === "cancelled") return "cancelled";
-    if (status === "closed") return "closed";
     const w = signupWindow(event, now);
     if (w.started) return "started";
+    if (status === "closed" || (event && event.signupsClosed)) return "closed";
     if (w.deadlinePassed) return "deadline";
     return "open";
+}
+
+/** A closed signup (#288) still takes sign-offs: the select offers only "Abmelden". */
+function closedStatuses(event) {
+    return event && event.signupsClosed ? ["absence"] : [];
 }
 
 /**
@@ -220,14 +225,16 @@ function rosterFields(signups, numbers, emojis, maxLines) {
 
 /** The public "Anmelden …" select with the statuses allowed in this phase, or no row at all. */
 function joinComponents(event, phase, emojis, now) {
-    const allowed = phase === "open" || phase === "deadline" ? allowedStatuses(event, { now }) : [];
+    const allowed = phase === "open" || phase === "deadline" ? allowedStatuses(event, { now }) : phase === "closed" ? closedStatuses(event) : [];
     if (!allowed.length) return [];
+    const placeholder = phase === "deadline" ? "Anmeldeschluss vorbei – Spät oder Abmelden …"
+        : phase === "closed" ? "Anmeldung geschlossen – nur Abmelden …" : "Anmelden …";
     return [{
         type: 1,
         components: [{
             type: 3,
             custom_id: joinSelectId(event.id),
-            placeholder: phase === "deadline" ? "Anmeldeschluss vorbei – Spät oder Abmelden …" : "Anmelden …",
+            placeholder,
             min_values: 1,
             max_values: 1,
             options: STATUS_ORDER.filter((s) => allowed.includes(s)).map((s) => {
@@ -258,9 +265,11 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
 
     const desc = [];
     if (phase === "cancelled") {
-        desc.push(`**❌ Abgesagt**${event.cancelReason ? ` – ${escapeMd(clip(event.cancelReason, 300))}` : ""}`);
+        // The store keeps the reason in `cancel.reason` (eventManage.cancelEvent).
+        const reason = (event.cancel && event.cancel.reason) || event.cancelReason || "";
+        desc.push(`**❌ Abgesagt**${reason ? ` – ${escapeMd(clip(reason, 300))}` : ""}`);
     } else if (phase === "closed") {
-        desc.push("🔒 **Anmeldung geschlossen**");
+        desc.push(`🔒 **Anmeldung geschlossen**${event.signupsClosed ? " – Abmelden geht weiter." : ""}`);
     } else if (phase === "started") {
         desc.push("Der Raid hat begonnen – Anmeldungen sind geschlossen.");
     } else if (phase === "deadline") {

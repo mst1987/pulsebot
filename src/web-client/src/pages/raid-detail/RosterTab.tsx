@@ -199,13 +199,24 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
         : `Raidplan aus Raid-Helper${data.categoryName ? ` · abgeglichen mit den Raider-Rollen von „${data.categoryName}“` : ""}`;
 
     const state = <AttendanceState ctx={ctx} />;
-    const action = !ev.isPast && missing.length
+    // An own event (#288): the orga signs somebody up from here as well.
+    const addRaider = ctx.canManage && data.ownSignups && ev.status !== "cancelled"
+        ? (
+            <Button variant="ghost" size="sm" icon="inv_misc_groupneedmore" onClick={() => openModal("raider")} data-tip="Raider eintragen" data-tip-sub="Jemanden als Orga an- oder austragen — auch nach dem Anmeldeschluss.">
+                Raider eintragen
+            </Button>
+        )
+        : null;
+    const pingAction = !ev.isPast && missing.length && ev.status !== "cancelled"
         ? (
             <Button variant="ghost" size="sm" icon="inv_letter_15" onClick={() => openModal("ping")} data-tip="Fehlende pingen" data-tip-sub="Postet im Event-Channel und pingt genau die Raider ohne Reaktion.">
                 Fehlende pingen<Badge tone="bad" count>{missing.length}</Badge>
             </Button>
         )
         : null;
+    // The ping (or why the attendance check cannot run) stays; "Raider eintragen" sits beside it.
+    const own = pingAction || (attendanceOk ? null : state);
+    const action = addRaider && own ? <span className="em-head-actions">{addRaider}{own}</span> : addRaider || own;
 
     return (
         <section className="panel rd-panel">
@@ -213,7 +224,7 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
                 icon="achievement_guildperk_everybodysfriend"
                 title="Roster"
                 crumb={crumb}
-                action={action || (attendanceOk ? null : state)}
+                action={action}
             />
 
             {setupError && <div className="flash flash-err">Setup konnte nicht geladen werden: {setupError}</div>}

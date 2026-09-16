@@ -86,6 +86,10 @@ function fillText(event) {
 
 /** One raid as one line: title · date · fill · channel link (· Raid-Helper). */
 function raidLine(event, eventGuildId) {
+    // A cancelled event (#288) stays listed until its day, struck through, so nobody wonders where it went.
+    if (event.status === "cancelled") {
+        return [`~~${plain(event.title) || "Raid"}~~`, "**ABGESAGT**", formatStart(event.startTime)].filter(Boolean).join(" · ");
+    }
     const parts = [`**${plain(event.title) || "Raid"}**`];
     const when = formatStart(event.startTime);
     if (when) parts.push(when);
@@ -127,6 +131,8 @@ function buildOverviewMessage(groups, opts = {}) {
     const { eventGuildId = "", eventGuildName = "", baseUrl = publicBaseUrl } = opts;
     const list = upcomingGroups(groups, opts);
     const all = list.flatMap((g) => g.events.map((e) => ({ ...e, categoryName: g.categoryName })));
+    // Nobody signs up for a cancelled raid (#288): it is shown, not offered.
+    const signable = all.filter((e) => e.status !== "cancelled");
 
     const title = "Kommende Raids";
     const description = all.length
@@ -170,17 +176,17 @@ function buildOverviewMessage(groups, opts = {}) {
 
     const components = [];
     // Several raids at once (#293) — only EventHelper events take a signup here.
-    if (all.some((e) => e.source === "eventhelper")) {
+    if (signable.some((e) => e.source === "eventhelper")) {
         components.push(new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId(ALL_BUTTON_ID).setStyle(ButtonStyle.Primary).setLabel("Für alle Raids anmelden").setEmoji("✅"),
             new ButtonBuilder().setCustomId(MULTI_BUTTON_ID).setStyle(ButtonStyle.Secondary).setLabel("Mehrere Raids wählen …"),
         ));
     }
-    if (all.length) {
+    if (signable.length) {
         const select = new StringSelectMenuBuilder()
             .setCustomId(SELECT_ID)
             .setPlaceholder("Einzelnen Raid wählen …")
-            .addOptions(all.slice(0, MAX_OPTIONS).map((e) => ({
+            .addOptions(signable.slice(0, MAX_OPTIONS).map((e) => ({
                 label: (plain(e.title) || "Raid").slice(0, 100),
                 description: [formatStart(e.startTime), plain(e.categoryName)].filter(Boolean).join(" · ").slice(0, 100),
                 value: String(e.id).slice(0, 100),

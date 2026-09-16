@@ -14,6 +14,8 @@ export type RaidCtx = {
     onChanged: (msg: string) => void;
     openModal: (modal: RaidDetailModal) => void;
     openPlayer: (player: PlayerRef) => void;
+    /** An own event and raids write: "Event verwalten" (#288) is offered. */
+    canManage?: boolean;
 };
 
 /** A person the player dialog can show — a raidplan slot, a reaction, or both. */

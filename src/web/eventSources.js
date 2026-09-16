@@ -96,6 +96,8 @@ function planFields(ev) {
     return {
         versionId: ev.versionId, instanceIds: ev.instanceIds, size: ev.size,
         composition: ev.composition, signupDeadline: ev.signupDeadline,
+        // #288: readers skip or mark a cancelled event (reminders, talk overview).
+        status: ev.status || "active", signupsClosed: !!ev.signupsClosed,
     };
 }
 

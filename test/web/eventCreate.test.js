@@ -354,6 +354,17 @@ describe("web/eventCreate", () => {
             expect(refreshEventMessage).not.toHaveBeenCalled();
         });
 
+        it("logs who edited what on the event, and refuses a cancelled event (#288)", async () => {
+            const ev = own();
+            await updateEvent({ guildId: "g1", body: { id: ev.id, title: "Kara Freitag", size: 10, time: "20:00" }, user: { id: "orga", name: "Orga" } });
+            // only the fields that really changed: the time was sent unchanged
+            expect(eventStore.getEvent(ev.id).log).toEqual([
+                expect.objectContaining({ action: "edit", by: "orga", byName: "Orga", detail: "Titel" }),
+            ]);
+            eventStore.setEventState(ev.id, { status: "cancelled" });
+            expect((await updateEvent({ guildId: "g1", body: { id: ev.id, title: "x" } })).error.code).toBe("cancelled");
+        });
+
         it("still saves when the message cannot be refreshed, and says so", async () => {
             refreshEventMessage.mockRejectedValueOnce(new Error("Bot offline"));
             const ev = own();

@@ -130,6 +130,10 @@ function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = 
                 deadline: win.deadline,
                 deadlinePassed: win.deadlinePassed,
                 started: win.started,
+                // Event verwalten (#288): the orga closed the signup or cancelled the raid.
+                signupsClosed: !!stored.signupsClosed,
+                cancelled: stored.status === "cancelled",
+                cancelReason: (stored.cancel && stored.cancel.reason) || "",
                 allowedStatuses: allowedStatuses(event, { now }),
                 counts: roleCounts(event, signUps),
                 wishes: !!stored.wishes,

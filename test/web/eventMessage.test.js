@@ -184,6 +184,20 @@ describe("web/eventMessage", () => {
         expect(messagePhase(event(), NOW)).toBe("open");
     });
 
+    it("reads the store's shape of Event verwalten: the reason in cancel, a closed signup still takes sign-offs (#288)", () => {
+        const cancelled = buildEventMessage(event({ status: "cancelled", cancel: { reason: "Zu wenig Heiler" } }), signups, { now: NOW });
+        expect(cancelled.embeds[0].description).toContain("Abgesagt** – Zu wenig Heiler");
+        expect(cancelled.components).toEqual([]);
+        const closed = buildEventMessage(event({ status: "active", signupsClosed: true }), signups, { now: NOW });
+        expect(messagePhase(event({ signupsClosed: true }), NOW)).toBe("closed");
+        expect(closed.embeds[0].description).toContain("Anmeldung geschlossen** – Abmelden geht weiter.");
+        const select = closed.components[0].components[0];
+        expect(select.placeholder).toBe("Anmeldung geschlossen – nur Abmelden …");
+        expect(select.options.map((o) => o.value)).toEqual(["absence"]);
+        // a raid that started is "started", closed or not
+        expect(messagePhase(event({ signupsClosed: true, startTime: 1998000000 }), NOW)).toBe("started");
+    });
+
     it("cuts a long block with +N weitere and keeps every field within Discord's limits", () => {
         expect(blockValue(["a", "b", "c"], 2)).toBe("a\nb\n+1 weitere");
         expect(blockValue(["a", "b"], 2)).toBe("a\nb");

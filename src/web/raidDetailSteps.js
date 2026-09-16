@@ -58,6 +58,13 @@ function signupStep(d) {
     if (!known) {
         return { ...step, tone: "none", badge: { label: "unbekannt" }, tip: { head: "Anmeldung · nicht mehr bekannt", sub: "Raid-Helper liefert für diesen vergangenen Raid keine Anmeldungen mehr, und es wurde keine gespeichert." } };
     }
+    // Event verwalten (#288): a cancelled event and a closed signup say so on the step.
+    if (ev.status === "cancelled") {
+        return { ...step, done: true, tone: "bad", badge: { label: "abgesagt", tone: "bad" }, tip: { head: "Anmeldung · abgesagt", sub: ev.cancelReason ? `Grund: ${ev.cancelReason}` : "Das Event wurde abgesagt." } };
+    }
+    if (ev.signupsClosed) {
+        return { ...step, done: true, tone: "mid", badge: { label: "geschlossen", tone: "mid" }, tip: { head: `Anmeldung · ${signups}${target ? ` von ${target}` : ""} · geschlossen`, sub: "Nur noch Abmelden möglich; die Orga trägt über „Verwalten“ weiter ein." } };
+    }
     const saved = savedLabel(ev);
     const sub = ev.signUpsFromSnapshot ? `${saved} (lokal gespeichert).` : "Klick öffnet den Anmelde-Aufruf.";
     if (target && signups >= target) {
@@ -272,7 +279,9 @@ function raidSteps(d) {
     const steps = [signupStep(d), setupStep(d), sheetStep(d), softresStep(d), lootStep(d), logsStep(d)];
     const before = ["signup", "setup", "sheet", "softres"];
     const candidates = (d.event && d.event.isPast) ? ["loot", "logs"] : before;
-    const nextStep = steps.find((s) => candidates.includes(s.key) && !s.done) || null;
+    // A cancelled event (#288) has no next step to push.
+    const cancelled = !!(d.event && d.event.status === "cancelled");
+    const nextStep = cancelled ? null : steps.find((s) => candidates.includes(s.key) && !s.done) || null;
     for (const s of steps) s.next = !!nextStep && s.key === nextStep.key;
     return { steps, next: nextStep ? nextStep.key : "", primary: primaryFor(nextStep, d) };
 }

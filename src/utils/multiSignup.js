@@ -108,7 +108,7 @@ function signableRaids({ config = getConfig(), now = Date.now() } = {}) {
     const cats = Array.isArray(config.categoryIds) ? config.categoryIds.map(String) : [];
     return eventStore.listEvents(guildId, { sinceSeconds: Math.floor(now / 1000) })
         .filter((e) => !signupWindow(e, now).started)
-        .filter((e) => e.status !== "cancelled" && e.status !== "closed")
+        .filter((e) => e.status !== "cancelled" && e.signupsClosed !== true)
         .filter((e) => !cats.length || cats.includes(String(e.categoryId || "")))
         .sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0))
         .slice(0, MAX_RAIDS);
