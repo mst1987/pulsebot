@@ -470,6 +470,9 @@ export type AdminConfig = {
     // keyed by category id — preselects the parser on the loot import and tells
     // the raid-detail loot tab which export to ask for.
     categoryLootTool: Record<string, string>;
+    // Where NEW events of a category are created, keyed by category id. Missing
+    // = "raidhelper"; Raid-Helper events stay in use either way.
+    categorySignupSource?: Record<string, EventSource>;
     // A fixed Google Sheet per category, keyed by category id. A raid in that
     // category links this sheet unless the app made it a copy of its own.
     categorySheets: Record<string, { url: string; name: string }>;
@@ -815,6 +818,7 @@ export function getRosterChar(name: string, itemIds: number[] = []): Promise<Ros
 // recognised; `contentSources` says where that came from.
 type RaidListBase = {
     id: string;
+    source?: EventSource;
     title: string;
     startTime: number;
     channelId: string;
@@ -927,8 +931,12 @@ export type SignupStatus = "signed" | "tentative" | "late" | "bench" | "absence"
 export type AttendancePerson = { id: string; displayName: string; character?: string; status?: SignupStatus; profile: AttendanceProfile | null };
 export type Attendance = { responded: AttendancePerson[]; missing: AttendancePerson[] };
 
+/** Where an event lives: at Raid-Helper, or in the EventHelper's own store (src/web/eventSources.js). */
+export type EventSource = "raidhelper" | "eventhelper";
+
 export type RaidDetailEvent = {
     id: string;
+    source?: EventSource;
     title: string;
     startTime: number;
     channelId: string;

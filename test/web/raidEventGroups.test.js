@@ -4,7 +4,15 @@ jest.mock("../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({ fetchEvents: mockFetchEvents, getAllEvents: mockGetAllEvents })));
 jest.mock("../../src/web/discord", () => ({ getChannelCategoryMap: jest.fn() }));
 jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: jest.fn() }));
+// The EventHelper's own store, read through the real adapter (eventSources.js).
+jest.mock("../../src/web/eventStore", () => ({
+    listEvents: jest.fn(() => []), getEvent: jest.fn(), isOwnEventId: (id) => String(id).startsWith("eh-"),
+}));
+jest.mock("../../src/web/signupStore", () => ({ listSignups: jest.fn(() => []) }));
+jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({ categorySignupSource: { cat1: "eventhelper" } })) }));
 
+const eventStore = require("../../src/web/eventStore");
+const { listSignups } = require("../../src/web/signupStore");
 const discord = require("../../src/web/discord");
 const { listRaidEvents } = require("../../src/web/raidEventStore");
 const { loadEventGroups, _resetEventsCacheForTests } = require("../../src/web/raidEventGroups");
@@ -57,7 +65,7 @@ describe("web/raidEventGroups", () => {
         expect(groups).toEqual([{
             categoryId: "cat1", categoryName: "Raids",
             events: [{
-                id: "e1", title: "Kara", startTime: 2000000000, leaderId: "u1",
+                id: "e1", source: "raidhelper", title: "Kara", startTime: 2000000000, leaderId: "u1",
                 channelId: "chan1", channelName: "kara-signup", categoryId: "cat1",
                 templateId: "3", description: "desc", signupCount: 1,
                 signUps: [{ userId: "1", specName: "Fire", status: "signed" }], signUpsFromSnapshot: false,
@@ -92,7 +100,7 @@ describe("web/raidEventGroups", () => {
         expect(groups).toEqual([{
             categoryId: "cat1", categoryName: "Raids",
             events: [{
-                id: "e1", title: "Kara", startTime: 2000000000, leaderId: "u1",
+                id: "e1", source: "raidhelper", title: "Kara", startTime: 2000000000, leaderId: "u1",
                 channelId: "chan1", channelName: "kara-signup (gone)", categoryId: "cat1",
                 templateId: "3", description: "desc", signupCount: 1,
                 signUps: [{ userId: "1", specName: "Fire", status: "signed" }], signUpsFromSnapshot: false,
@@ -117,7 +125,7 @@ describe("web/raidEventGroups", () => {
         expect(groups).toEqual([{
             categoryId: "cat2", categoryName: "Raids",
             events: [{
-                id: "e2", title: "SSC", startTime: 2000000000, leaderId: "",
+                id: "e2", source: "raidhelper", title: "SSC", startTime: 2000000000, leaderId: "",
                 channelId: "chan2", channelName: "ssc", categoryId: "cat2",
                 templateId: "", description: "", signupCount: 0, signUps: [], signUpsFromSnapshot: false,
             }],
@@ -294,7 +302,7 @@ describe("web/raidEventGroups", () => {
         expect(groups).toEqual([{
             categoryId: "cat2", categoryName: "Raids",
             events: [{
-                id: "e2", title: "SSC", startTime: 2000000000, leaderId: "",
+                id: "e2", source: "raidhelper", title: "SSC", startTime: 2000000000, leaderId: "",
                 channelId: "chan2", channelName: "ssc", categoryId: "cat2",
                 templateId: "", description: "", signupCount: 0, signUps: [], signUpsFromSnapshot: false,
             }],
@@ -331,5 +339,58 @@ describe("web/raidEventGroups", () => {
         const { groups } = await loadEventGroups("g1");
 
         expect(groups).toEqual([expect.objectContaining({ categoryId: "", categoryName: "Ohne Kategorie" })]);
+    });
+
+    describe("with the EventHelper's own events", () => {
+        const own = (over = {}) => ({
+            id: "eh-1", source: "eventhelper", guildId: "g1", categoryId: "cat1", categoryName: "Raids",
+            channelId: "chan9", channelName: "kara-eh", title: "Kara EH", description: "", leaderId: "u2",
+            startTime: 2000000500, versionId: "tbc", instanceIds: ["kara"], size: 10,
+            composition: { tank: 2, healer: 3, melee: 0, ranged: 0 }, signupDeadline: 0, ...over,
+        });
+        afterEach(() => {
+            eventStore.listEvents.mockReturnValue([]);
+            listSignups.mockReturnValue([]);
+        });
+
+        it("lists a Raid-Helper event and an own event of the same (switched) category side by side, by start", async () => {
+            // cat1 creates new events in the EventHelper — its Raid-Helper event stays.
+            mockGetAllEvents.mockResolvedValue([event()]);
+            discord.getChannelCategoryMap.mockReturnValue({
+                chan1: { name: "kara-signup", categoryId: "cat1", categoryName: "Raids" },
+                chan9: { name: "kara-eh", categoryId: "cat1", categoryName: "Raids" },
+            });
+            eventStore.listEvents.mockReturnValue([own()]);
+            listSignups.mockReturnValue([{ userId: "7", spec: "Mage-Fire", role: "ranged", status: "signed" }]);
+
+            const { groups } = await loadEventGroups("g1");
+
+            expect(groups).toHaveLength(1);
+            const [rh, eh] = groups[0].events;
+            expect(rh).toMatchObject({ id: "e1", source: "raidhelper" });
+            expect(eh).toMatchObject({
+                id: "eh-1", source: "eventhelper", channelName: "kara-eh", categoryId: "cat1", signupCount: 1,
+                signUps: [expect.objectContaining({ userId: "7", specName: "Fire", status: "signed" })],
+            });
+            // same keys as the Raid-Helper row — readers need nothing else
+            for (const key of Object.keys(rh)) expect(eh).toHaveProperty(key);
+        });
+
+        it("keeps own events when Raid-Helper is down", async () => {
+            mockGetAllEvents.mockRejectedValue(new Error("Raid-Helper down"));
+            listRaidEvents.mockReturnValue([]);
+            eventStore.listEvents.mockReturnValue([own()]);
+
+            const { groups, error } = await loadEventGroups("g1");
+
+            expect(error).toBe("Raid-Helper down");
+            expect(groups[0]).toMatchObject({ categoryId: "cat1", categoryName: "Raids" });
+            expect(groups[0].events.map((e) => e.id)).toEqual(["eh-1"]);
+        });
+
+        it("passes the lookback on to the own store", async () => {
+            await loadEventGroups("g1", { sinceSeconds: 4242 });
+            expect(eventStore.listEvents).toHaveBeenCalledWith("g1", { sinceSeconds: 4242 });
+        });
     });
 });

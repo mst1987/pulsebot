@@ -208,15 +208,23 @@ async function delay(ms) {
     });
 }
 
+// The upcoming events of a category from both sources — Raid-Helper's and the
+// EventHelper's own (web/eventSources.js) — in Raid-Helper's list shape, soonest
+// first. An own event counts when its channel sits in the category or it was
+// created for it.
 async function getCategoryEvents(interaction, categoryId) {
+    const { ownUpcomingRaw } = require("../web/eventSources");
     const raidhelper = createRaidhelperClient();
     const allEvents = await raidhelper.getAllEvents();
     const channelsInCategory = getChannelsFromCategories(interaction.guild, [
         categoryId,
     ]);
-    const categoryEvents = allEvents
-        .filter((event) => channelsInCategory.includes(event.channelId))
-        .sort((eventA, eventB) => eventA.startTime - eventB.startTime);
+    const own = ownUpcomingRaw(interaction.guild ? interaction.guild.id : "")
+        .filter((event) => event.categoryId === categoryId || channelsInCategory.includes(event.channelId));
+    const categoryEvents = [
+        ...allEvents.filter((event) => channelsInCategory.includes(event.channelId)),
+        ...own,
+    ].sort((eventA, eventB) => eventA.startTime - eventB.startTime);
     return categoryEvents;
 }
 

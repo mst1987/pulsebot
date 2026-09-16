@@ -23,7 +23,7 @@ const { getCategoryAssignments } = require("./raiderCharactersStore");
 const { excludedKeys, plannedRoles } = require("./councilStore");
 const { armoryUrlFor } = require("./charLinks");
 const { characterKey, splitPlayer } = require("../utils/lootImport");
-const { listRaidEvents } = require("./raidEventStore");
+const { listStoredEvents } = require("./eventSources");
 const { listLogs } = require("./logStore");
 const { listReports, getReport } = require("./reportStore");
 const { CONTENTS, TIERS, content: contentMeta, sourceForItem } = require("../config/tbcContent");
@@ -119,7 +119,7 @@ function categoryFromReports(categoryId) {
     // keeps the category captured at scan time, so a deleted Discord channel
     // does not lose the event — see raidEventStore.js).
     const events = new Set(
-        listRaidEvents()
+        listStoredEvents()
             .filter((e) => e && e.categoryId === categoryId)
             .map((e) => String(e.id || e.eventId || "")),
     );

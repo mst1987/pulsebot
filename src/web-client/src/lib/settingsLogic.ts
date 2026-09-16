@@ -97,6 +97,7 @@ export type DraftShape = {
     logChannelIds: string[];
     raidChannelId: string;
     categoryLootTool: Record<string, string>;
+    categorySignupSource?: Record<string, string>;
     categorySheets: Record<string, { url: string; name: string }>;
     categoryRaidTemplate?: Record<string, string>;
     topItems: { id: number }[];
@@ -141,6 +142,7 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         ...(saved.categoryIds || []), ...(draft.categoryIds || []),
         ...Object.keys(saved.categoryRoles || {}), ...Object.keys(draft.categoryRoles || {}),
         ...Object.keys(saved.categoryLootTool || {}), ...Object.keys(draft.categoryLootTool || {}),
+        ...Object.keys(saved.categorySignupSource || {}), ...Object.keys(draft.categorySignupSource || {}),
         ...Object.keys(saved.categorySheets || {}), ...Object.keys(draft.categorySheets || {}),
     ])];
     for (const id of categories) {
@@ -152,6 +154,9 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const toolWas = (saved.categoryLootTool || {})[id] || "";
         const toolIs = (draft.categoryLootTool || {})[id] || "";
         if (toolWas !== toolIs) out.push(`${name} · Loot-Addon → ${LOOT_TOOL_LABEL[toolIs] || toolIs}`);
+        const sourceWas = (saved.categorySignupSource || {})[id] || "raidhelper";
+        const sourceIs = (draft.categorySignupSource || {})[id] || "raidhelper";
+        if (sourceWas !== sourceIs) out.push(`${name} · Neue Events → ${sourceIs === "eventhelper" ? "EventHelper" : "Raid-Helper"}`);
         const sheetWas = (saved.categorySheets || {})[id] || { url: "", name: "" };
         const sheetIs = (draft.categorySheets || {})[id] || { url: "", name: "" };
         if ((sheetWas.url || "").trim() !== (sheetIs.url || "").trim() || (sheetWas.name || "").trim() !== (sheetIs.name || "").trim()) {

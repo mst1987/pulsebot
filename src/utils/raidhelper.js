@@ -56,7 +56,8 @@ async function getCategorySetups(interaction, categoryId) {
   if (categoryEvents) {
     await Promise.all(
       categoryEvents.map(async (event) => {
-        const setup = await raidhelper.getSetup(event.id);
+        // An own EventHelper event has no Raid-Helper raidplan to ask for.
+        const setup = event.source === "eventhelper" ? null : await raidhelper.getSetup(event.id);
 
         if (setup) {
           events.push({

@@ -6,7 +6,7 @@ const { activeGuildFor } = require("../activeGuild");
 const discord = require("../discord");
 const discordChannels = require("../discordChannels");
 const archiveStore = require("../channelArchiveStore");
-const { listRaidEvents } = require("../raidEventStore");
+const { listStoredEvents, ownUpcomingRaw } = require("../eventSources");
 const { fetchEventsCached } = require("../raidEventGroups");
 const { runSerial, summarize, eventStatusByChannel } = require("../channelOps");
 const { getConfig, listRecruitmentPosts } = require("../settingsStore");
@@ -34,7 +34,8 @@ function recruitmentPostsByChannel(guildId) {
  * raid would simply carry no badge, which is better than a page that hangs.
  */
 async function eventsFor(guildId) {
-    const stored = listRaidEvents(guildId);
+    // Both sources: the stored past events and the EventHelper's own upcoming ones.
+    const stored = [...listStoredEvents(guildId), ...ownUpcomingRaw(guildId)];
     let upcoming = [];
     let timer = null;
     try {
@@ -256,7 +257,7 @@ async function renamePreview(req, res) {
     const guildId = activeGuildFor(req);
     const body = await readJsonBody(req);
     const { ids, known } = idsOfGuild(body, guildId);
-    const events = eventStatusByChannel(listRaidEvents(guildId));
+    const events = eventStatusByChannel(listStoredEvents(guildId));
     const schema = String(body.schema || "").trim() || "{name}";
     const taken = new Set([...known.values()].filter((c) => !ids.includes(c.id)).map((c) => c.name));
     const rows = ids.map((id, i) => {

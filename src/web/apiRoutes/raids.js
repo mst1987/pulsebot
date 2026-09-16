@@ -3,16 +3,15 @@ const { requireAdmin, requireCsrf } = require("../apiMiddleware");
 const { readJsonBody } = require("../apiBody");
 const { activeGuildFor } = require("../activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
-const { getRaidEvent } = require("../raidEventStore");
 const { upcomingRows, loadPastRaids, raidContentIds } = require("../raidListing");
 const { getConfig, listRaidTemplates } = require("../settingsStore");
+const { createEvent } = require("../eventCreate");
 const discord = require("../discord");
-const { createRaidhelperClient } = require("../../utils/raidhelperClient");
-const { toRaidHelperDate } = require("../../utils/date");
 
 /**
- * GET /api/raids — the active guild's upcoming Raid-Helper events as flat rows,
- * each with its raid content(s), raid size and soft-reserve link (raidListing.js).
+ * GET /api/raids — the active guild's upcoming events of both sources
+ * (Raid-Helper and EventHelper) as flat rows, each with its raid content(s),
+ * raid size and soft-reserve link (raidListing.js).
  */
 async function getRaids(req, res) {
     const user = requireAdmin(req, res);
@@ -49,11 +48,11 @@ async function getRaidCreateContext(req, res) {
     // (loadEventGroups already swallows it).
     const { groups } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
     const reusableEvents = groups.flatMap((g) => g.events.map((ev) => ({
-        id: ev.id, title: ev.title, templateId: ev.templateId,
+        id: ev.id, source: ev.source || "raidhelper", title: ev.title, templateId: ev.templateId,
         description: ev.description, channelId: ev.channelId, channelName: ev.channelName,
         categoryId: g.categoryId || "", categoryName: g.categoryName || "",
         startTime: ev.startTime || 0,
-        contentIds: raidContentIds({ title: ev.title, categoryName: g.categoryName, channelName: ev.channelName }).contentIds,
+        contentIds: raidContentIds({ title: ev.title, categoryName: g.categoryName, channelName: ev.channelName, instanceIds: ev.instanceIds }).contentIds,
     })));
     const config = getConfig();
     const templates = listRaidTemplates();
@@ -76,88 +75,24 @@ async function getRaidCreateContext(req, res) {
         channels,
         templates,
         reusableEvents,
+        // Which categories create their new events in the EventHelper (missing = Raid-Helper).
+        signupSources: getConfig().categorySignupSource || {},
     });
 }
 
 /**
- * The channel of the event a new raid is cloned from.
- *
- * All the clone needs is that one channel id, so it is asked for **by event
- * id** instead of scanning the window the create dialog was filled from. That
- * scan was the bug behind "Ausgangs-Event nicht gefunden": it lists the guild's
- * events of the last 60 days, joins them against the live Discord channels and
- * keeps a per-window cache — so a Raid-Helper hiccup, a Discord reconnect or
- * simply enough time between opening the dialog and pressing the button could
- * leave the event out of a list it had plainly been in a minute earlier.
- *
- * Three sources, in order of authority: Raid-Helper's own event endpoint, the
- * snapshot raidEventScan.js keeps, and finally the window scan (which can still
- * know an event whose channel Discord no longer has). The failures are told
- * apart, because "Raid-Helper antwortet gerade nicht" and "das Event gibt es
- * nicht mehr" call for different things from whoever reads it.
- *
- * @returns {Promise<{channelId: string, code?: string, message?: string}>}
+ * POST /api/raids — create an event, optionally cloning a source event's
+ * channel. Raid-Helper or the own store, by the category's default source;
+ * the work is eventCreate.js', shared with the Discord modal (#260).
  */
-async function sourceChannelFor(rh, guildId, sourceEventId) {
-    let reachable = true;
-    try {
-        const ev = await rh.getEvent(sourceEventId);
-        if (ev && ev.id && ev.channelId) return { channelId: String(ev.channelId) };
-    } catch {
-        reachable = false;
-    }
-
-    const snapshot = getRaidEvent(sourceEventId);
-    if (snapshot && snapshot.channelId) return { channelId: String(snapshot.channelId) };
-
-    const { groups } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
-    const found = groups.flatMap((g) => g.events).find((ev) => ev.id === sourceEventId);
-    if (found && found.channelId) return { channelId: String(found.channelId) };
-
-    return reachable
-        ? { channelId: "", code: "source_not_found", message: "Das Ausgangs-Event gibt es bei Raid-Helper nicht mehr. Wähle ein anderes oder lege den Channel selbst an." }
-        : { channelId: "", code: "raidhelper_unreachable", message: "Raid-Helper antwortet gerade nicht — das Ausgangs-Event ließ sich nicht laden. Gleich noch einmal versuchen." };
-}
-
-/** POST /api/raids — create a Raid-Helper event, optionally cloning a source event's channel. */
 async function createRaid(req, res) {
     const user = requireAdmin(req, res);
     if (!user) return;
     if (!requireCsrf(req, res)) return;
     const body = await readJsonBody(req);
-    const date = toRaidHelperDate(body.date);
-    if (!date) return error(res, 400, "invalid_date", "Ungültiges Datum.");
-    try {
-        const rh = createRaidhelperClient();
-        let channelId = String(body.channelId || "").trim();
-        const sourceEventId = String(body.sourceEventId || "").trim();
-        // Reuse an existing event for a new date: clone its channel (name taken
-        // over and edited by the admin), then post the new event there. Looked up
-        // in the same window the create dialog offered it from.
-        if (sourceEventId) {
-            const source = await sourceChannelFor(rh, activeGuildFor(req), sourceEventId);
-            if (!source.channelId) return error(res, 400, source.code, source.message);
-            const cloned = await discord.duplicateChannel(source.channelId, String(body.channelName || "").trim());
-            channelId = cloned.id;
-        }
-        if (!channelId) return error(res, 400, "no_channel", "Kein Channel gewählt.");
-        const result = await rh.createEvent({
-            channelId,
-            leaderId: String(body.leaderId || "").trim(),
-            templateId: String(body.templateId || "").trim(),
-            date,
-            time: String(body.time || "").trim(),
-            title: String(body.title || "").trim(),
-            description: body.description || "",
-        });
-        if (result && result.status === "failed") {
-            const msg = result.reason || result.message || "Raid-Helper hat die Erstellung abgelehnt.";
-            return error(res, 400, "create_failed", msg);
-        }
-        ok(res, result, 201);
-    } catch (e) {
-        error(res, 400, "create_failed", e.message || "Event konnte nicht angelegt werden.");
-    }
+    const result = await createEvent({ guildId: activeGuildFor(req), user, body });
+    if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
+    ok(res, result.body, result.status);
 }
 
 module.exports = { getRaids, getPastRaids, getRaidCreateContext, createRaid };

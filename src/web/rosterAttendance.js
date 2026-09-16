@@ -3,8 +3,9 @@
 //
 // Nothing is stored for it. Both answers are derived on read from what the bot
 // already keeps:
-//   * the persisted Raid-Helper events per raid category (raidEventStore.js),
-//     with the signups captured while Raid-Helper still returned them;
+//   * the stored events per raid category (eventSources.listStoredEvents: the
+//     Raid-Helper snapshot with the signups captured while Raid-Helper still
+//     returned them, and the EventHelper's own events with their signups);
 //   * the logs assigned to those events (logStore.js) and the evaluation each
 //     one produced (reportStore.js), whose roster says who actually stood there.
 //
@@ -26,7 +27,7 @@
 // Role (the second open question): what the character last played in a log —
 // a hybrid's spec in the loot export says little about whether they healed
 // last Thursday — and the spec only when no log knows them.
-const { listRaidEvents } = require("./raidEventStore");
+const { listStoredEvents } = require("./eventSources");
 const { listLogs } = require("./logStore");
 const { listReports, getReport } = require("./reportStore");
 const { characterKey: lootCharacterKey, splitPlayer } = require("../utils/lootImport");
@@ -138,7 +139,7 @@ function buildAttendanceContext(guildId, opts = {}) {
 
     // category id -> its past raid nights with evidence, newest first
     const raidsByCategory = new Map();
-    for (const ev of listRaidEvents(guildId)) {
+    for (const ev of listStoredEvents(guildId)) {
         if (!ev || !ev.categoryId || !ev.startTime || ev.startTime > now) continue;
         const logs = reportsByEvent.get(String(ev.id)) || [];
         const signUps = Array.isArray(ev.signUps) ? ev.signUps : [];

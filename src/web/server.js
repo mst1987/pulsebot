@@ -4,6 +4,7 @@ const { webPort } = require("../config/variables");
 const { getReport, deleteReport } = require("./reportStore");
 const { startRaidEventScan } = require("./raidEventScan");
 const { startLogAutoLink } = require("./logAutoLink");
+const { startEventMessageSync } = require("./eventMessage");
 const { startReminders } = require("./reminders");
 const { startRoleSync } = require("./roleSync");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
@@ -161,6 +162,8 @@ function startWebServer(client) {
     // listener could not place at detection time (Raid-Helper unreachable, event
     // not yet known) still ends up linked without an admin clicking anything.
     startLogAutoLink();
+    // Keep the bot's event messages of EventHelper events current as signups change.
+    startEventMessageSync();
     // Automatic reminders per raid category and the role sync between the event
     // and the talk server (#264). Both do nothing until configured.
     startReminders();

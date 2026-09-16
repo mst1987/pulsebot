@@ -95,14 +95,18 @@ function countRoles(entries) {
 
 /**
  * The three role bars: filled from the raidplan when one is built (that is who
- * actually goes), from the attending signups otherwise; target from the size.
+ * actually goes), from the attending signups otherwise; target from the size —
+ * or from an own event's planned composition ({ tank, healer }), the damage
+ * dealers taking what is left of the size.
  */
-function roleFill({ setupSlots = [], signUps = [], size = 25 }) {
+function roleFill({ setupSlots = [], signUps = [], size = 25, composition = null }) {
     const slots = (setupSlots || []).filter((s) => s && (s.name || s.charName || s.characterName));
     const counts = slots.length
         ? countRoles(slots.map((s) => ({ specName: s.specName || s.spec || s.className })))
         : countRoles((signUps || []).filter(isAttending));
-    const targets = ROLE_TARGETS[size] || ROLE_TARGETS[25];
+    const targets = composition
+        ? { tank: composition.tank || 0, healer: composition.healer || 0, dps: Math.max(0, size - (composition.tank || 0) - (composition.healer || 0)) }
+        : (ROLE_TARGETS[size] || ROLE_TARGETS[25]);
     return ROLES.map((r) => ({ ...r, filled: counts[r.key], target: targets[r.key] }));
 }
 

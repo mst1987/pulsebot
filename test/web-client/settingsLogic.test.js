@@ -158,6 +158,12 @@ describe("save bar change list", () => {
         ]);
     });
 
+    it("names a switched event source, and treats a missing one as Raid-Helper", () => {
+        const draft = base();
+        draft.categorySignupSource = { c1: "eventhelper", c2: "raidhelper" };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Neue Events → EventHelper"]);
+    });
+
     it("counts admin roles, the base access, accounts, categories and top items", () => {
         const draft = base();
         draft.adminRoleIds = ["a2"];

@@ -35,6 +35,7 @@ export function raidLabel(ids: string[] | undefined): string {
 }
 
 const SOURCE_LABELS: Record<string, string> = {
+    event: "Event",
     title: "Titel",
     category: "Kategorie",
     channel: "Kanalname",
