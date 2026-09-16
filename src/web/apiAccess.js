@@ -21,6 +21,15 @@ const AREA_BY_PATH = {
 
     "/api/channels": "channels",
     "/api/channels/duplicate": "channels",
+    // Issue #259: edit (PATCH /api/channels), archive, delete from the archive,
+    // the rename preview, quick-create by schema and the archive settings — all
+    // writes, so all need "channels" at write. Deleting additionally refuses
+    // anything outside the archive category (discordChannels.deleteChannel).
+    "/api/channels/archive": "channels",
+    "/api/channels/delete": "channels",
+    "/api/channels/rename-preview": "channels",
+    "/api/channels/batch": "channels",
+    "/api/channels/config": "channels",
 
     "/api/settings": "settings",
     // Wowhead search behind the top-item picker in the Loot tab.
