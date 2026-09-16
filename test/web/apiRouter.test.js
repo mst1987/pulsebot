@@ -51,6 +51,7 @@ jest.mock("../../src/web/dashboardData", () => ({
     loadRecentEvents: jest.fn(() => Promise.resolve({ events: [], error: null })),
     annotateUpcomingExtras: jest.fn((events) => events),
     loadTopLoot: jest.fn(() => ({ items: [], configured: 0 })),
+    loadChannelArchive: jest.fn(() => null),
 }));
 jest.mock("../../src/web/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
@@ -215,6 +216,7 @@ jest.mock("../../src/web/discord", () => ({
     scanRecruitment: jest.fn(() => Promise.resolve([])),
     listApplications: jest.fn(() => Promise.resolve({ applications: [], error: null })),
     getClient: jest.fn(() => null),
+    getGuild: jest.fn(() => null),
     getChannelCategoryMap: jest.fn(() => ({})),
     listMembersWithRoles: jest.fn(() => Promise.resolve({ members: [], error: null })),
     resolveUserNames: jest.fn(() => Promise.resolve({})),
@@ -226,6 +228,7 @@ jest.mock("../../src/web/discord", () => ({
 jest.mock("../../src/web/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
     eventLookbackSince: jest.fn(() => 0),
+    fetchEventsCached: jest.fn(() => Promise.resolve({ events: [] })),
 }));
 // The row shaping is pure and runs for real; the past-raid load rescans the
 // event snapshot and has its own test (raidListing.test.js).

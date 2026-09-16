@@ -154,5 +154,16 @@ describe("web/dashboardOverview", () => {
             const [task] = buildTasks({ nextRaids: [{ id: "n1", title: "BT", startTime: 1, sheet: null }] });
             expect(task.count).toBe(0);
         });
+
+        // Issue #259: archived channels wait for an admin, never for a timer.
+        it("reminds of archived channels and turns yellow past the deadline", () => {
+            expect(buildTasks({ archive: { count: 0, overdue: 0, hintDays: 14 } })).toEqual([]);
+            const [waiting] = buildTasks({ archive: { count: 3, overdue: 0, hintDays: 14 } });
+            expect(waiting).toMatchObject({ id: "channels", tone: "accent", tile: "channels", count: 3, href: "/channels?tab=archive" });
+            expect(waiting.ref.text).toBe("3 Kanäle warten auf Löschung");
+            const [overdue] = buildTasks({ archive: { count: 3, overdue: 1, hintDays: 14 } });
+            expect(overdue).toMatchObject({ tone: "mid", tile: "mid" });
+            expect(overdue.ref.text).toBe("1 Kanal wartet länger als 14 Tage");
+        });
     });
 });

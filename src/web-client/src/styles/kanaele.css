@@ -1,7 +1,7 @@
 /* Kanäle (design issue #216) — the page, its two parts and its dialogs.
    Everything is prefixed kn- so it cannot restyle another module. */
 
-.kn-page { max-width: 1080px; display: flex; flex-direction: column; gap: 22px; }
+.kn-page { max-width: 1240px; display: flex; flex-direction: column; gap: 22px; }
 .kn-page .page-head { margin-bottom: 0; }
 .kn-part { display: flex; flex-direction: column; }
 .kn-muted { color: var(--muted); font-size: 13px; }
@@ -44,14 +44,94 @@ a.ibtn svg { width: 15px; height: 15px; }
 .kn-search input { flex: 1; min-width: 0; border: 0; background: none; color: var(--text); font: inherit; font-size: 14px; outline: none; }
 .kn-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
-.kn-group + .kn-group .kn-cat-head { border-top: 1px solid var(--line); }
-.kn-cat-head { display: flex; align-items: center; gap: 10px; padding: 8px 16px; min-height: 48px; background: var(--panel2); flex-wrap: wrap; }
-.kn-cat-name { font-family: var(--font-mono); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
-.kn-chan-row { display: grid; grid-template-columns: 28px 1fr minmax(0, 330px) 76px; align-items: center; gap: 10px; padding: 7px 16px 7px 28px; border-top: 1px solid var(--line-soft); }
-.kn-chan-row:hover { background: var(--panel2); }
-.kn-chan-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.kn-type { display: inline-grid; place-items: center; color: var(--muted); width: 20px; }
+.kn-type { display: inline-grid; place-items: center; color: var(--muted); width: 20px; flex: 0 0 auto; }
 .kn-type svg { width: 17px; height: 17px; }
+
+/* small mono label ("Enter speichert · Esc verwirft", figure labels) */
+.kn-kicker { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.kn-mono { font-family: var(--font-mono); }
+
+/* ---- page layout (issue #259): tabs, the tree, the side panel ---- */
+.kn-page.has-bulk { padding-bottom: 84px; }
+.kn-tabs { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.kn-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 18px; align-items: start; }
+
+.kn-tree { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 14px; min-width: 0; }
+.kn-tree-tools { display: flex; align-items: center; gap: 10px; padding: 4px 0 6px; flex-wrap: wrap; }
+.kn-tree-tools .kn-search { flex: 1; }
+.kn-push { margin-left: auto; }
+.kn-archive-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 16px; }
+.kn-archive-empty .kn-empty { padding: 0; }
+
+.kn-cb { width: 16px; height: 16px; margin: 0; flex: 0 0 auto; accent-color: var(--accent); cursor: pointer; }
+
+.kn-cat-row { display: flex; align-items: center; gap: 8px; padding: 14px 8px 6px; }
+.kn-fold {
+    display: inline-flex; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: var(--muted); cursor: pointer; min-width: 0;
+}
+.kn-fold svg { width: 14px; height: 14px; flex: 0 0 auto; transform: rotate(-90deg); transition: transform .15s; }
+.kn-fold.open svg { transform: none; }
+.kn-fold:hover { color: var(--text); }
+.kn-cat-title { font-family: var(--font-mono); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+
+.kn-row { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px solid transparent; }
+.kn-row:hover { background: var(--panel2); }
+.kn-row.sel { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 35%, transparent); }
+.kn-name {
+    font-family: var(--font-mono); font-size: 15px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap; cursor: default;
+}
+.kn-row-icons { margin-left: auto; display: flex; gap: 2px; opacity: 0; transition: opacity .12s; }
+.kn-row:hover .kn-row-icons, .kn-row:focus-within .kn-row-icons { opacity: 1; }
+.kn-row-icons .ibtn { border: 0; background: none; }
+
+.kn-inline-wrap { display: inline-flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.kn-inline {
+    height: 30px; min-width: 220px; padding: 0 8px; background: var(--bg); color: var(--text); border: 1px solid var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft); border-radius: 6px; font: 600 14px var(--font-mono); outline: none;
+}
+
+.kn-side { display: flex; flex-direction: column; gap: 12px; }
+.kn-figures { display: flex; flex-direction: column; gap: 14px; padding: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+.kn-figure {
+    display: flex; flex-direction: column; gap: 2px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left;
+}
+button.kn-figure { cursor: pointer; }
+button.kn-figure:hover .kn-figure-val { color: var(--accent); }
+.kn-figure-val { font-size: 22px; font-weight: 800; letter-spacing: -.3px; line-height: 1.1; }
+.kn-figure-val.mid { color: var(--medium); }
+.kn-side-note { display: flex; flex-direction: column; gap: 8px; padding: 0 4px; font-size: 12.5px; color: var(--muted); }
+
+/* ---- bulk bar ---- */
+.kn-bulk {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 40; display: flex; align-items: center; gap: 10px;
+    flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 32px); padding: 10px 12px 10px 18px; background: var(--panel);
+    border: 1px solid var(--accent); border-radius: 12px; box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .6);
+}
+.kn-bulk-count { font-weight: 800; font-size: 15px; }
+
+/* ---- previews in the dialogs ---- */
+.kn-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.kn-qc-head { display: flex; align-items: center; gap: 10px; }
+.kn-qc-head .kn-select { flex: 1; }
+.kn-preview { display: flex; flex-direction: column; gap: 4px; max-height: 40vh; overflow: auto; }
+.kn-preview-row { display: flex; align-items: center; gap: 8px; min-height: 30px; }
+.kn-preview-name { font-family: var(--font-mono); font-size: 14px; font-weight: 600; }
+.kn-preview-from { font-family: var(--font-mono); font-size: 13px; color: var(--muted); }
+.kn-preview-row .badge:first-of-type { margin-left: auto; }
+.kn-details { border-top: 1px solid var(--line-soft); padding-top: 10px; }
+.kn-details > summary { cursor: pointer; margin-bottom: 10px; }
+.kn-ph {
+    padding: 2px 8px; border: 1px dashed var(--line); border-radius: 6px; background: var(--bg); color: var(--muted);
+    font: 600 12px var(--font-mono); cursor: pointer;
+}
+.kn-ph:hover { color: var(--text); border-color: var(--area-channels); }
+.kn-check { display: flex; align-items: center; gap: 8px; font-size: 13.5px; margin-top: 8px; cursor: pointer; }
+.kn-textarea {
+    width: 100%; padding: 8px 12px; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: var(--ctl-radius);
+    font: inherit; font-size: 14px; resize: vertical;
+}
+.kn-textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
 /* ---- dialogs ---- */
 .kn-dlg-stack { display: flex; flex-direction: column; gap: 16px; }
@@ -104,9 +184,12 @@ a.ibtn svg { width: 15px; height: 15px; }
     .kn-purpose { grid-template-columns: 1fr auto; }
     .kn-purpose.kn-th { display: none; }
     .kn-purpose .kn-chips { grid-column: 1 / -1; order: 3; }
-    .kn-chan-row { grid-template-columns: 24px 1fr auto; padding-left: 16px; }
-    .kn-chan-row .kn-chips { grid-column: 2 / -1; order: 3; }
     .kn-search { min-width: 0; width: 100%; }
-    .part-head .ph-act:has(.kn-search) { width: 100%; margin-left: 0; }
     .kn-type-seg { flex-wrap: wrap; }
+    .kn-layout { grid-template-columns: minmax(0, 1fr); }
+    .kn-row-icons { opacity: 1; }
+    .kn-inline { min-width: 0; width: 100%; }
+    .kn-inline-wrap .kn-kicker { display: none; }
+    .kn-grid2 { grid-template-columns: minmax(0, 1fr); }
+    .kn-bulk { left: 16px; right: 16px; transform: none; bottom: 12px; }
 }
