@@ -27,6 +27,7 @@ const {
     listNotify, getNotify, saveNotify, deleteNotify,
     listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
     getConfig, saveConfig, resolveEventSheetLink, normalizeDiscordServers,
+    normalizeRoleSync, normalizeCategoryReminders,
 } = require("../../src/web/settingsStore.js");
 
 beforeEach(() => {
@@ -541,4 +542,47 @@ describe("web/settingsStore", () => {
         });
     });
 
+});
+
+// Role sync and reminders (#264).
+describe("web/settingsStore roleSync and categoryReminders", () => {
+    it("default to nothing configured", () => {
+        expect(getConfig().roleSync).toEqual([]);
+        expect(getConfig().categoryReminders).toEqual({});
+    });
+
+    it("keeps only complete role pairs with a known direction, once per pair", () => {
+        expect(normalizeRoleSync([
+            { eventRoleId: " 111111 ", talkRoleId: "222222", direction: "both" },
+            { eventRoleId: "111111", talkRoleId: "222222", direction: "toEvent" },
+            { eventRoleId: "333333", talkRoleId: "444444", direction: "sideways" },
+            { eventRoleId: "555555", talkRoleId: "" },
+            { eventRoleId: "@Raider", talkRoleId: "666666" },
+            null,
+        ])).toEqual([
+            { eventRoleId: "111111", talkRoleId: "222222", direction: "both" },
+            { eventRoleId: "333333", talkRoleId: "444444", direction: "toTalk" },
+        ]);
+        expect(normalizeRoleSync("x")).toEqual([]);
+    });
+
+    it("clamps reminder hours, drops switched-off categories and defaults the target", () => {
+        expect(normalizeCategoryReminders({
+            123456: { missingHours: "24", signedHours: 1.4, target: "talk" },
+            234567: { missingHours: 500, signedHours: -3 },
+            345678: { missingHours: 0, signedHours: "" },
+            nope: { missingHours: 5 },
+        })).toEqual({
+            123456: { missingHours: 24, signedHours: 1, target: "talk" },
+            234567: { missingHours: 168, signedHours: 0, target: "event" },
+        });
+        expect(normalizeCategoryReminders([])).toEqual({});
+    });
+
+    it("replaces both as a whole on save", () => {
+        saveConfig({ roleSync: [{ eventRoleId: "111111", talkRoleId: "222222" }], categoryReminders: { 123456: { signedHours: 2 } } });
+        const saved = saveConfig({ roleSync: [], categoryReminders: { 234567: { missingHours: 12, target: "both" } } });
+        expect(saved.roleSync).toEqual([]);
+        expect(saved.categoryReminders).toEqual({ 234567: { missingHours: 12, signedHours: 0, target: "both" } });
+    });
 });

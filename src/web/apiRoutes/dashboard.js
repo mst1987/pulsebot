@@ -8,6 +8,7 @@ const {
     loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot,
 } = require("../dashboardData");
 const { buildTasks, zoneFor } = require("../dashboardOverview");
+const { loadDrift } = require("../roleSync");
 
 /** The page head's kicker parts: the managed guild and the realm the loot lookups use ("Thunderstrike EU"). */
 function kickerFor(guildId) {
@@ -34,13 +35,16 @@ async function getDashboard(req, res) {
     const report = loadLatestReport();
     const inbox = loadInbox();
     const lastRaid = recentEvents.events[0];
+    // Role-sync drift is a full admin's task: only they can open the section it
+    // links to. Nothing configured means no member fetch at all.
+    const roleDrift = user.isAdmin ? await loadDrift() : null;
 
     ok(res, {
         kicker: kickerFor(guildId),
         nextRaid: next.raids[0] || null,
         followingRaid: next.raids[1] || null,
         nextRaidError: next.error,
-        tasks: buildTasks({ nextRaids: next.raids, recentEvents: recentEvents.events, report, inbox }),
+        tasks: buildTasks({ nextRaids: next.raids, recentEvents: recentEvents.events, report, inbox, roleDrift }),
         areas: {
             lastReport: report,
             newLoot: loadNewLoot(lastRaid ? lastRaid.startTime : 0),

@@ -107,6 +107,16 @@ const CONFIG_DEFAULTS = {
     // Logs): the raid DPS/HPS and boss-health curves of the fight timeline.
     // Empty = the report has no such curves; the v1 key in .env does the rest.
     warcraftlogsV2: { clientId: "", clientSecret: "" },
+    // Role sync between the two servers (#264): [{ eventRoleId, talkRoleId,
+    // direction }] with direction "toTalk" | "toEvent" | "both". The sync only
+    // ever ADDS roles (src/web/roleSync.js); a role lost on one side stays on
+    // the other and shows up as a hint in the admin menu.
+    roleSync: [],
+    // Automatic reminders per raid category (#264): { [categoryId]:
+    // { missingHours, signedHours, target } } — hours before the sign-up
+    // deadline (else the raid start) to the members still missing, hours before
+    // the raid to the signed-up ones; 0 = off. See src/web/reminders.js.
+    categoryReminders: {},
 };
 
 function ensureDir() {
@@ -446,7 +456,69 @@ function getConfig() {
             ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
         categorySheets: normalizeCategorySheets(stored.categorySheets),
         topItems: normalizeTopItems(stored.topItems),
+        roleSync: normalizeRoleSync(stored.roleSync),
+        categoryReminders: normalizeCategoryReminders(stored.categoryReminders),
     };
+}
+
+const ROLE_SYNC_DIRECTIONS = ["toTalk", "toEvent", "both"];
+
+/**
+ * Normalise the role-sync mapping to `[{ eventRoleId, talkRoleId, direction }]`:
+ * both ids snowflakes, the direction one of ROLE_SYNC_DIRECTIONS (default
+ * "toTalk"), one entry per role pair (the first wins). An entry missing either
+ * role is dropped — a half mapping can sync nothing.
+ */
+function normalizeRoleSync(raw) {
+    if (!Array.isArray(raw)) return [];
+    const out = [];
+    const seen = new Set();
+    for (const entry of raw) {
+        if (!entry || typeof entry !== "object") continue;
+        const eventRoleId = String(entry.eventRoleId || "").trim();
+        const talkRoleId = String(entry.talkRoleId || "").trim();
+        if (!SNOWFLAKE.test(eventRoleId) || !SNOWFLAKE.test(talkRoleId)) continue;
+        const key = `${eventRoleId}:${talkRoleId}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const direction = ROLE_SYNC_DIRECTIONS.includes(entry.direction) ? entry.direction : "toTalk";
+        out.push({ eventRoleId, talkRoleId, direction });
+    }
+    return out;
+}
+
+const REMINDER_TARGETS = ["event", "talk", "both"];
+// A week: a reminder further ahead than that is an announcement, not a reminder.
+const MAX_REMINDER_HOURS = 168;
+
+function reminderHours(value) {
+    const n = Math.round(Number(value));
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return Math.min(n, MAX_REMINDER_HOURS);
+}
+
+/**
+ * Normalise the per-category reminders to `{ [categoryId]: { missingHours,
+ * signedHours, target } }`. Hours are whole numbers from 1 to 168, anything
+ * else is 0 (= off); a category with both reminders off is dropped, so "off"
+ * is stored the same way however it was entered.
+ */
+function normalizeCategoryReminders(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, rule] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        if (!SNOWFLAKE.test(key) || !rule || typeof rule !== "object") continue;
+        const missingHours = reminderHours(rule.missingHours);
+        const signedHours = reminderHours(rule.signedHours);
+        if (!missingHours && !signedHours) continue;
+        out[key] = {
+            missingHours,
+            signedHours,
+            target: REMINDER_TARGETS.includes(rule.target) ? rule.target : "event",
+        };
+    }
+    return out;
 }
 
 // A Discord snowflake: digits only. Anything else (a pasted link, a name) is
@@ -580,6 +652,9 @@ function saveConfig(partial) {
     // A list, not a map: what is sent replaces the stored one (that is how an
     // item gets removed again), it is only cleaned up on the way in.
     if (partial.topItems !== undefined) next.topItems = normalizeTopItems(partial.topItems);
+    // Both replace the stored value as a whole, like topItems.
+    if (partial.roleSync !== undefined) next.roleSync = normalizeRoleSync(partial.roleSync);
+    if (partial.categoryReminders !== undefined) next.categoryReminders = normalizeCategoryReminders(partial.categoryReminders);
     writeJson(CONFIG_FILE, next);
     return getConfig();
 }
@@ -591,4 +666,5 @@ module.exports = {
     listNotify, getNotify, saveNotify, deleteNotify,
     listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
     getConfig, saveConfig, resolveEventSheetLink, normalizeDiscordServers,
+    normalizeRoleSync, normalizeCategoryReminders, ROLE_SYNC_DIRECTIONS, REMINDER_TARGETS,
 };

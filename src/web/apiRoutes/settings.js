@@ -10,6 +10,10 @@ const {
 } = require("../ingestTokenStore");
 const discord = require("../discord");
 const guildRoles = require("../guildRoles");
+const roleSync = require("../roleSync");
+const { listKnownCategories } = require("../categoryNames");
+const { lastReminderRun } = require("../reminders");
+const { pingTargetInfo } = require("../pingDelivery");
 const wowhead = require("../../utils/wowhead");
 const {
     AREAS, normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,
@@ -67,8 +71,13 @@ const CREDENTIAL_KEYS = ["anthropic", "warcraftlogsV2"];
 // whoever may move it decides whose roles count.
 const GUILD_KEYS = ["discordServers"];
 
+// The role sync between both servers (#264): it hands out roles on its own, so
+// it is guarded like the access keys — whoever may edit it decides who gets
+// which role on the other server.
+const ROLE_SYNC_KEYS = ["roleSync"];
+
 // Everything a non-admin settings user may neither read nor write.
-const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS];
+const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS];
 
 const DISCORD_SERVER_FIELDS = ["eventGuildId", "talkGuildId", "talkOverviewChannelId", "talkPingChannelId"];
 
@@ -141,6 +150,40 @@ async function getDiscordServers(req, res) {
         ...serverCards(config),
         overlap: await guildRoles.memberOverlap(config),
         guilds,
+    });
+}
+
+/**
+ * GET /api/settings/role-sync — the role sync block of the Discord-Server
+ * section: the mapping, both servers' roles, whether the bot may manage roles
+ * on each, the drift list (members who kept a synced role the source lost;
+ * computed now, nothing stored) and the last sweep. Full-admin only.
+ */
+async function getRoleSync(req, res) {
+    if (!requireFullAdmin(req, res)) return;
+    ok(res, await roleSync.roleSyncView(getConfig()));
+}
+
+/**
+ * GET /api/settings/reminders — the reminder block: the stored rules, the
+ * event server's configured raid categories with names, whether the talk
+ * server's ping channel exists as a target, and the last sweep.
+ */
+function getReminders(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    const config = getConfig();
+    const eventGuildId = guildRoles.eventGuildId(config);
+    // Names from the live list backed by earlier snapshots, so a category the
+    // bot cannot see right now still reads as a name rather than an id.
+    const known = eventGuildId ? (listKnownCategories(eventGuildId) || []) : [];
+    const names = new Map(known.map((c) => [c.id, c.name]));
+    const ids = [...new Set([...(config.categoryIds || []), ...Object.keys(config.categoryReminders || {})])];
+    ok(res, {
+        categoryReminders: config.categoryReminders || {},
+        categories: ids.map((id) => ({ id, name: names.get(id) || "", roleCount: ((config.categoryRoles || {})[id] || []).length })),
+        pingTargets: pingTargetInfo(config),
+        lastRun: lastReminderRun(),
     });
 }
 
@@ -261,6 +304,12 @@ async function updateSettings(req, res) {
     // Sent as the complete list; settingsStore normalises it and replaces the
     // stored one, so removing an item is just leaving it out.
     if (body.topItems !== undefined) partial.topItems = Array.isArray(body.topItems) ? body.topItems : [];
+    // Complete values as well; settingsStore validates them (snowflakes, known
+    // directions and targets, hours 1–168) and replaces the stored ones.
+    if (body.roleSync !== undefined) partial.roleSync = Array.isArray(body.roleSync) ? body.roleSync : [];
+    if (body.categoryReminders !== undefined) {
+        partial.categoryReminders = body.categoryReminders && typeof body.categoryReminders === "object" ? body.categoryReminders : {};
+    }
     ok(res, { config: publicConfig(saveConfig(partial)) });
 }
 
@@ -337,5 +386,6 @@ async function deleteIngestTokenHandler(req, res) {
 module.exports = {
     getSettings, updateSettings, getItemSearch, saveRaidsheetHandler, deleteRaidsheetHandler,
     getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers,
-    publicConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, FULL_ADMIN_KEYS,
+    getRoleSync, getReminders,
+    publicConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, FULL_ADMIN_KEYS,
 };

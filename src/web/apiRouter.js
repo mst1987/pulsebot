@@ -10,7 +10,7 @@ const { getChannels, createChannel, duplicateChannel } = require("./apiRoutes/ch
 const {
     getSettings, updateSettings, getItemSearch: getSettingsItemSearch,
     saveRaidsheetHandler, deleteRaidsheetHandler,
-    getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers,
+    getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers, getRoleSync, getReminders,
 } = require("./apiRoutes/settings");
 const { ingestLoot } = require("./apiRoutes/ingest");
 const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raiderCharacters");
@@ -131,6 +131,14 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/settings/discord-servers" && req.method === "GET") {
         await getDiscordServers(req, res);
+        return true;
+    }
+    if (pathname === "/api/settings/role-sync" && req.method === "GET") {
+        await getRoleSync(req, res);
+        return true;
+    }
+    if (pathname === "/api/settings/reminders" && req.method === "GET") {
+        getReminders(req, res);
         return true;
     }
     if (pathname === "/api/settings/ingest-tokens" && req.method === "GET") {

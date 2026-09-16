@@ -258,3 +258,61 @@ describe("category list", () => {
         expect(logic.splitCategoryRows(rows, ["c1"], true).folded).toEqual([]);
     });
 });
+
+// Pings, reminders and role sync across both servers (#264).
+describe("ping targets, role sync and reminders", () => {
+    it("offers no Wohin segment without a talk ping channel", () => {
+        expect(logic.pingTargetOptions(null)).toEqual([]);
+        expect(logic.pingTargetOptions({ talk: false })).toEqual([]);
+        const options = logic.pingTargetOptions({ talk: true, talkGuildName: "Pulse Talk", talkChannelName: "pings" });
+        expect(options.map((o) => o.value)).toEqual(["event", "talk", "both"]);
+        expect(options[1].tip).toContain("#pings auf Pulse Talk");
+        expect(options[1].tip).toContain("DM");
+    });
+
+    it("says in the modal head where the ping goes", () => {
+        const info = { talk: true, talkGuildName: "Pulse Talk", talkChannelName: "pings" };
+        expect(logic.targetHint("event", "kara-mi", info)).toBe("in #kara-mi");
+        expect(logic.targetHint("talk", "kara-mi", info)).toBe("in #pings");
+        expect(logic.targetHint("both", "kara-mi", info)).toBe("in #kara-mi + #pings");
+        expect(logic.targetHint("event", "", undefined)).toBeUndefined();
+    });
+
+    it("sends only complete role pairs, once per pair", () => {
+        expect(logic.roleSyncPatch([
+            { eventRoleId: " 1 ", talkRoleId: "2", direction: "both" },
+            { eventRoleId: "1", talkRoleId: "2", direction: "toEvent" },
+            { eventRoleId: "3", talkRoleId: "", direction: "toTalk" },
+        ])).toEqual({ roleSync: [{ eventRoleId: "1", talkRoleId: "2", direction: "both" }] });
+    });
+
+    it("replaces an edited pair in place and appends a new one", () => {
+        const rules = [{ eventRoleId: "1", talkRoleId: "2", direction: "toTalk" }];
+        const changed = { eventRoleId: "1", talkRoleId: "9", direction: "both" };
+        expect(logic.withRoleRule(rules, 0, changed)).toEqual([changed]);
+        expect(logic.withRoleRule(rules, -1, changed)).toEqual([rules[0], changed]);
+        expect(rules[0].talkRoleId).toBe("2");
+    });
+
+    it("badges the drift: nothing, a count, or unknown", () => {
+        expect(logic.driftBadge(0, null)).toMatchObject({ tone: "ok", label: "Keine Abweichung" });
+        expect(logic.driftBadge(3, null)).toMatchObject({ tone: "mid", label: "3 Abweichungen" });
+        expect(logic.driftBadge(1, null).label).toBe("1 Abweichung");
+        expect(logic.driftBadge(0, "Intent fehlt")).toMatchObject({ tone: "", tip: "Intent fehlt" });
+    });
+
+    it("sums a reminder rule up in one short line", () => {
+        expect(logic.reminderSummary(undefined)).toBe("aus");
+        expect(logic.reminderSummary({ missingHours: 24, signedHours: 1, target: "talk" })).toBe("24 h vor Schluss · 1 h vor Raid");
+        expect(logic.reminderSummary({ missingHours: 0, signedHours: 2, target: "event" })).toBe("2 h vor Raid");
+    });
+
+    it("sets one category's reminders and removes a switched-off one", () => {
+        const current = { a: { missingHours: 24, signedHours: 0, target: "event" } };
+        expect(logic.remindersPatch(current, "b", { missingHours: "12", signedHours: 999, target: "both" })).toEqual({
+            categoryReminders: { a: current.a, b: { missingHours: 12, signedHours: 168, target: "both" } },
+        });
+        expect(logic.remindersPatch(current, "a", { missingHours: 0, signedHours: -1, target: "event" })).toEqual({ categoryReminders: {} });
+        expect(current.a.missingHours).toBe(24);
+    });
+});
