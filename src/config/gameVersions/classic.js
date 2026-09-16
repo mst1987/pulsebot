@@ -20,7 +20,7 @@ const { buildBuffs } = require("./buffs");
 const classes = buildClasses();
 
 // What 1.12 does not have.
-const EXCLUDED_BUFFS = ["commandingShout", "wrathOfAir", "totemOfWrath"];
+const EXCLUDED_BUFFS = ["commandingShout", "wrathOfAir", "totemOfWrath", "vampiricTouch"];
 
 const instances = [
     {
