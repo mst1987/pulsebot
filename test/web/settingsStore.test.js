@@ -26,7 +26,7 @@ const {
     listRaidTemplates, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
     listNotify, getNotify, saveNotify, deleteNotify,
     listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
-    getConfig, saveConfig, resolveEventSheetLink,
+    getConfig, saveConfig, resolveEventSheetLink, normalizeDiscordServers,
 } = require("../../src/web/settingsStore.js");
 
 beforeEach(() => {
@@ -92,6 +92,52 @@ describe("web/settingsStore", () => {
             // saving — it must already be the effective value.
             it("returns the effective guild id from saveConfig, not the raw blank", () => {
                 expect(saveConfig({ guildId: "" }).guildId).toBe(defaultGuildId);
+            });
+        });
+
+        // Two Discord servers (#251): the event server and the talk server.
+        describe("discordServers", () => {
+            const { guildId: defaultGuildId } = require("../../src/config/variables");
+
+            it("defaults to four empty ids (= one server, as before)", () => {
+                expect(getConfig().discordServers).toEqual({
+                    eventGuildId: "", talkGuildId: "", talkOverviewChannelId: "", talkPingChannelId: "",
+                });
+                expect(getConfig().guildId).toBe(defaultGuildId);
+            });
+
+            it("keeps snowflakes and drops anything that is not one", () => {
+                const saved = saveConfig({
+                    discordServers: {
+                        eventGuildId: " 111111 ", talkGuildId: "222222",
+                        talkOverviewChannelId: "https://discord.com/channels/1/2", talkPingChannelId: 333333,
+                    },
+                });
+                expect(saved.discordServers).toEqual({
+                    eventGuildId: "111111", talkGuildId: "222222", talkOverviewChannelId: "", talkPingChannelId: "333333",
+                });
+            });
+
+            it("clears a talk server that is the event server", () => {
+                expect(normalizeDiscordServers({ eventGuildId: "111111", talkGuildId: "111111" }).talkGuildId).toBe("");
+                expect(normalizeDiscordServers(null)).toEqual({
+                    eventGuildId: "", talkGuildId: "", talkOverviewChannelId: "", talkPingChannelId: "",
+                });
+                expect(normalizeDiscordServers(["x"]).eventGuildId).toBe("");
+            });
+
+            it("merges a partial update instead of replacing the block", () => {
+                saveConfig({ discordServers: { eventGuildId: "111111", talkGuildId: "222222" } });
+                const saved = saveConfig({ discordServers: { talkPingChannelId: "444444" } });
+                expect(saved.discordServers).toMatchObject({ eventGuildId: "111111", talkGuildId: "222222", talkPingChannelId: "444444" });
+            });
+
+            // guildId stays the fallback: the event server wins, and clearing it
+            // falls back to the server that was last in use.
+            it("reports the event server as guildId and keeps it as the fallback", () => {
+                saveConfig({ guildId: "999999" });
+                expect(saveConfig({ discordServers: { eventGuildId: "111111" } }).guildId).toBe("111111");
+                expect(saveConfig({ discordServers: { eventGuildId: "" } }).guildId).toBe("111111");
             });
         });
 

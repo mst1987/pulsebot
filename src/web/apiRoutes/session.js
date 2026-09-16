@@ -1,5 +1,6 @@
 const auth = require("../auth");
 const discord = require("../discord");
+const { guildRole } = require("../guildRoles");
 const { activeGuildFor } = require("../activeGuild");
 const { ok, error } = require("../apiResponse");
 const { requireAdmin, requireCsrf } = require("../apiMiddleware");
@@ -25,9 +26,15 @@ function getSession(req, res) {
             : null,
         csrfToken: user ? auth.csrfToken(req) : null,
         areas: AREAS,
-        guilds: hasMenu ? discord.listGuilds() : [],
+        // Each with its fixed role ("event" | "talk" | ""), the switcher's badge.
+        guilds: hasMenu ? sessionGuilds() : [],
         activeGuildId: hasMenu ? activeGuildFor(req) : "",
     });
+}
+
+/** The servers the bot is on, each tagged with its role from the settings. */
+function sessionGuilds() {
+    return discord.listGuilds().map((g) => ({ ...g, role: guildRole(g.id) }));
 }
 
 /** POST /api/session/guild — switch which guild the admin is managing. Body: { guildId }. */

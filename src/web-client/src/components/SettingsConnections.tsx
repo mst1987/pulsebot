@@ -57,9 +57,9 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
         {
             id: "discord", title: "Discord & Raid-Helper", icon: "inv_letter_15", adminOnly: true,
             tip: "Discord & Raid-Helper",
-            tipSub: "Gegen welchen Discord-Server der Bot arbeitet und welcher Raid-Helper-Server die Events liefert. Die Guild-ID entscheidet, wo der Admin-Rollencheck greift. Der Raid-Helper-API-Key selbst bleibt in der .env.",
+            tipSub: "Ob der Bot verbunden ist und welcher Raid-Helper-Server die Events liefert. Welcher Discord-Server der Event- und welcher der Kommunikations-Discord ist, steht unter Verbindungen › Discord-Server. Der Raid-Helper-API-Key selbst bleibt in der .env.",
             rows: [
-                ["Server", data.bot?.guildName || c.guildId || "Standard-Server des Bots"],
+                ["Event-Server", data.servers?.event?.name || data.bot?.guildName || c.guildId || "Standard-Server des Bots"],
                 ["Raid-Helper", c.raidhelperServerId || "aus der .env"],
                 ["Bot", data.bot?.online ? `online${data.bot.readySince ? ` seit ${since(data.bot.readySince)}` : ""}` : "offline"],
             ],
@@ -192,7 +192,6 @@ const FIELDS: Record<Exclude<ConnectionId, "lootsync">, { title: string; fields:
         title: "Discord & Raid-Helper",
         missingText: "Der Bot ist gerade nicht verbunden — Server- und Rollenlisten fehlen, bis er wieder online ist.",
         fields: [
-            { key: "guildId", label: "Discord-Server-ID (Guild-ID)", mono: true, placeholder: "leer = Standard-Server des Bots", tip: "Guild-ID", tipSub: "Der Server, gegen den der Admin-Rollencheck läuft und der im Menü vorausgewählt ist. Leer gespeichert greift wieder der Standard-Server des Bots. IDs per Rechtsklick → „ID kopieren“ (Entwicklermodus)." },
             { key: "raidhelperServerId", label: "Raid-Helper Server-ID", mono: true, placeholder: "Server-ID von raid-helper.xyz", tip: "Raid-Helper Server-ID", tipSub: "Wird für alle Raid-Helper-API-Aufrufe verwendet (Events, Setups, Anmeldungen). Der API-Key selbst bleibt in der .env." },
         ],
     },
@@ -229,7 +228,7 @@ const FIELDS: Record<Exclude<ConnectionId, "lootsync">, { title: string; fields:
 };
 
 function initialFields(id: ConnectionId, config: AdminConfig): Record<string, string> {
-    if (id === "discord") return { guildId: config.guildId || "", raidhelperServerId: config.raidhelperServerId || "" };
+    if (id === "discord") return { raidhelperServerId: config.raidhelperServerId || "" };
     if (id === "battlenet") {
         const b = config.blizzard;
         return { clientId: b.clientId || "", region: b.region || "", realmSlug: b.realmSlug || "", namespace: b.namespace || "" };

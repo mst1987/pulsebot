@@ -530,3 +530,42 @@ describe("web/discord channel management", () => {
         });
     });
 });
+
+describe("web/discord botPermissionsIn", () => {
+    const { PermissionsBitField } = require("discord.js");
+
+    function withBot({ perms = [], intents = [] } = {}) {
+        const guild = {
+            members: { me: { permissions: new PermissionsBitField(perms.map((p) => PermissionsBitField.Flags[p])) } },
+            channels: { cache: new Map() },
+        };
+        discord.setClient({
+            guilds: { cache: new Map([["g1", guild]]) },
+            options: { intents: { has: (k) => intents.includes(k) } },
+        });
+    }
+
+    it("lists every required right with whether the bot holds it", () => {
+        withBot({ perms: ["SendMessages", "EmbedLinks"], intents: ["GuildMembers"] });
+        const list = discord.botPermissionsIn("g1");
+        expect(list.map((p) => p.key)).toEqual(discord.REQUIRED_BOT_PERMISSIONS.map((p) => p.key));
+        expect(Object.fromEntries(list.map((p) => [p.key, p.ok]))).toEqual({
+            ManageChannels: false, SendMessages: true, EmbedLinks: true, ManageRoles: false, GuildMembers: true,
+        });
+        expect(list.find((p) => p.key === "ManageRoles").label).toBe("Rollen verwalten");
+    });
+
+    it("counts Administrator as every channel permission", () => {
+        withBot({ perms: ["Administrator"] });
+        const list = discord.botPermissionsIn("g1");
+        expect(list.filter((p) => !p.ok).map((p) => p.key)).toEqual(["GuildMembers"]);
+    });
+
+    // Unknown is not "everything missing".
+    it("returns null when the bot is not on the server or not connected", () => {
+        withBot();
+        expect(discord.botPermissionsIn("other")).toBeNull();
+        discord.setClient(null);
+        expect(discord.botPermissionsIn("g1")).toBeNull();
+    });
+});
