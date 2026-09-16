@@ -24,6 +24,7 @@ const SPEC_PROVIDERS = {
     sanctityAura: ["Paladin-Retribution"],
     totemOfWrath: ["Shaman-Elemental"],
     manaTide: ["Shaman-Restoration"],
+    vampiricTouch: ["Priest-Shadow"],
 };
 
 // The totems a setup groups a shaman for. Resistance, tremor and damage totems
@@ -40,6 +41,13 @@ const TOTEM_BUFFS = {
     manaTide: { roles: ["healer", "caster"], classes: MANA_MELEE },
     healingStream: { roles: ["tank", "healer", "melee", "caster"] },
 };
+
+// Party buffs the log analysis never reads as an aura, but a setup places people
+// for: Vampiric Touch returns mana to the shadow priest's party, so the priest
+// belongs with the casters and healers.
+const SETUP_ONLY = [
+    { key: "vampiricTouch", label: "Vampirberührung", icon: "spell_holy_stoicism", providerClass: "Priest", scope: "party", roles: ["healer", "caster"], classes: MANA_MELEE },
+];
 
 const EXCLUDED_GROUPS = new Set(["shield"]);
 const PLAYABLE_CLASSES = new Set(["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"]);
@@ -58,6 +66,8 @@ function allBuffs() {
             scope: b.group === "party" ? "party" : "raid",
             roles: b.roles,
             classes: b.classes || [],
+            // A warrior keeps one shout up, not both.
+            slot: b.key === "battleShout" || b.key === "commandingShout" ? "shout" : "",
         }));
     const fromTotems = TOTEMS
         .filter((t) => TOTEM_BUFFS[t.key])
@@ -67,10 +77,11 @@ function allBuffs() {
             icon: t.icon,
             providerClass: "Shaman",
             scope: "party",
+            slot: t.slot,
             roles: TOTEM_BUFFS[t.key].roles,
             classes: TOTEM_BUFFS[t.key].classes || [],
         }));
-    return [...fromBuffs, ...fromTotems];
+    return [...fromBuffs, ...fromTotems, ...SETUP_ONLY];
 }
 
 /**
@@ -79,7 +90,7 @@ function allBuffs() {
  * @param {object[]} classes  buildClasses() output of the version
  * @param {{ exclude?: string[] }} [options]  buff keys the version does not have
  * @returns {{ partyBuffs: object[], raidBuffs: object[] }} each entry
- *   `{ key, label, icon, scope, providers: specKey[], beneficiaries: specKey[] }`
+ *   `{ key, label, icon, scope, slot, providers: specKey[], beneficiaries: specKey[] }`
  */
 function buildBuffs(classes, options = {}) {
     const exclude = new Set(options.exclude || []);
@@ -91,6 +102,9 @@ function buildBuffs(classes, options = {}) {
             label: b.label,
             icon: b.icon,
             scope: b.scope,
+            // One buff per provider per slot: a totem's element (a shaman drops
+            // one air totem), a warrior's shout. "" for everything else.
+            slot: b.slot || "",
             providers: SPEC_PROVIDERS[b.key]
                 ? SPEC_PROVIDERS[b.key].filter((key) => specs.some((s) => s.key === key))
                 : specs.filter((s) => s.classId === b.providerClass).map((s) => s.key),
