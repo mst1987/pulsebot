@@ -997,6 +997,8 @@ export type RaidDetailData = {
     softresEdition: string;
     softresSuggested: string[];
     attendance: Attendance;
+    /** An own event's signups with "kann auch" and comment; null for a Raid-Helper event. */
+    ownSignups?: EventSignupEntry[] | null;
     attendanceRoleIds: string[];
     membersError: string | null;
     signupTarget: number;
@@ -3067,4 +3069,107 @@ export function searchRaiders(q: string): Promise<{ raiders: RaiderRef[] }> {
 
 export function getCharacterClaims(): Promise<{ claims: CharacterClaim[] }> {
     return get("/api/roster/character-claims");
+}
+
+// ---- Anmeldungen (#256): upcoming raids and the member's own signup ----
+
+export type SignupRoleCount = { n: number; target: number };
+export type SignupCounts = {
+    tank: SignupRoleCount;
+    healer: SignupRoleCount;
+    dps: SignupRoleCount;
+    attending: number;
+    tentative: number;
+    bench: number;
+    absence: number;
+    size: number;
+};
+
+/** An own signup, spec label and icon resolved by the server. */
+export type OwnSignup = {
+    status: SignupStatus;
+    character: string;
+    className: string;
+    classColor: string;
+    spec: string;
+    specLabel: string;
+    specIcon: string;
+    role: GameRole | "";
+    canAlso: GameRole[];
+    comment: string;
+};
+
+type SignupEventBase = {
+    id: string;
+    title: string;
+    startTime: number;
+    categoryId: string;
+    categoryName: string;
+    contentIds: string[];
+    contentSources: string[];
+    /** The rule set's icon of the first planned instance ("" for Raid-Helper). */
+    instanceIcon: string;
+    size: number;
+    attending: number;
+    /** The event's post (own: the bot's message) or its channel in Discord. */
+    discordUrl: string;
+};
+
+export type RaidHelperSignupRow = SignupEventBase & {
+    source: "raidhelper";
+    mine: { status: SignupStatus; specName: string } | null;
+};
+
+export type OwnSignupRow = SignupEventBase & {
+    source: "eventhelper";
+    versionId: string;
+    deadline: number;
+    deadlinePassed: boolean;
+    started: boolean;
+    /** What the member may pick right now — only absence/late after the deadline, nothing once started. */
+    allowedStatuses: SignupStatus[];
+    counts: SignupCounts;
+    /** Whether the setup considers wishes (the dialog's hint text). */
+    wishes: boolean;
+    /** The member's own wish partners who already signed up. */
+    wishPartners: { userId: string; name: string }[];
+    mine: OwnSignup | null;
+};
+
+export type SignupEventRow = RaidHelperSignupRow | OwnSignupRow;
+
+export type SignupProfileSpec = { key: string; label: string; icon: string; role: GameRole | ""; gear: GearLevel };
+export type SignupProfileCharacter = { key: string; name: string; className: string; main: boolean; specs: SignupProfileSpec[] };
+export type SignupProfile = { characters: SignupProfileCharacter[]; canOfftank: boolean; canHeal: boolean };
+export type SignupClass = { id: string; label: string; color: string; icon: string };
+
+export type SignupsData = {
+    events: SignupEventRow[];
+    profile: SignupProfile;
+    classes: SignupClass[];
+    error: string | null;
+};
+
+export type SignupInput = {
+    eventId: string;
+    character: string;
+    spec: string;
+    status: SignupStatus;
+    canAlso: GameRole[];
+    comment: string;
+};
+
+/** One signup of an own event as the orga sees it (raid detail, GET /api/signups/event). */
+export type EventSignupEntry = OwnSignup & { userId: string; name: string; at: number };
+
+export function getSignups(): Promise<SignupsData> {
+    return get<SignupsData>("/api/signups");
+}
+
+export function saveSignup(csrfToken: string | null, input: SignupInput): Promise<{ signup: OwnSignup; counts: SignupCounts }> {
+    return send("PUT", "/api/signups", csrfToken, input);
+}
+
+export function getEventSignups(eventId: string): Promise<{ eventId: string; counts: SignupCounts; signups: EventSignupEntry[] }> {
+    return get(`/api/signups/event?id=${encodeURIComponent(eventId)}`);
 }

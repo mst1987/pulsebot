@@ -22,6 +22,7 @@ const { getRoster, postRosterHide, getRosterChar } = require("./apiRoutes/roster
 const {
     getProfile, putProfile, getLogCharacters, postProfileCharacter, getRaiderSearch, getUserProfile, getCharacterClaims,
 } = require("./apiRoutes/profile");
+const { getSignups, putSignup, getEventSignups } = require("./apiRoutes/signups");
 const {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim,
     getItemSearch: getCouncilItemSearch, getBisLists: getCouncilBisLists,
@@ -239,6 +240,18 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/profile/user" && req.method === "GET") {
         await getUserProfile(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/signups" && req.method === "GET") {
+        await getSignups(req, res);
+        return true;
+    }
+    if (pathname === "/api/signups" && req.method === "PUT") {
+        await putSignup(req, res);
+        return true;
+    }
+    if (pathname === "/api/signups/event" && req.method === "GET") {
+        await getEventSignups(req, res, url);
         return true;
     }
     if (pathname === "/api/lootcouncil" && req.method === "GET") {

@@ -39,6 +39,8 @@ const SheetsClient = require("../../classes/sheets");
 const { fillSetupSheet } = require("../../utils/fillSetup");
 const { formatTimestampToDateString } = require("../../utils/date");
 const discord = require("../discord");
+const { listSignups } = require("../signupStore");
+const { eventSignupList } = require("../signupView");
 const {
     normalizePingTarget, pingTargetInfo, deliverUserPing, deliverAnnouncement, dmSummary, TARGET_LABELS,
 } = require("../pingDelivery");
@@ -141,6 +143,15 @@ async function getRaidDetail(req, res, url) {
         };
     }
 
+    // An own event's signups with what only the EventHelper knows ("kann auch",
+    // comment, character) — the roster tab lists them in place of a raidplan.
+    let ownSignups = null;
+    if (found.e.source === "eventhelper") {
+        const rows = listSignups(eventId);
+        const names = rows.length ? await discord.resolveUserNames(guildId, rows.map((s) => s.userId)) : {};
+        ownSignups = eventSignupList(rows, names);
+    }
+
     // Softres: pre-select the instances the event title implies. For now the
     // guild only raids TBC, so restrict both the suggestion and the pickable
     // catalogue to the TBC edition.
@@ -201,6 +212,7 @@ async function getRaidDetail(req, res, url) {
         softresEdition,
         softresSuggested: suggestedInstances.map((i) => i.code),
         attendance,
+        ownSignups,
         attendanceRoleIds: categoryRoleIds,
         membersError,
         signupTarget,

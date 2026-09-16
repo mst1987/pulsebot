@@ -536,6 +536,7 @@ ${body}
     --area-settings:#b083f0; --area-settings-soft:rgba(176,131,240,.16);
     --area-home:#8a7cff; --area-home-soft:rgba(138,124,255,.16);
     --area-profile:#38bdf8; --area-profile-soft:rgba(56,189,248,.16);
+    --area-signups:#4ade80; --area-signups-soft:rgba(74,222,128,.16);
     --area-raids:#60a5fa; --area-raids-soft:rgba(96,165,250,.16);
     --area-roster:#a3e635; --area-roster-soft:rgba(163,230,53,.16);
     --area-lootcouncil:#e879f9; --area-lootcouncil-soft:rgba(232,121,249,.16);
@@ -556,6 +557,7 @@ ${body}
       --area-settings:#7c4fd6; --area-settings-soft:rgba(124,79,214,.12);
       --area-home:#6a4fe0; --area-home-soft:rgba(106,79,224,.12);
       --area-profile:#0e7fb8; --area-profile-soft:rgba(14,127,184,.12);
+      --area-signups:#16a34a; --area-signups-soft:rgba(22,163,74,.12);
       --area-raids:#2563c9; --area-raids-soft:rgba(37,99,201,.12);
       --area-roster:#5f8f12; --area-roster-soft:rgba(95,143,18,.12);
       --area-lootcouncil:#b03cc0; --area-lootcouncil-soft:rgba(176,60,192,.12);
@@ -576,6 +578,7 @@ ${body}
     --area-settings:#7c4fd6; --area-settings-soft:rgba(124,79,214,.12);
     --area-home:#6a4fe0; --area-home-soft:rgba(106,79,224,.12);
     --area-profile:#0e7fb8; --area-profile-soft:rgba(14,127,184,.12);
+    --area-signups:#16a34a; --area-signups-soft:rgba(22,163,74,.12);
     --area-raids:#2563c9; --area-raids-soft:rgba(37,99,201,.12);
     --area-roster:#5f8f12; --area-roster-soft:rgba(95,143,18,.12);
     --area-lootcouncil:#b03cc0; --area-lootcouncil-soft:rgba(176,60,192,.12);
