@@ -20,12 +20,41 @@ function nameOf(model, idx, opt) {
     return (o && o.character) || c.name || c.userId;
 }
 
+const ROLE_PLURAL = { tank: "Tanks", healer: "Heiler", melee: "Nahkämpfer", ranged: "Fernkämpfer" };
+
+/**
+ * Which of several named characters (#293) the raider plays, and why:
+ * "Mit Zibbowar als Tank statt Zibbo (Tanks fehlten)", or "1. Wahl: Zibbo".
+ * Null for a raider who named one character.
+ */
+function characterChoiceReason(model, facts, cand, o) {
+    const pref = cand.preferred && cand.preferred.get(o.eventIdx);
+    if (!pref) return null;
+    if (!(o.priority > 0)) return `1. Wahl: ${o.character}`;
+    const event = model.events[o.eventIdx];
+    const ev = facts.events[o.eventIdx];
+    const prefIdx = ROLES.indexOf(pref.role);
+    const prefMax = event.hardMax[pref.role];
+    let why = "passte besser in die Aufstellung";
+    if (pref.role !== o.role && prefIdx >= 0 && ev.roles[prefIdx] >= prefMax) {
+        why = `${ROLE_PLURAL[pref.role]} voll (${ev.roles[prefIdx]}/${prefMax})`;
+    } else if (ev.roles[o.roleIdx] <= event.limits[o.role].min && event.limits[o.role].min > 0) {
+        why = `${ROLE_PLURAL[o.role]} fehlten`;
+    }
+    const same = String(pref.character).toLowerCase() === String(o.character).toLowerCase();
+    return same
+        ? `Als ${ROLE_LABELS[o.role]} statt 1. Wahl (${why})`
+        : `Mit ${o.character} als ${ROLE_LABELS[o.role]} statt ${pref.character} (${why})`;
+}
+
 /** Reasons for a placed raider. */
 function slotReasons(model, facts, state, c, credits) {
     const cand = model.cands[c];
     const o = cand.options[state.opt[c]];
     const out = [];
     if (state.lockOpt[c]) out.push("Von der Orga fixiert");
+    const choice = characterChoiceReason(model, facts, cand, o);
+    if (choice) out.push(choice);
     if (!o.main) out.push(`Zweitspec als ${ROLE_LABELS[o.role]}`);
     if (o.status === "bench") out.push("Als Ersatz angemeldet – aufgestellt, weil sonst ein Platz frei bliebe");
     else if (STATUS_TEXT[o.status]) out.push(STATUS_TEXT[o.status]);

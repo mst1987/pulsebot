@@ -11,6 +11,7 @@ const { upcomingRows } = require("./raidListing");
 const { instanceById, rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { signupStatus } = require("../utils/attendance");
 const { approvedPlacementFor } = require("./setupEditor");
+const { migrateSignup } = require("./signupCharacters");
 
 const CLASS_COLORS = new Map(rulesFor(DEFAULT_VERSION).classes.map((c) => [c.id, c.color]));
 
@@ -36,11 +37,29 @@ function profileForSignup(profile) {
     };
 }
 
+/** One named character of a signup with class colour, spec label and icon (#293). */
+function characterSummary(c) {
+    const info = profiles.specInfo(c.spec) || {};
+    const classId = info.classId || String(c.spec || "").split("-")[0] || "";
+    return {
+        character: c.character || "",
+        className: classId,
+        classColor: CLASS_COLORS.get(classId) || "",
+        spec: c.spec || "",
+        specLabel: info.label || "",
+        specIcon: info.icon || "",
+        role: c.role || info.role || "",
+    };
+}
+
 /** An own signup as the page shows it (spec label and icon resolved). */
-function signupSummary(s) {
-    if (!s) return null;
+function signupSummary(raw) {
+    if (!raw) return null;
+    const s = migrateSignup(raw);
     const info = profiles.specInfo(s.spec) || {};
     return {
+        // every named character in priority order; the fields below mirror the first
+        characters: (s.characters || []).map(characterSummary),
         status: s.status || "signed",
         character: s.character || "",
         className: info.classId || String(s.spec || "").split("-")[0] || "",

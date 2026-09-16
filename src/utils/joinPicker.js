@@ -173,6 +173,10 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
             },
             { type: 2, style: 2, custom_id: joinId(event.id, status, "m", picks), label: "Kann auch …", disabled: win.started },
             { type: 2, style: 2, custom_id: commentId(event.id, picks), label: "Kommentar", disabled: !mine || win.started },
+            // Several own characters, first choice + "kann auch mit" (#293, commands/signup/signupMulti.js).
+            ...(options.length > 1 && status !== "absence"
+                ? [{ type: 2, style: 2, custom_id: `signup-multi:e:${event.id}:${STATUS_CODES[status] || "s"}`, label: "Mehrere Charaktere …", disabled: win.started }]
+                : []),
         ],
     });
     // A link button needs an absolute url.

@@ -299,8 +299,12 @@ async function setSignupsOpen({ guildId, eventId, open, user, byName }) {
  * closed signup do not apply). A character the raider's profile does not have
  * yet — or a spec it lacks — is added to the profile first, the way the Discord
  * signup does it for a new raider.
+ *
+ * `alternates` (#293, optional): further `{ character, spec }` the raider "kann
+ * auch mit", in priority order after `character` — each goes through the same
+ * profile check. Without it an existing signup keeps its alternates.
  */
-async function addRaider({ guildId, eventId, userId, character, spec, status = "signed", comment, user, byName }) {
+async function addRaider({ guildId, eventId, userId, character, spec, alternates, status = "signed", comment, user, byName }) {
     const found = ownEvent(guildId, eventId);
     if (found.error) return found;
     const uid = str(userId);
@@ -310,19 +314,38 @@ async function addRaider({ guildId, eventId, userId, character, spec, status = "
     if (!SIGNUP_STATUSES.includes(status)) return fail(400, "status", `Unbekannter Anmeldestatus „${status}“.`);
     const info = profiles.specInfo(spec);
     if (!info) return fail(400, "spec", "Bitte eine Spezialisierung wählen.");
+    const extra = Array.isArray(alternates) ? alternates.filter((a) => a && str(a.character)) : null;
+    if (extra && extra.length + 1 > signupService.MAX_CHARACTERS) {
+        return fail(400, "characters", `Höchstens ${signupService.MAX_CHARACTERS} Charaktere je Anmeldung.`);
+    }
 
-    const profile = profiles.getProfile(uid);
-    const existing = signupService.findCharacter(profile, name);
     let profileChanged = false;
-    if (!existing || existing.className !== info.classId || !existing.specs.some((s) => s.key === info.key)) {
-        if (existing && existing.className !== info.classId) {
+    /** The character in the raider's profile with this spec — added when missing. */
+    const ensure = (charName, specInfo) => {
+        const existing = signupService.findCharacter(profiles.getProfile(uid), charName);
+        if (existing && existing.className === specInfo.classId && existing.specs.some((s) => s.key === specInfo.key)) return null;
+        if (existing && existing.className !== specInfo.classId) {
             return fail(400, "spec", `${existing.name} ist im Profil ${existing.className} — die Spec passt nicht.`);
         }
-        const added = profiles.addCharacter(uid, { name, className: info.classId, specs: [{ key: info.key }], source: "manual" });
+        const added = profiles.addCharacter(uid, { name: charName, className: specInfo.classId, specs: [{ key: specInfo.key }], source: "manual" });
         if (added.error) return fail(400, "character", added.error);
         profileChanged = true;
+        return null;
+    };
+    const wanted = [{ character: name, info }];
+    for (const a of extra || []) {
+        const altInfo = profiles.specInfo(a.spec);
+        if (!altInfo) return fail(400, "spec", `Für ${str(a.character)} fehlt die Spezialisierung.`);
+        wanted.push({ character: str(a.character), info: altInfo });
     }
-    const result = await signupService.submitSignup(found.event.id, uid, { character: name, spec: info.key, status, comment }, { byOrga: true });
+    for (const w of wanted) {
+        const refused = ensure(w.character, w.info);
+        if (refused) return refused;
+    }
+    const input = extra
+        ? { characters: wanted.map((w) => ({ character: w.character, spec: w.info.key })), status, comment }
+        : { character: name, spec: info.key, status, comment };
+    const result = await signupService.submitSignup(found.event.id, uid, input, { byOrga: true });
     if (result.error) return fail(signupService.httpStatusFor(result.code), result.code, result.error);
     const who = result.signup.character || name;
     log(found.event.id, "add", actorOf(user, byName), `${who} · ${info.label} · ${STATUS_LABELS[status] || status}${profileChanged ? " · ins Profil übernommen" : ""}`);

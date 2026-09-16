@@ -30,6 +30,9 @@ const { getOverviewState, setOverviewState } = require("./talkOverviewStore");
 const { signupStatus } = require("../utils/attendance");
 
 const SELECT_ID = "talk-signup";
+// "Für alle Raids anmelden" / "Mehrere Raids wählen …" (#293, commands/signup/talkSignupAll|Multi.js)
+const ALL_BUTTON_ID = "talk-signup-all";
+const MULTI_BUTTON_ID = "talk-signup-multi";
 const MAX_FIELDS = 25;
 const MAX_FIELD_VALUE = 1024;
 const MAX_EMBED_CHARS = 6000;
@@ -172,10 +175,17 @@ function buildOverviewMessage(groups, opts = {}) {
     if (missing > 0) embed.setFooter({ text: `+${missing} weitere Raids in der Web-Übersicht` });
 
     const components = [];
+    // Several raids at once (#293) — only EventHelper events take a signup here.
+    if (signable.some((e) => e.source === "eventhelper")) {
+        components.push(new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(ALL_BUTTON_ID).setStyle(ButtonStyle.Primary).setLabel("Für alle Raids anmelden").setEmoji("✅"),
+            new ButtonBuilder().setCustomId(MULTI_BUTTON_ID).setStyle(ButtonStyle.Secondary).setLabel("Mehrere Raids wählen …"),
+        ));
+    }
     if (signable.length) {
         const select = new StringSelectMenuBuilder()
             .setCustomId(SELECT_ID)
-            .setPlaceholder("Raid wählen, um dich anzumelden …")
+            .setPlaceholder("Einzelnen Raid wählen …")
             .addOptions(signable.slice(0, MAX_OPTIONS).map((e) => ({
                 label: (plain(e.title) || "Raid").slice(0, 100),
                 description: [formatStart(e.startTime), plain(e.categoryName)].filter(Boolean).join(" · ").slice(0, 100),
@@ -359,7 +369,7 @@ function startTalkOverview({ intervalMs = SWEEP_MS, debounceMs = DEBOUNCE_MS, fi
 }
 
 module.exports = {
-    SELECT_ID, MAX_OPTIONS, RAIDHELPER_CREATE_DELAY_MS,
+    SELECT_ID, ALL_BUTTON_ID, MULTI_BUTTON_ID, MAX_OPTIONS, RAIDHELPER_CREATE_DELAY_MS,
     overviewLinks, channelUrl, formatStart, raidLine, upcomingGroups, buildOverviewMessage, payloadHash,
     overviewTarget, currentPayload, syncOverview, overviewStatus, scheduleOverviewSync, startTalkOverview,
 };

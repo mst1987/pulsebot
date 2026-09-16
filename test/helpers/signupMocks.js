@@ -27,6 +27,10 @@ function eventStore() {
     return {
         getEvent: (id) => events.get(id) || null,
         isOwnEventId: (id) => String(id || "").startsWith("eh-"),
+        // The real store's filter: guild (when given) and start time from `sinceSeconds`, newest first.
+        listEvents: (guildId, { sinceSeconds = 0 } = {}) => [...events.values()]
+            .filter((e) => (!guildId || e.guildId === guildId) && (!sinceSeconds || (e.startTime || 0) >= sinceSeconds))
+            .sort((a, b) => b.startTime - a.startTime),
     };
 }
 
