@@ -8,7 +8,9 @@ const {
 
 module.exports = {
     name: "totalspent",
-    description: "Show total spent items",
+    description: "Zeigt deine gesamten GDKP-Ausgaben",
+    group: "auctions",
+    defaultAccess: "everyone",
     async execute(interaction, client) {
         const gdkp = new GDKP();
         let totalItems = await gdkp.getTotalItems(interaction.user.id);

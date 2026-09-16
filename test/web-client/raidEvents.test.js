@@ -15,7 +15,7 @@ const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8");
 const page = read("pages", "RaidsPage.tsx");
 const list = read("components", "RaidList.tsx");
 const dialog = read("components", "RaidCreateDialog.tsx");
-const templates = read("components", "RaidTemplatesDialog.tsx");
+const templates = read("pages", "RaidTemplatesPage.tsx");
 const notify = read("pages", "NotifyTemplatesPage.tsx");
 const createPage = read("pages", "RaidCreatePage.tsx");
 const icons = read("lib", "raidIcons.ts");
@@ -122,8 +122,13 @@ describe("Neues Event dialog", () => {
         expect(dialog).not.toContain("useNavigate");
     });
 
-    it("keeps the Raid-Helper templates reachable from the dialog", () => {
-        expect(dialog).toContain("<RaidTemplatesDialog");
+    it("offers the raid templates that link a Raid-Helper template, preselecting the category default", () => {
+        // the old management dialog is the Raid-Vorlagen page now (#266)
+        expect(dialog).not.toContain("RaidTemplatesDialog");
+        expect(dialog).toContain("<Link className=\"re-link\" to=\"/raids/raid-templates\">Raid-Vorlagen</Link>");
+        expect(dialog).toContain("value={t.raidhelperTemplateId}");
+        expect(dialog).toContain("(data.categoryTemplates || {})[ev.categoryId]");
+        expect(dialog).toContain("(ctx.categoryTemplates || {})[chan.parentId]");
         expect(templates).toContain("importRaidTemplates(csrfToken)");
     });
 });

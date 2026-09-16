@@ -14,7 +14,6 @@ function setupRaidhelper(saveRaidMock) {
 describe("commands/setup/saveraid", () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        helper.checkForPermission.mockReturnValue(true);
         helper.getRaidInfosFromChannel.mockResolvedValue({ raidData: {}, setupData: [] });
     });
 
@@ -24,17 +23,10 @@ describe("commands/setup/saveraid", () => {
         expect(typeof saveraid.execute).toBe("function");
     });
 
-    it("aborts when the user lacks permission", async () => {
-        helper.checkForPermission.mockReturnValue(false);
-        const saveRaid = jest.fn();
-        setupRaidhelper(saveRaid);
-        const interaction = mockInteraction({ userId: "not-admin" });
-
-        await saveraid.execute(interaction, {});
-
-        expect(helper.getRaidInfosFromChannel).not.toHaveBeenCalled();
-        expect(saveRaid).not.toHaveBeenCalled();
-        expect(helper.botReply).not.toHaveBeenCalled();
+    it("is admin-only unless the Bot-Befehle settings say otherwise", () => {
+        // The check itself runs centrally before execute (src/web/botAccess.js).
+        expect(saveraid.defaultAccess).toBe("admins");
+        expect(typeof saveraid.group).toBe("string");
     });
 
     it("confirms with a link when the raid is saved", async () => {

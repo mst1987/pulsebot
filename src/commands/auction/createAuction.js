@@ -1,6 +1,5 @@
 ﻿const Legendary = require("../../classes/legendary");
 const {
-    checkForPermission,
     findServerEmoji,
     botFollowup,
     botReply,
@@ -11,10 +10,10 @@ const { getBiddingButtonRow } = require("../../utils/auction");
 
 module.exports = {
     name: "createauction",
-    description: "Create a new auction",
+    description: "Legt eine Auktion in diesem Kanal an",
+    group: "auctions",
+    defaultAccess: "admins",
     async execute(interaction, client) {
-        if (!checkForPermission(interaction)) return;
-
         const legendary = new Legendary();
         const auction = await legendary.getAuction(interaction.channel.id);
 

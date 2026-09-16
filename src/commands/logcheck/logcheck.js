@@ -6,6 +6,8 @@ const { botEditReply } = require("../../utils/helper");
 module.exports = {
     name: "logcheck",
     description: "Prüft einen Warcraft-Logs-Report: Gear, Consumables, Drums, Potions, Shadow-Resi.",
+    group: "logs",
+    defaultAccess: "everyone",
     async execute(interaction) {
         const link = interaction.options.getString("link");
 

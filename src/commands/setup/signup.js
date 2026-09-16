@@ -4,7 +4,9 @@ const { botReply, formatSpecs, formatSignUps } = require("../../utils/helper");
 
 module.exports = {
     name: "signup",
-    description: "Signup",
+    description: "Meldet dich zum Raid in diesem Kanal an",
+    group: "signup",
+    defaultAccess: "everyone",
     async execute(interaction, client) {
         const raidhelper = createRaidhelperClient();
 

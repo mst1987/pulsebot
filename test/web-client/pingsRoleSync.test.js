@@ -79,6 +79,6 @@ describe("Erinnerungen part", () => {
 
 describe("dashboard task", () => {
     it("knows the role-sync task id", () => {
-        expect(api).toContain('"sheet" | "recommendations" | "logs" | "inbox" | "rolesync"');
+        expect(api).toContain('"sheet" | "recommendations" | "logs" | "inbox" | "channels" | "rolesync"');
     });
 });

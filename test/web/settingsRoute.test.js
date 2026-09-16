@@ -12,6 +12,7 @@ jest.mock("../../src/web/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => partial),
     listRaidsheets: jest.fn(() => []),
+    listRaidTemplates: jest.fn(() => [{ id: "k1", name: "Kara", versionId: "tbc", size: 10, composition: { tank: 2, healer: 3 } }]),
     saveRaidsheet: jest.fn(),
     deleteRaidsheet: jest.fn(),
 }));
@@ -89,6 +90,20 @@ describe("GET /api/settings for the redesigned page", () => {
     });
 });
 
+describe("default raid template per category (#266)", () => {
+    it("lists the raid templates for the select, names only", async () => {
+        const res = mockRes();
+        await getSettings({}, res);
+        expect(body(res).data.raidTemplates).toEqual([{ id: "k1", name: "Kara", versionId: "tbc", size: 10 }]);
+    });
+
+    it("stores the map, dropping an id no template has", async () => {
+        readJsonBody.mockResolvedValue({ categoryRaidTemplate: { c1: "k1", c2: "gone" } });
+        await updateSettings({ headers: {} }, mockRes());
+        expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryRaidTemplate: { c1: "k1" } });
+    });
+});
+
 describe("PATCH /api/settings userPermissions", () => {
     it("normalises and stores the per-account grants", async () => {
         readJsonBody.mockResolvedValue({
@@ -106,6 +121,30 @@ describe("PATCH /api/settings userPermissions", () => {
         requireFullAdmin.mockReturnValue(null);
         readJsonBody.mockResolvedValue({ userPermissions: {} });
         await updateSettings({ headers: {} }, mockRes());
+        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+    });
+});
+
+describe("PATCH /api/settings botCommandAccess", () => {
+    it("normalises and stores the bot command rules", async () => {
+        readJsonBody.mockResolvedValue({
+            botCommandAccess: {
+                fillsetup: { mode: "roles", roleIds: ["123456789012345678", "nope"] },
+                logcheck: { mode: "bogus" },
+            },
+        });
+        await updateSettings({ headers: {} }, mockRes());
+        expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+            botCommandAccess: { fillsetup: { mode: "roles", roleIds: ["123456789012345678"] } },
+        });
+    });
+
+    it("cannot be saved by a settings user who is not a full admin", async () => {
+        requireAdmin.mockReturnValue({ id: "7", isAdmin: false });
+        requireFullAdmin.mockReturnValue(null);
+        readJsonBody.mockResolvedValue({ botCommandAccess: { fillsetup: { mode: "everyone" } } });
+        await updateSettings({ headers: {} }, mockRes());
+        expect(requireFullAdmin).toHaveBeenCalled();
         expect(settingsStore.saveConfig).not.toHaveBeenCalled();
     });
 });

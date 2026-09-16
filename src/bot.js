@@ -7,6 +7,7 @@ const messages = require("./config/messages.js");
 const { startWebServer } = require("./web/server.js");
 const { handleLogMessage } = require("./web/logChannel.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./web/roleSync.js");
+const { guardInteraction } = require("./web/botAccess.js");
 
 const { Client, GatewayIntentBits, Collection } = require("discord.js");
 
@@ -126,6 +127,8 @@ async function handleInteraction(interaction) {
     console.log(`Command: ${command.name}`);
 
     try {
+        // Who may run it is decided here, once, for every command, button and modal (web/botAccess.js).
+        if (!(await guardInteraction(interaction, command, client.commands))) return;
         await command.execute(interaction, client);
     } catch (error) {
         console.error(`Error executing ${command.name}:`, error);

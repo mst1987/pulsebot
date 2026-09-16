@@ -12,7 +12,7 @@ import Badge from "./ui/Badge";
 import Expand from "./ui/Expand";
 import WowIcon from "./ui/WowIcon";
 import RaidIcon from "./RaidIcon";
-import RaidTemplatesDialog from "./RaidTemplatesDialog";
+import { Link } from "react-router-dom";
 import { CheckIcon, ChevronRightIcon } from "./icons";
 import RaidLoader from "./ui/RaidLoader";
 
@@ -129,8 +129,9 @@ export default function RaidCreateDialog({ open, sourceId, csrfToken, userId, on
     const [choice, setChoice] = useState<Choice>(null);
     const [saving, setSaving] = useState(false);
     const [moreOpen, setMoreOpen] = useState(false);
-    const [templatesOpen, setTemplatesOpen] = useState(false);
     const [channelTouched, setChannelTouched] = useState(false);
+    // Picked by hand: a channel change then no longer swaps in its category's default.
+    const [templateTouched, setTemplateTouched] = useState(false);
 
     const [title, setTitle] = useState("");
     const [date, setDate] = useState("");
@@ -146,11 +147,13 @@ export default function RaidCreateDialog({ open, sourceId, csrfToken, userId, on
     const applyChoice = (data: RaidCreateContext, id: string) => {
         setChoice(id);
         setChannelTouched(false);
+        setTemplateTouched(false);
         const ev = id ? data.reusableEvents.find((e) => e.id === id) : null;
         if (ev) {
             const nextDate = nextSameWeekday(ev.startTime);
             setTitle(ev.title || "");
-            setTemplateId(ev.templateId || data.defaults.templateId || "");
+            // The event's own Raid-Helper template, else its category's default raid template.
+            setTemplateId(ev.templateId || (data.categoryTemplates || {})[ev.categoryId] || data.defaults.templateId || "");
             setDescription(ev.description || "");
             setDate(nextDate);
             setTime(clockOf(ev.startTime));
@@ -220,7 +223,24 @@ export default function RaidCreateDialog({ open, sourceId, csrfToken, userId, on
         }
     };
 
-    const template = ctx?.templates.find((t) => t.id === templateId) || null;
+    // The raid templates that link a Raid-Helper template — only those can be sent,
+    // one option per Raid-Helper id (two templates may share one).
+    const rhTemplates = useMemo(() => {
+        const seen = new Set<string>();
+        return (ctx?.templates || []).filter((t) => {
+            if (!t.raidhelperTemplateId || seen.has(t.raidhelperTemplateId)) return false;
+            seen.add(t.raidhelperTemplateId);
+            return true;
+        });
+    }, [ctx]);
+    const template = rhTemplates.find((t) => t.raidhelperTemplateId === templateId) || null;
+    const changeChannel = (id: string) => {
+        setChannelId(id);
+        if (templateTouched || !ctx) return;
+        const chan = ctx.channels.find((c) => c.id === id);
+        const fromCategory = chan ? (ctx.categoryTemplates || {})[chan.parentId] : "";
+        if (fromCategory) setTemplateId(fromCategory);
+    };
     const channel = ctx?.channels.find((c) => c.id === channelId) || null;
     const startPreview = date && time ? Math.floor(new Date(`${date}T${time}:00`).getTime() / 1000) : 0;
     const leaderText = leaderId === userId ? "Leitung: du" : leaderId ? `Leitung: ${leaderId}` : "Keine Leitung";
@@ -285,13 +305,13 @@ export default function RaidCreateDialog({ open, sourceId, csrfToken, userId, on
                     </div>
                     <div className="field">
                         <div className="re-label-row">
-                            <Label text="Raid-Helper-Template" htmlFor="re-template" tip="Welche Rollen, Klassen und Plätze das Event hat. Die Liste pflegst du über „Verwalten“." />
-                            <button type="button" className="re-link" onClick={() => setTemplatesOpen(true)}>Verwalten</button>
+                            <Label text="Raid-Helper-Template" htmlFor="re-template" tip="Welche Rollen, Klassen und Plätze das Event hat. Angeboten werden die Raid-Vorlagen mit verknüpfter Raid-Helper-Vorlage; vorbelegt ist die Standard-Vorlage der Kategorie." />
+                            <Link className="re-link" to="/raids/raid-templates">Raid-Vorlagen</Link>
                         </div>
-                        <select id="re-template" value={templateId} onChange={(e) => setTemplateId(e.target.value)} required>
+                        <select id="re-template" value={templateId} onChange={(e) => { setTemplateId(e.target.value); setTemplateTouched(true); }} required>
                             <option value="">— Template wählen —</option>
                             {templateId && !template && <option value={templateId}>ID {templateId} (nicht in der Liste)</option>}
-                            {ctx.templates.map((t) => <option key={t.id} value={t.id}>{t.name || "(ohne Name)"} · ID {t.id}</option>)}
+                            {rhTemplates.map((t) => <option key={t.id} value={t.raidhelperTemplateId}>{t.name || "(ohne Name)"} · ID {t.raidhelperTemplateId}</option>)}
                         </select>
                     </div>
                     {reusing
@@ -306,7 +326,7 @@ export default function RaidCreateDialog({ open, sourceId, csrfToken, userId, on
                                 <Label text="Kanal" htmlFor="re-channel" tip="Text-Kanäle des oben gewählten Servers. Das Event wird direkt dort gepostet." />
                                 {ctx.channels.length
                                     ? (
-                                        <select id="re-channel" value={channelId} onChange={(e) => setChannelId(e.target.value)} required>
+                                        <select id="re-channel" value={channelId} onChange={(e) => changeChannel(e.target.value)} required>
                                             <option value="">— Kanal wählen —</option>
                                             {ctx.channels.map((c) => <option key={c.id} value={c.id}>#{c.name}{c.category ? ` · ${c.category}` : ""}</option>)}
                                         </select>
@@ -396,15 +416,6 @@ export default function RaidCreateDialog({ open, sourceId, csrfToken, userId, on
                 <Stepper step={step} />
                 <div className="re-dlg-body">{body}</div>
             </Modal>
-            {ctx && (
-                <RaidTemplatesDialog
-                    open={templatesOpen}
-                    onClose={() => setTemplatesOpen(false)}
-                    templates={ctx.templates}
-                    csrfToken={csrfToken}
-                    onChanged={(templates) => setCtx({ ...ctx, templates })}
-                />
-            )}
         </>
     );
 }
