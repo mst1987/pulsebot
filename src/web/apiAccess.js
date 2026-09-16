@@ -114,6 +114,15 @@ const AREA_BY_PATH = {
     "/api/raids/setup/propose": "raids",
     "/api/raids/setup/approve": "raids",
     "/api/raids/setup/explain": "raids",
+    // Event verwalten (#288): the POSTs are writes by method; the two GETs only
+    // prepare an action and check write access in the handler as well.
+    "/api/raids/manage": "raids",
+    "/api/raids/manage/move": "raids",
+    "/api/raids/manage/signups": "raids",
+    "/api/raids/manage/raider": "raids",
+    "/api/raids/manage/raider/remove": "raids",
+    "/api/raids/manage/cancel": "raids",
+    "/api/raids/manage/reopen": "raids",
     // The game version rule sets (classes, instances, buffs) feed the raid planning.
     "/api/game-versions": "raids",
     // Anmelde-Aufruf and raid templates are edited from the raid pages. The raid

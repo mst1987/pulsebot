@@ -204,6 +204,18 @@ describe("bot interaction router", () => {
         },
     );
 
+    it("routes the message context menu \"Event verwalten\" by its command name, through the gate (#288)", async () => {
+        // A context menu is an application command: isCommand() is true for it in discord.js.
+        const real = require("../src/commands/event/eventManageContext");
+        const cmd = { ...real, execute: jest.fn() };
+        bot.client.commands.set(real.name, cmd);
+        const i = fakeInteraction("isCommand", { commandName: "Event verwalten", targetId: "m1", isMessageContextMenuCommand: () => true });
+        await bot.handleInteraction(i);
+        expect(mockGuard).toHaveBeenCalledWith(i, cmd, bot.client.commands);
+        expect(cmd.execute).toHaveBeenCalledWith(i, bot.client);
+        expect(real.accessOf).toBe("event");
+    });
+
     it("ignores interaction kinds it does not route", async () => {
         const i = fakeInteraction("somethingElse", { customId: "pick" });
         await bot.handleInteraction(i);

@@ -78,7 +78,19 @@ describe("bot command access declarations", () => {
         expect(byName.get("event-form").accessOf).toBe("event");
         const { commands } = require("../../scripts/register-commands");
         const def = commands.find((c) => c.name === "event");
-        expect(def.options.map((o) => [o.name, o.type])).toEqual([["anlegen", 1]]);
+        expect(def.options.map((o) => [o.name, o.type])).toEqual([["anlegen", 1], ["verwalten", 1]]);
+    });
+
+    it("hangs Event verwalten under /event: subcommand, buttons, modals and the message context menu (#288)", () => {
+        for (const name of ["event-manage", "event-manage-form", "Event verwalten"]) {
+            expect({ name, accessOf: byName.get(name).accessOf }).toEqual({ name, accessOf: "event" });
+        }
+        const { commands } = require("../../scripts/register-commands");
+        const menu = commands.find((c) => c.name === "Event verwalten");
+        // a message command (type 3) carries no description
+        expect(menu).toEqual({ name: "Event verwalten", type: 3, description: "" });
+        const sub = commands.find((c) => c.name === "event").options.find((o) => o.name === "verwalten");
+        expect(sub.options).toEqual([expect.objectContaining({ name: "event", type: 3, required: false, autocomplete: true })]);
     });
 
     it("registers every lookup command, with descriptions Discord accepts", () => {

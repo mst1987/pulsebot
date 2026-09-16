@@ -91,10 +91,25 @@ function signupWindow(event, now = Date.now()) {
     };
 }
 
+/** Whether the event was cancelled (#288) — it takes no signup at all, not even from the orga. */
+function isCancelled(event) {
+    return !!event && event.status === "cancelled";
+}
+
+/** Whether the orga closed the signup (#288) — members may still sign off. */
+function isSignupClosed(event) {
+    return !!event && event.signupsClosed === true;
+}
+
+/** Statuses a member may still pick once the orga closed the signup. */
+const WHEN_CLOSED = ["absence"];
+
 /** The statuses a member may choose right now (all of them before the deadline). */
 function allowedStatuses(event, { now = Date.now(), byOrga = false } = {}) {
     const w = signupWindow(event, now);
+    if (isCancelled(event)) return [];
     if (w.started && !byOrga) return [];
+    if (isSignupClosed(event) && !byOrga) return WHEN_CLOSED.slice();
     if (w.deadlinePassed && !byOrga) return AFTER_DEADLINE.slice();
     return SIGNUP_STATUSES.slice();
 }
@@ -216,7 +231,12 @@ function validateSignup(event, input = {}, { profile, previous = null, byOrga = 
     if (!SIGNUP_STATUSES.includes(status)) return fail("status", `Unbekannter Anmeldestatus „${status}“.`);
 
     const w = signupWindow(event, now);
+    if (isCancelled(event)) return fail("cancelled", "Das Event wurde abgesagt – Anmeldungen sind nicht mehr möglich.");
     if (w.started && !byOrga) return fail("started", "Der Raid hat schon begonnen – Anmeldungen sind geschlossen.");
+    if (isSignupClosed(event) && !byOrga && !WHEN_CLOSED.includes(status)) {
+        const unchanged = previous && previous.status === status && previous.spec === String(input.spec || "").trim();
+        if (!unchanged) return fail("closed", "Die Anmeldung ist geschlossen – du kannst dich nur noch abmelden.");
+    }
     if (w.deadlinePassed && !byOrga && !AFTER_DEADLINE.includes(status)) {
         const unchanged = previous && previous.status === status && previous.spec === String(input.spec || "").trim();
         if (!unchanged) {
@@ -286,13 +306,13 @@ async function submitSignup(eventId, userId, input = {}, { byOrga = false, now =
 function httpStatusFor(code) {
     if (code === "not_found") return 404;
     if (code === "raider_role") return 403;
-    if (code === "deadline" || code === "started" || code === "raidhelper") return 409;
+    if (code === "deadline" || code === "started" || code === "raidhelper" || code === "closed" || code === "cancelled") return 409;
     return 400;
 }
 
 module.exports = {
     AFTER_DEADLINE, ATTENDING, RAIDER_ROLE_ERROR,
-    categoryRoleAllowed, categoryVisible, checkRaiderRole,
+    categoryRoleAllowed, categoryVisible, checkRaiderRole, isCancelled, isSignupClosed, WHEN_CLOSED,
     rosterCounts, roleCounts, signupWindow, allowedStatuses,
     findCharacter, profileRoles, defaultCanAlso, wishPartnersSignedUp,
     validateSignup, submitSignup, httpStatusFor,

@@ -83,6 +83,10 @@ function fillText(event) {
 
 /** One raid as one line: title · date · fill · channel link (· Raid-Helper). */
 function raidLine(event, eventGuildId) {
+    // A cancelled event (#288) stays listed until its day, struck through, so nobody wonders where it went.
+    if (event.status === "cancelled") {
+        return [`~~${plain(event.title) || "Raid"}~~`, "**ABGESAGT**", formatStart(event.startTime)].filter(Boolean).join(" · ");
+    }
     const parts = [`**${plain(event.title) || "Raid"}**`];
     const when = formatStart(event.startTime);
     if (when) parts.push(when);
@@ -124,6 +128,8 @@ function buildOverviewMessage(groups, opts = {}) {
     const { eventGuildId = "", eventGuildName = "", baseUrl = publicBaseUrl } = opts;
     const list = upcomingGroups(groups, opts);
     const all = list.flatMap((g) => g.events.map((e) => ({ ...e, categoryName: g.categoryName })));
+    // Nobody signs up for a cancelled raid (#288): it is shown, not offered.
+    const signable = all.filter((e) => e.status !== "cancelled");
 
     const title = "Kommende Raids";
     const description = all.length
@@ -166,11 +172,11 @@ function buildOverviewMessage(groups, opts = {}) {
     if (missing > 0) embed.setFooter({ text: `+${missing} weitere Raids in der Web-Übersicht` });
 
     const components = [];
-    if (all.length) {
+    if (signable.length) {
         const select = new StringSelectMenuBuilder()
             .setCustomId(SELECT_ID)
             .setPlaceholder("Raid wählen, um dich anzumelden …")
-            .addOptions(all.slice(0, MAX_OPTIONS).map((e) => ({
+            .addOptions(signable.slice(0, MAX_OPTIONS).map((e) => ({
                 label: (plain(e.title) || "Raid").slice(0, 100),
                 description: [formatStart(e.startTime), plain(e.categoryName)].filter(Boolean).join(" · ").slice(0, 100),
                 value: String(e.id).slice(0, 100),
