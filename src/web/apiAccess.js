@@ -41,6 +41,9 @@ const AREA_BY_PATH = {
     // these are credentials that skip the Discord login (apiRoutes/settings.js).
     "/api/settings/ingest-tokens": "settings",
     "/api/settings/ingest-tokens/delete": "settings",
+    // Event and talk server status (#251). Full-admin only in the handler as
+    // well: which server is the event server decides where the role check runs.
+    "/api/settings/discord-servers": "settings",
     // The raider→character assignment lives in the settings page's own tab.
     "/api/raider-characters": "settings",
 
@@ -75,6 +78,8 @@ const AREA_BY_PATH = {
     "/api/raids/softres": "raids",
     "/api/raids/softres/link": "raids",
     "/api/raids/softres/item-search": "raids",
+    // The game version rule sets (classes, instances, buffs) feed the raid planning.
+    "/api/game-versions": "raids",
     // Anmelde-Aufruf and Raid-Helper templates are edited from the raid pages.
     "/api/notify-templates": "raids",
     "/api/notify-templates/delete": "raids",

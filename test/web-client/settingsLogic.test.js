@@ -191,8 +191,9 @@ describe("connection cards", () => {
             .toEqual({ warcraftlogsV2: { clientId: "id" } });
         expect(logic.connectionPatch("anthropic", { model: "claude-opus-5", clientId: "ignored" }, "sk"))
             .toEqual({ anthropic: { model: "claude-opus-5", apiKey: "sk" } });
+        // The server itself moved to Discord-Server (#251): the card no longer sends guildId.
         expect(logic.connectionPatch("discord", { guildId: "1", raidhelperServerId: "2" }, "never"))
-            .toEqual({ guildId: "1", raidhelperServerId: "2" });
+            .toEqual({ raidhelperServerId: "2" });
     });
 
     it("keeps the secret contract: undefined keeps, empty clears", () => {
@@ -200,6 +201,41 @@ describe("connection cards", () => {
             blizzard: { clientId: "c", region: "eu", realmSlug: "thunderstrike", namespace: "" },
         });
         expect(logic.connectionPatch("battlenet", {}, "").blizzard.clientSecret).toBe("");
+    });
+});
+
+describe("Discord-Server cards (#251)", () => {
+    const card = (over = {}) => ({ connected: true, permissions: [{ label: "Rollen verwalten", ok: true }], missing: [], ...over });
+
+    it("says what a server card needs, without counting unknown rights", () => {
+        expect(logic.serverCardState(null, false)).toEqual({ tone: "mid", label: "Kein Server gewählt", missing: true });
+        expect(logic.serverCardState(null, true)).toEqual({ tone: "", label: "Kein zweiter Server", missing: false });
+        expect(logic.serverCardState(card({ connected: false }), true).label).toBe("Bot nicht auf dem Server");
+        expect(logic.serverCardState(card({ permissions: null }), false)).toEqual({ tone: "", label: "Rechte unbekannt", missing: false });
+        expect(logic.serverCardState(card({ missing: ["Rollen verwalten"] }), false).label).toBe("1 Recht fehlt");
+        expect(logic.serverCardState(card({ missing: ["a", "b"] }), false).label).toBe("2 Rechte fehlen");
+        expect(logic.serverCardState(card(), false)).toEqual({ tone: "ok", label: "Verbunden", missing: false });
+    });
+
+    it("counts the cards that need attention for the sidebar badge", () => {
+        expect(logic.serverIssues(null)).toBe(0);
+        expect(logic.serverIssues({ event: card(), talk: null })).toBe(0);
+        expect(logic.serverIssues({ event: card({ missing: ["x"] }), talk: card({ connected: false }) })).toBe(2);
+    });
+
+    it("clears a talk server equal to the event server, and its channels without one", () => {
+        expect(logic.discordServersPatch({ eventGuildId: " 1 ", talkGuildId: "1", talkOverviewChannelId: "5", talkPingChannelId: "6" }))
+            .toEqual({ discordServers: { eventGuildId: "1", talkGuildId: "", talkOverviewChannelId: "", talkPingChannelId: "" } });
+        expect(logic.discordServersPatch({ eventGuildId: "1", talkGuildId: "2", talkOverviewChannelId: "5", talkPingChannelId: "" }))
+            .toEqual({ discordServers: { eventGuildId: "1", talkGuildId: "2", talkOverviewChannelId: "5", talkPingChannelId: "" } });
+    });
+
+    it("words the member overlap and flags a large gap", () => {
+        expect(logic.overlapBadge(null)).toBeNull();
+        expect(logic.overlapBadge({ eventCount: 212, talkCount: 208, both: 198, error: null })).toMatchObject({ label: "198 von 212", tone: "ok" });
+        expect(logic.overlapBadge({ eventCount: 100, talkCount: 50, both: 50, error: null }).tone).toBe("mid");
+        expect(logic.overlapBadge({ eventCount: null, talkCount: null, both: null, error: "Intent fehlt" }))
+            .toEqual({ label: "Überschneidung unbekannt", tone: "", tip: "Intent fehlt" });
     });
 });
 

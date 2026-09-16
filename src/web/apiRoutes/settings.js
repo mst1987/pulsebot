@@ -9,6 +9,7 @@ const {
     listTokens: listIngestTokens, createToken: createIngestToken, revokeToken: revokeIngestToken,
 } = require("../ingestTokenStore");
 const discord = require("../discord");
+const guildRoles = require("../guildRoles");
 const wowhead = require("../../utils/wowhead");
 const {
     AREAS, normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,
@@ -61,8 +62,15 @@ const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermi
 // the section (src/web-client/src/lib/settingsSections.ts).
 const CREDENTIAL_KEYS = ["anthropic", "warcraftlogsV2"];
 
+// Which Discord server is the event server and which the talk server (#251).
+// Full-admin only: the event server is where the admin-role check runs, so
+// whoever may move it decides whose roles count.
+const GUILD_KEYS = ["discordServers"];
+
 // Everything a non-admin settings user may neither read nor write.
-const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS];
+const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS];
+
+const DISCORD_SERVER_FIELDS = ["eventGuildId", "talkGuildId", "talkOverviewChannelId", "talkPingChannelId"];
 
 /** GET /api/settings — config + raidsheets + the active guild's roles/categories. */
 async function getSettings(req, res) {
@@ -96,7 +104,43 @@ async function getSettings(req, res) {
         // empty list (bot offline) makes the page fall back to the id field.
         channels: typeof discord.listTextChannels === "function" ? discord.listTextChannels(guildId) : [],
         bot: botStatus(guildId),
+        // The two server cards (cheap: names, member counts, rights). The member
+        // overlap needs a full member fetch and loads with the section itself.
+        servers: user.isAdmin ? serverCards(config) : null,
         activeGuildId: guildId,
+    });
+}
+
+/** The event and talk server as status cards; a failure reads as "nothing known". */
+function serverCards(config) {
+    try {
+        return { event: guildRoles.eventGuild(config), talk: guildRoles.talkGuild(config) };
+    } catch (e) {
+        console.warn("server status failed:", e.message);
+        return { event: null, talk: null };
+    }
+}
+
+/**
+ * GET /api/settings/discord-servers — everything the "Discord-Server" section
+ * shows and edits: the stored ids, both status cards, the member overlap, and
+ * every server the bot is on with its role and text channels (the pickers of
+ * the edit dialog, so switching the talk server there lists that server's
+ * channels without another request).
+ */
+async function getDiscordServers(req, res) {
+    if (!requireFullAdmin(req, res)) return;
+    const config = getConfig();
+    const guilds = (discord.listGuilds() || []).map((g) => ({
+        ...g,
+        role: guildRoles.guildRole(g.id, config),
+        channels: discord.listTextChannels(g.id),
+    }));
+    ok(res, {
+        discordServers: config.discordServers,
+        ...serverCards(config),
+        overlap: await guildRoles.memberOverlap(config),
+        guilds,
     });
 }
 
@@ -175,6 +219,14 @@ async function updateSettings(req, res) {
     // into `partial` — a per-account grant set in the menu was silently dropped.
     if (body.userPermissions !== undefined) partial.userPermissions = normalizeUserPermissions(body.userPermissions);
     if (body.guildId !== undefined) partial.guildId = String(body.guildId).trim();
+    // Only the fields sent: settingsStore merges them into the stored block and
+    // normalises the result, so a PATCH of one channel keeps both servers.
+    if (body.discordServers !== undefined && body.discordServers && typeof body.discordServers === "object") {
+        partial.discordServers = {};
+        for (const k of DISCORD_SERVER_FIELDS) {
+            if (body.discordServers[k] !== undefined) partial.discordServers[k] = String(body.discordServers[k] || "").trim();
+        }
+    }
     if (body.raidhelperServerId !== undefined) partial.raidhelperServerId = String(body.raidhelperServerId).trim();
     if (body.officerRoleId !== undefined) partial.officerRoleId = String(body.officerRoleId).trim();
     if (body.applicationChannelId !== undefined) partial.applicationChannelId = String(body.applicationChannelId).trim();
@@ -284,6 +336,6 @@ async function deleteIngestTokenHandler(req, res) {
 
 module.exports = {
     getSettings, updateSettings, getItemSearch, saveRaidsheetHandler, deleteRaidsheetHandler,
-    getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler,
-    publicConfig, ACCESS_KEYS, CREDENTIAL_KEYS, FULL_ADMIN_KEYS,
+    getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers,
+    publicConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, FULL_ADMIN_KEYS,
 };

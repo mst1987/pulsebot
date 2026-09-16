@@ -7,7 +7,7 @@
 //   Module          — the behaviour of one single feature
 //
 // Fifteen sections used to share this column, most of them with one or two
-// fields, and none said whether something was missing there. Nine are left, each
+// fields, and none said whether something was missing there. Ten are left, each
 // with a WoW icon, and the two that can be incomplete carry a count.
 
 export type SettingsSection = {
@@ -35,6 +35,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     { id: "berechtigungen", group: "Zugang", label: "Berechtigungen", icon: "inv_scroll_11", crumb: "Zugang · wer darf welchen Bereich sehen oder bearbeiten", adminOnly: true },
 
     { id: "verbindungen", group: "Verbindungen", label: "Verbindungen", icon: "inv_misc_horn_01", crumb: "Verbindungen", standalone: true },
+    { id: "discordserver", group: "Verbindungen", label: "Discord-Server", icon: "inv_letter_15", crumb: "Verbindungen · Event- und Kommunikations-Discord", adminOnly: true, standalone: true },
 
     { id: "kategorien", group: "Raid-Kategorien", label: "Kategorien", icon: "inv_banner_03", crumb: "Raid-Kategorien · alles, was pro Raidtag gilt" },
 

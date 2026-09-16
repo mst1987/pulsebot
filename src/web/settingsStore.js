@@ -50,7 +50,14 @@ const CONFIG_DEFAULTS = {
     // Discord role would only be a second list to keep in sync.
     userPermissions: {},
     // Home guild used to verify admin-role membership (resolveIsAdmin in auth.js).
+    // With discordServers.eventGuildId set, getConfig() reports that one here —
+    // this key is only the fallback for an install that never picked the two roles.
     guildId: guildId || "",
+    // The two Discord servers the bot works with (Einstellungen → Verbindungen →
+    // Discord-Server): the event server (event channels, Raid-Helper) and the
+    // talk server (overview, sign-up per bot, pings), plus the talk server's
+    // target channels. All empty = today's behaviour with a single server.
+    discordServers: { eventGuildId: "", talkGuildId: "", talkOverviewChannelId: "", talkPingChannelId: "" },
     // Raid-Helper server id (raid-helper.xyz), used for all Raid-Helper API calls.
     // RAIDHELPER_API_KEY stays in .env — it's a real secret, this id isn't.
     raidhelperServerId: raidhelperServerId || "",
@@ -412,6 +419,7 @@ function deleteRaidsheet(id) {
 /** The current admin config, merged over defaults. */
 function getConfig() {
     const stored = readJson(CONFIG_FILE, {});
+    const discordServers = normalizeDiscordServers(stored.discordServers);
     return {
         ...CONFIG_DEFAULTS,
         ...stored,
@@ -420,7 +428,10 @@ function getConfig() {
         // over it: the settings form writes this field on every save, so an
         // install that never filled it in would otherwise keep a blank value —
         // no admin-role check, no preselected server in the menu.
-        guildId: String(stored.guildId || "").trim() || CONFIG_DEFAULTS.guildId,
+        // The event server, once picked, *is* the home guild; the old key stays
+        // the fallback for installs that only ever configured one server.
+        guildId: discordServers.eventGuildId || String(stored.guildId || "").trim() || CONFIG_DEFAULTS.guildId,
+        discordServers,
         adminRoleIds: Array.isArray(stored.adminRoleIds) ? stored.adminRoleIds : CONFIG_DEFAULTS.adminRoleIds,
         rolePermissions: normalizeRolePermissions(stored.rolePermissions),
         baseAccess: normalizeAreaAccess(stored.baseAccess),
@@ -436,6 +447,28 @@ function getConfig() {
         categorySheets: normalizeCategorySheets(stored.categorySheets),
         topItems: normalizeTopItems(stored.topItems),
     };
+}
+
+// A Discord snowflake: digits only. Anything else (a pasted link, a name) is
+// dropped rather than stored as an id no lookup can ever resolve.
+const SNOWFLAKE = /^\d{5,25}$/;
+const DISCORD_SERVER_KEYS = ["eventGuildId", "talkGuildId", "talkOverviewChannelId", "talkPingChannelId"];
+
+/**
+ * Normalise the two-server block to `{ eventGuildId, talkGuildId,
+ * talkOverviewChannelId, talkPingChannelId }`, every field a snowflake or "".
+ * A talk server equal to the event server is no second server: it is cleared,
+ * so "one server for everything" is stored the same way however it was entered.
+ */
+function normalizeDiscordServers(raw) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const out = {};
+    for (const key of DISCORD_SERVER_KEYS) {
+        const value = String(src[key] === undefined || src[key] === null ? "" : src[key]).trim();
+        out[key] = SNOWFLAKE.test(value) ? value : "";
+    }
+    if (out.talkGuildId && out.talkGuildId === out.eventGuildId) out.talkGuildId = "";
+    return out;
 }
 
 /**
@@ -533,6 +566,12 @@ function saveConfig(partial) {
     if (partial.raidDefaults) next.raidDefaults = { ...current.raidDefaults, ...partial.raidDefaults };
     if (partial.blizzard) next.blizzard = { ...current.blizzard, ...partial.blizzard };
     if (partial.anthropic) next.anthropic = { ...current.anthropic, ...partial.anthropic };
+    if (partial.discordServers) {
+        next.discordServers = normalizeDiscordServers({ ...current.discordServers, ...partial.discordServers });
+        // Keep the fallback key in step, so clearing the event server later
+        // falls back to the server that was last in use, not to an older one.
+        if (next.discordServers.eventGuildId) next.guildId = next.discordServers.eventGuildId;
+    }
     if (partial.warcraftlogsV2) next.warcraftlogsV2 = { ...current.warcraftlogsV2, ...partial.warcraftlogsV2 };
     if (partial.categoryLootTool) next.categoryLootTool = { ...current.categoryLootTool, ...partial.categoryLootTool };
     if (partial.categorySheets) {
@@ -551,5 +590,5 @@ module.exports = {
     listRaidTemplates, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
     listNotify, getNotify, saveNotify, deleteNotify,
     listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
-    getConfig, saveConfig, resolveEventSheetLink,
+    getConfig, saveConfig, resolveEventSheetLink, normalizeDiscordServers,
 };

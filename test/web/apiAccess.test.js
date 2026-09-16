@@ -97,6 +97,12 @@ describe("web/apiAccess", () => {
             expect(checkAccess("/api/channels", "PATCH", writer)).toBeNull();
         });
 
+        it("opens the game version rule sets to raid readers only", () => {
+            expect(checkAccess("/api/game-versions", "GET", limited({ raids: { read: true, write: false } }))).toBeNull();
+            expect(checkAccess("/api/game-versions", "GET", limited({ loot: { read: true, write: false } }))).toMatchObject({ status: 403 });
+            expect(checkAccess("/api/game-versions", "GET", null)).toMatchObject({ status: 401 });
+        });
+
         it("lets any menu user switch the active guild", () => {
             expect(checkAccess("/api/session/guild", "POST", limited({ raids: { read: true, write: false } }))).toBeNull();
             expect(checkAccess("/api/session/guild", "POST", limited({}))).toMatchObject({ status: 403 });
