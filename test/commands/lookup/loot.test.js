@@ -3,6 +3,7 @@ jest.mock("../../../src/web/lootStats", () => ({ itemCatalog: jest.fn() }));
 jest.mock("../../../src/web/characterInfo", () => ({ annotatedCharacters: jest.fn() }));
 jest.mock("../../../src/web/userCharacters", () => ({ myCharacters: jest.fn() }));
 
+const { MessageFlags } = require("discord.js");
 const command = require("../../../src/commands/lookup/loot");
 const { listByCharacter } = require("../../../src/web/lootStore");
 const { itemCatalog } = require("../../../src/web/lootStats");
@@ -42,7 +43,7 @@ describe("/loot", () => {
             const i = mockInteraction({ userId: "u1", options: { __subcommand: "ich" } });
             await command.execute(i);
             expect(charactersForUser).toHaveBeenCalledWith("u1");
-            expect(reply(i).ephemeral).toBe(true);
+            expect(reply(i).flags).toBe(MessageFlags.Ephemeral);
             expect(embed(i).description).toContain("**2 Items**");
             expect(embed(i).description).toContain("1× BiS");
             expect(embed(i).fields[0].value).toContain("Cowl of the Grand Engineer");

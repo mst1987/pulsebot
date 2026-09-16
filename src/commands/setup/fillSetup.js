@@ -1,3 +1,4 @@
+const { MessageFlags } = require("discord.js");
 const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const SheetsClient = require("../../classes/sheets");
 const { fillSetupSheet } = require("../../utils/fillSetup");
@@ -9,7 +10,7 @@ module.exports = {
     group: "raids",
     defaultAccess: "admins",
     async execute(interaction, client) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const setupId = interaction.options.getString("setup_id");
         const tank3   = interaction.options.getString("tank3") || "";

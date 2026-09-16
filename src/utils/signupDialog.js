@@ -311,8 +311,8 @@ function plainUpdate(interaction, content) {
 }
 
 module.exports = {
-    PICK_PREFIX, STATUS_PREFIX, COMMENT_PREFIX, MAX_CUSTOM_ID, STATUS_LABELS, ALSO_LABELS,
+    PICK_PREFIX, STATUS_PREFIX, COMMENT_PREFIX, MAX_CUSTOM_ID, STATUS_CODES, STATUS_BY_CODE, STATUS_LABELS, STATUS_STATE, ALSO_LABELS, GEAR_LABELS,
     encodeState, decodeState, pickId, statusId, commentId, parsePickId, parseStatusId, parseCommentId,
-    signableCharacters, classesFor, classLabel, resolveState, roleCountLine,
+    signableCharacters, classesFor, classLabel, resolveState, roleCountLine, pickText,
     buildSignupDialog, savedNotice, buildCharacterModal, buildCommentModal, plainUpdate,
 };

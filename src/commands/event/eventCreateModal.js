@@ -1,3 +1,4 @@
+const { MessageFlags } = require("discord.js");
 // The modal of /event anlegen (#260). One customId prefix for three things, the
 // way commands/logcheck/logevalForce.js does it:
 //
@@ -21,7 +22,7 @@ module.exports = {
         const { guildId, error } = guildFor(interaction);
 
         if (!interaction.isModalSubmit()) {
-            if (error) return interaction.reply({ content: error, ephemeral: true });
+            if (error) return interaction.reply({ content: error, flags: MessageFlags.Ephemeral });
             const values = token ? getDraft(token, interaction.user.id) : null;
             return interaction.showModal(formModal(state, { values }));
         }

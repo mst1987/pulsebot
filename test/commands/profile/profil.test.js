@@ -1,5 +1,6 @@
 // /profil: kurze Zusammenfassung des eigenen Profils, Link ins Web und die
 // Schnell-Schalter "kann Offtank" / "kann heilen".
+const { MessageFlags } = require("discord.js");
 const os = require("os");
 const path = require("path");
 const store = require("../../../src/web/raiderProfileStore");
@@ -22,7 +23,7 @@ describe("commands/profile/profil", () => {
         const interaction = mockInteraction({ userId: USER, commandName: "profil" });
         await command.execute(interaction);
         const arg = interaction.reply.mock.calls[0][0];
-        expect(arg.ephemeral).toBe(true);
+        expect(arg.flags).toBe(MessageFlags.Ephemeral);
         expect(embedText(arg)).toContain("Noch kein Charakter");
         const [tank, heal, link] = arg.components[0].components.map((c) => c.data);
         expect(tank.custom_id).toBe("profil:tank");

@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 
 // Accepts a full message link or a bare message id (then read from the given fallback channel).
 function parseMessageRef(input, fallbackChannelId) {
@@ -13,7 +13,7 @@ module.exports = {
     group: "recruitment",
     defaultAccess: "admins",
     async execute(interaction, client) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const messageInput = interaction.options.getString("message_id");
         const targetChannel = interaction.options.getChannel("channel");

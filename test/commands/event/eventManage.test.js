@@ -105,7 +105,7 @@ describe("opening", () => {
         i.targetMessage = { id: "700000000000000001", channelId: CHANNEL };
         await contextCommand.execute(i);
         const payload = lastPayload(i.reply);
-        expect(payload.ephemeral).toBe(true);
+        expect(payload.flags).toBe(64);
         expect(payload.embeds[0].title).toBe("SSC + TK verwalten");
         expect(payload.embeds[0].description).toContain("1/25");
         expect(buttons(payload).map((b) => b.label || b.placeholder)).toEqual([

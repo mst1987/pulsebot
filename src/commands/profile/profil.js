@@ -4,7 +4,7 @@
 //
 // The buttons carry the switch in their customId ("profil:tank"), so the same
 // file answers the slash command and the clicks (see bot.js' customId routing).
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require("discord.js");
+const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } = require("discord.js");
 const profiles = require("../../web/raiderProfileStore");
 const { effectiveRoles } = require("../../web/profileView");
 const { publicBaseUrl } = require("../../config/variables");
@@ -81,6 +81,6 @@ module.exports = {
             return interaction.update(message(saved));
         }
 
-        return interaction.reply({ ...message(profiles.getProfile(userId)), ephemeral: true });
+        return interaction.reply({ ...message(profiles.getProfile(userId)), flags: MessageFlags.Ephemeral });
     },
 };

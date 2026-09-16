@@ -3,6 +3,7 @@
 // /event verwalten, for the event whose message was clicked (else the event of
 // that channel). Registered as a message command (type 3) in
 // scripts/register-commands.js; the router finds it by its command name.
+const { MessageFlags } = require("discord.js");
 const { openPayload } = require("../../web/eventManageBot");
 const { guildFor } = require("../../web/eventDraft");
 
@@ -14,13 +15,13 @@ module.exports = {
     accessOf: "event",
     async execute(interaction) {
         const { guildId, error } = guildFor(interaction);
-        if (error) return interaction.reply({ content: error, ephemeral: true });
+        if (error) return interaction.reply({ content: error, flags: MessageFlags.Ephemeral });
         const message = interaction.targetMessage || {};
         const opened = openPayload(guildId, {
             messageId: String(message.id || interaction.targetId || ""),
             channelId: String(message.channelId || interaction.channelId || ""),
         });
-        if (opened.error) return interaction.reply({ content: opened.error, ephemeral: true });
-        return interaction.reply({ ...opened.payload, ephemeral: true });
+        if (opened.error) return interaction.reply({ content: opened.error, flags: MessageFlags.Ephemeral });
+        return interaction.reply({ ...opened.payload, flags: MessageFlags.Ephemeral });
     },
 };

@@ -10,6 +10,7 @@
 //
 // Roles are always resolved against the *event* guild, whichever server the
 // interaction came from — members are on both.
+const { MessageFlags } = require("discord.js");
 const { getConfig } = require("./settingsStore");
 const discord = require("./discord");
 const { logcheckAdminIds, adminRoleIds: envAdminRoleIds } = require("../config/variables");
@@ -157,7 +158,7 @@ async function guardInteraction(interaction, command, commands) {
         if (typeof interaction.isAutocomplete === "function" && interaction.isAutocomplete()) {
             await interaction.respond([]);
         } else if (!interaction.replied && !interaction.deferred) {
-            await interaction.reply({ content: denyMessage(result.rule, guildId), ephemeral: true });
+            await interaction.reply({ content: denyMessage(result.rule, guildId), flags: MessageFlags.Ephemeral });
         }
     } catch (e) {
         console.error("botAccess: deny reply failed:", e.message);

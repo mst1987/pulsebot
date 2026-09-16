@@ -8,6 +8,7 @@
 // are eventManageStep.js, its modals eventManageForm.js, the logic
 // web/eventManageBot.js on top of web/eventManage.js. The message context menu
 // "Event verwalten" (eventManageContext.js) opens the same message.
+const { MessageFlags } = require("discord.js");
 const { guildFor, initialState, stepMessage } = require("../../web/eventDraft");
 const { openPayload } = require("../../web/eventManageBot");
 const { listEvents } = require("../../web/eventStore");
@@ -27,20 +28,20 @@ module.exports = {
         const sub = interaction.options && typeof interaction.options.getSubcommand === "function"
             ? interaction.options.getSubcommand(false)
             : "";
-        if (sub !== "anlegen" && sub !== "verwalten") return interaction.reply({ content: "Diese Aktion gibt es nicht.", ephemeral: true });
+        if (sub !== "anlegen" && sub !== "verwalten") return interaction.reply({ content: "Diese Aktion gibt es nicht.", flags: MessageFlags.Ephemeral });
 
         const { guildId, error } = guildFor(interaction);
-        if (error) return interaction.reply({ content: error, ephemeral: true });
+        if (error) return interaction.reply({ content: error, flags: MessageFlags.Ephemeral });
 
         if (sub === "verwalten") {
             const eventId = typeof interaction.options.getString === "function" ? String(interaction.options.getString("event") || "").trim() : "";
             const channelId = String(interaction.channelId || (interaction.channel && interaction.channel.id) || "");
             const opened = openPayload(guildId, { eventId, channelId });
-            if (opened.error) return interaction.reply({ content: opened.error, ephemeral: true });
-            return interaction.reply({ ...opened.payload, ephemeral: true });
+            if (opened.error) return interaction.reply({ content: opened.error, flags: MessageFlags.Ephemeral });
+            return interaction.reply({ ...opened.payload, flags: MessageFlags.Ephemeral });
         }
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         const channel = interaction.channel || {};
         const parentId = String(channel.parentId || (channel.parent && channel.parent.id) || "");
         const { payload } = await stepMessage(guildId, initialState(guildId, parentId));

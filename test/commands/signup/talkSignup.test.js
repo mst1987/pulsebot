@@ -1,5 +1,6 @@
 // Die Raid-Auswahl unter der Übersicht auf dem Talk-Server (#258): eigene Events
 // öffnen den Anmelde-Dialog, Raid-Helper-Events verlinken in ihren Event-Kanal.
+const { MessageFlags } = require("discord.js");
 const os = require("os");
 const path = require("path");
 
@@ -38,7 +39,7 @@ describe("commands/signup/talkSignup", () => {
         const interaction = mockInteraction({ customId: "talk-signup", values: ["eh-kara"], userId: "200000000000000009" });
         await command.execute(interaction);
         const payload = interaction.reply.mock.calls[0][0];
-        expect(payload.ephemeral).toBe(true);
+        expect(payload.flags).toBe(MessageFlags.Ephemeral);
         expect(payload.embeds[0].title).toBe("Karazhan");
         expect(payload.embeds[0].description).toContain("Profil anlegen");
         expect(getStoredEvent).not.toHaveBeenCalled();
@@ -50,7 +51,7 @@ describe("commands/signup/talkSignup", () => {
         mocks.access.roleIds = [];
         const interaction = mockInteraction({ customId: "talk-signup", values: ["eh-kara"], userId: "200000000000000009" });
         await command.execute(interaction);
-        expect(interaction.reply).toHaveBeenCalledWith({ content: "Für diesen Raid brauchst du eine Raider-Rolle.", ephemeral: true });
+        expect(interaction.reply).toHaveBeenCalledWith({ content: "Für diesen Raid brauchst du eine Raider-Rolle.", flags: MessageFlags.Ephemeral });
         // no event guild on the event → the configured (event) server
         expect(mocks.memberRoleIds).toHaveBeenCalledWith("event-guild", "200000000000000009");
     });
@@ -61,7 +62,7 @@ describe("commands/signup/talkSignup", () => {
         await command.execute(interaction);
         const payload = interaction.reply.mock.calls[0][0];
         expect(payload.content).toBe("Die Anmeldung zu **Gruul** läuft über Raid-Helper – melde dich im Event-Kanal an.");
-        expect(payload.ephemeral).toBe(true);
+        expect(payload.flags).toBe(MessageFlags.Ephemeral);
         expect(payload.components[0].components[0]).toMatchObject({ label: "Zum Event-Kanal", url: "https://discord.com/channels/g-1/c-1" });
     });
 
@@ -82,9 +83,9 @@ describe("commands/signup/talkSignup", () => {
     it("says so when nothing was chosen or the own event is gone", async () => {
         let interaction = mockInteraction({ values: [] });
         await command.execute(interaction);
-        expect(interaction.reply).toHaveBeenCalledWith({ content: "Kein Raid gewählt.", ephemeral: true });
+        expect(interaction.reply).toHaveBeenCalledWith({ content: "Kein Raid gewählt.", flags: MessageFlags.Ephemeral });
         interaction = mockInteraction({ values: ["eh-gone"] });
         await command.execute(interaction);
-        expect(interaction.reply).toHaveBeenCalledWith({ content: "Dieses Event gibt es nicht mehr.", ephemeral: true });
+        expect(interaction.reply).toHaveBeenCalledWith({ content: "Dieses Event gibt es nicht mehr.", flags: MessageFlags.Ephemeral });
     });
 });

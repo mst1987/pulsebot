@@ -11,7 +11,7 @@ module.exports = {
     async execute(interaction) {
         const link = interaction.options.getString("link");
 
-        await interaction.deferReply({ ephemeral: false });
+        await interaction.deferReply();
 
         let result;
         try {

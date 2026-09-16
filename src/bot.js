@@ -8,8 +8,9 @@ const { startWebServer } = require("./web/server.js");
 const { handleLogMessage } = require("./web/logChannel.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./web/roleSync.js");
 const { guardInteraction } = require("./web/botAccess.js");
+const { loadAppEmojis } = require("./web/appEmojis.js");
 
-const { Client, GatewayIntentBits, Collection } = require("discord.js");
+const { MessageFlags, Events, Client, GatewayIntentBits, Collection } = require("discord.js");
 
 const client = new Client({
     intents: [
@@ -41,8 +42,10 @@ function loadCommands(dir) {
     }
 }
 
-client.on("ready", () => {
+client.on(Events.ClientReady, () => {
     console.log(messages.common.pulseBotReady);
+    // The spec/class/role icons of the event message (#287); text icons until they are read.
+    loadAppEmojis(client).catch(() => {});
 });
 
 // Watch the configured log channels for Warcraft-Logs links and offer to evaluate them.
@@ -124,7 +127,7 @@ async function handleInteraction(interaction) {
         if (!interaction.replied && !interaction.deferred) {
             await interaction.reply({
                 content: "Command not found",
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
             });
         }
         return;
@@ -142,9 +145,9 @@ async function handleInteraction(interaction) {
         try {
             const errorMessage = "There was an error executing this command!";
             if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: errorMessage, ephemeral: true });
+                await interaction.reply({ content: errorMessage, flags: MessageFlags.Ephemeral });
             } else if (interaction.deferred) {
-                await interaction.followUp({ content: errorMessage, ephemeral: true });
+                await interaction.followUp({ content: errorMessage, flags: MessageFlags.Ephemeral });
             }
         } catch (replyError) {
             console.error("Failed to send error response:", replyError.message);
