@@ -106,6 +106,19 @@ describe("config/gameVersions", () => {
             expect(keys).not.toContain("earthShield");
             expect(keys).not.toContain("heroicPresence");
         });
+
+        it("adds Vampiric Touch for the setup and gives totems and shouts a slot", () => {
+            const { partyBuffs, raidBuffs } = gv.rulesFor("tbc");
+            const vt = partyBuffs.find((b) => b.key === "vampiricTouch");
+            expect(vt).toMatchObject({ providers: ["Priest-Shadow"], slot: "" });
+            expect(vt.beneficiaries).toEqual(expect.arrayContaining(["Mage-Fire", "Priest-Holy", "Hunter-Marksmanship"]));
+            expect(vt.beneficiaries).not.toContain("Rogue-Combat");
+            expect(partyBuffs.find((b) => b.key === "windfury").slot).toBe("air");
+            expect(partyBuffs.find((b) => b.key === "manaSpring").slot).toBe("water");
+            expect(partyBuffs.find((b) => b.key === "battleShout").slot).toBe("shout");
+            expect(raidBuffs.every((b) => b.slot === "")).toBe(true);
+            expect(gv.rulesFor("classic").partyBuffs.map((b) => b.key)).not.toContain("vampiricTouch");
+        });
     });
 
     describe("Classic", () => {
