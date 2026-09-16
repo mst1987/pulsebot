@@ -52,7 +52,9 @@ async function onOneEvent(interaction, eventId, status) {
 /** A submitted modal page: save, then the results (and "Weiter" while pages are left). */
 async function onSubmit(interaction, token, session, page) {
     const uid = interaction.user.id;
-    const fromMessage = !!interaction.message;
+    // "Für alle" comes straight from the PUBLIC overview message: never edit that one,
+    // answer only the member. The other modes sit under an ephemeral message of their own.
+    const fromMessage = !!interaction.message && session.mode !== "all";
     if (fromMessage) await interaction.deferUpdate();
     else await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const { entries } = entriesFromModal(interaction, session, page);

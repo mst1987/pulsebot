@@ -24,9 +24,11 @@ export default function SignupsPage() {
     const [data, setData] = useState<SignupsData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [params, setParams] = useSearchParams();
-    // Several raids at once (#293): the picked own raids, and whether the bulk dialog is open.
+    // Several raids at once (#293): the picked own raids, and the raids the open bulk
+    // dialog works on — kept apart, so clearing the selection after saving does not
+    // close the dialog before it has shown the results.
     const [selected, setSelected] = useState<string[]>([]);
-    const [bulkOpen, setBulkOpen] = useState(false);
+    const [bulkRows, setBulkRows] = useState<OwnSignupRow[]>([]);
 
     useEffect(() => {
         getSignups().then(setData).catch(setError);
@@ -109,17 +111,17 @@ export default function SignupsPage() {
                     {selectedRows.length < selectable.length && (
                         <Button size="sm" variant="ghost" onClick={() => setSelected(selectable.map((e) => e.id))}>Alle wählen</Button>
                     )}
-                    <Button size="sm" onClick={() => setBulkOpen(true)}>Für alle gewählten anmelden</Button>
+                    <Button size="sm" onClick={() => setBulkRows(selectedRows)}>Für alle gewählten anmelden</Button>
                     <IconButton size="sm" icon={<XIcon />} tip="Auswahl aufheben" onClick={() => setSelected([])} />
                 </div>
             )}
 
             <BulkSignupDialog
-                rows={bulkOpen ? selectedRows : []}
+                rows={bulkRows}
                 profile={data.profile}
                 classes={data.classes}
                 csrfToken={csrfToken}
-                onClose={() => setBulkOpen(false)}
+                onClose={() => setBulkRows([])}
                 onDone={onBulkDone}
             />
 

@@ -206,6 +206,9 @@ describe("several raids at once on the page (#293)", () => {
         expect(page).toContain("type=\"checkbox\" checked={selected}");
         expect(page).toMatch(/className="an-bulk" role="toolbar"[\s\S]*Für alle gewählten anmelden/);
         expect(page).toContain("<BulkSignupDialog");
+        // the dialog keeps its own copy of the raids: clearing the selection after saving must not close it
+        expect(page).toContain("rows={bulkRows}");
+        expect(page).toContain("setBulkRows(selectedRows)");
     });
 
     it("asks once for characters and status and lists every raid's result with the reason", () => {

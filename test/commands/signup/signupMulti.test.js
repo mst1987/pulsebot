@@ -110,8 +110,10 @@ describe("talk overview buttons (#293)", () => {
         const open = mockInteraction({ customId: "talk-signup-all", userId: ANNA });
         await all.execute(open);
         const id = open.showModal.mock.calls[0][0].custom_id;
-        const submit = modalSubmit(id, { all: ["zibbowar|Warrior-Protection", "zibbo|Priest-Holy"], status: ["signed"] });
+        // the modal was opened from the public overview message: that message must never be edited
+        const submit = modalSubmit(id, { all: ["zibbowar|Warrior-Protection", "zibbo|Priest-Holy"], status: ["signed"] }, { message: { id: "overview" } });
         await step.execute(submit);
+        expect(submit.deferUpdate).not.toHaveBeenCalled();
         expect(submit.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
         const payload = submit.editReply.mock.calls[0][0];
         expect(payload.embeds[0].title).toBe("Anmeldung: 1 von 3 Raids gespeichert");
