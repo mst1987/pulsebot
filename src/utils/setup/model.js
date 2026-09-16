@@ -83,6 +83,15 @@ function profileCharacter(profile, character, classId) {
     return chars.find((c) => c.main && c.className === classId) || chars.find((c) => c.className === classId) || null;
 }
 
+/**
+ * The characters of a signup in priority order (#293): `characters` when the
+ * signup has them, else its single character/spec.
+ */
+function signupCharacters(s) {
+    const list = Array.isArray(s.characters) ? s.characters.filter((c) => c && str(c.spec)) : [];
+    return list.length ? list : [{ character: s.character, spec: s.spec }];
+}
+
 /** "ready" | "usable" | "none" as the profile says, "" when it says nothing. */
 function gearOf(profileChar, specKey) {
     const entry = profileChar && Array.isArray(profileChar.specs) ? profileChar.specs.find((s) => s && s.key === specKey) : null;
@@ -233,6 +242,8 @@ function buildModel(input = {}, weights) {
             wishes: profile && Array.isArray(profile.wishes) ? profile.wishes.map(str) : [],
             fixed: null,
             noGear: [],
+            // eventIdx → the first choice of a raider who named alternates (#293)
+            preferred: new Map(),
         };
         for (const s of signups) {
             cand.signedIn.add(s.eventIdx);
@@ -241,24 +252,32 @@ function buildModel(input = {}, weights) {
                 continue;
             }
             if (!(s.status in STATUS_FACTOR)) continue;
-            const main = specInfo.get(str(s.spec));
-            if (!main) continue;
-            const cls = classInfo.get(main.classId);
-            const pChar = profileCharacter(profile, s.character, main.classId);
-            const character = str(s.character) || (pChar && pChar.name) || cand.name || userId;
-            const base = { eventIdx: s.eventIdx, status: s.status, character, comment: str(s.comment) };
-            const mainGear = gearOf(pChar, main.key);
-            if (mainGear === "none") cand.noGear.push(main.key);
-            else cand.options.push({ ...base, spec: main.key, role: main.role, main: true, gear: mainGear });
-            const extra = new Set((Array.isArray(s.canAlso) ? s.canAlso : []).map(str));
-            if (profile && profile.canOfftank === true) extra.add("tank");
-            if (profile && profile.canHeal === true) extra.add("healer");
-            for (const role of ROLES) {
-                if (!extra.has(role) || role === main.role) continue;
-                const pick = specForRole(cls, role, pChar);
-                if (!pick) continue;
-                cand.options.push({ ...base, spec: pick.s.key, role, main: false, gear: pick.gear });
-            }
+            // Several own characters (#293): every one is an option, in priority
+            // order; the first is the preferred one. Off-spec roles ("kann auch")
+            // belong to the preferred character only.
+            const entries = signupCharacters(s);
+            entries.forEach((entry, priority) => {
+                const main = specInfo.get(str(entry.spec));
+                if (!main) return;
+                const cls = classInfo.get(main.classId);
+                const pChar = profileCharacter(profile, entry.character, main.classId);
+                const character = str(entry.character) || (pChar && pChar.name) || cand.name || userId;
+                const base = { eventIdx: s.eventIdx, status: s.status, character, comment: str(s.comment), priority };
+                if (priority === 0 && entries.length > 1) cand.preferred.set(s.eventIdx, { character, role: main.role });
+                const mainGear = gearOf(pChar, main.key);
+                if (mainGear === "none") cand.noGear.push(main.key);
+                else cand.options.push({ ...base, spec: main.key, role: main.role, main: true, gear: mainGear });
+                if (priority > 0) return;
+                const extra = new Set((Array.isArray(s.canAlso) ? s.canAlso : []).map(str));
+                if (profile && profile.canOfftank === true) extra.add("tank");
+                if (profile && profile.canHeal === true) extra.add("healer");
+                for (const role of ROLES) {
+                    if (!extra.has(role) || role === main.role) continue;
+                    const pick = specForRole(cls, role, pChar);
+                    if (!pick) continue;
+                    cand.options.push({ ...base, spec: pick.s.key, role, main: false, gear: pick.gear });
+                }
+            });
         }
         cands.push(cand);
     }
@@ -284,23 +303,31 @@ function buildModel(input = {}, weights) {
             continue;
         }
         const wanted = str(f.spec);
-        let optIdx = cand.options.findIndex((o) => o.eventIdx === event.idx && (!wanted || o.spec === wanted) && (!f.role || o.role === f.role));
+        const wantedChar = charKey(f.character);
+        const sameChar = (o) => !wantedChar || charKey(o.character) === wantedChar;
+        let optIdx = cand.options.findIndex((o) => o.eventIdx === event.idx && (!wanted || o.spec === wanted) && (!f.role || o.role === f.role) && sameChar(o));
+        if (optIdx < 0 && wantedChar) {
+            optIdx = cand.options.findIndex((o) => o.eventIdx === event.idx && (!wanted || o.spec === wanted) && (!f.role || o.role === f.role));
+        }
         if (optIdx < 0 && wanted && specInfo.get(wanted)) {
             // The orga places somebody on a spec without a signup for it, or on
             // one the profile calls ungeared: the orga knows, the check says so.
             const info = specInfo.get(wanted);
             const signup = byUser.get(cand.userId).find((s) => s.eventIdx === event.idx);
-            const pChar = profileCharacter(profiles.get(cand.userId), signup && signup.character, info.classId);
+            // the named character of that class (#293), else the signup's own
+            const entry = signup && signupCharacters(signup).find((c) => (specInfo.get(str(c.spec)) || {}).classId === info.classId);
+            const pChar = profileCharacter(profiles.get(cand.userId), (entry && entry.character) || (signup && signup.character), info.classId);
             const gear = gearOf(pChar, wanted);
             if (gear === "none") warnings.push(`${cand.name || cand.userId}: ${info.label} laut Profil ohne brauchbares Gear, aber fixiert.`);
             cand.options.push({
                 eventIdx: event.idx,
                 status: signup ? signup.status : "signed",
-                character: str(f.character) || (signup && str(signup.character)) || (pChar && pChar.name) || cand.name || cand.userId,
+                character: str(f.character) || (entry && str(entry.character)) || (signup && str(signup.character)) || (pChar && pChar.name) || cand.name || cand.userId,
                 comment: "",
                 spec: wanted,
                 role: f.role && ROLES.includes(f.role) ? f.role : info.role,
-                main: !!(signup && signup.spec === wanted),
+                main: !!(signup && signupCharacters(signup).some((c) => c.spec === wanted)),
+                priority: entry && signup ? Math.max(0, signupCharacters(signup).indexOf(entry)) : 0,
                 gear,
                 fromFixed: true,
             });
@@ -380,4 +407,4 @@ function buildModel(input = {}, weights) {
     };
 }
 
-module.exports = { buildModel, limitFor, fairnessMap, GROUP_SIZE, HISTORY_WINDOW, STATUS_FACTOR, GEAR_FACTOR, charKey };
+module.exports = { buildModel, limitFor, fairnessMap, signupCharacters, GROUP_SIZE, HISTORY_WINDOW, STATUS_FACTOR, GEAR_FACTOR, charKey };

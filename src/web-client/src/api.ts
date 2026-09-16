@@ -3318,8 +3318,21 @@ export type SignupCounts = {
     size: number;
 };
 
+/** One named character of a signup (#293), resolved by the server. */
+export type SignupCharacter = {
+    character: string;
+    className: string;
+    classColor: string;
+    spec: string;
+    specLabel: string;
+    specIcon: string;
+    role: GameRole | "";
+};
+
 /** An own signup, spec label and icon resolved by the server. */
 export type OwnSignup = {
+    /** Every named character in priority order; the fields below mirror the first. */
+    characters: SignupCharacter[];
     status: SignupStatus;
     character: string;
     className: string;
@@ -3491,7 +3504,8 @@ export function publishRaidSetup(csrfToken: string | null, eventId: string): Pro
 /** What PUT /api/raids/setup takes: who stands where, and what is locked. */
 export type SetupPlacementInput = {
     version: number;
-    groups: { index: number; slots: { userId: string; spec: string; role: string; locked: boolean }[] }[];
+    /** `character`: which of the raider's named characters (#293) plays the spec. */
+    groups: { index: number; slots: { userId: string; character?: string; spec: string; role: string; locked: boolean }[] }[];
     bench: { userId: string; locked: boolean }[];
     fairness?: boolean;
     wishes?: boolean;
@@ -3536,12 +3550,29 @@ export type SignupsData = {
 
 export type SignupInput = {
     eventId: string;
-    character: string;
-    spec: string;
+    /** Several own characters in priority order (#293): the first is the choice, the rest "kann auch mit". */
+    characters: { character: string; spec: string }[];
     status: SignupStatus;
     canAlso: GameRole[];
     comment: string;
 };
+
+/** One raid's answer to POST /api/signups/bulk (#293): saved, or refused with the reason. */
+export type BulkSignupResult = {
+    eventId: string;
+    title: string;
+    ok: boolean;
+    error: string;
+    code: string;
+    /** Characters left out for this raid, each with why ("Klasse passt nicht zu diesem Raid"). */
+    skipped: { character: string; spec: string; reason: string }[];
+    signup: OwnSignup | null;
+    counts: SignupCounts | null;
+};
+
+export function saveSignupsBulk(csrfToken: string | null, input: { eventIds: string[]; characters: { character: string; spec: string }[]; status: SignupStatus }): Promise<{ results: BulkSignupResult[] }> {
+    return send("POST", "/api/signups/bulk", csrfToken, input);
+}
 
 /** One signup of an own event as the orga sees it (raid detail, GET /api/signups/event). */
 export type EventSignupEntry = OwnSignup & { userId: string; name: string; at: number };

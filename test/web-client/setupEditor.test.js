@@ -73,7 +73,7 @@ describe("setup editor moves (client)", () => {
 
     it("turns the stored setup into the save request", () => {
         expect(input.version).toBe(3);
-        expect(input.groups[0].slots[0]).toEqual({ userId: "t", spec: "Warrior-Protection", role: "tank", locked: true });
+        expect(input.groups[0].slots[0]).toEqual({ userId: "t", character: "t", spec: "Warrior-Protection", role: "tank", locked: true });
         expect(input.bench).toEqual([{ userId: "b", locked: false }]);
     });
 
@@ -88,7 +88,7 @@ describe("setup editor moves (client)", () => {
 
     it("brings a bench raider in with their spec, into a new group", () => {
         const out = lib.moveRaider(input, "b", { group: 3 }, people, 25);
-        expect(out.input.groups.find((g) => g.index === 3).slots).toEqual([{ userId: "b", spec: "Hunter-BeastMastery", role: "ranged", locked: false }]);
+        expect(out.input.groups.find((g) => g.index === 3).slots).toEqual([{ userId: "b", character: "b", spec: "Hunter-BeastMastery", role: "ranged", locked: false }]);
         expect(out.input.bench).toEqual([]);
     });
 
@@ -100,7 +100,7 @@ describe("setup editor moves (client)", () => {
         expect(swap.input.bench.map((x) => x.userId)).toEqual(["h"]);
         const across = lib.moveRaider(input, "w", { userId: "t" }, people, 25);
         expect(across.input.groups[0].slots.map((x) => x.userId)).toContain("w");
-        expect(across.input.groups[1].slots).toEqual([{ userId: "t", spec: "Warrior-Protection", role: "tank", locked: true }]);
+        expect(across.input.groups[1].slots).toEqual([{ userId: "t", character: "t", spec: "Warrior-Protection", role: "tank", locked: true }]);
     });
 
     it("does nothing where nothing would change", () => {

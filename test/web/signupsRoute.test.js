@@ -194,6 +194,49 @@ describe("PUT /api/signups", () => {
     it("verlangt ein Event", async () => {
         expect(status(await call(route.putSignup, ANNA, { json: {} }))).toBe(400);
     });
+
+    it("nimmt mehrere eigene Charaktere in Reihenfolge an (#293)", async () => {
+        profiles.addCharacter(ANNA.id, { name: "Nerasol", className: "Priest", specs: ["Priest-Holy"] }, { name: "Anna" });
+        const res = await call(route.putSignup, ANNA, { json: {
+            eventId: "eh-kara", status: "signed",
+            characters: [{ character: "Nerasol", spec: "Priest-Holy" }, { character: "Nerathil", spec: "Mage-Arcane" }],
+        } });
+        expect(status(res)).toBe(200);
+        const { signup } = body(res).data;
+        expect(signup).toMatchObject({ character: "Nerasol", specLabel: expect.any(String), role: "healer" });
+        expect(signup.characters.map((c) => [c.character, c.spec, c.role])).toEqual([["Nerasol", "Priest-Holy", "healer"], ["Nerathil", "Mage-Arcane", "ranged"]]);
+        expect(signup.characters[1]).toMatchObject({ className: "Mage", classColor: expect.any(String), specIcon: expect.any(String) });
+    });
+});
+
+describe("POST /api/signups/bulk (#293)", () => {
+    beforeEach(() => {
+        mockEvents.set("eh-ssc", { ...ownEvent, id: "eh-ssc", title: "SSC", categoryId: "cat-ssc" });
+        mockEvents.set("eh-late", { ...ownEvent, id: "eh-late", title: "Vorbei", signupDeadline: Math.floor(Date.now() / 1000) - 60 });
+    });
+
+    it("meldet nur das eigene Konto für jeden gewählten Raid an und nennt je Raid das Ergebnis", async () => {
+        const res = await call(route.postSignupsBulk, ANNA, { json: {
+            eventIds: ["eh-kara", "eh-ssc", "eh-late", "eh-kara"], userId: BERT.id,
+            characters: [{ character: "Nerathil", spec: "Mage-Arcane" }], status: "signed",
+        } });
+        expect(status(res)).toBe(200);
+        const { results } = body(res).data;
+        expect(results.map((r) => [r.eventId, r.ok, r.code])).toEqual([["eh-kara", true, ""], ["eh-ssc", true, ""], ["eh-late", false, "deadline"]]);
+        expect(results[0].counts).toMatchObject({ attending: 1 });
+        expect(results[2]).toMatchObject({ signup: null, counts: null, error: expect.stringContaining("Anmeldeschluss") });
+        expect(mockSignups.has(`eh-kara/${ANNA.id}`)).toBe(true);
+        expect([...mockSignups.keys()].some((k) => k.endsWith(BERT.id))).toBe(false);
+    });
+
+    it("verlangt mindestens einen Raid", async () => {
+        expect(status(await call(route.postSignupsBulk, ANNA, { json: { eventIds: [] } }))).toBe(400);
+    });
+
+    it("ist im Zugriffsplan für den Bereich Anmeldung eingetragen", () => {
+        const { AREA_BY_PATH } = require("../../src/web/apiAccess");
+        expect(AREA_BY_PATH["/api/signups/bulk"]).toBe("signup");
+    });
 });
 
 describe("GET /api/signups/event", () => {

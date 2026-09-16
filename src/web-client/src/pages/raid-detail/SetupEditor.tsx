@@ -36,6 +36,7 @@ const STATUS_LABEL: Record<string, string> = { late: "Kommt später", tentative:
 const WEIGHT_LABELS: { key: string; label: string; tip: string }[] = [
     { key: "requiredBuffs", label: "Pflicht-Buffs", tip: "Buffs, die die Raid-Vorlage verlangt." },
     { key: "mainSpec", label: "Hauptspec", tip: "Raider auf der Spec, mit der sie sich angemeldet haben." },
+    { key: "preferredCharacter", label: "Wunsch-Charakter", tip: "Wer mehrere Charaktere angibt, kommt mit dem ersten mit – ein „kann auch mit“-Charakter kostet so viel." },
     { key: "fairness", label: "Fairness", tip: "Wer zuletzt oder oft auf der Bank saß, kommt eher mit. Nur wenn Fairness an ist." },
     { key: "status", label: "Anmeldestatus", tip: "„Dabei“ vor „Kommt später“ vor „Vielleicht“." },
     { key: "partyBuffs", label: "Gruppen-Buffs", tip: "Totems, Auren, Schreie in der Gruppe, die sie brauchen." },

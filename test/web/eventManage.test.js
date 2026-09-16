@@ -212,6 +212,20 @@ describe("signing raiders up and off as the orga", () => {
         expect((await manage.addRaider({ guildId: "g1", eventId: event.id, userId: "x", character: "A", spec: "Mage-Frost" })).error.code).toBe("bad_request");
     });
 
+    it("takes further own characters as „kann auch mit“ and keeps them on a later single add (#293)", async () => {
+        profiles.addCharacter(RAIDER, { name: "Thorwald", className: "Warrior", specs: [{ key: "Warrior-Protection" }] });
+        const result = await manage.addRaider({
+            guildId: "g1", eventId: event.id, userId: RAIDER, character: "Thorwald", spec: "Warrior-Protection",
+            alternates: [{ character: "Heilbert", spec: "Priest-Holy" }], user: ORGA,
+        });
+        expect(result.body.profileChanged).toBe(true);
+        expect(signupStore.getSignup(event.id, RAIDER).characters.map((c) => [c.character, c.spec])).toEqual([["Thorwald", "Warrior-Protection"], ["Heilbert", "Priest-Holy"]]);
+        await manage.addRaider({ guildId: "g1", eventId: event.id, userId: RAIDER, character: "Thorwald", spec: "Warrior-Protection", status: "late", user: ORGA });
+        expect(signupStore.getSignup(event.id, RAIDER)).toMatchObject({ status: "late", characters: [expect.anything(), expect.objectContaining({ character: "Heilbert" })] });
+        const tooMany = ["A", "B", "C"].map((c) => ({ character: c, spec: "Mage-Frost" }));
+        expect((await manage.addRaider({ guildId: "g1", eventId: event.id, userId: RAIDER, character: "Thorwald", spec: "Warrior-Protection", alternates: tooMany, user: ORGA })).error.code).toBe("characters");
+    });
+
     it("signs a raider off entirely and logs it", async () => {
         signUp(RAIDER, "Thorwald", "Warrior-Protection");
         const result = await manage.removeRaider({ guildId: "g1", eventId: event.id, userId: RAIDER, user: ORGA, byName: "Orga" });

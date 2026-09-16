@@ -1,7 +1,8 @@
 // "Anmeldungen" (#256): the member's upcoming raids and their own signup.
 //
 // GET /api/signups              area signup — upcoming events the caller may see, own status, profile
-// PUT /api/signups              area signup — the caller's own signup; body { eventId, character, spec, status, canAlso, comment }
+// PUT /api/signups              area signup — the caller's own signup; body { eventId, characters[] | character+spec, status, canAlso, comment }
+// POST /api/signups/bulk        area signup — the caller for several raids at once (#293); body { eventIds[], characters[], status }
 // GET /api/signups/event?id=    area raids  — every signup of one own event, for the orga
 //
 // The PUT works on `user.id` from the session and nothing else: a `userId` in
@@ -17,7 +18,7 @@ const discord = require("../discord");
 const profiles = require("../raiderProfileStore");
 const { getEvent, isOwnEventId } = require("../eventStore");
 const { listSignups } = require("../signupStore");
-const { submitSignup, httpStatusFor, roleCounts } = require("../signupService");
+const { submitSignup, submitSignups, httpStatusFor, roleCounts } = require("../signupService");
 const { memberEventRows, profileForSignup, signupSummary, eventSignupList } = require("../signupView");
 const { userCanAny } = require("../../config/permissions");
 const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
@@ -49,6 +50,8 @@ async function putSignup(req, res) {
     const eventId = String(body.eventId || "").trim();
     if (!eventId) return apiError(res, 400, "bad_request", "Kein Event angegeben.");
     const result = await submitSignup(eventId, user.id, {
+        // Several own characters in priority order (#293); a single one still works.
+        characters: Array.isArray(body.characters) ? body.characters : undefined,
         character: body.character,
         spec: body.spec,
         status: body.status,
@@ -65,6 +68,45 @@ async function putSignup(req, res) {
     });
 }
 
+/** At most this many raids per bulk request — more than a member has upcoming. */
+const MAX_BULK = 50;
+
+/**
+ * POST /api/signups/bulk — the caller for several own raids with one choice of
+ * characters and status (#293). Each raid runs the full rules; the answer has
+ * one result per raid (saved, or refused with the reason, and the characters
+ * skipped there) plus the fresh counts of the saved ones.
+ */
+async function postSignupsBulk(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const eventIds = [...new Set((Array.isArray(body.eventIds) ? body.eventIds : []).map((id) => String(id || "").trim()).filter(Boolean))];
+    if (!eventIds.length) return apiError(res, 400, "bad_request", "Keine Raids gewählt.");
+    if (eventIds.length > MAX_BULK) return apiError(res, 400, "bad_request", `Höchstens ${MAX_BULK} Raids auf einmal.`);
+    const characters = Array.isArray(body.characters) ? body.characters : [];
+    const status = String(body.status || "signed");
+    const results = await submitSignups(user.id, eventIds.map((eventId) => ({ eventId, characters, status })), {
+        byOrga: userCanAny(user, ["raids"], "write"),
+    });
+    ok(res, {
+        results: results.map((r) => {
+            const event = r.ok ? getEvent(r.eventId) : null;
+            return {
+                eventId: r.eventId,
+                title: r.title,
+                ok: r.ok,
+                error: r.error || "",
+                code: r.code || "",
+                skipped: r.skipped || [],
+                signup: r.ok ? signupSummary(r.signup) : null,
+                counts: event ? roleCounts(event, listSignups(event.id)) : null,
+            };
+        }),
+    });
+}
+
 /** GET /api/signups/event?id= — all signups of an own event with names, "kann auch" and comment. */
 async function getEventSignups(req, res, url) {
     const user = requireAdmin(req, res);
@@ -78,4 +120,4 @@ async function getEventSignups(req, res, url) {
     ok(res, { eventId: id, counts: roleCounts(event, signups), signups: eventSignupList(signups, names) });
 }
 
-module.exports = { getSignups, putSignup, getEventSignups };
+module.exports = { getSignups, putSignup, postSignupsBulk, getEventSignups };
