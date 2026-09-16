@@ -8,6 +8,7 @@ const { startWebServer } = require("./web/server.js");
 const { handleLogMessage } = require("./web/logChannel.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./web/roleSync.js");
 const { guardInteraction } = require("./web/botAccess.js");
+const { loadAppEmojis } = require("./web/appEmojis.js");
 
 const { MessageFlags, Events, Client, GatewayIntentBits, Collection } = require("discord.js");
 
@@ -43,6 +44,8 @@ function loadCommands(dir) {
 
 client.on(Events.ClientReady, () => {
     console.log(messages.common.pulseBotReady);
+    // The spec/class/role icons of the event message (#287); text icons until they are read.
+    loadAppEmojis(client).catch(() => {});
 });
 
 // Watch the configured log channels for Warcraft-Logs links and offer to evaluate them.
