@@ -146,6 +146,8 @@ A button, select or modal that belongs to a command declares `accessOf: "<comman
 
 The `name` field is used as the lookup key in `client.commands`. This same mechanism handles both slash commands (`interaction.commandName`) and button interactions (`interaction.customId`). The button custom IDs in `createOverview.js` (`update-events`, `show-signups`, `show-mysetups`, `show-allsetups`) must exactly match the `name` fields of the corresponding command files.
 
+The router (`handleInteraction` in `bot.js`) passes slash commands, buttons, modals and **every select menu kind** (string, user, role, channel, mentionable) to `execute()`, looked up by `name` or by the customId before `:`. **Autocomplete** goes to the command's optional `autocomplete(interaction)` instead; a command without one (or one that throws) answers an empty list — Discord allows no other reply to an autocomplete.
+
 ### Who may run a command (bot command access, issue #252)
 
 **Access is checked once, in `bot.js`, before `execute`** — `guardInteraction()` from `src/web/botAccess.js`. No command file checks permissions itself anymore; `checkForPermission` is gone. The order is: **admin** (`ADMIN_USER_ID`/`LOGCHECK_ADMIN_IDS` or an admin role from *Zugang*) → the setting stored in `config.botCommandAccess = { [commandName]: { mode, roleIds } }` → the file's `defaultAccess` → **admin-only (fail-closed)**. `resolveBotAccess(commandName, member, { commands, config })` is the pure part and is what the tests drive.
@@ -159,7 +161,7 @@ The `name` field is used as the lookup key in `client.commands`. This same mecha
 
 When adding a new command:
 1. Create the file in the appropriate `src/commands/<category>/` folder, with `group` + `defaultAccess` (or `accessOf` for a component)
-2. Add its definition to `scripts/register-commands.js` and re-run `npm run register`
+2. Add its definition to `scripts/register-commands.js` and re-run `npm run register` — it registers for **every configured server** (event + talk, see "Zwei Discord-Server"), `--guild <id>` for exactly one, `--global` globally. Requiring the script does nothing; only running it talks to Discord.
 
 ## Environment Variables
 
@@ -284,6 +286,16 @@ Anything the admin keeps several of — raidsheets, Aufruf-Vorlagen, Recruitment
 
 `test/web-client/listSection.test.js` holds the line, including a scan that no page renders `entries.map(e => <SomethingForm …/>)` again.
 
+### Zwei Discord-Server (event server and talk server)
+
+The bot can work with two servers (#251): the **Event-Discord** (event channels, Raid-Helper, the admin-role check) and the **Kommunikations-Discord** (raid overview, sign-up per bot, pings). Everything empty = the old one-server behaviour.
+
+- **Stored** as `config.discordServers = { eventGuildId, talkGuildId, talkOverviewChannelId, talkPingChannelId }` (settingsStore's `normalizeDiscordServers`: snowflakes only, a talk server equal to the event server is cleared). `config.guildId` stays the **fallback**: `getConfig().guildId` reports the event server once one is set, and saving an event server writes it into `guildId` too — so `auth.js`, `activeGuild.js` and everything else reading `guildId` follow without change.
+- **Read** through `src/web/guildRoles.js`: `eventGuildId()`/`talkGuildId()`/`configuredGuildIds()` (pure over a config), `guildRole(id)` (`"event" | "talk" | ""`), `eventGuild()`/`talkGuild()` (status cards: connected, member count, `permissions` from `discord.botPermissionsIn()` — null = not knowable, never "all missing") and `memberOverlap()` (human members of the event server also on the talk server, via `fetchGuildMembersCached`; failures come back as `error`, never thrown).
+- **Edited** in Einstellungen → Verbindungen → *Discord-Server* (`components/SettingsDiscordServers.tsx`, section `discordserver`, adminOnly + standalone): two cards, the rights as "4 von 5" with the list in the tooltip, a dialog that PATCHes only this block. `GET /api/settings/discord-servers` serves cards, overlap and every bot server with its text channels. `discordServers` is **full-admin-only** (`GUILD_KEYS` in `apiRoutes/settings.js`): the event server decides whose roles count.
+- **The web server switcher stays** — it still offers every server the bot is on (the Kanäle page edits both servers through it) and only shows the role as an *Event*/*Talk* badge (`/api/session` tags `guilds[].role`).
+- The Discord & Raid-Helper card no longer edits `guildId`; that moved into the dialog above.
+
 ### Role permissions (who may see/do what)
 
 Access is **per area** (one admin-menu section) and **per level** (`read` = open it, `write` = act in it; write implies read). The area list and all the pure logic live in `src/config/permissions.js` — the single source of truth shared by server and client (the client gets the list from `/api/session` and `/api/settings`).
@@ -385,6 +397,16 @@ The page draws them with `src/web/charts.js`: pure inline-SVG builders (ribbon, 
 **Healers are judged by their own yardstick** (`config/healerSpells.js` holds the aura and energize ids, `config/recommendationRules.js`'s `healers` block the thresholds). Three things there are deliberate: a healer's activity is only a finding far below the DPS threshold and their holes never are — waiting is the job; "dispellable" is defined by the log itself (an aura somebody dispelled once counts, an application of it that ran its course untouched is a missed dispel), because a per-boss table would be wrong more often than the log; and the mana curve reads both event shapes WCL has used (`classResources` lists and `sourceResources` objects) and says *no curve in the log* when neither is there, rather than drawing a flat line.
 
 **Recommendations** (`utils/logcheck/recommendations.js`, thresholds in `config/recommendationRules.js`) are plain rules over the finished report — per raider and for the raid, with impact, text and evidence; a missing source yields nothing, never a false "alles gut". They are rebuilt on every build; what the raid lead approved or rewrote lives beside them in `recommendationReview` and survives the rebuild. **Nothing reaches a raider unapproved**: `web/recommendationSend.js` DMs only approved points (character → Discord account from `raiderCharactersStore`, ambiguous names reported, an unchanged set never sent twice), and `utils/logcheck/recommendationText.js` only *phrases* them with Claude (key in Einstellungen → Verbindungen; the key never goes back to the browser) — the raid lead's own text beats the model's, the model's beats the rule's.
+
+### Spielversionen und Instanzen (`src/config/gameVersions/`)
+
+One rule set per game version — `tbc.js` (TBC Anniversary), `classic.js` (Classic Era), `forever.js` (WoW Forever) — pure data plus pure functions in `index.js` (`rulesFor`, `instance`, `instanceById`, `roleOfSpec`, `buffsOf`, `defaultComposition`, `compositionFor`). Signup, raid templates, event creation and the setup suggestion (#250 ff.) read from here; **there are no custom raids**, the rule set is the only source of instances. Served as `GET /api/game-versions` (area `raids`, types `GameVersion…` in `api.ts`).
+
+- **Classes/specs** (`classes.js`, shared by all three): spec key `"<Class>-<Spec>"` in WCL spelling (same as `casterSpecs.js`), `role` tank/healer/melee/ranged for placing a raider, `buffRole` in `raidBuffs.js`' vocabulary (a hunter is "melee" there — he wants Might), `canTank`/`canHeal`.
+- **Instances** carry `sizes`, `defaultSize`, `icon`, `bosses`, `finalBoss`/`finalBossNames` (EN + DE), `composition` (suggested tanks/healers per size) and `status`. **TBC is derived from `tbcContent.js`** (ids, labels, `encountersFor`, `FINAL_BOSSES`) — only size, icon and the suggestion are added in `tbc.js`. Instance ids are **unique across versions** (`ony` vs `forever-ony`, `hyjal` vs `forever-hyjal`), so a stored id never needs its version.
+- **`incomplete`** (all Forever raids until release): plannable, no bosses, no final boss — `raidProgress.js` therefore never blocks on them, and `compositionFor()` falls back to `defaultComposition(size)` (10 → 2/3, 20 → 2/5, 25 → 3/6, 40 → 4/10). Fill them in once the raids are out.
+- **Buffs** (`buffs.js`) are derived from `raidBuffs.js` and `totems.js`, never kept twice: it only adds which spec brings a talent buff, party vs raid scope, and per version what does not exist (Classic: no Wrath of Air, Totem of Wrath, Commanding Shout). Shields and racial auras are left out.
+- **Consumers so far:** `raidListing.js`' `raidSize()` takes the largest `defaultSize` of the night's contents (replaced `TEN_PLAYER`); `raidProgress.js` asks `tbcContent` first and the rule set second (Classic bosses, zones and final bosses). `setupView.roleOf` still reads Raid-Helper's `classlist.js` (open TODO).
 
 ### Loot import (Gargul/RCLootcouncil)
 

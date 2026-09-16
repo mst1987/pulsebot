@@ -1,11 +1,25 @@
 import { useState } from "react";
-import { switchGuild, type ApiError, type SessionGuild } from "../api";
+import { switchGuild, type ApiError, type GuildRole, type SessionGuild } from "../api";
 import { useToast } from "./Jobs";
 import WowIcon from "./ui/WowIcon";
 import Badge from "./ui/Badge";
 
 // The guild crest in front of every form of the switcher.
 const GUILD_ICON = "inv_misc_tabardpvp_01";
+
+// The fixed role a server has (Einstellungen → Verbindungen → Discord-Server).
+// The switcher still offers every server the bot is on; the badge only says
+// which of them is the event and which the talk server.
+const ROLE_BADGE: Record<"event" | "talk", { label: string; tip: string; tipSub: string }> = {
+    event: { label: "Event", tip: "Event-Discord", tipSub: "Event-Kanäle und Raid-Helper liegen auf diesem Server." },
+    talk: { label: "Talk", tip: "Kommunikations-Discord", tipSub: "Raid-Übersicht, Anmeldung per Bot und Erinnerungen laufen auf diesem Server." },
+};
+
+function RoleBadge({ role }: { role?: GuildRole }) {
+    if (!role) return null;
+    const b = ROLE_BADGE[role];
+    return <Badge tone="accent" tip={b.tip} tipSub={b.tipSub}>{b.label}</Badge>;
+}
 
 // Topbar server switcher — mirrors src/web/renderAdmin.js's renderServerBar(),
 // but via fetch() instead of a form POST + redirect, so switching guilds
@@ -31,6 +45,7 @@ export default function GuildSwitcher({ guilds, activeGuildId, csrfToken }: {
             <span className="guild-sel is-single">
                 <WowIcon name={GUILD_ICON} size={22} />
                 <span>{guilds[0].name}</span>
+                <RoleBadge role={guilds[0].role} />
             </span>
         );
     }
@@ -54,8 +69,9 @@ export default function GuildSwitcher({ guilds, activeGuildId, csrfToken }: {
             <WowIcon name={GUILD_ICON} size={22} />
             <select value={activeGuildId} onChange={onChange} disabled={busy} aria-label="Server wählen">
                 {!activeGuildId && <option value="">Server wählen</option>}
-                {guilds.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                {guilds.map((g) => <option key={g.id} value={g.id}>{g.name}{g.role ? ` · ${ROLE_BADGE[g.role].label}` : ""}</option>)}
             </select>
+            <RoleBadge role={guilds.find((g) => g.id === activeGuildId)?.role} />
             {!activeGuildId && (
                 <Badge tone="mid" tip="Kein Server gewählt" tipSub="Bitte zuerst einen Server wählen – die Bereiche zeigen erst dann seine Daten.">
                     Kein Server gewählt

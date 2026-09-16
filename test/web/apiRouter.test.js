@@ -423,9 +423,20 @@ describe("web/apiRouter", () => {
             const data = body(res).data;
             expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, access: fullAccess() });
             expect(data.csrfToken).toBe("csrf-abc");
-            expect(data.guilds).toEqual([{ id: "g1", name: "Meine Gilde" }]);
+            expect(data.guilds).toEqual([{ id: "g1", name: "Meine Gilde", role: "" }]);
             expect(data.activeGuildId).toBe("g1");
             expect(data.areas.map((a) => a.id)).toEqual(AREA_IDS);
+        });
+
+        // The switcher shows the fixed role of a server as a badge (#251).
+        it("tags the event and the talk server in the guild list", async () => {
+            auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
+            settingsStore.getConfig.mockReturnValue({ guildId: "g1", discordServers: { talkGuildId: "g2" } });
+            discord.listGuilds.mockReturnValue([{ id: "g1", name: "Events" }, { id: "g2", name: "Talk" }, { id: "g3", name: "Andere" }]);
+            const res = mockRes();
+            await handle("/api/session", { method: "GET" }, res);
+            expect(body(res).data.guilds.map((g) => g.role)).toEqual(["event", "talk", ""]);
+            settingsStore.getConfig.mockReturnValue({});
         });
 
         it("returns user: null, no csrfToken, and no guilds for an anonymous caller", async () => {
@@ -460,7 +471,7 @@ describe("web/apiRouter", () => {
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
             const data = body(res).data;
-            expect(data.guilds).toEqual([{ id: "g1", name: "Meine Gilde" }]);
+            expect(data.guilds).toEqual([{ id: "g1", name: "Meine Gilde", role: "" }]);
             expect(data.activeGuildId).toBe("g1");
             expect(data.user.access.raids).toEqual({ read: true, write: false });
         });
@@ -750,6 +761,31 @@ describe("web/apiRouter", () => {
             expect(discord.duplicateChannel).toHaveBeenCalledWith("c1", "kara-signup-2");
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
             expect(body(res)).toEqual({ data: { id: "c10", name: "kara-signup-2" } });
+        });
+    });
+
+    // Routed end to end: the handler has to be imported, not only listed (#251).
+    describe("GET /api/settings/discord-servers", () => {
+        it("serves the server cards to a full admin", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            settingsStore.getConfig.mockReturnValue({ guildId: "g1", discordServers: { eventGuildId: "g1" } });
+            discord.listGuilds.mockReturnValue([{ id: "g1", name: "Events" }]);
+            const res = mockRes();
+            expect(await handle("/api/settings/discord-servers", { method: "GET" }, res)).toBe(true);
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            const data = body(res).data;
+            expect(data.guilds.map((g) => g.role)).toEqual(["event"]);
+            expect(data.overlap).toBeNull();
+            settingsStore.getConfig.mockReturnValue({});
+        });
+
+        it("refuses a limited settings user", async () => {
+            auth.getUser.mockReturnValue({
+                id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), settings: { read: true, write: true } },
+            });
+            const res = mockRes();
+            await handle("/api/settings/discord-servers", { method: "GET" }, res);
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
         });
     });
 

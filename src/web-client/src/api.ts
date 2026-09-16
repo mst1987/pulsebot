@@ -14,7 +14,9 @@ export type Access = Record<string, AreaAccess | undefined>;
 export type RolePermissions = Record<string, Record<string, AreaAccess>>;
 
 export type SessionUser = { id: string; name: string; isAdmin: boolean; access: Access };
-export type SessionGuild = { id: string; name: string };
+/** "event" | "talk" = the server's fixed role from Einstellungen → Discord-Server, "" = none. */
+export type GuildRole = "event" | "talk" | "";
+export type SessionGuild = { id: string; name: string; role?: GuildRole };
 export type Session = {
     user: SessionUser | null;
     csrfToken: string | null;
@@ -361,6 +363,8 @@ export type AdminConfig = {
     // Who may use which bot command (Berechtigungen → Bot-Befehle) — same gate as above.
     botCommandAccess?: Record<string, BotAccessRule>;
     guildId: string;
+    // Event and talk server (#251); full admins only, like the access keys.
+    discordServers?: DiscordServers;
     raidhelperServerId: string;
     officerRoleId: string;
     applicationChannelId: string;
@@ -429,8 +433,47 @@ export type SettingsData = {
     channels?: TextChannel[];
     // Status line of the "Discord & Raid-Helper" connection card.
     bot?: { online: boolean; readySince: number; guildName: string };
+    // The event and talk server cards; null for a limited settings user.
+    servers?: { event: DiscordServerCard | null; talk: DiscordServerCard | null } | null;
     activeGuildId: string;
 };
+
+export type DiscordServers = {
+    eventGuildId: string;
+    talkGuildId: string;
+    talkOverviewChannelId: string;
+    talkPingChannelId: string;
+};
+
+export type BotPermission = { key: string; label: string; ok: boolean };
+
+/** One configured server as the settings card shows it (src/web/guildRoles.js). */
+export type DiscordServerCard = {
+    role: "event" | "talk";
+    id: string;
+    name: string;
+    connected: boolean;
+    memberCount: number | null;
+    iconUrl: string;
+    /** null = not knowable (bot offline or not on that server). */
+    permissions: BotPermission[] | null;
+    missing: string[];
+};
+
+export type MemberOverlap = { eventCount: number | null; talkCount: number | null; both: number | null; error: string | null };
+
+export type DiscordServersData = {
+    discordServers: DiscordServers;
+    event: DiscordServerCard | null;
+    talk: DiscordServerCard | null;
+    /** null in the one-server setup. */
+    overlap: MemberOverlap | null;
+    guilds: (SessionGuild & { channels: TextChannel[] })[];
+};
+
+export function getDiscordServers(): Promise<DiscordServersData> {
+    return get<DiscordServersData>("/api/settings/discord-servers");
+}
 
 export function getSettings(): Promise<SettingsData> {
     return get<SettingsData>("/api/settings");
@@ -948,6 +991,71 @@ export type CreateRaidInput = {
 
 export function createRaid(csrfToken: string | null, input: CreateRaidInput): Promise<{ id?: string }> {
     return send("POST", "/api/raids", csrfToken, input);
+}
+
+// Rule sets per game version (src/config/gameVersions, GET /api/game-versions).
+export type GameRole = "tank" | "healer" | "melee" | "ranged";
+
+export type GameSpec = {
+    /** "<Class>-<Spec>" in Warcraft Logs' spelling, e.g. "Druid-Guardian" */
+    key: string;
+    id: string;
+    classId: string;
+    label: string;
+    role: GameRole;
+    /** raidBuffs.js vocabulary: which buffs the spec wants */
+    buffRole: "tank" | "healer" | "melee" | "caster";
+    icon: string;
+    canTank: boolean;
+    canHeal: boolean;
+};
+
+export type GameClass = { id: string; label: string; color: string; icon: string; specs: GameSpec[] };
+
+export type Composition = { tanks: number; healers: number; source: "instance" | "default" };
+
+export type GameInstance = {
+    id: string;
+    name: string;
+    short: string;
+    sizes: number[];
+    defaultSize: number;
+    icon: string;
+    bosses: string[];
+    /** "" while the instance is incomplete */
+    finalBoss: string;
+    /** "incomplete" = plannable, but the menu shows "Infos fehlen" */
+    status: "complete" | "incomplete";
+    /** suggested tanks/healers per allowed size */
+    suggested: Record<string, Composition>;
+};
+
+export type GameBuff = {
+    key: string;
+    label: string;
+    icon: string;
+    scope: "party" | "raid";
+    /** spec keys that bring the buff */
+    providers: string[];
+    /** spec keys the buff is worth having on */
+    beneficiaries: string[];
+};
+
+export type GameVersion = {
+    id: "tbc" | "classic" | "forever" | string;
+    label: string;
+    short: string;
+    roles: { id: GameRole; label: string }[];
+    classes: GameClass[];
+    instances: GameInstance[];
+    partyBuffs: GameBuff[];
+    raidBuffs: GameBuff[];
+};
+
+export type GameVersionsData = { versions: GameVersion[]; defaultVersion: string };
+
+export function getGameVersions(): Promise<GameVersionsData> {
+    return get<GameVersionsData>("/api/game-versions");
 }
 
 export function getRaidTemplates(): Promise<{ templates: RaidTemplate[] }> {

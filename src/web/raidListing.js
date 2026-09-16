@@ -5,6 +5,7 @@
 // against, and for a past raid its logs and loot as counts plus the few names a
 // tooltip shows. Derived on every read, never stored.
 const { contentsForText, CONTENTS } = require("../config/tbcContent");
+const { instanceById } = require("../config/gameVersions");
 const { listRaidEvents } = require("./raidEventStore");
 const { scanRaidEvents } = require("./raidEventScan");
 const { autoLinkLogs } = require("./logAutoLink");
@@ -14,9 +15,7 @@ const { listLogs } = require("./logStore");
 const { logPostedAt } = require("./reportList");
 const { buildRecentEvents, pendingLogsForEvent } = require("./recentEvents");
 
-// Karazhan and Zul'Aman are the expansion's two ten-player raids; everything
-// else (and a night combining one of them with a 25er) is measured against 25.
-const TEN_PLAYER = new Set(["kara", "za"]);
+// The size a night is measured against when no content was recognised.
 const DEFAULT_RAID_SIZE = 25;
 const CONTENT_ORDER = CONTENTS.map((c) => c.id);
 
@@ -63,8 +62,9 @@ function raidContentIds(input = {}) {
 }
 
 /**
- * How many players the signup bar is measured against: 10 when every content of
- * the night is a ten-player raid, 25 otherwise. `known` is false when no content
+ * How many players the signup bar is measured against: the largest raid size
+ * among the night's contents, read from the game version rule set
+ * (config/gameVersions) — "Kara" alone is 10, "Kara + Gruul" 25. `known` is false when no content
  * was recognised and 25 is only the default — the tooltip says so.
  * @param {string[]} contentIds
  * @returns {{ size: number, known: boolean }}
@@ -72,7 +72,9 @@ function raidContentIds(input = {}) {
 function raidSize(contentIds) {
     const ids = contentIds || [];
     if (!ids.length) return { size: DEFAULT_RAID_SIZE, known: false };
-    return { size: ids.every((id) => TEN_PLAYER.has(id)) ? 10 : DEFAULT_RAID_SIZE, known: true };
+    const sizes = ids.map((id) => instanceById(id)).filter(Boolean).map((i) => i.defaultSize);
+    if (!sizes.length) return { size: DEFAULT_RAID_SIZE, known: false };
+    return { size: Math.max(...sizes), known: true };
 }
 
 /** The few fields of a log a row shows (title in the tooltip, a link, evaluated or not). */
@@ -174,4 +176,4 @@ async function loadPastRaids(guildId, opts = {}) {
     return { events, error: stored.length ? null : scanError };
 }
 
-module.exports = { raidContentIds, raidSize, upcomingRows, loadPastRaids, TEN_PLAYER, DEFAULT_RAID_SIZE, MIN_LOOT_ITEMS };
+module.exports = { raidContentIds, raidSize, upcomingRows, loadPastRaids, DEFAULT_RAID_SIZE, MIN_LOOT_ITEMS };

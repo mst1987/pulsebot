@@ -10,7 +10,7 @@ const { getChannels, createChannel, duplicateChannel } = require("./apiRoutes/ch
 const {
     getSettings, updateSettings, getItemSearch: getSettingsItemSearch,
     saveRaidsheetHandler, deleteRaidsheetHandler,
-    getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler,
+    getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers,
 } = require("./apiRoutes/settings");
 const { ingestLoot } = require("./apiRoutes/ingest");
 const { getBotCommands } = require("./apiRoutes/botCommands");
@@ -27,6 +27,7 @@ const {
     getRaidDetail, postNotify, postPingMissing, postFill, postPostSheet, postPostSoftres,
     getItemSearch, postSoftresCreate, postSoftresLink,
 } = require("./apiRoutes/raidDetail");
+const { getGameVersions } = require("./apiRoutes/gameVersions");
 const {
     getNotifyTemplates, saveNotifyTemplate, deleteNotifyTemplate,
 } = require("./apiRoutes/notifyTemplates");
@@ -127,6 +128,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/settings/raidsheets/delete" && req.method === "POST") {
         await deleteRaidsheetHandler(req, res);
+        return true;
+    }
+    if (pathname === "/api/settings/discord-servers" && req.method === "GET") {
+        await getDiscordServers(req, res);
         return true;
     }
     if (pathname === "/api/settings/ingest-tokens" && req.method === "GET") {
@@ -260,6 +265,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/raids/softres/link" && req.method === "POST") {
         await postSoftresLink(req, res);
+        return true;
+    }
+    if (pathname === "/api/game-versions" && req.method === "GET") {
+        getGameVersions(req, res);
         return true;
     }
     if (pathname === "/api/notify-templates" && req.method === "GET") {

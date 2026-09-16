@@ -12,18 +12,12 @@
 // interaction came from — members are on both.
 const { getConfig } = require("./settingsStore");
 const discord = require("./discord");
-const {
-    logcheckAdminIds, adminRoleIds: envAdminRoleIds, guildId: envGuildId,
-} = require("../config/variables");
+const { logcheckAdminIds, adminRoleIds: envAdminRoleIds } = require("../config/variables");
+const { eventGuildId } = require("./guildRoles");
 const { normalizeRule, normalizeBotCommandAccess } = require("../config/botCommands");
 
 // accessOf chains are one link deep in practice; the cap only guards a loop.
 const MAX_ACCESS_OF_DEPTH = 5;
-
-/** The guild whose roles decide bot access. One place, so a second server only changes this. */
-function eventGuildId(config = getConfig()) {
-    return String((config && (config.eventGuildId || config.guildId)) || envGuildId || "").trim();
-}
 
 /** A Collection, Map, array or plain object of command modules as a name → module lookup. */
 function commandLookup(commands) {

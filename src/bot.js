@@ -64,8 +64,40 @@ function lookupKey(interaction) {
     return idx > -1 ? customId.slice(0, idx) : customId;
 }
 
-client.on("interactionCreate", async(interaction) => {
-    if (!interaction.isCommand() && !interaction.isButton() && !interaction.isStringSelectMenu() && !interaction.isModalSubmit()) return;
+// The component kinds the router hands to a command: buttons, modals and every
+// select menu (string, user, role, channel, mentionable). The type guards
+// differ between discord.js versions and test doubles, so a missing one reads as false.
+const COMPONENT_GUARDS = [
+    "isButton", "isStringSelectMenu", "isUserSelectMenu", "isRoleSelectMenu",
+    "isChannelSelectMenu", "isMentionableSelectMenu", "isModalSubmit",
+];
+const is = (interaction, guard) => typeof interaction[guard] === "function" && interaction[guard]();
+
+/**
+ * Autocomplete: the command's own `autocomplete(interaction)` answers the
+ * suggestions. Discord allows no other reply to it, so a command without one
+ * (or one that throws) gets an empty list instead of "Command not found".
+ */
+async function handleAutocomplete(interaction) {
+    const command = client.commands.get(lookupKey(interaction));
+    try {
+        if (command && typeof command.autocomplete === "function") return await command.autocomplete(interaction);
+        if (!interaction.responded) await interaction.respond([]);
+    } catch (error) {
+        console.error(`Autocomplete error for ${lookupKey(interaction)}:`, error.message);
+        try {
+            if (!interaction.responded) await interaction.respond([]);
+        } catch {
+            // The interaction has expired — nothing left to answer.
+        }
+    }
+}
+
+client.on("interactionCreate", (interaction) => handleInteraction(interaction));
+
+async function handleInteraction(interaction) {
+    if (is(interaction, "isAutocomplete")) return handleAutocomplete(interaction);
+    if (!is(interaction, "isCommand") && !COMPONENT_GUARDS.some((guard) => is(interaction, guard))) return;
 
     const command = client.commands.get(lookupKey(interaction));
 
@@ -99,7 +131,7 @@ client.on("interactionCreate", async(interaction) => {
             console.error("Failed to send error response:", replyError.message);
         }
     }
-});
+}
 
 // Boot the bot: load commands and bring the web server up FIRST, independent of
 // the Discord gateway, then log in best-effort. This way the admin menu / report
@@ -133,4 +165,4 @@ if (require.main === module) {
     start();
 }
 
-module.exports = { client, start, loadCommands };
+module.exports = { client, start, loadCommands, handleInteraction, lookupKey };

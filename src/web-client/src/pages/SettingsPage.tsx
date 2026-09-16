@@ -21,11 +21,12 @@ import { ListSection } from "../components/ListSection";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import CategoryMatrix, { type CategorySheet } from "../components/CategoryMatrix";
 import ConnectionsSection from "../components/SettingsConnections";
+import DiscordServersSection from "../components/SettingsDiscordServers";
 import { ChannelPicker, FieldLabel, InfoTip, PenIcon, RolePicker } from "../components/settingsUi";
 import {
     SECTION_PARAM_IDS, visibleSections, resolveSection, groupedSections, savesWithForm, type SettingsSection,
 } from "../lib/settingsSections";
-import { draftChanges, missingConnections } from "../lib/settingsLogic";
+import { draftChanges, missingConnections, serverIssues } from "../lib/settingsLogic";
 import { useConfirm } from "../components/ui/Modal";
 import { Button, IconButton } from "../components/ui/Button";
 import IconTile from "../components/ui/IconTile";
@@ -446,6 +447,20 @@ export default function SettingsPage() {
                 />
             );
 
+            case "discordserver": return (
+                <DiscordServersSection
+                    csrfToken={csrfToken}
+                    onConfig={(config) => {
+                        setData({ ...data, config });
+                        // The cards behind the sidebar badge changed with the servers;
+                        // only they are refreshed, so an unsaved draft elsewhere survives.
+                        getSettings().then((d) => setData((cur) => (cur ? { ...cur, servers: d.servers } : cur))).catch(() => {});
+                    }}
+                    icon={activeSection.icon}
+                    crumb={activeSection.crumb}
+                />
+            );
+
             case "kategorien": return (
                 <CategoryMatrix
                     categories={data.categories}
@@ -548,6 +563,7 @@ export default function SettingsPage() {
     // The badges of the column: what is open in a section, so nobody has to
     // open each one to find the gap.
     const missing = missingConnections(data, tokens, data.canManageAccess);
+    const serverGaps = serverIssues(data.servers);
     const activeCategories = draft.categoryIds.length;
     const navGroups = groupedSections(sections).map((g) => ({
         group: g.group,
@@ -556,6 +572,7 @@ export default function SettingsPage() {
             label: s.label,
             icon: s.icon,
             badge: s.id === "verbindungen" ? { count: missing, tone: "mid" as const, tip: `${missing} ${missing === 1 ? "Verbindung" : "Verbindungen"} nicht eingerichtet` }
+                : s.id === "discordserver" ? { count: serverGaps, tone: "mid" as const, tip: `${serverGaps} ${serverGaps === 1 ? "Server braucht" : "Server brauchen"} Aufmerksamkeit` }
                 : s.id === "kategorien" ? { count: activeCategories, tip: `${activeCategories} aktive Raid-Kategorien` }
                     : null,
         })),
