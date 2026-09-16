@@ -103,7 +103,7 @@ button.badge.chip.accent:hover { color: var(--accent); }
 .conn-head { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--line-soft); }
 .conn-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; flex: 1; min-width: 0; }
 .conn-head .badge { margin-right: 6px; }
-.conn-rows { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 6px 12px; padding: 12px 16px; margin: 0; font-size: 13.5px; flex: 1; }
+.conn-rows { display: grid; grid-template-columns: 120px minmax(0, 1fr); align-content: start; gap: 6px 12px; padding: 12px 16px; margin: 0; font-size: 13.5px; flex: 1; }
 .conn-rows > div { display: contents; }
 .conn-rows dt { color: var(--muted); }
 .conn-rows dd { margin: 0; font-family: var(--font-mono); font-size: 13px; overflow-wrap: anywhere; }
@@ -120,8 +120,10 @@ button.badge.chip.accent:hover { color: var(--accent); }
 
 /* Discord-Server (#251): the event and the talk server card */
 .srv-title { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.srv-title .kicker { display: inline-flex; align-items: center; gap: 6px; }
+.srv-title .kicker { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; white-space: nowrap; cursor: help; }
 .srv-name { font-size: 17px; font-weight: 800; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srv-state { display: flex; margin-top: 6px; }
+.srv-empty { color: var(--muted); font-size: 13px; line-height: 1.4; }
 .srv-icon { width: 22px; height: 22px; border-radius: 6px; display: block; }
 .srv-initials { font-size: 12px; font-weight: 800; letter-spacing: .02em; }
 .srv-channels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -129,11 +131,18 @@ button.badge.chip.accent:hover { color: var(--accent); }
 /* Rollen-Abgleich and Erinnerungen (#264): compact lists under the two cards */
 .sync-part { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
 .sync-actions { display: inline-flex; align-items: center; gap: 8px; }
-.sync-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.sync-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); min-width: 0; }
+/* one panel with divided rows rather than a stack of separate boxes */
+.sync-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); overflow: hidden; }
+.sync-row { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 6px 8px 6px 14px; border-bottom: 1px solid var(--line-soft); min-width: 0; }
+.sync-row:last-child { border-bottom: 0; }
+.sync-row:hover { background: var(--panel2); }
 .sync-role { font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .sync-dir { font-family: var(--font-mono); font-size: 16px; color: var(--accent); cursor: default; }
 .sync-muted { color: var(--muted); font-family: var(--font-mono); font-size: 12.5px; white-space: nowrap; }
+.sync-role.is-unknown { color: var(--muted); font-weight: 600; cursor: help; }
+.sync-row.is-off .sync-muted { opacity: .75; }
+/* an empty list is one quiet line, not the page-sized .empty block */
+.sync-empty { padding: 10px 14px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: 13.5px; }
 .sync-drift { border: 1px solid color-mix(in srgb, var(--medium) 35%, transparent); background: var(--medium-bg); border-radius: 10px; padding: 8px 10px 8px 14px; }
 .sync-drift-head { display: flex; align-items: center; gap: 10px; }
 .sync-drift-line { display: block; font-size: 13.5px; }
@@ -219,7 +228,7 @@ tr.perm-unknown .perm-who-label { color: var(--high); }
 .botc-group-name:hover .botc-title, .botc-group-name:focus-visible .botc-title { color: var(--accent); }
 .botc-group-name:focus-visible { outline: none; }
 .botc-group-head .exp-lbl { margin-left: 0; }
-.botc-row { display: grid; grid-template-columns: minmax(180px, 280px) minmax(0, 1fr) auto; align-items: center; gap: 14px; min-height: 52px; padding: 6px 14px; border-bottom: 1px solid var(--line-soft); }
+.botc-row { display: grid; grid-template-columns: minmax(200px, 1.3fr) minmax(0, 1fr) auto; align-items: center; gap: 14px; min-height: 52px; padding: 6px 14px; border-bottom: 1px solid var(--line-soft); }
 .botc-row:last-child { border-bottom: 0; }
 .botc-row:hover { background: var(--accent-soft); }
 .botc-cmd { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }

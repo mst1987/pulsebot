@@ -52,14 +52,19 @@ export default function RemindersPart({ csrfToken, onConfig }: {
         <section className="sync-part">
             {head}
             {data.categories.length === 0
-                ? <div className="empty">Noch keine Raid-Kategorien — sie werden unter Einstellungen → Kategorien eingeschaltet.</div>
+                ? <div className="sync-empty">Noch keine Raid-Kategorien — sie werden unter Einstellungen → Kategorien eingeschaltet.</div>
                 : (
                     <ul className="sync-list">
                         {data.categories.map((c) => {
                             const rule = data.categoryReminders[c.id];
+                            const off = reminderSummary(rule) === "aus";
                             return (
-                                <li key={c.id} className="sync-row">
-                                    <span className="sync-role">{c.name || c.id}</span>
+                                <li key={c.id} className={`sync-row${off ? " is-off" : ""}`}>
+                                    {/* A category the bot cannot see (deleted, other server) has no name: say so
+                                        instead of showing an 18-digit id; the id stays in the tooltip. */}
+                                    {c.name
+                                        ? <span className="sync-role">{c.name}</span>
+                                        : <span className="sync-role is-unknown" tabIndex={0} data-tip="Unbekannte Kategorie" data-tip-sub={`Kategorie-ID ${c.id} — auf dem Event-Discord nicht (mehr) gefunden.`}>Unbekannte Kategorie</span>}
                                     <span className="sync-muted">{reminderSummary(rule)}</span>
                                     {rule && rule.target !== "event" && <Badge tip="Wohin" tipSub={TARGET_TEXT[rule.target]}>{rule.target === "talk" ? "Talk" : "Beides"}</Badge>}
                                     {rule && rule.missingHours > 0 && c.roleCount === 0 && (
@@ -75,7 +80,7 @@ export default function RemindersPart({ csrfToken, onConfig }: {
 
             {editingCategory && (
                 <ReminderModal
-                    name={editingCategory.name || editingCategory.id}
+                    name={editingCategory.name || "Unbekannte Kategorie"}
                     rule={data.categoryReminders[editingCategory.id] || OFF}
                     data={data}
                     onClose={() => setEditing(null)}

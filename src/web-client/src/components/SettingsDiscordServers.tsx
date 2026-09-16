@@ -13,7 +13,7 @@ import Badge from "./ui/Badge";
 import IconTile from "./ui/IconTile";
 import PartHead from "./ui/PartHead";
 import RaidLoader from "./ui/RaidLoader";
-import { AdminOnlyBadge, ChannelPicker, CheckMark, FieldLabel, InfoTip, PenIcon, WarnIcon } from "./settingsUi";
+import { AdminOnlyBadge, ChannelPicker, CheckMark, FieldLabel, PenIcon, WarnIcon } from "./settingsUi";
 
 // Einstellungen → Verbindungen → Discord-Server (#251): which server is the
 // event server (event channels, Raid-Helper) and which the talk server
@@ -130,43 +130,41 @@ function ServerCard({ card, role, onEdit, children }: {
         : <span className="srv-initials">{card ? initials(card.name || card.id) : "–"}</span>;
     const perms = card && card.permissions;
     const okCount = perms ? perms.filter((p) => p.ok).length : 0;
+    // One status badge under the name, carrying the rights in its tooltip — the
+    // card used to say "2 Rechte fehlen" in the head and "3 von 5" again below.
+    const stateTip = card && perms
+        ? { tip: card.missing.length ? `Fehlt: ${card.missing.join(", ")}` : `Alle ${perms.length} Rechte vorhanden`, sub: perms.map((p) => `${p.label}: ${p.ok ? "vorhanden" : "fehlt"}`).join("\n") }
+        : { tip: state.label, sub: text.tipSub };
 
     return (
         <section className="conn-card" data-server={role}>
             <div className="conn-head">
                 <IconTile icon={avatar} tone={state.missing ? "mid" : "settings"} />
                 <div className="srv-title">
-                    <span className="kicker">{text.kicker} <InfoTip head={text.tip} sub={text.tipSub} /></span>
-                    <span className="srv-name">{card ? card.name || card.id : role === "talk" ? "Kein zweiter Server" : "Nicht gewählt"}</span>
+                    <span className="kicker srv-kicker" tabIndex={0} data-tip={text.tip} data-tip-sub={text.tipSub}>{text.kicker}</span>
+                    <span className="srv-name" data-tip={card ? card.name || card.id : undefined} data-tip-sub={card ? `Server-ID ${card.id}` : undefined}>
+                        {card ? card.name || card.id : role === "talk" ? "Kein zweiter Server" : "Nicht gewählt"}
+                    </span>
+                    {card && (
+                        <span className="srv-state">
+                            <Badge tone={state.tone || undefined} icon={state.tone === "ok" ? <CheckMark /> : state.tone === "mid" ? <WarnIcon /> : undefined}
+                                tip={stateTip.tip} tipSub={stateTip.sub}>
+                                {state.label}{perms && card.missing.length ? ` · ${okCount} von ${perms.length}` : ""}
+                            </Badge>
+                        </span>
+                    )}
                 </div>
-                <Badge tone={state.tone || undefined} icon={state.tone === "ok" ? <CheckMark /> : state.tone === "mid" ? <WarnIcon /> : undefined}>
-                    {state.label}
-                </Badge>
             </div>
             {card && card.connected && (
                 <dl className="conn-rows">
                     <div><dt>Mitglieder</dt><dd>{card.memberCount ?? "—"}</dd></div>
-                    <div>
-                        <dt>Bot-Rechte</dt>
-                        <dd>
-                            {perms ? (
-                                <Badge
-                                    tone={card.missing.length ? "mid" : "ok"}
-                                    tip={card.missing.length ? `Fehlt: ${card.missing.join(", ")}` : "Alle Rechte vorhanden"}
-                                    tipSub={perms.map((p) => `${p.label}: ${p.ok ? "vorhanden" : "fehlt"}`).join("\n")}
-                                >
-                                    {okCount} von {perms.length}
-                                </Badge>
-                            ) : "unbekannt"}
-                        </dd>
-                    </div>
                 </dl>
             )}
             {children}
-            {!card && role === "event" && (
+            {!card && (
                 <div className="conn-foot">
-                    <span className="grow" />
-                    <Button size="sm" onClick={onEdit}>Server wählen</Button>
+                    <span className="srv-empty grow">{role === "talk" ? "Übersicht, Anmeldung und Pings laufen auf dem Event-Discord." : "Noch kein Event-Discord gewählt."}</span>
+                    <Button size="sm" variant={role === "talk" ? "ghost" : "primary"} onClick={onEdit}>Server wählen</Button>
                 </div>
             )}
         </section>

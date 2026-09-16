@@ -97,6 +97,14 @@ describe("ChannelsPage", () => {
         expect(bar).toContain("{count} ausgewählt");
         for (const label of ["Kategorie …", "Thema …", "Umbenennen nach Schema …", "Archivieren"]) expect(bar).toContain(label);
         expect(css).toMatch(/\.kn-bulk \{[\s\S]*position: fixed/);
+        // left: 50% leaves the fixed bar half the viewport: without max-content its buttons wrap onto two lines.
+        expect(css).toMatch(/\.kn-bulk \{[^}]*width: max-content/);
+    });
+
+    it("keeps the side panel to figures and one purposes panel — no loose sentence, no duplicate archive gear", () => {
+        expect(page).toContain("className=\"kn-figures kn-purposes\"");
+        expect(page).not.toContain("kn-side-note");
+        expect(page).not.toContain("SettingsIcon");
     });
 
     it("applies only changed fields in the bulk edit, 'unverändert' by default", () => {

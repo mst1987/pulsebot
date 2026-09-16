@@ -6,6 +6,16 @@
    ===================================================================== */
 
 .pf-page { display: flex; flex-direction: column; gap: 18px; }
+
+/* Icon sizes. The shared .wi is 18 px whatever size the image was requested in,
+   so every place that wants a bigger icon has to say so — without these the
+   spec, role and "first character" icons all shrank to 18 px. */
+.pf-chip .wi { width: 22px; height: 22px; }
+.pf-spec .wi { width: 30px; height: 30px; }
+.pf-role .wi { width: 26px; height: 26px; }
+.pf-raid .wi, .pf-class .wi { width: 20px; height: 20px; }
+.pf-way .wi { width: 36px; height: 36px; }
+.pf-logrow .wi { width: 26px; height: 26px; }
 .pf-muted { color: var(--muted); font-size: 13px; margin: 0; }
 .pf-err { color: var(--high); }
 
@@ -104,7 +114,7 @@
 .pf-first { display: flex; flex-direction: column; gap: 12px; }
 .pf-ways { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .pf-way {
-    display: grid; gap: 8px; justify-items: start; text-align: left; padding: 18px; cursor: pointer;
+    display: grid; gap: 8px; justify-items: start; align-content: start; text-align: left; padding: 18px; cursor: pointer;
     background: var(--panel); border: 1px solid var(--line); color: var(--text); font: inherit;
     clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
@@ -115,6 +125,8 @@
 @media (max-width: 720px) { .pf-ways { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---- add dialog ---- */
+/* the Aus Logs · Armory · Von Hand segment sits right above: keep it off the first label */
+.pf-form, .pf-loglist { margin-top: 18px; }
 .pf-form { display: flex; flex-direction: column; }
 .pf-form .field:last-child { margin-bottom: 0; }
 .pf-classes { display: flex; flex-wrap: wrap; gap: 6px; }

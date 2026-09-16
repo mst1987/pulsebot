@@ -8,7 +8,6 @@ import {
 import type { ShellContext } from "../components/Shell";
 import { Badge, IconButton, PageHead, Segment, SplitButton, useConfirm } from "../components/ui";
 import { useJobs } from "../components/Jobs";
-import { SettingsIcon } from "../components/icons";
 import { TagIcon } from "../components/channels/channelBits";
 import {
     AssignChannelDialog, CreateChannelDialog, DuplicateChannelDialog, PurposeDialog,
@@ -302,12 +301,16 @@ export default function ChannelsPage() {
                             onClick={() => switchTab("archive")}
                         />
                     </div>
-                    <div className="kn-side-note">
-                        <span>Zwecke (Log-, Bewerbungs-Kanal …) stehen im Tooltip des Kanals.</span>
+                    {/* The purposes as a panel of their own: label, the three counts, one way in.
+                        What used to be a sentence here is the label's tooltip; the archive
+                        settings live in the archive tab, which the figure above opens. */}
+                    <div className="kn-figures kn-purposes">
+                        <div className="kn-purposes-head">
+                            <span className="kn-kicker" tabIndex={0} data-tip="Zwecke" data-tip-sub="Wofür der Bot welche Kanäle nutzt (Log-, Bewerbungs-Kanal …). Am Kanal selbst stehen sie im Tooltip.">Zwecke</span>
+                            <IconButton size="sm" icon={<TagIcon />} tip="Alle Zwecke" tipSub="Wofür der Bot welche Kanäle nutzt — alle auf einen Blick." onClick={() => setDialog({ kind: "purposes" })} />
+                        </div>
                         <span className="kn-chips">
                             <PurposeSummaryBadges data={data} />
-                            <IconButton size="sm" icon={<TagIcon />} tip="Zwecke" tipSub="Wofür der Bot welche Kanäle nutzt — alle auf einen Blick." onClick={() => setDialog({ kind: "purposes" })} />
-                            {canWrite && <IconButton size="sm" icon={<SettingsIcon />} tip="Archiv-Einstellungen" tipSub="Archiv-Kategorie und nach wie vielen Tagen erinnert wird." onClick={() => setDialog({ kind: "archive-settings" })} />}
                         </span>
                     </div>
                 </aside>
