@@ -328,3 +328,27 @@ describe("ping targets, role sync and reminders", () => {
         expect(current.a.missingHours).toBe(24);
     });
 });
+
+describe("raid overview on the talk server (#257)", () => {
+    const NOW = 10_000_000;
+    const base = { configured: true, channelId: "ov", messageId: "m1", messageUrl: "u", postedAt: 0, editedAt: 0, checkedAt: 0, error: "" };
+
+    it("says how long ago, short", () => {
+        expect(logic.agoText(0, NOW)).toBe("");
+        expect(logic.agoText(NOW - 10_000, NOW)).toBe("gerade eben");
+        expect(logic.agoText(NOW - 5 * 60000, NOW)).toBe("vor 5 Min.");
+        expect(logic.agoText(NOW - 3 * 3600000, NOW)).toBe("vor 3 Std.");
+    });
+
+    it("shows one badge with the times in the tooltip", () => {
+        expect(logic.talkOverviewBadge(null, NOW)).toMatchObject({ label: "nicht eingestellt", tone: "" });
+        expect(logic.talkOverviewBadge({ ...base, messageId: "" }, NOW)).toMatchObject({ label: "noch nicht gepostet", tone: "" });
+        const posted = logic.talkOverviewBadge({ ...base, postedAt: NOW - 120000, checkedAt: NOW - 60000 }, NOW);
+        expect(posted).toMatchObject({ label: "gepostet vor 2 Min.", tone: "ok" });
+        expect(posted.tipSub).toContain("Zuletzt geprüft vor 1 Min.");
+        expect(logic.talkOverviewBadge({ ...base, postedAt: NOW - 7200000, editedAt: NOW - 60000 }, NOW).label).toBe("bearbeitet vor 1 Min.");
+        const failed = logic.talkOverviewBadge({ ...base, error: "Bot nicht verbunden." }, NOW);
+        expect(failed).toMatchObject({ label: "Fehler", tone: "mid" });
+        expect(failed.tipSub).toContain("Bot nicht verbunden.");
+    });
+});
