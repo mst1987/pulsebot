@@ -87,14 +87,17 @@ function getChannelCategoryMap(guildId) {
  * mentions live in the plain content so they actually ping.
  * @returns { guildId, channelId, messageId, url }
  */
-async function postAnnouncement(channelId, template, roleIds = []) {
+async function postAnnouncement(channelId, template, roleIds = [], userIds = []) {
     if (!client) throw new Error("Bot nicht verbunden.");
     const channel = await client.channels.fetch(channelId);
     if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden oder kein Textkanal.");
 
     const roles = (roleIds || []).filter(Boolean);
-    const mentions = roles.map((id) => `<@&${id}>`).join(" ");
-    const payload = { allowedMentions: { roles } };
+    // Single members are mentioned where a role cannot be: on the talk server
+    // an event-server role means nothing (see pingDelivery.js).
+    const users = [...new Set((userIds || []).map(String).filter(Boolean))];
+    const mentions = [...roles.map((id) => `<@&${id}>`), ...users.map((id) => `<@${id}>`)].join(" ");
+    const payload = { allowedMentions: users.length ? { roles, users } : { roles } };
 
     if (template.title || template.body) {
         const embed = new EmbedBuilder().setColor(embedAccentColor);
@@ -214,14 +217,42 @@ async function postMissingPing(channelId, userIds = [], text = "") {
     if (!users.length) throw new Error("Keine fehlenden Raider zum Pingen.");
     const channel = await client.channels.fetch(channelId);
     if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden oder kein Textkanal.");
-    const mentions = users.map((id) => `<@${id}>`).join(" ");
     const body = String(text || "").trim()
         || "Bitte meldet euch für den Raid an oder ab, damit die Aufstellung vollständig ist.";
-    const posted = await channel.send({
-        content: `${mentions}\n${body}`,
-        allowedMentions: { users },
-    });
-    return { channelId: channel.id, messageId: posted.id, url: posted.url };
+    // Discord refuses a message over 2000 characters, and a mention costs about
+    // 22 — a roster of ~90 missing raiders would otherwise post nothing at all.
+    // The mentions are split over as many messages as needed, the text rides
+    // on the last one.
+    const chunks = mentionChunks(users.map((id) => `<@${id}>`), MESSAGE_LIMIT - body.length - 1);
+    let first = null;
+    for (let i = 0; i < chunks.length; i++) {
+        const last = i === chunks.length - 1;
+        const posted = await channel.send({
+            content: last ? `${chunks[i]}\n${body}` : chunks[i],
+            allowedMentions: { users },
+        });
+        if (!first) first = posted;
+    }
+    return { channelId: channel.id, messageId: first.id, url: first.url };
+}
+
+const MESSAGE_LIMIT = 2000;
+
+/** Join mentions with spaces into strings of at most `max` characters (at least one mention each). */
+function mentionChunks(mentions, max) {
+    const limit = Math.max(Number(max) || 0, 100);
+    const out = [];
+    let cur = "";
+    for (const m of mentions) {
+        if (cur && cur.length + 1 + m.length > limit) {
+            out.push(cur);
+            cur = m;
+        } else {
+            cur = cur ? `${cur} ${m}` : m;
+        }
+    }
+    if (cur) out.push(cur);
+    return out;
 }
 
 /**
@@ -767,7 +798,7 @@ module.exports = {
     resolveUserNames,
     listCategories, listAllChannels, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,
-    listMembersWithRoles, postMissingPing, _resetMembersCacheForTests,
+    listMembersWithRoles, postMissingPing, mentionChunks, _resetMembersCacheForTests,
     fetchGuildMembersCached, botPermissionsIn, REQUIRED_BOT_PERMISSIONS,
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,
     isRecruitmentMessage, extractTemplate,

@@ -5,7 +5,7 @@
 // every function is `export function name(params): Result {` on one line, and
 // no body uses type syntax (no `as`, no generics, no annotated locals). The test
 // relies on exactly that; keep it when adding a function here.
-import type { AreaAccess } from "../api";
+import type { AreaAccess, PingTarget, PingTargetInfo, ReminderRule, RoleSyncRule } from "../api";
 
 export type Level = "none" | "read" | "write";
 export type Grants = Record<string, AreaAccess | undefined>;
@@ -375,4 +375,94 @@ export function splitCategoryRows(rows: CategoryRow[], activeIds: string[], show
         else folded.push(row);
     }
     return { shown, folded };
+}
+
+// ---- pings, reminders and role sync across both servers (#264) ----
+
+export type RoleSyncDirection = "toTalk" | "toEvent" | "both";
+
+export const DIRECTION_LABEL: Record<RoleSyncDirection, string> = { toTalk: "→", toEvent: "←", both: "↔" };
+export const DIRECTION_TEXT: Record<RoleSyncDirection, string> = { toTalk: "Event → Talk", toEvent: "Talk → Event", both: "beide Richtungen" };
+export const TARGET_TEXT: Record<PingTarget, string> = { event: "Event-Kanal", talk: "Kommunikations-Discord", both: "Beides" };
+
+/**
+ * The options of the "Wohin" segment. Without a talk server and its ping
+ * channel only the event channel exists, and the segment is not shown at all.
+ */
+export function pingTargetOptions(info: { talk: boolean; talkGuildName?: string; talkChannelName?: string } | null | undefined): { value: PingTarget; label: string; tip: string }[] {
+    if (!info || !info.talk) return [];
+    const where = info.talkChannelName ? `#${info.talkChannelName}` : "den Ping-Kanal";
+    const server = info.talkGuildName || "dem Kommunikations-Discord";
+    return [
+        { value: "event", label: "Event-Kanal", tip: "Nur im Kanal des Events" },
+        { value: "talk", label: "Talk", tip: `In ${where} auf ${server}; wer dort nicht ist, bekommt eine DM` },
+        { value: "both", label: "Beides", tip: `Im Event-Kanal und in ${where}; keine DMs zusätzlich` },
+    ];
+}
+
+/** The modal hint of ping and sign-up call: where the message goes, so the head says it without a second line. */
+export function targetHint(target: PingTarget, eventChannel: string, info: PingTargetInfo | undefined): string | undefined {
+    const talk = info && info.talkChannelName ? `#${info.talkChannelName}` : "Talk";
+    const event = eventChannel ? `#${eventChannel}` : "";
+    if (target === "talk") return `in ${talk}`;
+    if (target === "both") return event ? `in ${event} + ${talk}` : `in ${talk}`;
+    return event ? `in ${event}` : undefined;
+}
+
+/** The PATCH body of the role mapping: complete pairs only, one per pair, the list replaces the stored one. */
+export function roleSyncPatch(rules: RoleSyncRule[]): { roleSync: RoleSyncRule[] } {
+    const seen = new Set();
+    const out = [];
+    for (const r of rules) {
+        const eventRoleId = String(r.eventRoleId || "").trim();
+        const talkRoleId = String(r.talkRoleId || "").trim();
+        const key = eventRoleId + ":" + talkRoleId;
+        if (!eventRoleId || !talkRoleId || seen.has(key)) continue;
+        seen.add(key);
+        out.push({ eventRoleId, talkRoleId, direction: r.direction || "toTalk" });
+    }
+    return { roleSync: out };
+}
+
+/** The mapping with one entry replaced (index) or appended (index -1). */
+export function withRoleRule(rules: RoleSyncRule[], index: number, rule: RoleSyncRule): RoleSyncRule[] {
+    if (index < 0 || index >= rules.length) return [...rules, rule];
+    return rules.map((r, i) => (i === index ? rule : r));
+}
+
+/** The small badge of the role sync head: how many members kept a synced role the source lost. */
+export function driftBadge(total: number, error: string | null): { label: string; tone: "ok" | "mid" | ""; tip: string } {
+    if (error) return { label: "Abgleich unbekannt", tone: "", tip: error };
+    if (!total) return { label: "Keine Abweichung", tone: "ok", tip: "Alle abgeglichenen Rollen passen zu ihrer Ursprungsrolle." };
+    return {
+        label: total === 1 ? "1 Abweichung" : `${total} Abweichungen`,
+        tone: "mid",
+        tip: "Der Abgleich vergibt nur und entfernt nie. Wer die Ursprungsrolle verloren hat, behält die abgeglichene, bis jemand sie in Discord entfernt.",
+    };
+}
+
+/** "24 h vor Schluss · 1 h vor Raid", or "aus". */
+export function reminderSummary(rule: ReminderRule | null | undefined): string {
+    if (!rule) return "aus";
+    const parts = [];
+    if (rule.missingHours > 0) parts.push(`${rule.missingHours} h vor Schluss`);
+    if (rule.signedHours > 0) parts.push(`${rule.signedHours} h vor Raid`);
+    return parts.length ? parts.join(" · ") : "aus";
+}
+
+/** Hours from an input: whole numbers 1–168, anything else 0 (= off) — the server's rule. */
+export function reminderHours(value: unknown): number {
+    const n = Math.round(Number(value));
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return Math.min(n, 168);
+}
+
+/** The PATCH body with one category's rule set; both hours 0 removes the category. */
+export function remindersPatch(current: Record<string, ReminderRule>, categoryId: string, rule: ReminderRule): { categoryReminders: Record<string, ReminderRule> } {
+    const next = { ...current };
+    const missingHours = reminderHours(rule.missingHours);
+    const signedHours = reminderHours(rule.signedHours);
+    if (!missingHours && !signedHours) delete next[categoryId];
+    else next[categoryId] = { missingHours, signedHours, target: rule.target || "event" };
+    return { categoryReminders: next };
 }

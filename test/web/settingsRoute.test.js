@@ -33,12 +33,18 @@ jest.mock("../../src/web/discord", () => ({
     fetchGuildMembersCached: jest.fn(async () => []),
 }));
 jest.mock("../../src/utils/wowhead", () => ({ searchItems: jest.fn(async () => []) }));
+// Reduced to the live list, like in apiRouter.test.js: no snapshot files touched.
+jest.mock("../../src/web/categoryNames", () => ({
+    listKnownCategories: (guildId) => require("../../src/web/discord").listCategories(guildId),
+}));
 
 const { requireAdmin, requireFullAdmin } = require("../../src/web/apiMiddleware");
 const { readJsonBody } = require("../../src/web/apiBody");
 const settingsStore = require("../../src/web/settingsStore");
 const discord = require("../../src/web/discord");
-const { getSettings, updateSettings, getDiscordServers, FULL_ADMIN_KEYS } = require("../../src/web/apiRoutes/settings");
+const {
+    getSettings, updateSettings, getDiscordServers, getRoleSync, getReminders, FULL_ADMIN_KEYS,
+} = require("../../src/web/apiRoutes/settings");
 
 function mockRes() {
     return { writeHead: jest.fn(), end: jest.fn() };
@@ -215,5 +221,63 @@ describe("Discord-Server settings", () => {
         await getDiscordServers({}, res);
         expect(res.end).not.toHaveBeenCalled();
         expect(discord.listGuilds).not.toHaveBeenCalled();
+    });
+});
+
+// Role sync and reminders (#264).
+describe("role sync and reminder settings", () => {
+    it("keeps the role mapping full-admin-only, the reminders not", async () => {
+        expect(FULL_ADMIN_KEYS).toContain("roleSync");
+        expect(FULL_ADMIN_KEYS).not.toContain("categoryReminders");
+
+        requireAdmin.mockReturnValue({ id: "7", isAdmin: false });
+        requireFullAdmin.mockReturnValue(null);
+        readJsonBody.mockResolvedValue({ roleSync: [{ eventRoleId: "111111", talkRoleId: "222222" }] });
+        await updateSettings({ headers: {} }, mockRes());
+        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+
+        readJsonBody.mockResolvedValue({ categoryReminders: { 123456: { missingHours: 24 } } });
+        await updateSettings({ headers: {} }, mockRes());
+        expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryReminders: { 123456: { missingHours: 24 } } });
+    });
+
+    it("passes a full admin's mapping on and reads a non-list as empty", async () => {
+        readJsonBody.mockResolvedValue({ roleSync: "kaputt", categoryReminders: null });
+        await updateSettings({ headers: {} }, mockRes());
+        expect(settingsStore.saveConfig).toHaveBeenCalledWith({ roleSync: [], categoryReminders: {} });
+    });
+
+    it("serves the role sync view to full admins only", async () => {
+        settingsStore.getConfig.mockReturnValue({ roleSync: [] });
+        const res = mockRes();
+        await getRoleSync({}, res);
+        expect(body(res).data).toMatchObject({ roleSync: [], drift: [], driftTotal: 0, driftError: null });
+
+        requireFullAdmin.mockReturnValue(null);
+        const res2 = mockRes();
+        await getRoleSync({}, res2);
+        expect(res2.end).not.toHaveBeenCalled();
+        settingsStore.getConfig.mockReturnValue({});
+    });
+
+    it("lists the configured categories with names for the reminders", async () => {
+        settingsStore.getConfig.mockReturnValue({
+            guildId: "200000",
+            categoryIds: ["900000"],
+            categoryRoles: { 900000: ["1", "2"] },
+            categoryReminders: { 910000: { missingHours: 24, signedHours: 0, target: "event" } },
+        });
+        discord.listCategories.mockReturnValue([{ id: "900000", name: "Raids Mittwoch" }]);
+        const res = mockRes();
+        getReminders({}, res);
+        const data = body(res).data;
+        expect(discord.listCategories).toHaveBeenCalledWith("200000");
+        expect(data.categories).toEqual([
+            { id: "900000", name: "Raids Mittwoch", roleCount: 2 },
+            { id: "910000", name: "", roleCount: 0 },
+        ]);
+        expect(data.pingTargets.talk).toBe(false);
+        expect(data.categoryReminders["910000"].missingHours).toBe(24);
+        settingsStore.getConfig.mockReturnValue({});
     });
 });

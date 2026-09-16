@@ -125,7 +125,7 @@ export type DashboardRaid = {
 export type DashboardTaskTone = "ok" | "mid" | "bad" | "accent";
 
 export type DashboardTask = {
-    id: "sheet" | "recommendations" | "logs" | "inbox" | "channels";
+    id: "sheet" | "recommendations" | "logs" | "inbox" | "channels" | "rolesync";
     tone: DashboardTaskTone;
     /** Tile tint when it differs from the tone (the inbox wears the history area's colour). */
     tile?: string;
@@ -479,7 +479,61 @@ export type AdminConfig = {
     // The drops the guild counts as "big", picked from the Wowhead search in
     // Einstellungen → Loot. The dashboard highlights their awards.
     topItems: TopItem[];
+    // Role sync between event and talk server (#264); full admins only.
+    roleSync?: RoleSyncRule[];
+    // Automatic reminders per raid category (#264).
+    categoryReminders?: Record<string, ReminderRule>;
 };
+
+export type PingTarget = "event" | "talk" | "both";
+export type RoleSyncRule = { eventRoleId: string; talkRoleId: string; direction: "toTalk" | "toEvent" | "both" };
+export type ReminderRule = { missingHours: number; signedHours: number; target: PingTarget };
+/** Whether the talk server's ping channel exists as a target of pings and reminders. */
+export type PingTargetInfo = { talk: boolean; talkGuildName: string; talkChannelName: string };
+
+export type RoleSyncDriftGroup = {
+    ruleIndex: number;
+    /** The server the members kept the synced role on. */
+    side: "event" | "talk";
+    roleId: string;
+    roleName: string;
+    sourceRoleId: string;
+    sourceRoleName: string;
+    guildName: string;
+    members: { userId: string; name: string; notOnSource: boolean; profileUrl: string }[];
+};
+export type RoleSyncRun = {
+    at: number;
+    added: number;
+    failed: number;
+    missingPermission: ("event" | "talk")[];
+    errors: string[];
+    error: string | null;
+};
+export type RoleSyncData = {
+    roleSync: RoleSyncRule[];
+    eventRoles: Role[];
+    talkRoles: Role[];
+    canManage: { event: boolean; talk: boolean };
+    drift: RoleSyncDriftGroup[];
+    driftTotal: number;
+    driftError: string | null;
+    lastRun: RoleSyncRun | null;
+};
+export type RemindersData = {
+    categoryReminders: Record<string, ReminderRule>;
+    categories: { id: string; name: string; roleCount: number }[];
+    pingTargets: PingTargetInfo;
+    lastRun: { at: number; sent: number; failed: number; skipped: number; error: string | null } | null;
+};
+
+export function getRoleSync(): Promise<RoleSyncData> {
+    return get<RoleSyncData>("/api/settings/role-sync");
+}
+
+export function getReminders(): Promise<RemindersData> {
+    return get<RemindersData>("/api/settings/reminders");
+}
 
 // One hit of a Wowhead item search — what both item pickers (softres hard
 // reserves, top items) render and store.
@@ -924,6 +978,8 @@ export type RaidDetailData = {
     eventsWarning: string | null;
     notifyTemplates: NotifyTemplate[];
     roles: Role[];
+    /** Whether the ping/notify modals may offer the talk server (#264). */
+    pingTargets?: PingTargetInfo;
     raidsheets: Raidsheet[];
     matchedSheetId: string;
     setup: EventSetup;
@@ -980,14 +1036,14 @@ export function getRaidDetail(eventId: string): Promise<RaidDetailData> {
 
 export function notifyRaid(
     csrfToken: string | null,
-    input: { event: string; templateId: string; channelId: string; roleIds: string[] },
+    input: { event: string; templateId: string; channelId: string; roleIds: string[]; target?: PingTarget },
 ): Promise<{ message: string }> {
     return send("POST", "/api/raids/notify", csrfToken, input);
 }
 
 export function pingMissingRaiders(
     csrfToken: string | null,
-    input: { event: string; text: string },
+    input: { event: string; text: string; target?: PingTarget },
 ): Promise<{ message: string }> {
     return send("POST", "/api/raids/ping-missing", csrfToken, input);
 }

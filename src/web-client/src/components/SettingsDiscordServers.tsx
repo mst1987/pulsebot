@@ -5,6 +5,8 @@ import {
 } from "../api";
 import { discordServersPatch, overlapBadge, serverCardState, type ServerFields } from "../lib/settingsLogic";
 import { useToast } from "./Jobs";
+import RoleSyncPart from "./SettingsRoleSync";
+import RemindersPart from "./SettingsReminders";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import Badge from "./ui/Badge";
@@ -97,6 +99,10 @@ export default function DiscordServersSection({ csrfToken, onConfig, icon, crumb
                     )}
                 </ServerCard>
             </div>
+
+            {/* #264: the role sync needs two servers; reminders work with one as well. */}
+            {data.talk && <RoleSyncPart csrfToken={csrfToken} onConfig={onConfig} />}
+            <RemindersPart csrfToken={csrfToken} onConfig={onConfig} />
 
             {editing && (
                 <ServersModal

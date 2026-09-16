@@ -569,3 +569,36 @@ describe("web/discord botPermissionsIn", () => {
         expect(discord.botPermissionsIn("g1")).toBeNull();
     });
 });
+
+// Long pings and single-member mentions (#264).
+describe("web/discord ping helpers", () => {
+    const discordMod = require("../../src/web/discord");
+
+    it("splits mentions into chunks under the limit", () => {
+        const mentions = Array.from({ length: 20 }, (_, i) => `<@${100000 + i}>`);
+        const chunks = discordMod.mentionChunks(mentions, 100);
+        expect(chunks.join(" ")).toBe(mentions.join(" "));
+        for (const c of chunks) expect(c.length).toBeLessThanOrEqual(100);
+        expect(chunks.length).toBeGreaterThan(1);
+    });
+
+    it("posts a long ping as several messages, the text on the last", async () => {
+        const send = jest.fn(async () => ({ id: "m", url: "u" }));
+        discordMod.setClient({ channels: { fetch: jest.fn(async () => ({ id: "chan", isTextBased: () => true, send })) } });
+        const users = Array.from({ length: 120 }, (_, i) => String(100000000000000000n + BigInt(i)));
+        await discordMod.postMissingPing("chan", users, "Bitte melden");
+        expect(send.mock.calls.length).toBeGreaterThan(1);
+        for (const [payload] of send.mock.calls) expect(payload.content.length).toBeLessThanOrEqual(2000);
+        expect(send.mock.calls[send.mock.calls.length - 1][0].content.endsWith("Bitte melden")).toBe(true);
+        expect(send.mock.calls[0][0].content.includes("Bitte melden")).toBe(false);
+    });
+
+    it("mentions single users next to the roles of an announcement", async () => {
+        const send = jest.fn(async () => ({ id: "m", url: "u" }));
+        discordMod.setClient({ channels: { fetch: jest.fn(async () => ({ id: "chan", guildId: "g", isTextBased: () => true, send })) } });
+        await discordMod.postAnnouncement("chan", { title: "T", body: "B" }, ["r1"], ["u1", "u1"]);
+        const payload = send.mock.calls[0][0];
+        expect(payload.content).toBe("<@&r1> <@u1>");
+        expect(payload.allowedMentions).toEqual({ roles: ["r1"], users: ["u1"] });
+    });
+});

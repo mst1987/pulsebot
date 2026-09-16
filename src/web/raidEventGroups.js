@@ -150,6 +150,9 @@ async function loadEventGroups(guildId, { sinceSeconds } = {}) {
             signupCount: signUps.filter((s) => s.specName !== "Absence").length,
             signUps,
             signUpsFromSnapshot: !liveSignUps.length && signUps.length > 0,
+            // Only events that have one (EventHelper's own, #254); the reminders
+            // measure the "missing" reminder against it (reminders.js).
+            ...(ev.signupDeadline ? { signupDeadline: ev.signupDeadline } : {}),
         });
         seen.add(ev.id);
     }

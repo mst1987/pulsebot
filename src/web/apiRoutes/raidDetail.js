@@ -39,6 +39,9 @@ const SheetsClient = require("../../classes/sheets");
 const { fillSetupSheet } = require("../../utils/fillSetup");
 const { formatTimestampToDateString } = require("../../utils/date");
 const discord = require("../discord");
+const {
+    normalizePingTarget, pingTargetInfo, deliverUserPing, deliverAnnouncement, dmSummary, TARGET_LABELS,
+} = require("../pingDelivery");
 
 /**
  * GET /api/raids/detail?event=<id> — everything the event-detail page needs in
@@ -182,6 +185,8 @@ async function getRaidDetail(req, res, url) {
         eventsWarning: stale ? (groupsError || "Raid-Helper aktuell nicht erreichbar — zeige zwischengespeicherte Event-Daten.") : null,
         notifyTemplates: listNotify(),
         roles: discord.listRoles(guildId),
+        // Whether the ping/notify modals may offer the talk server as a target.
+        pingTargets: pingTargetInfo(),
         raidsheets,
         matchedSheetId: matched ? matched.id : "",
         setup,
@@ -241,10 +246,21 @@ async function postNotify(req, res) {
     const body = await readJsonBody(req);
     const template = getNotify(String(body.templateId || "").trim());
     const channelId = String(body.channelId || "").trim();
-    if (!template || !channelId) return error(res, 400, "missing_fields", "Vorlage oder Channel fehlt.");
+    const target = normalizePingTarget(body.target);
+    if (!template || (target !== "talk" && !channelId)) return error(res, 400, "missing_fields", "Vorlage oder Channel fehlt.");
     try {
-        await discord.postAnnouncement(channelId, template, body.roleIds || []);
-        ok(res, { message: "Anmelde-Aufruf gepostet." });
+        if (target === "event") {
+            await discord.postAnnouncement(channelId, template, body.roleIds || []);
+            return ok(res, { message: "Anmelde-Aufruf gepostet." });
+        }
+        // The DM fallback names the raid, so the event is resolved server-side;
+        // a failed lookup only costs the DM its title.
+        const eventId = String(body.event || "").trim();
+        const { found } = eventId ? await resolveEventForPost(req, eventId) : { found: null };
+        const result = await deliverAnnouncement({
+            target, event: found, channelId, template, roleIds: body.roleIds || [], guildId: activeGuildFor(req),
+        });
+        ok(res, { message: `Anmelde-Aufruf gepostet (${TARGET_LABELS[target]})${dmSummary(result.dm)}.`, delivery: result });
     } catch (e) {
         console.error("notify post failed:", e.message);
         error(res, 500, "post_failed", e.message || "Posten fehlgeschlagen.");
@@ -291,12 +307,21 @@ async function postPingMissing(req, res) {
     if (!missing.length) {
         return ok(res, { message: "Niemand fehlt — es haben schon alle reagiert." });
     }
+    const target = normalizePingTarget(body.target);
     try {
-        await discord.postMissingPing(found.e.channelId, missing.map((m) => m.id), body.text);
+        let delivery = null;
+        if (target === "event") {
+            await discord.postMissingPing(found.e.channelId, missing.map((m) => m.id), body.text);
+        } else {
+            delivery = await deliverUserPing({
+                target, event: found.e, userIds: missing.map((m) => m.id), text: body.text, guildId,
+            });
+        }
         console.log(
-            `ping-missing: ${missing.length} Raider — events ${tEvents - t0}ms, members ${tMembers - tEvents}ms, post ${Date.now() - tMembers}ms`,
+            `ping-missing (${target}): ${missing.length} Raider — events ${tEvents - t0}ms, members ${tMembers - tEvents}ms, post ${Date.now() - tMembers}ms`,
         );
-        ok(res, { message: `${missing.length} fehlende Raider gepingt.` });
+        if (!delivery) return ok(res, { message: `${missing.length} fehlende Raider gepingt.` });
+        ok(res, { message: `${missing.length} fehlende Raider gepingt (${TARGET_LABELS[target]})${dmSummary(delivery.dm)}.`, delivery });
     } catch (e) {
         console.error("ping-missing failed:", e.message);
         error(res, 500, "post_failed", e.message || "Posten fehlgeschlagen.");
