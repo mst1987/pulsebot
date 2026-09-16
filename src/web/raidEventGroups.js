@@ -180,4 +180,4 @@ async function loadEventGroups(guildId, { sinceSeconds } = {}) {
     return { groups, error, stale: stale || !!error };
 }
 
-module.exports = { EVENT_LOOKBACK_DAYS, eventLookbackSince, loadEventGroups, _resetEventsCacheForTests };
+module.exports = { EVENT_LOOKBACK_DAYS, eventLookbackSince, loadEventGroups, fetchEventsCached, _resetEventsCacheForTests };

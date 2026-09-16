@@ -83,6 +83,20 @@ describe("web/apiAccess", () => {
             });
         });
 
+        // Issue #259: editing, archiving and deleting channels need "channels" at write.
+        it("gates every channel change behind channels write", () => {
+            const reader = limited({ channels: { read: true, write: false } });
+            const writer = limited({ channels: { read: true, write: true } });
+            expect(checkAccess("/api/channels", "GET", reader)).toBeNull();
+            expect(checkAccess("/api/channels", "PATCH", reader)).toMatchObject({ status: 403 });
+            for (const p of ["/api/channels/archive", "/api/channels/delete", "/api/channels/rename-preview", "/api/channels/batch", "/api/channels/config"]) {
+                expect(checkAccess(p, "POST", reader)).toMatchObject({ status: 403 });
+                expect(checkAccess(p, "POST", writer)).toBeNull();
+                expect(checkAccess(p, "POST", limited({ settings: { read: true, write: true } }))).toMatchObject({ status: 403 });
+            }
+            expect(checkAccess("/api/channels", "PATCH", writer)).toBeNull();
+        });
+
         it("lets any menu user switch the active guild", () => {
             expect(checkAccess("/api/session/guild", "POST", limited({ raids: { read: true, write: false } }))).toBeNull();
             expect(checkAccess("/api/session/guild", "POST", limited({}))).toMatchObject({ status: 403 });

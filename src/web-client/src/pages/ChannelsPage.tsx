@@ -1,199 +1,70 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
-import { canAccess, getChannels, type ApiError, type Channel, type ChannelPurpose, type ChannelsData } from "../api";
-import type { ShellContext } from "../components/Shell";
-import { Badge, Button, Expand, IconButton, IconTile, PageHead, PartHead } from "../components/ui";
-import { CheckIcon, CopyIcon, SearchIcon } from "../components/icons";
+import { useOutletContext, useSearchParams } from "react-router-dom";
 import {
-    ChannelChip, ChannelTypeIcon, PencilIcon, PurposeBadge, StatusBadge, TagIcon,
-} from "../components/channels/channelBits";
+    archiveChannels, canAccess, deleteChannels, getChannels, patchChannels, quickCreateChannels, saveChannelConfig,
+    type ApiError, type Channel, type ChannelChanges, type ChannelPurpose, type ChannelResult, type ChannelsData,
+    type QuickCreateInput, type RenamePreviewRow,
+} from "../api";
+import type { ShellContext } from "../components/Shell";
+import { Badge, IconButton, PageHead, Segment, SplitButton, useConfirm } from "../components/ui";
+import { useJobs } from "../components/Jobs";
+import { SettingsIcon } from "../components/icons";
+import { TagIcon } from "../components/channels/channelBits";
 import {
     AssignChannelDialog, CreateChannelDialog, DuplicateChannelDialog, PurposeDialog,
 } from "../components/channels/ChannelDialogs";
-import { groupByCategory, isTextLike } from "../lib/channels";
+import { ChannelTree } from "../components/channels/ChannelTree";
+import { BulkBar, BulkEditDialog, RenameSchemaDialog } from "../components/channels/ChannelBulk";
+import { ChannelEditDialog } from "../components/channels/ChannelEditDialog";
+import { QuickCreateDialog } from "../components/channels/QuickCreateDialog";
+import { ArchiveSettingsDialog, ArchiveTab, DeleteChannelsDialog } from "../components/channels/ArchiveTab";
+import { PurposesDialog, PurposeSummaryBadges } from "../components/channels/PurposeList";
+import { BULK_DELETE_WORD, pastEventChannels, resultMessage, runInSteps } from "../lib/channels";
 import "../styles/kanaele.css";
 import RaidLoader from "../components/ui/RaidLoader";
 
-// Kanäle (design issue #216): what the bot uses which channel for, and every
-// channel of the server grouped by Discord category. Creating, duplicating and
-// assigning happen in dialogs; the purposes themselves stay settings (stored in
-// the admin config, also editable in Einstellungen).
+// Kanäle (design #216, reworked as the Discord overview in #259): one list —
+// the server's categories and channels like Discord's sidebar — with inline
+// rename, a selection that brings up a bar for bulk changes, and an archive tab
+// where an admin deletes what is no longer needed. Everything else lives in
+// tooltips and dialogs: the purposes (what the bot uses a channel for), the full
+// edit, quick-create by schema. Changes go to Discord one channel at a time with
+// a short pause, the progress in the job toast.
 
 type Dialog =
+    | { kind: "purposes" }
     | { kind: "purpose"; purpose: ChannelPurpose }
     | { kind: "assign"; channel: Channel }
     | { kind: "duplicate"; channel: Channel }
     | { kind: "create" }
+    | { kind: "quick" }
+    | { kind: "edit"; channel: Channel }
+    | { kind: "bulk"; focus: "category" | "topic" }
+    | { kind: "rename" }
+    | { kind: "delete"; ids: string[] }
+    | { kind: "archive-settings"; then?: string[] }
     | null;
 
-function PurposeList({ data, canEdit, onEdit }: {
-    data: ChannelsData;
-    canEdit: boolean;
-    onEdit: (purpose: ChannelPurpose) => void;
+type ArchiveSettingsInput = { archiveCategoryId?: string; archiveDeleteHintDays: number; createArchiveCategory?: string };
+
+/** One big figure of the side panel, optionally a button. */
+function Figure({ label, value, tone, tip, tipSub, onClick }: {
+    label: string;
+    value: number;
+    tone?: "mid";
+    tip: string;
+    tipSub: string;
+    onClick?: () => void;
 }) {
-    const { set, missing, warnings } = data.purposeSummary;
-    return (
-        <section className="kn-part">
-            <PartHead
-                icon="inv_misc_note_02"
-                tone="channels"
-                title="Wofür der Bot welche Kanäle nutzt"
-                crumb="Kanäle › Zwecke"
-                action={(
-                    <>
-                        <Badge tone="ok" icon={<CheckIcon />}>{set} gesetzt</Badge>
-                        {missing > 0 && <Badge tone="bad">{missing} fehlt</Badge>}
-                        {warnings > 0 && <Badge tone="mid" tip="Gesetzt, wirkt aber nicht" tipSub="Kanal fehlt oder der Bot darf dort nicht lesen/schreiben — Details am Status.">{warnings} {warnings === 1 ? "Warnung" : "Warnungen"}</Badge>}
-                    </>
-                )}
-            />
-            <div className="kn-table" role="table" aria-label="Zwecke">
-                <div className="kn-purpose kn-th" role="row">
-                    <span role="columnheader" data-tip="Zweck" data-tip-sub="Wofür der Bot die Kanäle benutzt. Hover über den Namen erklärt, was er dort tut.">Zweck</span>
-                    <span role="columnheader">Kanal</span>
-                    <span role="columnheader" data-tip="Status" data-tip-sub="Ob der Zweck gesetzt ist, der Kanal noch existiert und der Bot dort darf, was er muss.">Status</span>
-                    <span role="columnheader" />
-                </div>
-                {data.purposes.map((p) => (
-                    <div key={p.id} className="kn-purpose" role="row" data-purpose={p.id}>
-                        <div className="kn-purpose-name">
-                            <IconTile icon={p.icon} tone={p.ids.length ? "channels" : "bad"} />
-                            <span className="tipped" tabIndex={0} data-tip={p.label} data-tip-sub={p.hint}>{p.label}</span>
-                        </div>
-                        <div className="kn-chips">
-                            {p.items.length
-                                ? p.items.map((i) => (
-                                    <ChannelChip
-                                        key={i.id}
-                                        name={i.found ? i.name : i.id}
-                                        category={p.kind === "category"}
-                                        missing={!i.found}
-                                        tip={i.found ? undefined : i.status.label}
-                                        tipSub={i.found ? undefined : i.status.tip}
-                                    />
-                                ))
-                                : <span className="kn-muted">nicht gesetzt</span>}
-                        </div>
-                        <div><StatusBadge status={p.status} /></div>
-                        <div className="kn-actions">
-                            {canEdit
-                                ? <IconButton size="sm" icon={<PencilIcon />} tip={`${p.label} zuordnen`} tipSub={p.multiple ? "Mehrere möglich." : undefined} onClick={() => onEdit(p)} />
-                                : (
-                                    <Link
-                                        className="ibtn sm"
-                                        to={`/settings?section=${encodeURIComponent(p.section)}`}
-                                        aria-label="In Einstellungen öffnen"
-                                        data-tip="In Einstellungen öffnen"
-                                        data-tip-sub="Zwecke sind Einstellungen — ändern braucht Schreibrecht auf Einstellungen."
-                                    >
-                                        <PencilIcon />
-                                    </Link>
-                                )}
-                        </div>
-                    </div>
-                ))}
-            </div>
-        </section>
+    const body = (
+        <>
+            <span className="kn-kicker">{label}</span>
+            <span className={`kn-figure-val${tone ? ` ${tone}` : ""}`}>{value}</span>
+        </>
     );
-}
-
-function ChannelTree({ data, canAssign, canDuplicate, onAssign, onDuplicate }: {
-    data: ChannelsData;
-    canAssign: boolean;
-    canDuplicate: boolean;
-    onAssign: (channel: Channel) => void;
-    onDuplicate: (channel: Channel) => void;
-}) {
-    const [query, setQuery] = useState("");
-    const [toggled, setToggled] = useState<Record<string, boolean>>({});
-    const q = query.trim().toLowerCase();
-
-    const purposesOf = useMemo(() => {
-        const map = new Map<string, ChannelPurpose[]>();
-        for (const p of data.purposes) {
-            if (p.kind !== "channel") continue;
-            for (const id of p.ids) map.set(id, [...(map.get(id) || []), p]);
-        }
-        return map;
-    }, [data.purposes]);
-    const eventCategories = data.purposes.find((p) => p.kind === "category");
-
-    const groups = useMemo(() => groupByCategory(data, data.channels)
-        .map((g) => ({
-            ...g,
-            // A search hit on the category name shows all of its channels.
-            visible: !q || g.name.toLowerCase().includes(q) ? g.channels : g.channels.filter((c) => c.name.toLowerCase().includes(q)),
-        }))
-        .filter((g) => !q || g.visible.length), [data, q]);
-
-    return (
-        <section className="kn-part">
-            <PartHead
-                icon="inv_letter_15"
-                tone="channels"
-                title="Kanäle auf dem Server"
-                crumb="Kanäle › Server"
-                action={(
-                    <label className="kn-search">
-                        <SearchIcon />
-                        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Kanal suchen…" aria-label="Kanal suchen" />
-                    </label>
-                )}
-            />
-            <div className="kn-table">
-                {!groups.length && <div className="kn-empty">{q ? "Kein Kanal passt zur Suche." : "Keine Kanäle gefunden — ist der Bot verbunden?"}</div>}
-                {groups.map((g) => {
-                    const assigned = g.channels.flatMap((c) => purposesOf.get(c.id) || []);
-                    const open = q ? true : (toggled[g.id] ?? assigned.length > 0);
-                    const isEvent = !!g.id && !!eventCategories?.ids.includes(g.id);
-                    const blocked = data.connected ? g.channels.filter((c) => isTextLike(c) && c.botCanSend === false) : [];
-                    const counts = new Map<string, { purpose: ChannelPurpose; n: number }>();
-                    for (const p of assigned) counts.set(p.id, { purpose: p, n: (counts.get(p.id)?.n || 0) + 1 });
-                    return (
-                        <div key={g.id || "loose"} className="kn-group" data-category={g.id}>
-                            <div className="kn-cat-head">
-                                <span className="kn-cat-name">{g.name}</span>
-                                <Badge count>{g.channels.length}</Badge>
-                                {isEvent && eventCategories && <PurposeBadge purpose={eventCategories} label="Event-Kategorie" />}
-                                {!open && [...counts.values()].map(({ purpose, n }) => (
-                                    <PurposeBadge key={purpose.id} purpose={purpose} label={String(n)} />
-                                ))}
-                                {blocked.length > 0 && (
-                                    <Badge tone="mid" tip="Bot darf nicht schreiben" tipSub={`Kein Recht „Nachrichten senden“ in: ${blocked.map((c) => `#${c.name}`).join(", ")}.`}>
-                                        Bot darf nicht schreiben
-                                    </Badge>
-                                )}
-                                <Expand open={open} showLabel={!open} onToggle={() => setToggled((t) => ({ ...t, [g.id]: !open }))} />
-                            </div>
-                            {open && g.visible.map((c) => {
-                                const own = purposesOf.get(c.id) || [];
-                                const posts = data.recruitmentPosts[c.id] || 0;
-                                return (
-                                    <div key={c.id} className="kn-chan-row" data-channel={c.id}>
-                                        <span className="kn-type" data-tip={c.typeLabel}><ChannelTypeIcon type={c.type} /></span>
-                                        <span className="kn-chan-name">{c.name}</span>
-                                        <div className="kn-chips">
-                                            {own.map((p) => <PurposeBadge key={p.id} purpose={p} />)}
-                                            {posts > 0 && <Badge icon="inv_misc_grouplooking" tip="Recruitment-Aushänge" tipSub="Vom Bot gepostete Recruitment-Nachrichten in diesem Kanal.">{posts} {posts === 1 ? "Aushang" : "Aushänge"}</Badge>}
-                                            {c.type !== 0 && <span className="kn-muted">{c.typeLabel}</span>}
-                                        </div>
-                                        <div className="kn-actions">
-                                            {canAssign && isTextLike(c) && (
-                                                <IconButton size="sm" icon={<TagIcon />} tip="Zweck zuordnen" tipSub="Diesen Kanal für Raid-Anmeldung, Logs, Bewerbungen oder Höchstgebote einsetzen." onClick={() => onAssign(c)} />
-                                            )}
-                                            {canDuplicate && (
-                                                <IconButton size="sm" icon={<CopyIcon />} tip="Duplizieren" tipSub="Klon mit Rechten, Thema und Slowmode in derselben Kategorie." onClick={() => onDuplicate(c)} />
-                                            )}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    );
-                })}
-            </div>
-        </section>
-    );
+    return onClick
+        ? <button type="button" className="kn-figure" data-tip={tip} data-tip-sub={tipSub} onClick={onClick}>{body}</button>
+        : <div className="kn-figure" tabIndex={0} data-tip={tip} data-tip-sub={tipSub}>{body}</div>;
 }
 
 export default function ChannelsPage() {
@@ -201,20 +72,130 @@ export default function ChannelsPage() {
     const [data, setData] = useState<ChannelsData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [dialog, setDialog] = useState<Dialog>(null);
+    const [selected, setSelected] = useState<Set<string>>(new Set());
+    const [params, setParams] = useSearchParams();
+    const tab = params.get("tab") === "archive" ? "archive" : "channels";
+    const { run } = useJobs();
+    const ask = useConfirm();
 
     const load = () => {
-        getChannels().then(setData).catch((err: ApiError) => setError(err));
+        getChannels().then((d) => {
+            setData(d);
+            setError(null);
+            // Forget selected channels that no longer exist.
+            setSelected((s) => new Set([...s].filter((id) => d.channels.some((c) => c.id === id))));
+        }).catch((err: ApiError) => setError(err));
     };
 
     useEffect(load, []);
 
     // The purposes are settings: changing them takes write access to Einstellungen.
     const canEditPurposes = canAccess(user, "settings", "write");
-    const canWriteChannels = canAccess(user, "channels", "write");
+    const canWrite = canAccess(user, "channels", "write");
+
+    const byId = useMemo(() => new Map((data?.channels || []).map((c) => [c.id, c])), [data]);
+    const selectedChannels = [...selected].map((id) => byId.get(id)).filter((c): c is Channel => !!c);
+
+    const select = (ids: string[], on: boolean) => setSelected((s) => {
+        const next = new Set(s);
+        for (const id of ids) {
+            if (on) next.add(id);
+            else next.delete(id);
+        }
+        return next;
+    });
+
+    const switchTab = (next: "channels" | "archive") => {
+        setSelected(new Set());
+        const p = new URLSearchParams(params);
+        if (next === "archive") p.set("tab", "archive");
+        else p.delete("tab");
+        setParams(p, { replace: true });
+    };
 
     const done = () => {
         setDialog(null);
         load();
+    };
+
+    /** A change over several channels as one job: channel by channel, progress in the toast. */
+    const stepJob = async (label: string, verb: string, ids: string[], step: (id: string) => Promise<ChannelResult[]>) => {
+        setDialog(null);
+        await run({ label, detail: `${ids.length} ${ids.length === 1 ? "Kanal" : "Kanäle"}`, icon: "inv_letter_15", describe: (m: string) => ({ message: m }) }, async (update) => {
+            const results = await runInSteps(ids, step, {
+                onProgress: (n, total) => update({ progress: n / total, detail: `${n} von ${total}` }),
+            });
+            const { message, failed } = resultMessage(results, verb);
+            if (failed) throw new Error(message);
+            return message;
+        });
+        setSelected(new Set());
+        load();
+    };
+
+    const applyChanges = (ids: string[], changes: ChannelChanges, label = "Kanäle ändern") => stepJob(
+        label, "geändert", ids, (id) => patchChannels(csrfToken, [id], changes).then((r) => r.results),
+    );
+
+    const applyRename = (rows: RenamePreviewRow[]) => {
+        const target = new Map(rows.map((r) => [r.id, r.to]));
+        return stepJob("Umbenennen nach Schema", "umbenannt", rows.map((r) => r.id), (id) => patchChannels(csrfToken, [id], { name: target.get(id) }).then((r) => r.results));
+    };
+
+    const archiveNow = (ids: string[]) => stepJob("Archivieren", "archiviert", ids, (id) => archiveChannels(csrfToken, [id]).then((r) => r.results));
+
+    const askArchive = (ids: string[], categoryName: string) => ask({
+        title: ids.length === 1 ? `#${byId.get(ids[0])?.name || "Kanal"} archivieren?` : `${ids.length} Kanäle archivieren?`,
+        text: `Sie wandern in „${categoryName}“, niemand kann dort mehr schreiben. Gelöscht wird nichts — das macht später ein Admin im Archiv.`,
+        action: "Archivieren",
+        tone: "primary",
+        icon: "inv_letter_15",
+    });
+
+    const archive = async (ids: string[]) => {
+        if (!data) return;
+        if (!data.archive.categoryId) {
+            setDialog({ kind: "archive-settings", then: ids });
+            return;
+        }
+        const category = data.categories.find((c) => c.id === data.archive.categoryId);
+        if (await askArchive(ids, category?.name || "Archiv")) await archiveNow(ids);
+    };
+
+    const remove = async (ids: string[], confirm: string) => {
+        setDialog(null);
+        await run({ label: "Aus dem Archiv löschen", detail: `${ids.length} ${ids.length === 1 ? "Kanal" : "Kanäle"}`, icon: "inv_letter_15", describe: (m: string) => ({ message: m }) }, async () => {
+            // One request: the server checks the confirmation for the whole set and
+            // deletes one channel after another with a pause.
+            const result = await deleteChannels(csrfToken, ids, confirm);
+            if (result.failed) throw new Error(result.message);
+            return result.message;
+        });
+        setSelected(new Set());
+        load();
+    };
+
+    const quickCreate = async (input: QuickCreateInput, count: number) => {
+        setDialog(null);
+        await run({ label: "Kanäle anlegen", detail: `${count} nach Schema`, icon: "inv_letter_15", expectedSeconds: Math.max(2, count), describe: (m: string) => ({ message: m }) }, async () => {
+            const result = await quickCreateChannels(csrfToken, input);
+            if (result.failed) throw new Error(result.message || "Anlegen fehlgeschlagen.");
+            return result.message || "Kanäle angelegt.";
+        });
+        load();
+    };
+
+    const saveArchiveSettings = async (input: ArchiveSettingsInput, then?: string[]) => {
+        setDialog(null);
+        const saved = await run({ label: "Archiv-Einstellungen", icon: "inv_letter_15", describe: () => ({ message: "Archiv gespeichert." }) }, () => saveChannelConfig(csrfToken, input));
+        if (!saved) return;
+        const fresh = await getChannels().catch(() => null);
+        if (fresh) setData(fresh);
+        // Archiving was what brought the admin here: carry on with the archive in place.
+        if (then?.length && fresh?.archive.categoryId) {
+            const category = fresh.categories.find((c) => c.id === fresh.archive.categoryId);
+            if (await askArchive(then, category?.name || "Archiv")) await archiveNow(then);
+        }
     };
 
     if (error) return <div className="empty">Fehler beim Laden der Kanäle: {error.message}</div>;
@@ -223,35 +204,138 @@ export default function ChannelsPage() {
     if (!data.activeGuildId) {
         return (
             <>
-                <PageHead icon="inv_letter_15" tone="channels" kicker="Discord" title="Kanäle" />
+                <PageHead icon="inv_letter_15" tone="channels" kicker="Discord-Server" title="Kanäle" />
                 <div className="empty">Wähle oben einen Server, um Kanäle zu verwalten.</div>
             </>
         );
     }
 
-    const kicker = ["Discord", data.guildName, `${data.categories.length} Kategorien`, `${data.channels.length} Kanäle`].filter(Boolean).join(" · ");
+    const past = pastEventChannels(data);
+    const inUse = data.channels.filter((c) => !data.archive.categoryId || c.parentId !== data.archive.categoryId).length;
+    const deleteNames = dialog?.kind === "delete" ? dialog.ids.map((id) => byId.get(id)?.name || id) : [];
 
     return (
-        <div className="kn-page">
+        <div className={`kn-page${selected.size ? " has-bulk" : ""}`}>
             <PageHead
                 icon="inv_letter_15"
                 tone="channels"
-                kicker={kicker}
+                kicker={["Discord-Server", data.guildName].filter(Boolean).join(" · ")}
                 title="Kanäle"
-                meta={!data.connected ? <Badge tone="mid" tip="Bot nicht verbunden" tipSub="Kanäle und Rechte kommen live aus Discord — ohne Verbindung bleibt die Liste leer.">Bot nicht verbunden</Badge> : undefined}
-                action={canWriteChannels ? <Button icon="inv_letter_15" onClick={() => setDialog({ kind: "create" })}>Kanal erstellen</Button> : undefined}
+                meta={(
+                    <>
+                        {!data.connected && <Badge tone="mid" tip="Bot nicht verbunden" tipSub="Kanäle und Rechte kommen live aus Discord — ohne Verbindung bleibt die Liste leer.">Bot nicht verbunden</Badge>}
+                        {data.connected && data.canManage === false && <Badge tone="bad" tip="Bot darf keine Kanäle verwalten" tipSub="Der Bot-Rolle fehlt „Kanäle verwalten“. Umbenennen, Archivieren und Anlegen schlagen fehl, bis das Recht in Discord gesetzt ist.">keine Kanal-Rechte</Badge>}
+                    </>
+                )}
+                action={canWrite ? (
+                    <SplitButton
+                        label="Anlegen"
+                        icon="inv_letter_15"
+                        onClick={() => setDialog({ kind: "quick" })}
+                        menuTip="Weitere Arten anzulegen"
+                        options={[{ id: "single", label: "Einzelnen Kanal erstellen", onSelect: () => setDialog({ kind: "create" }) }]}
+                    />
+                ) : undefined}
             />
 
-            <PurposeList data={data} canEdit={canEditPurposes} onEdit={(purpose) => setDialog({ kind: "purpose", purpose })} />
+            <div className="kn-tabs">
+                <Segment
+                    ariaLabel="Ansicht"
+                    value={tab}
+                    onChange={switchTab}
+                    options={[
+                        { value: "channels", label: `Kanäle · ${inUse}` },
+                        { value: "archive", label: `Archiv · ${data.archive.count}` },
+                    ]}
+                />
+                {data.archive.overdue > 0 && (
+                    <Badge tone="mid" tip="Archivierte Kanäle warten auf Löschung" tipSub={`${data.archive.overdue} davon länger als ${data.archive.hintDays} Tage. Gelöscht wird nie automatisch.`}>
+                        {data.archive.count} warten auf Löschung
+                    </Badge>
+                )}
+            </div>
 
-            <ChannelTree
-                data={data}
-                canAssign={canEditPurposes}
-                canDuplicate={canWriteChannels}
-                onAssign={(channel) => setDialog({ kind: "assign", channel })}
-                onDuplicate={(channel) => setDialog({ kind: "duplicate", channel })}
-            />
+            <div className="kn-layout">
+                {tab === "channels"
+                    ? (
+                        <ChannelTree
+                            data={data}
+                            selected={selected}
+                            onSelect={select}
+                            canWrite={canWrite}
+                            onRename={(channel, name) => applyChanges([channel.id], { name }, `#${channel.name} umbenennen`)}
+                            onEdit={(channel) => setDialog({ kind: "edit", channel })}
+                            onDuplicate={(channel) => setDialog({ kind: "duplicate", channel })}
+                        />
+                    )
+                    : (
+                        <ArchiveTab
+                            data={data}
+                            selected={selected}
+                            onSelect={select}
+                            canWrite={canWrite}
+                            onDelete={(ids) => setDialog({ kind: "delete", ids })}
+                            onSettings={() => setDialog({ kind: "archive-settings" })}
+                        />
+                    )}
 
+                <aside className="kn-side">
+                    <div className="kn-figures">
+                        <Figure label="Kanäle" value={inUse} tip="Kanäle in Benutzung" tipSub="Alle Kanäle des Servers außerhalb des Archivs." />
+                        <Figure
+                            label="Vergangene Events"
+                            value={past.length}
+                            tone={past.length ? "mid" : undefined}
+                            tip="Kanäle vergangener Events"
+                            tipSub={canWrite && past.length ? "Klick wählt sie alle aus — dann unten „Archivieren“." : "Kanäle, deren Event vorbei ist und die noch nicht im Archiv liegen."}
+                            onClick={canWrite && past.length ? () => {
+                                if (tab !== "channels") switchTab("channels");
+                                select(past.map((c) => c.id), true);
+                            } : undefined}
+                        />
+                        <Figure
+                            label="Im Archiv, warten auf Löschung"
+                            value={data.archive.count}
+                            tone={data.archive.overdue ? "mid" : undefined}
+                            tip="Archiv"
+                            tipSub={data.archive.categoryId ? `Nach ${data.archive.hintDays} Tagen gelb markiert. Gelöscht wird nie automatisch — nur ein Admin im Archiv.` : "Noch keine Archiv-Kategorie festgelegt."}
+                            onClick={() => switchTab("archive")}
+                        />
+                    </div>
+                    <div className="kn-side-note">
+                        <span>Zwecke (Log-, Bewerbungs-Kanal …) stehen im Tooltip des Kanals.</span>
+                        <span className="kn-chips">
+                            <PurposeSummaryBadges data={data} />
+                            <IconButton size="sm" icon={<TagIcon />} tip="Zwecke" tipSub="Wofür der Bot welche Kanäle nutzt — alle auf einen Blick." onClick={() => setDialog({ kind: "purposes" })} />
+                            {canWrite && <IconButton size="sm" icon={<SettingsIcon />} tip="Archiv-Einstellungen" tipSub="Archiv-Kategorie und nach wie vielen Tagen erinnert wird." onClick={() => setDialog({ kind: "archive-settings" })} />}
+                        </span>
+                    </div>
+                </aside>
+            </div>
+
+            {canWrite && tab === "channels" && (
+                <BulkBar
+                    count={selectedChannels.length}
+                    guildName={data.guildName}
+                    onEdit={(focus) => setDialog({ kind: "bulk", focus })}
+                    onRename={() => setDialog({ kind: "rename" })}
+                    onArchive={() => archive(selectedChannels.map((c) => c.id))}
+                    onClear={() => setSelected(new Set())}
+                />
+            )}
+            {canWrite && tab === "archive" && (
+                <BulkBar
+                    count={selectedChannels.length}
+                    guildName={data.guildName}
+                    archiveLabel="Löschen …"
+                    onArchive={() => setDialog({ kind: "delete", ids: selectedChannels.map((c) => c.id) })}
+                    onClear={() => setSelected(new Set())}
+                />
+            )}
+
+            {dialog?.kind === "purposes" && (
+                <PurposesDialog data={data} canEdit={canEditPurposes} onEdit={(purpose) => setDialog({ kind: "purpose", purpose })} onClose={() => setDialog(null)} />
+            )}
             {dialog?.kind === "purpose" && (
                 <PurposeDialog purpose={dialog.purpose} data={data} csrfToken={csrfToken} onClose={() => setDialog(null)} onSaved={done} />
             )}
@@ -263,6 +347,46 @@ export default function ChannelsPage() {
             )}
             {dialog?.kind === "create" && (
                 <CreateChannelDialog data={data} csrfToken={csrfToken} canAssign={canEditPurposes} onClose={() => setDialog(null)} onDone={done} />
+            )}
+            {dialog?.kind === "quick" && (
+                <QuickCreateDialog data={data} csrfToken={csrfToken} onClose={() => setDialog(null)} onCreate={quickCreate} />
+            )}
+            {dialog?.kind === "edit" && (
+                <ChannelEditDialog
+                    channel={dialog.channel}
+                    data={data}
+                    canAssign={canEditPurposes}
+                    onClose={() => setDialog(null)}
+                    onSave={(changes) => applyChanges([dialog.channel.id], changes, `#${dialog.channel.name} ändern`)}
+                    onArchive={() => {
+                        const id = dialog.channel.id;
+                        setDialog(null);
+                        archive([id]);
+                    }}
+                    onAssign={() => setDialog({ kind: "assign", channel: dialog.channel })}
+                />
+            )}
+            {dialog?.kind === "bulk" && (
+                <BulkEditDialog
+                    channels={selectedChannels}
+                    data={data}
+                    focus={dialog.focus}
+                    onClose={() => setDialog(null)}
+                    onApply={(changes) => applyChanges(selectedChannels.map((c) => c.id), changes)}
+                />
+            )}
+            {dialog?.kind === "rename" && (
+                <RenameSchemaDialog channels={selectedChannels} data={data} csrfToken={csrfToken} onClose={() => setDialog(null)} onApply={applyRename} />
+            )}
+            {dialog?.kind === "delete" && (
+                <DeleteChannelsDialog
+                    names={deleteNames}
+                    onClose={() => setDialog(null)}
+                    onConfirm={(confirm) => remove(dialog.ids, deleteNames.length === 1 ? confirm : BULK_DELETE_WORD)}
+                />
+            )}
+            {dialog?.kind === "archive-settings" && (
+                <ArchiveSettingsDialog data={data} onClose={() => setDialog(null)} onSave={(input) => saveArchiveSettings(input, dialog.then)} />
             )}
         </div>
     );
