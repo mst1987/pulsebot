@@ -25,6 +25,7 @@ jest.mock("../../src/web/discordChannels", () => ({
 }));
 jest.mock("../../src/web/settingsStore",() => ({ getConfig: jest.fn(() => ({})), getRaidTemplate: jest.fn(() => null) }));
 jest.mock("../../src/web/eventMessage", () => ({ postEventMessage: jest.fn() }));
+jest.mock("../../src/web/talkOverview", () => ({ scheduleOverviewSync: jest.fn(), RAIDHELPER_CREATE_DELAY_MS: 35000 }));
 jest.mock("../../src/web/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null), listRaidEvents: jest.fn(() => []) }));
 jest.mock("../../src/web/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
@@ -39,6 +40,7 @@ const discord = require("../../src/web/discord");
 const discordChannels = require("../../src/web/discordChannels");
 const { getConfig, getRaidTemplate } = require("../../src/web/settingsStore");
 const { postEventMessage } = require("../../src/web/eventMessage");
+const { scheduleOverviewSync } = require("../../src/web/talkOverview");
 const eventStore = require("../../src/web/eventStore");
 const { createEvent, startTimeOf } = require("../../src/web/eventCreate");
 
@@ -71,6 +73,7 @@ describe("web/eventCreate", () => {
             channelId: "c1", leaderId: "7", templateId: "t1", date: "01-10-2026", time: "20:00", title: "Kara Donnerstag", description: "Treffpunkt Eingang",
         });
         expect(result).toEqual({ status: 201, body: { id: "rh-1", channelId: "c1" } });
+        expect(scheduleOverviewSync).toHaveBeenCalledWith({ delayMs: 35000 });
         expect(eventStore.listEvents("g1")).toEqual([]);
         expect(postEventMessage).not.toHaveBeenCalled();
     });
@@ -89,6 +92,7 @@ describe("web/eventCreate", () => {
             createdBy: "42",
         });
         expect(postEventMessage).toHaveBeenCalledWith(result.body.id);
+        expect(scheduleOverviewSync).toHaveBeenCalledWith();
     });
 
     it("accepts the planning fields for an EventHelper event", async () => {

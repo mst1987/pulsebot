@@ -617,6 +617,26 @@ export function getDiscordServers(): Promise<DiscordServersData> {
     return get<DiscordServersData>("/api/settings/discord-servers");
 }
 
+/** The raid overview on the talk server (#257, src/web/talkOverview.js). Times are epoch ms, 0 = never. */
+export type TalkOverviewStatus = {
+    configured: boolean;
+    channelId: string;
+    messageId: string;
+    messageUrl: string;
+    postedAt: number;
+    editedAt: number;
+    checkedAt: number;
+    error: string;
+};
+
+export function getTalkOverview(): Promise<{ status: TalkOverviewStatus }> {
+    return get<{ status: TalkOverviewStatus }>("/api/settings/talk-overview?preview=0");
+}
+
+export function repostTalkOverview(csrfToken: string | null): Promise<{ result: { status: string; error?: string }; status: TalkOverviewStatus }> {
+    return send("POST", "/api/settings/talk-overview", csrfToken, { repost: true });
+}
+
 export function getSettings(): Promise<SettingsData> {
     return get<SettingsData>("/api/settings");
 }
