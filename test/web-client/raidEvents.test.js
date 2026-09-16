@@ -104,11 +104,10 @@ describe("Neues Event dialog", () => {
         expect(page).toContain("<RaidCreateDialog");
     });
 
-    it("walks through three steps and opens a ?source link at step two", () => {
-        expect(dialog).toContain("{ n: 1, label: \"Vorlage\" }");
-        expect(dialog).toContain("{ n: 2, label: \"Termin & Kanal\" }");
-        expect(dialog).toContain("{ n: 3, label: \"Prüfen\" }");
-        expect(dialog).toMatch(/applyChoice\(data, sourceId\);\s+setStep\(2\);/);
+    it("walks through its steps and opens a ?source link past the start step", () => {
+        // the steps themselves (and the planning step, #261) are in eventCreateDialog.test.js
+        expect(dialog).toContain("const steps = stepsFor(editing, source);");
+        expect(dialog).toMatch(/applyChoice\(data, \{ kind: "event", id: sourceId \}\);\s+setStep\("termin"\);/);
     });
 
     it("explains fields in tooltips instead of hint paragraphs", () => {
@@ -117,7 +116,7 @@ describe("Neues Event dialog", () => {
     });
 
     it("reports the result as a toast and closes instead of navigating to another page", () => {
-        expect(dialog).toContain("toast(\"Event angelegt.\");");
+        expect(dialog).toContain("else toast(\"Event angelegt.\");");
         expect(dialog).toContain("onCreated();");
         expect(dialog).not.toContain("useNavigate");
     });
@@ -128,7 +127,7 @@ describe("Neues Event dialog", () => {
         expect(dialog).toContain("<Link className=\"re-link\" to=\"/raids/raid-templates\">Raid-Vorlagen</Link>");
         expect(dialog).toContain("value={t.raidhelperTemplateId}");
         expect(dialog).toContain("(data.categoryTemplates || {})[ev.categoryId]");
-        expect(dialog).toContain("(ctx.categoryTemplates || {})[chan.parentId]");
+        expect(dialog).toContain("setTemplateId((data.categoryTemplates || {})[catId] || data.defaults.templateId || \"\")");
         expect(templates).toContain("importRaidTemplates(csrfToken)");
     });
 });

@@ -39,11 +39,13 @@ function StepCell({ step, onOpen }: { step: RaidStep; onOpen: (step: RaidStep) =
     );
 }
 
-export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning }: {
+export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning, onEdit }: {
     data: RaidDetailData;
     onStep: (step: RaidStep) => void;
     onPrimary: (action: RaidPrimaryAction) => void;
     primaryRunning: boolean;
+    /** only for an own event and write access: opens the create dialog in edit mode (#261) */
+    onEdit?: () => void;
 }) {
     const ev = data.event;
     const when = eventTimeParts(ev.startTime);
@@ -72,6 +74,11 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                     </div>
                 </div>
                 <div className="rd-hero-actions">
+                    {onEdit && (
+                        <button type="button" className="ibtn" onClick={onEdit} data-tip="Event bearbeiten" data-tip-sub="Termin, Raid und Anmeldeschluss — im selben Dialog wie beim Anlegen" aria-label="Event bearbeiten">
+                            <WowIcon name="inv_misc_note_05" size={24} />
+                        </button>
+                    )}
                     <a
                         className="ibtn" href={eventPostUrl(data.guildId, ev.channelId, ev.id)} target="_blank" rel="noopener noreferrer"
                         data-tip="Event-Post in Discord" data-tip-sub={channel ? `#${channel}` : undefined} aria-label="Event-Post in Discord öffnen"

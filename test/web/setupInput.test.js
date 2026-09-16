@@ -58,6 +58,17 @@ describe("setupInput", () => {
         expect(input.historySource).toBe("none");
     });
 
+    it("takes ranges and required buffs from the event itself once it was planned (#261)", () => {
+        eventStore.getEvent.mockImplementation((id) => (id === "eh-new" ? event({
+            composition: { tank: 1, healer: 2, melee: 3, ranged: 2 }, compositionMax: { melee: 5, ranged: null },
+            raidTemplateId: "tpl", requiredBuffs: [],
+        }) : null));
+        const [ev] = collectSetupInput(["eh-new"], { now: 5000 }).events;
+        expect(ev.composition).toEqual({ tank: 1, healer: 2, melee: { min: 3, max: 5 }, ranged: 2 });
+        // the event dropped the template's buff for this one night
+        expect(ev.requiredBuffs).toEqual([]);
+    });
+
     it("returns null for unknown events", () => {
         expect(collectSetupInput(["nope"])).toBeNull();
         expect(proposeSetup("nope")).toBeNull();

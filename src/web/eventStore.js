@@ -56,17 +56,36 @@ const int = (v) => {
 };
 
 /**
+ * A melee/ranged target as `{ min, max }`: a bare number is a minimum without
+ * maximum (the shape before #261), `{ min, max }` the range the create dialog
+ * and the raid templates use. null for "not given".
+ */
+function roleTarget(raw) {
+    if (raw === undefined || raw === null || raw === "") return null;
+    const num = (v) => (v === undefined || v === null || v === "" ? null : Math.floor(Number(v)));
+    if (typeof raw === "object") return { min: num(raw.min), max: num(raw.max) };
+    return { min: num(raw), max: null };
+}
+
+/**
  * Validate and complete the planning fields of an event: game version,
- * instances, size and composition. Missing values come from the rule set
- * (config/gameVersions) — the largest default size of the chosen instances, and
- * their suggested tanks/healers at that size. Melee and ranged stay 0 unless
- * given: 0 means "no target", the damage dealers fill whatever is left.
+ * instances, size, composition and required buffs. Missing values come from
+ * the rule set (config/gameVersions) — the largest default size of the chosen
+ * instances, and their suggested tanks/healers at that size. Melee and ranged
+ * stay 0 unless given: 0 means "no target", the damage dealers fill whatever
+ * is left.
+ *
+ * Melee and ranged may be ranges (#261): `composition.melee` keeps the minimum
+ * (every reader of a plain number keeps working), `compositionMax.melee` the
+ * optional maximum (null = open). Minimums count against the size; a maximum
+ * may neither exceed the size nor fall below its minimum.
  *
  * @returns {{ value?: object, error?: string }}
  */
 function normalizePlan(input = {}) {
     const versionId = str(input.versionId) || DEFAULT_VERSION;
-    if (!rulesFor(versionId)) return { error: `Unbekannte Spielversion „${versionId}“.` };
+    const rules = rulesFor(versionId);
+    if (!rules) return { error: `Unbekannte Spielversion „${versionId}“.` };
 
     const rawIds = Array.isArray(input.instanceIds) ? input.instanceIds : [];
     const instanceIds = [...new Set(rawIds.map(str).filter(Boolean))];
@@ -89,21 +108,42 @@ function normalizePlan(input = {}) {
     // The suggestion of the biggest instance of the night — the one the size came from.
     const biggest = instances.slice().sort((a, b) => (b.defaultSize || 0) - (a.defaultSize || 0))[0] || null;
     const suggested = compositionFor(biggest, size);
+    const givenMax = input.compositionMax && typeof input.compositionMax === "object" ? input.compositionMax : {};
     const composition = {};
+    const compositionMax = { melee: null, ranged: null };
     for (const role of COMPOSITION_ROLES) {
         const raw = given[role];
+        const ranged = role === "melee" || role === "ranged";
+        if (ranged && givenMax[role] !== undefined && givenMax[role] !== null && givenMax[role] !== "") {
+            compositionMax[role] = Math.floor(Number(givenMax[role]));
+        }
         if (raw === undefined || raw === null || raw === "") {
             composition[role] = role === "tank" ? suggested.tanks : (role === "healer" ? suggested.healers : 0);
             continue;
         }
-        const n = Math.floor(Number(raw));
+        const target = ranged ? roleTarget(raw) : { min: Math.floor(Number(raw)), max: null };
+        const n = target.min === null ? 0 : target.min;
         if (!Number.isFinite(n) || n < 0) return { error: "Die Zusammensetzung braucht Zahlen ab 0." };
         composition[role] = n;
+        if (ranged && target.max !== null) compositionMax[role] = target.max;
     }
     const planned = COMPOSITION_ROLES.reduce((sum, r) => sum + composition[r], 0);
     if (planned > size) return { error: `Die Zusammensetzung (${planned}) ist größer als der Raid (${size}).` };
+    for (const [role, label] of [["melee", "Nahkampf"], ["ranged", "Fernkampf"]]) {
+        const max = compositionMax[role];
+        if (max === null) continue;
+        if (!Number.isFinite(max) || max < 0) return { error: `${label}: keine gültige Anzahl.` };
+        if (max < composition[role]) return { error: `${label}: Minimum ist größer als Maximum.` };
+        if (max > size) return { error: `${label}: Maximum ist größer als die Größe ${size}.` };
+    }
 
-    return { value: { versionId, instanceIds, size, composition } };
+    const buffKeys = new Set([...rules.partyBuffs, ...rules.raidBuffs].map((b) => b.key));
+    const rawBuffs = Array.isArray(input.requiredBuffs) ? input.requiredBuffs : [];
+    const requiredBuffs = [...new Set(rawBuffs.map(str).filter(Boolean))];
+    const unknownBuff = requiredBuffs.find((b) => !buffKeys.has(b));
+    if (unknownBuff) return { error: `Buff „${unknownBuff}“ gibt es in ${rules.label} nicht.` };
+
+    return { value: { versionId, instanceIds, size, composition, compositionMax, requiredBuffs } };
 }
 
 /** An event with every field present, as the store hands it out. */
@@ -124,9 +164,17 @@ function complete(e) {
         instanceIds: Array.isArray(e.instanceIds) ? e.instanceIds : [],
         size: Number(e.size) || 0,
         composition: { tank: 0, healer: 0, melee: 0, ranged: 0, ...(e.composition || {}) },
+        // Optional maxima of the melee/ranged targets (#261), null = open.
+        compositionMax: { melee: null, ranged: null, ...(e.compositionMax || {}) },
+        requiredBuffs: Array.isArray(e.requiredBuffs) ? e.requiredBuffs : [],
+        // The raid template the event started from ("" = none). The event keeps
+        // its own copy of the values; nothing here ever writes to the template.
+        raidTemplateId: e.raidTemplateId || "",
         signupDeadline: Number(e.signupDeadline) || 0,
         fairness: !!e.fairness,
         wishes: !!e.wishes,
+        // "Vorschlag automatisch bei Anmeldeschluss" (#261); read by the setup suggestion (#262).
+        autoSuggest: !!e.autoSuggest,
         // The setup draft/approval comes with #263; null until then.
         setup: e.setup || null,
         message: e.message && e.message.messageId ? { channelId: e.message.channelId || "", messageId: e.message.messageId } : null,
@@ -195,6 +243,8 @@ function createEvent(input = {}) {
         signupDeadline,
         fairness: input.fairness === true,
         wishes: input.wishes === true,
+        autoSuggest: input.autoSuggest === true,
+        raidTemplateId: str(input.raidTemplateId),
         createdBy: str(input.createdBy),
         createdAt: now,
         updatedAt: now,
@@ -216,7 +266,7 @@ function updateEvent(id, patch = {}) {
     if (idx < 0) return { error: "Event nicht gefunden." };
     const current = complete(events[idx]);
     const next = { ...current };
-    for (const key of ["title", "channelId", "channelName", "categoryId", "categoryName", "leaderId"]) {
+    for (const key of ["title", "channelId", "channelName", "categoryId", "categoryName", "leaderId", "raidTemplateId"]) {
         if (patch[key] !== undefined) next[key] = str(patch[key]);
     }
     if (!next.title) return { error: "Das Event braucht einen Titel." };
@@ -229,12 +279,18 @@ function updateEvent(id, patch = {}) {
     if (next.signupDeadline && next.signupDeadline > next.startTime) return { error: "Der Anmeldeschluss liegt nach dem Raidbeginn." };
     if (patch.fairness !== undefined) next.fairness = patch.fairness === true;
     if (patch.wishes !== undefined) next.wishes = patch.wishes === true;
-    if (["versionId", "instanceIds", "size", "composition"].some((k) => patch[k] !== undefined)) {
+    if (patch.autoSuggest !== undefined) next.autoSuggest = patch.autoSuggest === true;
+    if (["versionId", "instanceIds", "size", "composition", "compositionMax", "requiredBuffs"].some((k) => patch[k] !== undefined)) {
+        const pick = (key) => (patch[key] !== undefined ? patch[key] : current[key]);
         const plan = normalizePlan({
-            versionId: patch.versionId !== undefined ? patch.versionId : current.versionId,
-            instanceIds: patch.instanceIds !== undefined ? patch.instanceIds : current.instanceIds,
-            size: patch.size !== undefined ? patch.size : current.size,
-            composition: patch.composition !== undefined ? patch.composition : current.composition,
+            versionId: pick("versionId"),
+            instanceIds: pick("instanceIds"),
+            size: pick("size"),
+            composition: pick("composition"),
+            // A new composition brings its own ranges; the stored maxima stay
+            // only while the composition is not touched.
+            compositionMax: patch.compositionMax !== undefined || patch.composition === undefined ? pick("compositionMax") : {},
+            requiredBuffs: pick("requiredBuffs"),
         });
         if (plan.error) return { error: plan.error };
         Object.assign(next, plan.value);

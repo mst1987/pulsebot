@@ -1,23 +1,27 @@
-// Creating an event, for every way into it: the web's create dialog
-// (POST /api/raids) and the Discord modal (/event anlegen, #260).
+// Creating and editing an event, for every way into it: the web's create
+// dialog (POST /api/raids, PATCH /api/raids for an own event, #261) and the
+// Discord modal (/event anlegen, #260).
 //
 // Which source the event gets is decided by the category it lands in
 // (`categorySignupSource`, eventSources.signupSourceFor) unless the caller names
-// one: "raidhelper" creates it at Raid-Helper as before, "eventhelper" in the
-// own store — and posts the bot's event message into the channel. The channel
-// is chosen, cloned from an earlier event or created new the same way for both.
+// one ("Anmeldung über"): "raidhelper" creates it at Raid-Helper as before,
+// "eventhelper" in the own store — and posts the bot's event message into the
+// channel. The channel is chosen, cloned from an earlier event or created new
+// (named by the category's schema, #259) the same way for both.
 const { DateTime } = require("luxon");
 const discord = require("./discord");
 const discordChannels = require("./discordChannels");
-const { normalizeChannelName } = require("../utils/channelNames");
+const { normalizeChannelName, renderChannelName, DEFAULT_SCHEMA } = require("../utils/channelNames");
 const eventStore = require("./eventStore");
 const { getRaidEvent } = require("./raidEventStore");
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
 const { signupSourceFor } = require("./eventSources");
-const { postEventMessage } = require("./eventMessage");
+const { postEventMessage, refreshEventMessage } = require("./eventMessage");
 const { scheduleOverviewSync, RAIDHELPER_CREATE_DELAY_MS } = require("./talkOverview");
 const { raidContentIds } = require("./raidListing");
 const { getConfig, getRaidTemplate } = require("./settingsStore");
+const { getChannelConfig } = require("./channelArchiveStore");
+const { instanceById } = require("../config/gameVersions");
 const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const { toRaidHelperDate } = require("../utils/date");
 
@@ -81,22 +85,28 @@ async function sourceChannelFor(rh, guildId, sourceEventId) {
 /**
  * The planning fields a raid template proposes for an event starting at
  * `startTime`: version, instances, size, tanks/healers, the melee/ranged
- * minimums, the deadline (hours before the start) and the two switches.
- * {} when there is no such template.
+ * ranges, the required buffs, the deadline (hours before the start) and the
+ * two switches. {} when there is no such template.
+ *
+ * The values are copied: an event changed afterwards never writes back into
+ * its template ("Als Vorlage speichern" in the dialog is the only way there).
  */
 function templateDefaults(templateId, startTime) {
     const t = templateId ? getRaidTemplate(String(templateId)) : null;
     if (!t) return {};
     const comp = t.composition || {};
+    const range = (r) => (r ? { min: r.min || 0, max: r.max === undefined ? null : r.max } : 0);
     const out = {
+        raidTemplateId: t.id,
         versionId: t.versionId,
         instanceIds: t.instanceIds || [],
         composition: {
             tank: comp.tank || 0,
             healer: comp.healer || 0,
-            melee: (comp.melee && comp.melee.min) || 0,
-            ranged: (comp.ranged && comp.ranged.min) || 0,
+            melee: range(comp.melee),
+            ranged: range(comp.ranged),
         },
+        requiredBuffs: t.requiredBuffs || [],
         fairness: t.fairness === true,
         wishes: t.wishes === true,
     };
@@ -115,18 +125,115 @@ function categoryMap(guildId) {
     }
 }
 
+function categoryNameOf(guildId, categoryId) {
+    try {
+        const hit = (discord.listCategories(guildId) || []).find((c) => c.id === categoryId);
+        return hit ? hit.name : "";
+    } catch {
+        return "";
+    }
+}
+
+/**
+ * The "{raid}" of a channel name: the chosen instances' short names in lower
+ * case ("ssc-tk"), else what the category's schema stores as its raid.
+ */
+function raidTagOf(instanceIds, fallback = "") {
+    const shorts = (instanceIds || []).map((id) => instanceById(id)).filter(Boolean).map((i) => String(i.short || i.id).toLowerCase());
+    return shorts.length ? shorts.join("-") : fallback;
+}
+
+/** The naming schema a category stores (Kanäle → Schnell anlegen, #259), or {}. */
+function storedSchema(guildId, categoryId) {
+    try {
+        return (getChannelConfig(guildId).schemas || {})[categoryId] || {};
+    } catch {
+        return {};
+    }
+}
+
+/**
+ * The name a new event channel gets in a category: its stored naming schema,
+ * or the default schema, filled with the event's date and raid.
+ * @param {string} isoDate "2026-09-24"
+ */
+function schemaChannelName(guildId, categoryId, isoDate, instanceIds) {
+    const stored = storedSchema(guildId, categoryId);
+    return renderChannelName(stored.schema || DEFAULT_SCHEMA, { date: isoDate, raid: raidTagOf(instanceIds, stored.raid || "") });
+}
+
+/** "01-10-2026" or "2026-10-01" → "2026-10-01"; "" for anything else. */
+function isoDateOf(value) {
+    const m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(toRaidHelperDate(value));
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+}
+
 const fail = (status, code, message) => ({ error: { status, code, message } });
+const given = (body, key) => body[key] !== undefined && body[key] !== null && body[key] !== "";
+const PLAN_KEYS = ["versionId", "size", "composition", "compositionMax", "requiredBuffs", "signupDeadline", "fairness", "wishes", "autoSuggest"];
+
+/**
+ * The deadline as unix seconds: `signupDeadlineHours` (the dialog's "Stunden
+ * vor Start", counted from the Berlin start time here so the browser's time
+ * zone never matters) wins over an absolute `signupDeadline`. undefined when
+ * the body names neither; 0 = no deadline.
+ */
+function deadlineFrom(body, startTime) {
+    if (given(body, "signupDeadlineHours")) {
+        const hours = Number(body.signupDeadlineHours);
+        return Number.isFinite(hours) && hours > 0 ? startTime - Math.round(hours * 3600) : 0;
+    }
+    return body.signupDeadline === undefined ? undefined : Number(body.signupDeadline) || 0;
+}
+
+/**
+ * The planning fields of a new own event: what the body sends wins, the rest
+ * comes from the raid template (the chosen one, else the category's default,
+ * #266), the instances last from the title. Validated as a whole.
+ * @returns {{ plan?: object, error?: object }}
+ */
+function planFor(body, categoryId, title, startTime) {
+    const templateId = body.raidTemplateId || (getConfig().categoryRaidTemplate || {})[categoryId];
+    const template = templateDefaults(templateId, startTime);
+    const merged = { ...template };
+    for (const key of PLAN_KEYS) {
+        if (given(body, key)) merged[key] = body[key];
+    }
+    const deadline = deadlineFrom(body, startTime);
+    if (deadline !== undefined && given(body, "signupDeadlineHours")) merged.signupDeadline = deadline;
+    merged.instanceIds = Array.isArray(body.instanceIds) && body.instanceIds.length
+        ? body.instanceIds
+        : ((template.instanceIds || []).length ? template.instanceIds : raidContentIds({ title }).contentIds);
+    const checked = eventStore.normalizePlan(merged);
+    if (checked.error) return { error: fail(400, "invalid_plan", checked.error) };
+    const signupDeadline = Number(merged.signupDeadline) || 0;
+    if (signupDeadline && signupDeadline > startTime) return { error: fail(400, "invalid_plan", "Der Anmeldeschluss liegt nach dem Raidbeginn.") };
+    return {
+        plan: {
+            ...checked.value,
+            signupDeadline,
+            fairness: merged.fairness === true,
+            wishes: merged.wishes === true,
+            autoSuggest: merged.autoSuggest === true,
+            raidTemplateId: template.raidTemplateId || "",
+        },
+    };
+}
 
 /**
  * Create an event from the create dialog's body.
  *
- * Body: { title, date, time, description, leaderId, templateId, channelId |
- * sourceEventId + channelName | newChannel: { name, categoryId,
- * templateChannelId } }, an optional signupSource ("raidhelper" | "eventhelper",
- * else the category's default) plus, for an EventHelper category, the
- * optional planning fields { versionId, instanceIds, size, composition,
- * signupDeadline (unix seconds), fairness, wishes }. Missing planning fields
- * come from the rule set; missing instances are read from the title.
+ * Body: { title, date, time, description, leaderId, templateId (Raid-Helper),
+ * and one of: channelId | sourceEventId (+ channelName) | newChannel: { name,
+ * categoryId, templateChannelId } }, an optional signupSource ("raidhelper" |
+ * "eventhelper", else the category's default) plus, for an EventHelper event,
+ * the optional planning fields { raidTemplateId, versionId, instanceIds, size,
+ * composition { tank, healer, melee, ranged } (melee/ranged a number or
+ * { min, max }), requiredBuffs, signupDeadline (unix seconds) or
+ * signupDeadlineHours, fairness, wishes, autoSuggest }. Missing planning
+ * fields come from the raid template, then the rule set; missing instances are
+ * read from the title. A cloned or new channel without a name is named by the
+ * category's schema.
  *
  * @param {{ guildId: string, user?: { id: string }, body: object }} input
  * @returns {Promise<{ status: number, body: object } | { error: { status: number, code: string, message: string } }>}
@@ -140,8 +247,9 @@ async function createEvent({ guildId, user, body = {} }) {
     let channelId = String(body.channelId || "").trim();
     const sourceEventId = String(body.sourceEventId || "").trim();
     let sourceChannel = null;
-    // A channel made for this event (the Discord modal's "neu nach Schema"): like
-    // a clone it is only created once everything else has been checked.
+    // A channel made for this event ("neu nach Schema" in the Discord modal and
+    // the web dialog): like a clone it is only created once everything else has
+    // been checked. A name left empty is filled from the category's schema below.
     const newChannel = !channelId && !sourceEventId && body.newChannel && typeof body.newChannel === "object"
         ? {
             name: normalizeChannelName(body.newChannel.name),
@@ -149,7 +257,7 @@ async function createEvent({ guildId, user, body = {} }) {
             templateChannelId: String(body.newChannel.templateChannelId || "").trim(),
         }
         : null;
-    if (newChannel && !newChannel.name) return fail(400, "no_channel", "Der neue Kanal braucht einen Namen.");
+    if (newChannel && !newChannel.name && !newChannel.categoryId) return fail(400, "no_channel", "Der neue Kanal braucht einen Namen.");
     if (sourceEventId) {
         sourceChannel = await sourceChannelFor(rh, guildId, sourceEventId);
         if (!sourceChannel.channelId) return fail(400, sourceChannel.code, sourceChannel.message);
@@ -161,9 +269,9 @@ async function createEvent({ guildId, user, body = {} }) {
     // channel in the category it was asked for.
     const lookupChannel = sourceChannel ? sourceChannel.channelId : channelId;
     const meta = catMap[lookupChannel]
-        || (newChannel ? { categoryId: newChannel.categoryId, categoryName: (catMap[newChannel.categoryId] || {}).name || "" } : {});
+        || (newChannel ? { categoryId: newChannel.categoryId, categoryName: (catMap[newChannel.categoryId] || {}).name || categoryNameOf(guildId, newChannel.categoryId) } : {});
     const categoryId = meta.categoryId || (sourceChannel && sourceChannel.categoryId) || "";
-    // The Discord modal may pick the other source for one event; the category only proposes it.
+    // The caller may pick the other source for one event; the category only proposes it.
     const source = SOURCES.includes(body.signupSource) ? body.signupSource : signupSourceFor(categoryId);
 
     const title = String(body.title || "").trim();
@@ -175,34 +283,24 @@ async function createEvent({ guildId, user, body = {} }) {
         if (!title) return fail(400, "invalid_title", "Das Event braucht einen Titel.");
         startTime = startTimeOf(date, body.time);
         if (!startTime) return fail(400, "invalid_time", "Ungültige Uhrzeit.");
-        // What the body leaves open comes from the raid template (the chosen one,
-        // else the category's default, #266), the instances last from the title.
-        const template = templateDefaults(body.raidTemplateId || (getConfig().categoryRaidTemplate || {})[categoryId], startTime);
-        const given = (key) => body[key] !== undefined && body[key] !== null && body[key] !== "";
-        const merged = { ...template };
-        for (const key of ["versionId", "size", "composition", "signupDeadline", "fairness", "wishes"]) {
-            if (given(key)) merged[key] = body[key];
-        }
-        merged.instanceIds = Array.isArray(body.instanceIds) && body.instanceIds.length
-            ? body.instanceIds
-            : ((template.instanceIds || []).length ? template.instanceIds : raidContentIds({ title }).contentIds);
-        const checked = eventStore.normalizePlan(merged);
-        if (checked.error) return fail(400, "invalid_plan", checked.error);
-        plan = { ...checked.value, signupDeadline: merged.signupDeadline, fairness: merged.fairness, wishes: merged.wishes };
+        const planned = planFor(body, categoryId, title, startTime);
+        if (planned.error) return planned.error;
+        plan = planned.plan;
     }
 
     let channelName = "";
     try {
+        const bySchema = () => schemaChannelName(guildId, categoryId, isoDateOf(body.date), plan ? plan.instanceIds : body.instanceIds);
         if (sourceChannel) {
-            const cloned = await discord.duplicateChannel(sourceChannel.channelId, String(body.channelName || "").trim());
+            const cloned = await discord.duplicateChannel(sourceChannel.channelId, String(body.channelName || "").trim() || bySchema());
             channelId = cloned.id;
             channelName = cloned.name || "";
         } else if (newChannel) {
-            const created = await discordChannels.createFromTemplate(guildId, {
-                name: newChannel.name, parentId: newChannel.categoryId, templateChannelId: newChannel.templateChannelId,
-            });
+            const name = newChannel.name || bySchema();
+            const templateChannelId = newChannel.templateChannelId || storedSchema(guildId, categoryId).templateChannelId || "";
+            const created = await discordChannels.createFromTemplate(guildId, { name, parentId: newChannel.categoryId, templateChannelId });
             channelId = created.id;
-            channelName = created.name || "";
+            channelName = created.name || name;
         }
     } catch (e) {
         if (newChannel) return fail(400, "create_failed", `Kanal konnte nicht angelegt werden: ${discordChannels.discordErrorText(e)}`);
@@ -210,11 +308,13 @@ async function createEvent({ guildId, user, body = {} }) {
     }
 
     if (source === "raidhelper") {
+        // A raid template that links a Raid-Helper template stands in for a missing id.
+        const linked = !String(body.templateId || "").trim() && body.raidTemplateId ? getRaidTemplate(String(body.raidTemplateId)) : null;
         try {
             const result = await rh.createEvent({
                 channelId,
                 leaderId: String(body.leaderId || "").trim(),
-                templateId: String(body.templateId || "").trim(),
+                templateId: String(body.templateId || "").trim() || (linked && linked.raidhelperTemplateId) || "",
                 date,
                 time: String(body.time || "").trim(),
                 title,
@@ -260,4 +360,55 @@ async function createEvent({ guildId, user, body = {} }) {
     return { status: 201, body: { id: event.id, source: "eventhelper", event, messageError } };
 }
 
-module.exports = { createEvent, sourceChannelFor, startTimeOf };
+/**
+ * Change an own event from the same dialog (PATCH /api/raids, #261).
+ *
+ * Body: { id, title, date, time, description, leaderId } plus the planning
+ * fields as on create. The channel stays — moving an event elsewhere is not an
+ * edit. Only fields present in the body change, and the raid template the
+ * event came from is never touched. A Raid-Helper event is refused: it is
+ * edited at Raid-Helper.
+ *
+ * @param {{ guildId: string, body: object }} input
+ */
+async function updateEvent({ guildId, body = {} }) {
+    const id = String(body.id || "").trim();
+    if (!eventStore.isOwnEventId(id)) return fail(400, "not_own_event", "Nur EventHelper-Events lassen sich hier bearbeiten.");
+    const current = eventStore.getEvent(id);
+    if (!current || (guildId && current.guildId && current.guildId !== guildId)) return fail(404, "not_found", "Event nicht gefunden.");
+
+    const patch = {};
+    for (const key of ["title", "description", "leaderId", "instanceIds", ...PLAN_KEYS]) {
+        if (body[key] !== undefined) patch[key] = body[key];
+    }
+    if (body.date !== undefined || body.time !== undefined) {
+        const cur = DateTime.fromSeconds(current.startTime, { zone: ZONE });
+        const date = body.date !== undefined ? toRaidHelperDate(body.date) : cur.toFormat("dd-MM-yyyy");
+        if (!date) return fail(400, "invalid_date", "Ungültiges Datum.");
+        const startTime = startTimeOf(date, body.time !== undefined ? body.time : cur.toFormat("HH:mm"));
+        if (!startTime) return fail(400, "invalid_time", "Ungültige Uhrzeit.");
+        patch.startTime = startTime;
+    }
+    for (const key of ["fairness", "wishes", "autoSuggest"]) {
+        if (patch[key] !== undefined) patch[key] = patch[key] === true;
+    }
+    const deadline = deadlineFrom(body, patch.startTime || current.startTime);
+    if (deadline !== undefined) patch.signupDeadline = deadline;
+
+    const updated = eventStore.updateEvent(id, patch);
+    if (updated.error) return fail(400, "invalid_plan", updated.error);
+
+    let messageError = null;
+    try {
+        await refreshEventMessage(id);
+    } catch (e) {
+        messageError = e.message || "Die Event-Nachricht konnte nicht aktualisiert werden.";
+    }
+    // Title and time also show in the talk server's overview (#257).
+    scheduleOverviewSync();
+    return { status: 200, body: { id, source: "eventhelper", event: updated.event, messageError } };
+}
+
+module.exports = {
+    createEvent, updateEvent, sourceChannelFor, startTimeOf, templateDefaults, schemaChannelName, raidTagOf,
+};
