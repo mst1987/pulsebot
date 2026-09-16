@@ -50,6 +50,7 @@ const ACTION_LABELS = {
     ping: "Fehlende gepingt",
     cancel: "Abgesagt",
     reopen: "Absage zurückgenommen",
+    series: "Von Serie angelegt",
 };
 
 const STATUS_LABELS = {

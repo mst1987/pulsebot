@@ -123,6 +123,10 @@ const AREA_BY_PATH = {
     "/api/raids/manage/raider/remove": "raids",
     "/api/raids/manage/cancel": "raids",
     "/api/raids/manage/reopen": "raids",
+    // Recurring events (#289): the list and the preview read, save/delete/run write.
+    "/api/raids/series": "raids",
+    "/api/raids/series/preview": "raids",
+    "/api/raids/series/run": "raids",
     // The game version rule sets (classes, instances, buffs) feed the raid planning.
     "/api/game-versions": "raids",
     // Anmelde-Aufruf and raid templates are edited from the raid pages. The raid

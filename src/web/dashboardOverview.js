@@ -6,6 +6,7 @@
 // No I/O in this file: dashboardData.js loads, this file decides. That keeps the
 // rules (which task is shown when, how full a role is) testable without mocking
 // Raid-Helper, Discord and five stores.
+const { DateTime } = require("luxon");
 const { contentsForText } = require("../config/tbcContent");
 const { enrichSlot, CLASS_COLORS } = require("../utils/setupView");
 const { signupStatus } = require("../utils/attendance");
@@ -214,9 +215,13 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
  * @param {object[]} p.inbox         pending addon-inbox sessions ({ items })
  * @param {object|null} p.archive    { count, overdue, hintDays } of the channel archive (channelArchiveStore.archiveHint)
  * @param {object|null} p.roleDrift  from roleSync.loadDrift(): { groups, total }
+ * @param {object[]} p.seriesFailures from eventSeries.seriesFailures(): { categoryId, categoryName, date, error }
  */
-function buildTasks({ nextRaids = [], recentEvents = [], report = null, inbox = [], archive = null, roleDrift = null }) {
+function buildTasks({ nextRaids = [], recentEvents = [], report = null, inbox = [], archive = null, roleDrift = null, seriesFailures = [] }) {
     const tasks = [];
+
+    const seriesTask = eventSeriesTask(seriesFailures);
+    if (seriesTask) tasks.push(seriesTask);
 
     const noSheet = (nextRaids || []).filter((r) => !r.sheet);
     if (noSheet.length) {
@@ -310,7 +315,30 @@ function roleDriftTask(roleDrift) {
     };
 }
 
+/**
+ * "Serie konnte Event nicht anlegen: fehlende Rechte" (#289) — a recurring
+ * event whose date failed stays failed after a few attempts; the task says
+ * which date and why, and leads to the series page where it is retried.
+ */
+function eventSeriesTask(failures) {
+    const list = failures || [];
+    if (!list.length) return null;
+    const first = list[0];
+    const day = DateTime.fromISO(first.date, { zone: "Europe/Berlin" }).setLocale("de");
+    const when = day.isValid ? day.toFormat("ccc dd.MM.") : first.date;
+    return {
+        id: "series", tone: "bad", tile: "raids", icon: "spell_holy_borrowedtime",
+        title: `Serie konnte Event nicht anlegen: ${first.error}`,
+        ref: { text: `${first.categoryName || "Kategorie"} · ${when}` },
+        count: list.length > 1 ? list.length : 0,
+        href: "/raids/series",
+        tip: list.length > 1 ? `${list.length} Termine von Serien fehlgeschlagen` : "Termin einer Serie fehlgeschlagen",
+        tipSub: "Die Serie hat das Event dieses Termins nicht anlegen können. Sie versucht es höchstens dreimal im Abstand von 10 Minuten, danach nur noch auf Knopfdruck. Öffnet Raid-Events › Serien mit Grund und „Erneut versuchen“.",
+    };
+}
+
 module.exports = {
+    eventSeriesTask,
     ZONE_ICONS, FALLBACK_ZONE_ICON, ROLE_TARGETS, ROLES,
     zoneFor, raidSize, roleBucket, roleFill, classCounts, notSignedUp,
     openRecommendations, lastReportArea, newLootSince, buildTasks, roleDriftTask, isAttending,
