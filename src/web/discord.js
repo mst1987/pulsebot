@@ -146,6 +146,37 @@ async function fetchGuildMembersCached(guildId, guild) {
     return members;
 }
 
+// What the bot needs on a server (Einstellungen → Verbindungen → Discord-Server).
+// "Mitglieder lesen" is no channel permission but the privileged GuildMembers
+// intent — without it the member list (attendance, overlap, role sync) is empty.
+const REQUIRED_BOT_PERMISSIONS = [
+    { key: "ManageChannels", label: "Kanäle verwalten" },
+    { key: "SendMessages", label: "Nachrichten senden" },
+    { key: "EmbedLinks", label: "Links einbetten" },
+    { key: "ManageRoles", label: "Rollen verwalten" },
+    { key: "GuildMembers", label: "Mitglieder lesen", intent: true },
+];
+
+/**
+ * The bot's rights on one server, one entry per REQUIRED_BOT_PERMISSIONS item:
+ * `[{ key, label, ok }]`. Null when nothing can be known — the bot is not on
+ * that server or not connected yet — which the page must show as "unknown",
+ * never as "every right missing".
+ */
+function botPermissionsIn(guildId) {
+    const guild = getGuild(guildId);
+    const me = guild && guild.members ? guild.members.me : null;
+    if (!guild || !me || !me.permissions) return null;
+    const intents = client && client.options ? client.options.intents : null;
+    return REQUIRED_BOT_PERMISSIONS.map((p) => ({
+        key: p.key,
+        label: p.label,
+        ok: p.intent
+            ? !!(intents && typeof intents.has === "function" && intents.has(p.key))
+            : me.permissions.has(PermissionsBitField.Flags[p.key]),
+    }));
+}
+
 /**
  * Guild members that hold at least one of the given roles, for the event
  * attendance check. Fetching the full member list needs the privileged
@@ -737,6 +768,7 @@ module.exports = {
     listCategories, listAllChannels, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,
     listMembersWithRoles, postMissingPing, _resetMembersCacheForTests,
+    fetchGuildMembersCached, botPermissionsIn, REQUIRED_BOT_PERMISSIONS,
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,
     isRecruitmentMessage, extractTemplate,
     listApplications, parseApplicationEmbed,

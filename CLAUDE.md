@@ -142,9 +142,11 @@ module.exports = {
 
 The `name` field is used as the lookup key in `client.commands`. This same mechanism handles both slash commands (`interaction.commandName`) and button interactions (`interaction.customId`). The button custom IDs in `createOverview.js` (`update-events`, `show-signups`, `show-mysetups`, `show-allsetups`) must exactly match the `name` fields of the corresponding command files.
 
+The router (`handleInteraction` in `bot.js`) passes slash commands, buttons, modals and **every select menu kind** (string, user, role, channel, mentionable) to `execute()`, looked up by `name` or by the customId before `:`. **Autocomplete** goes to the command's optional `autocomplete(interaction)` instead; a command without one (or one that throws) answers an empty list — Discord allows no other reply to an autocomplete.
+
 When adding a new command:
 1. Create the file in the appropriate `src/commands/<category>/` folder
-2. Add its definition to `scripts/register-commands.js` and re-run `npm run register`
+2. Add its definition to `scripts/register-commands.js` and re-run `npm run register` — it registers for **every configured server** (event + talk, see "Zwei Discord-Server"), `--guild <id>` for exactly one, `--global` globally. Requiring the script does nothing; only running it talks to Discord.
 
 ## Environment Variables
 
@@ -273,6 +275,16 @@ Anything the admin keeps several of — raidsheets, Aufruf-Vorlagen, Recruitment
 - **Recruitment opens its editors as modals over the list** instead (design #215): same url params, but the editor is a `Modal` with the live Discord preview (`components/DiscordPreview.tsx`, markdown parsed by `lib/discordMarkdown.ts`, whose regexes are held identical to the tested twin `src/utils/discordMarkdown.js`) beside the fields, so the other templates stay in view. `?editpost=new` is the "Nachricht posten" dialog. A post remembers the `templateId` it was posted from; an application's `status` ("neu" = younger than 7 days, nothing stored) and class/spec icons come from `src/web/recruitmentApplications.js`.
 
 `test/web-client/listSection.test.js` holds the line, including a scan that no page renders `entries.map(e => <SomethingForm …/>)` again.
+
+### Zwei Discord-Server (event server and talk server)
+
+The bot can work with two servers (#251): the **Event-Discord** (event channels, Raid-Helper, the admin-role check) and the **Kommunikations-Discord** (raid overview, sign-up per bot, pings). Everything empty = the old one-server behaviour.
+
+- **Stored** as `config.discordServers = { eventGuildId, talkGuildId, talkOverviewChannelId, talkPingChannelId }` (settingsStore's `normalizeDiscordServers`: snowflakes only, a talk server equal to the event server is cleared). `config.guildId` stays the **fallback**: `getConfig().guildId` reports the event server once one is set, and saving an event server writes it into `guildId` too — so `auth.js`, `activeGuild.js` and everything else reading `guildId` follow without change.
+- **Read** through `src/web/guildRoles.js`: `eventGuildId()`/`talkGuildId()`/`configuredGuildIds()` (pure over a config), `guildRole(id)` (`"event" | "talk" | ""`), `eventGuild()`/`talkGuild()` (status cards: connected, member count, `permissions` from `discord.botPermissionsIn()` — null = not knowable, never "all missing") and `memberOverlap()` (human members of the event server also on the talk server, via `fetchGuildMembersCached`; failures come back as `error`, never thrown).
+- **Edited** in Einstellungen → Verbindungen → *Discord-Server* (`components/SettingsDiscordServers.tsx`, section `discordserver`, adminOnly + standalone): two cards, the rights as "4 von 5" with the list in the tooltip, a dialog that PATCHes only this block. `GET /api/settings/discord-servers` serves cards, overlap and every bot server with its text channels. `discordServers` is **full-admin-only** (`GUILD_KEYS` in `apiRoutes/settings.js`): the event server decides whose roles count.
+- **The web server switcher stays** — it still offers every server the bot is on (the Kanäle page edits both servers through it) and only shows the role as an *Event*/*Talk* badge (`/api/session` tags `guilds[].role`).
+- The Discord & Raid-Helper card no longer edits `guildId`; that moved into the dialog above.
 
 ### Role permissions (who may see/do what)
 

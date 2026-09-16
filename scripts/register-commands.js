@@ -1,23 +1,59 @@
-﻿const args = process.argv.slice(2);
-const isDev = args.includes("--dev");
-const envFile = isDev ? ".env.dev" : ".env";
-require("dotenv").config({ path: envFile });
-
+﻿// Registers the slash commands with Discord.
+//
+//   npm run register               every configured server (event + talk, #251)
+//   node scripts/register-commands.js --guild <id>   exactly that server
+//   npm run register:global        globally (takes ~1 hour to show up)
+//   npm run register:clear         remove the commands (same targets as above)
+//   --dev                          read .env.dev instead of .env
+//
+// The server ids come from the settings store (Einstellungen → Verbindungen →
+// Discord-Server) with GUILD_ID from the env file as the fallback. Requiring
+// this file does nothing; only running it talks to Discord.
 const { REST, Routes } = require("discord.js");
 
-const token = process.env.DISCORDJS_BOT_TOKEN;
-const clientId = process.env.CLIENT_ID;
-const guildId = process.env.GUILD_ID;
-
-if (!token || !clientId || !guildId) {
-    console.error(`ERROR: DISCORDJS_BOT_TOKEN, CLIENT_ID, and GUILD_ID must be set in ${envFile}`);
-    process.exit(1);
+/** The command line as flags: `{ dev, global, clear, guild }` (guild "" = not given). */
+function parseArgs(argv) {
+    const idx = argv.indexOf("--guild");
+    const next = idx > -1 ? String(argv[idx + 1] || "") : "";
+    return {
+        dev: argv.includes("--dev"),
+        global: argv.includes("--global"),
+        clear: argv.includes("--clear"),
+        guild: next.startsWith("--") ? "" : next.trim(),
+    };
 }
 
-const isGlobal = args.includes("--global");
-const isClear = args.includes("--clear");
+/**
+ * The servers to register for: the one named by `--guild`, otherwise every
+ * configured server (event first, then talk), otherwise the env's GUILD_ID.
+ */
+function targetGuildIds({ guildArg = "", configuredIds = [], envGuildId = "" } = {}) {
+    if (guildArg) return [guildArg];
+    const ids = [...new Set(configuredIds.map((id) => String(id || "").trim()).filter(Boolean))];
+    if (ids.length) return ids;
+    return envGuildId ? [String(envGuildId).trim()] : [];
+}
 
-const rest = new REST({ version: "10" }).setToken(token);
+/**
+ * Put the command list (or an empty one with `clear`) on every target. One
+ * server failing does not stop the others; the failures come back as
+ * `[{ target, error }]`, so the caller can exit non-zero.
+ */
+async function registerCommands({ rest, routes = Routes, clientId, guildIds = [], global = false, clear = false, body = commands, log = console.log }) {
+    const targets = global
+        ? [{ label: "global", route: routes.applicationCommands(clientId) }]
+        : guildIds.map((id) => ({ label: `guild ${id}`, route: routes.applicationGuildCommands(clientId, id) }));
+    const failures = [];
+    for (const target of targets) {
+        try {
+            await rest.put(target.route, { body: clear ? [] : body });
+            log(clear ? `Cleared all commands (${target.label}).` : `Registered ${body.length} slash commands (${target.label}).`);
+        } catch (error) {
+            failures.push({ target: target.label, error });
+        }
+    }
+    return failures;
+}
 
 const commands = [
     {
@@ -91,22 +127,34 @@ const commands = [
     },
 ];
 
-(async () => {
-    try {
-        const route = isGlobal
-            ? Routes.applicationCommands(clientId)
-            : Routes.applicationGuildCommands(clientId, guildId);
+async function main(argv) {
+    const flags = parseArgs(argv);
+    const envFile = flags.dev ? ".env.dev" : ".env";
+    require("dotenv").config({ path: envFile });
+    // Loaded after dotenv: config/variables reads the env at require time.
+    const { getConfig } = require("../src/web/settingsStore");
+    const { configuredGuildIds } = require("../src/web/guildRoles");
 
-        if (isClear) {
-            await rest.put(route, { body: [] });
-            console.log(`Cleared all ${isGlobal ? "global" : "guild"} commands.`);
-            return;
-        }
-
-        await rest.put(route, { body: commands });
-        console.log(`Registered ${commands.length} ${isGlobal ? "global" : "guild"} slash commands.`);
-    } catch (error) {
-        console.error("Failed to register commands:", error);
+    const token = process.env.DISCORDJS_BOT_TOKEN;
+    const clientId = process.env.CLIENT_ID;
+    const guildIds = targetGuildIds({
+        guildArg: flags.guild,
+        configuredIds: configuredGuildIds(getConfig()),
+        envGuildId: process.env.GUILD_ID,
+    });
+    if (!token || !clientId || (!flags.global && !guildIds.length)) {
+        console.error(`ERROR: DISCORDJS_BOT_TOKEN and CLIENT_ID must be set in ${envFile}, and a server configured (Einstellungen, GUILD_ID or --guild <id>).`);
         process.exit(1);
     }
-})();
+
+    const rest = new REST({ version: "10" }).setToken(token);
+    const failures = await registerCommands({ rest, clientId, guildIds, global: flags.global, clear: flags.clear });
+    for (const f of failures) console.error(`Failed to register commands (${f.target}):`, f.error);
+    if (failures.length) process.exit(1);
+}
+
+if (require.main === module) {
+    main(process.argv.slice(2));
+}
+
+module.exports = { commands, parseArgs, targetGuildIds, registerCommands };
