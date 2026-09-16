@@ -98,6 +98,7 @@ export type DraftShape = {
     raidChannelId: string;
     categoryLootTool: Record<string, string>;
     categorySignupSource?: Record<string, string>;
+    categorySetupDms?: Record<string, boolean>;
     categorySheets: Record<string, { url: string; name: string }>;
     categoryRaidTemplate?: Record<string, string>;
     topItems: { id: number }[];
@@ -143,6 +144,7 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         ...Object.keys(saved.categoryRoles || {}), ...Object.keys(draft.categoryRoles || {}),
         ...Object.keys(saved.categoryLootTool || {}), ...Object.keys(draft.categoryLootTool || {}),
         ...Object.keys(saved.categorySignupSource || {}), ...Object.keys(draft.categorySignupSource || {}),
+        ...Object.keys(saved.categorySetupDms || {}), ...Object.keys(draft.categorySetupDms || {}),
         ...Object.keys(saved.categorySheets || {}), ...Object.keys(draft.categorySheets || {}),
     ])];
     for (const id of categories) {
@@ -157,6 +159,9 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const sourceWas = (saved.categorySignupSource || {})[id] || "raidhelper";
         const sourceIs = (draft.categorySignupSource || {})[id] || "raidhelper";
         if (sourceWas !== sourceIs) out.push(`${name} · Neue Events → ${sourceIs === "eventhelper" ? "EventHelper" : "Raid-Helper"}`);
+        const dmsWas = (saved.categorySetupDms || {})[id] === true;
+        const dmsIs = (draft.categorySetupDms || {})[id] === true;
+        if (dmsWas !== dmsIs) out.push(`${name} · Setup-DMs ${dmsIs ? "an" : "aus"}`);
         const sheetWas = (saved.categorySheets || {})[id] || { url: "", name: "" };
         const sheetIs = (draft.categorySheets || {})[id] || { url: "", name: "" };
         if ((sheetWas.url || "").trim() !== (sheetIs.url || "").trim() || (sheetWas.name || "").trim() !== (sheetIs.name || "").trim()) {

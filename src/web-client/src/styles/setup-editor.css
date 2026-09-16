@@ -9,6 +9,18 @@
 .se-bar-hint { color: var(--muted); font-size: 12.5px; margin-left: 6px; flex: 1 1 120px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .se-bar-act { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
 
+/* the setup in the channel (#290): one line under the bar, the details in its tooltip */
+.se-publish { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: -6px; padding: 6px 14px; border-left: 3px solid var(--line); border-radius: 8px; color: var(--muted); font-size: 12.5px; }
+.se-publish-text { flex: 1 1 200px; min-width: 0; cursor: help; }
+.se-publish-ok { border-left-color: var(--good); }
+.se-publish-ok .se-publish-text { color: var(--text); }
+.se-publish-mid { border-left-color: var(--medium); }
+.se-publish-mid .se-publish-text { color: var(--medium); }
+.se-publish-bad { border-left-color: var(--high); background: var(--high-bg); }
+.se-publish-bad .se-publish-text { color: var(--high); }
+.se-publish-link { color: var(--accent); text-decoration: none; font-size: 12px; }
+.se-publish-link:hover { text-decoration: underline; }
+
 .se-layout { display: grid; grid-template-columns: minmax(0, 1fr) 230px 230px; gap: 14px; align-items: start; }
 .se-layout.se-readonly { grid-template-columns: minmax(0, 1fr) 230px; }
 .se-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }

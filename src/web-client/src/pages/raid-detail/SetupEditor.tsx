@@ -11,11 +11,11 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from "react";
 import { Link } from "react-router-dom";
 import {
-    approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, proposeRaidSetup, saveRaidSetup,
+    approveRaidSetup, explainRaidSetup, getRaidSetup, getRaidSetupExplain, proposeRaidSetup, publishRaidSetup, saveRaidSetup,
     type ApiError, type SetupEditorData, type SetupEditorGroup, type SetupPerson, type SetupPlacementInput, type StoredSetup,
 } from "../../api";
 import {
-    applyLocal, dpsCheck, moveRaider, peopleOf, roleTarget, toInput, toggleLock, withAllGroups, GROUP_SIZE,
+    applyLocal, dpsCheck, moveRaider, peopleOf, publishHint, roleTarget, toInput, toggleLock, withAllGroups, GROUP_SIZE,
     type SetupTarget,
 } from "../../lib/setupEditor";
 import { wowIconUrl } from "../../lib/wowIcon";
@@ -374,6 +374,49 @@ function ExplainModal({ open, onClose, ctx, data, setup, onDone }: {
     );
 }
 
+const clock = (ms: number) => {
+    if (!ms) return "";
+    const d = new Date(ms);
+    const sameDay = d.toDateString() === new Date().toDateString();
+    return d.toLocaleString("de-DE", sameDay
+        ? { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" }
+        : { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+};
+
+/**
+ * One calm line under the bar (#290): before the approval what it will post and
+ * send, after it what it did — the details in the tooltip, one "Setup posten".
+ */
+function PublishLine({ data, setup, busy, posting, onPost }: {
+    data: SetupEditorData;
+    setup: StoredSetup;
+    busy: boolean;
+    posting: boolean;
+    onPost: () => void;
+}) {
+    const hint = publishHint(data.publish, setup.status === "approved", clock);
+    if (!hint) return null;
+    return (
+        <div className={`se-publish${hint.tone ? ` se-publish-${hint.tone}` : ""}`}>
+            <WowIcon name="inv_letter_15" size={18} />
+            <span className="se-publish-text" data-tip={hint.tip} data-tip-sub={hint.sub}>{hint.text}</span>
+            {!data.publish?.dmsEnabled && !hint.canPost && !data.publish?.cancelled && (
+                <Link className="se-publish-link" to="/settings?section=kategorien">DMs einschalten</Link>
+            )}
+            {hint.canPost && (
+                <Button
+                    variant="ghost" size="sm" icon="inv_letter_15" running={posting || hint.running} disabled={busy}
+                    data-tip="Setup posten"
+                    data-tip-sub="Postet das freigegebene Setup in den Event-Kanal oder aktualisiert die Nachricht dort und schickt DMs, die noch fehlen. Ein Entwurf wird nie gepostet."
+                    onClick={onPost}
+                >
+                    Setup posten
+                </Button>
+            )}
+        </div>
+    );
+}
+
 /** The approved lineup, read-only — what someone without write access sees. */
 function ReadOnly({ data }: { data: SetupEditorData }) {
     const approved = data.approved;
@@ -399,6 +442,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     const [selected, setSelected] = useState<string | null>(null);
     const [dragging, setDragging] = useState<string | null>(null);
     const [dialog, setDialog] = useState<"weights" | "explain" | null>(null);
+    const [posting, setPosting] = useState(false);
     const saving = useRef(0);
 
     const load = useCallback(() => {
@@ -414,6 +458,19 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
     }, [selected]);
 
     const setup = data?.setup || null;
+
+    // The DMs of an approval run on in the background: poll only their state, so
+    // a move the orga makes meanwhile is never overwritten by an older lineup.
+    const dmsRunning = data?.publish?.dms?.status === "running";
+    useEffect(() => {
+        if (!dmsRunning) return undefined;
+        const timer = setInterval(() => {
+            getRaidSetup(ctx.eventId)
+                .then((next) => setData((prev) => (prev ? { ...prev, publish: next.publish } : prev)))
+                .catch(() => undefined);
+        }, 3000);
+        return () => clearInterval(timer);
+    }, [dmsRunning, ctx.eventId]);
 
     // Moves come faster than answers. Every save waits for the one before it and
     // carries the version the server last confirmed, and the next move builds on
@@ -516,6 +573,20 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         }
     };
 
+    const post = async () => {
+        setPosting(true);
+        try {
+            await chain.current;
+            const next = await publishRaidSetup(ctx.csrfToken, ctx.eventId);
+            accept(next, next.message);
+        } catch (e) {
+            jobs.notify((e as ApiError).message || "Posten fehlgeschlagen.", "err");
+            load();
+        } finally {
+            setPosting(false);
+        }
+    };
+
     if (error) return <div className="empty">Setup nicht geladen: {error.message}</div>;
     if (!data) return <RaidLoader text="Setup wird geladen" compact />;
     if (!data.canWrite) return <ReadOnly data={data} />;
@@ -556,6 +627,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                     </Button>
                 </div>
             </div>
+            <PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} />
 
             <div className="se-layout">
                 <div className="se-groups">

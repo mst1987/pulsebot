@@ -18,7 +18,7 @@ jest.mock("fs", () => {
 
 const fs = require("fs");
 const {
-    listEvents, getEvent, createEvent, updateEvent, setEventMessage, deleteEvent, normalizePlan, isOwnEventId,
+    listEvents, getEvent, createEvent, updateEvent, setEventMessage, deleteEvent, normalizePlan, isOwnEventId, setEventSetupPost,
 } = require("../../src/web/eventStore");
 
 const base = (over = {}) => ({
@@ -41,6 +41,17 @@ describe("web/eventStore", () => {
             signupDeadline: 0, fairness: false, wishes: false, setup: null, message: null,
         });
         expect(getEvent(event.id)).toEqual(event);
+    });
+
+    it("merges the posted-setup record and clears it with null (#290)", () => {
+        const { event } = createEvent(base());
+        expect(event.setupPost).toBeNull();
+        setEventSetupPost(event.id, { channelId: "c1", messageId: "m1", version: 1 });
+        expect(setEventSetupPost(event.id, { version: 2, told: { u1: "g1/Priest-Holy/healer" } }).setupPost)
+            .toEqual({ channelId: "c1", messageId: "m1", version: 2, told: { u1: "g1/Priest-Holy/healer" } });
+        expect(getEvent(event.id).setupPost.messageId).toBe("m1");
+        expect(setEventSetupPost(event.id, null).setupPost).toBeNull();
+        expect(setEventSetupPost("eh-nope", { version: 1 })).toBeNull();
     });
 
     it("fills size and tanks/healers from the rule set", () => {

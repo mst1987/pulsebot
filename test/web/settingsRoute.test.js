@@ -104,6 +104,22 @@ describe("default raid template per category (#266)", () => {
     });
 });
 
+describe("setup DMs per category (#290)", () => {
+    it("stores the switch as booleans, so switching off reaches the store", async () => {
+        readJsonBody.mockResolvedValue({ categorySetupDms: { c1: true, c2: false, c3: "yes" } });
+        await updateSettings({ headers: {} }, mockRes());
+        expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categorySetupDms: { c1: true, c2: false, c3: false } });
+    });
+
+    it("is a setting a limited settings user may change (not full-admin-only)", async () => {
+        requireAdmin.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: true } } });
+        requireFullAdmin.mockReturnValue(null);
+        readJsonBody.mockResolvedValue({ categorySetupDms: { c1: true } });
+        await updateSettings({ headers: {} }, mockRes());
+        expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categorySetupDms: { c1: true } });
+    });
+});
+
 describe("PATCH /api/settings userPermissions", () => {
     it("normalises and stores the per-account grants", async () => {
         readJsonBody.mockResolvedValue({

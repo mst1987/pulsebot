@@ -507,6 +507,8 @@ export type AdminConfig = {
     // Where NEW events of a category are created, keyed by category id. Missing
     // = "raidhelper"; Raid-Helper events stay in use either way.
     categorySignupSource?: Record<string, EventSource>;
+    // Setup-DMs per category (#290): only switched-on categories are listed.
+    categorySetupDms?: Record<string, boolean>;
     // A fixed Google Sheet per category, keyed by category id. A raid in that
     // category links this sheet unless the app made it a copy of its own.
     categorySheets: Record<string, { url: string; name: string }>;
@@ -3454,8 +3456,37 @@ export type SetupEditorData = {
     defaults?: { weights: SetupWeights; maxWeight: number };
     hasApiKey?: boolean;
     explainJob?: SetupJob;
+    /** Only for the orga: where the approved setup goes and what came of it (#290). */
+    publish?: SetupPublish;
     message?: string;
 };
+
+/** The setup message in the event channel and its DMs (#290) — before approving what will happen, after it what did. */
+export type SetupPublish = {
+    channelId: string;
+    channelName: string;
+    cancelled: boolean;
+    dmsEnabled: boolean;
+    recipients: number;
+    pendingDms: number;
+    posted: { messageUrl: string; version: number; postedAt: number; editedAt: number } | null;
+    outdated: boolean;
+    error: string;
+    errorAt: number;
+    dms: {
+        status: "running" | "done";
+        version: number;
+        at: number;
+        total: number;
+        sent: number;
+        failed: { userId: string; character: string; error: string }[];
+        unchanged: number;
+    } | null;
+};
+
+export function publishRaidSetup(csrfToken: string | null, eventId: string): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/post", csrfToken, { event: eventId });
+}
 
 /** What PUT /api/raids/setup takes: who stands where, and what is locked. */
 export type SetupPlacementInput = {

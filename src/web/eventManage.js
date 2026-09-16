@@ -25,6 +25,7 @@ const discordChannels = require("./discordChannels");
 const archiveStore = require("./channelArchiveStore");
 const discord = require("./discord");
 const { refreshEventMessage } = require("./eventMessage");
+const { refreshSetupMessage } = require("./setupMessage");
 const { scheduleOverviewSync } = require("./talkOverview");
 const { deliverUserPing, sendDms } = require("./pingDelivery");
 const { getConfig } = require("./settingsStore");
@@ -114,12 +115,16 @@ async function namesOf(guildId, userIds) {
 }
 
 async function refreshMessage(eventId) {
+    let error = null;
     try {
         await refreshEventMessage(eventId);
-        return null;
     } catch (e) {
-        return (e && e.message) || "Die Event-Nachricht konnte nicht aktualisiert werden.";
+        error = (e && e.message) || "Die Event-Nachricht konnte nicht aktualisiert werden.";
     }
+    // A posted setup (#290) is marked "Abgesagt" resp. shown again — never posted anew here.
+    const setupError = await refreshSetupMessage(eventId).catch((e) => (e && e.message) || "Fehler");
+    if (setupError) error = [error, `Setup-Nachricht: ${setupError}`].filter(Boolean).join(" · ");
+    return error;
 }
 
 /** The current name of the event's channel: live from Discord, else the stored one. */

@@ -6,7 +6,7 @@
 //
 // Written to be strippable like raidTemplates.ts (test/web-client/setupEditor.test.js
 // runs it for real): `import type`, `export type` and one-line signatures only.
-import type { SetupEditorGroup, SetupPerson, SetupPlacementInput, StoredSetup } from "../api";
+import type { SetupEditorGroup, SetupPerson, SetupPlacementInput, SetupPublish, StoredSetup } from "../api";
 
 export const GROUP_SIZE = 5;
 
@@ -167,4 +167,63 @@ export function dpsCheck(roles: { melee?: { count: number; min: number; ok: bool
     const melee = roles.melee || { count: 0, min: 0, ok: true };
     const ranged = roles.ranged || { count: 0, min: 0, ok: true };
     return { count: melee.count + ranged.count, min: melee.min + ranged.min, max: null, ok: melee.ok && ranged.ok };
+}
+
+/** One line about the setup's own message and its DMs (#290): what will happen, or what did. */
+export type PublishHint = { tone: "ok" | "mid" | "bad" | ""; text: string; tip: string; sub: string; running: boolean; canPost: boolean };
+
+/**
+ * Before the approval: "Beim Freigeben: postet Setup in #kanal · DMs an 25 Raider (aus)".
+ * After it: "gepostet 17:40 · 22 DMs · 3 fehlgeschlagen", the failures in the tooltip.
+ * `time` formats a millisecond timestamp. null without publish data (a reader).
+ */
+export function publishHint(publish: SetupPublish | undefined, approved: boolean, time: (ms: number) => string): PublishHint | null {
+    if (!publish) return null;
+    const channel = publish.channelName ? `#${publish.channelName}` : "den Event-Kanal";
+    const dmsOff = `DMs an ${publish.recipients} Raider (aus)`;
+    const offSub = "DMs schaltest du pro Kategorie ein: Einstellungen › Kategorien › Setup-DMs.";
+    if (publish.cancelled) {
+        return { tone: "mid", text: "Abgesagt – kein Setup im Kanal", tip: "Event abgesagt", sub: "Ein abgesagtes Event bekommt kein Setup gepostet und keine DMs. Eine schon gepostete Nachricht ist als abgesagt markiert.", running: false, canPost: false };
+    }
+    if (!approved) {
+        const post = publish.posted ? `aktualisiert das Setup in ${channel}` : `postet Setup in ${channel}`;
+        const dms = publish.dmsEnabled ? `DMs an ${publish.pendingDms} Raider` : dmsOff;
+        const sub = [
+            "Raider sehen nur Freigegebenes – ein Entwurf wird nie gepostet.",
+            publish.posted ? "Die vorhandene Nachricht wird bearbeitet, nicht neu gepostet." : "",
+            publish.dmsEnabled ? "Eine DM bekommt nur, wessen Platz sich seit der letzten DM geändert hat." : offSub,
+        ].filter(Boolean).join("\n");
+        return { tone: "", text: `Beim Freigeben: ${post} · ${dms}`, tip: "Was die Freigabe auslöst", sub, running: false, canPost: false };
+    }
+    const lastPost = publish.posted ? Math.max(publish.posted.postedAt || 0, publish.posted.editedAt || 0) : 0;
+    if (publish.error && publish.errorAt >= lastPost) {
+        return { tone: "bad", text: `Setup nicht gepostet: ${publish.error}`, tip: `Fehler beim Posten in ${channel}`, sub: `${time(publish.errorAt)} – „Setup posten“ versucht es erneut.`, running: false, canPost: true };
+    }
+    if (!publish.posted) {
+        return { tone: "mid", text: `Noch nicht in ${channel} gepostet`, tip: "Setup posten", sub: "Postet das freigegebene Setup als eigene Nachricht in den Event-Kanal.", running: false, canPost: true };
+    }
+    const edited = (publish.posted.editedAt || 0) > (publish.posted.postedAt || 0);
+    const parts = [`${edited ? "aktualisiert" : "gepostet"} ${time(lastPost)} in ${channel}`];
+    const lines = [];
+    const dms = publish.dms;
+    const running = !!dms && dms.status === "running";
+    const failed = !running && !!dms && publish.dmsEnabled && dms.failed.length > 0;
+    const tone = failed || publish.outdated ? "mid" : "ok";
+    if (dms && running) {
+        parts.push(`DMs ${dms.sent + dms.failed.length}/${dms.total} …`);
+    } else if (dms && publish.dmsEnabled) {
+        parts.push(`${dms.sent} ${dms.sent === 1 ? "DM" : "DMs"}`);
+        if (failed) {
+            parts.push(`${dms.failed.length} fehlgeschlagen`);
+            lines.push("Nicht angekommen (DMs geschlossen?):", ...dms.failed.map((f) => `${f.character || f.userId} – ${f.error}`));
+        }
+        if (dms.unchanged) lines.push(`${dms.unchanged} ohne neue DM – Platz unverändert.`);
+    } else if (!publish.dmsEnabled) {
+        parts.push("DMs aus");
+        lines.push(offSub);
+    }
+    if (publish.outdated) {
+        lines.unshift(`Die Nachricht zeigt noch Stand ${publish.posted.version} – „Setup posten“ aktualisiert sie.`);
+    }
+    return { tone, text: parts.join(" · "), tip: "Setup im Kanal", sub: lines.join("\n") || "Bei erneuter Freigabe wird die Nachricht bearbeitet, nicht neu gepostet.", running, canPost: true };
 }

@@ -35,12 +35,14 @@ jest.mock("../../src/web/pingDelivery", () => ({
 }));
 jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../src/web/setupEditor", () => ({ setupSummary: jest.fn(() => null) }));
+jest.mock("../../src/web/setupMessage", () => ({ refreshSetupMessage: jest.fn(async () => null) }));
 
 const { DateTime } = require("luxon");
 const fs = require("fs");
 const discordChannels = require("../../src/web/discordChannels");
 const channelNaming = require("../../src/web/channelNaming");
 const { refreshEventMessage } = require("../../src/web/eventMessage");
+const { refreshSetupMessage } = require("../../src/web/setupMessage");
 const { scheduleOverviewSync } = require("../../src/web/talkOverview");
 const { deliverUserPing, sendDms } = require("../../src/web/pingDelivery");
 const discord = require("../../src/web/discord");
@@ -267,6 +269,16 @@ describe("cancelling an event", () => {
         expect(eventStore.getEvent(event.id)).toMatchObject({ status: "active", signupsClosed: false, cancel: null });
         expect((await manage.reopenEvent({ guildId: "g1", eventId: event.id, user: ORGA })).error.code).toBe("unchanged");
         expect(eventStore.getEvent(event.id).log.map((l) => l.action)).toEqual(["cancel", "reopen"]);
+    });
+
+    it("marks a posted setup message on cancel and restores it on reopen, reporting its failure (#290)", async () => {
+        refreshSetupMessage.mockClear();
+        refreshSetupMessage.mockResolvedValueOnce("Bot nicht verbunden.");
+        const result = await manage.cancelEvent({ guildId: "g1", eventId: event.id, reason: "Zu wenig Heiler", user: ORGA });
+        expect(refreshSetupMessage).toHaveBeenCalledWith(event.id);
+        expect(result.body.warnings).toEqual(["Setup-Nachricht: Bot nicht verbunden."]);
+        await manage.reopenEvent({ guildId: "g1", eventId: event.id, user: ORGA });
+        expect(refreshSetupMessage).toHaveBeenCalledTimes(2);
     });
 });
 

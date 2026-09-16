@@ -49,6 +49,18 @@ function normalizeCategorySignupSource(raw) {
     return out;
 }
 
+// The setup DM switch per category (#290): `{ id: true|false }` — a false
+// survives the merge, so the store can drop the category again.
+function normalizeCategorySetupDms(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [categoryId, on] of Object.entries(raw)) {
+        const id = String(categoryId).trim();
+        if (id) out[id] = on === true;
+    }
+    return out;
+}
+
 // A fixed sheet per category: only a http(s) link is stored. Anything else
 // (javascript:, a bare word, an empty field) becomes "", which settingsStore's
 // normalizer then drops — so a category is either unassigned or carries a link
@@ -319,6 +331,7 @@ async function updateSettings(req, res) {
     }
     if (body.categoryLootTool !== undefined) partial.categoryLootTool = normalizeCategoryLootTool(body.categoryLootTool);
     if (body.categorySignupSource !== undefined) partial.categorySignupSource = normalizeCategorySignupSource(body.categorySignupSource);
+    if (body.categorySetupDms !== undefined) partial.categorySetupDms = normalizeCategorySetupDms(body.categorySetupDms);
     if (body.categorySheets !== undefined) partial.categorySheets = normalizeCategorySheets(body.categorySheets);
     // Sent whole; an id no template has is dropped, so a category can never
     // point at a template that is not there (the store normalises the rest).

@@ -102,6 +102,10 @@ const CONFIG_DEFAULTS = {
     // "raidhelper" (default) | "eventhelper". Only the default for new events —
     // a Raid-Helper event stays fully in use in either case (eventSources.js).
     categorySignupSource: {},
+    // Whether the approved setup of an own event is also sent as a DM to every
+    // raider in it (#290), keyed by category id: { [categoryId]: true }. Off by
+    // default — only switched categories are stored.
+    categorySetupDms: {},
     // A fixed, guild-owned Google Sheet per Discord category:
     // { [categoryId]: { url, name } }. When one is set, a raid in that category
     // links this sheet instead of needing its own copy. A copy the app actually
@@ -487,6 +491,7 @@ function getConfig() {
         categoryLootTool: (stored.categoryLootTool && typeof stored.categoryLootTool === "object")
             ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
         categorySignupSource: normalizeCategorySignupSource(stored.categorySignupSource),
+        categorySetupDms: normalizeCategorySetupDms(stored.categorySetupDms),
         categorySheets: normalizeCategorySheets(stored.categorySheets),
         categoryRaidTemplate: categoryRaidTemplateOf(stored),
         topItems: normalizeTopItems(stored.topItems),
@@ -633,6 +638,17 @@ function normalizeTopItems(raw) {
     return out;
 }
 
+/** Normalise categorySetupDms to `{ [categoryId]: true }` — off is the default and not stored. */
+function normalizeCategorySetupDms(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, on] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        if (key && on === true) out[key] = true;
+    }
+    return out;
+}
+
 /**
  * Normalise categorySignupSource to `{ [categoryId]: "eventhelper" }`. Only the
  * switched categories are kept: "raidhelper" is the default and anything
@@ -727,6 +743,10 @@ function saveConfig(partial) {
     // Merged, then normalised: a category set back to "raidhelper" drops out.
     if (partial.categorySignupSource) {
         next.categorySignupSource = normalizeCategorySignupSource({ ...current.categorySignupSource, ...partial.categorySignupSource });
+    }
+    // Merged, then normalised: a category switched off drops out.
+    if (partial.categorySetupDms) {
+        next.categorySetupDms = normalizeCategorySetupDms({ ...current.categorySetupDms, ...partial.categorySetupDms });
     }
     // Replaced whole, like the top items: a category left out has no default.
     if (partial.categoryRaidTemplate !== undefined) next.categoryRaidTemplate = normalizeCategoryRaidTemplate(partial.categoryRaidTemplate);
