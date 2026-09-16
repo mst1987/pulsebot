@@ -505,8 +505,13 @@ export type AdminConfig = {
     // the raid-detail loot tab which export to ask for.
     categoryLootTool: Record<string, string>;
     // Where NEW events of a category are created, keyed by category id. Missing
-    // = "raidhelper"; Raid-Helper events stay in use either way.
+    // = signupSourceDefault; Raid-Helper events stay in use either way.
     categorySignupSource?: Record<string, EventSource>;
+    // The source of a category without an entry (#291): "eventhelper" for new
+    // categories; an older install keeps its categories pinned to Raid-Helper.
+    signupSourceDefault?: EventSource;
+    // Raid-Helper switched off (#291, Verbindungen): no request goes there any more.
+    raidhelperRetirement?: { disabled: boolean; at: number; byName: string };
     // A fixed Google Sheet per category, keyed by category id. A raid in that
     // category links this sheet unless the app made it a copy of its own.
     categorySheets: Record<string, { url: string; name: string }>;
@@ -669,6 +674,53 @@ export function getTalkOverview(): Promise<{ status: TalkOverviewStatus }> {
 
 export function repostTalkOverview(csrfToken: string | null): Promise<{ result: { status: string; error?: string }; status: TalkOverviewStatus }> {
     return send("POST", "/api/settings/talk-overview", csrfToken, { repost: true });
+}
+
+// ---- Umstieg von Raid-Helper (#291) ----------------------------------------
+
+export type RetirementStatus = "ok" | "mid" | "bad" | "unknown" | "info";
+export type RetirementItem = {
+    id: "categories" | "upcoming" | "history" | "emojis" | "commands" | "permissions";
+    label: string;
+    status: RetirementStatus;
+    value: string;
+    why: string;
+    detail: string[];
+    required: boolean;
+    link?: { to: string; label: string };
+    action?: "import";
+    hint?: string;
+};
+export type RetirementChecklist = {
+    disabled: boolean;
+    disabledAt: number;
+    disabledBy: string;
+    items: RetirementItem[];
+    done: number;
+    total: number;
+    ready: boolean;
+    blockers: string[];
+};
+export type HistoryImportResult = {
+    dryRun: boolean;
+    perCategory: number;
+    categories: { categoryId: string; categoryName: string; events: number; skipped: number; entries: number; from: number; to: number }[];
+    summary: { events: number; skippedEvents: number; entries: number; users: number; unmapped: Record<string, number> };
+    stored: { events: number; entries: number; users: number } | null;
+    liveError: string | null;
+    status: { importedEvents: number; users: number; lastRun: { at: number; byName: string; events: number; entries: number } | null };
+};
+
+export function getRaidhelperRetirement(): Promise<{ checklist: RetirementChecklist }> {
+    return get<{ checklist: RetirementChecklist }>("/api/settings/raidhelper-retirement");
+}
+
+export function setRaidhelperDisabled(csrfToken: string | null, disabled: boolean): Promise<{ checklist: RetirementChecklist }> {
+    return send("POST", "/api/settings/raidhelper-retirement", csrfToken, { disabled });
+}
+
+export function importRaidhelperHistory(csrfToken: string | null, body: { perCategory: number; dryRun: boolean }): Promise<HistoryImportResult> {
+    return send("POST", "/api/settings/raidhelper-history-import", csrfToken, body);
 }
 
 export function getSettings(): Promise<SettingsData> {
@@ -3230,6 +3282,8 @@ export type ProfileRaidGroup = {
 export type ProfileData = {
     profile: RaiderProfile;
     isNew: boolean;
+    /** #291: the caller's own specs imported from Raid-Helper, most played first. */
+    specHistory?: { spec: string; count: number; lastAt: number; character: string }[];
     classes: GameClass[];
     roles: Record<GameRole, string>;
     raidGroups: ProfileRaidGroup[];

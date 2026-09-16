@@ -23,6 +23,12 @@ jest.mock("../../src/web/councilStore", () => ({
     plannedRoles: (...a) => mockPlannedRoles(...a),
 }));
 jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: (...a) => mockRaidEvents(...a) }));
+// The own events (#254) reach the council through the real adapter (eventSources.js).
+const mockOwnEvents = jest.fn(() => []);
+jest.mock("../../src/web/eventStore", () => ({
+    listEvents: (...a) => mockOwnEvents(...a), getEvent: () => null, isOwnEventId: (id) => String(id || "").startsWith("eh-"),
+}));
+jest.mock("../../src/web/signupStore", () => ({ listSignups: () => [] }));
 jest.mock("../../src/web/logStore", () => ({ listLogs: (...a) => mockLogs(...a) }));
 jest.mock("../../src/web/reportStore", () => ({
     listReports: (...a) => mockListReports(...a),
@@ -69,6 +75,7 @@ beforeEach(() => {
     mockExcludedKeys.mockReturnValue(new Set());
     mockPlannedRoles.mockReturnValue(new Map());
     mockRaidEvents.mockReturnValue([]);
+    mockOwnEvents.mockReturnValue([]);
     mockLogs.mockReturnValue([]);
     mockListReports.mockReturnValue([]);
     mockGetReport.mockReturnValue(null);
@@ -831,6 +838,23 @@ describe("web/lootCouncil — the category filter picks the raiders, not just th
 
         const { rows, categorySources } = councilRoster({ categoryId: "cat-mo" });
         expect(rows.map((r) => r.character)).toEqual(["Montag"]);
+        expect(categorySources.reports).toBe(1);
+    });
+
+    it("finds them through the logs of an own EventHelper event too (#291)", () => {
+        mockListAll.mockReturnValue([]);
+        mockAnnotated.mockReturnValue([{ key: "montag", className: "Priest", spec: "Shadow" }, { key: "donnerstag", className: "Mage", spec: "Arcane" }]);
+        mockGearByCharacter.mockReturnValue(new Map([
+            ["montag", gearOf([item(0, 31064)], { key: "montag", character: "Montag", className: "Priest" })],
+            ["donnerstag", gearOf([item(0, 31064)], { key: "donnerstag", character: "Donnerstag", className: "Mage" })],
+        ]));
+        mockOwnEvents.mockReturnValue([{ id: "eh-mo", guildId: "g1", categoryId: "cat-mo", channelId: "c", title: "Montag", startTime: 1 }]);
+        mockLogs.mockReturnValue([{ eventId: "eh-mo", reportRefId: "rep-1" }]);
+        mockListReports.mockReturnValue([{ id: "rep-1" }]);
+        mockGetReport.mockReturnValue({ id: "rep-1", roster: [{ name: "Donnerstag" }] });
+
+        const { rows, categorySources } = councilRoster({ categoryId: "cat-mo" });
+        expect(rows.map((r) => r.character)).toEqual(["Donnerstag"]);
         expect(categorySources.reports).toBe(1);
     });
 

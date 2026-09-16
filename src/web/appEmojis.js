@@ -99,6 +99,11 @@ function appEmojiMap() {
     return cache;
 }
 
+/** Whether the application's emojis were read at least once (else "missing" means "unknown"). */
+function appEmojisLoaded() {
+    return loadedAt > 0;
+}
+
 /** Fill the cache from a list of emojis (a discord.js Collection or an array). */
 function setAppEmojis(list) {
     const next = {};
@@ -155,5 +160,5 @@ function resetAppEmojis() {
 module.exports = {
     ICON_BASE, PREFIX, ROLE_ICONS, STATUS_ICONS, ROLE_FALLBACK, STATUS_FALLBACK,
     specEmojiName, classEmojiName, roleEmojiName, statusEmojiName, emojiCatalog, validEmojiName,
-    emojiText, emojiOption, appEmojiMap, setAppEmojis, loadAppEmojis, emojiFor, resetAppEmojis,
+    emojiText, emojiOption, appEmojiMap, appEmojisLoaded, setAppEmojis, loadAppEmojis, emojiFor, resetAppEmojis,
 };

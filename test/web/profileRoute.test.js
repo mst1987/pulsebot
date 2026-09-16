@@ -76,6 +76,23 @@ describe("GET/PUT /api/profile", () => {
         expect(data.gearLevels.map((g) => g.label)).toEqual(["keins", "brauchbar", "raidbereit"]);
     });
 
+    it("liefert nur die eigene aus Raid-Helper importierte Spec-Historie (#291)", async () => {
+        const history = require("../../src/web/specHistoryStore");
+        history.useFile(path.join(os.tmpdir(), `eh-spec-history-route-${process.pid}.json`));
+        try {
+            history.applyImport([
+                { userId: ANNA.id, spec: "Mage-Frost", eventId: "rh-1", at: 1000, character: "Nerathil" },
+                { userId: BERT.id, spec: "Priest-Shadow", eventId: "rh-1", at: 1000, character: "Ysolde" },
+            ], { eventIds: ["rh-1"] });
+            const data = body(await call(route.getProfile, ANNA)).data;
+            expect(data.specHistory).toEqual([{ spec: "Mage-Frost", count: 1, lastAt: 1000, lastEventId: "rh-1", character: "Nerathil" }]);
+            expect(JSON.stringify(data)).not.toContain("Ysolde");
+        } finally {
+            require("fs").rmSync(path.join(os.tmpdir(), `eh-spec-history-route-${process.pid}.json`), { force: true });
+            history.useFile(null);
+        }
+    });
+
     it("speichert nur das eigene Konto, auch wenn der Body ein anderes nennt", async () => {
         await call(route.putProfile, ANNA, { json: { userId: BERT.id, note: "von Anna", availability: ["mi"] } });
         expect(store.getProfile(ANNA.id)).toMatchObject({ note: "von Anna", availability: ["mi"] });

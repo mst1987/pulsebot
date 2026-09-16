@@ -12,6 +12,7 @@ import { useToast } from "../components/Jobs";
 import AddCharacterDialog, { type AddWay } from "../components/profile/AddCharacterDialog";
 import { ExternalIcon, TrashIcon, XIcon, SearchIcon, EyeOffIcon } from "../components/icons";
 import { formatDate } from "../lib/format";
+import { specSuggestion } from "../lib/raidhelperRetirement";
 import "../styles/profil.css";
 
 // "Mein Profil" (#255): the raider's own page. Deliberately calm — the
@@ -185,6 +186,7 @@ export default function ProfilePage() {
                 way={adding}
                 onClose={() => setAdding(null)}
                 classes={data.classes}
+                suggestion={specSuggestion(data.specHistory)}
                 csrfToken={csrfToken}
                 onAdded={(next, key) => {
                     setProfile(next);

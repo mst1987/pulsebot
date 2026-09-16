@@ -56,6 +56,8 @@ type Draft = {
     raidChannelId: string;
     categoryLootTool: Record<string, string>;
     categorySignupSource: Record<string, EventSource>;
+    /** Not saved from here — read so an unset category shows the source it really gets. */
+    signupSourceDefault: EventSource;
     categorySheets: Record<string, CategorySheet>;
     categoryRaidTemplate: Record<string, string>;
     topItems: TopItem[];
@@ -78,6 +80,7 @@ function toDraft(config: AdminConfig): Draft {
         raidChannelId: config.raidDefaults?.channelId || "",
         categoryLootTool: config.categoryLootTool || {},
         categorySignupSource: config.categorySignupSource || {},
+        signupSourceDefault: config.signupSourceDefault || "raidhelper",
         categorySheets: config.categorySheets || {},
         categoryRaidTemplate: config.categoryRaidTemplate || {},
         topItems: config.topItems || [],
@@ -474,6 +477,7 @@ export default function SettingsPage() {
                     categoryRoles={draft.categoryRoles}
                     categoryLootTool={draft.categoryLootTool}
                     categorySignupSource={draft.categorySignupSource}
+                    signupSourceDefault={draft.signupSourceDefault}
                     categorySheets={draft.categorySheets}
                     savedCategoryRoles={data.config.categoryRoles || {}}
                     onToggleCategory={toggleCategory}

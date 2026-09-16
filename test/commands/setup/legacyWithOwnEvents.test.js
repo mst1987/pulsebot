@@ -1,0 +1,148 @@
+// #291: the legacy setup commands with the EventHelper's own events — each one
+// either works with both sources or points at the new flow, and none of them
+// fails outright because Raid-Helper does not answer.
+const { mockInteraction } = require("../../helpers/mockInteraction.js");
+
+jest.mock("../../../src/classes/raidhelper.js");
+jest.mock("../../../src/classes/sheets.js");
+jest.mock("../../../src/utils/helper.js");
+jest.mock("../../../src/utils/fillSetup.js", () => ({
+    fillSetupSheet: jest.fn(async (client, slots) => ({ playerCount: slots.length, tanks: ["", "", ""], healers: 0, warlocks: 0, priests: 0, mages: 0, hunters: 0 })),
+}));
+jest.mock("../../../src/utils/raidhelper.js");
+jest.mock("../../../src/utils/responses.js");
+jest.mock("../../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/web/eventSources", () => ({
+    ownEventInChannel: jest.fn(() => null),
+    ownSignedUpEvents: jest.fn(() => []),
+}));
+jest.mock("../../../src/web/eventStore", () => ({
+    isOwnEventId: (id) => String(id || "").startsWith("eh-"),
+    getEvent: jest.fn(() => null),
+}));
+jest.mock("../../../src/web/setupEditor", () => ({ raidHelperSlots: jest.fn(() => []) }));
+
+const Raidhelper = require("../../../src/classes/raidhelper.js");
+const helper = require("../../../src/utils/helper.js");
+const { fillSetupSheet } = require("../../../src/utils/fillSetup.js");
+const utilsRaidhelper = require("../../../src/utils/raidhelper.js");
+const eventSources = require("../../../src/web/eventSources");
+const eventStore = require("../../../src/web/eventStore");
+const { raidHelperSlots } = require("../../../src/web/setupEditor");
+const signup = require("../../../src/commands/setup/signup.js");
+const saveraid = require("../../../src/commands/setup/saveraid.js");
+const fillSetup = require("../../../src/commands/setup/fillSetup.js");
+const showAllSetups = require("../../../src/commands/setup/showAllSetups.js");
+
+const OWN = { id: "eh-7", title: "SSC Mittwoch", channelId: "channel-1", startTime: 2000000000 };
+const SLOTS = [{ id: "u1", name: "Zibbo", specName: "Shadow", className: "Priest", groupNumber: 1 }];
+
+describe("legacy setup commands with own events (#291)", () => {
+    let rh;
+    beforeEach(() => {
+        jest.clearAllMocks();
+        rh = {
+            getEvent: jest.fn(), signUpToRaid: jest.fn(), getSetup: jest.fn(),
+            saveRaid: jest.fn(async () => ({ _id: "p1" })), getUserSignUps: jest.fn(async () => []),
+        };
+        Raidhelper.mockImplementation(() => rh);
+        eventSources.ownEventInChannel.mockReturnValue(null);
+        eventStore.getEvent.mockReturnValue(null);
+        raidHelperSlots.mockReturnValue([]);
+    });
+
+    describe("/signup", () => {
+        it("points an own event's channel at the event message instead of Raid-Helper", async () => {
+            eventSources.ownEventInChannel.mockReturnValue(OWN);
+            const interaction = mockInteraction({ options: { specs: "Shadow" } });
+            await signup.execute(interaction, {});
+            expect(eventSources.ownEventInChannel).toHaveBeenCalledWith("channel-1");
+            expect(helper.botReply).toHaveBeenCalledTimes(1);
+            expect(helper.botReply.mock.calls[0][1]).toBe("Anmeldung über den EventHelper");
+            expect(helper.botReply.mock.calls[0][2]).toMatch(/SSC Mittwoch.*Anmelden/s);
+            expect(rh.getEvent).not.toHaveBeenCalled();
+            expect(rh.signUpToRaid).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("/saveraid", () => {
+        it("says so when the channel has no event at all", async () => {
+            helper.getRaidInfosFromChannel.mockResolvedValue(undefined);
+            await saveraid.execute(mockInteraction(), {});
+            expect(helper.botReply.mock.calls[0][1]).toBe("Fehler");
+            expect(helper.botReply.mock.calls[0][2]).toMatch(/kein Event/);
+            expect(rh.saveRaid).not.toHaveBeenCalled();
+        });
+
+        it("refuses an own event without an approved setup", async () => {
+            helper.getRaidInfosFromChannel.mockResolvedValue({ raidData: {}, setupData: [], source: "eventhelper" });
+            await saveraid.execute(mockInteraction(), {});
+            expect(helper.botReply.mock.calls[0][2]).toMatch(/freigegebenes Setup/);
+            expect(rh.saveRaid).not.toHaveBeenCalled();
+        });
+
+        it("saves an own event with its approved setup", async () => {
+            const infos = { raidData: { raidid: "eh-7" }, setupData: SLOTS, source: "eventhelper" };
+            helper.getRaidInfosFromChannel.mockResolvedValue(infos);
+            await saveraid.execute(mockInteraction(), {});
+            expect(rh.saveRaid).toHaveBeenCalledWith(infos);
+            expect(helper.botReply.mock.calls[0][1]).toBe("Save");
+        });
+
+        it("reports a failing save instead of throwing", async () => {
+            helper.getRaidInfosFromChannel.mockResolvedValue({ raidData: {}, setupData: SLOTS });
+            rh.saveRaid.mockRejectedValue(new Error("down"));
+            await expect(saveraid.execute(mockInteraction(), {})).resolves.toBeUndefined();
+            expect(helper.botReply.mock.calls[0][2]).toMatch(/down/);
+        });
+    });
+
+    describe("/fillsetup", () => {
+        it("fills the sheet from an own event's approved setup by eh- id, without Raid-Helper", async () => {
+            eventStore.getEvent.mockReturnValue(OWN);
+            raidHelperSlots.mockReturnValue(SLOTS);
+            await fillSetup.execute(mockInteraction({ options: { setup_id: "eh-7" } }), {});
+            expect(rh.getSetup).not.toHaveBeenCalled();
+            expect(fillSetupSheet).toHaveBeenCalledWith(expect.anything(), SLOTS, expect.any(Object));
+            expect(helper.botEditReply.mock.calls[0][1]).toBe("Setup befüllt");
+        });
+
+        it("takes the channel's own event when no id is given", async () => {
+            eventSources.ownEventInChannel.mockReturnValue(OWN);
+            raidHelperSlots.mockReturnValue(SLOTS);
+            await fillSetup.execute(mockInteraction({ options: {} }), {});
+            expect(fillSetupSheet).toHaveBeenCalled();
+        });
+
+        it("refuses before approval, an unknown eh- id and an empty id without an own event", async () => {
+            eventStore.getEvent.mockReturnValue(OWN);
+            await fillSetup.execute(mockInteraction({ options: { setup_id: "eh-7" } }), {});
+            expect(helper.botEditReply.mock.calls[0][2]).toMatch(/kein freigegebenes Setup/);
+
+            eventStore.getEvent.mockReturnValue(null);
+            await fillSetup.execute(mockInteraction({ options: { setup_id: "eh-404" } }), {});
+            expect(helper.botEditReply.mock.calls[1][2]).toMatch(/Event nicht gefunden/);
+
+            await fillSetup.execute(mockInteraction({ options: {} }), {});
+            expect(helper.botEditReply.mock.calls[2][2]).toMatch(/Keine Setup-ID/);
+            expect(fillSetupSheet).not.toHaveBeenCalled();
+        });
+
+        it("still reads a numeric Raid-Helper raidplan", async () => {
+            rh.getSetup.mockResolvedValue({ setup: SLOTS });
+            await fillSetup.execute(mockInteraction({ options: { setup_id: "12345" } }), {});
+            expect(rh.getSetup).toHaveBeenCalledWith("12345");
+            expect(fillSetupSheet).toHaveBeenCalled();
+        });
+    });
+
+    describe("/show-allsetups", () => {
+        it("keeps the own events when Raid-Helper does not answer", async () => {
+            rh.getUserSignUps.mockRejectedValue(new Error("HTTP 404"));
+            eventSources.ownSignedUpEvents.mockReturnValue([{ id: "eh-7" }]);
+            utilsRaidhelper.getSetupsFromEvents.mockResolvedValue([]);
+            await showAllSetups.execute(mockInteraction(), {});
+            expect(utilsRaidhelper.getSetupsFromEvents).toHaveBeenCalledWith({}, expect.anything(), [{ id: "eh-7" }]);
+        });
+    });
+});

@@ -79,6 +79,13 @@ function defaultPick(options, { mine = null, last = null } = {}) {
     if (last) {
         const hit = options.find((o) => sameOption(o, last.character, last.spec));
         if (hit) return hit;
+        // A spec imported from Raid-Helper (#291) knows no profile character:
+        // the spec alone decides, the main first.
+        if (last.imported) {
+            const bySpec = options.filter((o) => o.spec === last.spec);
+            const specHit = bySpec.find((o) => o.main) || bySpec[0];
+            if (specHit) return specHit;
+        }
     }
     const mains = options.filter((o) => o.main);
     const pool = mains.length ? mains : options;
@@ -126,7 +133,10 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
     if (win.deadlinePassed && !win.started) lines.push("Anmeldeschluss vorbei – nur noch „Spät“ oder Abmelden.");
     if (notice) lines.push("", notice);
 
-    const lastOption = last ? options.find((o) => sameOption(o, last.character, last.spec)) : null;
+    const lastOption = last
+        ? options.find((o) => sameOption(o, last.character, last.spec))
+            || (last.imported ? defaultPick(options.filter((o) => o.spec === last.spec), { last }) : null)
+        : null;
     const selectOptions = options.slice(0, MAX_OPTIONS).map((o) => {
         const info = profiles.specInfo(o.spec) || {};
         const description = [

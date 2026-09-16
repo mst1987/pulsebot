@@ -192,14 +192,61 @@ describe("web/settingsStore", () => {
             expect(getConfig().categoryLootTool).toEqual({});
         });
 
-        it("keeps only switched categories in categorySignupSource, and switching back removes one", () => {
+        it("keeps both sources in categorySignupSource, merged per category, and drops anything else", () => {
             expect(getConfig().categorySignupSource).toEqual({});
             saveConfig({ categorySignupSource: { c1: "eventhelper", c2: "raidhelper", c3: "bogus" } });
-            expect(getConfig().categorySignupSource).toEqual({ c1: "eventhelper" });
+            expect(getConfig().categorySignupSource).toEqual({ c1: "eventhelper", c2: "raidhelper" });
             saveConfig({ categorySignupSource: { c4: "eventhelper" } });
-            expect(getConfig().categorySignupSource).toEqual({ c1: "eventhelper", c4: "eventhelper" });
+            expect(getConfig().categorySignupSource).toEqual({ c1: "eventhelper", c2: "raidhelper", c4: "eventhelper" });
             saveConfig({ categorySignupSource: { c1: "raidhelper" } });
-            expect(getConfig().categorySignupSource).toEqual({ c4: "eventhelper" });
+            expect(getConfig().categorySignupSource).toEqual({ c1: "raidhelper", c2: "raidhelper", c4: "eventhelper" });
+        });
+
+        // #291: new categories default to EventHelper; an install from before
+        // keeps Raid-Helper for the categories it already had — nothing flips silently.
+        describe("signup source default (#291)", () => {
+            const configKey = () => [...fs.__store.keys()].find((k) => k.endsWith("config.json"));
+            const storeRaw = (obj) => {
+                saveConfig({});
+                fs.__store.set(configKey(), JSON.stringify(obj));
+            };
+
+            it("starts a fresh install on EventHelper", () => {
+                expect(getConfig().signupSourceDefault).toBe("eventhelper");
+                saveConfig({ categoryIds: ["c1"] });
+                expect(getConfig().signupSourceDefault).toBe("eventhelper");
+                expect(getConfig().categorySignupSource).toEqual({});
+            });
+
+            it("pins every category an older install configured to Raid-Helper, keeps switched ones", () => {
+                storeRaw({ categoryIds: ["c1", "c2"], categoryRoles: { c3: ["r1"] }, categorySignupSource: { c2: "eventhelper" } });
+                const cfg = getConfig();
+                expect(cfg.signupSourceDefault).toBe("eventhelper");
+                expect(cfg.categorySignupSource).toEqual({ c1: "raidhelper", c2: "eventhelper", c3: "raidhelper" });
+            });
+
+            it("writes the pins down with the next save, so a category added later is new", () => {
+                storeRaw({ categoryIds: ["c1"] });
+                saveConfig({ categoryIds: ["c1", "c9"] });
+                const stored = JSON.parse(fs.__store.get(configKey()));
+                expect(stored.signupSourceDefault).toBe("eventhelper");
+                expect(stored.categorySignupSource).toEqual({ c1: "raidhelper" });
+                expect(getConfig().categorySignupSource).toEqual({ c1: "raidhelper" });
+            });
+
+            it("keeps Raid-Helper as the default for an older install without any category", () => {
+                storeRaw({ guildId: "123456789", categoryIds: [] });
+                expect(getConfig().signupSourceDefault).toBe("raidhelper");
+                expect(getConfig().categorySignupSource).toEqual({});
+            });
+
+            it("normalises the Raid-Helper switch-off block", () => {
+                expect(getConfig().raidhelperRetirement).toEqual({ disabled: false, at: 0, byName: "" });
+                saveConfig({ raidhelperRetirement: { disabled: true, at: 5, byName: "Zibbo", extra: 1 } });
+                expect(getConfig().raidhelperRetirement).toEqual({ disabled: true, at: 5, byName: "Zibbo" });
+                saveConfig({ raidhelperRetirement: { disabled: "yes" } });
+                expect(getConfig().raidhelperRetirement.disabled).toBe(false);
+            });
         });
 
         it("defaults categoryRoles to an empty object and round-trips a map", () => {

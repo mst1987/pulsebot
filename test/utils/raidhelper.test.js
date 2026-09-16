@@ -88,6 +88,15 @@ describe("utils/raidhelper", () => {
             const result = await getSetupsFromEvents({}, interaction, events);
             expect(result.map((e) => e.channelid)).toEqual(["c1"]);
         });
+
+        it("skips a raidplan Raid-Helper fails on instead of failing every event (#291)", async () => {
+            const interaction = mockInteraction({ userId: "123" });
+            mockGetSetup.mockImplementation((raidid) => (raidid === "e1"
+                ? Promise.reject(new Error("HTTP 404"))
+                : Promise.resolve({ setup: [{ id: "123" }] })));
+            const result = await getSetupsFromEvents({}, interaction, [{ id: "e1", channelId: "c1" }, { id: "e2", channelId: "c2" }]);
+            expect(result.map((e) => e.channelid)).toEqual(["c2"]);
+        });
     });
 
     // #263: an own event's setup reaches the bot only once it is approved.

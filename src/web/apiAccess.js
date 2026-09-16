@@ -54,6 +54,10 @@ const AREA_BY_PATH = {
     // automatic reminders per category (#264).
     "/api/settings/role-sync": "settings",
     "/api/settings/reminders": "settings",
+    // Umstieg von Raid-Helper (#291): checklist, switch, spec-history import.
+    // Full-admin only in the handlers.
+    "/api/settings/raidhelper-retirement": "settings",
+    "/api/settings/raidhelper-history-import": "settings",
     // The raider→character assignment lives in the settings page's own tab.
     "/api/raider-characters": "settings",
 

@@ -125,10 +125,21 @@ function normalizeSignup(input = {}, { versionId = DEFAULT_VERSION } = {}) {
 
 /**
  * A user's most recently saved signup with a spec, over every event — the
- * "zuletzt" of the Discord character select (#287). Null without one.
- * @returns {{ eventId: string, character: string, spec: string }|null}
+ * "zuletzt" of the Discord character select (#287). Without any own signup the
+ * spec imported from Raid-Helper stands in (#291, specHistoryStore), marked
+ * `imported` — its `character` is the name Raid-Helper had, which may not be a
+ * profile character. Null without either.
+ * @returns {{ eventId: string, character: string, spec: string, imported?: true }|null}
  */
 function lastSignupOf(userId) {
+    const own = lastOwnSignupOf(userId);
+    if (own) return own;
+    // Lazily: the history is only needed for a raider without any own signup.
+    const imported = require("./specHistoryStore").lastImportedSpecOf(userId);
+    return imported ? { eventId: imported.eventId, character: imported.character, spec: imported.spec, imported: true } : null;
+}
+
+function lastOwnSignupOf(userId) {
     const uid = String(userId || "");
     if (!uid) return null;
     let best = null;

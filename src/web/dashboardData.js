@@ -27,7 +27,7 @@ const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
 } = require("../utils/attendance");
 const {
-    zoneFor, raidSize, roleFill, classCounts, notSignedUp, isAttending,
+    zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, isAttending,
     lastReportArea, openRecommendations, newLootSince,
 } = require("./dashboardOverview");
 
@@ -41,6 +41,16 @@ async function setupSlots(rh, eventId) {
     } catch {
         return [];
     }
+}
+
+/**
+ * An own event's APPROVED setup as raidplan slots (#263, #291) — a draft counts
+ * as no setup, exactly like a Raid-Helper event without a raidplan.
+ */
+function ownSetupSlots(eventId) {
+    const { getEvent } = require("./eventStore");
+    const { raidHelperSlots } = require("./setupEditor");
+    return raidHelperSlots(getEvent(eventId)).filter((s) => s && s.name);
 }
 
 /** The link a raid's sheet resolves to (own filled copy, else the category's fixed sheet), or null. */
@@ -82,10 +92,10 @@ async function loadNextRaids(guildId, count = 2) {
     for (const ev of next) {
         const own = ev.source === "eventhelper";
         const meta = catMap[ev.channelId] || {};
-        // The raidplan lives at Raid-Helper; an own event's setup comes with #263.
-        const slots = own ? [] : await setupSlots(rh, ev.id);
+        // The raidplan lives at Raid-Helper; an own event counts its approved setup (#263).
+        const slots = own ? ownSetupSlots(ev.id) : await setupSlots(rh, ev.id);
         const softresList = getEventSoftres(ev.id);
-        const zone = zoneFor(ev.title);
+        const zone = zoneForEvent(ev);
         const size = own && ev.size
             ? ev.size
             : raidSize(zone.contentId, softres.targetSizeForInstances((softresList && softresList.instances) || []));
@@ -123,9 +133,9 @@ async function loadNextRaidDetails(guildId, eventId) {
     const { e: ev, g } = found;
 
     const own = ev.source === "eventhelper";
-    const slots = own ? [] : await setupSlots(createRaidhelperClient(), ev.id);
+    const slots = own ? ownSetupSlots(ev.id) : await setupSlots(createRaidhelperClient(), ev.id);
     const softresList = getEventSoftres(ev.id);
-    const zone = zoneFor(ev.title);
+    const zone = zoneForEvent(ev);
     const size = own && ev.size
         ? ev.size
         : raidSize(zone.contentId, softres.targetSizeForInstances((softresList && softresList.instances) || []));

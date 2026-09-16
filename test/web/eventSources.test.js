@@ -107,11 +107,66 @@ describe("web/eventSources", () => {
         expect(sources.sourceOfEventId("111")).toBe("raidhelper");
     });
 
-    it("reads the default source per category, Raid-Helper unless switched", () => {
-        getConfig.mockReturnValue({ categorySignupSource: { cat1: "eventhelper", cat2: "bogus" } });
+    it("reads the source per category, else the configured default (#291)", () => {
+        getConfig.mockReturnValue({ categorySignupSource: { cat1: "eventhelper", cat2: "bogus", cat4: "raidhelper" }, signupSourceDefault: "eventhelper" });
         expect(sources.signupSourceFor("cat1")).toBe("eventhelper");
-        expect(sources.signupSourceFor("cat2")).toBe("raidhelper");
+        expect(sources.signupSourceFor("cat2")).toBe("eventhelper");
+        expect(sources.signupSourceFor("cat3")).toBe("eventhelper");
+        expect(sources.signupSourceFor("cat4")).toBe("raidhelper");
+        // an older config without a default keeps Raid-Helper
+        getConfig.mockReturnValue({ categorySignupSource: {} });
         expect(sources.signupSourceFor("cat3")).toBe("raidhelper");
+        expect(sources.defaultSignupSource({ signupSourceDefault: "eventhelper" })).toBe("eventhelper");
+    });
+
+    describe("specKeyFromRaidHelper (#291)", () => {
+        it("reads every Raid-Helper spec name back to its rule-set key, with and without the class", () => {
+            for (const cls of buildClasses(CLASSES)) {
+                for (const spec of cls.specs) {
+                    const name = sources.specNameFor(spec.key);
+                    expect(sources.specKeyFromRaidHelper("", name)).toBe(spec.key);
+                    expect(sources.specKeyFromRaidHelper(spec.key.split("-")[0], name)).toBe(spec.key);
+                }
+            }
+        });
+
+        it("resolves classlist aliases and lets a real class decide an ambiguous name", () => {
+            expect(sources.specKeyFromRaidHelper("Warlock", "Destro")).toBe("Warlock-Destruction");
+            expect(sources.specKeyFromRaidHelper("Shaman", "RestoSham")).toBe("Shaman-Restoration");
+            expect(sources.specKeyFromRaidHelper("Tank", "ProtPala")).toBe("Paladin-Protection");
+            expect(sources.specKeyFromRaidHelper("Tank", "Protection")).toBe("Warrior-Protection");
+            expect(sources.specKeyFromRaidHelper("Paladin", "Holy")).toBe("Paladin-Holy");
+            expect(sources.specKeyFromRaidHelper("Priest", "Holy")).toBe("Priest-Holy");
+            expect(sources.specKeyFromRaidHelper("Shaman", "Restoration")).toBe("Shaman-Restoration");
+        });
+
+        it("names no spec for sign-offs, unknown names and a class that does not fit", () => {
+            expect(sources.specKeyFromRaidHelper("Absence", "Absence")).toBe("");
+            expect(sources.specKeyFromRaidHelper("Bench", "Bench")).toBe("");
+            expect(sources.specKeyFromRaidHelper("DK", "Unholy_DPS")).toBe("");
+            expect(sources.specKeyFromRaidHelper("Mage", "Shadow")).toBe("");
+            expect(sources.specKeyFromRaidHelper("", "")).toBe("");
+        });
+    });
+
+    it("finds the own event of a channel: the next one first, cancelled ones last", () => {
+        const now = 2000000000 * 1000;
+        eventStore.listEvents.mockReturnValue([
+            ownEvent({ id: "eh-3", startTime: 2000900000 }),
+            ownEvent({ id: "eh-2", startTime: 2000500000 }),
+            ownEvent({ id: "eh-1", startTime: 1999000000 }),
+            ownEvent({ id: "eh-x", channelId: "other", startTime: 2000100000 }),
+        ]);
+        expect(sources.ownEventInChannel("c1", { now }).id).toBe("eh-2");
+        eventStore.listEvents.mockReturnValue([ownEvent({ id: "eh-1", startTime: 1999000000 })]);
+        expect(sources.ownEventInChannel("c1", { now }).id).toBe("eh-1");
+        eventStore.listEvents.mockReturnValue([
+            ownEvent({ id: "eh-c", startTime: 2000500000, status: "cancelled" }),
+            ownEvent({ id: "eh-old", startTime: 1999000000 }),
+        ]);
+        expect(sources.ownEventInChannel("c1", { now }).id).toBe("eh-old");
+        expect(sources.ownEventInChannel("nope", { now })).toBeNull();
+        expect(sources.ownEventInChannel("", { now })).toBeNull();
     });
 
     it("lists own raids for matching and upcoming ones in Raid-Helper's raw shape", () => {

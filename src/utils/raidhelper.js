@@ -14,6 +14,15 @@ function ownApprovedSetup(eventId) {
   return slots.length ? { setup: slots } : null;
 }
 
+/** A Raid-Helper raidplan, or undefined when Raid-Helper does not answer — one failing raid never costs the others (#291). */
+async function safeSetup(raidhelper, eventId) {
+  try {
+    return await raidhelper.getSetup(eventId);
+  } catch {
+    return undefined;
+  }
+}
+
 function isOwnEvent(event) {
   return !!event && (event.source === "eventhelper" || String(event.id || "").startsWith("eh-"));
 }
@@ -74,7 +83,7 @@ async function getCategorySetups(interaction, categoryId) {
     await Promise.all(
       categoryEvents.map(async (event) => {
         // An own EventHelper event has no Raid-Helper raidplan; its approved setup stands in.
-        const setup = isOwnEvent(event) ? ownApprovedSetup(event.id) : await raidhelper.getSetup(event.id);
+        const setup = isOwnEvent(event) ? ownApprovedSetup(event.id) : await safeSetup(raidhelper, event.id);
 
         if (setup) {
           events.push({
@@ -104,7 +113,7 @@ async function getSetupsFromEvents(client, interaction, events) {
   const raidhelper = createRaidhelperClient();
   await Promise.all(
     events.map(async (event) => {
-      const setup = isOwnEvent(event) ? ownApprovedSetup(event.id) : await raidhelper.getSetup(event.id);
+      const setup = isOwnEvent(event) ? ownApprovedSetup(event.id) : await safeSetup(raidhelper, event.id);
       if (setup) {
         myevents.push({
           channelid: event.channelId,

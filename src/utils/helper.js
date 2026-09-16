@@ -1,4 +1,5 @@
 ﻿const { MessageFlags } = require("discord.js");
+const { DateTime } = require("luxon");
 const { createRaidhelperClient } = require("./raidhelperClient");
 const extendedClassList = require("../config/classlist.js");
 const { formatTimestampToDateString } = require("./date.js");
@@ -148,17 +149,23 @@ function getChannelsFromCategories(guild, categoryIds) {
     return channelsFromCategories;
 }
 
+// The raid of the current channel with its setup, for `/saveraid`. An own
+// EventHelper event of the channel comes first (#291) — with its APPROVED setup
+// only, a draft is never handed on —, then a Raid-Helper event posted by the
+// Raid-Helper bot. Undefined when the channel has neither.
 async function getRaidInfosFromChannel(interaction) {
+    const own = ownRaidInfos(interaction.channel && interaction.channel.id);
+    if (own) return own;
     const raidhelper = createRaidhelperClient();
     const channelMessages = await interaction.channel.messages.fetch();
     const botMessages = channelMessages.filter(
         (msg) => msg.author.id === raidhelperBotId
     );
 
-    for (const [key, value] of botMessages) {
+    for (const [key] of botMessages) {
         const event = await raidhelper.getEvent(key);
 
-        if (event.id) {
+        if (event && event.id) {
             const comp = await raidhelper.getSetup(event.id);
             return {
                 raidData: createRaidData(event),
@@ -166,6 +173,27 @@ async function getRaidInfosFromChannel(interaction) {
             };
         }
     }
+}
+
+function ownRaidInfos(channelId) {
+    // Lazily: the web stores are only needed for own events.
+    const { ownEventInChannel } = require("../web/eventSources");
+    const { raidHelperSlots } = require("../web/setupEditor");
+    const event = ownEventInChannel(channelId);
+    if (!event) return null;
+    const start = DateTime.fromSeconds(Number(event.startTime) || 0, { zone: "Europe/Berlin" });
+    return {
+        raidData: createRaidData({
+            id: event.id,
+            title: event.title,
+            description: event.description || "",
+            channelName: event.channelName || "",
+            date: start.toFormat("dd-MM-yyyy"),
+            time: start.toFormat("HH:mm"),
+        }),
+        setupData: raidHelperSlots(event),
+        source: "eventhelper",
+    };
 }
 
 function createRaidData(event) {
@@ -211,11 +239,17 @@ async function delay(ms) {
 // The upcoming events of a category from both sources — Raid-Helper's and the
 // EventHelper's own (web/eventSources.js) — in Raid-Helper's list shape, soonest
 // first. An own event counts when its channel sits in the category or it was
-// created for it.
+// created for it. A Raid-Helper that does not answer (or is switched off, #291)
+// leaves the own events standing instead of failing the whole command.
 async function getCategoryEvents(interaction, categoryId) {
     const { ownUpcomingRaw } = require("../web/eventSources");
     const raidhelper = createRaidhelperClient();
-    const allEvents = await raidhelper.getAllEvents();
+    let allEvents = [];
+    try {
+        allEvents = (await raidhelper.getAllEvents()) || [];
+    } catch (error) {
+        console.error("getCategoryEvents: Raid-Helper nicht erreichbar:", error && error.message);
+    }
     const channelsInCategory = getChannelsFromCategories(interaction.guild, [
         categoryId,
     ]);

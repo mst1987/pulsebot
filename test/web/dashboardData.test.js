@@ -243,6 +243,33 @@ describe("web/dashboardData loadNextRaids", () => {
         }
     });
 
+    it("counts an own event's approved setup (never a draft) and takes its icon from its raids (#291)", async () => {
+        const eventStore = require("../../src/web/eventStore");
+        const future = Math.floor(Date.now() / 1000) + 86400;
+        rh.getAllEvents.mockResolvedValue([]);
+        const approved = {
+            id: "eh-2", source: "eventhelper", guildId: "g1", categoryId: "cat2", channelId: "c9", title: "Mittwoch",
+            startTime: future, versionId: "tbc", instanceIds: ["tk", "ssc"], size: 25, composition: { tank: 3, healer: 6 },
+            setup: {
+                status: "approved",
+                approved: { groups: [{ index: 1, slots: [{ userId: "u1", character: "Zibbo", spec: "Priest-Shadow", classId: "Priest", role: "ranged" }] }], bench: [] },
+            },
+        };
+        eventStore.listEvents.mockReturnValue([approved]);
+        eventStore.getEvent.mockImplementation((id) => (id === "eh-2" ? approved : null));
+        try {
+            const { raids } = await loadNextRaids("g1", 1);
+            expect(raids[0]).toMatchObject({ id: "eh-2", setupCount: 1, icon: "achievement_boss_kael'thassunstrider_01" });
+            eventStore.getEvent.mockImplementation(() => ({ ...approved, setup: { status: "draft", groups: [{ slots: [{ userId: "u1" }] }] } }));
+            const draft = await loadNextRaids("g1", 1);
+            expect(draft.raids[0].setupCount).toBe(0);
+            expect(rh.getSetup).not.toHaveBeenCalled();
+        } finally {
+            eventStore.listEvents.mockReturnValue([]);
+            eventStore.getEvent.mockReset();
+        }
+    });
+
     it("reports a Raid-Helper failure instead of throwing", async () => {
         rh.getAllEvents.mockRejectedValue(new Error("kaputt"));
         expect(await loadNextRaids("g1")).toEqual({ raids: [], error: "kaputt" });

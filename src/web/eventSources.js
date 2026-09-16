@@ -40,11 +40,54 @@ function specNameFor(specKey) {
     return RH_SPEC_NAMES[String(specKey || "")] || "";
 }
 
-/** A category's default source for NEW events: "raidhelper" unless switched. */
-function signupSourceFor(categoryId) {
-    const map = getConfig().categorySignupSource || {};
-    const value = map[String(categoryId || "")];
+// Raid-Helper spec name → rule-set spec key: the reverse of RH_SPEC_NAMES, used
+// to read Raid-Helper signups as spec history (#291). Raid-Helper's own names are
+// unique across classes ("Holy1" = paladin, "HolyPriest" = priest).
+const SPEC_KEY_BY_RH_NAME = Object.fromEntries(Object.entries(RH_SPEC_NAMES).map(([key, name]) => [name.toLowerCase(), key]));
+const WOW_CLASSES = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"];
+
+/**
+ * The rule-set spec key of one Raid-Helper signup (`className`, `specName`), or
+ * "" when it names no playable spec (Absence, Bench, a death knight, a typo).
+ * Aliases of config/classlist.js ("Destro", "RestoSham", "ProtPala") resolve to
+ * their spec; when `className` is a real class it wins over an ambiguous name —
+ * "Holy" on a paladin is a holy paladin, not the priest classlist's alias means.
+ */
+function specKeyFromRaidHelper(className, specName) {
+    const raw = String(specName || "").trim();
+    if (!raw) return "";
+    const cls = WOW_CLASSES.find((c) => c.toLowerCase() === String(className || "").trim().toLowerCase()) || "";
+    // Lazily: classlist is only needed here.
+    const aliases = require("../config/classlist");
+    const alias = aliases[raw] && aliases[raw].spec ? String(aliases[raw].spec) : "";
+    const found = SPEC_KEY_BY_RH_NAME[raw.toLowerCase()]
+        || SPEC_KEY_BY_RH_NAME[alias.toLowerCase()]
+        || (alias.toLowerCase() === "destruction" ? "Warlock-Destruction" : "");
+    if (!cls) return found;
+    if (found && found.startsWith(`${cls}-`)) return found;
+    // The class says otherwise: its spec of the same name ("Holy1" → "Holy").
+    const bare = raw.replace(/\d+$/, "").toLowerCase();
+    const own = Object.keys(RH_SPEC_NAMES).find((key) => key.startsWith(`${cls}-`)
+        && [key.split("-")[1].toLowerCase(), RH_SPEC_NAMES[key].replace(/\d+$/, "").toLowerCase()].includes(bare));
+    return own || "";
+}
+
+/** The source a category without its own choice gets (config.signupSourceDefault). */
+function defaultSignupSource(config = getConfig()) {
+    const value = config && config.signupSourceDefault;
     return SOURCES.includes(value) ? value : DEFAULT_SOURCE;
+}
+
+/**
+ * A category's source for NEW events: its own choice, else the default —
+ * EventHelper since #291 for a category that is new, while the categories an
+ * install already had stay on Raid-Helper until someone switches them
+ * (settingsStore.signupSourcesOf pins them).
+ */
+function signupSourceFor(categoryId, config = getConfig()) {
+    const map = (config && config.categorySignupSource) || {};
+    const value = map[String(categoryId || "")];
+    return SOURCES.includes(value) ? value : defaultSignupSource(config);
 }
 
 /** Which source an event id belongs to. */
@@ -237,6 +280,23 @@ function listStoredEvents(guildId, { now = Date.now() } = {}) {
     return [...rh, ...own].sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
 }
 
+/**
+ * The own event a Discord channel belongs to, for the bot's channel-bound
+ * commands (`/signup`, `/saveraid`, `/fillsetup` without an id, #291): the next
+ * one that has not started, else the one that started last. A cancelled event
+ * counts only when nothing else is there. Null without an own event.
+ */
+function ownEventInChannel(channelId, { now = Date.now() } = {}) {
+    const cid = String(channelId || "");
+    if (!cid) return null;
+    const nowSec = Math.floor(now / 1000);
+    const inChannel = listEvents("").filter((ev) => ev.channelId === cid);
+    const active = inChannel.filter((ev) => ev.status !== "cancelled");
+    const pool = active.length ? active : inChannel;
+    const upcoming = pool.filter((ev) => Number(ev.startTime) >= nowSec).sort((a, b) => a.startTime - b.startTime);
+    return upcoming[0] || pool[0] || null; // listEvents: newest start first
+}
+
 /** One stored event of either source by id (the drop-in for getRaidEvent()), or null. */
 function getStoredEvent(id) {
     if (isOwnEventId(id)) {
@@ -249,7 +309,7 @@ function getStoredEvent(id) {
 
 module.exports = {
     SOURCES, DEFAULT_SOURCE,
-    specNameFor, signupSourceFor, sourceOfEventId,
+    specNameFor, specKeyFromRaidHelper, signupSourceFor, defaultSignupSource, sourceOfEventId,
     toSignUpShape, ownSignUps, toEventGroupShape, toMatchableShape, toStoredShape, toRaidHelperShape,
-    ownEventGroupRows, ownMatchableEvents, ownUpcomingRaw, ownSignedUpEvents, listStoredEvents, getStoredEvent,
+    ownEventGroupRows, ownMatchableEvents, ownUpcomingRaw, ownSignedUpEvents, ownEventInChannel, listStoredEvents, getStoredEvent,
 };

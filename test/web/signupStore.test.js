@@ -48,6 +48,17 @@ describe("web/signupStore", () => {
         expect(lastSignupOf("")).toBeNull();
     });
 
+    it("falls back to the spec imported from Raid-Helper, and an own signup wins over it (#291)", () => {
+        const specHistory = require("../../src/web/specHistoryStore");
+        specHistory.applyImport(
+            [{ userId: "u7", spec: "Druid-Balance", eventId: "rh-1", at: 1000, character: "Eule" }],
+            { eventIds: ["rh-1"] },
+        );
+        expect(lastSignupOf("u7")).toEqual({ eventId: "rh-1", character: "Eule", spec: "Druid-Balance", imported: true });
+        saveSignup("eh-9", "u7", { character: "Baum", spec: "Druid-Restoration", status: "signed" });
+        expect(lastSignupOf("u7")).toEqual({ eventId: "eh-9", character: "Baum", spec: "Druid-Restoration" });
+    });
+
     it("stores several characters in priority order, the first mirrored on top (#293)", () => {
         const { signup } = saveSignup("eh-1", "u1", {
             characters: [{ character: "Zibbo", spec: "Priest-Holy" }, { character: "Zibbowar", spec: "Warrior-Protection" }, { character: "zibbo", spec: "Priest-Shadow" }],

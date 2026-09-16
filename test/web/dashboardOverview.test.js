@@ -1,11 +1,20 @@
 // The rules behind the start page ("Übersicht"): which raid icon, how full a
 // role is, which tasks are open, what the evaluation tile counts.
 const {
-    zoneFor, raidSize, roleBucket, roleFill, classCounts, notSignedUp,
+    zoneFor, zoneForEvent, raidSize, roleBucket, roleFill, classCounts, notSignedUp,
     openRecommendations, lastReportArea, newLootSince, buildTasks, FALLBACK_ZONE_ICON,
 } = require("../../src/web/dashboardOverview");
 
 describe("web/dashboardOverview", () => {
+    describe("zoneForEvent (#291)", () => {
+        it("takes an own event's raids, newest content first, and the title otherwise", () => {
+            expect(zoneForEvent({ source: "eventhelper", title: "Mittwoch", instanceIds: ["tk", "ssc"] })).toEqual({ contentId: "tk", icon: "achievement_boss_kael'thassunstrider_01" });
+            expect(zoneForEvent({ source: "eventhelper", title: "Kara Donnerstag", instanceIds: ["ony"] }).contentId).toBe("kara");
+            expect(zoneForEvent({ source: "raidhelper", title: "Black Temple", instanceIds: ["kara"] }).contentId).toBe("bt");
+            expect(zoneForEvent(null).contentId).toBe("");
+        });
+    });
+
     describe("zoneFor", () => {
         it("names the final boss of the raid a title names", () => {
             expect(zoneFor("Black Temple – Clear")).toEqual({ contentId: "bt", icon: "achievement_boss_illidan" });

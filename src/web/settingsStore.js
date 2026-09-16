@@ -99,9 +99,18 @@ const CONFIG_DEFAULTS = {
     // "gargul" | "rclc". Steers the loot-import parser and the char-loot history.
     categoryLootTool: {},
     // Where NEW events of a Discord category are created, keyed by category id:
-    // "raidhelper" (default) | "eventhelper". Only the default for new events —
-    // a Raid-Helper event stays fully in use in either case (eventSources.js).
+    // "raidhelper" | "eventhelper". Only the default for new events — a
+    // Raid-Helper event stays fully in use in either case (eventSources.js).
+    // A category without an entry follows `signupSourceDefault` (#291).
     categorySignupSource: {},
+    // The source of a category nobody picked one for. "eventhelper" for a new
+    // install; an install from before #291 keeps "raidhelper" for the categories
+    // it already had (signupSourcesOf() pins them once, nothing flips silently).
+    signupSourceDefault: "eventhelper",
+    // Switching Raid-Helper off (#291, Verbindungen → Raid-Helper): with
+    // `disabled` no request goes to raid-helper.xyz any more (utils/
+    // raidhelperClient.js); the stored history stays readable.
+    raidhelperRetirement: { disabled: false, at: 0, byName: "" },
     // A fixed, guild-owned Google Sheet per Discord category:
     // { [categoryId]: { url, name } }. When one is set, a raid in that category
     // links this sheet instead of needing its own copy. A copy the app actually
@@ -486,7 +495,8 @@ function getConfig() {
         warcraftlogsV2: { ...CONFIG_DEFAULTS.warcraftlogsV2, ...(stored.warcraftlogsV2 || {}) },
         categoryLootTool: (stored.categoryLootTool && typeof stored.categoryLootTool === "object")
             ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
-        categorySignupSource: normalizeCategorySignupSource(stored.categorySignupSource),
+        ...signupSourcesOf(stored),
+        raidhelperRetirement: normalizeRaidhelperRetirement(stored.raidhelperRetirement),
         categorySheets: normalizeCategorySheets(stored.categorySheets),
         categoryRaidTemplate: categoryRaidTemplateOf(stored),
         topItems: normalizeTopItems(stored.topItems),
@@ -633,19 +643,71 @@ function normalizeTopItems(raw) {
     return out;
 }
 
+const SIGNUP_SOURCES = ["raidhelper", "eventhelper"];
+
 /**
- * Normalise categorySignupSource to `{ [categoryId]: "eventhelper" }`. Only the
- * switched categories are kept: "raidhelper" is the default and anything
- * unknown falls back to it, so the stored map never names a third source.
+ * Normalise categorySignupSource to `{ [categoryId]: "raidhelper" | "eventhelper" }`.
+ * Both values are kept (#291): a category without an entry follows the default,
+ * which is no longer Raid-Helper, so "stays on Raid-Helper" has to be written
+ * down. Anything else is dropped, so the map never names a third source.
  */
 function normalizeCategorySignupSource(raw) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
     const out = {};
     for (const [catId, source] of Object.entries(raw)) {
         const key = String(catId).trim();
-        if (key && source === "eventhelper") out[key] = "eventhelper";
+        if (key && SIGNUP_SOURCES.includes(source)) out[key] = source;
     }
     return out;
+}
+
+/**
+ * The categories an install has configured anything for — the ones that were
+ * running on Raid-Helper before new categories defaulted to EventHelper.
+ */
+function configuredCategoryIds(stored) {
+    const ids = new Set(Array.isArray(stored.categoryIds) ? stored.categoryIds.map(String) : CONFIG_DEFAULTS.categoryIds.map(String));
+    for (const key of ["categoryRoles", "categoryRaidTemplate", "categoryLootTool", "categorySheets", "categoryReminders"]) {
+        const map = stored[key];
+        if (map && typeof map === "object" && !Array.isArray(map)) Object.keys(map).forEach((id) => ids.add(String(id)));
+    }
+    ids.delete("");
+    return [...ids];
+}
+
+/**
+ * `{ categorySignupSource, signupSourceDefault }` as every reader sees it.
+ *
+ * Until #291 a category without an entry meant Raid-Helper and only switched
+ * categories were stored. New categories default to EventHelper now — so a
+ * config from before (it has no `signupSourceDefault`) gets every category it
+ * already configured pinned to "raidhelper" on read, and the next save writes
+ * that down. An old install with no category at all keeps Raid-Helper as its
+ * default: there is nothing to pin, and flipping it silently is exactly what
+ * must not happen. A fresh install (nothing stored) starts on EventHelper.
+ */
+function signupSourcesOf(stored) {
+    const map = normalizeCategorySignupSource(stored.categorySignupSource);
+    if (SIGNUP_SOURCES.includes(stored.signupSourceDefault)) {
+        return { categorySignupSource: map, signupSourceDefault: stored.signupSourceDefault };
+    }
+    const fresh = !Object.keys(stored).length;
+    if (fresh) return { categorySignupSource: map, signupSourceDefault: "eventhelper" };
+    const known = configuredCategoryIds(stored);
+    if (!known.length) return { categorySignupSource: map, signupSourceDefault: "raidhelper" };
+    const pinned = { ...map };
+    for (const id of known) if (!pinned[id]) pinned[id] = "raidhelper";
+    return { categorySignupSource: pinned, signupSourceDefault: "eventhelper" };
+}
+
+/** The Raid-Helper switch-off block with a boolean, a time and a name. */
+function normalizeRaidhelperRetirement(raw) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    return {
+        disabled: src.disabled === true,
+        at: Number(src.at) || 0,
+        byName: String(src.byName || "").slice(0, 100),
+    };
 }
 
 /**
@@ -724,7 +786,9 @@ function saveConfig(partial) {
     }
     if (partial.warcraftlogsV2) next.warcraftlogsV2 = { ...current.warcraftlogsV2, ...partial.warcraftlogsV2 };
     if (partial.categoryLootTool) next.categoryLootTool = { ...current.categoryLootTool, ...partial.categoryLootTool };
-    // Merged, then normalised: a category set back to "raidhelper" drops out.
+    // Merged, then normalised. `current` already carries the categories pinned
+    // for an install from before #291 (signupSourcesOf), so this save writes them down.
+    if (partial.raidhelperRetirement !== undefined) next.raidhelperRetirement = normalizeRaidhelperRetirement(partial.raidhelperRetirement);
     if (partial.categorySignupSource) {
         next.categorySignupSource = normalizeCategorySignupSource({ ...current.categorySignupSource, ...partial.categorySignupSource });
     }
@@ -751,4 +815,5 @@ module.exports = {
     listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
     getConfig, saveConfig, resolveEventSheetLink, normalizeDiscordServers,
     normalizeRoleSync, normalizeCategoryReminders, ROLE_SYNC_DIRECTIONS, REMINDER_TARGETS,
+    normalizeCategorySignupSource, signupSourcesOf, normalizeRaidhelperRetirement,
 };

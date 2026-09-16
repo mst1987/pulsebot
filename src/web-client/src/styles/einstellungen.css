@@ -151,9 +151,35 @@ button.badge.chip.accent:hover { color: var(--accent); }
 .sync-drift-list li { display: inline-flex; align-items: baseline; gap: 6px; }
 .sync-drift-list a { font-weight: 700; }
 
+/* Umstieg von Raid-Helper (#291): one line per checklist item, the rest in tooltips. */
+.rhr-card { margin-top: 14px; }
+.rhr-list { list-style: none; margin: 0; padding: 6px 16px; display: flex; flex-direction: column; }
+.rhr-item { display: grid; grid-template-columns: 128px minmax(0, 1fr) auto 150px; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); font-size: 13.5px; }
+.rhr-item:last-child { border-bottom: 0; }
+.rhr-item .badge { justify-self: start; }
+.rhr-label { justify-self: start; display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.rhr-req { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.rhr-value { font-family: var(--font-mono); font-size: 13px; color: var(--muted); white-space: nowrap; }
+.rhr-item.is-bad .rhr-value { color: var(--high); }
+.rhr-act { justify-self: end; }
+.rhr-link { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; }
+.rhr-link svg { width: 14px; height: 14px; }
+.rhr-foot { border-top: 1px solid var(--line-soft); padding-top: 12px; }
+.rhr-switch-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rhr-switch-text .note { margin: 0; }
+.switch.is-disabled { opacity: .5; cursor: not-allowed; }
+.rhr-pad { padding: 12px 16px; }
+.rhr-import-row { display: flex; align-items: center; gap: 10px; }
+.rhr-import-row input { width: 80px; }
+.rhr-import-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.rhr-import-list li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13.5px; }
+.rhr-import-list strong { min-width: 140px; }
+
 @media (max-width: 760px) {
     .conn-grid { grid-template-columns: 1fr; }
     .srv-channels { grid-template-columns: 1fr; }
+    .rhr-item { grid-template-columns: auto minmax(0, 1fr); }
+    .rhr-value, .rhr-act { justify-self: start; }
 }
 
 /* ---- Berechtigungen ---- */
