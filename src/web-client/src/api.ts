@@ -454,7 +454,9 @@ export type AdminConfig = {
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
     logChannelIds: string[];
-    raidDefaults: { templateId: string; channelId: string };
+    raidDefaults: { channelId: string };
+    // The default raid template per category (category id → template id).
+    categoryRaidTemplate: Record<string, string>;
     blizzard: BlizzardConfig;
     // Claude phrases the log recommendations for the raiders. The key itself
     // never comes back from the server — only whether one is stored.
@@ -507,6 +509,8 @@ export type SettingsData = {
     // Discord could not resolve simply has no entry.
     userNames?: Record<string, string>;
     raidsheets: Raidsheet[];
+    // The raid templates, for the default-template select per category.
+    raidTemplates?: { id: string; name: string; versionId: string; size: number | null }[];
     roles: Role[];
     categories: Category[];
     // The text channels the bot can post in, for the channel pickers; empty
@@ -1031,7 +1035,37 @@ export function linkSoftres(
     return send("POST", "/api/raids/softres/link", csrfToken, input);
 }
 
-export type RaidTemplate = { id: string; name: string };
+// Raid templates (#266, src/web/raidTemplates.js): what an evening looks like.
+export type RoleRange = { min: number; max: number | null };
+
+export type RaidTemplateInput = {
+    id?: string;
+    name: string;
+    versionId: string;
+    /** from the rule set only (GET /api/game-versions) */
+    instanceIds: string[];
+    /** null = not set yet (a migrated Raid-Helper template) */
+    size: number | null;
+    composition: { tank: number; healer: number; melee: RoleRange | null; ranged: RoleRange | null };
+    /** buff keys of the version */
+    requiredBuffs: string[];
+    signupDeadline: { hoursBefore: number } | null;
+    fairness: boolean;
+    wishes: boolean;
+    raidhelperTemplateId: string;
+};
+
+export type RaidTemplate = RaidTemplateInput & {
+    id: string;
+    createdAt?: number;
+    updatedAt?: number;
+    /** migrated without size: badge "Größe ergänzen" */
+    needsSize?: boolean;
+    /** an instance still "Infos fehlen" */
+    incomplete?: boolean;
+    /** the categories using it as their default */
+    defaultFor?: string[];
+};
 
 export type ReusableEvent = {
     id: string;
@@ -1047,7 +1081,10 @@ export type ReusableEvent = {
 };
 
 export type RaidCreateContext = {
+    /** templateId: the Raid-Helper template of the default channel's category */
     defaults: { templateId: string; channelId: string };
+    /** category id → Raid-Helper template id of its default raid template */
+    categoryTemplates: Record<string, string>;
     leaderId: string;
     channels: Channel[];
     templates: RaidTemplate[];
@@ -1139,16 +1176,22 @@ export function getGameVersions(): Promise<GameVersionsData> {
     return get<GameVersionsData>("/api/game-versions");
 }
 
-export function getRaidTemplates(): Promise<{ templates: RaidTemplate[] }> {
-    return get<{ templates: RaidTemplate[] }>("/api/raid-templates");
+export type RaidTemplatesData = { templates: RaidTemplate[]; categoryNames: Record<string, string> };
+
+export function getRaidTemplates(): Promise<RaidTemplatesData> {
+    return get<RaidTemplatesData>("/api/raid-templates");
 }
 
-export function createRaidTemplate(csrfToken: string | null, input: { id: string; name: string }): Promise<RaidTemplate> {
-    return send("POST", "/api/raid-templates", csrfToken, input);
+/** Create (no id) or update (id) a raid template. */
+export function saveRaidTemplate(csrfToken: string | null, input: RaidTemplateInput): Promise<RaidTemplate> {
+    return input.id
+        ? send("PATCH", "/api/raid-templates", csrfToken, input)
+        : send("POST", "/api/raid-templates", csrfToken, input);
 }
 
+/** 409 while a category uses it as its default — the message names the category. */
 export function deleteRaidTemplate(csrfToken: string | null, id: string): Promise<{ id: string }> {
-    return send("POST", "/api/raid-templates/delete", csrfToken, { id });
+    return send("DELETE", "/api/raid-templates", csrfToken, { id });
 }
 
 export function importRaidTemplates(csrfToken: string | null): Promise<{ added: number; updated: number; templates: RaidTemplate[] }> {
@@ -2827,4 +2870,137 @@ export type CouncilExport = {
 
 export function getCouncilExport(character: string): Promise<CouncilExport> {
     return get<CouncilExport>(`/api/lootcouncil/export?character=${encodeURIComponent(character)}`);
+}
+
+// ---- Mein Profil (#255, src/web/apiRoutes/profile.js) ----
+
+export type GearLevel = "none" | "usable" | "ready";
+
+/** "Laut Logs": seen = exactly this spec, other = in the logs with another spec, unknown = not in the logs. */
+export type SpecEvidence = { status: "seen" | "other" | "unknown"; reports: number; source?: string; loggedSpec?: string };
+
+export type ProfileSpec = {
+    key: string;
+    gear: GearLevel;
+    label: string;
+    specId: string;
+    role: GameRole | "";
+    icon: string;
+    canTank: boolean;
+    canHeal: boolean;
+    logs: SpecEvidence;
+};
+
+export type RaiderRef = { userId: string; name: string; main: string; className: string };
+
+export type ProfileCharacter = {
+    key: string;
+    name: string;
+    realm: string;
+    className: string;
+    main: boolean;
+    source: "log" | "armory" | "manual";
+    armory: { level: number | null; guild: string; fetchedAt: number } | null;
+    armoryUrl: string;
+    specs: ProfileSpec[];
+    /** Other accounts that added the same character. */
+    claimedBy: { userId: string; name: string }[];
+};
+
+export type RaiderProfile = {
+    userId: string;
+    name: string;
+    characters: ProfileCharacter[];
+    canOfftank: boolean;
+    canHeal: boolean;
+    suggested: { canOfftank: boolean; canHeal: boolean };
+    availability: string[];
+    preferredRaids: string[];
+    /** For the owner: whom they wished for — never whether it is mutual. */
+    wishes: (RaiderRef & { mutual?: boolean })[];
+    note: string;
+    updatedAt: number;
+    /** Only in the orga's view. */
+    wishedBy?: RaiderRef[];
+};
+
+export type ProfileRaidGroup = {
+    id: string;
+    label: string;
+    instances: { id: string; name: string; short: string; icon: string; status: string }[];
+};
+
+export type ProfileData = {
+    profile: RaiderProfile;
+    isNew: boolean;
+    classes: GameClass[];
+    roles: Record<GameRole, string>;
+    raidGroups: ProfileRaidGroup[];
+    weekdays: { id: string; label: string }[];
+    gearLevels: { id: GearLevel; label: string }[];
+    limits: { characters: number; wishes: number; note: number };
+};
+
+export type ProfilePatch = {
+    canOfftank?: boolean | null;
+    canHeal?: boolean | null;
+    availability?: string[];
+    preferredRaids?: string[];
+    wishes?: string[];
+    note?: string;
+    characters?: { key: string; main?: boolean; specs?: { key: string; gear: GearLevel }[] }[];
+};
+
+export type LogCharacterSuggestion = {
+    character: string;
+    className: string;
+    specKey: string;
+    reports: number;
+    lastSeen: number;
+    match: "assigned" | "name" | "";
+    claimedBy: { userId: string; name: string }[];
+};
+
+export type AddCharacterInput =
+    | { source: "log"; name: string }
+    | { source: "armory"; name: string; realm?: string; className?: string }
+    | { source: "manual"; name: string; className: string; specs: string[] };
+
+export type CharacterClaim = {
+    key: string;
+    character: string;
+    className: string;
+    claims: { userId: string; name: string; main: boolean }[];
+};
+
+export function getProfile(): Promise<ProfileData> {
+    return get<ProfileData>("/api/profile");
+}
+
+export function saveProfile(csrfToken: string | null, patch: ProfilePatch): Promise<{ profile: RaiderProfile }> {
+    return send("PUT", "/api/profile", csrfToken, patch);
+}
+
+export function getLogCharacters(q = ""): Promise<{ characters: LogCharacterSuggestion[] }> {
+    return get(`/api/profile/log-characters?q=${encodeURIComponent(q)}`);
+}
+
+export function addProfileCharacter(csrfToken: string | null, input: AddCharacterInput): Promise<{
+    character: ProfileCharacter;
+    armory: { linked: boolean; fetched: boolean } | null;
+    profile: RaiderProfile;
+}> {
+    return send("POST", "/api/profile/characters", csrfToken, input);
+}
+
+export function removeProfileCharacter(csrfToken: string | null, key: string): Promise<{ removed: boolean; profile: RaiderProfile }> {
+    return send("POST", "/api/profile/characters", csrfToken, { remove: key });
+}
+
+export function searchRaiders(q: string): Promise<{ raiders: RaiderRef[] }> {
+    return get(`/api/profile/raiders?q=${encodeURIComponent(q)}`);
+}
+
+export function getCharacterClaims(): Promise<{ claims: CharacterClaim[] }> {
+    return get("/api/roster/character-claims");
 }

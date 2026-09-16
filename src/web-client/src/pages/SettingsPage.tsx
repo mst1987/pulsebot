@@ -53,10 +53,10 @@ type Draft = {
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
     logChannelIds: string[];
-    raidTemplateId: string;
     raidChannelId: string;
     categoryLootTool: Record<string, string>;
     categorySheets: Record<string, CategorySheet>;
+    categoryRaidTemplate: Record<string, string>;
     topItems: TopItem[];
 };
 
@@ -74,10 +74,10 @@ function toDraft(config: AdminConfig): Draft {
         categoryIds: config.categoryIds || [],
         categoryRoles: config.categoryRoles || {},
         logChannelIds: config.logChannelIds || [],
-        raidTemplateId: config.raidDefaults?.templateId || "",
         raidChannelId: config.raidDefaults?.channelId || "",
         categoryLootTool: config.categoryLootTool || {},
         categorySheets: config.categorySheets || {},
+        categoryRaidTemplate: config.categoryRaidTemplate || {},
         topItems: config.topItems || [],
     };
 }
@@ -375,8 +375,10 @@ export default function SettingsPage() {
                 categoryIds: draft.categoryIds,
                 categoryRoles: draft.categoryRoles,
                 logChannelIds: draft.logChannelIds,
-                raidDefaults: { templateId: draft.raidTemplateId.trim(), channelId: draft.raidChannelId.trim() },
+                raidDefaults: { channelId: draft.raidChannelId.trim() },
                 categoryLootTool: draft.categoryLootTool,
+                // Sent whole: a category set back to "keine" is left out.
+                categoryRaidTemplate: Object.fromEntries(Object.entries(draft.categoryRaidTemplate).filter(([, id]) => id)),
                 // Sent whole: the store replaces the map, so clearing a url is
                 // what removes that category's sheet.
                 categorySheets: Object.fromEntries(
@@ -474,6 +476,11 @@ export default function SettingsPage() {
                     onToggleRole={toggleRole}
                     onLootTool={(id, tool) => patch({ categoryLootTool: { ...draft.categoryLootTool, [id]: tool } })}
                     onSheet={(id, sheet) => patch({ categorySheets: { ...draft.categorySheets, [id]: sheet } })}
+                    raidTemplates={{
+                        options: data.raidTemplates || [],
+                        value: draft.categoryRaidTemplate,
+                        onChange: (id, templateId) => patch({ categoryRaidTemplate: { ...draft.categoryRaidTemplate, [id]: templateId } }),
+                    }}
                     csrfToken={csrfToken}
                     icon={activeSection.icon}
                     crumb={activeSection.crumb}
@@ -484,10 +491,6 @@ export default function SettingsPage() {
                 <>
                     {head(activeSection)}
                     <ModuleCard>
-                        <div className="set-field">
-                            <FieldLabel htmlFor="set-raid-template" tip="Standard-Template" tipSub="Raid-Helper-Template, mit dem ein neues Raid-Event vorbelegt wird, wenn beim Anlegen nichts anderes gewählt ist.">Standard-Template-ID</FieldLabel>
-                            <input id="set-raid-template" type="text" className="mono" value={draft.raidTemplateId} onChange={(e) => patch({ raidTemplateId: e.target.value })} placeholder="Raid-Helper Template-ID" />
-                        </div>
                         <div className="set-field">
                             <FieldLabel htmlFor="set-raid-channel" tip="Standard-Kanal" tipSub="Der Kanal, in dem ein neues Raid-Event angelegt wird, wenn beim Anlegen keiner gewählt ist.">Standard-Kanal</FieldLabel>
                             <ChannelPicker id="set-raid-channel" value={draft.raidChannelId} channels={channels} onChange={(raidChannelId) => patch({ raidChannelId })} />

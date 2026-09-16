@@ -39,6 +39,7 @@ function crumbTab(pathname: string) {
 function subCrumb(pathname: string, search: URLSearchParams): string | null {
     if (pathname === "/raids/new") return "Neues Event";
     if (pathname === "/raids/templates") return "Aufruf-Vorlagen";
+    if (pathname === "/raids/raid-templates") return "Raid-Vorlagen";
     if (pathname === "/history/event") return "Event-Loot";
     if (pathname === "/history/char" || pathname === "/roster/char") return search.get("name") || "Charakter";
     if (pathname === "/recruitment" && (search.get("view") || "posts") === "posts" && search.get("editpost")) {

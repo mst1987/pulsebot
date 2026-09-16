@@ -337,6 +337,7 @@ class Blizzard {
             lastLogin: data.last_login_timestamp || null,
             className: (data.character_class && data.character_class.name) || "",
             faction: (data.faction && data.faction.name) || "",
+            guild: (data.guild && data.guild.name) || "",
             namespace: this._resolve(opts).namespace,
         };
     }

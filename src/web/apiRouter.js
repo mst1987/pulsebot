@@ -20,6 +20,9 @@ const { getBotCommands } = require("./apiRoutes/botCommands");
 const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raiderCharacters");
 const { getRoster, postRosterHide, getRosterChar } = require("./apiRoutes/roster");
 const {
+    getProfile, putProfile, getLogCharacters, postProfileCharacter, getRaiderSearch, getUserProfile, getCharacterClaims,
+} = require("./apiRoutes/profile");
+const {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim,
     getItemSearch: getCouncilItemSearch, getBisLists: getCouncilBisLists,
     postExclude: postCouncilExclude, postRole: postCouncilRole, getExport: getCouncilExport,
@@ -35,7 +38,7 @@ const {
     getNotifyTemplates, saveNotifyTemplate, deleteNotifyTemplate,
 } = require("./apiRoutes/notifyTemplates");
 const {
-    getRaidTemplates, createRaidTemplate, deleteRaidTemplateHandler, importRaidTemplates,
+    getRaidTemplates, createRaidTemplate, updateRaidTemplate, deleteRaidTemplateHandler, importRaidTemplates,
 } = require("./apiRoutes/raidTemplates");
 const {
     getRecruitmentData, saveRecruitmentTemplate, deleteRecruitmentTemplate, postRecruitmentTemplate,
@@ -202,6 +205,34 @@ async function route(pathname, req, res, url) {
         await getRosterChar(req, res, url);
         return true;
     }
+    if (pathname === "/api/roster/character-claims" && req.method === "GET") {
+        await getCharacterClaims(req, res);
+        return true;
+    }
+    if (pathname === "/api/profile" && req.method === "GET") {
+        await getProfile(req, res);
+        return true;
+    }
+    if (pathname === "/api/profile" && req.method === "PUT") {
+        await putProfile(req, res);
+        return true;
+    }
+    if (pathname === "/api/profile/log-characters" && req.method === "GET") {
+        await getLogCharacters(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/profile/characters" && req.method === "POST") {
+        await postProfileCharacter(req, res);
+        return true;
+    }
+    if (pathname === "/api/profile/raiders" && req.method === "GET") {
+        await getRaiderSearch(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/profile/user" && req.method === "GET") {
+        await getUserProfile(req, res, url);
+        return true;
+    }
     if (pathname === "/api/lootcouncil" && req.method === "GET") {
         await getLootCouncil(req, res, url);
         return true;
@@ -318,7 +349,11 @@ async function route(pathname, req, res, url) {
         await createRaidTemplate(req, res);
         return true;
     }
-    if (pathname === "/api/raid-templates/delete" && req.method === "POST") {
+    if (pathname === "/api/raid-templates" && req.method === "PATCH") {
+        await updateRaidTemplate(req, res);
+        return true;
+    }
+    if (pathname === "/api/raid-templates" && req.method === "DELETE") {
         await deleteRaidTemplateHandler(req, res);
         return true;
     }

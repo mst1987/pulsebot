@@ -12,6 +12,7 @@ jest.mock("../../src/web/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => partial),
     listRaidsheets: jest.fn(() => []),
+    listRaidTemplates: jest.fn(() => [{ id: "k1", name: "Kara", versionId: "tbc", size: 10, composition: { tank: 2, healer: 3 } }]),
     saveRaidsheet: jest.fn(),
     deleteRaidsheet: jest.fn(),
 }));
@@ -80,6 +81,20 @@ describe("GET /api/settings for the redesigned page", () => {
         const res2 = mockRes();
         await getSettings({}, res2);
         expect(body(res2).data.bot.online).toBe(false);
+    });
+});
+
+describe("default raid template per category (#266)", () => {
+    it("lists the raid templates for the select, names only", async () => {
+        const res = mockRes();
+        await getSettings({}, res);
+        expect(body(res).data.raidTemplates).toEqual([{ id: "k1", name: "Kara", versionId: "tbc", size: 10 }]);
+    });
+
+    it("stores the map, dropping an id no template has", async () => {
+        readJsonBody.mockResolvedValue({ categoryRaidTemplate: { c1: "k1", c2: "gone" } });
+        await updateSettings({ headers: {} }, mockRes());
+        expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryRaidTemplate: { c1: "k1" } });
     });
 });
 

@@ -97,6 +97,7 @@ const commands = [
     { name: "show-allsetups", description: "Show all setups for the current category" },
     { name: "show-signups", description: "Show all signups for the current category" },
     { name: "update-events", description: "Update event overview for the current category" },
+    { name: "profil", description: "Zeigt dein Raider-Profil kurz an, mit Link ins Web" },
     {
         name: "signup",
         description: "Sign up to the raid in this channel",

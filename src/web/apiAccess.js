@@ -55,6 +55,18 @@ const AREA_BY_PATH = {
     // The character page's attendance, role and item facts. The page is routed
     // under the roster and under the history, so either area opens it.
     "/api/roster/char": ["roster", "history"],
+    // Characters more than one raider profile claims — the orga resolves them.
+    "/api/roster/character-claims": "roster",
+
+    // "Mein Profil" (#255). The handlers work on the session's own account only,
+    // so granting "signup" to everyone (base access) hands out exactly that: one's
+    // own profile. Another raider's profile, wishes included, is the orga's and
+    // needs the roster.
+    "/api/profile": "signup",
+    "/api/profile/log-characters": "signup",
+    "/api/profile/characters": "signup",
+    "/api/profile/raiders": "signup",
+    "/api/profile/user": "roster",
 
     // The caster loot council. Starting a simulation is a POST, so the method
     // rule already makes it write-level — a read-only council member sees the
@@ -83,11 +95,11 @@ const AREA_BY_PATH = {
     "/api/raids/softres/item-search": "raids",
     // The game version rule sets (classes, instances, buffs) feed the raid planning.
     "/api/game-versions": "raids",
-    // Anmelde-Aufruf and Raid-Helper templates are edited from the raid pages.
+    // Anmelde-Aufruf and raid templates are edited from the raid pages. The raid
+    // templates are one path for GET/POST/PATCH/DELETE — the method sets the level.
     "/api/notify-templates": "raids",
     "/api/notify-templates/delete": "raids",
     "/api/raid-templates": "raids",
-    "/api/raid-templates/delete": "raids",
     "/api/raid-templates/import": "raids",
 
     "/api/recruitment": "recruitment",
