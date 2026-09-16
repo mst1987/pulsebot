@@ -90,11 +90,17 @@ const is = (interaction, guard) => typeof interaction[guard] === "function" && i
  * Autocomplete: the command's own `autocomplete(interaction)` answers the
  * suggestions. Discord allows no other reply to it, so a command without one
  * (or one that throws) gets an empty list instead of "Command not found".
+ * The suggestions pass the same access gate as the command: a command someone
+ * may not run does not list its items, raiders or events to them either (the
+ * gate answers an empty list).
  */
 async function handleAutocomplete(interaction) {
     const command = client.commands.get(lookupKey(interaction));
     try {
-        if (command && typeof command.autocomplete === "function") return await command.autocomplete(interaction);
+        if (command && typeof command.autocomplete === "function") {
+            if (!(await guardInteraction(interaction, command, client.commands))) return;
+            return await command.autocomplete(interaction);
+        }
         if (!interaction.responded) await interaction.respond([]);
     } catch (error) {
         console.error(`Autocomplete error for ${lookupKey(interaction)}:`, error.message);
