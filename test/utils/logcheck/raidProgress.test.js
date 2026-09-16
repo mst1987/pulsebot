@@ -186,3 +186,42 @@ describe("raidProgress — the encounter grid and the list summary", () => {
         expect(raidSummary(null)).toEqual([]);
     });
 });
+
+// Classic raids come from the game version rule set (config/gameVersions).
+describe("raidProgress — Classic Era", () => {
+    const { raidSummary } = require("../../../src/utils/logcheck/raidProgress");
+
+    it("blocks Molten Core until Ragnaros is down", () => {
+        const p = analyzeRaidProgress(report([
+            { name: "Lucifron", kill: true },
+            { name: "Magmadar", kill: true },
+            { name: "Ragnaros", kill: false },
+        ], "Molten Core"));
+        expect(p.complete).toBe(false);
+        expect(p.pending).toEqual(["Geschmolzener Kern"]);
+        expect(p.raids[0].bosses).toHaveLength(10);
+    });
+
+    it("is complete once the final boss is killed, German name included", () => {
+        expect(analyzeRaidProgress(report([{ name: "Ragnaros", kill: true }])).complete).toBe(true);
+        const aq20 = analyzeRaidProgress(report([
+            { name: "Kurinnaxx", kill: true },
+            { name: "Ossirian der Narbenlose", kill: true },
+        ]));
+        expect(aq20.complete).toBe(true);
+        expect(aq20.raids.map((r) => r.contentId)).toEqual(["aq20"]);
+    });
+
+    it("knows every Classic final boss", () => {
+        for (const [boss, id] of [["Onyxia", "ony"], ["Nefarian", "bwl"], ["Hakkar", "zg"], ["C'Thun", "aq40"], ["Kel'Thuzad", "naxx"]]) {
+            const p = analyzeRaidProgress(report([{ name: boss, kill: false }]));
+            expect(p.raids.map((r) => r.contentId)).toEqual([id]);
+            expect(p.complete).toBe(false);
+        }
+    });
+
+    it("counts a Classic raid in the list summary", () => {
+        const p = analyzeRaidProgress(report([{ name: "Razorgore the Untamed", kill: true }], "Blackwing Lair"));
+        expect(raidSummary(p)[0]).toMatchObject({ contentId: "bwl", label: "BWL", killed: 1, total: 8, finalKilled: false, finalBoss: "Nefarian" });
+    });
+});

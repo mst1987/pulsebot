@@ -26,6 +26,7 @@ const {
     getRaidDetail, postNotify, postPingMissing, postFill, postPostSheet, postPostSoftres,
     getItemSearch, postSoftresCreate, postSoftresLink,
 } = require("./apiRoutes/raidDetail");
+const { getGameVersions } = require("./apiRoutes/gameVersions");
 const {
     getNotifyTemplates, saveNotifyTemplate, deleteNotifyTemplate,
 } = require("./apiRoutes/notifyTemplates");
@@ -255,6 +256,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/raids/softres/link" && req.method === "POST") {
         await postSoftresLink(req, res);
+        return true;
+    }
+    if (pathname === "/api/game-versions" && req.method === "GET") {
+        getGameVersions(req, res);
         return true;
     }
     if (pathname === "/api/notify-templates" && req.method === "GET") {
