@@ -163,6 +163,26 @@ When adding a new command:
 1. Create the file in the appropriate `src/commands/<category>/` folder, with `group` + `defaultAccess` (or `accessOf` for a component)
 2. Add its definition to `scripts/register-commands.js` and re-run `npm run register` — it registers for **every configured server** (event + talk, see "Zwei Discord-Server"), `--guild <id>` for exactly one, `--global` globally. Requiring the script does nothing; only running it talks to Discord.
 
+### Lookups with a link into the web menu (issue #265) and `/kanal` (#259)
+
+Short answers in Discord, the big view one click away: every reply is **ephemeral**, one compact embed (the headline number large, a few lines of detail) and an „Im Web öffnen“ link button to the page with the full view (`publicBaseUrl` from `config/variables.js`, i.e. `PUBLIC_BASE_URL`). The shared pieces — `lookupReply()`, `clampEmbed()` (Discord's embed limits), `linkRow()`, `respondChoices()` (autocomplete, ranked and capped at 25), `discordTime()` — are in `src/utils/botLookup.js`. **No second logic:** the data comes from the functions the API uses.
+
+| Command | Default | Reads | Links to |
+|---|---|---|---|
+| `/loot ich · item <Item> · raider <Name>` | everyone | `lootStore.listByCharacter`, `lootStats.itemCatalog`, `raiderCharactersStore.charactersForUser` | `/history/char?name=`, `/history?tab=items` |
+| `/raids` | everyone | `web/eventLookup.js` → `loadEventGroups()` (so own events from #254 arrive too) | `/raids` |
+| `/raid <Event>` | everyone | same, with the lookback window | `/raids/detail?event=`, the Discord channel |
+| `/anwesenheit` | everyone | `web/attendanceLookup.js` → `rosterAttendance` (own characters only) | `/roster/char?name=` |
+| `/anwesenheit-raider <Name>` | admins | same, any character | `/roster/char?name=` |
+| `/report` | everyone | `reportStore.listReports` + `reportList.prepareReportList` | `/r/<id>` |
+| `/council <Item>` | admins | `tbcLootNames.RAID_ITEMS` + `lootStats.itemCatalog` | `/lootcouncil/drop/<itemId>` |
+| `/kanal umbenennen · archivieren · anlegen` | admins | `discordChannels.js`, `channelArchiveStore.js`, `utils/channelNames.js` | `/channels` |
+
+- „Mein" is the raider→character assignment (Einstellungen → Kategorien) — the only trusted link from a Discord account to a character; without one the reply says so instead of guessing.
+- Own attendance and others' are **two commands** because access is per command: everyone may see themselves, the raid lead decides who sees others.
+- `/kanal` never deletes (that stays in the menu, from the archive); archiving logs who did it like the page does, `anlegen` takes a name or a schema (`{tag}-{dd}-{mm}-{raid}`, empty = the category's stored schema and template channel) plus `datum` (`24.09.` or `2026-09-24`).
+- **Autocomplete passes the access gate too** (`handleAutocomplete` in `bot.js`): a command someone may not run does not list its items or raiders to them. `test/commands/access.test.js` checks every registered autocomplete option has a handler.
+
 ## Environment Variables
 
 All required variables must be in `.env` at the project root. See `.env.example` for the full list.

@@ -108,7 +108,15 @@ function mockInteraction(opts = {}) {
             getUser: jest.fn((name) => getOpt(name)),
             getChannel: jest.fn((name) => getOpt(name)),
             getSubcommand: jest.fn(() => options.__subcommand || null),
+            // Autocomplete: `focused: { name, value }` is the option being typed.
+            getFocused: jest.fn((full) => {
+                const focused = opts.focused || { name: "", value: "" };
+                return full ? focused : focused.value;
+            }),
         },
+        // Autocomplete answers go through respond(choices).
+        respond: jest.fn().mockResolvedValue(undefined),
+        responded: false,
         // modal/text-input helpers
         fields: {
             getTextInputValue: jest.fn((name) => getOpt(name)),
