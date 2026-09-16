@@ -125,6 +125,8 @@ async function runForcedReport(interaction, reportId) {
 module.exports = {
     name: FORCE_PREFIX,
     description: "Bestätigt die Auswertung eines Logs, dessen Raid noch nicht abgeschlossen ist.",
+    // A component of /logcheck: it needs the same access (web/botAccess.js).
+    accessOf: "logcheck",
     FORCE_PREFIX,
     CONFIRM_WORD,
     forceCustomId,

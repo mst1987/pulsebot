@@ -21,6 +21,15 @@ const AREA_BY_PATH = {
 
     "/api/channels": "channels",
     "/api/channels/duplicate": "channels",
+    // Issue #259: edit (PATCH /api/channels), archive, delete from the archive,
+    // the rename preview, quick-create by schema and the archive settings — all
+    // writes, so all need "channels" at write. Deleting additionally refuses
+    // anything outside the archive category (discordChannels.deleteChannel).
+    "/api/channels/archive": "channels",
+    "/api/channels/delete": "channels",
+    "/api/channels/rename-preview": "channels",
+    "/api/channels/batch": "channels",
+    "/api/channels/config": "channels",
 
     "/api/settings": "settings",
     // Wowhead search behind the top-item picker in the Loot tab.
@@ -32,6 +41,12 @@ const AREA_BY_PATH = {
     // these are credentials that skip the Discord login (apiRoutes/settings.js).
     "/api/settings/ingest-tokens": "settings",
     "/api/settings/ingest-tokens/delete": "settings",
+    // Einstellungen → Berechtigungen → Bot-Befehle. The handler additionally
+    // demands a full admin, like every other access setting.
+    "/api/bot-commands": "settings",
+    // Event and talk server status (#251). Full-admin only in the handler as
+    // well: which server is the event server decides where the role check runs.
+    "/api/settings/discord-servers": "settings",
     // The raider→character assignment lives in the settings page's own tab.
     "/api/raider-characters": "settings",
 

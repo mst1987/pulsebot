@@ -7,6 +7,8 @@ const mockLogin = jest.fn(() => Promise.resolve("ok"));
 
 jest.mock("../src/web/server", () => ({ startWebServer: mockStartWebServer }));
 jest.mock("../src/web/logChannel", () => ({ handleLogMessage: jest.fn() }));
+const mockGuard = jest.fn(async () => true);
+jest.mock("../src/web/botAccess", () => ({ guardInteraction: (...args) => mockGuard(...args) }));
 jest.mock("dotenv", () => ({ config: jest.fn() }));
 jest.mock("discord.js", () => {
     // Keep the real exports (ChannelType, builders, Collection, …) so the real
@@ -81,5 +83,125 @@ describe("bot start()", () => {
         expect(mockStartWebServer).toHaveBeenCalledWith(bot.client);
         expect(mockLogin).not.toHaveBeenCalled();
         expect(console.warn).toHaveBeenCalled();
+    });
+});
+
+describe("interactionCreate access gate", () => {
+    function slash(commandName) {
+        return {
+            commandName,
+            isCommand: () => true,
+            isButton: () => false,
+            isStringSelectMenu: () => false,
+            isModalSubmit: () => false,
+            replied: false,
+            deferred: false,
+            reply: jest.fn(),
+        };
+    }
+
+    beforeEach(() => {
+        delete process.env.DISCORDJS_BOT_TOKEN;
+        bot.start();
+    });
+
+    it("runs the command when the gate allows it", async () => {
+        const command = { name: "probe", execute: jest.fn() };
+        bot.client.commands.set("probe", command);
+        mockGuard.mockResolvedValueOnce(true);
+        const interaction = slash("probe");
+        await bot.client._h.interactionCreate(interaction);
+        expect(mockGuard).toHaveBeenCalledWith(interaction, command, bot.client.commands);
+        expect(command.execute).toHaveBeenCalledWith(interaction, bot.client);
+    });
+
+    it("never runs the command when the gate refuses it", async () => {
+        const command = { name: "probe", execute: jest.fn() };
+        bot.client.commands.set("probe", command);
+        mockGuard.mockResolvedValueOnce(false);
+        await bot.client._h.interactionCreate(slash("probe"));
+        expect(command.execute).not.toHaveBeenCalled();
+    });
+
+    it("checks a button against its handler, looked up by the customId prefix", async () => {
+        const command = { name: "logcheck-eval", accessOf: "logcheck", execute: jest.fn() };
+        bot.client.commands.set("logcheck-eval", command);
+        mockGuard.mockResolvedValueOnce(false);
+        const interaction = { ...slash(undefined), customId: "logcheck-eval:42:all", isCommand: () => false, isButton: () => true };
+        await bot.client._h.interactionCreate(interaction);
+        expect(mockGuard).toHaveBeenCalledWith(interaction, command, bot.client.commands);
+        expect(command.execute).not.toHaveBeenCalled();
+    });
+});
+
+// The interaction router (#251): autocomplete and every select menu kind reach
+// the command, looked up by commandName or by the customId before ":".
+describe("bot interaction router", () => {
+    function fakeInteraction(kind, extra = {}) {
+        const guards = [
+            "isAutocomplete", "isCommand", "isButton", "isStringSelectMenu", "isUserSelectMenu",
+            "isRoleSelectMenu", "isChannelSelectMenu", "isMentionableSelectMenu", "isModalSubmit",
+        ];
+        const i = {
+            replied: false, deferred: false, responded: false,
+            reply: jest.fn(async () => {}), respond: jest.fn(async () => {}), followUp: jest.fn(async () => {}),
+            ...extra,
+        };
+        for (const g of guards) i[g] = () => g === kind;
+        return i;
+    }
+
+    beforeEach(() => {
+        bot.client.commands = new (require("discord.js").Collection)();
+    });
+
+    it("hands autocomplete to the command's autocomplete()", async () => {
+        const cmd = { name: "raid", execute: jest.fn(), autocomplete: jest.fn(async () => {}) };
+        bot.client.commands.set("raid", cmd);
+        const i = fakeInteraction("isAutocomplete", { commandName: "raid" });
+        await bot.handleInteraction(i);
+        expect(cmd.autocomplete).toHaveBeenCalledWith(i);
+        expect(cmd.execute).not.toHaveBeenCalled();
+        expect(i.reply).not.toHaveBeenCalled();
+    });
+
+    it("answers autocomplete with an empty list when the command has none or throws", async () => {
+        bot.client.commands.set("plain", { name: "plain", execute: jest.fn() });
+        const i = fakeInteraction("isAutocomplete", { commandName: "plain" });
+        await bot.handleInteraction(i);
+        expect(i.respond).toHaveBeenCalledWith([]);
+        expect(i.reply).not.toHaveBeenCalled();
+
+        bot.client.commands.set("boom", { name: "boom", execute: jest.fn(), autocomplete: jest.fn(async () => { throw new Error("x"); }) });
+        const j = fakeInteraction("isAutocomplete", { commandName: "boom" });
+        await bot.handleInteraction(j);
+        expect(j.respond).toHaveBeenCalledWith([]);
+
+        const k = fakeInteraction("isAutocomplete", { commandName: "unknown" });
+        await bot.handleInteraction(k);
+        expect(k.respond).toHaveBeenCalledWith([]);
+        expect(k.reply).not.toHaveBeenCalled();
+    });
+
+    it.each(["isUserSelectMenu", "isRoleSelectMenu", "isChannelSelectMenu", "isStringSelectMenu", "isButton", "isModalSubmit"])(
+        "routes a %s interaction by its customId prefix",
+        async (kind) => {
+            const cmd = { name: "pick", execute: jest.fn(async () => {}) };
+            bot.client.commands.set("pick", cmd);
+            const i = fakeInteraction(kind, { customId: "pick:123" });
+            await bot.handleInteraction(i);
+            expect(cmd.execute).toHaveBeenCalledWith(i, bot.client);
+        },
+    );
+
+    it("ignores interaction kinds it does not route", async () => {
+        const i = fakeInteraction("somethingElse", { customId: "pick" });
+        await bot.handleInteraction(i);
+        expect(i.reply).not.toHaveBeenCalled();
+    });
+
+    it("keeps the name:args lookup", () => {
+        expect(bot.lookupKey({ customId: "logcheck-eval:42" })).toBe("logcheck-eval");
+        expect(bot.lookupKey({ commandName: "signup", customId: "x:y" })).toBe("signup");
     });
 });

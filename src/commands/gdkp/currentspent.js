@@ -6,7 +6,9 @@ const { getWednesdayWeeksAgo } = require("../../utils/date");
 
 module.exports = {
     name: "currentspent",
-    description: "Show current spent items",
+    description: "Zeigt, was du im aktuellen GDKP ausgegeben hast",
+    group: "auctions",
+    defaultAccess: "everyone",
     async execute(interaction, client) {
         const gdkp = new GDKP();
         let totalItems = await gdkp.getTotalItems(interaction.user.id);

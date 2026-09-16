@@ -13,14 +13,10 @@ describe("commands/auction/auctionStatus", () => {
         );
     });
 
-    it("rejects a non-admin user with a permission error and does nothing else", async () => {
-        const interaction = mockInteraction({ userId: "123" });
-
-        await command.execute(interaction, {});
-
-        expect(interaction.reply).toHaveBeenCalledTimes(1);
-        const arg = interaction.reply.mock.calls[0][0];
-        expect(arg.embeds[0].title).toBe("Fehlende Berechtigung");
+    it("is admin-only unless the Bot-Befehle settings say otherwise", () => {
+        // The check itself runs centrally before execute (src/web/botAccess.js).
+        expect(command.defaultAccess).toBe("admins");
+        expect(typeof command.group).toBe("string");
     });
 
     it("replies with the auction overview title for an admin", async () => {

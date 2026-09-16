@@ -221,7 +221,8 @@ export function connectionState(id: ConnectionId, input: ConnectionInputs): Conn
  */
 export function connectionPatch(id: ConnectionId, fields: Record<string, string>, secret: string | undefined): Record<string, unknown> {
     const v = (key) => String(fields[key] || "").trim();
-    if (id === "discord") return { guildId: v("guildId"), raidhelperServerId: v("raidhelperServerId") };
+    // The server itself is picked under Discord-Server (discordServersPatch below).
+    if (id === "discord") return { raidhelperServerId: v("raidhelperServerId") };
     if (id === "battlenet") {
         return {
             blizzard: {
@@ -267,6 +268,65 @@ export function visibleConnections(canManageAccess: boolean): ConnectionId[] {
 export function missingConnections(data: SettingsLike, tokens: unknown[] | null, canManageAccess: boolean): number {
     const inputs = connectionInputs(data, tokens);
     return visibleConnections(canManageAccess).filter((id) => connectionState(id, inputs).missing).length;
+}
+
+// ---- Discord-Server: the event and the talk server (#251) ----
+
+export type ServerCardLike = { connected: boolean; permissions: { label: string; ok: boolean }[] | null; missing: string[] };
+export type ServerFields = { eventGuildId: string; talkGuildId: string; talkOverviewChannelId: string; talkPingChannelId: string };
+export type OverlapLike = { eventCount: number | null; talkCount: number | null; both: number | null; error: string | null };
+
+/**
+ * The badge of one server card. `optional` is the talk server: not having one
+ * is the one-server setup, not a gap. Rights that cannot be known (bot offline)
+ * are said as such, never counted as missing.
+ */
+export function serverCardState(card: ServerCardLike | null, optional: boolean): ConnectionState {
+    if (!card) return optional ? { tone: "", label: "Kein zweiter Server", missing: false } : { tone: "mid", label: "Kein Server gewählt", missing: true };
+    if (!card.connected) return { tone: "mid", label: "Bot nicht auf dem Server", missing: true };
+    if (!card.permissions) return { tone: "", label: "Rechte unbekannt", missing: false };
+    const n = card.missing.length;
+    if (n) return { tone: "mid", label: n === 1 ? "1 Recht fehlt" : `${n} Rechte fehlen`, missing: true };
+    return { tone: "ok", label: "Verbunden", missing: false };
+}
+
+/** The sidebar badge of "Discord-Server": how many of the two cards need attention. */
+export function serverIssues(servers: { event: ServerCardLike | null; talk: ServerCardLike | null } | null | undefined): number {
+    if (!servers) return 0;
+    return [serverCardState(servers.event, false), serverCardState(servers.talk, true)].filter((s) => s.missing).length;
+}
+
+/**
+ * The PATCH body of the edit dialog. A talk server equal to the event server is
+ * no second server, and without a talk server its channels mean nothing — both
+ * are cleared, the same rule the server's normaliser applies.
+ */
+export function discordServersPatch(fields: ServerFields): { discordServers: ServerFields } {
+    const v = (key) => String(fields[key] || "").trim();
+    const eventGuildId = v("eventGuildId");
+    const talkGuildId = v("talkGuildId") === eventGuildId ? "" : v("talkGuildId");
+    return {
+        discordServers: {
+            eventGuildId,
+            talkGuildId,
+            talkOverviewChannelId: talkGuildId ? v("talkOverviewChannelId") : "",
+            talkPingChannelId: talkGuildId ? v("talkPingChannelId") : "",
+        },
+    };
+}
+
+/** "198 von 212" plus its tone: how many event members are on the talk server too. */
+export function overlapBadge(overlap: OverlapLike | null): { label: string; tone: "ok" | "mid" | ""; tip: string } | null {
+    if (!overlap) return null;
+    if (overlap.error || overlap.both === null || overlap.eventCount === null) {
+        return { label: "Überschneidung unbekannt", tone: "", tip: overlap.error || "Mitglieder konnten nicht geladen werden." };
+    }
+    const share = overlap.eventCount ? overlap.both / overlap.eventCount : 1;
+    return {
+        label: `${overlap.both} von ${overlap.eventCount}`,
+        tone: share >= 0.9 ? "ok" : "mid",
+        tip: `${overlap.both} von ${overlap.eventCount} Mitgliedern des Event-Discords sind auch auf dem Kommunikations-Discord. Wer fehlt, bekommt Pings später als DM.`,
+    };
 }
 
 // ---- categories: the raid ones as a list, the rest folded away ----

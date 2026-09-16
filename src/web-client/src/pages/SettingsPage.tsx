@@ -10,6 +10,8 @@ import { useTableSort, type Dir } from "../lib/tableSort";
 import { SortTh } from "../components/SortTh";
 import type { ShellContext } from "../components/Shell";
 import RolePermissionsEditor from "../components/RolePermissions";
+import BotCommandAccess from "../components/BotCommandAccess";
+import Segment from "../components/ui/Segment";
 import ItemSearchPicker from "../components/ItemSearchPicker";
 import { itemQualityProps } from "../lib/itemQuality";
 import { ExternalIcon, TrashIcon, XIcon } from "../components/icons";
@@ -19,11 +21,12 @@ import { ListSection } from "../components/ListSection";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import CategoryMatrix, { type CategorySheet } from "../components/CategoryMatrix";
 import ConnectionsSection from "../components/SettingsConnections";
+import DiscordServersSection from "../components/SettingsDiscordServers";
 import { ChannelPicker, FieldLabel, InfoTip, PenIcon, RolePicker } from "../components/settingsUi";
 import {
     SECTION_PARAM_IDS, visibleSections, resolveSection, groupedSections, savesWithForm, type SettingsSection,
 } from "../lib/settingsSections";
-import { draftChanges, missingConnections } from "../lib/settingsLogic";
+import { draftChanges, missingConnections, serverIssues } from "../lib/settingsLogic";
 import { useConfirm } from "../components/ui/Modal";
 import { Button, IconButton } from "../components/ui/Button";
 import IconTile from "../components/ui/IconTile";
@@ -280,6 +283,9 @@ function ModuleCard({ children }: { children: ReactNode }) {
     return <div className="set-card set-form">{children}</div>;
 }
 
+type PermView = "areas" | "bot";
+const PERM_VIEWS: readonly PermView[] = ["areas", "bot"];
+
 export default function SettingsPage() {
     const { csrfToken } = useOutletContext<ShellContext>();
     const [data, setData] = useState<SettingsData | null>(null);
@@ -294,6 +300,8 @@ export default function SettingsPage() {
     const [section, setSection] = usePersistedSearchParam(
         "settings-section", "section", "berechtigungen", SECTION_PARAM_IDS,
     );
+    // Berechtigungen has two views: the menu's areas and the bot commands.
+    const [permView, setPermView] = usePersistedSearchParam<PermView>("settings-perm-view", "perm", "areas", PERM_VIEWS);
 
     const load = () => {
         getSettings()
@@ -392,11 +400,27 @@ export default function SettingsPage() {
         <PartHead icon={s.icon} tone="settings" title={s.label} crumb={`Einstellungen › ${s.crumb}`} action={action} tip={tip} tipSub={tipSub} />
     );
 
+    const permSwitch = (
+        <Segment
+            ariaLabel="Berechtigungen"
+            size="sm"
+            value={permView}
+            onChange={(v) => setPermView(v)}
+            options={[
+                { value: "areas", label: "Bereiche", tip: "Wer im EventHelper welchen Bereich sehen oder bearbeiten darf" },
+                { value: "bot", label: "Bot-Befehle", tip: "Wer im Discord welchen Bot-Befehl nutzen darf" },
+            ]}
+        />
+    );
+
     // The panel of the open section.
     const panel = () => {
         switch (active) {
-            case "berechtigungen": return (
+            case "berechtigungen": return permView === "bot" ? (
+                <BotCommandAccess csrfToken={csrfToken} viewSwitch={permSwitch} icon={activeSection.icon} crumb="Zugang · wer darf welchen Bot-Befehl im Discord nutzen" />
+            ) : (
                 <RolePermissionsEditor
+                    viewSwitch={permSwitch}
                     areas={data.areas}
                     roles={data.roles}
                     adminRoleIds={draft.adminRoleIds}
@@ -420,6 +444,20 @@ export default function SettingsPage() {
                     csrfToken={csrfToken}
                     onConfig={(config) => setData({ ...data, config })}
                     onTokensChanged={loadTokens}
+                    icon={activeSection.icon}
+                    crumb={activeSection.crumb}
+                />
+            );
+
+            case "discordserver": return (
+                <DiscordServersSection
+                    csrfToken={csrfToken}
+                    onConfig={(config) => {
+                        setData({ ...data, config });
+                        // The cards behind the sidebar badge changed with the servers;
+                        // only they are refreshed, so an unsaved draft elsewhere survives.
+                        getSettings().then((d) => setData((cur) => (cur ? { ...cur, servers: d.servers } : cur))).catch(() => {});
+                    }}
                     icon={activeSection.icon}
                     crumb={activeSection.crumb}
                 />
@@ -528,6 +566,7 @@ export default function SettingsPage() {
     // The badges of the column: what is open in a section, so nobody has to
     // open each one to find the gap.
     const missing = missingConnections(data, tokens, data.canManageAccess);
+    const serverGaps = serverIssues(data.servers);
     const activeCategories = draft.categoryIds.length;
     const navGroups = groupedSections(sections).map((g) => ({
         group: g.group,
@@ -536,6 +575,7 @@ export default function SettingsPage() {
             label: s.label,
             icon: s.icon,
             badge: s.id === "verbindungen" ? { count: missing, tone: "mid" as const, tip: `${missing} ${missing === 1 ? "Verbindung" : "Verbindungen"} nicht eingerichtet` }
+                : s.id === "discordserver" ? { count: serverGaps, tone: "mid" as const, tip: `${serverGaps} ${serverGaps === 1 ? "Server braucht" : "Server brauchen"} Aufmerksamkeit` }
                 : s.id === "kategorien" ? { count: activeCategories, tip: `${activeCategories} aktive Raid-Kategorien` }
                     : null,
         })),

@@ -113,7 +113,7 @@ src/
     messages.js             # All user-facing text strings (German)
     variables.js            # Constants: Discord IDs, API URLs, auction limits
   utils/
-    helper.js               # Core utilities: botReply, checkForPermission, formatters
+    helper.js               # Core utilities: botReply, botEditReply, formatters
     auction.js              # Auction UI helpers: modals, buttons, bidForLegendary()
     date.js                 # Date utilities using Luxon (CET timezone)
     responses.js            # Message formatters: setupResponse, getAuctionMessage, etc.
@@ -133,18 +133,35 @@ scripts/
 ```javascript
 module.exports = {
     name: "commandname",       // Must match the slash command name registered in Discord
-    description: "...",
+    description: "...",        // German, shown in Einstellungen → Berechtigungen → Bot-Befehle
+    group: "raids",            // a group id from src/config/botCommands.js
+    defaultAccess: "admins",   // "everyone" | "admins" | { roles: [roleId, …] }
     async execute(interaction, client) {
         // ...
     },
 };
 ```
 
+A button, select or modal that belongs to a command declares `accessOf: "<command name>"` instead of `group`/`defaultAccess` and inherits that command's access.
+
 The `name` field is used as the lookup key in `client.commands`. This same mechanism handles both slash commands (`interaction.commandName`) and button interactions (`interaction.customId`). The button custom IDs in `createOverview.js` (`update-events`, `show-signups`, `show-mysetups`, `show-allsetups`) must exactly match the `name` fields of the corresponding command files.
 
+The router (`handleInteraction` in `bot.js`) passes slash commands, buttons, modals and **every select menu kind** (string, user, role, channel, mentionable) to `execute()`, looked up by `name` or by the customId before `:`. **Autocomplete** goes to the command's optional `autocomplete(interaction)` instead; a command without one (or one that throws) answers an empty list — Discord allows no other reply to an autocomplete.
+
+### Who may run a command (bot command access, issue #252)
+
+**Access is checked once, in `bot.js`, before `execute`** — `guardInteraction()` from `src/web/botAccess.js`. No command file checks permissions itself anymore; `checkForPermission` is gone. The order is: **admin** (`ADMIN_USER_ID`/`LOGCHECK_ADMIN_IDS` or an admin role from *Zugang*) → the setting stored in `config.botCommandAccess = { [commandName]: { mode, roleIds } }` → the file's `defaultAccess` → **admin-only (fail-closed)**. `resolveBotAccess(commandName, member, { commands, config })` is the pure part and is what the tests drive.
+
+- **Buttons, selects and modals inherit** through `accessOf`; there is no separate setting per component, and a rule stored under a component's own name is ignored. The `apply` button is the one exception with its own `defaultAccess: "everyone"`: it is posted by admin-only commands but must be usable by every applicant.
+- **Roles are resolved against the event guild** (`eventGuildId()` in `botAccess.js`: `config.eventGuildId`, else `config.guildId`), whichever server the interaction came from — the interaction's own member when it happened there, else the cached member list (`discord.fetchGuildMembersCached`), else a single fetch; a failed lookup means no roles, never an exception. A rule of `"everyone"` asks Discord nothing.
+- **A refusal** is one ephemeral line: „Dafür brauchst du @Orga oder @Raidleiter.“ resp. „Dieser Befehl ist Admins vorbehalten.“ (an autocomplete gets an empty choice list).
+- **Configured** in Einstellungen → Berechtigungen, segment *Bot-Befehle* (`?perm=bot`, `components/BotCommandAccess.tsx`, rules in `lib/botCommandAccess.ts`): one folded line per group, a modal per command (Jeder · Nur Rollen · Nur Admins, the default with „Zurücksetzen“, „für alle Befehle der Gruppe übernehmen“). A rule equal to the default is not stored, so a later change of `defaultAccess` still reaches it. Data from `GET /api/bot-commands` (full admins; groups, commands with default/stored/effective rule and what inherits it, the event guild's roles with member counts); saved via `PATCH /api/settings { botCommandAccess }` — full-admin-only (`ACCESS_KEYS`), normalised by `normalizeBotCommandAccess()` in `src/config/botCommands.js` (invalid role ids dropped, a role rule without roles becomes admins).
+- `test/commands/access.test.js` scans every command file: `defaultAccess` + a known `group`, or an `accessOf` pointing at a real command — never both, never neither.
+- The legendary-role check in `utils/auction.js` stays: it is a rule of the auction, not a permission.
+
 When adding a new command:
-1. Create the file in the appropriate `src/commands/<category>/` folder
-2. Add its definition to `scripts/register-commands.js` and re-run `npm run register`
+1. Create the file in the appropriate `src/commands/<category>/` folder, with `group` + `defaultAccess` (or `accessOf` for a component)
+2. Add its definition to `scripts/register-commands.js` and re-run `npm run register` — it registers for **every configured server** (event + talk, see "Zwei Discord-Server"), `--guild <id>` for exactly one, `--global` globally. Requiring the script does nothing; only running it talks to Discord.
 
 ## Environment Variables
 
@@ -170,9 +187,6 @@ Standard way to send a Discord reply. Sends an embed with `title` and `descripti
 
 ### `botEditReply(interaction, title, message, ...)`
 Used after `interaction.deferReply()`. Call this when the command needs more than 3 seconds to respond.
-
-### `checkForPermission(interaction)`
-Compares `interaction.user.id` against `adminUserId` from `config/variables.js`. Returns `false` and sends an error reply if unauthorized. Admin-only commands call this first and `return` if it returns false.
 
 ### `bidForLegendary(client, interaction, gold)`
 Core bidding logic in `utils/auction.js`. Validates the user has the legendary role, checks auction exists, validates the bid amount, calls the API, updates the highest bids overview message, and handles extended auction time.
@@ -221,9 +235,7 @@ await botEditReply(interaction, "Title", "Result");
 ```
 
 ### Permission-gated commands
-```javascript
-if (!checkForPermission(interaction)) return;
-```
+Nothing in the command: declare `defaultAccess` (and `group`) in its module and let `bot.js` check it — see "Who may run a command" above.
 
 ### Guard against missing parent category
 ```javascript
@@ -274,6 +286,16 @@ Anything the admin keeps several of — raidsheets, Aufruf-Vorlagen, Recruitment
 
 `test/web-client/listSection.test.js` holds the line, including a scan that no page renders `entries.map(e => <SomethingForm …/>)` again.
 
+### Zwei Discord-Server (event server and talk server)
+
+The bot can work with two servers (#251): the **Event-Discord** (event channels, Raid-Helper, the admin-role check) and the **Kommunikations-Discord** (raid overview, sign-up per bot, pings). Everything empty = the old one-server behaviour.
+
+- **Stored** as `config.discordServers = { eventGuildId, talkGuildId, talkOverviewChannelId, talkPingChannelId }` (settingsStore's `normalizeDiscordServers`: snowflakes only, a talk server equal to the event server is cleared). `config.guildId` stays the **fallback**: `getConfig().guildId` reports the event server once one is set, and saving an event server writes it into `guildId` too — so `auth.js`, `activeGuild.js` and everything else reading `guildId` follow without change.
+- **Read** through `src/web/guildRoles.js`: `eventGuildId()`/`talkGuildId()`/`configuredGuildIds()` (pure over a config), `guildRole(id)` (`"event" | "talk" | ""`), `eventGuild()`/`talkGuild()` (status cards: connected, member count, `permissions` from `discord.botPermissionsIn()` — null = not knowable, never "all missing") and `memberOverlap()` (human members of the event server also on the talk server, via `fetchGuildMembersCached`; failures come back as `error`, never thrown).
+- **Edited** in Einstellungen → Verbindungen → *Discord-Server* (`components/SettingsDiscordServers.tsx`, section `discordserver`, adminOnly + standalone): two cards, the rights as "4 von 5" with the list in the tooltip, a dialog that PATCHes only this block. `GET /api/settings/discord-servers` serves cards, overlap and every bot server with its text channels. `discordServers` is **full-admin-only** (`GUILD_KEYS` in `apiRoutes/settings.js`): the event server decides whose roles count.
+- **The web server switcher stays** — it still offers every server the bot is on (the Kanäle page edits both servers through it) and only shows the role as an *Event*/*Talk* badge (`/api/session` tags `guilds[].role`).
+- The Discord & Raid-Helper card no longer edits `guildId`; that moved into the dialog above.
+
 ### Role permissions (who may see/do what)
 
 Access is **per area** (one admin-menu section) and **per level** (`read` = open it, `write` = act in it; write implies read). The area list and all the pure logic live in `src/config/permissions.js` — the single source of truth shared by server and client (the client gets the list from `/api/session` and `/api/settings`).
@@ -293,6 +315,18 @@ Access is **per area** (one admin-menu section) and **per level** (`read` = open
 - `HistoryPage.tsx` renders only the areas the visitor's areas cover (the inbox page needs `history`), and the write actions (import, delete, category select, manual item) are behind `canAccess(user, "history", "write")` on all three pages. Writing anywhere in the history always takes `history`, never `loot`.
 
 **Rights can also go to one named account**, not just to a role: `config.userPermissions` is `{ [userId]: { [areaId]: { read, write } } }` — the same shape as `rolePermissions`, keyed by Discord user id, edited in Einstellungen → *Berechtigungen* under "Einzelne Konten" and unioned in exactly like the base access (it can only widen). It exists for areas that go to named people rather than to a group; inventing a Discord role for two players is a second list to keep in sync. Like the base access it is resolved **without Discord** (`BASE_ACCESS(userId)` in `auth.js`), so such a grant survives an offline bot, and it is full-admin-only (`ACCESS_KEYS`).
+
+**Bot commands are a separate axis.** Who may run which command in Discord is not an area and not a `read`/`write` level — it hangs on Discord roles per command (`config.botCommandAccess`, Einstellungen → Berechtigungen → *Bot-Befehle*, see "Who may run a command" in the command system section). Full admins are admins there too; everything else is configured apart from the web areas.
+
+### Kanäle (`channels` area)
+
+The server's channels as Discord's sidebar (issue #259): `pages/ChannelsPage.tsx` is **one list** (`components/channels/ChannelTree.tsx`: categories fold, one line per channel with check box, type, name large in mono, status only as badge *Event* / *vergangen*) plus a side panel with three figures (Kanäle, vergangene Events — a click selects them —, im Archiv). Everything else about a channel — event, topic, purposes, slowmode, rights — is its **tooltip** (`channelTip()` in `lib/channels.ts`); the purposes table (what the bot uses a channel for, still settings) opens as a dialog (`PurposeList.tsx`). Don't put it back on the page.
+
+- **Inline rename**: double click or pencil, Enter saves, Esc/blur discards. Discord's name rules apply while typing — `src/utils/channelNames.js` is the tested source, `lib/channelNames.ts` its twin (regex and body held identical by `test/utils/channelNames.test.js`).
+- **Selection → bulk bar** (`ChannelBulk.tsx`): *Kategorie … / Thema …* open one dialog where every field starts at "unverändert" and only changed fields are sent (`bulkChanges()`); *Umbenennen nach Schema …* previews on the server (`POST /api/channels/rename-preview`, date from the channel's event). Changes go **one channel per request with a pause** (`runInSteps()`, progress in the job toast) because Discord bounces bursts; the server's `channelOps.runSerial()` pauses between channels too and answers per channel (`"3 Kanäle geändert, 1 fehlgeschlagen: fehlende Rechte"`).
+- **Archive, never auto-delete**: *Archivieren* moves into the archive category and denies writing to every overwrite plus @everyone (the bot keeps its own); `channelArchiveStore.js` (`data/settings/channel-archive.json`) logs who/when and holds the archive category per server, the hint deadline (`archiveDeleteHintDays`, default 14) and the quick-create schema per category — kept out of the general config so `channels` write is enough. **Deleting exists only in the Archiv tab**, needs the name typed (several: `LÖSCHEN`, checked again on the server) and `discordChannels.deleteChannel()` refuses any channel outside the archive category, whatever the caller sent. The waiting count shows on the page and as the dashboard task `channels` (`buildTasks`, yellow past the deadline, only for users who can read `channels`).
+- **Quick-create** (`QuickCreateDialog.tsx`, `POST /api/channels/batch`): schema `{tag}-{dd}-{mm}-{raid}` (placeholders in `PLACEHOLDERS`), once or weekly × n, optional template channel (clone: rights, topic, slowmode); `dryRun` answers the plan with `exists`, existing names are skipped, never duplicated. "Gleich Event anlegen" and the `/kanal` bot command are still open (they wait for #254/#252).
+- Discord writes live in `src/web/discordChannels.js` (edit/archive/delete/createCategory/createFromTemplate), not in `discord.js`; the upcoming-event badges come from `raidEventGroups.fetchEventsCached()` bounded to 4 s, past ones from `raidEventStore`.
 
 ### Roster (`roster` area)
 

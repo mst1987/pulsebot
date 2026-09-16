@@ -14,7 +14,9 @@ export type Access = Record<string, AreaAccess | undefined>;
 export type RolePermissions = Record<string, Record<string, AreaAccess>>;
 
 export type SessionUser = { id: string; name: string; isAdmin: boolean; access: Access };
-export type SessionGuild = { id: string; name: string };
+/** "event" | "talk" = the server's fixed role from Einstellungen → Discord-Server, "" = none. */
+export type GuildRole = "event" | "talk" | "";
+export type SessionGuild = { id: string; name: string; role?: GuildRole };
 export type Session = {
     user: SessionUser | null;
     csrfToken: string | null;
@@ -123,7 +125,7 @@ export type DashboardRaid = {
 export type DashboardTaskTone = "ok" | "mid" | "bad" | "accent";
 
 export type DashboardTask = {
-    id: "sheet" | "recommendations" | "logs" | "inbox";
+    id: "sheet" | "recommendations" | "logs" | "inbox" | "channels";
     tone: DashboardTaskTone;
     /** Tile tint when it differs from the tone (the inbox wears the history area's colour). */
     tile?: string;
@@ -216,7 +218,88 @@ export type ChannelsData = {
     purposeSummary: { set: number; missing: number; warnings: number };
     /** Tracked recruitment posts per channel id. */
     recruitmentPosts: Record<string, number>;
+    /** Topic, slowmode and permission sync per channel id (issue #259). */
+    details: Record<string, ChannelDetails>;
+    /** Whether the bot may manage channels on this server; null while unknown. */
+    canManage: boolean | null;
+    /** The raid event a channel belongs to: upcoming ("event") or over ("past"). */
+    events: Record<string, ChannelEvent>;
+    archive: ChannelArchive;
+    /** Stored quick-create schema per category id. */
+    schemas: Record<string, ChannelSchema>;
+    defaultSchema: string;
+    placeholders: { key: string; hint: string }[];
 };
+
+export type ChannelDetails = { topic: string; rateLimitPerUser: number; permissionsLocked: boolean | null };
+export type ChannelEvent = { status: "event" | "past"; title: string; startTime: number; eventId: string };
+export type ChannelSchema = { schema: string; raid: string; templateChannelId: string };
+export type ChannelArchiveRow = {
+    id: string;
+    name: string;
+    /** When it was archived (epoch ms), 0 when moved there by hand. */
+    at: number;
+    by: string;
+    fromCategory: string;
+    waitingDays: number | null;
+    overdue: boolean;
+};
+export type ChannelArchive = {
+    categoryId: string;
+    count: number;
+    overdue: number;
+    hintDays: number;
+    rows: ChannelArchiveRow[];
+};
+
+/** One channel's outcome of a bulk action. */
+export type ChannelResult = { id: string; ok: boolean; error?: string; name?: string };
+export type ChannelBulkResult = { results: ChannelResult[]; done: number; failed: number; message: string };
+export type ChannelChanges = { name?: string; topic?: string; parentId?: string; rateLimitPerUser?: number };
+
+/** Change channels; only the fields present in `changes` are applied. */
+export function patchChannels(csrfToken: string | null, ids: string[], changes: ChannelChanges): Promise<ChannelBulkResult> {
+    return send("PATCH", "/api/channels", csrfToken, { ids, changes });
+}
+
+export function archiveChannels(csrfToken: string | null, ids: string[]): Promise<ChannelBulkResult> {
+    return send("POST", "/api/channels/archive", csrfToken, { ids });
+}
+
+/** Delete from the archive; `confirm` is the channel's name, or LÖSCHEN for several. */
+export function deleteChannels(csrfToken: string | null, ids: string[], confirm: string): Promise<ChannelBulkResult> {
+    return send("POST", "/api/channels/delete", csrfToken, { ids, confirm });
+}
+
+export type RenamePreviewRow = { id: string; from: string; to: string; hasDate: boolean; conflict: boolean };
+
+export function renamePreview(csrfToken: string | null, input: { ids: string[]; schema: string; raid: string }): Promise<{ rows: RenamePreviewRow[] }> {
+    return send("POST", "/api/channels/rename-preview", csrfToken, input);
+}
+
+export type QuickCreateInput = {
+    categoryId: string;
+    schema: string;
+    raid: string;
+    from: string;
+    count: number;
+    interval: "once" | "weekly";
+    templateChannelId: string;
+    saveSchema?: boolean;
+    dryRun?: boolean;
+};
+export type QuickCreatePlanRow = { date: string; name: string; exists: boolean };
+
+export function quickCreateChannels(csrfToken: string | null, input: QuickCreateInput): Promise<{ plan: QuickCreatePlanRow[] } & Partial<ChannelBulkResult> & { skipped?: number }> {
+    return send("POST", "/api/channels/batch", csrfToken, input);
+}
+
+export function saveChannelConfig(
+    csrfToken: string | null,
+    input: { archiveCategoryId?: string; archiveDeleteHintDays?: number; createArchiveCategory?: string },
+): Promise<{ config: { archiveCategoryId: string; archiveDeleteHintDays: number } }> {
+    return send("POST", "/api/channels/config", csrfToken, input);
+}
 
 /**
  * Store a purpose's channels (or categories). The assignment is a setting, so
@@ -358,7 +441,11 @@ export type AdminConfig = {
     // Area rights for single Discord accounts (keyed by user id), for areas that
     // go to named people rather than to a group — same gate as above.
     userPermissions?: RolePermissions;
+    // Who may use which bot command (Berechtigungen → Bot-Befehle) — same gate as above.
+    botCommandAccess?: Record<string, BotAccessRule>;
     guildId: string;
+    // Event and talk server (#251); full admins only, like the access keys.
+    discordServers?: DiscordServers;
     raidhelperServerId: string;
     officerRoleId: string;
     applicationChannelId: string;
@@ -431,8 +518,47 @@ export type SettingsData = {
     channels?: TextChannel[];
     // Status line of the "Discord & Raid-Helper" connection card.
     bot?: { online: boolean; readySince: number; guildName: string };
+    // The event and talk server cards; null for a limited settings user.
+    servers?: { event: DiscordServerCard | null; talk: DiscordServerCard | null } | null;
     activeGuildId: string;
 };
+
+export type DiscordServers = {
+    eventGuildId: string;
+    talkGuildId: string;
+    talkOverviewChannelId: string;
+    talkPingChannelId: string;
+};
+
+export type BotPermission = { key: string; label: string; ok: boolean };
+
+/** One configured server as the settings card shows it (src/web/guildRoles.js). */
+export type DiscordServerCard = {
+    role: "event" | "talk";
+    id: string;
+    name: string;
+    connected: boolean;
+    memberCount: number | null;
+    iconUrl: string;
+    /** null = not knowable (bot offline or not on that server). */
+    permissions: BotPermission[] | null;
+    missing: string[];
+};
+
+export type MemberOverlap = { eventCount: number | null; talkCount: number | null; both: number | null; error: string | null };
+
+export type DiscordServersData = {
+    discordServers: DiscordServers;
+    event: DiscordServerCard | null;
+    talk: DiscordServerCard | null;
+    /** null in the one-server setup. */
+    overlap: MemberOverlap | null;
+    guilds: (SessionGuild & { channels: TextChannel[] })[];
+};
+
+export function getDiscordServers(): Promise<DiscordServersData> {
+    return get<DiscordServersData>("/api/settings/discord-servers");
+}
 
 export function getSettings(): Promise<SettingsData> {
     return get<SettingsData>("/api/settings");
@@ -1689,6 +1815,42 @@ export type IngestToken = {
     lastUsedAt: number;
     uses: number;
 };
+
+// ---- Bot-Befehle (Einstellungen → Berechtigungen), full admins only ----
+
+export type BotAccessMode = "everyone" | "roles" | "admins";
+export type BotAccessRule = { mode: BotAccessMode; roleIds: string[] };
+
+export type BotCommand = {
+    name: string;
+    description: string;
+    group: string;
+    kind: "slash" | "button";
+    /** What the code proposes when nothing is stored. */
+    defaultAccess: BotAccessRule;
+    /** The stored setting, null = the default applies. */
+    access: BotAccessRule | null;
+    effective: BotAccessRule;
+    /** Buttons, selects and modals that inherit this command's access. */
+    inherits: string[];
+};
+
+export type BotCommandGroup = { id: string; label: string; icon: string };
+
+/** A role of the event guild; memberCount is null when the bot cannot tell. */
+export type BotRole = Role & { memberCount: number | null };
+
+export type BotCommandsData = {
+    groups: BotCommandGroup[];
+    commands: BotCommand[];
+    roles: BotRole[];
+    guildId: string;
+    guildName: string;
+};
+
+export function getBotCommands(): Promise<BotCommandsData> {
+    return get<BotCommandsData>("/api/bot-commands");
+}
 
 export function getIngestTokens(): Promise<{ tokens: IngestToken[] }> {
     return get<{ tokens: IngestToken[] }>("/api/settings/ingest-tokens");
