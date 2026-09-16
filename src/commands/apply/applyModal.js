@@ -1,4 +1,4 @@
-const { ChannelType, ThreadAutoArchiveDuration } = require("discord.js");
+const { MessageFlags, ChannelType, ThreadAutoArchiveDuration } = require("discord.js");
 const { pendingApplications } = require("../../utils/applicationState");
 const { applyArmoryUrlTemplate, applyWclUrlTemplate } = require("../../config/variables");
 // applicationChannelId + officerRoleId come from the admin-editable config (no restart).
@@ -73,7 +73,7 @@ module.exports = {
     // A component of /apply: it needs the same access (web/botAccess.js).
     accessOf: "apply",
     async execute(interaction, client) {
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const characterName = interaction.fields.getTextInputValue("characterName");
         let armoryLink = interaction.fields.getTextInputValue("armoryLink") || "";

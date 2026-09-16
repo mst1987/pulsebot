@@ -1,3 +1,4 @@
+const { MessageFlags } = require("discord.js");
 ﻿const { showAllEvents } = require("../../utils/helper");
 
 module.exports = {
@@ -7,7 +8,7 @@ module.exports = {
     defaultAccess: "everyone",
     async execute(interaction, client) {
         if (!interaction.channel.parent) {
-            return interaction.reply({ content: "Dieser Befehl muss in einem Kanal mit einer Kategorie ausgeführt werden.", ephemeral: true });
+            return interaction.reply({ content: "Dieser Befehl muss in einem Kanal mit einer Kategorie ausgeführt werden.", flags: MessageFlags.Ephemeral });
         }
         await interaction.update({
             embeds: [{

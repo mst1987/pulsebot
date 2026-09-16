@@ -1,6 +1,7 @@
 jest.mock("../../../src/web/reportStore", () => ({ listReports: jest.fn() }));
 jest.mock("../../../src/web/lootStats", () => ({ itemCatalog: jest.fn() }));
 
+const { MessageFlags } = require("discord.js");
 const report = require("../../../src/commands/lookup/report");
 const council = require("../../../src/commands/lookup/council");
 const { listReports } = require("../../../src/web/reportStore");
@@ -32,7 +33,7 @@ describe("/report", () => {
         const i = mockInteraction();
         await report.execute(i);
         const e = embed(i);
-        expect(i.reply.mock.calls[0][0].ephemeral).toBe(true);
+        expect(i.reply.mock.calls[0][0].flags).toBe(MessageFlags.Ephemeral);
         expect(e.description).toContain("**2 Auswertungen**");
         expect(e.description.indexOf("Hyjal + BT")).toBeLessThan(e.description.indexOf("Karazhan"));
         expect(e.description).toMatch(/\[Hyjal \+ BT\]\(.*\/r\/new\)/);

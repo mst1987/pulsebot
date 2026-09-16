@@ -1,5 +1,5 @@
 const {
-    ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle,
+    MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle,
 } = require("discord.js");
 const { evaluateLog, SECTION_LABEL } = require("../../web/logChannel");
 const { buildReport, reportSummaryLines, ReportError } = require("../../utils/logcheck/report");
@@ -154,11 +154,11 @@ module.exports = {
         if (typed !== CONFIRM_WORD) {
             return interaction.reply({
                 content: `Abgebrochen — zum Bestätigen muss **${CONFIRM_WORD}** eingetippt werden.`,
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
             });
         }
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         if (kind === "log") return runForcedLog(interaction, ref, section);
         return runForcedReport(interaction, ref);
     },

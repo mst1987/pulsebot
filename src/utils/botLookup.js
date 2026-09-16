@@ -5,6 +5,8 @@
 // Kept framework-free on purpose: embeds and buttons are plain API objects, so
 // the tests can assert on them without discord.js builders.
 
+// MessageFlags.Ephemeral as a plain number, so this file stays free of discord.js.
+const EPHEMERAL = 64;
 const { publicBaseUrl, embedAccentColor } = require("../config/variables");
 
 /** Discord's embed limits — a reply above any of them is refused as a whole. */
@@ -74,9 +76,9 @@ function linkRow(links = []) {
  * buttons. Works before and after deferReply.
  */
 async function lookupReply(interaction, embed, links = []) {
-    const payload = { embeds: [clampEmbed(embed)], components: linkRow(links), ephemeral: true };
+    const payload = { embeds: [clampEmbed(embed)], components: linkRow(links), flags: EPHEMERAL };
     if (interaction.deferred || interaction.replied) {
-        const { ephemeral, ...rest } = payload; // eslint-disable-line no-unused-vars
+        const { flags, ...rest } = payload; // eslint-disable-line no-unused-vars
         return interaction.editReply(rest);
     }
     return interaction.reply(payload);
@@ -85,7 +87,7 @@ async function lookupReply(interaction, embed, links = []) {
 /** Defer a lookup that may take longer than Discord's three seconds (Raid-Helper, many files). */
 async function deferLookup(interaction) {
     if (interaction.deferred || interaction.replied) return;
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: EPHEMERAL });
     interaction.deferred = true;
 }
 

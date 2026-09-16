@@ -9,6 +9,7 @@ jest.mock("../../../src/web/discordChannels", () => {
 jest.mock("../../../src/web/channelArchiveStore", () => ({ getChannelConfig: jest.fn(), recordArchived: jest.fn() }));
 jest.mock("../../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: [] })), eventLookbackSince: jest.fn(() => 1) }));
 
+const { MessageFlags } = require("discord.js");
 const command = require("../../../src/commands/channels/kanal");
 const discord = require("../../../src/web/discord");
 const discordChannels = require("../../../src/web/discordChannels");
@@ -44,7 +45,7 @@ describe("/kanal", () => {
             const i = mockInteraction({ options: { __subcommand: "umbenennen", kanal: channel(), name: "Do 25 09 SSC" } });
             await command.execute(i);
             expect(discordChannels.editChannel).toHaveBeenCalledWith("ch1", { name: "Do 25 09 SSC" });
-            expect(i.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+            expect(i.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
             expect(embed(i).title).toBe("Kanal umbenannt");
             expect(embed(i).description).toContain("**mi-24-09-ssc** → **do-25-09-ssc**");
         });

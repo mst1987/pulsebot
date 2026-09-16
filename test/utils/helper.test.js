@@ -6,6 +6,7 @@ const {
     botReply,
     botEditReply,
 } = require("../../src/utils/helper.js");
+const { MessageFlags } = require("discord.js");
 const { adminUserId } = require("../../src/config/variables.js");
 const { mockInteraction, makeCollection } = require("../helpers/mockInteraction.js");
 
@@ -76,7 +77,7 @@ describe("utils/helper", () => {
             expect(interaction.reply).toHaveBeenCalledTimes(1);
             const arg = interaction.reply.mock.calls[0][0];
             expect(arg.embeds[0]).toMatchObject({ title: "Titel", description: "Nachricht" });
-            expect(arg.ephemeral).toBe(true);
+            expect(arg.flags).toBe(MessageFlags.Ephemeral);
         });
 
         it("botEditReply edits the deferred reply", async () => {

@@ -1,3 +1,4 @@
+const { MessageFlags } = require("discord.js");
 const { evaluateLog, SECTION_LABEL } = require("../../web/logChannel");
 const { reportSummaryLines } = require("../../utils/logcheck/report");
 const { forceButtonRow } = require("./logevalForce");
@@ -20,7 +21,7 @@ module.exports = {
         const section = parts[2] === "rpb" ? "rpb" : "cla";
         const label = SECTION_LABEL[section] || section.toUpperCase();
 
-        await interaction.deferReply({ ephemeral: true });
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
         const res = await evaluateLog(logId, section);
         if (!res.ok) {

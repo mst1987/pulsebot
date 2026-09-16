@@ -1,3 +1,4 @@
+const { MessageFlags } = require("discord.js");
 const command = require("../../../src/commands/apply/applyButton.js");
 const { CLASSES } = require("../../../src/config/applyClasses.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
@@ -17,7 +18,7 @@ describe("commands/apply/applyButton", () => {
         expect(interaction.reply).toHaveBeenCalledTimes(1);
         const arg = interaction.reply.mock.calls[0][0];
         expect(arg.content).toContain("Schritt 1");
-        expect(arg.ephemeral).toBe(true);
+        expect(arg.flags).toBe(MessageFlags.Ephemeral);
         expect(arg.components).toHaveLength(1);
         // the select carries one option per configured class
         const select = arg.components[0].components[0];

@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { publicBaseUrl } = require("../../config/variables");
 const { getStoredEvent } = require("../../web/eventSources");
 const { getEvent, isOwnEventId } = require("../../web/eventStore");
@@ -21,16 +21,16 @@ module.exports = {
     async execute(interaction) {
         const eventId = String((interaction.values && interaction.values[0]) || "").trim();
         if (!eventId) {
-            return interaction.reply({ content: "Kein Raid gewählt.", ephemeral: true });
+            return interaction.reply({ content: "Kein Raid gewählt.", flags: MessageFlags.Ephemeral });
         }
         if (isOwnEventId(eventId)) {
             const event = getEvent(eventId);
-            if (!event) return interaction.reply({ content: "Dieses Event gibt es nicht mehr.", ephemeral: true });
+            if (!event) return interaction.reply({ content: "Dieses Event gibt es nicht mehr.", flags: MessageFlags.Ephemeral });
             // The overview is one message for everybody, so it cannot leave out a raid
             // the member may not join — the raider-role rule answers here instead.
             const access = await checkRaiderRole(event, interaction.user.id);
-            if (access.error) return interaction.reply({ content: access.error, ephemeral: true });
-            return interaction.reply({ ...buildSignupDialog(event, interaction.user.id), ephemeral: true });
+            if (access.error) return interaction.reply({ content: access.error, flags: MessageFlags.Ephemeral });
+            return interaction.reply({ ...buildSignupDialog(event, interaction.user.id), flags: MessageFlags.Ephemeral });
         }
 
         const event = getStoredEvent(eventId);
@@ -49,7 +49,7 @@ module.exports = {
                 .setStyle(ButtonStyle.Link)
                 .setLabel(channelUrl ? "Zum Event-Kanal" : "Im Web öffnen")
                 .setURL(url)).toJSON()],
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
         });
     },
 };

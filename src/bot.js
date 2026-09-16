@@ -9,7 +9,7 @@ const { handleLogMessage } = require("./web/logChannel.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./web/roleSync.js");
 const { guardInteraction } = require("./web/botAccess.js");
 
-const { Client, GatewayIntentBits, Collection } = require("discord.js");
+const { MessageFlags, Events, Client, GatewayIntentBits, Collection } = require("discord.js");
 
 const client = new Client({
     intents: [
@@ -41,7 +41,7 @@ function loadCommands(dir) {
     }
 }
 
-client.on("ready", () => {
+client.on(Events.ClientReady, () => {
     console.log(messages.common.pulseBotReady);
 });
 
@@ -124,7 +124,7 @@ async function handleInteraction(interaction) {
         if (!interaction.replied && !interaction.deferred) {
             await interaction.reply({
                 content: "Command not found",
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
             });
         }
         return;
@@ -142,9 +142,9 @@ async function handleInteraction(interaction) {
         try {
             const errorMessage = "There was an error executing this command!";
             if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: errorMessage, ephemeral: true });
+                await interaction.reply({ content: errorMessage, flags: MessageFlags.Ephemeral });
             } else if (interaction.deferred) {
-                await interaction.followUp({ content: errorMessage, ephemeral: true });
+                await interaction.followUp({ content: errorMessage, flags: MessageFlags.Ephemeral });
             }
         } catch (replyError) {
             console.error("Failed to send error response:", replyError.message);

@@ -1,6 +1,7 @@
 jest.mock("../../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 0) }));
 jest.mock("../../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
 
+const { MessageFlags } = require("discord.js");
 const raids = require("../../../src/commands/lookup/raids");
 const raid = require("../../../src/commands/lookup/raid");
 const { loadEventGroups } = require("../../../src/web/raidEventGroups");
@@ -33,7 +34,7 @@ describe("/raids", () => {
         ]));
         const i = mockInteraction({ userId: "u1" });
         await raids.execute(i);
-        expect(i.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+        expect(i.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
         const e = editEmbed(i);
         expect(e.description).toContain("**1 ohne Antwort von dir**");
         expect(e.description).toContain("✅ angemeldet");
