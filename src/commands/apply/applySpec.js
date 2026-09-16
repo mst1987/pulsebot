@@ -4,6 +4,8 @@ const { pendingApplications } = require("../../utils/applicationState");
 module.exports = {
     name: "apply-spec",
     description: "Bewerbung Spec-Auswahl",
+    // A component of /apply: it needs the same access (web/botAccess.js).
+    accessOf: "apply",
     async execute(interaction) {
         const spec = interaction.values[0];
         const pending = pendingApplications.get(interaction.user.id) || {};

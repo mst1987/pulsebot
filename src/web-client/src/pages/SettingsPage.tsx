@@ -10,6 +10,8 @@ import { useTableSort, type Dir } from "../lib/tableSort";
 import { SortTh } from "../components/SortTh";
 import type { ShellContext } from "../components/Shell";
 import RolePermissionsEditor from "../components/RolePermissions";
+import BotCommandAccess from "../components/BotCommandAccess";
+import Segment from "../components/ui/Segment";
 import ItemSearchPicker from "../components/ItemSearchPicker";
 import { itemQualityProps } from "../lib/itemQuality";
 import { ExternalIcon, TrashIcon, XIcon } from "../components/icons";
@@ -51,10 +53,10 @@ type Draft = {
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
     logChannelIds: string[];
-    raidTemplateId: string;
     raidChannelId: string;
     categoryLootTool: Record<string, string>;
     categorySheets: Record<string, CategorySheet>;
+    categoryRaidTemplate: Record<string, string>;
     topItems: TopItem[];
 };
 
@@ -72,10 +74,10 @@ function toDraft(config: AdminConfig): Draft {
         categoryIds: config.categoryIds || [],
         categoryRoles: config.categoryRoles || {},
         logChannelIds: config.logChannelIds || [],
-        raidTemplateId: config.raidDefaults?.templateId || "",
         raidChannelId: config.raidDefaults?.channelId || "",
         categoryLootTool: config.categoryLootTool || {},
         categorySheets: config.categorySheets || {},
+        categoryRaidTemplate: config.categoryRaidTemplate || {},
         topItems: config.topItems || [],
     };
 }
@@ -281,6 +283,9 @@ function ModuleCard({ children }: { children: ReactNode }) {
     return <div className="set-card set-form">{children}</div>;
 }
 
+type PermView = "areas" | "bot";
+const PERM_VIEWS: readonly PermView[] = ["areas", "bot"];
+
 export default function SettingsPage() {
     const { csrfToken } = useOutletContext<ShellContext>();
     const [data, setData] = useState<SettingsData | null>(null);
@@ -295,6 +300,8 @@ export default function SettingsPage() {
     const [section, setSection] = usePersistedSearchParam(
         "settings-section", "section", "berechtigungen", SECTION_PARAM_IDS,
     );
+    // Berechtigungen has two views: the menu's areas and the bot commands.
+    const [permView, setPermView] = usePersistedSearchParam<PermView>("settings-perm-view", "perm", "areas", PERM_VIEWS);
 
     const load = () => {
         getSettings()
@@ -368,8 +375,10 @@ export default function SettingsPage() {
                 categoryIds: draft.categoryIds,
                 categoryRoles: draft.categoryRoles,
                 logChannelIds: draft.logChannelIds,
-                raidDefaults: { templateId: draft.raidTemplateId.trim(), channelId: draft.raidChannelId.trim() },
+                raidDefaults: { channelId: draft.raidChannelId.trim() },
                 categoryLootTool: draft.categoryLootTool,
+                // Sent whole: a category set back to "keine" is left out.
+                categoryRaidTemplate: Object.fromEntries(Object.entries(draft.categoryRaidTemplate).filter(([, id]) => id)),
                 // Sent whole: the store replaces the map, so clearing a url is
                 // what removes that category's sheet.
                 categorySheets: Object.fromEntries(
@@ -391,11 +400,27 @@ export default function SettingsPage() {
         <PartHead icon={s.icon} tone="settings" title={s.label} crumb={`Einstellungen › ${s.crumb}`} action={action} tip={tip} tipSub={tipSub} />
     );
 
+    const permSwitch = (
+        <Segment
+            ariaLabel="Berechtigungen"
+            size="sm"
+            value={permView}
+            onChange={(v) => setPermView(v)}
+            options={[
+                { value: "areas", label: "Bereiche", tip: "Wer im EventHelper welchen Bereich sehen oder bearbeiten darf" },
+                { value: "bot", label: "Bot-Befehle", tip: "Wer im Discord welchen Bot-Befehl nutzen darf" },
+            ]}
+        />
+    );
+
     // The panel of the open section.
     const panel = () => {
         switch (active) {
-            case "berechtigungen": return (
+            case "berechtigungen": return permView === "bot" ? (
+                <BotCommandAccess csrfToken={csrfToken} viewSwitch={permSwitch} icon={activeSection.icon} crumb="Zugang · wer darf welchen Bot-Befehl im Discord nutzen" />
+            ) : (
                 <RolePermissionsEditor
+                    viewSwitch={permSwitch}
                     areas={data.areas}
                     roles={data.roles}
                     adminRoleIds={draft.adminRoleIds}
@@ -451,6 +476,11 @@ export default function SettingsPage() {
                     onToggleRole={toggleRole}
                     onLootTool={(id, tool) => patch({ categoryLootTool: { ...draft.categoryLootTool, [id]: tool } })}
                     onSheet={(id, sheet) => patch({ categorySheets: { ...draft.categorySheets, [id]: sheet } })}
+                    raidTemplates={{
+                        options: data.raidTemplates || [],
+                        value: draft.categoryRaidTemplate,
+                        onChange: (id, templateId) => patch({ categoryRaidTemplate: { ...draft.categoryRaidTemplate, [id]: templateId } }),
+                    }}
                     csrfToken={csrfToken}
                     icon={activeSection.icon}
                     crumb={activeSection.crumb}
@@ -461,10 +491,6 @@ export default function SettingsPage() {
                 <>
                     {head(activeSection)}
                     <ModuleCard>
-                        <div className="set-field">
-                            <FieldLabel htmlFor="set-raid-template" tip="Standard-Template" tipSub="Raid-Helper-Template, mit dem ein neues Raid-Event vorbelegt wird, wenn beim Anlegen nichts anderes gewählt ist.">Standard-Template-ID</FieldLabel>
-                            <input id="set-raid-template" type="text" className="mono" value={draft.raidTemplateId} onChange={(e) => patch({ raidTemplateId: e.target.value })} placeholder="Raid-Helper Template-ID" />
-                        </div>
                         <div className="set-field">
                             <FieldLabel htmlFor="set-raid-channel" tip="Standard-Kanal" tipSub="Der Kanal, in dem ein neues Raid-Event angelegt wird, wenn beim Anlegen keiner gewählt ist.">Standard-Kanal</FieldLabel>
                             <ChannelPicker id="set-raid-channel" value={draft.raidChannelId} channels={channels} onChange={(raidChannelId) => patch({ raidChannelId })} />

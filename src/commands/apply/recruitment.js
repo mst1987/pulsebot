@@ -1,15 +1,15 @@
 const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder,
 } = require("discord.js");
-const { checkForPermission } = require("../../utils/helper");
 const { listRecruitment, saveRecruitmentPost } = require("../../web/settingsStore");
 const { embedAccentColor } = require("../../config/variables");
 
 module.exports = {
     name: "recruitment",
     description: "Postet eine im Admin-Menü gepflegte Recruitment-Vorlage in einen Channel",
+    group: "recruitment",
+    defaultAccess: "admins",
     async execute(interaction) {
-        if (!checkForPermission(interaction)) return;
         await interaction.deferReply({ ephemeral: true });
 
         const wanted = interaction.options.getString("vorlage");

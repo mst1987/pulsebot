@@ -3,7 +3,7 @@ const { requireAdmin, requireFullAdmin, requireCsrf } = require("../apiMiddlewar
 const { readJsonBody } = require("../apiBody");
 const { activeGuildFor } = require("../activeGuild");
 const {
-    getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet,
+    getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates,
 } = require("../settingsStore");
 const {
     listTokens: listIngestTokens, createToken: createIngestToken, revokeToken: revokeIngestToken,
@@ -14,6 +14,7 @@ const wowhead = require("../../utils/wowhead");
 const {
     AREAS, normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,
 } = require("../../config/permissions");
+const { normalizeBotCommandAccess } = require("../../config/botCommands");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
 
@@ -53,7 +54,7 @@ function normalizeCategorySheets(raw) {
 
 // Config keys that decide who gets into the menu — only full admins may change
 // them, so a role with write access to "Einstellungen" can't grant itself more.
-const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermissions"];
+const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermissions", "botCommandAccess"];
 
 // Config keys that hold a credential to a foreign system the bot pays for or
 // acts through (the Anthropic key, the Warcraft Logs API client). Full-admin
@@ -98,6 +99,9 @@ async function getSettings(req, res) {
         areas: AREAS,
         userNames,
         raidsheets: listRaidsheets(),
+        // For the default-template select per category — names only, so a
+        // settings user needs no raid rights to pick one.
+        raidTemplates: listRaidTemplates().map((t) => ({ id: t.id, name: t.name, versionId: t.versionId, size: t.size })),
         roles: discord.listRoles(guildId),
         categories: discord.listCategories(guildId),
         // The module fields pick a channel by name instead of a typed id; an
@@ -218,6 +222,8 @@ async function updateSettings(req, res) {
     // Guarded like the other access keys above, but it was never taken over
     // into `partial` — a per-account grant set in the menu was silently dropped.
     if (body.userPermissions !== undefined) partial.userPermissions = normalizeUserPermissions(body.userPermissions);
+    // Sent as the whole map: a command left out follows its defaultAccess again.
+    if (body.botCommandAccess !== undefined) partial.botCommandAccess = normalizeBotCommandAccess(body.botCommandAccess);
     if (body.guildId !== undefined) partial.guildId = String(body.guildId).trim();
     // Only the fields sent: settingsStore merges them into the stored block and
     // normalises the result, so a PATCH of one channel keeps both servers.
@@ -258,6 +264,13 @@ async function updateSettings(req, res) {
     }
     if (body.categoryLootTool !== undefined) partial.categoryLootTool = normalizeCategoryLootTool(body.categoryLootTool);
     if (body.categorySheets !== undefined) partial.categorySheets = normalizeCategorySheets(body.categorySheets);
+    // Sent whole; an id no template has is dropped, so a category can never
+    // point at a template that is not there (the store normalises the rest).
+    if (body.categoryRaidTemplate !== undefined) {
+        const known = new Set(listRaidTemplates().map((t) => t.id));
+        const raw = body.categoryRaidTemplate && typeof body.categoryRaidTemplate === "object" ? body.categoryRaidTemplate : {};
+        partial.categoryRaidTemplate = Object.fromEntries(Object.entries(raw).filter(([, id]) => known.has(String(id || ""))));
+    }
     // Sent as the complete list; settingsStore normalises it and replaces the
     // stored one, so removing an item is just leaving it out.
     if (body.topItems !== undefined) partial.topItems = Array.isArray(body.topItems) ? body.topItems : [];

@@ -5,8 +5,9 @@ const { activeGuildFor } = require("../activeGuild");
 const discord = require("../discord");
 const {
     loadNextRaids, loadNextRaidDetails, loadRecentEvents, loadTopLoot,
-    loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot,
+    loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot, loadChannelArchive,
 } = require("../dashboardData");
+const { userCanAny } = require("../../config/permissions");
 const { buildTasks, zoneFor } = require("../dashboardOverview");
 
 /** The page head's kicker parts: the managed guild and the realm the loot lookups use ("Thunderstrike EU"). */
@@ -40,7 +41,11 @@ async function getDashboard(req, res) {
         nextRaid: next.raids[0] || null,
         followingRaid: next.raids[1] || null,
         nextRaidError: next.error,
-        tasks: buildTasks({ nextRaids: next.raids, recentEvents: recentEvents.events, report, inbox }),
+        tasks: buildTasks({
+            nextRaids: next.raids, recentEvents: recentEvents.events, report, inbox,
+            // Only for whoever can open the archive the task leads to.
+            archive: userCanAny(user, ["channels"], "read") ? loadChannelArchive(guildId) : null,
+        }),
         areas: {
             lastReport: report,
             newLoot: loadNewLoot(lastRaid ? lastRaid.startTime : 0),

@@ -10,7 +10,6 @@ const ADMIN_ID = "233598324022837249";
 describe("commands/setup/createOverview", () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        helper.checkForPermission.mockReturnValue(true);
         helper.showAllEvents.mockResolvedValue("formatted raids");
     });
 
@@ -20,14 +19,10 @@ describe("commands/setup/createOverview", () => {
         expect(typeof createOverview.execute).toBe("function");
     });
 
-    it("aborts silently when the user lacks permission", async () => {
-        helper.checkForPermission.mockReturnValue(false);
-        const interaction = mockInteraction({ userId: "not-admin" });
-
-        await createOverview.execute(interaction, {});
-
-        expect(helper.showAllEvents).not.toHaveBeenCalled();
-        expect(helper.botReply).not.toHaveBeenCalled();
+    it("is admin-only unless the Bot-Befehle settings say otherwise", () => {
+        // The check itself runs centrally before execute (src/web/botAccess.js).
+        expect(createOverview.defaultAccess).toBe("admins");
+        expect(typeof createOverview.group).toBe("string");
     });
 
     it("replies with an error when the channel has no parent category", async () => {

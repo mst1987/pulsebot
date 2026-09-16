@@ -1,0 +1,83 @@
+/* Raid-Vorlagen (#266): pages/RaidTemplatesPage.tsx and components/CompositionEditor.tsx.
+   Namespaces: rt- (the page and its modal), comp- (the tanks/healers editor). */
+
+.rt-page { display: flex; flex-direction: column; gap: 18px; }
+.rt-page .ph-act { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ---- list: one compact row per template ---- */
+.rt-list { display: flex; flex-direction: column; gap: 10px; max-width: 980px; }
+.rt-row {
+    position: relative; display: flex; align-items: center; gap: 14px; width: 100%;
+    padding: 14px 16px; text-align: left; color: var(--text); font: inherit; cursor: pointer;
+    background: var(--panel); border: 1px solid var(--line);
+    clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+    transition: border-color .15s ease, background-color .15s ease;
+}
+.rt-row::after {
+    content: ""; position: absolute; top: 0; right: 0; width: 14px; height: 14px; pointer-events: none;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent) 42%, transparent 44%); opacity: .85;
+}
+.rt-row:hover { border-color: var(--accent); background: var(--panel2); }
+.rt-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.rt-icons { display: flex; flex: 0 0 auto; }
+.rt-icons .wi { width: 40px; height: 40px; border-radius: 9px; }
+.rt-icons .wi + .wi { margin-left: -12px; box-shadow: 0 0 0 2px var(--panel); }
+.rt-main { flex: 1; min-width: 0; }
+.rt-name { font-size: 17px; font-weight: 800; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rt-sub { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 3px; }
+.rt-lbl { font: 600 10.5px var(--font-mono); text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted); }
+.rt-vals { display: flex; gap: 18px; text-align: right; flex: 0 0 auto; }
+.rt-val { min-width: 44px; }
+.rt-num { font-size: 22px; font-weight: 800; letter-spacing: -.3px; line-height: 1.1; }
+
+/* ---- modal ---- */
+.rt-field { display: flex; flex-direction: column; align-items: flex-start; gap: 7px; margin-bottom: 16px; }
+.rt-flabel { font-size: 13px; color: var(--muted); font-weight: 600; }
+.rt-insts, .rt-buffs { display: flex; flex-wrap: wrap; gap: 6px; }
+.rt-inst {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; border-radius: 14px;
+    background: var(--panel2); border: 1px solid var(--line); color: var(--muted); font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.rt-inst .wi { width: 20px; height: 20px; border-radius: 50%; }
+.rt-inst svg { width: 12px; height: 12px; color: var(--medium); }
+.rt-inst.on { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
+.rt-buff { padding: 2px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel2); cursor: pointer; line-height: 0; }
+.rt-buff .wi { width: 24px; height: 24px; border-radius: 5px; filter: grayscale(1) brightness(.7); }
+.rt-buff.on { border-color: var(--accent); background: var(--accent-soft); }
+.rt-buff.on .wi { filter: none; }
+.rt-sizes { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rt-size-input { width: 80px; min-height: var(--ctl-h-sm); padding: 4px 8px; }
+.rt-more { border-top: 1px solid var(--line-soft); padding-top: 10px; margin-top: 16px; }
+.rt-more > summary {
+    cursor: pointer; display: flex; align-items: center; gap: 8px;
+    font: 600 10.5px var(--font-mono); text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted);
+}
+.rt-more-body { display: flex; flex-direction: column; gap: 14px; padding-top: 14px; }
+.rt-ranges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.rt-range { display: flex; align-items: flex-end; gap: 8px; }
+.rt-range-lbl { font-size: 13px; font-weight: 700; min-width: 72px; padding-bottom: 8px; }
+.rt-num-field { display: flex; flex-direction: column; gap: 5px; }
+.rt-num-field label { font-size: 12px; color: var(--muted); font-weight: 600; }
+.rt-num-field input { width: 100%; min-height: var(--ctl-h-sm); padding: 4px 8px; }
+.rt-range .rt-num-field { width: 70px; }
+.rt-row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.rt-switches { display: flex; gap: 24px; flex-wrap: wrap; }
+.rt-problem { color: var(--high); font-size: 12.5px; margin-top: 12px; }
+
+/* ---- tanks / healers editor ---- */
+.comp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.comp-card {
+    display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 10px;
+}
+.comp-card > .wi { width: 32px; height: 32px; border-radius: 6px; flex: 0 0 auto; }
+.comp-text { flex: 1; min-width: 0; }
+.comp-lbl { font: 600 10.5px var(--font-mono); text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted); }
+.comp-num { font-size: 22px; font-weight: 800; letter-spacing: -.3px; line-height: 1.1; }
+.comp-hint { color: var(--muted); font-size: 12.5px; margin-top: 8px; }
+
+@media (max-width: 640px) {
+    .rt-row { flex-wrap: wrap; }
+    .rt-vals { width: 100%; justify-content: flex-start; text-align: left; }
+    .rt-ranges, .rt-row2, .comp-grid { grid-template-columns: minmax(0, 1fr); }
+}

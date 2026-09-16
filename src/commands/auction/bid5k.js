@@ -8,6 +8,8 @@ const {
 module.exports = {
     name: "bid-5k",
     description: "Place a bid in an auction",
+    // A component of /bid: it needs the same access (web/botAccess.js).
+    accessOf: "bid",
     async execute(interaction, client) {
         const legendary = new Legendary();
         const highestbid = await legendary.getHighestBid(interaction.channel.id);

@@ -6,6 +6,8 @@ const { botEditReply } = require("../../utils/helper");
 module.exports = {
     name: "fillsetup",
     description: "Befüllt das Setup-Sheet aus einem Raidhelper-Raidplan",
+    group: "raids",
+    defaultAccess: "admins",
     async execute(interaction, client) {
         await interaction.deferReply({ ephemeral: true });
 

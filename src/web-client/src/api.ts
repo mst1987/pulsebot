@@ -125,7 +125,7 @@ export type DashboardRaid = {
 export type DashboardTaskTone = "ok" | "mid" | "bad" | "accent";
 
 export type DashboardTask = {
-    id: "sheet" | "recommendations" | "logs" | "inbox";
+    id: "sheet" | "recommendations" | "logs" | "inbox" | "channels";
     tone: DashboardTaskTone;
     /** Tile tint when it differs from the tone (the inbox wears the history area's colour). */
     tile?: string;
@@ -218,7 +218,88 @@ export type ChannelsData = {
     purposeSummary: { set: number; missing: number; warnings: number };
     /** Tracked recruitment posts per channel id. */
     recruitmentPosts: Record<string, number>;
+    /** Topic, slowmode and permission sync per channel id (issue #259). */
+    details: Record<string, ChannelDetails>;
+    /** Whether the bot may manage channels on this server; null while unknown. */
+    canManage: boolean | null;
+    /** The raid event a channel belongs to: upcoming ("event") or over ("past"). */
+    events: Record<string, ChannelEvent>;
+    archive: ChannelArchive;
+    /** Stored quick-create schema per category id. */
+    schemas: Record<string, ChannelSchema>;
+    defaultSchema: string;
+    placeholders: { key: string; hint: string }[];
 };
+
+export type ChannelDetails = { topic: string; rateLimitPerUser: number; permissionsLocked: boolean | null };
+export type ChannelEvent = { status: "event" | "past"; title: string; startTime: number; eventId: string };
+export type ChannelSchema = { schema: string; raid: string; templateChannelId: string };
+export type ChannelArchiveRow = {
+    id: string;
+    name: string;
+    /** When it was archived (epoch ms), 0 when moved there by hand. */
+    at: number;
+    by: string;
+    fromCategory: string;
+    waitingDays: number | null;
+    overdue: boolean;
+};
+export type ChannelArchive = {
+    categoryId: string;
+    count: number;
+    overdue: number;
+    hintDays: number;
+    rows: ChannelArchiveRow[];
+};
+
+/** One channel's outcome of a bulk action. */
+export type ChannelResult = { id: string; ok: boolean; error?: string; name?: string };
+export type ChannelBulkResult = { results: ChannelResult[]; done: number; failed: number; message: string };
+export type ChannelChanges = { name?: string; topic?: string; parentId?: string; rateLimitPerUser?: number };
+
+/** Change channels; only the fields present in `changes` are applied. */
+export function patchChannels(csrfToken: string | null, ids: string[], changes: ChannelChanges): Promise<ChannelBulkResult> {
+    return send("PATCH", "/api/channels", csrfToken, { ids, changes });
+}
+
+export function archiveChannels(csrfToken: string | null, ids: string[]): Promise<ChannelBulkResult> {
+    return send("POST", "/api/channels/archive", csrfToken, { ids });
+}
+
+/** Delete from the archive; `confirm` is the channel's name, or LÖSCHEN for several. */
+export function deleteChannels(csrfToken: string | null, ids: string[], confirm: string): Promise<ChannelBulkResult> {
+    return send("POST", "/api/channels/delete", csrfToken, { ids, confirm });
+}
+
+export type RenamePreviewRow = { id: string; from: string; to: string; hasDate: boolean; conflict: boolean };
+
+export function renamePreview(csrfToken: string | null, input: { ids: string[]; schema: string; raid: string }): Promise<{ rows: RenamePreviewRow[] }> {
+    return send("POST", "/api/channels/rename-preview", csrfToken, input);
+}
+
+export type QuickCreateInput = {
+    categoryId: string;
+    schema: string;
+    raid: string;
+    from: string;
+    count: number;
+    interval: "once" | "weekly";
+    templateChannelId: string;
+    saveSchema?: boolean;
+    dryRun?: boolean;
+};
+export type QuickCreatePlanRow = { date: string; name: string; exists: boolean };
+
+export function quickCreateChannels(csrfToken: string | null, input: QuickCreateInput): Promise<{ plan: QuickCreatePlanRow[] } & Partial<ChannelBulkResult> & { skipped?: number }> {
+    return send("POST", "/api/channels/batch", csrfToken, input);
+}
+
+export function saveChannelConfig(
+    csrfToken: string | null,
+    input: { archiveCategoryId?: string; archiveDeleteHintDays?: number; createArchiveCategory?: string },
+): Promise<{ config: { archiveCategoryId: string; archiveDeleteHintDays: number } }> {
+    return send("POST", "/api/channels/config", csrfToken, input);
+}
 
 /**
  * Store a purpose's channels (or categories). The assignment is a setting, so
@@ -360,6 +441,8 @@ export type AdminConfig = {
     // Area rights for single Discord accounts (keyed by user id), for areas that
     // go to named people rather than to a group — same gate as above.
     userPermissions?: RolePermissions;
+    // Who may use which bot command (Berechtigungen → Bot-Befehle) — same gate as above.
+    botCommandAccess?: Record<string, BotAccessRule>;
     guildId: string;
     // Event and talk server (#251); full admins only, like the access keys.
     discordServers?: DiscordServers;
@@ -371,7 +454,9 @@ export type AdminConfig = {
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
     logChannelIds: string[];
-    raidDefaults: { templateId: string; channelId: string };
+    raidDefaults: { channelId: string };
+    // The default raid template per category (category id → template id).
+    categoryRaidTemplate: Record<string, string>;
     blizzard: BlizzardConfig;
     // Claude phrases the log recommendations for the raiders. The key itself
     // never comes back from the server — only whether one is stored.
@@ -424,6 +509,8 @@ export type SettingsData = {
     // Discord could not resolve simply has no entry.
     userNames?: Record<string, string>;
     raidsheets: Raidsheet[];
+    // The raid templates, for the default-template select per category.
+    raidTemplates?: { id: string; name: string; versionId: string; size: number | null }[];
     roles: Role[];
     categories: Category[];
     // The text channels the bot can post in, for the channel pickers; empty
@@ -948,7 +1035,37 @@ export function linkSoftres(
     return send("POST", "/api/raids/softres/link", csrfToken, input);
 }
 
-export type RaidTemplate = { id: string; name: string };
+// Raid templates (#266, src/web/raidTemplates.js): what an evening looks like.
+export type RoleRange = { min: number; max: number | null };
+
+export type RaidTemplateInput = {
+    id?: string;
+    name: string;
+    versionId: string;
+    /** from the rule set only (GET /api/game-versions) */
+    instanceIds: string[];
+    /** null = not set yet (a migrated Raid-Helper template) */
+    size: number | null;
+    composition: { tank: number; healer: number; melee: RoleRange | null; ranged: RoleRange | null };
+    /** buff keys of the version */
+    requiredBuffs: string[];
+    signupDeadline: { hoursBefore: number } | null;
+    fairness: boolean;
+    wishes: boolean;
+    raidhelperTemplateId: string;
+};
+
+export type RaidTemplate = RaidTemplateInput & {
+    id: string;
+    createdAt?: number;
+    updatedAt?: number;
+    /** migrated without size: badge "Größe ergänzen" */
+    needsSize?: boolean;
+    /** an instance still "Infos fehlen" */
+    incomplete?: boolean;
+    /** the categories using it as their default */
+    defaultFor?: string[];
+};
 
 export type ReusableEvent = {
     id: string;
@@ -964,7 +1081,10 @@ export type ReusableEvent = {
 };
 
 export type RaidCreateContext = {
+    /** templateId: the Raid-Helper template of the default channel's category */
     defaults: { templateId: string; channelId: string };
+    /** category id → Raid-Helper template id of its default raid template */
+    categoryTemplates: Record<string, string>;
     leaderId: string;
     channels: Channel[];
     templates: RaidTemplate[];
@@ -1056,16 +1176,22 @@ export function getGameVersions(): Promise<GameVersionsData> {
     return get<GameVersionsData>("/api/game-versions");
 }
 
-export function getRaidTemplates(): Promise<{ templates: RaidTemplate[] }> {
-    return get<{ templates: RaidTemplate[] }>("/api/raid-templates");
+export type RaidTemplatesData = { templates: RaidTemplate[]; categoryNames: Record<string, string> };
+
+export function getRaidTemplates(): Promise<RaidTemplatesData> {
+    return get<RaidTemplatesData>("/api/raid-templates");
 }
 
-export function createRaidTemplate(csrfToken: string | null, input: { id: string; name: string }): Promise<RaidTemplate> {
-    return send("POST", "/api/raid-templates", csrfToken, input);
+/** Create (no id) or update (id) a raid template. */
+export function saveRaidTemplate(csrfToken: string | null, input: RaidTemplateInput): Promise<RaidTemplate> {
+    return input.id
+        ? send("PATCH", "/api/raid-templates", csrfToken, input)
+        : send("POST", "/api/raid-templates", csrfToken, input);
 }
 
+/** 409 while a category uses it as its default — the message names the category. */
 export function deleteRaidTemplate(csrfToken: string | null, id: string): Promise<{ id: string }> {
-    return send("POST", "/api/raid-templates/delete", csrfToken, { id });
+    return send("DELETE", "/api/raid-templates", csrfToken, { id });
 }
 
 export function importRaidTemplates(csrfToken: string | null): Promise<{ added: number; updated: number; templates: RaidTemplate[] }> {
@@ -1689,6 +1815,42 @@ export type IngestToken = {
     lastUsedAt: number;
     uses: number;
 };
+
+// ---- Bot-Befehle (Einstellungen → Berechtigungen), full admins only ----
+
+export type BotAccessMode = "everyone" | "roles" | "admins";
+export type BotAccessRule = { mode: BotAccessMode; roleIds: string[] };
+
+export type BotCommand = {
+    name: string;
+    description: string;
+    group: string;
+    kind: "slash" | "button";
+    /** What the code proposes when nothing is stored. */
+    defaultAccess: BotAccessRule;
+    /** The stored setting, null = the default applies. */
+    access: BotAccessRule | null;
+    effective: BotAccessRule;
+    /** Buttons, selects and modals that inherit this command's access. */
+    inherits: string[];
+};
+
+export type BotCommandGroup = { id: string; label: string; icon: string };
+
+/** A role of the event guild; memberCount is null when the bot cannot tell. */
+export type BotRole = Role & { memberCount: number | null };
+
+export type BotCommandsData = {
+    groups: BotCommandGroup[];
+    commands: BotCommand[];
+    roles: BotRole[];
+    guildId: string;
+    guildName: string;
+};
+
+export function getBotCommands(): Promise<BotCommandsData> {
+    return get<BotCommandsData>("/api/bot-commands");
+}
 
 export function getIngestTokens(): Promise<{ tokens: IngestToken[] }> {
     return get<{ tokens: IngestToken[] }>("/api/settings/ingest-tokens");

@@ -65,6 +65,10 @@ function message(profile) {
 module.exports = {
     name: "profil",
     description: "Zeigt dein Raider-Profil kurz an, mit Link ins Web.",
+    // Everyone's own profile — the buttons ("profil:tank") share this name and
+    // therefore this access.
+    group: "signup",
+    defaultAccess: "everyone",
     summaryLines,
     async execute(interaction) {
         const userId = interaction.user.id;

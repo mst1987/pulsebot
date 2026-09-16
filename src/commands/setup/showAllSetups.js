@@ -6,7 +6,9 @@ const messages = require("../../config/messages");
 
 module.exports = {
     name: "show-allsetups",
-    description: "Show all setups",
+    description: "Zeigt alle Setups dieser Kategorie",
+    group: "raids",
+    defaultAccess: "everyone",
     async execute(interaction, client) {
         const raidhelper = createRaidhelperClient();
         await interaction.deferReply({ ephemeral: true });

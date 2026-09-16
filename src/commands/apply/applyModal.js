@@ -70,6 +70,8 @@ function getEmojiString(guildEmojis, iconName) {
 module.exports = {
     name: "apply-modal",
     description: "Bewerbungs-Modal Submit",
+    // A component of /apply: it needs the same access (web/botAccess.js).
+    accessOf: "apply",
     async execute(interaction, client) {
         await interaction.deferReply({ ephemeral: true });
 

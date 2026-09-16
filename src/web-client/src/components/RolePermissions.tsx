@@ -132,8 +132,10 @@ function grantSummary(areas: Area[], grants: Grants | undefined): string {
 
 export default function RolePermissionsEditor({
     areas, roles, adminRoleIds, onAdminRoleIds, value, onChange, baseAccess, onBaseAccessChange,
-    userPermissions, onUserPermissionsChange, userNames, icon, crumb,
+    userPermissions, onUserPermissionsChange, userNames, icon, crumb, viewSwitch,
 }: {
+    /** The Bereiche · Bot-Befehle segment, shown in the part head. */
+    viewSwitch?: ReactNode;
     areas: Area[];
     roles: Role[];
     adminRoleIds: string[];
@@ -194,7 +196,7 @@ export default function RolePermissionsEditor({
                 tone="settings"
                 title="Berechtigungen"
                 crumb={`Einstellungen › ${crumb}`}
-                action={<Button variant="ghost" size="sm" icon={<PlusIcon />} onClick={() => setAdding("grant")}>Rolle oder Konto</Button>}
+                action={<>{viewSwitch}<Button variant="ghost" size="sm" icon={<PlusIcon />} onClick={() => setAdding("grant")}>Rolle oder Konto</Button></>}
             />
             <div className="perm-legend">
                 <span className="note">Klick schaltet</span>

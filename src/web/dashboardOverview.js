@@ -208,8 +208,9 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
  * @param {object[]} p.recentEvents  from loadRecentEvents(): { id, title, startTime, pendingLogCount }
  * @param {object|null} p.report     { id, title, zone, generatedAt, open } of the newest evaluation
  * @param {object[]} p.inbox         pending addon-inbox sessions ({ items })
+ * @param {object|null} p.archive    { count, overdue, hintDays } of the channel archive (channelArchiveStore.archiveHint)
  */
-function buildTasks({ nextRaids = [], recentEvents = [], report = null, inbox = [] }) {
+function buildTasks({ nextRaids = [], recentEvents = [], report = null, inbox = [], archive = null }) {
     const tasks = [];
 
     const noSheet = (nextRaids || []).filter((r) => !r.sheet);
@@ -259,6 +260,21 @@ function buildTasks({ nextRaids = [], recentEvents = [], report = null, inbox = 
             href: "/history?tab=inbox",
             tip: "Hochgeladener Loot wartet",
             tipSub: "Das Addon hat Loot hochgeladen, der noch keinem Raid zugeordnet ist. Öffnet die Addon-Inbox unter Historie & Loot.",
+        });
+    }
+
+    // Archived channels are never deleted automatically (issue #259) — the task
+    // is the reminder. It turns yellow once one has waited past the deadline.
+    if (archive && archive.count > 0) {
+        const overdue = archive.overdue || 0;
+        tasks.push({
+            id: "channels", tone: overdue ? "mid" : "accent", tile: overdue ? "mid" : "channels", icon: "inv_letter_15",
+            title: "Archivierte Kanäle löschen",
+            ref: { text: overdue ? `${plural(overdue, "Kanal wartet", "Kanäle warten")} länger als ${archive.hintDays} Tage` : `${plural(archive.count, "Kanal wartet", "Kanäle warten")} auf Löschung` },
+            count: archive.count,
+            href: "/channels?tab=archive",
+            tip: `${plural(archive.count, "archivierter Kanal wartet", "archivierte Kanäle warten")} auf Löschung`,
+            tipSub: "Archivierte Kanäle werden nie automatisch gelöscht. Öffnet das Archiv der Kanäle-Seite, wo ein Admin sie löscht.",
         });
     }
 

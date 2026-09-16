@@ -8,6 +8,7 @@ import RaidsPage from "./pages/RaidsPage";
 import RaidCreatePage from "./pages/RaidCreatePage";
 import RaidDetailPage from "./pages/RaidDetailPage";
 import NotifyTemplatesPage from "./pages/NotifyTemplatesPage";
+import RaidTemplatesPage from "./pages/RaidTemplatesPage";
 import RecruitmentPage from "./pages/RecruitmentPage";
 import HistoryPage from "./pages/HistoryPage";
 import HistoryEventPage from "./pages/HistoryEventPage";
@@ -135,6 +136,7 @@ export default function App() {
                         <Route path="raids/new" element={<Guard user={user} areas={["raids"]} level="write"><RaidCreatePage /></Guard>} />
                         <Route path="raids/detail" element={<Guard user={user} areas={["raids"]}><RaidDetailPage /></Guard>} />
                         <Route path="raids/templates" element={<Guard user={user} areas={["raids"]}><NotifyTemplatesPage /></Guard>} />
+                        <Route path="raids/raid-templates" element={<Guard user={user} areas={["raids"]}><RaidTemplatesPage /></Guard>} />
                         <Route path="recruitment" element={<Guard user={user} areas={["recruitment"]}><RecruitmentPage /></Guard>} />
                         {/* "loot" opens the same three pages, cut down to the loot views. */}
                         <Route path="history" element={<Guard user={user} areas={["history", "loot"]}><HistoryPage /></Guard>} />

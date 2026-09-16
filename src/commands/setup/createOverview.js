@@ -2,17 +2,16 @@
 const messages = require("../../config/messages");
 const {
     findServerEmoji,
-    checkForPermission,
     showAllEvents,
     botReply,
 } = require("../../utils/helper");
 
 module.exports = {
     name: "createoverview",
-    description: "Show your setups",
+    description: "Postet die Event-Übersicht mit Buttons für diese Kategorie",
+    group: "raids",
+    defaultAccess: "admins",
     async execute(interaction, client) {
-        if (!checkForPermission(interaction)) return;
-
         try {
             if (!interaction.channel.parent) {
                 return botReply(interaction, "Fehler", "Dieser Befehl muss in einem Kanal mit einer Kategorie ausgeführt werden.");

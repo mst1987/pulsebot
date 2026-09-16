@@ -125,8 +125,14 @@ describe("save bar change list", () => {
         baseAccess: {}, userPermissions: {},
         officerRoleId: "", applicationChannelId: "", highestBidsChannelId: "", highestBidsMessageId: "",
         categoryIds: ["c1"], categoryRoles: { c1: ["r1", "r2"] }, logChannelIds: ["l1", "l2"],
-        raidTemplateId: "", raidChannelId: "",
-        categoryLootTool: {}, categorySheets: {}, topItems: [{ id: 1 }],
+        raidChannelId: "",
+        categoryLootTool: {}, categorySheets: {}, categoryRaidTemplate: { c1: "tpl1" }, topItems: [{ id: 1 }],
+    });
+
+    it("names a changed default raid template per category, and ignores an emptied entry", () => {
+        const draft = base();
+        draft.categoryRaidTemplate = { c1: "tpl2", c9: "" };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Standard-Vorlage"]);
     });
 
     it("is empty when nothing changed, even if the order of a list or an empty entry differs", () => {
