@@ -127,7 +127,7 @@ function complete(e) {
         signupDeadline: Number(e.signupDeadline) || 0,
         fairness: !!e.fairness,
         wishes: !!e.wishes,
-        // The setup draft/approval comes with #263; null until then.
+        // The setup draft, its approval and the last approved snapshot (setupEditor.js, #263).
         setup: e.setup || null,
         message: e.message && e.message.messageId ? { channelId: e.message.channelId || "", messageId: e.message.messageId } : null,
         createdBy: e.createdBy || "",
@@ -258,6 +258,21 @@ function setEventMessage(id, message) {
     return complete(events[idx]);
 }
 
+/**
+ * Store the event's setup (#263) as setupEditor.js built it — draft, approval
+ * and the last approved snapshot in one object (null clears it). Returns the
+ * event or null. Apart from updateEvent() on purpose: the setup is no planning
+ * field and must not re-validate the plan.
+ */
+function setEventSetup(id, setup) {
+    const events = readAll();
+    const idx = events.findIndex((e) => e && e.id === str(id));
+    if (idx < 0) return null;
+    events[idx] = { ...events[idx], setup: setup && typeof setup === "object" ? setup : null };
+    writeAll(events);
+    return complete(events[idx]);
+}
+
 /** Delete an own event. Returns true when one was removed. */
 function deleteEvent(id) {
     const events = readAll();
@@ -268,6 +283,6 @@ function deleteEvent(id) {
 }
 
 module.exports = {
-    listEvents, getEvent, createEvent, updateEvent, setEventMessage, deleteEvent,
+    listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent,
     normalizePlan, isOwnEventId, EVENTS_FILE, ID_PREFIX, COMPOSITION_ROLES,
 };

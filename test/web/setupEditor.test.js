@@ -1,0 +1,234 @@
+// The setup editor's rules (src/web/setupEditor.js, #263): a proposal is a
+// draft, locked places survive a new proposal, a manual lineup is validated,
+// only an approval makes the setup visible — and a change after the approval
+// is a draft again while raiders keep seeing the approved lineup.
+const mockEvents = new Map();
+jest.mock("../../src/web/eventStore", () => ({
+    getEvent: (id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null),
+    listEvents: () => [...mockEvents.values()],
+    isOwnEventId: (id) => String(id || "").startsWith("eh-"),
+    setEventSetup: (id, setup) => {
+        if (!mockEvents.has(id)) return null;
+        mockEvents.set(id, { ...mockEvents.get(id), setup: JSON.parse(JSON.stringify(setup)) });
+        return JSON.parse(JSON.stringify(mockEvents.get(id)));
+    },
+}));
+let mockSignups = [];
+jest.mock("../../src/web/signupStore", () => ({ listSignups: () => mockSignups }));
+jest.mock("../../src/web/raiderProfileStore", () => ({ listProfiles: () => [] }));
+jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
+jest.mock("../../src/web/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
+jest.mock("../../src/web/eventSources", () => ({
+    listStoredEvents: () => [],
+    specNameFor: jest.requireActual("../../src/web/eventSources").specNameFor,
+}));
+
+const editor = require("../../src/web/setupEditor");
+const { buildEventMessage } = require("../../src/web/eventMessage");
+const { su } = require("../utils/setup/fixtures");
+
+const ID = "eh-kara";
+
+function seed() {
+    mockEvents.clear();
+    mockEvents.set(ID, {
+        id: ID, source: "eventhelper", guildId: "g1", categoryId: "cat", title: "Kara", startTime: 2000000000,
+        versionId: "tbc", size: 10, composition: { tank: 1, healer: 2, melee: 0, ranged: 0 }, fairness: false, wishes: false, setup: null,
+    });
+    mockSignups = [
+        su("tank", "Warrior-Protection"), su("heal1", "Priest-Holy"), su("heal2", "Paladin-Holy"),
+        su("mage", "Mage-Fire"), su("rogue", "Rogue-Combat"), su("lock", "Warlock-Destruction"),
+        su("hunter", "Hunter-BeastMastery"), su("sham", "Shaman-Enhancement"), su("feral", "Druid-Feral"),
+        su("spriest", "Priest-Shadow"), su("frost", "Mage-Frost"), su("arms", "Warrior-Arms"),
+        su("gone", "Rogue-Combat", { status: "absence" }),
+    ];
+}
+
+/** The stored lineup as the editor sends it back. */
+function placementOf(setup) {
+    return {
+        version: setup.version,
+        groups: setup.groups.map((g) => ({ index: g.index, slots: g.slots.map((s) => ({ userId: s.userId, spec: s.spec, role: s.role, locked: s.locked })) })),
+        bench: setup.bench.map((b) => ({ userId: b.userId, locked: b.locked })),
+    };
+}
+
+const where = (setup, userId) => {
+    const g = setup.groups.find((x) => x.slots.some((s) => s.userId === userId));
+    return g ? g.index : (setup.bench.some((b) => b.userId === userId) ? "bench" : null);
+};
+
+beforeEach(seed);
+
+describe("proposeEventSetup", () => {
+    it("stores a draft with groups, bench, checks and version 1", () => {
+        const { setup } = editor.proposeEventSetup(ID, {}, { userId: "orga", now: 5 });
+        expect(setup).toMatchObject({ status: "draft", version: 1, origin: "proposal", updatedBy: "orga", approved: null, changedSinceApproval: false });
+        expect(setup.groups.flatMap((g) => g.slots)).toHaveLength(10);
+        expect(setup.bench.length).toBe(2);
+        expect(setup.checks.roles.healer).toMatchObject({ count: 2, ok: true });
+        expect(setup.events).toBeUndefined();
+    });
+
+    it("keeps locked places — in their group and on the bench — when proposing again", () => {
+        const first = editor.proposeEventSetup(ID).setup;
+        const moved = placementOf(first);
+        // lock the frost mage into group 2 and the tank onto the bench
+        for (const g of moved.groups) g.slots = g.slots.filter((s) => !["frost", "tank"].includes(s.userId));
+        moved.bench = moved.bench.filter((b) => !["frost", "tank"].includes(b.userId));
+        const g2 = moved.groups.find((g) => g.index === 2);
+        if (g2.slots.length >= 5) moved.bench.push({ userId: g2.slots.pop().userId });
+        g2.slots.push({ userId: "frost", spec: "Mage-Frost", role: "ranged", locked: true });
+        moved.bench.push({ userId: "tank", locked: true });
+        const saved = editor.saveEventSetup(ID, moved);
+        expect(saved.error).toBeUndefined();
+
+        const again = editor.proposeEventSetup(ID).setup;
+        expect(where(again, "frost")).toBe(2);
+        expect(again.groups[1].slots.find((s) => s.userId === "frost").locked).toBe(true);
+        expect(where(again, "tank")).toBe("bench");
+        expect(again.bench.find((b) => b.userId === "tank").locked).toBe(true);
+    });
+
+    it("remembers the weights and switches it was run with", () => {
+        const { setup } = editor.proposeEventSetup(ID, { weights: { fairness: 999, bogus: 3, gear: "12" }, fairness: true });
+        expect(setup.options).toEqual({ weights: { fairness: 500, gear: 12 }, fairness: true, wishes: null });
+        const again = editor.proposeEventSetup(ID, {}).setup;
+        expect(again.options).toEqual(setup.options);
+    });
+
+    it("refuses a Raid-Helper id and an unknown event", () => {
+        expect(editor.proposeEventSetup("12345")).toMatchObject({ code: "raidhelper" });
+        expect(editor.proposeEventSetup("eh-nope")).toMatchObject({ code: "not_found" });
+    });
+});
+
+describe("saveEventSetup", () => {
+    it("stores the orga's lineup as a manual draft with fresh checks", () => {
+        const first = editor.proposeEventSetup(ID).setup;
+        const p = placementOf(first);
+        const healerSlot = p.groups.flatMap((g) => g.slots).find((s) => s.userId === "heal1");
+        for (const g of p.groups) g.slots = g.slots.filter((s) => s !== healerSlot);
+        p.bench.push({ userId: "heal1" });
+        const { setup, error } = editor.saveEventSetup(ID, p, { userId: "orga2" });
+        expect(error).toBeUndefined();
+        expect(setup).toMatchObject({ origin: "manual", version: 2, status: "draft", updatedBy: "orga2" });
+        expect(where(setup, "heal1")).toBe("bench");
+        expect(setup.checks.roles.healer).toMatchObject({ count: 1, ok: false });
+    });
+
+    it("refuses what breaks a hard rule and leaves the stored setup alone", () => {
+        const first = editor.proposeEventSetup(ID).setup;
+        const p = placementOf(first);
+        p.groups[0].slots.push({ userId: p.groups[1].slots[0].userId });
+        const out = editor.saveEventSetup(ID, p);
+        expect(out).toMatchObject({ code: "invalid" });
+        expect(out.error).toMatch(/zweimal|mehr als 5/);
+        expect(mockEvents.get(ID).setup.version).toBe(1);
+        expect(editor.saveEventSetup(ID, { version: 1, groups: [{ index: 1, slots: [{ userId: "gone" }] }] }).error).toMatch(/abgemeldet/);
+    });
+
+    it("refuses a lineup built on an outdated version", () => {
+        editor.proposeEventSetup(ID);
+        editor.proposeEventSetup(ID, { weights: { mainSpec: 0, status: 0 } });
+        const out = editor.saveEventSetup(ID, { version: 0, groups: [], bench: [] });
+        expect(out).toMatchObject({ code: "conflict" });
+    });
+});
+
+describe("approval", () => {
+    it("approves the shown version and freezes a raider-facing snapshot", () => {
+        const { setup } = editor.proposeEventSetup(ID);
+        const out = editor.approveEventSetup(ID, { version: setup.version, userId: "lead", now: 99 });
+        expect(out.setup).toMatchObject({ status: "approved", approvedBy: "lead", approvedAt: 99, approvedVersion: 1, changedSinceApproval: false });
+        expect(out.setup.approved.groups.flatMap((g) => g.slots)).toHaveLength(10);
+        // no reasons, no locks in what raiders get to see
+        expect(JSON.stringify(out.setup.approved)).not.toMatch(/reasons|locked/);
+        expect(editor.approveEventSetup(ID, { version: 1 })).toMatchObject({ already: true });
+    });
+
+    it("refuses an outdated version and an empty setup", () => {
+        expect(editor.approveEventSetup(ID, { version: 1 })).toMatchObject({ code: "no_setup" });
+        editor.proposeEventSetup(ID);
+        expect(editor.approveEventSetup(ID, { version: 7 })).toMatchObject({ code: "conflict" });
+    });
+
+    it("turns a changed lineup back into a draft — raiders keep the approved one", () => {
+        const { setup } = editor.proposeEventSetup(ID);
+        editor.approveEventSetup(ID, { version: setup.version, userId: "lead", now: 50 });
+        const approvedBefore = mockEvents.get(ID).setup.approved;
+        const p = placementOf(mockEvents.get(ID).setup);
+        const benched = p.bench[0].userId;
+        const out = p.groups.find((g) => g.slots.some((s) => s.role !== "tank" && s.role !== "healer"));
+        const dropped = out.slots.find((s) => s.role !== "tank" && s.role !== "healer");
+        out.slots = out.slots.filter((s) => s !== dropped);
+        p.bench = p.bench.filter((b) => b.userId !== benched).concat({ userId: dropped.userId });
+        const signup = mockSignups.find((s) => s.userId === benched);
+        out.slots.push({ userId: benched, spec: signup.spec });
+
+        const saved = editor.saveEventSetup(ID, p).setup;
+        expect(saved).toMatchObject({ status: "draft", changedSinceApproval: true, version: 2 });
+        expect(saved.approved).toEqual(approvedBefore);
+        const event = mockEvents.get(ID);
+        expect(editor.approvedPlacementFor(event, benched)).toMatchObject({ bench: true });
+        expect(editor.setupSummary(event)).toMatchObject({ status: "draft", changedSinceApproval: true });
+    });
+
+    it("keeps the approval when only a lock changes", () => {
+        const { setup } = editor.proposeEventSetup(ID);
+        editor.approveEventSetup(ID, { version: setup.version });
+        const p = placementOf(mockEvents.get(ID).setup);
+        p.groups[0].slots[0].locked = true;
+        const saved = editor.saveEventSetup(ID, p).setup;
+        expect(saved).toMatchObject({ status: "approved", version: 1, changedSinceApproval: false });
+        expect(saved.groups[0].slots[0].locked).toBe(true);
+    });
+});
+
+describe("what raiders see", () => {
+    it("shows nothing of a draft anywhere", () => {
+        editor.proposeEventSetup(ID);
+        const event = mockEvents.get(ID);
+        const someone = event.setup.groups[0].slots[0].userId;
+        expect(editor.approvedSetupOf(event)).toBeNull();
+        expect(editor.approvedPlacementFor(event, someone)).toBeNull();
+        expect(editor.raidHelperSlots(event)).toEqual([]);
+        const reader = editor.editorView(event, { canWrite: false });
+        expect(reader).not.toHaveProperty("setup");
+        expect(reader.approved).toBeNull();
+        expect(JSON.stringify(reader)).not.toContain(someone);
+        const msg = buildEventMessage(event, []);
+        expect(JSON.stringify(msg.embeds[0].toJSON())).not.toContain("Setup");
+    });
+
+    it("shows the approved lineup — in the event message, as a placement and as raidplan slots", () => {
+        const { setup } = editor.proposeEventSetup(ID);
+        editor.approveEventSetup(ID, { version: setup.version });
+        const event = mockEvents.get(ID);
+        const first = event.setup.approved.groups[0].slots[0];
+        expect(editor.approvedPlacementFor(event, first.userId)).toMatchObject({ group: 1, spec: first.spec });
+        const slots = editor.raidHelperSlots(event);
+        expect(slots).toHaveLength(10);
+        expect(slots[0]).toMatchObject({ id: first.userId, name: first.character, groupNumber: 1, slotNumber: 1 });
+        expect(slots.every((s) => s.specName)).toBe(true);
+        const field = msg(event);
+        expect(field.value).toMatch(/^\*\*Gr\. 1\*\* /);
+        expect(field.value).toContain("**Bank**");
+        const reader = editor.editorView(event, { canWrite: false });
+        expect(reader.approved.groups[0].slots[0]).toMatchObject({ classColor: expect.stringMatching(/^#/), specLabel: expect.any(String) });
+    });
+
+    function msg(event) {
+        return buildEventMessage(event, []).embeds[0].toJSON().fields.find((f) => f.name.includes("Setup"));
+    }
+
+    it("gives the orga the draft with names, defaults and the key flag", () => {
+        editor.proposeEventSetup(ID);
+        const event = mockEvents.get(ID);
+        const uid = event.setup.groups[0].slots[0].userId;
+        const view = editor.editorView(event, { canWrite: true, names: { [uid]: "discordname" }, signups: mockSignups, hasApiKey: true });
+        expect(view.setup.groups[0].slots[0]).toMatchObject({ name: "discordname", specIcon: expect.any(String) });
+        expect(view).toMatchObject({ canWrite: true, groupCount: 2, signupCount: 12, absent: 1, hasApiKey: true });
+        expect(view.defaults.weights.fairness).toBe(150);
+    });
+});

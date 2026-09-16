@@ -43,6 +43,17 @@ function setupMembers(setup) {
     return { placed: [...placed], bench: [...bench] };
 }
 
+/**
+ * The lineup a night actually ran with: the approved snapshot (setupEditor.js),
+ * never a draft that was changed after the approval. A setup marked approved
+ * without a snapshot counts as itself.
+ */
+function approvedLineup(setup) {
+    if (!setup) return null;
+    if (setup.approved && Array.isArray(setup.approved.groups)) return setup.approved;
+    return setup.status === "approved" ? setup : null;
+}
+
 /** Earlier nights of these categories, newest first, from approved setups — or signups while there are none. */
 function benchHistory(events, { guildId, now }) {
     const ids = new Set(events.map((e) => e.id));
@@ -52,9 +63,10 @@ function benchHistory(events, { guildId, now }) {
 
     const approved = eventStore.listEvents(guildId)
         .filter(inScope)
-        .filter((e) => e.setup && e.setup.status === "approved")
+        .map((e) => ({ e, lineup: approvedLineup(e.setup) }))
+        .filter((x) => x.lineup)
         .slice(0, HISTORY_NIGHTS)
-        .map((e) => ({ eventId: e.id, startTime: e.startTime, ...setupMembers(e.setup) }));
+        .map(({ e, lineup }) => ({ eventId: e.id, startTime: e.startTime, ...setupMembers(lineup) }));
     if (approved.length) return { source: "setups", history: approved };
 
     const fromSignups = listStoredEvents(guildId, { now })
@@ -150,4 +162,4 @@ function proposeSetup(eventIds, options = {}) {
     return { ...buildSetupProposal(input, options), historySource: input.historySource };
 }
 
-module.exports = { collectSetupInput, proposeSetup, benchHistory, fixedFromSetup, setupMembers, HISTORY_NIGHTS };
+module.exports = { collectSetupInput, proposeSetup, benchHistory, fixedFromSetup, setupMembers, approvedLineup, HISTORY_NIGHTS };

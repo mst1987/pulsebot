@@ -9,6 +9,7 @@ const { profileRoles, roleCounts, signupWindow, allowedStatuses, wishPartnersSig
 const { upcomingRows } = require("./raidListing");
 const { instanceById, rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const { signupStatus } = require("../utils/attendance");
+const { approvedPlacementFor } = require("./setupEditor");
 
 const CLASS_COLORS = new Map(rulesFor(DEFAULT_VERSION).classes.map((c) => [c.id, c.color]));
 
@@ -131,6 +132,8 @@ function memberEventRows(groups, { userId, guildId = "", config = {}, roleIds = 
                 wishes: !!stored.wishes,
                 wishPartners: wishPartnersSignedUp(profile, signUps.filter((s) => String(s.userId) !== uid)),
                 mine: signupSummary(own),
+                // Where the *approved* setup puts the member (#263) — a draft is never shown.
+                placement: approvedPlacementFor(stored, uid),
             };
         });
 }

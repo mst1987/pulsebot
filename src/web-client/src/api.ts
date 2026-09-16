@@ -916,7 +916,7 @@ export type RaidStep = {
     fill?: number | null;
     badge: { label: string; tone?: "ok" | "mid" | "bad" | "accent" };
     tip: { head: string; sub: string };
-    open: { modal?: RaidDetailModal; tab?: "roster" | "loot" | "logs" };
+    open: { modal?: RaidDetailModal; tab?: "roster" | "setup" | "loot" | "logs" };
     done: boolean;
     next: boolean;
 };
@@ -925,6 +925,8 @@ export type RaidPrimaryAction = {
     icon: string;
     modal?: RaidDetailModal;
     href?: string;
+    /** Open a tab of the page (an own event's setup editor). */
+    tab?: "setup";
     evaluate?: { logId: string; section: LogSection };
 };
 export type RaidProgress = { steps: RaidStep[]; next: RaidStepKey | ""; primary: RaidPrimaryAction | null };
@@ -1019,6 +1021,8 @@ export type RaidDetailData = {
     attendance: Attendance;
     /** An own event's signups with "kann auch" and comment; null for a Raid-Helper event. */
     ownSignups?: EventSignupEntry[] | null;
+    /** An own event's setup state (#263): counts only, the lineup comes from GET /api/raids/setup. */
+    ownSetup?: { status: "draft" | "approved"; changedSinceApproval: boolean; version: number; placed: number; size: number; bench: number; ok: boolean; approvedAt: number } | null;
     attendanceRoleIds: string[];
     membersError: string | null;
     signupTarget: number;
@@ -3154,9 +3158,130 @@ export type OwnSignupRow = SignupEventBase & {
     /** The member's own wish partners who already signed up. */
     wishPartners: { userId: string; name: string }[];
     mine: OwnSignup | null;
+    /** Where the approved setup puts the member (#263) — never a draft; null before an approval. */
+    placement?: SetupPlacement | null;
 };
 
 export type SignupEventRow = RaidHelperSignupRow | OwnSignupRow;
+
+// ---- Setup editor of an own event (#263) — src/web/setupEditor.js, apiRoutes/setup.js ----
+
+export type SetupPlacement =
+    | { group: number; character: string; spec: string; role: GameRole | "" }
+    | { bench: true; character: string; spec: string; role: GameRole | "" };
+
+/** A raider in a group or on the bench, decorated for the page. */
+export type SetupPerson = {
+    userId: string;
+    character: string;
+    classId: string;
+    spec: string;
+    role: GameRole | "";
+    /** Played as the signed spec; false = off-spec ("Zweitspec als Heiler"). */
+    main?: boolean;
+    status?: SignupStatus | "";
+    locked?: boolean;
+    /** Why they are where they are — shown in the tooltip only. */
+    reasons?: string[];
+    name: string;
+    classColor: string;
+    classLabel: string;
+    specLabel: string;
+    specIcon: string;
+};
+
+export type SetupEditorGroup = { index: number; slots: SetupPerson[] };
+
+export type SetupRoleCheck = { count: number; min: number; max: number | null; ok: boolean };
+
+export type SetupChecks = {
+    ok: boolean;
+    size: { count: number; size: number; ok: boolean };
+    roles: Partial<Record<GameRole, SetupRoleCheck>>;
+    buffs: {
+        ok: boolean;
+        required: { key: string; label: string; icon?: string; present: boolean }[];
+        raid: { key: string; label: string; icon: string; present: boolean }[];
+        party: { key: string; label: string; icon: string; groups: number[] }[];
+    };
+    wishes: { met: number; total: number };
+};
+
+export type SetupWeights = Record<string, number>;
+
+export type StoredSetup = {
+    status: "draft" | "approved";
+    version: number;
+    origin: "proposal" | "manual";
+    groups: SetupEditorGroup[];
+    bench: SetupPerson[];
+    checks: SetupChecks;
+    weights: SetupWeights;
+    score: { total: number };
+    warnings: string[];
+    historySource: string;
+    options: { weights: SetupWeights; fairness: boolean | null; wishes: boolean | null };
+    updatedAt: number;
+    approvedAt: number;
+    approvedBy: string;
+    changedSinceApproval: boolean;
+    approved: ApprovedSetup | null;
+    explanation: { text: string; model: string; at: number; version: number } | null;
+};
+
+export type ApprovedSetup = { version: number; approvedAt: number; approvedBy: string; groups: SetupEditorGroup[]; bench: SetupPerson[] };
+
+export type SetupJob = { status: "running" | "done" | "error"; error: string } | null;
+
+export type SetupEditorData = {
+    eventId: string;
+    event: { id: string; title: string; startTime: number; size: number; composition: Record<GameRole, number>; versionId: string; fairness: boolean; wishes: boolean };
+    canWrite: boolean;
+    approved: ApprovedSetup | null;
+    /** Only for the orga (raids write) — a reader never receives the draft. */
+    setup?: StoredSetup | null;
+    groupCount?: number;
+    signupCount?: number;
+    absent?: number;
+    defaults?: { weights: SetupWeights; maxWeight: number };
+    hasApiKey?: boolean;
+    explainJob?: SetupJob;
+    message?: string;
+};
+
+/** What PUT /api/raids/setup takes: who stands where, and what is locked. */
+export type SetupPlacementInput = {
+    version: number;
+    groups: { index: number; slots: { userId: string; spec: string; role: string; locked: boolean }[] }[];
+    bench: { userId: string; locked: boolean }[];
+    fairness?: boolean;
+    wishes?: boolean;
+    weights?: SetupWeights;
+};
+
+export function getRaidSetup(eventId: string): Promise<SetupEditorData> {
+    return get(`/api/raids/setup?event=${encodeURIComponent(eventId)}`);
+}
+
+export function proposeRaidSetup(csrfToken: string | null, eventId: string, options: { weights?: SetupWeights; fairness?: boolean; wishes?: boolean } = {}): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/propose", csrfToken, { event: eventId, ...options });
+}
+
+export function saveRaidSetup(csrfToken: string | null, eventId: string, input: SetupPlacementInput): Promise<SetupEditorData> {
+    return send("PUT", "/api/raids/setup", csrfToken, { event: eventId, ...input });
+}
+
+export function approveRaidSetup(csrfToken: string | null, eventId: string, version: number): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/approve", csrfToken, { event: eventId, version });
+}
+
+export function explainRaidSetup(csrfToken: string | null, eventId: string): Promise<{ eventId: string; status: string; alreadyRunning: boolean }> {
+    return send("POST", "/api/raids/setup/explain", csrfToken, { event: eventId });
+}
+
+export function getRaidSetupExplain(eventId: string): Promise<{ eventId: string; job: SetupJob; explanation: StoredSetup["explanation"]; version: number }> {
+    return get(`/api/raids/setup/explain?event=${encodeURIComponent(eventId)}`);
+}
 
 export type SignupProfileSpec = { key: string; label: string; icon: string; role: GameRole | ""; gear: GearLevel };
 export type SignupProfileCharacter = { key: string; name: string; className: string; main: boolean; specs: SignupProfileSpec[] };

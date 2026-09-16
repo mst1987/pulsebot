@@ -30,10 +30,37 @@ describe("raidSteps", () => {
         const rh = raidSteps(base({ event: signedUp }));
         expect(rh.primary).toMatchObject({ href: "https://raid-helper.xyz/raidplan/ev1" });
         const own = raidSteps(base({ event: { ...signedUp, id: "eh-1", source: "eventhelper" } }));
-        // no Raid-Helper raidplan to build: the way leads on to the sheet
-        expect(own.next).toBe("sheet");
-        expect(own.primary).toMatchObject({ modal: "sheet" });
+        // no Raid-Helper raidplan: the way leads into the own setup editor
+        expect(own.next).toBe("setup");
+        expect(own.primary).toMatchObject({ tab: "setup", label: "Setup vorschlagen" });
+        expect(own.primary.href).toBeUndefined();
         expect(step(own, "setup").tip.sub).toMatch(/EventHelper/);
+        expect(step(own, "setup").open).toEqual({ tab: "setup" });
+    });
+
+    describe("setup step of an own event (#263)", () => {
+        const own = (ownSetup) => raidSteps(base({
+            event: { ...base().event, signupCount: 20, id: "eh-1", source: "eventhelper" },
+            ownSetup,
+        }));
+
+        it("is open while only a draft exists, and the primary action is the approval", () => {
+            const res = own({ status: "draft", placed: 25, size: 25, changedSinceApproval: false });
+            expect(step(res, "setup")).toMatchObject({ done: false, value: "25", unit: "/ 25", badge: { label: "Entwurf", tone: "mid" } });
+            expect(res.primary).toMatchObject({ label: "Setup freigeben", tab: "setup" });
+        });
+
+        it("says when a draft changed an earlier approval", () => {
+            const res = own({ status: "draft", placed: 24, size: 25, changedSinceApproval: true });
+            expect(step(res, "setup").badge.label).toBe("geändert seit Freigabe");
+            expect(step(res, "setup").done).toBe(false);
+        });
+
+        it("is done only once approved, and the way leads on to the sheet", () => {
+            const res = own({ status: "approved", placed: 25, size: 25 });
+            expect(step(res, "setup")).toMatchObject({ done: true, tone: "ok", badge: { label: "freigegeben" } });
+            expect(res.next).toBe("sheet");
+        });
     });
 
     it("points an empty upcoming raid at the signup call", () => {

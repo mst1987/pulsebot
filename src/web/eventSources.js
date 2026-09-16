@@ -210,6 +210,19 @@ function ownUpcomingRaw(guildId, { now = Date.now(), categoryId } = {}) {
 }
 
 /**
+ * Own upcoming events (every guild) a user signed up for and did not sign off
+ * from, in Raid-Helper's raw list shape — the own half of the bot's
+ * `show-allsetups`, whose Raid-Helper half comes from `getUserSignUps`.
+ */
+function ownSignedUpEvents(userId, { now = Date.now() } = {}) {
+    const uid = String(userId || "");
+    if (!uid) return [];
+    return listEvents("", { sinceSeconds: Math.floor(now / 1000) })
+        .filter((ev) => listSignups(ev.id).some((s) => String(s.userId) === uid && s.status !== "absence"))
+        .map(toRaidHelperShape);
+}
+
+/**
  * The stored events of both sources, newest start first: Raid-Helper's
  * snapshot (raidEventStore.js, which only holds raids that already took place)
  * plus the own events that already started. The drop-in for listRaidEvents().
@@ -234,5 +247,5 @@ module.exports = {
     SOURCES, DEFAULT_SOURCE,
     specNameFor, signupSourceFor, sourceOfEventId,
     toSignUpShape, ownSignUps, toEventGroupShape, toMatchableShape, toStoredShape, toRaidHelperShape,
-    ownEventGroupRows, ownMatchableEvents, ownUpcomingRaw, listStoredEvents, getStoredEvent,
+    ownEventGroupRows, ownMatchableEvents, ownUpcomingRaw, ownSignedUpEvents, listStoredEvents, getStoredEvent,
 };

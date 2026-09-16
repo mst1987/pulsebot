@@ -3,6 +3,7 @@ const { botEditReply } = require("../../utils/helper");
 const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const { setupResponse } = require("../../utils/responses");
 const messages = require("../../config/messages");
+const { ownSignedUpEvents } = require("../../web/eventSources");
 
 module.exports = {
     name: "show-allsetups",
@@ -12,7 +13,9 @@ module.exports = {
     async execute(interaction, client) {
         const raidhelper = createRaidhelperClient();
         await interaction.deferReply({ ephemeral: true });
-        const events = await raidhelper.getUserSignUps(interaction.user.id);
+        const rhEvents = await raidhelper.getUserSignUps(interaction.user.id);
+        // Own EventHelper events count too; getSetupsFromEvents only shows their approved setup.
+        const events = [...(Array.isArray(rhEvents) ? rhEvents : []), ...ownSignedUpEvents(interaction.user.id)];
         const setups = await getSetupsFromEvents(client, interaction, events);
         let mySetup;
         if (setups.length < 1) {

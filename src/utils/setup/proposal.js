@@ -334,6 +334,14 @@ function search(model, scorer) {
  * entry in `events`, `bench` lists who is in none, and `checks.wishes` counts across all of them.
  */
 function buildSetupProposal(input = {}, options = {}) {
+    const { model, effective } = prepare(input, options);
+    const scorer = makeScorer(model);
+    const state = search(model, scorer);
+    return buildOutput(model, scorer, state, { version: SETUP_PROPOSAL_VERSION, weights: effective });
+}
+
+/** The model with the run's overrides applied, and the weights in effect. */
+function prepare(input, options) {
     const weights = resolveWeights(options.weights);
     const model = buildModel(input, weights);
     if (typeof options.fairness === "boolean") model.fairnessOverride = options.fairness;
@@ -343,9 +351,59 @@ function buildSetupProposal(input = {}, options = {}) {
     const wishOn = model.wishesOverride !== undefined ? model.wishesOverride : model.events.some((e) => e.wishes);
     if (!fairOn) effective.fairness = 0;
     if (!wishOn) effective.wishes = 0;
+    return { model, effective };
+}
+
+/**
+ * Value a setup the orga arranged by hand (#263). No search: every placed
+ * raider stays exactly where they are, and the output — checks, reasons, score
+ * — has the same shape as a proposal, so the editor reads both alike.
+ *
+ * `placement` = `{ groups: [{ index, slots: [{ userId, spec, role?, locked? }] }], bench: [{ userId, locked? }] }`
+ * for the first event of `input`. manual.js validates it first; a placement
+ * that still breaks a hard rule throws.
+ */
+function evaluateSetup(input = {}, placement = {}, options = {}) {
+    const events = Array.isArray(input.events) ? input.events : (input.event ? [input.event] : []);
+    const eventId = events.length ? String(events[0].id || "") : "";
+    const locked = new Set();
+    const fixed = [];
+    for (const g of Array.isArray(placement.groups) ? placement.groups : []) {
+        for (const s of Array.isArray(g.slots) ? g.slots : []) {
+            fixed.push({ userId: String(s.userId), eventId, group: Number(g.index), spec: s.spec || "", role: s.role || "" });
+            if (s.locked) locked.add(String(s.userId));
+        }
+    }
+    for (const b of Array.isArray(placement.bench) ? placement.bench : []) {
+        if (b && b.locked) fixed.push({ userId: String(b.userId), bench: true });
+    }
+    const { model, effective } = prepare({ ...input, fixed }, options);
+    const n = model.cands.length;
+    const state = {
+        opt: new Int32Array(n).fill(-1),
+        grp: new Int32Array(n).fill(-1),
+        lockOpt: new Uint8Array(n),
+        lockGrp: new Uint8Array(n),
+        banned: new Uint8Array(n),
+    };
+    for (const c of model.cands) {
+        if (!c.fixed) continue;
+        if (c.fixed.bench) {
+            state.banned[c.idx] = 1;
+            continue;
+        }
+        if (c.fixed.group < 0) throw new Error(`Kein Platz für ${c.name || c.userId}.`);
+        state.opt[c.idx] = c.fixed.option;
+        state.grp[c.idx] = c.fixed.group;
+        if (locked.has(c.userId)) {
+            state.lockOpt[c.idx] = 1;
+            state.lockGrp[c.idx] = 1;
+        }
+    }
     const scorer = makeScorer(model);
-    const state = search(model, scorer);
+    state.score = scorer.evaluate(state.opt, state.grp);
+    if (state.score === -Infinity) throw new Error("Die Aufstellung verletzt eine feste Regel.");
     return buildOutput(model, scorer, state, { version: SETUP_PROPOSAL_VERSION, weights: effective });
 }
 
-module.exports = { buildSetupProposal, SETUP_PROPOSAL_VERSION, MAX_PASSES };
+module.exports = { buildSetupProposal, evaluateSetup, SETUP_PROPOSAL_VERSION, MAX_PASSES };

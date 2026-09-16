@@ -35,6 +35,10 @@ const {
     getRaidDetail, postNotify, postPingMissing, postFill, postPostSheet, postPostSoftres,
     getItemSearch, postSoftresCreate, postSoftresLink,
 } = require("./apiRoutes/raidDetail");
+const {
+    getSetup: getRaidSetup, postPropose: postSetupPropose, putSetup: putRaidSetup,
+    postApprove: postSetupApprove, postExplain: postSetupExplain, getExplain: getSetupExplain,
+} = require("./apiRoutes/setup");
 const { getGameVersions } = require("./apiRoutes/gameVersions");
 const {
     getNotifyTemplates, saveNotifyTemplate, deleteNotifyTemplate,
@@ -321,6 +325,30 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/raids/detail" && req.method === "GET") {
         await getRaidDetail(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/raids/setup" && req.method === "GET") {
+        await getRaidSetup(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/raids/setup" && req.method === "PUT") {
+        await putRaidSetup(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/setup/propose" && req.method === "POST") {
+        await postSetupPropose(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/setup/approve" && req.method === "POST") {
+        await postSetupApprove(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/setup/explain" && req.method === "POST") {
+        await postSetupExplain(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/setup/explain" && req.method === "GET") {
+        await getSetupExplain(req, res, url);
         return true;
     }
     if (pathname === "/api/raids/notify" && req.method === "POST") {

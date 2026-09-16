@@ -1,6 +1,7 @@
 // Raid-Detail (design issue #219): the head shows where the raid stands as a
 // progress bar (Anmeldung › Setup › Raidsheet › Softres › Loot › Logs), below it
-// three tabs — Roster, Loot, Logs. Everything that is a form opens as a dialog.
+// the tabs — Roster, Setup (only an own event, #263), Loot, Logs. Everything
+// that is a form opens as a dialog.
 // The parts live in pages/raid-detail/; this file loads the data, holds which
 // tab and which dialog is open, and wires the steps to them.
 import { useEffect, useState } from "react";
@@ -14,6 +15,7 @@ import RaidDetailHero from "./raid-detail/RaidDetailHero";
 import RosterTab from "./raid-detail/RosterTab";
 import LootTab from "./raid-detail/LootTab";
 import LogsTab from "./raid-detail/LogsTab";
+import SetupEditor from "./raid-detail/SetupEditor";
 import useEvaluate from "./raid-detail/useEvaluate";
 import NotifyModal from "./raid-detail/modals/NotifyModal";
 import SheetModal from "./raid-detail/modals/SheetModal";
@@ -26,8 +28,8 @@ import type { PlayerRef, RaidCtx } from "./raid-detail/meta";
 import "../styles/raid-detail.css";
 import RaidLoader from "../components/ui/RaidLoader";
 
-type Tab = "roster" | "loot" | "logs";
-const TABS: Tab[] = ["roster", "loot", "logs"];
+type Tab = "roster" | "setup" | "loot" | "logs";
+const TABS: Tab[] = ["roster", "setup", "loot", "logs"];
 
 /**
  * The six tabs this page used to have, mapped onto the three it has now — so a
@@ -43,6 +45,7 @@ const LEGACY_TABS: Record<string, { tab: Tab; modal?: RaidDetailModal }> = {
 
 const TAB_META: Record<Tab, { label: string; icon: string }> = {
     roster: { label: "Roster", icon: "achievement_guildperk_everybodysfriend" },
+    setup: { label: "Setup", icon: "inv_misc_map_01" },
     loot: { label: "Loot", icon: "inv_misc_bag_10" },
     logs: { label: "Logs", icon: "inv_misc_pocketwatch_01" },
 };
@@ -54,7 +57,10 @@ export default function RaidDetailPage() {
     // Remembered across raids: opening the next event lands on the tab that was
     // worked in last (the ?event= param is kept by the hook).
     const [tab, switchTab] = usePersistedSearchParam<Tab>("raid-detail-tab", "tab", "roster", TABS);
-    const legacy = LEGACY_TABS[searchParams.get("tab") || ""];
+    // ?tab=setup is a tab of its own again (the setup editor of an own event, #263);
+    // for a Raid-Helper event it still lands on the roster, once the event is known.
+    const tabParam = searchParams.get("tab") || "";
+    const legacy = tabParam === "setup" ? undefined : LEGACY_TABS[tabParam];
 
     const jobs = useJobs();
     const [data, setData] = useState<RaidDetailData | null>(null);
@@ -91,12 +97,18 @@ export default function RaidDetailPage() {
     if (error) return <>{backLink}<div className="empty">Fehler beim Laden: {error.message}</div></>;
     if (!data || !ctx) return <RaidLoader text="Raid wird geladen" />;
 
+    // Only an own event has a setup editor; a Raid-Helper event's setup is its raidplan in the roster.
+    const ownEvent = data.event.source === "eventhelper";
+    const tabs = TABS.filter((t) => t !== "setup" || ownEvent);
+    const shown: Tab = tab === "setup" && !ownEvent ? LEGACY_TABS.setup.tab : tab;
+
     const openStep = (step: RaidStep) => {
         if (step.open.modal) setModal(step.open.modal);
         else if (step.open.tab) switchTab(step.open.tab);
     };
     const runPrimary = (action: RaidPrimaryAction) => {
         if (action.modal) setModal(action.modal);
+        else if (action.tab) switchTab(action.tab);
         else if (action.evaluate) {
             const log = data.eventLogs.find((l) => l.id === action.evaluate!.logId);
             if (log) evaluator.evaluate(log, action.evaluate.section);
@@ -105,6 +117,7 @@ export default function RaidDetailPage() {
     const primaryEval = data.progress?.primary?.evaluate;
     const counts: Record<Tab, number> = {
         roster: data.setup?.total || 0,
+        setup: data.ownSetup?.placed || 0,
         loot: data.lootItems.length,
         logs: data.eventLogs.length,
     };
@@ -120,8 +133,8 @@ export default function RaidDetailPage() {
             />
 
             <div className="tabs rd-tabs" role="tablist">
-                {TABS.map((t) => (
-                    <button key={t} type="button" role="tab" aria-selected={tab === t} className={`tab-btn${tab === t ? " active" : ""}`} onClick={() => switchTab(t)}>
+                {tabs.map((t) => (
+                    <button key={t} type="button" role="tab" aria-selected={shown === t} className={`tab-btn${shown === t ? " active" : ""}`} onClick={() => switchTab(t)}>
                         <WowIcon name={TAB_META[t].icon} size={16} />
                         {TAB_META[t].label}
                         <span className="tab-count">{counts[t]}</span>
@@ -129,9 +142,10 @@ export default function RaidDetailPage() {
                 ))}
             </div>
 
-            {tab === "roster" && <RosterTab ctx={ctx} />}
-            {tab === "loot" && <LootTab ctx={ctx} />}
-            {tab === "logs" && <LogsTab ctx={ctx} evaluator={evaluator} />}
+            {shown === "roster" && <RosterTab ctx={ctx} />}
+            {shown === "setup" && <SetupEditor ctx={ctx} />}
+            {shown === "loot" && <LootTab ctx={ctx} />}
+            {shown === "logs" && <LogsTab ctx={ctx} evaluator={evaluator} />}
 
             <NotifyModal ctx={ctx} open={modal === "notify"} onClose={close} />
             <SheetModal ctx={ctx} open={modal === "sheet"} onClose={close} />

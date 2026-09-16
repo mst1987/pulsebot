@@ -105,6 +105,13 @@ const AREA_BY_PATH = {
     "/api/raids/softres": "raids",
     "/api/raids/softres/link": "raids",
     "/api/raids/softres/item-search": "raids",
+    // Setup editor of an own event (#263). GET reads (the handler hands a
+    // reader only the approved lineup, never the draft); propose, save,
+    // approve and the explanation are writes.
+    "/api/raids/setup": "raids",
+    "/api/raids/setup/propose": "raids",
+    "/api/raids/setup/approve": "raids",
+    "/api/raids/setup/explain": "raids",
     // The game version rule sets (classes, instances, buffs) feed the raid planning.
     "/api/game-versions": "raids",
     // Anmelde-Aufruf and raid templates are edited from the raid pages. The raid
