@@ -1,22 +1,42 @@
-const {
-    content, contentForInstance, contentForBoss, finalBossesFor, normalizeBoss, BOSS_ORDER,
-} = require("../../config/tbcContent");
+const tbcContent = require("../../config/tbcContent");
+const gameVersions = require("../../config/gameVersions");
 
-// Encounters that are not a boss of their own on the count a raid lead keeps
-// ("Kara 11/11"): Karazhan's opera bosses are one encounter — only one of them
-// is up on a night — and its three rare trash spawns are no encounter at all.
-const OPERA = ["The Wizard of Oz", "The Big Bad Wolf", "Romulo and Julianne", "Opera Hall"];
-const NOT_COUNTED = new Set(["Hyakiss the Lurker", "Shadikith the Glider", "Rokad the Ravager", ...OPERA].map(normalizeBoss));
+const { normalizeBoss, encounterKey } = tbcContent;
+
+// TBC raids are known by the richer tables in tbcContent.js (loot table,
+// instance patterns, German names, Karazhan's opera counted as one encounter);
+// every other game version by its rule set (config/gameVersions). Instance ids
+// are unique across versions, so one id space serves both. An incomplete
+// instance (WoW Forever before release) has no final boss and never blocks.
+
+/** The raid an encounter name belongs to, or "". */
+function contentForBoss(name) {
+    return tbcContent.contentForBoss(name) || gameVersions.instanceForBoss(name);
+}
+
+/** The raid a report zone names, or "". */
+function contentForInstance(zone) {
+    return tbcContent.contentForInstance(zone) || gameVersions.instanceForZone(zone);
+}
+
+/** Label and short name of a raid in either table, or null. */
+function content(contentId) {
+    const tbc = tbcContent.content(contentId);
+    if (tbc) return tbc;
+    const inst = gameVersions.instanceById(contentId);
+    return inst ? { id: inst.id, label: inst.name, short: inst.short } : null;
+}
+
+/** The accepted final-boss names of a raid, [] when none are known. */
+function finalBossesFor(contentId) {
+    const tbc = tbcContent.finalBossesFor(contentId);
+    return tbc.length ? tbc : gameVersions.finalBossesOf(contentId);
+}
 
 /** The encounters a raid is counted by, in the order they are met. */
 function encountersFor(contentId) {
-    return (BOSS_ORDER[contentId] || []).filter((name) => !NOT_COUNTED.has(normalizeBoss(name)));
-}
-
-/** A boss name folded onto the encounter it counts as (an opera boss → "Opera Event"). */
-function encounterKey(name) {
-    const key = normalizeBoss(name);
-    return OPERA.map(normalizeBoss).includes(key) ? normalizeBoss("Opera Event") : key;
+    const tbc = tbcContent.encountersFor(contentId);
+    return tbc.length ? tbc : gameVersions.bossesOf(contentId);
 }
 
 /**
