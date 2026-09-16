@@ -131,7 +131,7 @@ function ImportModal({ open, csrfToken, onClose, onStored }: {
                                 {result.categories.map((c) => (
                                     <li key={c.categoryId || "none"}>
                                         <strong>{c.categoryName || c.categoryId || "Ohne Kategorie"}</strong>
-                                        <Badge>{c.events} Events</Badge>
+                                        <Badge>{c.events} {c.events === 1 ? "Event" : "Events"}</Badge>
                                         <Badge tone="accent">{c.entries} Einträge</Badge>
                                         {c.skipped > 0 && <Badge tip="Schon importiert" tipSub="Diese Events wurden bei einem früheren Import gezählt und werden übersprungen.">{c.skipped} schon da</Badge>}
                                     </li>

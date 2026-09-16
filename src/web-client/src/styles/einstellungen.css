@@ -180,6 +180,7 @@ button.badge.chip.accent:hover { color: var(--accent); }
     .srv-channels { grid-template-columns: 1fr; }
     .rhr-item { grid-template-columns: auto minmax(0, 1fr); }
     .rhr-value, .rhr-act { justify-self: start; }
+    .rhr-foot > .badge { display: none; }
 }
 
 /* ---- Berechtigungen ---- */

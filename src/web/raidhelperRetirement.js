@@ -118,7 +118,7 @@ function commandsItem() {
         id: "commands",
         label: "Bot-Befehle registriert",
         status: "info",
-        value: "Hinweis",
+        value: "npm run register",
         why: "/event, /profil und die Anmeldung per Bot gibt es in Discord erst nach dem Registrieren. Nach jedem Update einmal ausführen.",
         detail: [],
         hint: "npm run register",
