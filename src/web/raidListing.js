@@ -6,7 +6,7 @@
 // tooltip shows. Derived on every read, never stored.
 const { contentsForText, CONTENTS } = require("../config/tbcContent");
 const { instanceById } = require("../config/gameVersions");
-const { listRaidEvents } = require("./raidEventStore");
+const { listStoredEvents } = require("./eventSources");
 const { scanRaidEvents } = require("./raidEventScan");
 const { autoLinkLogs } = require("./logAutoLink");
 const { listByEvent: listLootByEvent } = require("./lootStore");
@@ -30,9 +30,10 @@ const MIN_LOOT_ITEMS = 2;
  * and where its loot dropped — is added on top, since it is fact rather than
  * wording. Nothing recognised gives [] (no icon), never a guess.
  *
- * @param {object} input { title, categoryName, channelName, zones: string[], lootContentIds: string[] }
+ * @param {object} input { title, categoryName, channelName, zones: string[], lootContentIds: string[],
+ *   instanceIds: string[] (an own event's planned instances, which beat the wording) }
  * @returns {{ contentIds: string[], sources: string[] }} ids in tbcContent order;
- *   sources: which of "title" | "category" | "channel" | "logs" | "loot" contributed
+ *   sources: which of "event" | "title" | "category" | "channel" | "logs" | "loot" contributed
  */
 function raidContentIds(input = {}) {
     const hits = new Set();
@@ -44,7 +45,11 @@ function raidContentIds(input = {}) {
         return true;
     };
 
-    if (!add(contentsForText(input.title), "title") && !add(contentsForText(input.categoryName), "category")) {
+    // An own event names its instances outright — nothing to read from wording.
+    const planned = (input.instanceIds || []).filter((id) => CONTENT_ORDER.includes(id));
+    if (!add(planned, "event")
+        && !add(contentsForText(input.title), "title")
+        && !add(contentsForText(input.categoryName), "category")) {
         add(contentsForText(input.channelName), "channel");
     }
 
@@ -102,11 +107,13 @@ function softresOf(eventId) {
 function upcomingRows(groups) {
     return (groups || []).flatMap((g) => (g.events || []).map((ev) => {
         const { contentIds, sources } = raidContentIds({
-            title: ev.title, categoryName: g.categoryName, channelName: ev.channelName,
+            title: ev.title, categoryName: g.categoryName, channelName: ev.channelName, instanceIds: ev.instanceIds,
         });
-        const size = raidSize(contentIds);
+        // An own event carries its planned size; Raid-Helper's is read off the contents.
+        const size = ev.size ? { size: ev.size, known: true } : raidSize(contentIds);
         return {
             id: ev.id,
+            source: ev.source || "raidhelper",
             title: ev.title || "",
             startTime: ev.startTime || 0,
             channelId: ev.channelId || "",
@@ -135,7 +142,7 @@ async function loadPastRaids(guildId, opts = {}) {
     if (!guildId) return { events: [], error: null };
     const { error: scanError } = await scanRaidEvents(guildId);
     await autoLinkLogs(guildId);
-    const stored = listRaidEvents(guildId);
+    const stored = listStoredEvents(guildId);
     const logs = listLogs()
         .filter((l) => !l.guildId || l.guildId === guildId)
         .map((l) => ({ ...l, postedAt: logPostedAt(l) }));
@@ -149,9 +156,11 @@ async function loadPastRaids(guildId, opts = {}) {
             channelName: ev.channelName,
             zones: ev.logs.map((l) => l.zone).filter(Boolean),
             lootContentIds: loot.map((it) => it.contentId),
+            instanceIds: ev.instanceIds,
         });
         return {
             id: ev.id,
+            source: ev.source || "raidhelper",
             title: ev.title || "",
             startTime: ev.startTime || 0,
             channelId: ev.channelId || "",

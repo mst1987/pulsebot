@@ -17,6 +17,17 @@ jest.mock("../../src/web/reportStore", () => ({
     getReport: (...a) => mockGetReport(...a),
 }));
 
+// The EventHelper's own events reach attendance through the real adapter.
+const mockListOwnEvents = jest.fn(() => []);
+const mockListSignups = jest.fn(() => []);
+jest.mock("../../src/web/eventStore", () => ({
+    listEvents: (...a) => mockListOwnEvents(...a),
+    getEvent: jest.fn(),
+    isOwnEventId: (id) => String(id).startsWith("eh-"),
+}));
+jest.mock("../../src/web/signupStore", () => ({ listSignups: (...a) => mockListSignups(...a) }));
+jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => ({}) }));
+
 const {
     buildAttendanceContext, attendanceFor, categoryInfo, roleFor, roleFromSpec, RAID_WINDOW,
 } = require("../../src/web/rosterAttendance");
@@ -149,5 +160,26 @@ describe("web/rosterAttendance", () => {
         // e1 has neither signups nor a log, so it is not a counted night
         expect(categoryInfo(ctx, "cat1")).toEqual({ raids: 1, contents: ["SSC"], icon: "achievement_boss_ladyvashj" });
         expect(categoryInfo(ctx, "nothing")).toEqual({ raids: 0, contents: [], icon: "" });
+    });
+
+    it("counts the EventHelper's own raids with their own signups like Raid-Helper's", () => {
+        const secondsAgo = (days) => Math.floor(Date.now() / 1000) - days * 86400;
+        const own = (id, days) => ({
+            id, source: "eventhelper", guildId: "g1", categoryId: "cat1", categoryName: "Raids", channelId: "c",
+            channelName: "c", title: `EH ${id}`, startTime: secondsAgo(days), versionId: "tbc", instanceIds: [], size: 25,
+        });
+        mockListOwnEvents.mockReturnValue([own("eh-1", 2), own("eh-2", 9)]);
+        mockListSignups.mockImplementation((eventId) => (eventId === "eh-1"
+            ? [{ userId: "u1", spec: "Mage-Fire", role: "ranged", status: "signed" }]
+            : [{ userId: "u1", status: "absence" }]));
+        try {
+            const ctx = buildAttendanceContext("g1");
+            const result = attendanceFor(ctx, "cat1", "Anna", ["u1"]);
+            expect(result).toMatchObject({ attended: 1, total: 2, pct: 50 });
+            expect(result.missed).toEqual([expect.objectContaining({ eventId: "eh-2", reason: "abgemeldet" })]);
+        } finally {
+            mockListOwnEvents.mockReturnValue([]);
+            mockListSignups.mockReturnValue([]);
+        }
     });
 });

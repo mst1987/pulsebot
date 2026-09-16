@@ -25,6 +25,17 @@ describe("raidSteps", () => {
         expect(raidSteps(base()).steps.map((s) => s.key)).toEqual(["signup", "setup", "sheet", "softres", "loot", "logs"]);
     });
 
+    it("offers the Raid-Helper raidplan only for a Raid-Helper event", () => {
+        const signedUp = { ...base().event, signupCount: 10 };
+        const rh = raidSteps(base({ event: signedUp }));
+        expect(rh.primary).toMatchObject({ href: "https://raid-helper.xyz/raidplan/ev1" });
+        const own = raidSteps(base({ event: { ...signedUp, id: "eh-1", source: "eventhelper" } }));
+        // no Raid-Helper raidplan to build: the way leads on to the sheet
+        expect(own.next).toBe("sheet");
+        expect(own.primary).toMatchObject({ modal: "sheet" });
+        expect(step(own, "setup").tip.sub).toMatch(/EventHelper/);
+    });
+
     it("points an empty upcoming raid at the signup call", () => {
         const res = raidSteps(base());
         expect(res.next).toBe("signup");

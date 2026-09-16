@@ -98,6 +98,10 @@ const CONFIG_DEFAULTS = {
     // Which loot addon a Discord category uses, keyed by category id:
     // "gargul" | "rclc". Steers the loot-import parser and the char-loot history.
     categoryLootTool: {},
+    // Where NEW events of a Discord category are created, keyed by category id:
+    // "raidhelper" (default) | "eventhelper". Only the default for new events —
+    // a Raid-Helper event stays fully in use in either case (eventSources.js).
+    categorySignupSource: {},
     // A fixed, guild-owned Google Sheet per Discord category:
     // { [categoryId]: { url, name } }. When one is set, a raid in that category
     // links this sheet instead of needing its own copy. A copy the app actually
@@ -482,6 +486,7 @@ function getConfig() {
         warcraftlogsV2: { ...CONFIG_DEFAULTS.warcraftlogsV2, ...(stored.warcraftlogsV2 || {}) },
         categoryLootTool: (stored.categoryLootTool && typeof stored.categoryLootTool === "object")
             ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
+        categorySignupSource: normalizeCategorySignupSource(stored.categorySignupSource),
         categorySheets: normalizeCategorySheets(stored.categorySheets),
         categoryRaidTemplate: categoryRaidTemplateOf(stored),
         topItems: normalizeTopItems(stored.topItems),
@@ -629,6 +634,21 @@ function normalizeTopItems(raw) {
 }
 
 /**
+ * Normalise categorySignupSource to `{ [categoryId]: "eventhelper" }`. Only the
+ * switched categories are kept: "raidhelper" is the default and anything
+ * unknown falls back to it, so the stored map never names a third source.
+ */
+function normalizeCategorySignupSource(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, source] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        if (key && source === "eventhelper") out[key] = "eventhelper";
+    }
+    return out;
+}
+
+/**
  * Normalise the categorySheets map to `{ [categoryId]: { url, name } }`: coerce
  * both fields to trimmed strings and drop every category without a url, so an
  * emptied field is the same as "no sheet assigned" and can never link nowhere.
@@ -704,6 +724,10 @@ function saveConfig(partial) {
     }
     if (partial.warcraftlogsV2) next.warcraftlogsV2 = { ...current.warcraftlogsV2, ...partial.warcraftlogsV2 };
     if (partial.categoryLootTool) next.categoryLootTool = { ...current.categoryLootTool, ...partial.categoryLootTool };
+    // Merged, then normalised: a category set back to "raidhelper" drops out.
+    if (partial.categorySignupSource) {
+        next.categorySignupSource = normalizeCategorySignupSource({ ...current.categorySignupSource, ...partial.categorySignupSource });
+    }
     // Replaced whole, like the top items: a category left out has no default.
     if (partial.categoryRaidTemplate !== undefined) next.categoryRaidTemplate = normalizeCategoryRaidTemplate(partial.categoryRaidTemplate);
     if (partial.categorySheets) {

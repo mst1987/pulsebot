@@ -3,7 +3,14 @@ jest.mock("../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({ getPastEvents: mockGetPastEvents })));
 jest.mock("../../src/web/discord", () => ({ getChannelCategoryMap: jest.fn() }));
 jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: jest.fn() }));
+jest.mock("../../src/web/eventStore", () => ({
+    listEvents: jest.fn(() => []), getEvent: jest.fn(), isOwnEventId: (id) => String(id).startsWith("eh-"),
+}));
+jest.mock("../../src/web/signupStore", () => ({ listSignups: jest.fn(() => []) }));
+jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
+const eventStore = require("../../src/web/eventStore");
+const { autoMatches } = require("../../src/web/logEventMatch");
 const discord = require("../../src/web/discord");
 const { listRaidEvents } = require("../../src/web/raidEventStore");
 const { loadMatchableEvents, eventLinkFields } = require("../../src/web/matchableEvents");
@@ -37,7 +44,7 @@ describe("web/matchableEvents", () => {
 
         expect(error).toBeNull();
         expect(events).toEqual([{
-            id: "e1", title: "Kara", startTime: 2000000000, channelId: "chan1",
+            id: "e1", source: "raidhelper", title: "Kara", startTime: 2000000000, channelId: "chan1",
             channelName: "kara-signup", categoryId: "cat1", categoryName: "Raids",
         }]);
     });
@@ -59,7 +66,7 @@ describe("web/matchableEvents", () => {
 
         expect(error).toBeNull();
         expect(events).toEqual([{
-            id: "e1", title: "Kara", startTime: 2000000000, channelId: "chan1",
+            id: "e1", source: "raidhelper", title: "Kara", startTime: 2000000000, channelId: "chan1",
             channelName: "kara-signup (gone)", categoryId: "cat1", categoryName: "Raids",
         }]);
     });
@@ -82,7 +89,7 @@ describe("web/matchableEvents", () => {
 
         expect(error).toBeNull();
         expect(events).toEqual([{
-            id: "e2", title: "SSC", startTime: 2000000000, channelId: "chan2",
+            id: "e2", source: "raidhelper", title: "SSC", startTime: 2000000000, channelId: "chan2",
             channelName: "ssc", categoryId: "cat2", categoryName: "Raids",
         }]);
     });
@@ -151,7 +158,7 @@ describe("web/matchableEvents", () => {
         expect(error).toBe("Raid-Helper down");
         expect(events.map((e) => e.id)).toEqual(["e2", "e1"]); // newest first
         expect(events[1]).toEqual({
-            id: "e1", title: "Kara", startTime: 2000000000, channelId: "chan1",
+            id: "e1", source: "raidhelper", title: "Kara", startTime: 2000000000, channelId: "chan1",
             channelName: "kara", categoryId: "cat1", categoryName: "Raids",
         });
     });
@@ -166,6 +173,39 @@ describe("web/matchableEvents", () => {
         const { events } = await loadMatchableEvents("g1", 1);
 
         expect(events).toEqual([]);
+    });
+
+    describe("with the EventHelper's own raids", () => {
+        const START = Math.floor(Date.now() / 1000) - 3600; // an hour ago
+        const own = {
+            id: "eh-1", source: "eventhelper", guildId: "g1", categoryId: "cat1", categoryName: "Raids",
+            channelId: "chan9", channelName: "kara-eh", title: "Kara EH", startTime: START,
+        };
+        afterEach(() => eventStore.listEvents.mockReturnValue([]));
+
+        it("offers them next to Raid-Helper's, newest first, and a log matches one by time", async () => {
+            mockGetPastEvents.mockResolvedValue([event({ startTime: START - 3 * 86400 })]);
+            discord.getChannelCategoryMap.mockReturnValue({ chan1: { name: "kara", categoryId: "cat1", categoryName: "Raids" } });
+            eventStore.listEvents.mockReturnValue([own]);
+
+            const { events } = await loadMatchableEvents("g1");
+
+            expect(events.map((e) => [e.id, e.source])).toEqual([["eh-1", "eventhelper"], ["e1", "raidhelper"]]);
+            // the window: from the lookback up to now
+            expect(eventStore.listEvents).toHaveBeenCalledWith("g1", expect.objectContaining({ sinceSeconds: expect.any(Number), untilSeconds: expect.any(Number) }));
+            const pairs = autoMatches([{ id: "l1", postedAt: (START + 600) * 1000 }], events);
+            expect(pairs.map((p) => [p.log.id, p.event.id])).toEqual([["l1", "eh-1"]]);
+        });
+
+        it("still offers them while Raid-Helper is down", async () => {
+            mockGetPastEvents.mockRejectedValue(new Error("down"));
+            eventStore.listEvents.mockReturnValue([own]);
+
+            const { events, error } = await loadMatchableEvents("g1");
+
+            expect(error).toBe("down");
+            expect(events.map((e) => e.id)).toEqual(["eh-1"]);
+        });
     });
 });
 

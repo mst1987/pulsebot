@@ -7,10 +7,21 @@ const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const discord = require("./discord");
 const { EVENT_LOOKBACK_DAYS } = require("./raidEventGroups");
 const { listRaidEvents } = require("./raidEventStore");
+const { ownMatchableEvents } = require("./eventSources");
+
+// The live channel join, or {} when Discord cannot give one right now.
+function safeCategoryMap(guildId) {
+    try {
+        return discord.getChannelCategoryMap(guildId) || {};
+    } catch {
+        return {};
+    }
+}
 
 /**
  * Flat list of the guild's already started raids that a detected log could
- * belong to, newest start first. Returns { events, error }.
+ * belong to, newest start first — Raid-Helper's and the EventHelper's own
+ * (eventSources.js), each with its `source`. Returns { events, error }.
  *
  * Each event is placed via a live Discord-channel join when possible; if its
  * channel is missing from the live join (deleted/archived after the raid), it
@@ -33,6 +44,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
     // successful fetch and as the whole answer when the fetch fails.
     const fromPersisted = (e) => ({
         id: e.id,
+        source: "raidhelper",
         title: e.title,
         startTime: e.startTime,
         channelId: e.channelId,
@@ -52,6 +64,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
             if (!meta && !persisted) continue; // channel gone from Discord AND never scanned — nowhere to place it
             out.push({
                 id: ev.id,
+                source: "raidhelper",
                 title: ev.title,
                 startTime: ev.startTime,
                 channelId: ev.channelId,
@@ -65,6 +78,11 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
             if (seen.has(e.id) || (e.startTime || 0) < from) continue;
             out.push(fromPersisted(e));
         }
+        // The EventHelper's own raids of the window — a log or a loot export can
+        // belong to one of them exactly like to a Raid-Helper event.
+        for (const e of ownMatchableEvents(guildId, from, { catMap })) {
+            if (!seen.has(e.id)) out.push(e);
+        }
         out.sort((a, b) => (Number(b.startTime) || 0) - (Number(a.startTime) || 0));
         return { events: out, error: null };
     } catch (e) {
@@ -77,6 +95,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
         const fallback = [...persistedById.values()]
             .filter((e) => (e.startTime || 0) >= from)
             .map(fromPersisted)
+            .concat(ownMatchableEvents(guildId, from, { catMap: safeCategoryMap(guildId) }))
             .sort((a, b) => (Number(b.startTime) || 0) - (Number(a.startTime) || 0));
         return { events: fallback, error: (e && e.message) || "Events konnten nicht geladen werden (Raid-Helper API)." };
     }

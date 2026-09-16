@@ -21,6 +21,11 @@ jest.mock("../../src/web/lootInboxStore", () => ({ listPending: jest.fn(() => []
 jest.mock("../../src/web/roster", () => ({ buildRoster: jest.fn(() => ({ chars: [], categories: [] })) }));
 jest.mock("../../src/web/raiderCharactersStore", () => ({ resolveAssignmentProfiles: jest.fn(() => ({})) }));
 jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
+// The EventHelper's own events, read through the real adapter (eventSources.js).
+jest.mock("../../src/web/eventStore", () => ({
+    listEvents: jest.fn(() => []), getEvent: jest.fn(), isOwnEventId: (id) => String(id).startsWith("eh-"),
+}));
+jest.mock("../../src/web/signupStore", () => ({ listSignups: jest.fn(() => []) }));
 jest.mock("../../src/web/raidEventScan", () => ({ scanRaidEvents: jest.fn(() => Promise.resolve({ error: null })) }));
 jest.mock("../../src/web/eventSheetStore", () => ({ getEventSheet: jest.fn(() => null) }));
 jest.mock("../../src/web/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
@@ -210,6 +215,32 @@ describe("web/dashboardData loadNextRaids", () => {
         expect(raids[0].roles.map((r) => r.filled)).toEqual([1, 0, 0]);
         expect(raids[1]).toMatchObject({ setupCount: 1, sheet: { url: "https://sheet", playerCount: 25, filledAt: "t" }, softres: null });
         expect(raids[1].roles.map((r) => r.filled)).toEqual([0, 1, 0]);
+    });
+
+    it("puts the EventHelper's own raids between Raid-Helper's, with their planned size and composition", async () => {
+        const eventStore = require("../../src/web/eventStore");
+        const { listSignups } = require("../../src/web/signupStore");
+        const future = Math.floor(Date.now() / 1000) + 86400;
+        rh.getAllEvents.mockResolvedValue([{ id: "e1", title: "Black Temple", channelId: "c1", startTime: future + 100, signUps: [] }]);
+        rh.getSetup.mockResolvedValue({ setup: [] });
+        eventStore.listEvents.mockReturnValue([{
+            id: "eh-1", source: "eventhelper", guildId: "g1", categoryId: "cat2", categoryName: "Mo", channelId: "c9", channelName: "kara-eh",
+            title: "Kara", leaderId: "", startTime: future, versionId: "tbc", instanceIds: ["kara"], size: 10,
+            composition: { tank: 2, healer: 3, melee: 0, ranged: 0 },
+        }]);
+        listSignups.mockReturnValue([{ userId: "u1", spec: "Paladin-Holy", role: "healer", status: "signed" }]);
+        try {
+            const { raids, error } = await loadNextRaids("g1", 2);
+            expect(error).toBeNull();
+            expect(raids.map((r) => [r.id, r.source])).toEqual([["eh-1", "eventhelper"], ["e1", "raidhelper"]]);
+            expect(raids[0]).toMatchObject({ channelName: "kara-eh", categoryId: "cat2", size: 10, signupCount: 1, setupCount: 0 });
+            expect(raids[0].roles.map((r) => [r.filled, r.target])).toEqual([[0, 2], [1, 3], [0, 5]]);
+            // no raidplan is asked for at Raid-Helper for an own event
+            expect(rh.getSetup).not.toHaveBeenCalledWith("eh-1");
+        } finally {
+            eventStore.listEvents.mockReturnValue([]);
+            listSignups.mockReturnValue([]);
+        }
     });
 
     it("reports a Raid-Helper failure instead of throwing", async () => {

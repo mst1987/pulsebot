@@ -22,7 +22,7 @@
 const fs = require("fs");
 const path = require("path");
 const discord = require("./discord");
-const { listRaidEvents } = require("./raidEventStore");
+const { listStoredEvents } = require("./eventSources");
 
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
 const CATEGORY_NAMES_FILE = path.join(SETTINGS_DIR, "category-names.json");
@@ -111,7 +111,7 @@ function listKnownCategories(guildId) {
     // Last resort: the category name a scanned raid event carries. Newest event
     // first (listRaidEvents sorts by start time), so a renamed category shows
     // the most recently seen name.
-    for (const e of listRaidEvents("")) {
+    for (const e of listStoredEvents("")) {
         if (gid && e.guildId && e.guildId !== gid) continue;
         if (e.categoryId && e.categoryName) add(e.categoryId, e.categoryName);
     }

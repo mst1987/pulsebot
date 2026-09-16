@@ -1,9 +1,11 @@
 // Shared by server.js's SSR raid routes and apiRoutes/raids.js: the guild's
-// Raid-Helper events grouped by Discord category.
+// events of both sources (Raid-Helper and the EventHelper's own store) grouped
+// by Discord category, in one row shape with a `source` field — eventSources.js.
 const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const discord = require("./discord");
 const { listRaidEvents } = require("./raidEventStore");
 const { signupStatus } = require("../utils/attendance");
+const { ownEventGroupRows } = require("./eventSources");
 
 // How far back events are looked up when a past raid has to be found again — for
 // the log→event assignment and for the event detail page, which the dashboard's
@@ -136,6 +138,7 @@ async function loadEventGroups(guildId, { sinceSeconds } = {}) {
         const signUps = liveSignUps.length ? liveSignUps : ((snapshot && snapshot.signUps) || []);
         place(categoryId, categoryName, {
             id: ev.id,
+            source: "raidhelper",
             title: ev.title,
             startTime: ev.startTime,
             leaderId: ev.leaderId,
@@ -169,7 +172,7 @@ async function loadEventGroups(guildId, { sinceSeconds } = {}) {
             if (seen.has(e.id) || (sinceSeconds && (e.startTime || 0) < sinceSeconds)) continue;
             const signUps = e.signUps || [];
             place(e.categoryId, e.categoryName, {
-                id: e.id, title: e.title, startTime: e.startTime, leaderId: "",
+                id: e.id, source: "raidhelper", title: e.title, startTime: e.startTime, leaderId: "",
                 channelId: e.channelId, channelName: e.channelName, categoryId: e.categoryId || "",
                 templateId: "", description: "",
                 signupCount: signUps.filter((s) => s && s.specName !== "Absence").length,
@@ -177,6 +180,20 @@ async function loadEventGroups(guildId, { sinceSeconds } = {}) {
                 signUpsFromSnapshot: signUps.length > 0,
             });
         }
+    }
+
+    // The EventHelper's own events. They live in a local store, so a Raid-Helper
+    // outage never hides them — and a category switched to EventHelper still
+    // lists every Raid-Helper event it has (above): one event, one source.
+    let ownAdded = false;
+    for (const { categoryId, categoryName, row } of ownEventGroupRows(guildId, { sinceSeconds, catMap })) {
+        if (seen.has(row.id)) continue;
+        place(categoryId, categoryName, row);
+        seen.add(row.id);
+        ownAdded = true;
+    }
+    if (ownAdded) {
+        for (const g of byCat.values()) g.events.sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0));
     }
 
     const groups = [...byCat.values()].sort((a, b) => a.categoryName.localeCompare(b.categoryName));

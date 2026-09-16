@@ -55,3 +55,22 @@ describe("server switcher", () => {
         expect(switcher).not.toMatch(/guilds\.filter\(/);
     });
 });
+
+describe("raid overview row (#257)", () => {
+    const row = read("components", "SettingsTalkOverview.tsx");
+
+    it("talks to the endpoint the router serves and re-posts with the CSRF token", () => {
+        expect(api).toContain('get<{ status: TalkOverviewStatus }>("/api/settings/talk-overview?preview=0")');
+        expect(api).toContain('send("POST", "/api/settings/talk-overview", csrfToken, { repost: true })');
+        const { AREA_BY_PATH } = require("../../src/web/apiAccess");
+        expect(AREA_BY_PATH["/api/settings/talk-overview"]).toBe("settings");
+        expect(row).toContain("repostTalkOverview(csrfToken)");
+    });
+
+    it("sits in the talk card once an overview channel is chosen, its details in the tooltip", () => {
+        expect(section).toContain("{data.discordServers.talkOverviewChannelId && <TalkOverviewRow csrfToken={csrfToken} />}");
+        expect(row).toContain("talkOverviewBadge(status, Date.now())");
+        expect(row).toContain("tipSub={badge.tipSub}");
+        expect(row).toContain("Neu posten");
+    });
+});

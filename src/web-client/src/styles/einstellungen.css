@@ -107,6 +107,7 @@ button.badge.chip.accent:hover { color: var(--accent); }
 .conn-rows > div { display: contents; }
 .conn-rows dt { color: var(--muted); }
 .conn-rows dd { margin: 0; font-family: var(--font-mono); font-size: 13px; overflow-wrap: anywhere; }
+.conn-rows dd.talk-overview { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .conn-foot { display: flex; align-items: center; gap: 10px; padding: 10px 16px 14px; }
 
 .conn-form { display: flex; flex-direction: column; gap: 16px; }
