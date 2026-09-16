@@ -148,6 +148,35 @@ a.re-title:hover { color: var(--accent); text-decoration: none; }
 .re-desc-preview { white-space: pre-line; color: var(--muted); }
 .dlg-hint .btn { font-family: inherit; font-size: 14px; }
 
+/* ---- planning step (#261): values large, labels small, the rest behind "Mehr" ---- */
+.re-step-lbl { white-space: nowrap; }
+.re-icstack .wi:nth-child(2) { left: 10px; top: 4px; }
+.re-icstack .wi:nth-child(3) { left: 16px; top: 4px; }
+.re-start-head { margin-bottom: 10px; }
+.re-start-head .re-label { margin-bottom: 0; }
+.re-opt .re-sub { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.re-raid-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.re-raid-tpl { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
+.re-tpl-save {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: -6px 0 16px; padding: 10px 12px;
+    border: 1px solid var(--accent); border-radius: 10px; background: var(--accent-soft);
+}
+.re-tpl-save input[type=text] { flex: 1 1 200px; min-height: var(--ctl-h-sm); }
+.re-tpl-acts { margin-left: auto; display: inline-flex; gap: 8px; }
+.re-fit { margin: 10px 0 4px; }
+.re-deadline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.re-dlg-body .re-deadline input[type=number] { width: 96px; flex: 0 0 96px; }
+.re-dlg-body .re-chan-name { font-size: 15px; font-weight: 600; }
+.re-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; }
+.re-fig { display: flex; flex-direction: column; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); }
+.re-fig-lbl { font: 600 10.5px var(--font-mono); text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted); }
+.re-fig-val { font-size: 22px; font-weight: 800; letter-spacing: -.3px; line-height: 1.15; }
+@media (max-width: 640px) {
+    .re-step-lbl { display: none; }
+    .re-step.on .re-step-lbl { display: inline; }
+    .re-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 
 /* ---- Aufruf-Vorlagen ---- */
 .nt-list { --re-cols: 40px 220px minmax(0, 1fr) 84px; }

@@ -284,7 +284,7 @@ function listTextChannels(guildId) {
         .filter((c) => TEXT_CHANNEL_TYPES.includes(c.type))
         .filter((c) => !me || c.permissionsFor(me).has(PermissionsBitField.Flags.SendMessages))
         .sort((a, b) => (a.rawPosition || 0) - (b.rawPosition || 0))
-        .map((c) => ({ id: c.id, name: c.name, category: c.parent ? c.parent.name : "" }));
+        .map((c) => ({ id: c.id, name: c.name, category: c.parent ? c.parent.name : "", parentId: c.parentId || "" }));
 }
 
 /** Category channels of a guild, for the "create in category" dropdown. */

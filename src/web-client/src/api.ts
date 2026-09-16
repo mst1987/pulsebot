@@ -1144,6 +1144,36 @@ export type ReusableEvent = {
     contentIds: string[];
 };
 
+/** An EventHelper event as src/web/eventStore.js hands it out (the fields the dialog reads). */
+export type OwnEvent = {
+    id: string;
+    source: "eventhelper";
+    guildId: string;
+    categoryId: string;
+    categoryName: string;
+    channelId: string;
+    channelName: string;
+    title: string;
+    description: string;
+    leaderId: string;
+    /** unix seconds */
+    startTime: number;
+    versionId: string;
+    instanceIds: string[];
+    size: number;
+    /** melee/ranged: the minimum (0 = no target) */
+    composition: { tank: number; healer: number; melee: number; ranged: number };
+    /** the optional maxima of melee/ranged, null = open */
+    compositionMax: { melee: number | null; ranged: number | null };
+    requiredBuffs: string[];
+    raidTemplateId: string;
+    /** unix seconds, 0 = none */
+    signupDeadline: number;
+    fairness: boolean;
+    wishes: boolean;
+    autoSuggest: boolean;
+};
+
 export type RaidCreateContext = {
     /** templateId: the Raid-Helper template of the default channel's category */
     defaults: { templateId: string; channelId: string };
@@ -1153,13 +1183,44 @@ export type RaidCreateContext = {
     channels: Channel[];
     templates: RaidTemplate[];
     reusableEvents: ReusableEvent[];
+    /** category id → "eventhelper" for categories whose new events live in the EventHelper */
+    signupSources?: Record<string, EventSource>;
+    // The planning step (#261).
+    categories?: { id: string; name: string }[];
+    /** category id → raid template id of its default */
+    categoryRaidTemplates?: Record<string, string>;
+    /** the raid templates with their badges (needsSize, incomplete, defaultFor) */
+    raidTemplates?: RaidTemplate[];
+    versions?: GameVersion[];
+    defaultVersion?: string;
+    /** category id → its channel naming schema (Kanäle) */
+    channelSchemas?: Record<string, { schema: string; raid: string }>;
+    defaultSchema?: string;
+    /** the own event ?event= names, for the edit mode */
+    editEvent?: OwnEvent | null;
 };
 
-export function getRaidCreateContext(): Promise<RaidCreateContext> {
-    return get<RaidCreateContext>("/api/raids/new");
+/** The create dialog's material; with an own event id also that event, for editing it. */
+export function getRaidCreateContext(eventId = ""): Promise<RaidCreateContext> {
+    return get<RaidCreateContext>(eventId ? `/api/raids/new?event=${encodeURIComponent(eventId)}` : "/api/raids/new");
 }
 
-export type CreateRaidInput = {
+/** The planning fields of an EventHelper event, as POST and PATCH /api/raids take them. */
+export type EventPlanInput = {
+    raidTemplateId: string;
+    versionId: string;
+    instanceIds: string[];
+    size: number;
+    composition: { tank: number; healer: number; melee: RoleRange | null; ranged: RoleRange | null };
+    requiredBuffs: string[];
+    /** hours before the start, 0 = no deadline — counted in Berlin time on the server */
+    signupDeadlineHours: number;
+    fairness: boolean;
+    wishes: boolean;
+    autoSuggest: boolean;
+};
+
+export type CreateRaidInput = Partial<EventPlanInput> & {
     title: string;
     date: string;
     time: string;
@@ -1167,12 +1228,31 @@ export type CreateRaidInput = {
     channelId?: string;
     channelName?: string;
     sourceEventId?: string;
+    /** a new channel in categoryId, named channelName (else by the category's schema) */
+    newChannel?: boolean;
+    categoryId?: string;
+    /** overrides the category's default source */
+    signupSource?: EventSource;
     leaderId: string;
     description: string;
 };
 
-export function createRaid(csrfToken: string | null, input: CreateRaidInput): Promise<{ id?: string }> {
+export function createRaid(csrfToken: string | null, input: CreateRaidInput): Promise<{ id?: string; messageError?: string | null }> {
     return send("POST", "/api/raids", csrfToken, input);
+}
+
+export type UpdateRaidInput = Partial<EventPlanInput> & {
+    id: string;
+    title: string;
+    date: string;
+    time: string;
+    leaderId: string;
+    description: string;
+};
+
+/** Edit an own (EventHelper) event with the same dialog (#261). */
+export function updateRaid(csrfToken: string | null, input: UpdateRaidInput): Promise<{ id: string; messageError?: string | null }> {
+    return send("PATCH", "/api/raids", csrfToken, input);
 }
 
 // Rule sets per game version (src/config/gameVersions, GET /api/game-versions).

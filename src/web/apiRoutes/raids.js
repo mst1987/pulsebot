@@ -5,7 +5,12 @@ const { activeGuildFor } = require("../activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../raidEventGroups");
 const { upcomingRows, loadPastRaids, raidContentIds } = require("../raidListing");
 const { getConfig, listRaidTemplates } = require("../settingsStore");
-const { createEvent } = require("../eventCreate");
+const { createEvent, updateEvent } = require("../eventCreate");
+const { decorateTemplate } = require("../raidTemplates");
+const eventStore = require("../eventStore");
+const { getChannelConfig } = require("../channelArchiveStore");
+const { publicVersions, DEFAULT_VERSION } = require("../../config/gameVersions");
+const { DEFAULT_SCHEMA } = require("../../utils/channelNames");
 const discord = require("../discord");
 
 /**
@@ -37,8 +42,41 @@ async function getPastRaids(req, res) {
     ok(res, { events, error: err, activeGuildId: guildId });
 }
 
-/** GET /api/raids/new — everything the create dialog needs: defaults, channels, templates, reusable events. */
-async function getRaidCreateContext(req, res) {
+/** A Discord list that may throw while the bot is offline — [] then. */
+function safeList(fn) {
+    try {
+        return fn() || [];
+    } catch {
+        return [];
+    }
+}
+
+/** The channel naming schema per category (Kanäle, #259); {} when unreadable. */
+function channelSchemas(guildId) {
+    try {
+        const schemas = getChannelConfig(guildId).schemas || {};
+        return Object.fromEntries(Object.entries(schemas)
+            .map(([catId, s]) => [catId, { schema: (s && s.schema) || "", raid: (s && s.raid) || "" }]));
+    } catch {
+        return {};
+    }
+}
+
+/** The own event ?event= names, for the dialog's edit mode; null for none, a Raid-Helper id or another server's event. */
+function editEventFor(url, guildId) {
+    const id = url && url.searchParams ? String(url.searchParams.get("event") || "").trim() : "";
+    if (!id || !eventStore.isOwnEventId(id)) return null;
+    const event = eventStore.getEvent(id);
+    return event && (!guildId || !event.guildId || event.guildId === guildId) ? event : null;
+}
+
+/**
+ * GET /api/raids/new — everything the create dialog needs: defaults, channels,
+ * categories, raid templates, the rule set, the naming schemas and reusable
+ * events. With ?event=<own id> also the event to edit (#261): the same dialog
+ * opens prefilled for an EventHelper event.
+ */
+async function getRaidCreateContext(req, res, url) {
     const user = requireAdmin(req, res);
     if (!user) return;
     const guildId = activeGuildFor(req);
@@ -56,15 +94,16 @@ async function getRaidCreateContext(req, res) {
     })));
     const config = getConfig();
     const templates = listRaidTemplates();
+    const categoryDefaults = config.categoryRaidTemplate || {};
     // The default template per category, as the Raid-Helper template id the
     // create form sends — a category whose default links none has no entry.
     const rhById = new Map(templates.map((t) => [t.id, t.raidhelperTemplateId]));
-    const categoryTemplates = Object.fromEntries(Object.entries(config.categoryRaidTemplate || {})
+    const categoryTemplates = Object.fromEntries(Object.entries(categoryDefaults)
         .map(([catId, tplId]) => [catId, rhById.get(tplId) || ""])
         .filter(([, rhId]) => rhId));
-    const channels = discord.listTextChannels(guildId);
+    const channels = safeList(() => discord.listTextChannels(guildId));
     const channelId = (config.raidDefaults || {}).channelId || "";
-    const defaultChannel = (channels || []).find((c) => c.id === channelId);
+    const defaultChannel = channels.find((c) => c.id === channelId);
     ok(res, {
         defaults: {
             channelId,
@@ -76,14 +115,25 @@ async function getRaidCreateContext(req, res) {
         templates,
         reusableEvents,
         // Which categories create their new events in the EventHelper (missing = Raid-Helper).
-        signupSources: getConfig().categorySignupSource || {},
+        signupSources: config.categorySignupSource || {},
+        // The planning step (#261): categories, the raid templates with their
+        // badges and the default per category, the rule set, the naming schemas.
+        categories: safeList(() => discord.listCategories(guildId)),
+        categoryRaidTemplates: categoryDefaults,
+        raidTemplates: templates.map((t) => decorateTemplate({ instanceIds: [], ...t }, categoryDefaults)),
+        versions: publicVersions(),
+        defaultVersion: DEFAULT_VERSION,
+        channelSchemas: channelSchemas(guildId),
+        defaultSchema: DEFAULT_SCHEMA,
+        editEvent: editEventFor(url, guildId),
     });
 }
 
 /**
  * POST /api/raids — create an event, optionally cloning a source event's
- * channel. Raid-Helper or the own store, by the category's default source;
- * the work is eventCreate.js', shared with the Discord modal (#260).
+ * channel or creating a new one by the category's schema. Raid-Helper or the
+ * own store, by the category's default source; the work is eventCreate.js',
+ * shared with the Discord modal (#260).
  */
 async function createRaid(req, res) {
     const user = requireAdmin(req, res);
@@ -95,4 +145,18 @@ async function createRaid(req, res) {
     ok(res, result.body, result.status);
 }
 
-module.exports = { getRaids, getPastRaids, getRaidCreateContext, createRaid };
+/**
+ * PATCH /api/raids — change an own (EventHelper) event with the create
+ * dialog's fields. Body: { id, … }; a Raid-Helper id is refused (#261).
+ */
+async function updateRaid(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const result = await updateEvent({ guildId: activeGuildFor(req), body });
+    if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
+    ok(res, result.body, result.status);
+}
+
+module.exports = { getRaids, getPastRaids, getRaidCreateContext, createRaid, updateRaid };
