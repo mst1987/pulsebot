@@ -4,6 +4,7 @@ const { getStoredEvent } = require("../../web/eventSources");
 const { getEvent, isOwnEventId } = require("../../web/eventStore");
 const { SELECT_ID } = require("../../web/talkOverview");
 const guildRoles = require("../../web/guildRoles");
+const { checkRaiderRole } = require("../../web/signupService");
 const { buildSignupDialog } = require("../../utils/signupDialog");
 
 // The select "Raid wählen, um dich anzumelden" under the raid overview on the
@@ -25,6 +26,10 @@ module.exports = {
         if (isOwnEventId(eventId)) {
             const event = getEvent(eventId);
             if (!event) return interaction.reply({ content: "Dieses Event gibt es nicht mehr.", ephemeral: true });
+            // The overview is one message for everybody, so it cannot leave out a raid
+            // the member may not join — the raider-role rule answers here instead.
+            const access = await checkRaiderRole(event, interaction.user.id);
+            if (access.error) return interaction.reply({ content: access.error, ephemeral: true });
             return interaction.reply({ ...buildSignupDialog(event, interaction.user.id), ephemeral: true });
         }
 

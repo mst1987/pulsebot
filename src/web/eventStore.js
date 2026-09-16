@@ -175,7 +175,8 @@ function complete(e) {
         wishes: !!e.wishes,
         // "Vorschlag automatisch bei Anmeldeschluss" (#261); read by the setup suggestion (#262).
         autoSuggest: !!e.autoSuggest,
-        // The setup draft/approval comes with #263; null until then.
+        // The setup: null, a draft (`status: "draft"`, saveSetupDraft — e.g. the
+        // automatic proposal at the signup deadline) or, with #263, an approved one.
         setup: e.setup || null,
         message: e.message && e.message.messageId ? { channelId: e.message.channelId || "", messageId: e.message.messageId } : null,
         createdBy: e.createdBy || "",
@@ -323,7 +324,34 @@ function deleteEvent(id) {
     return true;
 }
 
+/**
+ * Store a setup proposal (utils/setup/proposal.js) on an event as a DRAFT:
+ * `{ ...proposal, status: "draft", createdBy, createdAt }`. A draft is never
+ * shown to raiders and never approved here — a human does that (#263). An
+ * approved setup is not overwritten.
+ *
+ * The setup editor (#263) should store its drafts through this same function
+ * (or replace it with its own storage and align the auto-suggest in
+ * reminders.js), so there is one shape of `event.setup`.
+ *
+ * @returns {{ event?: object, error?: string, code?: "not_found" | "approved" }}
+ */
+function saveSetupDraft(id, proposal, { createdBy = "auto", now = Date.now() } = {}) {
+    const events = readAll();
+    const idx = events.findIndex((e) => e && e.id === str(id));
+    if (idx < 0) return { error: "Event nicht gefunden.", code: "not_found" };
+    const current = events[idx].setup;
+    if (current && current.status === "approved") return { error: "Das Setup ist schon freigegeben.", code: "approved" };
+    events[idx] = {
+        ...events[idx],
+        setup: { ...(proposal && typeof proposal === "object" ? proposal : {}), status: "draft", createdBy: str(createdBy), createdAt: now },
+        updatedAt: now,
+    };
+    writeAll(events);
+    return { event: complete(events[idx]) };
+}
+
 module.exports = {
-    listEvents, getEvent, createEvent, updateEvent, setEventMessage, deleteEvent,
+    listEvents, getEvent, createEvent, updateEvent, setEventMessage, deleteEvent, saveSetupDraft,
     normalizePlan, isOwnEventId, EVENTS_FILE, ID_PREFIX, COMPOSITION_ROLES,
 };

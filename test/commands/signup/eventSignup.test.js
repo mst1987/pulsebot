@@ -4,6 +4,8 @@ const path = require("path");
 
 jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/web/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
+jest.mock("../../../src/web/discord", () => require("../../helpers/signupMocks").discord());
 jest.mock("../../../src/web/eventMessage", () => ({ SIGNUP_BUTTON_PREFIX: "event-signup" }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1 }));
 
@@ -39,6 +41,22 @@ describe("commands/signup/eventSignup", () => {
         expect(payload.embeds[0].title).toBe("Karazhan");
         const ids = payload.components.flatMap((r) => r.components).map((c) => c.custom_id).filter(Boolean);
         expect(ids).toContain("signup-status:eh-kara:s:nerathil:Mage-Arcane:");
+    });
+
+    it("refuses a member without the category's raider role instead of opening the dialog", async () => {
+        mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-kara", guildId: "g-event" }));
+        mocks.access.config = { categoryRoles: { "cat-kara": ["role-kara"] } };
+        mocks.access.roleIds = ["role-other"];
+        let interaction = mockInteraction({ customId: "event-signup:eh-kara", userId: ANNA });
+        await command.execute(interaction);
+        expect(interaction.reply).toHaveBeenCalledWith({ content: "Für diesen Raid brauchst du eine Raider-Rolle.", ephemeral: true });
+        expect(mocks.memberRoleIds).toHaveBeenCalledWith("g-event", ANNA);
+
+        // …an own signup from before may still be changed
+        mocks.signups.set(`eh-kara/${ANNA}`, { userId: ANNA, character: "Nerathil", spec: "Mage-Arcane", status: "signed" });
+        interaction = mockInteraction({ customId: "event-signup:eh-kara", userId: ANNA });
+        await command.execute(interaction);
+        expect(interaction.reply.mock.calls[0][0].embeds[0].title).toBe("Karazhan");
     });
 
     it("says so when the event is gone", async () => {

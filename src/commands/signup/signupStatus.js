@@ -1,7 +1,7 @@
 const { getEvent } = require("../../web/eventStore");
 const { getSignup } = require("../../web/signupStore");
 const profiles = require("../../web/raiderProfileStore");
-const { submitSignup, allowedStatuses } = require("../../web/signupService");
+const { submitSignup, allowedStatuses, checkRaiderRole } = require("../../web/signupService");
 const {
     STATUS_PREFIX, parseStatusId, resolveState, classLabel, buildSignupDialog, buildCharacterModal,
     savedNotice, plainUpdate,
@@ -21,7 +21,7 @@ const {
 async function save(interaction, event, status, picks, character) {
     const uid = interaction.user.id;
     const previous = getSignup(event.id, uid);
-    const result = submitSignup(event.id, uid, {
+    const result = await submitSignup(event.id, uid, {
         character,
         spec: picks.spec,
         status,
@@ -71,6 +71,8 @@ module.exports = {
         if (!picks.character) {
             // Refused anyway (deadline, started)? Say so before asking for a name.
             if (!allowedStatuses(event).includes(status)) return save(interaction, event, status, picks, "");
+            const access = await checkRaiderRole(event, uid);
+            if (access.error) return interaction.update(buildSignupDialog(event, uid, { state: picks, notice: `⚠️ ${access.error}` }));
             const info = profiles.specInfo(picks.spec) || {};
             const defaultName = (interaction.member && interaction.member.displayName) || "";
             const classText = [classLabel(event, info.classId), info.label].filter(Boolean).join(" · ");

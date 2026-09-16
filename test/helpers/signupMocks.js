@@ -9,6 +9,19 @@
 const events = new Map();
 const signups = new Map();
 const changed = jest.fn();
+// The raider-role rule (signupService.checkRaiderRole): config and the member's roles.
+const access = { config: {}, roleIds: null };
+const memberRoleIds = jest.fn(async () => access.roleIds);
+
+/** settingsStore stand-in: `access.config` is what getConfig() returns. */
+function settingsStore() {
+    return { getConfig: () => access.config };
+}
+
+/** discord stand-in: `access.roleIds` are the member's roles (null = unreadable). */
+function discord() {
+    return { memberRoleIds };
+}
 
 function eventStore() {
     return {
@@ -52,6 +65,9 @@ function reset() {
     events.clear();
     signups.clear();
     changed.mockClear();
+    access.config = {};
+    access.roleIds = null;
+    memberRoleIds.mockClear();
 }
 
-module.exports = { events, signups, changed, eventStore, signupStore, ownEvent, reset };
+module.exports = { events, signups, changed, access, memberRoleIds, settingsStore, discord, eventStore, signupStore, ownEvent, reset };

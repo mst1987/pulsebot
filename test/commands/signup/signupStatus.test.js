@@ -6,6 +6,8 @@ const path = require("path");
 
 jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/web/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
+jest.mock("../../../src/web/discord", () => require("../../helpers/signupMocks").discord());
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1 }));
 
 const mocks = require("../../helpers/signupMocks");
@@ -107,6 +109,42 @@ describe("commands/signup/signupStatus", () => {
         const i = mockInteraction({ customId: "signup-status:eh-kara:s:::", userId: NOBODY });
         await command.execute(i);
         expect(payloadOf(i).embeds[0].description).toContain("⚠️ Bitte zuerst Charakter und Spec wählen.");
+    });
+
+    describe("raider role of the category", () => {
+        beforeEach(() => {
+            mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-kara" }));
+            mocks.access.config = { categoryRoles: { "cat-kara": ["role-kara"] } };
+            mocks.access.roleIds = ["role-other"];
+        });
+
+        it("refuses the save with a short message in the same dialog", async () => {
+            const i = mockInteraction({ customId: "signup-status:eh-kara:s:nerathil:Mage-Arcane:", userId: ANNA });
+            await command.execute(i);
+            expect(mocks.signups.size).toBe(0);
+            expect(payloadOf(i).embeds[0].description).toContain("⚠️ Für diesen Raid brauchst du eine Raider-Rolle.");
+        });
+
+        it("says so before asking a member without profile for a character name", async () => {
+            const i = mockInteraction({ customId: "signup-status:eh-kara:s::Priest-Holy:", userId: NOBODY });
+            await command.execute(i);
+            expect(i.showModal).not.toHaveBeenCalled();
+            expect(payloadOf(i).embeds[0].description).toContain("⚠️ Für diesen Raid brauchst du eine Raider-Rolle.");
+        });
+
+        it("still lets an existing signup be withdrawn", async () => {
+            mocks.signups.set(`eh-kara/${ANNA}`, { userId: ANNA, character: "Nerathil", spec: "Mage-Arcane", role: "ranged", status: "signed", canAlso: [] });
+            const i = mockInteraction({ customId: "signup-status:eh-kara:a:nerathil:Mage-Arcane:", userId: ANNA });
+            await command.execute(i);
+            expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ status: "absence" });
+        });
+
+        it("lets a holder of the role sign up", async () => {
+            mocks.access.roleIds = ["role-kara"];
+            const i = mockInteraction({ customId: "signup-status:eh-kara:s:nerathil:Mage-Arcane:", userId: ANNA });
+            await command.execute(i);
+            expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ status: "signed" });
+        });
     });
 
     it("clears the message when the event is gone", async () => {

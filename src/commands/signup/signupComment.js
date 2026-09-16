@@ -30,7 +30,7 @@ module.exports = {
             return interaction.update(buildSignupDialog(event, uid, { state, notice: "⚠️ Melde dich zuerst an – dann kannst du einen Kommentar hinterlassen." }));
         }
         const comment = String(interaction.fields.getTextInputValue("comment") || "").trim();
-        const result = submitSignup(event.id, uid, {
+        const result = await submitSignup(event.id, uid, {
             character: mine.character,
             spec: mine.spec,
             status: mine.status,

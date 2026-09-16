@@ -48,7 +48,7 @@ async function putSignup(req, res) {
     const body = await readJsonBody(req);
     const eventId = String(body.eventId || "").trim();
     if (!eventId) return apiError(res, 400, "bad_request", "Kein Event angegeben.");
-    const result = submitSignup(eventId, user.id, {
+    const result = await submitSignup(eventId, user.id, {
         character: body.character,
         spec: body.spec,
         status: body.status,

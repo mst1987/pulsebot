@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { GameVersion, RoleRange } from "../api";
 import { allowedSizes, instancesOf } from "../lib/raidTemplates";
 import Segment from "./ui/Segment";
@@ -6,10 +7,11 @@ import WowIcon from "./ui/WowIcon";
 import { WarnIcon } from "./settingsUi";
 import "../styles/raid-templates.css";
 
-// The fields of a raid plan the "Event anlegen" dialog (#261) needs besides
-// CompositionEditor: instance chips from the rule set, the size segment, the
-// melee/ranged ranges, the required buffs and a switch row. Styled with the
-// Raid-Vorlagen classes (rt-), so an event and a template look alike.
+// The fields of a raid plan besides CompositionEditor, shared by the "Event
+// anlegen" dialog (#261) and the Raid-Vorlagen editor (#266): instance chips from
+// the rule set, the size segment, the melee/ranged ranges, the required buffs, a
+// small number field and a switch row. Styled with the Raid-Vorlagen classes
+// (rt-), so an event and a template look alike.
 
 const FREE = "free";
 
@@ -45,17 +47,23 @@ export function InstancePicker({ version, value, onToggle }: {
     );
 }
 
-/** The allowed sizes of the chosen instances as a segment, plus "frei" with a number field. */
-export function SizePicker({ version, instanceIds, size, free, onFree, onSize }: {
+/**
+ * The allowed sizes of the chosen instances as a segment, plus "frei" with a
+ * number field. `size` null = not set yet (a migrated template): nothing is
+ * selected; an emptied free field reports null. `children` sit beside it (a
+ * "Größe ergänzen" badge).
+ */
+export function SizePicker({ version, instanceIds, size, free, onFree, onSize, children }: {
     version: GameVersion | null;
     instanceIds: string[];
-    size: number;
+    size: number | null;
     free: boolean;
     onFree: (free: boolean) => void;
-    onSize: (size: number) => void;
+    onSize: (size: number | null) => void;
+    children?: ReactNode;
 }) {
     const sizes = allowedSizes(version, instanceIds);
-    const isFree = free || !sizes.includes(size);
+    const isFree = free || (size !== null && !sizes.includes(size));
     return (
         <div className="rt-field">
             <FieldLabel text="Raidgröße" tip="Die erlaubten Größen der gewählten Instanzen. „frei“ für jede andere Größe bis 40. Ein Wechsel schlägt Tanks und Heiler neu vor." />
@@ -63,7 +71,7 @@ export function SizePicker({ version, instanceIds, size, free, onFree, onSize }:
                 <Segment
                     size="sm"
                     ariaLabel="Raidgröße"
-                    value={isFree ? FREE : String(size)}
+                    value={size === null && !free ? "" : (isFree ? FREE : String(size))}
                     onChange={(v) => {
                         if (v === FREE) { onFree(true); return; }
                         onFree(false);
@@ -72,19 +80,28 @@ export function SizePicker({ version, instanceIds, size, free, onFree, onSize }:
                     options={[...sizes.map((s) => ({ value: String(s), label: String(s) })), { value: FREE, label: "frei" }]}
                 />
                 {isFree && (
-                    <input className="rt-size-input" type="number" min={1} max={40} aria-label="Freie Raidgröße" value={size || ""}
-                        onChange={(e) => onSize(Math.max(0, Math.floor(Number(e.target.value) || 0)))} />
+                    <input className="inp-sm rt-size-input" type="number" min={1} max={40} aria-label="Freie Raidgröße" value={size || ""}
+                        onChange={(e) => onSize(e.target.value === "" ? null : Math.max(0, Math.floor(Number(e.target.value) || 0)))} />
                 )}
+                {children}
             </div>
         </div>
     );
 }
 
-function NumberInput({ id, label, value, onChange }: { id: string; label: string; value: number | null; onChange: (value: number | null) => void }) {
+/** A small labelled number field (0–40 by default); empty = null. */
+export function NumberInput({ id, label, value, onChange, placeholder = "–", max = 40 }: {
+    id: string;
+    label: string;
+    value: number | null;
+    onChange: (value: number | null) => void;
+    placeholder?: string;
+    max?: number;
+}) {
     return (
         <div className="rt-num-field">
             <label htmlFor={id}>{label}</label>
-            <input id={id} type="number" min={0} max={40} value={value === null ? "" : value} placeholder="–"
+            <input id={id} className="inp-sm" type="number" min={0} max={max} value={value === null ? "" : value} placeholder={placeholder}
                 onChange={(e) => onChange(e.target.value === "" ? null : Math.max(0, Math.floor(Number(e.target.value) || 0)))} />
         </div>
     );

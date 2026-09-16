@@ -5,6 +5,8 @@ const path = require("path");
 
 jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/web/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
+jest.mock("../../../src/web/discord", () => require("../../helpers/signupMocks").discord());
 jest.mock("../../../src/web/eventSources", () => ({ getStoredEvent: jest.fn() }));
 jest.mock("../../../src/web/talkOverview", () => ({ SELECT_ID: "talk-signup" }));
 jest.mock("../../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => "event-guild") }));
@@ -40,6 +42,17 @@ describe("commands/signup/talkSignup", () => {
         expect(payload.embeds[0].title).toBe("Karazhan");
         expect(payload.embeds[0].description).toContain("Profil anlegen");
         expect(getStoredEvent).not.toHaveBeenCalled();
+    });
+
+    it("refuses to open an own event of a category whose raider role the member lacks", async () => {
+        mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-kara" }));
+        mocks.access.config = { guildId: "event-guild", categoryRoles: { "cat-kara": ["role-kara"] } };
+        mocks.access.roleIds = [];
+        const interaction = mockInteraction({ customId: "talk-signup", values: ["eh-kara"], userId: "200000000000000009" });
+        await command.execute(interaction);
+        expect(interaction.reply).toHaveBeenCalledWith({ content: "Für diesen Raid brauchst du eine Raider-Rolle.", ephemeral: true });
+        // no event guild on the event → the configured (event) server
+        expect(mocks.memberRoleIds).toHaveBeenCalledWith("event-guild", "200000000000000009");
     });
 
     it("links a Raid-Helper event into its event channel", async () => {

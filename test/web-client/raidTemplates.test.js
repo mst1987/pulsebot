@@ -154,13 +154,21 @@ describe("Raid-Vorlagen page", () => {
     });
 
     it("keeps the modal short: size, tanks and healers first, the rest behind Mehr", () => {
-        expect(page).toContain("{ value: FREE, label: \"frei\" }");
-        expect(page).toContain("<CompositionEditor");
+        expect(page.indexOf("<SizePicker")).toBeLessThan(page.indexOf("<CompositionEditor"));
         const more = page.indexOf("<details className=\"rt-more\">");
         expect(more).toBeGreaterThan(page.indexOf("<CompositionEditor"));
-        for (const later of ["RangeField label=\"Nahkampf\"", "Pflicht-Buffs", "rt-deadline", "Raid-Helper-Vorlage (ID)", "Fairness", "Wünsche"]) {
+        for (const later of ["<RoleRanges", "<BuffPicker", "rt-deadline", "Raid-Helper-Vorlage (ID)", "label=\"Fairness\"", "label=\"Wünsche\""]) {
             expect({ later, afterMore: page.indexOf(later) > more }).toEqual({ later, afterMore: true });
         }
+    });
+
+    it("builds the editor from the shared plan fields of the event dialog, not its own copies", () => {
+        expect(page).toContain("import { BuffPicker, FieldLabel, InstancePicker, NumberInput, RoleRanges, SizePicker, SwitchRow } from \"../components/RaidPlanFields\";");
+        for (const copy of ["function NumberField", "function RangeField", "className={`rt-inst", "className={`rt-buff", "className=\"switch-row\"", "{ value: FREE, label: \"frei\" }"]) {
+            expect({ copy, inPage: page.includes(copy) }).toEqual({ copy, inPage: false });
+        }
+        // a migrated template without size keeps its hint next to the size segment
+        expect(page).toMatch(/<SizePicker [\s\S]*?\{draft\.size === null && <Badge tone="mid" icon=\{<WarnIcon \/>\}>Größe ergänzen<\/Badge>\}\s*<\/SizePicker>/);
     });
 
     it("proposes tanks and healers when the size changes", () => {
