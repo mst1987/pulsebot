@@ -767,6 +767,25 @@ async function resolveUserNames(guildId, userIds = []) {
 }
 
 /**
+ * The role ids one member holds on a server, for "which raid categories may
+ * this member see" (Anmeldungen, #256). A single-member fetch, no privileged
+ * intent. Null when it cannot be known — bot offline, not a member, Discord
+ * unreachable — so the caller can tell "no roles" from "unknown".
+ * @returns {Promise<string[]|null>}
+ */
+async function memberRoleIds(guildId, userId) {
+    const guild = getGuild(guildId);
+    if (!guild || !userId) return null;
+    try {
+        const member = guild.members.cache.get(String(userId)) || await guild.members.fetch(String(userId));
+        const cache = member && member.roles && member.roles.cache;
+        return cache && typeof cache.keys === "function" ? [...cache.keys()] : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
  * Send a direct message to one Discord user. A single-user fetch needs no
  * privileged intent (see resolveUserNames). Fails when the user closed their
  * DMs or blocked the bot — that is reported, never retried.
@@ -796,6 +815,7 @@ module.exports = {
     setClient, getClient, listGuilds, getGuild, listTextChannels, listEmojis,
     sendDirectMessage, embed,
     resolveUserNames,
+    memberRoleIds,
     listCategories, listAllChannels, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,
     listMembersWithRoles, postMissingPing, mentionChunks, _resetMembersCacheForTests,

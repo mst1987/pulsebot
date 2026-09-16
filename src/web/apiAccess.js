@@ -74,6 +74,11 @@ const AREA_BY_PATH = {
     "/api/profile/characters": "signup",
     "/api/profile/raiders": "signup",
     "/api/profile/user": "roster",
+    // Anmeldungen (#256): the member's upcoming raids and their *own* signup —
+    // the PUT handler only ever writes the session's account. All signups of an
+    // event, with comments and "kann auch", are the orga's.
+    "/api/signups": "signup",
+    "/api/signups/event": "raids",
 
     // The caster loot council. Starting a simulation is a POST, so the method
     // rule already makes it write-level — a read-only council member sees the

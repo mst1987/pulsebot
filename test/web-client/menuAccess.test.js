@@ -58,7 +58,7 @@ describe("one menu for both front ends", () => {
             else groups.push({ name: entry.group, ids: [entry.id] });
         }
         expect(groups).toEqual([
-            { name: "Start", ids: ["home", "profile"] },
+            { name: "Start", ids: ["home", "signups", "profile"] },
             { name: "Raids", ids: ["raids", "roster", "cla"] },
             { name: "Loot", ids: ["history", "lootcouncil"] },
             { name: "Gilde", ids: ["recruitment", "channels"] },
@@ -74,6 +74,7 @@ describe("one menu for both front ends", () => {
         expect(icons).toEqual({
             home: "inv_misc_map_01",
             profile: "achievement_character_human_male",
+            signups: "inv_misc_book_09",
             recruitment: "inv_misc_grouplooking",
             cla: "inv_misc_pocketwatch_01",
             raids: "inv_misc_note_02",

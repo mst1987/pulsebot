@@ -152,6 +152,26 @@ describe("web/apiAccess", () => {
             expect([...TOKEN_AUTH]).toEqual(["/api/ingest/loot"]);
         });
 
+        // Anmeldungen (#256): a member with "signup" reads and writes their own
+        // signup; the whole roster of an event with comments is the orga's.
+        describe("the signups", () => {
+            const member = limited({ signup: { read: true, write: true } });
+
+            it("opens the own list and the own signup to the signup area", () => {
+                expect(checkAccess("/api/signups", "GET", member)).toBeNull();
+                expect(checkAccess("/api/signups", "PUT", member)).toBeNull();
+            });
+
+            it("keeps every signup of an event with the raids area", () => {
+                expect(checkAccess("/api/signups/event", "GET", member)).toMatchObject({ status: 403 });
+                expect(checkAccess("/api/signups/event", "GET", limited({ raids: { read: true, write: false } }))).toBeNull();
+            });
+
+            it("refuses signing up with read access only", () => {
+                expect(checkAccess("/api/signups", "PUT", limited({ signup: { read: true, write: false } }))).toMatchObject({ status: 403 });
+            });
+        });
+
         // Fail-closed: a route added without a table entry must not become
         // reachable for a limited role just because it holds some other area.
         it("falls back to admin-only for endpoints missing from the table", () => {

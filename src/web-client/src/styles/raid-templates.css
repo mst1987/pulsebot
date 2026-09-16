@@ -5,7 +5,8 @@
 .rt-page .ph-act { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 /* ---- list: one compact row per template ---- */
-.rt-list { display: flex; flex-direction: column; gap: 10px; max-width: 980px; }
+/* full width: the rows end where the page head's actions end */
+.rt-list { display: flex; flex-direction: column; gap: 10px; }
 .rt-row {
     position: relative; display: flex; align-items: center; gap: 14px; width: 100%;
     padding: 14px 16px; text-align: left; color: var(--text); font: inherit; cursor: pointer;

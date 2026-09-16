@@ -27,7 +27,11 @@ describe("Discord-Server section", () => {
     });
 
     it("keeps the rights list in the tooltip, not on the card", () => {
-        expect(section).toMatch(/tipSub=\{perms\.map\(\(p\) => `\$\{p\.label\}: \$\{p\.ok \? "vorhanden" : "fehlt"\}`\)\.join\("\\n"\)\}/);
+        // One status badge under the server name carries the rights in its tooltip.
+        expect(section).toMatch(/sub: perms\.map\(\(p\) => `\$\{p\.label\}: \$\{p\.ok \? "vorhanden" : "fehlt"\}`\)\.join\("\\n"\)/);
+        expect(section).toContain("tip={stateTip.tip} tipSub={stateTip.sub}");
+        // …and says it once: no second "Bot-Rechte" row repeating the head badge.
+        expect(section).not.toContain("<dt>Bot-Rechte</dt>");
         expect(section).not.toMatch(/perms\.map\(\(p\) => <li/);
         expect(section).not.toContain('className="hint"');
     });

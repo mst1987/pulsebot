@@ -29,6 +29,7 @@
     --area-settings: #b083f0; --area-settings-soft: rgba(176, 131, 240, .16);
     --area-home: #8a7cff; --area-home-soft: rgba(138, 124, 255, .16);
     --area-profile: #38bdf8; --area-profile-soft: rgba(56, 189, 248, .16);
+    --area-signups: #4ade80; --area-signups-soft: rgba(74, 222, 128, .16);
     --area-raids: #60a5fa; --area-raids-soft: rgba(96, 165, 250, .16);
     --area-roster: #a3e635; --area-roster-soft: rgba(163, 230, 53, .16);
     --area-lootcouncil: #e879f9; --area-lootcouncil-soft: rgba(232, 121, 249, .16);
@@ -64,6 +65,7 @@
         --area-settings: #7c4fd6; --area-settings-soft: rgba(124, 79, 214, .12);
         --area-home: #6a4fe0; --area-home-soft: rgba(106, 79, 224, .12);
         --area-profile: #0e7fb8; --area-profile-soft: rgba(14, 127, 184, .12);
+        --area-signups: #16a34a; --area-signups-soft: rgba(22, 163, 74, .12);
         --area-raids: #2563c9; --area-raids-soft: rgba(37, 99, 201, .12);
         --area-roster: #5f8f12; --area-roster-soft: rgba(95, 143, 18, .12);
         --area-lootcouncil: #b03cc0; --area-lootcouncil-soft: rgba(176, 60, 192, .12);
@@ -97,6 +99,7 @@
     --area-settings: #7c4fd6; --area-settings-soft: rgba(124, 79, 214, .12);
     --area-home: #6a4fe0; --area-home-soft: rgba(106, 79, 224, .12);
     --area-profile: #0e7fb8; --area-profile-soft: rgba(14, 127, 184, .12);
+    --area-signups: #16a34a; --area-signups-soft: rgba(22, 163, 74, .12);
     --area-raids: #2563c9; --area-raids-soft: rgba(37, 99, 201, .12);
     --area-roster: #5f8f12; --area-roster-soft: rgba(95, 143, 18, .12);
     --area-lootcouncil: #b03cc0; --area-lootcouncil-soft: rgba(176, 60, 192, .12);
@@ -426,6 +429,7 @@ nav.menu { padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; 
 /* "Spektrum": every section keeps its own accent for the active state */
 .area-home { --area: var(--area-home); --area-soft: var(--area-home-soft); }
 .area-profile { --area: var(--area-profile); --area-soft: var(--area-profile-soft); }
+.area-signups { --area: var(--area-signups); --area-soft: var(--area-signups-soft); }
 .area-recruitment { --area: var(--area-recruitment); --area-soft: var(--area-recruitment-soft); }
 .area-cla { --area: var(--area-cla); --area-soft: var(--area-cla-soft); }
 .area-raids { --area: var(--area-raids); --area-soft: var(--area-raids-soft); }
@@ -1602,6 +1606,7 @@ a.lc-worn { text-decoration: none; color: inherit; }
 .itile.lg svg { width: 24px; height: 24px; }
 .itile.t-home { --tile-bg: var(--area-home-soft); color: var(--area-home); }
 .itile.t-profile { --tile-bg: var(--area-profile-soft); color: var(--area-profile); }
+.itile.t-signups { --tile-bg: var(--area-signups-soft); color: var(--area-signups); }
 .itile.t-recruitment { --tile-bg: var(--area-recruitment-soft); color: var(--area-recruitment); }
 .itile.t-cla { --tile-bg: var(--area-cla-soft); color: var(--area-cla); }
 .itile.t-raids { --tile-bg: var(--area-raids-soft); color: var(--area-raids); }
@@ -1676,3 +1681,8 @@ dialog.dlg::backdrop { background: rgba(10, 11, 14, .62); }
 .dlg-text { color: var(--muted); font-size: 14px; white-space: pre-line; }
 .dlg-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--line-soft); background: var(--panel2); flex-wrap: wrap; }
 .dlg-hint { margin-right: auto; font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+/* A long dialog scrolls as a whole: the foot stays on the bottom edge, so its
+   buttons never scroll out of reach (e.g. the raid template's open "Mehr" part). */
+dialog.dlg .dlg-foot { position: sticky; bottom: 0; z-index: 2; }
+/* A button in the hint (Löschen, Archivieren …) is a button, not mono hint text. */
+.dlg-foot .dlg-hint .btn { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }

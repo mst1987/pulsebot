@@ -25,8 +25,10 @@ export function BulkBar({ count, guildName, archiveLabel, onEdit, onRename, onAr
     const deleting = !onEdit;
     return (
         <div className="kn-bulk" role="toolbar" aria-label="Auswahl bearbeiten">
-            <span className="kn-bulk-count">{count} ausgewählt</span>
-            {guildName && <span className="kn-kicker">{guildName}</span>}
+            <span className="kn-bulk-sel">
+                <span className="kn-bulk-count">{count} ausgewählt</span>
+                {guildName && <span className="kn-kicker">{guildName}</span>}
+            </span>
             {onEdit && <Button size="sm" variant="ghost" onClick={() => onEdit("category")}>Kategorie …</Button>}
             {onEdit && <Button size="sm" variant="ghost" onClick={() => onEdit("topic")}>Thema …</Button>}
             {onRename && <Button size="sm" variant="ghost" onClick={onRename}>Umbenennen nach Schema …</Button>}

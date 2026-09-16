@@ -18,7 +18,7 @@ module.exports = {
         if (!event) {
             return interaction.reply({ content: "Dieses Event gibt es nicht mehr.", ephemeral: true });
         }
-        const url = `${publicBaseUrl}/raids/detail?event=${encodeURIComponent(event.id)}`;
+        const url = `${publicBaseUrl}/signups?event=${encodeURIComponent(event.id)}`;
         return interaction.reply({
             content: `Die Anmeldung zu **${event.title}** läuft über den EventHelper: ${url}`,
             ephemeral: true,

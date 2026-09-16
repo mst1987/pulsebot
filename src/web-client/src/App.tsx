@@ -16,6 +16,7 @@ import HistoryInboxPage from "./pages/HistoryInboxPage";
 import HistoryCharPage from "./pages/HistoryCharPage";
 import RosterPage from "./pages/RosterPage";
 import ProfilePage from "./pages/ProfilePage";
+import SignupsPage from "./pages/SignupsPage";
 import ClaPage from "./pages/ClaPage";
 import LootCouncilPage from "./pages/LootCouncilPage";
 import DropCheckPage from "./pages/lootcouncil/DropCheckPage";
@@ -146,6 +147,8 @@ export default function App() {
                         <Route path="history/char" element={<Guard user={user} areas={["history", "loot"]}><HistoryCharPage /></Guard>} />
                         {/* The member self-service page: always the own account (area "signup"). */}
                         <Route path="profile" element={<Guard user={user} areas={["signup"]}><ProfilePage /></Guard>} />
+                        {/* The member's coming raids and their own signup (area "signup", #256). */}
+                        <Route path="signups" element={<Guard user={user} areas={["signup"]}><SignupsPage /></Guard>} />
                         <Route path="roster" element={<Guard user={user} areas={["roster"]}><RosterPage /></Guard>} />
                         {/* Same character page, reached from the roster — the page keeps
                             its back-link pointing at wherever it was opened from. */}

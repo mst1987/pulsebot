@@ -4,6 +4,8 @@ const {
     toTimestamp,
     formatTimestampToDateString,
     toRaidHelperDate,
+    parseGermanDate,
+    parseClockTime,
 } = require("../../src/utils/date.js");
 
 describe("utils/date", () => {
@@ -65,6 +67,52 @@ describe("utils/date", () => {
             expect(toRaidHelperDate(null)).toBe("");
             expect(toRaidHelperDate("not-a-date")).toBe("");
             expect(toRaidHelperDate("2026/07/24")).toBe("");
+        });
+    });
+
+    describe("parseGermanDate", () => {
+        // 16.09.2026, 12:00 Berlin
+        const now = Date.UTC(2026, 8, 16, 10, 0);
+
+        it("reads the ways people type a date", () => {
+            expect(parseGermanDate("24.09.2026", now)).toBe("2026-09-24");
+            expect(parseGermanDate("24.09.26", now)).toBe("2026-09-24");
+            expect(parseGermanDate("24.09.", now)).toBe("2026-09-24");
+            expect(parseGermanDate("24.9.", now)).toBe("2026-09-24");
+            expect(parseGermanDate(" 2026-09-24 ", now)).toBe("2026-09-24");
+        });
+
+        it("refuses what is no calendar day", () => {
+            for (const bad of ["", "31.09.", "24-09", "morgen", "24.13.2026", "2026-02-30", "24.09"]) {
+                expect({ bad, parsed: parseGermanDate(bad, now) }).toEqual({ bad, parsed: "" });
+            }
+        });
+
+        it("keeps a recent day without year in this year, so the caller sees it is past", () => {
+            expect(parseGermanDate("15.09.", now)).toBe("2026-09-15");
+        });
+
+        it("moves a day long gone this year into the next one (January planned in December)", () => {
+            const december = Date.UTC(2026, 11, 20, 12, 0);
+            expect(parseGermanDate("08.01.", december)).toBe("2027-01-08");
+            expect(parseGermanDate("08.01.2026", december)).toBe("2026-01-08");
+        });
+    });
+
+    describe("parseClockTime", () => {
+        it("reads 19:30, 19.30, 1930, 930, 19 and 19 Uhr", () => {
+            expect(parseClockTime("19:30")).toBe("19:30");
+            expect(parseClockTime("19.30")).toBe("19:30");
+            expect(parseClockTime("1930")).toBe("19:30");
+            expect(parseClockTime("930")).toBe("09:30");
+            expect(parseClockTime("19")).toBe("19:00");
+            expect(parseClockTime("19 Uhr")).toBe("19:00");
+        });
+
+        it("refuses impossible times", () => {
+            for (const bad of ["", "24:00", "19:60", "abends", "19:3", "12345"]) {
+                expect({ bad, parsed: parseClockTime(bad) }).toEqual({ bad, parsed: "" });
+            }
         });
     });
 });

@@ -1,13 +1,15 @@
 // Creating an event, for every way into it: the web's create dialog
-// (POST /api/raids) today, the Discord modal (#260) later.
+// (POST /api/raids) and the Discord modal (/event anlegen, #260).
 //
 // Which source the event gets is decided by the category it lands in
-// (`categorySignupSource`, eventSources.signupSourceFor): "raidhelper" creates
-// it at Raid-Helper as before, "eventhelper" in the own store — and posts the
-// bot's event message into the channel. The channel is chosen or cloned from an
-// earlier event the same way for both.
+// (`categorySignupSource`, eventSources.signupSourceFor) unless the caller names
+// one: "raidhelper" creates it at Raid-Helper as before, "eventhelper" in the
+// own store — and posts the bot's event message into the channel. The channel
+// is chosen, cloned from an earlier event or created new the same way for both.
 const { DateTime } = require("luxon");
 const discord = require("./discord");
+const discordChannels = require("./discordChannels");
+const { normalizeChannelName } = require("../utils/channelNames");
 const eventStore = require("./eventStore");
 const { getRaidEvent } = require("./raidEventStore");
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
@@ -20,6 +22,7 @@ const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const { toRaidHelperDate } = require("../utils/date");
 
 const ZONE = "Europe/Berlin";
+const SOURCES = ["raidhelper", "eventhelper"];
 
 /** Unix seconds of a "dd-MM-yyyy" date and "HH:mm" time in Berlin time, or 0. */
 function startTimeOf(date, time) {
@@ -118,7 +121,9 @@ const fail = (status, code, message) => ({ error: { status, code, message } });
  * Create an event from the create dialog's body.
  *
  * Body: { title, date, time, description, leaderId, templateId, channelId |
- * sourceEventId + channelName } plus, for an EventHelper category, the
+ * sourceEventId + channelName | newChannel: { name, categoryId,
+ * templateChannelId } }, an optional signupSource ("raidhelper" | "eventhelper",
+ * else the category's default) plus, for an EventHelper category, the
  * optional planning fields { versionId, instanceIds, size, composition,
  * signupDeadline (unix seconds), fairness, wishes }. Missing planning fields
  * come from the rule set; missing instances are read from the title.
@@ -135,18 +140,31 @@ async function createEvent({ guildId, user, body = {} }) {
     let channelId = String(body.channelId || "").trim();
     const sourceEventId = String(body.sourceEventId || "").trim();
     let sourceChannel = null;
+    // A channel made for this event (the Discord modal's "neu nach Schema"): like
+    // a clone it is only created once everything else has been checked.
+    const newChannel = !channelId && !sourceEventId && body.newChannel && typeof body.newChannel === "object"
+        ? {
+            name: normalizeChannelName(body.newChannel.name),
+            categoryId: String(body.newChannel.categoryId || "").trim(),
+            templateChannelId: String(body.newChannel.templateChannelId || "").trim(),
+        }
+        : null;
+    if (newChannel && !newChannel.name) return fail(400, "no_channel", "Der neue Kanal braucht einen Namen.");
     if (sourceEventId) {
         sourceChannel = await sourceChannelFor(rh, guildId, sourceEventId);
         if (!sourceChannel.channelId) return fail(400, sourceChannel.code, sourceChannel.message);
-    } else if (!channelId) {
+    } else if (!channelId && !newChannel) {
         return fail(400, "no_channel", "Kein Channel gewählt.");
     }
 
-    // The category decides the source. A clone lands next to its original.
+    // The category decides the source. A clone lands next to its original, a new
+    // channel in the category it was asked for.
     const lookupChannel = sourceChannel ? sourceChannel.channelId : channelId;
-    const meta = catMap[lookupChannel] || {};
+    const meta = catMap[lookupChannel]
+        || (newChannel ? { categoryId: newChannel.categoryId, categoryName: (catMap[newChannel.categoryId] || {}).name || "" } : {});
     const categoryId = meta.categoryId || (sourceChannel && sourceChannel.categoryId) || "";
-    const source = signupSourceFor(categoryId);
+    // The Discord modal may pick the other source for one event; the category only proposes it.
+    const source = SOURCES.includes(body.signupSource) ? body.signupSource : signupSourceFor(categoryId);
 
     const title = String(body.title || "").trim();
     let plan = null;
@@ -179,8 +197,15 @@ async function createEvent({ guildId, user, body = {} }) {
             const cloned = await discord.duplicateChannel(sourceChannel.channelId, String(body.channelName || "").trim());
             channelId = cloned.id;
             channelName = cloned.name || "";
+        } else if (newChannel) {
+            const created = await discordChannels.createFromTemplate(guildId, {
+                name: newChannel.name, parentId: newChannel.categoryId, templateChannelId: newChannel.templateChannelId,
+            });
+            channelId = created.id;
+            channelName = created.name || "";
         }
     } catch (e) {
+        if (newChannel) return fail(400, "create_failed", `Kanal konnte nicht angelegt werden: ${discordChannels.discordErrorText(e)}`);
         return fail(400, "create_failed", e.message || "Channel konnte nicht dupliziert werden.");
     }
 
@@ -200,7 +225,8 @@ async function createEvent({ guildId, user, body = {} }) {
             }
             // The talk server's overview lists it once Raid-Helper's cached list has it.
             scheduleOverviewSync({ delayMs: RAIDHELPER_CREATE_DELAY_MS });
-            return { status: 201, body: result };
+            // channelId: where it landed — a cloned or new channel is unknown to the caller otherwise.
+            return { status: 201, body: result && typeof result === "object" ? { ...result, channelId } : result };
         } catch (e) {
             return fail(400, "create_failed", e.message || "Event konnte nicht angelegt werden.");
         }

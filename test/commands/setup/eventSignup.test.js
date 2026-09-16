@@ -18,7 +18,7 @@ describe("commands/setup/eventSignup", () => {
         await command.execute(interaction);
         expect(getEvent).toHaveBeenCalledWith("eh-1");
         expect(interaction.reply).toHaveBeenCalledWith({
-            content: expect.stringContaining("https://eh.example/raids/detail?event=eh-1"),
+            content: expect.stringContaining("https://eh.example/signups?event=eh-1"),
             ephemeral: true,
         });
     });

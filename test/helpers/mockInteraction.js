@@ -99,6 +99,10 @@ function mockInteraction(opts = {}) {
         deleteReply: jest.fn().mockResolvedValue(undefined),
         showModal: jest.fn().mockResolvedValue(undefined),
         update: jest.fn().mockResolvedValue(sentMessage),
+        // A component or modal that edits the message it sits under later.
+        deferUpdate: jest.fn().mockResolvedValue(undefined),
+        // The picked entries of a select menu.
+        values: opts.values || [],
         fetchReply: jest.fn().mockResolvedValue(sentMessage),
         options: {
             getString: jest.fn((name) => getOpt(name)),
