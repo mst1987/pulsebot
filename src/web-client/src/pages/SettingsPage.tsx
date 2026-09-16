@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import {
     getSettings, updateSettings, saveRaidsheet, deleteRaidsheet, searchSettingsItems, getIngestTokens,
     type ApiError, type SettingsData, type AdminConfig, type Raidsheet,
-    type RolePermissions, type Access, type TopItem, type IngestToken, type TextChannel,
+    type RolePermissions, type Access, type TopItem, type IngestToken, type TextChannel, type EventSource,
 } from "../api";
 import { useOutletContext } from "react-router-dom";
 import { usePersistedSearchParam } from "../lib/persistedState";
@@ -53,6 +53,7 @@ type Draft = {
     raidTemplateId: string;
     raidChannelId: string;
     categoryLootTool: Record<string, string>;
+    categorySignupSource: Record<string, EventSource>;
     categorySheets: Record<string, CategorySheet>;
     topItems: TopItem[];
 };
@@ -74,6 +75,7 @@ function toDraft(config: AdminConfig): Draft {
         raidTemplateId: config.raidDefaults?.templateId || "",
         raidChannelId: config.raidDefaults?.channelId || "",
         categoryLootTool: config.categoryLootTool || {},
+        categorySignupSource: config.categorySignupSource || {},
         categorySheets: config.categorySheets || {},
         topItems: config.topItems || [],
     };
@@ -369,6 +371,7 @@ export default function SettingsPage() {
                 logChannelIds: draft.logChannelIds,
                 raidDefaults: { templateId: draft.raidTemplateId.trim(), channelId: draft.raidChannelId.trim() },
                 categoryLootTool: draft.categoryLootTool,
+                categorySignupSource: draft.categorySignupSource,
                 // Sent whole: the store replaces the map, so clearing a url is
                 // what removes that category's sheet.
                 categorySheets: Object.fromEntries(
@@ -430,11 +433,13 @@ export default function SettingsPage() {
                     categoryIds={draft.categoryIds}
                     categoryRoles={draft.categoryRoles}
                     categoryLootTool={draft.categoryLootTool}
+                    categorySignupSource={draft.categorySignupSource}
                     categorySheets={draft.categorySheets}
                     savedCategoryRoles={data.config.categoryRoles || {}}
                     onToggleCategory={toggleCategory}
                     onToggleRole={toggleRole}
                     onLootTool={(id, tool) => patch({ categoryLootTool: { ...draft.categoryLootTool, [id]: tool } })}
+                    onSignupSource={(id, source) => patch({ categorySignupSource: { ...draft.categorySignupSource, [id]: source } })}
                     onSheet={(id, sheet) => patch({ categorySheets: { ...draft.categorySheets, [id]: sheet } })}
                     csrfToken={csrfToken}
                     icon={activeSection.icon}

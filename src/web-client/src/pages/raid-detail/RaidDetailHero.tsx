@@ -78,12 +78,14 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                     >
                         <WowIcon name="inv_letter_15" size={24} />
                     </a>
-                    <a
-                        className="ibtn" href={raidplanUrl(ev.id)} target="_blank" rel="noopener noreferrer"
-                        data-tip="Raidplan im Raid-Helper" data-tip-sub="Setup und Gruppen bearbeiten" aria-label="Raidplan im Raid-Helper öffnen"
-                    >
-                        <WowIcon name="inv_misc_map_01" size={24} />
-                    </a>
+                    {raidplanUrl(ev.id) && (
+                        <a
+                            className="ibtn" href={raidplanUrl(ev.id)} target="_blank" rel="noopener noreferrer"
+                            data-tip="Raidplan im Raid-Helper" data-tip-sub="Setup und Gruppen bearbeiten" aria-label="Raidplan im Raid-Helper öffnen"
+                        >
+                            <WowIcon name="inv_misc_map_01" size={24} />
+                        </a>
+                    )}
                     {primary && (primary.href
                         ? (
                             <a className={buttonClass("primary", "md", true)} href={primary.href} target="_blank" rel="noopener noreferrer">

@@ -1372,7 +1372,7 @@ describe("web/apiRouter", () => {
             expect(body(res)).toEqual({
                 data: {
                     events: [{
-                        id: "e1", title: "Kara", startTime: 100, channelId: "c1", channelName: "kara-mo",
+                        id: "e1", source: "raidhelper", title: "Kara", startTime: 100, channelId: "c1", channelName: "kara-mo",
                         categoryId: "cat1", categoryName: "Raids", signupCount: 7,
                         contentIds: ["kara"], contentSources: ["title"], raidSize: 10, raidSizeKnown: true,
                         // only the public link — the edit url is the softres admin key
@@ -1456,9 +1456,10 @@ describe("web/apiRouter", () => {
                     channels: [{ id: "c1", name: "kara", category: "Raids" }],
                     templates: [{ id: "t1", name: "GDKP Kara" }],
                     reusableEvents: [{
-                        id: "e1", title: "Kara", templateId: "t1", description: "desc", channelId: "c1", channelName: "kara",
+                        id: "e1", source: "raidhelper", title: "Kara", templateId: "t1", description: "desc", channelId: "c1", channelName: "kara",
                         categoryId: "cat1", categoryName: "Raids", startTime: 50, contentIds: ["kara"],
                     }],
+                    signupSources: {},
                 },
             });
         });
@@ -1615,6 +1616,32 @@ describe("web/apiRouter", () => {
             expect(raidEventGroups.loadEventGroups).not.toHaveBeenCalled();
         });
 
+        it("serves an EventHelper event from the same shape: attendance from its own signups, no Raid-Helper raidplan", async () => {
+            setupDefaults();
+            const own = {
+                id: "eh-1", source: "eventhelper", title: "Kara EH", startTime: 4000000000, channelId: "chan9",
+                channelName: "kara-eh", categoryId: "cat1", signupCount: 1, size: 10, instanceIds: ["kara"],
+                signUps: [{ userId: "1", specName: "Protection1", className: "Paladin", status: "signed" }],
+                signUpsFromSnapshot: false,
+            };
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [{ categoryId: "cat1", categoryName: "Raids", events: [own] }], error: null });
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: { cat1: ["role1"] } });
+            discord.listMembersWithRoles.mockResolvedValue({ members: [{ id: "1", displayName: "Anna" }, { id: "2", displayName: "Bob" }], error: null });
+
+            const res = await get("/api/raids/detail", { event: "eh-1" });
+
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            const data = body(res).data;
+            expect(data.event).toMatchObject({ id: "eh-1", source: "eventhelper", isPast: false, signupsKnown: true });
+            expect(mockGetSetup).not.toHaveBeenCalled();
+            expect(data.setup).toEqual({ total: 0, groups: [], roleCounts: {} });
+            expect(data.setupError).toBeNull();
+            expect(data.signupTarget).toBe(10);
+            expect(data.attendance.responded.map((m) => [m.id, m.status])).toEqual([["1", "signed"]]);
+            expect(data.attendance.missing.map((m) => m.id)).toEqual(["2"]);
+            expect(data.progress.primary).toMatchObject({ modal: "sheet" });
+        });
+
         it("returns the full read-only overview: setup, attendance, sheet/softres links and loot", async () => {
             setupDefaults();
             settingsStore.listRaidsheets.mockReturnValue([{ id: "sheet1", name: "Kara Sheet", keywords: ["kara"] }]);
@@ -1646,7 +1673,7 @@ describe("web/apiRouter", () => {
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
             const data = body(res).data;
             expect(data.event).toEqual({
-                id: "e1", title: "GDKP Kara", startTime: 1753500000,
+                id: "e1", source: "raidhelper", title: "GDKP Kara", startTime: 1753500000,
                 channelId: "chan1", channelName: "kara-channel", signupCount: 1,
                 isPast: true, signupsKnown: true, signUpsFromSnapshot: false,
             });
@@ -2152,6 +2179,14 @@ describe("web/apiRouter", () => {
             const res = await post("/api/raids/fill", { event: "e1", sheetId: "missing" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
             expect(body(res)).toEqual({ error: { code: "sheet_not_found", message: "Raidsheet nicht gefunden." } });
+        });
+
+        it("refuses an EventHelper event, which has no Raid-Helper raidplan to copy", async () => {
+            setupDefaults();
+            const res = await post("/api/raids/fill", { event: "eh-1", sheetId: "sheet1" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res).error.code).toBe("no_raidplan");
+            expect(mockGetSetup).not.toHaveBeenCalled();
         });
 
         it("returns 400 when the raidsheet has no spreadsheetId", async () => {
@@ -3858,7 +3893,7 @@ describe("web/apiRouter", () => {
             );
             expect(logEventMatch.annotateMatches).toHaveBeenCalledWith(
                 expect.any(Array),
-                [{ id: "e1", title: "Kara", startTime: 100, channelId: "c1", channelName: "log-chan", categoryId: "cat1", categoryName: "Raids" }],
+                [{ id: "e1", source: "raidhelper", title: "Kara", startTime: 100, channelId: "c1", channelName: "log-chan", categoryId: "cat1", categoryName: "Raids" }],
             );
         });
 
@@ -4464,7 +4499,7 @@ describe("web/apiRouter", () => {
             ]);
             discord.getChannelCategoryMap.mockReturnValue({ c1: { name: "chan", categoryId: "cat1", categoryName: "Raids" } });
             mockGetPastEvents.mockResolvedValue([{ id: "e9", title: "Match Event", startTime: 500, channelId: "c1" }]);
-            const matchedEvent = { id: "e9", title: "Match Event", startTime: 500, channelId: "c1", channelName: "chan", categoryId: "cat1", categoryName: "Raids" };
+            const matchedEvent = { id: "e9", source: "raidhelper", title: "Match Event", startTime: 500, channelId: "c1", channelName: "chan", categoryId: "cat1", categoryName: "Raids" };
             logEventMatch.autoMatches.mockReturnValue([{ log: { id: "l1" }, event: matchedEvent, diffMs: 1000 }]);
 
             const res = await post("/api/cla/log-automatch", {});

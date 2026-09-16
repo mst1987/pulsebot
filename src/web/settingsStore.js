@@ -83,6 +83,10 @@ const CONFIG_DEFAULTS = {
     // Which loot addon a Discord category uses, keyed by category id:
     // "gargul" | "rclc". Steers the loot-import parser and the char-loot history.
     categoryLootTool: {},
+    // Where NEW events of a Discord category are created, keyed by category id:
+    // "raidhelper" (default) | "eventhelper". Only the default for new events —
+    // a Raid-Helper event stays fully in use in either case (eventSources.js).
+    categorySignupSource: {},
     // A fixed, guild-owned Google Sheet per Discord category:
     // { [categoryId]: { url, name } }. When one is set, a raid in that category
     // links this sheet instead of needing its own copy. A copy the app actually
@@ -433,6 +437,7 @@ function getConfig() {
         warcraftlogsV2: { ...CONFIG_DEFAULTS.warcraftlogsV2, ...(stored.warcraftlogsV2 || {}) },
         categoryLootTool: (stored.categoryLootTool && typeof stored.categoryLootTool === "object")
             ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
+        categorySignupSource: normalizeCategorySignupSource(stored.categorySignupSource),
         categorySheets: normalizeCategorySheets(stored.categorySheets),
         topItems: normalizeTopItems(stored.topItems),
     };
@@ -461,6 +466,21 @@ function normalizeTopItems(raw) {
             iconUrl: /^https?:\/\//i.test(iconUrl) ? iconUrl : "",
             quality: typeof entry.quality === "number" ? entry.quality : null,
         });
+    }
+    return out;
+}
+
+/**
+ * Normalise categorySignupSource to `{ [categoryId]: "eventhelper" }`. Only the
+ * switched categories are kept: "raidhelper" is the default and anything
+ * unknown falls back to it, so the stored map never names a third source.
+ */
+function normalizeCategorySignupSource(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, source] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        if (key && source === "eventhelper") out[key] = "eventhelper";
     }
     return out;
 }
@@ -535,6 +555,10 @@ function saveConfig(partial) {
     if (partial.anthropic) next.anthropic = { ...current.anthropic, ...partial.anthropic };
     if (partial.warcraftlogsV2) next.warcraftlogsV2 = { ...current.warcraftlogsV2, ...partial.warcraftlogsV2 };
     if (partial.categoryLootTool) next.categoryLootTool = { ...current.categoryLootTool, ...partial.categoryLootTool };
+    // Merged, then normalised: a category set back to "raidhelper" drops out.
+    if (partial.categorySignupSource) {
+        next.categorySignupSource = normalizeCategorySignupSource({ ...current.categorySignupSource, ...partial.categorySignupSource });
+    }
     if (partial.categorySheets) {
         next.categorySheets = normalizeCategorySheets({ ...current.categorySheets, ...partial.categorySheets });
     }

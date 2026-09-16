@@ -1,7 +1,7 @@
 // Data assembly shared by the dashboard's SSR route (server.js) and its JSON
 // counterpart (apiRouter.js) — moved out of server.js so both can require it
 // without a circular dependency (server.js requires apiRouter.js).
-const { listRaidEvents } = require("./raidEventStore");
+const { listStoredEvents, ownUpcomingRaw } = require("./eventSources");
 const { scanRaidEvents } = require("./raidEventScan");
 const { listByEvent: listLootByEvent } = require("./lootStore");
 const { getEventSheet } = require("./eventSheetStore");
@@ -58,38 +58,54 @@ function sheetFor(eventId, categoryId) {
  */
 async function loadNextRaids(guildId, count = 2) {
     if (!guildId) return { raids: [], error: null };
+    const rh = createRaidhelperClient();
+    let rhEvents = [];
+    let error = null;
     try {
-        const rh = createRaidhelperClient();
-        const events = await rh.getAllEvents(); // upcoming, sorted ascending by startTime
-        const catMap = discord.getChannelCategoryMap(guildId);
-        const next = events.filter((ev) => catMap[ev.channelId]).slice(0, count);
-        const raids = [];
-        for (const ev of next) {
-            const meta = catMap[ev.channelId] || {};
-            const slots = await setupSlots(rh, ev.id);
-            const softresList = getEventSoftres(ev.id);
-            const zone = zoneFor(ev.title);
-            const size = raidSize(zone.contentId, softres.targetSizeForInstances((softresList && softresList.instances) || []));
-            raids.push({
-                id: ev.id,
-                title: ev.title,
-                startTime: ev.startTime,
-                channelId: ev.channelId,
-                channelName: meta.name || "",
-                categoryId: meta.categoryId || "",
-                icon: zone.icon,
-                size,
-                signupCount: (ev.signUps || []).filter(isAttending).length,
-                setupCount: slots.length,
-                roles: roleFill({ setupSlots: slots, signUps: ev.signUps || [], size }),
-                sheet: sheetFor(ev.id, meta.categoryId || ""),
-                softres: softresList && softresList.url ? { url: softresList.url } : null,
-            });
-        }
-        return { raids, error: null };
+        rhEvents = (await rh.getAllEvents()) || []; // upcoming, sorted ascending by startTime
+    } catch (e) {
+        error = (e && e.message) || RH_ERROR;
+    }
+    let catMap = {};
+    try {
+        catMap = discord.getChannelCategoryMap(guildId) || {};
     } catch (e) {
         return { raids: [], error: (e && e.message) || RH_ERROR };
     }
+    // Both sources, soonest first. A Raid-Helper outage leaves the own events standing.
+    const next = [
+        ...rhEvents.filter((ev) => catMap[ev.channelId]).map((ev) => ({ source: "raidhelper", ...ev })),
+        ...ownUpcomingRaw(guildId),
+    ].sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0)).slice(0, count);
+    const raids = [];
+    for (const ev of next) {
+        const own = ev.source === "eventhelper";
+        const meta = catMap[ev.channelId] || {};
+        // The raidplan lives at Raid-Helper; an own event's setup comes with #263.
+        const slots = own ? [] : await setupSlots(rh, ev.id);
+        const softresList = getEventSoftres(ev.id);
+        const zone = zoneFor(ev.title);
+        const size = own && ev.size
+            ? ev.size
+            : raidSize(zone.contentId, softres.targetSizeForInstances((softresList && softresList.instances) || []));
+        raids.push({
+            id: ev.id,
+            source: ev.source,
+            title: ev.title,
+            startTime: ev.startTime,
+            channelId: ev.channelId,
+            channelName: meta.name || ev.channelName || "",
+            categoryId: meta.categoryId || ev.categoryId || "",
+            icon: zone.icon,
+            size,
+            signupCount: (ev.signUps || []).filter(isAttending).length,
+            setupCount: slots.length,
+            roles: roleFill({ setupSlots: slots, signUps: ev.signUps || [], size, composition: own ? ev.composition : null }),
+            sheet: sheetFor(ev.id, meta.categoryId || ev.categoryId || ""),
+            softres: softresList && softresList.url ? { url: softresList.url } : null,
+        });
+    }
+    return { raids, error: raids.length ? null : error };
 }
 
 /**
@@ -105,11 +121,13 @@ async function loadNextRaidDetails(guildId, eventId) {
     if (!found) return { error: groupsError || "Event nicht gefunden.", notFound: !groupsError };
     const { e: ev, g } = found;
 
-    const rh = createRaidhelperClient();
-    const slots = await setupSlots(rh, ev.id);
+    const own = ev.source === "eventhelper";
+    const slots = own ? [] : await setupSlots(createRaidhelperClient(), ev.id);
     const softresList = getEventSoftres(ev.id);
     const zone = zoneFor(ev.title);
-    const size = raidSize(zone.contentId, softres.targetSizeForInstances((softresList && softresList.instances) || []));
+    const size = own && ev.size
+        ? ev.size
+        : raidSize(zone.contentId, softres.targetSizeForInstances((softresList && softresList.instances) || []));
     const signUps = ev.signUps || [];
 
     const roleIds = (getConfig().categoryRoles || {})[g.categoryId] || [];
@@ -130,6 +148,7 @@ async function loadNextRaidDetails(guildId, eventId) {
         error: null,
         raid: {
             id: ev.id,
+            source: ev.source || "raidhelper",
             title: ev.title,
             startTime: ev.startTime,
             channelId: ev.channelId,
@@ -137,7 +156,7 @@ async function loadNextRaidDetails(guildId, eventId) {
             icon: zone.icon,
             size,
             signupCount: signUps.filter(isAttending).length,
-            roles: roleFill({ setupSlots: slots, signUps, size }),
+            roles: roleFill({ setupSlots: slots, signUps, size, composition: own ? ev.composition : null }),
             classes: classCounts(signUps),
             setupCount: slots.length,
             sheet: sheetFor(ev.id, g.categoryId),
@@ -217,7 +236,7 @@ async function loadRecentEvents(guildId, limit = 5) {
     // log posted since the last sweep already shows up under its event here (and,
     // because the assignment is persisted, on that event's detail page too).
     await autoLinkLogs(guildId);
-    const stored = listRaidEvents(guildId);
+    const stored = listStoredEvents(guildId);
     // Only logs from this guild can belong to one of its raids.
     const logs = listLogs()
         .filter((l) => !l.guildId || l.guildId === guildId)
@@ -226,6 +245,7 @@ async function loadRecentEvents(guildId, limit = 5) {
     return {
         events: recent.map((ev) => ({
             id: ev.id,
+            source: ev.source || "raidhelper",
             title: ev.title,
             startTime: ev.startTime,
             channelId: ev.channelId,

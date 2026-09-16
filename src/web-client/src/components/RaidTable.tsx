@@ -59,7 +59,9 @@ function LinksCell({ ev, guildId }: { ev: RaidRow; guildId: string }) {
     if (guildId && ev.channelId) {
         links.push(<a key="discord" className="mlink" href={eventPostUrl(guildId, ev.channelId, ev.id)} target="_blank" rel="noopener noreferrer">Discord</a>);
     }
-    links.push(<a key="setup" className="mlink" href={raidplanUrl(ev.id)} target="_blank" rel="noopener noreferrer">Setup/Comp</a>);
+    if (raidplanUrl(ev.id)) {
+        links.push(<a key="setup" className="mlink" href={raidplanUrl(ev.id)} target="_blank" rel="noopener noreferrer">Setup/Comp</a>);
+    }
     if (ev.softres?.url) {
         links.push(<a key="softres" className="mlink" href={ev.softres.url} target="_blank" rel="noopener noreferrer">Softres</a>);
     }

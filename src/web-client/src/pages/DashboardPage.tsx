@@ -87,7 +87,7 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
                                 : <Badge tone="mid" icon="inv_scroll_11" tip="Softres-Liste fehlt" tipSub="Wird auf der Seite des Raid-Events erstellt.">Softres fehlt</Badge>}
                             <span className="ov-links">
                                 {guildId && raid.channelId && <IconLink icon="inv_letter_15" href={eventPostUrl(guildId, raid.channelId, raid.id)} tip="Discord-Post" tipSub="Die Anmeldung in Discord öffnen" />}
-                                <IconLink icon="inv_misc_groupneedmore" href={raidplanUrl(raid.id)} tip="Setup / Comp" tipSub="Raidplan bei Raid-Helper öffnen" />
+                                {raidplanUrl(raid.id) && <IconLink icon="inv_misc_groupneedmore" href={raidplanUrl(raid.id)} tip="Setup / Comp" tipSub="Raidplan bei Raid-Helper öffnen" />}
                                 {raid.softres && <IconLink icon="inv_scroll_11" href={raid.softres.url} tip="Softres" tipSub="Softres-Liste öffnen" />}
                             </span>
                         </div>

@@ -144,6 +144,16 @@ describe("web/settingsStore", () => {
             expect(getConfig().categoryLootTool).toEqual({});
         });
 
+        it("keeps only switched categories in categorySignupSource, and switching back removes one", () => {
+            expect(getConfig().categorySignupSource).toEqual({});
+            saveConfig({ categorySignupSource: { c1: "eventhelper", c2: "raidhelper", c3: "bogus" } });
+            expect(getConfig().categorySignupSource).toEqual({ c1: "eventhelper" });
+            saveConfig({ categorySignupSource: { c4: "eventhelper" } });
+            expect(getConfig().categorySignupSource).toEqual({ c1: "eventhelper", c4: "eventhelper" });
+            saveConfig({ categorySignupSource: { c1: "raidhelper" } });
+            expect(getConfig().categorySignupSource).toEqual({ c4: "eventhelper" });
+        });
+
         it("defaults categoryRoles to an empty object and round-trips a map", () => {
             expect(getConfig().categoryRoles).toEqual({});
             saveConfig({ categoryRoles: { c1: ["r1", "r2"], c2: ["r3"] } });

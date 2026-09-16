@@ -74,6 +74,11 @@ function signupStep(d) {
     };
 }
 
+/** An event of the EventHelper's own store: no Raid-Helper raidplan to link to. */
+function isOwnEvent(d) {
+    return !!(d && d.event && d.event.source === "eventhelper");
+}
+
 function setupStep(d) {
     const setup = d.setup;
     const total = (setup && setup.total) || 0;
@@ -82,7 +87,10 @@ function setupStep(d) {
         return { ...step, tone: "bad", value: "—", unit: "", badge: { label: "Fehler", tone: "bad" }, tip: { head: "Setup · nicht geladen", sub: d.setupError } };
     }
     if (!total) {
-        return { ...step, tone: "none", value: "—", unit: "", badge: { label: "kein Plan" }, tip: { head: "Setup · noch kein Raidplan", sub: "Im Raid-Helper ist für dieses Event noch kein Raidplan angelegt." } };
+        const sub = isOwnEvent(d)
+            ? "Dieses Event wird im EventHelper geplant; das Setup entsteht hier, sobald die Anmeldungen da sind."
+            : "Im Raid-Helper ist für dieses Event noch kein Raidplan angelegt.";
+        return { ...step, tone: "none", value: "—", unit: "", badge: { label: "kein Plan" }, tip: { head: "Setup · noch kein Raidplan", sub } };
     }
     const roles = roleSummary(setup.roleCounts);
     return {
@@ -200,7 +208,10 @@ function primaryFor(step, d) {
     if (!step) return null;
     switch (step.key) {
         case "signup": return { label: "Anmelde-Aufruf posten", icon: "inv_letter_15", modal: "notify" };
-        case "setup": return { label: "Raidplan öffnen", icon: "inv_misc_map_01", href: `https://raid-helper.xyz/raidplan/${(d.event || {}).id || ""}` };
+        // The raidplan link only exists at Raid-Helper; an own event's setup editor comes with #263.
+        case "setup": return isOwnEvent(d)
+            ? null
+            : { label: "Raidplan öffnen", icon: "inv_misc_map_01", href: `https://raid-helper.xyz/raidplan/${(d.event || {}).id || ""}` };
         case "sheet": return { label: "Raidsheet füllen", icon: "inv_scroll_03", modal: "sheet" };
         case "softres": return { label: "Softres erstellen", icon: "inv_misc_ticket_tarot_madness", modal: "softres" };
         case "loot": return { label: "Loot hinzufügen", icon: "inv_misc_bag_10", modal: "loot" };
@@ -223,7 +234,9 @@ function primaryFor(step, d) {
  */
 function raidSteps(d) {
     const steps = [signupStep(d), setupStep(d), sheetStep(d), softresStep(d), lootStep(d), logsStep(d)];
-    const candidates = (d.event && d.event.isPast) ? ["loot", "logs"] : ["signup", "setup", "sheet", "softres"];
+    // An own event has no setup to build yet (#263), so it never blocks the way to the sheet.
+    const before = isOwnEvent(d) ? ["signup", "sheet", "softres"] : ["signup", "setup", "sheet", "softres"];
+    const candidates = (d.event && d.event.isPast) ? ["loot", "logs"] : before;
     const nextStep = steps.find((s) => candidates.includes(s.key) && !s.done) || null;
     for (const s of steps) s.next = !!nextStep && s.key === nextStep.key;
     return { steps, next: nextStep ? nextStep.key : "", primary: primaryFor(nextStep, d) };

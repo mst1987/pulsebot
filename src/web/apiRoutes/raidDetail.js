@@ -20,7 +20,8 @@ const {
 } = require("../../utils/attendance");
 const { resolveAssignmentProfiles } = require("../raiderCharactersStore");
 const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("../eventSheetStore");
-const { getRaidEvent, listRaidEvents } = require("../raidEventStore");
+const { getRaidEvent } = require("../raidEventStore");
+const { listStoredEvents, sourceOfEventId } = require("../eventSources");
 const {
     getEventSoftres, saveEventSoftres, setEventSoftresLink, markEventSoftresPosted,
 } = require("../eventSoftresStore");
@@ -71,26 +72,31 @@ async function getRaidDetail(req, res, url) {
     let setupError = null;
     let tankCands = [];
     let setupFromSnapshot = false;
-    const snapshot = getRaidEvent(eventId);
-    const snapshotSetup = (snapshot && snapshot.setup) || [];
-    try {
-        const rh = createRaidhelperClient();
-        const result = await rh.getSetup(eventId);
-        let slots = result && result.setup ? result.setup : [];
-        if (!slots.length && snapshotSetup.length) {
-            slots = snapshotSetup;
-            setupFromSnapshot = true;
-        }
-        setup = buildSetupView(slots);
-        tankCands = tankCandidates(slots);
-    } catch (e) {
-        if (snapshotSetup.length) {
-            setup = buildSetupView(snapshotSetup);
-            tankCands = tankCandidates(snapshotSetup);
-            setupFromSnapshot = true;
-        } else {
-            console.error("event setup load failed:", e.message);
-            setupError = e.message || "Setup konnte nicht geladen werden.";
+    // An own event has no Raid-Helper raidplan; its setup comes with #263.
+    if (found.e.source === "eventhelper") {
+        setup = buildSetupView([]);
+    } else {
+        const snapshot = getRaidEvent(eventId);
+        const snapshotSetup = (snapshot && snapshot.setup) || [];
+        try {
+            const rh = createRaidhelperClient();
+            const result = await rh.getSetup(eventId);
+            let slots = result && result.setup ? result.setup : [];
+            if (!slots.length && snapshotSetup.length) {
+                slots = snapshotSetup;
+                setupFromSnapshot = true;
+            }
+            setup = buildSetupView(slots);
+            tankCands = tankCandidates(slots);
+        } catch (e) {
+            if (snapshotSetup.length) {
+                setup = buildSetupView(snapshotSetup);
+                tankCands = tankCandidates(snapshotSetup);
+                setupFromSnapshot = true;
+            } else {
+                console.error("event setup load failed:", e.message);
+                setupError = e.message || "Setup konnte nicht geladen werden.";
+            }
         }
     }
 
@@ -140,9 +146,11 @@ async function getRaidDetail(req, res, url) {
     const eventSoftres = getEventSoftres(eventId);
     // Signup counter target: the raid size implied by the created softres list,
     // falling back to the expected headcount from the attendance role(s).
-    const signupTarget = eventSoftres && eventSoftres.instances && eventSoftres.instances.length
+    // An own event names the size it is planned for, which beats both guesses.
+    let signupTarget = eventSoftres && eventSoftres.instances && eventSoftres.instances.length
         ? softres.targetSizeForInstances(eventSoftres.instances)
         : (categoryRoleIds.length ? (attendance.responded.length + attendance.missing.length) : 0);
+    if (found.e.source === "eventhelper" && found.e.size) signupTarget = found.e.size;
 
     // Logs: already assigned to this event, plus the still-unassigned ones from
     // this guild (candidates for the "Log zuordnen" picker).
@@ -156,6 +164,7 @@ async function getRaidDetail(req, res, url) {
     const payload = {
         event: {
             id: found.e.id,
+            source: found.e.source || "raidhelper",
             title: found.e.title,
             startTime: found.e.startTime,
             channelId: found.e.channelId,
@@ -203,7 +212,7 @@ async function getRaidDetail(req, res, url) {
         ...((setup && setup.groups) || []).flatMap((g) => g.players.map((p) => p.name)),
         ...[...attendance.responded, ...attendance.missing].map((p) => p.character || ""),
     ];
-    payload.playerSummaries = summarizePlayers(names, listAllLoot(), listRaidEvents(guildId), { categoryId: found.g.categoryId });
+    payload.playerSummaries = summarizePlayers(names, listAllLoot(), listStoredEvents(guildId), { categoryId: found.g.categoryId });
     ok(res, payload);
 }
 
@@ -309,6 +318,9 @@ async function postFill(req, res) {
     const eventId = String(body.event || "").trim();
     const sheet = getRaidsheet(String(body.sheetId || "").trim());
     if (!sheet) return error(res, 400, "sheet_not_found", "Raidsheet nicht gefunden.");
+    if (sourceOfEventId(eventId) === "eventhelper") {
+        return error(res, 400, "no_raidplan", "Dieses Event wird im EventHelper geplant – es gibt keinen Raid-Helper-Raidplan, aus dem das Sheet gefüllt werden könnte.");
+    }
     if (!sheet.spreadsheetId) return error(res, 400, "no_spreadsheet_id", "Raidsheet hat keine Spreadsheet-ID (in den Einstellungen ergänzen).");
     try {
         // Event meta (title + start) is only needed for the copy name and the

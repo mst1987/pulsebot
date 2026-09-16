@@ -74,6 +74,19 @@ describe("web/raidListing", () => {
             ]);
             expect(rows[1]).not.toHaveProperty("signUps");
         });
+
+        it("takes an own event's planned instances and size over the wording", () => {
+            const rows = upcomingRows([
+                { categoryId: "c1", categoryName: "Donnerstag", events: [
+                    { id: "eh-1", source: "eventhelper", title: "Hyjal Farm", instanceIds: ["gruul", "mag"], size: 20, signupCount: 3 },
+                    { id: "e2", title: "Kara" },
+                ] },
+            ]);
+            expect(rows[0]).toMatchObject({
+                id: "eh-1", source: "eventhelper", contentIds: ["gruul", "mag"], contentSources: ["event"], raidSize: 20, raidSizeKnown: true,
+            });
+            expect(rows[1]).toMatchObject({ id: "e2", source: "raidhelper", contentIds: ["kara"], contentSources: ["title"] });
+        });
     });
 
     describe("loadPastRaids", () => {

@@ -74,7 +74,7 @@ function Details({ raid, guildId }: { raid: NextRaidDetails; guildId: string }) 
                     {check(!!raid.sheet, "inv_misc_note_02", "Raidsheet", raid.sheet ? (raid.sheet.playerCount ? `${raid.sheet.playerCount} Spieler` : "vorhanden") : "fehlt",
                         raid.sheet?.url ? { href: raid.sheet.url, tip: "Raidsheet öffnen" } : undefined)}
                     {check(raid.setupCount > 0, "inv_misc_groupneedmore", "Setup / Comp", raid.setupCount ? `${raid.setupCount} gesetzt` : "offen",
-                        { href: raidplanUrl(raid.id), tip: "Raidplan bei Raid-Helper öffnen" })}
+                        raidplanUrl(raid.id) ? { href: raidplanUrl(raid.id), tip: "Raidplan bei Raid-Helper öffnen" } : undefined)}
                     {check(!!raid.softres, "inv_scroll_11", "Softres", raid.softres ? "erstellt" : "fehlt",
                         raid.softres ? { href: raid.softres.url, tip: "Softres-Liste öffnen" } : undefined)}
                     {check(!!(guildId && raid.channelId), "inv_letter_15", "Discord-Post", guildId && raid.channelId ? "gepostet" : "unbekannt",

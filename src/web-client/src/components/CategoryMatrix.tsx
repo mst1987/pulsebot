@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { getRaiderCharacters, type Category, type Role } from "../api";
+import { getRaiderCharacters, type Category, type EventSource, type Role } from "../api";
 import { usePersistedState } from "../lib/persistedState";
 import {
     categoryRows, splitCategoryRows, summarizeRaiderChars, type CategoryRow, type RaiderCharSummary,
@@ -14,8 +14,9 @@ import RaiderCharactersModal from "./RaiderCharactersModal";
 import { CheckMark, FieldLabel, WarnIcon } from "./settingsUi";
 
 // Everything that is configured *per raid category*, as one list instead of a
-// card per Discord category: active switch, raider roles, loot addon, fixed
-// sheet and the raider → character assignment, which used to be a section of
+// card per Discord category: active switch, raider roles, where new events are
+// created (Raid-Helper / EventHelper), loot addon, fixed sheet and the raider →
+// character assignment, which used to be a section of
 // its own with a second category picker. One row opens at a time.
 //
 // The guild's Discord holds far more categories than raid ones (typically 13 of
@@ -31,21 +32,30 @@ const LOOT_TOOLS = [
     { value: "", label: "keins" },
 ];
 
+// Where NEW events of the category are created. Raid-Helper events stay in use either way.
+const SIGNUP_SOURCES = [
+    { value: "raidhelper", label: "Raid-Helper" },
+    { value: "eventhelper", label: "EventHelper" },
+];
+
 export default function CategoryMatrix({
-    categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySheets, savedCategoryRoles,
-    onToggleCategory, onToggleRole, onLootTool, onSheet, csrfToken, icon, crumb,
+    categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySignupSource = {}, categorySheets, savedCategoryRoles,
+    onToggleCategory, onToggleRole, onLootTool, onSignupSource, onSheet, csrfToken, icon, crumb,
 }: {
     categories: Category[];
     roles: Role[];
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
     categoryLootTool: Record<string, string>;
+    /** Missing = "raidhelper". */
+    categorySignupSource?: Record<string, EventSource>;
     categorySheets: Record<string, CategorySheet>;
     /** The saved roles — the assignment modal works on those, not on the draft. */
     savedCategoryRoles: Record<string, string[]>;
     onToggleCategory: (id: string) => void;
     onToggleRole: (categoryId: string, roleId: string) => void;
     onLootTool: (categoryId: string, tool: string) => void;
+    onSignupSource: (categoryId: string, source: EventSource) => void;
     onSheet: (categoryId: string, sheet: CategorySheet) => void;
     csrfToken: string | null;
     icon: string;
@@ -61,6 +71,7 @@ export default function CategoryMatrix({
         ...categoryIds,
         ...Object.keys(categoryRoles),
         ...Object.keys(categoryLootTool),
+        ...Object.keys(categorySignupSource),
         ...Object.keys(categorySheets),
     ];
     const rows = categoryRows(categories, configured);
@@ -125,6 +136,7 @@ export default function CategoryMatrix({
         const active = categoryIds.includes(cat.id);
         const assigned = categoryRoles[cat.id] || [];
         const tool = categoryLootTool[cat.id] || "";
+        const signupSource: EventSource = categorySignupSource[cat.id] || "raidhelper";
         const sheet = categorySheets[cat.id] || { url: "", name: "" };
         const summary = chars[cat.id];
         const isOpen = openId === cat.id && active;
@@ -202,6 +214,10 @@ export default function CategoryMatrix({
                             </div>
                         </div>
                         <div className="cat-detail-col">
+                            <div>
+                                <FieldLabel tip="Neue Events" tipSub="Wo neue Events dieser Kategorie angelegt werden. Raid-Helper-Events werden in jedem Fall weiter mitgenutzt – in Listen, Anwesenheit, Log- und Loot-Zuordnung.">Neue Events</FieldLabel>
+                                <Segment ariaLabel={`Neue Events ${cat.name}`} value={signupSource} onChange={(v) => onSignupSource(cat.id, v as EventSource)} options={SIGNUP_SOURCES} />
+                            </div>
                             <div>
                                 <FieldLabel tip="Loot-Addon" tipSub="Wählt beim Loot-Import den passenden Parser vor und sagt dem Loot-Tab der Raid-Detailseite, welchen Export er erwartet.">Loot-Addon</FieldLabel>
                                 <Segment ariaLabel={`Loot-Addon ${cat.name}`} value={tool} onChange={(v) => onLootTool(cat.id, v)} options={LOOT_TOOLS} />

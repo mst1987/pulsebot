@@ -134,7 +134,7 @@ export function UpcomingRaidList({ events, guildId, canWrite, onRepeat, emptyMes
                                     {guildId && ev.channelId && (
                                         <IconLink href={eventPostUrl(guildId, ev.channelId, ev.id)} icon="inv_letter_15" tip="Discord-Post öffnen" tipSub={`Springt zur Anmelde-Nachricht${ev.channelName ? ` in #${ev.channelName}` : ""}.`} />
                                     )}
-                                    <IconLink href={raidplanUrl(ev.id)} icon="inv_misc_groupneedmore" tip="Setup/Comp" tipSub="Die Aufstellung dieses Events im Raid-Helper." />
+                                    {raidplanUrl(ev.id) && <IconLink href={raidplanUrl(ev.id)} icon="inv_misc_groupneedmore" tip="Setup/Comp" tipSub="Die Aufstellung dieses Events im Raid-Helper." />}
                                     {ev.softres?.url && <IconLink href={ev.softres.url} icon="inv_scroll_11" tip="Softres" tipSub="Die Soft-Reserve-Liste des Raids auf softres.it." />}
                                     {canWrite && (
                                         <IconButton icon="spell_holy_borrowedtime" size="sm" tip="Wiederholen" tipSub="Neues Event mit diesem als Vorlage anlegen: Titel, Template und Beschreibung übernommen, Kanal geklont." onClick={() => onRepeat(ev.id)} />

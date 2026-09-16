@@ -31,6 +31,18 @@ function normalizeCategoryLootTool(raw) {
     return out;
 }
 
+// Where a category's new events are created. Anything but the two sources
+// becomes "raidhelper", the default, which the store then drops again.
+function normalizeCategorySignupSource(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [categoryId, source] of Object.entries(raw)) {
+        const id = String(categoryId).trim();
+        if (id) out[id] = source === "eventhelper" ? "eventhelper" : "raidhelper";
+    }
+    return out;
+}
+
 // A fixed sheet per category: only a http(s) link is stored. Anything else
 // (javascript:, a bare word, an empty field) becomes "", which settingsStore's
 // normalizer then drops — so a category is either unassigned or carries a link
@@ -205,6 +217,7 @@ async function updateSettings(req, res) {
         if (body.warcraftlogsV2.clientSecret !== undefined) partial.warcraftlogsV2.clientSecret = String(body.warcraftlogsV2.clientSecret || "").trim();
     }
     if (body.categoryLootTool !== undefined) partial.categoryLootTool = normalizeCategoryLootTool(body.categoryLootTool);
+    if (body.categorySignupSource !== undefined) partial.categorySignupSource = normalizeCategorySignupSource(body.categorySignupSource);
     if (body.categorySheets !== undefined) partial.categorySheets = normalizeCategorySheets(body.categorySheets);
     // Sent as the complete list; settingsStore normalises it and replaces the
     // stored one, so removing an item is just leaving it out.
