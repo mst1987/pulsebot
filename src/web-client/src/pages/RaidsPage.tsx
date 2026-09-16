@@ -146,6 +146,7 @@ export default function RaidsPage() {
                     </h1>
                 </div>
                 <div className="ph-act">
+                    <Link className={buttonClass("ghost", "md", true)} to="/raids/series"><WowIcon name="spell_holy_borrowedtime" size={22} />Serien</Link>
                     <Link className={buttonClass("ghost", "md", true)} to="/raids/raid-templates"><WowIcon name="inv_misc_note_01" size={22} />Raid-Vorlagen</Link>
                     <Link className={buttonClass("ghost", "md", true)} to="/raids/templates"><WowIcon name="inv_misc_horn_01" size={22} />Aufruf-Vorlagen</Link>
                     {canWrite && <Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_05" size={22} />Neues Event</Link>}

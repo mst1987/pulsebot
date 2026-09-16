@@ -8,6 +8,7 @@ const { startEventMessageSync } = require("./eventMessage");
 const { startReminders } = require("./reminders");
 const { startRoleSync } = require("./roleSync");
 const { startTalkOverview } = require("./talkOverview");
+const { startEventSeries } = require("./eventSeries");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
 const { startSheetCleanup } = require("../utils/sheetCleanup");
 const discord = require("./discord");
@@ -171,6 +172,8 @@ function startWebServer(client) {
     startRoleSync();
     // The raid overview on the talk server (#257); does nothing until configured.
     startTalkOverview();
+    // Recurring events per category (#289): creates each date's event in time; nothing until a series exists.
+    startEventSeries();
     return server;
 }
 
