@@ -9,6 +9,7 @@ const {
     guildId, raidhelperServerId,
 } = require("../config/variables");
 const { normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess } = require("../config/permissions");
+const { isLegacy, migrateLegacy, normalizeTemplate, validateTemplate } = require("./raidTemplates");
 const { normalizeBotCommandAccess } = require("../config/botCommands");
 
 // Editable bot settings live as JSON files under data/settings/.
@@ -80,8 +81,10 @@ const CONFIG_DEFAULTS = {
     categoryRoles: {},
     // Channels the bot watches for Warcraft-Logs links to offer auto-evaluation.
     logChannelIds: [],
-    // Defaults pre-filled into the raid-event form.
-    raidDefaults: { templateId: "", channelId: "" },
+    // Defaults pre-filled into the raid-event form. The default *template* is
+    // per category now (categoryRaidTemplate); a stored raidDefaults.templateId
+    // is only read once more, to migrate it (see categoryRaidTemplateOf()).
+    raidDefaults: { channelId: "" },
     // Battle.net API credentials for optional live character gear (paperdoll) on
     // the char-history page. Empty → char pages just link to classic-armory.org.
     blizzard: {
@@ -100,6 +103,10 @@ const CONFIG_DEFAULTS = {
     // links this sheet instead of needing its own copy. A copy the app actually
     // created for that raid still wins — see resolveEventSheetLink() below.
     categorySheets: {},
+    // The default raid template per Discord category: { [categoryId]: templateId }
+    // (Einstellungen → Kategorien). A template that is some category's default
+    // cannot be deleted (409 in apiRoutes/raidTemplates.js).
+    categoryRaidTemplate: {},
     // The items the guild considers a "big" drop: [{ id, name, iconUrl, quality }],
     // picked from the Wowhead search in Einstellungen → Loot. Imported loot is
     // matched against these ids for the dashboard's "Latest Loot" card
@@ -240,42 +247,59 @@ function deleteRecruitmentPost(id) {
     return true;
 }
 
-// ---- raid templates (Raid-Helper templateId -> friendly name) ----
-// Raid-Helper has no public "list templates" endpoint, so the admin menu keeps
-// its own list of the server's templates: added by hand or imported from the
-// server's existing Raid-Helper events. It powers the dropdown in the raid form.
+// ---- raid templates (#266): size, tanks, healers per evening ----
+// Stored as `{ templates: [...] }` in data/settings/raid-templates.json; the
+// shape and its rules are in raidTemplates.js. A pre-#266 entry (a bare
+// Raid-Helper `{ id, name }`) is migrated on read and written back once.
 
-/** All known raid templates, newest-updated first. */
+/** All raid templates, newest-updated first, legacy entries migrated. */
 function listRaidTemplates() {
     const data = readJson(RAID_TEMPLATES_FILE, { templates: [] });
-    const templates = Array.isArray(data.templates) ? data.templates : [];
+    const stored = Array.isArray(data.templates) ? data.templates : [];
+    let migrated = false;
+    const templates = stored.filter((t) => t && typeof t === "object").map((t) => {
+        if (isLegacy(t)) {
+            migrated = true;
+            return migrateLegacy(t);
+        }
+        return { ...normalizeTemplate(t), createdAt: t.createdAt || 0, updatedAt: t.updatedAt || 0 };
+    });
+    if (migrated) writeJson(RAID_TEMPLATES_FILE, { templates });
     return templates.slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 }
 
-/**
- * Create or update a raid template, keyed by its Raid-Helper templateId.
- * A blank templateId is rejected (returns null). Returns the saved template.
- */
-function saveRaidTemplate(data) {
-    const id = String(data.id || "").trim();
-    if (!id) return null;
-    const name = String(data.name || "").trim();
-    const templates = listRaidTemplates();
-    const match = templates.find((t) => t.id === id);
-    let saved;
-    if (match) {
-        saved = Object.assign(match, { name: name || match.name, updatedAt: Date.now() });
-    } else {
-        saved = { id, name, createdAt: Date.now(), updatedAt: Date.now() };
-        templates.push(saved);
-    }
-    writeJson(RAID_TEMPLATES_FILE, { templates });
-    return saved;
+/** One template by id, or null. */
+function getRaidTemplate(id) {
+    return listRaidTemplates().find((t) => t.id === String(id || "")) || null;
 }
 
 /**
- * Upsert many raid templates at once (used by the "import from Raid-Helper"
- * action). Returns { added, updated } counts.
+ * Create (no id) or update (id) a template.
+ * @returns {{ template?: object, error?: string, notFound?: boolean }}
+ */
+function saveRaidTemplate(data) {
+    const clean = normalizeTemplate(data);
+    const problem = validateTemplate(clean);
+    if (problem) return { error: problem };
+    const templates = listRaidTemplates();
+    if (clean.id) {
+        const match = templates.find((t) => t.id === clean.id);
+        if (!match) return { notFound: true, error: "Vorlage nicht gefunden." };
+        Object.assign(match, clean, { updatedAt: Date.now() });
+        writeJson(RAID_TEMPLATES_FILE, { templates });
+        return { template: match };
+    }
+    const saved = { ...clean, id: newId(), createdAt: Date.now(), updatedAt: Date.now() };
+    templates.push(saved);
+    writeJson(RAID_TEMPLATES_FILE, { templates });
+    return { template: saved };
+}
+
+/**
+ * Take over the Raid-Helper templates found in the server's events (the
+ * "Aus Raid-Helper laden" action). One already linked by a template only gets
+ * a missing name; an unknown one becomes a template without size, like a
+ * migrated entry. Returns { added, updated } counts.
  */
 function saveRaidTemplates(list) {
     const incoming = (Array.isArray(list) ? list : [])
@@ -285,14 +309,12 @@ function saveRaidTemplates(list) {
     let added = 0;
     let updated = 0;
     for (const t of incoming) {
-        const match = templates.find((x) => x.id === t.id);
+        const match = templates.find((x) => x.raidhelperTemplateId === t.id);
         if (match) {
-            // Only overwrite the name when the import actually carries one.
-            if (t.name && t.name !== match.name) match.name = t.name;
-            match.updatedAt = Date.now();
+            if (t.name && !match.name) match.name = t.name;
             updated += 1;
         } else {
-            templates.push({ id: t.id, name: t.name, createdAt: Date.now(), updatedAt: Date.now() });
+            templates.push(migrateLegacy({ id: t.id, name: t.name }));
             added += 1;
         }
     }
@@ -300,7 +322,7 @@ function saveRaidTemplates(list) {
     return { added, updated };
 }
 
-/** Delete a raid template by its templateId. Returns true if one was removed. */
+/** Delete a template by id. Returns true if one was removed. */
 function deleteRaidTemplate(id) {
     const templates = listRaidTemplates();
     const next = templates.filter((t) => t.id !== id);
@@ -428,7 +450,7 @@ function getConfig() {
     return {
         ...CONFIG_DEFAULTS,
         ...stored,
-        raidDefaults: { ...CONFIG_DEFAULTS.raidDefaults, ...(stored.raidDefaults || {}) },
+        raidDefaults: { channelId: String((stored.raidDefaults || {}).channelId || CONFIG_DEFAULTS.raidDefaults.channelId) },
         // An empty stored guild id falls back to the default instead of winning
         // over it: the settings form writes this field on every save, so an
         // install that never filled it in would otherwise keep a blank value —
@@ -451,8 +473,38 @@ function getConfig() {
         categoryLootTool: (stored.categoryLootTool && typeof stored.categoryLootTool === "object")
             ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
         categorySheets: normalizeCategorySheets(stored.categorySheets),
+        categoryRaidTemplate: categoryRaidTemplateOf(stored),
         topItems: normalizeTopItems(stored.topItems),
     };
+}
+
+/** Normalise { [categoryId]: templateId }: trimmed strings, empty entries dropped. */
+function normalizeCategoryRaidTemplate(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, tplId] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        const value = String(tplId || "").trim();
+        if (key && value) out[key] = value;
+    }
+    return out;
+}
+
+/**
+ * The stored default template per category — or, for a config from before
+ * #266 that has none yet, the old global raidDefaults.templateId (a Raid-Helper
+ * template id) handed to every raid category, pointing at the template that
+ * links that Raid-Helper template. It applied to every new event before, so
+ * every category keeps it. The next save writes the map and ends the migration.
+ */
+function categoryRaidTemplateOf(stored) {
+    if (stored.categoryRaidTemplate !== undefined) return normalizeCategoryRaidTemplate(stored.categoryRaidTemplate);
+    const legacy = String((stored.raidDefaults || {}).templateId || "").trim();
+    if (!legacy) return {};
+    const template = listRaidTemplates().find((t) => t.raidhelperTemplateId === legacy);
+    if (!template) return {};
+    const categories = Array.isArray(stored.categoryIds) ? stored.categoryIds : CONFIG_DEFAULTS.categoryIds;
+    return Object.fromEntries(categories.map((id) => [String(id), template.id]));
 }
 
 // A Discord snowflake: digits only. Anything else (a pasted link, a name) is
@@ -580,6 +632,8 @@ function saveConfig(partial) {
     }
     if (partial.warcraftlogsV2) next.warcraftlogsV2 = { ...current.warcraftlogsV2, ...partial.warcraftlogsV2 };
     if (partial.categoryLootTool) next.categoryLootTool = { ...current.categoryLootTool, ...partial.categoryLootTool };
+    // Replaced whole, like the top items: a category left out has no default.
+    if (partial.categoryRaidTemplate !== undefined) next.categoryRaidTemplate = normalizeCategoryRaidTemplate(partial.categoryRaidTemplate);
     if (partial.categorySheets) {
         next.categorySheets = normalizeCategorySheets({ ...current.categorySheets, ...partial.categorySheets });
     }
@@ -593,7 +647,7 @@ function saveConfig(partial) {
 module.exports = {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
-    listRaidTemplates, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
+    listRaidTemplates, getRaidTemplate, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
     listNotify, getNotify, saveNotify, deleteNotify,
     listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
     getConfig, saveConfig, resolveEventSheetLink, normalizeDiscordServers,
