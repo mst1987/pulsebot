@@ -2,7 +2,6 @@
 // highestBids* come from the admin-editable config (no restart needed).
 const { getConfig } = require("../../web/settingsStore");
 const {
-    checkForPermission,
     botReply,
     findServerEmoji,
 } = require("../../utils/helper");
@@ -13,10 +12,10 @@ const {
 
 module.exports = {
     name: "endauction",
-    description: "End an auction and declare the winner",
+    description: "Beendet die Auktion und verkündet den Gewinner",
+    group: "auctions",
+    defaultAccess: "admins",
     async execute(interaction, client) {
-        if (!checkForPermission(interaction)) return;
-
         const legendary = new Legendary();
         const response = await legendary.getWinner(interaction.channel.id);
 

@@ -1,5 +1,4 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-const { checkForPermission } = require("../../utils/helper");
 
 // Accepts a full message link or a bare message id (then read from the given fallback channel).
 function parseMessageRef(input, fallbackChannelId) {
@@ -11,8 +10,9 @@ function parseMessageRef(input, fallbackChannelId) {
 module.exports = {
     name: "createapplication",
     description: "Postet eine Nachricht mit Bewerben-Button in einen Channel",
+    group: "recruitment",
+    defaultAccess: "admins",
     async execute(interaction, client) {
-        if (!checkForPermission(interaction)) return;
         await interaction.deferReply({ ephemeral: true });
 
         const messageInput = interaction.options.getString("message_id");

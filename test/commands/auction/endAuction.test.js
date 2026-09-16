@@ -21,15 +21,10 @@ describe("commands/auction/endAuction", () => {
         );
     });
 
-    it("blocks a non-admin user", async () => {
-        const interaction = mockInteraction({ userId: "123" });
-
-        await command.execute(interaction, {});
-
-        expect(interaction.reply.mock.calls[0][0].embeds[0].title).toBe(
-            "Fehlende Berechtigung"
-        );
-        expect(Legendary).not.toHaveBeenCalled();
+    it("is admin-only unless the Bot-Befehle settings say otherwise", () => {
+        // The check itself runs centrally before execute (src/web/botAccess.js).
+        expect(command.defaultAccess).toBe("admins");
+        expect(typeof command.group).toBe("string");
     });
 
     it("announces the winner and refreshes the highest-bids overview on success", async () => {

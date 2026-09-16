@@ -5,6 +5,8 @@ const { bidForLegendary } = require("../../utils/auction");
 module.exports = {
   name: "bid-custom",
   description: "Place a bid in an auction",
+  // A component of /bid: it needs the same access (web/botAccess.js).
+  accessOf: "bid",
   async execute(interaction, client) {
     await showBidModal(interaction);
     const filter = (interaction) => interaction.customId === "bidModal";

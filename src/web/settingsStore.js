@@ -9,6 +9,7 @@ const {
     guildId, raidhelperServerId,
 } = require("../config/variables");
 const { normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess } = require("../config/permissions");
+const { normalizeBotCommandAccess } = require("../config/botCommands");
 
 // Editable bot settings live as JSON files under data/settings/.
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
@@ -49,6 +50,10 @@ const CONFIG_DEFAULTS = {
     // access. For areas that go to named people (the loot council), where a
     // Discord role would only be a second list to keep in sync.
     userPermissions: {},
+    // Who may use which bot command: { [commandName]: { mode, roleIds } } with
+    // mode "everyone" | "roles" | "admins". Empty = every command follows its
+    // own defaultAccess (see config/botCommands.js and web/botAccess.js).
+    botCommandAccess: {},
     // Home guild used to verify admin-role membership (resolveIsAdmin in auth.js).
     // With discordServers.eventGuildId set, getConfig() reports that one here —
     // this key is only the fallback for an install that never picked the two roles.
@@ -436,6 +441,7 @@ function getConfig() {
         rolePermissions: normalizeRolePermissions(stored.rolePermissions),
         baseAccess: normalizeAreaAccess(stored.baseAccess),
         userPermissions: normalizeUserPermissions(stored.userPermissions),
+        botCommandAccess: normalizeBotCommandAccess(stored.botCommandAccess),
         categoryIds: Array.isArray(stored.categoryIds) ? stored.categoryIds : CONFIG_DEFAULTS.categoryIds,
         categoryRoles: normalizeCategoryRoles(stored.categoryRoles),
         logChannelIds: Array.isArray(stored.logChannelIds) ? stored.logChannelIds : CONFIG_DEFAULTS.logChannelIds,

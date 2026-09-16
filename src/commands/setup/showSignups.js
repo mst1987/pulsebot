@@ -4,7 +4,9 @@ const messages = require("../../config/messages");
 
 module.exports = {
     name: "show-signups",
-    description: "Show all setups",
+    description: "Zeigt alle Anmeldungen dieser Kategorie",
+    group: "signup",
+    defaultAccess: "everyone",
     async execute(interaction, client) {
         try {
             await interaction.deferReply({ ephemeral: true });
