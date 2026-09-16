@@ -11,6 +11,7 @@ const eventStore = require("../eventStore");
 const { getChannelConfig } = require("../channelArchiveStore");
 const { publicVersions, DEFAULT_VERSION } = require("../../config/gameVersions");
 const { DEFAULT_SCHEMA } = require("../../utils/channelNames");
+const { deriveChannelName } = require("../channelNaming");
 const discord = require("../discord");
 
 /**
@@ -130,6 +131,27 @@ async function getRaidCreateContext(req, res, url) {
 }
 
 /**
+ * GET /api/raids/channel-name?categoryId=&date=2026-09-24&instanceIds=ssc,tk[&sourceEventId=]
+ * — the name a new event channel gets and where it comes from (#285): like the
+ * category's previous event channel, by its stored schema or the default one.
+ * The create dialog shows it as its name suggestion plus one badge.
+ */
+async function getChannelName(req, res, url) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    const guildId = activeGuildFor(req);
+    const q = (key) => String((url && url.searchParams && url.searchParams.get(key)) || "").trim();
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(q("date")) ? q("date") : "";
+    const instanceIds = q("instanceIds").split(",").map((s) => s.trim()).filter(Boolean).slice(0, 10);
+    const result = await deriveChannelName({
+        guildId, categoryId: q("categoryId"), date, instanceIds, fromEventId: q("sourceEventId"),
+    });
+    const shown = { ...result };
+    delete shown.placement; // where Discord sorts it in is the server's business
+    ok(res, shown);
+}
+
+/**
  * POST /api/raids — create an event, optionally cloning a source event's
  * channel or creating a new one by the category's schema. Raid-Helper or the
  * own store, by the category's default source; the work is eventCreate.js',
@@ -159,4 +181,4 @@ async function updateRaid(req, res) {
     ok(res, result.body, result.status);
 }
 
-module.exports = { getRaids, getPastRaids, getRaidCreateContext, createRaid, updateRaid };
+module.exports = { getRaids, getPastRaids, getRaidCreateContext, getChannelName, createRaid, updateRaid };

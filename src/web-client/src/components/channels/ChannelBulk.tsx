@@ -5,6 +5,7 @@ import {
 import { Badge, Button, IconButton, Modal } from "../ui";
 import { XIcon } from "../icons";
 import { PencilIcon } from "./channelBits";
+import NamingBadge from "./NamingBadge";
 import { bulkChanges, KEEP, SLOWMODE_OPTIONS, slowmodeLabel } from "../../lib/channels";
 
 // Several channels at once (issue #259): the bar that appears at the bottom as
@@ -125,10 +126,13 @@ export function RenameSchemaDialog({ channels, data, csrfToken, onClose, onApply
     onClose: () => void;
     onApply: (rows: RenamePreviewRow[]) => void;
 }) {
-    // A selection from one category starts from that category's stored schema.
+    // A selection from one category starts from that category's own schema;
+    // without one the field stays empty, which names every channel like the
+    // latest other event channel of its category (#285).
     const categoryIds = [...new Set(channels.map((c) => c.parentId))];
     const stored = categoryIds.length === 1 ? data.schemas?.[categoryIds[0]] : undefined;
-    const [schema, setSchema] = useState(stored?.schema || data.defaultSchema || "{name}");
+    const ownSchema = stored?.schema && stored.schema !== data.defaultSchema ? stored.schema : "";
+    const [schema, setSchema] = useState(ownSchema);
     const [raid, setRaid] = useState(stored?.raid || "");
     const [rows, setRows] = useState<RenamePreviewRow[] | null>(null);
     const [previewError, setPreviewError] = useState("");
@@ -171,7 +175,7 @@ export function RenameSchemaDialog({ channels, data, csrfToken, onClose, onApply
                 <div className="kn-grid2">
                     <div className="kn-field">
                         <label htmlFor="kn-rename-schema">Schema</label>
-                        <div className="kn-input"><input id="kn-rename-schema" type="text" value={schema} onChange={(e) => setSchema(e.target.value)} /></div>
+                        <div className="kn-input"><input id="kn-rename-schema" type="text" value={schema} onChange={(e) => setSchema(e.target.value)} placeholder="leer = wie der letzte Event-Kanal" /></div>
                     </div>
                     <div className="kn-field">
                         <label htmlFor="kn-rename-raid">Raid</label>
@@ -188,6 +192,8 @@ export function RenameSchemaDialog({ channels, data, csrfToken, onClose, onApply
                             <span className="kn-preview-name">{r.to || "—"}</span>
                             {r.conflict && <Badge tone="mid" tip="Konflikt" tipSub="Der Name ist leer oder gehört schon einem anderen Kanal. Dieser Kanal wird übersprungen.">existiert</Badge>}
                             {!r.conflict && r.to === r.from && <Badge>unverändert</Badge>}
+                            {!r.conflict && r.to !== r.from && <NamingBadge naming={r.naming} short />}
+                            {!r.hasDate && !schema.trim() && <Badge tip="Kein Event" tipSub="Der Kanal gehört zu keinem bekannten Event — ohne sein Datum lässt sich der Name nicht ableiten, er bleibt.">kein Datum</Badge>}
                             {!r.hasDate && /\{(tag|dd|mm|yy|yyyy)\}/.test(schema) && <Badge tip="Kein Event" tipSub="Der Kanal gehört zu keinem bekannten Event, die Datumsteile bleiben leer.">kein Datum</Badge>}
                         </div>
                     ))}

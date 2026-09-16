@@ -167,6 +167,9 @@ a.re-title:hover { color: var(--accent); text-decoration: none; }
 .re-deadline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .re-dlg-body .re-deadline input[type=number] { width: 96px; flex: 0 0 96px; }
 .re-dlg-body .re-chan-name { font-size: 15px; font-weight: 600; }
+/* Where the name comes from (#285): one badge under the field, the details in its tooltip. */
+.re-naming { margin-top: 6px; display: flex; min-width: 0; }
+.naming-badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .re-figs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 0 0 14px; }
 .re-fig { display: flex; flex-direction: column; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel2); }
 .re-fig-lbl { font: 600 10.5px var(--font-mono); text-transform: uppercase; letter-spacing: 1.1px; color: var(--muted); }

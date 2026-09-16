@@ -148,17 +148,58 @@ async function createCategory(guildId, name) {
 }
 
 /**
- * Create a channel for quick-create: a clone of the template channel (rights,
- * topic, slowmode) when one is given, else a plain text channel.
+ * The index to hand discord.js' setPosition() so a channel ends up right after
+ * (or before) an anchor among its siblings. setPosition takes the channel out
+ * of the sorted list first, so an anchor below the channel moves up by one.
  */
-async function createFromTemplate(guildId, { name, parentId = "", templateChannelId = "" } = {}) {
+function positionTarget({ anchor, current, after = true }) {
+    const a = Number(anchor) || 0;
+    const moved = Number(current) < a;
+    if (after) return moved ? a : a + 1;
+    return moved ? a - 1 : a;
+}
+
+/**
+ * Sort a channel in next to another one of the same category —
+ * `{ afterChannelId }` or `{ beforeChannelId }` (#285: right behind the
+ * previous date). Best-effort: a channel that cannot be moved still exists, so
+ * this never throws; it answers whether it moved.
+ */
+async function placeChannel(channelOrId, { afterChannelId = "", beforeChannelId = "" } = {}) {
+    const anchorId = afterChannelId || beforeChannelId;
+    if (!anchorId) return false;
+    try {
+        const channel = typeof channelOrId === "object" && channelOrId ? channelOrId : await fetchChannel(channelOrId);
+        const anchor = await fetchChannel(anchorId);
+        if (anchor.id === channel.id || String(anchor.parentId || "") !== String(channel.parentId || "")) return false;
+        if (typeof channel.setPosition !== "function" || !Number.isFinite(anchor.position) || !Number.isFinite(channel.position)) return false;
+        const target = positionTarget({ anchor: anchor.position, current: channel.position, after: !!afterChannelId });
+        if (target !== channel.position) await channel.setPosition(target);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Create a channel for a new event or quick-create: a copy of the template
+ * channel (rights, topic, slowmode) when one is given, else a plain text
+ * channel with the category's rights. `afterChannelId` / `beforeChannelId`
+ * sort it in next to that channel.
+ */
+async function createFromTemplate(guildId, { name, parentId = "", templateChannelId = "", afterChannelId = "", beforeChannelId = "" } = {}) {
+    let created;
     if (templateChannelId) {
         const template = await fetchChannel(templateChannelId);
         if (typeof template.clone !== "function") throw new Error("Vorlage-Kanal kann nicht kopiert werden.");
-        const cloned = await template.clone({ name, parent: parentId || template.parentId || null });
-        return { id: cloned.id, name: cloned.name };
+        created = await template.clone({ name, parent: parentId || template.parentId || null });
+    } else {
+        created = await discord.createChannel(guildId, { name, type: "text", parentId });
     }
-    return discord.createChannel(guildId, { name, type: "text", parentId });
+    const positioned = afterChannelId || beforeChannelId
+        ? await placeChannel(typeof created.setPosition === "function" ? created : created.id, { afterChannelId, beforeChannelId })
+        : false;
+    return { id: created.id, name: created.name, ...(templateChannelId ? { copiedFrom: templateChannelId } : {}), ...(positioned ? { positioned } : {}) };
 }
 
 /** A readable reason for a failed Discord call ("fehlende Rechte"). */
@@ -182,5 +223,5 @@ function botCanManageChannels(guildId) {
 module.exports = {
     MAX_SLOWMODE, TOPIC_MAX,
     fetchChannel, listChannelDetails, pickChanges, editChannel, archiveChannel, deleteChannel,
-    createCategory, createFromTemplate, discordErrorText, botCanManageChannels,
+    createCategory, createFromTemplate, positionTarget, placeChannel, discordErrorText, botCanManageChannels,
 };

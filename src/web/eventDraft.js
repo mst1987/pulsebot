@@ -25,14 +25,15 @@ const crypto = require("crypto");
 const { DateTime } = require("luxon");
 const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
 const discord = require("./discord");
-const archiveStore = require("./channelArchiveStore");
+const channelNaming = require("./channelNaming");
+const { namingLine } = channelNaming;
 const { getConfig, listRaidTemplates, getRaidTemplate } = require("./settingsStore");
 const { signupSourceFor } = require("./eventSources");
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
 const { eventGuildId } = require("./guildRoles");
 const { createEvent } = require("./eventCreate");
 const { instanceById } = require("../config/gameVersions");
-const { DEFAULT_SCHEMA, WEEKDAYS, renderChannelName } = require("../utils/channelNames");
+const { WEEKDAYS } = require("../utils/channelNames");
 const { parseGermanDate, parseClockTime } = require("../utils/date");
 const { webUrl, clip } = require("../utils/botLookup");
 
@@ -163,14 +164,17 @@ function templateSummary(template) {
     return `${head} · ${template.size}er · ${tank} T / ${healer} H / ${Math.max(0, template.size - tank - healer)} DPS`;
 }
 
-/** The raid tag of a channel name: the category's stored one, else the template's instances ("ssc-tk"). */
-function channelSchema(guildId, cat, template) {
-    const stored = (archiveStore.getChannelConfig(guildId).schemas || {})[cat] || {};
-    return {
-        schema: stored.schema || DEFAULT_SCHEMA,
-        raid: stored.raid || ((template && template.instanceIds) || []).join("-"),
-        templateChannelId: stored.templateChannelId || "",
-    };
+/**
+ * How the new channel is named and what it copies (#285, channelNaming.js):
+ * like the category's previous event channel, or — duplicating — like the
+ * chosen event's channel. `date` "2026-09-24", empty in step 1.
+ */
+function channelNamingFor(guildId, state, template, date = "") {
+    return channelNaming.deriveChannelName({
+        guildId, categoryId: state.cat, date,
+        instanceIds: (template && template.instanceIds) || [],
+        fromEventId: state.mode === "d" ? state.ref : "",
+    });
 }
 
 /** Events of a category whose channel can be duplicated, newest first. */
@@ -231,12 +235,13 @@ async function stepMessage(guildId, rawState) {
         if (!candidates.some((ev) => ev.id === state.ref)) state = { ...state, ref: candidates[0] ? candidates[0].id : "" };
     }
 
-    const { schema, raid } = channelSchema(guildId, state.cat, template);
     let channelLine;
-    if (state.mode === "n") channelLine = `neu nach Schema \`${schema.replace(/\{raid\}/gi, raid || "{raid}")}\``;
+    if (state.mode === "n") channelLine = (await channelNamingFor(guildId, state, template)).step;
     else if (state.mode === "d") {
         const source = candidates.find((ev) => ev.id === state.ref);
-        channelLine = source ? `Kanal von **${clip(source.title, 60)}** duplizieren` : "kein Event in dieser Kategorie zum Duplizieren";
+        channelLine = source
+            ? `Kanal von **${clip(source.title, 60)}** duplizieren · Name ${(await channelNamingFor(guildId, state, template)).step.replace(/^neu /, "")}`
+            : "kein Event in dieser Kategorie zum Duplizieren";
     } else channelLine = state.ref ? `<#${state.ref}>` : "Kanal unten wählen";
 
     const templateLine = template
@@ -415,7 +420,7 @@ function getDraft(token, userId, now = Date.now()) {
  * step-1 state against what exists now: a category, template or channel that
  * vanished since the message was opened is an error, not a guess.
  */
-function buildBody(guildId, rawState, values, { userId, now = Date.now() } = {}) {
+async function buildBody(guildId, rawState, values, { userId, now = Date.now() } = {}) {
     const state = cleanState(rawState);
     const fail = (error) => ({ error });
     if (!eventCategories(guildId).some((c) => c.id === state.cat)) return fail("Die Kategorie gibt es nicht mehr oder sie ist keine Event-Kategorie.");
@@ -459,27 +464,30 @@ function buildBody(guildId, rawState, values, { userId, now = Date.now() } = {})
     }
 
     const channels = discord.listAllChannels(guildId) || [];
+    let naming = null;
     if (state.mode === "e") {
         if (!state.ref || !channels.some((c) => c.id === state.ref)) return fail("Den gewählten Kanal gibt es auf diesem Server nicht (mehr).");
         body.channelId = state.ref;
     } else {
         if (state.mode === "d" && !state.ref) return fail("Kein Event gewählt, dessen Kanal dupliziert wird.");
-        const { schema, raid, templateChannelId } = channelSchema(guildId, state.cat, template);
-        const name = renderChannelName(schema, { date, raid });
-        if (!name) return fail("Das Namensschema der Kategorie ergibt keinen Kanalnamen.");
-        if (channels.some((c) => String(c.name).toLowerCase() === name)) return fail(`Einen Kanal **${name}** gibt es schon.`);
+        naming = await channelNamingFor(guildId, state, template, date);
+        const { name } = naming;
+        if (!name) return fail("Aus dem letzten Kanal und dem Namensschema der Kategorie ergibt sich kein Kanalname.");
+        if (channels.some((c) => String(c.name).toLowerCase() === name)) {
+            return fail(`Einen Kanal **${name}** gibt es schon (${namingLine(naming)}).`);
+        }
         if (state.mode === "d") {
             body.sourceEventId = state.ref;
             body.channelName = name;
         } else {
-            body.newChannel = { name, categoryId: state.cat, templateChannelId };
+            body.newChannel = { name, categoryId: state.cat, templateChannelId: naming.templateChannelId };
         }
     }
-    return { body, startTime };
+    return { body, startTime, naming };
 }
 
 /** The confirmation with the three links. */
-function successMessage(guildId, state, { body, startTime }, result) {
+function successMessage(guildId, state, { body, startTime, naming }, result) {
     const event = result.event || {};
     const eventId = String(result.id || event.id || "");
     const channelId = String(event.channelId || result.channelId || body.channelId || "");
@@ -489,6 +497,12 @@ function successMessage(guildId, state, { body, startTime }, result) {
     if (size) parts.push(`${size}er`);
     if (channelId) parts.push(`Kanal <#${channelId}> ${how}`);
     const lines = [parts.join(" · ")];
+    if (naming && naming.name) {
+        // Where the name and the design came from, so the logic stays visible (#285).
+        const channelName = (result.channelNaming && result.channelNaming.name) || event.channelName || naming.name;
+        lines.push(clip(`Name: \`${channelName}\` · ${namingLine(naming)}`, 500));
+        if (state.mode === "n") lines.push(clip(naming.design, 200));
+    }
     if (result.messageError) lines.push(`⚠️ Die Event-Nachricht wurde nicht gepostet: ${clip(result.messageError, 200)}`);
 
     const links = [];
@@ -519,7 +533,7 @@ function errorMessage(state, token, error) {
 /** Everything after the modal was submitted; returns the payload for the message. */
 async function submitForm(guildId, rawState, values, { userId, now = Date.now() } = {}) {
     const state = cleanState(rawState);
-    const built = buildBody(guildId, state, values, { userId, now });
+    const built = await buildBody(guildId, state, values, { userId, now });
     if (built.error) return { ok: false, payload: errorMessage(state, saveDraft(userId, values, now), built.error) };
     const result = await createEvent({ guildId, user: { id: String(userId || "") }, body: built.body });
     if (result.error) return { ok: false, payload: errorMessage(state, saveDraft(userId, values, now), result.error.message) };

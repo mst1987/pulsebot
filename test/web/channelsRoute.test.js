@@ -12,7 +12,11 @@ jest.mock("../../src/web/settingsStore", () => ({
 }));
 jest.mock("../../src/web/eventCreate", () => ({ createEvent: jest.fn() }));
 jest.mock("../../src/web/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
-jest.mock("../../src/web/raidEventGroups", () => ({ fetchEventsCached: jest.fn(async () => ({ events: [] })) }));
+jest.mock("../../src/web/raidEventGroups", () => ({
+    fetchEventsCached: jest.fn(async () => ({ events: [] })),
+    loadEventGroups: jest.fn(async () => ({ groups: [] })),
+    eventLookbackSince: jest.fn(() => 1),
+}));
 jest.mock("../../src/web/channelOps", () => {
     const actual = jest.requireActual("../../src/web/channelOps");
     return { ...actual, runSerial: (ids, fn) => actual.runSerial(ids, fn, { pauseMs: 0 }) };
@@ -54,6 +58,7 @@ const discord = require("../../src/web/discord");
 const dc = require("../../src/web/discordChannels");
 const archiveStore = require("../../src/web/channelArchiveStore");
 const { listRaidEvents } = require("../../src/web/raidEventStore");
+const { loadEventGroups } = require("../../src/web/raidEventGroups");
 const routes = require("../../src/web/apiRoutes/channels");
 
 const ADMIN = { id: "u1", name: "Nerathil", isAdmin: true };
@@ -188,6 +193,74 @@ describe("POST /api/channels/batch", () => {
         expect(body(res).data.message).toBe("1 Kanal angelegt, 1 übersprungen (existiert)");
     });
 
+    describe("named and designed like the previous event channel (#285)", () => {
+        const PREV = { id: "c5", name: "🔥・mi-16-09-kara", type: 0, parentId: "cat1" };
+        beforeEach(() => {
+            discord.listAllChannels.mockReturnValue([...CHANNELS, PREV]);
+            loadEventGroups.mockResolvedValue({ groups: [{ categoryId: "cat1", events: [
+                { id: "e5", title: "Kara", channelId: "c5", startTime: Date.UTC(2026, 8, 16, 17, 30) / 1000 },
+            ] }] });
+        });
+        afterEach(() => loadEventGroups.mockResolvedValue({ groups: [] }));
+
+        it("previews the derived names with where they come from", async () => {
+            readJsonBody.mockResolvedValue({ categoryId: "cat1", schema: "", raid: "", from: "2026-09-23", count: 2, interval: "weekly", dryRun: true });
+            const res = mockRes();
+            await routes.batchCreate({}, res);
+            const data = body(res).data;
+            expect(data.plan.map((p) => p.name)).toEqual(["🔥・mi-23-09-kara", "🔥・mi-30-09-kara"]);
+            expect(data.naming).toMatchObject({
+                source: "previous", label: "abgeleitet aus #🔥・mi-16-09-kara", detail: "Datum 16-09 → 23-09",
+                templateChannelId: "c5", design: "Rechte und Thema von #🔥・mi-16-09-kara",
+            });
+        });
+
+        it("creates copies of that channel, each sorted in behind the previous date", async () => {
+            readJsonBody.mockResolvedValue({ categoryId: "cat1", schema: "", raid: "", from: "2026-09-23", count: 2, interval: "weekly" });
+            const res = mockRes();
+            await routes.batchCreate({}, res);
+            expect(dc.createFromTemplate.mock.calls.map((c) => c[1])).toEqual([
+                { name: "🔥・mi-23-09-kara", parentId: "cat1", templateChannelId: "c5", afterChannelId: "c5" },
+                { name: "🔥・mi-30-09-kara", parentId: "cat1", templateChannelId: "c5", afterChannelId: "new-🔥・mi-23-09-kara" },
+            ]);
+        });
+
+        it("names a typed schema as such, and a chosen template channel wins", async () => {
+            readJsonBody.mockResolvedValue({ categoryId: "cat1", schema: "{raid}-{dd}{mm}", raid: "kara", from: "2026-09-23", templateChannelId: "c2", dryRun: true });
+            const res = mockRes();
+            await routes.batchCreate({}, res);
+            expect(body(res).data.plan[0].name).toBe("kara-2309");
+            expect(body(res).data.naming).toMatchObject({ source: "typed", label: "nach eingegebenem Schema", templateChannelId: "c2", design: "Rechte und Thema von #do-18-09-bt" });
+        });
+
+        it("renames by an empty schema like the latest other event channel of the category", async () => {
+            listRaidEvents.mockReturnValue([
+                { id: "e5", title: "Kara", channelId: "c5", startTime: Date.UTC(2026, 8, 16, 17, 30) / 1000 },
+                { id: "e1", title: "Kara", channelId: "c1", startTime: Date.UTC(2026, 8, 23, 17, 30) / 1000 },
+            ]);
+            readJsonBody.mockResolvedValue({ ids: ["c1", "c2"], schema: "", raid: "" });
+            const res = mockRes();
+            await routes.renamePreview({}, res);
+            const [c1, c2] = body(res).data.rows;
+            expect(c1).toMatchObject({ from: "mi-17-09-ssc", to: "🔥・mi-23-09-kara", hasDate: true, conflict: false });
+            expect(c1.naming).toMatchObject({ source: "previous", label: "abgeleitet aus #🔥・mi-16-09-kara", detail: "Datum 16-09 → 23-09" });
+            // no event, no date: the name stays
+            expect(c2).toMatchObject({ from: "do-18-09-bt", to: "do-18-09-bt", hasDate: false, naming: null });
+            listRaidEvents.mockReturnValue([]);
+        });
+
+        it("keeps a name when there is nothing to derive it from, instead of forcing the default schema", async () => {
+            discord.listAllChannels.mockReturnValue([...CHANNELS, { id: "g", name: "general", type: 0, parentId: "cat1" }]);
+            loadEventGroups.mockResolvedValue({ groups: [] });
+            listRaidEvents.mockReturnValue([{ id: "eg", title: "Kara", channelId: "g", startTime: Date.UTC(2026, 8, 23, 17, 30) / 1000 }]);
+            readJsonBody.mockResolvedValue({ ids: ["g"], schema: "", raid: "" });
+            const res = mockRes();
+            await routes.renamePreview({}, res);
+            expect(body(res).data.rows[0]).toMatchObject({ from: "general", to: "general", naming: { source: "default" } });
+            listRaidEvents.mockReturnValue([]);
+        });
+    });
+
     describe("gleich Event anlegen", () => {
         const { getConfig } = require("../../src/web/settingsStore");
         const eventCreate = require("../../src/web/eventCreate");
@@ -280,8 +353,8 @@ describe("POST /api/channels/rename-preview", () => {
         const res = mockRes();
         await routes.renamePreview({}, res);
         expect(body(res).data.rows).toEqual([
-            { id: "c1", from: "mi-17-09-ssc", to: "mi-16-09-ssc", hasDate: true, conflict: false },
-            { id: "c2", from: "do-18-09-bt", to: "ssc", hasDate: false, conflict: false },
+            { id: "c1", from: "mi-17-09-ssc", to: "mi-16-09-ssc", hasDate: true, conflict: false, naming: null },
+            { id: "c2", from: "do-18-09-bt", to: "ssc", hasDate: false, conflict: false, naming: null },
         ]);
     });
 });

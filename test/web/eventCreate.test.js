@@ -18,10 +18,12 @@ jest.mock("../../src/utils/raidhelperClient", () => ({
 jest.mock("../../src/web/discord", () => ({
     getChannelCategoryMap: jest.fn(() => ({})),
     duplicateChannel: jest.fn(),
+    listAllChannels: jest.fn(() => []),
     listCategories: jest.fn(() => [{ id: "cat-eh", name: "EventHelper-Raids" }]),
 }));
 jest.mock("../../src/web/discordChannels", () => ({
     createFromTemplate: jest.fn(),
+    placeChannel: jest.fn(async () => true),
     discordErrorText: jest.requireActual("../../src/web/discordChannels").discordErrorText,
 }));
 jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})), getRaidTemplate: jest.fn(() => null) }));
@@ -44,6 +46,7 @@ const { postEventMessage, refreshEventMessage } = require("../../src/web/eventMe
 const { scheduleOverviewSync } = require("../../src/web/talkOverview");
 const { createFromTemplate } = discordChannels;
 const channelArchiveStore = require("../../src/web/channelArchiveStore");
+const raidEventGroups = require("../../src/web/raidEventGroups");
 const eventStore = require("../../src/web/eventStore");
 const { createEvent, updateEvent, startTimeOf, schemaChannelName } = require("../../src/web/eventCreate");
 
@@ -141,6 +144,8 @@ describe("web/eventCreate", () => {
         const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "", sourceEventId: source.id, channelName: "kara-neu" }) });
         expect(mockGetEvent).not.toHaveBeenCalled();
         expect(discord.duplicateChannel).toHaveBeenCalledWith("c2", "kara-neu");
+        // the copy is sorted in by date too (#285) — best-effort, nothing to sort against here
+        expect(discordChannels.placeChannel).toHaveBeenCalledWith("c3", {});
         expect(eventStore.getEvent(result.body.id)).toMatchObject({ channelId: "c3", channelName: "kara-neu", categoryId: "cat-eh" });
     });
 
@@ -251,6 +256,33 @@ describe("web/eventCreate", () => {
             // without instances the schema's stored raid fills {raid}; without a schema the default applies
             expect(schemaChannelName("g1", "cat-eh", "2026-10-01", [])).toBe("t5-01-10");
             expect(schemaChannelName("g1", "cat-other", "2026-10-01", ["kara"])).toBe("do-01-10-kara");
+        });
+
+        it("names and designs a new channel like the category's previous event channel, sorted in behind it (#285)", async () => {
+            discord.listAllChannels.mockReturnValue([
+                { id: "prev", name: "🔥・do-24-09-ssc-tk", parentId: "cat-eh" },
+                { id: "older", name: "🔥・do-17-09-ssc-tk", parentId: "cat-eh" },
+            ]);
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [{ categoryId: "cat-eh", events: [
+                { id: "eh-a", title: "SSC", instanceIds: ["ssc", "tk"], channelId: "prev", startTime: startTimeOf("24-09-2026", "19:30") },
+                { id: "eh-b", title: "SSC", instanceIds: ["ssc", "tk"], channelId: "older", startTime: startTimeOf("17-09-2026", "19:30") },
+            ] }] });
+            createFromTemplate.mockImplementation(async (guildId, { name }) => ({ id: "c9", name }));
+            try {
+                const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "", newChannel: { name: "", categoryId: "cat-eh" }, raidTemplateId: "tpl-t5" }) });
+                expect(createFromTemplate).toHaveBeenCalledWith("g1", {
+                    name: "🔥・do-01-10-ssc-tk", parentId: "cat-eh", templateChannelId: "prev", afterChannelId: "prev",
+                });
+                expect(result.body.channelNaming).toMatchObject({
+                    name: "🔥・do-01-10-ssc-tk", source: "previous", label: "abgeleitet aus #🔥・do-24-09-ssc-tk",
+                    design: "Rechte und Thema von #🔥・do-24-09-ssc-tk",
+                });
+                // both Thursdays: only the date changes, and the line says exactly that
+                expect(result.body.channelNaming.detail).toBe("Datum 24-09 → 01-10");
+            } finally {
+                discord.listAllChannels.mockReturnValue([]);
+                raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
+            }
         });
 
         it("keeps a name the dialog sends and the schema's template channel, refuses a new channel with neither name nor category", async () => {
