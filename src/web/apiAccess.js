@@ -43,6 +43,18 @@ const AREA_BY_PATH = {
     // The character page's attendance, role and item facts. The page is routed
     // under the roster and under the history, so either area opens it.
     "/api/roster/char": ["roster", "history"],
+    // Characters more than one raider profile claims — the orga resolves them.
+    "/api/roster/character-claims": "roster",
+
+    // "Mein Profil" (#255). The handlers work on the session's own account only,
+    // so granting "signup" to everyone (base access) hands out exactly that: one's
+    // own profile. Another raider's profile, wishes included, is the orga's and
+    // needs the roster.
+    "/api/profile": "signup",
+    "/api/profile/log-characters": "signup",
+    "/api/profile/characters": "signup",
+    "/api/profile/raiders": "signup",
+    "/api/profile/user": "roster",
 
     // The caster loot council. Starting a simulation is a POST, so the method
     // rule already makes it write-level — a read-only council member sees the

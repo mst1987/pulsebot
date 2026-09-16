@@ -2709,3 +2709,136 @@ export type CouncilExport = {
 export function getCouncilExport(character: string): Promise<CouncilExport> {
     return get<CouncilExport>(`/api/lootcouncil/export?character=${encodeURIComponent(character)}`);
 }
+
+// ---- Mein Profil (#255, src/web/apiRoutes/profile.js) ----
+
+export type GearLevel = "none" | "usable" | "ready";
+
+/** "Laut Logs": seen = exactly this spec, other = in the logs with another spec, unknown = not in the logs. */
+export type SpecEvidence = { status: "seen" | "other" | "unknown"; reports: number; source?: string; loggedSpec?: string };
+
+export type ProfileSpec = {
+    key: string;
+    gear: GearLevel;
+    label: string;
+    specId: string;
+    role: GameRole | "";
+    icon: string;
+    canTank: boolean;
+    canHeal: boolean;
+    logs: SpecEvidence;
+};
+
+export type RaiderRef = { userId: string; name: string; main: string; className: string };
+
+export type ProfileCharacter = {
+    key: string;
+    name: string;
+    realm: string;
+    className: string;
+    main: boolean;
+    source: "log" | "armory" | "manual";
+    armory: { level: number | null; guild: string; fetchedAt: number } | null;
+    armoryUrl: string;
+    specs: ProfileSpec[];
+    /** Other accounts that added the same character. */
+    claimedBy: { userId: string; name: string }[];
+};
+
+export type RaiderProfile = {
+    userId: string;
+    name: string;
+    characters: ProfileCharacter[];
+    canOfftank: boolean;
+    canHeal: boolean;
+    suggested: { canOfftank: boolean; canHeal: boolean };
+    availability: string[];
+    preferredRaids: string[];
+    /** For the owner: whom they wished for — never whether it is mutual. */
+    wishes: (RaiderRef & { mutual?: boolean })[];
+    note: string;
+    updatedAt: number;
+    /** Only in the orga's view. */
+    wishedBy?: RaiderRef[];
+};
+
+export type ProfileRaidGroup = {
+    id: string;
+    label: string;
+    instances: { id: string; name: string; short: string; icon: string; status: string }[];
+};
+
+export type ProfileData = {
+    profile: RaiderProfile;
+    isNew: boolean;
+    classes: GameClass[];
+    roles: Record<GameRole, string>;
+    raidGroups: ProfileRaidGroup[];
+    weekdays: { id: string; label: string }[];
+    gearLevels: { id: GearLevel; label: string }[];
+    limits: { characters: number; wishes: number; note: number };
+};
+
+export type ProfilePatch = {
+    canOfftank?: boolean | null;
+    canHeal?: boolean | null;
+    availability?: string[];
+    preferredRaids?: string[];
+    wishes?: string[];
+    note?: string;
+    characters?: { key: string; main?: boolean; specs?: { key: string; gear: GearLevel }[] }[];
+};
+
+export type LogCharacterSuggestion = {
+    character: string;
+    className: string;
+    specKey: string;
+    reports: number;
+    lastSeen: number;
+    match: "assigned" | "name" | "";
+    claimedBy: { userId: string; name: string }[];
+};
+
+export type AddCharacterInput =
+    | { source: "log"; name: string }
+    | { source: "armory"; name: string; realm?: string; className?: string }
+    | { source: "manual"; name: string; className: string; specs: string[] };
+
+export type CharacterClaim = {
+    key: string;
+    character: string;
+    className: string;
+    claims: { userId: string; name: string; main: boolean }[];
+};
+
+export function getProfile(): Promise<ProfileData> {
+    return get<ProfileData>("/api/profile");
+}
+
+export function saveProfile(csrfToken: string | null, patch: ProfilePatch): Promise<{ profile: RaiderProfile }> {
+    return send("PUT", "/api/profile", csrfToken, patch);
+}
+
+export function getLogCharacters(q = ""): Promise<{ characters: LogCharacterSuggestion[] }> {
+    return get(`/api/profile/log-characters?q=${encodeURIComponent(q)}`);
+}
+
+export function addProfileCharacter(csrfToken: string | null, input: AddCharacterInput): Promise<{
+    character: ProfileCharacter;
+    armory: { linked: boolean; fetched: boolean } | null;
+    profile: RaiderProfile;
+}> {
+    return send("POST", "/api/profile/characters", csrfToken, input);
+}
+
+export function removeProfileCharacter(csrfToken: string | null, key: string): Promise<{ removed: boolean; profile: RaiderProfile }> {
+    return send("POST", "/api/profile/characters", csrfToken, { remove: key });
+}
+
+export function searchRaiders(q: string): Promise<{ raiders: RaiderRef[] }> {
+    return get(`/api/profile/raiders?q=${encodeURIComponent(q)}`);
+}
+
+export function getCharacterClaims(): Promise<{ claims: CharacterClaim[] }> {
+    return get("/api/roster/character-claims");
+}

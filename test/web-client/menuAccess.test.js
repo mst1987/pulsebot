@@ -58,7 +58,7 @@ describe("one menu for both front ends", () => {
             else groups.push({ name: entry.group, ids: [entry.id] });
         }
         expect(groups).toEqual([
-            { name: "Start", ids: ["home"] },
+            { name: "Start", ids: ["home", "profile"] },
             { name: "Raids", ids: ["raids", "roster", "cla"] },
             { name: "Loot", ids: ["history", "lootcouncil"] },
             { name: "Gilde", ids: ["recruitment", "channels"] },
@@ -73,6 +73,7 @@ describe("one menu for both front ends", () => {
         const icons = Object.fromEntries(MENU.map((e) => [e.id, e.wowIcon]));
         expect(icons).toEqual({
             home: "inv_misc_map_01",
+            profile: "achievement_character_human_male",
             recruitment: "inv_misc_grouplooking",
             cla: "inv_misc_pocketwatch_01",
             raids: "inv_misc_note_02",
