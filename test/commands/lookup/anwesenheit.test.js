@@ -1,4 +1,4 @@
-jest.mock("../../../src/web/raiderCharactersStore", () => ({ charactersForUser: jest.fn() }));
+jest.mock("../../../src/web/userCharacters", () => ({ myCharacters: jest.fn() }));
 jest.mock("../../../src/web/attendanceLookup", () => {
     const actual = jest.requireActual("../../../src/web/attendanceLookup");
     return { ...actual, characterAttendance: jest.fn(), knownCharacterNames: jest.fn() };
@@ -8,7 +8,7 @@ jest.mock("../../../src/web/guildRoles", () => ({ eventGuildId: jest.fn(() => "e
 
 const own = require("../../../src/commands/lookup/anwesenheit");
 const other = require("../../../src/commands/lookup/anwesenheitRaider");
-const { charactersForUser } = require("../../../src/web/raiderCharactersStore");
+const { myCharacters: charactersForUser } = require("../../../src/web/userCharacters");
 const { characterAttendance, knownCharacterNames } = require("../../../src/web/attendanceLookup");
 const { EMBED_LIMITS, embedSize } = require("../../../src/utils/botLookup");
 const { mockInteraction } = require("../../helpers/mockInteraction");

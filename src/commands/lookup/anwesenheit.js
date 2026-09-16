@@ -2,7 +2,7 @@
 // Other raiders' attendance is /anwesenheit-raider, a command of its own so the
 // two can carry different access: everyone may look at themselves, looking at
 // others is the raid lead's business.
-const { charactersForUser } = require("../../web/raiderCharactersStore");
+const { myCharacters } = require("../../web/userCharacters");
 const { characterAttendance, overall, attendanceFields } = require("../../web/attendanceLookup");
 const { buildAttendanceContext } = require("../../web/rosterAttendance");
 const { eventGuildId } = require("../../web/guildRoles");
@@ -32,11 +32,11 @@ module.exports = {
     defaultAccess: "everyone",
     attendanceReply,
     async execute(interaction) {
-        const chars = charactersForUser(interaction.user.id);
+        const chars = myCharacters(interaction.user.id);
         if (!chars.length) {
             return lookupReply(interaction, {
                 title: "Deine Anwesenheit",
-                description: "Dir ist noch kein Charakter zugeordnet. Das macht die Raidleitung im Menü (Einstellungen → Kategorien).",
+                description: "Dir ist noch kein Charakter zugeordnet. Trag ihn in deinem Profil ein (`/profil`).",
             }, [{ label: "Im Web öffnen", url: webUrl("/roster") }]);
         }
         const guildId = eventGuildId();

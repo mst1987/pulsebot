@@ -1,13 +1,13 @@
 jest.mock("../../../src/web/lootStore", () => ({ listByCharacter: jest.fn() }));
 jest.mock("../../../src/web/lootStats", () => ({ itemCatalog: jest.fn() }));
 jest.mock("../../../src/web/characterInfo", () => ({ annotatedCharacters: jest.fn() }));
-jest.mock("../../../src/web/raiderCharactersStore", () => ({ charactersForUser: jest.fn() }));
+jest.mock("../../../src/web/userCharacters", () => ({ myCharacters: jest.fn() }));
 
 const command = require("../../../src/commands/lookup/loot");
 const { listByCharacter } = require("../../../src/web/lootStore");
 const { itemCatalog } = require("../../../src/web/lootStats");
 const { annotatedCharacters } = require("../../../src/web/characterInfo");
-const { charactersForUser } = require("../../../src/web/raiderCharactersStore");
+const { myCharacters: charactersForUser } = require("../../../src/web/userCharacters");
 const { EMBED_LIMITS, embedSize } = require("../../../src/utils/botLookup");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");

@@ -5,7 +5,7 @@
 const { listByCharacter } = require("../../web/lootStore");
 const { itemCatalog } = require("../../web/lootStats");
 const { annotatedCharacters } = require("../../web/characterInfo");
-const { charactersForUser } = require("../../web/raiderCharactersStore");
+const { myCharacters } = require("../../web/userCharacters");
 const { webUrl, lookupReply, respondChoices, focusedName, discordTime, plural, clip } = require("../../utils/botLookup");
 
 /** How many awards a reply lists — the web page has the rest. */
@@ -40,11 +40,11 @@ function itemLines(items, { withCharacter = false } = {}) {
 const charUrl = (name) => webUrl(`/history/char?name=${encodeURIComponent(name)}`);
 
 async function lootForMe(interaction) {
-    const chars = charactersForUser(interaction.user.id);
+    const chars = myCharacters(interaction.user.id);
     if (!chars.length) {
         return lookupReply(interaction, {
             title: "Dein Loot",
-            description: "Dir ist noch kein Charakter zugeordnet. Das macht die Raidleitung im Menü (Einstellungen → Kategorien) — bis dahin hilft `/loot raider`.",
+            description: "Dir ist noch kein Charakter zugeordnet. Trag ihn in deinem Profil ein (`/profil`) — bis dahin hilft `/loot raider`.",
         }, [{ label: "Im Web öffnen", url: webUrl("/history") }]);
     }
     const items = chars.flatMap((c) => listByCharacter(c.character))
