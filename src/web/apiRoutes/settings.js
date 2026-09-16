@@ -13,6 +13,7 @@ const wowhead = require("../../utils/wowhead");
 const {
     AREAS, normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,
 } = require("../../config/permissions");
+const { normalizeBotCommandAccess } = require("../../config/botCommands");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
 
@@ -52,7 +53,7 @@ function normalizeCategorySheets(raw) {
 
 // Config keys that decide who gets into the menu — only full admins may change
 // them, so a role with write access to "Einstellungen" can't grant itself more.
-const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermissions"];
+const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermissions", "botCommandAccess"];
 
 // Config keys that hold a credential to a foreign system the bot pays for or
 // acts through (the Anthropic key, the Warcraft Logs API client). Full-admin
@@ -174,6 +175,8 @@ async function updateSettings(req, res) {
     // Guarded like the other access keys above, but it was never taken over
     // into `partial` — a per-account grant set in the menu was silently dropped.
     if (body.userPermissions !== undefined) partial.userPermissions = normalizeUserPermissions(body.userPermissions);
+    // Sent as the whole map: a command left out follows its defaultAccess again.
+    if (body.botCommandAccess !== undefined) partial.botCommandAccess = normalizeBotCommandAccess(body.botCommandAccess);
     if (body.guildId !== undefined) partial.guildId = String(body.guildId).trim();
     if (body.raidhelperServerId !== undefined) partial.raidhelperServerId = String(body.raidhelperServerId).trim();
     if (body.officerRoleId !== undefined) partial.officerRoleId = String(body.officerRoleId).trim();

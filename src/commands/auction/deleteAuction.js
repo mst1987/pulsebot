@@ -1,12 +1,12 @@
 ﻿const Legendary = require("../../classes/legendary");
-const { checkForPermission, botReply } = require("../../utils/helper");
+const { botReply } = require("../../utils/helper");
 
 module.exports = {
     name: "deleteauction",
-    description: "Delete an auction",
+    description: "Löscht die Auktion dieses Kanals",
+    group: "auctions",
+    defaultAccess: "admins",
     async execute(interaction, client) {
-        if (!checkForPermission(interaction)) return;
-
         const legendary = new Legendary();
         const response = await legendary.deleteAuction(interaction.channel.id);
 

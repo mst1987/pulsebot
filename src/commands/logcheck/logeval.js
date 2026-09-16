@@ -12,6 +12,8 @@ const discord = require("../../web/discord");
 module.exports = {
     name: "logcheck-eval",
     description: "Wertet einen im Log-Channel erkannten Warcraft-Logs-Report aus (Button).",
+    // A component of /logcheck: it needs the same access (web/botAccess.js).
+    accessOf: "logcheck",
     async execute(interaction) {
         const parts = (interaction.customId || "").split(":");
         const logId = parts[1] || "";

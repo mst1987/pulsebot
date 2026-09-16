@@ -14,7 +14,9 @@ const { getAuctionMessage } = require("../../utils/responses");
 
 module.exports = {
     name: "bid",
-    description: "Place a bid in an auction",
+    description: "Gebot in der Auktion dieses Kanals abgeben",
+    group: "auctions",
+    defaultAccess: "everyone",
     async execute(interaction, client) {
         const bid = interaction.options.getString("gold");
         bidForLegendary(client, interaction, bid);

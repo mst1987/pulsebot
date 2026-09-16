@@ -5,7 +5,9 @@ const { setupResponse } = require("../../utils/responses");
 
 module.exports = {
   name: "show-mysetups",
-  description: "Show your setups",
+  description: "Zeigt die Events, in deren Setup du stehst",
+  group: "signup",
+  defaultAccess: "everyone",
   async execute(interaction, client) {
     try {
       await interaction.deferReply({ ephemeral: true });

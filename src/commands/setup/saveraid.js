@@ -1,17 +1,17 @@
 ﻿const { createRaidhelperClient } = require("../../utils/raidhelperClient");
 const messages = require("../../config/messages");
 const {
-    checkForPermission,
     getRaidInfosFromChannel,
     botReply,
 } = require("../../utils/helper");
 
 module.exports = {
     name: "saveraid",
-    description: "Save Raid to pulse gdkp",
+    description: "Speichert den Raid dieses Kanals bei Pulse GDKP",
+    group: "raids",
+    defaultAccess: "admins",
     async execute(interaction, client) {
         const raidhelper = createRaidhelperClient();
-        if (!checkForPermission(interaction)) return;
         const raidInfos = await getRaidInfosFromChannel(interaction);
         const response = await raidhelper.saveRaid(raidInfos);
         if (response._id) {

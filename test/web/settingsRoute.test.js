@@ -100,3 +100,27 @@ describe("PATCH /api/settings userPermissions", () => {
         expect(settingsStore.saveConfig).not.toHaveBeenCalled();
     });
 });
+
+describe("PATCH /api/settings botCommandAccess", () => {
+    it("normalises and stores the bot command rules", async () => {
+        readJsonBody.mockResolvedValue({
+            botCommandAccess: {
+                fillsetup: { mode: "roles", roleIds: ["123456789012345678", "nope"] },
+                logcheck: { mode: "bogus" },
+            },
+        });
+        await updateSettings({ headers: {} }, mockRes());
+        expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+            botCommandAccess: { fillsetup: { mode: "roles", roleIds: ["123456789012345678"] } },
+        });
+    });
+
+    it("cannot be saved by a settings user who is not a full admin", async () => {
+        requireAdmin.mockReturnValue({ id: "7", isAdmin: false });
+        requireFullAdmin.mockReturnValue(null);
+        readJsonBody.mockResolvedValue({ botCommandAccess: { fillsetup: { mode: "everyone" } } });
+        await updateSettings({ headers: {} }, mockRes());
+        expect(requireFullAdmin).toHaveBeenCalled();
+        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+    });
+});

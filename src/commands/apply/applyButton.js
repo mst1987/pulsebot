@@ -3,7 +3,10 @@ const { CLASSES } = require("../../config/applyClasses");
 
 module.exports = {
     name: "apply",
-    description: "Bewerbungsbutton",
+    description: "Bewerben-Button unter der Recruitment-Nachricht",
+    group: "recruitment",
+    defaultAccess: "everyone",
+    kind: "button",
     async execute(interaction) {
         const guildEmojis = interaction.guild?.emojis.cache;
 

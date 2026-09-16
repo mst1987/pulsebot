@@ -7,6 +7,8 @@ const mockLogin = jest.fn(() => Promise.resolve("ok"));
 
 jest.mock("../src/web/server", () => ({ startWebServer: mockStartWebServer }));
 jest.mock("../src/web/logChannel", () => ({ handleLogMessage: jest.fn() }));
+const mockGuard = jest.fn(async () => true);
+jest.mock("../src/web/botAccess", () => ({ guardInteraction: (...args) => mockGuard(...args) }));
 jest.mock("dotenv", () => ({ config: jest.fn() }));
 jest.mock("discord.js", () => {
     // Keep the real exports (ChannelType, builders, Collection, …) so the real
@@ -81,5 +83,53 @@ describe("bot start()", () => {
         expect(mockStartWebServer).toHaveBeenCalledWith(bot.client);
         expect(mockLogin).not.toHaveBeenCalled();
         expect(console.warn).toHaveBeenCalled();
+    });
+});
+
+describe("interactionCreate access gate", () => {
+    function slash(commandName) {
+        return {
+            commandName,
+            isCommand: () => true,
+            isButton: () => false,
+            isStringSelectMenu: () => false,
+            isModalSubmit: () => false,
+            replied: false,
+            deferred: false,
+            reply: jest.fn(),
+        };
+    }
+
+    beforeEach(() => {
+        delete process.env.DISCORDJS_BOT_TOKEN;
+        bot.start();
+    });
+
+    it("runs the command when the gate allows it", async () => {
+        const command = { name: "probe", execute: jest.fn() };
+        bot.client.commands.set("probe", command);
+        mockGuard.mockResolvedValueOnce(true);
+        const interaction = slash("probe");
+        await bot.client._h.interactionCreate(interaction);
+        expect(mockGuard).toHaveBeenCalledWith(interaction, command, bot.client.commands);
+        expect(command.execute).toHaveBeenCalledWith(interaction, bot.client);
+    });
+
+    it("never runs the command when the gate refuses it", async () => {
+        const command = { name: "probe", execute: jest.fn() };
+        bot.client.commands.set("probe", command);
+        mockGuard.mockResolvedValueOnce(false);
+        await bot.client._h.interactionCreate(slash("probe"));
+        expect(command.execute).not.toHaveBeenCalled();
+    });
+
+    it("checks a button against its handler, looked up by the customId prefix", async () => {
+        const command = { name: "logcheck-eval", accessOf: "logcheck", execute: jest.fn() };
+        bot.client.commands.set("logcheck-eval", command);
+        mockGuard.mockResolvedValueOnce(false);
+        const interaction = { ...slash(undefined), customId: "logcheck-eval:42:all", isCommand: () => false, isButton: () => true };
+        await bot.client._h.interactionCreate(interaction);
+        expect(mockGuard).toHaveBeenCalledWith(interaction, command, bot.client.commands);
+        expect(command.execute).not.toHaveBeenCalled();
     });
 });

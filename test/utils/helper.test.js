@@ -3,7 +3,6 @@ const {
     formatNumberWithDots,
     formatSpecs,
     getChannelsFromCategories,
-    checkForPermission,
     botReply,
     botEditReply,
 } = require("../../src/utils/helper.js");
@@ -67,20 +66,6 @@ describe("utils/helper", () => {
                 },
             };
             expect(getChannelsFromCategories(guild, ["cat1"])).toEqual(["c1"]);
-        });
-    });
-
-    describe("checkForPermission", () => {
-        it("returns true for the admin user", () => {
-            const interaction = mockInteraction({ userId: String(adminUserId).split(",")[0] });
-            expect(checkForPermission(interaction)).toBe(true);
-            expect(interaction.reply).not.toHaveBeenCalled();
-        });
-
-        it("returns false and replies for a non-admin", () => {
-            const interaction = mockInteraction({ userId: "not-an-admin" });
-            expect(checkForPermission(interaction)).toBe(false);
-            expect(interaction.reply).toHaveBeenCalledTimes(1);
         });
     });
 

@@ -2,7 +2,6 @@
 const extendedClassList = require("../config/classlist.js");
 const { formatTimestampToDateString } = require("./date.js");
 const {
-    adminUserId,
     raidhelperBotId,
     defaultTimeout,
     embedAccentColor,
@@ -149,25 +148,6 @@ function getChannelsFromCategories(guild, categoryIds) {
     return channelsFromCategories;
 }
 
-function checkForPermission(interaction) {
-    // adminUserId may hold a single id or a comma-separated list of admin ids
-    const admins = String(adminUserId)
-        .split(",")
-        .map((id) => id.trim())
-        .filter(Boolean);
-
-    if (!admins.includes(interaction.user.id)) {
-        botReply(
-            interaction,
-            "Fehlende Berechtigung",
-            "Dir fehlt die Berechtigung diese Befehl auszuführen."
-        );
-        return false;
-    }
-
-    return true;
-}
-
 async function getRaidInfosFromChannel(interaction) {
     const raidhelper = createRaidhelperClient();
     const channelMessages = await interaction.channel.messages.fetch();
@@ -255,6 +235,5 @@ module.exports = {
     findServerEmoji,
     getCharacterIcon,
     getRaidInfosFromChannel,
-    checkForPermission,
     botEditReply,
 };

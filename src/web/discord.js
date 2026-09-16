@@ -736,7 +736,7 @@ module.exports = {
     resolveUserNames,
     listCategories, listAllChannels, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,
-    listMembersWithRoles, postMissingPing, _resetMembersCacheForTests,
+    listMembersWithRoles, fetchGuildMembersCached, postMissingPing, _resetMembersCacheForTests,
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,
     isRecruitmentMessage, extractTemplate,
     listApplications, parseApplicationEmbed,

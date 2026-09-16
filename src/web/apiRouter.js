@@ -13,6 +13,7 @@ const {
     getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler,
 } = require("./apiRoutes/settings");
 const { ingestLoot } = require("./apiRoutes/ingest");
+const { getBotCommands } = require("./apiRoutes/botCommands");
 const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raiderCharacters");
 const { getRoster, postRosterHide, getRosterChar } = require("./apiRoutes/roster");
 const {
@@ -138,6 +139,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/settings/ingest-tokens/delete" && req.method === "POST") {
         await deleteIngestTokenHandler(req, res);
+        return true;
+    }
+    if (pathname === "/api/bot-commands" && req.method === "GET") {
+        await getBotCommands(req, res);
         return true;
     }
     // Token-authenticated, not session-authenticated — see apiRoutes/ingest.js.

@@ -1,7 +1,6 @@
 ﻿const Legendary = require("../../classes/legendary");
 const { toTimestamp } = require("../../utils/date");
 const {
-    checkForPermission,
     findServerEmoji,
     botReply,
 } = require("../../utils/helper");
@@ -9,10 +8,10 @@ const { getAuctionMessage } = require("../../utils/responses");
 
 module.exports = {
     name: "updateauction",
-    description: "Update an existing auction",
+    description: "Ändert die Auktion dieses Kanals",
+    group: "auctions",
+    defaultAccess: "admins",
     async execute(interaction, client) {
-        if (!checkForPermission(interaction)) return;
-
         const legendary = new Legendary();
         let auctionData = {};
         auctionData.channel = interaction.channel.id;

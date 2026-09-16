@@ -32,6 +32,9 @@ const AREA_BY_PATH = {
     // these are credentials that skip the Discord login (apiRoutes/settings.js).
     "/api/settings/ingest-tokens": "settings",
     "/api/settings/ingest-tokens/delete": "settings",
+    // Einstellungen → Berechtigungen → Bot-Befehle. The handler additionally
+    // demands a full admin, like every other access setting.
+    "/api/bot-commands": "settings",
     // The raider→character assignment lives in the settings page's own tab.
     "/api/raider-characters": "settings",
 
