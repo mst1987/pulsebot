@@ -105,7 +105,7 @@ export default function RoleSyncPart({ csrfToken, onConfig }: {
                 </div>
             )}
             {data.roleSync.length === 0
-                ? <div className="empty">Noch keine Zuordnung. Ohne Zuordnung werden keine Rollen vergeben.</div>
+                ? <div className="sync-empty">Noch keine Zuordnung. Ohne Zuordnung werden keine Rollen vergeben.</div>
                 : (
                     <ul className="sync-list">
                         {data.roleSync.map((rule, i) => (
