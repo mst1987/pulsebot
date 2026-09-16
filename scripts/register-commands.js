@@ -99,6 +99,13 @@ const commands = [
     { name: "update-events", description: "Update event overview for the current category" },
     { name: "profil", description: "Zeigt dein Raider-Profil kurz an, mit Link ins Web" },
     {
+        name: "event",
+        description: "Events anlegen",
+        options: [
+            { name: "anlegen", description: "Event anlegen: Kategorie, Vorlage und Kanal wählen, dann Datum und Titel", type: 1 },
+        ],
+    },
+    {
         name: "signup",
         description: "Sign up to the raid in this channel",
         options: [{
@@ -124,6 +131,69 @@ const commands = [
         options: [
             { name: "setup_id", description: "Raidhelper Setup-ID (Nummer am Ende des Raidplan-Links)", type: 3, required: true },
             { name: "tank3", description: "3. Tank (Charaktername fuer B13, optional)", type: 3, required: false },
+        ],
+    },
+    // Lookups with a link into the web menu (#265) — src/commands/lookup/.
+    {
+        name: "loot",
+        description: "Loot nachschlagen",
+        options: [
+            { name: "ich", description: "Dein Loot (über deine zugeordneten Charaktere)", type: 1 },
+            {
+                name: "item", description: "Wer ein Item wann bekommen hat", type: 1,
+                options: [{ name: "item", description: "Item", type: 3, required: true, autocomplete: true }],
+            },
+            {
+                name: "raider", description: "Was ein Raider bekommen hat", type: 1,
+                options: [{ name: "name", description: "Charaktername", type: 3, required: true, autocomplete: true }],
+            },
+        ],
+    },
+    { name: "raids", description: "Deine nächsten Raids und dein Anmeldestatus" },
+    {
+        name: "raid",
+        description: "Ein Raid im Überblick: Termin, Anmeldestand, dein Status",
+        options: [{ name: "event", description: "Raid", type: 3, required: true, autocomplete: true }],
+    },
+    { name: "anwesenheit", description: "Deine Anwesenheit in den letzten Raids" },
+    {
+        name: "anwesenheit-raider",
+        description: "Anwesenheit eines Raiders in den letzten Raids",
+        options: [{ name: "raider", description: "Charaktername", type: 3, required: true, autocomplete: true }],
+    },
+    { name: "report", description: "Die letzten Log-Auswertungen mit Link" },
+    {
+        name: "council",
+        description: "Loot-Council: Drop-Check für ein Item öffnen",
+        options: [{ name: "item", description: "Item", type: 3, required: true, autocomplete: true }],
+    },
+    // Channel work from Discord (#259); deleting stays in the web menu.
+    {
+        name: "kanal",
+        description: "Kanal umbenennen, archivieren oder anlegen",
+        options: [
+            {
+                name: "umbenennen", description: "Kanal umbenennen", type: 1,
+                options: [
+                    { name: "kanal", description: "Kanal", type: 7, required: true, channel_types: [0, 2, 5, 13, 15] },
+                    { name: "name", description: "Neuer Name", type: 3, required: true, max_length: 100 },
+                ],
+            },
+            {
+                name: "archivieren", description: "Kanal ins Archiv verschieben und Schreibrechte entziehen", type: 1,
+                options: [
+                    { name: "kanal", description: "Kanal", type: 7, required: true, channel_types: [0, 2, 5, 13, 15] },
+                ],
+            },
+            {
+                name: "anlegen", description: "Kanal in einer Kategorie anlegen (Name oder Schema)", type: 1,
+                options: [
+                    { name: "kategorie", description: "Kategorie", type: 7, required: true, channel_types: [4] },
+                    { name: "name", description: "Name oder Schema wie {tag}-{dd}-{mm}-{raid}; leer = Schema der Kategorie", type: 3, required: false, max_length: 100 },
+                    { name: "datum", description: "Datum für das Schema, z. B. 24.09.", type: 3, required: false },
+                    { name: "raid", description: "Raid-Kürzel für {raid}, z. B. ssc-tk", type: 3, required: false },
+                ],
+            },
         ],
     },
 ];

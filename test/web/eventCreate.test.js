@@ -22,10 +22,11 @@ jest.mock("../../src/web/discord", () => ({
 }));
 jest.mock("../../src/web/discordChannels", () => ({
     createFromTemplate: jest.fn(),
-    discordErrorText: (e) => (e && e.code === 50013 ? "fehlende Rechte" : (e && e.message) || "unbekannter Fehler"),
+    discordErrorText: jest.requireActual("../../src/web/discordChannels").discordErrorText,
 }));
 jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})), getRaidTemplate: jest.fn(() => null) }));
 jest.mock("../../src/web/eventMessage", () => ({ postEventMessage: jest.fn(), refreshEventMessage: jest.fn() }));
+jest.mock("../../src/web/talkOverview", () => ({ scheduleOverviewSync: jest.fn(), RAIDHELPER_CREATE_DELAY_MS: 35000 }));
 jest.mock("../../src/web/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null), listRaidEvents: jest.fn(() => []) }));
 jest.mock("../../src/web/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
@@ -37,9 +38,11 @@ jest.mock("../../src/web/raidListing", () => ({
 
 const fs = require("fs");
 const discord = require("../../src/web/discord");
+const discordChannels = require("../../src/web/discordChannels");
 const { getConfig, getRaidTemplate } = require("../../src/web/settingsStore");
 const { postEventMessage, refreshEventMessage } = require("../../src/web/eventMessage");
-const { createFromTemplate } = require("../../src/web/discordChannels");
+const { scheduleOverviewSync } = require("../../src/web/talkOverview");
+const { createFromTemplate } = discordChannels;
 const channelArchiveStore = require("../../src/web/channelArchiveStore");
 const eventStore = require("../../src/web/eventStore");
 const { createEvent, updateEvent, startTimeOf, schemaChannelName } = require("../../src/web/eventCreate");
@@ -72,7 +75,8 @@ describe("web/eventCreate", () => {
         expect(mockCreateEvent).toHaveBeenCalledWith({
             channelId: "c1", leaderId: "7", templateId: "t1", date: "01-10-2026", time: "20:00", title: "Kara Donnerstag", description: "Treffpunkt Eingang",
         });
-        expect(result).toEqual({ status: 201, body: { id: "rh-1" } });
+        expect(result).toEqual({ status: 201, body: { id: "rh-1", channelId: "c1" } });
+        expect(scheduleOverviewSync).toHaveBeenCalledWith({ delayMs: 35000 });
         expect(eventStore.listEvents("g1")).toEqual([]);
         expect(postEventMessage).not.toHaveBeenCalled();
     });
@@ -91,6 +95,7 @@ describe("web/eventCreate", () => {
             createdBy: "42",
         });
         expect(postEventMessage).toHaveBeenCalledWith(result.body.id);
+        expect(scheduleOverviewSync).toHaveBeenCalledWith();
     });
 
     it("accepts the planning fields for an EventHelper event", async () => {
@@ -137,6 +142,38 @@ describe("web/eventCreate", () => {
         expect(mockGetEvent).not.toHaveBeenCalled();
         expect(discord.duplicateChannel).toHaveBeenCalledWith("c2", "kara-neu");
         expect(eventStore.getEvent(result.body.id)).toMatchObject({ channelId: "c3", channelName: "kara-neu", categoryId: "cat-eh" });
+    });
+
+    it("creates a new channel in the asked category, only after the plan was checked (#260)", async () => {
+        discordChannels.createFromTemplate.mockResolvedValue({ id: "c9", name: "mi-24-09-kara" });
+        const bad = await createEvent({ guildId: "g1", user, body: body({
+            channelId: "", newChannel: { name: "Mi 24 09 Kara", categoryId: "cat-eh" }, size: 99,
+        }) });
+        expect(bad.error.code).toBe("invalid_plan");
+        expect(discordChannels.createFromTemplate).not.toHaveBeenCalled();
+
+        const result = await createEvent({ guildId: "g1", user, body: body({
+            channelId: "", newChannel: { name: "Mi 24 09 Kara", categoryId: "cat-eh", templateChannelId: "c2" },
+        }) });
+        expect(discordChannels.createFromTemplate).toHaveBeenCalledWith("g1", { name: "mi-24-09-kara", parentId: "cat-eh", templateChannelId: "c2" });
+        expect(eventStore.getEvent(result.body.id)).toMatchObject({ channelId: "c9", channelName: "mi-24-09-kara", categoryId: "cat-eh" });
+    });
+
+    it("reports a new channel Discord refused, readable", async () => {
+        discordChannels.createFromTemplate.mockRejectedValue(Object.assign(new Error("Missing Permissions"), { code: 50013 }));
+        const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "", newChannel: { name: "kara", categoryId: "cat-rh" } }) });
+        expect(result.error).toEqual({ status: 400, code: "create_failed", message: "Kanal konnte nicht angelegt werden: fehlende Rechte" });
+        expect(mockCreateEvent).not.toHaveBeenCalled();
+    });
+
+    it("lets the caller pick the other source for one event", async () => {
+        mockCreateEvent.mockResolvedValue({ id: "rh-2" });
+        const rh = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", signupSource: "raidhelper" }) });
+        expect(rh.body).toEqual({ id: "rh-2", channelId: "c2" });
+        const own = await createEvent({ guildId: "g1", user, body: body({ channelId: "c1", signupSource: "eventhelper" }) });
+        expect(own.body.source).toBe("eventhelper");
+        const ignored = await createEvent({ guildId: "g1", user, body: body({ channelId: "c1", signupSource: "kaputt" }) });
+        expect(ignored.body).toEqual({ id: "rh-2", channelId: "c1" });
     });
 
     it("still creates the event when the message cannot be posted, and says so", async () => {
@@ -207,7 +244,8 @@ describe("web/eventCreate", () => {
         it("creates a new channel in the chosen category, named by the category's schema", async () => {
             channelArchiveStore.saveCategorySchema("g1", "cat-eh", { schema: "{raid}-{dd}-{mm}", raid: "t5" });
             createFromTemplate.mockResolvedValue({ id: "c9", name: "ssc-tk-01-10" });
-            const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "", newChannel: true, categoryId: "cat-eh", raidTemplateId: "tpl-t5" }) });
+            // the web dialog leaves the name to the server when nobody typed one
+            const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "", newChannel: { name: "", categoryId: "cat-eh" }, raidTemplateId: "tpl-t5" }) });
             expect(createFromTemplate).toHaveBeenCalledWith("g1", { name: "ssc-tk-01-10", parentId: "cat-eh", templateChannelId: "" });
             expect(eventStore.getEvent(result.body.id)).toMatchObject({ channelId: "c9", channelName: "ssc-tk-01-10", categoryId: "cat-eh", categoryName: "EventHelper-Raids" });
             // without instances the schema's stored raid fills {raid}; without a schema the default applies
@@ -215,16 +253,13 @@ describe("web/eventCreate", () => {
             expect(schemaChannelName("g1", "cat-other", "2026-10-01", ["kara"])).toBe("do-01-10-kara");
         });
 
-        it("keeps a name the dialog sends and refuses a new channel without category", async () => {
+        it("keeps a name the dialog sends and the schema's template channel, refuses a new channel with neither name nor category", async () => {
+            channelArchiveStore.saveCategorySchema("g1", "cat-eh", { schema: "{raid}", templateChannelId: "c2" });
             createFromTemplate.mockResolvedValue({ id: "c9", name: "mein-kanal" });
-            await createEvent({ guildId: "g1", user, body: body({ channelId: "", newChannel: true, categoryId: "cat-eh", channelName: "mein-kanal" }) });
-            expect(createFromTemplate).toHaveBeenCalledWith("g1", expect.objectContaining({ name: "mein-kanal" }));
-            const missing = await createEvent({ guildId: "g1", user, body: body({ channelId: "", newChannel: true }) });
-            expect(missing.error.code).toBe("no_category");
-            // Discord refuses: readable, and no event is stored
-            createFromTemplate.mockRejectedValueOnce(Object.assign(new Error("Missing Permissions"), { code: 50013 }));
-            const refused = await createEvent({ guildId: "g1", user, body: body({ channelId: "", newChannel: true, categoryId: "cat-eh" }) });
-            expect(refused.error).toEqual({ status: 400, code: "create_failed", message: "Kanal konnte nicht angelegt werden: fehlende Rechte." });
+            await createEvent({ guildId: "g1", user, body: body({ channelId: "", newChannel: { name: "Mein Kanal", categoryId: "cat-eh" } }) });
+            expect(createFromTemplate).toHaveBeenCalledWith("g1", { name: "mein-kanal", parentId: "cat-eh", templateChannelId: "c2" });
+            const missing = await createEvent({ guildId: "g1", user, body: body({ channelId: "", newChannel: {} }) });
+            expect(missing.error.code).toBe("no_channel");
             expect(eventStore.listEvents("g1")).toHaveLength(1);
         });
 
@@ -232,7 +267,7 @@ describe("web/eventCreate", () => {
             // c2 sits in an EventHelper category, the dialog says Raid-Helper
             mockCreateEvent.mockResolvedValue({ id: "rh-2" });
             const rh = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", signupSource: "raidhelper", templateId: "", raidTemplateId: "tpl-t5" }) });
-            expect(rh.body).toEqual({ id: "rh-2" });
+            expect(rh.body).toEqual({ id: "rh-2", channelId: "c2" });
             // the raid template's linked Raid-Helper template stands in for the missing id
             expect(mockCreateEvent).toHaveBeenCalledWith(expect.objectContaining({ templateId: "rh-9" }));
             // c1 is a Raid-Helper category, the dialog says EventHelper
@@ -259,6 +294,7 @@ describe("web/eventCreate", () => {
                 composition: { tank: 2, healer: 2, ranged: 2 }, compositionMax: { ranged: 4 }, requiredBuffs: ["kings"],
             });
             expect(refreshEventMessage).toHaveBeenCalledWith(ev.id);
+            expect(scheduleOverviewSync).toHaveBeenCalledWith();
         });
 
         it("counts the deadline hours from the (new) Berlin start and stores the switches", async () => {

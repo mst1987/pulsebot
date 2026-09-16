@@ -5,7 +5,7 @@
 // every function is `export function name(params): Result {` on one line, and
 // no body uses type syntax (no `as`, no generics, no annotated locals). The test
 // relies on exactly that; keep it when adding a function here.
-import type { AreaAccess, PingTarget, PingTargetInfo, ReminderRule, RoleSyncRule } from "../api";
+import type { AreaAccess, PingTarget, PingTargetInfo, ReminderRule, RoleSyncRule, TalkOverviewStatus } from "../api";
 
 export type Level = "none" | "read" | "write";
 export type Grants = Record<string, AreaAccess | undefined>;
@@ -465,4 +465,42 @@ export function remindersPatch(current: Record<string, ReminderRule>, categoryId
     if (!missingHours && !signedHours) delete next[categoryId];
     else next[categoryId] = { missingHours, signedHours, target: rule.target || "event" };
     return { categoryReminders: next };
+}
+
+// ---- raid overview on the talk server (#257) ----
+
+/** "gerade eben", "vor 5 Min.", "vor 3 Std.", "vor 2 T"; "" for never. */
+export function agoText(ms: number, now: number): string {
+    if (!ms) return "";
+    const minutes = Math.max(0, Math.round((now - ms) / 60000));
+    if (minutes < 1) return "gerade eben";
+    if (minutes < 60) return `vor ${minutes} Min.`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 48) return `vor ${hours} Std.`;
+    return `vor ${Math.round(hours / 24)} T`;
+}
+
+/** The overview's one badge: state as label, the times and any error in the tooltip. */
+export function talkOverviewBadge(status: TalkOverviewStatus | null, now: number): { label: string; tone: "ok" | "mid" | ""; tip: string; tipSub: string } {
+    if (!status || !status.configured) {
+        return { label: "nicht eingestellt", tone: "", tip: "Raid-Übersicht", tipSub: "Wähle einen Kommunikations-Discord und einen Kanal für die Übersicht." };
+    }
+    const times = [
+        status.postedAt ? `Gepostet ${agoText(status.postedAt, now)}` : "",
+        status.editedAt ? `Zuletzt bearbeitet ${agoText(status.editedAt, now)}` : "",
+        status.checkedAt ? `Zuletzt geprüft ${agoText(status.checkedAt, now)}` : "",
+    ].filter(Boolean);
+    if (status.error) {
+        return { label: "Fehler", tone: "mid", tip: "Übersicht nicht aktualisiert", tipSub: [status.error, ...times].join("\n") };
+    }
+    if (!status.messageId) {
+        return { label: "noch nicht gepostet", tone: "", tip: "Raid-Übersicht", tipSub: "Sie wird beim nächsten Lauf (alle 5 Minuten) gepostet — oder jetzt mit „Neu posten“." };
+    }
+    const label = status.editedAt ? `bearbeitet ${agoText(status.editedAt, now)}` : `gepostet ${agoText(status.postedAt, now)}`;
+    return {
+        label,
+        tone: "ok",
+        tip: "Raid-Übersicht aktuell",
+        tipSub: [...times, "Aktualisiert sich bei An- und Abmeldungen, neuen Events und alle 5 Minuten."].join("\n"),
+    };
 }

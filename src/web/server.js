@@ -7,6 +7,7 @@ const { startLogAutoLink } = require("./logAutoLink");
 const { startEventMessageSync } = require("./eventMessage");
 const { startReminders } = require("./reminders");
 const { startRoleSync } = require("./roleSync");
+const { startTalkOverview } = require("./talkOverview");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
 const { startSheetCleanup } = require("../utils/sheetCleanup");
 const discord = require("./discord");
@@ -168,6 +169,8 @@ function startWebServer(client) {
     // and the talk server (#264). Both do nothing until configured.
     startReminders();
     startRoleSync();
+    // The raid overview on the talk server (#257); does nothing until configured.
+    startTalkOverview();
     return server;
 }
 

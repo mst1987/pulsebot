@@ -15,6 +15,7 @@ const {
     saveRaidsheetHandler, deleteRaidsheetHandler,
     getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers, getRoleSync, getReminders,
 } = require("./apiRoutes/settings");
+const { getTalkOverview, postTalkOverview } = require("./apiRoutes/talkOverview");
 const { ingestLoot } = require("./apiRoutes/ingest");
 const { getBotCommands } = require("./apiRoutes/botCommands");
 const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raiderCharacters");
@@ -22,6 +23,7 @@ const { getRoster, postRosterHide, getRosterChar } = require("./apiRoutes/roster
 const {
     getProfile, putProfile, getLogCharacters, postProfileCharacter, getRaiderSearch, getUserProfile, getCharacterClaims,
 } = require("./apiRoutes/profile");
+const { getSignups, putSignup, getEventSignups } = require("./apiRoutes/signups");
 const {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim,
     getItemSearch: getCouncilItemSearch, getBisLists: getCouncilBisLists,
@@ -164,6 +166,14 @@ async function route(pathname, req, res, url) {
         await getDiscordServers(req, res);
         return true;
     }
+    if (pathname === "/api/settings/talk-overview" && req.method === "GET") {
+        await getTalkOverview(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/settings/talk-overview" && req.method === "POST") {
+        await postTalkOverview(req, res);
+        return true;
+    }
     if (pathname === "/api/settings/role-sync" && req.method === "GET") {
         await getRoleSync(req, res);
         return true;
@@ -239,6 +249,18 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/profile/user" && req.method === "GET") {
         await getUserProfile(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/signups" && req.method === "GET") {
+        await getSignups(req, res);
+        return true;
+    }
+    if (pathname === "/api/signups" && req.method === "PUT") {
+        await putSignup(req, res);
+        return true;
+    }
+    if (pathname === "/api/signups/event" && req.method === "GET") {
+        await getEventSignups(req, res, url);
         return true;
     }
     if (pathname === "/api/lootcouncil" && req.method === "GET") {

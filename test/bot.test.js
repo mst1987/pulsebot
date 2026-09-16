@@ -155,6 +155,16 @@ describe("bot interaction router", () => {
         bot.client.commands = new (require("discord.js").Collection)();
     });
 
+    it("gates autocomplete like the command: a refused user gets no suggestions", async () => {
+        const cmd = { name: "council", execute: jest.fn(), autocomplete: jest.fn(async () => {}) };
+        bot.client.commands.set("council", cmd);
+        mockGuard.mockResolvedValueOnce(false);
+        const i = fakeInteraction("isAutocomplete", { commandName: "council" });
+        await bot.handleInteraction(i);
+        expect(mockGuard).toHaveBeenCalledWith(i, cmd, bot.client.commands);
+        expect(cmd.autocomplete).not.toHaveBeenCalled();
+    });
+
     it("hands autocomplete to the command's autocomplete()", async () => {
         const cmd = { name: "raid", execute: jest.fn(), autocomplete: jest.fn(async () => {}) };
         bot.client.commands.set("raid", cmd);

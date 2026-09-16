@@ -92,6 +92,11 @@
 .rd-sig-late { background: var(--sig-late); }
 .rd-sig-bench { background: var(--sig-bench); }
 .rd-sig-absence { background: var(--sig-absence); }
+/* an own event's signups (#256): the extra marks, details in the tooltip */
+.rd-own { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.rd-own-marks { display: inline-flex; gap: 4px; margin-left: auto; flex: 0 0 auto; }
+.rd-own-mark { font: 700 10.5px/1 var(--font-mono); color: var(--muted); padding: 2px 4px; border-radius: 4px; background: var(--panel3); }
+.rd-own-marks + .rd-sig { margin-left: 4px; }
 
 /* ---- grouped lists (owner head + entries under it) ---- */
 .rd-glist { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; min-width: 0; }

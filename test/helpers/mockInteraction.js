@@ -99,6 +99,10 @@ function mockInteraction(opts = {}) {
         deleteReply: jest.fn().mockResolvedValue(undefined),
         showModal: jest.fn().mockResolvedValue(undefined),
         update: jest.fn().mockResolvedValue(sentMessage),
+        // A component or modal that edits the message it sits under later.
+        deferUpdate: jest.fn().mockResolvedValue(undefined),
+        // The picked entries of a select menu.
+        values: opts.values || [],
         fetchReply: jest.fn().mockResolvedValue(sentMessage),
         options: {
             getString: jest.fn((name) => getOpt(name)),
@@ -108,7 +112,15 @@ function mockInteraction(opts = {}) {
             getUser: jest.fn((name) => getOpt(name)),
             getChannel: jest.fn((name) => getOpt(name)),
             getSubcommand: jest.fn(() => options.__subcommand || null),
+            // Autocomplete: `focused: { name, value }` is the option being typed.
+            getFocused: jest.fn((full) => {
+                const focused = opts.focused || { name: "", value: "" };
+                return full ? focused : focused.value;
+            }),
         },
+        // Autocomplete answers go through respond(choices).
+        respond: jest.fn().mockResolvedValue(undefined),
+        responded: false,
         // modal/text-input helpers
         fields: {
             getTextInputValue: jest.fn((name) => getOpt(name)),

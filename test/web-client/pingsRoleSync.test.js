@@ -71,6 +71,11 @@ describe("Erinnerungen part", () => {
         expect(reminders).toContain("remindersPatch(data.categoryReminders, editingCategory.id, rule)");
     });
 
+    it("never shows a bare category id: an unknown category is named as such, the id in the tooltip", () => {
+        expect(reminders).not.toContain("{c.name || c.id}");
+        expect(reminders).toMatch(/data-tip="Unbekannte Kategorie" data-tip-sub=\{`Kategorie-ID \$\{c\.id\}/);
+    });
+
     it("offers the target only with a talk ping channel", () => {
         expect(reminders).toContain("const targets = pingTargetOptions(data.pingTargets);");
         expect(reminders).toContain("{targets.length > 0 && (");

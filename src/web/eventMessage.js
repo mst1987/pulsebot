@@ -14,6 +14,8 @@ const { embedAccentColor } = require("../config/variables");
 const { getEvent, setEventMessage } = require("./eventStore");
 const { listSignups, onSignupsChanged } = require("./signupStore");
 const discord = require("./discord");
+// The counting rule lives in the signup service, so the page and the message agree.
+const { rosterCounts } = require("./signupService");
 
 const SIGNUP_BUTTON_PREFIX = "event-signup";
 const EDIT_DEBOUNCE_MS = 2000;
@@ -21,26 +23,6 @@ const EDIT_DEBOUNCE_MS = 2000;
 /** customId of the signup button under an event message. */
 function signupButtonId(eventId) {
     return `${SIGNUP_BUTTON_PREFIX}:${eventId}`;
-}
-
-/**
- * How many are coming per role, and how many said otherwise.
- * @returns {{ tank: number, healer: number, dps: number, attending: number, tentative: number, bench: number, absence: number }}
- */
-function rosterCounts(signups) {
-    const out = { tank: 0, healer: 0, dps: 0, attending: 0, tentative: 0, bench: 0, absence: 0 };
-    for (const s of signups || []) {
-        const status = String((s && s.status) || "signed");
-        if (status === "signed" || status === "late") {
-            out.attending += 1;
-            if (s.role === "tank") out.tank += 1;
-            else if (s.role === "healer") out.healer += 1;
-            else out.dps += 1;
-        } else if (out[status] !== undefined) {
-            out[status] += 1;
-        }
-    }
-    return out;
 }
 
 /** "3 / 6" — or just "3" when nothing is planned for the role. */

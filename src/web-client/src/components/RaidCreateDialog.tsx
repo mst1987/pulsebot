@@ -387,7 +387,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
             } else {
                 const where = channelMode === "clone" && sourceEvent
                     ? { sourceEventId: sourceEvent.id, channelName }
-                    : channelMode === "new" ? { newChannel: true, categoryId, channelName } : { channelId };
+                    : channelMode === "new" ? { newChannel: { name: channelName, categoryId } } : { channelId };
                 const r = await createRaid(csrfToken, {
                     title, date, time, templateId, leaderId, description, signupSource: source, ...where,
                     ...(eh ? planBody(plan) : { raidTemplateId: plan.raidTemplateId }),

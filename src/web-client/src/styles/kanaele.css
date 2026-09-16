@@ -64,6 +64,8 @@ a.ibtn svg { width: 15px; height: 15px; }
 .kn-archive-empty .kn-empty { padding: 0; }
 
 .kn-cb { width: 16px; height: 16px; margin: 0; flex: 0 0 auto; accent-color: var(--accent); cursor: pointer; }
+/* the plain --line border all but vanishes on the light panel; the tree is a list of checkboxes */
+.kn-cb:not(:checked) { border-color: color-mix(in srgb, var(--muted) 50%, var(--line)); }
 
 .kn-cat-row { display: flex; align-items: center; gap: 8px; padding: 14px 8px 6px; }
 .kn-fold {
@@ -100,15 +102,20 @@ button.kn-figure { cursor: pointer; }
 button.kn-figure:hover .kn-figure-val { color: var(--accent); }
 .kn-figure-val { font-size: 22px; font-weight: 800; letter-spacing: -.3px; line-height: 1.1; }
 .kn-figure-val.mid { color: var(--medium); }
-.kn-side-note { display: flex; flex-direction: column; gap: 8px; padding: 0 4px; font-size: 12.5px; color: var(--muted); }
+.kn-purposes { gap: 10px; padding-block: 12px 16px; }
+.kn-purposes-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.kn-purposes-head .kn-kicker { cursor: help; }
 
 /* ---- bulk bar ---- */
 .kn-bulk {
     position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 40; display: flex; align-items: center; gap: 10px;
-    flex-wrap: wrap; justify-content: center; max-width: calc(100vw - 32px); padding: 10px 12px 10px 18px; background: var(--panel);
+    /* width: max-content — with left: 50% the bar would otherwise only get half
+       the viewport and break its buttons onto a second line. */
+    flex-wrap: wrap; justify-content: center; width: max-content; max-width: calc(100vw - 32px); padding: 10px 12px 10px 18px; background: var(--panel);
     border: 1px solid var(--accent); border-radius: 12px; box-shadow: 0 18px 40px -12px rgba(0, 0, 0, .6);
 }
-.kn-bulk-count { font-weight: 800; font-size: 15px; }
+.kn-bulk-sel { display: flex; flex-direction: column; gap: 1px; margin-right: 6px; line-height: 1.15; }
+.kn-bulk-count { font-weight: 800; font-size: 15px; white-space: nowrap; }
 
 /* ---- previews in the dialogs ---- */
 .kn-grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }

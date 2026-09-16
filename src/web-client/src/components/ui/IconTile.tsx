@@ -8,7 +8,7 @@ import WowIcon from "./WowIcon";
 // tile, and reusing the name would restyle every figure on the start page.
 
 export type TileTone =
-    | "home" | "profile" | "recruitment" | "cla" | "raids" | "roster" | "history" | "lootcouncil" | "channels" | "settings"
+    | "home" | "profile" | "signups" | "recruitment" | "cla" | "raids" | "roster" | "history" | "lootcouncil" | "channels" | "settings"
     | "ok" | "mid" | "bad" | "none";
 
 export default function IconTile({ icon, tone, size = "md" }: {

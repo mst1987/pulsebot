@@ -63,7 +63,7 @@ function NumberField({ id, label, value, onChange, placeholder }: {
     return (
         <div className="rt-num-field">
             <label htmlFor={id}>{label}</label>
-            <input id={id} type="number" min={0} max={40} value={value === null ? "" : value} placeholder={placeholder}
+            <input id={id} className="inp-sm" type="number" min={0} max={40} value={value === null ? "" : value} placeholder={placeholder}
                 onChange={(e) => onChange(e.target.value === "" ? null : Math.max(0, Math.floor(Number(e.target.value) || 0)))} />
         </div>
     );
@@ -169,7 +169,8 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
             onClose={onClose}
             icon={chosen[0]?.icon || NO_ICON}
             tone="raids"
-            kicker={[version?.short || draft.versionId, chosen.map((i) => i.name).join(" + ")].filter(Boolean).join(" · ")}
+            // Short names: "TBC · SSC + TK" — the full instance names sit in the chips' tooltips.
+            kicker={[version?.short || draft.versionId, chosen.map((i) => i.short).join(" + ")].filter(Boolean).join(" · ")}
             title={draft.name.trim() || (template ? "(ohne Name)" : "Neue Vorlage")}
             width={640}
             hint={template && canWrite ? <Button variant="danger" size="sm" onClick={remove}>Löschen</Button> : undefined}
@@ -220,7 +221,7 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
                         options={[...sizes.map((s) => ({ value: String(s), label: String(s) })), { value: FREE, label: "frei" }]}
                     />
                     {sizeIsFree && (
-                        <input className="rt-size-input" type="number" min={1} max={40} aria-label="Freie Größe" value={draft.size === null ? "" : draft.size}
+                        <input className="inp-sm rt-size-input" type="number" min={1} max={40} aria-label="Freie Größe" value={draft.size === null ? "" : draft.size}
                             onChange={(e) => changeSize(e.target.value === "" ? null : Math.floor(Number(e.target.value) || 0))} />
                     )}
                     {draft.size === null && <Badge tone="mid" icon={<WarnIcon />}>Größe ergänzen</Badge>}
@@ -259,7 +260,7 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
                             onChange={(h) => patch({ signupDeadline: h === null ? null : { hoursBefore: h } })} placeholder="keiner" />
                         <div className="rt-num-field">
                             <label htmlFor="rt-rh">Raid-Helper-Vorlage (ID)</label>
-                            <input id="rt-rh" type="text" className="mono" value={draft.raidhelperTemplateId} placeholder="z. B. 3"
+                            <input id="rt-rh" type="text" className="inp-sm mono" value={draft.raidhelperTemplateId} placeholder="z. B. 3"
                                 onChange={(e) => patch({ raidhelperTemplateId: e.target.value })} />
                         </div>
                     </div>

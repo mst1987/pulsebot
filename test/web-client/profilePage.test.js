@@ -32,6 +32,17 @@ describe("ProfilePage", () => {
         }
     });
 
+    it("sizes every icon it asks for above the shared 18 px .wi in its stylesheet", () => {
+        // WowIcon's size only picks the image; the shared `.wi` rule draws it at
+        // 18 px unless the page's CSS says otherwise — the UI review found all
+        // spec, role and "first character" icons shrunk to 18 px.
+        const owners = { "pf-way": page, "pf-spec": page, "pf-role": page, "pf-chip": page, "pf-logrow": dialog, "pf-class": dialog };
+        for (const [scope, source] of Object.entries(owners)) {
+            expect(source).toContain(scope);
+            expect(css).toMatch(new RegExp(`\\.${scope} \\.wi[^{]*\\{ width: \\d{2}px; height: \\d{2}px; \\}`));
+        }
+    });
+
     it("folds availability, raids, wishes and note so only one part is open at a time", () => {
         const folds = [...page.matchAll(/<FoldPart\s+id="(\w+)"/g)].map((m) => m[1]);
         expect(folds).toEqual(["days", "raids", "wishes", "note"]);

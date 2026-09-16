@@ -47,6 +47,9 @@ const AREA_BY_PATH = {
     // Event and talk server status (#251). Full-admin only in the handler as
     // well: which server is the event server decides where the role check runs.
     "/api/settings/discord-servers": "settings",
+    // The raid overview on the talk server (#257): status, dry run, "neu posten".
+    // Full-admin only in the handler, like the section it sits in.
+    "/api/settings/talk-overview": "settings",
     // Role sync (full-admin only in the handler, it hands out roles) and the
     // automatic reminders per category (#264).
     "/api/settings/role-sync": "settings",
@@ -71,6 +74,11 @@ const AREA_BY_PATH = {
     "/api/profile/characters": "signup",
     "/api/profile/raiders": "signup",
     "/api/profile/user": "roster",
+    // Anmeldungen (#256): the member's upcoming raids and their *own* signup —
+    // the PUT handler only ever writes the session's account. All signups of an
+    // event, with comments and "kann auch", are the orga's.
+    "/api/signups": "signup",
+    "/api/signups/event": "raids",
 
     // The caster loot council. Starting a simulation is a POST, so the method
     // rule already makes it write-level — a read-only council member sees the
