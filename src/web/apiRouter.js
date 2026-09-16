@@ -37,7 +37,7 @@ const {
 } = require("./apiRoutes/raidDetail");
 const {
     getSetup: getRaidSetup, postPropose: postSetupPropose, putSetup: putRaidSetup,
-    postApprove: postSetupApprove, postExplain: postSetupExplain, getExplain: getSetupExplain,
+    postApprove: postSetupApprove, postExplain: postSetupExplain, getExplain: getSetupExplain, postPublish: postSetupPublish,
 } = require("./apiRoutes/setup");
 const eventManageRoutes = require("./apiRoutes/eventManage");
 const eventSeriesRoutes = require("./apiRoutes/eventSeries");
@@ -372,6 +372,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/raids/setup/approve" && req.method === "POST") {
         await postSetupApprove(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/setup/post" && req.method === "POST") {
+        await postSetupPublish(req, res);
         return true;
     }
     if (pathname === "/api/raids/setup/explain" && req.method === "POST") {

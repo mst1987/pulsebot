@@ -4,7 +4,10 @@
 //                                              everyone else only the approved lineup
 //   POST /api/raids/setup/propose             raids write: new proposal, locked places kept
 //   PUT  /api/raids/setup                     raids write: the orga's own lineup
-//   POST /api/raids/setup/approve             raids write: approve the shown version
+//   POST /api/raids/setup/approve             raids write: approve the shown version — and
+//                                              post it into the channel / DM it (#290)
+//   POST /api/raids/setup/post                raids write: post or edit the approved setup
+//                                              again, send the DMs still outstanding
 //   POST /api/raids/setup/explain             raids write: Claude explains it (background job)
 //   GET  /api/raids/setup/explain?event=<id>  raids write (checked here): job state
 //
@@ -21,11 +24,12 @@ const { listSignups } = require("../signupStore");
 const discord = require("../discord");
 const setupEditor = require("../setupEditor");
 const { refreshEventMessage } = require("../eventMessage");
+const setupMessage = require("../setupMessage");
 const { startJob, getJob } = require("../evalJobs");
 const { explainSetup } = require("../../utils/setup/explainText");
 
 const EXPLAIN_SECTION = "setup-explain";
-const HTTP = { not_found: 404, raidhelper: 409, conflict: 409, invalid: 400, no_setup: 400 };
+const HTTP = { not_found: 404, raidhelper: 409, conflict: 409, invalid: 400, no_setup: 400, no_approved_setup: 400, cancelled: 409, no_channel: 400, discord: 502 };
 
 const canWrite = (user) => userCan(user, "raids", "write");
 
@@ -51,13 +55,28 @@ async function namesFor(event) {
 async function view(event, user, { names = true } = {}) {
     const write = canWrite(user);
     const signups = write ? listSignups(event.id) : [];
-    return setupEditor.editorView(event, {
+    // Re-read: posting and the DM run write to the event while the request runs.
+    const fresh = getEvent(event.id) || event;
+    const out = setupEditor.editorView(fresh, {
         canWrite: write,
-        names: write && names ? await namesFor(event) : {},
+        names: write && names ? await namesFor(fresh) : {},
         signups,
         hasApiKey: write && !!((getConfig().anthropic || {}).apiKey),
-        job: write ? getJob(event.id, EXPLAIN_SECTION) : null,
+        job: write ? getJob(fresh.id, EXPLAIN_SECTION) : null,
     });
+    if (write) out.publish = setupMessage.publishView(fresh, { config: getConfig(), channelName: channelNameOf(fresh) });
+    return out;
+}
+
+/** The event channel's current name, else the stored one. */
+function channelNameOf(event) {
+    try {
+        const hit = (discord.listAllChannels(event.guildId) || []).find((c) => String(c.id) === String(event.channelId));
+        if (hit && hit.name) return hit.name;
+    } catch {
+        // offline — the stored name stands in
+    }
+    return event.channelName || "";
 }
 
 /** The event of a request, or a sent error. */
@@ -132,7 +151,28 @@ async function postApprove(req, res) {
     if (!result.already && result.event.message) {
         refreshEventMessage(result.event.id).catch((e) => console.error(`[setup] event message ${result.event.id}:`, e.message));
     }
-    await answer(res, result, user, { message: result.already ? "Setup war schon freigegeben." : "Setup freigegeben – Raider sehen es jetzt." });
+    let message = result.already ? "Setup war schon freigegeben." : "Setup freigegeben – Raider sehen es jetzt.";
+    if (!result.already) {
+        // The setup's own message (#290): awaited, so the answer says where it went;
+        // the DMs run on in the background and the editor polls their outcome.
+        const { post } = await setupMessage.publishSetup(result.event.id, { userId: user.id });
+        if (post.code) message = `${message} Setup-Nachricht nicht gepostet: ${post.error}`;
+    }
+    await answer(res, result, user, { message });
+}
+
+/** POST /api/raids/setup/post — body `{ event }`: post/edit the approved setup, send outstanding DMs. */
+async function postPublish(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user || !requireWrite(res, user)) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const event = eventOf(res, body.event);
+    if (!event) return;
+    const { post } = await setupMessage.publishSetup(event.id, { userId: user.id });
+    if (post.code) return sendFailure(res, post);
+    const text = post.action === "edited" ? "Setup-Nachricht aktualisiert." : "Setup gepostet.";
+    await answer(res, { event }, user, { message: text });
 }
 
 /** POST /api/raids/setup/explain — body `{ event }`. Needs the Anthropic key. */
@@ -172,4 +212,4 @@ async function getExplain(req, res, url) {
     });
 }
 
-module.exports = { getSetup, postPropose, putSetup, postApprove, postExplain, getExplain, EXPLAIN_SECTION };
+module.exports = { getSetup, postPropose, putSetup, postApprove, postPublish, postExplain, getExplain, EXPLAIN_SECTION };

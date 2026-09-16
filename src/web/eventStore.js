@@ -180,6 +180,8 @@ function complete(e) {
         // snapshot — one shape, see setupEditor.js (#263).
         setup: e.setup || null,
         message: e.message && e.message.messageId ? { channelId: e.message.channelId || "", messageId: e.message.messageId } : null,
+        // The approved setup posted into the channel and its DMs (#290, setupMessage.js).
+        setupPost: e.setupPost && typeof e.setupPost === "object" ? e.setupPost : null,
         // Event verwalten (#288): "active" or "cancelled"; a closed signup takes
         // only sign-offs; the cancellation's reason; who did what, oldest first.
         status: e.status === "cancelled" ? "cancelled" : "active",
@@ -329,6 +331,22 @@ function setEventMessage(id, message) {
 }
 
 /**
+ * Merge into the record of the posted setup (#290, setupMessage.js): where the
+ * message sits, which version it shows, the DM run and who was told what.
+ * Only the keys present change; `null` clears the whole record. Returns the
+ * event or null.
+ */
+function setEventSetupPost(id, patch) {
+    const events = readAll();
+    const idx = events.findIndex((e) => e && e.id === str(id));
+    if (idx < 0) return null;
+    const prev = events[idx].setupPost && typeof events[idx].setupPost === "object" ? events[idx].setupPost : {};
+    events[idx] = { ...events[idx], setupPost: patch && typeof patch === "object" ? { ...prev, ...patch } : null };
+    writeAll(events);
+    return complete(events[idx]);
+}
+
+/**
  * Store the event's setup (#263) as setupEditor.js built it — draft, approval
  * and the last approved snapshot in one object (null clears it). Returns the
  * event or null. Apart from updateEvent() on purpose: the setup is no planning
@@ -442,6 +460,6 @@ function saveSetupDraft(id, proposal, { createdBy = "auto", now = Date.now() } =
 
 module.exports = {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft,
-    setEventState, appendEventLog, MAX_LOG,
+    setEventState, appendEventLog, MAX_LOG, setEventSetupPost,
     normalizePlan, isOwnEventId, EVENTS_FILE, ID_PREFIX, COMPOSITION_ROLES,
 };

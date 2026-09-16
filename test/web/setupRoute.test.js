@@ -29,11 +29,16 @@ jest.mock("../../src/web/eventSources", () => ({
 }));
 jest.mock("../../src/web/discord", () => ({ resolveUserNames: jest.fn(async () => ({})) }));
 jest.mock("../../src/web/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
+jest.mock("../../src/web/setupMessage", () => ({
+    publishSetup: jest.fn(async () => ({ post: { action: "posted" }, dms: null })),
+    publishView: jest.fn(() => ({ dmsEnabled: false, recipients: 10 })),
+}));
 const mockExplain = jest.fn();
 jest.mock("../../src/utils/setup/explainText", () => ({ explainSetup: (...args) => mockExplain(...args) }));
 
 const { readJsonBody } = require("../../src/web/apiBody");
 const { refreshEventMessage } = require("../../src/web/eventMessage");
+const setupMessage = require("../../src/web/setupMessage");
 const route = require("../../src/web/apiRoutes/setup");
 const { checkAccess } = require("../../src/web/apiAccess");
 const { su } = require("../utils/setup/fixtures");
@@ -75,11 +80,12 @@ beforeEach(() => {
     ];
     mockExplain.mockReset();
     refreshEventMessage.mockClear();
+    setupMessage.publishSetup.mockClear();
 });
 
 describe("access", () => {
     it("lists every setup path under raids — reading is GET, everything else a write", () => {
-        for (const path of ["/api/raids/setup", "/api/raids/setup/propose", "/api/raids/setup/approve", "/api/raids/setup/explain"]) {
+        for (const path of ["/api/raids/setup", "/api/raids/setup/propose", "/api/raids/setup/approve", "/api/raids/setup/post", "/api/raids/setup/explain"]) {
             expect(checkAccess(path, "POST", READER)).toMatchObject({ status: 403 });
             expect(checkAccess(path, "POST", ORGA)).toBeNull();
         }
@@ -90,11 +96,50 @@ describe("access", () => {
     });
 
     it("refuses writes of a reader in the handler as well", async () => {
-        for (const handler of [route.postPropose, route.putSetup, route.postApprove, route.postExplain]) {
+        for (const handler of [route.postPropose, route.putSetup, route.postApprove, route.postPublish, route.postExplain]) {
             const r = await call(handler, READER, { event: ID });
             expect(status(r)).toBe(403);
         }
         expect(mockEvents.get(ID).setup).toBeNull();
+        expect(setupMessage.publishSetup).not.toHaveBeenCalled();
+    });
+});
+
+describe("posting the approved setup (#290)", () => {
+    it("posts on approval, not on a proposal, and not again for an already approved setup", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        expect(setupMessage.publishSetup).not.toHaveBeenCalled();
+        const version = mockEvents.get(ID).setup.version;
+        await call(route.postApprove, ORGA, { event: ID, version });
+        expect(setupMessage.publishSetup).toHaveBeenCalledWith(ID, { userId: "orga" });
+        setupMessage.publishSetup.mockClear();
+        const again = await call(route.postApprove, ORGA, { event: ID, version });
+        expect(body(again).message).toMatch(/schon freigegeben/);
+        expect(setupMessage.publishSetup).not.toHaveBeenCalled();
+    });
+
+    it("says in the approval's answer when the message could not be posted", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        setupMessage.publishSetup.mockResolvedValueOnce({ post: { code: "discord", error: "Bot nicht verbunden." }, dms: null });
+        const r = await call(route.postApprove, ORGA, { event: ID, version: mockEvents.get(ID).setup.version });
+        expect(status(r)).toBe(200);
+        expect(body(r).message).toMatch(/nicht gepostet: Bot nicht verbunden/);
+    });
+
+    it("gives the orga the publish plan and a reader nothing of it", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        expect(body(await call(route.getSetup, ORGA, null, `event=${ID}`)).publish).toEqual({ dmsEnabled: false, recipients: 10 });
+        expect(body(await call(route.getSetup, READER, null, `event=${ID}`))).not.toHaveProperty("publish");
+    });
+
+    it("POST /post re-posts and reports a refusal with its code", async () => {
+        const ok = await call(route.postPublish, ORGA, { event: ID });
+        expect(status(ok)).toBe(200);
+        expect(body(ok).message).toBe("Setup gepostet.");
+        setupMessage.publishSetup.mockResolvedValueOnce({ post: { code: "no_approved_setup", error: "Es gibt noch kein freigegebenes Setup." } });
+        const refused = await call(route.postPublish, ORGA, { event: ID });
+        expect(status(refused)).toBe(400);
+        expect(body(refused).error.code).toBe("no_approved_setup");
     });
 });
 

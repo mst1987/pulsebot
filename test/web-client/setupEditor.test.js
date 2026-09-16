@@ -191,4 +191,54 @@ describe("setup editor page", () => {
         for (const c of classes) expect(c).toMatch(/^\.(se-|wi$|btn$|is-on$)/);
         expect(css).not.toMatch(/gold|#d4af37|#ffd700/i);
     });
+
+    it("shows the setup's own message under the bar and offers one \"Setup posten\" (#290)", () => {
+        expect(editor).toContain("<PublishLine data={data} setup={setup} busy={busy} posting={posting} onPost={post} />");
+        expect(editor).toMatch(/await chain\.current;\s*const next = await publishRaidSetup\(ctx\.csrfToken, ctx\.eventId\);/);
+        // while the DMs run only their state is polled, never the lineup
+        expect(editor).toContain("setData((prev) => (prev ? { ...prev, publish: next.publish } : prev))");
+    });
+});
+
+describe("what posting the setup will do / did (#290)", () => {
+    const time = (ms) => `T${ms}`;
+    const publish = (over = {}) => ({
+        channelId: "c1", channelName: "kara-do", cancelled: false, dmsEnabled: false, recipients: 25, pendingDms: 25,
+        posted: null, outdated: false, error: "", errorAt: 0, dms: null, ...over,
+    });
+
+    it("says nothing for a reader", () => {
+        expect(lib.publishHint(undefined, false, time)).toBeNull();
+    });
+
+    it("says before approving where it posts and whether DMs go out", () => {
+        expect(lib.publishHint(publish(), false, time)).toMatchObject({ text: "Beim Freigeben: postet Setup in #kanal · DMs an 25 Raider (aus)".replace("#kanal", "#kara-do"), canPost: false });
+        const on = lib.publishHint(publish({ dmsEnabled: true, pendingDms: 3, posted: { messageUrl: "u", version: 1, postedAt: 5, editedAt: 0 } }), false, time);
+        expect(on.text).toBe("Beim Freigeben: aktualisiert das Setup in #kara-do · DMs an 3 Raider");
+        expect(on.sub).toContain("nie gepostet");
+    });
+
+    it("says after approving what happened, failures in the tooltip", () => {
+        const done = lib.publishHint(publish({
+            dmsEnabled: true,
+            posted: { messageUrl: "u", version: 2, postedAt: 100, editedAt: 0 },
+            dms: { status: "done", version: 2, at: 120, total: 25, sent: 22, failed: [{ userId: "1", character: "Kael", error: "Cannot send" }, { userId: "2", character: "", error: "x" }, { userId: "3", character: "Zibbo", error: "y" }], unchanged: 0 },
+        }), true, time);
+        expect(done).toMatchObject({ tone: "mid", text: "gepostet T100 in #kara-do · 22 DMs · 3 fehlgeschlagen", canPost: true, running: false });
+        expect(done.sub).toContain("Kael – Cannot send");
+        expect(done.sub).toContain("2 – x");
+
+        const running = lib.publishHint(publish({ dmsEnabled: true, posted: { messageUrl: "u", version: 2, postedAt: 100, editedAt: 0 }, dms: { status: "running", version: 2, at: 0, total: 25, sent: 4, failed: [], unchanged: 0 } }), true, time);
+        expect(running).toMatchObject({ running: true, text: "gepostet T100 in #kara-do · DMs 4/25 …" });
+
+        const off = lib.publishHint(publish({ posted: { messageUrl: "u", version: 1, postedAt: 100, editedAt: 200 }, outdated: true }), true, time);
+        expect(off).toMatchObject({ tone: "mid", text: "aktualisiert T200 in #kara-do · DMs aus" });
+        expect(off.sub).toContain("Stand 1");
+    });
+
+    it("names an error, a missing post and a cancelled event", () => {
+        expect(lib.publishHint(publish({ error: "Bot nicht verbunden.", errorAt: 50 }), true, time)).toMatchObject({ tone: "bad", text: "Setup nicht gepostet: Bot nicht verbunden.", canPost: true });
+        expect(lib.publishHint(publish(), true, time)).toMatchObject({ tone: "mid", text: "Noch nicht in #kara-do gepostet" });
+        expect(lib.publishHint(publish({ cancelled: true }), true, time)).toMatchObject({ canPost: false, text: "Abgesagt – kein Setup im Kanal" });
+    });
 });
