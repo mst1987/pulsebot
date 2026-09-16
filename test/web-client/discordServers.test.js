@@ -27,7 +27,11 @@ describe("Discord-Server section", () => {
     });
 
     it("keeps the rights list in the tooltip, not on the card", () => {
-        expect(section).toMatch(/tipSub=\{perms\.map\(\(p\) => `\$\{p\.label\}: \$\{p\.ok \? "vorhanden" : "fehlt"\}`\)\.join\("\\n"\)\}/);
+        // One status badge under the server name carries the rights in its tooltip.
+        expect(section).toMatch(/sub: perms\.map\(\(p\) => `\$\{p\.label\}: \$\{p\.ok \? "vorhanden" : "fehlt"\}`\)\.join\("\\n"\)/);
+        expect(section).toContain("tip={stateTip.tip} tipSub={stateTip.sub}");
+        // …and says it once: no second "Bot-Rechte" row repeating the head badge.
+        expect(section).not.toContain("<dt>Bot-Rechte</dt>");
         expect(section).not.toMatch(/perms\.map\(\(p\) => <li/);
         expect(section).not.toContain('className="hint"');
     });
@@ -49,5 +53,24 @@ describe("server switcher", () => {
         expect(switcher).toContain("<RoleBadge role={guilds.find((g) => g.id === activeGuildId)?.role} />");
         expect(switcher).toContain("{guilds.map((g) => <option key={g.id} value={g.id}>");
         expect(switcher).not.toMatch(/guilds\.filter\(/);
+    });
+});
+
+describe("raid overview row (#257)", () => {
+    const row = read("components", "SettingsTalkOverview.tsx");
+
+    it("talks to the endpoint the router serves and re-posts with the CSRF token", () => {
+        expect(api).toContain('get<{ status: TalkOverviewStatus }>("/api/settings/talk-overview?preview=0")');
+        expect(api).toContain('send("POST", "/api/settings/talk-overview", csrfToken, { repost: true })');
+        const { AREA_BY_PATH } = require("../../src/web/apiAccess");
+        expect(AREA_BY_PATH["/api/settings/talk-overview"]).toBe("settings");
+        expect(row).toContain("repostTalkOverview(csrfToken)");
+    });
+
+    it("sits in the talk card once an overview channel is chosen, its details in the tooltip", () => {
+        expect(section).toContain("{data.discordServers.talkOverviewChannelId && <TalkOverviewRow csrfToken={csrfToken} />}");
+        expect(row).toContain("talkOverviewBadge(status, Date.now())");
+        expect(row).toContain("tipSub={badge.tipSub}");
+        expect(row).toContain("Neu posten");
     });
 });

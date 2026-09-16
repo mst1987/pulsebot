@@ -61,6 +61,49 @@ describe("bot command access declarations", () => {
         }
     });
 
+    it("opens the lookups about oneself and loot to everyone, keeps the rest for admins (#265, #259)", () => {
+        const access = (name) => normalizeRule(byName.get(name).defaultAccess).mode;
+        for (const name of ["loot", "raids", "raid", "anwesenheit", "report"]) {
+            expect({ name, mode: access(name) }).toEqual({ name, mode: "everyone" });
+        }
+        for (const name of ["anwesenheit-raider", "council", "kanal"]) {
+            expect({ name, mode: access(name) }).toEqual({ name, mode: "admins" });
+        }
+    });
+
+    it("keeps /event anlegen for admins (the orga role gets it in the menu) and hangs its flow under it (#260)", () => {
+        expect(normalizeRule(byName.get("event").defaultAccess).mode).toBe("admins");
+        expect(byName.get("event").group).toBe("raids");
+        expect(byName.get("event-new").accessOf).toBe("event");
+        expect(byName.get("event-form").accessOf).toBe("event");
+        const { commands } = require("../../scripts/register-commands");
+        const def = commands.find((c) => c.name === "event");
+        expect(def.options.map((o) => [o.name, o.type])).toEqual([["anlegen", 1]]);
+    });
+
+    it("registers every lookup command, with descriptions Discord accepts", () => {
+        const { commands } = require("../../scripts/register-commands");
+        const registered = new Set(commands.map((c) => c.name));
+        for (const name of ["loot", "raids", "raid", "anwesenheit", "anwesenheit-raider", "report", "council", "kanal"]) {
+            expect({ name, registered: registered.has(name) }).toEqual({ name, registered: true });
+        }
+        const check = (options = []) => {
+            for (const opt of options) {
+                expect({ name: opt.name, ok: opt.description.length <= 100 }).toEqual({ name: opt.name, ok: true });
+                check(opt.options);
+            }
+        };
+        check(commands);
+    });
+
+    it("gives every command with autocomplete options an autocomplete handler", () => {
+        const { commands } = require("../../scripts/register-commands");
+        const hasAutocomplete = (options = []) => options.some((o) => o.autocomplete || hasAutocomplete(o.options));
+        for (const def of commands.filter((c) => hasAutocomplete(c.options))) {
+            expect({ name: def.name, handler: typeof (byName.get(def.name) || {}).autocomplete }).toEqual({ name: def.name, handler: "function" });
+        }
+    });
+
     it("hangs the buttons, selects and modals under their command", () => {
         expect(byName.get("bid-5k").accessOf).toBe("bid");
         expect(byName.get("bid-10k").accessOf).toBe("bid");

@@ -1681,3 +1681,8 @@ dialog.dlg::backdrop { background: rgba(10, 11, 14, .62); }
 .dlg-text { color: var(--muted); font-size: 14px; white-space: pre-line; }
 .dlg-foot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--line-soft); background: var(--panel2); flex-wrap: wrap; }
 .dlg-hint { margin-right: auto; font-size: 12px; color: var(--muted); font-family: var(--font-mono); }
+/* A long dialog scrolls as a whole: the foot stays on the bottom edge, so its
+   buttons never scroll out of reach (e.g. the raid template's open "Mehr" part). */
+dialog.dlg .dlg-foot { position: sticky; bottom: 0; z-index: 2; }
+/* A button in the hint (Löschen, Archivieren …) is a button, not mono hint text. */
+.dlg-foot .dlg-hint .btn { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }

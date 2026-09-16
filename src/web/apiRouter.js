@@ -15,6 +15,7 @@ const {
     saveRaidsheetHandler, deleteRaidsheetHandler,
     getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers, getRoleSync, getReminders,
 } = require("./apiRoutes/settings");
+const { getTalkOverview, postTalkOverview } = require("./apiRoutes/talkOverview");
 const { ingestLoot } = require("./apiRoutes/ingest");
 const { getBotCommands } = require("./apiRoutes/botCommands");
 const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raiderCharacters");
@@ -163,6 +164,14 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/settings/discord-servers" && req.method === "GET") {
         await getDiscordServers(req, res);
+        return true;
+    }
+    if (pathname === "/api/settings/talk-overview" && req.method === "GET") {
+        await getTalkOverview(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/settings/talk-overview" && req.method === "POST") {
+        await postTalkOverview(req, res);
         return true;
     }
     if (pathname === "/api/settings/role-sync" && req.method === "GET") {

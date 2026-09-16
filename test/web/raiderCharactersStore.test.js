@@ -21,7 +21,7 @@ jest.mock("fs", () => {
 
 const fs = require("fs");
 const {
-    getCategoryAssignments, listAllAssignments, setCategoryAssignments, resolveAssignmentProfiles,
+    getCategoryAssignments, listAllAssignments, setCategoryAssignments, resolveAssignmentProfiles, charactersForUser,
 } = require("../../src/web/raiderCharactersStore");
 const { saveCharacter } = require("../../src/web/characterStore");
 
@@ -113,6 +113,24 @@ describe("web/raiderCharactersStore", () => {
 
         it("returns {} for a category with no assignments", () => {
             expect(resolveAssignmentProfiles("empty-cat")).toEqual({});
+        });
+    });
+
+    describe("charactersForUser", () => {
+        it("collects one account's characters over every category, once per character", () => {
+            setCategoryAssignments("monday", { sedroc: "Elesham", other: "Brokk" });
+            setCategoryAssignments("thursday", { sedroc: "elesham" });
+            setCategoryAssignments("pug", { sedroc: "Dorn" });
+            expect(charactersForUser("sedroc")).toEqual([
+                { character: "Elesham", categoryIds: ["monday", "thursday"] },
+                { character: "Dorn", categoryIds: ["pug"] },
+            ]);
+        });
+
+        it("returns [] for an account without assignments or without an id", () => {
+            setCategoryAssignments("monday", { other: "Brokk" });
+            expect(charactersForUser("sedroc")).toEqual([]);
+            expect(charactersForUser("")).toEqual([]);
         });
     });
 });

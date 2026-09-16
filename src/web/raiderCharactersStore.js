@@ -93,7 +93,29 @@ function resolveAssignmentProfiles(categoryId) {
     return profiles;
 }
 
+/**
+ * The characters one Discord account plays, across every category:
+ * `[{ character, categoryIds }]`, one entry per character (case-insensitive),
+ * in the order they were first found. The bot's "/loot ich" and "/anwesenheit"
+ * start from here — the assignment is the only link from a Discord user to a
+ * WoW character the bot trusts.
+ */
+function charactersForUser(userId) {
+    const uid = String(userId || "").trim();
+    if (!uid) return [];
+    const byKey = new Map();
+    for (const [categoryId, map] of Object.entries(listAllAssignments())) {
+        const name = String(map[uid] || "").trim();
+        if (!name) continue;
+        const key = name.toLowerCase();
+        if (!byKey.has(key)) byKey.set(key, { character: name, categoryIds: [] });
+        const entry = byKey.get(key);
+        if (!entry.categoryIds.includes(categoryId)) entry.categoryIds.push(categoryId);
+    }
+    return [...byKey.values()];
+}
+
 module.exports = {
-    getCategoryAssignments, listAllAssignments, setCategoryAssignments, resolveAssignmentProfiles,
+    getCategoryAssignments, listAllAssignments, setCategoryAssignments, resolveAssignmentProfiles, charactersForUser,
     RAIDER_CHARACTERS_FILE,
 };

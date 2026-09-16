@@ -47,6 +47,9 @@ const AREA_BY_PATH = {
     // Event and talk server status (#251). Full-admin only in the handler as
     // well: which server is the event server decides where the role check runs.
     "/api/settings/discord-servers": "settings",
+    // The raid overview on the talk server (#257): status, dry run, "neu posten".
+    // Full-admin only in the handler, like the section it sits in.
+    "/api/settings/talk-overview": "settings",
     // Role sync (full-admin only in the handler, it hands out roles) and the
     // automatic reminders per category (#264).
     "/api/settings/role-sync": "settings",

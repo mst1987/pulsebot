@@ -19,8 +19,13 @@ jest.mock("../../src/web/discord", () => ({
     getChannelCategoryMap: jest.fn(() => ({})),
     duplicateChannel: jest.fn(),
 }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})), getRaidTemplate: jest.fn(() => null) }));
+jest.mock("../../src/web/discordChannels", () => ({
+    createFromTemplate: jest.fn(),
+    discordErrorText: jest.requireActual("../../src/web/discordChannels").discordErrorText,
+}));
+jest.mock("../../src/web/settingsStore",() => ({ getConfig: jest.fn(() => ({})), getRaidTemplate: jest.fn(() => null) }));
 jest.mock("../../src/web/eventMessage", () => ({ postEventMessage: jest.fn() }));
+jest.mock("../../src/web/talkOverview", () => ({ scheduleOverviewSync: jest.fn(), RAIDHELPER_CREATE_DELAY_MS: 35000 }));
 jest.mock("../../src/web/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null), listRaidEvents: jest.fn(() => []) }));
 jest.mock("../../src/web/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
@@ -32,8 +37,10 @@ jest.mock("../../src/web/raidListing", () => ({
 
 const fs = require("fs");
 const discord = require("../../src/web/discord");
+const discordChannels = require("../../src/web/discordChannels");
 const { getConfig, getRaidTemplate } = require("../../src/web/settingsStore");
 const { postEventMessage } = require("../../src/web/eventMessage");
+const { scheduleOverviewSync } = require("../../src/web/talkOverview");
 const eventStore = require("../../src/web/eventStore");
 const { createEvent, startTimeOf } = require("../../src/web/eventCreate");
 
@@ -65,7 +72,8 @@ describe("web/eventCreate", () => {
         expect(mockCreateEvent).toHaveBeenCalledWith({
             channelId: "c1", leaderId: "7", templateId: "t1", date: "01-10-2026", time: "20:00", title: "Kara Donnerstag", description: "Treffpunkt Eingang",
         });
-        expect(result).toEqual({ status: 201, body: { id: "rh-1" } });
+        expect(result).toEqual({ status: 201, body: { id: "rh-1", channelId: "c1" } });
+        expect(scheduleOverviewSync).toHaveBeenCalledWith({ delayMs: 35000 });
         expect(eventStore.listEvents("g1")).toEqual([]);
         expect(postEventMessage).not.toHaveBeenCalled();
     });
@@ -84,6 +92,7 @@ describe("web/eventCreate", () => {
             createdBy: "42",
         });
         expect(postEventMessage).toHaveBeenCalledWith(result.body.id);
+        expect(scheduleOverviewSync).toHaveBeenCalledWith();
     });
 
     it("accepts the planning fields for an EventHelper event", async () => {
@@ -130,6 +139,38 @@ describe("web/eventCreate", () => {
         expect(mockGetEvent).not.toHaveBeenCalled();
         expect(discord.duplicateChannel).toHaveBeenCalledWith("c2", "kara-neu");
         expect(eventStore.getEvent(result.body.id)).toMatchObject({ channelId: "c3", channelName: "kara-neu", categoryId: "cat-eh" });
+    });
+
+    it("creates a new channel in the asked category, only after the plan was checked (#260)", async () => {
+        discordChannels.createFromTemplate.mockResolvedValue({ id: "c9", name: "mi-24-09-kara" });
+        const bad = await createEvent({ guildId: "g1", user, body: body({
+            channelId: "", newChannel: { name: "Mi 24 09 Kara", categoryId: "cat-eh" }, size: 99,
+        }) });
+        expect(bad.error.code).toBe("invalid_plan");
+        expect(discordChannels.createFromTemplate).not.toHaveBeenCalled();
+
+        const result = await createEvent({ guildId: "g1", user, body: body({
+            channelId: "", newChannel: { name: "Mi 24 09 Kara", categoryId: "cat-eh", templateChannelId: "c2" },
+        }) });
+        expect(discordChannels.createFromTemplate).toHaveBeenCalledWith("g1", { name: "mi-24-09-kara", parentId: "cat-eh", templateChannelId: "c2" });
+        expect(eventStore.getEvent(result.body.id)).toMatchObject({ channelId: "c9", channelName: "mi-24-09-kara", categoryId: "cat-eh" });
+    });
+
+    it("reports a new channel Discord refused, readable", async () => {
+        discordChannels.createFromTemplate.mockRejectedValue(Object.assign(new Error("Missing Permissions"), { code: 50013 }));
+        const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "", newChannel: { name: "kara", categoryId: "cat-rh" } }) });
+        expect(result.error).toEqual({ status: 400, code: "create_failed", message: "Kanal konnte nicht angelegt werden: fehlende Rechte" });
+        expect(mockCreateEvent).not.toHaveBeenCalled();
+    });
+
+    it("lets the caller pick the other source for one event", async () => {
+        mockCreateEvent.mockResolvedValue({ id: "rh-2" });
+        const rh = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", signupSource: "raidhelper" }) });
+        expect(rh.body).toEqual({ id: "rh-2", channelId: "c2" });
+        const own = await createEvent({ guildId: "g1", user, body: body({ channelId: "c1", signupSource: "eventhelper" }) });
+        expect(own.body.source).toBe("eventhelper");
+        const ignored = await createEvent({ guildId: "g1", user, body: body({ channelId: "c1", signupSource: "kaputt" }) });
+        expect(ignored.body).toEqual({ id: "rh-2", channelId: "c1" });
     });
 
     it("still creates the event when the message cannot be posted, and says so", async () => {
