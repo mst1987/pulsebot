@@ -167,3 +167,27 @@ describe("web/dashboardOverview", () => {
         });
     });
 });
+
+// Role-sync drift (#264) as a dashboard task.
+describe("roleDriftTask", () => {
+    const { roleDriftTask, buildTasks: tasksFor } = require("../../src/web/dashboardOverview");
+
+    it("has no task without drift", () => {
+        expect(roleDriftTask(null)).toBeNull();
+        expect(roleDriftTask({ groups: [], total: 0 })).toBeNull();
+    });
+
+    it("names the first role and the server the members kept it on", () => {
+        const drift = {
+            total: 4,
+            groups: [
+                { roleName: "Raider", guildName: "Pulse Talk", members: [{}, {}, {}] },
+                { roleName: "Trial", guildName: "Pulse Talk", members: [{}] },
+            ],
+        };
+        const task = roleDriftTask(drift);
+        expect(task).toMatchObject({ id: "rolesync", tone: "mid", count: 4, href: "/settings?section=discordserver" });
+        expect(task.ref.text).toBe("3 Mitglieder haben @Raider nur noch auf Pulse Talk · +1 Rolle");
+        expect(tasksFor({ roleDrift: drift }).map((t) => t.id)).toEqual(["rolesync"]);
+    });
+});

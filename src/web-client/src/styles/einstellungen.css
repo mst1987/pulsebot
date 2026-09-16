@@ -126,6 +126,21 @@ button.badge.chip.accent:hover { color: var(--accent); }
 .srv-initials { font-size: 12px; font-weight: 800; letter-spacing: .02em; }
 .srv-channels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 
+/* Rollen-Abgleich and Erinnerungen (#264): compact lists under the two cards */
+.sync-part { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
+.sync-actions { display: inline-flex; align-items: center; gap: 8px; }
+.sync-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.sync-row { display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); min-width: 0; }
+.sync-role { font-size: 15px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.sync-dir { font-family: var(--font-mono); font-size: 16px; color: var(--accent); cursor: default; }
+.sync-muted { color: var(--muted); font-family: var(--font-mono); font-size: 12.5px; white-space: nowrap; }
+.sync-drift { border: 1px solid color-mix(in srgb, var(--medium) 35%, transparent); background: var(--medium-bg); border-radius: 10px; padding: 8px 10px 8px 14px; }
+.sync-drift-head { display: flex; align-items: center; gap: 10px; }
+.sync-drift-line { display: block; font-size: 13.5px; }
+.sync-drift-list { list-style: none; margin: 8px 0 2px; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.sync-drift-list li { display: inline-flex; align-items: baseline; gap: 6px; }
+.sync-drift-list a { font-weight: 700; }
+
 @media (max-width: 760px) {
     .conn-grid { grid-template-columns: 1fr; }
     .srv-channels { grid-template-columns: 1fr; }

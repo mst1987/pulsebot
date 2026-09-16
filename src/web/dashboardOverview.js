@@ -209,8 +209,9 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
  * @param {object|null} p.report     { id, title, zone, generatedAt, open } of the newest evaluation
  * @param {object[]} p.inbox         pending addon-inbox sessions ({ items })
  * @param {object|null} p.archive    { count, overdue, hintDays } of the channel archive (channelArchiveStore.archiveHint)
+ * @param {object|null} p.roleDrift  from roleSync.loadDrift(): { groups, total }
  */
-function buildTasks({ nextRaids = [], recentEvents = [], report = null, inbox = [], archive = null }) {
+function buildTasks({ nextRaids = [], recentEvents = [], report = null, inbox = [], archive = null, roleDrift = null }) {
     const tasks = [];
 
     const noSheet = (nextRaids || []).filter((r) => !r.sheet);
@@ -278,11 +279,35 @@ function buildTasks({ nextRaids = [], recentEvents = [], report = null, inbox = 
         });
     }
 
+    const driftTask = roleDriftTask(roleDrift);
+    if (driftTask) tasks.push(driftTask);
+
     return tasks;
+}
+
+/**
+ * "3 Mitglieder haben @Raider nur noch auf Pulse Talk" — the role sync only
+ * adds roles, so someone who lost the source role keeps the synced one until a
+ * person removes it in Discord. Null when nothing drifted.
+ */
+function roleDriftTask(roleDrift) {
+    const groups = (roleDrift && roleDrift.groups) || [];
+    const total = (roleDrift && roleDrift.total) || 0;
+    if (!groups.length || !total) return null;
+    const first = groups[0];
+    const more = groups.length > 1 ? ` · +${groups.length - 1} ${groups.length === 2 ? "Rolle" : "Rollen"}` : "";
+    return {
+        id: "rolesync", tone: "mid", tile: "settings", icon: "inv_misc_groupneedmore", title: "Rollen prüfen",
+        ref: { text: `${plural(first.members.length, "Mitglied hat", "Mitglieder haben")} @${first.roleName} nur noch auf ${first.guildName || "dem anderen Server"}${more}` },
+        count: total,
+        href: "/settings?section=discordserver",
+        tip: `${plural(total, "Mitglied trägt", "Mitglieder tragen")} eine abgeglichene Rolle ohne ihre Ursprungsrolle`,
+        tipSub: "Der Rollen-Abgleich vergibt nur und entfernt nie. Wer die Rolle auf einem Server verloren hat, behält sie auf dem anderen, bis jemand sie in Discord entfernt. Öffnet Einstellungen → Discord-Server.",
+    };
 }
 
 module.exports = {
     ZONE_ICONS, FALLBACK_ZONE_ICON, ROLE_TARGETS, ROLES,
     zoneFor, raidSize, roleBucket, roleFill, classCounts, notSignedUp,
-    openRecommendations, lastReportArea, newLootSince, buildTasks, isAttending,
+    openRecommendations, lastReportArea, newLootSince, buildTasks, roleDriftTask, isAttending,
 };
