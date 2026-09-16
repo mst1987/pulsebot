@@ -148,14 +148,6 @@ a.re-title:hover { color: var(--accent); text-decoration: none; }
 .re-desc-preview { white-space: pre-line; color: var(--muted); }
 .dlg-hint .btn { font-family: inherit; font-size: 14px; }
 
-/* templates dialog */
-.re-tpl-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 10px; font-weight: 700; }
-.re-tpl-list { margin: 0 0 14px; }
-.re-tpl-row { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 8px 12px; border-bottom: 1px solid var(--line); }
-.re-tpl-row:last-child { border-bottom: 0; }
-.re-tpl-form { display: grid; grid-template-columns: 120px minmax(0, 1fr) auto; gap: 0 10px; align-items: end; }
-.re-tpl-form .field { margin-bottom: 0; }
-.re-tpl-form .field input:not([type=checkbox]) { max-width: none; }
 
 /* ---- Aufruf-Vorlagen ---- */
 .nt-list { --re-cols: 40px 220px minmax(0, 1fr) 84px; }
@@ -199,5 +191,4 @@ a.re-title:hover { color: var(--accent); text-decoration: none; }
     .re-row > .re-when, .re-row > .re-bar, .re-row > .re-badges { grid-column: 2; }
     .re-row > .re-acts { grid-column: 1 / -1; justify-content: flex-start; }
     .re-steps { flex-wrap: wrap; }
-    .re-tpl-form { grid-template-columns: minmax(0, 1fr); gap: 10px; }
 }

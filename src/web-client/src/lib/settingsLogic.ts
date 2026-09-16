@@ -95,10 +95,10 @@ export type DraftShape = {
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
     logChannelIds: string[];
-    raidTemplateId: string;
     raidChannelId: string;
     categoryLootTool: Record<string, string>;
     categorySheets: Record<string, { url: string; name: string }>;
+    categoryRaidTemplate?: Record<string, string>;
     topItems: { id: number }[];
 };
 
@@ -109,7 +109,6 @@ const SIMPLE_FIELDS: [string, string][] = [
     ["applicationChannelId", "Bewerbungs-Kanal"],
     ["highestBidsChannelId", "Höchstgebote-Kanal"],
     ["highestBidsMessageId", "Höchstgebote-Nachricht"],
-    ["raidTemplateId", "Standard-Template"],
     ["raidChannelId", "Standard-Kanal"],
 ];
 
@@ -158,6 +157,13 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         if ((sheetWas.url || "").trim() !== (sheetIs.url || "").trim() || (sheetWas.name || "").trim() !== (sheetIs.name || "").trim()) {
             out.push(`${name} · Raidsheet`);
         }
+    }
+
+    // The default raid template per category (#266).
+    const tplWas = saved.categoryRaidTemplate || {};
+    const tplIs = draft.categoryRaidTemplate || {};
+    for (const id of [...new Set([...Object.keys(tplWas), ...Object.keys(tplIs)])]) {
+        if ((tplWas[id] || "") !== (tplIs[id] || "")) out.push(`${names.category(id)} · Standard-Vorlage`);
     }
 
     for (const [key, label] of SIMPLE_FIELDS) {

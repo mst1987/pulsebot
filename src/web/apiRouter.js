@@ -31,7 +31,7 @@ const {
     getNotifyTemplates, saveNotifyTemplate, deleteNotifyTemplate,
 } = require("./apiRoutes/notifyTemplates");
 const {
-    getRaidTemplates, createRaidTemplate, deleteRaidTemplateHandler, importRaidTemplates,
+    getRaidTemplates, createRaidTemplate, updateRaidTemplate, deleteRaidTemplateHandler, importRaidTemplates,
 } = require("./apiRoutes/raidTemplates");
 const {
     getRecruitmentData, saveRecruitmentTemplate, deleteRecruitmentTemplate, postRecruitmentTemplate,
@@ -282,7 +282,11 @@ async function route(pathname, req, res, url) {
         await createRaidTemplate(req, res);
         return true;
     }
-    if (pathname === "/api/raid-templates/delete" && req.method === "POST") {
+    if (pathname === "/api/raid-templates" && req.method === "PATCH") {
+        await updateRaidTemplate(req, res);
+        return true;
+    }
+    if (pathname === "/api/raid-templates" && req.method === "DELETE") {
         await deleteRaidTemplateHandler(req, res);
         return true;
     }

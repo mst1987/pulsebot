@@ -367,7 +367,9 @@ export type AdminConfig = {
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
     logChannelIds: string[];
-    raidDefaults: { templateId: string; channelId: string };
+    raidDefaults: { channelId: string };
+    // The default raid template per category (category id → template id).
+    categoryRaidTemplate: Record<string, string>;
     blizzard: BlizzardConfig;
     // Claude phrases the log recommendations for the raiders. The key itself
     // never comes back from the server — only whether one is stored.
@@ -420,6 +422,8 @@ export type SettingsData = {
     // Discord could not resolve simply has no entry.
     userNames?: Record<string, string>;
     raidsheets: Raidsheet[];
+    // The raid templates, for the default-template select per category.
+    raidTemplates?: { id: string; name: string; versionId: string; size: number | null }[];
     roles: Role[];
     categories: Category[];
     // The text channels the bot can post in, for the channel pickers; empty
@@ -905,7 +909,37 @@ export function linkSoftres(
     return send("POST", "/api/raids/softres/link", csrfToken, input);
 }
 
-export type RaidTemplate = { id: string; name: string };
+// Raid templates (#266, src/web/raidTemplates.js): what an evening looks like.
+export type RoleRange = { min: number; max: number | null };
+
+export type RaidTemplateInput = {
+    id?: string;
+    name: string;
+    versionId: string;
+    /** from the rule set only (GET /api/game-versions) */
+    instanceIds: string[];
+    /** null = not set yet (a migrated Raid-Helper template) */
+    size: number | null;
+    composition: { tank: number; healer: number; melee: RoleRange | null; ranged: RoleRange | null };
+    /** buff keys of the version */
+    requiredBuffs: string[];
+    signupDeadline: { hoursBefore: number } | null;
+    fairness: boolean;
+    wishes: boolean;
+    raidhelperTemplateId: string;
+};
+
+export type RaidTemplate = RaidTemplateInput & {
+    id: string;
+    createdAt?: number;
+    updatedAt?: number;
+    /** migrated without size: badge "Größe ergänzen" */
+    needsSize?: boolean;
+    /** an instance still "Infos fehlen" */
+    incomplete?: boolean;
+    /** the categories using it as their default */
+    defaultFor?: string[];
+};
 
 export type ReusableEvent = {
     id: string;
@@ -921,7 +955,10 @@ export type ReusableEvent = {
 };
 
 export type RaidCreateContext = {
+    /** templateId: the Raid-Helper template of the default channel's category */
     defaults: { templateId: string; channelId: string };
+    /** category id → Raid-Helper template id of its default raid template */
+    categoryTemplates: Record<string, string>;
     leaderId: string;
     channels: Channel[];
     templates: RaidTemplate[];
@@ -1013,16 +1050,22 @@ export function getGameVersions(): Promise<GameVersionsData> {
     return get<GameVersionsData>("/api/game-versions");
 }
 
-export function getRaidTemplates(): Promise<{ templates: RaidTemplate[] }> {
-    return get<{ templates: RaidTemplate[] }>("/api/raid-templates");
+export type RaidTemplatesData = { templates: RaidTemplate[]; categoryNames: Record<string, string> };
+
+export function getRaidTemplates(): Promise<RaidTemplatesData> {
+    return get<RaidTemplatesData>("/api/raid-templates");
 }
 
-export function createRaidTemplate(csrfToken: string | null, input: { id: string; name: string }): Promise<RaidTemplate> {
-    return send("POST", "/api/raid-templates", csrfToken, input);
+/** Create (no id) or update (id) a raid template. */
+export function saveRaidTemplate(csrfToken: string | null, input: RaidTemplateInput): Promise<RaidTemplate> {
+    return input.id
+        ? send("PATCH", "/api/raid-templates", csrfToken, input)
+        : send("POST", "/api/raid-templates", csrfToken, input);
 }
 
+/** 409 while a category uses it as its default — the message names the category. */
 export function deleteRaidTemplate(csrfToken: string | null, id: string): Promise<{ id: string }> {
-    return send("POST", "/api/raid-templates/delete", csrfToken, { id });
+    return send("DELETE", "/api/raid-templates", csrfToken, { id });
 }
 
 export function importRaidTemplates(csrfToken: string | null): Promise<{ added: number; updated: number; templates: RaidTemplate[] }> {
