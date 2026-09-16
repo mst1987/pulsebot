@@ -1,0 +1,108 @@
+// "Event verwalten" (#288): the pure rules behind the raid detail's actions
+// menu and its dialogs — which entries the menu shows, how a move preview and
+// a cancellation read, how the raider picker filters. No React in here, and
+// strippable (one-line signatures, no types inside bodies), so
+// test/web-client/eventManage.test.js runs it for real.
+import type { ManageCandidates, ManageRaider, ManageSpec, MovePlan, SignupStatus } from "../api";
+
+export type ManageAction = "edit" | "move" | "signups" | "raider" | "ping" | "setup" | "history" | "cancel" | "reopen";
+export type ManageMenuEntry = { id: ManageAction; label: string; icon: string; sub: string; danger: boolean } | "sep";
+export type ManageState = { cancelled: boolean; signupsClosed: boolean; isPast: boolean; logCount: number };
+
+function entry(id: ManageAction, label: string, icon: string, sub: string, danger: boolean): ManageMenuEntry {
+    return { id, label, icon, sub, danger };
+}
+
+function sep(): ManageMenuEntry {
+    return "sep";
+}
+
+/**
+ * The menu: few entries, one per action, the dangerous one last and apart.
+ * A cancelled event offers nothing but taking it back and its history; a raid
+ * that started can no longer be moved, closed, pinged or cancelled.
+ */
+export function manageMenu(state: ManageState): ManageMenuEntry[] {
+    const history = entry("history", "Verlauf", "inv_misc_book_09", state.logCount ? `${state.logCount} Einträge — wer hat wann was geändert` : "Noch nichts geändert", false);
+    if (state.cancelled) {
+        return [
+            entry("reopen", "Absage zurücknehmen", "spell_holy_divineintervention", "Anmeldung wieder offen; ein archivierter Kanal bleibt im Archiv", false),
+            sep(),
+            history,
+        ];
+    }
+    const out = [entry("edit", "Bearbeiten", "inv_misc_note_05", "Titel, Raid, Größe und Anmeldeschluss", false)];
+    if (!state.isPast) {
+        out.push(entry("move", "Verschieben", "inv_misc_pocketwatch_02", "Neuer Termin — der Kanal wird mit umbenannt", false));
+        out.push(state.signupsClosed
+            ? entry("signups", "Anmeldung öffnen", "inv_misc_note_02", "Raider können sich wieder anmelden", false)
+            : entry("signups", "Anmeldung schließen", "inv_misc_note_02", "Nur noch Abmelden möglich; die Orga trägt weiter ein", false));
+    }
+    out.push(entry("raider", "Raider eintragen", "inv_misc_groupneedmore", "Jemanden an- oder austragen", false));
+    if (!state.isPast) out.push(entry("ping", "Fehlende pingen", "spell_holy_borrowedtime", "Raider-Rolle, aber noch keine Reaktion", false));
+    out.push(entry("setup", "Setup öffnen", "inv_misc_map_01", "Gruppen einteilen und freigeben", false));
+    out.push(sep(), history);
+    if (!state.isPast) out.push(sep(), entry("cancel", "Absagen", "ability_creature_cursed_02", "Mit Grund — DM an alle Angemeldeten", true));
+    return out;
+}
+
+/** "2026-09-24" and "19:30" of a start in Berlin time — what the move dialog starts from. */
+export function berlinDateTime(startTime: number): { date: string; time: string } {
+    if (!startTime) return { date: "", time: "" };
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).formatToParts(new Date(startTime * 1000));
+    const at = Object.fromEntries(parts.map((p) => [p.type, p.value]));
+    return { date: `${at.year}-${at.month}-${at.day}`, time: `${at.hour}:${at.minute}` };
+}
+
+/** The channel line of a move: what it will be called, and why. */
+export function moveChannelText(plan: MovePlan, rename: boolean): { value: string; sub: string } {
+    const ch = plan.channel;
+    if (ch.rename && rename) return { value: `#${ch.next}`, sub: `statt #${ch.current}` };
+    if (ch.rename) return { value: `#${ch.current}`, sub: "bleibt — Umbenennen ist ausgeschaltet" };
+    return { value: `#${ch.current || "—"}`, sub: ch.reason || "Der Name bleibt." };
+}
+
+/** Who hears about a move: a post in the event channel, or nobody. */
+export function moveNotifyText(recipients: number, notify: boolean): string {
+    if (!recipients) return "Niemand angemeldet — kein Hinweis nötig.";
+    if (!notify) return `Die ${recipients} Angemeldeten erfahren es nicht.`;
+    return `Post im Event-Kanal, ${recipients} Angemeldete werden erwähnt.`;
+}
+
+/** What cancelling does, in one line for the dialog foot. */
+export function cancelSummary(recipients: number, notify: boolean, archive: boolean): string {
+    const parts = ["Nachricht wird als ABGESAGT markiert"];
+    parts.push(notify && recipients ? `DM an ${recipients} Angemeldete` : "keine DM");
+    if (archive) parts.push("Kanal ins Archiv");
+    return parts.join(" · ");
+}
+
+/** A reason is required and goes to every raider — at least three characters. */
+export function cancelReasonOk(reason: string): boolean {
+    return reason.trim().length >= 3;
+}
+
+/** The raiders of the picker that match a search in their Discord name or a character. */
+export function filterRaiders(raiders: ManageRaider[], query: string): ManageRaider[] {
+    const q = query.trim().toLowerCase();
+    if (!q) return raiders;
+    return raiders.filter((r) => r.name.toLowerCase().includes(q) || r.characters.some((c) => c.name.toLowerCase().includes(q)));
+}
+
+/** The specs a new character of a class may sign up with; [] for no class. */
+export function specsOfClass(candidates: ManageCandidates | null, classId: string): ManageSpec[] {
+    const cls = candidates ? candidates.classes.find((c) => c.id === classId) : undefined;
+    return cls ? cls.specs : [];
+}
+
+/** The statuses the orga may enter somebody with — signing off is "Austragen". */
+export function orgaStatuses(): SignupStatus[] {
+    return ["signed", "tentative", "late", "bench"];
+}
+
+/** Whether the add dialog has what the server needs. */
+export function raiderInputOk(userId: string, character: string, spec: string): boolean {
+    return !!userId && character.trim().length > 1 && !!spec;
+}

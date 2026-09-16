@@ -199,13 +199,22 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
         : `Raidplan aus Raid-Helper${data.categoryName ? ` · abgeglichen mit den Raider-Rollen von „${data.categoryName}“` : ""}`;
 
     const state = <AttendanceState ctx={ctx} />;
-    const action = !ev.isPast && missing.length
+    // An own event (#288): the orga signs somebody up from here as well.
+    const addRaider = ctx.canManage && data.ownSignups && ev.status !== "cancelled"
+        ? (
+            <Button variant="ghost" size="sm" icon="inv_misc_groupneedmore" onClick={() => openModal("raider")} data-tip="Raider eintragen" data-tip-sub="Jemanden als Orga an- oder austragen — auch nach dem Anmeldeschluss.">
+                Raider eintragen
+            </Button>
+        )
+        : null;
+    const pingAction = !ev.isPast && missing.length && ev.status !== "cancelled"
         ? (
             <Button variant="ghost" size="sm" icon="inv_letter_15" onClick={() => openModal("ping")} data-tip="Fehlende pingen" data-tip-sub="Postet im Event-Channel und pingt genau die Raider ohne Reaktion.">
                 Fehlende pingen<Badge tone="bad" count>{missing.length}</Badge>
             </Button>
         )
         : null;
+    const action = addRaider && pingAction ? <span className="em-head-actions">{addRaider}{pingAction}</span> : addRaider || pingAction;
 
     return (
         <section className="panel rd-panel">

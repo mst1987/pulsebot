@@ -56,6 +56,7 @@ function manageState(eventId) {
         signupsClosed: !!ev.signupsClosed,
         cancelReason: (ev.cancel && ev.cancel.reason) || "",
         cancelArchived: !!(ev.cancel && ev.cancel.archived),
+        logCount: Array.isArray(ev.log) ? ev.log.length : 0,
     };
 }
 
