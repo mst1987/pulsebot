@@ -54,11 +54,26 @@ async function getRaidCreateContext(req, res) {
         startTime: ev.startTime || 0,
         contentIds: raidContentIds({ title: ev.title, categoryName: g.categoryName, channelName: ev.channelName, instanceIds: ev.instanceIds }).contentIds,
     })));
+    const config = getConfig();
+    const templates = listRaidTemplates();
+    // The default template per category, as the Raid-Helper template id the
+    // create form sends — a category whose default links none has no entry.
+    const rhById = new Map(templates.map((t) => [t.id, t.raidhelperTemplateId]));
+    const categoryTemplates = Object.fromEntries(Object.entries(config.categoryRaidTemplate || {})
+        .map(([catId, tplId]) => [catId, rhById.get(tplId) || ""])
+        .filter(([, rhId]) => rhId));
+    const channels = discord.listTextChannels(guildId);
+    const channelId = (config.raidDefaults || {}).channelId || "";
+    const defaultChannel = (channels || []).find((c) => c.id === channelId);
     ok(res, {
-        defaults: getConfig().raidDefaults,
+        defaults: {
+            channelId,
+            templateId: (defaultChannel && categoryTemplates[defaultChannel.parentId]) || "",
+        },
+        categoryTemplates,
         leaderId: user.id,
-        channels: discord.listTextChannels(guildId),
-        templates: listRaidTemplates(),
+        channels,
+        templates,
         reusableEvents,
         // Which categories create their new events in the EventHelper (missing = Raid-Helper).
         signupSources: getConfig().categorySignupSource || {},

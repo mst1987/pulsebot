@@ -113,7 +113,7 @@ src/
     messages.js             # All user-facing text strings (German)
     variables.js            # Constants: Discord IDs, API URLs, auction limits
   utils/
-    helper.js               # Core utilities: botReply, checkForPermission, formatters
+    helper.js               # Core utilities: botReply, botEditReply, formatters
     auction.js              # Auction UI helpers: modals, buttons, bidForLegendary()
     date.js                 # Date utilities using Luxon (CET timezone)
     responses.js            # Message formatters: setupResponse, getAuctionMessage, etc.
@@ -133,18 +133,35 @@ scripts/
 ```javascript
 module.exports = {
     name: "commandname",       // Must match the slash command name registered in Discord
-    description: "...",
+    description: "...",        // German, shown in Einstellungen → Berechtigungen → Bot-Befehle
+    group: "raids",            // a group id from src/config/botCommands.js
+    defaultAccess: "admins",   // "everyone" | "admins" | { roles: [roleId, …] }
     async execute(interaction, client) {
         // ...
     },
 };
 ```
 
+A button, select or modal that belongs to a command declares `accessOf: "<command name>"` instead of `group`/`defaultAccess` and inherits that command's access.
+
 The `name` field is used as the lookup key in `client.commands`. This same mechanism handles both slash commands (`interaction.commandName`) and button interactions (`interaction.customId`). The button custom IDs in `createOverview.js` (`update-events`, `show-signups`, `show-mysetups`, `show-allsetups`) must exactly match the `name` fields of the corresponding command files.
 
+The router (`handleInteraction` in `bot.js`) passes slash commands, buttons, modals and **every select menu kind** (string, user, role, channel, mentionable) to `execute()`, looked up by `name` or by the customId before `:`. **Autocomplete** goes to the command's optional `autocomplete(interaction)` instead; a command without one (or one that throws) answers an empty list — Discord allows no other reply to an autocomplete.
+
+### Who may run a command (bot command access, issue #252)
+
+**Access is checked once, in `bot.js`, before `execute`** — `guardInteraction()` from `src/web/botAccess.js`. No command file checks permissions itself anymore; `checkForPermission` is gone. The order is: **admin** (`ADMIN_USER_ID`/`LOGCHECK_ADMIN_IDS` or an admin role from *Zugang*) → the setting stored in `config.botCommandAccess = { [commandName]: { mode, roleIds } }` → the file's `defaultAccess` → **admin-only (fail-closed)**. `resolveBotAccess(commandName, member, { commands, config })` is the pure part and is what the tests drive.
+
+- **Buttons, selects and modals inherit** through `accessOf`; there is no separate setting per component, and a rule stored under a component's own name is ignored. The `apply` button is the one exception with its own `defaultAccess: "everyone"`: it is posted by admin-only commands but must be usable by every applicant.
+- **Roles are resolved against the event guild** (`eventGuildId()` in `botAccess.js`: `config.eventGuildId`, else `config.guildId`), whichever server the interaction came from — the interaction's own member when it happened there, else the cached member list (`discord.fetchGuildMembersCached`), else a single fetch; a failed lookup means no roles, never an exception. A rule of `"everyone"` asks Discord nothing.
+- **A refusal** is one ephemeral line: „Dafür brauchst du @Orga oder @Raidleiter.“ resp. „Dieser Befehl ist Admins vorbehalten.“ (an autocomplete gets an empty choice list).
+- **Configured** in Einstellungen → Berechtigungen, segment *Bot-Befehle* (`?perm=bot`, `components/BotCommandAccess.tsx`, rules in `lib/botCommandAccess.ts`): one folded line per group, a modal per command (Jeder · Nur Rollen · Nur Admins, the default with „Zurücksetzen“, „für alle Befehle der Gruppe übernehmen“). A rule equal to the default is not stored, so a later change of `defaultAccess` still reaches it. Data from `GET /api/bot-commands` (full admins; groups, commands with default/stored/effective rule and what inherits it, the event guild's roles with member counts); saved via `PATCH /api/settings { botCommandAccess }` — full-admin-only (`ACCESS_KEYS`), normalised by `normalizeBotCommandAccess()` in `src/config/botCommands.js` (invalid role ids dropped, a role rule without roles becomes admins).
+- `test/commands/access.test.js` scans every command file: `defaultAccess` + a known `group`, or an `accessOf` pointing at a real command — never both, never neither.
+- The legendary-role check in `utils/auction.js` stays: it is a rule of the auction, not a permission.
+
 When adding a new command:
-1. Create the file in the appropriate `src/commands/<category>/` folder
-2. Add its definition to `scripts/register-commands.js` and re-run `npm run register`
+1. Create the file in the appropriate `src/commands/<category>/` folder, with `group` + `defaultAccess` (or `accessOf` for a component)
+2. Add its definition to `scripts/register-commands.js` and re-run `npm run register` — it registers for **every configured server** (event + talk, see "Zwei Discord-Server"), `--guild <id>` for exactly one, `--global` globally. Requiring the script does nothing; only running it talks to Discord.
 
 ## Environment Variables
 
@@ -170,9 +187,6 @@ Standard way to send a Discord reply. Sends an embed with `title` and `descripti
 
 ### `botEditReply(interaction, title, message, ...)`
 Used after `interaction.deferReply()`. Call this when the command needs more than 3 seconds to respond.
-
-### `checkForPermission(interaction)`
-Compares `interaction.user.id` against `adminUserId` from `config/variables.js`. Returns `false` and sends an error reply if unauthorized. Admin-only commands call this first and `return` if it returns false.
 
 ### `bidForLegendary(client, interaction, gold)`
 Core bidding logic in `utils/auction.js`. Validates the user has the legendary role, checks auction exists, validates the bid amount, calls the API, updates the highest bids overview message, and handles extended auction time.
@@ -221,9 +235,7 @@ await botEditReply(interaction, "Title", "Result");
 ```
 
 ### Permission-gated commands
-```javascript
-if (!checkForPermission(interaction)) return;
-```
+Nothing in the command: declare `defaultAccess` (and `group`) in its module and let `bot.js` check it — see "Who may run a command" above.
 
 ### Guard against missing parent category
 ```javascript
@@ -274,6 +286,16 @@ Anything the admin keeps several of — raidsheets, Aufruf-Vorlagen, Recruitment
 
 `test/web-client/listSection.test.js` holds the line, including a scan that no page renders `entries.map(e => <SomethingForm …/>)` again.
 
+### Zwei Discord-Server (event server and talk server)
+
+The bot can work with two servers (#251): the **Event-Discord** (event channels, Raid-Helper, the admin-role check) and the **Kommunikations-Discord** (raid overview, sign-up per bot, pings). Everything empty = the old one-server behaviour.
+
+- **Stored** as `config.discordServers = { eventGuildId, talkGuildId, talkOverviewChannelId, talkPingChannelId }` (settingsStore's `normalizeDiscordServers`: snowflakes only, a talk server equal to the event server is cleared). `config.guildId` stays the **fallback**: `getConfig().guildId` reports the event server once one is set, and saving an event server writes it into `guildId` too — so `auth.js`, `activeGuild.js` and everything else reading `guildId` follow without change.
+- **Read** through `src/web/guildRoles.js`: `eventGuildId()`/`talkGuildId()`/`configuredGuildIds()` (pure over a config), `guildRole(id)` (`"event" | "talk" | ""`), `eventGuild()`/`talkGuild()` (status cards: connected, member count, `permissions` from `discord.botPermissionsIn()` — null = not knowable, never "all missing") and `memberOverlap()` (human members of the event server also on the talk server, via `fetchGuildMembersCached`; failures come back as `error`, never thrown).
+- **Edited** in Einstellungen → Verbindungen → *Discord-Server* (`components/SettingsDiscordServers.tsx`, section `discordserver`, adminOnly + standalone): two cards, the rights as "4 von 5" with the list in the tooltip, a dialog that PATCHes only this block. `GET /api/settings/discord-servers` serves cards, overlap and every bot server with its text channels. `discordServers` is **full-admin-only** (`GUILD_KEYS` in `apiRoutes/settings.js`): the event server decides whose roles count.
+- **The web server switcher stays** — it still offers every server the bot is on (the Kanäle page edits both servers through it) and only shows the role as an *Event*/*Talk* badge (`/api/session` tags `guilds[].role`).
+- The Discord & Raid-Helper card no longer edits `guildId`; that moved into the dialog above.
+
 ### Role permissions (who may see/do what)
 
 Access is **per area** (one admin-menu section) and **per level** (`read` = open it, `write` = act in it; write implies read). The area list and all the pure logic live in `src/config/permissions.js` — the single source of truth shared by server and client (the client gets the list from `/api/session` and `/api/settings`).
@@ -294,6 +316,18 @@ Access is **per area** (one admin-menu section) and **per level** (`read` = open
 
 **Rights can also go to one named account**, not just to a role: `config.userPermissions` is `{ [userId]: { [areaId]: { read, write } } }` — the same shape as `rolePermissions`, keyed by Discord user id, edited in Einstellungen → *Berechtigungen* under "Einzelne Konten" and unioned in exactly like the base access (it can only widen). It exists for areas that go to named people rather than to a group; inventing a Discord role for two players is a second list to keep in sync. Like the base access it is resolved **without Discord** (`BASE_ACCESS(userId)` in `auth.js`), so such a grant survives an offline bot, and it is full-admin-only (`ACCESS_KEYS`).
 
+**Bot commands are a separate axis.** Who may run which command in Discord is not an area and not a `read`/`write` level — it hangs on Discord roles per command (`config.botCommandAccess`, Einstellungen → Berechtigungen → *Bot-Befehle*, see "Who may run a command" in the command system section). Full admins are admins there too; everything else is configured apart from the web areas.
+
+### Kanäle (`channels` area)
+
+The server's channels as Discord's sidebar (issue #259): `pages/ChannelsPage.tsx` is **one list** (`components/channels/ChannelTree.tsx`: categories fold, one line per channel with check box, type, name large in mono, status only as badge *Event* / *vergangen*) plus a side panel with three figures (Kanäle, vergangene Events — a click selects them —, im Archiv). Everything else about a channel — event, topic, purposes, slowmode, rights — is its **tooltip** (`channelTip()` in `lib/channels.ts`); the purposes table (what the bot uses a channel for, still settings) opens as a dialog (`PurposeList.tsx`). Don't put it back on the page.
+
+- **Inline rename**: double click or pencil, Enter saves, Esc/blur discards. Discord's name rules apply while typing — `src/utils/channelNames.js` is the tested source, `lib/channelNames.ts` its twin (regex and body held identical by `test/utils/channelNames.test.js`).
+- **Selection → bulk bar** (`ChannelBulk.tsx`): *Kategorie … / Thema …* open one dialog where every field starts at "unverändert" and only changed fields are sent (`bulkChanges()`); *Umbenennen nach Schema …* previews on the server (`POST /api/channels/rename-preview`, date from the channel's event). Changes go **one channel per request with a pause** (`runInSteps()`, progress in the job toast) because Discord bounces bursts; the server's `channelOps.runSerial()` pauses between channels too and answers per channel (`"3 Kanäle geändert, 1 fehlgeschlagen: fehlende Rechte"`).
+- **Archive, never auto-delete**: *Archivieren* moves into the archive category and denies writing to every overwrite plus @everyone (the bot keeps its own); `channelArchiveStore.js` (`data/settings/channel-archive.json`) logs who/when and holds the archive category per server, the hint deadline (`archiveDeleteHintDays`, default 14) and the quick-create schema per category — kept out of the general config so `channels` write is enough. **Deleting exists only in the Archiv tab**, needs the name typed (several: `LÖSCHEN`, checked again on the server) and `discordChannels.deleteChannel()` refuses any channel outside the archive category, whatever the caller sent. The waiting count shows on the page and as the dashboard task `channels` (`buildTasks`, yellow past the deadline, only for users who can read `channels`).
+- **Quick-create** (`QuickCreateDialog.tsx`, `POST /api/channels/batch`): schema `{tag}-{dd}-{mm}-{raid}` (placeholders in `PLACEHOLDERS`), once or weekly × n, optional template channel (clone: rights, topic, slowmode); `dryRun` answers the plan with `exists`, existing names are skipped, never duplicated. "Gleich Event anlegen" and the `/kanal` bot command are still open (they wait for #254/#252).
+- Discord writes live in `src/web/discordChannels.js` (edit/archive/delete/createCategory/createFromTemplate), not in `discord.js`; the upcoming-event badges come from `raidEventGroups.fetchEventsCached()` bounded to 4 s, past ones from `raidEventStore`.
+
 ### Roster (`roster` area)
 
 Every known character of the guild, grouped by raid category (design #218). Three things about the list itself:
@@ -301,6 +335,17 @@ Every known character of the guild, grouped by raid category (design #218). Thre
 - **The column heads are the sort control** (`SortLabel`, the same one the loot council's grid uses), and the sort is applied **per group**, because the attendance column measures against *that* category — a roster sorted by attendance across groups would compare Monday's raid with the pug night. The sort lives in its own store (`useTableSort("roster-sort", …)`), the rest of the view (search, role, class, spec, open groups, which list) in `usePersistedState("roster-view", …)`.
 - **Class chips, then spec pills.** The spec row appears only once a class is picked and lists the specs that class actually has in the roster — thirty specs at once is not a filter. A stored spec the current class does not have filters nothing instead of emptying the page.
 - **Characters can be taken off the roster** (`src/web/rosterHiddenStore.js`, `POST /api/roster/hide`, `data/settings/roster-hidden.json`). A roster built from loot and logs keeps everyone who ever raided, and "40 % Anwesenheit" over a guild half of whom left says nothing about the half that is still here. Hiding **deletes nothing** — loot history, evaluations and the character page stay whole; `GET /api/roster` simply answers with `chars` (the roster) and `hiddenChars` (with the note who hid them and when) apart, and `stats` counts only the former. The page's "Ausgeblendet" tab lists them and puts them back. Like the council's exclude list this is an explicit decision, never a rule such as "nobody who has not raided in 60 days" — the difference between *gone* and *was ill* is one only a person knows.
+
+### Raider-Profil ("Mein Profil", `signup` area, #255)
+
+The member's own page (`/profile`, `pages/ProfilePage.tsx`, `styles/profil.css`) and `/profil` in the bot (`commands/profile/profil.js`: short ephemeral summary, "kann Offtank/heilen" buttons `profil:tank|heal`, link to the page).
+
+- **Stored** in `src/web/raiderProfileStore.js` (`data/settings/raider-profiles.json`, key = Discord user id): characters (several, exactly one main, `source` log/armory/manual), per character specs from the rule set (`classes.js` keys, only the character's class) with `gear` none/usable/ready, `canOfftank`/`canHeal` (`null` = not set → derived from the specs, `profileView.effectiveRoles`), availability (weekdays), preferred raids (rule-set instance ids of any version), wishes (user ids of raiders with a profile), note. `raiderCharactersStore` stays the orga's per-category assignment; the profile only uses it to rank suggestions. Tests point the store at their own file with `useFile()`.
+- **Own profile only.** Every handler in `apiRoutes/profile.js` works on the session's `user.id`; no body field or query names another account. `GET/PUT /api/profile`, `GET /api/profile/log-characters`, `POST /api/profile/characters` (add or `{ remove }`), `GET /api/profile/raiders?q=` (names + main only) are area `signup`; another raider's profile `GET /api/profile/user?id=` and `GET /api/roster/character-claims` are area `roster`. Members get the page once an admin grants `signup` (read + write) in the **Basiszugang** — it is not on by default.
+- **Wishes never reach a member** (`web/profileView.js`): the owner sees whom they wished for, never `mutual` or `wishedBy` — those exist only with `forOrga`. `test/web/profileRoute.test.js` holds that line.
+- **Three ways to add a character, no orga confirmation.** *Aus Logs* takes class and spec from `profileLogs.logIndex()` (the newest evaluations' rosters + `characterStore`), never from the request; suggestions rank the category assignment, then a name matching the Discord name. *Armory* always stores the `charLinks` link and takes class/level/guild from `Blizzard.getCharacterSummary()` when configured — any failure means link only, and without a class the API answers `422 class_required` so the dialog asks for it. *Von Hand* is name, class, specs. A character another account already has is added anyway and carries `claimedBy`; the roster page shows the conflicts as one "n doppelt vergeben" badge.
+- **"Laut Logs"** per spec (`specEvidence`): `seen` (the logs resolved this spec), `other` (character in the logs with another spec — a hint for the orga, never a lock), `unknown`. The evaluations know class, not spec, so the spec comes from `characterStore`.
+- **Calm layout**: character chips on top, the selected character's specs (name large, gear segment, logs badge) and the two switches on the left, availability / raids / wishes / note as folded parts on the right (one open at a time), the add dialog with the three ways as a segment. `test/web-client/profilePage.test.js` scans for it.
 
 ### Loot-Council (`lootcouncil` area)
 
@@ -395,6 +440,15 @@ Events live in **two sources**: at Raid-Helper, and in the EventHelper's own sto
 - **Raid-Helper-only things stay Raid-Helper-only:** the raidplan link (`raidplanUrl()` returns `""` for an own id, every caller renders no link then), `getSetup` (dashboard, raid detail, `utils/raidhelper.js`), the setup step's primary action (`raidDetailSteps.js` — for an own event the step says so and the way leads on to the sheet), `POST /api/raids/fill` (refused with `no_raidplan`). The Discord post link of an own event opens its channel.
 - **The event message** (`src/web/eventMessage.js`): an embed with date, leader, description, Tanks/Heiler/DD against the plan and the sign-offs in the footer, plus the button `event-signup:<eventId>`. Posted on create; `startEventMessageSync()` (started in `server.js`) listens to `signupStore.onSignupsChanged` and edits it once per burst of changes, re-posting a message that was deleted in Discord. The button's handler `commands/setup/eventSignup.js` answers ephemerally with a link to the raid in the web until the Discord signup dialog (#258) exists.
 - **Not here yet:** the signup page (#256), raider profiles (#255), the create dialog's planning fields (#261 — the API already accepts them), the setup suggestion/editor (#262/#263).
+
+### Raid-Vorlagen (`src/web/raidTemplates.js`, page `/raids/raid-templates`)
+
+What an evening looks like (#266): `{ id, name, versionId, instanceIds, size, composition: { tank, healer, melee?, ranged? }, requiredBuffs, signupDeadline: { hoursBefore }, fairness, wishes, raidhelperTemplateId }` in `data/settings/raid-templates.json` (settingsStore). Instances and buffs come **only** from the rule set above — `validateTemplate()` refuses anything else, plus tanks + healers (and the melee/ranged minimums) > size and a max below min.
+
+- **Migration on read:** a pre-#266 entry `{ id, name }` (a bare Raid-Helper template) becomes `rh-<id>` with `raidhelperTemplateId`, no instance and `size: null` — badged "Größe ergänzen" — and is written back once. "Aus Raid-Helper laden" (`POST /api/raid-templates/import`) adds unknown Raid-Helper templates the same way and leaves linked ones alone.
+- **Default per category:** `config.categoryRaidTemplate = { [categoryId]: templateId }`, a select on the category card in Einstellungen → Kategorien. It replaced `raidDefaults.templateId`: a config without the map hands the old global default to every `categoryIds` entry (`categoryRaidTemplateOf()`), and the next save persists it. `DELETE /api/raid-templates` answers **409** while a category uses the template.
+- **API:** one path, `GET/POST/PATCH/DELETE /api/raid-templates` (area `raids`, level by method). GET decorates each template with `needsSize`, `incomplete` (an instance with "Infos fehlen") and `defaultFor`.
+- **Client:** `pages/RaidTemplatesPage.tsx` (one row per template, version segment, editor as a `Modal` held in `?edit=`), linked from the Raid-Events head — no sidebar entry. Size change proposes tanks/healers (`lib/raidTemplates.ts`' `proposeComposition`, the same rule as the server's, `test/web-client/raidTemplates.test.js` compares them). `components/CompositionEditor.tsx` (tanks/healers ±, "n Plätze für DPS") is meant to be shared with the event creation (#261). The create dialog still sends a Raid-Helper template id: it offers the templates that link one and preselects the category default (`categoryTemplates` in `GET /api/raids/new`).
 
 ### Loot import (Gargul/RCLootcouncil)
 

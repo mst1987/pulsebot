@@ -26,6 +26,12 @@ import { CheckMark, FieldLabel, WarnIcon } from "./settingsUi";
 
 export type CategorySheet = { url: string; name: string };
 
+export type CategoryRaidTemplates = {
+    options: { id: string; name: string }[];
+    value: Record<string, string>;
+    onChange: (categoryId: string, templateId: string) => void;
+};
+
 const LOOT_TOOLS = [
     { value: "gargul", label: "Gargul" },
     { value: "rclc", label: "RCLootcouncil" },
@@ -40,8 +46,10 @@ const SIGNUP_SOURCES = [
 
 export default function CategoryMatrix({
     categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySignupSource = {}, categorySheets, savedCategoryRoles,
-    onToggleCategory, onToggleRole, onLootTool, onSignupSource, onSheet, csrfToken, icon, crumb,
+    onToggleCategory, onToggleRole, onLootTool, onSignupSource, onSheet, csrfToken, icon, crumb, raidTemplates,
 }: {
+    /** The default raid template per category (#266): the choices, the draft map and its setter. */
+    raidTemplates?: CategoryRaidTemplates;
     categories: Category[];
     roles: Role[];
     categoryIds: string[];
@@ -222,6 +230,15 @@ export default function CategoryMatrix({
                                 <FieldLabel tip="Loot-Addon" tipSub="Wählt beim Loot-Import den passenden Parser vor und sagt dem Loot-Tab der Raid-Detailseite, welchen Export er erwartet.">Loot-Addon</FieldLabel>
                                 <Segment ariaLabel={`Loot-Addon ${cat.name}`} value={tool} onChange={(v) => onLootTool(cat.id, v)} options={LOOT_TOOLS} />
                             </div>
+                            {raidTemplates && (
+                                <div>
+                                    <FieldLabel htmlFor={`cattpl-${cat.id}`} tip="Standard-Vorlage" tipSub="Die Raid-Vorlage, von der ein neues Event dieser Kategorie ausgeht. Solange sie Standard ist, lässt sie sich nicht löschen. Vorlagen pflegst du unter Raid-Events › Raid-Vorlagen.">Standard-Vorlage</FieldLabel>
+                                    <select id={`cattpl-${cat.id}`} value={raidTemplates.value[cat.id] || ""} onChange={(e) => raidTemplates.onChange(cat.id, e.target.value)}>
+                                        <option value="">— keine —</option>
+                                        {raidTemplates.options.map((t) => <option key={t.id} value={t.id}>{t.name || "(ohne Name)"}</option>)}
+                                    </select>
+                                </div>
+                            )}
                             <div>
                                 <FieldLabel htmlFor={`catsheet-name-${cat.id}`} tip="Festes Raidsheet" tipSub="Jeder Raid dieser Kategorie verlinkt dieses Sheet — außer für den Raid selbst wurde eins erstellt. Vorlagen nach Keywords: Module › Raidsheets.">Festes Raidsheet</FieldLabel>
                                 <div className="sheet-field">

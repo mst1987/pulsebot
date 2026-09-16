@@ -6,15 +6,22 @@ const auth = require("./auth");
 const { checkAccess } = require("./apiAccess");
 const { getSession, postActiveGuild } = require("./apiRoutes/session");
 const { getDashboard, getNextRaidDetails } = require("./apiRoutes/dashboard");
-const { getChannels, createChannel, duplicateChannel } = require("./apiRoutes/channels");
+const {
+    getChannels, createChannel, duplicateChannel,
+    patchChannels, archiveChannels, deleteChannels, renamePreview, batchCreate, saveConfig: saveChannelConfig,
+} = require("./apiRoutes/channels");
 const {
     getSettings, updateSettings, getItemSearch: getSettingsItemSearch,
     saveRaidsheetHandler, deleteRaidsheetHandler,
-    getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler,
+    getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers,
 } = require("./apiRoutes/settings");
 const { ingestLoot } = require("./apiRoutes/ingest");
+const { getBotCommands } = require("./apiRoutes/botCommands");
 const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raiderCharacters");
 const { getRoster, postRosterHide, getRosterChar } = require("./apiRoutes/roster");
+const {
+    getProfile, putProfile, getLogCharacters, postProfileCharacter, getRaiderSearch, getUserProfile, getCharacterClaims,
+} = require("./apiRoutes/profile");
 const {
     getLootCouncil, postLootCouncilSim, getLootCouncilSim,
     getItemSearch: getCouncilItemSearch, getBisLists: getCouncilBisLists,
@@ -31,7 +38,7 @@ const {
     getNotifyTemplates, saveNotifyTemplate, deleteNotifyTemplate,
 } = require("./apiRoutes/notifyTemplates");
 const {
-    getRaidTemplates, createRaidTemplate, deleteRaidTemplateHandler, importRaidTemplates,
+    getRaidTemplates, createRaidTemplate, updateRaidTemplate, deleteRaidTemplateHandler, importRaidTemplates,
 } = require("./apiRoutes/raidTemplates");
 const {
     getRecruitmentData, saveRecruitmentTemplate, deleteRecruitmentTemplate, postRecruitmentTemplate,
@@ -98,15 +105,39 @@ async function route(pathname, req, res, url) {
         return true;
     }
     if (pathname === "/api/channels" && req.method === "GET") {
-        getChannels(req, res);
+        await getChannels(req, res);
         return true;
     }
     if (pathname === "/api/channels" && req.method === "POST") {
         await createChannel(req, res);
         return true;
     }
+    if (pathname === "/api/channels" && req.method === "PATCH") {
+        await patchChannels(req, res);
+        return true;
+    }
     if (pathname === "/api/channels/duplicate" && req.method === "POST") {
         await duplicateChannel(req, res);
+        return true;
+    }
+    if (pathname === "/api/channels/archive" && req.method === "POST") {
+        await archiveChannels(req, res);
+        return true;
+    }
+    if (pathname === "/api/channels/delete" && req.method === "POST") {
+        await deleteChannels(req, res);
+        return true;
+    }
+    if (pathname === "/api/channels/rename-preview" && req.method === "POST") {
+        await renamePreview(req, res);
+        return true;
+    }
+    if (pathname === "/api/channels/batch" && req.method === "POST") {
+        await batchCreate(req, res);
+        return true;
+    }
+    if (pathname === "/api/channels/config" && req.method === "POST") {
+        await saveChannelConfig(req, res);
         return true;
     }
     if (pathname === "/api/settings" && req.method === "GET") {
@@ -129,6 +160,10 @@ async function route(pathname, req, res, url) {
         await deleteRaidsheetHandler(req, res);
         return true;
     }
+    if (pathname === "/api/settings/discord-servers" && req.method === "GET") {
+        await getDiscordServers(req, res);
+        return true;
+    }
     if (pathname === "/api/settings/ingest-tokens" && req.method === "GET") {
         getIngestTokens(req, res);
         return true;
@@ -139,6 +174,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/settings/ingest-tokens/delete" && req.method === "POST") {
         await deleteIngestTokenHandler(req, res);
+        return true;
+    }
+    if (pathname === "/api/bot-commands" && req.method === "GET") {
+        await getBotCommands(req, res);
         return true;
     }
     // Token-authenticated, not session-authenticated — see apiRoutes/ingest.js.
@@ -164,6 +203,34 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/roster/char" && req.method === "GET") {
         await getRosterChar(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/roster/character-claims" && req.method === "GET") {
+        await getCharacterClaims(req, res);
+        return true;
+    }
+    if (pathname === "/api/profile" && req.method === "GET") {
+        await getProfile(req, res);
+        return true;
+    }
+    if (pathname === "/api/profile" && req.method === "PUT") {
+        await putProfile(req, res);
+        return true;
+    }
+    if (pathname === "/api/profile/log-characters" && req.method === "GET") {
+        await getLogCharacters(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/profile/characters" && req.method === "POST") {
+        await postProfileCharacter(req, res);
+        return true;
+    }
+    if (pathname === "/api/profile/raiders" && req.method === "GET") {
+        await getRaiderSearch(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/profile/user" && req.method === "GET") {
+        await getUserProfile(req, res, url);
         return true;
     }
     if (pathname === "/api/lootcouncil" && req.method === "GET") {
@@ -282,7 +349,11 @@ async function route(pathname, req, res, url) {
         await createRaidTemplate(req, res);
         return true;
     }
-    if (pathname === "/api/raid-templates/delete" && req.method === "POST") {
+    if (pathname === "/api/raid-templates" && req.method === "PATCH") {
+        await updateRaidTemplate(req, res);
+        return true;
+    }
+    if (pathname === "/api/raid-templates" && req.method === "DELETE") {
         await deleteRaidTemplateHandler(req, res);
         return true;
     }

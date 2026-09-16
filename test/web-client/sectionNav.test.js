@@ -58,12 +58,12 @@ function panelIds() {
 describe("Einstellungen sections", () => {
     it("parses the section list at all", () => {
         // Sanity: a broken regex above would make every assertion below vacuous.
-        expect(sections().length).toBe(9);
+        expect(sections().length).toBe(10);
     });
 
-    it("keeps nine sections in four groups, each with a WoW icon", () => {
+    it("keeps ten sections in four groups, each with a WoW icon", () => {
         expect(sections().map((s) => s.id)).toEqual([
-            "berechtigungen", "verbindungen", "kategorien",
+            "berechtigungen", "verbindungen", "discordserver", "kategorien",
             "raids", "raidsheets", "topitems", "logs", "recruitment", "auktionen",
         ]);
         expect([...new Set(sections().map((s) => s.group))]).toEqual(["Zugang", "Verbindungen", "Raid-Kategorien", "Module"]);
@@ -102,6 +102,8 @@ describe("Einstellungen sections", () => {
         // The API is the real gate (ACCESS_KEYS / requireFullAdmin), but a field
         // shown to someone who cannot save it is a trap.
         expect(sections().find((s) => s.id === "berechtigungen").adminOnly).toBe(true);
+        // Which server is the event server decides where the role check runs (GUILD_KEYS).
+        expect(sections().find((s) => s.id === "discordserver").adminOnly).toBe(true);
     });
 
     it("sends the access fields only when the server would accept them", () => {
@@ -124,7 +126,7 @@ describe("Einstellungen sections", () => {
     });
 
     it("marks the self-saving sections standalone, and the save bar follows the draft", () => {
-        for (const id of ["verbindungen", "raidsheets"]) {
+        for (const id of ["verbindungen", "discordserver", "raidsheets"]) {
             const section = sections().find((s) => s.id === id);
             expect({ id, standalone: section.standalone }).toEqual({ id, standalone: true });
         }

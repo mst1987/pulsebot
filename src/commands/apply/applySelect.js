@@ -5,6 +5,8 @@ const { getClass } = require("../../config/applyClasses");
 module.exports = {
     name: "apply-class",
     description: "Bewerbung Klassen-Auswahl",
+    // A component of /apply: it needs the same access (web/botAccess.js).
+    accessOf: "apply",
     async execute(interaction) {
         const classValue = interaction.values[0];
         const cls = getClass(classValue);

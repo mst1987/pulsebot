@@ -14,6 +14,7 @@ const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
 const { signupSourceFor } = require("./eventSources");
 const { postEventMessage } = require("./eventMessage");
 const { raidContentIds } = require("./raidListing");
+const { getConfig, getRaidTemplate } = require("./settingsStore");
 const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const { toRaidHelperDate } = require("../utils/date");
 
@@ -73,6 +74,35 @@ async function sourceChannelFor(rh, guildId, sourceEventId) {
         : { channelId: "", code: "raidhelper_unreachable", message: "Raid-Helper antwortet gerade nicht — das Ausgangs-Event ließ sich nicht laden. Gleich noch einmal versuchen." };
 }
 
+/**
+ * The planning fields a raid template proposes for an event starting at
+ * `startTime`: version, instances, size, tanks/healers, the melee/ranged
+ * minimums, the deadline (hours before the start) and the two switches.
+ * {} when there is no such template.
+ */
+function templateDefaults(templateId, startTime) {
+    const t = templateId ? getRaidTemplate(String(templateId)) : null;
+    if (!t) return {};
+    const comp = t.composition || {};
+    const out = {
+        versionId: t.versionId,
+        instanceIds: t.instanceIds || [],
+        composition: {
+            tank: comp.tank || 0,
+            healer: comp.healer || 0,
+            melee: (comp.melee && comp.melee.min) || 0,
+            ranged: (comp.ranged && comp.ranged.min) || 0,
+        },
+        fairness: t.fairness === true,
+        wishes: t.wishes === true,
+    };
+    if (t.size) out.size = t.size;
+    else delete out.composition; // a migrated template without size proposes no composition
+    const hours = t.signupDeadline && Number(t.signupDeadline.hoursBefore);
+    if (hours > 0) out.signupDeadline = startTime - hours * 3600;
+    return out;
+}
+
 function categoryMap(guildId) {
     try {
         return discord.getChannelCategoryMap(guildId) || {};
@@ -126,12 +156,20 @@ async function createEvent({ guildId, user, body = {} }) {
         if (!title) return fail(400, "invalid_title", "Das Event braucht einen Titel.");
         startTime = startTimeOf(date, body.time);
         if (!startTime) return fail(400, "invalid_time", "Ungültige Uhrzeit.");
-        const instanceIds = Array.isArray(body.instanceIds) && body.instanceIds.length
+        // What the body leaves open comes from the raid template (the chosen one,
+        // else the category's default, #266), the instances last from the title.
+        const template = templateDefaults(body.raidTemplateId || (getConfig().categoryRaidTemplate || {})[categoryId], startTime);
+        const given = (key) => body[key] !== undefined && body[key] !== null && body[key] !== "";
+        const merged = { ...template };
+        for (const key of ["versionId", "size", "composition", "signupDeadline", "fairness", "wishes"]) {
+            if (given(key)) merged[key] = body[key];
+        }
+        merged.instanceIds = Array.isArray(body.instanceIds) && body.instanceIds.length
             ? body.instanceIds
-            : raidContentIds({ title }).contentIds;
-        const checked = eventStore.normalizePlan({ ...body, instanceIds });
+            : ((template.instanceIds || []).length ? template.instanceIds : raidContentIds({ title }).contentIds);
+        const checked = eventStore.normalizePlan(merged);
         if (checked.error) return fail(400, "invalid_plan", checked.error);
-        plan = checked.value;
+        plan = { ...checked.value, signupDeadline: merged.signupDeadline, fairness: merged.fairness, wishes: merged.wishes };
     }
 
     let channelName = "";
@@ -176,9 +214,6 @@ async function createEvent({ guildId, user, body = {} }) {
         description: body.description || "",
         leaderId: String(body.leaderId || "").trim() || (user && user.id) || "",
         startTime,
-        signupDeadline: body.signupDeadline,
-        fairness: body.fairness,
-        wishes: body.wishes,
         createdBy: (user && user.id) || "",
     });
     if (created.error) return fail(400, "create_failed", created.error);

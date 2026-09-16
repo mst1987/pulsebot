@@ -9,6 +9,9 @@ const { SIGNUP_BUTTON_PREFIX } = require("../../web/eventMessage");
 module.exports = {
     name: SIGNUP_BUTTON_PREFIX,
     description: "Anmelde-Button unter einer EventHelper-Event-Nachricht",
+    // Signing up is for every raider; who may change which signup is the web's business.
+    group: "signup",
+    defaultAccess: "everyone",
     async execute(interaction) {
         const eventId = String(interaction.customId || "").split(":")[1] || "";
         const event = getEvent(eventId);

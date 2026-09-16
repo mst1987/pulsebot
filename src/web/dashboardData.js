@@ -17,6 +17,7 @@ const { getConfig, resolveEventSheetLink } = require("./settingsStore");
 const { loadEventGroups } = require("./raidEventGroups");
 const { listReports, getReport } = require("./reportStore");
 const { listPending } = require("./lootInboxStore");
+const { getChannelConfig, listArchived, archiveHint } = require("./channelArchiveStore");
 const { buildRoster } = require("./roster");
 const { rosterStats } = require("./rosterStats");
 const { resolveAssignmentProfiles } = require("./raiderCharactersStore");
@@ -210,6 +211,24 @@ function loadInbox() {
     }
 }
 
+/**
+ * The channel archive's hint for the open tasks (issue #259): how many channels
+ * sit in the archive category and how many of them longer than the deadline.
+ * Needs the live channel list — without the bot there is nothing to count.
+ */
+function loadChannelArchive(guildId) {
+    try {
+        if (!guildId) return null;
+        const { archiveCategoryId, archiveDeleteHintDays } = getChannelConfig(guildId);
+        if (!archiveCategoryId) return null;
+        const archived = discord.listAllChannels(guildId).filter((c) => c.parentId === archiveCategoryId);
+        return archiveHint({ archived, entries: listArchived(guildId), hintDays: archiveDeleteHintDays });
+    } catch (e) {
+        console.error("dashboard channel archive failed:", e.message);
+        return null;
+    }
+}
+
 /** Top-item awards since the newest past raid started — the "Neuer Loot" tile. */
 function loadNewLoot(sinceStartTime) {
     const { items } = listAwards({ topOnly: true, page: 1, pageSize: 500 });
@@ -292,6 +311,6 @@ function loadTopLoot(limit = 5) {
 }
 
 module.exports = {
-    loadNextRaids, loadNextRaidDetails, loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot,
+    loadNextRaids, loadNextRaidDetails, loadLatestReport, loadRosterFigures, loadInbox, loadNewLoot, loadChannelArchive,
     loadRecentEvents, annotateUpcomingExtras, loadTopLoot,
 };

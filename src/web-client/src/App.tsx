@@ -8,12 +8,14 @@ import RaidsPage from "./pages/RaidsPage";
 import RaidCreatePage from "./pages/RaidCreatePage";
 import RaidDetailPage from "./pages/RaidDetailPage";
 import NotifyTemplatesPage from "./pages/NotifyTemplatesPage";
+import RaidTemplatesPage from "./pages/RaidTemplatesPage";
 import RecruitmentPage from "./pages/RecruitmentPage";
 import HistoryPage from "./pages/HistoryPage";
 import HistoryEventPage from "./pages/HistoryEventPage";
 import HistoryInboxPage from "./pages/HistoryInboxPage";
 import HistoryCharPage from "./pages/HistoryCharPage";
 import RosterPage from "./pages/RosterPage";
+import ProfilePage from "./pages/ProfilePage";
 import ClaPage from "./pages/ClaPage";
 import LootCouncilPage from "./pages/LootCouncilPage";
 import DropCheckPage from "./pages/lootcouncil/DropCheckPage";
@@ -134,6 +136,7 @@ export default function App() {
                         <Route path="raids/new" element={<Guard user={user} areas={["raids"]} level="write"><RaidCreatePage /></Guard>} />
                         <Route path="raids/detail" element={<Guard user={user} areas={["raids"]}><RaidDetailPage /></Guard>} />
                         <Route path="raids/templates" element={<Guard user={user} areas={["raids"]}><NotifyTemplatesPage /></Guard>} />
+                        <Route path="raids/raid-templates" element={<Guard user={user} areas={["raids"]}><RaidTemplatesPage /></Guard>} />
                         <Route path="recruitment" element={<Guard user={user} areas={["recruitment"]}><RecruitmentPage /></Guard>} />
                         {/* "loot" opens the same three pages, cut down to the loot views. */}
                         <Route path="history" element={<Guard user={user} areas={["history", "loot"]}><HistoryPage /></Guard>} />
@@ -141,6 +144,8 @@ export default function App() {
                         <Route path="history/inbox" element={<Guard user={user} areas={["history"]}><HistoryInboxPage /></Guard>} />
                         <Route path="history/event" element={<Guard user={user} areas={["history", "loot"]}><HistoryEventPage /></Guard>} />
                         <Route path="history/char" element={<Guard user={user} areas={["history", "loot"]}><HistoryCharPage /></Guard>} />
+                        {/* The member self-service page: always the own account (area "signup"). */}
+                        <Route path="profile" element={<Guard user={user} areas={["signup"]}><ProfilePage /></Guard>} />
                         <Route path="roster" element={<Guard user={user} areas={["roster"]}><RosterPage /></Guard>} />
                         {/* Same character page, reached from the roster — the page keeps
                             its back-link pointing at wherever it was opened from. */}

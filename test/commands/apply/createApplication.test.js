@@ -1,7 +1,6 @@
 jest.mock("../../../src/utils/helper.js");
 
 const command = require("../../../src/commands/apply/createApplication.js");
-const { checkForPermission } = require("../../../src/utils/helper.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
 function makeClient(sourceMessage) {
@@ -25,17 +24,13 @@ describe("commands/apply/createApplication", () => {
         expect(typeof command.execute).toBe("function");
     });
 
-    it("aborts before deferring when the user lacks permission", async () => {
-        checkForPermission.mockReturnValue(false);
-        const interaction = mockInteraction();
-
-        await command.execute(interaction, { channels: { fetch: jest.fn() } });
-
-        expect(interaction.deferReply).not.toHaveBeenCalled();
+    it("is admin-only unless the Bot-Befehle settings say otherwise", () => {
+        // The check itself runs centrally before execute (src/web/botAccess.js).
+        expect(command.defaultAccess).toBe("admins");
+        expect(typeof command.group).toBe("string");
     });
 
     it("copies the source message and posts it with an apply button", async () => {
-        checkForPermission.mockReturnValue(true);
         const sourceMessage = { content: "Bewirb dich!", embeds: [] };
         const { client } = makeClient(sourceMessage);
         const targetSend = jest.fn().mockResolvedValue({ url: "https://discord/msg/1" });
@@ -59,7 +54,6 @@ describe("commands/apply/createApplication", () => {
     });
 
     it("reports when the source message cannot be fetched", async () => {
-        checkForPermission.mockReturnValue(true);
         const client = { channels: { fetch: jest.fn().mockRejectedValue(new Error("404")) } };
         const targetChannel = { send: jest.fn() };
 

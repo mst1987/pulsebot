@@ -22,6 +22,10 @@
 // `tab` is the sidebar tab id in src/web-client/src/components/Shell.tsx.
 const AREAS = [
     { id: "dashboard", tab: "home", label: "Übersicht", description: "Startseite mit Kennzahlen, kommenden und vergangenen Events." },
+    // Member self-service: one's own raider profile (and, later, one's own
+    // signups). Meant for the base access — every handler behind it works on the
+    // caller's own account only (src/web/apiRoutes/profile.js).
+    { id: "signup", tab: "profile", label: "Mein Profil", description: "Eigenes Raider-Profil: Charaktere, Specs mit Gear-Stand, Verfügbarkeit und Wünsche. Immer nur das eigene Konto." },
     { id: "recruitment", tab: "recruitment", label: "Recruitment", description: "Bewerbungs-Vorlagen und gepostete Recruitment-Nachrichten." },
     { id: "cla", tab: "cla", label: "CLA / Logcheck", description: "Log-Auswertungen anstoßen, Reports verwalten und zuordnen." },
     { id: "raids", tab: "raids", label: "Raid-Events", description: "Raid-Events anlegen, Setups füllen, Aufrufe und Softres posten." },

@@ -10,8 +10,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useOutletContext } from "react-router-dom";
 import {
-    canAccess, getRoster, setRosterHidden,
-    type ApiError, type RosterChar, type RosterData, type RosterHiddenNote, type RosterRole,
+    canAccess, getCharacterClaims, getRoster, setRosterHidden,
+    type ApiError, type CharacterClaim, type RosterChar, type RosterData, type RosterHiddenNote, type RosterRole,
 } from "../api";
 import { usePersistedState } from "../lib/persistedState";
 import { sortRows, useTableSort, type Dir } from "../lib/tableSort";
@@ -216,10 +216,29 @@ function RosterGroup({ id, title, crumb, icon, chars, open, onToggle, sort, dir,
     );
 }
 
+/**
+ * Characters more than one account added to its profile. There is no
+ * confirmation step on purpose (#255), so the orga sees the conflicts here and
+ * resolves them — a badge with the list in its tooltip, not a block.
+ */
+function ClaimsBadge({ claims }: { claims: CharacterClaim[] }) {
+    const lines = claims.map((c) => `${c.character}: ${c.claims.map((x) => x.name || x.userId).join(", ")}`).join("\n");
+    return (
+        <Badge
+            tone="mid"
+            tip={`${claims.length} Charakter${claims.length === 1 ? "" : "e"} doppelt beansprucht`}
+            tipSub={`Mehrere Konten haben denselben Charakter in „Mein Profil" eingetragen:\n${lines}`}
+        >
+            {claims.length} doppelt vergeben
+        </Badge>
+    );
+}
+
 export default function RosterPage() {
     const { user, csrfToken } = useOutletContext<ShellContext>();
     const [data, setData] = useState<RosterData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
+    const [claims, setClaims] = useState<CharacterClaim[]>([]);
     const [stored, setView] = usePersistedState<View>("roster-view", VIEW_DEFAULT);
     const { sort, dir, onSort } = useTableSort<SortKey>("roster-sort", SORT_DEFAULTS, "name");
     const toast = useToast();
@@ -228,6 +247,7 @@ export default function RosterPage() {
 
     useEffect(() => {
         getRoster().then(setData).catch((err: ApiError) => setError(err));
+        getCharacterClaims().then((r) => setClaims(r.claims)).catch(() => undefined);
     }, []);
 
     const showHidden = stored.tab === "hidden";
@@ -373,6 +393,7 @@ export default function RosterPage() {
                             ?
                         </span>
                     </h1>
+                    {claims.length > 0 && <div className="ph-meta"><ClaimsBadge claims={claims} /></div>}
                 </div>
             </div>
 

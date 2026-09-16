@@ -19,7 +19,7 @@ jest.mock("../../src/web/discord", () => ({
     getChannelCategoryMap: jest.fn(() => ({})),
     duplicateChannel: jest.fn(),
 }));
-jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})), getRaidTemplate: jest.fn(() => null) }));
 jest.mock("../../src/web/eventMessage", () => ({ postEventMessage: jest.fn() }));
 jest.mock("../../src/web/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null), listRaidEvents: jest.fn(() => []) }));
 jest.mock("../../src/web/raidEventGroups", () => ({
@@ -32,7 +32,7 @@ jest.mock("../../src/web/raidListing", () => ({
 
 const fs = require("fs");
 const discord = require("../../src/web/discord");
-const { getConfig } = require("../../src/web/settingsStore");
+const { getConfig, getRaidTemplate } = require("../../src/web/settingsStore");
 const { postEventMessage } = require("../../src/web/eventMessage");
 const eventStore = require("../../src/web/eventStore");
 const { createEvent, startTimeOf } = require("../../src/web/eventCreate");
@@ -94,6 +94,25 @@ describe("web/eventCreate", () => {
         expect(eventStore.getEvent(result.body.id)).toMatchObject({
             instanceIds: ["gruul", "mag"], size: 25, composition: { tank: 4, healer: 7 }, fairness: true, wishes: false,
         });
+    });
+
+    it("takes what the body leaves open from the category's default raid template", async () => {
+        getConfig.mockReturnValue({ categorySignupSource: { "cat-eh": "eventhelper" }, categoryRaidTemplate: { "cat-eh": "tpl-t5" } });
+        getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? {
+            id: "tpl-t5", versionId: "tbc", instanceIds: ["ssc", "tk"], size: 25,
+            composition: { tank: 3, healer: 7, melee: { min: 4, max: null }, ranged: null },
+            signupDeadline: { hoursBefore: 24 }, fairness: true, wishes: false,
+        } : null));
+        try {
+            const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", title: "Donnerstag", size: 20 }) });
+            const start = startTimeOf("01-10-2026", "20:00");
+            expect(eventStore.getEvent(result.body.id)).toMatchObject({
+                instanceIds: ["ssc", "tk"], size: 20, composition: { tank: 3, healer: 7, melee: 4, ranged: 0 },
+                signupDeadline: start - 24 * 3600, fairness: true, wishes: false,
+            });
+        } finally {
+            getRaidTemplate.mockReturnValue(null);
+        }
     });
 
     it("refuses a bad plan before it clones a channel", async () => {
