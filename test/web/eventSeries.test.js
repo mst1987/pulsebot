@@ -242,7 +242,7 @@ describe("runSeries", () => {
         const failures = series.seriesFailures({ now: now + 40 * 60 * 1000 });
         expect(failures).toEqual([expect.objectContaining({ categoryId: "cat1", date: "2026-09-16", error: "Kanal konnte nicht angelegt werden: fehlende Rechte" })]);
         const task = eventSeriesTask([{ ...failures[0], categoryName: "Raids Mittwoch" }]);
-        expect(task).toMatchObject({ id: "series", tone: "bad", href: "/raids/series", title: "Serie konnte Event nicht anlegen: Kanal konnte nicht angelegt werden: fehlende Rechte" });
+        expect(task).toMatchObject({ id: "series", tone: "bad", href: "/raids/series", title: "Serie konnte Event nicht anlegen: fehlende Rechte", tip: "Kanal konnte nicht angelegt werden: fehlende Rechte" });
         expect(task.ref.text).toBe("Raids Mittwoch · Mi 16.09.");
         expect(buildTasks({ seriesFailures: [] }).some((t) => t.id === "series")).toBe(false);
         expect(buildTasks({ seriesFailures: failures }).some((t) => t.id === "series")).toBe(true);

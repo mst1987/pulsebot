@@ -326,13 +326,15 @@ function eventSeriesTask(failures) {
     const first = list[0];
     const day = DateTime.fromISO(first.date, { zone: "Europe/Berlin" }).setLocale("de");
     const when = day.isValid ? day.toFormat("ccc dd.MM.") : first.date;
+    // The reason's last part is short enough for the title ("fehlende Rechte"); the whole sentence goes into the tooltip.
+    const reason = String(first.error || "").split(": ").pop();
     return {
         id: "series", tone: "bad", tile: "raids", icon: "spell_holy_borrowedtime",
-        title: `Serie konnte Event nicht anlegen: ${first.error}`,
+        title: `Serie konnte Event nicht anlegen: ${reason}`,
         ref: { text: `${first.categoryName || "Kategorie"} · ${when}` },
         count: list.length > 1 ? list.length : 0,
         href: "/raids/series",
-        tip: list.length > 1 ? `${list.length} Termine von Serien fehlgeschlagen` : "Termin einer Serie fehlgeschlagen",
+        tip: first.error || (list.length > 1 ? `${list.length} Termine von Serien fehlgeschlagen` : "Termin einer Serie fehlgeschlagen"),
         tipSub: "Die Serie hat das Event dieses Termins nicht anlegen können. Sie versucht es höchstens dreimal im Abstand von 10 Minuten, danach nur noch auf Knopfdruck. Öffnet Raid-Events › Serien mit Grund und „Erneut versuchen“.",
     };
 }

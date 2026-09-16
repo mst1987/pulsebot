@@ -6,7 +6,7 @@ import {
 } from "../api";
 import { useCollectionEditor } from "../lib/collectionEditor";
 import {
-    WEEKDAYS, channelOf, dateLine, dayLabel, draftOf, nextDate, previewQuery, stateBadge, toggleSkip, toggleWeekday,
+    WEEKDAYS, channelOf, dateLine, dayLabel, draftOf, lastCreatedLine, nextDate, previewQuery, stateBadge, toggleSkip, toggleWeekday,
 } from "../lib/eventSeries";
 import type { ShellContext } from "../components/Shell";
 import { useToast } from "../components/Jobs";
@@ -263,7 +263,7 @@ function SeriesRow({ c, canWrite, onOpen }: { c: SeriesCategory; canWrite: boole
                     </>
                 ) : <div className="sr-line">kein Termin in Sicht</div>}
                 {c.lastCreated && next && next.date !== c.lastCreated.date && (
-                    <div className="sr-line sr-muted">zuletzt: {dayLabel(c.lastCreated.date)} als #{c.lastCreated.channelName}</div>
+                    <div className="sr-line sr-muted">{lastCreatedLine(c.lastCreated)}</div>
                 )}
             </div>
             <IconButton size="sm" icon={<PenIcon />} tip="Serie bearbeiten" onClick={onOpen} />

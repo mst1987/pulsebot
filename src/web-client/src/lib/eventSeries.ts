@@ -79,14 +79,28 @@ export function dateLine(o: SeriesDate): string {
     }
 }
 
-/** The date the list row names: the first one something still happens to (not skipped). */
+/**
+ * The date the list row names: the first one the series still has to act on
+ * (planned, due, failed …); when every coming date is done or skipped, the first
+ * one that is not skipped.
+ */
 export function nextDate(upcoming: SeriesDate[]): SeriesDate | null {
-    return (upcoming || []).find((o) => o.state !== "skipped") || null;
+    const list = upcoming || [];
+    const done = ["skipped", "created", "existing", "cancelled"];
+    return list.find((o) => !done.includes(o.state)) || list.find((o) => o.state !== "skipped") || null;
 }
 
-/** The channel a date has or would get, "" when neither is known. */
+/** The channel name shown beside a date — only a preview; a created date names its channel in its line. */
 export function channelOf(o: SeriesDate): string {
+    if (o.state === "created" || o.state === "existing") return "";
     return o.channelName || o.previewName || "";
+}
+
+/** "zuletzt angelegt: Mo 21.09. als #mo-21-09-ssc-tk (am Mi 16.09.)". */
+export function lastCreatedLine(last: { date: string; at: number; channelName: string } | null): string {
+    if (!last) return "";
+    const channel = last.channelName ? ` als #${last.channelName}` : "";
+    return `zuletzt angelegt: ${dayLabel(last.date)}${channel} (am ${momentDay(last.at)})`;
 }
 
 /** The modal's starting point: the stored series, else Wednesday 19:30, 6 days before. */

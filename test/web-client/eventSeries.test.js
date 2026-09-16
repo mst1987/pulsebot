@@ -78,11 +78,18 @@ describe("the lines a date reads as", () => {
         expect(lib.stateBadge("created").tone).toBe("ok");
     });
 
-    it("names the next date something happens to, skipping skipped ones", () => {
+    it("names the next date the series still has to act on, and what it created last", () => {
         expect(lib.nextDate([date({ date: "a", state: "skipped" }), date({ date: "b" })]).date).toBe("b");
+        expect(lib.nextDate([date({ date: "a", state: "created" }), date({ date: "b" })]).date).toBe("b");
+        expect(lib.nextDate([date({ date: "a", state: "skipped" }), date({ date: "b", state: "created" })]).date).toBe("b");
         expect(lib.nextDate([])).toBeNull();
         expect(lib.channelOf(date({ previewName: "mi-23" }))).toBe("mi-23");
-        expect(lib.channelOf(date({ channelName: "real", previewName: "mi-23" }))).toBe("real");
+        expect(lib.channelOf(date({ state: "failed", channelName: "real", previewName: "mi-23" }))).toBe("real");
+        // a created date names its channel in its own line, not twice
+        expect(lib.channelOf(date({ state: "created", channelName: "real" }))).toBe("");
+        expect(lib.lastCreatedLine({ date: "2026-09-21", at: ms("2026-09-16T17:57:00Z"), channelName: "mo-21-09-ssc-tk" }))
+            .toBe("zuletzt angelegt: Mo 21.09. als #mo-21-09-ssc-tk (am Mi 16.09.)");
+        expect(lib.lastCreatedLine(null)).toBe("");
     });
 });
 
