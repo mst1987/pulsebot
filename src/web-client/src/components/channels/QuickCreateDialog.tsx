@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import {
-    quickCreateChannels, type ApiError, type ChannelsData, type QuickCreateInput, type QuickCreatePlanRow,
+    quickCreateChannels, type ApiError, type ChannelNaming, type ChannelsData, type QuickCreateInput, type QuickCreatePlanRow,
 } from "../../api";
+import NamingBadge from "./NamingBadge";
 import { Badge, Button, Modal, Segment } from "../ui";
 import { ChannelsIcon } from "../icons";
 import { SwitchRow } from "../RaidPlanFields";
@@ -15,6 +16,10 @@ const DEFAULT_EVENT_TIME = "19:30";
 // the category, the first day and how often; the preview shows every name the
 // schema makes and which of them exist already — those are skipped, never
 // duplicated. Schema, raid and template channel are remembered per category.
+//
+// An empty schema names the channels like the category's latest event channel
+// and copies that channel (#285); one badge above the preview says where the
+// names come from, the details in its tooltip.
 //
 // "Gleich Event anlegen" (raids write, a category chosen): one switch and one
 // time field; every channel created gets an event on its day, with the
@@ -42,7 +47,9 @@ export function QuickCreateDialog({ data, csrfToken, initialCategoryId, onClose,
     const [mode, setMode] = useState<"once" | "weekly">("weekly");
     const [from, setFrom] = useState(today());
     const [count, setCount] = useState(4);
-    const [schema, setSchema] = useState(stored?.schema || data.defaultSchema);
+    // Only a schema of the category's own counts; the default one is what an empty field falls back to anyway.
+    const ownSchema = (s?: string) => (s && s !== data.defaultSchema ? s : "");
+    const [schema, setSchema] = useState(ownSchema(stored?.schema));
     const [raid, setRaid] = useState(stored?.raid || "");
     const [templateChannelId, setTemplate] = useState(stored?.templateChannelId || "");
     const [saveSchema, setSaveSchema] = useState(true);
@@ -50,12 +57,13 @@ export function QuickCreateDialog({ data, csrfToken, initialCategoryId, onClose,
     const [time, setTime] = useState(stored?.time || DEFAULT_EVENT_TIME);
     const [plan, setPlan] = useState<QuickCreatePlanRow[]>([]);
     const [planError, setPlanError] = useState("");
+    const [naming, setNaming] = useState<ChannelNaming | null>(null);
 
     // Switching the category loads what that category remembered.
     const pickCategory = (id: string) => {
         setCategoryId(id);
         const own = data.schemas?.[id];
-        setSchema(own?.schema || data.defaultSchema);
+        setSchema(ownSchema(own?.schema));
         setRaid(own?.raid || "");
         setTemplate(own?.templateChannelId || "");
         if (own?.time) setTime(own.time);
@@ -74,15 +82,15 @@ export function QuickCreateDialog({ data, csrfToken, initialCategoryId, onClose,
         let alive = true;
         const timer = setTimeout(() => {
             quickCreateChannels(csrfToken, { ...input, dryRun: true })
-                .then((r) => { if (alive) { setPlan(r.plan); setPlanError(""); } })
-                .catch((err: ApiError) => { if (alive) { setPlan([]); setPlanError(err.message); } });
+                .then((r) => { if (alive) { setPlan(r.plan); setNaming(r.naming || null); setPlanError(""); } })
+                .catch((err: ApiError) => { if (alive) { setPlan([]); setNaming(null); setPlanError(err.message); } });
         }, 250);
         return () => {
             alive = false;
             clearTimeout(timer);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [csrfToken, categoryId, schema, raid, from, count, mode]);
+    }, [csrfToken, categoryId, schema, raid, from, count, mode, templateChannelId]);
 
     const todo = plan.filter((p) => !p.exists).length;
     const categoryName = categories.find((c) => c.id === categoryId)?.name || "Ohne Kategorie";
@@ -164,6 +172,7 @@ export function QuickCreateDialog({ data, csrfToken, initialCategoryId, onClose,
                     </div>
                 )}
                 {planError && <Badge tone="bad">{planError}</Badge>}
+                {naming && !planError && <div className="kn-naming"><NamingBadge naming={naming} /></div>}
                 <div className="kn-preview" aria-live="polite">
                     {plan.map((p, i) => (
                         <div key={`${p.date}-${i}`} className="kn-preview-row">
@@ -179,7 +188,7 @@ export function QuickCreateDialog({ data, csrfToken, initialCategoryId, onClose,
                         <div className="kn-grid2">
                             <div className="kn-field">
                                 <label htmlFor="kn-qc-schema">Namensschema</label>
-                                <div className="kn-input"><input id="kn-qc-schema" type="text" value={schema} onChange={(e) => setSchema(e.target.value)} /></div>
+                                <div className="kn-input"><input id="kn-qc-schema" type="text" value={schema} onChange={(e) => setSchema(e.target.value)} placeholder="leer = wie der letzte Event-Kanal" /></div>
                             </div>
                             <div className="kn-field">
                                 <label htmlFor="kn-qc-raid">Raid</label>
@@ -189,11 +198,11 @@ export function QuickCreateDialog({ data, csrfToken, initialCategoryId, onClose,
                         <PlaceholderChips data={data} onPick={(key) => setSchema((s) => `${s}{${key}}`)} />
                         <div className="kn-field">
                             <label htmlFor="kn-qc-tpl">
-                                <span className="tipped" tabIndex={0} data-tip="Vorlage-Kanal" data-tip-sub="Die neuen Kanäle übernehmen Rechte, Thema und Slowmode dieses Kanals. Ohne Vorlage entstehen einfache Text-Kanäle.">Vorlage-Kanal</span>
+                                <span className="tipped" tabIndex={0} data-tip="Vorlage-Kanal" data-tip-sub="Die neuen Kanäle übernehmen Rechte, Thema und Slowmode dieses Kanals. Ohne Auswahl sind sie eine Kopie des letzten Event-Kanals der Kategorie – nur eine Kategorie ohne Event-Kanal bekommt einfache Text-Kanäle.">Vorlage-Kanal</span>
                                 <span className="kn-opt">optional</span>
                             </label>
                             <select id="kn-qc-tpl" className="kn-select" value={templateChannelId} onChange={(e) => setTemplate(e.target.value)}>
-                                <option value="">— keine Vorlage —</option>
+                                <option value="">{categoryId ? "— wie der letzte Event-Kanal —" : "— keine Vorlage —"}</option>
                                 {templates.map((c) => <option key={c.id} value={c.id}>#{c.name}{c.category ? ` (${c.category})` : ""}</option>)}
                             </select>
                         </div>

@@ -201,7 +201,7 @@ export function schemaName(schema: string, isoDate: string, raid: string): strin
     return filled
         .toLowerCase()
         .replace(/\s+/g, "-")
-        .replace(/[^\p{L}\p{N}_-]+/gu, "")
+        .replace(/[!-,./:-@[-^`{-~\p{Cc}]+/gu, "")
         .replace(/-{2,}/g, "-")
         .replace(/^-+/, "")
         .replace(/-+$/, "")

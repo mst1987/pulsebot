@@ -285,7 +285,24 @@ export function deleteChannels(csrfToken: string | null, ids: string[], confirm:
     return send("POST", "/api/channels/delete", csrfToken, { ids, confirm });
 }
 
-export type RenamePreviewRow = { id: string; from: string; to: string; hasDate: boolean; conflict: boolean };
+/**
+ * Where a channel name comes from (#285): like the previous event channel of the
+ * category ("previous"), its stored schema ("schema"), the default schema
+ * ("default") or a schema typed into the dialog ("typed"). `label` is the badge,
+ * `detail` and `design` its tooltip.
+ */
+export type ChannelNaming = {
+    source: "previous" | "schema" | "default" | "typed";
+    label: string;
+    detail: string;
+    design: string;
+    fromChannel: string;
+    templateChannelId: string;
+    templateChannelName: string;
+};
+export type ChannelNameSuggestion = ChannelNaming & { name: string; replaced: { part: string; from: string; to: string }[] };
+
+export type RenamePreviewRow = { id: string; from: string; to: string; hasDate: boolean; conflict: boolean; naming?: ChannelNaming | null };
 
 export function renamePreview(csrfToken: string | null, input: { ids: string[]; schema: string; raid: string }): Promise<{ rows: RenamePreviewRow[] }> {
     return send("POST", "/api/channels/rename-preview", csrfToken, input);
@@ -307,7 +324,7 @@ export type QuickCreateInput = {
 };
 export type QuickCreatePlanRow = { date: string; name: string; exists: boolean };
 
-export function quickCreateChannels(csrfToken: string | null, input: QuickCreateInput): Promise<{ plan: QuickCreatePlanRow[] } & Partial<ChannelBulkResult> & { skipped?: number }> {
+export function quickCreateChannels(csrfToken: string | null, input: QuickCreateInput): Promise<{ plan: QuickCreatePlanRow[]; naming?: ChannelNaming | null } & Partial<ChannelBulkResult> & { skipped?: number }> {
     return send("POST", "/api/channels/batch", csrfToken, input);
 }
 
@@ -1242,6 +1259,16 @@ export type RaidCreateContext = {
     /** the own event ?event= names, for the edit mode */
     editEvent?: OwnEvent | null;
 };
+
+/**
+ * The name a new event channel gets and where it comes from (#285) — the create
+ * dialog's suggestion. `sourceEventId` names the event whose channel is cloned.
+ */
+export function getChannelNameSuggestion(input: { categoryId: string; date: string; instanceIds: string[]; sourceEventId?: string }): Promise<ChannelNameSuggestion> {
+    const q = new URLSearchParams({ categoryId: input.categoryId, date: input.date, instanceIds: input.instanceIds.join(",") });
+    if (input.sourceEventId) q.set("sourceEventId", input.sourceEventId);
+    return get<ChannelNameSuggestion>(`/api/raids/channel-name?${q.toString()}`);
+}
 
 /** The create dialog's material; with an own event id also that event, for editing it. */
 export function getRaidCreateContext(eventId = ""): Promise<RaidCreateContext> {

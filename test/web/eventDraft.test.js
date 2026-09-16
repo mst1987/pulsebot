@@ -73,7 +73,7 @@ describe("web/eventDraft — step 1", () => {
         expect(modes[0].options.map((o) => o.value)).toEqual(["n", "d", "e"]);
         expect(buttons.map((b) => b.label)).toEqual(["Weiter", "Anmeldung über Raid-Helper", "Abbrechen"]);
         expect(buttons[0]).toMatchObject({ custom_id: draft.formId(state()), disabled: false });
-        expect(payload.embeds[0].description).toContain("neu nach Schema `{tag}-{dd}-{mm}-ssc-tk`");
+        expect(payload.embeds[0].description).toContain("neu nach Standard-Schema `{tag}-{dd}-{mm}-{raid}`");
         expect(payload.embeds[0].description).toContain("**Anmeldung über:** EventHelper");
         for (const row of payload.components) for (const c of row.components) expect(c.custom_id.length).toBeLessThanOrEqual(100);
     });
@@ -98,6 +98,29 @@ describe("web/eventDraft — step 1", () => {
         const refRow = payload.components[3].components[0];
         expect(refRow.options.map((o) => o.value)).toEqual(["eh-new1", "1100"]);
         expect(payload.embeds[0].description).toContain("Kanal von **SSC neu** duplizieren");
+    });
+
+    it("names the new channel like the category's previous one and says so in step 1 and the confirmation (#285)", async () => {
+        discord.listAllChannels.mockReturnValue([{ id: "301", name: "🔥・mi-16-09-ssc-tk", parentId: CAT_EH }]);
+        loadEventGroups.mockResolvedValue({ groups: [{ categoryId: CAT_EH, events: [
+            { id: "eh-new1", title: "SSC + TK", instanceIds: ["ssc", "tk"], channelId: "301", startTime: Date.UTC(2026, 8, 16, 17, 30) / 1000 },
+        ] }] });
+        const { payload } = await draft.stepMessage("g1", state());
+        expect(payload.embeds[0].description).toContain("**Kanal:** neu wie #🔥・mi-16-09-ssc-tk — Wochentag, Datum und Raid werden ersetzt");
+
+        const built = await draft.buildBody("g1", state(), values({ date: "23.09." }), { userId: "42", now: NOW });
+        expect(built.body.newChannel).toEqual({ name: "🔥・mi-23-09-ssc-tk", categoryId: CAT_EH, templateChannelId: "301" });
+
+        const dup = await draft.buildBody("g1", state({ mode: "d", ref: "eh-new1" }), values({ date: "23.09." }), { userId: "42", now: NOW });
+        expect(dup.body).toMatchObject({ sourceEventId: "eh-new1", channelName: "🔥・mi-23-09-ssc-tk" });
+        const dupStep = await draft.stepMessage("g1", state({ mode: "d", ref: "eh-new1" }));
+        expect(dupStep.payload.embeds[0].description).toContain("Kanal von **SSC + TK** duplizieren · Name wie #🔥・mi-16-09-ssc-tk");
+
+        createEvent.mockResolvedValue({ status: 201, body: { id: "eh-x", event: { id: "eh-x", channelId: "556", channelName: "🔥・mi-23-09-ssc-tk" } } });
+        const done = await draft.submitForm("g1", state(), values({ date: "23.09." }), { userId: "42", now: NOW });
+        const lines = done.payload.embeds[0].description.split("\n");
+        expect(lines[1]).toBe("Name: `🔥・mi-23-09-ssc-tk` · abgeleitet aus #🔥・mi-16-09-ssc-tk (Datum 16-09 → 23-09)");
+        expect(lines[2]).toBe("Rechte und Thema von #🔥・mi-16-09-ssc-tk");
     });
 
     it("uses a channel select for an existing channel and keeps Weiter off until one is picked", async () => {
@@ -147,11 +170,11 @@ describe("web/eventDraft — the modal", () => {
 });
 
 describe("web/eventDraft — building the create body", () => {
-    const build = (s, v, now = NOW) => draft.buildBody("g1", s, v, { userId: "42", now });
+    const build = async (s, v, now = NOW) => draft.buildBody("g1", s, v, { userId: "42", now });
 
-    it("new by schema: a channel from the category's schema, the composition from the modal", () => {
+    it("new by schema: a channel from the category's schema, the composition from the modal", async () => {
         archiveStore.getChannelConfig.mockReturnValue({ schemas: { [CAT_EH]: { schema: "{tag}-{dd}-{mm}-{raid}", raid: "", templateChannelId: "400" } } });
-        const { body, error } = build(state(), values({ comp: "25/4/7" }));
+        const { body, error } = await build(state(), values({ comp: "25/4/7" }));
         expect(error).toBeUndefined();
         expect(body).toEqual({
             title: "SSC + TK", date: "2026-09-24", time: "19:30", description: "Flasks Pflicht", leaderId: "42",
@@ -161,36 +184,36 @@ describe("web/eventDraft — building the create body", () => {
         });
     });
 
-    it("duplicate: the source event and the schema's name", () => {
-        const { body } = build(state({ mode: "d", ref: "eh-new1" }), values({ comp: "" }));
+    it("duplicate: the source event and the schema's name", async () => {
+        const { body } = await build(state({ mode: "d", ref: "eh-new1" }), values({ comp: "" }));
         expect(body).toMatchObject({ sourceEventId: "eh-new1", channelName: "do-24-09-ssc-tk" });
         expect(body.size).toBeUndefined();
-        expect(build(state({ mode: "d" }), values()).error).toContain("Kein Event");
+        expect((await build(state({ mode: "d" }), values())).error).toContain("Kein Event");
     });
 
-    it("existing channel: only one that is on the server", () => {
-        expect(build(state({ mode: "e", ref: "200000000000000001" }), values()).body.channelId).toBe("200000000000000001");
-        expect(build(state({ mode: "e", ref: "200000000000000099" }), values()).error).toContain("nicht (mehr)");
+    it("existing channel: only one that is on the server", async () => {
+        expect((await build(state({ mode: "e", ref: "200000000000000001" }), values())).body.channelId).toBe("200000000000000001");
+        expect((await build(state({ mode: "e", ref: "200000000000000099" }), values())).error).toContain("nicht (mehr)");
     });
 
-    it("Raid-Helper category: the linked Raid-Helper template, no composition", () => {
-        const { body } = build(state({ cat: CAT_RH, tpl: RH.id, src: "r" }), values({ comp: "" }));
+    it("Raid-Helper category: the linked Raid-Helper template, no composition", async () => {
+        const { body } = await build(state({ cat: CAT_RH, tpl: RH.id, src: "r" }), values({ comp: "" }));
         expect(body).toMatchObject({ signupSource: "raidhelper", templateId: "37", raidTemplateId: RH.id });
         expect(body.composition).toBeUndefined();
-        expect(build(state({ cat: CAT_RH, tpl: T5.id, src: "r" }), values()).error).toContain("Raid-Helper-Vorlage");
+        expect((await build(state({ cat: CAT_RH, tpl: T5.id, src: "r" }), values())).error).toContain("Raid-Helper-Vorlage");
     });
 
-    it("refuses past dates, bad input, a taken channel name and vanished choices", () => {
-        expect(build(state(), values({ date: "15.09." })).error).toContain("Vergangenheit");
-        expect(build(state(), values({ date: "16.09.", time: "11:00" })).error).toContain("Vergangenheit");
-        expect(build(state(), values({ date: "morgen" })).error).toContain("kein Datum");
-        expect(build(state(), values({ time: "abends" })).error).toContain("keine Uhrzeit");
-        expect(build(state(), values({ title: "" })).error).toContain("Titel");
-        expect(build(state(), values({ comp: "10/9/9" })).error).toContain("passen nicht");
+    it("refuses past dates, bad input, a taken channel name and vanished choices", async () => {
+        expect((await build(state(), values({ date: "15.09." }))).error).toContain("Vergangenheit");
+        expect((await build(state(), values({ date: "16.09.", time: "11:00" }))).error).toContain("Vergangenheit");
+        expect((await build(state(), values({ date: "morgen" }))).error).toContain("kein Datum");
+        expect((await build(state(), values({ time: "abends" }))).error).toContain("keine Uhrzeit");
+        expect((await build(state(), values({ title: "" }))).error).toContain("Titel");
+        expect((await build(state(), values({ comp: "10/9/9" }))).error).toContain("passen nicht");
         discord.listAllChannels.mockReturnValue([{ id: "1", name: "do-24-09-ssc-tk" }]);
-        expect(build(state(), values()).error).toBe("Einen Kanal **do-24-09-ssc-tk** gibt es schon.");
-        expect(build(state({ cat: "100000000000000009" }), values()).error).toContain("Kategorie");
-        expect(build(state({ tpl: "deadbeef0000" }), values()).error).toContain("Vorlage gibt es nicht mehr");
+        expect((await build(state(), values())).error).toContain("Einen Kanal **do-24-09-ssc-tk** gibt es schon (Standard-Schema");
+        expect((await build(state({ cat: "100000000000000009" }), values())).error).toContain("Kategorie");
+        expect((await build(state({ tpl: "deadbeef0000" }), values())).error).toContain("Vorlage gibt es nicht mehr");
     });
 });
 
@@ -201,7 +224,7 @@ describe("web/eventDraft — submit", () => {
         expect(ok).toBe(true);
         expect(createEvent).toHaveBeenCalledWith({ guildId: "g1", user: { id: "42" }, body: expect.objectContaining({ title: "SSC + TK" }) });
         expect(payload.embeds[0].title).toBe("Event angelegt · SSC + TK");
-        expect(payload.embeds[0].description).toBe("Do 24.09. · 19:30 · 25er · Kanal <#555> angelegt");
+        expect(payload.embeds[0].description.split("\n")[0]).toBe("Do 24.09. · 19:30 · 25er · Kanal <#555> angelegt");
         expect(payload.components[0].components.map((b) => [b.label, b.url])).toEqual([
             ["Zum Kanal", "https://discord.com/channels/g1/555"],
             ["Im Web bearbeiten", "https://eh.test/raids/detail?event=eh-abc"],

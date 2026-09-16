@@ -1588,8 +1588,25 @@ describe("web/apiRouter", () => {
             expect(discord.duplicateChannel).toHaveBeenCalledWith("c-old", "kara-clone");
             expect(mockCreateEvent).toHaveBeenCalledWith(expect.objectContaining({ channelId: "c-new" }));
             expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
-            // no window scan needed for a clone any more
-            expect(raidEventGroups.loadEventGroups).not.toHaveBeenCalled();
+        });
+
+        it("clones even when the window scan fails — it only names and sorts the channel (#285)", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("guild-1");
+            mockGetEvent.mockResolvedValue({ id: "e1", channelId: "c-old" });
+            raidEventGroups.loadEventGroups.mockRejectedValue(new Error("Raid-Helper down"));
+            discord.duplicateChannel.mockResolvedValue({ id: "c-new", name: "kara-clone" });
+            mockCreateEvent.mockResolvedValue({ id: "ev2" });
+
+            const res = await post("/api/raids", {
+                date: "2026-07-12", time: "20:00", title: "Kara", sourceEventId: "e1", channelName: "kara-clone",
+            });
+
+            // the source channel still comes from Raid-Helper's event, never from the scan
+            expect(discord.duplicateChannel).toHaveBeenCalledWith("c-old", "kara-clone");
+            expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
         });
 
         it("falls back to the stored snapshot when Raid-Helper does not know the event", async () => {

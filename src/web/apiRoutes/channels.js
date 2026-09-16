@@ -14,7 +14,8 @@ const { resolvePurposes, purposeSummary } = require("../channelPurposes");
 const eventCreate = require("../eventCreate");
 const { userCanAny } = require("../../config/permissions");
 const { parseClockTime } = require("../../utils/date");
-const { DEFAULT_SCHEMA, PLACEHOLDERS, planChannels, renderChannelName } = require("../../utils/channelNames");
+const channelNaming = require("../channelNaming");
+const { DEFAULT_SCHEMA, PLACEHOLDERS, planChannels, placementFor, renderChannelName } = require("../../utils/channelNames");
 
 /** The word a bulk delete must be confirmed with (a single delete wants the channel's name). */
 const BULK_DELETE_WORD = "LÖSCHEN";
@@ -271,11 +272,22 @@ function dayOf(startTime) {
     return startTime ? DateTime.fromSeconds(Number(startTime), { zone: "Europe/Berlin" }).toISODate() : "";
 }
 
+/** The part of a naming result the page shows: the badge and its tooltip (#285). */
+function namingView(result) {
+    if (!result) return null;
+    return {
+        source: result.source, label: result.label, detail: result.detail, design: result.design,
+        fromChannel: result.fromChannel, templateChannelId: result.templateChannelId, templateChannelName: result.templateChannelName,
+    };
+}
+
 /**
  * POST /api/channels/rename-preview — what "Umbenennen nach Schema" would make
  * of the chosen channels. Body: `{ ids, schema, raid }`. The date placeholders
  * come from the channel's event (when it has one), `{name}` is its current name,
- * `{nr}` its place in the selection. Changes nothing.
+ * `{nr}` its place in the selection. An empty schema names each channel like
+ * the latest *other* event channel of its category (#285) — every row says so
+ * in `naming`. Changes nothing.
  */
 async function renamePreview(req, res) {
     const user = requireAdmin(req, res);
@@ -284,14 +296,34 @@ async function renamePreview(req, res) {
     const guildId = activeGuildFor(req);
     const body = await readJsonBody(req);
     const { ids, known } = idsOfGuild(body, guildId);
-    const events = eventStatusByChannel(listStoredEvents(guildId));
-    const schema = String(body.schema || "").trim() || "{name}";
-    const taken = new Set([...known.values()].filter((c) => !ids.includes(c.id)).map((c) => c.name));
+    const rawEvents = await eventsFor(guildId);
+    const events = eventStatusByChannel(rawEvents);
+    const schemaInput = String(body.schema || "").trim();
+    const raid = String(body.raid || "").trim();
+    const schemas = archiveStore.getChannelConfig(guildId).schemas || {};
+    const allChannels = [...known.values()];
+    const taken = new Set(allChannels.filter((c) => !ids.includes(c.id)).map((c) => c.name));
     const rows = ids.map((id, i) => {
         const channel = known.get(id);
         const ev = events[id];
-        const to = renderChannelName(schema, { date: ev ? dayOf(ev.startTime) : "", raid: body.raid || "", name: channel.name, nr: i + 1 });
-        const row = { id, from: channel.name, to, hasDate: !!ev, conflict: !to || taken.has(to) };
+        const day = ev ? dayOf(ev.startTime) : "";
+        let to;
+        let naming = null;
+        if (schemaInput) {
+            to = renderChannelName(schemaInput, { date: day, raid, name: channel.name, nr: i + 1 });
+        } else if (!day) {
+            to = channel.name; // no event, no date: nothing to derive, the name stays
+        } else {
+            const ctx = channelNaming.namingContext({
+                events: rawEvents, channels: allChannels, schemas, categoryId: channel.parentId, raid, excludeChannelId: id,
+            });
+            const result = channelNaming.describeResult(ctx, day, raid);
+            // Renaming only follows a real model: with nothing to derive from, a
+            // channel is not forced onto the default schema — it keeps its name.
+            to = result.source === "default" ? channel.name : result.name;
+            naming = namingView(result);
+        }
+        const row = { id, from: channel.name, to, hasDate: !!ev, conflict: !to || taken.has(to), naming };
         if (to) taken.add(to);
         return row;
     });
@@ -316,6 +348,22 @@ function eventBatchMessage(results, skipped) {
 }
 
 /**
+ * What quick-create shows above its preview: where the names come from and
+ * which channel the new ones copy. A typed schema is named as such.
+ */
+function batchNaming(ctx, { schemaInput, day, raid, templateChannelId, channels }) {
+    const result = channelNaming.describeResult(ctx, day, raid);
+    const template = templateChannelId ? (channels || []).find((c) => c.id === templateChannelId) : null;
+    const view = {
+        ...namingView(result),
+        templateChannelId: template ? template.id : "",
+        templateChannelName: template ? template.name : "",
+        design: template ? `Rechte und Thema von #${template.name}` : templateChannelId ? "Rechte und Thema vom Vorlage-Kanal" : "Rechte der Kategorie",
+    };
+    return schemaInput ? { ...view, source: "typed", label: "nach eingegebenem Schema", detail: `Schema ${schemaInput}` } : view;
+}
+
+/**
  * POST /api/channels/batch — quick-create by naming schema. Body:
  * `{ categoryId, schema, raid, tag, from, count, interval, templateChannelId, dryRun, saveSchema, withEvent, time }`.
  * `dryRun` only answers the plan (names, and which exist already); otherwise the
@@ -337,13 +385,25 @@ async function batchCreate(req, res) {
     if (!guildId) return error(res, 400, "no_guild", "Kein Server gewählt.");
     const body = await readJsonBody(req);
     const categoryId = String(body.categoryId || "").trim();
-    const schema = String(body.schema || "").trim() || DEFAULT_SCHEMA;
-    const existingNames = discord.listAllChannels(guildId).map((c) => c.name);
+    const schemaInput = String(body.schema || "").trim();
+    const schema = schemaInput || DEFAULT_SCHEMA;
+    const raid = String(body.raid || "").trim();
+    const channels = discord.listAllChannels(guildId);
+    const existingNames = channels.map((c) => c.name);
+    // In a category, new channels look like its previous event channel (#285):
+    // an empty schema names them after it, and they are copies of it unless a
+    // template channel is chosen.
+    const ctx = categoryId
+        ? channelNaming.namingContext({ ...await channelNaming.loadNamingInputs(guildId), categoryId, raid })
+        : null;
     const plan = planChannels({
-        schema, raid: body.raid || "", tag: body.tag || "", from: body.from, count: body.count, interval: body.interval, existingNames,
+        schema, raid, tag: body.tag || "", from: body.from, count: body.count, interval: body.interval, existingNames,
+        render: ctx && !schemaInput ? (day) => channelNaming.nameFor(ctx, day, raid).name : null,
     });
     if (!plan.length) return error(res, 400, "invalid_date", "Kein gültiges Datum.");
-    if (body.dryRun) return ok(res, { plan });
+    const templateChannelId = String(body.templateChannelId || "").trim() || (ctx ? ctx.templateChannelId : "");
+    const naming = ctx ? batchNaming(ctx, { schemaInput, day: plan[0].date, raid, templateChannelId, channels }) : null;
+    if (body.dryRun) return ok(res, { plan, naming });
 
     const withEvent = body.withEvent === true;
     const time = withEvent ? parseClockTime(body.time) : "";
@@ -360,13 +420,18 @@ async function batchCreate(req, res) {
     }
     const todo = plan.filter((p) => !p.exists);
     const dayByName = new Map(todo.map((p) => [p.name, p.date]));
-    const templateChannelId = String(body.templateChannelId || "").trim();
+    // Each new channel is sorted in behind the previous date — including the ones this series just made.
+    const anchors = ctx ? [...ctx.eventChannels] : [];
     const defaults = withEvent ? quickEventDefaults([{ id: categoryId }])[categoryId] : null;
     const title = defaults
         ? defaults.templateName || ((discord.listCategories(guildId) || []).find((c) => c.id === categoryId) || {}).name || "Raid"
         : "";
     const created = await runSerial(todo.map((p) => p.name), async (name) => {
-        const channel = await discordChannels.createFromTemplate(guildId, { name, parentId: categoryId, templateChannelId });
+        const day = dayByName.get(name);
+        const channel = await discordChannels.createFromTemplate(guildId, {
+            name, parentId: categoryId, templateChannelId, ...(ctx ? placementFor(anchors, day) : {}),
+        });
+        if (ctx) anchors.push({ day, channelId: channel.id });
         if (!withEvent) return channel;
         const made = await eventCreate.createEvent({
             guildId,
@@ -387,11 +452,12 @@ async function batchCreate(req, res) {
     const skipped = plan.length - todo.length;
     if (withEvent) {
         const summary = eventBatchMessage(created, skipped);
-        return ok(res, { plan, results: created, skipped, done: created.filter((r) => r.ok).length, ...summary }, 201);
+        return ok(res, { plan, naming, results: created, skipped, done: created.filter((r) => r.ok).length, ...summary }, 201);
     }
     const summary = summarize(created, "angelegt");
     ok(res, {
         plan,
+        naming,
         results: created,
         skipped,
         ...summary,

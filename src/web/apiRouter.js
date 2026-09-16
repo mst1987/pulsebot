@@ -30,7 +30,7 @@ const {
     postExclude: postCouncilExclude, postRole: postCouncilRole, getExport: getCouncilExport,
     postArmoryRefresh: postCouncilArmory, postLogGear: postCouncilLogGear,
 } = require("./apiRoutes/lootCouncil");
-const { getRaids, getPastRaids, getRaidCreateContext, createRaid, updateRaid } = require("./apiRoutes/raids");
+const { getRaids, getPastRaids, getRaidCreateContext, getChannelName, createRaid, updateRaid } = require("./apiRoutes/raids");
 const {
     getRaidDetail, postNotify, postPingMissing, postFill, postPostSheet, postPostSoftres,
     getItemSearch, postSoftresCreate, postSoftresLink,
@@ -317,6 +317,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/raids/new" && req.method === "GET") {
         await getRaidCreateContext(req, res, url);
+        return true;
+    }
+    if (pathname === "/api/raids/channel-name" && req.method === "GET") {
+        await getChannelName(req, res, url);
         return true;
     }
     if (pathname === "/api/raids" && req.method === "POST") {

@@ -97,6 +97,7 @@ const AREA_BY_PATH = {
     "/api/raids": "raids",
     "/api/raids/past": "raids",
     "/api/raids/new": "raids",
+    "/api/raids/channel-name": "raids",
     "/api/raids/detail": "raids",
     "/api/raids/notify": "raids",
     "/api/raids/ping-missing": "raids",

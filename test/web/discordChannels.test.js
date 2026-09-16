@@ -113,10 +113,44 @@ describe("web/discordChannels", () => {
         it("clones the template into the target category, or creates a plain channel", async () => {
             const template = makeChannel({ id: "tpl" });
             withChannels(template);
-            await expect(dc.createFromTemplate("g1", { name: "mi-23-09-kara", parentId: "cat9", templateChannelId: "tpl" })).resolves.toEqual({ id: "clone", name: "mi-23-09-kara" });
+            await expect(dc.createFromTemplate("g1", { name: "mi-23-09-kara", parentId: "cat9", templateChannelId: "tpl" })).resolves.toEqual({ id: "clone", name: "mi-23-09-kara", copiedFrom: "tpl" });
             expect(template.clone).toHaveBeenCalledWith({ name: "mi-23-09-kara", parent: "cat9" });
             await dc.createFromTemplate("g1", { name: "x", parentId: "cat9" });
             expect(discord.createChannel).toHaveBeenCalledWith("g1", { name: "x", type: "text", parentId: "cat9" });
+        });
+
+        it("sorts the copy in right behind the previous date (#285)", async () => {
+            const anchor = makeChannel({ id: "prev", parentId: "cat9", position: 2 });
+            const template = makeChannel({ id: "prev-tpl", parentId: "cat9", position: 2 });
+            const copy = { id: "clone", name: "mi-23-09-kara", parentId: "cat9", position: 5, setPosition: jest.fn(async () => {}) };
+            template.clone = jest.fn(async () => copy);
+            withChannels(anchor, template);
+            const result = await dc.createFromTemplate("g1", { name: "mi-23-09-kara", parentId: "cat9", templateChannelId: "prev-tpl", afterChannelId: "prev" });
+            expect(copy.setPosition).toHaveBeenCalledWith(3);
+            expect(result).toEqual({ id: "clone", name: "mi-23-09-kara", copiedFrom: "prev-tpl", positioned: true });
+        });
+    });
+
+    describe("positionTarget / placeChannel", () => {
+        it("accounts for setPosition taking the channel out of the list first", () => {
+            expect(dc.positionTarget({ anchor: 2, current: 5, after: true })).toBe(3);
+            expect(dc.positionTarget({ anchor: 2, current: 0, after: true })).toBe(2);
+            expect(dc.positionTarget({ anchor: 2, current: 5, after: false })).toBe(2);
+            expect(dc.positionTarget({ anchor: 2, current: 0, after: false })).toBe(1);
+        });
+
+        it("moves only within the same category and never throws", async () => {
+            const own = { id: "n", parentId: "cat1", position: 4, setPosition: jest.fn(async () => {}) };
+            const before = makeChannel({ id: "b", parentId: "cat1", position: 1 });
+            const elsewhere = makeChannel({ id: "e", parentId: "cat2", position: 0 });
+            withChannels(before, elsewhere);
+            await expect(dc.placeChannel(own, { beforeChannelId: "b" })).resolves.toBe(true);
+            expect(own.setPosition).toHaveBeenCalledWith(1);
+            await expect(dc.placeChannel(own, { afterChannelId: "e" })).resolves.toBe(false);
+            await expect(dc.placeChannel(own, { afterChannelId: "unknown" })).resolves.toBe(false);
+            await expect(dc.placeChannel(own, {})).resolves.toBe(false);
+            own.setPosition.mockRejectedValue(new Error("Missing Permissions"));
+            await expect(dc.placeChannel(own, { afterChannelId: "b" })).resolves.toBe(false);
         });
     });
 

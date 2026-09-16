@@ -7,11 +7,13 @@ jest.mock("../../../src/web/discordChannels", () => {
     };
 });
 jest.mock("../../../src/web/channelArchiveStore", () => ({ getChannelConfig: jest.fn(), recordArchived: jest.fn() }));
+jest.mock("../../../src/web/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: [] })), eventLookbackSince: jest.fn(() => 1) }));
 
 const command = require("../../../src/commands/channels/kanal");
 const discord = require("../../../src/web/discord");
 const discordChannels = require("../../../src/web/discordChannels");
 const archiveStore = require("../../../src/web/channelArchiveStore");
+const { loadEventGroups } = require("../../../src/web/raidEventGroups");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
 
@@ -126,6 +128,26 @@ describe("/kanal", () => {
             await command.execute(k);
             expect(embed(k).description).toContain("gibt es schon");
             expect(discordChannels.createFromTemplate).not.toHaveBeenCalled();
+        });
+
+        it("without a name: like the category's previous event channel, a copy of it, sorted in (#285)", async () => {
+            discord.listAllChannels.mockReturnValue([{ id: "prev", name: "⚔┃mi-16-09-ssc-tk", parentId: "cat-events" }]);
+            loadEventGroups.mockResolvedValue({ groups: [{ categoryId: "cat-events", events: [
+                { id: "e1", title: "SSC + TK", channelId: "prev", startTime: Date.UTC(2026, 8, 16, 17, 30) / 1000 },
+            ] }] });
+            discordChannels.createFromTemplate.mockImplementation(async (g, { name }) => ({ id: "new3", name }));
+            const i = mockInteraction({ options: { __subcommand: "anlegen", kategorie: category(), datum: "2026-09-23" } });
+            await command.execute(i);
+            expect(discordChannels.createFromTemplate).toHaveBeenCalledWith("guild-1", {
+                name: "⚔┃mi-23-09-ssc-tk", parentId: "cat-events", templateChannelId: "prev", afterChannelId: "prev",
+            });
+            expect(embed(i).description).toContain("Name: `⚔┃mi-23-09-ssc-tk` · abgeleitet aus #⚔┃mi-16-09-ssc-tk (Datum 16-09 → 23-09)");
+            expect(embed(i).description).toContain("Rechte und Thema von #⚔┃mi-16-09-ssc-tk");
+
+            const j = mockInteraction({ options: { __subcommand: "anlegen", kategorie: category() } });
+            await command.execute(j);
+            expect(embed(j).description).toBe("Der Name wird aus #⚔┃mi-16-09-ssc-tk abgeleitet und braucht ein Datum (Option „datum“).");
+            loadEventGroups.mockResolvedValue({ groups: [] });
         });
 
         it("refuses something that is no category", async () => {

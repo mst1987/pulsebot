@@ -21,6 +21,7 @@ const { scheduleOverviewSync, RAIDHELPER_CREATE_DELAY_MS } = require("./talkOver
 const { raidContentIds } = require("./raidListing");
 const { getConfig, getRaidTemplate } = require("./settingsStore");
 const { getChannelConfig } = require("./channelArchiveStore");
+const channelNaming = require("./channelNaming");
 const { instanceById } = require("../config/gameVersions");
 const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const { toRaidHelperDate } = require("../utils/date");
@@ -289,16 +290,33 @@ async function createEvent({ guildId, user, body = {} }) {
     }
 
     let channelName = "";
+    let naming = null;
     try {
-        const bySchema = () => schemaChannelName(guildId, categoryId, isoDateOf(body.date), plan ? plan.instanceIds : body.instanceIds);
+        const isoDate = isoDateOf(body.date);
+        const instanceIds = plan ? plan.instanceIds : body.instanceIds;
+        // Named and designed like the category's previous event channel (#285);
+        // the plain schema only when that cannot be worked out at all.
+        const derive = async (extra) => {
+            try {
+                return await channelNaming.deriveChannelName({ guildId, categoryId, date: isoDate, instanceIds, ...extra });
+            } catch {
+                return null;
+            }
+        };
+        const bySchema = () => schemaChannelName(guildId, categoryId, isoDate, instanceIds);
         if (sourceChannel) {
-            const cloned = await discord.duplicateChannel(sourceChannel.channelId, String(body.channelName || "").trim() || bySchema());
+            naming = await derive({ fromEventId: sourceEventId });
+            const cloned = await discord.duplicateChannel(sourceChannel.channelId, String(body.channelName || "").trim() || (naming && naming.name) || bySchema());
             channelId = cloned.id;
             channelName = cloned.name || "";
+            if (naming && naming.placement) await discordChannels.placeChannel(cloned.id, naming.placement);
         } else if (newChannel) {
-            const name = newChannel.name || bySchema();
-            const templateChannelId = newChannel.templateChannelId || storedSchema(guildId, categoryId).templateChannelId || "";
-            const created = await discordChannels.createFromTemplate(guildId, { name, parentId: newChannel.categoryId, templateChannelId });
+            naming = await derive({});
+            const name = newChannel.name || (naming && naming.name) || bySchema();
+            const templateChannelId = newChannel.templateChannelId || (naming ? naming.templateChannelId : storedSchema(guildId, categoryId).templateChannelId) || "";
+            const created = await discordChannels.createFromTemplate(guildId, {
+                name, parentId: newChannel.categoryId, templateChannelId, ...((naming && naming.placement) || {}),
+            });
             channelId = created.id;
             channelName = created.name || name;
         }
@@ -326,7 +344,7 @@ async function createEvent({ guildId, user, body = {} }) {
             // The talk server's overview lists it once Raid-Helper's cached list has it.
             scheduleOverviewSync({ delayMs: RAIDHELPER_CREATE_DELAY_MS });
             // channelId: where it landed — a cloned or new channel is unknown to the caller otherwise.
-            return { status: 201, body: result && typeof result === "object" ? { ...result, channelId } : result };
+            return { status: 201, body: result && typeof result === "object" ? { ...result, channelId, ...namingBody(naming, channelName) } : result };
         } catch (e) {
             return fail(400, "create_failed", e.message || "Event konnte nicht angelegt werden.");
         }
@@ -357,7 +375,18 @@ async function createEvent({ guildId, user, body = {} }) {
     }
     scheduleOverviewSync();
     const event = eventStore.getEvent(created.event.id) || created.event;
-    return { status: 201, body: { id: event.id, source: "eventhelper", event, messageError } };
+    return { status: 201, body: { id: event.id, source: "eventhelper", event, messageError, ...namingBody(naming, channelName) } };
+}
+
+/** Where a created channel's name and design came from, for the caller's confirmation (#285). */
+function namingBody(naming, channelName) {
+    if (!naming) return {};
+    return {
+        channelNaming: {
+            name: channelName || naming.name, derivedName: naming.name, source: naming.source, label: naming.label, detail: naming.detail,
+            design: naming.design, templateChannelId: naming.templateChannelId,
+        },
+    };
 }
 
 /**

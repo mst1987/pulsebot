@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
-    getRaidCreateContext, createRaid, updateRaid, saveRaidTemplate,
-    type ApiError, type EventSource, type RaidCreateContext, type RaidTemplate, type ReusableEvent,
+    getRaidCreateContext, getChannelNameSuggestion, createRaid, updateRaid, saveRaidTemplate,
+    type ApiError, type ChannelNameSuggestion, type EventSource, type RaidCreateContext, type RaidTemplate, type ReusableEvent,
 } from "../api";
+import { normalizeChannelName } from "../lib/channelNames";
+import NamingBadge from "./channels/NamingBadge";
 import { relativeDayLabel } from "../lib/format";
 import { eventDay } from "../lib/raidTime";
 import { instancesOf } from "../lib/raidTemplates";
@@ -322,11 +324,34 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
     }, [open, sourceId, editEventId]);
 
     // The channel name follows date, category and raid until it is typed by hand.
+    // The server names it like the category's previous event channel (#285) and
+    // says so; the local schema is only the fallback while that answer is out.
     const schema = ctx ? (ctx.channelSchemas || {})[categoryId] : undefined;
+    const [naming, setNaming] = useState<ChannelNameSuggestion | null>(null);
+    const namingSourceId = channelMode === "clone" ? sourceEvent?.id || "" : "";
+    const namingKey = [channelMode, categoryId, date, plan.instanceIds.join(","), namingSourceId].join("|");
+    useEffect(() => {
+        if (!open || editing || channelMode === "existing" || !categoryId) {
+            setNaming(null);
+            return;
+        }
+        let alive = true;
+        const timer = setTimeout(() => {
+            getChannelNameSuggestion({ categoryId, date, instanceIds: plan.instanceIds, sourceEventId: namingSourceId })
+                .then((r) => { if (alive) setNaming(r); })
+                .catch(() => { if (alive) setNaming(null); });
+        }, 250);
+        return () => {
+            alive = false;
+            clearTimeout(timer);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [namingKey, open, editing]);
     const suggestedName = useMemo(() => {
+        if (naming?.name) return naming.name;
         if (channelMode === "clone" && !schema?.schema) return channelNameForDate(sourceEvent?.channelName || "", date);
         return schemaName(schema?.schema || ctx?.defaultSchema || "", date, raidTag(version, plan.instanceIds, schema?.raid || ""));
-    }, [channelMode, schema, ctx, date, version, plan.instanceIds, sourceEvent]);
+    }, [naming, channelMode, schema, ctx, date, version, plan.instanceIds, sourceEvent]);
     useEffect(() => {
         if (!editing && !channelTouched && channelMode !== "existing") setChannelName(suggestedName);
     }, [suggestedName, channelTouched, channelMode, editing]);
@@ -659,9 +684,18 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                                     )
                                     : <input id="re-channel" type="text" value={channelId} onChange={(e) => setChannelId(e.target.value)} placeholder="Kanal-ID (kein Server gewählt)" required />)
                                 : (
-                                    <input id="re-channel" className="re-mono re-chan-name" type="text" value={channelName}
-                                        onChange={(e) => { setChannelName(e.target.value); setChannelTouched(true); }} required
-                                        data-tip="Kanalname" data-tip-sub={`Schema ${schema?.schema || ctx.defaultSchema || ""}${categoryName ? ` · ${categoryName}` : ""}`} />
+                                    <>
+                                        <input id="re-channel" className="re-mono re-chan-name" type="text" value={channelName}
+                                            onChange={(e) => { setChannelName(e.target.value); setChannelTouched(true); }} required
+                                            data-tip="Kanalname" data-tip-sub={naming ? `${naming.label}${categoryName ? ` · ${categoryName}` : ""}` : `Schema ${schema?.schema || ctx.defaultSchema || ""}${categoryName ? ` · ${categoryName}` : ""}`} />
+                                        {naming && (
+                                            <div className="re-naming">
+                                                {channelTouched && naming.name !== normalizeChannelName(channelName)
+                                                    ? <Badge tip="Von Hand benannt" tipSub={`Vorschlag wäre #${naming.name} (${naming.label}). ${naming.design}.`}>von Hand benannt</Badge>
+                                                    : <NamingBadge naming={naming} />}
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                         </div>
                     )}

@@ -7,7 +7,8 @@ const { ChannelType } = require("discord.js");
 const discord = require("../../web/discord");
 const discordChannels = require("../../web/discordChannels");
 const archiveStore = require("../../web/channelArchiveStore");
-const { DEFAULT_SCHEMA, normalizeChannelName, renderChannelName, parseDay } = require("../../utils/channelNames");
+const channelNaming = require("../../web/channelNaming");
+const { normalizeChannelName, renderChannelName, parseDay } = require("../../utils/channelNames");
 const { webUrl, lookupReply, deferLookup, clip } = require("../../utils/botLookup");
 
 const LINK = () => [{ label: "Im Web öffnen", url: webUrl("/channels") }];
@@ -95,15 +96,32 @@ async function create(interaction) {
     const dateInput = interaction.options.getString("datum");
     const date = parseDate(dateInput);
     if (dateInput && !date) return fail(interaction, "Nicht angelegt", `„${clip(dateInput, 40)}“ ist kein Datum (z. B. 24.09. oder 2026-09-24).`);
-    const raid = String(interaction.options.getString("raid") || stored.raid || "").trim();
+    const raidOption = String(interaction.options.getString("raid") || "").trim();
 
-    // A typed name with placeholders is a schema; no name at all means the
-    // category's stored schema (or the default one).
-    const schema = typed ? (typed.includes("{") ? typed : "") : (stored.schema || DEFAULT_SCHEMA);
-    if (schema && DATE_PLACEHOLDER.test(schema) && !date) {
-        return fail(interaction, "Nicht angelegt", `Das Schema \`${clip(schema, 100)}\` braucht ein Datum (Option „datum“).`);
+    // A typed name with placeholders is a schema, a typed name without them the
+    // name itself. No name at all: like the category's previous event channel,
+    // else its stored schema, else the default one (#285) — and a copy of that
+    // channel either way, sorted in behind the previous date.
+    let name;
+    let naming = null;
+    let templateChannelId = stored.templateChannelId || "";
+    if (typed) {
+        const schema = typed.includes("{") ? typed : "";
+        if (schema && DATE_PLACEHOLDER.test(schema) && !date) {
+            return fail(interaction, "Nicht angelegt", `Das Schema \`${clip(schema, 100)}\` braucht ein Datum (Option „datum“).`);
+        }
+        name = schema ? renderChannelName(schema, { date, raid: raidOption || stored.raid || "" }) : normalizeChannelName(typed);
+    } else {
+        naming = await channelNaming.deriveChannelName({ guildId, categoryId: category.id, date, raid: raidOption });
+        if (!date && (naming.source === "previous" || DATE_PLACEHOLDER.test(naming.schema))) {
+            const how = naming.source === "previous"
+                ? `Der Name wird aus #${clip(naming.fromChannel, 100)} abgeleitet und`
+                : `Das Schema \`${clip(naming.schema, 100)}\``;
+            return fail(interaction, "Nicht angelegt", `${how} braucht ein Datum (Option „datum“).`);
+        }
+        name = naming.name;
+        templateChannelId = naming.templateChannelId;
     }
-    const name = schema ? renderChannelName(schema, { date, raid }) : normalizeChannelName(typed);
     if (!name) return fail(interaction, "Nicht angelegt", "Der Name ist leer.");
     const exists = discord.listAllChannels(guildId).some((c) => String(c.name).toLowerCase() === name);
     if (exists) return fail(interaction, "Nicht angelegt", `Einen Kanal **${name}** gibt es schon.`);
@@ -111,12 +129,16 @@ async function create(interaction) {
     await deferLookup(interaction);
     try {
         const created = await discordChannels.createFromTemplate(guildId, {
-            name, parentId: category.id, templateChannelId: stored.templateChannelId || "",
+            name, parentId: category.id, templateChannelId, ...((naming && naming.placement) || {}),
         });
-        return lookupReply(interaction, {
-            title: "Kanal angelegt",
-            description: `<#${created.id}> in **${clip(category.name, 100)}**${stored.templateChannelId ? "\nRechte und Thema von der Vorlage übernommen." : ""}`,
-        }, LINK());
+        const lines = [`<#${created.id}> in **${clip(category.name, 100)}**`];
+        if (naming) {
+            lines.push(clip(`Name: \`${created.name || name}\` · ${channelNaming.namingLine(naming)}`, 500));
+            lines.push(naming.design);
+        } else if (templateChannelId) {
+            lines.push("Rechte und Thema von der Vorlage übernommen.");
+        }
+        return lookupReply(interaction, { title: "Kanal angelegt", description: lines.join("\n") }, LINK());
     } catch (e) {
         return fail(interaction, "Nicht angelegt", discordChannels.discordErrorText(e));
     }

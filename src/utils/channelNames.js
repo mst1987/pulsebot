@@ -11,8 +11,13 @@
 /** Discord's limit for a channel name. */
 const CHANNEL_NAME_MAX = 100;
 
-/** Everything a text channel name may not contain: all but letters, digits, "-" and "_". */
-const NAME_STRIP_RE = /[^\p{L}\p{N}_-]+/gu;
+/**
+ * What Discord removes from a text channel name: ASCII punctuation except "-"
+ * and "_", and control characters. Emojis and every other Unicode symbol — "・",
+ * "│", "┃", "【】", "⚔" — stay, because Discord keeps them: a channel like
+ * "🔥・mi-17-09-ssc-tk" must not lose its design when it is renamed here.
+ */
+const NAME_STRIP_RE = /[!-,./:-@[-^`{-~\p{Cc}]+/gu;
 
 /** The schema a category starts with until someone stores its own. */
 const DEFAULT_SCHEMA = "{tag}-{dd}-{mm}-{raid}";
@@ -115,17 +120,194 @@ function seriesDays(from, count = 1, interval = "once") {
  * whether it `exists` already (on the server, or earlier in the same plan).
  * Existing names are skipped when the plan is carried out, never duplicated.
  */
-function planChannels({ schema, raid = "", tag = "", from, count = 1, interval = "once", existingNames = [] } = {}) {
+function planChannels({ schema, raid = "", tag = "", from, count = 1, interval = "once", existingNames = [], render = null } = {}) {
     const taken = new Set((existingNames || []).map((n) => String(n || "").toLowerCase()));
     return seriesDays(from, count, interval).map((day, i) => {
-        const name = renderChannelName(schema, { date: day, raid, tag, nr: i + 1 });
+        // `render(day, nr)` names a day another way — like the previous event channel (#285).
+        const name = render ? render(day, i + 1) : renderChannelName(schema, { date: day, raid, tag, nr: i + 1 });
         const exists = !name || taken.has(name);
         if (name) taken.add(name);
         return { date: day, name, exists };
     });
 }
 
+// ---- a new event channel named like the previous one (#285) ----
+//
+// The previous event channel of a category is the best schema there is: it
+// carries the guild's emojis, separators, prefix and order. So its name is
+// taken apart into what belongs to *that* event — its date, its weekday, its
+// raid — and the rest, which stays literally. Only parts that match the old
+// event's own values are touched, so an arbitrary number in a name ("t6",
+// "25er") is never mistaken for a date.
+
+/** Weekday spellings, index = Date#getUTCDay(): German short/long, English short/long. */
+const WEEKDAY_FORMS = {
+    tag: WEEKDAYS,
+    wochentag: ["sonntag", "montag", "dienstag", "mittwoch", "donnerstag", "freitag", "samstag"],
+    wday: ["sun", "mon", "tue", "wed", "thu", "fri", "sat"],
+    weekday: ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
+};
+
+/** The date spellings recognised, as small schemas; "." never survives Discord, so "17.09" is "1709". */
+const DATE_FORMATS = (() => {
+    const out = [];
+    for (const sep of ["-", "_", ""]) {
+        out.push(`{yyyy}${sep}{mm}${sep}{dd}`, `{dd}${sep}{mm}${sep}{yyyy}`, `{dd}${sep}{mm}${sep}{yy}`, `{dd}${sep}{mm}`);
+    }
+    for (const sep of ["-", "_"]) out.push(`{d}${sep}{m}${sep}{yyyy}`, `{d}${sep}{m}`);
+    return out;
+})();
+
+const RAID_JOINERS = ["-", "_", ""];
+
+/** Labels of the replaced parts, for the "abgeleitet aus" line. */
+const PART_LABELS = { date: "Datum", weekday: "Wochentag", raid: "Raid" };
+
+/** Fill a date format ("{dd}-{mm}") for a UTC day, without Discord's rules. */
+function fillDate(format, day) {
+    const values = {
+        dd: pad(day.getUTCDate()), mm: pad(day.getUTCMonth() + 1), d: String(day.getUTCDate()), m: String(day.getUTCMonth() + 1),
+        yy: String(day.getUTCFullYear()).slice(-2), yyyy: String(day.getUTCFullYear()),
+    };
+    for (const [key, names] of Object.entries(WEEKDAY_FORMS)) values[key] = names[day.getUTCDay()];
+    return String(format).replace(/\{(\w+)\}/g, (_, key) => values[key] ?? "");
+}
+
+const notDigit = (ch) => !ch || !/\d/.test(ch);
+const notLetter = (ch) => !ch || !/\p{L}/u.test(ch);
+const notWordChar = (ch) => notDigit(ch) && notLetter(ch);
+
+/** A raid given as "ssc-tk" or ["ssc", "tk"], spelled with a joiner. */
+function joinRaid(raid, joiner) {
+    if (Array.isArray(raid)) return raid.filter(Boolean).join(joiner);
+    return String(raid || "").replace(/-/g, joiner);
+}
+
+/**
+ * Take a channel name apart for the event it belongs to.
+ *
+ * `date` is that event's day ("2026-09-17"), `raidTags` the raid spellings it
+ * may carry, each as its parts (`[["ssc", "tk"], ["t5"]]`). Returns
+ * `{ segments, recognized }`: literal `{ text }` segments and replaceable
+ * `{ part, from, format | joiner }` ones; `recognized` only when a date was
+ * found — a weekday alone would make next week's name the same as this one's.
+ */
+function derivePatternFromName(name, { date, raidTags = [] } = {}) {
+    const text = normalizeChannelName(name);
+    const day = parseDay(date);
+    const found = [];
+    const overlaps = (start, end) => found.some((f) => start < f.end && end > f.start);
+    const scan = (literal, boundary, entry) => {
+        if (!literal) return;
+        let at = text.indexOf(literal);
+        while (at !== -1) {
+            const end = at + literal.length;
+            if (!overlaps(at, end) && boundary(text[at - 1]) && boundary(text[end])) found.push({ start: at, end, from: literal, ...entry });
+            at = text.indexOf(literal, at + 1);
+        }
+    };
+    const longestFirst = (list) => list.sort((a, b) => b.literal.length - a.literal.length);
+
+    if (day) {
+        const seen = new Set();
+        const dates = DATE_FORMATS.map((format) => ({ format, literal: fillDate(format, day) }))
+            .filter((d) => !seen.has(d.literal) && seen.add(d.literal));
+        for (const d of longestFirst(dates)) scan(d.literal, notDigit, { part: "date", format: d.format });
+        const weekdays = Object.keys(WEEKDAY_FORMS).map((key) => ({ format: `{${key}}`, literal: fillDate(`{${key}}`, day) }));
+        for (const w of longestFirst(weekdays)) scan(w.literal, notLetter, { part: "weekday", format: w.format });
+    }
+    const raids = [];
+    for (const tag of raidTags || []) {
+        const parts = (Array.isArray(tag) ? tag : [tag]).map((p) => normalizeChannelName(p)).filter(Boolean);
+        if (!parts.length) continue;
+        for (const joiner of parts.length > 1 ? RAID_JOINERS : ["-"]) raids.push({ joiner, literal: parts.join(joiner) });
+    }
+    for (const r of longestFirst(raids)) scan(r.literal, notWordChar, { part: "raid", joiner: r.joiner });
+
+    found.sort((a, b) => a.start - b.start);
+    const segments = [];
+    let cursor = 0;
+    for (const f of found) {
+        if (f.start > cursor) segments.push({ text: text.slice(cursor, f.start) });
+        const segment = { part: f.part, from: f.from };
+        if (f.format) segment.format = f.format;
+        if (f.joiner !== undefined) segment.joiner = f.joiner;
+        segments.push(segment);
+        cursor = f.end;
+    }
+    if (cursor < text.length) segments.push({ text: text.slice(cursor) });
+    return { segments, recognized: found.some((f) => f.part === "date") };
+}
+
+/**
+ * A derived pattern filled for a new day and raid: `{ name, replaced }` with
+ * `replaced = [{ part, from, to }]`. Without a day the date parts keep their
+ * old value; without a raid the old raid stays — nothing is guessed empty.
+ */
+function applyPattern(pattern, { date, raid } = {}) {
+    const day = date ? parseDay(date) : null;
+    const hasRaid = Array.isArray(raid) ? raid.some(Boolean) : !!String(raid || "").trim();
+    let out = "";
+    const replaced = [];
+    for (const seg of (pattern && pattern.segments) || []) {
+        if (seg.text !== undefined) {
+            out += seg.text;
+            continue;
+        }
+        let to = seg.from;
+        if (seg.part === "raid") to = hasRaid ? normalizeChannelName(joinRaid(raid, seg.joiner)) || seg.from : seg.from;
+        else if (day) to = fillDate(seg.format, day);
+        out += to;
+        if (!replaced.some((r) => r.part === seg.part && r.from === seg.from)) replaced.push({ part: seg.part, from: seg.from, to });
+    }
+    return { name: normalizeChannelName(out), replaced };
+}
+
+/** The parts a pattern would replace, in reading order ("Wochentag", "Datum", "Raid"). */
+function patternParts(pattern) {
+    const parts = [];
+    for (const seg of (pattern && pattern.segments) || []) {
+        if (seg.part && !parts.includes(seg.part)) parts.push(seg.part);
+    }
+    return parts;
+}
+
+/** "🔥・" of "🔥・mi-17-09": the leading symbols of a name, only when they carry more than ASCII. */
+function prefixOf(name) {
+    const lead = (/^[^\p{L}\p{N}]+/u.exec(normalizeChannelName(name)) || [""])[0];
+    return /[^\x20-\x7e]/.test(lead) ? lead : "";
+}
+
+/** "Datum 17-09 → 24-09, Raid ssc-tk → hyjal-bt" — only what actually changes. */
+function describeReplaced(replaced = []) {
+    return (replaced || [])
+        .filter((r) => r.from !== r.to)
+        .map((r) => `${PART_LABELS[r.part] || r.part} ${r.from} → ${r.to}`)
+        .join(", ");
+}
+
+/** "Datum und Raid", "Wochentag, Datum und Raid". */
+function listParts(parts = []) {
+    const labels = parts.map((p) => PART_LABELS[p] || p);
+    return labels.length > 1 ? `${labels.slice(0, -1).join(", ")} und ${labels[labels.length - 1]}` : labels.join("");
+}
+
+/**
+ * Where a new channel for `day` belongs among a category's event channels
+ * (`[{ day, channelId }]`): right after the latest one on or before that day,
+ * else right before the earliest later one. {} when there is none.
+ */
+function placementFor(eventChannels = [], day = "") {
+    if (!parseDay(day)) return {};
+    const rows = (eventChannels || []).filter((r) => r && r.channelId && parseDay(r.day));
+    const earlier = rows.filter((r) => r.day <= day).sort((a, b) => (a.day < b.day ? 1 : -1))[0];
+    if (earlier) return { afterChannelId: earlier.channelId };
+    const later = rows.filter((r) => r.day > day).sort((a, b) => (a.day < b.day ? -1 : 1))[0];
+    return later ? { beforeChannelId: later.channelId } : {};
+}
+
 module.exports = {
-    CHANNEL_NAME_MAX, NAME_STRIP_RE, DEFAULT_SCHEMA, WEEKDAYS, PLACEHOLDERS, MAX_SERIES,
+    CHANNEL_NAME_MAX, NAME_STRIP_RE, DEFAULT_SCHEMA, WEEKDAYS, WEEKDAY_FORMS, DATE_FORMATS, PART_LABELS, PLACEHOLDERS, MAX_SERIES,
     normalizeChannelName, normalizeForType, parseDay, formatDay, renderChannelName, seriesDays, planChannels,
+    derivePatternFromName, applyPattern, patternParts, prefixOf, describeReplaced, listParts, placementFor,
 };
