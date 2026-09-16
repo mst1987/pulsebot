@@ -35,7 +35,7 @@ describe("validatePlacement", () => {
         }, ctx);
         expect(out.error).toBeUndefined();
         expect(out.value.groups.map((g) => g.index)).toEqual([1, 2]);
-        expect(out.value.groups[0].slots[0]).toEqual({ userId: "tank", spec: "Warrior-Protection", role: "tank", locked: true });
+        expect(out.value.groups[0].slots[0]).toEqual({ userId: "tank", character: "Tank", spec: "Warrior-Protection", role: "tank", locked: true });
         expect(out.value.bench).toEqual([{ userId: "extra", locked: true }]);
     });
 

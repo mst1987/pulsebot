@@ -370,7 +370,7 @@ function evaluateSetup(input = {}, placement = {}, options = {}) {
     const fixed = [];
     for (const g of Array.isArray(placement.groups) ? placement.groups : []) {
         for (const s of Array.isArray(g.slots) ? g.slots : []) {
-            fixed.push({ userId: String(s.userId), eventId, group: Number(g.index), spec: s.spec || "", role: s.role || "" });
+            fixed.push({ userId: String(s.userId), eventId, group: Number(g.index), spec: s.spec || "", role: s.role || "", character: s.character || "" });
             if (s.locked) locked.add(String(s.userId));
         }
     }

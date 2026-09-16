@@ -23,11 +23,13 @@
 // the event message (eventMessage.js) and feeds every other listener.
 const { getEvent, isOwnEventId } = require("./eventStore");
 const signupStore = require("./signupStore");
+const { MAX_CHARACTERS, migrateSignup } = require("./signupCharacters");
 const profiles = require("./raiderProfileStore");
 const settingsStore = require("./settingsStore");
 const discord = require("./discord");
 const { SIGNUP_STATUSES } = require("../utils/attendance");
 const { ROLES } = require("../config/gameVersions/classes");
+const { spec: specOf } = require("../config/gameVersions");
 
 // Statuses a member may still pick once the deadline has passed.
 const AFTER_DEADLINE = ["absence", "late"];
@@ -233,46 +235,84 @@ function validateSignup(event, input = {}, { profile, previous = null, byOrga = 
     const w = signupWindow(event, now);
     if (isCancelled(event)) return fail("cancelled", "Das Event wurde abgesagt – Anmeldungen sind nicht mehr möglich.");
     if (w.started && !byOrga) return fail("started", "Der Raid hat schon begonnen – Anmeldungen sind geschlossen.");
+    const prev = previous ? migrateSignup(previous) : null;
+    const entries = requestedCharacters(input, prev);
+    // Keeping status and characters (to edit the comment) is still allowed.
+    const sig = (list) => list.map((c) => `${profiles.characterKey(c.character)}/${c.spec}`).join(",");
+    const unchanged = !!prev && prev.status === status && sig(prev.characters || []) === sig(entries);
     if (isSignupClosed(event) && !byOrga && !WHEN_CLOSED.includes(status)) {
-        const unchanged = previous && previous.status === status && previous.spec === String(input.spec || "").trim();
         if (!unchanged) return fail("closed", "Die Anmeldung ist geschlossen – du kannst dich nur noch abmelden.");
     }
     if (w.deadlinePassed && !byOrga && !AFTER_DEADLINE.includes(status)) {
-        const unchanged = previous && previous.status === status && previous.spec === String(input.spec || "").trim();
         if (!unchanged) {
             return fail("deadline", "Der Anmeldeschluss ist vorbei – du kannst dich nur noch abmelden oder „Spät“ angeben.");
         }
     }
-
-    let character = null;
-    let specKey = String(input.spec || "").trim();
-    if (status !== "absence" || input.character) {
-        character = findCharacter(profile, input.character);
-        if (!character) {
-            if (status === "absence") specKey = "";
-            else return fail("character", "Dieser Charakter steht nicht in deinem Profil.");
-        }
+    if (entries.length > MAX_CHARACTERS) {
+        return fail("characters", `Höchstens ${MAX_CHARACTERS} Charaktere je Anmeldung.`);
     }
-    if (character && status !== "absence") {
+    const resolved = [];
+    const seen = new Set();
+    for (const [i, entry] of entries.entries()) {
+        const specKey = String(entry.spec || "").trim();
+        if (status === "absence") {
+            // Signing off keeps whatever still fits the profile, nothing is refused.
+            const character = findCharacter(profile, entry.character);
+            if (i === 0 && character && !specKey) resolved.push({ character, spec: "" });
+            else if (character && character.specs.some((s) => s.key === specKey) && !seen.has(character.key)) resolved.push({ character, spec: specKey });
+            if (character) seen.add(character.key);
+            continue;
+        }
+        const character = findCharacter(profile, entry.character);
+        if (!character) {
+            return fail("character", i === 0 || !entry.character
+                ? "Dieser Charakter steht nicht in deinem Profil."
+                : `${entry.character} steht nicht in deinem Profil.`);
+        }
+        if (seen.has(character.key)) continue;
+        seen.add(character.key);
         if (!specKey) return fail("spec", "Bitte eine Spezialisierung wählen.");
         if (!character.specs.some((s) => s.key === specKey)) {
             return fail("spec", `Diese Spezialisierung ist für ${character.name} nicht im Profil hinterlegt.`);
         }
+        resolved.push({ character, spec: specKey });
     }
-    if (character && specKey && !character.specs.some((s) => s.key === specKey)) specKey = "";
+    if (status !== "absence" && !resolved.length) return fail("character", "Dieser Charakter steht nicht in deinem Profil.");
 
+    const first = resolved[0] || null;
     const canAlso = Array.isArray(input.canAlso)
         ? input.canAlso
-        : (character && specKey ? defaultCanAlso(profile, character.name, specKey) : []);
+        : (first && first.spec ? defaultCanAlso(profile, first.character.name, first.spec) : []);
     const checked = signupStore.normalizeSignup({
-        character: character ? character.name : "",
-        spec: specKey,
+        characters: resolved.map((c) => ({ character: c.character.name, spec: c.spec })),
+        character: first ? first.character.name : "",
         status,
         canAlso,
         comment: input.comment,
     }, { versionId: event.versionId });
     if (checked.error) return fail("spec", checked.error);
     return { value: checked.value };
+}
+
+/**
+ * The characters a request names, in priority order: `input.characters` when
+ * given (#293), else the single `character`/`spec` — which keeps the previous
+ * signup's alternates, so a front end that only knows one character (the
+ * Discord status buttons, the comment modal) never drops the "kann auch mit".
+ */
+function requestedCharacters(input, previous) {
+    if (Array.isArray(input.characters)) {
+        return input.characters
+            .filter((c) => c && (c.character || c.spec))
+            .map((c) => ({ character: String(c.character || "").trim(), spec: String(c.spec || "").trim() }));
+    }
+    const single = { character: String(input.character || "").trim(), spec: String(input.spec || "").trim() };
+    const key = profiles.characterKey(single.character);
+    const alternates = ((previous && previous.characters) || [])
+        .slice(1)
+        .filter((c) => profiles.characterKey(c.character) !== key)
+        .map((c) => ({ character: c.character, spec: c.spec }));
+    return single.character || single.spec ? [single, ...alternates] : [];
 }
 
 /**
@@ -302,6 +342,93 @@ async function submitSignup(eventId, userId, input = {}, { byOrga = false, now =
     return { signup: saved.signup, event };
 }
 
+/**
+ * Which of the requested characters can go into this raid, and why the others
+ * cannot — for signing up to several raids with one choice (#293). A spec the
+ * event's game version does not have ("Klasse passt nicht") and a spec the
+ * profile marks without usable gear are skipped for that raid, never refused.
+ * @returns {{ characters: { character: string, spec: string }[], skipped: { character: string, spec: string, reason: string }[] }}
+ */
+function fitCharactersToEvent(event, characters, profile) {
+    const out = { characters: [], skipped: [] };
+    for (const c of characters || []) {
+        const entry = { character: String((c && c.character) || ""), spec: String((c && c.spec) || "") };
+        if (!specOf(entry.spec, event && event.versionId)) {
+            out.skipped.push({ ...entry, reason: "Klasse passt nicht zu diesem Raid" });
+            continue;
+        }
+        const character = findCharacter(profile, entry.character);
+        const spec = character && character.specs.find((s) => s.key === entry.spec);
+        if (spec && spec.gear === "none") {
+            out.skipped.push({ ...entry, reason: "laut Profil ohne brauchbares Gear" });
+            continue;
+        }
+        out.characters.push(entry);
+    }
+    return out;
+}
+
+/**
+ * Sign one user up for several own events at once (#293) — the bot's
+ * "Für alle Raids" / "Mehrere Raids" and the web's "Für alle gewählten". Every
+ * event runs the full submitSignup (raider role, deadline, start, profile), so
+ * one refused raid never stops the others. Characters that do not fit a raid
+ * are skipped there with a reason; a raid left without any is skipped as a
+ * whole. The comment and "kann auch" of an existing signup are kept.
+ *
+ * @param {string} userId
+ * @param {{ eventId: string, characters: { character, spec }[], status?: string }[]} entries
+ * @returns {Promise<{ eventId: string, title: string, startTime: number, ok: boolean, signup?: object, skipped: object[], error?: string, code?: string }[]>}
+ */
+async function submitSignups(userId, entries, { byOrga = false, now = Date.now(), config } = {}) {
+    const uid = String(userId || "").trim();
+    const cfg = config || settingsStore.getConfig();
+    const profile = profiles.getProfile(uid);
+    const roleCache = new Map();
+    const results = [];
+    const seen = new Set();
+    for (const entry of Array.isArray(entries) ? entries : []) {
+        const eventId = String((entry && entry.eventId) || "").trim();
+        if (!eventId || seen.has(eventId)) continue;
+        seen.add(eventId);
+        const event = isOwnEventId(eventId) ? getEvent(eventId) : null;
+        const base = { eventId, title: (event && event.title) || eventId, startTime: (event && event.startTime) || 0 };
+        if (!event) {
+            const why = isOwnEventId(eventId)
+                ? fail("not_found", "Event nicht gefunden.")
+                : fail("raidhelper", "Anmeldung läuft über Raid-Helper.");
+            results.push({ ...base, ok: false, skipped: [], ...why });
+            continue;
+        }
+        const status = String(entry.status || "signed");
+        const fit = status === "absence"
+            ? { characters: Array.isArray(entry.characters) ? entry.characters : [], skipped: [] }
+            : fitCharactersToEvent(event, entry.characters, profile);
+        if (status !== "absence" && !fit.characters.length) {
+            const error = fit.skipped.length ? "Keiner der gewählten Charaktere passt" : "Kein Charakter gewählt";
+            results.push({ ...base, ok: false, skipped: fit.skipped, code: "no_character", error });
+            continue;
+        }
+        let roleIds;
+        const needsRoles = ((cfg.categoryRoles || {})[String(event.categoryId || "")] || []).length > 0;
+        if (needsRoles && !byOrga) {
+            const guild = event.guildId || cfg.guildId || "";
+            if (!roleCache.has(guild)) roleCache.set(guild, await discord.memberRoleIds(guild, uid));
+            roleIds = roleCache.get(guild);
+        }
+        const previous = signupStore.getSignup(event.id, uid);
+        const result = await submitSignup(event.id, uid, {
+            characters: fit.characters,
+            status,
+            canAlso: previous ? previous.canAlso : undefined,
+            comment: previous ? previous.comment : "",
+        }, { byOrga, now, roleIds, config: cfg });
+        if (result.error) results.push({ ...base, ok: false, skipped: fit.skipped, code: result.code, error: result.error });
+        else results.push({ ...base, ok: true, signup: result.signup, skipped: fit.skipped });
+    }
+    return results;
+}
+
 /** HTTP status for a service error code. */
 function httpStatusFor(code) {
     if (code === "not_found") return 404;
@@ -315,5 +442,5 @@ module.exports = {
     categoryRoleAllowed, categoryVisible, checkRaiderRole, isCancelled, isSignupClosed, WHEN_CLOSED,
     rosterCounts, roleCounts, signupWindow, allowedStatuses,
     findCharacter, profileRoles, defaultCanAlso, wishPartnersSignedUp,
-    validateSignup, submitSignup, httpStatusFor,
+    validateSignup, submitSignup, submitSignups, fitCharactersToEvent, httpStatusFor, MAX_CHARACTERS,
 };

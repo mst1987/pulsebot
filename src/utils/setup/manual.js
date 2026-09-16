@@ -14,7 +14,7 @@
 // better. The same line the proposal draws (see CLAUDE.md, "Setup-Vorschlag").
 
 const { rulesFor, DEFAULT_VERSION, ROLES } = require("../../config/gameVersions");
-const { GROUP_SIZE } = require("./model");
+const { GROUP_SIZE, signupCharacters } = require("./model");
 
 const str = (v) => String(v === null || v === undefined ? "" : v).trim();
 
@@ -66,15 +66,23 @@ function validatePlacement(raw, { event, signups } = {}) {
             const specKey = str(s.spec) || str(hit.signup.spec);
             const spec = specs.get(specKey);
             if (!spec) return { error: `${label(userId)}: unbekannte Spezialisierung „${specKey}“.` };
-            const signedSpec = specs.get(str(hit.signup.spec));
-            if (signedSpec && signedSpec.classId !== spec.classId) {
-                return { error: `${label(userId)} ist als ${signedSpec.classId} angemeldet, nicht als ${spec.classId}.` };
+            // Any of the named characters (#293) may be placed — on a spec of its class.
+            const named = signupCharacters(hit.signup)
+                .map((c) => ({ character: str(c.character), info: specs.get(str(c.spec)) }))
+                .filter((c) => c.info);
+            const ofClass = named.filter((c) => c.info.classId === spec.classId);
+            if (named.length && !ofClass.length) {
+                const classes = [...new Set(named.map((c) => c.info.classId))].join("/");
+                return { error: `${label(userId)} ist als ${classes} angemeldet, nicht als ${spec.classId}.` };
             }
+            const wanted = str(s.character).toLowerCase();
+            const pick = ofClass.find((c) => c.character.toLowerCase() === wanted) || ofClass[0];
+            const character = pick ? pick.character : str(s.character);
             let role = str(s.role) || spec.role;
             if (!ROLES.includes(role)) return { error: `${label(userId)}: unbekannte Rolle „${role}“.` };
             const fits = role === spec.role || (role === "tank" && spec.canTank) || (role === "healer" && spec.canHeal);
             if (!fits) role = spec.role;
-            slots.push({ userId, spec: spec.key, role, locked: s.locked === true });
+            slots.push({ userId, character, spec: spec.key, role, locked: s.locked === true });
         }
         if (slots.length > GROUP_SIZE) return { error: `Gruppe ${index} hat mehr als ${GROUP_SIZE} Plätze.` };
         placed += slots.length;

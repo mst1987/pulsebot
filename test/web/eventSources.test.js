@@ -53,6 +53,13 @@ describe("web/eventSources", () => {
         expect(signupStatus(off)).toBe("absence");
         const bench = sources.toSignUpShape({ userId: "u3", spec: "Mage-Fire", status: "bench" });
         expect(signupStatus(bench)).toBe("bench");
+        // several characters (#293): the Raid-Helper shape is the first choice, the list rides along
+        const multi = sources.toSignUpShape({
+            userId: "u4", status: "signed", character: "Zibbo", spec: "Priest-Holy", role: "healer",
+            characters: [{ character: "Zibbo", spec: "Priest-Holy", role: "healer" }, { character: "Zibbowar", spec: "Warrior-Protection", role: "tank" }],
+        });
+        expect(multi).toMatchObject({ specName: "HolyPriest", className: "Priest", character: "Zibbo", role: "healer" });
+        expect(multi.characters.map((c) => c.character)).toEqual(["Zibbo", "Zibbowar"]);
     });
 
     it("gives an own event the same group-row keys a Raid-Helper row has, plus its plan", () => {

@@ -84,6 +84,8 @@ async function postRaider(req, res) {
     const b = a.body;
     send(res, await manage.addRaider({
         guildId: a.guildId, eventId: b.event, userId: b.userId, character: b.character, spec: b.spec,
+        // further own characters, "kann auch mit" (#293)
+        alternates: Array.isArray(b.alternates) ? b.alternates : undefined,
         status: b.status || "signed", comment: b.comment, user: a.user, byName: a.user.name,
     }));
 }

@@ -48,6 +48,41 @@ describe("web/signupStore", () => {
         expect(lastSignupOf("")).toBeNull();
     });
 
+    it("stores several characters in priority order, the first mirrored on top (#293)", () => {
+        const { signup } = saveSignup("eh-1", "u1", {
+            characters: [{ character: "Zibbo", spec: "Priest-Holy" }, { character: "Zibbowar", spec: "Warrior-Protection" }, { character: "zibbo", spec: "Priest-Shadow" }],
+            canAlso: ["healer", "tank"],
+        });
+        expect(signup).toMatchObject({
+            character: "Zibbo", spec: "Priest-Holy", role: "healer", canAlso: ["tank"],
+            characters: [
+                { character: "Zibbo", spec: "Priest-Holy", role: "healer" },
+                { character: "Zibbowar", spec: "Warrior-Protection", role: "tank" },
+            ],
+        });
+        expect(normalizeSignup({ characters: [{ character: "A", spec: "Mage-Frost" }, { character: "B", spec: "Bogus" }] }).error).toBe("Unbekannte Spezialisierung „Bogus“.");
+        const four = ["A", "B", "C", "D"].map((character) => ({ character, spec: "Mage-Frost" }));
+        expect(normalizeSignup({ characters: four }).error).toBe("Höchstens 3 Charaktere je Anmeldung.");
+        expect(normalizeSignup({ characters: [] }).error).toBe("Für eine Anmeldung fehlt die Spezialisierung.");
+    });
+
+    it("migrates a signup stored before #293 on read: its one character becomes characters[0]", () => {
+        fs.__store.set(require("../../src/web/signupStore").SIGNUPS_FILE, JSON.stringify({
+            signups: {
+                "eh-old": {
+                    u1: { userId: "u1", character: "Alt", spec: "Mage-Fire", role: "ranged", status: "signed", at: 1 },
+                    u2: { userId: "u2", character: "", spec: "", role: "", status: "absence", at: 2 },
+                },
+            },
+        }));
+        expect(getSignup("eh-old", "u1").characters).toEqual([{ character: "Alt", spec: "Mage-Fire", role: "ranged" }]);
+        expect(listSignups("eh-old").map((s) => s.characters)).toEqual([[{ character: "Alt", spec: "Mage-Fire", role: "ranged" }], []]);
+        // a changed signup keeps its place and writes the new shape
+        const { signup } = saveSignup("eh-old", "u1", { characters: [{ character: "Alt", spec: "Mage-Fire" }, { character: "Neu", spec: "Druid-Balance" }] });
+        expect(signup.at).toBe(1);
+        expect(JSON.parse(fs.__store.get(require("../../src/web/signupStore").SIGNUPS_FILE)).signups["eh-old"].u1.characters).toHaveLength(2);
+    });
+
     it("knows every status Raid-Helper's normalised signups have", () => {
         for (const status of ["signed", "tentative", "late", "bench", "absence"]) {
             expect(normalizeSignup({ spec: "Warrior-Fury", status }).error).toBeUndefined();

@@ -7,7 +7,13 @@ const { SIGNUP_STATUSES } = require("../utils/attendance");
 // events keep theirs at Raid-Helper; nothing is mirrored in here.
 //
 // data/settings/signups.json: { signups: { [eventId]: { [userId]: signup } } }
-// with signup = { userId, character, spec, role, status, canAlso[], comment, at }.
+// with signup = { userId, character, spec, role, characters[], status, canAlso[], comment, at }.
+//
+// `characters` (#293) are the raider's own characters for this raid in priority
+// order: the first is the preferred one, the others "kann auch mit". The
+// top-level character/spec/role always mirror characters[0], so every reader
+// that knows only one character keeps working. A signup stored before #293
+// has no `characters` and gets them on read (migrateSignup).
 //
 // `spec` is a rule-set key ("Priest-Shadow", config/gameVersions), `status` one
 // of attendance.js' SIGNUP_STATUSES — so eventSources.js can hand the signups
@@ -16,6 +22,7 @@ const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
 const SIGNUPS_FILE = path.join(SETTINGS_DIR, "signups.json");
 
 const MAX_COMMENT = 300;
+const { MAX_CHARACTERS, migrateSignup } = require("./signupCharacters");
 
 // Whoever wants to know that a roster changed (the bot's event message).
 const listeners = new Set();
@@ -55,36 +62,60 @@ function listSignups(eventId) {
     const byUser = readAll()[String(eventId || "")] || {};
     return Object.values(byUser)
         .filter((s) => s && s.userId)
+        .map(migrateSignup)
         .sort((a, b) => (Number(a.at) || 0) - (Number(b.at) || 0));
 }
 
 /** One user's signup to an event, or null. */
 function getSignup(eventId, userId) {
     const byUser = readAll()[String(eventId || "")] || {};
-    return byUser[String(userId || "")] || null;
+    const found = byUser[String(userId || "")];
+    return found ? migrateSignup(found) : null;
 }
 
 /**
- * Validate a signup. The spec must exist in the event's game version; the role
- * follows from it, `canAlso` only names roles that are not the spec's own.
- * An absence needs no spec — somebody signing off is not choosing a character.
+ * Validate a signup. Every spec must exist in the event's game version; the
+ * role follows from it, `canAlso` only names roles that are not the preferred
+ * character's own. An absence needs no spec — somebody signing off is not
+ * choosing a character.
+ *
+ * `characters` = [{ character, spec }] in priority order (#293); without it the
+ * single `character`/`spec` is the one entry. The same character twice counts
+ * once (its first spec); more than MAX_CHARACTERS are refused.
  * @returns {{ value?: object, error?: string }}
  */
 function normalizeSignup(input = {}, { versionId = DEFAULT_VERSION } = {}) {
     const status = String(input.status || "signed").trim();
     if (!SIGNUP_STATUSES.includes(status)) return { error: `Unbekannter Anmeldestatus „${status}“.` };
-    const specKey = String(input.spec || "").trim();
-    const found = specKey ? specOf(specKey, versionId) : null;
-    if (specKey && !found) return { error: `Unbekannte Spezialisierung „${specKey}“.` };
-    if (!found && status !== "absence") return { error: "Für eine Anmeldung fehlt die Spezialisierung." };
-    const role = found ? found.role : "";
+    const raw = Array.isArray(input.characters)
+        ? input.characters
+        : [{ character: input.character, spec: input.spec }];
+    const characters = [];
+    const seen = new Set();
+    for (const entry of raw) {
+        const specKey = String((entry && entry.spec) || "").trim();
+        const name = String((entry && entry.character) || "").trim();
+        if (!specKey) continue;
+        const found = specOf(specKey, versionId);
+        if (!found) return { error: `Unbekannte Spezialisierung „${specKey}“.` };
+        const key = name.toLowerCase();
+        if (key && seen.has(key)) continue;
+        if (key) seen.add(key);
+        if (characters.length >= MAX_CHARACTERS) return { error: `Höchstens ${MAX_CHARACTERS} Charaktere je Anmeldung.` };
+        characters.push({ character: name, spec: found.key, role: found.role });
+    }
+    const first = characters[0] || null;
+    if (!first && status !== "absence") return { error: "Für eine Anmeldung fehlt die Spezialisierung." };
+    const role = first ? first.role : "";
     const canAlso = [...new Set((Array.isArray(input.canAlso) ? input.canAlso : []).map((r) => String(r).trim()))]
         .filter((r) => ROLES.includes(r) && r !== role);
+    const firstRaw = raw[0] || {};
     return {
         value: {
-            character: String(input.character || "").trim(),
-            spec: found ? found.key : "",
+            character: first ? first.character : String(firstRaw.character || "").trim(),
+            spec: first ? first.spec : "",
             role,
+            characters,
             status,
             canAlso,
             comment: String(input.comment || "").trim().slice(0, MAX_COMMENT),
@@ -158,5 +189,5 @@ function deleteEventSignups(eventId) {
 
 module.exports = {
     listSignups, getSignup, lastSignupOf, saveSignup, removeSignup, deleteEventSignups,
-    normalizeSignup, onSignupsChanged, SIGNUPS_FILE,
+    normalizeSignup, migrateSignup, onSignupsChanged, SIGNUPS_FILE, MAX_CHARACTERS,
 };

@@ -143,6 +143,112 @@ describe("submitSignup", () => {
     });
 });
 
+describe("mehrere Charaktere je Anmeldung (#293)", () => {
+    const both = [{ character: "Nerasol", spec: "Priest-Holy" }, { character: "Nerathil", spec: "Mage-Fire" }];
+
+    it("speichert die Charaktere in Reihenfolge, der erste spiegelt die bisherigen Felder", async () => {
+        const res = await service.submitSignup("eh-kara", ANNA, { characters: both, status: "signed" }, { now: NOW });
+        expect(res.error).toBeUndefined();
+        expect(res.signup).toMatchObject({
+            character: "Nerasol", spec: "Priest-Holy", role: "healer",
+            characters: [
+                { character: "Nerasol", spec: "Priest-Holy", role: "healer" },
+                { character: "Nerathil", spec: "Mage-Fire", role: "ranged" },
+            ],
+        });
+        // "kann auch" gehört zur ersten Wahl: nie deren eigene Rolle
+        expect(res.signup.canAlso).not.toContain("healer");
+    });
+
+    it("prüft jeden Charakter gegen das Profil, zählt einen doppelten nur einmal und nimmt höchstens drei", async () => {
+        profiles.addCharacter(BERT, { name: "Ysolde", className: "Mage", specs: ["Mage-Frost"] }, { name: "Bert" });
+        expect(await service.submitSignup("eh-kara", ANNA, { characters: [...both, { character: "Ysolde", spec: "Mage-Frost" }] }, { now: NOW }))
+            .toMatchObject({ code: "character", error: "Ysolde steht nicht in deinem Profil." });
+        expect(await service.submitSignup("eh-kara", ANNA, { characters: [both[0], { character: "Nerathil", spec: "Priest-Holy" }] }, { now: NOW }))
+            .toMatchObject({ code: "spec" });
+        const twice = await service.submitSignup("eh-kara", ANNA, { characters: [both[1], { character: "Nerathil", spec: "Mage-Arcane" }] }, { now: NOW });
+        expect(twice.signup.characters).toEqual([{ character: "Nerathil", spec: "Mage-Fire", role: "ranged" }]);
+        profiles.addCharacter(ANNA, { name: "Brokk", className: "Warrior", specs: ["Warrior-Protection"] }, { name: "Anna" });
+        profiles.addCharacter(ANNA, { name: "Zul", className: "Rogue", specs: ["Rogue-Combat"] }, { name: "Anna" });
+        const four = [...both, { character: "Brokk", spec: "Warrior-Protection" }, { character: "Zul", spec: "Rogue-Combat" }];
+        expect(await service.submitSignup("eh-kara", ANNA, { characters: four }, { now: NOW })).toMatchObject({ code: "characters" });
+    });
+
+    it("behält die „kann auch mit“-Charaktere, wenn ein Frontend nur einen Charakter schickt", async () => {
+        await service.submitSignup("eh-kara", ANNA, { characters: both }, { now: NOW });
+        const res = await service.submitSignup("eh-kara", ANNA, { character: "Nerasol", spec: "Priest-Holy", status: "tentative", comment: "vielleicht" }, { now: NOW });
+        expect(res.signup.status).toBe("tentative");
+        expect(res.signup.characters.map((c) => c.character)).toEqual(["Nerasol", "Nerathil"]);
+        // nach dem Anmeldeschluss: gleiche Charaktere + gleicher Status = nur der Kommentar ändert sich
+        const late = NOW + 2.5 * 86400 * 1000;
+        expect((await service.submitSignup("eh-kara", ANNA, { character: "Nerasol", spec: "Priest-Holy", status: "tentative", comment: "neu" }, { now: late })).signup.comment).toBe("neu");
+        expect(await service.submitSignup("eh-kara", ANNA, { characters: [both[0]], status: "tentative" }, { now: late })).toMatchObject({ code: "deadline" });
+    });
+
+    it("liest eine alte Einzel-Anmeldung als characters[0]", async () => {
+        mockSignups.set(`eh-kara/${ANNA}`, { userId: ANNA, character: "Nerathil", spec: "Mage-Arcane", role: "ranged", status: "signed", at: 1 });
+        const res = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed", comment: "x" }, { now: NOW + 2.5 * 86400 * 1000 });
+        expect(res.signup.characters).toEqual([{ character: "Nerathil", spec: "Mage-Arcane", role: "ranged" }]);
+    });
+});
+
+describe("submitSignups (#293)", () => {
+    beforeEach(() => {
+        mockEvents.set("eh-ssc", event({ id: "eh-ssc", title: "SSC", categoryId: "cat-ssc" }));
+        mockEvents.set("eh-alt", event({ id: "eh-alt", title: "Alter Raid", signupDeadline: sec(NOW) - 60 }));
+        mockEvents.set("eh-other", event({ id: "eh-other", title: "Andere Welt", versionId: "unbekannte-version" }));
+    });
+    const chars = [{ character: "Nerasol", spec: "Priest-Holy" }, { character: "Nerathil", spec: "Mage-Fire" }];
+
+    it("meldet für jeden Raid einzeln an und nennt je Raid den Grund einer Ablehnung", async () => {
+        mockConfig = { guildId: "g", categoryRoles: { "cat-ssc": ["role-ssc"] } };
+        mockRoleIds = [];
+        const results = await service.submitSignups(ANNA, [
+            { eventId: "eh-kara", characters: chars, status: "signed" },
+            { eventId: "eh-ssc", characters: chars, status: "signed" },
+            { eventId: "eh-alt", characters: chars, status: "signed" },
+            { eventId: "eh-kara", characters: chars, status: "signed" },
+            { eventId: "123456", characters: chars },
+        ], { now: NOW });
+        expect(results.map((r) => [r.eventId, r.ok, r.code || ""])).toEqual([
+            ["eh-kara", true, ""],
+            ["eh-ssc", false, "raider_role"],
+            ["eh-alt", false, "deadline"],
+            ["123456", false, "raidhelper"],
+        ]);
+        expect(results[0].signup.characters.map((c) => c.character)).toEqual(["Nerasol", "Nerathil"]);
+        expect(results[0].title).toBe("Karazhan");
+        expect(mockSignups.has(`eh-ssc/${ANNA}`)).toBe(false);
+    });
+
+    it("überspringt Charaktere, die im Raid nicht passen, und den Raid, wenn keiner bleibt", async () => {
+        const results = await service.submitSignups(ANNA, [
+            { eventId: "eh-other", characters: chars, status: "signed" },
+            { eventId: "eh-kara", characters: [], status: "signed" },
+        ], { now: NOW });
+        expect(results[0]).toMatchObject({ ok: false, code: "no_character", error: "Keiner der gewählten Charaktere passt" });
+        expect(results[0].skipped.map((s) => [s.character, s.reason])).toEqual([
+            ["Nerasol", "Klasse passt nicht zu diesem Raid"],
+            ["Nerathil", "Klasse passt nicht zu diesem Raid"],
+        ]);
+        expect(results[1]).toMatchObject({ ok: false, code: "no_character", error: "Kein Charakter gewählt" });
+    });
+
+    it("liest die Rollen je Server nur einmal und behält Kommentar und „kann auch“", async () => {
+        mockConfig = { guildId: "g", categoryRoles: { "cat-ssc": ["role-ssc"], "cat-kara": ["role-ssc"] } };
+        mockRoleIds = ["role-ssc"];
+        mockEvents.set("eh-kara", event({ categoryId: "cat-kara" }));
+        mockSignups.set(`eh-kara/${ANNA}`, { userId: ANNA, character: "Nerathil", spec: "Mage-Arcane", role: "ranged", status: "signed", canAlso: [], comment: "bleibt", at: 1 });
+        const results = await service.submitSignups(ANNA, [
+            { eventId: "eh-kara", characters: chars, status: "late" },
+            { eventId: "eh-ssc", characters: chars, status: "late" },
+        ], { now: NOW });
+        expect(results.every((r) => r.ok)).toBe(true);
+        expect(discord.memberRoleIds).toHaveBeenCalledTimes(1);
+        expect(mockSignups.get(`eh-kara/${ANNA}`)).toMatchObject({ status: "late", comment: "bleibt", canAlso: [] });
+    });
+});
+
 describe("Raider-Rollen der Kategorie", () => {
     const withRoles = () => {
         mockEvents.set("eh-kara", event({ categoryId: "cat-t5", guildId: "g-event" }));
