@@ -249,6 +249,16 @@ describe("web/settingsStore", () => {
             });
         });
 
+        it("keeps setup DMs off by default and stores only switched-on categories (#290)", () => {
+            expect(getConfig().categorySetupDms).toEqual({});
+            saveConfig({ categorySetupDms: { c1: true, c2: false, c3: "yes" } });
+            expect(getConfig().categorySetupDms).toEqual({ c1: true });
+            saveConfig({ categorySetupDms: { c4: true } });
+            expect(getConfig().categorySetupDms).toEqual({ c1: true, c4: true });
+            saveConfig({ categorySetupDms: { c1: false } });
+            expect(getConfig().categorySetupDms).toEqual({ c4: true });
+        });
+
         it("defaults categoryRoles to an empty object and round-trips a map", () => {
             expect(getConfig().categoryRoles).toEqual({});
             saveConfig({ categoryRoles: { c1: ["r1", "r2"], c2: ["r3"] } });

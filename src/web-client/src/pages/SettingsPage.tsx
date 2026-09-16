@@ -58,6 +58,7 @@ type Draft = {
     categorySignupSource: Record<string, EventSource>;
     /** Not saved from here — read so an unset category shows the source it really gets. */
     signupSourceDefault: EventSource;
+    categorySetupDms: Record<string, boolean>;
     categorySheets: Record<string, CategorySheet>;
     categoryRaidTemplate: Record<string, string>;
     topItems: TopItem[];
@@ -81,6 +82,7 @@ function toDraft(config: AdminConfig): Draft {
         categoryLootTool: config.categoryLootTool || {},
         categorySignupSource: config.categorySignupSource || {},
         signupSourceDefault: config.signupSourceDefault || "raidhelper",
+        categorySetupDms: config.categorySetupDms || {},
         categorySheets: config.categorySheets || {},
         categoryRaidTemplate: config.categoryRaidTemplate || {},
         topItems: config.topItems || [],
@@ -383,6 +385,8 @@ export default function SettingsPage() {
                 raidDefaults: { channelId: draft.raidChannelId.trim() },
                 categoryLootTool: draft.categoryLootTool,
                 categorySignupSource: draft.categorySignupSource,
+                // Merged on the server: a category switched off is sent as false.
+                categorySetupDms: draft.categorySetupDms,
                 // Sent whole: a category set back to "keine" is left out.
                 categoryRaidTemplate: Object.fromEntries(Object.entries(draft.categoryRaidTemplate).filter(([, id]) => id)),
                 // Sent whole: the store replaces the map, so clearing a url is
@@ -478,12 +482,14 @@ export default function SettingsPage() {
                     categoryLootTool={draft.categoryLootTool}
                     categorySignupSource={draft.categorySignupSource}
                     signupSourceDefault={draft.signupSourceDefault}
+                    categorySetupDms={draft.categorySetupDms}
                     categorySheets={draft.categorySheets}
                     savedCategoryRoles={data.config.categoryRoles || {}}
                     onToggleCategory={toggleCategory}
                     onToggleRole={toggleRole}
                     onLootTool={(id, tool) => patch({ categoryLootTool: { ...draft.categoryLootTool, [id]: tool } })}
                     onSignupSource={(id, source) => patch({ categorySignupSource: { ...draft.categorySignupSource, [id]: source } })}
+                    onSetupDms={(id, on) => patch({ categorySetupDms: { ...draft.categorySetupDms, [id]: on } })}
                     onSheet={(id, sheet) => patch({ categorySheets: { ...draft.categorySheets, [id]: sheet } })}
                     raidTemplates={{
                         options: data.raidTemplates || [],

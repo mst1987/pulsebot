@@ -512,6 +512,8 @@ export type AdminConfig = {
     signupSourceDefault?: EventSource;
     // Raid-Helper switched off (#291, Verbindungen): no request goes there any more.
     raidhelperRetirement?: { disabled: boolean; at: number; byName: string };
+    // Setup-DMs per category (#290): only switched-on categories are listed.
+    categorySetupDms?: Record<string, boolean>;
     // A fixed Google Sheet per category, keyed by category id. A raid in that
     // category links this sheet unless the app made it a copy of its own.
     categorySheets: Record<string, { url: string; name: string }>;
@@ -1545,6 +1547,99 @@ export function deleteRaidTemplate(csrfToken: string | null, id: string): Promis
 
 export function importRaidTemplates(csrfToken: string | null): Promise<{ added: number; updated: number; templates: RaidTemplate[] }> {
     return send("POST", "/api/raid-templates/import", csrfToken, {});
+}
+
+// ---- Wiederkehrende Events (#289) ----
+
+/** A series as stored and as the modal edits it; weekdays 1 = Mo … 7 = So. */
+export type EventSeriesInput = {
+    categoryId: string;
+    enabled: boolean;
+    weekdays: number[];
+    time: string;
+    raidTemplateId: string;
+    daysBefore: number;
+    title: string;
+    skipDates: string[];
+};
+
+export type EventSeries = EventSeriesInput & {
+    guildId: string;
+    leaderId: string;
+    updatedAt: number;
+    updatedBy: string;
+    updatedByName: string;
+};
+
+export type SeriesDateState =
+    | "planned" | "due" | "creating" | "interrupted" | "created" | "existing" | "cancelled" | "failed" | "skipped" | "off";
+
+/** One coming date of a series and what happens to it. */
+export type SeriesDate = {
+    date: string;
+    startTime: number;
+    createAt: number;
+    skipped: boolean;
+    state: SeriesDateState;
+    eventId: string;
+    /** The channel it got (created / existing). */
+    channelName: string;
+    /** The channel it would get, with where the name comes from (not yet created). */
+    previewName?: string;
+    naming?: ChannelNaming;
+    error: string;
+    at: number;
+    attempts: number;
+    willRetry: boolean;
+    messageError?: string;
+};
+
+export type SeriesTemplate = { id: string; name: string; instanceIds: string[]; size: number | null; isDefault?: boolean };
+
+export type SeriesCategory = {
+    id: string;
+    name: string;
+    source: EventSource;
+    series: EventSeries | null;
+    template: SeriesTemplate | null;
+    summary: string;
+    upcoming: SeriesDate[];
+    lastCreated: { date: string; at: number; channelName: string; eventId: string } | null;
+};
+
+export type EventSeriesData = {
+    categories: SeriesCategory[];
+    templates: SeriesTemplate[];
+    lastRun: { at: number; created: number; failed: number; existing: number; ignored: number; error: string | null } | null;
+    canWrite: boolean;
+    limits: { minDaysBefore: number; maxDaysBefore: number };
+};
+
+export type SeriesPreview = {
+    error: string;
+    summary: string;
+    upcoming: SeriesDate[];
+    template: SeriesTemplate | null;
+};
+
+export function getEventSeries(): Promise<EventSeriesData> {
+    return get<EventSeriesData>("/api/raids/series");
+}
+
+export function previewEventSeries(query: string): Promise<SeriesPreview> {
+    return get<SeriesPreview>(`/api/raids/series/preview?${query}`);
+}
+
+export function saveEventSeries(csrfToken: string | null, input: EventSeriesInput): Promise<{ series: EventSeries; message: string }> {
+    return send("PUT", "/api/raids/series", csrfToken, input);
+}
+
+export function deleteEventSeries(csrfToken: string | null, categoryId: string): Promise<{ categoryId: string; message: string }> {
+    return send("DELETE", "/api/raids/series", csrfToken, { categoryId });
+}
+
+export function runEventSeries(csrfToken: string | null, categoryId = "", retryDate = ""): Promise<{ created: number; failed: number; message: string }> {
+    return send("POST", "/api/raids/series/run", csrfToken, { categoryId, retryDate });
 }
 
 export type RecruitmentTemplate = {
@@ -3521,8 +3616,37 @@ export type SetupEditorData = {
     defaults?: { weights: SetupWeights; maxWeight: number };
     hasApiKey?: boolean;
     explainJob?: SetupJob;
+    /** Only for the orga: where the approved setup goes and what came of it (#290). */
+    publish?: SetupPublish;
     message?: string;
 };
+
+/** The setup message in the event channel and its DMs (#290) — before approving what will happen, after it what did. */
+export type SetupPublish = {
+    channelId: string;
+    channelName: string;
+    cancelled: boolean;
+    dmsEnabled: boolean;
+    recipients: number;
+    pendingDms: number;
+    posted: { messageUrl: string; version: number; postedAt: number; editedAt: number } | null;
+    outdated: boolean;
+    error: string;
+    errorAt: number;
+    dms: {
+        status: "running" | "done";
+        version: number;
+        at: number;
+        total: number;
+        sent: number;
+        failed: { userId: string; character: string; error: string }[];
+        unchanged: number;
+    } | null;
+};
+
+export function publishRaidSetup(csrfToken: string | null, eventId: string): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/post", csrfToken, { event: eventId });
+}
 
 /** What PUT /api/raids/setup takes: who stands where, and what is locked. */
 export type SetupPlacementInput = {

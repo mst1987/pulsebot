@@ -111,6 +111,10 @@ const CONFIG_DEFAULTS = {
     // `disabled` no request goes to raid-helper.xyz any more (utils/
     // raidhelperClient.js); the stored history stays readable.
     raidhelperRetirement: { disabled: false, at: 0, byName: "" },
+    // Whether the approved setup of an own event is also sent as a DM to every
+    // raider in it (#290), keyed by category id: { [categoryId]: true }. Off by
+    // default — only switched categories are stored.
+    categorySetupDms: {},
     // A fixed, guild-owned Google Sheet per Discord category:
     // { [categoryId]: { url, name } }. When one is set, a raid in that category
     // links this sheet instead of needing its own copy. A copy the app actually
@@ -497,6 +501,7 @@ function getConfig() {
             ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
         ...signupSourcesOf(stored),
         raidhelperRetirement: normalizeRaidhelperRetirement(stored.raidhelperRetirement),
+        categorySetupDms: normalizeCategorySetupDms(stored.categorySetupDms),
         categorySheets: normalizeCategorySheets(stored.categorySheets),
         categoryRaidTemplate: categoryRaidTemplateOf(stored),
         topItems: normalizeTopItems(stored.topItems),
@@ -643,6 +648,17 @@ function normalizeTopItems(raw) {
     return out;
 }
 
+/** Normalise categorySetupDms to `{ [categoryId]: true }` — off is the default and not stored. */
+function normalizeCategorySetupDms(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, on] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        if (key && on === true) out[key] = true;
+    }
+    return out;
+}
+
 const SIGNUP_SOURCES = ["raidhelper", "eventhelper"];
 
 /**
@@ -667,7 +683,7 @@ function normalizeCategorySignupSource(raw) {
  */
 function configuredCategoryIds(stored) {
     const ids = new Set(Array.isArray(stored.categoryIds) ? stored.categoryIds.map(String) : CONFIG_DEFAULTS.categoryIds.map(String));
-    for (const key of ["categoryRoles", "categoryRaidTemplate", "categoryLootTool", "categorySheets", "categoryReminders"]) {
+    for (const key of ["categoryRoles", "categoryRaidTemplate", "categoryLootTool", "categorySheets", "categoryReminders", "categorySetupDms"]) {
         const map = stored[key];
         if (map && typeof map === "object" && !Array.isArray(map)) Object.keys(map).forEach((id) => ids.add(String(id)));
     }
@@ -791,6 +807,10 @@ function saveConfig(partial) {
     if (partial.raidhelperRetirement !== undefined) next.raidhelperRetirement = normalizeRaidhelperRetirement(partial.raidhelperRetirement);
     if (partial.categorySignupSource) {
         next.categorySignupSource = normalizeCategorySignupSource({ ...current.categorySignupSource, ...partial.categorySignupSource });
+    }
+    // Merged, then normalised: a category switched off drops out.
+    if (partial.categorySetupDms) {
+        next.categorySetupDms = normalizeCategorySetupDms({ ...current.categorySetupDms, ...partial.categorySetupDms });
     }
     // Replaced whole, like the top items: a category left out has no default.
     if (partial.categoryRaidTemplate !== undefined) next.categoryRaidTemplate = normalizeCategoryRaidTemplate(partial.categoryRaidTemplate);

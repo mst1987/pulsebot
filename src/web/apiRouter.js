@@ -38,11 +38,12 @@ const {
 } = require("./apiRoutes/raidDetail");
 const {
     getSetup: getRaidSetup, postPropose: postSetupPropose, putSetup: putRaidSetup,
-    postApprove: postSetupApprove, postExplain: postSetupExplain, getExplain: getSetupExplain,
+    postApprove: postSetupApprove, postExplain: postSetupExplain, getExplain: getSetupExplain, postPublish: postSetupPublish,
 } = require("./apiRoutes/setup");
 const eventManageRoutes = require("./apiRoutes/eventManage");
+const eventSeriesRoutes = require("./apiRoutes/eventSeries");
 
-/** Event verwalten (#288): the handler for a path and method, or null. */
+/** Event verwalten (#288) and the series (#289): the handler for a path and method, or null. */
 function eventManageHandler(pathname, method) {
     const r = eventManageRoutes;
     if (pathname === "/api/raids/manage" && method === "GET") return r.getManage;
@@ -52,6 +53,10 @@ function eventManageHandler(pathname, method) {
     if (pathname === "/api/raids/manage/raider/remove" && method === "POST") return r.postRaiderRemove;
     if (pathname === "/api/raids/manage/cancel" && method === "POST") return r.postCancel;
     if (pathname === "/api/raids/manage/reopen" && method === "POST") return r.postReopen;
+    const s = eventSeriesRoutes;
+    if (pathname === "/api/raids/series") return { GET: s.getSeries, PUT: s.putSeries, DELETE: s.deleteSeries }[method] || null;
+    if (pathname === "/api/raids/series/preview" && method === "GET") return s.getPreview;
+    if (pathname === "/api/raids/series/run" && method === "POST") return s.postRun;
     return null;
 }
 const { getGameVersions } = require("./apiRoutes/gameVersions");
@@ -380,6 +385,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/raids/setup/approve" && req.method === "POST") {
         await postSetupApprove(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/setup/post" && req.method === "POST") {
+        await postSetupPublish(req, res);
         return true;
     }
     if (pathname === "/api/raids/setup/explain" && req.method === "POST") {

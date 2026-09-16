@@ -119,6 +119,8 @@ const AREA_BY_PATH = {
     "/api/raids/setup": "raids",
     "/api/raids/setup/propose": "raids",
     "/api/raids/setup/approve": "raids",
+    // Post the approved setup into the channel again / retry its DMs (#290).
+    "/api/raids/setup/post": "raids",
     "/api/raids/setup/explain": "raids",
     // Event verwalten (#288): the POSTs are writes by method; the two GETs only
     // prepare an action and check write access in the handler as well.
@@ -129,6 +131,10 @@ const AREA_BY_PATH = {
     "/api/raids/manage/raider/remove": "raids",
     "/api/raids/manage/cancel": "raids",
     "/api/raids/manage/reopen": "raids",
+    // Recurring events (#289): the list and the preview read, save/delete/run write.
+    "/api/raids/series": "raids",
+    "/api/raids/series/preview": "raids",
+    "/api/raids/series/run": "raids",
     // The game version rule sets (classes, instances, buffs) feed the raid planning.
     "/api/game-versions": "raids",
     // Anmelde-Aufruf and raid templates are edited from the raid pages. The raid

@@ -45,8 +45,8 @@ const SIGNUP_SOURCES = [
 ];
 
 export default function CategoryMatrix({
-    categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySignupSource = {}, signupSourceDefault = "raidhelper", categorySheets, savedCategoryRoles,
-    onToggleCategory, onToggleRole, onLootTool, onSignupSource, onSheet, csrfToken, icon, crumb, raidTemplates,
+    categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySignupSource = {}, signupSourceDefault = "raidhelper", categorySetupDms = {}, categorySheets, savedCategoryRoles,
+    onToggleCategory, onToggleRole, onLootTool, onSignupSource, onSetupDms, onSheet, csrfToken, icon, crumb, raidTemplates,
 }: {
     /** The default raid template per category (#266): the choices, the draft map and its setter. */
     raidTemplates?: CategoryRaidTemplates;
@@ -59,6 +59,8 @@ export default function CategoryMatrix({
     categorySignupSource?: Record<string, EventSource>;
     /** The source of a category without an entry (#291): EventHelper for a new one. */
     signupSourceDefault?: EventSource;
+    /** Setup-DMs per category (#290); missing = off. */
+    categorySetupDms?: Record<string, boolean>;
     categorySheets: Record<string, CategorySheet>;
     /** The saved roles — the assignment modal works on those, not on the draft. */
     savedCategoryRoles: Record<string, string[]>;
@@ -66,6 +68,7 @@ export default function CategoryMatrix({
     onToggleRole: (categoryId: string, roleId: string) => void;
     onLootTool: (categoryId: string, tool: string) => void;
     onSignupSource: (categoryId: string, source: EventSource) => void;
+    onSetupDms?: (categoryId: string, on: boolean) => void;
     onSheet: (categoryId: string, sheet: CategorySheet) => void;
     csrfToken: string | null;
     icon: string;
@@ -82,6 +85,7 @@ export default function CategoryMatrix({
         ...Object.keys(categoryRoles),
         ...Object.keys(categoryLootTool),
         ...Object.keys(categorySignupSource),
+        ...Object.keys(categorySetupDms).filter((id) => categorySetupDms[id]),
         ...Object.keys(categorySheets),
     ];
     const rows = categoryRows(categories, configured);
@@ -243,6 +247,15 @@ export default function CategoryMatrix({
                                 <FieldLabel tip="Neue Events" tipSub="Wo neue Events dieser Kategorie angelegt werden. Raid-Helper-Events werden in jedem Fall weiter mitgenutzt – in Listen, Anwesenheit, Log- und Loot-Zuordnung.">Neue Events</FieldLabel>
                                 <Segment ariaLabel={`Neue Events ${cat.name}`} value={signupSource} onChange={(v) => onSignupSource(cat.id, v as EventSource)} options={SIGNUP_SOURCES} />
                             </div>
+                            {onSetupDms && (
+                                <div className="cat-switch-row">
+                                    <FieldLabel tip="Setup-DMs" tipSub="Nach der Freigabe bekommt jeder Raider eines EventHelper-Events eine DM: „Du bist in Gruppe 2 als Heiler“ bzw. „Diesmal Bank“. Nur wessen Platz sich geändert hat, bekommt bei erneuter Freigabe wieder eine. Das Setup im Kanal wird immer gepostet.">Setup-DMs</FieldLabel>
+                                    <label className="switch">
+                                        <input type="checkbox" checked={categorySetupDms[cat.id] === true} onChange={() => onSetupDms(cat.id, categorySetupDms[cat.id] !== true)} aria-label={`Setup-DMs ${cat.name}`} />
+                                        <span className="switch-track"><span className="switch-thumb" /></span>
+                                    </label>
+                                </div>
+                            )}
                             <div>
                                 <FieldLabel tip="Loot-Addon" tipSub="Wählt beim Loot-Import den passenden Parser vor und sagt dem Loot-Tab der Raid-Detailseite, welchen Export er erwartet.">Loot-Addon</FieldLabel>
                                 <Segment ariaLabel={`Loot-Addon ${cat.name}`} value={tool} onChange={(v) => onLootTool(cat.id, v)} options={LOOT_TOOLS} />

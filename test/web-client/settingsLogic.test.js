@@ -164,6 +164,14 @@ describe("save bar change list", () => {
         expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Neue Events → EventHelper"]);
     });
 
+    it("names the setup DM switch, and treats a missing one as off (#290)", () => {
+        const draft = base();
+        draft.categorySetupDms = { c1: true, c2: false };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Setup-DMs an"]);
+        const saved = { ...base(), categorySetupDms: { c1: true } };
+        expect(logic.draftChanges(saved, { ...base(), categorySetupDms: { c1: false } }, names)).toEqual(["Hyjal & BT · Setup-DMs aus"]);
+    });
+
     it("counts admin roles, the base access, accounts, categories and top items", () => {
         const draft = base();
         draft.adminRoleIds = ["a2"];

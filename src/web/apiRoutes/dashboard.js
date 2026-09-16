@@ -10,6 +10,17 @@ const {
 const { userCanAny } = require("../../config/permissions");
 const { buildTasks, zoneFor } = require("../dashboardOverview");
 const { loadDrift } = require("../roleSync");
+const { seriesFailures } = require("../eventSeries");
+
+/** The series failures with their category's name; best-effort, never fails the dashboard. */
+function seriesFailuresFor(guildId) {
+    try {
+        const names = Object.fromEntries((discord.listCategories(guildId) || []).map((c) => [c.id, c.name]));
+        return seriesFailures().map((f) => ({ ...f, categoryName: names[f.categoryId] || "" }));
+    } catch {
+        return [];
+    }
+}
 
 /** The page head's kicker parts: the managed guild and the realm the loot lookups use ("Thunderstrike EU"). */
 function kickerFor(guildId) {
@@ -50,6 +61,8 @@ async function getDashboard(req, res) {
             // Only for whoever can open the archive the task leads to.
             archive: userCanAny(user, ["channels"], "read") ? loadChannelArchive(guildId) : null,
             roleDrift,
+            // Failed dates of a recurring event (#289), for whoever can open the series page.
+            seriesFailures: userCanAny(user, ["raids"], "read") ? seriesFailuresFor(guildId) : [],
         }),
         areas: {
             lastReport: report,
