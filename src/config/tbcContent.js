@@ -373,6 +373,25 @@ function normalizeBoss(name) {
     return String(name || "").toLowerCase().replace(/[^a-z0-9äöüß]+/g, "");
 }
 
+// Encounters that are not a boss of their own on the count a raid lead keeps
+// ("Kara 11/11"): Karazhan's opera bosses are one encounter — only one of them
+// is up on a night — and its three rare trash spawns are no encounter at all.
+// Lives here rather than in utils/logcheck/raidProgress.js because the game
+// version rule set (config/gameVersions/tbc.js) lists the same encounters.
+const OPERA = ["The Wizard of Oz", "The Big Bad Wolf", "Romulo and Julianne", "Opera Hall"];
+const NOT_COUNTED = new Set(["Hyakiss the Lurker", "Shadikith the Glider", "Rokad the Ravager", ...OPERA].map(normalizeBoss));
+
+/** The encounters a raid is counted by, in the order they are met. */
+function encountersFor(contentId) {
+    return (BOSS_ORDER[contentId] || []).filter((name) => !NOT_COUNTED.has(normalizeBoss(name)));
+}
+
+/** A boss name folded onto the encounter it counts as (an opera boss → "Opera Event"). */
+function encounterKey(name) {
+    const key = normalizeBoss(name);
+    return OPERA.map(normalizeBoss).includes(key) ? normalizeBoss("Opera Event") : key;
+}
+
 const BOSS_CONTENT = new Map();
 for (const [contentId, byBoss] of Object.entries(RAID_LOOT)) {
     for (const boss of Object.keys(byBoss)) BOSS_CONTENT.set(normalizeBoss(boss), contentId);
@@ -384,6 +403,6 @@ for (const [contentId, names] of Object.entries(FINAL_BOSSES)) {
 module.exports = {
     TIERS, CONTENTS, RAID_LOOT, FINAL_BOSSES, BOSS_ORDER, NON_BOSSES,
     content, sourceForItem, contentForInstance, contentsForText, contentForLoot, tokenTier,
-    finalBossesFor, contentForBoss, normalizeBoss, bossOrder,
+    finalBossesFor, contentForBoss, normalizeBoss, bossOrder, encountersFor, encounterKey,
     tier: (id) => TIER_BY_ID.get(String(id || "")) || null,
 };

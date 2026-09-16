@@ -948,6 +948,71 @@ export function createRaid(csrfToken: string | null, input: CreateRaidInput): Pr
     return send("POST", "/api/raids", csrfToken, input);
 }
 
+// Rule sets per game version (src/config/gameVersions, GET /api/game-versions).
+export type GameRole = "tank" | "healer" | "melee" | "ranged";
+
+export type GameSpec = {
+    /** "<Class>-<Spec>" in Warcraft Logs' spelling, e.g. "Druid-Guardian" */
+    key: string;
+    id: string;
+    classId: string;
+    label: string;
+    role: GameRole;
+    /** raidBuffs.js vocabulary: which buffs the spec wants */
+    buffRole: "tank" | "healer" | "melee" | "caster";
+    icon: string;
+    canTank: boolean;
+    canHeal: boolean;
+};
+
+export type GameClass = { id: string; label: string; color: string; icon: string; specs: GameSpec[] };
+
+export type Composition = { tanks: number; healers: number; source: "instance" | "default" };
+
+export type GameInstance = {
+    id: string;
+    name: string;
+    short: string;
+    sizes: number[];
+    defaultSize: number;
+    icon: string;
+    bosses: string[];
+    /** "" while the instance is incomplete */
+    finalBoss: string;
+    /** "incomplete" = plannable, but the menu shows "Infos fehlen" */
+    status: "complete" | "incomplete";
+    /** suggested tanks/healers per allowed size */
+    suggested: Record<string, Composition>;
+};
+
+export type GameBuff = {
+    key: string;
+    label: string;
+    icon: string;
+    scope: "party" | "raid";
+    /** spec keys that bring the buff */
+    providers: string[];
+    /** spec keys the buff is worth having on */
+    beneficiaries: string[];
+};
+
+export type GameVersion = {
+    id: "tbc" | "classic" | "forever" | string;
+    label: string;
+    short: string;
+    roles: { id: GameRole; label: string }[];
+    classes: GameClass[];
+    instances: GameInstance[];
+    partyBuffs: GameBuff[];
+    raidBuffs: GameBuff[];
+};
+
+export type GameVersionsData = { versions: GameVersion[]; defaultVersion: string };
+
+export function getGameVersions(): Promise<GameVersionsData> {
+    return get<GameVersionsData>("/api/game-versions");
+}
+
 export function getRaidTemplates(): Promise<{ templates: RaidTemplate[] }> {
     return get<{ templates: RaidTemplate[] }>("/api/raid-templates");
 }

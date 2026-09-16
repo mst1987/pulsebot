@@ -66,6 +66,8 @@ const AREA_BY_PATH = {
     "/api/raids/softres": "raids",
     "/api/raids/softres/link": "raids",
     "/api/raids/softres/item-search": "raids",
+    // The game version rule sets (classes, instances, buffs) feed the raid planning.
+    "/api/game-versions": "raids",
     // Anmelde-Aufruf and Raid-Helper templates are edited from the raid pages.
     "/api/notify-templates": "raids",
     "/api/notify-templates/delete": "raids",
