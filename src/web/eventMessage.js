@@ -30,6 +30,25 @@ function against(n, target) {
 }
 
 /**
+ * The approved setup as one embed field — "**Gr. 1** Anna, Bert, …" per line,
+ * the bench last. Only the approved snapshot (#263): a draft never reaches the
+ * channel. "" without an approval.
+ */
+function approvedSetupText(event) {
+    // Lazily: setupEditor pulls in the proposal's inputs, which this module does not need otherwise.
+    const { approvedSetupOf } = require("./setupEditor");
+    const approved = approvedSetupOf(event);
+    if (!approved) return "";
+    const names = (list) => list.map((s) => s.character || "?").join(", ");
+    const lines = approved.groups
+        .filter((g) => (g.slots || []).length)
+        .map((g) => `**Gr. ${g.index}** ${names(g.slots)}`);
+    if ((approved.bench || []).length) lines.push(`**Bank** ${names(approved.bench)}`);
+    const text = lines.join("\n");
+    return text.length > 1024 ? `${text.slice(0, 1021)}…` : text;
+}
+
+/**
  * The message payload for an event and its signups (pure — no Discord call).
  * @param {object} event   an eventStore event
  * @param {object[]} signups signupStore signups
@@ -67,6 +86,8 @@ function buildEventMessage(event, signups) {
     if (event.signupDeadline) {
         embed.addFields({ name: "Anmeldeschluss", value: `<t:${event.signupDeadline}:F>`, inline: false });
     }
+    const setupText = approvedSetupText(event);
+    if (setupText) embed.addFields({ name: "✅ Setup", value: setupText, inline: false });
 
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(signupButtonId(event.id)).setLabel("Anmelden").setStyle(ButtonStyle.Primary),
@@ -148,6 +169,6 @@ function startEventMessageSync({ debounceMs = EDIT_DEBOUNCE_MS } = {}) {
 }
 
 module.exports = {
-    SIGNUP_BUTTON_PREFIX, signupButtonId, rosterCounts, buildEventMessage,
+    SIGNUP_BUTTON_PREFIX, signupButtonId, rosterCounts, buildEventMessage, approvedSetupText,
     postEventMessage, refreshEventMessage, startEventMessageSync,
 };

@@ -143,10 +143,17 @@ describe("web/eventStore", () => {
     it("stores a setup proposal only as a draft and never over an approved setup", () => {
         const { saveSetupDraft } = require("../../src/web/eventStore");
         const { event } = createEvent(base());
-        const proposal = { version: 1, groups: [{ index: 1, slots: [] }], bench: [], status: "approved" };
+        const proposal = { version: 1, groups: [{ index: 1, slots: [] }], bench: [], status: "approved", events: [{ eventId: "x" }] };
         const saved = saveSetupDraft(event.id, proposal, { now: 1234 });
-        expect(saved.event.setup).toEqual({ version: 1, groups: [{ index: 1, slots: [] }], bench: [], status: "draft", createdBy: "auto", createdAt: 1234 });
+        // stored in the setup editor's shape (#263): an automatic draft, version 1, nothing approved
+        expect(saved.event.setup).toMatchObject({
+            groups: [{ index: 1, slots: [] }], bench: [], status: "draft", origin: "auto", version: 1, proposalVersion: 1,
+            approved: null, changedSinceApproval: false, createdBy: "auto", createdAt: 1234, updatedAt: 1234,
+        });
+        expect(saved.event.setup.events).toBeUndefined();
         expect(getEvent(event.id).setup.status).toBe("draft");
+        // a second automatic draft counts the version up
+        expect(saveSetupDraft(event.id, proposal, { now: 1235 }).event.setup.version).toBe(2);
         expect(saveSetupDraft("eh-missing", proposal)).toMatchObject({ code: "not_found" });
 
         // an approved setup (#263) stays untouched
@@ -155,5 +162,10 @@ describe("web/eventStore", () => {
         fs.__store.set([...fs.__store.keys()][0], JSON.stringify(raw));
         expect(saveSetupDraft(event.id, proposal)).toMatchObject({ code: "approved" });
         expect(getEvent(event.id).setup).toEqual({ status: "approved", groups: [] });
+
+        // …and so does a draft changed after an approval: raiders still see that approval
+        raw.events[0].setup = { status: "draft", changedSinceApproval: true, groups: [], approved: { version: 1, groups: [], bench: [] } };
+        fs.__store.set([...fs.__store.keys()][0], JSON.stringify(raw));
+        expect(saveSetupDraft(event.id, proposal)).toMatchObject({ code: "approved" });
     });
 });

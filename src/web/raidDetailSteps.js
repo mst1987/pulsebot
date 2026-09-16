@@ -79,7 +79,45 @@ function isOwnEvent(d) {
     return !!(d && d.event && d.event.source === "eventhelper");
 }
 
+/**
+ * The setup step of an own event (#263): the editor's state — no proposal yet,
+ * a draft, changed since the approval, or approved. Only an approval counts as
+ * done: raiders see nothing before it.
+ */
+function ownSetupStep(d) {
+    const s = d.ownSetup || null;
+    const ev = d.event || {};
+    const step = { key: "setup", label: "Setup", icon: "inv_misc_map_01", open: { tab: "setup" } };
+    if (!s || !s.placed) {
+        return {
+            ...step, done: false, tone: ev.isPast ? "none" : "mid", value: "—", unit: "",
+            badge: { label: "kein Vorschlag" },
+            tip: { head: "Setup · noch kein Vorschlag", sub: "Dieses Event wird im EventHelper geplant. Klick öffnet den Setup-Editor: vorschlagen, anpassen, freigeben." },
+        };
+    }
+    const unit = s.size ? `/ ${s.size}` : "";
+    if (s.status === "approved") {
+        return {
+            ...step, done: true, tone: "ok", value: String(s.placed), unit,
+            badge: { label: "freigegeben", tone: "ok" },
+            tip: { head: `Setup · freigegeben (${s.placed}${s.size ? ` von ${s.size}` : ""})`, sub: "Raider sehen das Setup im Web, in der Event-Nachricht und im Bot." },
+        };
+    }
+    const changed = s.changedSinceApproval;
+    return {
+        ...step, done: false, tone: "mid", value: String(s.placed), unit,
+        badge: { label: changed ? "geändert seit Freigabe" : "Entwurf", tone: "mid" },
+        tip: {
+            head: `Setup · ${changed ? "geändert seit Freigabe" : "Entwurf"}`,
+            sub: changed
+                ? "Raider sehen weiter den zuletzt freigegebenen Stand, bis die Änderung freigegeben ist."
+                : "Raider sehen noch nichts. Klick öffnet den Setup-Editor zum Prüfen und Freigeben.",
+        },
+    };
+}
+
 function setupStep(d) {
+    if (isOwnEvent(d)) return ownSetupStep(d);
     const setup = d.setup;
     const total = (setup && setup.total) || 0;
     const step = { key: "setup", label: "Setup", icon: "inv_misc_map_01", open: { tab: "roster" }, done: total > 0 };
@@ -87,9 +125,7 @@ function setupStep(d) {
         return { ...step, tone: "bad", value: "—", unit: "", badge: { label: "Fehler", tone: "bad" }, tip: { head: "Setup · nicht geladen", sub: d.setupError } };
     }
     if (!total) {
-        const sub = isOwnEvent(d)
-            ? "Dieses Event wird im EventHelper geplant; das Setup entsteht hier, sobald die Anmeldungen da sind."
-            : "Im Raid-Helper ist für dieses Event noch kein Raidplan angelegt.";
+        const sub = "Im Raid-Helper ist für dieses Event noch kein Raidplan angelegt.";
         return { ...step, tone: "none", value: "—", unit: "", badge: { label: "kein Plan" }, tip: { head: "Setup · noch kein Raidplan", sub } };
     }
     const roles = roleSummary(setup.roleCounts);
@@ -208,10 +244,10 @@ function primaryFor(step, d) {
     if (!step) return null;
     switch (step.key) {
         case "signup": return { label: "Anmelde-Aufruf posten", icon: "inv_letter_15", modal: "notify" };
-        // The raidplan link only exists at Raid-Helper; an own event's setup editor comes with #263.
+        // The raidplan link only exists at Raid-Helper; an own event opens its setup editor.
         case "setup": return isOwnEvent(d)
-            ? null
-            : { label: "Raidplan öffnen", icon: "inv_misc_map_01", href: `https://raid-helper.xyz/raidplan/${(d.event || {}).id || ""}` };
+            ? { label: d.ownSetup && d.ownSetup.placed ? "Setup freigeben" : "Setup vorschlagen", icon: "inv_misc_map_01", tab: "setup" }
+            :{ label: "Raidplan öffnen", icon: "inv_misc_map_01", href: `https://raid-helper.xyz/raidplan/${(d.event || {}).id || ""}` };
         case "sheet": return { label: "Raidsheet füllen", icon: "inv_scroll_03", modal: "sheet" };
         case "softres": return { label: "Softres erstellen", icon: "inv_misc_ticket_tarot_madness", modal: "softres" };
         case "loot": return { label: "Loot hinzufügen", icon: "inv_misc_bag_10", modal: "loot" };
@@ -234,8 +270,7 @@ function primaryFor(step, d) {
  */
 function raidSteps(d) {
     const steps = [signupStep(d), setupStep(d), sheetStep(d), softresStep(d), lootStep(d), logsStep(d)];
-    // An own event has no setup to build yet (#263), so it never blocks the way to the sheet.
-    const before = isOwnEvent(d) ? ["signup", "sheet", "softres"] : ["signup", "setup", "sheet", "softres"];
+    const before = ["signup", "setup", "sheet", "softres"];
     const candidates = (d.event && d.event.isPast) ? ["loot", "logs"] : before;
     const nextStep = steps.find((s) => candidates.includes(s.key) && !s.done) || null;
     for (const s of steps) s.next = !!nextStep && s.key === nextStep.key;

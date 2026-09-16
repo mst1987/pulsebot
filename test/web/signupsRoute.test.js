@@ -118,6 +118,22 @@ describe("GET /api/signups", () => {
         expect(data.profile.characters[0]).toMatchObject({ name: "Nerathil", specs: [{ key: "Mage-Arcane", label: "Arkan", gear: "usable" }] });
     });
 
+    it("zeigt einem Raider nie einen Setup-Entwurf, nur das freigegebene Setup (#263)", async () => {
+        const slot = { userId: ANNA.id, character: "Nerathil", classId: "Mage", spec: "Mage-Arcane", role: "ranged" };
+        mockEvents.set("eh-kara", { ...ownEvent, setup: { status: "draft", groups: [{ index: 3, slots: [{ ...slot, reasons: ["x"] }] }], bench: [], approved: null } });
+        let data = body(await call(route.getSignups, ANNA)).data;
+        expect(data.events[0].placement).toBeNull();
+        expect(JSON.stringify(data)).not.toContain("\"index\":3");
+
+        // a changed draft after an approval: the member keeps the approved group
+        mockEvents.set("eh-kara", { ...ownEvent, setup: {
+            status: "draft", changedSinceApproval: true, groups: [{ index: 3, slots: [slot] }], bench: [],
+            approved: { version: 1, groups: [{ index: 2, slots: [slot] }], bench: [] },
+        } });
+        data = body(await call(route.getSignups, ANNA)).data;
+        expect(data.events[0].placement).toEqual({ group: 2, character: "Nerathil", spec: "Mage-Arcane", role: "ranged" });
+    });
+
     it("zeigt den eigenen Raid-Helper-Status", async () => {
         const data = body(await call(route.getSignups, BERT)).data;
         expect(data.events[1].mine).toEqual({ status: "signed", specName: "Arcane" });

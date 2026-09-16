@@ -1,6 +1,23 @@
 ﻿const { createRaidhelperClient } = require("./raidhelperClient");
 const { getCategoryEvents, getCharacterIcon, delay } = require("./helper");
 
+/**
+ * The setup of an own EventHelper event in Raid-Helper's `{ setup: slots }`
+ * shape, and only once it is approved (#263): a draft is never shown to
+ * raiders, so an unapproved event reads exactly like one without a raidplan.
+ */
+function ownApprovedSetup(eventId) {
+  // Required lazily: the web stores are only needed for own events.
+  const { getEvent } = require("../web/eventStore");
+  const { raidHelperSlots } = require("../web/setupEditor");
+  const slots = raidHelperSlots(getEvent(eventId));
+  return slots.length ? { setup: slots } : null;
+}
+
+function isOwnEvent(event) {
+  return !!event && (event.source === "eventhelper" || String(event.id || "").startsWith("eh-"));
+}
+
 async function getAllSignUps(interaction, categoryId) {
   var categoryEvents = await getCategoryEvents(interaction, categoryId);
   const noSignUps = getEventsWithoutSignup(categoryEvents, interaction);
@@ -56,8 +73,8 @@ async function getCategorySetups(interaction, categoryId) {
   if (categoryEvents) {
     await Promise.all(
       categoryEvents.map(async (event) => {
-        // An own EventHelper event has no Raid-Helper raidplan to ask for.
-        const setup = event.source === "eventhelper" ? null : await raidhelper.getSetup(event.id);
+        // An own EventHelper event has no Raid-Helper raidplan; its approved setup stands in.
+        const setup = isOwnEvent(event) ? ownApprovedSetup(event.id) : await raidhelper.getSetup(event.id);
 
         if (setup) {
           events.push({
@@ -87,7 +104,7 @@ async function getSetupsFromEvents(client, interaction, events) {
   const raidhelper = createRaidhelperClient();
   await Promise.all(
     events.map(async (event) => {
-      const setup = await raidhelper.getSetup(event.id);
+      const setup = isOwnEvent(event) ? ownApprovedSetup(event.id) : await raidhelper.getSetup(event.id);
       if (setup) {
         myevents.push({
           channelid: event.channelId,
@@ -109,4 +126,5 @@ module.exports = {
   getAllSignUps,
   getCategorySetups,
   getSetupsFromEvents,
+  ownApprovedSetup,
 };

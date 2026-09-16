@@ -13,6 +13,9 @@ jest.mock("../../src/utils/helper", () => ({
     delay: jest.fn(),
 }));
 
+const mockOwnEvents = new Map();
+jest.mock("../../src/web/eventStore", () => ({ getEvent: (id) => mockOwnEvents.get(id) || null }));
+
 const {
     getAllSignUps,
     getCategorySetups,
@@ -84,6 +87,51 @@ describe("utils/raidhelper", () => {
 
             const result = await getSetupsFromEvents({}, interaction, events);
             expect(result.map((e) => e.channelid)).toEqual(["c1"]);
+        });
+    });
+
+    // #263: an own event's setup reaches the bot only once it is approved.
+    describe("own EventHelper events", () => {
+        const editor = jest.requireActual("../../src/web/setupEditor");
+        const draftOnly = {
+            id: "eh-1", source: "eventhelper",
+            setup: { status: "draft", groups: [{ index: 1, slots: [{ userId: "123", character: "Anna", spec: "Mage-Fire", role: "ranged" }] }], bench: [], approved: null },
+        };
+        const approved = {
+            ...draftOnly,
+            id: "eh-2",
+            setup: { ...draftOnly.setup, status: "approved", approved: { version: 1, groups: [{ index: 2, slots: [{ userId: "123", character: "Anna", classId: "Mage", spec: "Mage-Fire", role: "ranged" }] }], bench: [] } },
+        };
+
+        beforeEach(() => {
+            mockOwnEvents.clear();
+            mockOwnEvents.set("eh-1", draftOnly);
+            mockOwnEvents.set("eh-2", approved);
+            mockGetSetup.mockReset();
+        });
+
+        it("show-mysetups reads an own event without approval like one without a raidplan", async () => {
+            const interaction = mockInteraction({ userId: "123" });
+            mockGetCategoryEvents.mockResolvedValueOnce([
+                { id: "eh-1", source: "eventhelper", channelId: "c1", startTime: 100 },
+                { id: "eh-2", source: "eventhelper", channelId: "c2", startTime: 200 },
+            ]);
+            const result = await getCategorySetups(interaction, "cat-1");
+            const draft = result.find((e) => e.channelid === "c1");
+            expect(draft.setup).toBeUndefined();
+            const shown = result.find((e) => e.channelid === "c2");
+            expect(shown.setup).toEqual([expect.objectContaining({ id: "123", name: "Anna", specName: "Fire", groupNumber: 2 })]);
+            expect(mockGetSetup).not.toHaveBeenCalled();
+        });
+
+        it("show-allsetups lists an own event only with its approved setup", async () => {
+            const interaction = mockInteraction({ userId: "123" });
+            const result = await getSetupsFromEvents({}, interaction, [
+                { id: "eh-1", channelId: "c1", startTime: 100 },
+                { id: "eh-2", channelId: "c2", startTime: 200 },
+            ]);
+            expect(result.map((e) => e.channelid)).toEqual(["c2"]);
+            expect(editor.raidHelperSlots(draftOnly)).toEqual([]);
         });
     });
 });

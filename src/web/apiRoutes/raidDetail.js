@@ -41,6 +41,8 @@ const { formatTimestampToDateString } = require("../../utils/date");
 const discord = require("../discord");
 const { listSignups } = require("../signupStore");
 const { eventSignupList } = require("../signupView");
+const { getEvent } = require("../eventStore");
+const { setupSummary, raidHelperSlots } = require("../setupEditor");
 const {
     normalizePingTarget, pingTargetInfo, deliverUserPing, deliverAnnouncement, dmSummary, TARGET_LABELS,
 } = require("../pingDelivery");
@@ -146,7 +148,11 @@ async function getRaidDetail(req, res, url) {
     // An own event's signups with what only the EventHelper knows ("kann auch",
     // comment, character) — the roster tab lists them in place of a raidplan.
     let ownSignups = null;
+    let ownSetup = null;
     if (found.e.source === "eventhelper") {
+        // Counts and state only — the lineup itself comes from GET /api/raids/setup,
+        // which hands a draft to nobody but the orga.
+        ownSetup = setupSummary(getEvent(eventId));
         const rows = listSignups(eventId);
         const names = rows.length ? await discord.resolveUserNames(guildId, rows.map((s) => s.userId)) : {};
         ownSignups = eventSignupList(rows, names);
@@ -213,6 +219,7 @@ async function getRaidDetail(req, res, url) {
         softresSuggested: suggestedInstances.map((i) => i.code),
         attendance,
         ownSignups,
+        ownSetup,
         attendanceRoleIds: categoryRoleIds,
         membersError,
         signupTarget,
@@ -355,8 +362,11 @@ async function postFill(req, res) {
     const eventId = String(body.event || "").trim();
     const sheet = getRaidsheet(String(body.sheetId || "").trim());
     if (!sheet) return error(res, 400, "sheet_not_found", "Raidsheet nicht gefunden.");
-    if (sourceOfEventId(eventId) === "eventhelper") {
-        return error(res, 400, "no_raidplan", "Dieses Event wird im EventHelper geplant – es gibt keinen Raid-Helper-Raidplan, aus dem das Sheet gefüllt werden könnte.");
+    // An own event fills the sheet from its approved setup (#263) — never from a draft.
+    const own = sourceOfEventId(eventId) === "eventhelper";
+    const ownSlots = own ? raidHelperSlots(getEvent(eventId)) : null;
+    if (own && !ownSlots.length) {
+        return error(res, 400, "no_approved_setup", "Dieses Event hat noch kein freigegebenes Setup – erst im Tab „Setup“ freigeben, dann das Sheet füllen.");
     }
     if (!sheet.spreadsheetId) return error(res, 400, "no_spreadsheet_id", "Raidsheet hat keine Spreadsheet-ID (in den Einstellungen ergänzen).");
     try {
@@ -371,7 +381,6 @@ async function postFill(req, res) {
         // Delete 3 days after the raid (fallback: 3 days from now if start unknown).
         const deleteAfter = (startMs || Date.now()) + 3 * 24 * 60 * 60 * 1000;
 
-        const rh = createRaidhelperClient();
         const drive = new Drive();
         const prev = getEventSheet(eventId);
 
@@ -380,7 +389,7 @@ async function postFill(req, res) {
         // instead of summing. Don't touch the previous copy yet: if the setup
         // turns out empty we keep it and only discard the fresh (orphan) copy.
         const [result, copy] = await Promise.all([
-            rh.getSetup(eventId),
+            own ? { setup: ownSlots } : createRaidhelperClient().getSetup(eventId),
             drive.copyFile(sheet.spreadsheetId, copyName),
         ]);
 

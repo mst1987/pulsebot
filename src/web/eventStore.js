@@ -175,8 +175,9 @@ function complete(e) {
         wishes: !!e.wishes,
         // "Vorschlag automatisch bei Anmeldeschluss" (#261); read by the setup suggestion (#262).
         autoSuggest: !!e.autoSuggest,
-        // The setup: null, a draft (`status: "draft"`, saveSetupDraft — e.g. the
-        // automatic proposal at the signup deadline) or, with #263, an approved one.
+        // The setup: null, a draft (the editor's, or the automatic proposal at the
+        // signup deadline via saveSetupDraft), its approval and the last approved
+        // snapshot — one shape, see setupEditor.js (#263).
         setup: e.setup || null,
         message: e.message && e.message.messageId ? { channelId: e.message.channelId || "", messageId: e.message.messageId } : null,
         createdBy: e.createdBy || "",
@@ -315,6 +316,21 @@ function setEventMessage(id, message) {
     return complete(events[idx]);
 }
 
+/**
+ * Store the event's setup (#263) as setupEditor.js built it — draft, approval
+ * and the last approved snapshot in one object (null clears it). Returns the
+ * event or null. Apart from updateEvent() on purpose: the setup is no planning
+ * field and must not re-validate the plan.
+ */
+function setEventSetup(id, setup) {
+    const events = readAll();
+    const idx = events.findIndex((e) => e && e.id === str(id));
+    if (idx < 0) return null;
+    events[idx] = { ...events[idx], setup: setup && typeof setup === "object" ? setup : null };
+    writeAll(events);
+    return complete(events[idx]);
+}
+
 /** Delete an own event. Returns true when one was removed. */
 function deleteEvent(id) {
     const events = readAll();
@@ -325,14 +341,13 @@ function deleteEvent(id) {
 }
 
 /**
- * Store a setup proposal (utils/setup/proposal.js) on an event as a DRAFT:
- * `{ ...proposal, status: "draft", createdBy, createdAt }`. A draft is never
- * shown to raiders and never approved here — a human does that (#263). An
- * approved setup is not overwritten.
- *
- * The setup editor (#263) should store its drafts through this same function
- * (or replace it with its own storage and align the auto-suggest in
- * reminders.js), so there is one shape of `event.setup`.
+ * Store a setup proposal (utils/setup/proposal.js) as a DRAFT that nobody
+ * asked for in the editor — the automatic proposal at the signup deadline
+ * (reminders.js). Stored in the setup editor's shape (setupEditor.js, #263):
+ * `origin: "auto"` (the editor shows "automatischer Vorschlag"), the next
+ * version, no options of its own. A draft is never shown to raiders and never
+ * approved here — a human does that. It never replaces what the orga already
+ * decided: an approved setup, or a draft changed after an approval.
  *
  * @returns {{ event?: object, error?: string, code?: "not_found" | "approved" }}
  */
@@ -341,10 +356,29 @@ function saveSetupDraft(id, proposal, { createdBy = "auto", now = Date.now() } =
     const idx = events.findIndex((e) => e && e.id === str(id));
     if (idx < 0) return { error: "Event nicht gefunden.", code: "not_found" };
     const current = events[idx].setup;
-    if (current && current.status === "approved") return { error: "Das Setup ist schon freigegeben.", code: "approved" };
+    if (current && (current.status === "approved" || current.approved)) return { error: "Das Setup ist schon freigegeben.", code: "approved" };
+    // eslint-disable-next-line no-unused-vars
+    const { events: _perEvent, version: proposalVersion, ...rest } = proposal && typeof proposal === "object" ? proposal : {};
     events[idx] = {
         ...events[idx],
-        setup: { ...(proposal && typeof proposal === "object" ? proposal : {}), status: "draft", createdBy: str(createdBy), createdAt: now },
+        setup: {
+            ...rest,
+            proposalVersion: proposalVersion || 0,
+            status: "draft",
+            version: ((current && current.version) || 0) + 1,
+            origin: str(createdBy) === "auto" ? "auto" : "proposal",
+            options: (current && current.options) || { weights: {}, fairness: null, wishes: null },
+            approved: null,
+            changedSinceApproval: false,
+            approvedAt: 0,
+            approvedBy: "",
+            approvedVersion: 0,
+            explanation: null,
+            createdBy: str(createdBy),
+            createdAt: now,
+            updatedAt: now,
+            updatedBy: str(createdBy),
+        },
         updatedAt: now,
     };
     writeAll(events);
@@ -352,6 +386,6 @@ function saveSetupDraft(id, proposal, { createdBy = "auto", now = Date.now() } =
 }
 
 module.exports = {
-    listEvents, getEvent, createEvent, updateEvent, setEventMessage, deleteEvent, saveSetupDraft,
+    listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft,
     normalizePlan, isOwnEventId, EVENTS_FILE, ID_PREFIX, COMPOSITION_ROLES,
 };

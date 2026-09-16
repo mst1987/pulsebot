@@ -296,6 +296,11 @@ const mockFillSetupSheet = jest.fn();
 jest.mock("../../src/utils/fillSetup", () => ({
     fillSetupSheet: (...args) => mockFillSetupSheet(...args),
 }));
+const mockRaidHelperSlots = jest.fn(() => []);
+jest.mock("../../src/web/setupEditor", () => ({
+    ...jest.requireActual("../../src/web/setupEditor"),
+    raidHelperSlots: (...args) => mockRaidHelperSlots(...args),
+}));
 
 const auth = require("../../src/web/auth");
 const reportStore = require("../../src/web/reportStore");
@@ -1711,7 +1716,9 @@ describe("web/apiRouter", () => {
             expect(data.signupTarget).toBe(10);
             expect(data.attendance.responded.map((m) => [m.id, m.status])).toEqual([["1", "signed"]]);
             expect(data.attendance.missing.map((m) => m.id)).toEqual(["2"]);
-            expect(data.progress.primary).toMatchObject({ modal: "sheet" });
+            // no setup yet (#263): the way leads into the setup editor, and the payload names no raider
+            expect(data.ownSetup).toBeNull();
+            expect(data.progress.primary).toMatchObject({ tab: "setup", label: "Setup vorschlagen" });
         });
 
         it("returns the full read-only overview: setup, attendance, sheet/softres links and loot", async () => {
@@ -2253,12 +2260,24 @@ describe("web/apiRouter", () => {
             expect(body(res)).toEqual({ error: { code: "sheet_not_found", message: "Raidsheet nicht gefunden." } });
         });
 
-        it("refuses an EventHelper event, which has no Raid-Helper raidplan to copy", async () => {
+        it("refuses an EventHelper event without an approved setup — a draft never fills a sheet", async () => {
             setupDefaults();
+            mockRaidHelperSlots.mockReturnValue([]);
             const res = await post("/api/raids/fill", { event: "eh-1", sheetId: "sheet1" });
             expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-            expect(body(res).error.code).toBe("no_raidplan");
+            expect(body(res).error.code).toBe("no_approved_setup");
             expect(mockGetSetup).not.toHaveBeenCalled();
+            expect(mockDriveCopyFile).not.toHaveBeenCalled();
+        });
+
+        it("fills an EventHelper event's sheet from its approved setup, without asking Raid-Helper", async () => {
+            setupDefaults();
+            const slots = [{ id: "u1", name: "Anna", specName: "Holy1", className: "Paladin", groupNumber: 1, slotNumber: 1 }];
+            mockRaidHelperSlots.mockReturnValue(slots);
+            const res = await post("/api/raids/fill", { event: "eh-1", sheetId: "sheet1" });
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(mockGetSetup).not.toHaveBeenCalled();
+            expect(mockFillSetupSheet).toHaveBeenCalledWith(expect.anything(), slots, expect.any(Object));
         });
 
         it("returns 400 when the raidsheet has no spreadsheetId", async () => {
