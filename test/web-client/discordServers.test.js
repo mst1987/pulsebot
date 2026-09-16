@@ -32,8 +32,11 @@ describe("Discord-Server section", () => {
         expect(section).not.toContain('className="hint"');
     });
 
-    it("leaves role sync and per-category sign-up to their own issues", () => {
+    it("keeps role sync and reminders in their own parts below the cards", () => {
         expect(section).not.toMatch(/Zuordnung|Anmeldung pro Kategorie/);
+        // The role sync needs a talk server; reminders also work on one server.
+        expect(section).toContain("{data.talk && <RoleSyncPart");
+        expect(section).toContain("<RemindersPart csrfToken={csrfToken} onConfig={onConfig} />");
     });
 
     it("clears the talk channels when another talk server is picked", () => {

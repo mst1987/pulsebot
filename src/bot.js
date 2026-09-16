@@ -6,6 +6,7 @@ require("dotenv").config({ path: envFile });
 const messages = require("./config/messages.js");
 const { startWebServer } = require("./web/server.js");
 const { handleLogMessage } = require("./web/logChannel.js");
+const { handleMemberUpdate, handleMemberAdd } = require("./web/roleSync.js");
 const { guardInteraction } = require("./web/botAccess.js");
 
 const { Client, GatewayIntentBits, Collection } = require("discord.js");
@@ -52,6 +53,18 @@ client.on("messageCreate", async(message) => {
     } catch (error) {
         console.error("messageCreate handler error:", error.message);
     }
+});
+
+// Role sync between the event and the talk server (#264): a member whose roles
+// changed, or who just joined one of the two, gets the mapped roles on the
+// other one. Only adds — see src/web/roleSync.js.
+client.on("guildMemberUpdate", (oldMember, newMember) => {
+    Promise.resolve(handleMemberUpdate(oldMember, newMember))
+        .catch((error) => console.error("guildMemberUpdate handler error:", error.message));
+});
+client.on("guildMemberAdd", (member) => {
+    Promise.resolve(handleMemberAdd(member))
+        .catch((error) => console.error("guildMemberAdd handler error:", error.message));
 });
 
 // Resolve the command/handler key: slash commands use commandName; component

@@ -1,16 +1,19 @@
-// "Fehlende pingen": posts in the event channel and pings exactly the raiders
-// holding a raider role who have not reacted yet.
+// "Fehlende pingen": pings exactly the raiders holding a raider role who have
+// not reacted yet — in the event channel, on the talk server, or both (#264).
 import { useState } from "react";
-import { pingMissingRaiders, type ApiError } from "../../../api";
+import { pingMissingRaiders, type ApiError, type PingTarget } from "../../../api";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
 import { useToast } from "../../../components/Jobs";
+import TargetField from "./TargetField";
+import { targetHint } from "../../../lib/settingsLogic";
 import type { RaidCtx } from "../meta";
 
 export default function PingModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
     const { data, eventId, csrfToken, onChanged } = ctx;
     const missing = data.attendance.missing.length;
     const [text, setText] = useState("");
+    const [target, setTarget] = useState<PingTarget>("event");
     const [busy, setBusy] = useState(false);
     const toast = useToast();
 
@@ -18,7 +21,7 @@ export default function PingModal({ ctx, open, onClose }: { ctx: RaidCtx; open: 
         e.preventDefault();
         setBusy(true);
         try {
-            const r = await pingMissingRaiders(csrfToken, { event: eventId, text });
+            const r = await pingMissingRaiders(csrfToken, { event: eventId, text, target });
             setText("");
             onClose();
             onChanged(r.message);
@@ -34,7 +37,7 @@ export default function PingModal({ ctx, open, onClose }: { ctx: RaidCtx; open: 
         <Modal
             open={open} onClose={onClose} icon="spell_holy_borrowedtime" tone="bad"
             kicker={data.event.title} title="Fehlende pingen" width={480}
-            hint={channel ? `in #${channel}` : undefined}
+            hint={targetHint(target, channel, data.pingTargets)}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
@@ -43,6 +46,7 @@ export default function PingModal({ ctx, open, onClose }: { ctx: RaidCtx; open: 
             )}
         >
             <form id="rd-ping-form" className="rd-form" onSubmit={submit}>
+                <TargetField info={data.pingTargets} value={target} onChange={setTarget} />
                 <div className="field">
                     <label htmlFor="rd-ping-text">Nachricht <span className="rd-muted">optional</span></label>
                     <input id="rd-ping-text" type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder="Bitte meldet euch für den Raid an oder ab." />

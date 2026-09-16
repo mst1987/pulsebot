@@ -1,8 +1,11 @@
 // "Anmelde-Aufruf": posts a call-to-signup message from a template into the
-// event channel and pings the chosen roles.
+// event channel and pings the chosen roles — or on the talk server, where a
+// synced role becomes its talk counterpart and everyone else a mention or a DM (#264).
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { notifyRaid, type ApiError } from "../../../api";
+import { notifyRaid, type ApiError, type PingTarget } from "../../../api";
+import TargetField from "./TargetField";
+import { targetHint } from "../../../lib/settingsLogic";
 import { Modal } from "../../../components/ui/Modal";
 import { Button } from "../../../components/ui/Button";
 import { useToast } from "../../../components/Jobs";
@@ -13,6 +16,7 @@ export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open
     const { notifyTemplates, roles, event: ev } = data;
     const [templateId, setTemplateId] = useState(notifyTemplates[0]?.id ?? "");
     const [roleIds, setRoleIds] = useState<string[]>([]);
+    const [target, setTarget] = useState<PingTarget>("event");
     const [busy, setBusy] = useState(false);
     const toast = useToast();
 
@@ -22,7 +26,7 @@ export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open
         e.preventDefault();
         setBusy(true);
         try {
-            const r = await notifyRaid(csrfToken, { event: eventId, templateId: templateId || notifyTemplates[0]?.id || "", channelId: ev.channelId, roleIds });
+            const r = await notifyRaid(csrfToken, { event: eventId, templateId: templateId || notifyTemplates[0]?.id || "", channelId: ev.channelId, roleIds, target });
             onClose();
             onChanged(r.message);
         } catch (err) {
@@ -37,7 +41,7 @@ export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open
         <Modal
             open={open} onClose={onClose} icon="inv_letter_15" tone="raids"
             kicker={ev.title} title="Anmelde-Aufruf" width={560}
-            hint={channel ? `in #${channel}` : undefined}
+            hint={targetHint(target, channel, data.pingTargets)}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
@@ -53,6 +57,7 @@ export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open
                 </p>
             ) : (
                 <form id="rd-notify-form" className="rd-form" onSubmit={submit}>
+                    <TargetField info={data.pingTargets} value={target} onChange={setTarget} />
                     <div className="field">
                         <label htmlFor="rd-notify-template">Vorlage</label>
                         <select id="rd-notify-template" value={templateId} onChange={(e) => setTemplateId(e.target.value)} required>
@@ -60,7 +65,9 @@ export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open
                         </select>
                     </div>
                     <div className="field">
-                        <label data-tip="Rollen pingen" data-tip-sub="Die ausgewählten Rollen werden im Event-Channel angepingt." className="tipped">Rollen pingen</label>
+                        <label data-tip="Rollen pingen" data-tip-sub={target === "event"
+                            ? "Die ausgewählten Rollen werden im Event-Channel angepingt."
+                            : "Auf dem Kommunikations-Discord wird eine abgeglichene Rolle zu ihrem Gegenstück; Mitglieder anderer Rollen werden einzeln erwähnt, wer nicht dort ist, bekommt eine DM (nur bei „Talk“)."} className="tipped">Rollen pingen</label>
                         {roles.length
                             ? (
                                 <div className="rd-checks">
