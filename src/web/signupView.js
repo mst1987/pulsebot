@@ -49,6 +49,8 @@ function characterSummary(c) {
         specLabel: info.label || "",
         specIcon: info.icon || "",
         role: c.role || info.role || "",
+        // the character's own status (Discord's "Spät" moves only the first); none for an absence
+        ...(c.status ? { status: c.status } : {}),
     };
 }
 

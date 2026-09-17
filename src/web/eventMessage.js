@@ -5,15 +5,26 @@
 // deadline, date, time, relative), the role totals against the plan, then the
 // roster — a "Tank" block first, one block per class after it (spec icon ·
 // signup number · name, three inline columns), one line each for Spät /
-// Vielleicht / Bank / Abgemeldet — the approved setup and the links. Icons are
-// the bot's application emojis (appEmojis.js); without them every icon falls
-// back to text and the message reads the same.
+// Vielleicht / Bank / Abgemeldet — the approved setup and the links.
 //
-// Below it one public select `event-join:<eventId>` ("Anmelden …") with the
-// statuses; its handler (commands/signup/eventJoin.js) answers only the member
-// with their own characters · specs. After the deadline the select offers only
-// what is still allowed; after the start, or for a cancelled / closed event,
-// there are no components at all.
+// Every character of a signup is listed where its own status puts it: a raider
+// signed up with a healer and a tank shows up in both blocks, under the same
+// number, and a first character on "Spät" sits in the Spät line while the
+// second stays in its class block. The head's count and the role totals are
+// per person (a raider takes one seat — the setup places one character, too).
+//
+// Icons are the bot's application emojis (appEmojis.js): WoW icons for specs,
+// classes and roles, flat grey line icons (`eh_ui_*`) for the head, the
+// statuses and the buttons. Without them the icons are simply left out and the
+// labels carry the message — no colourful unicode stand-ins.
+//
+// Below it the signup buttons `event-btn:<eventId>:<action>` — Anmelden ·
+// Klasse wählen · Absagen, then Spät · Vielleicht · Bank; their handler
+// (commands/signup/eventButton.js) answers only the member. After the deadline
+// only Spät · Absagen, a closed signup only Absagen, nothing once the raid
+// started or for a cancelled event. Messages posted earlier carry the select
+// `event-join:<eventId>` (#287) or the button `event-signup:<eventId>` (#254);
+// both handlers keep working until the message is redrawn with the buttons.
 //
 // Posted when the event is created (eventCreate.js) and edited whenever its
 // roster changes (signupStore.onSignupsChanged → startEventMessageSync), and
@@ -31,12 +42,17 @@ const { rosterCounts, allowedStatuses, signupWindow } = require("./signupService
 const { buildClasses } = require("../config/gameVersions/classes");
 const {
     appEmojiMap, loadAppEmojis, emojiText, emojiOption,
-    specEmojiName, classEmojiName, roleEmojiName, statusEmojiName, ROLE_FALLBACK, STATUS_FALLBACK,
+    specEmojiName, classEmojiName, roleEmojiName, statusEmojiName, uiEmojiName,
 } = require("./appEmojis");
+const { migrateSignup } = require("./signupCharacters");
 
 // The old button id — messages posted before #287 carry it and keep working.
 const SIGNUP_BUTTON_PREFIX = "event-signup";
+// The select of #287 — messages posted before the buttons carry it and keep working.
 const JOIN_SELECT_PREFIX = "event-join";
+// The signup buttons: `event-btn:<eventId>:<action>`.
+const BUTTON_PREFIX = "event-btn";
+const BUTTON_ACTIONS = ["join", "class", "absence", "late", "tentative", "bench"];
 const EDIT_DEBOUNCE_MS = 2000;
 const SWEEP_MS = 5 * 60 * 1000;
 const CANCELLED_COLOR = 0xe0524f;
@@ -44,6 +60,7 @@ const CANCELLED_COLOR = 0xe0524f;
 // Discord's embed limits.
 const LIMITS = { title: 256, description: 4096, fields: 25, fieldName: 256, fieldValue: 1024, total: 6000 };
 
+// The statuses of the old select (#287) — its handler still reads them.
 const STATUS_OPTIONS = {
     signed: { label: "Dabei", description: "mit Charakter-Auswahl" },
     tentative: { label: "Vielleicht", description: "noch unsicher" },
@@ -51,7 +68,6 @@ const STATUS_OPTIONS = {
     bench: { label: "Bank", description: "als Ersatz bereit" },
     absence: { label: "Abmelden", description: "nicht dabei" },
 };
-const STATUS_ORDER = ["signed", "tentative", "late", "bench", "absence"];
 // The lines below the class blocks, in this order.
 const OTHER_LINES = [["late", "Spät"], ["tentative", "Vielleicht"], ["bench", "Bank"], ["absence", "Abgemeldet"]];
 const ROLE_TOTALS = [["tank", "Tanks"], ["healer", "Heiler"], ["melee", "Nahkampf"], ["ranged", "Fernkampf"]];
@@ -64,9 +80,14 @@ function signupButtonId(eventId) {
     return `${SIGNUP_BUTTON_PREFIX}:${eventId}`;
 }
 
-/** customId of the public "Anmelden …" select. */
+/** customId of the public "Anmelden …" select (#287, still handled). */
 function joinSelectId(eventId) {
     return `${JOIN_SELECT_PREFIX}:${eventId}`;
+}
+
+/** customId of a signup button under the message. */
+function buttonId(eventId, action) {
+    return `${BUTTON_PREFIX}:${eventId}:${action}`;
 }
 
 const baseUrl = () => String(publicBaseUrl || "").replace(/\/+$/, "");
@@ -92,11 +113,6 @@ function messagePhase(event, now = Date.now()) {
     return "open";
 }
 
-/** A closed signup (#288) still takes sign-offs: the select offers only "Abmelden". */
-function closedStatuses(event) {
-    return event && event.signupsClosed ? ["absence"] : [];
-}
-
 /**
  * Number every signup by when it was first made (`at`, then user id) — stable:
  * changing a spec keeps the number (the store keeps `at`), a new signup gets
@@ -120,26 +136,36 @@ function targetText(event, role) {
     return min ? `/${min}+` : "";
 }
 
-const nameOf = (signup) => escapeMd(signup.character) || `<@${signup.userId}>`;
+const nameOf = (entry) => escapeMd(entry.character) || `<@${entry.userId}>`;
 
 /**
- * A small "+1" behind the name when the raider named alternates ("kann auch
- * mit", #293). Only the first choice is listed — the alternates are the orga's
- * business in the setup, not a second line in the roster.
+ * One line per listed character: every character of a signup with its own
+ * status (a raider with a healer and a tank shows up in both blocks, under
+ * the same number); an absence once per person.
+ * @returns {{ userId: string, character: string, spec: string, role: string, status: string, index: number }[]}
  */
-function alternatesMark(signup) {
-    const n = Array.isArray(signup.characters) ? Math.max(0, signup.characters.length - 1) : 0;
-    return n ? ` +${n}` : "";
+function rosterEntries(signups) {
+    const out = [];
+    for (const raw of signups || []) {
+        if (!raw || !raw.userId) continue;
+        const s = migrateSignup(raw);
+        const base = { userId: String(s.userId) };
+        if (s.status === "absence" || !(s.characters || []).length) {
+            out.push({ ...base, character: s.character || "", spec: s.spec || "", role: s.role || "", status: s.status || "signed", index: 0 });
+            continue;
+        }
+        s.characters.forEach((c, index) => out.push({ ...base, character: c.character, spec: c.spec, role: c.role, status: c.status || s.status, index }));
+    }
+    return out;
 }
 
-/** One roster line: "<spec icon> `12` **Name** +1" — without the icon, the spec in words. */
-function rosterLine(signup, number, emojis) {
-    const icon = emojiText(emojis, specEmojiName(signup.spec));
+/** One roster line: "<spec icon> `12` **Name**" — without the icon, the spec in words. */
+function rosterLine(entry, number, emojis) {
+    const icon = emojiText(emojis, specEmojiName(entry.spec));
     const num = `\`${number}\``;
-    const alt = alternatesMark(signup);
-    if (icon) return `${icon} ${num} **${nameOf(signup)}**${alt}`;
-    const spec = SPEC_BY_KEY.get(signup.spec);
-    return `${num} **${nameOf(signup)}**${spec ? ` · ${spec.label}` : ""}${alt}`;
+    if (icon) return `${icon} ${num} **${nameOf(entry)}**`;
+    const spec = SPEC_BY_KEY.get(entry.spec);
+    return `${num} **${nameOf(entry)}**${spec ? ` · ${spec.label}` : ""}`;
 }
 
 /** Lines as one field value: at most `maxLines` lines and 1024 characters, "+N weitere" for the rest. */
@@ -157,7 +183,7 @@ function blockValue(lines, maxLines) {
         out.push(lines[i]);
         length = next;
     }
-    return out.join("\n") || "\u200b";
+    return out.join("\n") || "​";
 }
 
 /**
@@ -186,65 +212,85 @@ function embedLength(embed) {
         + (embed.fields || []).reduce((n, f) => n + String(f.name).length + String(f.value).length, 0);
 }
 
+/** "<icon> Label" or just "Label" when the emoji is missing. */
+const labelled = (emojis, name, label) => [emojiText(emojis, name), label].filter(Boolean).join(" ");
+
 /** The roster fields — Tank block, class blocks, the other statuses — with at most `maxLines` per block. */
-function rosterFields(signups, numbers, emojis, maxLines) {
-    const numberOf = (s) => numbers.get(String(s.userId));
-    const byNumber = (a, b) => numberOf(a) - numberOf(b);
-    const signed = signups.filter((s) => (s.status || "signed") === "signed");
+function rosterFields(entries, numbers, emojis, maxLines) {
+    const numberOf = (e) => numbers.get(String(e.userId));
+    const byNumber = (a, b) => numberOf(a) - numberOf(b) || a.index - b.index;
+    const signed = entries.filter((e) => e.status === "signed");
     const fields = [];
-    const block = (icon, label, list) => {
+    const block = (name, list) => {
         const sorted = list.slice().sort(byNumber);
         fields.push({
-            name: clip(`${icon ? `${icon} ` : ""}${label} (${sorted.length})`, LIMITS.fieldName),
-            value: blockValue(sorted.map((s) => rosterLine(s, numberOf(s), emojis)), maxLines),
+            name: clip(`${name} (${sorted.length})`, LIMITS.fieldName),
+            value: blockValue(sorted.map((e) => rosterLine(e, numberOf(e), emojis)), maxLines),
             inline: true,
         });
     };
-    const tanks = signed.filter((s) => s.role === "tank");
-    if (tanks.length) block(emojiText(emojis, roleEmojiName("tank"), ROLE_FALLBACK.tank), "Tank", tanks);
+    const tanks = signed.filter((e) => e.role === "tank");
+    if (tanks.length) block(labelled(emojis, roleEmojiName("tank"), "Tank"), tanks);
     for (const cls of CLASSES) {
-        const members = signed.filter((s) => s.role !== "tank" && (SPEC_BY_KEY.get(s.spec) || {}).classId === cls.id);
-        if (members.length) block(emojiText(emojis, classEmojiName(cls.id)), cls.label, members);
+        const members = signed.filter((e) => e.role !== "tank" && (SPEC_BY_KEY.get(e.spec) || {}).classId === cls.id);
+        if (members.length) block(labelled(emojis, classEmojiName(cls.id), cls.label), members);
     }
     // Signed without a known spec (the service does not let that happen) is still shown.
-    const unknown = signed.filter((s) => s.role !== "tank" && !SPEC_BY_KEY.get(s.spec));
-    if (unknown.length) block("", "Ohne Spec", unknown);
+    const unknown = signed.filter((e) => e.role !== "tank" && !SPEC_BY_KEY.get(e.spec));
+    if (unknown.length) block("Ohne Spec", unknown);
 
     const other = [];
     for (const [status, label] of OTHER_LINES) {
-        const list = signups.filter((s) => s.status === status).sort(byNumber);
+        const list = entries.filter((e) => e.status === status).sort(byNumber);
         if (!list.length) continue;
-        const icon = emojiText(emojis, statusEmojiName(status), STATUS_FALLBACK[status]);
-        const shown = list.slice(0, maxLines * 2).map((s) => `\`${numberOf(s)}\` ${nameOf(s)}`);
+        const shown = list.slice(0, maxLines * 2).map((e) => `\`${numberOf(e)}\` ${nameOf(e)}`);
         const more = list.length - shown.length;
-        other.push(`${icon} ${label} (${list.length}): ${shown.join(", ")}${more ? ` +${more} weitere` : ""}`);
+        other.push(`${labelled(emojis, statusEmojiName(status), label)} (${list.length}): ${shown.join(", ")}${more ? ` +${more} weitere` : ""}`);
     }
-    if (other.length) fields.push({ name: "\u200b", value: clip(other.join("\n"), LIMITS.fieldValue), inline: false });
+    if (other.length) fields.push({ name: "​", value: clip(other.join("\n"), LIMITS.fieldValue), inline: false });
     return fields;
 }
 
-/** The public "Anmelden …" select with the statuses allowed in this phase, or no row at all. */
-function joinComponents(event, phase, emojis, now) {
-    const allowed = phase === "open" || phase === "deadline" ? allowedStatuses(event, { now }) : phase === "closed" ? closedStatuses(event) : [];
-    if (!allowed.length) return [];
-    const placeholder = phase === "deadline" ? "Anmeldeschluss vorbei – Spät oder Abmelden …"
-        : phase === "closed" ? "Anmeldung geschlossen – nur Abmelden …" : "Anmelden …";
-    return [{
+const BUTTON_STYLE = { primary: 1, secondary: 2, success: 3, danger: 4 };
+const BUTTONS = {
+    join: { label: "Anmelden", style: BUTTON_STYLE.success, icon: "signed" },
+    class: { label: "Klasse wählen", style: BUTTON_STYLE.secondary, icon: "class" },
+    absence: { label: "Absagen", style: BUTTON_STYLE.danger, icon: "absence" },
+    late: { label: "Spät", style: BUTTON_STYLE.secondary, icon: "late" },
+    tentative: { label: "Vielleicht", style: BUTTON_STYLE.secondary, icon: "tentative" },
+    bench: { label: "Bank", style: BUTTON_STYLE.secondary, icon: "bench" },
+};
+
+/**
+ * Which buttons a phase offers, as rows of actions: before the deadline
+ * Anmelden · Klasse wählen · Absagen and Spät · Vielleicht · Bank; after it
+ * Spät · Absagen; a closed signup only Absagen; nothing once the raid started
+ * or the event was cancelled.
+ */
+function buttonRows(event, phase, now = Date.now()) {
+    if (phase === "open") {
+        const allowed = allowedStatuses(event, { now });
+        const row1 = ["join", "class", "absence"].filter((a) => a === "absence" || allowed.includes("signed"));
+        const row2 = ["late", "tentative", "bench"].filter((a) => allowed.includes(a));
+        return [row1, row2].filter((r) => r.length);
+    }
+    if (phase === "deadline") return [["late", "absence"]];
+    if (phase === "closed") return event && event.signupsClosed ? [["absence"]] : [];
+    return [];
+}
+
+/** The signup buttons of a phase as component rows. */
+function buttonComponents(event, phase, emojis, now) {
+    return buttonRows(event, phase, now).map((row) => ({
         type: 1,
-        components: [{
-            type: 3,
-            custom_id: joinSelectId(event.id),
-            placeholder,
-            min_values: 1,
-            max_values: 1,
-            options: STATUS_ORDER.filter((s) => allowed.includes(s)).map((s) => {
-                const option = { label: STATUS_OPTIONS[s].label, value: s, description: STATUS_OPTIONS[s].description };
-                const emoji = emojiOption(emojis, statusEmojiName(s), STATUS_FALLBACK[s]);
-                if (emoji) option.emoji = emoji;
-                return option;
-            }),
-        }],
-    }];
+        components: row.map((action) => {
+            const b = BUTTONS[action];
+            const button = { type: 2, style: b.style, custom_id: buttonId(event.id, action), label: b.label };
+            const emoji = emojiOption(emojis, uiEmojiName(b.icon));
+            if (emoji) button.emoji = emoji;
+            return button;
+        }),
+    }));
 }
 
 /**
@@ -252,28 +298,29 @@ function joinComponents(event, phase, emojis, now) {
  * @param {object} event   an eventStore event (`status` "cancelled" / "closed" is honoured, #288)
  * @param {object[]} signups signupStore signups
  * @param {{ emojis?: object, now?: number, icsUrl?: string }} opts
- *   `emojis`: name → { id, name, animated } (appEmojis.appEmojiMap()); none = text icons
+ *   `emojis`: name → { id, name, animated } (appEmojis.appEmojiMap()); none = labels only
  */
 function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsUrl = "" } = {}) {
-    const list = (signups || []).filter((s) => s && s.userId);
+    const list = (signups || []).filter((s) => s && s.userId).map(migrateSignup);
     const c = rosterCounts(list);
     const phase = messagePhase(event, now);
     const numbers = signupNumbers(list);
+    const entries = rosterEntries(list);
     const start = Number(event.startTime) || 0;
     const deadline = Number(event.signupDeadline) || 0;
-    const icon = (name, fallback) => emojiText(emojis, name, fallback);
+    const head = (icon, label) => labelled(emojis, uiEmojiName(icon), label);
 
     const desc = [];
     if (phase === "cancelled") {
         // The store keeps the reason in `cancel.reason` (eventManage.cancelEvent).
         const reason = (event.cancel && event.cancel.reason) || event.cancelReason || "";
-        desc.push(`**❌ Abgesagt**${reason ? ` – ${escapeMd(clip(reason, 300))}` : ""}`);
+        desc.push(`${head("absence", "**Abgesagt**")}${reason ? ` – ${escapeMd(clip(reason, 300))}` : ""}`);
     } else if (phase === "closed") {
-        desc.push(`🔒 **Anmeldung geschlossen**${event.signupsClosed ? " – Abmelden geht weiter." : ""}`);
+        desc.push(`${head("closed", "**Anmeldung geschlossen**")}${event.signupsClosed ? " – Abmelden geht weiter." : ""}`);
     } else if (phase === "started") {
         desc.push("Der Raid hat begonnen – Anmeldungen sind geschlossen.");
     } else if (phase === "deadline") {
-        desc.push("Anmeldeschluss vorbei – nur noch „Spät“ oder Abmelden.");
+        desc.push("Anmeldeschluss vorbei – nur noch „Spät“ oder Absagen.");
     }
     const description = String(event.description || "").trim();
     if (description) {
@@ -281,37 +328,37 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
         desc.push(clip(description, 1500));
     }
 
-    const head = [
-        { name: "🚩 Leitung", value: event.leaderId ? `<@${event.leaderId}>` : "–", inline: true },
-        { name: `${icon(statusEmojiName("signed"), "👥")} Angemeldet`, value: `**${c.attending}**${event.size ? ` / ${event.size}` : ""}`, inline: true },
-        { name: "⏰ Anmeldeschluss", value: deadline ? `<t:${deadline}:f>` : "–", inline: true },
-        { name: "🗓️ Datum", value: start ? `<t:${start}:D>` : "–", inline: true },
-        { name: "🕖 Uhrzeit", value: start ? `<t:${start}:t>` : "–", inline: true },
-        { name: "⏳ Start", value: start ? `<t:${start}:R>` : "–", inline: true },
+    const headFields = [
+        { name: head("leader", "Leitung"), value: event.leaderId ? `<@${event.leaderId}>` : "–", inline: true },
+        { name: head("signups", "Angemeldet"), value: `**${c.attending}**${event.size ? ` / ${event.size}` : ""}`, inline: true },
+        { name: head("deadline", "Anmeldeschluss"), value: deadline ? `<t:${deadline}:f>` : "–", inline: true },
+        { name: head("date", "Datum"), value: start ? `<t:${start}:D>` : "–", inline: true },
+        { name: head("time", "Uhrzeit"), value: start ? `<t:${start}:t>` : "–", inline: true },
+        { name: head("start", "Start"), value: start ? `<t:${start}:R>` : "–", inline: true },
     ];
-    // Who takes a seat, per role (rosterCounts folds melee and ranged into dps).
+    // Who takes a seat, per role and per person (rosterCounts folds melee and ranged into dps).
     const seats = { tank: c.tank, healer: c.healer, melee: 0, ranged: 0 };
     for (const s of list) {
         if (["signed", "late"].includes(s.status || "signed") && (s.role === "melee" || s.role === "ranged")) seats[s.role] += 1;
     }
     const totals = {
-        name: "\u200b",
+        name: "​",
         value: ROLE_TOTALS
-            .map(([role, label]) => `${icon(roleEmojiName(role), ROLE_FALLBACK[role])} ${label} **${seats[role]}**${targetText(event, role)}`)
+            .map(([role, label]) => `${labelled(emojis, roleEmojiName(role), label)} **${seats[role]}**${targetText(event, role)}`)
             .join("  ·  "),
         inline: false,
     };
 
     const tail = [];
     const setupText = approvedSetupText(event);
-    if (setupText) tail.push({ name: "✅ Setup", value: setupText, inline: false });
+    if (setupText) tail.push({ name: head("signed", "Setup"), value: setupText, inline: false });
     const base = baseUrl();
     const id = encodeURIComponent(event.id);
     const links = [];
     if (base) links.push(`[Web](${base}/signups?event=${id})`);
     if (base && setupText) links.push(`[Setup](${base}/raids/detail?event=${id}&tab=setup)`);
     if (icsUrl) links.push(`[Kalender](${icsUrl})`);
-    if (links.length) tail.push({ name: "\u200b", value: links.join(" | "), inline: false });
+    if (links.length) tail.push({ name: "​", value: links.join(" | "), inline: false });
 
     const title = phase === "cancelled" ? `Abgesagt: ${event.title || "Raid"}` : (event.title || "Raid");
     const embed = {
@@ -323,10 +370,10 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     if (text) embed.description = text;
     // Shorten the blocks until the whole embed fits Discord's 6000 characters.
     for (let maxLines = 40; maxLines >= 1; maxLines -= maxLines > 10 ? 5 : 1) {
-        embed.fields = [...head, totals, ...rosterFields(list, numbers, emojis, maxLines), ...tail].slice(0, LIMITS.fields);
+        embed.fields = [...headFields, totals, ...rosterFields(entries, numbers, emojis, maxLines), ...tail].slice(0, LIMITS.fields);
         if (embedLength(embed) <= LIMITS.total) break;
     }
-    return { content: "", embeds: [embed], components: joinComponents(event, phase, emojis, now) };
+    return { content: "", embeds: [embed], components: buttonComponents(event, phase, emojis, now) };
 }
 
 async function textChannel(channelId) {
@@ -464,8 +511,9 @@ function startEventMessageSync({ debounceMs = EDIT_DEBOUNCE_MS, sweepMs = SWEEP_
 }
 
 module.exports = {
-    SIGNUP_BUTTON_PREFIX, JOIN_SELECT_PREFIX, STATUS_OPTIONS, LIMITS,
-    signupButtonId, joinSelectId, rosterCounts, messagePhase, signupNumbers, embedLength, blockValue,
+    SIGNUP_BUTTON_PREFIX, JOIN_SELECT_PREFIX, BUTTON_PREFIX, BUTTON_ACTIONS, STATUS_OPTIONS, LIMITS,
+    signupButtonId, joinSelectId, buttonId, buttonRows, rosterEntries,
+    rosterCounts, messagePhase, signupNumbers, embedLength, blockValue,
     buildEventMessage, approvedSetupText, eventsToRedraw, sweepEventMessages,
     postEventMessage, refreshEventMessage, startEventMessageSync,
 };

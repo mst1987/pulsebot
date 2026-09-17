@@ -12,21 +12,41 @@ describe("web/appEmojis", () => {
         expect(appEmojis.specEmojiName("Priest")).toBe("");
         expect(appEmojis.classEmojiName("Warrior")).toBe("eh_class_warrior");
         expect(appEmojis.roleEmojiName("tank")).toBe("eh_role_tank");
-        expect(appEmojis.statusEmojiName("absence")).toBe("eh_status_absence");
+        // the statuses are flat UI icons now, no longer the WoW icons eh_status_*
+        expect(appEmojis.statusEmojiName("absence")).toBe("eh_ui_absence");
+        expect(appEmojis.uiEmojiName("leader")).toBe("eh_ui_leader");
     });
 
-    it("has one valid, unique emoji per spec, class, role and status", () => {
+    it("has one valid, unique emoji per spec, class, role and UI icon", () => {
         const catalog = appEmojis.emojiCatalog();
         const classes = buildClasses();
         const specs = classes.reduce((n, c) => n + c.specs.length, 0);
-        expect(catalog).toHaveLength(specs + classes.length + ROLES.length + SIGNUP_STATUSES.length);
+        expect(catalog).toHaveLength(specs + classes.length + ROLES.length + appEmojis.UI_ICONS.length);
         expect(new Set(catalog.map((e) => e.name)).size).toBe(catalog.length);
         for (const e of catalog) {
             expect(appEmojis.validEmojiName(e.name)).toBe(true);
-            expect(e.url).toBe(`https://wow.zamimg.com/images/wow/icons/medium/${e.icon}.jpg`);
+            if (e.file) expect(e.name.startsWith("eh_ui_")).toBe(true);
+            else expect(e.url).toBe(`https://wow.zamimg.com/images/wow/icons/medium/${e.icon}.jpg`);
         }
+        // every signup status has its flat icon
+        for (const status of SIGNUP_STATUSES) expect(appEmojis.UI_ICONS).toContain(status);
+        expect(catalog.some((e) => e.name.startsWith("eh_status_"))).toBe(false);
         expect(appEmojis.validEmojiName("Eh-Bad")).toBe(false);
         expect(appEmojis.validEmojiName("x".repeat(33))).toBe(false);
+    });
+
+    it("ships every UI icon as a checked-in 128 px PNG within Discord's size limit", () => {
+        const fs = require("fs");
+        const { MAX_BYTES } = require("../../src/web/appEmojiSync");
+        const { ICONS } = require("../../scripts/render-ui-emojis");
+        for (const e of appEmojis.emojiCatalog().filter((x) => x.file)) {
+            expect(Object.keys(ICONS)).toContain(e.icon);
+            const buf = fs.readFileSync(e.file);
+            expect(buf.length).toBeLessThanOrEqual(MAX_BYTES);
+            // PNG signature, then the IHDR's width and height
+            expect(buf.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+            expect([buf.readUInt32BE(16), buf.readUInt32BE(20)]).toEqual([128, 128]);
+        }
     });
 
     it("renders an emoji from a map, or the fallback", () => {

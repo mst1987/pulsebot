@@ -86,8 +86,8 @@ describe("web/signupStore", () => {
                 },
             },
         }));
-        expect(getSignup("eh-old", "u1").characters).toEqual([{ character: "Alt", spec: "Mage-Fire", role: "ranged" }]);
-        expect(listSignups("eh-old").map((s) => s.characters)).toEqual([[{ character: "Alt", spec: "Mage-Fire", role: "ranged" }], []]);
+        expect(getSignup("eh-old", "u1").characters).toEqual([{ character: "Alt", spec: "Mage-Fire", role: "ranged", status: "signed" }]);
+        expect(listSignups("eh-old").map((s) => s.characters)).toEqual([[{ character: "Alt", spec: "Mage-Fire", role: "ranged", status: "signed" }], []]);
         // a changed signup keeps its place and writes the new shape
         const { signup } = saveSignup("eh-old", "u1", { characters: [{ character: "Alt", spec: "Mage-Fire" }, { character: "Neu", spec: "Druid-Balance" }] });
         expect(signup.at).toBe(1);

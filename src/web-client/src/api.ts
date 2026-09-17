@@ -3487,6 +3487,8 @@ export type SignupCharacter = {
     specLabel: string;
     specIcon: string;
     role: GameRole | "";
+    /** This character's own status (the Discord buttons move only the first); absent for an absence. */
+    status?: SignupStatus;
 };
 
 /** An own signup, spec label and icon resolved by the server. */

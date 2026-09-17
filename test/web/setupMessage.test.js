@@ -105,8 +105,8 @@ describe("buildSetupMessage", () => {
         const event = seed();
         const embed = sm.buildSetupMessage(event, event.setup.approved, { emojis: {} }).embeds[0];
         expect(embed.fields.find((f) => f.name === "Gruppe 1").value).toBe("**Brokk** · Schutz\n**Zibbo** · Heilig");
-        expect(embed.description).toContain("🛡️ 1");
-        expect(embed.fields.find((f) => f.name.includes("Bank")).name).toContain("🪑");
+        expect(embed.description).toContain("Tank 1");
+        expect(embed.fields.find((f) => f.name.includes("Bank")).name).toMatch(/^Bank \(\d+\)$/);
     });
 
     it("never builds anything without an approved lineup", () => {

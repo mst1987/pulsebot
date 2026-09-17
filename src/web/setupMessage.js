@@ -27,7 +27,7 @@ const { getConfig } = require("./settingsStore");
 const discord = require("./discord");
 const { buildClasses } = require("../config/gameVersions/classes");
 const {
-    appEmojiMap, loadAppEmojis, emojiText, specEmojiName, roleEmojiName, statusEmojiName, ROLE_FALLBACK, STATUS_FALLBACK,
+    appEmojiMap, loadAppEmojis, emojiText, specEmojiName, roleEmojiName, statusEmojiName, uiEmojiName,
 } = require("./appEmojis");
 
 const LIMITS = { title: 256, description: 4096, fields: 25, fieldValue: 1024, total: 6000 };
@@ -118,7 +118,7 @@ function buildSetupMessage(event, approved, { emojis = {} } = {}) {
             embeds: [{
                 title,
                 color: CANCELLED_COLOR,
-                description: `**❌ Abgesagt**${reason ? ` – ${escapeMd(clip(reason, 300))}` : ""}\nDas Setup entfällt.`,
+                description: `${[emojiText(emojis, uiEmojiName("absence")), "**Abgesagt**"].filter(Boolean).join(" ")}${reason ? ` – ${escapeMd(clip(reason, 300))}` : ""}\nDas Setup entfällt.`,
             }],
             components: [],
         };
@@ -127,7 +127,8 @@ function buildSetupMessage(event, approved, { emojis = {} } = {}) {
     const counts = roleCounts(approved);
     const totals = ROLE_ORDER
         .filter((r) => counts[r])
-        .map((r) => `${emojiText(emojis, roleEmojiName(r), ROLE_FALLBACK[r])} ${counts[r]}`)
+        // without the role icon the role's name: "Tank 1" — no colourful unicode stand-ins
+        .map((r) => `${emojiText(emojis, roleEmojiName(r), ROLE_LABEL[r])} ${counts[r]}`)
         .join("  ·  ");
     const description = [start ? `<t:${start}:F>` : "", totals].filter(Boolean).join("\n");
     const groups = approved.groups.filter((g) => (g.slots || []).length).sort((a, b) => a.index - b.index);
@@ -146,7 +147,7 @@ function buildSetupMessage(event, approved, { emojis = {} } = {}) {
         }));
         if (bench.length) {
             fields.push({
-                name: `${emojiText(emojis, statusEmojiName("bench"), STATUS_FALLBACK.bench)} Bank (${bench.length})`,
+                name: `${[emojiText(emojis, statusEmojiName("bench")), "Bank"].filter(Boolean).join(" ")} (${bench.length})`,
                 value: joinClipped(bench.map((b) => personText(b, emojis, { icons: v.benchIcons, bold: false })), " · "),
                 inline: false,
             });

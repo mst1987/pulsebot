@@ -198,9 +198,14 @@ function OwnAction({ row, onOpen }: { row: OwnSignupRow; onOpen: () => void }) {
         const label = mine.status === "absence"
             ? statusBadgeLabel(mine.status)
             : `${meta.label}${mine.specLabel ? ` · ${mine.specLabel}` : ""}${alternates > 0 ? ` +${alternates}` : ""}`;
-        // every named character, the first as the choice, the rest "kann auch mit" (#293)
+        // every named character, the first as the choice, the rest "kann auch mit" (#293);
+        // a character whose own status differs from the signup's says so: "Zibbowar (Schutz, Dabei)"
         const who = (mine.characters || []).length
-            ? mine.characters.map((c, i) => `${i ? "+" : ""}${c.character}${c.specLabel ? ` (${c.specLabel})` : ""}`).join(", ")
+            ? mine.characters.map((c, i) => {
+                const own = c.status && c.status !== mine.status ? SIGNUP_STATUS[c.status].label : "";
+                const detail = [c.specLabel, own].filter(Boolean).join(", ");
+                return `${i ? "+" : ""}${c.character}${detail ? ` (${detail})` : ""}`;
+            }).join(", ")
             : mine.character;
         const sub = [who, mine.comment ? `„${mine.comment}“` : "", row.started ? "" : "Klick zum Ändern"].filter(Boolean).join(" · ");
         return (

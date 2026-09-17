@@ -23,7 +23,7 @@
 // the event message (eventMessage.js) and feeds every other listener.
 const { getEvent, isOwnEventId } = require("./eventStore");
 const signupStore = require("./signupStore");
-const { MAX_CHARACTERS, migrateSignup } = require("./signupCharacters");
+const { MAX_CHARACTERS, migrateSignup, characterStatus } = require("./signupCharacters");
 const profiles = require("./raiderProfileStore");
 const settingsStore = require("./settingsStore");
 const discord = require("./discord");
@@ -236,17 +236,24 @@ function validateSignup(event, input = {}, { profile, previous = null, byOrga = 
     if (isCancelled(event)) return fail("cancelled", "Das Event wurde abgesagt – Anmeldungen sind nicht mehr möglich.");
     if (w.started && !byOrga) return fail("started", "Der Raid hat schon begonnen – Anmeldungen sind geschlossen.");
     const prev = previous ? migrateSignup(previous) : null;
-    const entries = requestedCharacters(input, prev);
-    // Keeping status and characters (to edit the comment) is still allowed.
-    const sig = (list) => list.map((c) => `${profiles.characterKey(c.character)}/${c.spec}`).join(",");
-    const unchanged = !!prev && prev.status === status && sig(prev.characters || []) === sig(entries);
-    if (isSignupClosed(event) && !byOrga && !WHEN_CLOSED.includes(status)) {
-        if (!unchanged) return fail("closed", "Die Anmeldung ist geschlossen – du kannst dich nur noch abmelden.");
-    }
-    if (w.deadlinePassed && !byOrga && !AFTER_DEADLINE.includes(status)) {
-        if (!unchanged) {
-            return fail("deadline", "Der Anmeldeschluss ist vorbei – du kannst dich nur noch abmelden oder „Spät“ angeben.");
+    const entries = withStatuses(requestedCharacters(input, prev), status, prev);
+    // Per character: a status the phase still allows, or the one it already had
+    // (same character and spec) — keeping a signup to edit the comment, or moving
+    // only the first character to "Spät", never trips over the others.
+    const keptFromBefore = (entry) => {
+        const had = prevCharacter(prev, entry);
+        return !!had && had.status === entry.status;
+    };
+    if (isSignupClosed(event) && !byOrga && status !== "absence") {
+        if (!entries.length || entries.some((e) => !WHEN_CLOSED.includes(e.status) && !keptFromBefore(e))) {
+            return fail("closed", "Die Anmeldung ist geschlossen – du kannst dich nur noch abmelden.");
         }
+    }
+    if (w.deadlinePassed && !byOrga && status !== "absence") {
+        const refused = entries.length
+            ? entries.some((e) => !AFTER_DEADLINE.includes(e.status) && !keptFromBefore(e))
+            : !AFTER_DEADLINE.includes(status);
+        if (refused) return fail("deadline", "Der Anmeldeschluss ist vorbei – du kannst dich nur noch abmelden oder „Spät“ angeben.");
     }
     if (entries.length > MAX_CHARACTERS) {
         return fail("characters", `Höchstens ${MAX_CHARACTERS} Charaktere je Anmeldung.`);
@@ -275,7 +282,7 @@ function validateSignup(event, input = {}, { profile, previous = null, byOrga = 
         if (!character.specs.some((s) => s.key === specKey)) {
             return fail("spec", `Diese Spezialisierung ist für ${character.name} nicht im Profil hinterlegt.`);
         }
-        resolved.push({ character, spec: specKey });
+        resolved.push({ character, spec: specKey, status: entry.status });
     }
     if (status !== "absence" && !resolved.length) return fail("character", "Dieser Charakter steht nicht in deinem Profil.");
 
@@ -284,7 +291,7 @@ function validateSignup(event, input = {}, { profile, previous = null, byOrga = 
         ? input.canAlso
         : (first && first.spec ? defaultCanAlso(profile, first.character.name, first.spec) : []);
     const checked = signupStore.normalizeSignup({
-        characters: resolved.map((c) => ({ character: c.character.name, spec: c.spec })),
+        characters: resolved.map((c) => ({ character: c.character.name, spec: c.spec, status: c.status })),
         character: first ? first.character.name : "",
         status,
         canAlso,
@@ -294,24 +301,48 @@ function validateSignup(event, input = {}, { profile, previous = null, byOrga = 
     return { value: checked.value };
 }
 
+/** The previous signup's entry for the same character and spec, or null. */
+function prevCharacter(prev, entry) {
+    if (!prev || prev.status === "absence") return null;
+    const key = profiles.characterKey(entry.character);
+    return (prev.characters || []).find((c) => profiles.characterKey(c.character) === key && c.spec === entry.spec) || null;
+}
+
+/**
+ * Each requested character's status: its own when the request names one, else
+ * — while the signup's status stays what it was — the status it already had
+ * (the web page saving a comment keeps "Spät" on the first character only),
+ * else the request's status. An absence has none.
+ */
+function withStatuses(entries, status, prev) {
+    if (status === "absence") return entries.map(({ character, spec }) => ({ character, spec }));
+    return entries.map((e) => {
+        const own = characterStatus(e.status);
+        if (own) return { ...e, status: own };
+        const had = prev && prev.status === status ? prevCharacter(prev, e) : null;
+        return { ...e, status: had ? had.status : status };
+    });
+}
+
 /**
  * The characters a request names, in priority order: `input.characters` when
  * given (#293), else the single `character`/`spec` — which keeps the previous
- * signup's alternates, so a front end that only knows one character (the
- * Discord status buttons, the comment modal) never drops the "kann auch mit".
+ * signup's alternates (with their own status), so a front end that only knows
+ * one character (the Discord status buttons, the comment modal) never drops the
+ * "kann auch mit".
  */
 function requestedCharacters(input, previous) {
     if (Array.isArray(input.characters)) {
         return input.characters
             .filter((c) => c && (c.character || c.spec))
-            .map((c) => ({ character: String(c.character || "").trim(), spec: String(c.spec || "").trim() }));
+            .map((c) => ({ character: String(c.character || "").trim(), spec: String(c.spec || "").trim(), status: String(c.status || "").trim() }));
     }
-    const single = { character: String(input.character || "").trim(), spec: String(input.spec || "").trim() };
+    const single = { character: String(input.character || "").trim(), spec: String(input.spec || "").trim(), status: "" };
     const key = profiles.characterKey(single.character);
     const alternates = ((previous && previous.characters) || [])
         .slice(1)
         .filter((c) => profiles.characterKey(c.character) !== key)
-        .map((c) => ({ character: c.character, spec: c.spec }));
+        .map((c) => ({ character: c.character, spec: c.spec, status: previous.status === "absence" ? "" : String(c.status || "") }));
     return single.character || single.spec ? [single, ...alternates] : [];
 }
 
