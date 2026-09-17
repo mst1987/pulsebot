@@ -17,6 +17,9 @@
         "register:dev": "node scripts/register-commands.js --dev",
         "bis:refresh": "node scripts/fetch-wowhead-bis.js && node scripts/fetch-wowsims-data.js && node scripts/fetch-wowhead-bis.js"
     },
+    "nodemonConfig": {
+        "ignore": ["data/", "src/web-client/", "test/", "coverage/"]
+    },
     "keywords": [],
     "author": "",
     "license": "ISC",

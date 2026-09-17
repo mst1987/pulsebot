@@ -18,7 +18,11 @@ const {
 // member's own message updates it. Saves go through signupService.submitSignup.
 const STATUS_ACTIONS = ["late", "tentative", "bench"];
 
-const reply = (interaction, payload) => interaction.reply({ ...(typeof payload === "string" ? { content: payload } : payload), flags: MessageFlags.Ephemeral });
+// After the public select reset itself (eventPick.js: interaction.update), the answer is a follow-up.
+const reply = (interaction, payload) => {
+    const body = { ...(typeof payload === "string" ? { content: payload } : payload), flags: MessageFlags.Ephemeral };
+    return interaction.replied || interaction.deferred ? interaction.followUp(body) : interaction.reply(body);
+};
 const done = (interaction, content) => interaction.update({ content, embeds: [], components: [] });
 
 async function emojisFor(interaction) {
@@ -45,7 +49,8 @@ async function save(interaction, event, input, { update = false } = {}) {
         canAlso: previous && previous.spec === ((input.characters || [])[0] || {}).spec ? previous.canAlso : undefined,
         ...input,
     });
-    const text = result.error ? `⚠️ ${result.error}` : savedText(event, result.signup, profiles.getProfile(uid));
+    const emojis = result.error ? {} : await emojisFor(interaction);
+    const text = result.error ? `⚠️ ${result.error}` : savedText(event, result.signup, profiles.getProfile(uid), { emojis });
     return update ? done(interaction, text) : reply(interaction, text);
 }
 
@@ -66,7 +71,16 @@ async function onJoin(interaction, event) {
     return reply(interaction, buildCharacterPicker(event, uid, "signed", { emojis }));
 }
 
-/** Spät / Vielleicht / Bank: the first character of an existing signup, else ask for one. */
+/** A class from the public select (#303), or the old "Klasse wählen" button (no class yet): spec step, then the name modal. */
+async function onClass(interaction, event, classId) {
+    const why = await blocked(event, interaction.user.id, "signed");
+    if (why) return reply(interaction, why);
+    const emojis = await emojisFor(interaction);
+    if (!classId) return reply(interaction, buildClassPicker(event, "signed", { emojis }));
+    return reply(interaction, buildSpecPicker(event, "signed", classId, { emojis }) || "Unbekannte Klasse.");
+}
+
+/** Spät / Vielleicht / Bank:the first character of an existing signup, else ask for one. */
 async function onStatus(interaction, event, status) {
     const uid = interaction.user.id;
     const why = await blocked(event, uid, status);
@@ -132,6 +146,8 @@ async function onAbsence(interaction, event) {
 }
 
 module.exports = {
+    // The public select (eventPick.js) runs the same steps.
+    onJoin, onClass, reply, emojisFor,
     name: BUTTON_PREFIX,
     description: "Anmelde-Buttons unter einer EventHelper-Event-Nachricht",
     // Signing up is for every raider; every step of the flow shares this access.
@@ -149,11 +165,8 @@ module.exports = {
         switch (action) {
         case "join":
             return onJoin(interaction, event);
-        case "class": {
-            const why = await blocked(event, uid, "signed");
-            if (why) return reply(interaction, why);
-            return reply(interaction, buildClassPicker(event, "signed", { emojis: await emojisFor(interaction) }));
-        }
+        case "class":
+            return onClass(interaction, event, "");
         case "late":
         case "tentative":
         case "bench":

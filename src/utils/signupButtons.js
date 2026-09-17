@@ -3,8 +3,11 @@
 // a time. The handler is commands/signup/eventButton.js; this file holds the
 // customIds, the builders and the pure rules, so both can be tested apart.
 //
-//   event-btn:<eventId>:join          Anmelden: own characters (multi-select), or directly with only one
-//   event-btn:<eventId>:class         Klasse wählen: class → spec → name modal (adds to an existing signup)
+//   event-pick:<eventId>              the public select (#303, commands/signup/eventPick.js):
+//                                     "Meine Charaktere …" = what `join` does, a class = the spec step
+//   event-btn:<eventId>:join          Anmelden: own characters (multi-select, the classes below), or directly
+//                                     with only one — the button only sits under messages posted before #303
+//   event-btn:<eventId>:class         Klasse wählen: class → spec → name modal (adds to an existing signup; same)
 //   event-btn:<eventId>:late|tentative|bench
 //                                     signed up: the FIRST character gets that status; otherwise the
 //                                     character select (or the class way) with that status
@@ -26,7 +29,7 @@ const { getSignup, lastSignupOf } = require("../web/signupStore");
 const { migrateSignup, MAX_CHARACTERS } = require("../web/signupCharacters");
 const profiles = require("../web/raiderProfileStore");
 const { allowedStatuses, signupWindow } = require("../web/signupService");
-const { emojiOption, specEmojiName, classEmojiName, uiEmojiName } = require("../web/appEmojis");
+const { emojiOption, emojiText, specEmojiName, classEmojiName, uiEmojiName, statusEmojiName } = require("../web/appEmojis");
 const { BUTTON_PREFIX } = require("../web/eventMessage");
 const { STATUS_CODES, STATUS_BY_CODE, STATUS_STATE, classesFor, buildCharacterModal } = require("./signupDialog");
 const { characterOptions, defaultPick } = require("./joinPicker");
@@ -68,15 +71,28 @@ function characterText(profile, entry) {
     return [ch ? ch.name : entry.character, info.label || ""].filter(Boolean).join(" · ");
 }
 
-/** The confirmation after a save: one line per character with its status. */
-function savedText(event, signup, profile) {
+/**
+ * The confirmation after a save: one line per character with its status. With
+ * the application emojis (#303) a status icon heads it and every line carries
+ * the spec and the status icon; without them it stays plain text.
+ */
+function savedText(event, signup, profile, { emojis = {} } = {}) {
     const title = String((event && event.title) || "Raid");
+    const icon = (name) => emojiText(emojis, name);
+    const lead = (name, text) => [icon(name), text].filter(Boolean).join(" ");
     if (!signup || signup.status === "absence") {
-        return `Abgemeldet von **${title}**${signup && signup.comment ? ` – Grund: ${signup.comment}` : ""}.`;
+        return `${lead(uiEmojiName("absence"), `Abgemeldet von **${title}**`)}${signup && signup.comment ? ` – Grund: ${signup.comment}` : ""}.`;
     }
     const s = migrateSignup(signup);
-    const lines = s.characters.map((c, i) => `\`${i + 1}.\` ${characterText(profile, c)} – **${STATUS_WORD[c.status] || STATUS_STATE[c.status] || c.status}**`);
-    return [`Gespeichert für **${title}**:`, ...lines].join("\n");
+    const lines = s.characters.map((c, i) => {
+        const word = STATUS_WORD[c.status] || STATUS_STATE[c.status] || c.status;
+        const spec = icon(specEmojiName(c.spec));
+        const status = icon(statusEmojiName(c.status));
+        if (!spec && !status) return `\`${i + 1}.\` ${characterText(profile, c)} – **${word}**`;
+        return `\`${i + 1}\` ${[spec, characterText(profile, c)].filter(Boolean).join(" ")}  ·  ${[status, `**${word}**`].filter(Boolean).join(" ")}`;
+    });
+    const headIcon = icon(uiEmojiName("signed"));
+    return [headIcon ? `${headIcon} Gespeichert für **${title}**` : `Gespeichert für **${title}**:`, ...lines].join("\n");
 }
 
 /**
@@ -171,8 +187,26 @@ const otherClassButton = (eventId, status, emojis, label = "Andere Klasse …") 
     return button;
 };
 
+/** The class select of a step (`cls`): every class of the event's game version with its icon. */
+function classSelect(event, status, emojis, placeholder = "Klasse wählen …") {
+    return {
+        type: 3,
+        custom_id: btnId(event.id, "cls", codeOf(status)),
+        placeholder,
+        min_values: 1,
+        max_values: 1,
+        options: classesFor(event).slice(0, MAX_OPTIONS).map((c) => {
+            const option = { label: c.label, value: c.id };
+            const emoji = emojiOption(emojis, classEmojiName(c.id));
+            if (emoji) option.emoji = emoji;
+            return option;
+        }),
+    };
+}
+
 /**
- * Step: pick own characters (up to MAX_CHARACTERS). Only the member sees it.
+ * Step: pick own characters (up to MAX_CHARACTERS), the classes below them for
+ * a new character (#303). Only the member sees it.
  * @returns {{ content: string, components: object[] }}
  */
 function buildCharacterPicker(event, userId, status, { emojis = {}, notice = "" } = {}) {
@@ -202,7 +236,7 @@ function buildCharacterPicker(event, userId, status, { emojis = {}, notice = "" 
                     options,
                 }],
             },
-            { type: 1, components: [otherClassButton(event.id, status, emojis)] },
+            { type: 1, components: [classSelect(event, status, emojis, "Oder neuer Charakter: Klasse wählen …")] },
         ],
     };
 }
@@ -213,22 +247,7 @@ function buildClassPicker(event, status, { emojis = {}, notice = "" } = {}) {
     if (notice) lines.push("", notice);
     return {
         content: lines.join("\n"),
-        components: [{
-            type: 1,
-            components: [{
-                type: 3,
-                custom_id: btnId(event.id, "cls", codeOf(status)),
-                placeholder: "Klasse wählen …",
-                min_values: 1,
-                max_values: 1,
-                options: classesFor(event).slice(0, MAX_OPTIONS).map((c) => {
-                    const option = { label: c.label, value: c.id };
-                    const emoji = emojiOption(emojis, classEmojiName(c.id));
-                    if (emoji) option.emoji = emoji;
-                    return option;
-                }),
-            }],
-        }],
+        components: [{ type: 1, components: [classSelect(event, status, emojis)] }],
     };
 }
 

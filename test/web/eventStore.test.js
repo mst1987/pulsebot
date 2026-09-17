@@ -144,6 +144,8 @@ describe("web/eventStore", () => {
     it("remembers the bot's message and deletes an event", () => {
         const { event } = createEvent(base());
         expect(setEventMessage(event.id, { channelId: "c1", messageId: "m1" }).message).toEqual({ channelId: "c1", messageId: "m1" });
+        // with the hash of what it shows (#303: the sweep redraws an outdated message)
+        expect(setEventMessage(event.id, { channelId: "c1", messageId: "m1", hash: "abc" }).message).toEqual({ channelId: "c1", messageId: "m1", hash: "abc" });
         expect(setEventMessage(event.id, null).message).toBeNull();
         expect(setEventMessage("eh-missing", { messageId: "m" })).toBeNull();
         expect(deleteEvent(event.id)).toBe(true);

@@ -46,6 +46,15 @@ const ICONS = {
     closed: '<rect x="5" y="10.5" width="14" height="10.5" rx="2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>',
     // a shield — pick a class
     class: '<path d="M12 3 19.5 6v5.6c0 4.8-3.2 8-7.5 9.4-4.3-1.4-7.5-4.6-7.5-9.4V6Z"/>',
+    // The four roles of the role totals and the Tank block (#303) — flat stand-ins for the WoW role icons.
+    // a shield with a cross band — tank
+    tank: '<path d="M12 3 19.5 6v5.6c0 4.8-3.2 8-7.5 9.4-4.3-1.4-7.5-4.6-7.5-9.4V6Z"/><path d="M12 3v18M4.5 10.5h15"/>',
+    // a plus — healer
+    healer: '<path d="M9 3.5h6V9h5.5v6H15v5.5H9V15H3.5V9H9Z"/>',
+    // a sword — melee
+    melee: '<path d="M14.5 17.5 3.5 6.5v-3h3l11 11"/><path d="M13 19.5l6.5-6.5M16.2 16.2l4.3 4.3M19 21.5l2.5-2.5"/>',
+    // a target — ranged
+    ranged: '<circle cx="12" cy="12" r="8.3"/><circle cx="12" cy="12" r="3.3"/><path d="M12 1.8v4.6M12 17.6v4.6M1.8 12h4.6M17.6 12h4.6"/>',
 };
 
 /** The SVG source of one icon. */

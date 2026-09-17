@@ -15,6 +15,7 @@
 //   eh_class_<class>     eh_class_warrior                         (WoW icon)
 //   eh_role_<role>       eh_role_tank, eh_role_healer, …          (WoW icon)
 //   eh_ui_<name>         eh_ui_leader, eh_ui_date, eh_ui_signed, … (flat line icon)
+//                        eh_ui_tank|healer|melee|ranged — the flat role icons (#303)
 //
 // The `eh_ui_` icons are the message's chrome — leader, count, date, time,
 // deadline, start, the five signup statuses, closed, class — drawn flat and
@@ -41,6 +42,8 @@ const ROLE_ICONS = {
 const UI_ICONS = [
     "leader", "signups", "date", "time", "deadline", "start",
     "signed", "late", "tentative", "bench", "absence", "closed", "class",
+    // the role totals and the Tank block of the event message (#303)
+    "tank", "healer", "melee", "ranged",
 ];
 
 const slug = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
@@ -54,6 +57,8 @@ function specEmojiName(specKey) {
 const classEmojiName = (classId) => (classId ? `${PREFIX}class_${slug(classId)}`.slice(0, 32) : "");
 const roleEmojiName = (role) => (role ? `${PREFIX}role_${slug(role)}` : "");
 const uiEmojiName = (name) => (name ? `${PREFIX}ui_${slug(name)}` : "");
+/** A role's flat UI icon (`eh_ui_tank`, …) — the event message draws these instead of the WoW role icons (#303). */
+const roleUiEmojiName = (role) => (ROLES.includes(role) ? uiEmojiName(role) : "");
 /** A signup status's icon — the flat UI icon of the same name. */
 const statusEmojiName = (status) => uiEmojiName(status);
 /** Where the PNG of a UI icon lives. */
@@ -167,6 +172,6 @@ function resetAppEmojis() {
 
 module.exports = {
     ICON_BASE, PREFIX, UI_DIR, ROLE_ICONS, UI_ICONS,
-    specEmojiName, classEmojiName, roleEmojiName, uiEmojiName, statusEmojiName, uiIconFile, emojiCatalog, validEmojiName,
+    specEmojiName, classEmojiName, roleEmojiName, uiEmojiName, roleUiEmojiName, statusEmojiName, uiIconFile, emojiCatalog, validEmojiName,
     emojiText, emojiOption, appEmojiMap, appEmojisLoaded, setAppEmojis, loadAppEmojis, emojiFor, resetAppEmojis,
 };
