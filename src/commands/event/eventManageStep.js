@@ -1,5 +1,5 @@
 // The buttons and selects of "Event verwalten" (#288) — see web/eventManageBot.js
-// for the customIds. Bearbeiten, Verschieben and Absagen open their modal
+// for the customIds. Bearbeiten, Verschieben, Absagen and Löschen open their modal
 // directly (a modal cannot follow a defer); the modal submits are eventManageForm.js.
 const { MANAGE_PREFIX, handleComponent } = require("../../web/eventManageBot");
 const { guildFor } = require("../../web/eventDraft");

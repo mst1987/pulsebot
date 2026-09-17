@@ -53,6 +53,7 @@ function eventManageHandler(pathname, method) {
     if (pathname === "/api/raids/manage/raider/remove" && method === "POST") return r.postRaiderRemove;
     if (pathname === "/api/raids/manage/cancel" && method === "POST") return r.postCancel;
     if (pathname === "/api/raids/manage/reopen" && method === "POST") return r.postReopen;
+    if (pathname === "/api/raids/manage/delete" && method === "POST") return r.postDelete;
     const s = eventSeriesRoutes;
     if (pathname === "/api/raids/series") return { GET: s.getSeries, PUT: s.putSeries, DELETE: s.deleteSeries }[method] || null;
     if (pathname === "/api/raids/series/preview" && method === "GET") return s.getPreview;

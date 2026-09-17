@@ -19,6 +19,7 @@ jest.mock("../../src/web/discord", () => ({
     resolveUserNames: jest.fn(async () => ({})),
     listMembersWithRoles: jest.fn(async () => ({ members: [], error: null })),
     memberRoleIds: jest.fn(async () => null),
+    getClient: jest.fn(() => null),
 }));
 jest.mock("../../src/web/discordChannels", () => ({
     editChannel: jest.fn(async (id, { name }) => ({ id, name })),
@@ -293,6 +294,137 @@ describe("cancelling an event", () => {
         expect(result.body.warnings).toEqual(["Setup-Nachricht: Bot nicht verbunden."]);
         await manage.reopenEvent({ guildId: "g1", eventId: event.id, user: ORGA });
         expect(refreshSetupMessage).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe("deleting an event", () => {
+    const fakeClient = (onDelete = jest.fn(async () => ({}))) => {
+        const fetchMessage = jest.fn(async () => ({ delete: onDelete }));
+        return { onDelete, fetchMessage, client: { channels: { fetch: jest.fn(async () => ({ messages: { fetch: fetchMessage } })) } } };
+    };
+    let logSpy;
+    beforeEach(() => {
+        logSpy = jest.spyOn(console, "log").mockImplementation(() => {});
+    });
+    afterEach(() => logSpy.mockRestore());
+
+    it("refuses a Raid-Helper id and another server's event", async () => {
+        expect((await manage.deleteEvent({ guildId: "g1", eventId: "1234567", user: ORGA })).error.code).toBe("not_own_event");
+        expect((await manage.deleteEvent({ guildId: "g2", eventId: event.id, user: ORGA })).error.code).toBe("not_found");
+        expect(eventStore.getEvent(event.id)).not.toBeNull();
+    });
+
+    it("removes the event, its signups, reminder marks and both messages; no DM, no archive by default", async () => {
+        const { client, onDelete, fetchMessage } = fakeClient();
+        discord.getClient.mockReturnValue(client);
+        eventStore.setEventMessage(event.id, { channelId: "c1", messageId: "m1" });
+        eventStore.setEventSetupPost(event.id, { channelId: "c1", messageId: "m2" });
+        signUp(RAIDER, "Thorwald", "Warrior-Protection");
+        reminderStore.markSent(event.id, "missing");
+        const result = await manage.deleteEvent({ guildId: "g1", eventId: event.id, user: ORGA, byName: "Orga" });
+        expect(result.body).toMatchObject({ deleted: { eventId: event.id, signups: 1, messages: 2 }, dm: { sent: 0 }, archived: false, warnings: [] });
+        expect(eventStore.getEvent(event.id)).toBeNull();
+        expect(signupStore.listSignups(event.id)).toEqual([]);
+        expect(reminderStore.getSent(event.id)).toEqual({});
+        expect(fetchMessage.mock.calls.map((c) => c[0])).toEqual(["m1", "m2"]);
+        expect(onDelete).toHaveBeenCalledTimes(2);
+        expect(sendDms).not.toHaveBeenCalled();
+        expect(discordChannels.archiveChannel).not.toHaveBeenCalled();
+        expect(scheduleOverviewSync).toHaveBeenCalled();
+        // who deleted what goes to the console — the event's own log is gone
+        expect(logSpy).toHaveBeenCalledWith(expect.stringMatching(/Event eh-\S+ „SSC \+ TK“ .*gelöscht von Orga/));
+        expect((await manage.deleteEvent({ guildId: "g1", eventId: event.id, user: ORGA })).error.code).toBe("not_found");
+    });
+
+    it("counts a message deleted by hand as gone and reports other Discord failures as warnings", async () => {
+        const gone = Object.assign(new Error("Unknown Message"), { code: 10008 });
+        const denied = Object.assign(new Error("Missing Permissions"), { code: 50013 });
+        const onDelete = jest.fn().mockRejectedValueOnce(gone).mockRejectedValueOnce(denied);
+        discord.getClient.mockReturnValue(fakeClient(onDelete).client);
+        eventStore.setEventMessage(event.id, { channelId: "c1", messageId: "m1" });
+        eventStore.setEventSetupPost(event.id, { channelId: "c1", messageId: "m2" });
+        const result = await manage.deleteEvent({ guildId: "g1", eventId: event.id, user: ORGA });
+        expect(result.status).toBe(200);
+        expect(result.body.warnings).toEqual(["Setup-Nachricht nicht gelöscht: fehlende Rechte"]);
+        expect(eventStore.getEvent(event.id)).toBeNull();
+    });
+
+    it("archives the channel on request (never deletes it) and DMs only a raid ahead that was not cancelled", async () => {
+        discord.getClient.mockReturnValue(null);
+        archiveStore.saveChannelConfig("g1", { archiveCategoryId: "arch" });
+        signUp(RAIDER, "Thorwald", "Warrior-Protection");
+        signUp(OTHER, "Ysolde", "Priest-Holy", "absence");
+        const result = await manage.deleteEvent({ guildId: "g1", eventId: event.id, archiveChannel: true, notify: true, user: ORGA, byName: "Orga" });
+        expect(result.body).toMatchObject({ archived: true, dm: { sent: 1 } });
+        expect(sendDms).toHaveBeenCalledWith([RAIDER], { content: expect.stringContaining("findet nicht statt") });
+        expect(discordChannels.archiveChannel).toHaveBeenCalledWith("c1", "arch");
+        expect(archiveStore.listArchived("g1")).toEqual([expect.objectContaining({ channelId: "c1", by: ORGA.id })]);
+
+        sendDms.mockClear();
+        event = seed();
+        signUp(RAIDER, "Thorwald", "Warrior-Protection");
+        await manage.cancelEvent({ guildId: "g1", eventId: event.id, reason: "Zu wenig Heiler", notify: false, user: ORGA });
+        await manage.deleteEvent({ guildId: "g1", eventId: event.id, notify: true, user: ORGA });
+        expect(sendDms).not.toHaveBeenCalled();
+    });
+
+    it("wants an archive category when the channel should go there", async () => {
+        expect((await manage.deleteEvent({ guildId: "g1", eventId: event.id, archiveChannel: true, user: ORGA })).error.code).toBe("no_archive");
+        expect(eventStore.getEvent(event.id)).not.toBeNull();
+    });
+
+    it("deletes a raid that already started only with confirmation, names what is lost and leaves logs and loot alone", async () => {
+        discord.getClient.mockReturnValue(null);
+        const started = seed({ startTime: Math.floor(Date.now() / 1000) - 3600, signupDeadline: 0 });
+        signupStore.saveSignup(started.id, RAIDER, { character: "Thorwald", spec: "Warrior-Protection", status: "signed" });
+        const logStore = require("../../src/web/logStore");
+        const lootStore = require("../../src/web/lootStore");
+        const log = logStore.saveLog({ reportId: "abc", channelId: "c9", messageId: "m9", title: "Log" });
+        logStore.linkEvent(log.id, { eventId: started.id, eventLabel: "SSC + TK", eventStartTime: started.startTime });
+        lootStore.addImport(started.id, [{ source: "rclc", rawId: "1", itemId: 30000, character: "Thorwald" }], { eventLabel: "SSC + TK", categoryId: "cat" });
+
+        const { body } = await manage.manageInfo({ guildId: "g1", eventId: started.id });
+        expect(body.deletion).toMatchObject({ started: true, signups: 1, logs: 1, loot: 1, canNotify: false });
+
+        const refused = await manage.deleteEvent({ guildId: "g1", eventId: started.id, notify: true, user: ORGA });
+        expect(refused.error).toMatchObject({ status: 409, code: "started", message: expect.stringContaining("1 Anmeldung und die Anwesenheit") });
+        expect(eventStore.getEvent(started.id)).not.toBeNull();
+
+        const result = await manage.deleteEvent({ guildId: "g1", eventId: started.id, notify: true, confirmStarted: true, user: ORGA });
+        expect(result.status).toBe(200);
+        expect(sendDms).not.toHaveBeenCalled();
+        expect(eventStore.getEvent(started.id)).toBeNull();
+        // the log keeps its link and label, the loot its event id and label
+        expect(logStore.listLogsForEvent(started.id)).toEqual([expect.objectContaining({ eventLabel: "SSC + TK" })]);
+        expect(lootStore.eventsWithLoot()).toEqual([expect.objectContaining({ eventId: started.id, label: "SSC + TK", count: 1 })]);
+    });
+
+    it("keeps a series date taken: the mark becomes deleted — also for a hand-made event in a category with a series", async () => {
+        discord.getClient.mockReturnValue(null);
+        const seriesStore = require("../../src/web/eventSeriesStore");
+        const date = DateTime.fromSeconds(event.startTime, { zone: ZONE }).toISODate();
+        seriesStore.setRun("cat", date, { status: "created", at: 1, eventId: event.id, channelName: "mi-24-09-ssc-tk" });
+        expect((await manage.deleteEvent({ guildId: "g1", eventId: event.id, user: ORGA, byName: "Orga" })).body.seriesMarked).toBe(true);
+        expect(seriesStore.getRuns("cat")[date]).toMatchObject({ status: "deleted", eventId: event.id, deletedBy: "Orga" });
+        expect(seriesStore.claimDate("cat", date)).toBe(false);
+
+        // no series and no mark: nothing is written
+        const other = seed({ categoryId: "cat2" });
+        expect((await manage.deleteEvent({ guildId: "g1", eventId: other.id, user: ORGA })).body.seriesMarked).toBe(false);
+        expect(seriesStore.getRuns("cat2")).toEqual({});
+
+        // a series in the category but no mark yet: the date is taken now
+        seriesStore.saveSeries({ categoryId: "cat3", enabled: true, weekdays: [1], time: "19:30" });
+        const hand = seed({ categoryId: "cat3" });
+        await manage.deleteEvent({ guildId: "g1", eventId: hand.id, user: ORGA });
+        expect(seriesStore.getRuns("cat3")[DateTime.fromSeconds(hand.startTime, { zone: ZONE }).toISODate()]).toMatchObject({ status: "deleted" });
+
+        // a mark of another event on that day stays as it is
+        const mine = seed();
+        const day2 = DateTime.fromSeconds(mine.startTime, { zone: ZONE }).toISODate();
+        seriesStore.setRun("cat", day2, { status: "created", eventId: "eh-someoneelse" });
+        await manage.deleteEvent({ guildId: "g1", eventId: mine.id, user: ORGA });
+        expect(seriesStore.getRuns("cat")[day2]).toMatchObject({ status: "created", eventId: "eh-someoneelse" });
     });
 });
 

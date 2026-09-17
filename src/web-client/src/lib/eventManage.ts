@@ -3,9 +3,9 @@
 // a cancellation read, how the raider picker filters. No React in here, and
 // strippable (one-line signatures, no types inside bodies), so
 // test/web-client/eventManage.test.js runs it for real.
-import type { ManageCandidates, ManageRaider, ManageSpec, MovePlan, SignupStatus } from "../api";
+import type { ManageCandidates, ManageDeletion, ManageRaider, ManageSpec, MovePlan, SignupStatus } from "../api";
 
-export type ManageAction = "edit" | "move" | "signups" | "raider" | "ping" | "setup" | "history" | "cancel" | "reopen";
+export type ManageAction = "edit" | "move" | "signups" | "raider" | "ping" | "setup" | "history" | "cancel" | "reopen" | "delete";
 export type ManageMenuEntry = { id: ManageAction; label: string; icon: string; sub: string; danger: boolean } | "sep";
 export type ManageState = { cancelled: boolean; signupsClosed: boolean; isPast: boolean; logCount: number };
 
@@ -19,16 +19,20 @@ function sep(): ManageMenuEntry {
 
 /**
  * The menu: few entries, one per action, the dangerous one last and apart.
- * A cancelled event offers nothing but taking it back and its history; a raid
- * that started can no longer be moved, closed, pinged or cancelled.
+ * A cancelled event offers nothing but taking it back, its history and deleting;
+ * a raid that started can no longer be moved, closed, pinged or cancelled — only
+ * deleted, with a confirmation (the dialog says what is lost).
  */
 export function manageMenu(state: ManageState): ManageMenuEntry[] {
     const history = entry("history", "Verlauf", "inv_misc_book_09", state.logCount ? `${state.logCount} Einträge — wer hat wann was geändert` : "Noch nichts geändert", false);
+    const remove = entry("delete", "Löschen", "inv_misc_bone_humanskull_01", state.isPast ? "Mit Bestätigung — Anmeldungen und Anwesenheit gehen verloren" : "Event, Anmeldungen und Nachricht entfernen — der Kanal bleibt", true);
     if (state.cancelled) {
         return [
             entry("reopen", "Absage zurücknehmen", "spell_holy_divineintervention", "Anmeldung wieder offen; ein archivierter Kanal bleibt im Archiv", false),
             sep(),
             history,
+            sep(),
+            remove,
         ];
     }
     const out = [entry("edit", "Bearbeiten", "inv_misc_note_05", "Titel, Raid, Größe und Anmeldeschluss", false)];
@@ -42,7 +46,9 @@ export function manageMenu(state: ManageState): ManageMenuEntry[] {
     if (!state.isPast) out.push(entry("ping", "Fehlende pingen", "spell_holy_borrowedtime", "Raider-Rolle, aber noch keine Reaktion", false));
     out.push(entry("setup", "Setup öffnen", "inv_misc_map_01", "Gruppen einteilen und freigeben", false));
     out.push(sep(), history);
-    if (!state.isPast) out.push(sep(), entry("cancel", "Absagen", "ability_creature_cursed_02", "Mit Grund — DM an alle Angemeldeten", true));
+    out.push(sep());
+    if (!state.isPast) out.push(entry("cancel", "Absagen", "ability_creature_cursed_02", "Mit Grund — DM an alle Angemeldeten", true));
+    out.push(remove);
     return out;
 }
 
@@ -105,4 +111,36 @@ export function orgaStatuses(): SignupStatus[] {
 /** Whether the add dialog has what the server needs. */
 export function raiderInputOk(userId: string, character: string, spec: string): boolean {
     return !!userId && character.trim().length > 1 && !!spec;
+}
+
+function plural(n: number, one: string, many: string): string {
+    return `${n} ${n === 1 ? one : many}`;
+}
+
+/**
+ * What deleting takes along and what stays, as short lines for the dialog:
+ * the signups (and with them a started raid's attendance), the posted messages —
+ * while linked logs and loot keep the raid's name and stay.
+ */
+export function deleteLines(d: ManageDeletion): { gone: string[]; stays: string[] } {
+    const gone = [d.signups ? plural(d.signups, "Anmeldung", "Anmeldungen") : "keine Anmeldungen"];
+    if (d.started && d.signups) gone.push("die Anwesenheit dieses Raids");
+    if (d.messages) gone.push(d.messages === 1 ? "die Nachricht im Kanal" : "Anmelde- und Setup-Nachricht im Kanal");
+    const stays = [];
+    if (d.logs) stays.push(plural(d.logs, "Log", "Logs"));
+    if (d.loot) stays.push(plural(d.loot, "Loot-Eintrag", "Loot-Einträge"));
+    return { gone, stays };
+}
+
+/** What pressing "Löschen" does, in one line for the dialog foot. */
+export function deleteSummary(d: ManageDeletion, notify: boolean, archive: boolean): string {
+    const parts = ["Event wird entfernt"];
+    if (d.canNotify && notify && d.recipients) parts.push(`DM an ${d.recipients} Angemeldete`);
+    parts.push(archive ? "Kanal ins Archiv" : "Kanal bleibt");
+    return parts.join(" · ");
+}
+
+/** Whether "Löschen" may be pressed: a raid that already started wants the extra confirmation. */
+export function deleteReady(d: ManageDeletion | null, confirmed: boolean): boolean {
+    return !!d && (!d.started || confirmed);
 }

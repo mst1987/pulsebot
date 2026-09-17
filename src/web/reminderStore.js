@@ -57,6 +57,16 @@ function clearSent(eventId, kind) {
     return true;
 }
 
+/** Drop every mark of an event (the event was deleted). Returns true when there were any. */
+function clearEvent(eventId) {
+    const id = String(eventId || "");
+    const events = readAll();
+    if (!events[id]) return false;
+    delete events[id];
+    writeAll(events);
+    return true;
+}
+
 /** Drop marks older than `maxAgeMs` (default 30 days). Returns how many events were dropped. */
 function prune(maxAgeMs = 30 * 24 * 60 * 60 * 1000, now = Date.now()) {
     const events = readAll();
@@ -77,4 +87,4 @@ function _setFileForTests(next) {
     file = next;
 }
 
-module.exports = { getSent, markSent, clearSent, prune, _setFileForTests };
+module.exports = { getSent, markSent, clearSent, clearEvent, prune, _setFileForTests };

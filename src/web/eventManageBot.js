@@ -13,8 +13,9 @@
 //   event-manage:p:<id>             Fehlende pingen (event channel)
 //   event-manage:x:<id>             Absagen → modal (Grund, Kanal archivieren)
 //   event-manage:r:<id>             Absage zurücknehmen
+//   event-manage:l:<id>             Löschen → modal ("LÖSCHEN" eintippen, Kanal archivieren, DM)
 //   event-manage:b:<id>             back to the overview
-//   event-manage-form:<e|v|x>:<id>  the three modals' submits
+//   event-manage-form:<e|v|x|l>:<id> the four modals' submits
 //
 // Stateless like /event anlegen: everything rides in the customId (≤ 100
 // characters; own ids are "eh-" plus 14 characters), every click re-reads the
@@ -119,6 +120,7 @@ function manageView(event, { notice = "", tone = "" } = {}) {
     const last3 = [button(manageId("p", id), "Fehlende pingen", 2, cancelled)];
     if (/^https?:\/\//.test(setupUrl)) last3.push(link("Setup öffnen", setupUrl));
     last3.push(cancelled ? button(manageId("r", id), "Absage zurücknehmen", 1) : button(manageId("x", id), "Absagen", 4));
+    last3.push(button(manageId("l", id), "Löschen", 4));
     components.push(row(...last3));
     const color = tone === "ok" ? COLOR_OK : tone === "err" || cancelled ? COLOR_ERR : COLOR;
     return {
@@ -225,6 +227,34 @@ function cancelModal(event) {
         );
 }
 
+/** The word the delete modal wants typed. */
+const DELETE_WORD = "LÖSCHEN";
+
+/**
+ * Löschen: "LÖSCHEN" typed is the confirmation — for a raid that already started
+ * too, which the placeholder says. A DM is offered only for a raid still ahead
+ * that was not cancelled, default "nein".
+ */
+function deleteModal(event, now = Date.now()) {
+    const info = manage.deletionInfo(event, now);
+    const lost = info.started
+        ? `${info.signups} Anmeldungen und die Anwesenheit gehen verloren`
+        : `${info.signups} Anmeldungen und die Nachricht werden entfernt`;
+    const rows = [
+        textInput("confirm", `Zum Bestätigen ${DELETE_WORD} eintippen`, TextInputStyle.Short, { placeholder: clip(lost, 100), max: 10 }),
+        textInput("archive", "Kanal archivieren? (ja / nein)", TextInputStyle.Short, { value: "nein", required: false, max: 4 }),
+    ];
+    if (info.canNotify && info.recipients) {
+        rows.push(textInput("notify", `DM an ${info.recipients} Angemeldete? (ja / nein)`, TextInputStyle.Short, { value: "nein", required: false, max: 4 }));
+    }
+    return new ModalBuilder()
+        .setCustomId(`${FORM_PREFIX}:l:${event.id}`)
+        .setTitle(clip(`${event.title} löschen`, 45))
+        .addComponents(...rows);
+}
+
+const YES = /^(j|ja|y|yes|1)$/i;
+
 function field(interaction, id) {
     try {
         return String(interaction.fields.getTextInputValue(id) || "").trim();
@@ -271,6 +301,7 @@ async function handleComponent(interaction, guildId) {
     if (f === "e") return interaction.showModal(editModal(event));
     if (f === "v") return interaction.showModal(moveModal(event));
     if (f === "x") return interaction.showModal(cancelModal(event));
+    if (f === "l") return interaction.showModal(deleteModal(event));
 
     await interaction.deferUpdate();
     const edit = (payload) => interaction.editReply(payload);
@@ -347,9 +378,25 @@ async function handleForm(interaction, guildId, now = Date.now()) {
         return edit(movePreviewView(planned.plan));
     }
     if (f === "x") {
-        const archive = /^(j|ja|y|yes|1)$/i.test(field(interaction, "archive"));
+        const archive = YES.test(field(interaction, "archive"));
         const result = await manage.cancelEvent({ guildId, eventId: event.id, reason: field(interaction, "reason"), archiveChannel: archive, notify: true, ...actor });
         return edit(overview(event.id, noticeOf(result)));
+    }
+    if (f === "l") {
+        if (field(interaction, "confirm").toUpperCase() !== DELETE_WORD) {
+            return edit(overview(event.id, { notice: `⚠️ Nicht gelöscht — zum Bestätigen „${DELETE_WORD}“ eintippen.`, tone: "err" }));
+        }
+        const result = await manage.deleteEvent({
+            guildId, eventId: event.id, confirmStarted: true,
+            archiveChannel: YES.test(field(interaction, "archive")), notify: YES.test(field(interaction, "notify")), ...actor, now,
+        });
+        if (result.error) return edit(overview(event.id, { notice: `⚠️ ${result.error.message}`, tone: "err" }));
+        const warnings = (result.body.warnings || []).map((w) => `⚠️ ${w}`);
+        return edit({
+            content: "",
+            embeds: [{ title: clip(`${event.title} gelöscht`, 256), description: [result.body.message, ...warnings].join("\n"), color: warnings.length ? COLOR : COLOR_OK }],
+            components: [],
+        });
     }
     return edit(overview(event.id));
 }
@@ -368,5 +415,5 @@ function openPayload(guildId, where, now = Date.now()) {
 module.exports = {
     MANAGE_PREFIX, FORM_PREFIX,
     manageId, parseManageId, findEvent, summaryLine, manageView, raiderView, movePreviewView,
-    editModal, moveModal, cancelModal, handleComponent, handleForm, openPayload,
+    editModal, moveModal, cancelModal, deleteModal, DELETE_WORD, handleComponent, handleForm, openPayload,
 };

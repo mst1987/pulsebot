@@ -1,6 +1,6 @@
 // "Event verwalten" (#288): everything the orga does with an EventHelper event
 // after it was created — move it, close or open the signup, sign raiders up or
-// off, cancel it (and take the cancellation back). One service for the web
+// off, cancel it (and take the cancellation back), delete it. One service for the web
 // (apiRoutes/eventManage.js) and Discord (commands/event/eventManage*.js).
 //
 // Three rules hold for every action:
@@ -11,6 +11,8 @@
 //     told), a cancellation says whom it DMs;
 //   * everything is logged on the event (`eventStore.appendEventLog`): who, when,
 //     what. Editing through the create dialog (eventCreate.updateEvent) logs too.
+//     Deleting takes the log along, so `deleteEvent` writes who deleted what to
+//     the console instead.
 //
 // Discord calls are best-effort after the store changed: a channel that cannot be
 // renamed or a DM that does not arrive is reported, never a rolled-back action.
@@ -20,6 +22,9 @@ const signupStore = require("./signupStore");
 const signupService = require("./signupService");
 const profiles = require("./raiderProfileStore");
 const reminderStore = require("./reminderStore");
+const seriesStore = require("./eventSeriesStore");
+const logStore = require("./logStore");
+const lootStore = require("./lootStore");
 const channelNaming = require("./channelNaming");
 const discordChannels = require("./discordChannels");
 const archiveStore = require("./channelArchiveStore");
@@ -485,6 +490,170 @@ async function reopenEvent({ guildId, eventId, user, byName }) {
     };
 }
 
+// ---- Löschen ---------------------------------------------------------------
+
+/** Discord's "this is gone already": unknown message / unknown channel. */
+const isGone = (e) => !!(e && (e.code === 10008 || e.code === 10003 || /unknown (message|channel)/i.test(e.message || "")));
+
+/** Delete one bot message; a message that is already gone counts as deleted. Throws on anything else. */
+async function deleteMessage(where) {
+    if (!where || !where.messageId || !where.channelId) return false;
+    const client = discord.getClient();
+    if (!client) throw new Error("Bot nicht verbunden.");
+    try {
+        const channel = await client.channels.fetch(where.channelId);
+        if (!channel || !channel.messages) return false;
+        const message = await channel.messages.fetch(where.messageId);
+        await message.delete();
+        return true;
+    } catch (e) {
+        if (isGone(e)) return false;
+        throw e;
+    }
+}
+
+/**
+ * What deleting an event takes along and what stays: its signups (and with them
+ * the attendance of a raid that already started), the posted messages — while
+ * linked logs and imported loot keep their own copy of the raid's name and stay.
+ * Pure over the stores; nothing changes.
+ */
+function deletionInfo(event, now = Date.now()) {
+    const signups = signupStore.listSignups(event.id);
+    const started = (Number(event.startTime) || 0) * 1000 <= now;
+    const cancelled = event.status === "cancelled";
+    let logs = 0;
+    let loot = 0;
+    try {
+        logs = logStore.listLogsForEvent(event.id).length;
+        loot = lootStore.listByEvent(event.id).length;
+    } catch {
+        // counts are a hint only
+    }
+    return {
+        started,
+        cancelled,
+        signups: signups.length,
+        recipients: signups.filter((s) => s.status !== "absence").length,
+        messages: (event.message && event.message.messageId ? 1 : 0) + (event.setupPost && event.setupPost.messageId ? 1 : 0),
+        logs,
+        loot,
+        // A DM only makes sense for a raid that is still ahead and was not called off already.
+        canNotify: !started && !cancelled,
+    };
+}
+
+/** The DM a raider gets when an event they signed up for is deleted (only on request). */
+function deleteDm(event) {
+    const start = Number(event.startTime) || 0;
+    return `🗑️ **${event.title}**${start ? ` am <t:${start}:F>` : ""} findet nicht statt — das Event wurde entfernt.`;
+}
+
+/**
+ * A series (#289) must never create a deleted date anew: its run mark becomes
+ * `deleted` — when the series made this event, or when the category has a
+ * series at all (a hand-made event on a series date stands for that date too).
+ * A mark that belongs to another event of that day stays as it is.
+ */
+function markSeriesDeleted(event, actor, now) {
+    const categoryId = str(event.categoryId);
+    if (!categoryId || !event.startTime) return false;
+    const date = isoDay(event.startTime);
+    const mark = seriesStore.getRuns(categoryId)[date];
+    if (!mark && !seriesStore.getSeries(categoryId)) return false;
+    if (mark && mark.eventId && mark.eventId !== event.id) return false;
+    seriesStore.setRun(categoryId, date, { status: "deleted", at: now, eventId: event.id, error: "", deletedBy: actor.byName || actor.by });
+    return true;
+}
+
+/**
+ * Delete an own event for good: the event, its signups, its reminder marks, the
+ * signup and setup messages in Discord (best-effort), a series date stays taken.
+ * A raid that already started needs `confirmStarted` — its signups are its
+ * attendance. Optionally the channel goes into the archive (never deleted) and,
+ * for a raid still ahead that was not cancelled, the signed-up raiders get a DM
+ * (`notify`, off by default: mostly test or mistaken events are deleted).
+ * Linked logs and loot are left alone; they carry the raid's name themselves.
+ */
+async function deleteEvent({ guildId, eventId, archiveChannel = false, notify = false, confirmStarted = false, user, byName, now = Date.now() }) {
+    const found = ownEvent(guildId, eventId, { allowCancelled: true });
+    if (found.error) return found;
+    const { event } = found;
+    const info = deletionInfo(event, now);
+    if (info.started && !confirmStarted) {
+        return fail(409, "started", `Der Raid hat schon begonnen — mit dem Event gehen ${info.signups} ${info.signups === 1 ? "Anmeldung" : "Anmeldungen"} und die Anwesenheit verloren. Bitte bestätigen.`);
+    }
+    const archiveId = archiveChannel ? archiveCategoryOf(event.guildId || guildId) : "";
+    if (archiveChannel && !archiveId) return fail(400, "no_archive", "Für diesen Server ist keine Archiv-Kategorie festgelegt (Kanäle → Archiv).");
+
+    const actor = actorOf(user, byName);
+    const recipients = recipientsOf(event.id).map((s) => s.userId);
+
+    // The stores first: a sync that runs meanwhile finds no event and posts nothing.
+    eventStore.deleteEvent(event.id);
+    signupStore.deleteEventSignups(event.id);
+    reminderStore.clearEvent(event.id);
+    const seriesMarked = markSeriesDeleted(event, actor, now);
+
+    const warnings = [];
+    let messagesDeleted = 0;
+    for (const [label, where] of [["Anmelde-Nachricht", event.message], ["Setup-Nachricht", event.setupPost]]) {
+        if (!where || !where.messageId) continue;
+        try {
+            if (await deleteMessage(where)) messagesDeleted += 1;
+        } catch (e) {
+            warnings.push(`${label} nicht gelöscht: ${discordChannels.discordErrorText(e)}`);
+        }
+    }
+
+    let dm = { sent: [], failed: [] };
+    if (notify && info.canNotify && recipients.length) {
+        try {
+            dm = await sendDms(recipients, { content: deleteDm(event) });
+        } catch (e) {
+            dm = { sent: [], failed: recipients, error: (e && e.message) || "Bot nicht verbunden." };
+        }
+        if (dm.failed.length) warnings.push(`${dm.failed.length} ${dm.failed.length === 1 ? "DM kam" : "DMs kamen"} nicht an (DMs geschlossen?)`);
+    }
+
+    let archived = false;
+    if (archiveId && event.channelId) {
+        try {
+            const moved = await discordChannels.archiveChannel(event.channelId, archiveId);
+            archiveStore.recordArchived({ ...moved, guildId: moved.guildId || event.guildId, channelId: moved.id, by: actor.by, byName: actor.byName, at: now });
+            archived = true;
+        } catch (e) {
+            warnings.push(`Kanal nicht archiviert: ${discordChannels.discordErrorText(e)}`);
+        }
+    }
+    scheduleOverviewSync();
+
+    // The event's own log went with it — the console keeps who deleted what.
+    console.log(`[eventManage] Event ${event.id} „${event.title}“ (${whenLabel(event.startTime)}) gelöscht von ${actor.byName || "?"} (${actor.by || "?"}) · ${[
+        `${info.signups} Anmeldungen`,
+        messagesDeleted ? `${messagesDeleted} Nachrichten` : "",
+        dm.sent.length ? `${dm.sent.length} DMs` : "",
+        archived ? "Kanal archiviert" : "",
+        seriesMarked ? "Serientermin gesperrt" : "",
+    ].filter(Boolean).join(" · ")}`);
+
+    const parts = [`„${event.title}“ gelöscht`];
+    if (info.signups) parts.push(`${info.signups} ${info.signups === 1 ? "Anmeldung" : "Anmeldungen"} entfernt`);
+    if (dm.sent.length) parts.push(`${dm.sent.length} per DM informiert`);
+    if (archived) parts.push("Kanal im Archiv");
+    return {
+        status: 200,
+        body: {
+            message: `${parts.join(" · ")}.`,
+            deleted: { eventId: event.id, signups: info.signups, messages: messagesDeleted },
+            dm: { sent: dm.sent.length, failed: dm.failed.length },
+            archived,
+            seriesMarked,
+            warnings,
+        },
+    };
+}
+
 /** An event's log for display, newest first. */
 function logView(event) {
     return [...(event.log || [])].reverse().map((e) => ({ ...e, label: ACTION_LABELS[e.action] || e.action }));
@@ -519,6 +688,7 @@ async function manageInfo({ guildId, eventId, now = Date.now() }) {
             archive: { configured: !!archiveId },
             setup: setupSummary(event),
             log: logView(event),
+            deletion: deletionInfo(event, now),
         },
     };
 }
@@ -594,5 +764,5 @@ function setupPath(eventId) {
 module.exports = {
     ACTION_LABELS, STATUS_LABELS, MIN_REASON,
     whenLabel, startTimeOf, ownEvent, recipientsOf, channelPlan, movePlan, moveEvent, setSignupsOpen,
-    addRaider, removeRaider, cancelEvent, reopenEvent, manageInfo, raiderCandidates, logView, setupPath, cancelDm,
+    addRaider, removeRaider, cancelEvent, reopenEvent, deleteEvent, deletionInfo, deleteDm, manageInfo, raiderCandidates, logView, setupPath, cancelDm,
 };
