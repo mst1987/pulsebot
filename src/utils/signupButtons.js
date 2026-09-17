@@ -1,0 +1,294 @@
+// The signup buttons under an EventHelper event message (web/eventMessage.js):
+// what the member sees after a click — short ephemeral messages, one select at
+// a time. The handler is commands/signup/eventButton.js; this file holds the
+// customIds, the builders and the pure rules, so both can be tested apart.
+//
+//   event-btn:<eventId>:join          Anmelden: own characters (multi-select), or directly with only one
+//   event-btn:<eventId>:class         Klasse wählen: class → spec → name modal (adds to an existing signup)
+//   event-btn:<eventId>:late|tentative|bench
+//                                     signed up: the FIRST character gets that status; otherwise the
+//                                     character select (or the class way) with that status
+//   event-btn:<eventId>:absence       Absagen: a modal with the reason (required)
+//
+// Steps (the status rides along as the dialog's code s/t/l/b):
+//   event-btn:<eventId>:pick:<code>          own characters · specs, up to MAX_CHARACTERS — saves
+//   event-btn:<eventId>:other:<code>         "Andere Klasse …" → the class select
+//   event-btn:<eventId>:cls:<code>           class select → spec select
+//   event-btn:<eventId>:spec:<code>          spec select → name modal
+//   event-btn:<eventId>:name:<code>:<spec>   the name modal — adds the character to the profile, saves
+//   event-btn:<eventId>:why                  the absence modal — saves
+//
+// Nothing is kept in memory; every step reads event, profile and signup again
+// and every save goes through signupService.submitSignup (deadline, closed,
+// cancelled, raider role, profile rules). A customId is a hint, never a permission.
+const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
+const { getSignup, lastSignupOf } = require("../web/signupStore");
+const { migrateSignup, MAX_CHARACTERS } = require("../web/signupCharacters");
+const profiles = require("../web/raiderProfileStore");
+const { allowedStatuses, signupWindow } = require("../web/signupService");
+const { emojiOption, specEmojiName, classEmojiName, uiEmojiName } = require("../web/appEmojis");
+const { BUTTON_PREFIX } = require("../web/eventMessage");
+const { STATUS_CODES, STATUS_BY_CODE, STATUS_STATE, classesFor, buildCharacterModal } = require("./signupDialog");
+const { characterOptions, defaultPick } = require("./joinPicker");
+
+const MAX_OPTIONS = 25;
+const MAX_REASON = 100;
+const GEAR_TEXT = { ready: "raidbereit", usable: "brauchbar", none: "kein Gear" };
+// What a status is called in a sentence: "als **Spät**".
+const STATUS_WORD = { signed: "Dabei", tentative: "Vielleicht", late: "Spät", bench: "Bank" };
+
+const btnId = (eventId, ...parts) => [BUTTON_PREFIX, eventId, ...parts].join(":");
+const codeOf = (status) => STATUS_CODES[status] || "s";
+
+/** `{ eventId, action, status, arg }` from a customId of this flow (status from the code, "" when none). */
+function parseButtonId(customId) {
+    const [, eventId = "", action = "", code = "", ...rest] = String(customId || "").split(":");
+    const status = STATUS_BY_CODE[code] && code !== "a" ? STATUS_BY_CODE[code] : "";
+    return { eventId, action, status, arg: rest.join(":") };
+}
+
+/**
+ * Why a status cannot be chosen for this event right now, in the member's words — "" when it can.
+ * The service refuses the same on save; this only saves a pointless step.
+ */
+function refusal(event, status, now = Date.now()) {
+    if (!event) return "Dieses Event gibt es nicht mehr.";
+    if (event.status === "cancelled") return "Das Event wurde abgesagt.";
+    if (allowedStatuses(event, { now }).includes(status)) return "";
+    const w = signupWindow(event, now);
+    if (w.started) return "Der Raid hat schon begonnen – Anmeldungen sind geschlossen.";
+    if (event.signupsClosed) return "Die Anmeldung ist geschlossen – du kannst nur noch absagen.";
+    return "Der Anmeldeschluss ist vorbei – nur noch „Spät“ oder Absagen.";
+}
+
+/** "Zibbo · Heilig" for a character entry. */
+function characterText(profile, entry) {
+    const ch = ((profile && profile.characters) || []).find((c) => c.key === profiles.characterKey(entry.character));
+    const info = profiles.specInfo(entry.spec) || {};
+    return [ch ? ch.name : entry.character, info.label || ""].filter(Boolean).join(" · ");
+}
+
+/** The confirmation after a save: one line per character with its status. */
+function savedText(event, signup, profile) {
+    const title = String((event && event.title) || "Raid");
+    if (!signup || signup.status === "absence") {
+        return `Abgemeldet von **${title}**${signup && signup.comment ? ` – Grund: ${signup.comment}` : ""}.`;
+    }
+    const s = migrateSignup(signup);
+    const lines = s.characters.map((c, i) => `\`${i + 1}.\` ${characterText(profile, c)} – **${STATUS_WORD[c.status] || STATUS_STATE[c.status] || c.status}**`);
+    return [`Gespeichert für **${title}**:`, ...lines].join("\n");
+}
+
+/**
+ * The characters for "Anmelden" on an existing signup: the picks in their
+ * listed order, each with the given status.
+ */
+function picksWithStatus(picks, status) {
+    return picks.slice(0, MAX_CHARACTERS).map((p) => ({ character: p.character, spec: p.spec, status }));
+}
+
+/**
+ * A status button on an existing signup: the first character gets the status,
+ * the others keep theirs. null when there is nothing to move (no signup, an absence).
+ */
+function firstCharacterTo(signup, status) {
+    const s = signup ? migrateSignup(signup) : null;
+    if (!s || s.status === "absence" || !(s.characters || []).length) return null;
+    return s.characters.map((c, i) => ({ character: c.character, spec: c.spec, status: i === 0 ? status : c.status }));
+}
+
+/**
+ * A character added through the class way: appended to an existing signup
+ * (replacing the same character's entry in place), or the only one of a new
+ * signup. `{ error }` when the signup is already full.
+ */
+function withAddedCharacter(signup, entry) {
+    const s = signup ? migrateSignup(signup) : null;
+    if (!s || s.status === "absence" || !(s.characters || []).length) return { characters: [entry], status: entry.status };
+    const key = profiles.characterKey(entry.character);
+    const list = s.characters.map((c) => ({ character: c.character, spec: c.spec, status: c.status }));
+    const at = list.findIndex((c) => profiles.characterKey(c.character) === key);
+    if (at >= 0) list[at] = entry;
+    else if (list.length >= MAX_CHARACTERS) {
+        return { error: `Du bist schon mit ${MAX_CHARACTERS} Charakteren angemeldet – wähle über „Anmelden“ neu aus.` };
+    } else list.push(entry);
+    return { characters: list, status: list[0].status };
+}
+
+/**
+ * The priority order of picked values: as the select listed its options
+ * (Discord hands the values back in that order, not in click order).
+ */
+function orderedValues(values, listed) {
+    const set = new Set((values || []).map(String));
+    const order = (listed || []).map((o) => String(o.value));
+    const known = order.filter((v) => set.has(v));
+    const rest = [...set].filter((v) => !order.includes(v));
+    return [...known, ...rest].map((v) => {
+        const [character = "", spec = ""] = v.split("|");
+        return { character, spec };
+    });
+}
+
+/**
+ * The own characters · specs as select options: the current signup's characters
+ * first (preselected, in their order), then the rest — the likeliest pick
+ * (last used, else the main's best spec) on top.
+ */
+function pickOptions(profile, userId, eventId, { emojis = {} } = {}) {
+    const options = characterOptions(profile);
+    const mine = migrateSignup(getSignup(eventId, userId));
+    const current = mine && mine.status !== "absence"
+        ? (mine.characters || []).map((c) => options.find((o) => o.character === profiles.characterKey(c.character) && o.spec === c.spec)).filter(Boolean)
+        : [];
+    const likely = current.length ? null : defaultPick(options, { last: lastSignupOf(userId) });
+    const first = current.length ? current : (likely ? [likely] : []);
+    const ordered = [...first, ...options.filter((o) => !first.includes(o))];
+    return ordered.slice(0, MAX_OPTIONS).map((o) => {
+        const info = profiles.specInfo(o.spec) || {};
+        const option = {
+            label: `${o.name} · ${info.label || o.spec}`.slice(0, 100),
+            value: `${o.character}|${o.spec}`.slice(0, 100),
+            description: [o.main ? "Main" : "", GEAR_TEXT[o.gear] || ""].filter(Boolean).join(" · ").slice(0, 100) || undefined,
+            default: current.includes(o),
+        };
+        const emoji = emojiOption(emojis, specEmojiName(o.spec));
+        if (emoji) option.emoji = emoji;
+        return option;
+    });
+}
+
+const headLine = (event, status) => {
+    const start = Number(event.startTime) || 0;
+    return `**${String(event.title || "Raid")}**${start ? ` · <t:${start}:f>` : ""} · ${status === "signed" ? "Anmelden" : `als **${STATUS_WORD[status]}**`}`;
+};
+
+const otherClassButton = (eventId, status, emojis, label = "Andere Klasse …") => {
+    const button = { type: 2, style: 2, custom_id: btnId(eventId, "other", codeOf(status)), label };
+    const emoji = emojiOption(emojis, uiEmojiName("class"));
+    if (emoji) button.emoji = emoji;
+    return button;
+};
+
+/**
+ * Step: pick own characters (up to MAX_CHARACTERS). Only the member sees it.
+ * @returns {{ content: string, components: object[] }}
+ */
+function buildCharacterPicker(event, userId, status, { emojis = {}, notice = "" } = {}) {
+    const profile = profiles.getProfile(userId) || { characters: [] };
+    const options = pickOptions(profile, userId, event.id, { emojis });
+    const max = Math.min(MAX_CHARACTERS, options.length);
+    const lines = [headLine(event, status)];
+    lines.push(max > 1
+        ? `Wähle bis zu ${max} Charaktere – der oberste in der Liste ist deine 1. Wahl.`
+        : "Wähle deinen Charakter.");
+    if (notice) lines.push("", notice);
+    return {
+        content: lines.join("\n"),
+        components: [
+            {
+                type: 1,
+                components: [{
+                    type: 3,
+                    custom_id: btnId(event.id, "pick", codeOf(status)),
+                    placeholder: "Charakter wählen …",
+                    min_values: 1,
+                    max_values: Math.max(1, max),
+                    options,
+                }],
+            },
+            { type: 1, components: [otherClassButton(event.id, status, emojis)] },
+        ],
+    };
+}
+
+/** Step: the classes of the event's game version. */
+function buildClassPicker(event, status, { emojis = {}, notice = "" } = {}) {
+    const lines = [headLine(event, status), "Welche Klasse?"];
+    if (notice) lines.push("", notice);
+    return {
+        content: lines.join("\n"),
+        components: [{
+            type: 1,
+            components: [{
+                type: 3,
+                custom_id: btnId(event.id, "cls", codeOf(status)),
+                placeholder: "Klasse wählen …",
+                min_values: 1,
+                max_values: 1,
+                options: classesFor(event).slice(0, MAX_OPTIONS).map((c) => {
+                    const option = { label: c.label, value: c.id };
+                    const emoji = emojiOption(emojis, classEmojiName(c.id));
+                    if (emoji) option.emoji = emoji;
+                    return option;
+                }),
+            }],
+        }],
+    };
+}
+
+/** Step: the specs of the picked class, with a way back to the classes. null for an unknown class. */
+function buildSpecPicker(event, status, classId, { emojis = {} } = {}) {
+    const cls = classesFor(event).find((c) => c.id === classId);
+    if (!cls) return null;
+    return {
+        content: `${headLine(event, status)}\n**${cls.label}** – welche Spec?`,
+        components: [
+            {
+                type: 1,
+                components: [{
+                    type: 3,
+                    custom_id: btnId(event.id, "spec", codeOf(status)),
+                    placeholder: "Spec wählen …",
+                    min_values: 1,
+                    max_values: 1,
+                    options: cls.specs.slice(0, MAX_OPTIONS).map((s) => {
+                        const option = { label: s.label, value: s.key };
+                        const emoji = emojiOption(emojis, specEmojiName(s.key));
+                        if (emoji) option.emoji = emoji;
+                        return option;
+                    }),
+                }],
+            },
+            { type: 1, components: [otherClassButton(event.id, status, emojis, "Andere Klasse")] },
+        ],
+    };
+}
+
+/**
+ * The name modal after a spec: prefilled with the member's character of that
+ * class (the main first), else their Discord display name.
+ */
+function buildNameModal(event, userId, status, specKey, { displayName = "" } = {}) {
+    const info = profiles.specInfo(specKey) || {};
+    const profile = profiles.getProfile(userId) || { characters: [] };
+    const sameClass = profile.characters.filter((c) => c.className === info.classId);
+    const known = sameClass.find((c) => c.main) || sameClass[0];
+    const cls = classesFor(event).find((c) => c.id === info.classId);
+    return buildCharacterModal(btnId(event.id, "name", codeOf(status), specKey), {
+        defaultName: known ? known.name : displayName,
+        classText: [cls ? cls.label : info.classId, info.label].filter(Boolean).join(" · "),
+    });
+}
+
+/** The absence modal: the reason is required and short. */
+function buildAbsenceModal(eventId) {
+    const input = new TextInputBuilder()
+        .setCustomId("reason")
+        .setLabel("Grund")
+        .setPlaceholder("z. B. Arbeit, Urlaub, krank")
+        .setStyle(TextInputStyle.Short)
+        .setMinLength(2)
+        .setMaxLength(MAX_REASON)
+        .setRequired(true);
+    return new ModalBuilder()
+        .setCustomId(btnId(eventId, "why"))
+        .setTitle("Absagen")
+        .addComponents(new ActionRowBuilder().addComponents(input));
+}
+
+module.exports = {
+    MAX_REASON, STATUS_WORD, btnId, parseButtonId, refusal, characterText, savedText,
+    picksWithStatus, firstCharacterTo, withAddedCharacter, orderedValues, pickOptions,
+    buildCharacterPicker, buildClassPicker, buildSpecPicker, buildNameModal, buildAbsenceModal,
+};

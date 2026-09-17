@@ -33,6 +33,7 @@
         "moment-timezone": "^0.5.43"
     },
     "devDependencies": {
+        "@resvg/resvg-js": "^2.6.2",
         "eslint": "^9.39.2",
         "jest": "^30.4.2",
         "nodemon": "^3.1.11"

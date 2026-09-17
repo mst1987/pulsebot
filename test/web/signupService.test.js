@@ -167,7 +167,7 @@ describe("mehrere Charaktere je Anmeldung (#293)", () => {
         expect(await service.submitSignup("eh-kara", ANNA, { characters: [both[0], { character: "Nerathil", spec: "Priest-Holy" }] }, { now: NOW }))
             .toMatchObject({ code: "spec" });
         const twice = await service.submitSignup("eh-kara", ANNA, { characters: [both[1], { character: "Nerathil", spec: "Mage-Arcane" }] }, { now: NOW });
-        expect(twice.signup.characters).toEqual([{ character: "Nerathil", spec: "Mage-Fire", role: "ranged" }]);
+        expect(twice.signup.characters).toEqual([{ character: "Nerathil", spec: "Mage-Fire", role: "ranged", status: "signed" }]);
         profiles.addCharacter(ANNA, { name: "Brokk", className: "Warrior", specs: ["Warrior-Protection"] }, { name: "Anna" });
         profiles.addCharacter(ANNA, { name: "Zul", className: "Rogue", specs: ["Rogue-Combat"] }, { name: "Anna" });
         const four = [...both, { character: "Brokk", spec: "Warrior-Protection" }, { character: "Zul", spec: "Rogue-Combat" }];
@@ -182,13 +182,76 @@ describe("mehrere Charaktere je Anmeldung (#293)", () => {
         // nach dem Anmeldeschluss: gleiche Charaktere + gleicher Status = nur der Kommentar ändert sich
         const late = NOW + 2.5 * 86400 * 1000;
         expect((await service.submitSignup("eh-kara", ANNA, { character: "Nerasol", spec: "Priest-Holy", status: "tentative", comment: "neu" }, { now: late })).signup.comment).toBe("neu");
-        expect(await service.submitSignup("eh-kara", ANNA, { characters: [both[0]], status: "tentative" }, { now: late })).toMatchObject({ code: "deadline" });
+        // ein Charakter weniger ist wie ein Teil-Abmelden und geht; ein neuer Charakter als „Vielleicht“ nicht
+        expect((await service.submitSignup("eh-kara", ANNA, { characters: [both[0]], status: "tentative" }, { now: late })).signup.characters).toHaveLength(1);
+        expect(await service.submitSignup("eh-kara", ANNA, { characters: both, status: "tentative" }, { now: late })).toMatchObject({ code: "deadline" });
     });
 
     it("liest eine alte Einzel-Anmeldung als characters[0]", async () => {
         mockSignups.set(`eh-kara/${ANNA}`, { userId: ANNA, character: "Nerathil", spec: "Mage-Arcane", role: "ranged", status: "signed", at: 1 });
         const res = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed", comment: "x" }, { now: NOW + 2.5 * 86400 * 1000 });
-        expect(res.signup.characters).toEqual([{ character: "Nerathil", spec: "Mage-Arcane", role: "ranged" }]);
+        expect(res.signup.characters).toEqual([{ character: "Nerathil", spec: "Mage-Arcane", role: "ranged", status: "signed" }]);
+    });
+});
+
+describe("Status je Charakter (Anmelde-Buttons)", () => {
+    const both = [{ character: "Nerasol", spec: "Priest-Holy" }, { character: "Nerathil", spec: "Mage-Fire" }];
+    const late = NOW + 2.5 * 86400 * 1000;
+
+    it("speichert einen eigenen Status je Charakter, die Anmeldung spiegelt den ersten", async () => {
+        const res = await service.submitSignup("eh-kara", ANNA, {
+            characters: [{ ...both[0], status: "late" }, both[1]], status: "signed",
+        }, { now: NOW });
+        expect(res.signup.status).toBe("late");
+        expect(res.signup.characters.map((c) => c.status)).toEqual(["late", "signed"]);
+        // „Abgemeldet“ gibt es nur für die ganze Anmeldung: je Charakter gilt dann der Status der Anmeldung
+        const odd = await service.submitSignup("eh-kara", ANNA, { characters: [{ ...both[0], status: "absence" }], status: "tentative" }, { now: NOW });
+        expect(odd.signup.characters.map((c) => c.status)).toEqual(["tentative"]);
+        expect(require("../../src/web/signupStore").normalizeSignup({ characters: [{ spec: "Mage-Fire", status: "absence" }] }).error).toMatch(/Unbekannter Status/);
+    });
+
+    it("behält die Status der Charaktere, solange der Status der Anmeldung gleich bleibt", async () => {
+        await service.submitSignup("eh-kara", ANNA, { characters: [{ ...both[0], status: "late" }, both[1]] }, { now: NOW });
+        // die Web-Seite speichert nur den Kommentar: „Spät“ bleibt am ersten, „Dabei“ am zweiten
+        const kept = await service.submitSignup("eh-kara", ANNA, { characters: both, status: "late", comment: "20:30" }, { now: NOW });
+        expect(kept.signup.characters.map((c) => c.status)).toEqual(["late", "signed"]);
+        // ein neuer Status für die Anmeldung gilt für alle
+        const all = await service.submitSignup("eh-kara", ANNA, { characters: both, status: "bench" }, { now: NOW });
+        expect(all.signup.characters.map((c) => c.status)).toEqual(["bench", "bench"]);
+        // eine Abmeldung trägt keinen Status je Charakter, die Wiederanmeldung nimmt den neuen
+        const off = await service.submitSignup("eh-kara", ANNA, { characters: both, status: "absence" }, { now: NOW });
+        expect(off.signup.characters.every((c) => c.status === undefined)).toBe(true);
+        const back = await service.submitSignup("eh-kara", ANNA, { character: "Nerasol", spec: "Priest-Holy", status: "tentative" }, { now: NOW });
+        expect(back.signup.characters.map((c) => c.status)).toEqual(["tentative", "tentative"]);
+    });
+
+    it("nach dem Anmeldeschluss: nur der erste auf „Spät“, die anderen bleiben unverändert", async () => {
+        await service.submitSignup("eh-kara", ANNA, { characters: both, status: "signed" }, { now: NOW });
+        const res = await service.submitSignup("eh-kara", ANNA, { characters: [{ ...both[0], status: "late" }, { ...both[1], status: "signed" }], status: "late" }, { now: late });
+        expect(res.error).toBeUndefined();
+        expect(res.signup.characters.map((c) => c.status)).toEqual(["late", "signed"]);
+        // der zweite auf „Vielleicht“ ist eine Änderung – nach dem Schluss nicht mehr
+        expect(await service.submitSignup("eh-kara", ANNA, { characters: [{ ...both[0], status: "late" }, { ...both[1], status: "tentative" }], status: "late" }, { now: late }))
+            .toMatchObject({ code: "deadline" });
+    });
+
+    it("geschlossene Anmeldung: kein „Spät“ mehr, Abmelden geht", async () => {
+        await service.submitSignup("eh-kara", ANNA, { characters: both, status: "signed" }, { now: NOW });
+        mockEvents.set("eh-kara", event({ signupsClosed: true }));
+        expect(await service.submitSignup("eh-kara", ANNA, { characters: [{ ...both[0], status: "late" }, both[1]], status: "late" }, { now: NOW }))
+            .toMatchObject({ code: "closed" });
+        expect((await service.submitSignup("eh-kara", ANNA, { characters: both, status: "absence", comment: "krank" }, { now: NOW })).signup)
+            .toMatchObject({ status: "absence", comment: "krank" });
+    });
+
+    it("liest eine gespeicherte Anmeldung ohne Status je Charakter mit dem Status der Anmeldung", () => {
+        const { migrateSignup } = require("../../src/web/signupCharacters");
+        const old = { userId: ANNA, status: "bench", character: "Nerasol", spec: "Priest-Holy", role: "healer", characters: [{ character: "Nerasol", spec: "Priest-Holy", role: "healer" }, { character: "Nerathil", spec: "Mage-Fire", role: "ranged" }] };
+        expect(migrateSignup(old).characters.map((c) => c.status)).toEqual(["bench", "bench"]);
+        // die Felder oben spiegeln den ersten – auch seinen Status
+        const mixed = { ...old, status: "signed", characters: [{ ...old.characters[0], status: "late" }, old.characters[1]] };
+        expect(migrateSignup(mixed)).toMatchObject({ status: "late", characters: [{ status: "late" }, { status: "signed" }] });
+        expect(migrateSignup({ ...old, status: "absence" }).characters.every((c) => !("status" in c))).toBe(true);
     });
 });
 

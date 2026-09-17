@@ -22,7 +22,7 @@ const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
 const SIGNUPS_FILE = path.join(SETTINGS_DIR, "signups.json");
 
 const MAX_COMMENT = 300;
-const { MAX_CHARACTERS, migrateSignup } = require("./signupCharacters");
+const { MAX_CHARACTERS, migrateSignup, characterStatus } = require("./signupCharacters");
 
 // Whoever wants to know that a roster changed (the bot's event message).
 const listeners = new Set();
@@ -79,7 +79,9 @@ function getSignup(eventId, userId) {
  * character's own. An absence needs no spec — somebody signing off is not
  * choosing a character.
  *
- * `characters` = [{ character, spec }] in priority order (#293); without it the
+ * `characters` = [{ character, spec, status? }] in priority order (#293; a
+ * character without `status` takes the signup's, the signup's status becomes
+ * the first character's — an absence stores no per-character status); without it the
  * single `character`/`spec` is the one entry. The same character twice counts
  * once (its first spec); more than MAX_CHARACTERS are refused.
  * @returns {{ value?: object, error?: string }}
@@ -102,7 +104,12 @@ function normalizeSignup(input = {}, { versionId = DEFAULT_VERSION } = {}) {
         if (key && seen.has(key)) continue;
         if (key) seen.add(key);
         if (characters.length >= MAX_CHARACTERS) return { error: `Höchstens ${MAX_CHARACTERS} Charaktere je Anmeldung.` };
-        characters.push({ character: name, spec: found.key, role: found.role });
+        const entryStatus = String((entry && entry.status) || "").trim();
+        if (entryStatus && !characterStatus(entryStatus)) return { error: `Unbekannter Status „${entryStatus}“ für ${name || specKey}.` };
+        const out = { character: name, spec: found.key, role: found.role };
+        // A character's own status (Discord's "Spät" moves only the first); an absence carries none.
+        if (status !== "absence") out.status = entryStatus || status;
+        characters.push(out);
     }
     const first = characters[0] || null;
     if (!first && status !== "absence") return { error: "Für eine Anmeldung fehlt die Spezialisierung." };
@@ -116,7 +123,8 @@ function normalizeSignup(input = {}, { versionId = DEFAULT_VERSION } = {}) {
             spec: first ? first.spec : "",
             role,
             characters,
-            status,
+            // The signup's status mirrors its first character's.
+            status: first && status !== "absence" ? first.status : status,
             canAlso,
             comment: String(input.comment || "").trim().slice(0, MAX_COMMENT),
         },

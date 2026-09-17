@@ -206,6 +206,13 @@ describe("PUT /api/signups", () => {
         expect(signup).toMatchObject({ character: "Nerasol", specLabel: expect.any(String), role: "healer" });
         expect(signup.characters.map((c) => [c.character, c.spec, c.role])).toEqual([["Nerasol", "Priest-Holy", "healer"], ["Nerathil", "Mage-Arcane", "ranged"]]);
         expect(signup.characters[1]).toMatchObject({ className: "Mage", classColor: expect.any(String), specIcon: expect.any(String) });
+        // each character carries its own status (the Discord buttons can move only the first)
+        const mixed = await call(route.putSignup, ANNA, { json: {
+            eventId: "eh-kara", status: "signed",
+            characters: [{ character: "Nerasol", spec: "Priest-Holy", status: "late" }, { character: "Nerathil", spec: "Mage-Arcane" }],
+        } });
+        expect(body(mixed).data.signup.status).toBe("late");
+        expect(body(mixed).data.signup.characters.map((c) => c.status)).toEqual(["late", "signed"]);
     });
 });
 

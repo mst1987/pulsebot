@@ -59,4 +59,21 @@ describe("scripts/sync-app-emojis", () => {
         const big = async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(300 * 1024), headers: { get: () => null } });
         await expect(downloadIcon("u", big)).rejects.toThrow("zu groß");
     });
+
+    it("uploads a catalogue entry with a local file from disk, without asking the web", async () => {
+        const { readIconFile } = require("../../src/web/appEmojiSync");
+        const rest = restWith([]);
+        const readFile = jest.fn(async () => Buffer.from([4, 5, 6]));
+        const local = [{ name: "eh_ui_leader", icon: "leader", file: "/assets/emojis/eh_ui_leader.png" }];
+        const out = await syncAppEmojis({ rest, routes, clientId: "app", catalog: local, fetchImpl: okFetch, readFile, log: () => {} });
+        expect(out.created).toEqual(["eh_ui_leader"]);
+        expect(readFile).toHaveBeenCalledWith("/assets/emojis/eh_ui_leader.png");
+        expect(okFetch).not.toHaveBeenCalled();
+        expect(rest.post).toHaveBeenCalledWith("/applications/app/emojis", { body: { name: "eh_ui_leader", image: "data:image/png;base64,BAUG" } });
+        await expect(readIconFile("x.svg", readFile)).rejects.toThrow("unbekanntes Bildformat");
+        await expect(readIconFile("x.png", async () => Buffer.alloc(300 * 1024))).rejects.toThrow("zu groß");
+        // the real checked-in file reads as a PNG data uri
+        const { uiIconFile } = require("../../src/web/appEmojis");
+        await expect(readIconFile(uiIconFile("signed"))).resolves.toMatch(/^data:image\/png;base64,iVBOR/);
+    });
 });

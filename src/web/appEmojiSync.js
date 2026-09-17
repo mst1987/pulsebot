@@ -1,5 +1,6 @@
-// Creates the bot's missing application emojis (#287): spec, class, role and
-// status icons from `appEmojis.emojiCatalog()`, downloaded from wow.zamimg.com.
+// Creates the bot's missing application emojis (#287): spec, class and role
+// icons from `appEmojis.emojiCatalog()`, downloaded from wow.zamimg.com, and the
+// flat UI icons read from their checked-in PNGs (assets/emojis/).
 //
 // Used in two places: the bot calls `ensureAppEmojis(client)` once when it is
 // ready, so a fresh application (production included) gets its icons without a
@@ -7,6 +8,8 @@
 // (`--dry-run` lists only). Idempotent: it reads the application's emojis first
 // and creates only names that do not exist yet — an existing emoji is never
 // replaced or deleted.
+const fs = require("fs");
+const path = require("path");
 const { Routes } = require("discord.js");
 const { emojiCatalog, validEmojiName, loadAppEmojis } = require("./appEmojis");
 
@@ -29,12 +32,28 @@ async function downloadIcon(url, fetchImpl = fetch) {
     return `data:${type.split(";")[0]};base64,${buf.toString("base64")}`;
 }
 
+const FILE_TYPES = { ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp" };
+
+/** A checked-in icon file (the flat UI icons, assets/emojis/) as a data URI. */
+async function readIconFile(file, readFile = fs.promises.readFile) {
+    const type = FILE_TYPES[path.extname(String(file || "")).toLowerCase()];
+    if (!type) throw new Error(`unbekanntes Bildformat: ${path.basename(String(file || ""))}`);
+    const buf = await readFile(file);
+    if (buf.length > MAX_BYTES) throw new Error(`zu groß (${buf.length} Bytes)`);
+    return `data:${type};base64,${Buffer.from(buf).toString("base64")}`;
+}
+
+/** The image of a catalogue entry: its local `file`, else its `url`. */
+function iconImage(entry, { fetchImpl = fetch, readFile } = {}) {
+    return entry.file ? readIconFile(entry.file, readFile) : downloadIcon(entry.url, fetchImpl);
+}
+
 /**
  * Create every catalogue emoji the application does not have yet.
  * @returns {Promise<{ existing: number, missing: string[], created: string[], failed: { name: string, error: string }[] }>}
  */
 async function syncAppEmojis({
-    rest, routes = Routes, clientId, catalog = emojiCatalog(), dryRun = false, fetchImpl = fetch, log = console.log,
+    rest, routes = Routes, clientId, catalog = emojiCatalog(), dryRun = false, fetchImpl = fetch, readFile, log = console.log,
 }) {
     const have = await existingNames({ rest, routes, clientId });
     const wanted = catalog.filter((e) => validEmojiName(e.name));
@@ -47,7 +66,7 @@ async function syncAppEmojis({
     }
     for (const e of missing) {
         try {
-            const image = await downloadIcon(e.url, fetchImpl);
+            const image = await iconImage(e, { fetchImpl, readFile });
             await rest.post(routes.applicationEmojis(clientId), { body: { name: e.name, image } });
             out.created.push(e.name);
             log(`  angelegt: ${e.name}`);
@@ -84,4 +103,4 @@ async function ensureAppEmojis(client, { fetchImpl = fetch, log = (m) => console
     return result;
 }
 
-module.exports = { MAX_BYTES, existingNames, downloadIcon, syncAppEmojis, ensureAppEmojis };
+module.exports = { MAX_BYTES, existingNames, downloadIcon, readIconFile, iconImage, syncAppEmojis, ensureAppEmojis };
