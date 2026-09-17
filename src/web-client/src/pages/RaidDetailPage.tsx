@@ -15,6 +15,7 @@ import type { ManageAction } from "../lib/eventManage";
 import ManageMenu from "./raid-detail/manage/ManageMenu";
 import MoveModal from "./raid-detail/manage/MoveModal";
 import CancelModal from "./raid-detail/manage/CancelModal";
+import DeleteModal from "./raid-detail/manage/DeleteModal";
 import RaiderModal from "./raid-detail/manage/RaiderModal";
 import HistoryModal from "./raid-detail/manage/HistoryModal";
 import "../styles/event-manage.css";
@@ -149,6 +150,7 @@ export default function RaidDetailPage() {
         else if (action === "ping") setModal("ping");
         else if (action === "history") setModal("history");
         else if (action === "cancel") setModal("cancel");
+        else if (action === "delete") setModal("delete");
         else if (action === "setup") switchTab("setup");
         else if (action === "signups") {
             const open = !!ev.signupsClosed;
@@ -218,6 +220,7 @@ export default function RaidDetailPage() {
                 <>
                     <MoveModal ctx={ctx} open={modal === "move"} onClose={close} />
                     <CancelModal ctx={ctx} open={modal === "cancel"} onClose={close} />
+                    <DeleteModal ctx={ctx} open={modal === "delete"} onClose={close} />
                     <RaiderModal ctx={ctx} open={modal === "raider"} onClose={close} />
                     <HistoryModal ctx={ctx} open={modal === "history"} onClose={close} />
                 </>

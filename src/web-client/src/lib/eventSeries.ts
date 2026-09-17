@@ -52,6 +52,7 @@ const STATE_BADGE = {
     created: badge("angelegt", "ok"),
     existing: badge("vorhanden", "ok"),
     cancelled: badge("abgesagt", "mid"),
+    deleted: badge("gelöscht", "mid"),
     failed: badge("Fehler", "bad"),
     skipped: badge("übersprungen", "mid"),
     off: badge("Serie aus", ""),
@@ -72,6 +73,7 @@ export function dateLine(o: SeriesDate): string {
         case "created": return `angelegt am ${momentDay(o.at)} ${momentTime(o.at)}${channel}`;
         case "existing": return `Event gab es schon${channel} — nichts angelegt`;
         case "cancelled": return "abgesagt — wird nicht neu angelegt";
+        case "deleted": return "Event gelöscht — wird nicht neu angelegt";
         case "failed": return `fehlgeschlagen: ${o.error || "unbekannter Fehler"}${o.willRetry ? " · neuer Versuch folgt" : ""}`;
         case "skipped": return "übersprungen — hier wird nichts angelegt";
         case "off": return "Serie ist aus";
@@ -86,7 +88,7 @@ export function dateLine(o: SeriesDate): string {
  */
 export function nextDate(upcoming: SeriesDate[]): SeriesDate | null {
     const list = upcoming || [];
-    const done = ["skipped", "created", "existing", "cancelled"];
+    const done = ["skipped", "created", "existing", "cancelled", "deleted"];
     return list.find((o) => !done.includes(o.state)) || list.find((o) => o.state !== "skipped") || null;
 }
 

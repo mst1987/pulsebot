@@ -12,6 +12,7 @@
 //   POST /api/raids/manage/raider/remove               { event, userId }
 //   POST /api/raids/manage/cancel                      { event, reason, archiveChannel, notify }
 //   POST /api/raids/manage/reopen                      { event }
+//   POST /api/raids/manage/delete                      { event, archiveChannel, notify, confirmStarted }
 const { ok, error } = require("../apiResponse");
 const { requireAdmin, requireCsrf } = require("../apiMiddleware");
 const { readJsonBody } = require("../apiBody");
@@ -111,6 +112,18 @@ async function postReopen(req, res) {
     send(res, await manage.reopenEvent({ guildId: a.guildId, eventId: a.body.event, user: a.user, byName: a.user.name }));
 }
 
+async function postDelete(req, res) {
+    const a = await action(req, res);
+    if (!a) return;
+    const b = a.body;
+    send(res, await manage.deleteEvent({
+        guildId: a.guildId, eventId: b.event,
+        // both off unless asked for: mostly test or mistaken events are deleted
+        archiveChannel: b.archiveChannel === true, notify: b.notify === true, confirmStarted: b.confirmStarted === true,
+        user: a.user, byName: a.user.name,
+    }));
+}
+
 module.exports = {
-    getManage, getMovePreview, postMove, postSignups, getRaiderCandidates, postRaider, postRaiderRemove, postCancel, postReopen,
+    getManage, getMovePreview, postMove, postSignups, getRaiderCandidates, postRaider, postRaiderRemove, postCancel, postReopen, postDelete,
 };

@@ -993,7 +993,7 @@ export type EventSetup = { total: number; groups: SetupGroup[]; roleCounts?: Par
 
 /** One step of the Raid-Detail progress bar — built by src/web/raidDetailSteps.js. */
 export type RaidStepKey = "signup" | "setup" | "sheet" | "softres" | "loot" | "logs";
-export type RaidDetailModal = "notify" | "sheet" | "softres" | "loot" | "log" | "ping" | "move" | "cancel" | "raider" | "history";
+export type RaidDetailModal = "notify" | "sheet" | "softres" | "loot" | "log" | "ping" | "move" | "cancel" | "raider" | "history" | "delete";
 export type RaidStep = {
     key: RaidStepKey;
     label: string;
@@ -1081,6 +1081,12 @@ export type ManageInfo = {
     recipients: { userId: string; name: string; character: string; status: SignupStatus }[];
     archive: { configured: boolean };
     log: ManageLogEntry[];
+    /** What deleting the event takes along and what stays. */
+    deletion: ManageDeletion;
+};
+export type ManageDeletion = {
+    started: boolean; cancelled: boolean; signups: number; recipients: number; messages: number;
+    logs: number; loot: number; canNotify: boolean;
 };
 export type MovePlan = {
     eventId: string;
@@ -1143,6 +1149,13 @@ export function cancelRaid(csrfToken: string | null, input: { event: string; rea
 
 export function reopenRaid(csrfToken: string | null, input: { event: string }): Promise<ManageResult> {
     return send("POST", "/api/raids/manage/reopen", csrfToken, input);
+}
+
+export function deleteRaid(
+    csrfToken: string | null,
+    input: { event: string; archiveChannel: boolean; notify: boolean; confirmStarted: boolean },
+): Promise<ManageResult> {
+    return send("POST", "/api/raids/manage/delete", csrfToken, input);
 }
 
 export type RaidDetailEventSheet = {
@@ -1572,7 +1585,7 @@ export type EventSeries = EventSeriesInput & {
 };
 
 export type SeriesDateState =
-    | "planned" | "due" | "creating" | "interrupted" | "created" | "existing" | "cancelled" | "failed" | "skipped" | "off";
+    | "planned" | "due" | "creating" | "interrupted" | "created" | "existing" | "cancelled" | "deleted" | "failed" | "skipped" | "off";
 
 /** One coming date of a series and what happens to it. */
 export type SeriesDate = {

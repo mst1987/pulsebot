@@ -66,14 +66,16 @@ describe("the lines a date reads as", () => {
             .toBe("angelegt am Do 17.09. 19:31 als #mi-23-09-ssc-tk");
         expect(lib.dateLine(date({ state: "cancelled" }))).toMatch(/nicht neu angelegt/);
         expect(lib.dateLine(date({ state: "skipped" }))).toMatch(/übersprungen/);
+        expect(lib.dateLine(date({ state: "deleted" }))).toBe("Event gelöscht — wird nicht neu angelegt");
         expect(lib.dateLine(date({ state: "failed", error: "fehlende Rechte", willRetry: true }))).toBe("fehlgeschlagen: fehlende Rechte · neuer Versuch folgt");
         expect(lib.dateLine(date({ state: "existing", channelName: "mi-23" }))).toMatch(/gab es schon als #mi-23/);
     });
 
     it("gives every state a badge and a tone", () => {
-        for (const s of ["planned", "due", "creating", "interrupted", "created", "existing", "cancelled", "failed", "skipped", "off"]) {
+        for (const s of ["planned", "due", "creating", "interrupted", "created", "existing", "cancelled", "deleted", "failed", "skipped", "off"]) {
             expect(lib.stateBadge(s).label).toBeTruthy();
         }
+        expect(lib.stateBadge("deleted").label).toBe("gelöscht");
         expect(lib.stateBadge("failed").tone).toBe("bad");
         expect(lib.stateBadge("created").tone).toBe("ok");
     });
@@ -81,6 +83,7 @@ describe("the lines a date reads as", () => {
     it("names the next date the series still has to act on, and what it created last", () => {
         expect(lib.nextDate([date({ date: "a", state: "skipped" }), date({ date: "b" })]).date).toBe("b");
         expect(lib.nextDate([date({ date: "a", state: "created" }), date({ date: "b" })]).date).toBe("b");
+        expect(lib.nextDate([date({ date: "a", state: "deleted" }), date({ date: "b" })]).date).toBe("b");
         expect(lib.nextDate([date({ date: "a", state: "skipped" }), date({ date: "b", state: "created" })]).date).toBe("b");
         expect(lib.nextDate([])).toBeNull();
         expect(lib.channelOf(date({ previewName: "mi-23" }))).toBe("mi-23");

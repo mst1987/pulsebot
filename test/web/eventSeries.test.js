@@ -177,6 +177,20 @@ describe("runSeries", () => {
         expect(createEvent).toHaveBeenCalledTimes(1);
     });
 
+    it("does not create a date again whose event was deleted, and shows it as deleted", async () => {
+        store.saveSeries({ ...base, guildId: "g1" });
+        await series.runSeries({ now });
+        // eventManage.deleteEvent turns the mark into "deleted"; the event is gone from every list
+        store.setRun("cat1", "2026-09-16", { status: "deleted", at: now, eventId: "eh-1" });
+        expect(series.dueDates(base, store.getRuns("cat1"), now + 60 * 1000)).toEqual([]);
+        expect((await series.runSeries({ now: now + 60 * 60 * 1000 })).created).toBe(0);
+        expect(createEvent).toHaveBeenCalledTimes(1);
+        const plan = series.planSeries(base, store.getRuns("cat1"), { now, events: [] });
+        expect(plan[0]).toMatchObject({ date: "2026-09-16", state: "deleted" });
+        // it is no failure the dashboard reports
+        expect(series.seriesFailures({ now })).toEqual([]);
+    });
+
     it("never creates a date twice when two sweeps overlap", async () => {
         store.saveSeries({ ...base, guildId: "g1" });
         let release;
