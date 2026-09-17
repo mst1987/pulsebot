@@ -19,6 +19,8 @@
 //     retried on its own: nobody can tell whether its channel exists;
 //   - a date that already has an event in the category (any source, any
 //     status — a cancelled one included, #288) is only marked, never created;
+//   - a date whose event was deleted (eventManage.deleteEvent) keeps a
+//     "deleted" mark and is never created again;
 //   - a skipped date (holiday) is left alone; nothing happens once the raid
 //     would have started.
 //
@@ -143,7 +145,7 @@ function dueDates(series, runs = {}, now = Date.now()) {
 
 /**
  * What the page shows per coming date: `state` is one of
- * planned | due | creating | interrupted | created | existing | cancelled | failed | skipped,
+ * planned | due | creating | interrupted | created | existing | cancelled | deleted | failed | skipped,
  * with the mark's details. `events` are the category's events (any source) with
  * `{ id, startTime, status, channelName }`. Pure.
  */
@@ -175,6 +177,7 @@ function planSeries(series, runs = {}, { now = Date.now(), count = 4, events = [
         else if (mark && mark.status === "existing") state = "existing";
         else if (mark && mark.status === "creating") state = now - base.at > STALE_CREATING_MS ? "interrupted" : "creating";
         else if (ev) state = "existing";
+        else if (mark && mark.status === "deleted") state = "deleted";
         else if (mark && mark.status === "failed") state = "failed";
         else if (o.skipped) state = "skipped";
         else if (!series.enabled) state = "off";

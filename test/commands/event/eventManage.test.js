@@ -22,6 +22,7 @@ jest.mock("../../../src/web/discord", () => ({
     resolveUserNames: jest.fn(async () => ({})),
     listMembersWithRoles: jest.fn(async () => ({ members: [], error: null })),
     memberRoleIds: jest.fn(async () => null),
+    getClient: jest.fn(() => null),
 }));
 jest.mock("../../../src/web/discordChannels", () => ({
     editChannel: jest.fn(async (id, { name }) => ({ id, name })),
@@ -110,7 +111,7 @@ describe("opening", () => {
         expect(payload.embeds[0].description).toContain("1/25");
         expect(buttons(payload).map((b) => b.label || b.placeholder)).toEqual([
             "Bearbeiten", "Verschieben", "Anmeldung schließen", "Raider eintragen / austragen …",
-            "Fehlende pingen", "Setup öffnen", "Absagen",
+            "Fehlende pingen", "Setup öffnen", "Absagen", "Löschen",
         ]);
         expect(buttons(payload).find((b) => b.label === "Setup öffnen").url).toBe(`https://eh.test/raids/detail?event=${event.id}&tab=setup`);
         // every customId fits Discord's 100 characters
@@ -142,8 +143,8 @@ describe("opening", () => {
 });
 
 describe("actions", () => {
-    it("Bearbeiten, Verschieben and Absagen open their modal without deferring", async () => {
-        for (const [field, title] of [["e", "bearbeiten"], ["v", "verschieben"], ["x", "absagen"]]) {
+    it("Bearbeiten, Verschieben, Absagen and Löschen open their modal without deferring", async () => {
+        for (const [field, title] of [["e", "bearbeiten"], ["v", "verschieben"], ["x", "absagen"], ["l", "löschen"]]) {
             const i = interaction({ customId: bot.manageId(field, event.id) });
             await stepCommand.execute(i);
             expect(i.deferUpdate).not.toHaveBeenCalled();
@@ -233,6 +234,46 @@ describe("actions", () => {
         const back = interaction({ customId: reopen.custom_id });
         await stepCommand.execute(back);
         expect(eventStore.getEvent(event.id).status).toBe("active");
+    });
+
+    it("deletes only with LÖSCHEN typed: the event and its signups go, the message is deleted, the panel says so", async () => {
+        const message = { delete: jest.fn(async () => ({})) };
+        const client = { channels: { fetch: jest.fn(async () => ({ messages: { fetch: jest.fn(async () => message) } })) } };
+        require("../../../src/web/discord").getClient.mockReturnValue(client);
+
+        const modal = interaction({ customId: bot.manageId("l", event.id) });
+        await stepCommand.execute(modal);
+        const fields = lastPayload(modal.showModal).toJSON().components.map((r) => r.components[0].custom_id);
+        // a raid still ahead: the DM is offered, "nein" by default
+        expect(fields).toEqual(["confirm", "archive", "notify"]);
+
+        const wrong = interaction({ customId: `event-manage-form:l:${event.id}`, modal: true, options: { confirm: "ja", archive: "nein", notify: "nein" } });
+        await formCommand.execute(wrong);
+        expect(eventStore.getEvent(event.id)).not.toBeNull();
+        expect(lastPayload(wrong.editReply).embeds[0].description).toMatch(/LÖSCHEN/);
+
+        const i = interaction({ customId: `event-manage-form:l:${event.id}`, modal: true, options: { confirm: "löschen", archive: "nein", notify: "nein" } });
+        await formCommand.execute(i);
+        expect(eventStore.getEvent(event.id)).toBeNull();
+        expect(signupStore.listSignups(event.id)).toEqual([]);
+        expect(message.delete).toHaveBeenCalled();
+        expect(sendDms).not.toHaveBeenCalled();
+        const payload = lastPayload(i.editReply);
+        expect(payload.embeds[0].title).toBe("SSC + TK gelöscht");
+        expect(payload.embeds[0].description).toContain("1 Anmeldung entfernt");
+        expect(payload.components).toEqual([]);
+    });
+
+    it("offers no DM in the delete modal for a cancelled event, and deletes a started raid once LÖSCHEN is typed", async () => {
+        eventStore.setEventState(event.id, { status: "cancelled", cancel: { reason: "x" } });
+        const modal = interaction({ customId: bot.manageId("l", event.id) });
+        await stepCommand.execute(modal);
+        expect(lastPayload(modal.showModal).toJSON().components.map((r) => r.components[0].custom_id)).toEqual(["confirm", "archive"]);
+
+        eventStore.updateEvent(event.id, { startTime: Math.floor(Date.now() / 1000) - 3600 });
+        const i = interaction({ customId: `event-manage-form:l:${event.id}`, modal: true, options: { confirm: "LÖSCHEN", archive: "nein" } });
+        await formCommand.execute(i);
+        expect(eventStore.getEvent(event.id)).toBeNull();
     });
 
     it("a click on an event that is gone, or of another server, says so", async () => {

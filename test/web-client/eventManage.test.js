@@ -60,8 +60,8 @@ describe("the manage menu", () => {
 
     it("lists every action once, the dangerous one last and apart", () => {
         const menu = lib.manageMenu(base);
-        expect(ids(menu)).toEqual(["edit", "move", "signups", "raider", "ping", "setup", "|", "history", "|", "cancel"]);
-        expect(menu.filter((e) => e !== "sep" && e.danger).map((e) => e.id)).toEqual(["cancel"]);
+        expect(ids(menu)).toEqual(["edit", "move", "signups", "raider", "ping", "setup", "|", "history", "|", "cancel", "delete"]);
+        expect(menu.filter((e) => e !== "sep" && e.danger).map((e) => e.id)).toEqual(["cancel", "delete"]);
         // every entry says what it does
         for (const e of menu.filter((x) => x !== "sep")) expect(e.sub.length).toBeGreaterThan(5);
     });
@@ -72,9 +72,12 @@ describe("the manage menu", () => {
         expect(lib.manageMenu({ ...base, logCount: 3 }).find((e) => e.id === "history").sub).toMatch(/^3 Einträge/);
     });
 
-    it("offers only taking back and the history for a cancelled event, and nothing time-bound for a past raid", () => {
-        expect(ids(lib.manageMenu({ ...base, cancelled: true }))).toEqual(["reopen", "|", "history"]);
-        expect(ids(lib.manageMenu({ ...base, isPast: true }))).toEqual(["edit", "raider", "setup", "|", "history"]);
+    it("offers only taking back, the history and deleting for a cancelled event, and nothing time-bound for a past raid", () => {
+        expect(ids(lib.manageMenu({ ...base, cancelled: true }))).toEqual(["reopen", "|", "history", "|", "delete"]);
+        const past = lib.manageMenu({ ...base, isPast: true });
+        expect(ids(past)).toEqual(["edit", "raider", "setup", "|", "history", "|", "delete"]);
+        // a past raid is deleted only with a confirmation, and the entry says what is lost
+        expect(past.find((e) => e.id === "delete").sub).toMatch(/Bestätigung.*Anwesenheit/);
     });
 });
 
@@ -101,6 +104,21 @@ describe("the dialogs' rules", () => {
         expect(lib.cancelSummary(18, false, false)).toBe("Nachricht wird als ABGESAGT markiert · keine DM");
         expect(lib.cancelReasonOk("  ")).toBe(false);
         expect(lib.cancelReasonOk("Zu wenig Heiler")).toBe(true);
+    });
+
+    it("says what deleting takes along and what stays, and wants a confirmation for a started raid", () => {
+        const d = { started: false, cancelled: false, signups: 12, recipients: 10, messages: 2, logs: 0, loot: 0, canNotify: true };
+        expect(lib.deleteLines(d)).toEqual({ gone: ["12 Anmeldungen", "Anmelde- und Setup-Nachricht im Kanal"], stays: [] });
+        const past = { ...d, started: true, signups: 1, messages: 1, logs: 2, loot: 1, canNotify: false };
+        expect(lib.deleteLines(past)).toEqual({ gone: ["1 Anmeldung", "die Anwesenheit dieses Raids", "die Nachricht im Kanal"], stays: ["2 Logs", "1 Loot-Eintrag"] });
+        expect(lib.deleteSummary(d, false, false)).toBe("Event wird entfernt · Kanal bleibt");
+        expect(lib.deleteSummary(d, true, true)).toBe("Event wird entfernt · DM an 10 Angemeldete · Kanal ins Archiv");
+        // no DM where none is offered, even if the switch was left on
+        expect(lib.deleteSummary(past, true, false)).toBe("Event wird entfernt · Kanal bleibt");
+        expect(lib.deleteReady(null, true)).toBe(false);
+        expect(lib.deleteReady(d, false)).toBe(true);
+        expect(lib.deleteReady(past, false)).toBe(false);
+        expect(lib.deleteReady(past, true)).toBe(true);
     });
 
     it("finds raiders by Discord name or character and wants raider, character and spec", () => {
@@ -139,7 +157,7 @@ describe("the raid detail page", () => {
     });
 
     it("opens a dialog per action, asks once for closing and taking back, and wires the edit dialog", () => {
-        for (const modal of ["MoveModal", "CancelModal", "RaiderModal", "HistoryModal"]) {
+        for (const modal of ["MoveModal", "CancelModal", "DeleteModal", "RaiderModal", "HistoryModal"]) {
             const src = read("pages", "raid-detail", "manage", `${modal}.tsx`);
             expect({ modal, usesModal: src.includes("<Modal") }).toEqual({ modal, usesModal: true });
             expect(page).toContain(`<${modal} ctx={ctx}`);
@@ -163,6 +181,20 @@ describe("the raid detail page", () => {
         expect(cancel).toContain("hint={cancelSummary(recipients, notify, archive)}");
         expect(cancel).toContain("info && !info.archive.configured");
         expect(cancel).toContain("variant=\"danger\"");
+    });
+
+    it("deletes after one dialog: what goes and stays, the started-raid switch, then back to the raid list", () => {
+        const del = read("pages", "raid-detail", "manage", "DeleteModal.tsx");
+        expect(page).toContain("else if (action === \"delete\") setModal(\"delete\");");
+        expect(del).toContain("disabled={!deleteReady(d, confirmed)}");
+        expect(del).toContain("deleteLines(d)");
+        expect(del).toContain("hint={d ? deleteSummary(d, notify, archive) : undefined}");
+        expect(del).toContain("d && d.started && (");
+        expect(del).toContain("d && d.canNotify && d.recipients > 0 && (");
+        expect(del).toContain("navigate(\"/raids\")");
+        // both switches start off
+        expect(del).toContain("const [notify, setNotify] = useState(false);");
+        expect(del).toContain("const [archive, setArchive] = useState(false);");
     });
 
     it("marks a cancelled event and a closed signup in the head", () => {

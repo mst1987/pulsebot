@@ -18,6 +18,7 @@ jest.mock("../../src/web/eventManage", () => ({
     removeRaider: jest.fn(async () => ({ status: 200, body: { message: "ausgetragen" } })),
     cancelEvent: jest.fn(async () => ({ status: 200, body: { message: "abgesagt" } })),
     reopenEvent: jest.fn(async () => ({ status: 200, body: { message: "offen" } })),
+    deleteEvent: jest.fn(async () => ({ status: 200, body: { message: "gelöscht", warnings: [] } })),
 }));
 
 const { readJsonBody } = require("../../src/web/apiBody");
@@ -29,7 +30,7 @@ const ORGA = { id: "orga", name: "Orga", isAdmin: false, access: { raids: { read
 const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
 const PATHS = [
     "/api/raids/manage", "/api/raids/manage/move", "/api/raids/manage/signups", "/api/raids/manage/raider",
-    "/api/raids/manage/raider/remove", "/api/raids/manage/cancel", "/api/raids/manage/reopen",
+    "/api/raids/manage/raider/remove", "/api/raids/manage/cancel", "/api/raids/manage/reopen", "/api/raids/manage/delete",
 ];
 
 const res = () => ({ writeHead: jest.fn(), end: jest.fn() });
@@ -94,5 +95,17 @@ describe("handlers", () => {
         expect(manage.cancelEvent).toHaveBeenCalledWith(expect.objectContaining({ reason: "Zu wenig Heiler", archiveChannel: true, notify: true }));
         const reopen = await call(route.postReopen, ORGA, { event: "eh-a" });
         expect(body(reopen)).toMatchObject({ message: "offen" });
+    });
+
+    it("deletes with archive, DM and the started-raid confirmation all off unless sent as true", async () => {
+        await call(route.postDelete, ORGA, { event: "eh-a" });
+        expect(manage.deleteEvent).toHaveBeenLastCalledWith({
+            guildId: "g1", eventId: "eh-a", archiveChannel: false, notify: false, confirmStarted: false, user: ORGA, byName: "Orga",
+        });
+        await call(route.postDelete, ORGA, { event: "eh-a", archiveChannel: true, notify: true, confirmStarted: true });
+        expect(manage.deleteEvent).toHaveBeenLastCalledWith(expect.objectContaining({ archiveChannel: true, notify: true, confirmStarted: true }));
+        manage.deleteEvent.mockResolvedValueOnce({ error: { status: 409, code: "started", message: "Bitte bestätigen." } });
+        const refused = await call(route.postDelete, ORGA, { event: "eh-a" });
+        expect(status(refused)).toBe(409);
     });
 });
