@@ -19,7 +19,7 @@ npm run lint:fix       # Auto-fix lint issues
 npm run register       # Register slash commands to guild (instant)
 npm run register:global  # Register globally (takes ~1 hour)
 npm run register:clear   # Remove all guild slash commands
-node scripts/sync-app-emojis.js --dry-run  # App-Emojis (icons of the event message): list missing; without flag create them
+node scripts/sync-app-emojis.js --dry-run  # App-Emojis (icons of the event message): list missing; without flag create them (the bot also does this on start)
 node src/discordcommands/raidhelper.js  # Legacy command registration script
 ```
 
@@ -543,8 +543,8 @@ The message in an own event's channel is built like Raid-Helper's, with icons in
 Spec, class, role and status icons are **application emojis of the bot's Discord application** (discord.js ≥ 14.16), so they work on the event and the talk server, in embeds and in select options.
 
 - **Names** (≤32, `[a-z0-9_]`): `eh_<class>_<spec>` (`eh_priest_shadow`), `eh_class_<class>`, `eh_role_<tank|healer|melee|ranged>`, `eh_status_<signed|tentative|late|bench|absence>`. `emojiCatalog()` lists all 46 with their icon (the rule set's `icon` names for specs/classes, `ROLE_ICONS`/`STATUS_ICONS` for the rest), downloaded from `wow.zamimg.com/images/wow/icons/medium/<icon>.jpg`.
-- **Read once per process**: `loadAppEmojis(client)` (on `clientReady` in `bot.js` and before every message render) fetches `client.application.emojis`, caches only `eh_` names; a failed read is retried after 10 min, never throws. `emojiText(map, name, fallback)` → `<:name:id>`, `emojiOption(map, name, fallback)` → the select option's emoji object.
-- **Uploading is a manual step** — the bot never creates emojis itself. `node scripts/sync-app-emojis.js --dry-run` lists what is missing, without the flag it creates **only the missing** ones (never replaces or deletes); `--dev` reads `.env.dev` (the dev application, already synced). **For production run once, from the main checkout with the production `.env`:** `node scripts/sync-app-emojis.js --dry-run`, then `node scripts/sync-app-emojis.js`, then restart the bot (the cache is read once per process). A new spec/class in the rule set means running it again.
+- **Read once per process**: `loadAppEmojis(client)` (after the start sync below and before every message render) fetches `client.application.emojis`, caches only `eh_` names; a failed read is retried after 10 min, never throws. `emojiText(map, name, fallback)` → `<:name:id>`, `emojiOption(map, name, fallback)` → the select option's emoji object.
+- **The bot uploads them itself on start** (`src/web/appEmojiSync.js`' `ensureAppEmojis(client)`, called on `clientReady`): it reads the application's emojis, creates **only the missing** ones from the catalogue (never replaces or deletes) and then reads the cache anew — so a fresh application, production included, needs no manual step, and a new spec/class in the rule set arrives with the next restart. It never throws; a refused upload (emoji limit, zamimg down) is logged and the message keeps its text fallback. `node scripts/sync-app-emojis.js --dry-run` runs the same sync by hand without starting the bot (lists what is missing; without the flag it creates them; `--dev` reads `.env.dev`).
 
 ### Raid-Vorlagen (`src/web/raidTemplates.js`, page `/raids/raid-templates`)
 
