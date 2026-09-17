@@ -93,7 +93,9 @@ describe("commands/signup/eventButton", () => {
             expect(select.options.map((o) => o.value)).toEqual(["zibbo|Priest-Holy", "zibbowar|Warrior-Protection"]);
             // a fresh signup preselects nothing: picking is what saves
             expect(select.options.some((o) => o.default)).toBe(false);
-            expect(payload.components[1].components[0]).toMatchObject({ custom_id: "event-btn:eh-kara:other:s", label: "Andere Klasse …" });
+            // below the characters the classes, for a new character (#303)
+            expect(payload.components[1].components[0]).toMatchObject({ type: 3, custom_id: "event-btn:eh-kara:cls:s" });
+            expect(payload.components[1].components[0].options.map((o) => o.value)).toContain("Mage");
 
             // values handed back out of order: the listed order decides the priority
             const pick = withComponent(mockInteraction({ customId: select.custom_id, userId: ANNA, values: ["zibbowar|Warrior-Protection", "zibbo|Priest-Holy"] }), select);
@@ -209,10 +211,56 @@ describe("commands/signup/eventButton", () => {
             expect(statuses().map(([, s]) => s)).toEqual(["tentative", "tentative"]);
         });
 
+        it("Bank after an absence: saved as Bank, and the message lists the raider under Bank, not Abgemeldet", async () => {
+            profiles.addCharacter(ANNA, { name: "Devire", className: "Mage", specs: [{ key: "Mage-Arcane", gear: "ready" }] });
+            profiles.addCharacter(ANNA, { name: "Devheal", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+            await command.execute(withComponent(mockInteraction({ customId: "event-btn:eh-kara:pick:s", userId: ANNA, values: ["devire|Mage-Arcane"] }), null));
+            await command.execute(mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "Arbeit" } }));
+            expect(stored()).toMatchObject({ status: "absence" });
+
+            // signed off: "Bank" cannot move a first character, it asks for one
+            const bench = click("bench");
+            await command.execute(bench);
+            const select = selectOf(replyOf(bench));
+            expect(select.custom_id).toBe("event-btn:eh-kara:pick:b");
+            const pick = withComponent(mockInteraction({ customId: select.custom_id, userId: ANNA, values: ["devire|Mage-Arcane"] }), select);
+            await command.execute(pick);
+            expect(updateOf(pick).content).toBe("Gespeichert für **Karazhan**:\n`1.` Devire · Arkan – **Bank**");
+            expect(stored()).toMatchObject({ status: "bench", character: "Devire" });
+            expect(statuses()).toEqual([["Devire", "bench"]]);
+
+            // what the channel sees, built from the same store
+            const { buildEventMessage } = require("../../../src/web/eventMessage");
+            const payload = buildEventMessage(mocks.events.get("eh-kara"), mocks.signupStore().listSignups("eh-kara"));
+            const lines = payload.embeds[0].fields.find((f) => !f.inline && /Bank|Abgemeldet/.test(f.value)).value.split("\n");
+            expect(lines).toEqual(["Bank (1): `1` Devire"]);
+        });
+
         it("keeps a character that is re-added in its place", () => {
             const signup = { status: "signed", characters: [{ character: "A", spec: "Mage-Fire", status: "late" }, { character: "B", spec: "Priest-Holy", status: "signed" }] };
             expect(withAddedCharacter(signup, { character: "b", spec: "Priest-Shadow", status: "signed" }).characters.map((c) => c.spec)).toEqual(["Mage-Fire", "Priest-Shadow"]);
             expect(withAddedCharacter(null, { character: "C", spec: "Mage-Fire", status: "bench" })).toEqual({ characters: [{ character: "C", spec: "Mage-Fire", status: "bench" }], status: "bench" });
+        });
+    });
+
+    describe("Bestätigung mit Icons (#303)", () => {
+        const appEmojis = require("../../../src/web/appEmojis");
+        afterEach(() => appEmojis.resetAppEmojis());
+
+        it("puts the spec and status icons into the confirmation when the emojis are there", async () => {
+            twoCharacters();
+            appEmojis.setAppEmojis(appEmojis.emojiCatalog().map((e, i) => ({ id: String(900 + i), name: e.name })));
+            const pick = withComponent(mockInteraction({ customId: "event-btn:eh-kara:pick:b", userId: ANNA, values: ["zibbo|Priest-Holy", "zibbowar|Warrior-Protection"] }), null);
+            await command.execute(pick);
+            const lines = updateOf(pick).content.replace(/:\d+>/g, ">").split("\n");
+            expect(lines).toEqual([
+                "<:eh_ui_signed> Gespeichert für **Karazhan**",
+                "`1` <:eh_priest_holy> Zibbo · Heilig  ·  <:eh_ui_bench> **Bank**",
+                "`2` <:eh_warrior_protection> Zibbowar · Schutz  ·  <:eh_ui_bench> **Bank**",
+            ]);
+            const submit = mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "Arbeit" } });
+            await command.execute(submit);
+            expect(replyOf(submit).content.replace(/:\d+>/g, ">")).toBe("<:eh_ui_absence> Abgemeldet von **Karazhan** – Grund: Arbeit.");
         });
     });
 

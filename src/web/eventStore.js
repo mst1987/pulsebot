@@ -179,7 +179,9 @@ function complete(e) {
         // signup deadline via saveSetupDraft), its approval and the last approved
         // snapshot — one shape, see setupEditor.js (#263).
         setup: e.setup || null,
-        message: e.message && e.message.messageId ? { channelId: e.message.channelId || "", messageId: e.message.messageId } : null,
+        message: e.message && e.message.messageId
+            ? { channelId: e.message.channelId || "", messageId: e.message.messageId, ...(e.message.hash ? { hash: e.message.hash } : {}) }
+            : null,
         // The approved setup posted into the channel and its DMs (#290, setupMessage.js).
         setupPost: e.setupPost && typeof e.setupPost === "object" ? e.setupPost : null,
         // Event verwalten (#288): "active" or "cancelled"; a closed signup takes
@@ -324,7 +326,10 @@ function setEventMessage(id, message) {
     if (idx < 0) return null;
     events[idx] = {
         ...events[idx],
-        message: message && message.messageId ? { channelId: str(message.channelId), messageId: str(message.messageId) } : null,
+        // `hash`: what the message shows (eventMessage.payloadHash) — the sweep redraws an outdated one.
+        message: message && message.messageId
+            ? { channelId: str(message.channelId), messageId: str(message.messageId), ...(message.hash ? { hash: str(message.hash) } : {}) }
+            : null,
     };
     writeAll(events);
     return complete(events[idx]);
