@@ -132,8 +132,10 @@ function orderedValues(values, listed) {
 
 /**
  * The own characters · specs as select options: the current signup's characters
- * first (preselected, in their order), then the rest — the likeliest pick
- * (last used, else the main's best spec) on top.
+ * first (in their order), then the rest — the likeliest pick (last used, else
+ * the main's best spec) on top. Nothing is preselected: Discord only reports a
+ * select whose picks changed, and choosing the same characters again must still
+ * save (e.g. "Anmelden" after "Spät" sets them back to "Dabei").
  */
 function pickOptions(profile, userId, eventId, { emojis = {} } = {}) {
     const options = characterOptions(profile);
@@ -150,7 +152,6 @@ function pickOptions(profile, userId, eventId, { emojis = {} } = {}) {
             label: `${o.name} · ${info.label || o.spec}`.slice(0, 100),
             value: `${o.character}|${o.spec}`.slice(0, 100),
             description: [o.main ? "Main" : "", GEAR_TEXT[o.gear] || ""].filter(Boolean).join(" · ").slice(0, 100) || undefined,
-            default: current.includes(o),
         };
         const emoji = emojiOption(emojis, specEmojiName(o.spec));
         if (emoji) option.emoji = emoji;
@@ -179,6 +180,10 @@ function buildCharacterPicker(event, userId, status, { emojis = {}, notice = "" 
     const options = pickOptions(profile, userId, event.id, { emojis });
     const max = Math.min(MAX_CHARACTERS, options.length);
     const lines = [headLine(event, status)];
+    const mine = migrateSignup(getSignup(event.id, userId));
+    if (mine && mine.status !== "absence" && (mine.characters || []).length) {
+        lines.push(`Bisher: ${mine.characters.map((c) => `${characterText(profile, c)} (${STATUS_WORD[c.status] || c.status})`).join(", ")}`);
+    }
     lines.push(max > 1
         ? `Wähle bis zu ${max} Charaktere – der oberste in der Liste ist deine 1. Wahl.`
         : "Wähle deinen Charakter.");

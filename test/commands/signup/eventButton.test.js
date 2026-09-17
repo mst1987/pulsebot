@@ -102,10 +102,17 @@ describe("commands/signup/eventButton", () => {
             expect(updateOf(pick).content).toContain("`2.` Zibbowar · Schutz – **Dabei**");
             expect(statuses()).toEqual([["Zibbo", "signed"], ["Zibbowar", "signed"]]);
 
-            // an existing signup is preselected on the next click
+            // "Spät" moves the first; "Anmelden" again names the current characters (never preselected,
+            // so picking the same ones saves) and sets them back to "Dabei"
+            await command.execute(click("late"));
             const again = click("join");
             await command.execute(again);
-            expect(selectOf(replyOf(again)).options.map((o) => o.default)).toEqual([true, true]);
+            const next = replyOf(again);
+            expect(next.content).toContain("Bisher: Zibbo · Heilig (Spät), Zibbowar · Schutz (Dabei)");
+            expect(selectOf(next).options.some((o) => o.default)).toBe(false);
+            const same = withComponent(mockInteraction({ customId: select.custom_id, userId: ANNA, values: ["zibbo|Priest-Holy", "zibbowar|Warrior-Protection"] }), selectOf(next));
+            await command.execute(same);
+            expect(statuses()).toEqual([["Zibbo", "signed"], ["Zibbowar", "signed"]]);
         });
 
         it("goes the class way without a profile character", async () => {
