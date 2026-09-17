@@ -3,8 +3,9 @@
 // bot's Discord application, not to a server, so they work on the event and
 // the talk server alike — in embeds and in select options.
 //
-// Uploaded once with `node scripts/sync-app-emojis.js` (the catalogue below is
-// what it uploads); read here once per process from
+// Uploaded by the bot on start (`appEmojiSync.ensureAppEmojis`; by hand with
+// `node scripts/sync-app-emojis.js` — the catalogue below is what both upload);
+// read here once per process from
 // `client.application.emojis.fetch()` and cached by name. An emoji that is
 // missing — not synced yet, the bot offline — falls back to text, so nothing
 // ever depends on them.

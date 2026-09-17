@@ -107,7 +107,7 @@ function emojisItem({ emojis }) {
         label: "Anmelder-Emojis vorhanden",
         status: emojis.missing.length ? "mid" : "ok",
         value: `${emojis.total - emojis.missing.length} / ${emojis.total}`,
-        why: "Ohne sie zeigt die Anmelder-Nachricht Text statt Icons – lesbar, aber nicht so übersichtlich wie bei Raid-Helper.",
+        why: "Der Bot legt fehlende Icons beim Start selbst an. Fehlen danach noch welche (z. B. Emoji-Limit, Icon-Server nicht erreichbar), zeigt die Anmelder-Nachricht Text statt Icons.",
         detail: emojis.missing.slice(0, 12).concat(emojis.missing.length > 12 ? [`+${emojis.missing.length - 12} weitere`] : []),
         hint: "node scripts/sync-app-emojis.js",
     };
