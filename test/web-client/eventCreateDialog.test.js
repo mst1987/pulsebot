@@ -160,9 +160,11 @@ describe("Event anlegen: plan rules (client)", () => {
         };
         expect(logic.planFromEvent(ev)).toEqual({
             raidTemplateId: "tpl", versionId: "tbc", instanceIds: ["bt"], size: 25, tank: 3, healer: 7,
-            melee: { min: 5, max: 8 }, ranged: null, requiredBuffs: ["kings"], deadlineHours: 48,
+            melee: { min: 5, max: 8 }, ranged: null, requiredBuffs: ["kings"], deadlineHours: 48, durationMinutes: 180,
             fairness: false, wishes: true, autoSuggest: true,
         });
+        // the event's own duration wins over the default (#305)
+        expect(logic.planFromEvent({ ...ev, durationMinutes: 240 }).durationMinutes).toBe(240);
     });
 
     it("sends the plan in the shape POST/PATCH /api/raids take", () => {
@@ -170,8 +172,16 @@ describe("Event anlegen: plan rules (client)", () => {
         expect(logic.planBody(plan)).toEqual({
             raidTemplateId: "t", versionId: "tbc", instanceIds: ["ssc"], size: 25,
             composition: { tank: 3, healer: 6, melee: { min: 4, max: 6 }, ranged: null },
-            requiredBuffs: [], signupDeadlineHours: 3, fairness: false, wishes: false, autoSuggest: false,
+            requiredBuffs: [], durationMinutes: 180, signupDeadlineHours: 3, fairness: false, wishes: false, autoSuggest: false,
         });
+    });
+
+    it("words a duration outside 30–600 minutes exactly like the server (#305)", () => {
+        const base = { ...logic.emptyPlan(v("tbc")), size: 10, tank: 2, healer: 3 };
+        for (const durationMinutes of [180, 30, 600, 29, 601, 0]) {
+            const plan = { ...base, durationMinutes };
+            expect({ durationMinutes, msg: logic.planProblem(plan) }).toEqual({ durationMinutes, msg: serverProblem(plan) });
+        }
     });
 
     it("Als Vorlage speichern: a new template, or an update that keeps id and Raid-Helper link", () => {
@@ -180,7 +190,7 @@ describe("Event anlegen: plan rules (client)", () => {
         expect(fresh).toEqual({
             name: "T6 25er", versionId: "tbc", instanceIds: ["hyjal", "bt"], size: 25,
             composition: { tank: 3, healer: 6, melee: null, ranged: null }, requiredBuffs: ["kings"],
-            signupDeadline: { hoursBefore: 24 }, fairness: false, wishes: false, raidhelperTemplateId: "",
+            signupDeadline: { hoursBefore: 24 }, durationMinutes: 180, fairness: false, wishes: false, raidhelperTemplateId: "",
         });
         expect(fresh.id).toBeUndefined();
         const base = { id: "tpl-1", name: "Alt", raidhelperTemplateId: "rh-3" };
@@ -257,6 +267,22 @@ describe("Event anlegen: dialog", () => {
         expect(dialog).toContain("schemaName(schema?.schema || ctx?.defaultSchema || \"\", date, raidTag(");
         // a Raid-Helper event keeps today's template select
         expect(kanal).toContain("value={t.raidhelperTemplateId}");
+    });
+
+    // #305: the duration small beside the time, the voice channel in Kanal & Anmeldung
+    it("puts the duration next to the time and the voice channel into Kanal & Anmeldung", () => {
+        const termin = dialog.slice(dialog.indexOf("step === \"termin\""), dialog.indexOf("step === \"raid\""));
+        expect(termin).toContain("id=\"re-time\"");
+        expect(termin).toContain("aria-label=\"Dauer in Minuten\"");
+        expect(termin).toContain("durationMinutes: Math.floor(Number(e.target.value) || 0)");
+        // the end follows from it and is shown small, not as a second field
+        expect(termin).toContain("Ende {endPreview.time}");
+        const kanal = dialog.slice(dialog.indexOf("step === \"kanal\""));
+        expect(kanal).toContain("id=\"re-voice\"");
+        expect(kanal).toContain("text=\"Sprachkanal\"");
+        // preset from the category until it is picked by hand
+        expect(dialog).toContain("if (!voiceTouched) setVoiceChannelId((data.categoryVoiceChannel || {})[catId] || \"\");");
+        expect(dialog).toContain("planBody(plan), voiceChannelId");
     });
 
     it("saves the plan as a template without touching the event, and edits own events with the same dialog", () => {

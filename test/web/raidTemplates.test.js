@@ -17,7 +17,7 @@ describe("raidTemplates", () => {
             expect(t).toEqual({
                 id: "", name: "Kara", versionId: "tbc", instanceIds: ["kara"], size: null,
                 composition: { tank: 0, healer: 0, melee: null, ranged: null },
-                requiredBuffs: [], signupDeadline: null, fairness: false, wishes: false, raidhelperTemplateId: "",
+                requiredBuffs: [], signupDeadline: null, durationMinutes: null, fairness: false, wishes: false, raidhelperTemplateId: "",
             });
         });
 
@@ -79,6 +79,16 @@ describe("raidTemplates", () => {
             expect(validateTemplate(valid({ requiredBuffs: ["kings"] }))).toBe("");
             expect(validateTemplate(valid({ signupDeadline: { hoursBefore: 400 } }))).toMatch(/Anmeldeschluss/);
             expect(validateTemplate(valid({ signupDeadline: { hoursBefore: 24 } }))).toBe("");
+        });
+
+        it("takes a duration between 30 and 600 minutes, or none at all (#305)", () => {
+            expect(validateTemplate(valid({ durationMinutes: 240 }))).toBe("");
+            expect(validateTemplate(valid({ durationMinutes: null }))).toBe("");
+            expect(validateTemplate(valid({ durationMinutes: 20 }))).toMatch(/Dauer/);
+            expect(validateTemplate(valid({ durationMinutes: 900 }))).toMatch(/Dauer/);
+            expect(validateTemplate(valid({ durationMinutes: "lang" }))).toMatch(/Dauer/);
+            // a migrated Raid-Helper template has no duration
+            expect(migrateLegacy({ id: "7", name: "Kara" }).durationMinutes).toBeNull();
         });
     });
 

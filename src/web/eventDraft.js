@@ -3,7 +3,9 @@
 //   1. an ephemeral message with selects — category, raid template, channel
 //      mode (new by schema / duplicate an event's channel / existing channel)
 //      and, as a toggle button, where the signup runs (proposed by the category);
-//   2. "Weiter" opens a modal — title, date, time, "Größe/T/H", description.
+//   2. "Weiter" opens a modal — title, date, time, "Größe/T/H/Dauer", description.
+//      A modal takes five fields and no more, which is why the duration (#305)
+//      shares the composition field instead of getting one of its own.
 //
 // The work itself is eventCreate.js' createEvent(), the same as the web dialog's;
 // this module only turns the Discord state into its body and the answer back
@@ -32,6 +34,7 @@ const { signupSourceFor } = require("./eventSources");
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
 const { eventGuildId } = require("./guildRoles");
 const { createEvent } = require("./eventCreate");
+const { MIN_DURATION, MAX_DURATION } = require("./eventStore");
 const { instanceById } = require("../config/gameVersions");
 const { WEEKDAYS } = require("../utils/channelNames");
 const { parseGermanDate, parseClockTime } = require("../utils/date");
@@ -161,7 +164,8 @@ function templateSummary(template) {
     const comp = template.composition || {};
     const tank = comp.tank || 0;
     const healer = comp.healer || 0;
-    return `${head} · ${template.size}er · ${tank} T / ${healer} H / ${Math.max(0, template.size - tank - healer)} DPS`;
+    const duration = template.durationMinutes ? ` · ${template.durationMinutes} Min.` : "";
+    return `${head} · ${template.size}er · ${tank} T / ${healer} H / ${Math.max(0, template.size - tank - healer)} DPS${duration}`;
 }
 
 /**
@@ -322,26 +326,37 @@ function applyStep(state, field, value = "") {
 
 const FIELDS = ["title", "date", "time", "comp", "description"];
 
-/** "40/4/10" → { size, tank, healer }; null for an empty field, { error } for garbage. */
+/**
+ * "40/4/10/300" → { size, tank, healer, durationMinutes }; null for an empty
+ * field, { error } for garbage. The duration (#305) rides in this one field
+ * rather than in a sixth: a Discord modal takes five, and every one of the
+ * others is needed.
+ */
 function parseComposition(value) {
     const str = String(value || "").trim();
     if (!str) return null;
-    const match = str.match(/^(\d{1,2})\s*(?:[/,; ]\s*(\d{1,2})\s*[/,; ]\s*(\d{1,2}))?$/);
-    if (!match) return { error: `„${clip(str, 20)}“ passt nicht zu Größe/T/H (z. B. 40/4/10).` };
+    const match = str.match(/^(\d{1,2})\s*(?:[/,; ]\s*(\d{1,2})\s*[/,; ]\s*(\d{1,2})\s*(?:[/,; ]\s*(\d{2,3}))?)?$/);
+    if (!match) return { error: `„${clip(str, 20)}“ passt nicht zu Größe/T/H/Dauer (z. B. 25/3/6/240).` };
     const size = Number(match[1]);
     if (size < 1 || size > 40) return { error: "Die Größe muss zwischen 1 und 40 liegen." };
     if (match[2] === undefined) return { size };
     const tank = Number(match[2]);
     const healer = Number(match[3]);
     if (tank + healer > size) return { error: `${tank} Tanks und ${healer} Heiler passen nicht in ${size} Plätze.` };
-    return { size, tank, healer };
+    if (match[4] === undefined) return { size, tank, healer };
+    const durationMinutes = Number(match[4]);
+    if (durationMinutes < MIN_DURATION || durationMinutes > MAX_DURATION) {
+        return { error: `Die Dauer muss zwischen ${MIN_DURATION} und ${MAX_DURATION} Minuten liegen.` };
+    }
+    return { size, tank, healer, durationMinutes };
 }
 
-/** The "Größe/T/H" a template proposes ("25/3/6"), "" without a size. */
+/** The "Größe/T/H/Dauer" a template proposes ("25/3/6/240"), "" without a size. */
 function compositionOf(template) {
     if (!template || !template.size) return "";
     const comp = template.composition || {};
-    return `${template.size}/${comp.tank || 0}/${comp.healer || 0}`;
+    const head = `${template.size}/${comp.tank || 0}/${comp.healer || 0}`;
+    return template.durationMinutes ? `${head}/${template.durationMinutes}` : head;
 }
 
 /**
@@ -366,8 +381,8 @@ function formModal(state, { values = null } = {}) {
         input("time", "Uhrzeit", TextInputStyle.Short, { value: v.time, placeholder: "19:30", max: 5 }),
     ];
     if (state.src !== "r") {
-        rows.push(input("comp", "Größe/T/H", TextInputStyle.Short, {
-            value: v.comp !== undefined ? v.comp : compositionOf(template), placeholder: "40/4/10", required: false, max: 8,
+        rows.push(input("comp", "Größe/T/H/Dauer (Min.)", TextInputStyle.Short, {
+            value: v.comp !== undefined ? v.comp : compositionOf(template), placeholder: "25/3/6/240", required: false, max: 12,
         }));
     }
     rows.push(input("description", "Beschreibung", TextInputStyle.Paragraph, { value: v.description, required: false, max: 1000 }));
@@ -453,6 +468,7 @@ async function buildBody(guildId, rawState, values, { userId, now = Date.now() }
         if (comp && comp.error) return fail(comp.error);
         if (comp) {
             body.size = comp.size;
+            if (comp.durationMinutes !== undefined) body.durationMinutes = comp.durationMinutes;
             if (comp.tank !== undefined) {
                 const tplComp = (template && template.composition) || {};
                 body.composition = {

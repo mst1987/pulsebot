@@ -37,6 +37,14 @@ jest.mock("../../src/web/pingDelivery", () => ({
 jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../src/web/setupEditor", () => ({ setupSummary: jest.fn(() => null) }));
 jest.mock("../../src/web/setupMessage", () => ({ refreshSetupMessage: jest.fn(async () => null) }));
+// #305: the Discord event rides along — mocked here, so the calls can be asserted.
+jest.mock("../../src/web/discordEvent", () => ({
+    syncForEvent: jest.fn(async () => ({ skipped: "disabled" })),
+    cancelForEvent: jest.fn(async () => ({ skipped: "none" })),
+    reopenForEvent: jest.fn(async () => ({ skipped: "disabled" })),
+    deleteForEvent: jest.fn(async () => ({ skipped: "none" })),
+    warningOf: (r) => (r && r.warning ? `Discord-Event: ${r.warning}` : ""),
+}));
 
 const { DateTime } = require("luxon");
 const fs = require("fs");
@@ -54,6 +62,7 @@ const profiles = require("../../src/web/raiderProfileStore");
 const reminderStore = require("../../src/web/reminderStore");
 const archiveStore = require("../../src/web/channelArchiveStore");
 const signupService = require("../../src/web/signupService");
+const discordEvent = require("../../src/web/discordEvent");
 const manage = require("../../src/web/eventManage");
 
 const ZONE = "Europe/Berlin";
@@ -452,5 +461,32 @@ describe("what the menu shows", () => {
         expect(thor.signup).toMatchObject({ status: "signed" });
         expect(body.raiders.find((r) => r.userId === OTHER)).toMatchObject({ name: "Ysi", characters: [] });
         expect(body.classes.map((c) => c.id)).toContain("Mage");
+    });
+});
+
+describe("the Discord event rides along (#305)", () => {
+    it("is synced on a move, cancelled with the event, created anew on reopen and deleted with it", async () => {
+        const target = day(9, "20:00");
+        channelNaming.deriveChannelName.mockResolvedValue({ name: "mi-24-09-ssc-tk", source: "previous", fromChannelId: "c1" });
+        await manage.moveEvent({ guildId: "g1", eventId: event.id, date: target.toISODate(), time: "20:00", user: ORGA });
+        expect(discordEvent.syncForEvent).toHaveBeenCalledWith(event.id);
+
+        await manage.cancelEvent({ guildId: "g1", eventId: event.id, reason: "zu wenige Heiler", notify: false, user: ORGA });
+        expect(discordEvent.cancelForEvent).toHaveBeenCalledWith(event.id);
+
+        await manage.reopenEvent({ guildId: "g1", eventId: event.id, user: ORGA });
+        expect(discordEvent.reopenForEvent).toHaveBeenCalledWith(event.id);
+
+        await manage.deleteEvent({ guildId: "g1", eventId: event.id, user: ORGA });
+        // the store no longer knows the event, so the record is read, never written
+        expect(discordEvent.deleteForEvent).toHaveBeenCalledWith(expect.objectContaining({ id: event.id }), { store: false });
+    });
+
+    it("turns a refusal into a warning and never fails the action", async () => {
+        discordEvent.cancelForEvent.mockResolvedValueOnce({ warning: "Recht fehlt" });
+        const result = await manage.cancelEvent({ guildId: "g1", eventId: event.id, reason: "Serverabsturz", notify: false, user: ORGA });
+        expect(result.status).toBe(200);
+        expect(result.body.warnings).toContain("Discord-Event: Recht fehlt");
+        expect(eventStore.getEvent(event.id).status).toBe("cancelled");
     });
 });

@@ -22,6 +22,11 @@ const ID_PREFIX = "eh-";
 const COMPOSITION_ROLES = ["tank", "healer", "melee", "ranged"];
 const MAX_SIZE = 40;
 
+// How long a raid takes (#305): a planning field like the size, inherited from
+// the raid template. The rule itself lives in utils/eventTime.js — several
+// readers mock this store, and a pure calculation must not be mocked with it.
+const { MIN_DURATION, MAX_DURATION, DEFAULT_DURATION, clampDuration, eventEndTime } = require("../utils/eventTime");
+
 function ensureDir() {
     fs.mkdirSync(SETTINGS_DIR, { recursive: true });
 }
@@ -137,13 +142,21 @@ function normalizePlan(input = {}) {
         if (max > size) return { error: `${label}: Maximum ist größer als die Größe ${size}.` };
     }
 
+    let durationMinutes = DEFAULT_DURATION;
+    if (input.durationMinutes !== undefined && input.durationMinutes !== null && input.durationMinutes !== "") {
+        durationMinutes = Math.floor(Number(input.durationMinutes));
+        if (!Number.isFinite(durationMinutes) || durationMinutes < MIN_DURATION || durationMinutes > MAX_DURATION) {
+            return { error: `Die Dauer muss zwischen ${MIN_DURATION} und ${MAX_DURATION} Minuten liegen.` };
+        }
+    }
+
     const buffKeys = new Set([...rules.partyBuffs, ...rules.raidBuffs].map((b) => b.key));
     const rawBuffs = Array.isArray(input.requiredBuffs) ? input.requiredBuffs : [];
     const requiredBuffs = [...new Set(rawBuffs.map(str).filter(Boolean))];
     const unknownBuff = requiredBuffs.find((b) => !buffKeys.has(b));
     if (unknownBuff) return { error: `Buff „${unknownBuff}“ gibt es in ${rules.label} nicht.` };
 
-    return { value: { versionId, instanceIds, size, composition, compositionMax, requiredBuffs } };
+    return { value: { versionId, instanceIds, size, composition, compositionMax, requiredBuffs, durationMinutes } };
 }
 
 /** An event with every field present, as the store hands it out. */
@@ -156,6 +169,9 @@ function complete(e) {
         categoryName: e.categoryName || "",
         channelId: e.channelId || "",
         channelName: e.channelName || "",
+        // The voice channel the raid meets in (#305): shown on the signup
+        // message and used as the place of the Discord event. "" = none.
+        voiceChannelId: e.voiceChannelId || "",
         title: e.title || "",
         description: e.description || "",
         leaderId: e.leaderId || "",
@@ -167,6 +183,9 @@ function complete(e) {
         // Optional maxima of the melee/ranged targets (#261), null = open.
         compositionMax: { melee: null, ranged: null, ...(e.compositionMax || {}) },
         requiredBuffs: Array.isArray(e.requiredBuffs) ? e.requiredBuffs : [],
+        // How long the raid is planned for (#305); an event stored before it
+        // reads as the default. Its end is startTime + durationMinutes * 60.
+        durationMinutes: clampDuration(e.durationMinutes),
         // The raid template the event started from ("" = none). The event keeps
         // its own copy of the values; nothing here ever writes to the template.
         raidTemplateId: e.raidTemplateId || "",
@@ -184,6 +203,9 @@ function complete(e) {
             : null,
         // The approved setup posted into the channel and its DMs (#290, setupMessage.js).
         setupPost: e.setupPost && typeof e.setupPost === "object" ? e.setupPost : null,
+        // The Discord event (guild scheduled event) that belongs to this one
+        // (#305, discordEvent.js): `{ id, guildId, at, error }`, null for none.
+        discordEvent: e.discordEvent && typeof e.discordEvent === "object" ? e.discordEvent : null,
         // Event verwalten (#288): "active" or "cancelled"; a closed signup takes
         // only sign-offs; the cancellation's reason; who did what, oldest first.
         status: e.status === "cancelled" ? "cancelled" : "active",
@@ -253,6 +275,7 @@ function createEvent(input = {}) {
         categoryName: str(input.categoryName),
         channelId,
         channelName: str(input.channelName),
+        voiceChannelId: str(input.voiceChannelId),
         title,
         description: String(input.description || ""),
         leaderId: str(input.leaderId),
@@ -284,7 +307,7 @@ function updateEvent(id, patch = {}) {
     if (idx < 0) return { error: "Event nicht gefunden." };
     const current = complete(events[idx]);
     const next = { ...current };
-    for (const key of ["title", "channelId", "channelName", "categoryId", "categoryName", "leaderId", "raidTemplateId"]) {
+    for (const key of ["title", "channelId", "channelName", "voiceChannelId", "categoryId", "categoryName", "leaderId", "raidTemplateId"]) {
         if (patch[key] !== undefined) next[key] = str(patch[key]);
     }
     if (!next.title) return { error: "Das Event braucht einen Titel." };
@@ -298,7 +321,7 @@ function updateEvent(id, patch = {}) {
     if (patch.fairness !== undefined) next.fairness = patch.fairness === true;
     if (patch.wishes !== undefined) next.wishes = patch.wishes === true;
     if (patch.autoSuggest !== undefined) next.autoSuggest = patch.autoSuggest === true;
-    if (["versionId", "instanceIds", "size", "composition", "compositionMax", "requiredBuffs"].some((k) => patch[k] !== undefined)) {
+    if (["versionId", "instanceIds", "size", "composition", "compositionMax", "requiredBuffs", "durationMinutes"].some((k) => patch[k] !== undefined)) {
         const pick = (key) => (patch[key] !== undefined ? patch[key] : current[key]);
         const plan = normalizePlan({
             versionId: pick("versionId"),
@@ -309,6 +332,7 @@ function updateEvent(id, patch = {}) {
             // only while the composition is not touched.
             compositionMax: patch.compositionMax !== undefined || patch.composition === undefined ? pick("compositionMax") : {},
             requiredBuffs: pick("requiredBuffs"),
+            durationMinutes: pick("durationMinutes"),
         });
         if (plan.error) return { error: plan.error };
         Object.assign(next, plan.value);
@@ -347,6 +371,23 @@ function setEventSetupPost(id, patch) {
     if (idx < 0) return null;
     const prev = events[idx].setupPost && typeof events[idx].setupPost === "object" ? events[idx].setupPost : {};
     events[idx] = { ...events[idx], setupPost: patch && typeof patch === "object" ? { ...prev, ...patch } : null };
+    writeAll(events);
+    return complete(events[idx]);
+}
+
+/**
+ * Merge into the record of the Discord event (#305, discordEvent.js):
+ * `{ id, guildId, at, error }`. Only the keys present change; `null` clears the
+ * whole record (the Discord event was deleted or never existed). Returns the
+ * event or null. Apart from updateEvent() like setEventSetupPost(): this is no
+ * planning field and must not re-validate the plan.
+ */
+function setEventDiscordEvent(id, patch) {
+    const events = readAll();
+    const idx = events.findIndex((e) => e && e.id === str(id));
+    if (idx < 0) return null;
+    const prev = events[idx].discordEvent && typeof events[idx].discordEvent === "object" ? events[idx].discordEvent : {};
+    events[idx] = { ...events[idx], discordEvent: patch && typeof patch === "object" ? { ...prev, ...patch } : null };
     writeAll(events);
     return complete(events[idx]);
 }
@@ -465,6 +506,7 @@ function saveSetupDraft(id, proposal, { createdBy = "auto", now = Date.now() } =
 
 module.exports = {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft,
-    setEventState, appendEventLog, MAX_LOG, setEventSetupPost,
+    setEventState, appendEventLog, MAX_LOG, setEventSetupPost, setEventDiscordEvent,
     normalizePlan, isOwnEventId, EVENTS_FILE, ID_PREFIX, COMPOSITION_ROLES,
+    eventEndTime, clampDuration, MIN_DURATION, MAX_DURATION, DEFAULT_DURATION,
 };

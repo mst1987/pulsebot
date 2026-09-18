@@ -10,6 +10,7 @@ import { relativeDayLabel } from "../lib/format";
 import { eventDay } from "../lib/raidTime";
 import { instancesOf } from "../lib/raidTemplates";
 import {
+    PLAN_MAX_DURATION, PLAN_MIN_DURATION,
     STEP_LABELS, emptyPlan, planBody, planFromEvent, planFromTemplate, planProblem, plannedSeats, raidTag, schemaName,
     sourceOf, stepsFor, templateFromPlan, withInstance, withSize, withVersion,
     type EventPlan, type StepKey,
@@ -181,6 +182,10 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
     const [freeSize, setFreeSize] = useState(false);
     const [planTouched, setPlanTouched] = useState(false);
 
+    // The raid's voice channel (#305): preset from the category until it is picked by hand.
+    const [voiceChannelId, setVoiceChannelId] = useState("");
+    const [voiceTouched, setVoiceTouched] = useState(false);
+
     const [channelMode, setChannelMode] = useState<ChannelMode>("new");
     const [channelId, setChannelId] = useState("");
     const [channelName, setChannelName] = useState("");
@@ -224,6 +229,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
         setSource(sourceOf(data.signupSources, catId));
         if (!templateTouched) setTemplateId((data.categoryTemplates || {})[catId] || data.defaults.templateId || "");
         if (!planTouched && choice?.kind !== "template") setPlan(categoryPlan(data, catId));
+        if (!voiceTouched) setVoiceChannelId((data.categoryVoiceChannel || {})[catId] || "");
     };
 
     const applyChoice = (data: RaidCreateContext, next: NonNullable<Choice>) => {
@@ -232,8 +238,11 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
         setTemplateTouched(false);
         setPlanTouched(false);
         setFreeSize(false);
+        setVoiceTouched(false);
         const vs = data.versions || [];
         const defaultChannel = data.channels.find((c) => c.id === data.defaults.channelId);
+        // The voice channel a category's raids meet in (#305) — the preset of every start.
+        const presetVoice = (catId: string) => setVoiceChannelId((data.categoryVoiceChannel || {})[catId] || "");
         if (next.kind === "event") {
             const ev = data.reusableEvents.find((e) => e.id === next.id);
             if (!ev) return;
@@ -250,6 +259,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
             const v = vs.find((x) => x.id === catPlan.versionId);
             const known = (ev.contentIds || []).filter((id) => !!v && v.instances.some((i) => i.id === id));
             setPlan(catPlan.raidTemplateId || !known.length ? catPlan : known.reduce((p, id) => withInstance(p, v, id), catPlan));
+            presetVoice(ev.categoryId);
             setChannelMode("clone");
             setChannelId("");
         } else if (next.kind === "template") {
@@ -264,6 +274,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
             setSource(sourceOf(data.signupSources, catId));
             setTemplateId(tpl.raidhelperTemplateId || (data.categoryTemplates || {})[catId] || data.defaults.templateId || "");
             setPlan(planFromTemplate(tpl, vs.find((v) => v.id === tpl.versionId)));
+            presetVoice(catId);
             setChannelMode(catId ? "new" : "existing");
             setChannelId("");
         } else {
@@ -276,6 +287,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
             setSource(sourceOf(data.signupSources, catId));
             setTemplateId((data.categoryTemplates || {})[catId] || data.defaults.templateId || "");
             setPlan(categoryPlan(data, catId));
+            presetVoice(catId);
             setChannelMode(catId ? "new" : "existing");
             setChannelId(data.defaults.channelId || "");
         }
@@ -311,6 +323,8 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                     setChannelMode("existing");
                     setChannelId(ev.channelId);
                     setChannelName(ev.channelName);
+                    setVoiceChannelId(ev.voiceChannelId || "");
+                    setVoiceTouched(true);
                     return;
                 }
                 // ?source=<id>: the list's "Wiederholen" — straight to the date.
@@ -383,6 +397,8 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
     const eh = source === "eventhelper";
     const problem = eh ? planProblem(plan) : "";
     const startPreview = date && time ? Math.floor(new Date(`${date}T${time}:00`).getTime() / 1000) : 0;
+    // When the raid would be over (#305) — shown small under the time.
+    const endPreview = startPreview && plan.durationMinutes > 0 ? eventDay(startPreview + plan.durationMinutes * 60) : null;
     const chosenInstances = instancesOf(version, plan.instanceIds);
 
     const changePlan = (next: EventPlan) => {
@@ -406,7 +422,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
         setSaving(true);
         try {
             if (editing) {
-                const r = await updateRaid(csrfToken, { id: editEventId, title, date, time, leaderId, description, ...planBody(plan) });
+                const r = await updateRaid(csrfToken, { id: editEventId, title, date, time, leaderId, description, ...planBody(plan), voiceChannelId });
                 if (r.messageError) toast(`Gespeichert — ${r.messageError}`, "err");
                 else toast("Event gespeichert.");
             } else {
@@ -415,7 +431,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                     : channelMode === "new" ? { newChannel: { name: channelName, categoryId } } : { channelId };
                 const r = await createRaid(csrfToken, {
                     title, date, time, templateId, leaderId, description, signupSource: source, ...where,
-                    ...(eh ? planBody(plan) : { raidTemplateId: plan.raidTemplateId }),
+                    ...(eh ? { ...planBody(plan), voiceChannelId } : { raidTemplateId: plan.raidTemplateId }),
                 });
                 if (r.messageError) toast(`Event angelegt — ${r.messageError}`, "err");
                 else toast("Event angelegt.");
@@ -546,7 +562,17 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                     </div>
                     <div className="field">
                         <Label text="Uhrzeit" htmlFor="re-time" />
-                        <input id="re-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
+                        <div className="re-clock">
+                            <input id="re-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
+                            {eh && (
+                                <label className="re-duration" data-tip="Dauer" data-tip-sub={`Wie lange der Raid dauert, in Minuten (${PLAN_MIN_DURATION}–${PLAN_MAX_DURATION}). Daraus ergibt sich das Ende — es steht in der Anmelde-Nachricht und begrenzt das Discord-Event.`}>
+                                    <input type="number" aria-label="Dauer in Minuten" min={PLAN_MIN_DURATION} max={PLAN_MAX_DURATION} step={15} value={plan.durationMinutes}
+                                        onChange={(e) => changePlan({ ...plan, durationMinutes: Math.floor(Number(e.target.value) || 0) })} />
+                                    <span className="re-sub">Min.</span>
+                                </label>
+                            )}
+                        </div>
+                        {eh && endPreview && <span className="re-sub">Ende {endPreview.time}</span>}
                     </div>
                 </div>
                 {categories.length > 0 && (
@@ -699,6 +725,19 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                                 )}
                         </div>
                     )}
+                {eh && (
+                    <div className="field">
+                        <Label text="Sprachkanal" htmlFor="re-voice" tip="Wo sich der Raid trifft. Steht als eigene Zeile in der Anmelde-Nachricht und ist der Ort des Discord-Events. Vorbelegt aus der Kategorie (Einstellungen → Kategorien)." />
+                        {(ctx.voiceChannels || []).length
+                            ? (
+                                <select id="re-voice" value={voiceChannelId} onChange={(e) => { setVoiceChannelId(e.target.value); setVoiceTouched(true); }}>
+                                    <option value="">— keiner —</option>
+                                    {(ctx.voiceChannels || []).map((c) => <option key={c.id} value={c.id}>{c.name}{c.category ? ` · ${c.category}` : ""}</option>)}
+                                </select>
+                            )
+                            : <span className="note">Keine Sprachkanäle geladen (Bot offline).</span>}
+                    </div>
+                )}
                 {eh
                     ? (
                         <div className="field">
@@ -757,6 +796,10 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                             <>
                                 <dt>Raid</dt>
                                 <dd>{chosenInstances.map((i) => i.name).join(" + ") || "—"}{chosenInstances.some((i) => i.status === "incomplete") && <Badge tone="mid">Infos fehlen</Badge>}</dd>
+                                <dt>Dauer</dt>
+                                <dd>{plan.durationMinutes} Min.{endPreview ? ` · Ende ${endPreview.time}` : ""}</dd>
+                                <dt>Sprachkanal</dt>
+                                <dd>{voiceChannelId ? (ctx.voiceChannels || []).find((c) => c.id === voiceChannelId)?.name || voiceChannelId : "keiner"}</dd>
                                 <dt>Anmeldeschluss</dt>
                                 <dd>{plan.deadlineHours > 0 ? `${plan.deadlineHours} Std. vorher` : "keiner"}</dd>
                             </>

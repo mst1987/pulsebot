@@ -259,6 +259,21 @@ describe("web/settingsStore", () => {
             expect(getConfig().categorySetupDms).toEqual({ c4: true });
         });
 
+        it("keeps the Discord event off by default and the voice channel only as a snowflake (#305)", () => {
+            expect(getConfig().categoryDiscordEvent).toEqual({});
+            expect(getConfig().categoryVoiceChannel).toEqual({});
+            saveConfig({ categoryDiscordEvent: { c1: true, c2: false, c3: "yes" } });
+            expect(getConfig().categoryDiscordEvent).toEqual({ c1: true });
+            saveConfig({ categoryDiscordEvent: { c1: false, c4: true } });
+            expect(getConfig().categoryDiscordEvent).toEqual({ c4: true });
+
+            saveConfig({ categoryVoiceChannel: { c1: "123456789012345678", c2: "nope", c3: "" } });
+            expect(getConfig().categoryVoiceChannel).toEqual({ c1: "123456789012345678" });
+            // an empty value clears that category again
+            saveConfig({ categoryVoiceChannel: { c1: "" } });
+            expect(getConfig().categoryVoiceChannel).toEqual({});
+        });
+
         it("defaults categoryRoles to an empty object and round-trips a map", () => {
             expect(getConfig().categoryRoles).toEqual({});
             saveConfig({ categoryRoles: { c1: ["r1", "r2"], c2: ["r3"] } });

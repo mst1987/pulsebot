@@ -28,6 +28,12 @@ jest.mock("../../src/web/discordChannels", () => ({
 }));
 jest.mock("../../src/web/settingsStore", () => ({ getConfig: jest.fn(() => ({})), getRaidTemplate: jest.fn(() => null) }));
 jest.mock("../../src/web/eventMessage", () => ({ postEventMessage: jest.fn(), refreshEventMessage: jest.fn() }));
+// #305: the Discord event is best-effort — here it only records that it was asked.
+jest.mock("../../src/web/discordEvent", () => ({
+    createForEvent: jest.fn(async () => ({ skipped: "disabled" })),
+    syncForEvent: jest.fn(async () => ({ skipped: "disabled" })),
+    warningOf: (r) => (r && r.warning ? `Discord-Event: ${r.warning}` : ""),
+}));
 jest.mock("../../src/web/talkOverview", () => ({ scheduleOverviewSync: jest.fn(), RAIDHELPER_CREATE_DELAY_MS: 35000 }));
 jest.mock("../../src/web/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null), listRaidEvents: jest.fn(() => []) }));
 jest.mock("../../src/web/raidEventGroups", () => ({
@@ -48,6 +54,7 @@ const { createFromTemplate } = discordChannels;
 const channelArchiveStore = require("../../src/web/channelArchiveStore");
 const raidEventGroups = require("../../src/web/raidEventGroups");
 const eventStore = require("../../src/web/eventStore");
+const discordEvent = require("../../src/web/discordEvent");
 const { createEvent, updateEvent, startTimeOf, schemaChannelName } = require("../../src/web/eventCreate");
 
 const user = { id: "42" };
@@ -89,6 +96,8 @@ describe("web/eventCreate", () => {
         expect(mockCreateEvent).not.toHaveBeenCalled();
         expect(result.status).toBe(201);
         expect(result.body).toMatchObject({ source: "eventhelper", messageError: null });
+        // #305: the Discord event is asked for after the message, so it can link it
+        expect(discordEvent.createForEvent).toHaveBeenCalledWith(result.body.id);
         const stored = eventStore.getEvent(result.body.id);
         expect(stored).toMatchObject({
             guildId: "g1", channelId: "c2", channelName: "kara-fr", categoryId: "cat-eh", categoryName: "EventHelper-Raids",
@@ -238,6 +247,28 @@ describe("web/eventCreate", () => {
             });
         });
 
+        it("inherits the duration from the raid template, lets the body override it and refuses garbage (#305)", async () => {
+            getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? { ...T5, durationMinutes: 300 } : null));
+            const fromTemplate = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5" }) });
+            expect(eventStore.getEvent(fromTemplate.body.id).durationMinutes).toBe(300);
+            const own = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5", durationMinutes: 240 }) });
+            expect(eventStore.getEvent(own.body.id).durationMinutes).toBe(240);
+            // a template without one leaves the event at the store's default
+            getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? T5 : null));
+            const plain = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5" }) });
+            expect(eventStore.getEvent(plain.body.id).durationMinutes).toBe(180);
+            const bad = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", durationMinutes: 900 }) });
+            expect(bad.error).toMatchObject({ code: "invalid_plan", message: expect.stringMatching(/Dauer/) });
+        });
+
+        it("takes the voice channel from the body, else from the category (#305)", async () => {
+            getConfig.mockReturnValue({ categorySignupSource: { "cat-eh": "eventhelper" }, categoryVoiceChannel: { "cat-eh": "v-cat" } });
+            const preset = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2" }) });
+            expect(eventStore.getEvent(preset.body.id).voiceChannelId).toBe("v-cat");
+            const picked = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", voiceChannelId: "v-own" }) });
+            expect(eventStore.getEvent(picked.body.id).voiceChannelId).toBe("v-own");
+        });
+
         it("refuses a composition that does not fit the size", async () => {
             const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", size: 10, composition: { tank: 2, healer: 3, melee: { min: 4, max: 3 } } }) });
             expect(result.error).toMatchObject({ code: "invalid_plan", message: expect.stringMatching(/Nahkampf/) });
@@ -363,6 +394,17 @@ describe("web/eventCreate", () => {
             ]);
             eventStore.setEventState(ev.id, { status: "cancelled" });
             expect((await updateEvent({ guildId: "g1", body: { id: ev.id, title: "x" } })).error.code).toBe("cancelled");
+        });
+
+        it("keeps the Discord event in step and never lets it fail the edit (#305)", async () => {
+            const ev = own();
+            discordEvent.syncForEvent.mockResolvedValueOnce({ warning: "Recht fehlt" });
+            const result = await updateEvent({ guildId: "g1", body: { id: ev.id, title: "Neu", voiceChannelId: "v1" } });
+            expect(discordEvent.syncForEvent).toHaveBeenCalledWith(ev.id);
+            expect(result.body.discordEventError).toBe("Discord-Event: Recht fehlt");
+            expect(eventStore.getEvent(ev.id)).toMatchObject({ title: "Neu", voiceChannelId: "v1" });
+            // the two new fields are named in the log
+            expect(eventStore.getEvent(ev.id).log[0].detail).toContain("Sprachkanal");
         });
 
         it("still saves when the message cannot be refreshed, and says so", async () => {

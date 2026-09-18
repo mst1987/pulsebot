@@ -61,6 +61,23 @@ function normalizeCategorySetupDms(raw) {
     return out;
 }
 
+// The Discord-event switch per category (#305) — same contract as the setup DMs.
+function normalizeCategoryDiscordEvent(raw) {
+    return normalizeCategorySetupDms(raw);
+}
+
+// The voice channel per category (#305): `{ id: channelId|"" }` — an empty
+// string survives the merge, so the store drops the category again.
+function normalizeCategoryVoiceChannel(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [categoryId, channelId] of Object.entries(raw)) {
+        const id = String(categoryId).trim();
+        if (id) out[id] = String(channelId === null || channelId === undefined ? "" : channelId).trim();
+    }
+    return out;
+}
+
 // A fixed sheet per category: only a http(s) link is stored. Anything else
 // (javascript:, a bare word, an empty field) becomes "", which settingsStore's
 // normalizer then drops — so a category is either unassigned or carries a link
@@ -140,6 +157,8 @@ async function getSettings(req, res) {
         // The module fields pick a channel by name instead of a typed id; an
         // empty list (bot offline) makes the page fall back to the id field.
         channels: typeof discord.listTextChannels === "function" ? discord.listTextChannels(guildId) : [],
+        // The voice channel a category's raids meet in (#305); empty = bot offline.
+        voiceChannels: typeof discord.listVoiceChannels === "function" ? discord.listVoiceChannels(guildId) : [],
         bot: botStatus(guildId),
         // The two server cards (cheap: names, member counts, rights). The member
         // overlap needs a full member fetch and loads with the section itself.
@@ -332,6 +351,8 @@ async function updateSettings(req, res) {
     if (body.categoryLootTool !== undefined) partial.categoryLootTool = normalizeCategoryLootTool(body.categoryLootTool);
     if (body.categorySignupSource !== undefined) partial.categorySignupSource = normalizeCategorySignupSource(body.categorySignupSource);
     if (body.categorySetupDms !== undefined) partial.categorySetupDms = normalizeCategorySetupDms(body.categorySetupDms);
+    if (body.categoryDiscordEvent !== undefined) partial.categoryDiscordEvent = normalizeCategoryDiscordEvent(body.categoryDiscordEvent);
+    if (body.categoryVoiceChannel !== undefined) partial.categoryVoiceChannel = normalizeCategoryVoiceChannel(body.categoryVoiceChannel);
     if (body.categorySheets !== undefined) partial.categorySheets = normalizeCategorySheets(body.categorySheets);
     // Sent whole; an id no template has is dropped, so a category can never
     // point at a template that is not there (the store normalises the rest).

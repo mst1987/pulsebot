@@ -3,7 +3,7 @@
 //
 // One embed laid out like Raid-Helper's (#303): title and description, a head
 // of icon + value only (leader · count · deadline, then date · time ·
-// countdown), the role totals as columns (Tanks · Fernkampf · Nahkampf, Heiler
+// countdown, then end · voice channel — #305), the role totals as columns (Tanks · Fernkampf · Nahkampf, Heiler
 // below) with flat role icons, then the roster — a "Tanks" block first, one
 // block per class after it (class icon, underlined name and count; each line
 // spec icon · signup number · name; three inline columns with an empty line
@@ -49,6 +49,7 @@
 const crypto = require("crypto");
 const { embedAccentColor, publicBaseUrl } = require("../config/variables");
 const { getEvent, setEventMessage, listEvents } = require("./eventStore");
+const { eventEndTime } = require("../utils/eventTime");
 const { listSignups, onSignupsChanged } = require("./signupStore");
 const discord = require("./discord");
 // The counting rule lives in the signup service, so the page and the message agree.
@@ -385,6 +386,7 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     const numbers = signupNumbers(list);
     const entries = rosterEntries(list);
     const start = Number(event.startTime) || 0;
+    const end = eventEndTime(event);
     const deadline = Number(event.signupDeadline) || 0;
     const head = (icon, label) => labelled(emojis, uiEmojiName(icon), label);
 
@@ -419,6 +421,11 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
         headField("date", "Datum", start ? `<t:${start}:D>` : "–"),
         headField("time", "Uhrzeit", start ? `<t:${start}:t>` : "–"),
         headField("start", "Start", start ? `<t:${start}:R>` : "–"),
+        // A third row (#305): when the raid is planned to be over and where it
+        // meets. The spacer keeps the row of three, so nothing else moves.
+        headField("end", "Ende", end ? `<t:${end}:t>` : "–"),
+        event.voiceChannelId ? headField("voice", "Sprachkanal", `<#${event.voiceChannelId}>`) : spacer(true),
+        spacer(true),
     ];
     // Who takes a seat, per role and per person (rosterCounts folds melee and ranged into dps).
     const seats = { tank: c.tank, healer: c.healer, melee: 0, ranged: 0 };

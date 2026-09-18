@@ -167,6 +167,20 @@ describe("web/eventDraft — the modal", () => {
         expect(draft.parseComposition("10/5/6").error).toContain("passen nicht");
         expect(draft.parseComposition("41/4/10").error).toContain("zwischen 1 und 40");
     });
+
+    // #305: a Discord modal takes five fields, so the duration rides in this one
+    it("takes the duration as a fourth part of Größe/T/H", () => {
+        expect(draft.parseComposition("25/3/6/240")).toEqual({ size: 25, tank: 3, healer: 6, durationMinutes: 240 });
+        expect(draft.parseComposition(" 40 / 4 / 10 / 300 ")).toEqual({ size: 40, tank: 4, healer: 10, durationMinutes: 300 });
+        // without it the template's duration stands
+        expect(draft.parseComposition("25/3/6").durationMinutes).toBeUndefined();
+        expect(draft.parseComposition("25/3/6/20").error).toContain("Dauer");
+        expect(draft.parseComposition("25/3/6/900").error).toContain("Dauer");
+        expect(draft.parseComposition("25/3/6/240/9").error).toContain("Größe/T/H/Dauer");
+        // the field is prefilled from the template, duration included
+        expect(draft.compositionOf({ size: 25, composition: { tank: 3, healer: 6 }, durationMinutes: 240 })).toBe("25/3/6/240");
+        expect(draft.compositionOf({ size: 25, composition: { tank: 3, healer: 6 } })).toBe("25/3/6");
+    });
 });
 
 describe("web/eventDraft — building the create body", () => {
@@ -214,6 +228,15 @@ describe("web/eventDraft — building the create body", () => {
         expect((await build(state(), values())).error).toContain("Einen Kanal **do-24-09-ssc-tk** gibt es schon (Standard-Schema");
         expect((await build(state({ cat: "100000000000000009" }), values())).error).toContain("Kategorie");
         expect((await build(state({ tpl: "deadbeef0000" }), values())).error).toContain("Vorlage gibt es nicht mehr");
+    });
+
+    it("hands the duration of the composition field on to createEvent (#305)", async () => {
+        const withDuration = await build(state(), values({ comp: "25/4/7/240" }));
+        expect(withDuration.body).toMatchObject({ size: 25, durationMinutes: 240 });
+        // without a fourth part nothing is sent, so the template's duration stands
+        const without = await build(state(), values({ comp: "25/4/7" }));
+        expect(without.body.durationMinutes).toBeUndefined();
+        expect((await build(state(), values({ comp: "25/4/7/10" }))).error).toContain("Dauer");
     });
 });
 

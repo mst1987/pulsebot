@@ -17,6 +17,8 @@ const { getRaidEvent } = require("./raidEventStore");
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
 const { signupSourceFor } = require("./eventSources");
 const { postEventMessage, refreshEventMessage } = require("./eventMessage");
+const discordEvent = require("./discordEvent");
+const { warningOf } = discordEvent;
 const { scheduleOverviewSync, RAIDHELPER_CREATE_DELAY_MS } = require("./talkOverview");
 const { raidContentIds } = require("./raidListing");
 const { getConfig, getRaidTemplate } = require("./settingsStore");
@@ -113,6 +115,9 @@ function templateDefaults(templateId, startTime) {
     };
     if (t.size) out.size = t.size;
     else delete out.composition; // a migrated template without size proposes no composition
+    // How long an evening of this kind takes (#305); a template without one
+    // leaves the event at the store's default.
+    if (t.durationMinutes) out.durationMinutes = t.durationMinutes;
     const hours = t.signupDeadline && Number(t.signupDeadline.hoursBefore);
     if (hours > 0) out.signupDeadline = startTime - hours * 3600;
     return out;
@@ -171,7 +176,7 @@ function isoDateOf(value) {
 
 const fail = (status, code, message) => ({ error: { status, code, message } });
 const given = (body, key) => body[key] !== undefined && body[key] !== null && body[key] !== "";
-const PLAN_KEYS = ["versionId", "size", "composition", "compositionMax", "requiredBuffs", "signupDeadline", "fairness", "wishes", "autoSuggest"];
+const PLAN_KEYS = ["versionId", "size", "composition", "compositionMax", "requiredBuffs", "durationMinutes", "signupDeadline", "fairness", "wishes", "autoSuggest"];
 
 /**
  * The deadline as unix seconds: `signupDeadlineHours` (the dialog's "Stunden
@@ -213,6 +218,8 @@ function planFor(body, categoryId, title, startTime) {
         plan: {
             ...checked.value,
             signupDeadline,
+            // The voice channel (#305): the body's choice, else the category's preset.
+            voiceChannelId: String(given(body, "voiceChannelId") ? body.voiceChannelId : ((getConfig().categoryVoiceChannel || {})[categoryId] || "")).trim(),
             fairness: merged.fairness === true,
             wishes: merged.wishes === true,
             autoSuggest: merged.autoSuggest === true,
@@ -373,9 +380,13 @@ async function createEvent({ guildId, user, body = {} }) {
     } catch (e) {
         messageError = e.message || "Die Event-Nachricht konnte nicht gepostet werden.";
     }
+    // The Discord event (#305) comes after the message, so its description can
+    // link it. Switched off for the category, or refused by Discord, it is a
+    // warning — never a failed create.
+    const discordEventError = warningOf(await discordEvent.createForEvent(created.event.id).catch((e) => ({ warning: (e && e.message) || "Fehler" })));
     scheduleOverviewSync();
     const event = eventStore.getEvent(created.event.id) || created.event;
-    return { status: 201, body: { id: event.id, source: "eventhelper", event, messageError, ...namingBody(naming, channelName) } };
+    return { status: 201, body: { id: event.id, source: "eventhelper", event, messageError, discordEventError, ...namingBody(naming, channelName) } };
 }
 
 /** Where a created channel's name and design came from, for the caller's confirmation (#285). */
@@ -394,6 +405,7 @@ const EDIT_FIELD_LABELS = {
     title: "Titel", description: "Beschreibung", leaderId: "Raidleitung", startTime: "Termin", versionId: "Spielversion",
     instanceIds: "Instanzen", size: "Größe", composition: "Zusammensetzung", compositionMax: "Zusammensetzung",
     requiredBuffs: "Pflicht-Buffs", signupDeadline: "Anmeldeschluss", fairness: "Fairness", wishes: "Wünsche",
+    durationMinutes: "Dauer", voiceChannelId: "Sprachkanal",
     autoSuggest: "Vorschlag bei Anmeldeschluss",
 };
 
@@ -416,7 +428,7 @@ async function updateEvent({ guildId, body = {}, user = null, byName = "" }) {
     if (current.status === "cancelled") return fail(409, "cancelled", "Das Event ist abgesagt — erst die Absage zurücknehmen.");
 
     const patch = {};
-    for (const key of ["title", "description", "leaderId", "instanceIds", ...PLAN_KEYS]) {
+    for (const key of ["title", "description", "leaderId", "instanceIds", "voiceChannelId", ...PLAN_KEYS]) {
         if (body[key] !== undefined) patch[key] = body[key];
     }
     if (body.date !== undefined || body.time !== undefined) {
@@ -452,9 +464,11 @@ async function updateEvent({ guildId, body = {}, user = null, byName = "" }) {
     } catch (e) {
         messageError = e.message || "Die Event-Nachricht konnte nicht aktualisiert werden.";
     }
+    // Title, description, time and place also belong on the Discord event (#305).
+    const discordEventError = warningOf(await discordEvent.syncForEvent(id).catch((e) => ({ warning: (e && e.message) || "Fehler" })));
     // Title and time also show in the talk server's overview (#257).
     scheduleOverviewSync();
-    return { status: 200, body: { id, source: "eventhelper", event: updated.event, messageError } };
+    return { status: 200, body: { id, source: "eventhelper", event: updated.event, messageError, discordEventError } };
 }
 
 module.exports = {

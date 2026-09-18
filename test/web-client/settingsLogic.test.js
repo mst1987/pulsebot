@@ -172,6 +172,21 @@ describe("save bar change list", () => {
         expect(logic.draftChanges(saved, { ...base(), categorySetupDms: { c1: false } }, names)).toEqual(["Hyjal & BT · Setup-DMs aus"]);
     });
 
+    it("names the Discord-Event switch and the voice channel per category (#305)", () => {
+        const draft = base();
+        draft.categoryDiscordEvent = { c1: true, c2: false };
+        draft.categoryVoiceChannel = { c1: "123456789012345678" };
+        expect(logic.draftChanges(base(), draft, names)).toEqual([
+            "Hyjal & BT · Discord-Event an",
+            "Hyjal & BT · Sprachkanal gesetzt",
+        ]);
+        const saved = { ...base(), categoryDiscordEvent: { c1: true }, categoryVoiceChannel: { c1: "123456789012345678" } };
+        expect(logic.draftChanges(saved, { ...base(), categoryDiscordEvent: { c1: false }, categoryVoiceChannel: { c1: "" } }, names)).toEqual([
+            "Hyjal & BT · Discord-Event aus",
+            "Hyjal & BT · Sprachkanal entfernt",
+        ]);
+    });
+
     it("counts admin roles, the base access, accounts, categories and top items", () => {
         const draft = base();
         draft.adminRoleIds = ["a2"];

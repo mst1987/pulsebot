@@ -59,6 +59,8 @@ type Draft = {
     /** Not saved from here — read so an unset category shows the source it really gets. */
     signupSourceDefault: EventSource;
     categorySetupDms: Record<string, boolean>;
+    categoryDiscordEvent: Record<string, boolean>;
+    categoryVoiceChannel: Record<string, string>;
     categorySheets: Record<string, CategorySheet>;
     categoryRaidTemplate: Record<string, string>;
     topItems: TopItem[];
@@ -83,6 +85,8 @@ function toDraft(config: AdminConfig): Draft {
         categorySignupSource: config.categorySignupSource || {},
         signupSourceDefault: config.signupSourceDefault || "raidhelper",
         categorySetupDms: config.categorySetupDms || {},
+        categoryDiscordEvent: config.categoryDiscordEvent || {},
+        categoryVoiceChannel: config.categoryVoiceChannel || {},
         categorySheets: config.categorySheets || {},
         categoryRaidTemplate: config.categoryRaidTemplate || {},
         topItems: config.topItems || [],
@@ -387,6 +391,10 @@ export default function SettingsPage() {
                 categorySignupSource: draft.categorySignupSource,
                 // Merged on the server: a category switched off is sent as false.
                 categorySetupDms: draft.categorySetupDms,
+                // #305: both merged on the server — a category switched off is
+                // sent as false, a cleared voice channel as "".
+                categoryDiscordEvent: draft.categoryDiscordEvent,
+                categoryVoiceChannel: draft.categoryVoiceChannel,
                 // Sent whole: a category set back to "keine" is left out.
                 categoryRaidTemplate: Object.fromEntries(Object.entries(draft.categoryRaidTemplate).filter(([, id]) => id)),
                 // Sent whole: the store replaces the map, so clearing a url is
@@ -483,6 +491,9 @@ export default function SettingsPage() {
                     categorySignupSource={draft.categorySignupSource}
                     signupSourceDefault={draft.signupSourceDefault}
                     categorySetupDms={draft.categorySetupDms}
+                    categoryDiscordEvent={draft.categoryDiscordEvent}
+                    categoryVoiceChannel={draft.categoryVoiceChannel}
+                    voiceChannels={data.voiceChannels || []}
                     categorySheets={draft.categorySheets}
                     savedCategoryRoles={data.config.categoryRoles || {}}
                     onToggleCategory={toggleCategory}
@@ -490,6 +501,8 @@ export default function SettingsPage() {
                     onLootTool={(id, tool) => patch({ categoryLootTool: { ...draft.categoryLootTool, [id]: tool } })}
                     onSignupSource={(id, source) => patch({ categorySignupSource: { ...draft.categorySignupSource, [id]: source } })}
                     onSetupDms={(id, on) => patch({ categorySetupDms: { ...draft.categorySetupDms, [id]: on } })}
+                    onDiscordEvent={(id, on) => patch({ categoryDiscordEvent: { ...draft.categoryDiscordEvent, [id]: on } })}
+                    onVoiceChannel={(id, channelId) => patch({ categoryVoiceChannel: { ...draft.categoryVoiceChannel, [id]: channelId } })}
                     onSheet={(id, sheet) => patch({ categorySheets: { ...draft.categorySheets, [id]: sheet } })}
                     raidTemplates={{
                         options: data.raidTemplates || [],

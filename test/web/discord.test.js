@@ -97,6 +97,39 @@ describe("web/discord channel management", () => {
         });
     });
 
+    // #305: the picker for the raid's voice channel, and the right to make Discord events
+    describe("listVoiceChannels", () => {
+        it("returns voice and stage channels, ordered by position, with their category", () => {
+            const category = chan("cat", "Raids", ChannelType.GuildCategory);
+            const guild = makeGuild([
+                category,
+                chan("t1", "kara-signup", ChannelType.GuildText, { rawPosition: 1 }),
+                chan("v2", "Raid 2", ChannelType.GuildVoice, { rawPosition: 3 }),
+                chan("v1", "Raid 1", ChannelType.GuildVoice, { parent: category, parentId: "cat", rawPosition: 2 }),
+                chan("s1", "Bühne", ChannelType.GuildStageVoice, { rawPosition: 4 }),
+            ]);
+            setClientWithGuild(guild);
+            expect(discord.listVoiceChannels("g1").map((c) => c.id)).toEqual(["v1", "v2", "s1"]);
+            expect(discord.listVoiceChannels("g1")[0]).toEqual({ id: "v1", name: "Raid 1", category: "Raids", parentId: "cat" });
+            expect(discord.listVoiceChannels("nope")).toEqual([]);
+        });
+    });
+
+    describe("botCanManageEvents", () => {
+        it("says true, false or — while nothing is known — null", () => {
+            const { PermissionsBitField } = require("discord.js");
+            const guild = makeGuild([]);
+            setClientWithGuild(guild);
+            // no resolved own member: unknown, never "the right is missing"
+            expect(discord.botCanManageEvents("g1")).toBeNull();
+            guild.members.me = { permissions: { has: (f) => f === PermissionsBitField.Flags.ManageEvents } };
+            expect(discord.botCanManageEvents("g1")).toBe(true);
+            guild.members.me = { permissions: { has: () => false } };
+            expect(discord.botCanManageEvents("g1")).toBe(false);
+            expect(discord.botCanManageEvents("nope")).toBeNull();
+        });
+    });
+
     describe("createChannel", () => {
         it("creates a text channel with a parent category", async () => {
             const guild = makeGuild([]);

@@ -166,6 +166,11 @@ a.re-title:hover { color: var(--accent); text-decoration: none; }
 .re-fit { margin: 10px 0 4px; }
 .re-deadline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .re-dlg-body .re-deadline input[type=number] { width: 96px; flex: 0 0 96px; }
+/* Uhrzeit plus the duration in minutes (#305) — the duration stays the small one. */
+.re-clock { display: flex; align-items: center; gap: 8px; }
+.re-clock > input[type=time] { flex: 1 1 auto; min-width: 0; }
+.re-duration { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.re-dlg-body .re-duration input[type=number] { width: 72px; flex: 0 0 72px; }
 .re-dlg-body .re-chan-name { font-size: 15px; font-weight: 600; }
 /* Where the name comes from (#285): one badge under the field, the details in its tooltip. */
 .re-naming { margin-top: 6px; display: flex; min-width: 0; }

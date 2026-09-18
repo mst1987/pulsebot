@@ -19,6 +19,7 @@ jest.mock("fs", () => {
 const fs = require("fs");
 const {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, deleteEvent, normalizePlan, isOwnEventId, setEventSetupPost,
+    setEventDiscordEvent, eventEndTime,
 } = require("../../src/web/eventStore");
 
 const base = (over = {}) => ({
@@ -57,7 +58,7 @@ describe("web/eventStore", () => {
     it("fills size and tanks/healers from the rule set", () => {
         expect(normalizePlan({}).value).toEqual({
             versionId: "tbc", instanceIds: [], size: 25, composition: { tank: 3, healer: 6, melee: 0, ranged: 0 },
-            compositionMax: { melee: null, ranged: null }, requiredBuffs: [],
+            compositionMax: { melee: null, ranged: null }, requiredBuffs: [], durationMinutes: 180,
         });
         // the biggest instance of the night decides the size
         expect(normalizePlan({ instanceIds: ["kara", "gruul"] }).value.size).toBe(25);
@@ -74,6 +75,42 @@ describe("web/eventStore", () => {
         expect(normalizePlan({ size: "x" }).error).toMatch(/Raidgröße/);
         expect(normalizePlan({ size: 10, composition: { tank: 5, healer: 6 } }).error).toMatch(/größer als der Raid/);
         expect(normalizePlan({ composition: { tank: -1 } }).error).toMatch(/ab 0/);
+    });
+
+    // #305: how long the raid takes, and where it meets
+    it("takes a duration between 30 and 600 minutes and refuses anything else", () => {
+        expect(normalizePlan({ durationMinutes: 300 }).value.durationMinutes).toBe(300);
+        expect(normalizePlan({ durationMinutes: 30 }).value.durationMinutes).toBe(30);
+        expect(normalizePlan({ durationMinutes: 600 }).value.durationMinutes).toBe(600);
+        // empty means "not given" — the default stands
+        expect(normalizePlan({ durationMinutes: "" }).value.durationMinutes).toBe(180);
+        expect(normalizePlan({ durationMinutes: 29 }).error).toMatch(/Dauer/);
+        expect(normalizePlan({ durationMinutes: 601 }).error).toMatch(/Dauer/);
+        expect(normalizePlan({ durationMinutes: "lang" }).error).toMatch(/Dauer/);
+    });
+
+    it("keeps the voice channel and reports the end of the raid", () => {
+        const { event } = createEvent({
+            guildId: "g1", channelId: "c1", title: "SSC", startTime: 2000000000, voiceChannelId: "v1", durationMinutes: 240,
+        });
+        expect(event).toMatchObject({ voiceChannelId: "v1", durationMinutes: 240 });
+        expect(eventEndTime(event)).toBe(2000000000 + 240 * 60);
+        // an event stored before #305 reads as the default
+        expect(eventEndTime({ startTime: 2000000000 })).toBe(2000000000 + 180 * 60);
+        expect(eventEndTime({})).toBe(0);
+        const changed = updateEvent(event.id, { voiceChannelId: "v2", durationMinutes: 90 });
+        expect(changed.event).toMatchObject({ voiceChannelId: "v2", durationMinutes: 90 });
+        expect(updateEvent(event.id, { durationMinutes: 5 }).error).toMatch(/Dauer/);
+    });
+
+    it("keeps the Discord event record apart from the plan (#305)", () => {
+        const { event } = createEvent({ guildId: "g1", channelId: "c1", title: "SSC", startTime: 2000000000 });
+        expect(event.discordEvent).toBeNull();
+        expect(setEventDiscordEvent(event.id, { id: "d1", guildId: "g1" }).discordEvent).toEqual({ id: "d1", guildId: "g1" });
+        // merged, not replaced
+        expect(setEventDiscordEvent(event.id, { error: "x" }).discordEvent).toEqual({ id: "d1", guildId: "g1", error: "x" });
+        expect(setEventDiscordEvent(event.id, null).discordEvent).toBeNull();
+        expect(setEventDiscordEvent("eh-nope", { id: "d1" })).toBeNull();
     });
 
     // #261: melee/ranged as ranges, the required buffs

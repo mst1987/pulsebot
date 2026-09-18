@@ -101,6 +101,10 @@ export type DraftShape = {
     /** The source of a category without an entry (#291); missing = "raidhelper". */
     signupSourceDefault?: string;
     categorySetupDms?: Record<string, boolean>;
+    /** A Discord event per raid (#305); missing = off. */
+    categoryDiscordEvent?: Record<string, boolean>;
+    /** The voice channel a category's raids meet in (#305); missing = none. */
+    categoryVoiceChannel?: Record<string, string>;
     categorySheets: Record<string, { url: string; name: string }>;
     categoryRaidTemplate?: Record<string, string>;
     topItems: { id: number }[];
@@ -147,6 +151,8 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         ...Object.keys(saved.categoryLootTool || {}), ...Object.keys(draft.categoryLootTool || {}),
         ...Object.keys(saved.categorySignupSource || {}), ...Object.keys(draft.categorySignupSource || {}),
         ...Object.keys(saved.categorySetupDms || {}), ...Object.keys(draft.categorySetupDms || {}),
+        ...Object.keys(saved.categoryDiscordEvent || {}), ...Object.keys(draft.categoryDiscordEvent || {}),
+        ...Object.keys(saved.categoryVoiceChannel || {}), ...Object.keys(draft.categoryVoiceChannel || {}),
         ...Object.keys(saved.categorySheets || {}), ...Object.keys(draft.categorySheets || {}),
     ])];
     for (const id of categories) {
@@ -164,6 +170,13 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const dmsWas = (saved.categorySetupDms || {})[id] === true;
         const dmsIs = (draft.categorySetupDms || {})[id] === true;
         if (dmsWas !== dmsIs) out.push(`${name} · Setup-DMs ${dmsIs ? "an" : "aus"}`);
+        // #305: the Discord event per raid and the voice channel the raids meet in.
+        const deWas = (saved.categoryDiscordEvent || {})[id] === true;
+        const deIs = (draft.categoryDiscordEvent || {})[id] === true;
+        if (deWas !== deIs) out.push(`${name} · Discord-Event ${deIs ? "an" : "aus"}`);
+        const voiceWas = (saved.categoryVoiceChannel || {})[id] || "";
+        const voiceIs = (draft.categoryVoiceChannel || {})[id] || "";
+        if (voiceWas !== voiceIs) out.push(`${name} · Sprachkanal ${voiceIs ? "gesetzt" : "entfernt"}`);
         const sheetWas = (saved.categorySheets || {})[id] || { url: "", name: "" };
         const sheetIs = (draft.categorySheets || {})[id] || { url: "", name: "" };
         if ((sheetWas.url || "").trim() !== (sheetIs.url || "").trim() || (sheetWas.name || "").trim() !== (sheetIs.name || "").trim()) {
