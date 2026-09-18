@@ -53,6 +53,11 @@
 .an-note { margin: 0 0 14px; color: var(--muted); }
 .an-wish { display: flex; }
 
+/* #308: the calendar file and the public event page — quiet links, not buttons. */
+.an-links { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; }
+.an-links a { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); }
+.an-links a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+
 /* ---- several characters (#293): numbered, first = choice ---- */
 .an-picks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .an-pickrow { display: grid; grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr) auto; align-items: center; gap: 10px; }
