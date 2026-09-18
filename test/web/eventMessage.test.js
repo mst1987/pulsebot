@@ -95,7 +95,9 @@ describe("web/eventMessage", () => {
             [ZWS, ZWS, true],
         ]);
         const links = embed.fields[embed.fields.length - 1].value;
-        expect(links).toBe("[Web](https://eh.example/signups?event=eh-1)");
+        // #308: the public event page first, the menu beside it, and the event's
+        // own calendar file (no icsUrl was passed).
+        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Anmeldung](https://eh.example/signups?event=eh-1)  ·  [Kalender](https://eh.example/r/cal/eh-1.ics)");
         expect(links).not.toContain("Setup");
     });
 
@@ -399,7 +401,7 @@ describe("web/eventMessage", () => {
         const fields = payload.embeds[0].fields;
         expect(field(payload, "Setup").value).toBe("**Gr. 1** Brokk\n**Bank** Kael");
         const links = fields[fields.length - 1].value;
-        expect(links).toBe("[Web](https://eh.example/signups?event=eh-1)  ·  [Setup](https://eh.example/raids/detail?event=eh-1&tab=setup)  ·  [Kalender](https://eh.example/ics/eh-1.ics)");
+        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Anmeldung](https://eh.example/signups?event=eh-1)  ·  [Setup](https://eh.example/raids/detail?event=eh-1&tab=setup)  ·  [Kalender](https://eh.example/ics/eh-1.ics)");
 
         const draft = buildEventMessage(event({ setup: { status: "draft", groups: approved.groups } }), signups, { now: NOW });
         expect(JSON.stringify(draft)).not.toContain("Setup");

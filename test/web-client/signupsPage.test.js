@@ -141,6 +141,13 @@ describe("SignupDialog", () => {
         expect(dialog).toContain("auch angemeldet");
     });
 
+    it("offers the calendar file and the public event page (#308)", () => {
+        expect(dialog).toContain("/r/cal/${encodeURIComponent(row.id)}.ics");
+        expect(dialog).toContain("/e/${encodeURIComponent(row.id)}");
+        expect(dialog).toContain("In Kalender eintragen");
+        expect(css).toContain(".an-links");
+    });
+
     it("talks to the signup endpoint only", () => {
         expect(api).toMatch(/send\("PUT", "\/api\/signups"/);
         expect(api).toContain("\"/api/signups\"");
