@@ -88,6 +88,12 @@ describe("web/eventMessage", () => {
             [ZWS, "<:eh_ui_time> <t:2000000000:t>", true],
             [ZWS, "<:eh_ui_start> <t:2000000000:R>", true],
         ]);
+        // #305: the third row — the end (start + duration) and, when there is one, the voice channel
+        expect(embed.fields.slice(6, 9).map((f) => [f.name, emojiless(f.value), f.inline])).toEqual([
+            [ZWS, "<:eh_ui_end> <t:2000010800:t>", true],
+            [ZWS, ZWS, true],
+            [ZWS, ZWS, true],
+        ]);
         const links = embed.fields[embed.fields.length - 1].value;
         expect(links).toBe("[Web](https://eh.example/signups?event=eh-1)");
         expect(links).not.toContain("Setup");
@@ -99,9 +105,19 @@ describe("web/eventMessage", () => {
         expect(emojiless(embed.fields[3].value)).toBe("<:eh_ui_date> <t:2000000000:D>");
     });
 
+    it("shows the raid's end from its duration and the voice channel as its own head field (#305)", () => {
+        const embed = buildEventMessage(event({ durationMinutes: 240, voiceChannelId: "v9" }), signups, { emojis, now: NOW }).embeds[0];
+        expect(emojiless(embed.fields[6].value)).toBe("<:eh_ui_end> <t:2000014400:t>");
+        expect(emojiless(embed.fields[7].value)).toBe("<:eh_ui_voice> <#v9>");
+        // without the application emojis the labels stand in the field name
+        const plain = buildEventMessage(event({ voiceChannelId: "v9" }), signups, { now: NOW }).embeds[0];
+        expect([plain.fields[6].name, plain.fields[7].name]).toEqual(["Ende", "Sprachkanal"]);
+        expect(plain.fields[7].value).toBe("<#v9>");
+    });
+
     it("sets the role totals apart as columns with flat role icons, the healers below, then an empty line", () => {
         const embed = buildEventMessage(event(), signups, { emojis, now: NOW }).embeds[0];
-        expect(embed.fields.slice(6, 11).map((f) => [f.name, emojiless(f.value), f.inline])).toEqual([
+        expect(embed.fields.slice(9, 14).map((f) => [f.name, emojiless(f.value), f.inline])).toEqual([
             [ZWS, "<:eh_ui_tank> Tanks **2**/2", true],
             [ZWS, "<:eh_ui_ranged> Fernkampf **2**", true],
             [ZWS, "<:eh_ui_melee> Nahkampf **0**", true],
@@ -114,14 +130,14 @@ describe("web/eventMessage", () => {
 
     it("shows melee/ranged targets as minimum or range", () => {
         const payload = buildEventMessage(event({ composition: { tank: 2, healer: 3, melee: 2, ranged: 1 }, compositionMax: { melee: 4 } }), [], { now: NOW });
-        const values = payload.embeds[0].fields.slice(6, 10).map((f) => f.value);
+        const values = payload.embeds[0].fields.slice(9, 13).map((f) => f.value);
         expect(values).toContain("Nahkampf **0**/2–4");
         expect(values).toContain("Fernkampf **0**/1+");
     });
 
     it("puts tanks in their own block first, then one block per class in fixed order, with an empty line under each", () => {
         const payload = buildEventMessage(event(), signups, { emojis, now: NOW });
-        const blocks = payload.embeds[0].fields.slice(11).filter((f) => f.inline);
+        const blocks = payload.embeds[0].fields.slice(14).filter((f) => f.inline);
         expect(blocks.map((b) => emojiless(b.name))).toEqual(["<:eh_ui_tank> __Tanks__ (2)", "<:eh_class_priest> __Priester__ (1)", "<:eh_class_mage> __Magier__ (1)"]);
         expect(blocks[0].value.split("\n")).toEqual([
             expect.stringMatching(/^<:eh_warrior_protection:\d+> `1` \*\*Brokk\*\*$/),
@@ -148,7 +164,7 @@ describe("web/eventMessage", () => {
         expect(JSON.stringify(payload)).not.toContain("+1");
         // one seat per person: Zibbo is late, so 5 + 1 attend, the tank count stays per person
         expect(emojiless(fields[1].value)).toBe("<:eh_ui_signups> **6** / 10");
-        expect(fields[9].value).toMatch(/Heiler \*\*2\*\*\/3/);
+        expect(fields[12].value).toMatch(/Heiler \*\*2\*\*\/3/);
         expect(rosterEntries([multi]).map((e) => [e.character, e.status, e.index])).toEqual([
             ["Zibbo", "late", 0], ["Zibbowar", "signed", 1], ["Zibbomage", "late", 2],
         ]);
@@ -191,8 +207,9 @@ describe("web/eventMessage", () => {
             ["Leitung", "<@7>"], ["Angemeldet", "**5** / 10"], ["Anmeldeschluss", "<t:1999990000:f>"],
             ["Datum", "<t:2000000000:D>"], ["Uhrzeit", "<t:2000000000:t>"], ["Start", "<t:2000000000:R>"],
         ]);
-        expect(embed.fields[6].value).toBe("Tanks **2**/2");
-        const blocks = embed.fields.slice(11).filter((f) => f.inline);
+        expect(embed.fields[6]).toEqual({ name: "Ende", value: "<t:2000010800:t>", inline: true });
+        expect(embed.fields[9].value).toBe("Tanks **2**/2");
+        const blocks = embed.fields.slice(14).filter((f) => f.inline);
         expect(blocks[0]).toMatchObject({ name: "__Tanks__ (2)", value: `\`1\` **Brokk** · Schutz\n\`7\` **Gemli** · Wilder Kampf (Bär)\n${ZWS}` });
         expect(blocks[1].name).toBe("__Priester__ (1)");
         expect(embed.fields.find((f) => !f.inline && f.value.includes("Spät")).value.split("\n")[0]).toBe("Spät (1): `2` Ysolde");

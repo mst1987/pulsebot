@@ -11,6 +11,7 @@ jest.mock("../../src/web/raidEventGroups", () => ({ fetchEventsCached: jest.fn(a
 jest.mock("../../src/web/discord", () => ({
     getChannelCategoryMap: jest.fn(() => ({})),
     botPermissionsIn: jest.fn(() => null),
+    botCanManageEvents: jest.fn(() => null),
     listCategories: jest.fn(() => []),
 }));
 jest.mock("../../src/web/categoryNames", () => ({ listKnownCategories: jest.fn(() => []) }));
@@ -31,6 +32,8 @@ const baseInputs = (over = {}) => ({
     history: { importedEvents: 12, users: 20, lastRun: { at: 1, byName: "Orga" } },
     emojis: { loaded: true, total: 46, missing: [] },
     permissions: [{ key: "ManageChannels", label: "Kanäle verwalten", ok: true }],
+    // #305: no category asks for a Discord event by default.
+    discordEvents: { categories: [], canManage: null },
     ...over,
 });
 const item = (list, id) => list.items.find((i) => i.id === id);
@@ -45,7 +48,7 @@ describe("web/raidhelperRetirement", () => {
         it("is ready and all green when everything is done; every item says why and where", () => {
             const list = buildChecklist(baseInputs());
             expect(list.ready).toBe(true);
-            expect(list.items.map((i) => i.id)).toEqual(["categories", "upcoming", "history", "emojis", "commands", "permissions"]);
+            expect(list.items.map((i) => i.id)).toEqual(["categories", "upcoming", "history", "emojis", "discordevent", "commands", "permissions"]);
             expect(list.done).toBe(list.total);
             expect(list.total).toBe(5); // the command hint cannot be checked
             for (const i of list.items) {
@@ -99,6 +102,26 @@ describe("web/raidhelperRetirement", () => {
             expect(item(list, "permissions").status).toBe("unknown");
         });
 
+        // #305: Discord-Events are optional — the line is a reminder, never a blocker
+        it("is a hint while no category wants a Discord event, and names the missing right once one does", () => {
+            const off = buildChecklist(baseInputs());
+            expect(item(off, "discordevent")).toMatchObject({ status: "info", value: "aus", required: false });
+            expect(off.total).toBe(5); // an info item is not counted
+
+            const on = buildChecklist(baseInputs({ discordEvents: { categories: [{ id: "c1", name: "Mittwoch" }], canManage: true } }));
+            expect(item(on, "discordevent")).toMatchObject({ status: "ok", value: "1 Kategorie", detail: ["Mittwoch"] });
+            expect(on.ready).toBe(true);
+
+            const missing = buildChecklist(baseInputs({ discordEvents: { categories: [{ id: "c1", name: "Mittwoch" }], canManage: false } }));
+            expect(item(missing, "discordevent")).toMatchObject({ status: "bad", value: "Recht fehlt" });
+            expect(item(missing, "discordevent").detail[0]).toContain("Events verwalten");
+            // a red recommendation still does not block the switch
+            expect(missing.ready).toBe(true);
+
+            const offline = buildChecklist(baseInputs({ discordEvents: { categories: [{ id: "c1", name: "" }], canManage: null } }));
+            expect(item(offline, "discordevent").status).toBe("unknown");
+        });
+
         it("says Raid-Helper is no longer asked once switched off", () => {
             const list = buildChecklist(baseInputs({ disabled: true, disabledAt: 5, disabledBy: "Orga" }));
             expect(list).toMatchObject({ disabled: true, disabledAt: 5, disabledBy: "Orga" });
@@ -125,6 +148,19 @@ describe("web/raidhelperRetirement", () => {
             expect(item(list, "emojis").value).toMatch(/^1 \/ \d+$/);
             expect(item(list, "permissions").status).toBe("ok");
             expect(discord.botPermissionsIn).toHaveBeenCalledWith("g1");
+            // #305: no category wants a Discord event here
+            expect(item(list, "discordevent").status).toBe("info");
+        });
+
+        it("reads the categories that want a Discord event and the right for it (#305)", async () => {
+            getConfig.mockReturnValue({
+                guildId: "g1", categoryIds: ["c1"], signupSourceDefault: "eventhelper", categoryDiscordEvent: { c1: true, c2: false },
+            });
+            listKnownCategories.mockReturnValue([{ id: "c1", name: "Mittwoch" }]);
+            discord.botCanManageEvents.mockReturnValue(true);
+            const list = await loadChecklist();
+            expect(item(list, "discordevent")).toMatchObject({ status: "ok", value: "1 Kategorie", detail: ["Mittwoch"] });
+            expect(discord.botCanManageEvents).toHaveBeenCalledWith("g1");
         });
 
         it("does not ask Raid-Helper once it is switched off", async () => {

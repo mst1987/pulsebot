@@ -126,6 +126,9 @@ async function getRaidCreateContext(req, res, url) {
         categoryTemplates,
         leaderId: user.id,
         channels,
+        // The raid's voice channel (#305) and the preset per category.
+        voiceChannels: safeList(() => discord.listVoiceChannels(guildId)),
+        categoryVoiceChannel: config.categoryVoiceChannel || {},
         templates,
         reusableEvents,
         // Where each category creates its new events, resolved on the server

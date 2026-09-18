@@ -107,7 +107,7 @@ export function newDraft(version: GameVersion | null | undefined): RaidTemplateI
     return {
         name: "", versionId: version ? version.id : "tbc", instanceIds: ids, size,
         composition: { tank: c.tank, healer: c.healer, melee: null, ranged: null },
-        requiredBuffs: [], signupDeadline: null, fairness: false, wishes: false,
+        requiredBuffs: [], signupDeadline: null, durationMinutes: null, fairness: false, wishes: false,
         overflow: "bench", lockAtLimit: false, raidhelperTemplateId: "",
     };
 }
@@ -121,6 +121,7 @@ export function draftOf(t: RaidTemplate): RaidTemplateInput {
             melee: t.composition.melee || null, ranged: t.composition.ranged || null,
         },
         requiredBuffs: [...(t.requiredBuffs || [])], signupDeadline: t.signupDeadline || null,
+        durationMinutes: t.durationMinutes ?? null,
         fairness: !!t.fairness, wishes: !!t.wishes,
         overflow: t.overflow === "off" ? "off" : "bench", lockAtLimit: !!t.lockAtLimit,
         raidhelperTemplateId: t.raidhelperTemplateId || "",

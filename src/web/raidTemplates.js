@@ -19,6 +19,10 @@ const {
 const MAX_SIZE = 40;
 // A signup deadline further out than two weeks before the raid is a typo.
 const MAX_DEADLINE_HOURS = 336;
+// How long an evening of this kind takes (#305) — the event inherits it.
+// null = not set, then the event falls back to eventStore's default.
+const MIN_DURATION = 30;
+const MAX_DURATION = 600;
 
 /** The id a legacy Raid-Helper entry gets — deterministic, so a re-read never changes it. */
 function legacyId(raidhelperId) {
@@ -42,6 +46,7 @@ function migrateLegacy(entry) {
         composition: { tank: 0, healer: 0, melee: null, ranged: null },
         requiredBuffs: [],
         signupDeadline: null,
+        durationMinutes: null,
         fairness: false,
         wishes: false,
         overflow: "bench",
@@ -90,6 +95,7 @@ function normalizeTemplate(raw) {
         },
         requiredBuffs: [...new Set(buffs)],
         signupDeadline: deadline === null ? null : { hoursBefore: deadline },
+        durationMinutes: int(src.durationMinutes),
         fairness: src.fairness === true,
         wishes: src.wishes === true,
         // What a full raid does with a new "Dabei", and whether it closes its
@@ -141,6 +147,10 @@ function validateTemplate(t) {
         const h = t.signupDeadline.hoursBefore;
         if (Number.isNaN(h) || h < 0 || h > MAX_DEADLINE_HOURS) return `Anmeldeschluss: 0 bis ${MAX_DEADLINE_HOURS} Stunden vor Start.`;
     }
+    if (t.durationMinutes !== null) {
+        const d = t.durationMinutes;
+        if (Number.isNaN(d) || d < MIN_DURATION || d > MAX_DURATION) return `Dauer: ${MIN_DURATION} bis ${MAX_DURATION} Minuten.`;
+    }
     return "";
 }
 
@@ -186,6 +196,6 @@ function decorateTemplate(t, categoryDefaults = {}) {
 }
 
 module.exports = {
-    MAX_SIZE, MAX_DEADLINE_HOURS,
+    MAX_SIZE, MAX_DEADLINE_HOURS, MIN_DURATION, MAX_DURATION,
     legacyId, isLegacy, migrateLegacy, normalizeTemplate, validateTemplate, proposeComposition, decorateTemplate,
 };

@@ -31,6 +31,7 @@ const archiveStore = require("./channelArchiveStore");
 const discord = require("./discord");
 const { refreshEventMessage } = require("./eventMessage");
 const { refreshSetupMessage } = require("./setupMessage");
+const discordEvent = require("./discordEvent");
 const { scheduleOverviewSync } = require("./talkOverview");
 const { deliverUserPing, sendDms } = require("./pingDelivery");
 const { getConfig } = require("./settingsStore");
@@ -245,6 +246,8 @@ async function moveEvent({ guildId, eventId, date, time, renameChannel = true, n
         }
     }
     const messageError = await refreshMessage(plan.eventId);
+    // The Discord event moves along (#305); a refusal is a warning, never a failed move.
+    const discordEventError = discordEvent.warningOf(await discordEvent.syncForEvent(plan.eventId).catch((e) => ({ warning: (e && e.message) || "Fehler" })));
 
     let notified = 0;
     let notifyError = null;
@@ -280,7 +283,7 @@ async function moveEvent({ guildId, eventId, date, time, renameChannel = true, n
             message: `${parts.join(" · ")}.`,
             event: eventStore.getEvent(plan.eventId),
             renamed, notified,
-            warnings: [channelError, messageError, notifyError].filter(Boolean),
+            warnings: [channelError, messageError, notifyError, discordEventError].filter(Boolean),
         },
     };
 }
@@ -422,6 +425,9 @@ async function cancelEvent({ guildId, eventId, reason, archiveChannel = false, n
     const cancel = { reason: text, at: now, by: actor.by, byName: actor.byName, archived: false };
     let event = eventStore.setEventState(found.event.id, { status: "cancelled", signupsClosed: true, cancel });
     const messageError = await refreshMessage(event.id);
+    // The Discord event is called off too — an event still listed for a raid
+    // that is not happening is worse than none (#305).
+    const discordEventError = discordEvent.warningOf(await discordEvent.cancelForEvent(event.id).catch((e) => ({ warning: (e && e.message) || "Fehler" })));
 
     let dm = { sent: [], failed: [] };
     const recipients = recipientsOf(event.id).map((s) => s.userId);
@@ -467,6 +473,7 @@ async function cancelEvent({ guildId, eventId, reason, archiveChannel = false, n
                 messageError,
                 dm.failed.length ? `${dm.failed.length} ${dm.failed.length === 1 ? "DM kam" : "DMs kamen"} nicht an (DMs geschlossen?)` : "",
                 archiveError,
+                discordEventError,
             ].filter(Boolean),
         },
     };
@@ -480,6 +487,8 @@ async function reopenEvent({ guildId, eventId, user, byName }) {
     const wasArchived = !!(found.event.cancel && found.event.cancel.archived);
     const event = eventStore.setEventState(found.event.id, { status: "active", signupsClosed: false, cancel: null });
     const messageError = await refreshMessage(event.id);
+    // A cancelled Discord event cannot be revived — a new one is created (#305).
+    const discordEventError = discordEvent.warningOf(await discordEvent.reopenForEvent(event.id).catch((e) => ({ warning: (e && e.message) || "Fehler" })));
     scheduleOverviewSync();
     log(event.id, "reopen", actorOf(user, byName));
     return {
@@ -487,7 +496,7 @@ async function reopenEvent({ guildId, eventId, user, byName }) {
         body: {
             message: `Absage zurückgenommen — Anmeldung wieder offen.${wasArchived ? " Der Kanal liegt noch im Archiv (Kanäle)." : ""}`,
             event: eventStore.getEvent(event.id),
-            warnings: [messageError].filter(Boolean),
+            warnings: [messageError, discordEventError].filter(Boolean),
         },
     };
 }
@@ -598,6 +607,10 @@ async function deleteEvent({ guildId, eventId, archiveChannel = false, notify = 
     const seriesMarked = markSeriesDeleted(event, actor, now);
 
     const warnings = [];
+    // The Discord event goes with it (#305) — the store no longer knows the
+    // event, so the record is only read, never written back.
+    const discordEventWarning = discordEvent.warningOf(await discordEvent.deleteForEvent(event, { store: false }).catch((e) => ({ warning: (e && e.message) || "Fehler" })));
+    if (discordEventWarning) warnings.push(discordEventWarning);
     let messagesDeleted = 0;
     for (const [label, where] of [["Anmelde-Nachricht", event.message], ["Setup-Nachricht", event.setupPost]]) {
         if (!where || !where.messageId) continue;

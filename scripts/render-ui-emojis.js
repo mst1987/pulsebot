@@ -55,6 +55,11 @@ const ICONS = {
     melee: '<path d="M14.5 17.5 3.5 6.5v-3h3l11 11"/><path d="M13 19.5l6.5-6.5M16.2 16.2l4.3 4.3M19 21.5l2.5-2.5"/>',
     // a target — ranged
     ranged: '<circle cx="12" cy="12" r="8.3"/><circle cx="12" cy="12" r="3.3"/><path d="M12 1.8v4.6M12 17.6v4.6M1.8 12h4.6M17.6 12h4.6"/>',
+    // a loudspeaker with two waves — the raid's voice channel (#305)
+    voice: '<path d="M4 9.2h3.3L12.6 4.6v14.8L7.3 14.8H4Z"/><path d="M16.2 9.1a4.2 4.2 0 0 1 0 5.8M19 6.3a8.2 8.2 0 0 1 0 11.4"/>',
+    // an arrow running into a wall — the raid's end (#305); a second clock
+    // would be indistinguishable from `time` at 32 px.
+    end: '<path d="M3.5 12h11"/><path d="M10.5 7.5 15 12l-4.5 4.5"/><path d="M19.5 4.5v15"/>',
 };
 
 /** The SVG source of one icon. */

@@ -514,6 +514,10 @@ export type AdminConfig = {
     raidhelperRetirement?: { disabled: boolean; at: number; byName: string };
     // Setup-DMs per category (#290): only switched-on categories are listed.
     categorySetupDms?: Record<string, boolean>;
+    // A Discord event per raid (#305): only switched-on categories are listed.
+    categoryDiscordEvent?: Record<string, boolean>;
+    // The voice channel a category's raids meet in (#305), keyed by category id.
+    categoryVoiceChannel?: Record<string, string>;
     // "Beim Anlegen ankündigen" per category (#306): only switched-on ones are
     // listed; `target` is a ping target ("event" | "talk" | "both").
     categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;
@@ -617,6 +621,8 @@ export type SettingsData = {
     // The text channels the bot can post in, for the channel pickers; empty
     // while the bot is offline (the fields then take a raw id).
     channels?: TextChannel[];
+    // The server's voice channels, for the voice channel per category (#305).
+    voiceChannels?: TextChannel[];
     // Status line of the "Discord & Raid-Helper" connection card.
     bot?: { online: boolean; readySince: number; guildName: string };
     // The event and talk server cards; null for a limited settings user.
@@ -1328,6 +1334,8 @@ export type RaidTemplateInput = {
     /** buff keys of the version */
     requiredBuffs: string[];
     signupDeadline: { hoursBefore: number } | null;
+    /** how long an evening of this kind takes, in minutes (#305); null = not set */
+    durationMinutes: number | null;
     fairness: boolean;
     wishes: boolean;
     /** what a full raid does with a new "Dabei" (#306): the waiting list, or refuse it */
@@ -1371,11 +1379,15 @@ export type OwnEvent = {
     categoryName: string;
     channelId: string;
     channelName: string;
+    /** the voice channel the raid meets in (#305); "" = none */
+    voiceChannelId: string;
     title: string;
     description: string;
     leaderId: string;
     /** unix seconds */
     startTime: number;
+    /** how long the raid takes, in minutes (#305) */
+    durationMinutes: number;
     versionId: string;
     instanceIds: string[];
     size: number;
@@ -1404,6 +1416,10 @@ export type RaidCreateContext = {
     categoryTemplates: Record<string, string>;
     leaderId: string;
     channels: Channel[];
+    /** the server's voice channels, for the raid's voice channel (#305) */
+    voiceChannels?: Channel[];
+    /** category id → the voice channel its raids meet in (#305) */
+    categoryVoiceChannel?: Record<string, string>;
     templates: RaidTemplate[];
     reusableEvents: ReusableEvent[];
     /** category id → "eventhelper" for categories whose new events live in the EventHelper */
@@ -1448,6 +1464,8 @@ export type EventPlanInput = {
     size: number;
     composition: { tank: number; healer: number; melee: RoleRange | null; ranged: RoleRange | null };
     requiredBuffs: string[];
+    /** how long the raid takes, in minutes (#305); 30–600 */
+    durationMinutes: number;
     /** hours before the start, 0 = no deadline — counted in Berlin time on the server */
     signupDeadlineHours: number;
     fairness: boolean;
@@ -1469,6 +1487,8 @@ export type CreateRaidInput = Partial<EventPlanInput> & {
     newChannel?: { name: string; categoryId: string; templateChannelId?: string };
     /** overrides the category's default source */
     signupSource?: EventSource;
+    /** the voice channel the raid meets in (#305); "" = none */
+    voiceChannelId?: string;
     /** "Beim Anlegen ankündigen" (#306); omitted = as the category has it */
     announce?: boolean;
     leaderId: string;
@@ -1486,6 +1506,8 @@ export type UpdateRaidInput = Partial<EventPlanInput> & {
     time: string;
     leaderId: string;
     description: string;
+    /** the voice channel the raid meets in (#305); "" = none */
+    voiceChannelId?: string;
 };
 
 /** Edit an own (EventHelper) event with the same dialog (#261). */

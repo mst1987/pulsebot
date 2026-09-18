@@ -54,7 +54,8 @@ const SIGNUP_SOURCES = [
 
 export default function CategoryMatrix({
     categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySignupSource = {}, signupSourceDefault = "raidhelper", categorySetupDms = {}, categoryAnnounce = {}, categorySheets, savedCategoryRoles,
-    onToggleCategory, onToggleRole, onLootTool, onSignupSource, onSetupDms, onAnnounce, onSheet, csrfToken, icon, crumb, raidTemplates,
+    categoryDiscordEvent = {}, categoryVoiceChannel = {}, voiceChannels = [],
+    onToggleCategory, onToggleRole, onLootTool, onSignupSource, onSetupDms, onAnnounce, onDiscordEvent, onVoiceChannel, onSheet, csrfToken, icon, crumb, raidTemplates,
 }: {
     /** The default raid template per category (#266): the choices, the draft map and its setter. */
     raidTemplates?: CategoryRaidTemplates;
@@ -69,6 +70,12 @@ export default function CategoryMatrix({
     signupSourceDefault?: EventSource;
     /** Setup-DMs per category (#290); missing = off. */
     categorySetupDms?: Record<string, boolean>;
+    /** A Discord event per raid (#305); missing = off. */
+    categoryDiscordEvent?: Record<string, boolean>;
+    /** The voice channel a category's raids meet in (#305); missing = none. */
+    categoryVoiceChannel?: Record<string, string>;
+    /** The server's voice channels; empty while the bot is offline. */
+    voiceChannels?: { id: string; name: string; category?: string }[];
     /** "Beim Anlegen ankündigen" per category (#306); missing = off. */
     categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;
     categorySheets: Record<string, CategorySheet>;
@@ -79,6 +86,8 @@ export default function CategoryMatrix({
     onLootTool: (categoryId: string, tool: string) => void;
     onSignupSource: (categoryId: string, source: EventSource) => void;
     onSetupDms?: (categoryId: string, on: boolean) => void;
+    onDiscordEvent?: (categoryId: string, on: boolean) => void;
+    onVoiceChannel?: (categoryId: string, channelId: string) => void;
     onAnnounce?: (categoryId: string, mode: string) => void;
     onSheet: (categoryId: string, sheet: CategorySheet) => void;
     csrfToken: string | null;
@@ -97,6 +106,8 @@ export default function CategoryMatrix({
         ...Object.keys(categoryLootTool),
         ...Object.keys(categorySignupSource),
         ...Object.keys(categorySetupDms).filter((id) => categorySetupDms[id]),
+        ...Object.keys(categoryDiscordEvent).filter((id) => categoryDiscordEvent[id]),
+        ...Object.keys(categoryVoiceChannel).filter((id) => categoryVoiceChannel[id]),
         ...Object.keys(categoryAnnounce).filter((id) => categoryAnnounce[id] && categoryAnnounce[id].enabled),
         ...Object.keys(categorySheets),
     ];
@@ -274,6 +285,26 @@ export default function CategoryMatrix({
                                     <Segment ariaLabel={`Ankündigung ${cat.name}`}
                                         value={categoryAnnounce[cat.id] && categoryAnnounce[cat.id].enabled ? (categoryAnnounce[cat.id].target || "event") : ""}
                                         onChange={(v) => onAnnounce(cat.id, v)} options={ANNOUNCE_MODES} />
+                                </div>
+                            )}
+                            {onDiscordEvent && (
+                                <div className="cat-switch-row">
+                                    <FieldLabel tip="Discord-Event" tipSub="Zu jedem EventHelper-Event dieser Kategorie legt der Bot ein Discord-Event an (Server-Seitenleiste, Handy-App). Es zieht bei Verschieben, Absagen und Löschen mit. Die Anmeldung läuft weiter nur über die Nachricht im Kanal — „Interessiert“ zählt nicht. Der Bot braucht dafür das Recht „Events verwalten“.">Discord-Event</FieldLabel>
+                                    <label className="switch">
+                                        <input type="checkbox" checked={categoryDiscordEvent[cat.id] === true} onChange={() => onDiscordEvent(cat.id, categoryDiscordEvent[cat.id] !== true)} aria-label={`Discord-Event ${cat.name}`} />
+                                        <span className="switch-track"><span className="switch-thumb" /></span>
+                                    </label>
+                                </div>
+                            )}
+                            {onVoiceChannel && (
+                                <div>
+                                    <FieldLabel htmlFor={`catvoice-${cat.id}`} tip="Sprachkanal" tipSub="Wo sich die Raids dieser Kategorie treffen. Vorbelegung beim Anlegen eines Events — dort noch änderbar. Steht in der Anmelde-Nachricht und ist der Ort des Discord-Events.">Sprachkanal</FieldLabel>
+                                    {voiceChannels.length ? (
+                                        <select id={`catvoice-${cat.id}`} value={categoryVoiceChannel[cat.id] || ""} onChange={(e) => onVoiceChannel(cat.id, e.target.value)}>
+                                            <option value="">— keiner —</option>
+                                            {voiceChannels.map((c) => <option key={c.id} value={c.id}>{c.name}{c.category ? ` · ${c.category}` : ""}</option>)}
+                                        </select>
+                                    ) : <span className="note">Keine Sprachkanäle geladen (Bot offline).</span>}
                                 </div>
                             )}
                             <div>

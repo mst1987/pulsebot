@@ -22,6 +22,8 @@ export type EventPlan = {
     melee: RoleRange | null;
     ranged: RoleRange | null;
     requiredBuffs: string[];
+    /** how long the raid takes, in minutes (#305) */
+    durationMinutes: number;
     /** hours before the start, 0 = no deadline */
     deadlineHours: number;
     fairness: boolean;
@@ -36,6 +38,12 @@ export type EventPlan = {
 export type StepKey = "start" | "termin" | "raid" | "kanal" | "check";
 
 export const PLAN_MAX_SIZE = 40;
+
+// The duration of a raid (#305) — the same bounds the server checks
+// (src/utils/eventTime.js).
+export const PLAN_MIN_DURATION = 30;
+export const PLAN_MAX_DURATION = 600;
+export const PLAN_DEFAULT_DURATION = 180;
 
 export const STEP_LABELS = { start: "Vorlage", termin: "Termin", raid: "Raid", kanal: "Kanal & Anmeldung", check: "Prüfen" };
 
@@ -64,7 +72,8 @@ export function emptyPlan(version: GameVersion | null | undefined): EventPlan {
     const c = defaultComposition(25);
     return {
         raidTemplateId: "", versionId: version ? version.id : "tbc", instanceIds: [], size: 25, tank: c.tank, healer: c.healer,
-        melee: null, ranged: null, requiredBuffs: [], deadlineHours: 0, fairness: false, wishes: false, autoSuggest: false,
+        melee: null, ranged: null, requiredBuffs: [], durationMinutes: PLAN_DEFAULT_DURATION,
+        deadlineHours: 0, fairness: false, wishes: false, autoSuggest: false,
         overflow: "bench", lockAtLimit: false,
     };
 }
@@ -81,6 +90,7 @@ export function planFromTemplate(t: RaidTemplate, version: GameVersion | null | 
         melee: comp.melee ? { min: comp.melee.min || 0, max: comp.melee.max ?? null } : null,
         ranged: comp.ranged ? { min: comp.ranged.min || 0, max: comp.ranged.max ?? null } : null,
         requiredBuffs: [...(t.requiredBuffs || [])],
+        durationMinutes: t.durationMinutes || PLAN_DEFAULT_DURATION,
         deadlineHours: t.signupDeadline ? t.signupDeadline.hoursBefore : 0,
         fairness: !!t.fairness, wishes: !!t.wishes, autoSuggest: false,
         overflow: t.overflow === "off" ? "off" : "bench", lockAtLimit: !!t.lockAtLimit,
@@ -96,6 +106,7 @@ export function planFromEvent(ev: OwnEvent): EventPlan {
         raidTemplateId: ev.raidTemplateId || "", versionId: ev.versionId, instanceIds: [...(ev.instanceIds || [])], size: ev.size,
         tank: comp.tank, healer: comp.healer, melee: range(comp.melee, max.melee), ranged: range(comp.ranged, max.ranged),
         requiredBuffs: [...(ev.requiredBuffs || [])],
+        durationMinutes: ev.durationMinutes || PLAN_DEFAULT_DURATION,
         deadlineHours: ev.signupDeadline ? Math.max(0, Math.round((ev.startTime - ev.signupDeadline) / 3600)) : 0,
         fairness: !!ev.fairness, wishes: !!ev.wishes, autoSuggest: !!ev.autoSuggest,
         overflow: ev.overflow === "off" ? "off" : "bench", lockAtLimit: !!ev.lockAtLimit,
@@ -127,8 +138,8 @@ export function withInstance(plan: EventPlan, version: GameVersion | null | unde
 /** Another game version: instances and buffs do not carry over, the switches do. */
 export function withVersion(plan: EventPlan, version: GameVersion | null | undefined): EventPlan {
     return {
-        ...emptyPlan(version), raidTemplateId: plan.raidTemplateId, deadlineHours: plan.deadlineHours,
-        fairness: plan.fairness, wishes: plan.wishes, autoSuggest: plan.autoSuggest,
+        ...emptyPlan(version), raidTemplateId: plan.raidTemplateId, durationMinutes: plan.durationMinutes,
+        deadlineHours: plan.deadlineHours, fairness: plan.fairness, wishes: plan.wishes, autoSuggest: plan.autoSuggest,
         overflow: plan.overflow, lockAtLimit: plan.lockAtLimit,
     };
 }
@@ -142,7 +153,15 @@ export function planProblem(plan: EventPlan): string {
     if (mins.some((n) => !Number.isFinite(n) || n < 0)) return "Die Zusammensetzung braucht Zahlen ab 0.";
     const planned = mins.reduce((a, b) => a + b, 0);
     if (planned > size) return `Die Zusammensetzung (${planned}) ist größer als der Raid (${size}).`;
-    return maxProblem("Nahkampf", plan.melee, size) || maxProblem("Fernkampf", plan.ranged, size);
+    // In the server's order (eventStore.normalizePlan): the ranges first, then
+    // the duration — so the first problem is worded the same on both sides.
+    const ranges = maxProblem("Nahkampf", plan.melee, size) || maxProblem("Fernkampf", plan.ranged, size);
+    if (ranges) return ranges;
+    const d = plan.durationMinutes;
+    if (!Number.isFinite(d) || Math.floor(d) !== d || d < PLAN_MIN_DURATION || d > PLAN_MAX_DURATION) {
+        return `Die Dauer muss zwischen ${PLAN_MIN_DURATION} und ${PLAN_MAX_DURATION} Minuten liegen.`;
+    }
+    return "";
 }
 
 /** What is wrong with the maximum of a melee/ranged range, "" when nothing (or no maximum). */
@@ -164,7 +183,7 @@ export function planBody(plan: EventPlan): EventPlanInput {
     return {
         raidTemplateId: plan.raidTemplateId, versionId: plan.versionId, instanceIds: [...plan.instanceIds], size: plan.size,
         composition: { tank: plan.tank, healer: plan.healer, melee: plan.melee, ranged: plan.ranged },
-        requiredBuffs: [...plan.requiredBuffs], signupDeadlineHours: plan.deadlineHours,
+        requiredBuffs: [...plan.requiredBuffs], durationMinutes: plan.durationMinutes, signupDeadlineHours: plan.deadlineHours,
         fairness: plan.fairness, wishes: plan.wishes, autoSuggest: plan.autoSuggest,
         overflow: plan.overflow, lockAtLimit: plan.lockAtLimit,
     };
@@ -182,6 +201,7 @@ export function templateFromPlan(plan: EventPlan, base: RaidTemplate | null, nam
         composition: { tank: plan.tank, healer: plan.healer, melee: plan.melee, ranged: plan.ranged },
         requiredBuffs: [...plan.requiredBuffs],
         signupDeadline: plan.deadlineHours > 0 ? { hoursBefore: plan.deadlineHours } : null,
+        durationMinutes: plan.durationMinutes,
         fairness: plan.fairness, wishes: plan.wishes, overflow: plan.overflow, lockAtLimit: plan.lockAtLimit,
         raidhelperTemplateId: base ? base.raidhelperTemplateId || "" : "",
     };

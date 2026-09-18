@@ -259,6 +259,21 @@ describe("web/settingsStore", () => {
             expect(getConfig().categorySetupDms).toEqual({ c4: true });
         });
 
+        it("keeps the Discord event off by default and the voice channel only as a snowflake (#305)", () => {
+            expect(getConfig().categoryDiscordEvent).toEqual({});
+            expect(getConfig().categoryVoiceChannel).toEqual({});
+            saveConfig({ categoryDiscordEvent: { c1: true, c2: false, c3: "yes" } });
+            expect(getConfig().categoryDiscordEvent).toEqual({ c1: true });
+            saveConfig({ categoryDiscordEvent: { c1: false, c4: true } });
+            expect(getConfig().categoryDiscordEvent).toEqual({ c4: true });
+
+            saveConfig({ categoryVoiceChannel: { c1: "123456789012345678", c2: "nope", c3: "" } });
+            expect(getConfig().categoryVoiceChannel).toEqual({ c1: "123456789012345678" });
+            // an empty value clears that category again
+            saveConfig({ categoryVoiceChannel: { c1: "" } });
+            expect(getConfig().categoryVoiceChannel).toEqual({});
+        });
+
         it("keeps the create announcement off by default and stores only switched-on categories (#306)", () => {
             expect(getConfig().categoryAnnounce).toEqual({});
             saveConfig({ categoryAnnounce: { c1: { enabled: true, target: "both" }, c2: { enabled: false, target: "event" }, c3: { enabled: true, target: "nirgends" } } });

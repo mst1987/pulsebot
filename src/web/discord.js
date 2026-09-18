@@ -287,6 +287,32 @@ function listTextChannels(guildId) {
         .map((c) => ({ id: c.id, name: c.name, category: c.parent ? c.parent.name : "", parentId: c.parentId || "" }));
 }
 
+/**
+ * Voice (and stage) channels of a guild — the picker for the raid's voice
+ * channel (#305). Unlike listTextChannels() nothing is filtered by the bot's
+ * rights: the bot never speaks there, it only names the channel.
+ */
+function listVoiceChannels(guildId) {
+    const guild = getGuild(guildId);
+    if (!guild) return [];
+    return [...guild.channels.cache.values()]
+        .filter((c) => c.type === ChannelType.GuildVoice || c.type === ChannelType.GuildStageVoice)
+        .sort((a, b) => (a.rawPosition || 0) - (b.rawPosition || 0))
+        .map((c) => ({ id: c.id, name: c.name, category: c.parent ? c.parent.name : "", parentId: c.parentId || "" }));
+}
+
+/**
+ * Whether the bot may manage this server's scheduled events (#305).
+ * `null` when nothing can be known — the bot is not on that server or not
+ * connected yet — which must never read as "the right is missing".
+ */
+function botCanManageEvents(guildId) {
+    const guild = getGuild(guildId);
+    const me = guild && guild.members ? guild.members.me : null;
+    if (!guild || !me || !me.permissions) return null;
+    return me.permissions.has(PermissionsBitField.Flags.ManageEvents);
+}
+
 /** Category channels of a guild, for the "create in category" dropdown. */
 function listCategories(guildId) {
     const guild = getGuild(guildId);
@@ -816,7 +842,7 @@ module.exports = {
     sendDirectMessage, embed,
     resolveUserNames,
     memberRoleIds,
-    listCategories, listAllChannels, createChannel, duplicateChannel,
+    listCategories, listAllChannels, listVoiceChannels, botCanManageEvents, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,
     listMembersWithRoles, postMissingPing, mentionChunks, _resetMembersCacheForTests,
     fetchGuildMembersCached, botPermissionsIn, REQUIRED_BOT_PERMISSIONS,

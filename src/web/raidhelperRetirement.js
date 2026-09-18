@@ -113,6 +113,44 @@ function emojisItem({ emojis }) {
     };
 }
 
+/**
+ * Discord-Events (#305): Raid-Helper posts one per raid, the EventHelper does
+ * too — but only for a category that asked for it, and only with the right
+ * "Events verwalten". A guild that uses none is not missing anything, so the
+ * item is a recommendation, never a blocker.
+ */
+function discordEventItem({ discordEvents }) {
+    const on = (discordEvents && discordEvents.categories) || [];
+    const base = { id: "discordevent", label: "Discord-Events zu den Raids", link: { to: "/settings?section=kategorien", label: "Kategorien" } };
+    if (!on.length) {
+        return {
+            ...base,
+            status: "info",
+            value: "aus",
+            why: "Raid-Helper legt zu jedem Raid ein Discord-Event an. Der EventHelper kann das auch – einzuschalten je Kategorie unter Einstellungen → Kategorien.",
+            detail: [],
+        };
+    }
+    const right = discordEvents.canManage;
+    const names = on.map((c) => c.name || c.id);
+    if (right === null || right === undefined) {
+        return {
+            ...base,
+            status: "unknown",
+            value: `${on.length} ${on.length === 1 ? "Kategorie" : "Kategorien"}`,
+            why: "Ob der Bot Events anlegen darf, lässt sich gerade nicht sagen – er ist nicht verbunden.",
+            detail: names,
+        };
+    }
+    return {
+        ...base,
+        status: right ? "ok" : "bad",
+        value: right ? `${on.length} ${on.length === 1 ? "Kategorie" : "Kategorien"}` : "Recht fehlt",
+        why: "Zu jedem Event dieser Kategorien legt der Bot ein Discord-Event an. Dafür braucht er auf dem Event-Server das Recht „Events verwalten“.",
+        detail: right ? names : ["fehlt: Events verwalten", ...names],
+    };
+}
+
 function commandsItem() {
     return {
         id: "commands",
@@ -154,7 +192,8 @@ function permissionsItem({ permissions }) {
  * The checklist from its inputs.
  * @param {{ disabled, disabledAt, disabledBy, categories: {id,name,source}[],
  *   upcoming: { events?: object[], error?: string|null }, history: { importedEvents, users, lastRun },
- *   emojis: { loaded, total, missing: string[] }, permissions: {key,label,ok}[]|null }} inputs
+ *   emojis: { loaded, total, missing: string[] }, permissions: {key,label,ok}[]|null,
+ *   discordEvents: { categories: {id,name}[], canManage: boolean|null } }} inputs
  */
 function buildChecklist(inputs) {
     const items = [
@@ -162,6 +201,7 @@ function buildChecklist(inputs) {
         upcomingItem(inputs),
         historyItem(inputs),
         emojisItem(inputs),
+        discordEventItem(inputs),
         commandsItem(inputs),
         permissionsItem(inputs),
     ].map((item) => ({ ...item, required: REQUIRED.has(item.id) }));
@@ -244,6 +284,21 @@ async function loadChecklist({ config = getConfig() } = {}) {
         permissions = null;
     }
 
+    // The categories that want a Discord event per raid, and whether the bot may
+    // make one (#305) — both best-effort like everything else here.
+    let canManage = null;
+    try {
+        canManage = eventGuildId ? discord.botCanManageEvents(eventGuildId) : null;
+    } catch {
+        canManage = null;
+    }
+    const discordEvents = {
+        categories: Object.keys(config.categoryDiscordEvent || {})
+            .filter((id) => (config.categoryDiscordEvent || {})[id] === true)
+            .map((id) => ({ id, name: names.get(id) || "" })),
+        canManage,
+    };
+
     const retirement = config.raidhelperRetirement || {};
     return buildChecklist({
         disabled,
@@ -254,6 +309,7 @@ async function loadChecklist({ config = getConfig() } = {}) {
         history: specHistory.importStatus(),
         emojis,
         permissions,
+        discordEvents,
     });
 }
 

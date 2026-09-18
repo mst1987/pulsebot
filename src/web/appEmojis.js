@@ -16,6 +16,7 @@
 //   eh_role_<role>       eh_role_tank, eh_role_healer, …          (WoW icon)
 //   eh_ui_<name>         eh_ui_leader, eh_ui_date, eh_ui_signed, … (flat line icon)
 //                        eh_ui_tank|healer|melee|ranged — the flat role icons (#303)
+//                        eh_ui_voice, eh_ui_end — the raid's voice channel and its end (#305)
 //
 // The `eh_ui_` icons are the message's chrome — leader, count, date, time,
 // deadline, start, the five signup statuses, closed, class — drawn flat and
@@ -44,6 +45,8 @@ const UI_ICONS = [
     "signed", "late", "tentative", "bench", "absence", "closed", "class",
     // the role totals and the Tank block of the event message (#303)
     "tank", "healer", "melee", "ranged",
+    // the voice channel and the raid's end in the message head (#305)
+    "voice", "end",
 ];
 
 const slug = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "");

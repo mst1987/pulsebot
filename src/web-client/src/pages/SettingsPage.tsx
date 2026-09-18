@@ -59,6 +59,8 @@ type Draft = {
     /** Not saved from here — read so an unset category shows the source it really gets. */
     signupSourceDefault: EventSource;
     categorySetupDms: Record<string, boolean>;
+    categoryDiscordEvent: Record<string, boolean>;
+    categoryVoiceChannel: Record<string, string>;
     /** "Beim Anlegen ankündigen" per category (#306); missing = off. */
     categoryAnnounce: Record<string, { enabled: boolean; target: string }>;
     categorySheets: Record<string, CategorySheet>;
@@ -85,6 +87,8 @@ function toDraft(config: AdminConfig): Draft {
         categorySignupSource: config.categorySignupSource || {},
         signupSourceDefault: config.signupSourceDefault || "raidhelper",
         categorySetupDms: config.categorySetupDms || {},
+        categoryDiscordEvent: config.categoryDiscordEvent || {},
+        categoryVoiceChannel: config.categoryVoiceChannel || {},
         categoryAnnounce: config.categoryAnnounce || {},
         categorySheets: config.categorySheets || {},
         categoryRaidTemplate: config.categoryRaidTemplate || {},
@@ -390,6 +394,10 @@ export default function SettingsPage() {
                 categorySignupSource: draft.categorySignupSource,
                 // Merged on the server: a category switched off is sent as false.
                 categorySetupDms: draft.categorySetupDms,
+                // #305: both merged on the server — a category switched off is
+                // sent as false, a cleared voice channel as "".
+                categoryDiscordEvent: draft.categoryDiscordEvent,
+                categoryVoiceChannel: draft.categoryVoiceChannel,
                 categoryAnnounce: draft.categoryAnnounce,
                 // Sent whole: a category set back to "keine" is left out.
                 categoryRaidTemplate: Object.fromEntries(Object.entries(draft.categoryRaidTemplate).filter(([, id]) => id)),
@@ -487,6 +495,9 @@ export default function SettingsPage() {
                     categorySignupSource={draft.categorySignupSource}
                     signupSourceDefault={draft.signupSourceDefault}
                     categorySetupDms={draft.categorySetupDms}
+                    categoryDiscordEvent={draft.categoryDiscordEvent}
+                    categoryVoiceChannel={draft.categoryVoiceChannel}
+                    voiceChannels={data.voiceChannels || []}
                     categoryAnnounce={draft.categoryAnnounce}
                     categorySheets={draft.categorySheets}
                     savedCategoryRoles={data.config.categoryRoles || {}}
@@ -495,6 +506,8 @@ export default function SettingsPage() {
                     onLootTool={(id, tool) => patch({ categoryLootTool: { ...draft.categoryLootTool, [id]: tool } })}
                     onSignupSource={(id, source) => patch({ categorySignupSource: { ...draft.categorySignupSource, [id]: source } })}
                     onSetupDms={(id, on) => patch({ categorySetupDms: { ...draft.categorySetupDms, [id]: on } })}
+                    onDiscordEvent={(id, on) => patch({ categoryDiscordEvent: { ...draft.categoryDiscordEvent, [id]: on } })}
+                    onVoiceChannel={(id, channelId) => patch({ categoryVoiceChannel: { ...draft.categoryVoiceChannel, [id]: channelId } })}
                     onAnnounce={(id, mode) => patch({
                         categoryAnnounce: { ...draft.categoryAnnounce, [id]: { enabled: !!mode, target: mode || "event" } },
                     })}

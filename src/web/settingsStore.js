@@ -115,6 +115,14 @@ const CONFIG_DEFAULTS = {
     // raider in it (#290), keyed by category id: { [categoryId]: true }. Off by
     // default — only switched categories are stored.
     categorySetupDms: {},
+    // Whether an own event of this category also gets a Discord event (a guild
+    // scheduled event, #305), keyed by category id: { [categoryId]: true }. Off
+    // by default — only switched categories are stored.
+    categoryDiscordEvent: {},
+    // The voice channel a raid of this category meets in (#305), keyed by
+    // category id: { [categoryId]: channelId }. Only the preset of a new event
+    // (`event.voiceChannelId`) — an event keeps whatever was picked for it.
+    categoryVoiceChannel: {},
     // "Beim Anlegen ankündigen" per Discord category (#306):
     // { [categoryId]: { enabled: true, target: "event" | "talk" | "both" } }.
     // Off by default — only switched-on categories are stored.
@@ -506,6 +514,8 @@ function getConfig() {
         ...signupSourcesOf(stored),
         raidhelperRetirement: normalizeRaidhelperRetirement(stored.raidhelperRetirement),
         categorySetupDms: normalizeCategorySetupDms(stored.categorySetupDms),
+        categoryDiscordEvent: normalizeCategoryFlags(stored.categoryDiscordEvent),
+        categoryVoiceChannel: normalizeCategoryVoiceChannel(stored.categoryVoiceChannel),
         categoryAnnounce: normalizeCategoryAnnounce(stored.categoryAnnounce),
         categorySheets: normalizeCategorySheets(stored.categorySheets),
         categoryRaidTemplate: categoryRaidTemplateOf(stored),
@@ -660,6 +670,23 @@ function normalizeCategorySetupDms(raw) {
     for (const [catId, on] of Object.entries(raw)) {
         const key = String(catId).trim();
         if (key && on === true) out[key] = true;
+    }
+    return out;
+}
+
+/** A `{ [categoryId]: true }` switch map — off is the default and not stored (#305). */
+function normalizeCategoryFlags(raw) {
+    return normalizeCategorySetupDms(raw);
+}
+
+/** Normalise categoryVoiceChannel to `{ [categoryId]: channelId }`; anything that is no snowflake drops out. */
+function normalizeCategoryVoiceChannel(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, channelId] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        const value = String(channelId === null || channelId === undefined ? "" : channelId).trim();
+        if (key && /^\d{5,25}$/.test(value)) out[key] = value;
     }
     return out;
 }
@@ -837,6 +864,14 @@ function saveConfig(partial) {
     if (partial.categorySetupDms) {
         next.categorySetupDms = normalizeCategorySetupDms({ ...current.categorySetupDms, ...partial.categorySetupDms });
     }
+    // Same contract for the two per-category switches of #305: merged, then
+    // normalised — a category switched off (or a cleared voice channel) drops out.
+    if (partial.categoryDiscordEvent) {
+        next.categoryDiscordEvent = normalizeCategoryFlags({ ...current.categoryDiscordEvent, ...partial.categoryDiscordEvent });
+    }
+    if (partial.categoryVoiceChannel) {
+        next.categoryVoiceChannel = normalizeCategoryVoiceChannel({ ...current.categoryVoiceChannel, ...partial.categoryVoiceChannel });
+    }
     if (partial.categoryAnnounce) {
         next.categoryAnnounce = normalizeCategoryAnnounce({ ...current.categoryAnnounce, ...partial.categoryAnnounce });
     }
@@ -864,4 +899,5 @@ module.exports = {
     getConfig, saveConfig, resolveEventSheetLink, normalizeDiscordServers,
     normalizeRoleSync, normalizeCategoryReminders, ROLE_SYNC_DIRECTIONS, REMINDER_TARGETS,
     normalizeCategorySignupSource, signupSourcesOf, normalizeRaidhelperRetirement,
+    normalizeCategoryFlags, normalizeCategoryVoiceChannel,
 };

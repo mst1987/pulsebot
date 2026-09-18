@@ -127,7 +127,7 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
         }
     };
 
-    const moreCount = [draft.composition.melee, draft.composition.ranged, draft.signupDeadline].filter(Boolean).length
+    const moreCount = [draft.composition.melee, draft.composition.ranged, draft.signupDeadline, draft.durationMinutes].filter(Boolean).length
         + draft.requiredBuffs.length + (draft.fairness ? 1 : 0) + (draft.wishes ? 1 : 0)
         + (draft.overflow === "off" ? 1 : 0) + (draft.lockAtLimit ? 1 : 0) + (draft.raidhelperTemplateId ? 1 : 0);
 
@@ -168,7 +168,7 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
                 onChange={(c) => patch({ composition: { ...draft.composition, ...c } })}
             />
             <details className="rt-more">
-                <summary>Mehr: Nahkampf/Fernkampf, Pflicht-Buffs, Anmeldeschluss, Warteliste, Raid-Helper-Vorlage{moreCount ? <Badge count>{moreCount}</Badge> : null}</summary>
+                <summary>Mehr: Nahkampf/Fernkampf, Pflicht-Buffs, Anmeldeschluss, Dauer, Warteliste, Raid-Helper-Vorlage{moreCount ? <Badge count>{moreCount}</Badge> : null}</summary>
                 <div className="rt-more-body">
                     <RoleRanges idPrefix="rt" melee={draft.composition.melee} ranged={draft.composition.ranged}
                         onChange={(r) => patch({ composition: { ...draft.composition, ...r } })} />
@@ -176,6 +176,8 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
                     <div className="rt-row2">
                         <NumberInput id="rt-deadline" label="Anmeldeschluss (Stunden vor Start)" value={draft.signupDeadline ? draft.signupDeadline.hoursBefore : null}
                             onChange={(h) => patch({ signupDeadline: h === null ? null : { hoursBefore: h } })} placeholder="keiner" max={336} />
+                        <NumberInput id="rt-duration" label="Dauer (Minuten)" value={draft.durationMinutes}
+                            onChange={(d) => patch({ durationMinutes: d })} placeholder="180" max={600} />
                         <div className="rt-num-field">
                             <label htmlFor="rt-rh">Raid-Helper-Vorlage (ID)</label>
                             <input id="rt-rh" type="text" className="inp-sm mono" value={draft.raidhelperTemplateId} placeholder="z. B. 3"
