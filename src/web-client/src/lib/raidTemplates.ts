@@ -6,11 +6,15 @@
 // locals), so stripping the signature's annotations leaves valid JavaScript.
 // The server holds the same rules for real (src/web/raidTemplates.js) — this
 // copy only lets the modal say what is wrong before anybody presses Speichern.
-import type { GameVersion, GameInstance, RaidTemplate, RaidTemplateInput, RoleRange } from "../api";
+import type { EmbedImage, GameVersion, GameInstance, RaidTemplate, RaidTemplateInput, RoleRange } from "../api";
 
 export type Proposal = { tank: number; healer: number };
 
 export const MAX_SIZE = 40;
+/** The longest picture URL the server stores (#307, embedLook.MAX_URL). */
+export const MAX_IMAGE_URL = 500;
+/** The colour an embed falls back to when neither the event nor the instance has one (variables.embedAccentColor). */
+export const EMBED_ACCENT = "#8a7cff";
 
 /** The rule set's fallback curve: 10 → 2/3, 20 → 2/5, 25 → 3/6, 40 → 4/10 (config/gameVersions defaultComposition). */
 export function defaultComposition(size: number): Proposal {
@@ -69,6 +73,56 @@ export function rangeProblem(label: string, range: RoleRange | null, limit: numb
     return "";
 }
 
+// ---- Aussehen (#307) --------------------------------------------------------
+// The colour bar and the picture of the bot's event message. The wording of
+// every sentence here is the server's (src/web/embedLook.js); the test runs
+// both against the same cases.
+
+/** What is wrong with a colour field, "" when it is fine (empty = the rule set's colour). */
+export function colorProblem(raw: string): string {
+    const s = String(raw || "").trim().toLowerCase();
+    if (!s) return "";
+    const hex = s.startsWith("#") ? s : `#${s}`;
+    return /^#[0-9a-f]{6}$/.test(hex) ? "" : "Die Farbe muss als #rrggbb angegeben werden, z. B. #8a7cff.";
+}
+
+/** Whether a picture URL is one Discord may load: absolute, https, with a host. */
+export function usableImageUrl(raw: string): boolean {
+    const s = String(raw || "").trim();
+    if (!s || s.length > MAX_IMAGE_URL) return false;
+    try {
+        const url = new URL(s);
+        return url.protocol === "https:" && !!url.hostname;
+    } catch {
+        return false;
+    }
+}
+
+/** What is wrong with a picture field, "" when it is fine (no url = the instance's boss icon). */
+export function imageProblem(image: EmbedImage | null | undefined): string {
+    const mode = image ? image.mode : "";
+    const url = String((image && image.url) || "").trim();
+    if (mode && mode !== "thumbnail" && mode !== "banner") return "Das Bild muss „thumbnail“ oder „banner“ sein.";
+    if (!url) return "";
+    if (url.length > MAX_IMAGE_URL) return `Die Bild-Adresse darf höchstens ${MAX_IMAGE_URL} Zeichen lang sein.`;
+    return usableImageUrl(url) ? "" : "Die Bild-Adresse muss mit https:// beginnen.";
+}
+
+/**
+ * The instance that gives an evening its look: the biggest of the night, ties
+ * going to the one named first — the server's rule (embedLook.leadInstance).
+ */
+export function leadInstance(version: GameVersion | null | undefined, instanceIds: string[]): GameInstance | null {
+    const ids = instanceIds || [];
+    // In the order the plan names them, not the rule set's — "the one named
+    // first" is only the same answer when both sides walk the same list.
+    const insts = instancesOf(version, ids).sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+    if (!insts.length) return null;
+    let best = insts[0];
+    for (const i of insts) if (i.defaultSize > best.defaultSize) best = i;
+    return best;
+}
+
 /** The first problem of a draft as a German sentence, "" when it can be saved. Mirrors the server. */
 export function validateDraft(t: RaidTemplateInput): string {
     if (!String(t.name || "").trim()) return "Name fehlt.";
@@ -82,6 +136,8 @@ export function validateDraft(t: RaidTemplateInput): string {
     if (rangeError) return rangeError;
     const minimums = tank + healer + (melee ? melee.min : 0) + (ranged ? ranged.min : 0);
     if (minimums > limit) return `Tanks, Heiler und die Nah-/Fernkampf-Minima (${minimums}) passen nicht in die Größe ${limit}.`;
+    const look = colorProblem(t.color || "") || imageProblem(t.image);
+    if (look) return look;
     return "";
 }
 
@@ -109,6 +165,8 @@ export function newDraft(version: GameVersion | null | undefined): RaidTemplateI
         composition: { tank: c.tank, healer: c.healer, melee: null, ranged: null },
         requiredBuffs: [], signupDeadline: null, durationMinutes: null, fairness: false, wishes: false,
         overflow: "bench", lockAtLimit: false, raidhelperTemplateId: "",
+        // #307: nothing of its own — the instance's colour and boss icon.
+        color: "", image: { mode: "thumbnail", url: "" },
     };
 }
 
@@ -124,6 +182,8 @@ export function draftOf(t: RaidTemplate): RaidTemplateInput {
         durationMinutes: t.durationMinutes ?? null,
         fairness: !!t.fairness, wishes: !!t.wishes,
         overflow: t.overflow === "off" ? "off" : "bench", lockAtLimit: !!t.lockAtLimit,
+        color: t.color || "",
+        image: { mode: (t.image && t.image.mode) === "banner" ? "banner" : "thumbnail", url: (t.image && t.image.url) || "" },
         raidhelperTemplateId: t.raidhelperTemplateId || "",
     };
 }

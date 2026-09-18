@@ -26,6 +26,7 @@ const instances = [
     {
         id: "ony", name: "Onyxias Hort", short: "Ony", sizes: [40], defaultSize: 40,
         icon: "achievement_boss_onyxia",
+        color: "#8b2f4f",
         bosses: ["Onyxia"],
         finalBoss: "Onyxia", finalBossNames: ["Onyxia"],
         composition: { 40: { tanks: 2, healers: 8 } },
@@ -35,6 +36,7 @@ const instances = [
     {
         id: "mc", name: "Geschmolzener Kern", short: "MC", sizes: [40], defaultSize: 40,
         icon: "achievement_boss_ragnaros",
+        color: "#e05a1f",
         bosses: [
             "Lucifron", "Magmadar", "Gehennas", "Garr", "Shazzrah", "Baron Geddon",
             "Golemagg the Incinerator", "Sulfuron Harbinger", "Majordomo Executus", "Ragnaros",
@@ -47,6 +49,7 @@ const instances = [
     {
         id: "bwl", name: "Pechschwingenhort", short: "BWL", sizes: [40], defaultSize: 40,
         icon: "achievement_boss_nefarion",
+        color: "#a83232",
         bosses: [
             "Razorgore the Untamed", "Vaelastrasz the Corrupt", "Broodlord Lashlayer",
             "Firemaw", "Ebonroc", "Flamegor", "Chromaggus", "Nefarian",
@@ -59,6 +62,7 @@ const instances = [
     {
         id: "zg", name: "Zul'Gurub", short: "ZG", sizes: [20], defaultSize: 20,
         icon: "achievement_boss_hakkar",
+        color: "#3f8f6f",
         bosses: [
             "High Priestess Jeklik", "High Priest Venoxis", "High Priestess Mar'li",
             "Bloodlord Mandokir", "Edge of Madness", "High Priest Thekal", "Gahz'ranka",
@@ -72,6 +76,7 @@ const instances = [
     {
         id: "aq20", name: "Ruinen von Ahn'Qiraj", short: "AQ20", sizes: [20], defaultSize: 20,
         icon: "achievement_boss_ossiriantheunscarred",
+        color: "#c9a227",
         bosses: [
             "Kurinnaxx", "General Rajaxx", "Moam", "Buru the Gorger", "Ayamiss the Hunter",
             "Ossirian the Unscarred",
@@ -84,6 +89,7 @@ const instances = [
     {
         id: "aq40", name: "Tempel von Ahn'Qiraj", short: "AQ40", sizes: [40], defaultSize: 40,
         icon: "achievement_boss_cthun",
+        color: "#6fa02f",
         bosses: [
             "The Prophet Skeram", "Silithid Royalty", "Battleguard Sartura", "Fankriss the Unyielding",
             "Viscidus", "Princess Huhuran", "Twin Emperors", "Ouro", "C'Thun",
@@ -96,6 +102,7 @@ const instances = [
     {
         id: "naxx", name: "Naxxramas", short: "Naxx", sizes: [40], defaultSize: 40,
         icon: "achievement_boss_kelthuzad_01",
+        color: "#3fa7c4",
         bosses: [
             "Anub'Rekhan", "Grand Widow Faerlina", "Maexxna",
             "Noth the Plaguebringer", "Heigan the Unclean", "Loatheb",

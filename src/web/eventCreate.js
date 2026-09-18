@@ -116,6 +116,11 @@ function templateDefaults(templateId, startTime) {
         // The waiting list (#306) travels with the template like the switches above.
         overflow: t.overflow === "off" ? "off" : "bench",
         lockAtLimit: t.lockAtLimit === true,
+        // Colour and picture of the event message (#307) travel with the
+        // template too — a copy, so a later change of the template leaves the
+        // events that already exist alone. Empty = the rule set decides.
+        color: t.color || "",
+        image: { mode: (t.image && t.image.mode) || "thumbnail", url: (t.image && t.image.url) || "" },
     };
     if (t.size) out.size = t.size;
     else delete out.composition; // a migrated template without size proposes no composition
@@ -180,7 +185,11 @@ function isoDateOf(value) {
 
 const fail = (status, code, message) => ({ error: { status, code, message } });
 const given = (body, key) => body[key] !== undefined && body[key] !== null && body[key] !== "";
-const PLAN_KEYS = ["versionId", "size", "composition", "compositionMax", "requiredBuffs", "durationMinutes", "signupDeadline", "fairness", "wishes", "autoSuggest", "overflow", "lockAtLimit"];
+const PLAN_KEYS = ["versionId", "size", "composition", "compositionMax", "requiredBuffs", "durationMinutes", "signupDeadline", "fairness", "wishes", "autoSuggest", "overflow", "lockAtLimit", "color", "image"];
+// Colour and picture (#307) are the two planning fields whose *empty* value
+// means something ("take the rule set's"), so `given()` — which reads "" as
+// absent — must not decide them; planFor() merges them by `!== undefined`.
+const LOOK_KEYS = ["color", "image"];
 
 /**
  * The deadline as unix seconds: `signupDeadlineHours` (the dialog's "Stunden
@@ -208,6 +217,11 @@ function planFor(body, categoryId, title, startTime) {
     const merged = { ...template };
     for (const key of PLAN_KEYS) {
         if (given(body, key)) merged[key] = body[key];
+    }
+    // "No colour" / "no picture" is a choice the dialog can make, so these two
+    // count as given the moment the body names them at all (#307).
+    for (const key of LOOK_KEYS) {
+        if (body[key] !== undefined) merged[key] = body[key];
     }
     const deadline = deadlineFrom(body, startTime);
     if (deadline !== undefined && given(body, "signupDeadlineHours")) merged.signupDeadline = deadline;
@@ -426,6 +440,7 @@ const EDIT_FIELD_LABELS = {
     requiredBuffs: "Pflicht-Buffs", signupDeadline: "Anmeldeschluss", fairness: "Fairness", wishes: "Wünsche",
     durationMinutes: "Dauer", voiceChannelId: "Sprachkanal",
     autoSuggest: "Vorschlag bei Anmeldeschluss", overflow: "Warteliste", lockAtLimit: "Sperre bei Voll",
+    color: "Farbe", image: "Bild",
 };
 
 /**

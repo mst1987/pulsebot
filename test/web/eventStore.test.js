@@ -59,6 +59,8 @@ describe("web/eventStore", () => {
         expect(normalizePlan({}).value).toEqual({
             versionId: "tbc", instanceIds: [], size: 25, composition: { tank: 3, healer: 6, melee: 0, ranged: 0 },
             compositionMax: { melee: null, ranged: null }, requiredBuffs: [], durationMinutes: 180,
+            // #307: no own look — the rule set of the instances decides.
+            color: "", image: { mode: "thumbnail", url: "" },
         });
         // the biggest instance of the night decides the size
         expect(normalizePlan({ instanceIds: ["kara", "gruul"] }).value.size).toBe(25);

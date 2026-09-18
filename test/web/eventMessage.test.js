@@ -266,6 +266,58 @@ describe("web/eventMessage", () => {
         expect(started.embeds[0].description).toContain("Der Raid hat begonnen");
     });
 
+    describe("Farbe und Bild (#307)", () => {
+        it("nimmt ohne eigene Werte Farbe und Boss-Icon der führenden Instanz", () => {
+            const embed = buildEventMessage(event({ instanceIds: ["ssc", "tk"] }), signups, { emojis, now: NOW }).embeds[0];
+            expect(embed.color).toBe(0x1f8ba5);
+            expect(embed.thumbnail).toEqual({ url: "https://wow.zamimg.com/images/wow/icons/large/achievement_boss_ladyvashj.jpg" });
+            expect(embed.image).toBeUndefined();
+        });
+
+        it("nimmt die eigene Farbe und das eigene Bild, Banner unten statt oben", () => {
+            const embed = buildEventMessage(
+                event({ instanceIds: ["ssc"], color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/raid.png" } }),
+                signups, { emojis, now: NOW },
+            ).embeds[0];
+            expect(embed.color).toBe(0xff8800);
+            expect(embed.image).toEqual({ url: "https://cdn.example/raid.png" });
+            expect(embed.thumbnail).toBeUndefined();
+        });
+
+        it("ohne Instanz und ohne eigene Farbe bleibt es bei der Akzentfarbe, ohne Bild", () => {
+            const embed = buildEventMessage(event(), signups, { emojis, now: NOW }).embeds[0];
+            expect(embed.color).toBe(7);
+            expect(embed.thumbnail).toBeUndefined();
+            expect(embed.image).toBeUndefined();
+        });
+
+        it("eine kaputte Bild-Adresse verhindert die Nachricht nicht", () => {
+            const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+            const payload = buildEventMessage(event({ image: { mode: "banner", url: "http://kaputt/x.png" } }), signups, { emojis, now: NOW });
+            expect(payload.embeds[0].image).toBeUndefined();
+            expect(payload.embeds[0].fields.length).toBeGreaterThan(0);
+            expect(warn).toHaveBeenCalled();
+            warn.mockRestore();
+        });
+
+        it("ein abgesagtes Event behält den roten Balken und verliert das Bild", () => {
+            const embed = buildEventMessage(
+                event({ status: "cancelled", cancel: { reason: "zu wenige Heiler" }, instanceIds: ["ssc"], color: "#ff8800" }),
+                signups, { emojis, now: NOW },
+            ).embeds[0];
+            expect(embed.color).not.toBe(0xff8800);
+            expect(embed.thumbnail).toBeUndefined();
+            expect(embed.image).toBeUndefined();
+        });
+
+        it("das Bild zählt nicht gegen die 6000 Zeichen, der Hash ändert sich damit aber", () => {
+            const plain = buildEventMessage(event({ instanceIds: [] }), signups, { emojis, now: NOW });
+            const pretty = buildEventMessage(event({ instanceIds: ["ssc"] }), signups, { emojis, now: NOW });
+            expect(embedLength(pretty.embeds[0])).toBe(embedLength(plain.embeds[0]));
+            expect(payloadHash(pretty)).not.toBe(payloadHash(plain));
+        });
+    });
+
     it("shows a cancelled or closed event without components (#288)", () => {
         const cancelled = buildEventMessage(event({ status: "cancelled", cancelReason: "zu wenige Heiler" }), signups, { now: NOW });
         expect(cancelled.embeds[0].title).toBe("Abgesagt: Kara Donnerstag");

@@ -19,9 +19,15 @@
 // again on the next run. DMs go out one after the other with a pause between
 // them; the outcome (sent, failed with the reason) is stored for the editor.
 //
+// The bar carries the **same colour as the signup message** (#307,
+// embedLook.embedColor): the two posts sit in one channel and belong together.
+// The picture stays with the signup message — two copies of the same boss icon
+// under each other would only take room.
+//
 // Nothing here throws at a caller: Discord errors come back as `{ code, error }`
 // and are stored, so an offline bot never fails an approval.
-const { embedAccentColor, publicBaseUrl } = require("../config/variables");
+const { publicBaseUrl } = require("../config/variables");
+const { embedColor } = require("./embedLook");
 const eventStore = require("./eventStore");
 const { getConfig } = require("./settingsStore");
 const discord = require("./discord");
@@ -155,7 +161,7 @@ function buildSetupMessage(event, approved, { emojis = {} } = {}) {
         if (link) fields.push({ name: "\u200b", value: link, inline: false });
         embed = {
             title,
-            color: embedAccentColor,
+            color: embedColor(event),
             description: clip(description, LIMITS.description),
             fields: fields.slice(0, LIMITS.fields),
             footer: { text: `Freigegebenes Setup · Stand ${approved.version || 1}` },

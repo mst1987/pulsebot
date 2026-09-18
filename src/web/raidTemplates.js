@@ -15,6 +15,9 @@
 const {
     DEFAULT_VERSION, rulesFor, instance, compositionFor, defaultComposition,
 } = require("../config/gameVersions");
+// Colour and picture of the bot's event message (#307) — one place validates
+// them for the template and for the event that inherits them.
+const { normalizeColor, normalizeImage, colorProblem, imageProblem } = require("./embedLook");
 
 const MAX_SIZE = 40;
 // A signup deadline further out than two weeks before the raid is a typo.
@@ -51,6 +54,8 @@ function migrateLegacy(entry) {
         wishes: false,
         overflow: "bench",
         lockAtLimit: false,
+        color: "",
+        image: { mode: "thumbnail", url: "" },
         raidhelperTemplateId: rhId,
         createdAt: entry.createdAt || Date.now(),
         updatedAt: entry.updatedAt || Date.now(),
@@ -102,6 +107,10 @@ function normalizeTemplate(raw) {
         // own signup then (#306) — the event copies both on creation.
         overflow: src.overflow === "off" ? "off" : "bench",
         lockAtLimit: src.lockAtLimit === true,
+        // How the event message looks (#307): "" = the rule set's colour resp.
+        // its boss icon. The event copies both on creation.
+        color: normalizeColor(src.color),
+        image: normalizeImage(src.image),
         raidhelperTemplateId: String(src.raidhelperTemplateId || "").trim(),
     };
 }
@@ -113,8 +122,12 @@ function normalizeTemplate(raw) {
  * A template without size is allowed — that is exactly the migrated state —
  * but once a size is set, tanks + healers (and the minimums of the ranges)
  * must fit into it.
+ *
+ * `raw` is what the caller sent, before normalizeTemplate() dropped what it
+ * could not use. Colour and picture (#307) are judged on it, so a typo comes
+ * back as a refusal instead of quietly turning into "no colour".
  */
-function validateTemplate(t) {
+function validateTemplate(t, raw = t) {
     if (!t.name) return "Name fehlt.";
     const rules = rulesFor(t.versionId);
     if (!rules) return `Unbekannte Spielversion „${t.versionId}“.`;
@@ -151,6 +164,8 @@ function validateTemplate(t) {
         const d = t.durationMinutes;
         if (Number.isNaN(d) || d < MIN_DURATION || d > MAX_DURATION) return `Dauer: ${MIN_DURATION} bis ${MAX_DURATION} Minuten.`;
     }
+    const look = colorProblem(raw.color) || imageProblem(raw.image);
+    if (look) return look;
     return "";
 }
 

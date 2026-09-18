@@ -162,6 +162,7 @@ describe("Event anlegen: plan rules (client)", () => {
             raidTemplateId: "tpl", versionId: "tbc", instanceIds: ["bt"], size: 25, tank: 3, healer: 7,
             melee: { min: 5, max: 8 }, ranged: null, requiredBuffs: ["kings"], deadlineHours: 48, durationMinutes: 180,
             fairness: false, wishes: true, autoSuggest: true, overflow: "bench", lockAtLimit: false,
+            color: "", image: { mode: "thumbnail", url: "" },
         });
         // the event's own duration wins over the default (#305)
         expect(logic.planFromEvent({ ...ev, durationMinutes: 240 }).durationMinutes).toBe(240);
@@ -194,8 +195,44 @@ describe("Event anlegen: plan rules (client)", () => {
             raidTemplateId: "t", versionId: "tbc", instanceIds: ["ssc"], size: 25,
             composition: { tank: 3, healer: 6, melee: { min: 4, max: 6 }, ranged: null },
             requiredBuffs: [], durationMinutes: 180, signupDeadlineHours: 3, fairness: false, wishes: false, autoSuggest: false,
-            overflow: "bench", lockAtLimit: false,
+            overflow: "bench", lockAtLimit: false, color: "", image: { mode: "thumbnail", url: "" },
         });
+    });
+
+    it("trägt Farbe und Bild von der Vorlage ins Event und wortgleich zum Server (#307)", () => {
+        const t = {
+            id: "t1", name: "SSC", versionId: "tbc", instanceIds: ["ssc"], size: 25,
+            composition: { tank: 3, healer: 7, melee: null, ranged: null }, requiredBuffs: [], signupDeadline: null,
+            fairness: false, wishes: false, raidhelperTemplateId: "",
+            color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/a.png" },
+        };
+        const plan = logic.planFromTemplate(t, v("tbc"));
+        expect(plan).toMatchObject({ color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/a.png" } });
+        // ein Versionswechsel hängt nicht am Aussehen
+        expect(logic.withVersion(plan, v("classic"))).toMatchObject({ color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/a.png" } });
+        // und beides geht so zum Server und zurück in eine Vorlage
+        expect(logic.planBody(plan)).toMatchObject({ color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/a.png" } });
+        const server = require("../../src/web/raidTemplates");
+        const saved = logic.templateFromPlan(plan, null, "SSC");
+        expect(server.validateTemplate(server.normalizeTemplate(saved), saved)).toBe("");
+        expect(server.normalizeTemplate(saved)).toMatchObject({ color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/a.png" } });
+        // eine Vorlage von vor #307 bringt leere Felder mit
+        expect(logic.planFromTemplate({ ...t, color: undefined, image: undefined }, v("tbc")))
+            .toMatchObject({ color: "", image: { mode: "thumbnail", url: "" } });
+    });
+
+    it("wortet eine kaputte Farbe oder Bild-Adresse wie der Server (#307)", () => {
+        const base = { ...logic.emptyPlan(v("tbc")), size: 10, tank: 2, healer: 3 };
+        const cases = [
+            { color: "rot" }, { color: "#abc" }, { color: "#1f8ba5" }, { color: "" },
+            { image: { mode: "banner", url: "http://x/y.png" } },
+            { image: { mode: "banner", url: "https://x/y.png" } },
+            { image: { mode: "gross", url: "https://x/y.png" } },
+        ];
+        for (const over of cases) {
+            const plan = { ...base, ...over };
+            expect({ over, msg: logic.planProblem(plan) }).toEqual({ over, msg: serverProblem(plan) });
+        }
     });
 
     it("words a duration outside 30–600 minutes exactly like the server (#305)", () => {
@@ -213,7 +250,7 @@ describe("Event anlegen: plan rules (client)", () => {
             name: "T6 25er", versionId: "tbc", instanceIds: ["hyjal", "bt"], size: 25,
             composition: { tank: 3, healer: 6, melee: null, ranged: null }, requiredBuffs: ["kings"],
             signupDeadline: { hoursBefore: 24 }, durationMinutes: 180, fairness: false, wishes: false,
-            overflow: "bench", lockAtLimit: false, raidhelperTemplateId: "",
+            overflow: "bench", lockAtLimit: false, color: "", image: { mode: "thumbnail", url: "" }, raidhelperTemplateId: "",
         });
         expect(fresh.id).toBeUndefined();
         const base = { id: "tpl-1", name: "Alt", raidhelperTemplateId: "rh-3" };
@@ -260,7 +297,7 @@ describe("Event anlegen: dialog", () => {
         const more = raid.indexOf("<details className=\"rt-more\">");
         expect(more).toBeGreaterThan(raid.indexOf("<CompositionEditor"));
         expect(raid.indexOf("<SizePicker")).toBeLessThan(raid.indexOf("<CompositionEditor"));
-        for (const later of ["<RoleRanges", "<BuffPicker", "label=\"Fairness\"", "label=\"Wünsche\"", "label=\"Vorschlag bei Anmeldeschluss\""]) {
+        for (const later of ["<AppearanceFields", "<RoleRanges", "<BuffPicker", "label=\"Fairness\"", "label=\"Wünsche\"", "label=\"Vorschlag bei Anmeldeschluss\""]) {
             expect({ later, afterMore: raid.indexOf(later) > more }).toEqual({ later, afterMore: true });
         }
         // the sum check is one badge, not a paragraph

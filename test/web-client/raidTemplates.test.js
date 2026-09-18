@@ -117,6 +117,85 @@ describe("Raid-Vorlagen rules (client)", () => {
         expect(logic.filterByVersion(list, "")).toHaveLength(2);
         expect(logic.filterByVersion(list, "classic")).toEqual([{ versionId: "classic" }]);
     });
+
+    describe("Aussehen (#307)", () => {
+        const look = require("../../src/web/embedLook");
+
+        it("beurteilt Farbe und Bild wortgleich mit dem Server", () => {
+            for (const color of ["", "#1f8ba5", "#1F8BA5", "1f8ba5", "#abc", "rot", "#12345g"]) {
+                expect({ color, msg: logic.colorProblem(color) }).toEqual({ color, msg: look.colorProblem(color) });
+            }
+            const images = [
+                { mode: "thumbnail", url: "" },
+                { mode: "banner", url: "https://cdn.example/a.png" },
+                { mode: "banner", url: "http://cdn.example/a.png" },
+                { mode: "gross", url: "https://cdn.example/a.png" },
+                { mode: "thumbnail", url: `https://cdn.example/${"a".repeat(600)}.png` },
+            ];
+            for (const image of images) {
+                expect({ image, msg: logic.imageProblem(image) }).toEqual({ image, msg: look.imageProblem(image) });
+            }
+            expect(logic.imageProblem(undefined)).toBe("");
+            expect(logic.MAX_IMAGE_URL).toBe(look.MAX_URL);
+        });
+
+        it("meldet eine kaputte Farbe im Entwurf, wie der Server", () => {
+            const draft = { ...logic.newDraft(v("tbc")), name: "Kara", color: "rot" };
+            const msg = logic.validateDraft(draft);
+            expect(msg).toMatch(/#rrggbb/);
+            expect(server.validateTemplate(server.normalizeTemplate(draft), draft)).toBe(msg);
+        });
+
+        it("wählt dieselbe führende Instanz wie der Server", () => {
+            for (const ids of [["ssc", "tk"], ["tk", "ssc"], ["kara", "gruul"], ["gruul", "kara"], [], ["gibtsnicht"]]) {
+                const mine = logic.leadInstance(v("tbc"), ids);
+                const theirs = look.leadInstance(ids);
+                expect({ ids, id: mine ? mine.id : null }).toEqual({ ids, id: theirs ? theirs.id : null });
+            }
+        });
+
+        it("kennt die Akzentfarbe des Servers und bekommt jede Instanzfarbe aus der API", () => {
+            const { embedAccentColor } = require("../../src/config/variables");
+            expect(logic.EMBED_ACCENT).toBe(`#${embedAccentColor.toString(16).padStart(6, "0")}`);
+            for (const version of versions) {
+                for (const inst of version.instances) expect(`${inst.id}: ${inst.color}`).toMatch(/: #[0-9a-f]{6}$/);
+            }
+        });
+
+        it("nimmt Farbe und Bild in einen neuen und einen geladenen Entwurf auf", () => {
+            expect(logic.newDraft(v("tbc"))).toMatchObject({ color: "", image: { mode: "thumbnail", url: "" } });
+            expect(logic.draftOf({
+                id: "t1", name: "x", versionId: "tbc", instanceIds: [], size: 25,
+                composition: { tank: 0, healer: 0 }, color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/a.png" },
+            })).toMatchObject({ color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/a.png" } });
+            // eine Vorlage von vor #307 hat die Felder nicht
+            expect(logic.draftOf({ id: "t1", name: "x", versionId: "tbc", instanceIds: [], size: 25, composition: { tank: 0, healer: 0 } }))
+                .toMatchObject({ color: "", image: { mode: "thumbnail", url: "" } });
+        });
+    });
+});
+
+describe("Aussehen-Zeile (#307)", () => {
+    const fields = read("components", "RaidPlanFields.tsx");
+
+    it("zeigt Farbe und Bild mit kleiner Vorschau statt nur als Hex-Feld", () => {
+        expect(fields).toContain("export function AppearanceFields(");
+        // eine sichtbare Vorschau: der Farbbalken und das Bild bzw. das Boss-Icon
+        expect(fields).toContain("className=\"rt-look-bar\" style={{ background: shown }}");
+        expect(fields).toMatch(/rt-look-banner" : "rt-look-thumb/);
+        expect(fields).toContain("<WowIcon name={lead.icon} size={40} />");
+        // Farbfeld, Hex-Feld und das Segment Thumbnail/Banner
+        expect(fields).toContain("type=\"color\"");
+        expect(fields).toMatch(/\{ value: "thumbnail", label: "Thumbnail"[\s\S]*?\{ value: "banner", label: "Banner"/);
+        // die Regel steht im Tooltip, nicht als Absatz auf der Seite
+        expect(fields).toMatch(/FieldLabel text="Aussehen" tip="[^"]*Boss-Icon/);
+        expect(fields).not.toMatch(/<p className="note"/);
+    });
+
+    it("nimmt die führende Instanz aus der geteilten Regel, nicht aus einer eigenen Kopie", () => {
+        expect(fields).toContain("leadInstance(version, instanceIds)");
+        expect(fields).toContain("EMBED_ACCENT");
+    });
 });
 
 describe("Raid-Vorlagen page", () => {
@@ -157,13 +236,13 @@ describe("Raid-Vorlagen page", () => {
         expect(page.indexOf("<SizePicker")).toBeLessThan(page.indexOf("<CompositionEditor"));
         const more = page.indexOf("<details className=\"rt-more\">");
         expect(more).toBeGreaterThan(page.indexOf("<CompositionEditor"));
-        for (const later of ["<RoleRanges", "<BuffPicker", "rt-deadline", "Raid-Helper-Vorlage (ID)", "label=\"Fairness\"", "label=\"Wünsche\""]) {
+        for (const later of ["<AppearanceFields", "<RoleRanges", "<BuffPicker", "rt-deadline", "Raid-Helper-Vorlage (ID)", "label=\"Fairness\"", "label=\"Wünsche\""]) {
             expect({ later, afterMore: page.indexOf(later) > more }).toEqual({ later, afterMore: true });
         }
     });
 
     it("builds the editor from the shared plan fields of the event dialog, not its own copies", () => {
-        expect(page).toContain("import { BuffPicker, FieldLabel, InstancePicker, NumberInput, RoleRanges, SizePicker, SwitchRow } from \"../components/RaidPlanFields\";");
+        expect(page).toContain("import { AppearanceFields, BuffPicker, FieldLabel, InstancePicker, NumberInput, RoleRanges, SizePicker, SwitchRow } from \"../components/RaidPlanFields\";");
         for (const copy of ["function NumberField", "function RangeField", "className={`rt-inst", "className={`rt-buff", "className=\"switch-row\"", "{ value: FREE, label: \"frei\" }"]) {
             expect({ copy, inPage: page.includes(copy) }).toEqual({ copy, inPage: false });
         }
