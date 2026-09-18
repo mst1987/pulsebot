@@ -29,6 +29,10 @@ export type EventPlan = {
     fairness: boolean;
     wishes: boolean;
     autoSuggest: boolean;
+    /** a full raid's new "Dabei" (#306): "bench" = waiting list, "off" = refused */
+    overflow: "bench" | "off";
+    /** close the signup by itself once the raid is full (#306) */
+    lockAtLimit: boolean;
 };
 
 export type StepKey = "start" | "termin" | "raid" | "kanal" | "check";
@@ -42,6 +46,12 @@ export const PLAN_MAX_DURATION = 600;
 export const PLAN_DEFAULT_DURATION = 180;
 
 export const STEP_LABELS = { start: "Vorlage", termin: "Termin", raid: "Raid", kanal: "Kanal & Anmeldung", check: "Prüfen" };
+
+/** What the two waiting-list switches say in one line, for the "Prüfen" step (#306). */
+export function overflowLine(plan: EventPlan): string {
+    const full = plan.overflow === "off" ? "voll: keine Anmeldung mehr" : "voll: Warteliste (Bank)";
+    return plan.lockAtLimit ? `${full} · Anmeldung schließt bei Voll` : full;
+}
 
 /**
  * The steps the dialog walks: the planning step only for an EventHelper event,
@@ -64,6 +74,7 @@ export function emptyPlan(version: GameVersion | null | undefined): EventPlan {
         raidTemplateId: "", versionId: version ? version.id : "tbc", instanceIds: [], size: 25, tank: c.tank, healer: c.healer,
         melee: null, ranged: null, requiredBuffs: [], durationMinutes: PLAN_DEFAULT_DURATION,
         deadlineHours: 0, fairness: false, wishes: false, autoSuggest: false,
+        overflow: "bench", lockAtLimit: false,
     };
 }
 
@@ -82,6 +93,7 @@ export function planFromTemplate(t: RaidTemplate, version: GameVersion | null | 
         durationMinutes: t.durationMinutes || PLAN_DEFAULT_DURATION,
         deadlineHours: t.signupDeadline ? t.signupDeadline.hoursBefore : 0,
         fairness: !!t.fairness, wishes: !!t.wishes, autoSuggest: false,
+        overflow: t.overflow === "off" ? "off" : "bench", lockAtLimit: !!t.lockAtLimit,
     };
 }
 
@@ -97,6 +109,7 @@ export function planFromEvent(ev: OwnEvent): EventPlan {
         durationMinutes: ev.durationMinutes || PLAN_DEFAULT_DURATION,
         deadlineHours: ev.signupDeadline ? Math.max(0, Math.round((ev.startTime - ev.signupDeadline) / 3600)) : 0,
         fairness: !!ev.fairness, wishes: !!ev.wishes, autoSuggest: !!ev.autoSuggest,
+        overflow: ev.overflow === "off" ? "off" : "bench", lockAtLimit: !!ev.lockAtLimit,
     };
 }
 
@@ -127,6 +140,7 @@ export function withVersion(plan: EventPlan, version: GameVersion | null | undef
     return {
         ...emptyPlan(version), raidTemplateId: plan.raidTemplateId, durationMinutes: plan.durationMinutes,
         deadlineHours: plan.deadlineHours, fairness: plan.fairness, wishes: plan.wishes, autoSuggest: plan.autoSuggest,
+        overflow: plan.overflow, lockAtLimit: plan.lockAtLimit,
     };
 }
 
@@ -171,6 +185,7 @@ export function planBody(plan: EventPlan): EventPlanInput {
         composition: { tank: plan.tank, healer: plan.healer, melee: plan.melee, ranged: plan.ranged },
         requiredBuffs: [...plan.requiredBuffs], durationMinutes: plan.durationMinutes, signupDeadlineHours: plan.deadlineHours,
         fairness: plan.fairness, wishes: plan.wishes, autoSuggest: plan.autoSuggest,
+        overflow: plan.overflow, lockAtLimit: plan.lockAtLimit,
     };
 }
 
@@ -187,7 +202,7 @@ export function templateFromPlan(plan: EventPlan, base: RaidTemplate | null, nam
         requiredBuffs: [...plan.requiredBuffs],
         signupDeadline: plan.deadlineHours > 0 ? { hoursBefore: plan.deadlineHours } : null,
         durationMinutes: plan.durationMinutes,
-        fairness: plan.fairness, wishes: plan.wishes,
+        fairness: plan.fairness, wishes: plan.wishes, overflow: plan.overflow, lockAtLimit: plan.lockAtLimit,
         raidhelperTemplateId: base ? base.raidhelperTemplateId || "" : "",
     };
     return base ? { ...out, id: base.id } : out;

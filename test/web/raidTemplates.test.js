@@ -18,6 +18,7 @@ describe("raidTemplates", () => {
                 id: "", name: "Kara", versionId: "tbc", instanceIds: ["kara"], size: null,
                 composition: { tank: 0, healer: 0, melee: null, ranged: null },
                 requiredBuffs: [], signupDeadline: null, durationMinutes: null, fairness: false, wishes: false, raidhelperTemplateId: "",
+                overflow: "bench", lockAtLimit: false,
             });
         });
 

@@ -59,6 +59,9 @@ const OWN_ROLES: GameRole[] = ["tank", "healer", "melee", "ranged"];
 function OwnSignupGroups({ signups, openPlayer }: { signups: EventSignupEntry[]; openPlayer: RaidCtx["openPlayer"] }) {
     const coming = signups.filter((s) => s.status !== "absence");
     const absent = signups.filter((s) => s.status === "absence");
+    // Who is on the bench — the waiting list of a full raid (#306) among them.
+    // Nobody moves up by itself; this is the line that says there is someone to move.
+    const bench = signups.filter((s) => s.status === "bench");
     if (!signups.length) return <p className="rd-empty">Noch niemand hat sich im EventHelper angemeldet.</p>;
     return (
         <>
@@ -107,15 +110,26 @@ function OwnSignupGroups({ signups, openPlayer }: { signups: EventSignupEntry[];
                     );
                 })}
             </div>
-            {absent.length > 0 && (
+            {(bench.length > 0 || absent.length > 0) && (
                 <div className="rd-badges">
-                    <Badge
-                        tone="bad"
-                        tip={`${absent.length} abgemeldet`}
-                        tipSub={absent.map((s) => [s.character || s.name || s.userId, s.comment ? `„${s.comment}“` : ""].filter(Boolean).join(" ")).join(", ")}
-                    >
-                        {absent.length} abgemeldet
-                    </Badge>
+                    {bench.length > 0 && (
+                        <Badge
+                            tone="mid"
+                            tip={`${bench.length} auf der Warteliste`}
+                            tipSub={`Bank – wer nachrückt, entscheidest du im Setup. ${bench.map((s) => s.character || s.name || s.userId).join(", ")}`}
+                        >
+                            {bench.length} auf der Warteliste
+                        </Badge>
+                    )}
+                    {absent.length > 0 && (
+                        <Badge
+                            tone="bad"
+                            tip={`${absent.length} abgemeldet`}
+                            tipSub={absent.map((s) => [s.character || s.name || s.userId, s.comment ? `„${s.comment}“` : ""].filter(Boolean).join(" ")).join(", ")}
+                        >
+                            {absent.length} abgemeldet
+                        </Badge>
+                    )}
                 </div>
             )}
         </>

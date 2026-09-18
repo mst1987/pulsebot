@@ -19,6 +19,7 @@ const { signupSourceFor } = require("./eventSources");
 const { postEventMessage, refreshEventMessage } = require("./eventMessage");
 const discordEvent = require("./discordEvent");
 const { warningOf } = discordEvent;
+const { announceEvent } = require("./eventAnnounce");
 const { scheduleOverviewSync, RAIDHELPER_CREATE_DELAY_MS } = require("./talkOverview");
 const { raidContentIds } = require("./raidListing");
 const { getConfig, getRaidTemplate } = require("./settingsStore");
@@ -112,6 +113,9 @@ function templateDefaults(templateId, startTime) {
         requiredBuffs: t.requiredBuffs || [],
         fairness: t.fairness === true,
         wishes: t.wishes === true,
+        // The waiting list (#306) travels with the template like the switches above.
+        overflow: t.overflow === "off" ? "off" : "bench",
+        lockAtLimit: t.lockAtLimit === true,
     };
     if (t.size) out.size = t.size;
     else delete out.composition; // a migrated template without size proposes no composition
@@ -176,7 +180,7 @@ function isoDateOf(value) {
 
 const fail = (status, code, message) => ({ error: { status, code, message } });
 const given = (body, key) => body[key] !== undefined && body[key] !== null && body[key] !== "";
-const PLAN_KEYS = ["versionId", "size", "composition", "compositionMax", "requiredBuffs", "durationMinutes", "signupDeadline", "fairness", "wishes", "autoSuggest"];
+const PLAN_KEYS = ["versionId", "size", "composition", "compositionMax", "requiredBuffs", "durationMinutes", "signupDeadline", "fairness", "wishes", "autoSuggest", "overflow", "lockAtLimit"];
 
 /**
  * The deadline as unix seconds: `signupDeadlineHours` (the dialog's "Stunden
@@ -223,6 +227,8 @@ function planFor(body, categoryId, title, startTime) {
             fairness: merged.fairness === true,
             wishes: merged.wishes === true,
             autoSuggest: merged.autoSuggest === true,
+            overflow: merged.overflow === "off" ? "off" : "bench",
+            lockAtLimit: merged.lockAtLimit === true,
             raidTemplateId: template.raidTemplateId || "",
         },
     };
@@ -385,8 +391,21 @@ async function createEvent({ guildId, user, body = {} }) {
     // warning — never a failed create.
     const discordEventError = warningOf(await discordEvent.createForEvent(created.event.id).catch((e) => ({ warning: (e && e.message) || "Fehler" })));
     scheduleOverviewSync();
+    // "Beim Anlegen ankündigen" (#306): the category's switch unless the body
+    // names its own. It runs after the signup message so the ping can link it,
+    // and it never fails the create — a refused post comes back as announceError.
+    const announced = await announceEvent(created.event.id, {
+        want: body.announce === undefined ? undefined : body.announce === true,
+    });
     const event = eventStore.getEvent(created.event.id) || created.event;
-    return { status: 201, body: { id: event.id, source: "eventhelper", event, messageError, discordEventError, ...namingBody(naming, channelName) } };
+    return {
+        status: 201,
+        body: {
+            id: event.id, source: "eventhelper", event, messageError, discordEventError,
+            announced: announced.announced, announceError: announced.error || null,
+            ...namingBody(naming, channelName),
+        },
+    };
 }
 
 /** Where a created channel's name and design came from, for the caller's confirmation (#285). */
@@ -406,7 +425,7 @@ const EDIT_FIELD_LABELS = {
     instanceIds: "Instanzen", size: "Größe", composition: "Zusammensetzung", compositionMax: "Zusammensetzung",
     requiredBuffs: "Pflicht-Buffs", signupDeadline: "Anmeldeschluss", fairness: "Fairness", wishes: "Wünsche",
     durationMinutes: "Dauer", voiceChannelId: "Sprachkanal",
-    autoSuggest: "Vorschlag bei Anmeldeschluss",
+    autoSuggest: "Vorschlag bei Anmeldeschluss", overflow: "Warteliste", lockAtLimit: "Sperre bei Voll",
 };
 
 /**
@@ -439,7 +458,7 @@ async function updateEvent({ guildId, body = {}, user = null, byName = "" }) {
         if (!startTime) return fail(400, "invalid_time", "Ungültige Uhrzeit.");
         patch.startTime = startTime;
     }
-    for (const key of ["fairness", "wishes", "autoSuggest"]) {
+    for (const key of ["fairness", "wishes", "autoSuggest", "lockAtLimit"]) {
         if (patch[key] !== undefined) patch[key] = patch[key] === true;
     }
     const deadline = deadlineFrom(body, patch.startTime || current.startTime);

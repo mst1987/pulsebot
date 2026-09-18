@@ -61,6 +61,8 @@ type Draft = {
     categorySetupDms: Record<string, boolean>;
     categoryDiscordEvent: Record<string, boolean>;
     categoryVoiceChannel: Record<string, string>;
+    /** "Beim Anlegen ankündigen" per category (#306); missing = off. */
+    categoryAnnounce: Record<string, { enabled: boolean; target: string }>;
     categorySheets: Record<string, CategorySheet>;
     categoryRaidTemplate: Record<string, string>;
     topItems: TopItem[];
@@ -87,6 +89,7 @@ function toDraft(config: AdminConfig): Draft {
         categorySetupDms: config.categorySetupDms || {},
         categoryDiscordEvent: config.categoryDiscordEvent || {},
         categoryVoiceChannel: config.categoryVoiceChannel || {},
+        categoryAnnounce: config.categoryAnnounce || {},
         categorySheets: config.categorySheets || {},
         categoryRaidTemplate: config.categoryRaidTemplate || {},
         topItems: config.topItems || [],
@@ -395,6 +398,7 @@ export default function SettingsPage() {
                 // sent as false, a cleared voice channel as "".
                 categoryDiscordEvent: draft.categoryDiscordEvent,
                 categoryVoiceChannel: draft.categoryVoiceChannel,
+                categoryAnnounce: draft.categoryAnnounce,
                 // Sent whole: a category set back to "keine" is left out.
                 categoryRaidTemplate: Object.fromEntries(Object.entries(draft.categoryRaidTemplate).filter(([, id]) => id)),
                 // Sent whole: the store replaces the map, so clearing a url is
@@ -494,6 +498,7 @@ export default function SettingsPage() {
                     categoryDiscordEvent={draft.categoryDiscordEvent}
                     categoryVoiceChannel={draft.categoryVoiceChannel}
                     voiceChannels={data.voiceChannels || []}
+                    categoryAnnounce={draft.categoryAnnounce}
                     categorySheets={draft.categorySheets}
                     savedCategoryRoles={data.config.categoryRoles || {}}
                     onToggleCategory={toggleCategory}
@@ -503,6 +508,9 @@ export default function SettingsPage() {
                     onSetupDms={(id, on) => patch({ categorySetupDms: { ...draft.categorySetupDms, [id]: on } })}
                     onDiscordEvent={(id, on) => patch({ categoryDiscordEvent: { ...draft.categoryDiscordEvent, [id]: on } })}
                     onVoiceChannel={(id, channelId) => patch({ categoryVoiceChannel: { ...draft.categoryVoiceChannel, [id]: channelId } })}
+                    onAnnounce={(id, mode) => patch({
+                        categoryAnnounce: { ...draft.categoryAnnounce, [id]: { enabled: !!mode, target: mode || "event" } },
+                    })}
                     onSheet={(id, sheet) => patch({ categorySheets: { ...draft.categorySheets, [id]: sheet } })}
                     raidTemplates={{
                         options: data.raidTemplates || [],

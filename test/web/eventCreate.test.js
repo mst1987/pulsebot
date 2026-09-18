@@ -34,6 +34,7 @@ jest.mock("../../src/web/discordEvent", () => ({
     syncForEvent: jest.fn(async () => ({ skipped: "disabled" })),
     warningOf: (r) => (r && r.warning ? `Discord-Event: ${r.warning}` : ""),
 }));
+jest.mock("../../src/web/eventAnnounce", () => ({ announceEvent: jest.fn(async () => ({ announced: true, target: "event" })) }));
 jest.mock("../../src/web/talkOverview", () => ({ scheduleOverviewSync: jest.fn(), RAIDHELPER_CREATE_DELAY_MS: 35000 }));
 jest.mock("../../src/web/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null), listRaidEvents: jest.fn(() => []) }));
 jest.mock("../../src/web/raidEventGroups", () => ({
@@ -49,6 +50,7 @@ const discord = require("../../src/web/discord");
 const discordChannels = require("../../src/web/discordChannels");
 const { getConfig, getRaidTemplate } = require("../../src/web/settingsStore");
 const { postEventMessage, refreshEventMessage } = require("../../src/web/eventMessage");
+const { announceEvent } = require("../../src/web/eventAnnounce");
 const { scheduleOverviewSync } = require("../../src/web/talkOverview");
 const { createFromTemplate } = discordChannels;
 const channelArchiveStore = require("../../src/web/channelArchiveStore");
@@ -240,6 +242,17 @@ describe("web/eventCreate", () => {
             expect(T5).toEqual(snapshot);
         });
 
+        it("takes the waiting-list switches from the raid template (#306)", async () => {
+            getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? { ...T5, overflow: "off", lockAtLimit: true } : null));
+            const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5" }) });
+            expect(eventStore.getEvent(result.body.id)).toMatchObject({ overflow: "off", lockAtLimit: true });
+        });
+
+        it("lets the create dialog override the template's waiting list (#306)", async () => {
+            const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5", overflow: "off", lockAtLimit: true }) });
+            expect(eventStore.getEvent(result.body.id)).toMatchObject({ overflow: "off", lockAtLimit: true });
+        });
+
         it("takes the deadline as hours before the start and the auto-suggest switch", async () => {
             const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", signupDeadlineHours: 2, autoSuggest: true }) });
             expect(eventStore.getEvent(result.body.id)).toMatchObject({
@@ -336,6 +349,30 @@ describe("web/eventCreate", () => {
             // c1 is a Raid-Helper category, the dialog says EventHelper
             const own = await createEvent({ guildId: "g1", user, body: body({ channelId: "c1", signupSource: "eventhelper" }) });
             expect(own.body.source).toBe("eventhelper");
+        });
+    });
+
+    describe("Ankündigung beim Anlegen (#306)", () => {
+        it("kündigt ein neues eigenes Event an und meldet das Ergebnis zurück", async () => {
+            const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2" }) });
+            expect(announceEvent).toHaveBeenCalledWith(result.body.id, { want: undefined });
+            expect(result.body.announced).toBe(true);
+            expect(result.body.announceError).toBeNull();
+        });
+
+        it("reicht den Schalter des Dialogs durch", async () => {
+            await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", announce: true }) });
+            expect(announceEvent).toHaveBeenCalledWith(expect.any(String), { want: true });
+            await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", announce: false }) });
+            expect(announceEvent).toHaveBeenLastCalledWith(expect.any(String), { want: false });
+        });
+
+        it("lässt das Event stehen, wenn die Ankündigung nicht rausgeht", async () => {
+            announceEvent.mockResolvedValueOnce({ announced: false, error: "Kein Ping-Kanal." });
+            const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2" }) });
+            expect(result.status).toBe(201);
+            expect(result.body.announceError).toBe("Kein Ping-Kanal.");
+            expect(eventStore.getEvent(result.body.id)).toBeTruthy();
         });
     });
 

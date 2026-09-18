@@ -123,6 +123,10 @@ const CONFIG_DEFAULTS = {
     // category id: { [categoryId]: channelId }. Only the preset of a new event
     // (`event.voiceChannelId`) — an event keeps whatever was picked for it.
     categoryVoiceChannel: {},
+    // "Beim Anlegen ankündigen" per Discord category (#306):
+    // { [categoryId]: { enabled: true, target: "event" | "talk" | "both" } }.
+    // Off by default — only switched-on categories are stored.
+    categoryAnnounce: {},
     // A fixed, guild-owned Google Sheet per Discord category:
     // { [categoryId]: { url, name } }. When one is set, a raid in that category
     // links this sheet instead of needing its own copy. A copy the app actually
@@ -512,6 +516,7 @@ function getConfig() {
         categorySetupDms: normalizeCategorySetupDms(stored.categorySetupDms),
         categoryDiscordEvent: normalizeCategoryFlags(stored.categoryDiscordEvent),
         categoryVoiceChannel: normalizeCategoryVoiceChannel(stored.categoryVoiceChannel),
+        categoryAnnounce: normalizeCategoryAnnounce(stored.categoryAnnounce),
         categorySheets: normalizeCategorySheets(stored.categorySheets),
         categoryRaidTemplate: categoryRaidTemplateOf(stored),
         topItems: normalizeTopItems(stored.topItems),
@@ -686,6 +691,26 @@ function normalizeCategoryVoiceChannel(raw) {
     return out;
 }
 
+// pingDelivery.PING_TARGETS, written out: that module reads this one, so it
+// cannot be required here without a cycle.
+const ANNOUNCE_TARGETS = ["event", "talk", "both"];
+
+/**
+ * Normalise categoryAnnounce to `{ [categoryId]: { enabled: true, target } }`
+ * (#306) — off is the default and is not stored, an unknown target becomes
+ * "event" (the event channel, the safe one: it needs no talk server).
+ */
+function normalizeCategoryAnnounce(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, value] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        if (!key || !value || typeof value !== "object" || value.enabled !== true) continue;
+        out[key] = { enabled: true, target: ANNOUNCE_TARGETS.includes(value.target) ? value.target : "event" };
+    }
+    return out;
+}
+
 const SIGNUP_SOURCES = ["raidhelper", "eventhelper"];
 
 /**
@@ -710,7 +735,7 @@ function normalizeCategorySignupSource(raw) {
  */
 function configuredCategoryIds(stored) {
     const ids = new Set(Array.isArray(stored.categoryIds) ? stored.categoryIds.map(String) : CONFIG_DEFAULTS.categoryIds.map(String));
-    for (const key of ["categoryRoles", "categoryRaidTemplate", "categoryLootTool", "categorySheets", "categoryReminders", "categorySetupDms"]) {
+    for (const key of ["categoryRoles", "categoryRaidTemplate", "categoryLootTool", "categorySheets", "categoryReminders", "categorySetupDms", "categoryAnnounce"]) {
         const map = stored[key];
         if (map && typeof map === "object" && !Array.isArray(map)) Object.keys(map).forEach((id) => ids.add(String(id)));
     }
@@ -846,6 +871,9 @@ function saveConfig(partial) {
     }
     if (partial.categoryVoiceChannel) {
         next.categoryVoiceChannel = normalizeCategoryVoiceChannel({ ...current.categoryVoiceChannel, ...partial.categoryVoiceChannel });
+    }
+    if (partial.categoryAnnounce) {
+        next.categoryAnnounce = normalizeCategoryAnnounce({ ...current.categoryAnnounce, ...partial.categoryAnnounce });
     }
     // Replaced whole, like the top items: a category left out has no default.
     if (partial.categoryRaidTemplate !== undefined) next.categoryRaidTemplate = normalizeCategoryRaidTemplate(partial.categoryRaidTemplate);

@@ -105,6 +105,7 @@ export type DraftShape = {
     categoryDiscordEvent?: Record<string, boolean>;
     /** The voice channel a category's raids meet in (#305); missing = none. */
     categoryVoiceChannel?: Record<string, string>;
+    categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;
     categorySheets: Record<string, { url: string; name: string }>;
     categoryRaidTemplate?: Record<string, string>;
     topItems: { id: number }[];
@@ -121,6 +122,13 @@ const SIMPLE_FIELDS: [string, string][] = [
 ];
 
 const LOOT_TOOL_LABEL: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil", "": "keins" };
+
+/** "Beim Anlegen ankündigen" (#306) as one value: "" = off, else the ping target. */
+export const ANNOUNCE_LABEL: Record<string, string> = { "": "aus", event: "Event-Kanal", talk: "Talk-Server", both: "beide Server" };
+
+export function announceMode(entry: { enabled: boolean; target: string } | undefined): string {
+    return entry && entry.enabled ? String(entry.target || "event") : "";
+}
 
 function sameList(a: string[] | undefined, b: string[] | undefined): boolean {
     const x = [...(a || [])].sort();
@@ -153,6 +161,7 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         ...Object.keys(saved.categorySetupDms || {}), ...Object.keys(draft.categorySetupDms || {}),
         ...Object.keys(saved.categoryDiscordEvent || {}), ...Object.keys(draft.categoryDiscordEvent || {}),
         ...Object.keys(saved.categoryVoiceChannel || {}), ...Object.keys(draft.categoryVoiceChannel || {}),
+        ...Object.keys(saved.categoryAnnounce || {}), ...Object.keys(draft.categoryAnnounce || {}),
         ...Object.keys(saved.categorySheets || {}), ...Object.keys(draft.categorySheets || {}),
     ])];
     for (const id of categories) {
@@ -177,6 +186,9 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const voiceWas = (saved.categoryVoiceChannel || {})[id] || "";
         const voiceIs = (draft.categoryVoiceChannel || {})[id] || "";
         if (voiceWas !== voiceIs) out.push(`${name} · Sprachkanal ${voiceIs ? "gesetzt" : "entfernt"}`);
+        const annWas = announceMode((saved.categoryAnnounce || {})[id]);
+        const annIs = announceMode((draft.categoryAnnounce || {})[id]);
+        if (annWas !== annIs) out.push(`${name} · Ankündigung → ${ANNOUNCE_LABEL[annIs] || annIs}`);
         const sheetWas = (saved.categorySheets || {})[id] || { url: "", name: "" };
         const sheetIs = (draft.categorySheets || {})[id] || { url: "", name: "" };
         if ((sheetWas.url || "").trim() !== (sheetIs.url || "").trim() || (sheetWas.name || "").trim() !== (sheetIs.name || "").trim()) {

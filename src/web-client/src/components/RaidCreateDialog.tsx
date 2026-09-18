@@ -11,7 +11,7 @@ import { eventDay } from "../lib/raidTime";
 import { instancesOf } from "../lib/raidTemplates";
 import {
     PLAN_MAX_DURATION, PLAN_MIN_DURATION,
-    STEP_LABELS, emptyPlan, planBody, planFromEvent, planFromTemplate, planProblem, plannedSeats, raidTag, schemaName,
+    STEP_LABELS, emptyPlan, overflowLine, planBody, planFromEvent, planFromTemplate, planProblem, plannedSeats, raidTag, schemaName,
     sourceOf, stepsFor, templateFromPlan, withInstance, withSize, withVersion,
     type EventPlan, type StepKey,
 } from "../lib/eventPlan";
@@ -178,6 +178,9 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
     const [categoryId, setCategoryId] = useState("");
 
     const [source, setSource] = useState<EventSource>("raidhelper");
+    // "Beim Anlegen ankündigen" (#306) — prefilled from the category until it is touched.
+    const [announce, setAnnounce] = useState(false);
+    const [announceTouched, setAnnounceTouched] = useState(false);
     const [plan, setPlan] = useState<EventPlan>(() => emptyPlan(null));
     const [freeSize, setFreeSize] = useState(false);
     const [planTouched, setPlanTouched] = useState(false);
@@ -227,6 +230,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
     const applyCategory = (data: RaidCreateContext, catId: string) => {
         setCategoryId(catId);
         setSource(sourceOf(data.signupSources, catId));
+        if (!announceTouched) setAnnounce(((data.categoryAnnounce || {})[catId] || {}).enabled === true);
         if (!templateTouched) setTemplateId((data.categoryTemplates || {})[catId] || data.defaults.templateId || "");
         if (!planTouched && choice?.kind !== "template") setPlan(categoryPlan(data, catId));
         if (!voiceTouched) setVoiceChannelId((data.categoryVoiceChannel || {})[catId] || "");
@@ -431,10 +435,11 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                     : channelMode === "new" ? { newChannel: { name: channelName, categoryId } } : { channelId };
                 const r = await createRaid(csrfToken, {
                     title, date, time, templateId, leaderId, description, signupSource: source, ...where,
-                    ...(eh ? { ...planBody(plan), voiceChannelId } : { raidTemplateId: plan.raidTemplateId }),
+                    ...(eh ? { ...planBody(plan), announce, voiceChannelId } : { raidTemplateId: plan.raidTemplateId }),
                 });
                 if (r.messageError) toast(`Event angelegt — ${r.messageError}`, "err");
-                else toast("Event angelegt.");
+                else if (r.announceError) toast(`Event angelegt — Ankündigung nicht gepostet: ${r.announceError}`, "err");
+                else toast(r.announced ? "Event angelegt und angekündigt." : "Event angelegt.");
             }
             onCreated();
         } catch (err) {
@@ -613,7 +618,8 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
         );
     } else if (step === "raid") {
         const moreCount = [plan.melee, plan.ranged].filter(Boolean).length + plan.requiredBuffs.length
-            + (plan.fairness ? 1 : 0) + (plan.wishes ? 1 : 0) + (plan.autoSuggest ? 1 : 0);
+            + (plan.fairness ? 1 : 0) + (plan.wishes ? 1 : 0) + (plan.autoSuggest ? 1 : 0)
+            + (plan.overflow === "off" ? 1 : 0) + (plan.lockAtLimit ? 1 : 0);
         const toggleBuff = (key: string) => changePlan({
             ...plan, requiredBuffs: plan.requiredBuffs.includes(key) ? plan.requiredBuffs.filter((b) => b !== key) : [...plan.requiredBuffs, key],
         });
@@ -654,7 +660,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                         : <Badge tone="ok" icon={<CheckIcon />} tip="Summe passt zur Größe" tipSub="Tanks, Heiler und die Nah-/Fernkampf-Minima passen in den Raid.">{plannedSeats(plan)} / {plan.size} verplant</Badge>}
                 </div>
                 <details className="rt-more">
-                    <summary>Mehr: Nah-/Fernkampf, Pflicht-Buffs, Setup{moreCount ? <Badge count>{moreCount}</Badge> : null}</summary>
+                    <summary>Mehr: Nah-/Fernkampf, Pflicht-Buffs, Setup, Warteliste{moreCount ? <Badge count>{moreCount}</Badge> : null}</summary>
                     <div className="rt-more-body">
                         <RoleRanges idPrefix="re" melee={plan.melee} ranged={plan.ranged} onChange={(r) => changePlan({ ...plan, ...r })} />
                         <BuffPicker version={version} value={plan.requiredBuffs} onToggle={toggleBuff} />
@@ -662,6 +668,8 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                             <SwitchRow label="Fairness" tip="Wer zuletzt auf der Bank saß, wird beim Setup-Vorschlag bevorzugt." checked={plan.fairness} onChange={(v) => changePlan({ ...plan, fairness: v })} />
                             <SwitchRow label="Wünsche" tip="„Gerne zusammen raiden mit“ aus den Profilen fließt in den Setup-Vorschlag ein." checked={plan.wishes} onChange={(v) => changePlan({ ...plan, wishes: v })} />
                             <SwitchRow label="Vorschlag bei Anmeldeschluss" tip="Zum Anmeldeschluss entsteht automatisch ein Setup-Vorschlag — ein Entwurf, den jemand freigeben muss." checked={plan.autoSuggest} onChange={(v) => changePlan({ ...plan, autoSuggest: v })} />
+                            <SwitchRow label="Warteliste bei vollem Raid" tip="Ist der Raid voll, wird aus jeder neuen Anmeldung, die einen Platz belegt („Dabei“ und „Spät“), die Bank — der Raider erfährt es sofort. Aus: die Anmeldung wird abgelehnt. Wer schon einen Platz hat, behält ihn." checked={plan.overflow !== "off"} onChange={(v) => changePlan({ ...plan, overflow: v ? "bench" : "off" })} />
+                            <SwitchRow label="Anmeldung schließen, wenn voll" tip="Sobald die Plätze belegt sind, schließt die Anmeldung wie von Hand. Meldet sich jemand ab, öffnet sie nicht von selbst wieder." checked={plan.lockAtLimit} onChange={(v) => changePlan({ ...plan, lockAtLimit: v })} />
                         </div>
                     </div>
                 </details>
@@ -738,6 +746,14 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                             : <span className="note">Keine Sprachkanäle geladen (Bot offline).</span>}
                     </div>
                 )}
+                {eh && !editing && (
+                    <div className="rt-switches">
+                        <SwitchRow
+                            label="Beim Anlegen ankündigen"
+                            tip="Postet eine kurze Zeile mit Titel, Termin und Link zur Anmeldung und pingt die Raider-Rolle der Kategorie. Vorbelegt aus Einstellungen → Kategorien; passiert genau einmal je Event."
+                            checked={announce} onChange={(v) => { setAnnounce(v); setAnnounceTouched(true); }} />
+                    </div>
+                )}
                 {eh
                     ? (
                         <div className="field">
@@ -802,6 +818,14 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                                 <dd>{voiceChannelId ? (ctx.voiceChannels || []).find((c) => c.id === voiceChannelId)?.name || voiceChannelId : "keiner"}</dd>
                                 <dt>Anmeldeschluss</dt>
                                 <dd>{plan.deadlineHours > 0 ? `${plan.deadlineHours} Std. vorher` : "keiner"}</dd>
+                                <dt>Wenn voll</dt>
+                                <dd>{overflowLine(plan)}</dd>
+                                {!editing && (
+                                    <>
+                                        <dt>Ankündigung</dt>
+                                        <dd>{announce ? "Raider-Rolle wird gepingt" : "keine"}</dd>
+                                    </>
+                                )}
                             </>
                         )
                         : (

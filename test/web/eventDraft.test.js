@@ -26,7 +26,7 @@ const RH = { id: "rh-37", name: "Raid-Helper Standard", instanceIds: [], size: n
 // 16.09.2026, 12:00 Berlin
 const NOW = Date.UTC(2026, 8, 16, 10, 0);
 const values = (over = {}) => ({ title: "SSC + TK", date: "24.09.", time: "19:30", comp: "25/3/6", description: "Flasks Pflicht", ...over });
-const state = (over = {}) => ({ cat: CAT_EH, tpl: T5.id, mode: "n", src: "e", ref: "", ...over });
+const state = (over = {}) => ({ cat: CAT_EH, tpl: T5.id, mode: "n", src: "e", ref: "", ann: "", ...over });
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -46,11 +46,11 @@ describe("web/eventDraft — the state in the customId", () => {
         const s = state({ mode: "d", ref: "eh-mfx1k2abc123" });
         expect(draft.parseCustomId(draft.stepId("c", s))).toEqual({ prefix: "event-new", field: "c", state: s, token: "" });
         expect(draft.parseCustomId(draft.formId(s, "0a1b2c3d"))).toMatchObject({ prefix: "event-form", state: s, token: "0a1b2c3d" });
-        expect(draft.parseCustomId("event-form:12:<script>:z:q:../x:nope").state).toEqual({ cat: "", tpl: "", mode: "n", src: "", ref: "" });
+        expect(draft.parseCustomId("event-form:12:<script>:z:q:../x:nope").state).toEqual({ cat: "", tpl: "", mode: "n", src: "", ref: "", ann: "" });
     });
 
     it("stays within Discord's 100 characters in the worst case", () => {
-        const worst = { cat: "12345678901234567890", tpl: "x".repeat(24), mode: "d", src: "r", ref: "y".repeat(24) };
+        const worst = { cat: "12345678901234567890", tpl: "x".repeat(24), mode: "d", src: "r", ref: "y".repeat(24), ann: "1" };
         for (const id of [draft.stepId("c", worst), draft.stepId("b", worst), draft.formId(worst, "0a1b2c3d")]) {
             expect({ id, fits: id.length <= draft.CUSTOM_ID_MAX }).toEqual({ id, fits: true });
         }
@@ -61,8 +61,8 @@ describe("web/eventDraft — the state in the customId", () => {
 
 describe("web/eventDraft — step 1", () => {
     it("starts in the channel's category with its template and source", () => {
-        expect(draft.initialState("g1", CAT_RH)).toEqual({ cat: CAT_RH, tpl: RH.id, mode: "n", src: "r", ref: "" });
-        expect(draft.initialState("g1", "elsewhere")).toEqual({ cat: CAT_EH, tpl: T5.id, mode: "n", src: "e", ref: "" });
+        expect(draft.initialState("g1", CAT_RH)).toEqual({ cat: CAT_RH, tpl: RH.id, mode: "n", src: "r", ref: "", ann: "" });
+        expect(draft.initialState("g1", "elsewhere")).toEqual({ cat: CAT_EH, tpl: T5.id, mode: "n", src: "e", ref: "", ann: "" });
     });
 
     it("offers only the event categories and the templates that fit the source", async () => {
@@ -71,15 +71,37 @@ describe("web/eventDraft — step 1", () => {
         expect(cats[0].options.map((o) => o.label)).toEqual(["Mittwoch-Raid", "PuG"]);
         expect(tpls[0].options).toEqual([expect.objectContaining({ value: T5.id, default: true, description: "SSC + TK · 25er · 3 T / 6 H / 16 DPS" })]);
         expect(modes[0].options.map((o) => o.value)).toEqual(["n", "d", "e"]);
-        expect(buttons.map((b) => b.label)).toEqual(["Weiter", "Anmeldung über Raid-Helper", "Abbrechen"]);
+        expect(buttons.map((b) => b.label)).toEqual(["Weiter", "Anmeldung über Raid-Helper", "Ankündigung: aus", "Abbrechen"]);
         expect(buttons[0]).toMatchObject({ custom_id: draft.formId(state()), disabled: false });
         expect(payload.embeds[0].description).toContain("neu nach Standard-Schema `{tag}-{dd}-{mm}-{raid}`");
         expect(payload.embeds[0].description).toContain("**Anmeldung über:** EventHelper");
         for (const row of payload.components) for (const c of row.components) expect(c.custom_id.length).toBeLessThanOrEqual(100);
     });
 
+    it("zeigt und schaltet die Ankündigung, vorbelegt aus der Kategorie (#306)", async () => {
+        // Kategorie aus: die Zeile sagt "aus", der Knopf schaltet an.
+        const off = await draft.stepMessage("g1", state());
+        expect(off.payload.embeds[0].description).toContain("**Ankündigung:** aus");
+        expect(draft.applyStep(state(), "a").ann).toBe("1");
+
+        // Kategorie an: die Zeile nennt das Ziel, der Knopf schaltet aus.
+        settings.getConfig.mockReturnValue({
+            categoryIds: [CAT_EH, CAT_RH], categoryRaidTemplate: { [CAT_EH]: T5.id },
+            categoryAnnounce: { [CAT_EH]: { enabled: true, target: "both" } },
+        });
+        const on = await draft.stepMessage("g1", state());
+        expect(on.payload.embeds[0].description).toContain("**Ankündigung:** Raider-Rolle pingen (beide Server)");
+        const buttons = on.payload.components[on.payload.components.length - 1].components;
+        expect(buttons.map((b) => b.label)).toContain("Ankündigung: an");
+        expect(draft.applyStep(state(), "a").ann).toBe("0");
+
+        // Für ein Raid-Helper-Event gibt es den Schalter nicht.
+        const rh = await draft.stepMessage("g1", state({ cat: CAT_RH, tpl: RH.id, src: "r" }));
+        expect(rh.payload.embeds[0].description).not.toContain("Ankündigung");
+    });
+
     it("changing the category proposes its source and template again, the toggle switches the source", () => {
-        expect(draft.applyStep(state({ ref: "x" }), "c", CAT_RH)).toEqual({ cat: CAT_RH, tpl: RH.id, mode: "n", src: "r", ref: "" });
+        expect(draft.applyStep(state({ ref: "x" }), "c", CAT_RH)).toEqual({ cat: CAT_RH, tpl: RH.id, mode: "n", src: "r", ref: "", ann: "" });
         expect(draft.applyStep(state(), "s")).toMatchObject({ src: "r", tpl: RH.id });
         expect(draft.applyStep(state(), "k", "e")).toMatchObject({ mode: "e", ref: "" });
         expect(draft.applyStep(state(), "t", "../evil")).toMatchObject({ tpl: "" });
@@ -185,6 +207,12 @@ describe("web/eventDraft — the modal", () => {
 
 describe("web/eventDraft — building the create body", () => {
     const build = async (s, v, now = NOW) => draft.buildBody("g1", s, v, { userId: "42", now });
+
+    it("schickt die Ankündigung nur mit, wenn sie hier entschieden wurde (#306)", async () => {
+        expect((await build(state(), values())).body.announce).toBeUndefined();
+        expect((await build(state({ ann: "1" }), values())).body.announce).toBe(true);
+        expect((await build(state({ ann: "0" }), values())).body.announce).toBe(false);
+    });
 
     it("new by schema: a channel from the category's schema, the composition from the modal", async () => {
         archiveStore.getChannelConfig.mockReturnValue({ schemas: { [CAT_EH]: { schema: "{tag}-{dd}-{mm}-{raid}", raid: "", templateChannelId: "400" } } });

@@ -79,7 +79,9 @@ async function onStatus(interaction, event) {
             canAlso: mine && mine.spec === only.spec ? mine.canAlso : undefined,
             comment: mine ? mine.comment : "",
         });
-        const notice = result.error ? `⚠️ ${result.error}` : savedNotice(result.signup, profiles.getProfile(uid));
+        const notice = result.error
+            ? `⚠️ ${result.error}`
+            : [savedNotice(result.signup, profiles.getProfile(uid)), result.notice ? `⏳ ${result.notice}` : ""].filter(Boolean).join("\n");
         return reply(interaction, buildJoinPicker(event, uid, status, { notice, emojis }));
     }
     return reply(interaction, buildJoinPicker(event, uid, status, { emojis }));

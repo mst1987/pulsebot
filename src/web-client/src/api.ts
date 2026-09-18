@@ -518,6 +518,9 @@ export type AdminConfig = {
     categoryDiscordEvent?: Record<string, boolean>;
     // The voice channel a category's raids meet in (#305), keyed by category id.
     categoryVoiceChannel?: Record<string, string>;
+    // "Beim Anlegen ankündigen" per category (#306): only switched-on ones are
+    // listed; `target` is a ping target ("event" | "talk" | "both").
+    categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;
     // A fixed Google Sheet per category, keyed by category id. A raid in that
     // category links this sheet unless the app made it a copy of its own.
     categorySheets: Record<string, { url: string; name: string }>;
@@ -1335,6 +1338,10 @@ export type RaidTemplateInput = {
     durationMinutes: number | null;
     fairness: boolean;
     wishes: boolean;
+    /** what a full raid does with a new "Dabei" (#306): the waiting list, or refuse it */
+    overflow?: "bench" | "off";
+    /** close the signup by itself once the raid is full (#306) */
+    lockAtLimit?: boolean;
     raidhelperTemplateId: string;
 };
 
@@ -1395,6 +1402,11 @@ export type OwnEvent = {
     fairness: boolean;
     wishes: boolean;
     autoSuggest: boolean;
+    /** #306: "bench" = a full raid's new "Dabei" becomes the waiting list, "off" = refused */
+    overflow?: "bench" | "off";
+    lockAtLimit?: boolean;
+    /** when the "Beim Anlegen ankündigen" ping went out, 0 = never */
+    announcedAt?: number;
 };
 
 export type RaidCreateContext = {
@@ -1412,6 +1424,8 @@ export type RaidCreateContext = {
     reusableEvents: ReusableEvent[];
     /** category id → "eventhelper" for categories whose new events live in the EventHelper */
     signupSources?: Record<string, EventSource>;
+    /** category id → "Beim Anlegen ankündigen" (#306); only switched-on categories are listed */
+    categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;
     // The planning step (#261).
     categories?: { id: string; name: string }[];
     /** category id → raid template id of its default */
@@ -1457,6 +1471,8 @@ export type EventPlanInput = {
     fairness: boolean;
     wishes: boolean;
     autoSuggest: boolean;
+    overflow: "bench" | "off";
+    lockAtLimit: boolean;
 };
 
 export type CreateRaidInput = Partial<EventPlanInput> & {
@@ -1473,11 +1489,13 @@ export type CreateRaidInput = Partial<EventPlanInput> & {
     signupSource?: EventSource;
     /** the voice channel the raid meets in (#305); "" = none */
     voiceChannelId?: string;
+    /** "Beim Anlegen ankündigen" (#306); omitted = as the category has it */
+    announce?: boolean;
     leaderId: string;
     description: string;
 };
 
-export function createRaid(csrfToken: string | null, input: CreateRaidInput): Promise<{ id?: string; messageError?: string | null }> {
+export function createRaid(csrfToken: string | null, input: CreateRaidInput): Promise<{ id?: string; messageError?: string | null; announced?: boolean; announceError?: string | null }> {
     return send("POST", "/api/raids", csrfToken, input);
 }
 
@@ -3750,6 +3768,10 @@ export type BulkSignupResult = {
     code: string;
     /** Characters left out for this raid, each with why ("Klasse passt nicht zu diesem Raid"). */
     skipped: { character: string; spec: string; reason: string }[];
+    /** the raid was full: the "Dabei" became the waiting list (#306) */
+    waitlisted?: boolean;
+    /** the German sentence that goes with it */
+    notice?: string;
     signup: OwnSignup | null;
     counts: SignupCounts | null;
 };
@@ -3765,7 +3787,19 @@ export function getSignups(): Promise<SignupsData> {
     return get<SignupsData>("/api/signups");
 }
 
-export function saveSignup(csrfToken: string | null, input: SignupInput): Promise<{ signup: OwnSignup; counts: SignupCounts }> {
+/** PUT /api/signups — plus what a full raid made of it (#306). */
+export type SaveSignupResult = {
+    signup: OwnSignup;
+    counts: SignupCounts;
+    /** the "Dabei" became the waiting list because the raid is full */
+    waitlisted?: boolean;
+    /** this signup closed the signup (lockAtLimit) */
+    locked?: boolean;
+    /** the German sentence the dialog shows under its confirmation */
+    notice?: string;
+};
+
+export function saveSignup(csrfToken: string | null, input: SignupInput): Promise<SaveSignupResult> {
     return send("PUT", "/api/signups", csrfToken, input);
 }
 
