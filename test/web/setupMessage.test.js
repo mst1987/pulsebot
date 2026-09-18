@@ -109,6 +109,23 @@ describe("buildSetupMessage", () => {
         expect(embed.fields.find((f) => f.name.includes("Bank")).name).toMatch(/^Bank \(\d+\)$/);
     });
 
+    it("trägt dieselbe Farbe wie die Anmelde-Nachricht, aber kein Bild (#307)", () => {
+        // eigene Farbe
+        const own = seed({ color: "#ff8800", instanceIds: ["ssc"], image: { mode: "banner", url: "https://cdn.example/a.png" } });
+        const embed = sm.buildSetupMessage(own, own.setup.approved, { emojis }).embeds[0];
+        expect(embed.color).toBe(0xff8800);
+        expect(embed.image).toBeUndefined();
+        expect(embed.thumbnail).toBeUndefined();
+        // ohne eigene: die der führenden Instanz — genau wie die Anmelde-Nachricht
+        mockEvents.clear();
+        const fromRules = seed({ instanceIds: ["ssc", "tk"] });
+        expect(sm.buildSetupMessage(fromRules, fromRules.setup.approved, { emojis }).embeds[0].color).toBe(0x1f8ba5);
+        // ohne alles: die Akzentfarbe des Mocks
+        mockEvents.clear();
+        const plain = seed();
+        expect(sm.buildSetupMessage(plain, plain.setup.approved, { emojis }).embeds[0].color).toBe(7);
+    });
+
     it("never builds anything without an approved lineup", () => {
         const event = seed();
         expect(sm.buildSetupMessage(event, null, { emojis })).toBeNull();

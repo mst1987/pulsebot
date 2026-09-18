@@ -260,6 +260,39 @@ describe("web/eventCreate", () => {
             });
         });
 
+        it("erbt Farbe und Bild von der Raid-Vorlage und ändert die Vorlage nicht (#307)", async () => {
+            const look = { ...T5, color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/a.png" } };
+            getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? look : null));
+            const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5" }) });
+            expect(eventStore.getEvent(result.body.id)).toMatchObject({
+                color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/a.png" },
+            });
+            expect(look.color).toBe("#ff8800");
+        });
+
+        it("ohne eigene Werte bleiben Farbe und Bild leer — der Regelsatz entscheidet erst beim Bauen (#307)", async () => {
+            const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5" }) });
+            expect(eventStore.getEvent(result.body.id)).toMatchObject({ color: "", image: { mode: "thumbnail", url: "" } });
+        });
+
+        it("der Dialog überschreibt die Vorlage — auch mit „keine Farbe“ (#307)", async () => {
+            getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? { ...T5, color: "#ff8800" } : null));
+            const own = await createEvent({ guildId: "g1", user, body: body({
+                channelId: "c2", raidTemplateId: "tpl-t5", color: "#1f8ba5", image: { mode: "thumbnail", url: "https://cdn.example/b.png" },
+            }) });
+            expect(eventStore.getEvent(own.body.id)).toMatchObject({ color: "#1f8ba5", image: { url: "https://cdn.example/b.png" } });
+            // "" ist eine Entscheidung, kein fehlender Wert: die Vorlagenfarbe darf nicht zurückkommen
+            const cleared = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5", color: "" }) });
+            expect(eventStore.getEvent(cleared.body.id).color).toBe("");
+        });
+
+        it("weist eine kaputte Farbe oder Bild-Adresse ab (#307)", async () => {
+            const badColor = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", color: "rot" }) });
+            expect(badColor.error).toMatchObject({ code: "invalid_plan", message: expect.stringMatching(/#rrggbb/) });
+            const badUrl = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", image: { mode: "banner", url: "http://x/y.png" } }) });
+            expect(badUrl.error).toMatchObject({ code: "invalid_plan", message: expect.stringMatching(/https/) });
+        });
+
         it("inherits the duration from the raid template, lets the body override it and refuses garbage (#305)", async () => {
             getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? { ...T5, durationMinutes: 300 } : null));
             const fromTemplate = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5" }) });
@@ -405,6 +438,21 @@ describe("web/eventCreate", () => {
             });
             await updateEvent({ guildId: "g1", body: { id: ev.id, signupDeadlineHours: 0 } });
             expect(eventStore.getEvent(ev.id).signupDeadline).toBe(0);
+        });
+
+        it("ändert Farbe und Bild, hält den Rest fest und schreibt es ins Verlaufsprotokoll (#307)", async () => {
+            const ev = own();
+            await updateEvent({ guildId: "g1", body: { id: ev.id, color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/a.png" } }, user: { id: "u1" }, byName: "Orga" });
+            expect(eventStore.getEvent(ev.id)).toMatchObject({
+                color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/a.png" }, instanceIds: ["kara"],
+            });
+            const log = eventStore.getEvent(ev.id).log || [];
+            expect(log[log.length - 1].detail).toContain("Farbe");
+            expect(log[log.length - 1].detail).toContain("Bild");
+            // zurücksetzen geht: "" ist ein Wert, kein fehlendes Feld
+            await updateEvent({ guildId: "g1", body: { id: ev.id, color: "", image: { mode: "thumbnail", url: "" } } });
+            expect(eventStore.getEvent(ev.id)).toMatchObject({ color: "", image: { mode: "thumbnail", url: "" } });
+            expect((await updateEvent({ guildId: "g1", body: { id: ev.id, color: "rot" } })).error).toMatchObject({ code: "invalid_plan" });
         });
 
         it("keeps the time when only the date changes", async () => {

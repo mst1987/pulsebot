@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import type { GameVersion, RoleRange } from "../api";
-import { allowedSizes, instancesOf } from "../lib/raidTemplates";
+import type { EmbedImage, GameVersion, RoleRange } from "../api";
+import { EMBED_ACCENT, allowedSizes, instancesOf, leadInstance } from "../lib/raidTemplates";
 import Segment from "./ui/Segment";
 import Badge from "./ui/Badge";
 import WowIcon from "./ui/WowIcon";
@@ -10,8 +10,10 @@ import "../styles/raid-templates.css";
 // The fields of a raid plan besides CompositionEditor, shared by the "Event
 // anlegen" dialog (#261) and the Raid-Vorlagen editor (#266): instance chips from
 // the rule set, the size segment, the melee/ranged ranges, the required buffs, a
-// small number field and a switch row. Styled with the Raid-Vorlagen classes
-// (rt-), so an event and a template look alike.
+// small number field, a switch row — and the "Aussehen" line (#307), which is
+// one row for both editors so a template and an event never drift apart.
+// Styled with the Raid-Vorlagen classes (rt-), so an event and a template look
+// alike.
 
 const FREE = "free";
 
@@ -131,6 +133,74 @@ export function RoleRanges({ melee, ranged, onChange, idPrefix }: {
         <div className="rt-ranges">
             {row("melee", "Nahkampf", melee)}
             {row("ranged", "Fernkampf", ranged)}
+        </div>
+    );
+}
+
+/**
+ * "Aussehen" (#307): the colour bar and the picture of the bot's event message,
+ * in one row — a colour field with a swatch, a picture URL with Thumbnail /
+ * Banner, and a small preview of the embed's left edge so the choice is visible
+ * instead of a hex code nobody can picture.
+ *
+ * Both fields may stay empty: then the leading instance of the night decides
+ * (its colour and its boss icon), which the preview says in as many words.
+ */
+export function AppearanceFields({ version, instanceIds, color, image, onChange, idPrefix }: {
+    version: GameVersion | null;
+    instanceIds: string[];
+    color: string;
+    image: EmbedImage;
+    onChange: (next: { color?: string; image?: EmbedImage }) => void;
+    idPrefix: string;
+}) {
+    const lead = leadInstance(version, instanceIds);
+    const ownColor = /^#[0-9a-f]{6}$/i.test(String(color || "").trim());
+    const shown = ownColor ? color.trim().toLowerCase() : ((lead && lead.color) || EMBED_ACCENT);
+    const url = String(image.url || "").trim();
+    const banner = image.mode === "banner";
+    const from = ownColor
+        ? "eigene Farbe"
+        : (lead && lead.color ? `Farbe von ${lead.short}` : "Standardfarbe");
+    const picture = url
+        ? (banner ? "eigenes Bild, breit unten" : "eigenes Bild, klein daneben")
+        : (lead ? `Boss-Icon von ${lead.short}` : "kein Bild");
+
+    return (
+        <div className="rt-field">
+            <FieldLabel text="Aussehen" tip="Farbbalken und Bild der Anmelde-Nachricht. Leer lassen: Farbe und Boss-Icon der größten Instanz des Abends — dann sehen SSC, BT und Hyjal schon von selbst verschieden aus." />
+            <div className="rt-look">
+                <div className="rt-look-prev" aria-hidden="true">
+                    <span className="rt-look-bar" style={{ background: shown }} />
+                    {url
+                        ? <img className={banner ? "rt-look-banner" : "rt-look-thumb"} src={url} alt="" />
+                        : (lead ? <WowIcon name={lead.icon} size={40} /> : null)}
+                </div>
+                <div className="rt-look-fields">
+                    <div className="rt-look-row">
+                        <input id={`${idPrefix}-color-pick`} className="rt-look-swatch" type="color" aria-label="Farbe wählen"
+                            value={shown} onChange={(e) => onChange({ color: e.target.value.toLowerCase() })} />
+                        <input id={`${idPrefix}-color`} className="inp-sm mono rt-look-hex" type="text" aria-label="Farbe als Hex-Wert"
+                            value={color} placeholder={shown} onChange={(e) => onChange({ color: e.target.value })} />
+                        {ownColor && (
+                            <button type="button" className="rt-look-reset" onClick={() => onChange({ color: "" })}
+                                data-tip="Zurücksetzen" data-tip-sub="Nimmt wieder die Farbe der Instanz.">Zurücksetzen</button>
+                        )}
+                        <span className="rt-look-note">{from} · {picture}</span>
+                    </div>
+                    <div className="rt-look-row">
+                        <input id={`${idPrefix}-image`} className="inp-sm rt-look-url" type="url" aria-label="Bild-Adresse"
+                            value={image.url} placeholder="https://… (leer = Boss-Icon)"
+                            onChange={(e) => onChange({ image: { mode: image.mode, url: e.target.value } })} />
+                        <Segment size="sm" ariaLabel="Bild" value={image.mode}
+                            onChange={(mode) => onChange({ image: { mode: mode === "banner" ? "banner" : "thumbnail", url: image.url } })}
+                            options={[
+                                { value: "thumbnail", label: "Thumbnail", tip: "Klein neben dem Text der Nachricht." },
+                                { value: "banner", label: "Banner", tip: "Breit unter der Nachricht." },
+                            ]} />
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }

@@ -156,6 +156,9 @@ function publicVersions() {
             sizes: i.sizes,
             defaultSize: i.defaultSize,
             icon: i.icon,
+            // The colour the bot's event message falls back to (#307); the
+            // client draws it in the "Aussehen" preview, so it never guesses one.
+            color: i.color || "",
             bosses: i.bosses,
             finalBoss: i.finalBoss,
             status: i.status,

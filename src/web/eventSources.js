@@ -141,6 +141,9 @@ function planFields(ev) {
         composition: ev.composition, signupDeadline: ev.signupDeadline,
         // #305: how long the raid takes and where it meets (a voice channel).
         durationMinutes: ev.durationMinutes, voiceChannelId: ev.voiceChannelId || "",
+        // #307: colour and picture of the event message, so the edit dialog
+        // reads back what it sent ("" = the rule set of the instances decides).
+        color: ev.color || "", image: ev.image || { mode: "thumbnail", url: "" },
         // #288: readers skip or mark a cancelled event (reminders, talk overview).
         status: ev.status || "active", signupsClosed: !!ev.signupsClosed,
     };

@@ -22,6 +22,7 @@ const instances = [
     {
         id: "forever-barrow", name: "Barrow Deeps", short: "Barrow", sizes: [10], defaultSize: 10,
         icon: "spell_shadow_raisedead",
+        color: "#5a6f8f",
         zoneNames: ["barrow deeps"],
         bosses: [], finalBoss: "", finalBossNames: [],
         composition: {},
@@ -30,6 +31,7 @@ const instances = [
     {
         id: "forever-hyjal", name: "Hyjal Summit (Forever)", short: "Hyjal F", sizes: [20], defaultSize: 20,
         icon: "achievement_boss_archimonde-",
+        color: "#2f7a4f",
         bosses: [], finalBoss: "", finalBossNames: [],
         composition: {},
         status: "incomplete",
@@ -37,6 +39,7 @@ const instances = [
     {
         id: "forever-ony", name: "Onyxias Hort (Forever)", short: "Ony F", sizes: [40], defaultSize: 40,
         icon: "achievement_boss_onyxia",
+        color: "#8b2f4f",
         bosses: [], finalBoss: "", finalBossNames: [],
         composition: {},
         status: "incomplete",

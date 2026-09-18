@@ -44,10 +44,19 @@
 // payload no longer matches that hash — a phase that passed, or a redraw lost
 // to a restart.
 //
+// The coloured bar and the picture come from embedLook.js (#307): the event's
+// own colour and image, else the leading instance's colour and boss icon from
+// the rule set — so a glance into the channel says which raid it is without
+// anybody configuring anything. A cancelled event keeps the red bar and drops
+// the picture.
+//
 // Nothing personal goes in beyond the character names the raiders signed up
 // with — the names the channel would see in Raid-Helper, too.
 const crypto = require("crypto");
-const { embedAccentColor, publicBaseUrl } = require("../config/variables");
+const { publicBaseUrl } = require("../config/variables");
+// Colour and picture of the embed (#307): the event's own, else the rule set of
+// its instances, else the accent — and never a picture Discord cannot load.
+const { embedColor, embedImageFields } = require("./embedLook");
 const { getEvent, setEventMessage, listEvents } = require("./eventStore");
 const { eventEndTime } = require("../utils/eventTime");
 const { listSignups, onSignupsChanged } = require("./signupStore");
@@ -462,9 +471,12 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     if (links.length) tail.push({ name: ZWS, value: links.join("  ·  "), inline: false });
 
     const title = phase === "cancelled" ? `Abgesagt: ${event.title || "Raid"}` : (event.title || "Raid");
+    // A cancelled event keeps the red bar and loses its picture: "Abgesagt"
+    // should read as off, not as an advert for the raid (#307).
     const embed = {
         title: clip(title, LIMITS.title),
-        color: phase === "cancelled" ? CANCELLED_COLOR : embedAccentColor,
+        color: phase === "cancelled" ? CANCELLED_COLOR : embedColor(event),
+        ...(phase === "cancelled" ? {} : embedImageFields(event)),
         fields: [],
     };
     const text = clip(desc.join("\n"), LIMITS.description);

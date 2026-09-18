@@ -27,6 +27,10 @@ const MAX_SIZE = 40;
 // readers mock this store, and a pure calculation must not be mocked with it.
 const { MIN_DURATION, MAX_DURATION, DEFAULT_DURATION, clampDuration, eventEndTime } = require("../utils/eventTime");
 
+// Colour and picture of the event message (#307) — a planning field like the
+// duration, inherited from the raid template. The rules live in embedLook.js.
+const { normalizeColor, normalizeImage, normalizeLook } = require("./embedLook");
+
 function ensureDir() {
     fs.mkdirSync(SETTINGS_DIR, { recursive: true });
 }
@@ -156,7 +160,12 @@ function normalizePlan(input = {}) {
     const unknownBuff = requiredBuffs.find((b) => !buffKeys.has(b));
     if (unknownBuff) return { error: `Buff „${unknownBuff}“ gibt es in ${rules.label} nicht.` };
 
-    return { value: { versionId, instanceIds, size, composition, compositionMax, requiredBuffs, durationMinutes } };
+    // The look of the event message (#307): an empty colour or picture is a
+    // value of its own — then the rule set of the instances decides.
+    const look = normalizeLook(input);
+    if (look.error) return { error: look.error };
+
+    return { value: { versionId, instanceIds, size, composition, compositionMax, requiredBuffs, durationMinutes, ...look.value } };
 }
 
 /** An event with every field present, as the store hands it out. */
@@ -186,6 +195,10 @@ function complete(e) {
         // How long the raid is planned for (#305); an event stored before it
         // reads as the default. Its end is startTime + durationMinutes * 60.
         durationMinutes: clampDuration(e.durationMinutes),
+        // How the event message looks (#307), inherited from the raid template:
+        // "" resp. an empty url = the rule set of the instances decides.
+        color: normalizeColor(e.color),
+        image: normalizeImage(e.image),
         // The raid template the event started from ("" = none). The event keeps
         // its own copy of the values; nothing here ever writes to the template.
         raidTemplateId: e.raidTemplateId || "",
@@ -334,7 +347,7 @@ function updateEvent(id, patch = {}) {
     if (patch.autoSuggest !== undefined) next.autoSuggest = patch.autoSuggest === true;
     if (patch.overflow !== undefined) next.overflow = patch.overflow === "off" ? "off" : "bench";
     if (patch.lockAtLimit !== undefined) next.lockAtLimit = patch.lockAtLimit === true;
-    if (["versionId", "instanceIds", "size", "composition", "compositionMax", "requiredBuffs", "durationMinutes"].some((k) => patch[k] !== undefined)) {
+    if (["versionId", "instanceIds", "size", "composition", "compositionMax", "requiredBuffs", "durationMinutes", "color", "image"].some((k) => patch[k] !== undefined)) {
         const pick = (key) => (patch[key] !== undefined ? patch[key] : current[key]);
         const plan = normalizePlan({
             versionId: pick("versionId"),
@@ -346,6 +359,8 @@ function updateEvent(id, patch = {}) {
             compositionMax: patch.compositionMax !== undefined || patch.composition === undefined ? pick("compositionMax") : {},
             requiredBuffs: pick("requiredBuffs"),
             durationMinutes: pick("durationMinutes"),
+            color: pick("color"),
+            image: pick("image"),
         });
         if (plan.error) return { error: plan.error };
         Object.assign(next, plan.value);

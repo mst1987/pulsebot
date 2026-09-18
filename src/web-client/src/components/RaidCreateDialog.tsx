@@ -25,7 +25,7 @@ import WowIcon from "./ui/WowIcon";
 import RaidIcon from "./RaidIcon";
 import RaidLoader from "./ui/RaidLoader";
 import CompositionEditor from "./CompositionEditor";
-import { BuffPicker, InstancePicker, RoleRanges, SizePicker, SwitchRow } from "./RaidPlanFields";
+import { AppearanceFields, BuffPicker, InstancePicker, RoleRanges, SizePicker, SwitchRow } from "./RaidPlanFields";
 import { CheckIcon, ChevronRightIcon } from "./icons";
 
 // "Neues Event" as a guided dialog, one step at a time instead of a long page:
@@ -619,7 +619,8 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
     } else if (step === "raid") {
         const moreCount = [plan.melee, plan.ranged].filter(Boolean).length + plan.requiredBuffs.length
             + (plan.fairness ? 1 : 0) + (plan.wishes ? 1 : 0) + (plan.autoSuggest ? 1 : 0)
-            + (plan.overflow === "off" ? 1 : 0) + (plan.lockAtLimit ? 1 : 0);
+            + (plan.overflow === "off" ? 1 : 0) + (plan.lockAtLimit ? 1 : 0)
+            + (plan.color ? 1 : 0) + (plan.image.url ? 1 : 0);
         const toggleBuff = (key: string) => changePlan({
             ...plan, requiredBuffs: plan.requiredBuffs.includes(key) ? plan.requiredBuffs.filter((b) => b !== key) : [...plan.requiredBuffs, key],
         });
@@ -660,8 +661,10 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                         : <Badge tone="ok" icon={<CheckIcon />} tip="Summe passt zur Größe" tipSub="Tanks, Heiler und die Nah-/Fernkampf-Minima passen in den Raid.">{plannedSeats(plan)} / {plan.size} verplant</Badge>}
                 </div>
                 <details className="rt-more">
-                    <summary>Mehr: Nah-/Fernkampf, Pflicht-Buffs, Setup, Warteliste{moreCount ? <Badge count>{moreCount}</Badge> : null}</summary>
+                    <summary>Mehr: Aussehen, Nah-/Fernkampf, Pflicht-Buffs, Setup, Warteliste{moreCount ? <Badge count>{moreCount}</Badge> : null}</summary>
                     <div className="rt-more-body">
+                        <AppearanceFields idPrefix="re" version={version} instanceIds={plan.instanceIds} color={plan.color} image={plan.image}
+                            onChange={(look) => changePlan({ ...plan, ...look })} />
                         <RoleRanges idPrefix="re" melee={plan.melee} ranged={plan.ranged} onChange={(r) => changePlan({ ...plan, ...r })} />
                         <BuffPicker version={version} value={plan.requiredBuffs} onToggle={toggleBuff} />
                         <div className="rt-switches">

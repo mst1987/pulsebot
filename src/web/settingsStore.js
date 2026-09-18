@@ -318,7 +318,9 @@ function getRaidTemplate(id) {
  */
 function saveRaidTemplate(data) {
     const clean = normalizeTemplate(data);
-    const problem = validateTemplate(clean);
+    // The raw body too: a colour or picture normalizeTemplate() could not use
+    // is refused with a sentence instead of silently becoming "none" (#307).
+    const problem = validateTemplate(clean, data && typeof data === "object" ? data : {});
     if (problem) return { error: problem };
     const templates = listRaidTemplates();
     if (clean.id) {

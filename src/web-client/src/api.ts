@@ -1342,8 +1342,15 @@ export type RaidTemplateInput = {
     overflow?: "bench" | "off";
     /** close the signup by itself once the raid is full (#306) */
     lockAtLimit?: boolean;
+    /** the colour bar of the event message (#307), "#rrggbb"; "" = the instance's own */
+    color?: string;
+    /** the picture of the event message (#307); an empty url = the instance's boss icon */
+    image?: EmbedImage;
     raidhelperTemplateId: string;
 };
+
+/** Where a picture sits in the bot's event message (#307) and which one it is. */
+export type EmbedImage = { mode: "thumbnail" | "banner"; url: string };
 
 export type RaidTemplate = RaidTemplateInput & {
     id: string;
@@ -1405,6 +1412,10 @@ export type OwnEvent = {
     /** #306: "bench" = a full raid's new "Dabei" becomes the waiting list, "off" = refused */
     overflow?: "bench" | "off";
     lockAtLimit?: boolean;
+    /** #307: the event's own colour bar, "" = the rule set of its instances */
+    color?: string;
+    /** #307: the event's own picture, an empty url = the instance's boss icon */
+    image?: EmbedImage;
     /** when the "Beim Anlegen ankündigen" ping went out, 0 = never */
     announcedAt?: number;
 };
@@ -1473,6 +1484,10 @@ export type EventPlanInput = {
     autoSuggest: boolean;
     overflow: "bench" | "off";
     lockAtLimit: boolean;
+    /** #307: "" = the rule set's colour for the chosen instances */
+    color: string;
+    /** #307: an empty url = the instance's boss icon as the thumbnail */
+    image: EmbedImage;
 };
 
 export type CreateRaidInput = Partial<EventPlanInput> & {
@@ -1543,6 +1558,8 @@ export type GameInstance = {
     sizes: number[];
     defaultSize: number;
     icon: string;
+    /** the colour the bot's event message falls back to (#307), "#rrggbb" or "" */
+    color: string;
     bosses: string[];
     /** "" while the instance is incomplete */
     finalBoss: string;

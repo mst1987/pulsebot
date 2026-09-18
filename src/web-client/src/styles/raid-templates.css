@@ -65,6 +65,26 @@
 .rt-switches { display: flex; gap: 24px; flex-wrap: wrap; }
 .rt-problem { color: var(--high); font-size: 12.5px; margin-top: 12px; }
 
+/* ---- Aussehen (#307): colour bar and picture of the event message ---- */
+.rt-look { display: flex; align-items: stretch; gap: 12px; }
+.rt-look-prev {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 0;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; flex: 0 0 auto;
+}
+.rt-look-bar { width: 6px; align-self: stretch; border-radius: 0; flex: 0 0 auto; margin-right: 2px; }
+.rt-look-prev .wi, .rt-look-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; }
+.rt-look-banner { width: 96px; height: 40px; border-radius: 6px; object-fit: cover; }
+.rt-look-fields { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
+.rt-look-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rt-look-swatch {
+    width: 34px; min-height: var(--ctl-h-sm); padding: 2px; flex: 0 0 auto;
+    border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); cursor: pointer;
+}
+.rt-look-hex { width: 104px; min-height: var(--ctl-h-sm); padding: 4px 8px; }
+.rt-look-url { flex: 1; min-width: 160px; min-height: var(--ctl-h-sm); padding: 4px 8px; }
+.rt-look-reset { background: none; border: 0; padding: 0; color: var(--muted); font-size: 12px; text-decoration: underline; cursor: pointer; }
+.rt-look-note { color: var(--muted); font-size: 12px; }
+
 /* ---- tanks / healers editor ---- */
 .comp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .comp-card {
@@ -81,4 +101,5 @@
     .rt-row { flex-wrap: wrap; }
     .rt-vals { width: 100%; justify-content: flex-start; text-align: left; }
     .rt-ranges, .rt-row2, .comp-grid { grid-template-columns: minmax(0, 1fr); }
+    .rt-look { flex-direction: column; }
 }

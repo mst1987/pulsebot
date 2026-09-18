@@ -7,8 +7,8 @@
 // syntax in bodies), so test/web-client/eventCreateDialog.test.js runs it in
 // plain Node against the server's rules (eventStore.normalizePlan,
 // utils/channelNames.renderChannelName).
-import type { EventPlanInput, EventSource, GameVersion, OwnEvent, RaidTemplate, RaidTemplateInput, RoleRange } from "../api";
-import { allowedSizes, defaultComposition, instancesOf, proposeComposition } from "./raidTemplates";
+import type { EmbedImage, EventPlanInput, EventSource, GameVersion, OwnEvent, RaidTemplate, RaidTemplateInput, RoleRange } from "../api";
+import { allowedSizes, colorProblem, defaultComposition, imageProblem, instancesOf, proposeComposition } from "./raidTemplates";
 
 export type EventPlan = {
     /** the raid template the plan started from, "" for none */
@@ -33,6 +33,10 @@ export type EventPlan = {
     overflow: "bench" | "off";
     /** close the signup by itself once the raid is full (#306) */
     lockAtLimit: boolean;
+    /** the colour bar of the event message (#307), "" = the instance's own */
+    color: string;
+    /** the picture of the event message (#307), an empty url = the instance's boss icon */
+    image: EmbedImage;
 };
 
 export type StepKey = "start" | "termin" | "raid" | "kanal" | "check";
@@ -67,6 +71,11 @@ export function sourceOf(signupSources: Record<string, EventSource> | undefined,
     return signupSources && signupSources[categoryId] === "eventhelper" ? "eventhelper" : "raidhelper";
 }
 
+/** A stored picture field as the plan keeps it — an unknown mode reads as a thumbnail. */
+export function lookImage(image: EmbedImage | null | undefined): EmbedImage {
+    return { mode: (image && image.mode) === "banner" ? "banner" : "thumbnail", url: String((image && image.url) || "") };
+}
+
 /** A plan of a version without instances: 25 players, the default curve. */
 export function emptyPlan(version: GameVersion | null | undefined): EventPlan {
     const c = defaultComposition(25);
@@ -75,6 +84,7 @@ export function emptyPlan(version: GameVersion | null | undefined): EventPlan {
         melee: null, ranged: null, requiredBuffs: [], durationMinutes: PLAN_DEFAULT_DURATION,
         deadlineHours: 0, fairness: false, wishes: false, autoSuggest: false,
         overflow: "bench", lockAtLimit: false,
+        color: "", image: { mode: "thumbnail", url: "" },
     };
 }
 
@@ -94,6 +104,8 @@ export function planFromTemplate(t: RaidTemplate, version: GameVersion | null | 
         deadlineHours: t.signupDeadline ? t.signupDeadline.hoursBefore : 0,
         fairness: !!t.fairness, wishes: !!t.wishes, autoSuggest: false,
         overflow: t.overflow === "off" ? "off" : "bench", lockAtLimit: !!t.lockAtLimit,
+        // #307: the look travels with the template, as a copy.
+        color: t.color || "", image: lookImage(t.image),
     };
 }
 
@@ -110,6 +122,7 @@ export function planFromEvent(ev: OwnEvent): EventPlan {
         deadlineHours: ev.signupDeadline ? Math.max(0, Math.round((ev.startTime - ev.signupDeadline) / 3600)) : 0,
         fairness: !!ev.fairness, wishes: !!ev.wishes, autoSuggest: !!ev.autoSuggest,
         overflow: ev.overflow === "off" ? "off" : "bench", lockAtLimit: !!ev.lockAtLimit,
+        color: ev.color || "", image: lookImage(ev.image),
     };
 }
 
@@ -141,6 +154,8 @@ export function withVersion(plan: EventPlan, version: GameVersion | null | undef
         ...emptyPlan(version), raidTemplateId: plan.raidTemplateId, durationMinutes: plan.durationMinutes,
         deadlineHours: plan.deadlineHours, fairness: plan.fairness, wishes: plan.wishes, autoSuggest: plan.autoSuggest,
         overflow: plan.overflow, lockAtLimit: plan.lockAtLimit,
+        // A hand-picked colour or picture is not tied to the instances, so it stays.
+        color: plan.color, image: plan.image,
     };
 }
 
@@ -161,6 +176,8 @@ export function planProblem(plan: EventPlan): string {
     if (!Number.isFinite(d) || Math.floor(d) !== d || d < PLAN_MIN_DURATION || d > PLAN_MAX_DURATION) {
         return `Die Dauer muss zwischen ${PLAN_MIN_DURATION} und ${PLAN_MAX_DURATION} Minuten liegen.`;
     }
+    const look = colorProblem(plan.color) || imageProblem(plan.image);
+    if (look) return look;
     return "";
 }
 
@@ -186,6 +203,7 @@ export function planBody(plan: EventPlan): EventPlanInput {
         requiredBuffs: [...plan.requiredBuffs], durationMinutes: plan.durationMinutes, signupDeadlineHours: plan.deadlineHours,
         fairness: plan.fairness, wishes: plan.wishes, autoSuggest: plan.autoSuggest,
         overflow: plan.overflow, lockAtLimit: plan.lockAtLimit,
+        color: plan.color, image: plan.image,
     };
 }
 
@@ -203,6 +221,7 @@ export function templateFromPlan(plan: EventPlan, base: RaidTemplate | null, nam
         signupDeadline: plan.deadlineHours > 0 ? { hoursBefore: plan.deadlineHours } : null,
         durationMinutes: plan.durationMinutes,
         fairness: plan.fairness, wishes: plan.wishes, overflow: plan.overflow, lockAtLimit: plan.lockAtLimit,
+        color: plan.color, image: plan.image,
         raidhelperTemplateId: base ? base.raidhelperTemplateId || "" : "",
     };
     return base ? { ...out, id: base.id } : out;

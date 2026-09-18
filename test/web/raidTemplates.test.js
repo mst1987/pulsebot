@@ -19,6 +19,8 @@ describe("raidTemplates", () => {
                 composition: { tank: 0, healer: 0, melee: null, ranged: null },
                 requiredBuffs: [], signupDeadline: null, durationMinutes: null, fairness: false, wishes: false, raidhelperTemplateId: "",
                 overflow: "bench", lockAtLimit: false,
+                // #307: no own look — the rule set of the instances decides.
+                color: "", image: { mode: "thumbnail", url: "" },
             });
         });
 
@@ -90,6 +92,18 @@ describe("raidTemplates", () => {
             expect(validateTemplate(valid({ durationMinutes: "lang" }))).toMatch(/Dauer/);
             // a migrated Raid-Helper template has no duration
             expect(migrateLegacy({ id: "7", name: "Kara" }).durationMinutes).toBeNull();
+        });
+
+        it("prüft Farbe und Bild am Rohtext, damit ein Tippfehler nicht still verschwindet (#307)", () => {
+            // normalizeTemplate wirft Unbrauchbares weg — die Prüfung sieht deshalb das Original
+            const raw = { name: "SSC", versionId: "tbc", instanceIds: ["ssc"], size: 25, composition: { tank: 3, healer: 7 } };
+            expect(validateTemplate(normalizeTemplate({ ...raw, color: "rot" }), { ...raw, color: "rot" })).toMatch(/#rrggbb/);
+            expect(validateTemplate(normalizeTemplate({ ...raw, image: { url: "http://x/y.png" } }), { ...raw, image: { url: "http://x/y.png" } })).toMatch(/https/);
+            expect(validateTemplate(normalizeTemplate({ ...raw, image: { mode: "gross", url: "https://x/y.png" } }), { ...raw, image: { mode: "gross", url: "https://x/y.png" } })).toMatch(/thumbnail/);
+            // leer ist erlaubt und heißt "nimm die Instanz"
+            expect(validateTemplate(valid({ color: "", image: { mode: "thumbnail", url: "" } }))).toBe("");
+            expect(validateTemplate(valid({ color: "#1f8ba5", image: { mode: "banner", url: "https://cdn.example/a.png" } }))).toBe("");
+            expect(migrateLegacy({ id: "7", name: "Kara" })).toMatchObject({ color: "", image: { mode: "thumbnail", url: "" } });
         });
     });
 
