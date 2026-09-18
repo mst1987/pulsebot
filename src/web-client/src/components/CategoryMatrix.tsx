@@ -38,6 +38,14 @@ const LOOT_TOOLS = [
     { value: "", label: "keins" },
 ];
 
+// "Beim Anlegen ankündigen" (#306) as one control: off, or where the ping goes.
+const ANNOUNCE_MODES = [
+    { value: "", label: "aus" },
+    { value: "event", label: "Event-Kanal" },
+    { value: "talk", label: "Talk" },
+    { value: "both", label: "beide" },
+];
+
 // Where NEW events of the category are created. Raid-Helper events stay in use either way.
 const SIGNUP_SOURCES = [
     { value: "raidhelper", label: "Raid-Helper" },
@@ -45,8 +53,8 @@ const SIGNUP_SOURCES = [
 ];
 
 export default function CategoryMatrix({
-    categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySignupSource = {}, signupSourceDefault = "raidhelper", categorySetupDms = {}, categorySheets, savedCategoryRoles,
-    onToggleCategory, onToggleRole, onLootTool, onSignupSource, onSetupDms, onSheet, csrfToken, icon, crumb, raidTemplates,
+    categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySignupSource = {}, signupSourceDefault = "raidhelper", categorySetupDms = {}, categoryAnnounce = {}, categorySheets, savedCategoryRoles,
+    onToggleCategory, onToggleRole, onLootTool, onSignupSource, onSetupDms, onAnnounce, onSheet, csrfToken, icon, crumb, raidTemplates,
 }: {
     /** The default raid template per category (#266): the choices, the draft map and its setter. */
     raidTemplates?: CategoryRaidTemplates;
@@ -61,6 +69,8 @@ export default function CategoryMatrix({
     signupSourceDefault?: EventSource;
     /** Setup-DMs per category (#290); missing = off. */
     categorySetupDms?: Record<string, boolean>;
+    /** "Beim Anlegen ankündigen" per category (#306); missing = off. */
+    categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;
     categorySheets: Record<string, CategorySheet>;
     /** The saved roles — the assignment modal works on those, not on the draft. */
     savedCategoryRoles: Record<string, string[]>;
@@ -69,6 +79,7 @@ export default function CategoryMatrix({
     onLootTool: (categoryId: string, tool: string) => void;
     onSignupSource: (categoryId: string, source: EventSource) => void;
     onSetupDms?: (categoryId: string, on: boolean) => void;
+    onAnnounce?: (categoryId: string, mode: string) => void;
     onSheet: (categoryId: string, sheet: CategorySheet) => void;
     csrfToken: string | null;
     icon: string;
@@ -86,6 +97,7 @@ export default function CategoryMatrix({
         ...Object.keys(categoryLootTool),
         ...Object.keys(categorySignupSource),
         ...Object.keys(categorySetupDms).filter((id) => categorySetupDms[id]),
+        ...Object.keys(categoryAnnounce).filter((id) => categoryAnnounce[id] && categoryAnnounce[id].enabled),
         ...Object.keys(categorySheets),
     ];
     const rows = categoryRows(categories, configured);
@@ -254,6 +266,14 @@ export default function CategoryMatrix({
                                         <input type="checkbox" checked={categorySetupDms[cat.id] === true} onChange={() => onSetupDms(cat.id, categorySetupDms[cat.id] !== true)} aria-label={`Setup-DMs ${cat.name}`} />
                                         <span className="switch-track"><span className="switch-thumb" /></span>
                                     </label>
+                                </div>
+                            )}
+                            {onAnnounce && (
+                                <div>
+                                    <FieldLabel tip="Beim Anlegen ankündigen" tipSub="Ein neues EventHelper-Event postet eine kurze Zeile mit Titel, Termin und Link zur Anmeldung und pingt dabei die Raider-Rollen dieser Kategorie — genau einmal je Event, auch bei Serien-Events. „Talk“/„beide“ brauchen einen Ping-Kanal auf dem Kommunikations-Discord.">Ankündigung</FieldLabel>
+                                    <Segment ariaLabel={`Ankündigung ${cat.name}`}
+                                        value={categoryAnnounce[cat.id] && categoryAnnounce[cat.id].enabled ? (categoryAnnounce[cat.id].target || "event") : ""}
+                                        onChange={(v) => onAnnounce(cat.id, v)} options={ANNOUNCE_MODES} />
                                 </div>
                             )}
                             <div>

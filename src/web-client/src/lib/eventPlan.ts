@@ -27,6 +27,10 @@ export type EventPlan = {
     fairness: boolean;
     wishes: boolean;
     autoSuggest: boolean;
+    /** a full raid's new "Dabei" (#306): "bench" = waiting list, "off" = refused */
+    overflow: "bench" | "off";
+    /** close the signup by itself once the raid is full (#306) */
+    lockAtLimit: boolean;
 };
 
 export type StepKey = "start" | "termin" | "raid" | "kanal" | "check";
@@ -34,6 +38,12 @@ export type StepKey = "start" | "termin" | "raid" | "kanal" | "check";
 export const PLAN_MAX_SIZE = 40;
 
 export const STEP_LABELS = { start: "Vorlage", termin: "Termin", raid: "Raid", kanal: "Kanal & Anmeldung", check: "Prüfen" };
+
+/** What the two waiting-list switches say in one line, for the "Prüfen" step (#306). */
+export function overflowLine(plan: EventPlan): string {
+    const full = plan.overflow === "off" ? "voll: keine Anmeldung mehr" : "voll: Warteliste (Bank)";
+    return plan.lockAtLimit ? `${full} · Anmeldung schließt bei Voll` : full;
+}
 
 /**
  * The steps the dialog walks: the planning step only for an EventHelper event,
@@ -55,6 +65,7 @@ export function emptyPlan(version: GameVersion | null | undefined): EventPlan {
     return {
         raidTemplateId: "", versionId: version ? version.id : "tbc", instanceIds: [], size: 25, tank: c.tank, healer: c.healer,
         melee: null, ranged: null, requiredBuffs: [], deadlineHours: 0, fairness: false, wishes: false, autoSuggest: false,
+        overflow: "bench", lockAtLimit: false,
     };
 }
 
@@ -72,6 +83,7 @@ export function planFromTemplate(t: RaidTemplate, version: GameVersion | null | 
         requiredBuffs: [...(t.requiredBuffs || [])],
         deadlineHours: t.signupDeadline ? t.signupDeadline.hoursBefore : 0,
         fairness: !!t.fairness, wishes: !!t.wishes, autoSuggest: false,
+        overflow: t.overflow === "off" ? "off" : "bench", lockAtLimit: !!t.lockAtLimit,
     };
 }
 
@@ -86,6 +98,7 @@ export function planFromEvent(ev: OwnEvent): EventPlan {
         requiredBuffs: [...(ev.requiredBuffs || [])],
         deadlineHours: ev.signupDeadline ? Math.max(0, Math.round((ev.startTime - ev.signupDeadline) / 3600)) : 0,
         fairness: !!ev.fairness, wishes: !!ev.wishes, autoSuggest: !!ev.autoSuggest,
+        overflow: ev.overflow === "off" ? "off" : "bench", lockAtLimit: !!ev.lockAtLimit,
     };
 }
 
@@ -113,7 +126,11 @@ export function withInstance(plan: EventPlan, version: GameVersion | null | unde
 
 /** Another game version: instances and buffs do not carry over, the switches do. */
 export function withVersion(plan: EventPlan, version: GameVersion | null | undefined): EventPlan {
-    return { ...emptyPlan(version), raidTemplateId: plan.raidTemplateId, deadlineHours: plan.deadlineHours, fairness: plan.fairness, wishes: plan.wishes, autoSuggest: plan.autoSuggest };
+    return {
+        ...emptyPlan(version), raidTemplateId: plan.raidTemplateId, deadlineHours: plan.deadlineHours,
+        fairness: plan.fairness, wishes: plan.wishes, autoSuggest: plan.autoSuggest,
+        overflow: plan.overflow, lockAtLimit: plan.lockAtLimit,
+    };
 }
 
 /** The first problem of a plan as the server words it (eventStore.normalizePlan), "" when it can be sent. */
@@ -149,6 +166,7 @@ export function planBody(plan: EventPlan): EventPlanInput {
         composition: { tank: plan.tank, healer: plan.healer, melee: plan.melee, ranged: plan.ranged },
         requiredBuffs: [...plan.requiredBuffs], signupDeadlineHours: plan.deadlineHours,
         fairness: plan.fairness, wishes: plan.wishes, autoSuggest: plan.autoSuggest,
+        overflow: plan.overflow, lockAtLimit: plan.lockAtLimit,
     };
 }
 
@@ -164,7 +182,7 @@ export function templateFromPlan(plan: EventPlan, base: RaidTemplate | null, nam
         composition: { tank: plan.tank, healer: plan.healer, melee: plan.melee, ranged: plan.ranged },
         requiredBuffs: [...plan.requiredBuffs],
         signupDeadline: plan.deadlineHours > 0 ? { hoursBefore: plan.deadlineHours } : null,
-        fairness: plan.fairness, wishes: plan.wishes,
+        fairness: plan.fairness, wishes: plan.wishes, overflow: plan.overflow, lockAtLimit: plan.lockAtLimit,
         raidhelperTemplateId: base ? base.raidhelperTemplateId || "" : "",
     };
     return base ? { ...out, id: base.id } : out;

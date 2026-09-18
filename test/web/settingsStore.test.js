@@ -259,6 +259,14 @@ describe("web/settingsStore", () => {
             expect(getConfig().categorySetupDms).toEqual({ c4: true });
         });
 
+        it("keeps the create announcement off by default and stores only switched-on categories (#306)", () => {
+            expect(getConfig().categoryAnnounce).toEqual({});
+            saveConfig({ categoryAnnounce: { c1: { enabled: true, target: "both" }, c2: { enabled: false, target: "event" }, c3: { enabled: true, target: "nirgends" } } });
+            expect(getConfig().categoryAnnounce).toEqual({ c1: { enabled: true, target: "both" }, c3: { enabled: true, target: "event" } });
+            saveConfig({ categoryAnnounce: { c1: { enabled: false } } });
+            expect(getConfig().categoryAnnounce).toEqual({ c3: { enabled: true, target: "event" } });
+        });
+
         it("defaults categoryRoles to an empty object and round-trips a map", () => {
             expect(getConfig().categoryRoles).toEqual({});
             saveConfig({ categoryRoles: { c1: ["r1", "r2"], c2: ["r3"] } });

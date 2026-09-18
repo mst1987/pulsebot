@@ -12,6 +12,8 @@ const changed = jest.fn();
 // The raider-role rule (signupService.checkRaiderRole): config and the member's roles.
 const access = { config: {}, roleIds: null };
 const memberRoleIds = jest.fn(async () => access.roleIds);
+// What eventStore.appendEventLog was called with (#306: the automatic close).
+const eventLog = jest.fn();
 
 /** settingsStore stand-in: `access.config` is what getConfig() returns. */
 function settingsStore() {
@@ -31,6 +33,15 @@ function eventStore() {
         listEvents: (guildId, { sinceSeconds = 0 } = {}) => [...events.values()]
             .filter((e) => (!guildId || e.guildId === guildId) && (!sinceSeconds || (e.startTime || 0) >= sinceSeconds))
             .sort((a, b) => b.startTime - a.startTime),
+        // #306: signupService closes a full event's signup through these two.
+        setEventState: (id, patch) => {
+            const ev = events.get(id);
+            if (!ev) return null;
+            const next = { ...ev, ...patch };
+            events.set(id, next);
+            return next;
+        },
+        appendEventLog: (id, entry) => eventLog(id, entry),
     };
 }
 
@@ -81,6 +92,7 @@ function reset() {
     access.config = {};
     access.roleIds = null;
     memberRoleIds.mockClear();
+    eventLog.mockClear();
 }
 
-module.exports = { events, signups, changed, access, memberRoleIds, settingsStore, discord, eventStore, signupStore, ownEvent, reset };
+module.exports = { events, signups, changed, access, memberRoleIds, eventLog, settingsStore, discord, eventStore, signupStore, ownEvent, reset };

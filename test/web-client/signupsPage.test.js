@@ -226,4 +226,26 @@ describe("Raid detail roster", () => {
         expect(roster).toMatch(/function OwnSignupGroups[\s\S]*kann auch: \$\{also\}[\s\S]*s\.comment \? `„\$\{s\.comment\}“`/);
         expect(roster).toMatch(/data-tip-sub=\{sub \|\| undefined\}/);
     });
+
+    it("says how many wait on the bench, with the names in the tooltip (#306)", () => {
+        expect(roster).toContain('s.status === "bench"');
+        expect(roster).toMatch(/\{bench\.length\} auf der Warteliste/);
+        // nobody moves up by itself — the badge says who decides
+        expect(roster).toContain("wer nachrückt, entscheidest du im Setup");
+    });
+});
+
+// #306 — die Warteliste muss beim Raider ankommen, nicht nur im Roster stehen.
+describe("Warteliste im Web (#306)", () => {
+    it("zeigt den Hinweis des Servers direkt nach dem Speichern", () => {
+        expect(dialog).toContain("res.notice");
+        expect(dialog).toMatch(/if \(res\.notice\) toast\(res\.notice/);
+        expect(api).toContain("waitlisted");
+    });
+
+    it("badget in der Sammelanmeldung die Raids, in denen es nur die Bank wurde", () => {
+        expect(bulk).toContain("result.waitlisted");
+        expect(bulk).toMatch(/result\.waitlisted \? "Warteliste" : "gespeichert"/);
+        expect(bulk).toContain("result.notice");
+    });
 });

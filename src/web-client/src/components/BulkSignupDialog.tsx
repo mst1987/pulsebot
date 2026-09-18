@@ -122,10 +122,13 @@ function ResultRow({ result }: { result: BulkSignupResult }) {
     const skipped = result.skipped.map((x) => `${x.character} übersprungen: ${x.reason}`).join(" · ");
     return (
         <li className="an-result">
-            <Badge tone={result.ok ? "ok" : "bad"}>{result.ok ? "gespeichert" : "nicht gespeichert"}</Badge>
+            <Badge tone={result.ok ? (result.waitlisted ? "mid" : "ok") : "bad"}>
+                {result.ok ? (result.waitlisted ? "Warteliste" : "gespeichert") : "nicht gespeichert"}
+            </Badge>
             <span className="an-result-title">{result.title}</span>
             <span className="an-result-text">
                 {result.ok ? (s && s.status === "absence" ? "abgemeldet" : `${chars}${s && s.status !== "signed" ? ` – ${SIGNUP_STATUS[s.status].label}` : ""}`) : result.error}
+                {result.notice && <span className="an-result-skip">{result.notice}</span>}
                 {skipped && <span className="an-result-skip">{skipped}</span>}
             </span>
         </li>

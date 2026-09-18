@@ -61,6 +61,20 @@ function normalizeCategorySetupDms(raw) {
     return out;
 }
 
+// "Beim Anlegen ankündigen" per category (#306): `{ id: { enabled, target } }`
+// — a `false` survives the merge, so the store can drop the category again.
+function normalizeCategoryAnnounce(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [categoryId, value] of Object.entries(raw)) {
+        const id = String(categoryId).trim();
+        if (!id) continue;
+        const v = value && typeof value === "object" ? value : {};
+        out[id] = { enabled: v.enabled === true, target: String(v.target || "event") };
+    }
+    return out;
+}
+
 // A fixed sheet per category: only a http(s) link is stored. Anything else
 // (javascript:, a bare word, an empty field) becomes "", which settingsStore's
 // normalizer then drops — so a category is either unassigned or carries a link
@@ -332,6 +346,7 @@ async function updateSettings(req, res) {
     if (body.categoryLootTool !== undefined) partial.categoryLootTool = normalizeCategoryLootTool(body.categoryLootTool);
     if (body.categorySignupSource !== undefined) partial.categorySignupSource = normalizeCategorySignupSource(body.categorySignupSource);
     if (body.categorySetupDms !== undefined) partial.categorySetupDms = normalizeCategorySetupDms(body.categorySetupDms);
+    if (body.categoryAnnounce !== undefined) partial.categoryAnnounce = normalizeCategoryAnnounce(body.categoryAnnounce);
     if (body.categorySheets !== undefined) partial.categorySheets = normalizeCategorySheets(body.categorySheets);
     // Sent whole; an id no template has is dropped, so a category can never
     // point at a template that is not there (the store normalises the rest).

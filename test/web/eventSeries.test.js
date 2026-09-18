@@ -168,6 +168,9 @@ describe("runSeries", () => {
                 newChannel: { name: "", categoryId: "cat1" }, signupSource: "eventhelper", raidTemplateId: "tpl-ssc",
             },
         });
+        // #306: kein Sonderweg — die Serie schickt kein `announce` mit, also entscheidet
+        // die Kategorie, ob das Event beim Anlegen angekündigt wird.
+        expect(createEvent.mock.calls[0][0].body.announce).toBeUndefined();
         expect(store.getRuns("cat1")["2026-09-16"]).toMatchObject({ status: "created", eventId: "eh-1", channelName: "mi-2026-09-16" });
         expect(eventStore.appendEventLog).toHaveBeenCalledWith("eh-1", expect.objectContaining({ action: "series" }));
 

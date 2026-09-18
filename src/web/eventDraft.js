@@ -2,7 +2,8 @@
 //
 //   1. an ephemeral message with selects — category, raid template, channel
 //      mode (new by schema / duplicate an event's channel / existing channel)
-//      and, as a toggle button, where the signup runs (proposed by the category);
+//      and, as toggle buttons, where the signup runs (proposed by the category)
+//      and whether the raiders are pinged on create (#306, likewise proposed);
 //   2. "Weiter" opens a modal — title, date, time, "Größe/T/H", description.
 //
 // The work itself is eventCreate.js' createEvent(), the same as the web dialog's;
@@ -28,6 +29,7 @@ const discord = require("./discord");
 const channelNaming = require("./channelNaming");
 const { namingLine } = channelNaming;
 const { getConfig, listRaidTemplates, getRaidTemplate } = require("./settingsStore");
+const { announceSetting } = require("./eventAnnounce");
 const { signupSourceFor } = require("./eventSources");
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
 const { eventGuildId } = require("./guildRoles");
@@ -69,12 +71,14 @@ function cleanState(raw = {}) {
         mode: MODES.includes(raw.mode) ? raw.mode : "n",
         src: SOURCES[raw.src] ? raw.src : "",
         ref: REF_ID.test(s(raw.ref || "")) ? s(raw.ref) : "",
+        // "Beim Anlegen ankündigen" (#306): "" = as the category has it, "1"/"0" = decided here.
+        ann: raw.ann === "1" || raw.ann === "0" ? raw.ann : "",
     };
 }
 
 function encodeState(state) {
     const c = cleanState(state);
-    return [c.cat, c.tpl, c.mode, c.src, c.ref].join(":");
+    return [c.cat, c.tpl, c.mode, c.src, c.ref, c.ann].join(":");
 }
 
 function stepId(field, state) {
@@ -90,11 +94,11 @@ function parseCustomId(customId) {
     const parts = String(customId || "").split(":");
     const prefix = parts[0];
     if (prefix === STEP_PREFIX) {
-        const [, field = "", cat, tpl, mode, src, ref] = parts;
-        return { prefix, field, state: cleanState({ cat, tpl, mode, src, ref }), token: "" };
+        const [, field = "", cat, tpl, mode, src, ref, ann] = parts;
+        return { prefix, field, state: cleanState({ cat, tpl, mode, src, ref, ann }), token: "" };
     }
-    const [, cat, tpl, mode, src, ref, token = ""] = parts;
-    return { prefix, field: "", state: cleanState({ cat, tpl, mode, src, ref }), token: /^[a-f0-9]{8}$/.test(token) ? token : "" };
+    const [, cat, tpl, mode, src, ref, ann, token = ""] = parts;
+    return { prefix, field: "", state: cleanState({ cat, tpl, mode, src, ref, ann }), token: /^[a-f0-9]{8}$/.test(token) ? token : "" };
 }
 
 // ---- what there is to choose from ----
@@ -195,6 +199,22 @@ const dayLabel = (seconds) => {
     return `${wd.charAt(0).toUpperCase()}${wd.slice(1)} ${dt.toFormat("dd.MM.")}`;
 };
 
+/**
+ * Whether this event pings the raiders on create, and where (#306): the
+ * category's switch unless the toggle button decided otherwise.
+ */
+function announceFor(state) {
+    const want = state.ann === "1" ? true : (state.ann === "0" ? false : undefined);
+    return announceSetting(state.cat, { want });
+}
+
+/** "Raider-Rolle pingen (Event-Kanal)" / "aus". */
+function announceLine(announce) {
+    if (!announce.enabled) return "aus";
+    const where = { event: "Event-Kanal", talk: "Kommunikations-Discord", both: "beide Server" }[announce.target] || "Event-Kanal";
+    return `Raider-Rolle pingen (${where})`;
+}
+
 // ---- step 1: the message with the selects ----
 
 const row = (...components) => ({ type: 1, components });
@@ -244,6 +264,7 @@ async function stepMessage(guildId, rawState) {
             : "kein Event in dieser Kategorie zum Duplizieren";
     } else channelLine = state.ref ? `<#${state.ref}>` : "Kanal unten wählen";
 
+    const announce = announceFor(state);
     const templateLine = template
         ? templateSummary(template)
         : (state.src === "r" ? "keine mit Raid-Helper-Vorlage verknüpft — im Menü unter Raid-Vorlagen" : "keine — Instanz aus dem Titel");
@@ -254,6 +275,7 @@ async function stepMessage(guildId, rawState) {
         `**Kanal:** ${channelLine}`,
         `**Anmeldung über:** ${SOURCE_LABELS[state.src]}`,
     ];
+    if (state.src === "e") lines.push(`**Ankündigung:** ${announceLine(announce)}`);
 
     const components = [
         row({
@@ -288,6 +310,7 @@ async function stepMessage(guildId, rawState) {
     components.push(row(
         button(formId(state), "Weiter", 1, !ready),
         button(stepId("s", state), `Anmeldung über ${SOURCE_LABELS[other]}`),
+        ...(state.src === "e" ? [button(stepId("a", state), announce.enabled ? "Ankündigung: an" : "Ankündigung: aus")] : []),
         button(stepId("x", state), "Abbrechen"),
     ));
 
@@ -314,6 +337,7 @@ function applyStep(state, field, value = "") {
     case "k": return { ...state, mode: MODES.includes(v) ? v : "n", ref: "" };
     case "r": return { ...state, ref: REF_ID.test(v) ? v : "" };
     case "s": return fitTemplate({ ...state, src: state.src === "e" ? "r" : "e" });
+    case "a": return { ...state, ann: announceFor(state).enabled ? "0" : "1" };
     default: return state;
     }
 }
@@ -447,6 +471,8 @@ async function buildBody(guildId, rawState, values, { userId, now = Date.now() }
         leaderId: String(userId || ""), raidTemplateId: state.tpl, templateId: (template && template.raidhelperTemplateId) || "",
         signupSource: SOURCES[src],
     };
+    // Only a decision made here travels; "" leaves the category's switch alone (#306).
+    if (state.ann === "1" || state.ann === "0") body.announce = state.ann === "1";
 
     if (src === "e") {
         const comp = parseComposition(values.comp);
@@ -504,6 +530,8 @@ function successMessage(guildId, state, { body, startTime, naming }, result) {
         if (state.mode === "n") lines.push(clip(naming.design, 200));
     }
     if (result.messageError) lines.push(`⚠️ Die Event-Nachricht wurde nicht gepostet: ${clip(result.messageError, 200)}`);
+    if (result.announced) lines.push("📣 Ankündigung gepostet.");
+    if (result.announceError) lines.push(`⚠️ Die Ankündigung wurde nicht gepostet: ${clip(result.announceError, 200)}`);
 
     const links = [];
     if (channelId) links.push({ type: 2, style: 5, label: "Zum Kanal", url: `https://discord.com/channels/${guildId}/${channelId}` });

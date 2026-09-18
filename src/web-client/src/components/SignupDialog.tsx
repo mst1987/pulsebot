@@ -86,7 +86,10 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
                 comment,
             });
             onSaved(row.id, res.signup, res.counts);
-            toast(absent ? `Von ${row.title} abgemeldet.` : `Für ${row.title} gespeichert: ${SIGNUP_STATUS[status].label}.`);
+            // A full raid turned the "Dabei" into the waiting list (#306) — the
+            // raider hears it here, not from the roster.
+            if (res.notice) toast(res.notice, res.waitlisted ? "err" : undefined);
+            else toast(absent ? `Von ${row.title} abgemeldet.` : `Für ${row.title} gespeichert: ${SIGNUP_STATUS[status].label}.`);
         } catch (e) {
             toast((e as ApiError).message, "err");
         } finally {

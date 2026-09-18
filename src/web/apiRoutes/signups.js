@@ -65,6 +65,11 @@ async function putSignup(req, res) {
     ok(res, {
         signup: signupSummary(result.signup),
         counts: roleCounts(result.event, listSignups(result.event.id)),
+        // The raid was full: the "Dabei" became the waiting list, or the signup
+        // closed behind this one (#306). The dialog says so under its confirmation.
+        waitlisted: !!result.waitlisted,
+        locked: !!result.locked,
+        notice: result.notice || "",
     });
 }
 
@@ -100,6 +105,8 @@ async function postSignupsBulk(req, res) {
                 error: r.error || "",
                 code: r.code || "",
                 skipped: r.skipped || [],
+                waitlisted: !!r.waitlisted,
+                notice: r.notice || "",
                 signup: r.ok ? signupSummary(r.signup) : null,
                 counts: event ? roleCounts(event, listSignups(event.id)) : null,
             };
