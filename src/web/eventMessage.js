@@ -61,6 +61,9 @@ const {
     specEmojiName, classEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName,
 } = require("./appEmojis");
 const { migrateSignup } = require("./signupCharacters");
+// The calendar link under the message (#308) — the route that serves it is
+// public, like the report pages.
+const { icsUrlFor } = require("./icsFeed");
 
 // The old button id — messages posted before #287 carry it and keep working.
 const SIGNUP_BUTTON_PREFIX = "event-signup";
@@ -378,6 +381,7 @@ function messageComponents(event, { emojis = {}, now = Date.now(), phase = messa
  * @param {object[]} signups signupStore signups
  * @param {{ emojis?: object, now?: number, icsUrl?: string }} opts
  *   `emojis`: name → { id, name, animated } (appEmojis.appEmojiMap()); none = labels only
+ *   `icsUrl`: the calendar link; empty = the event's own `/r/cal/<id>.ics` (#308)
  */
 function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsUrl = "" } = {}) {
     const list = (signups || []).filter((s) => s && s.userId).map(migrateSignup);
@@ -447,9 +451,14 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     const base = baseUrl();
     const id = encodeURIComponent(event.id);
     const links = [];
-    if (base) links.push(`[Web](${base}/signups?event=${id})`);
+    // The public event page first (#308): it is the link everyone in the channel
+    // can open, with or without a menu account. The menu link stays beside it —
+    // that is where one signs up and where the orga works.
+    if (base) links.push(`[Event](${base}/e/${id})`);
+    if (base) links.push(`[Anmeldung](${base}/signups?event=${id})`);
     if (base && setupText) links.push(`[Setup](${base}/raids/detail?event=${id}&tab=setup)`);
-    if (icsUrl) links.push(`[Kalender](${icsUrl})`);
+    const cal = icsUrl || icsUrlFor(event.id);
+    if (cal) links.push(`[Kalender](${cal})`);
     if (links.length) tail.push({ name: ZWS, value: links.join("  ·  "), inline: false });
 
     const title = phase === "cancelled" ? `Abgesagt: ${event.title || "Raid"}` : (event.title || "Raid");

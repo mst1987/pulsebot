@@ -27,10 +27,21 @@ jest.mock("../../src/web/auth", () => ({
 }));
 jest.mock("../../src/web/apiRouter", () => ({ handle: jest.fn(() => true) }));
 jest.mock("../../src/web/staticClient", () => ({ serve: jest.fn(() => true) }));
+// The public event page and the calendar file (#308) — the routing is what is
+// tested here, their content in eventPublicPage.test.js / icsFeed.test.js.
+jest.mock("../../src/web/eventPublicPage", () => ({ renderEventPage: jest.fn(() => null) }));
+jest.mock("../../src/web/icsFeed", () => ({ buildIcs: jest.fn(() => ""), icsFileName: jest.fn((id) => `raid-${id}.ics`) }));
+jest.mock("../../src/web/eventStore", () => ({
+    ...jest.requireActual("../../src/web/eventStore"),
+    getEvent: jest.fn(() => null),
+}));
 
 const http = require("http");
 const store = require("../../src/web/reportStore");
 const render = require("../../src/web/render");
+const eventPublicPage = require("../../src/web/eventPublicPage");
+const icsFeed = require("../../src/web/icsFeed");
+const eventStore = require("../../src/web/eventStore");
 const auth = require("../../src/web/auth");
 const apiRouter = require("../../src/web/apiRouter");
 const staticClient = require("../../src/web/staticClient");
@@ -253,6 +264,56 @@ describe("web/server", () => {
             const res = await request({ url: "/r/weggeworfen", method: "GET", headers: {} });
             expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
             expect(staticClient.serve).not.toHaveBeenCalled();
+        });
+    });
+
+    // #308: both are public and server-rendered, so they must be matched before
+    // the SPA fallback — a page path that reaches the client answers 200 HTML.
+    describe("public event page and calendar (#308)", () => {
+        it("GET /r/cal/<id>.ics answers with a calendar file", async () => {
+            eventStore.getEvent.mockReturnValue({ id: "eh-1" });
+            icsFeed.buildIcs.mockReturnValue("BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n");
+            const res = await request({ url: "/r/cal/eh-1.ics", method: "GET", headers: {} });
+            expect(eventStore.getEvent).toHaveBeenCalledWith("eh-1");
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({
+                "Content-Type": "text/calendar; charset=utf-8",
+                "Content-Disposition": "attachment; filename=\"raid-eh-1.ics\"",
+            }));
+            expect(res.end).toHaveBeenCalledWith("BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n");
+            expect(staticClient.serve).not.toHaveBeenCalled();
+        });
+
+        it("GET /r/cal/<id>.ics 404s for an unknown event", async () => {
+            eventStore.getEvent.mockReturnValue(null);
+            const res = await request({ url: "/r/cal/eh-weg.ics", method: "GET", headers: {} });
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+            expect(staticClient.serve).not.toHaveBeenCalled();
+        });
+
+        it("GET /e/<id> renders the public page without asking for a session", async () => {
+            eventPublicPage.renderEventPage.mockReturnValue("EVENT_PAGE");
+            const res = await request({ url: "/e/eh-1", method: "GET", headers: {} });
+            expect(eventPublicPage.renderEventPage).toHaveBeenCalledWith("eh-1");
+            expect(res.end).toHaveBeenCalledWith("EVENT_PAGE");
+            expect(auth.getUser).not.toHaveBeenCalled();
+            expect(staticClient.serve).not.toHaveBeenCalled();
+        });
+
+        it("GET /e/<id> 404s for an unknown event instead of serving the SPA", async () => {
+            eventPublicPage.renderEventPage.mockReturnValue(null);
+            const res = await request({ url: "/e/eh-weg", method: "GET", headers: {} });
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+            expect(staticClient.serve).not.toHaveBeenCalled();
+        });
+
+        it("lets no path traversal through either route", async () => {
+            for (const url of ["/e/../../.env", "/r/cal/..%2f..%2f.env.ics", "/e/a/b"]) {
+                eventPublicPage.renderEventPage.mockClear();
+                eventStore.getEvent.mockClear();
+                await request({ url, method: "GET", headers: {} });
+                expect(eventPublicPage.renderEventPage).not.toHaveBeenCalled();
+                expect(eventStore.getEvent).not.toHaveBeenCalled();
+            }
         });
     });
 

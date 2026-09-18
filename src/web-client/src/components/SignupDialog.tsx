@@ -194,6 +194,13 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
                         </Badge>
                     </div>
                 )}
+
+                {/* #308: the raid in one's own calendar, and the page everyone can open. Both
+                    are server-rendered and public — see src/web/icsFeed.js / eventPublicPage.js. */}
+                <div className="an-links">
+                    <a href={`/r/cal/${encodeURIComponent(row.id)}.ics`}>In Kalender eintragen</a>
+                    <a href={`/e/${encodeURIComponent(row.id)}`} target="_blank" rel="noreferrer">Öffentliche Event-Seite</a>
+                </div>
             </div>
         </Modal>
     );

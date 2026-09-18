@@ -10,6 +10,9 @@ const { startRoleSync } = require("./roleSync");
 const { startTalkOverview } = require("./talkOverview");
 const { startEventSeries } = require("./eventSeries");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
+const { renderEventPage } = require("./eventPublicPage");
+const { buildIcs, icsFileName } = require("./icsFeed");
+const { getEvent } = require("./eventStore");
 const { startSheetCleanup } = require("../utils/sheetCleanup");
 const discord = require("./discord");
 const auth = require("./auth");
@@ -102,6 +105,29 @@ async function handle(req, res) {
     }
     // The public report pages keep their own paths and are matched before the
     // SPA — they are server-rendered and reachable without a login.
+    // The calendar file of an event (#308): /r/cal/<eventId>.ics. Matched before
+    // the report pages, whose id pattern would otherwise not reach it anyway.
+    // The id pattern allows nothing but [A-Za-z0-9_-], so no path can traverse.
+    const cal = pathname.match(/^\/r\/cal\/([a-zA-Z0-9_-]+)\.ics$/);
+    if (cal) {
+        const event = getEvent(cal[1]);
+        if (!event) return send(res, 404, renderNotFound());
+        const body = buildIcs(event);
+        if (!body) return send(res, 404, renderNotFound());
+        res.writeHead(200, {
+            "Content-Type": "text/calendar; charset=utf-8",
+            "Cache-Control": "no-cache",
+            "Content-Disposition": `attachment; filename="${icsFileName(event.id)}"`,
+        });
+        return res.end(body);
+    }
+    // The public event page (#308): /e/<eventId>, no login, nothing personal —
+    // see eventPublicPage.js.
+    const ep = pathname.match(/^\/e\/([a-zA-Z0-9_-]+)\/?$/);
+    if (ep) {
+        const html = renderEventPage(ep[1]);
+        return send(res, html ? 200 : 404, html || renderNotFound());
+    }
     // per-raider detail page: /r/<id>/p/<idx>
     const pm = pathname.match(/^\/r\/([a-zA-Z0-9]+)\/p\/(\d+)\/?$/);
     if (pm) {
