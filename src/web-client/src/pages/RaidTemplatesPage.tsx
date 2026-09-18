@@ -185,7 +185,7 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
                     <div className="rt-switches">
                         <SwitchRow label="Fairness" tip="Wer zuletzt auf der Bank saß, wird beim Setup-Vorschlag bevorzugt." checked={draft.fairness} onChange={(fairness) => patch({ fairness })} />
                         <SwitchRow label="Wünsche" tip="„Gerne zusammen raiden mit“ aus den Profilen fließt in den Setup-Vorschlag ein." checked={draft.wishes} onChange={(wishes) => patch({ wishes })} />
-                        <SwitchRow label="Warteliste bei vollem Raid" tip="Ist der Raid voll, wird aus einer neuen „Dabei“-Anmeldung die Bank. Aus: die Anmeldung wird abgelehnt." checked={draft.overflow !== "off"} onChange={(on) => patch({ overflow: on ? "bench" : "off" })} />
+                        <SwitchRow label="Warteliste bei vollem Raid" tip="Ist der Raid voll, wird aus jeder neuen Anmeldung, die einen Platz belegt („Dabei“ und „Spät“), die Bank. Aus: die Anmeldung wird abgelehnt." checked={draft.overflow !== "off"} onChange={(on) => patch({ overflow: on ? "bench" : "off" })} />
                         <SwitchRow label="Anmeldung schließen, wenn voll" tip="Sobald die Plätze belegt sind, schließt die Anmeldung. Abmelden öffnet sie nicht wieder." checked={!!draft.lockAtLimit} onChange={(lockAtLimit) => patch({ lockAtLimit })} />
                     </div>
                 </div>

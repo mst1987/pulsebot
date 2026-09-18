@@ -13,11 +13,13 @@
 //     the event's game version (signupStore.normalizeSignup);
 //   * after the signup deadline a member can only sign off or say they come late,
 //     or keep the status and spec they already had — the orga still can (`deadline`);
-//   * a full raid (#306) takes no new "Dabei": with `event.overflow === "bench"`
+//   * a full raid (#306) takes no new signup that would take a seat ("Dabei" and
+//     "Spät" alike — rosterCounts counts them alike): with `event.overflow === "bench"`
 //     (the default) the signup becomes the waiting list — status "bench", and the
 //     raider is told so in the same breath — with `"off"` it is refused (`full`).
-//     Whoever already holds a seat keeps it, and the orga is bound by neither;
-//     with `event.lockAtLimit` a raid that just filled up closes its signup;
+//     Whoever already holds a seat keeps it (so signed → late stays possible), and
+//     the orga is bound by neither; with `event.lockAtLimit` a raid that just
+//     filled up closes its signup;
 //   * a category with raider roles (`config.categoryRoles`) takes new signups only
 //     from holders of one of them (`raider_role`) — the rule that also hides such
 //     events on the page (categoryVisible). Roles that cannot be read let the
@@ -204,21 +206,23 @@ function benched(value) {
 }
 
 /**
- * The waiting list (#306). A raid that is full takes no NEW "Dabei": with
- * `overflow: "bench"` the signup is stored as the bench and the raider is told
- * in the same answer, with `"off"` it is refused. Nobody is pushed off a seat
- * they already hold, the orga (`byOrga`) is not bound, and an event without a
- * size has no limit to be full against.
+ * The waiting list (#306). A raid that is full takes no NEW signup that would
+ * take a seat: with `overflow: "bench"` it is stored as the bench and the
+ * raider is told in the same answer, with `"off"` it is refused. Nobody is
+ * pushed off a seat they already hold, the orga (`byOrga`) is not bound, and an
+ * event without a size has no limit to be full against.
  *
- * Only "Dabei" is caught, as the issue asks: "Spät" is somebody the orga is
- * already counting on, and turning that into a bench would read as a refusal.
+ * ⚠️ **Both seat-taking statuses are caught, "Dabei" and "Spät"** — `rosterCounts`
+ * counts them alike, so catching only "Dabei" would let anyone walk past a full
+ * waiting list by picking "Spät", and the message would read 3/2. "Vielleicht",
+ * "Bank" and an absence take no seat and are never touched.
  *
  * @returns {{ value: object, waitlisted: boolean, notice: string } | { code: "full", error: string }}
  */
 function applyOverflow(event, value, { previous = null, byOrga = false, signups = null, userId = "" } = {}) {
     const keep = { value, waitlisted: false, notice: "" };
     const size = Number(event && event.size) || 0;
-    if (byOrga || !size || String(value.status) !== "signed" || holdsSeat(previous)) return keep;
+    if (byOrga || !size || !ATTENDING.includes(String(value.status)) || holdsSeat(previous)) return keep;
     const taken = seatsTaken(signups || signupStore.listSignups(event.id), userId);
     if (taken < size) return keep;
     if (overflowOf(event) === "off") {
