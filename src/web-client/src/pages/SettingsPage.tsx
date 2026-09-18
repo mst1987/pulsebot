@@ -59,6 +59,8 @@ type Draft = {
     /** Not saved from here — read so an unset category shows the source it really gets. */
     signupSourceDefault: EventSource;
     categorySetupDms: Record<string, boolean>;
+    /** "Beim Anlegen ankündigen" per category (#306); missing = off. */
+    categoryAnnounce: Record<string, { enabled: boolean; target: string }>;
     categorySheets: Record<string, CategorySheet>;
     categoryRaidTemplate: Record<string, string>;
     topItems: TopItem[];
@@ -83,6 +85,7 @@ function toDraft(config: AdminConfig): Draft {
         categorySignupSource: config.categorySignupSource || {},
         signupSourceDefault: config.signupSourceDefault || "raidhelper",
         categorySetupDms: config.categorySetupDms || {},
+        categoryAnnounce: config.categoryAnnounce || {},
         categorySheets: config.categorySheets || {},
         categoryRaidTemplate: config.categoryRaidTemplate || {},
         topItems: config.topItems || [],
@@ -387,6 +390,7 @@ export default function SettingsPage() {
                 categorySignupSource: draft.categorySignupSource,
                 // Merged on the server: a category switched off is sent as false.
                 categorySetupDms: draft.categorySetupDms,
+                categoryAnnounce: draft.categoryAnnounce,
                 // Sent whole: a category set back to "keine" is left out.
                 categoryRaidTemplate: Object.fromEntries(Object.entries(draft.categoryRaidTemplate).filter(([, id]) => id)),
                 // Sent whole: the store replaces the map, so clearing a url is
@@ -483,6 +487,7 @@ export default function SettingsPage() {
                     categorySignupSource={draft.categorySignupSource}
                     signupSourceDefault={draft.signupSourceDefault}
                     categorySetupDms={draft.categorySetupDms}
+                    categoryAnnounce={draft.categoryAnnounce}
                     categorySheets={draft.categorySheets}
                     savedCategoryRoles={data.config.categoryRoles || {}}
                     onToggleCategory={toggleCategory}
@@ -490,6 +495,9 @@ export default function SettingsPage() {
                     onLootTool={(id, tool) => patch({ categoryLootTool: { ...draft.categoryLootTool, [id]: tool } })}
                     onSignupSource={(id, source) => patch({ categorySignupSource: { ...draft.categorySignupSource, [id]: source } })}
                     onSetupDms={(id, on) => patch({ categorySetupDms: { ...draft.categorySetupDms, [id]: on } })}
+                    onAnnounce={(id, mode) => patch({
+                        categoryAnnounce: { ...draft.categoryAnnounce, [id]: { enabled: !!mode, target: mode || "event" } },
+                    })}
                     onSheet={(id, sheet) => patch({ categorySheets: { ...draft.categorySheets, [id]: sheet } })}
                     raidTemplates={{
                         options: data.raidTemplates || [],

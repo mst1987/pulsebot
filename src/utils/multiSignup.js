@@ -338,7 +338,10 @@ function resultLine(result, profile) {
     if (result.ok) {
         const s = result.signup || {};
         const chars = (s.characters || []).map((c, i) => `${i ? "+" : ""}${characterText(profile, c)}`).join(", ");
-        const status = s.status && s.status !== "signed" ? ` – ${STATUS_STATE[s.status] || s.status}` : "";
+        // A "Dabei" the full raid turned into a bench seat says so in words (#306).
+        const status = result.waitlisted
+            ? " – **Warteliste (Bank)**"
+            : (s.status && s.status !== "signed" ? ` – ${STATUS_STATE[s.status] || s.status}` : "");
         return `✅ ${head}: ${s.status === "absence" ? "abgemeldet" : chars}${status}${skipped.length ? `\n   ↳ ${skipped.join("; ")}` : ""}`;
     }
     if (result.code === "no_character" && !skipped.length) return `⏭️ ${head}: übersprungen (kein Charakter gewählt)`;

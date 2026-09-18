@@ -116,9 +116,18 @@ describe("Neues Event dialog", () => {
     });
 
     it("reports the result as a toast and closes instead of navigating to another page", () => {
-        expect(dialog).toContain("else toast(\"Event angelegt.\");");
+        expect(dialog).toContain("toast(r.announced ? \"Event angelegt und angekündigt.\" : \"Event angelegt.\")");
         expect(dialog).toContain("onCreated();");
         expect(dialog).not.toContain("useNavigate");
+    });
+
+    it("hat die Warteliste hinter „Mehr“ und die Ankündigung im Kanal-Schritt (#306)", () => {
+        expect(dialog).toContain("Warteliste bei vollem Raid");
+        expect(dialog).toContain("Anmeldung schließen, wenn voll");
+        expect(dialog).toContain("Beim Anlegen ankündigen");
+        // Die Ankündigung startet bei der Kategorie und reist als `announce` mit.
+        expect(dialog).toContain("data.categoryAnnounce");
+        expect(dialog).toContain("planBody(plan), announce");
     });
 
     it("offers the raid templates that link a Raid-Helper template, preselecting the category default", () => {

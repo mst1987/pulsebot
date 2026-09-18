@@ -132,6 +132,8 @@ async function getRaidCreateContext(req, res, url) {
         // (#291: a category nobody picked a source for follows signupSourceDefault,
         // EventHelper for a new one) — the dialog only reads "eventhelper".
         signupSources: resolvedSignupSources(config, safeList(() => discord.listCategories(guildId))),
+        // "Beim Anlegen ankündigen" per category (#306) — the dialog's switch starts there.
+        categoryAnnounce: config.categoryAnnounce || {},
         // The planning step (#261): categories, the raid templates with their
         // badges and the default per category, the rule set, the naming schemas.
         categories: safeList(() => discord.listCategories(guildId)),

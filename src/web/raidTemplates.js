@@ -44,6 +44,8 @@ function migrateLegacy(entry) {
         signupDeadline: null,
         fairness: false,
         wishes: false,
+        overflow: "bench",
+        lockAtLimit: false,
         raidhelperTemplateId: rhId,
         createdAt: entry.createdAt || Date.now(),
         updatedAt: entry.updatedAt || Date.now(),
@@ -90,6 +92,10 @@ function normalizeTemplate(raw) {
         signupDeadline: deadline === null ? null : { hoursBefore: deadline },
         fairness: src.fairness === true,
         wishes: src.wishes === true,
+        // What a full raid does with a new "Dabei", and whether it closes its
+        // own signup then (#306) — the event copies both on creation.
+        overflow: src.overflow === "off" ? "off" : "bench",
+        lockAtLimit: src.lockAtLimit === true,
         raidhelperTemplateId: String(src.raidhelperTemplateId || "").trim(),
     };
 }

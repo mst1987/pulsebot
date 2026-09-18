@@ -33,7 +33,9 @@ async function save(interaction, event, status, picks, character) {
         return interaction.update(buildSignupDialog(event, uid, { state: picks, notice: `⚠️ ${result.error}` }));
     }
     const profile = profiles.getProfile(uid);
-    return interaction.update(buildSignupDialog(event, uid, { state: picks, notice: savedNotice(result.signup, profile) }));
+    // The waiting list (#306) rides on the same line as the confirmation.
+    const notice = [savedNotice(result.signup, profile), result.notice ? `⏳ ${result.notice}` : ""].filter(Boolean).join("\n");
+    return interaction.update(buildSignupDialog(event, uid, { state: picks, notice }));
 }
 
 module.exports = {

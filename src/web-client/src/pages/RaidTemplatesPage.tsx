@@ -128,7 +128,8 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
     };
 
     const moreCount = [draft.composition.melee, draft.composition.ranged, draft.signupDeadline].filter(Boolean).length
-        + draft.requiredBuffs.length + (draft.fairness ? 1 : 0) + (draft.wishes ? 1 : 0) + (draft.raidhelperTemplateId ? 1 : 0);
+        + draft.requiredBuffs.length + (draft.fairness ? 1 : 0) + (draft.wishes ? 1 : 0)
+        + (draft.overflow === "off" ? 1 : 0) + (draft.lockAtLimit ? 1 : 0) + (draft.raidhelperTemplateId ? 1 : 0);
 
     return (
         <Modal
@@ -167,7 +168,7 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
                 onChange={(c) => patch({ composition: { ...draft.composition, ...c } })}
             />
             <details className="rt-more">
-                <summary>Mehr: Nahkampf/Fernkampf, Pflicht-Buffs, Anmeldeschluss, Raid-Helper-Vorlage{moreCount ? <Badge count>{moreCount}</Badge> : null}</summary>
+                <summary>Mehr: Nahkampf/Fernkampf, Pflicht-Buffs, Anmeldeschluss, Warteliste, Raid-Helper-Vorlage{moreCount ? <Badge count>{moreCount}</Badge> : null}</summary>
                 <div className="rt-more-body">
                     <RoleRanges idPrefix="rt" melee={draft.composition.melee} ranged={draft.composition.ranged}
                         onChange={(r) => patch({ composition: { ...draft.composition, ...r } })} />
@@ -184,6 +185,8 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
                     <div className="rt-switches">
                         <SwitchRow label="Fairness" tip="Wer zuletzt auf der Bank saß, wird beim Setup-Vorschlag bevorzugt." checked={draft.fairness} onChange={(fairness) => patch({ fairness })} />
                         <SwitchRow label="Wünsche" tip="„Gerne zusammen raiden mit“ aus den Profilen fließt in den Setup-Vorschlag ein." checked={draft.wishes} onChange={(wishes) => patch({ wishes })} />
+                        <SwitchRow label="Warteliste bei vollem Raid" tip="Ist der Raid voll, wird aus einer neuen „Dabei“-Anmeldung die Bank. Aus: die Anmeldung wird abgelehnt." checked={draft.overflow !== "off"} onChange={(on) => patch({ overflow: on ? "bench" : "off" })} />
+                        <SwitchRow label="Anmeldung schließen, wenn voll" tip="Sobald die Plätze belegt sind, schließt die Anmeldung. Abmelden öffnet sie nicht wieder." checked={!!draft.lockAtLimit} onChange={(lockAtLimit) => patch({ lockAtLimit })} />
                     </div>
                 </div>
             </details>

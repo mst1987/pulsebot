@@ -13,6 +13,11 @@
 //     the event's game version (signupStore.normalizeSignup);
 //   * after the signup deadline a member can only sign off or say they come late,
 //     or keep the status and spec they already had — the orga still can (`deadline`);
+//   * a full raid (#306) takes no new "Dabei": with `event.overflow === "bench"`
+//     (the default) the signup becomes the waiting list — status "bench", and the
+//     raider is told so in the same breath — with `"off"` it is refused (`full`).
+//     Whoever already holds a seat keeps it, and the orga is bound by neither;
+//     with `event.lockAtLimit` a raid that just filled up closes its signup;
 //   * a category with raider roles (`config.categoryRoles`) takes new signups only
 //     from holders of one of them (`raider_role`) — the rule that also hides such
 //     events on the page (categoryVisible). Roles that cannot be read let the
@@ -21,7 +26,7 @@
 //
 // Saving goes through signupStore.saveSignup, whose change event already edits
 // the event message (eventMessage.js) and feeds every other listener.
-const { getEvent, isOwnEventId } = require("./eventStore");
+const { getEvent, isOwnEventId, setEventState, appendEventLog } = require("./eventStore");
 const signupStore = require("./signupStore");
 const { MAX_CHARACTERS, migrateSignup, characterStatus } = require("./signupCharacters");
 const profiles = require("./raiderProfileStore");
@@ -35,6 +40,8 @@ const { spec: specOf } = require("../config/gameVersions");
 const AFTER_DEADLINE = ["absence", "late"];
 // Who takes a seat in the raid (the fill bar and the role counts).
 const ATTENDING = ["signed", "late"];
+// What a full raid does with a new "Dabei" (#306): the waiting list, or nothing.
+const OVERFLOW_MODES = ["bench", "off"];
 
 /**
  * How many are coming per role, and how many said otherwise.
@@ -170,6 +177,75 @@ function wishPartnersSignedUp(profile, signups) {
 }
 
 const fail = (code, error) => ({ code, error });
+
+/** An event's overflow rule, "bench" unless it says otherwise (#306). */
+function overflowOf(event) {
+    return event && event.overflow === "off" ? "off" : "bench";
+}
+
+/** Whether a stored signup already holds a seat — such a raider keeps it (#306). */
+function holdsSeat(signup) {
+    return !!signup && ATTENDING.includes(String(signup.status || "signed"));
+}
+
+/** How many seats are taken, leaving out one user's own signup. */
+function seatsTaken(signups, exceptUserId = "") {
+    const uid = String(exceptUserId || "");
+    return rosterCounts((signups || []).filter((s) => !uid || String(s.userId) !== uid)).attending;
+}
+
+/** The same signup, every character on the bench. */
+function benched(value) {
+    return {
+        ...value,
+        status: "bench",
+        characters: (value.characters || []).map((c) => ({ ...c, status: "bench" })),
+    };
+}
+
+/**
+ * The waiting list (#306). A raid that is full takes no NEW "Dabei": with
+ * `overflow: "bench"` the signup is stored as the bench and the raider is told
+ * in the same answer, with `"off"` it is refused. Nobody is pushed off a seat
+ * they already hold, the orga (`byOrga`) is not bound, and an event without a
+ * size has no limit to be full against.
+ *
+ * Only "Dabei" is caught, as the issue asks: "Spät" is somebody the orga is
+ * already counting on, and turning that into a bench would read as a refusal.
+ *
+ * @returns {{ value: object, waitlisted: boolean, notice: string } | { code: "full", error: string }}
+ */
+function applyOverflow(event, value, { previous = null, byOrga = false, signups = null, userId = "" } = {}) {
+    const keep = { value, waitlisted: false, notice: "" };
+    const size = Number(event && event.size) || 0;
+    if (byOrga || !size || String(value.status) !== "signed" || holdsSeat(previous)) return keep;
+    const taken = seatsTaken(signups || signupStore.listSignups(event.id), userId);
+    if (taken < size) return keep;
+    if (overflowOf(event) === "off") {
+        return fail("full", `Der Raid ist voll (${taken}/${size}) – es geht keine Anmeldung mehr. Frag die Raidleitung.`);
+    }
+    return {
+        value: benched(value),
+        waitlisted: true,
+        notice: `Der Raid ist voll (${taken}/${size}) – du stehst auf der Warteliste (Bank). Ob jemand nachrückt, entscheidet die Raidleitung.`,
+    };
+}
+
+/**
+ * `lockAtLimit` (#306): a raid that has just filled up closes its own signup,
+ * exactly like the orga's "Anmeldung schließen" (#288) and logged the same way.
+ * Only ever closes — signing off later never opens it again.
+ * @returns {{ locked: boolean, event: object }}
+ */
+function lockIfFull(event, { now = Date.now() } = {}) {
+    const size = Number(event && event.size) || 0;
+    if (!event || !event.lockAtLimit || event.signupsClosed || isCancelled(event) || !size) return { locked: false, event };
+    const taken = rosterCounts(signupStore.listSignups(event.id)).attending;
+    if (taken < size) return { locked: false, event };
+    const next = setEventState(event.id, { signupsClosed: true });
+    appendEventLog(event.id, { action: "lock", detail: `Raid voll (${taken}/${size})`, at: now });
+    return { locked: true, event: next || event };
+}
 
 const RAIDER_ROLE_ERROR = "Für diesen Raid brauchst du eine Raider-Rolle.";
 
@@ -349,10 +425,15 @@ function requestedCharacters(input, previous) {
 /**
  * Sign a user up for an own event (or change / withdraw their signup).
  * `userId` is who the signup belongs to; `byOrga` lifts the deadline and the
- * start for the orga entering somebody, and the raider-role rule (checkRaiderRole;
- * `roleIds` / `config` are optional, it reads them otherwise). The change event
- * fires in the store.
- * @returns {Promise<{ signup?: object, event?: object, error?: string, code?: string }>}
+ * start for the orga entering somebody, the raider-role rule (checkRaiderRole;
+ * `roleIds` / `config` are optional, it reads them otherwise) and the waiting
+ * list. The change event fires in the store.
+ *
+ * `waitlisted` says the "Dabei" became a bench seat because the raid is full,
+ * `locked` that this signup closed the signup (`lockAtLimit`), and `notice` is
+ * the German sentence every front end puts under its confirmation — the raider
+ * learns it right there, not from the roster.
+ * @returns {Promise<{ signup?: object, event?: object, waitlisted?: boolean, locked?: boolean, notice?: string, error?: string, code?: string }>}
  */
 async function submitSignup(eventId, userId, input = {}, { byOrga = false, now = Date.now(), roleIds, config } = {}) {
     const uid = String(userId || "").trim();
@@ -368,9 +449,14 @@ async function submitSignup(eventId, userId, input = {}, { byOrga = false, now =
     if (access.error) return access;
     const checked = validateSignup(event, input, { profile, previous, byOrga, now });
     if (checked.error) return checked;
-    const saved = signupStore.saveSignup(event.id, uid, checked.value, { versionId: event.versionId });
+    const overflow = applyOverflow(event, checked.value, { previous, byOrga, userId: uid });
+    if (overflow.error) return overflow;
+    const saved = signupStore.saveSignup(event.id, uid, overflow.value, { versionId: event.versionId });
     if (saved.error) return fail("bad_request", saved.error);
-    return { signup: saved.signup, event };
+    const lock = lockIfFull(event, { now });
+    const notice = [overflow.notice, lock.locked ? "Der Raid ist damit voll – die Anmeldung ist jetzt geschlossen." : ""]
+        .filter(Boolean).join(" ");
+    return { signup: saved.signup, event: lock.event, waitlisted: overflow.waitlisted, locked: lock.locked, notice };
 }
 
 /**
@@ -455,7 +541,12 @@ async function submitSignups(userId, entries, { byOrga = false, now = Date.now()
             comment: previous ? previous.comment : "",
         }, { byOrga, now, roleIds, config: cfg });
         if (result.error) results.push({ ...base, ok: false, skipped: fit.skipped, code: result.code, error: result.error });
-        else results.push({ ...base, ok: true, signup: result.signup, skipped: fit.skipped });
+        else {
+            results.push({
+                ...base, ok: true, signup: result.signup, skipped: fit.skipped,
+                waitlisted: !!result.waitlisted, locked: !!result.locked, notice: result.notice || "",
+            });
+        }
     }
     return results;
 }
@@ -464,13 +555,14 @@ async function submitSignups(userId, entries, { byOrga = false, now = Date.now()
 function httpStatusFor(code) {
     if (code === "not_found") return 404;
     if (code === "raider_role") return 403;
-    if (code === "deadline" || code === "started" || code === "raidhelper" || code === "closed" || code === "cancelled") return 409;
+    if (code === "deadline" || code === "started" || code === "raidhelper" || code === "closed" || code === "cancelled" || code === "full") return 409;
     return 400;
 }
 
 module.exports = {
-    AFTER_DEADLINE, ATTENDING, RAIDER_ROLE_ERROR,
+    AFTER_DEADLINE, ATTENDING, RAIDER_ROLE_ERROR, OVERFLOW_MODES,
     categoryRoleAllowed, categoryVisible, checkRaiderRole, isCancelled, isSignupClosed, WHEN_CLOSED,
+    overflowOf, holdsSeat, seatsTaken, applyOverflow, lockIfFull,
     rosterCounts, roleCounts, signupWindow, allowedStatuses,
     findCharacter, profileRoles, defaultCanAlso, wishPartnersSignedUp,
     validateSignup, submitSignup, submitSignups, fitCharactersToEvent, httpStatusFor, MAX_CHARACTERS,

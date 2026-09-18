@@ -172,6 +172,17 @@ describe("save bar change list", () => {
         expect(logic.draftChanges(saved, { ...base(), categorySetupDms: { c1: false } }, names)).toEqual(["Hyjal & BT · Setup-DMs aus"]);
     });
 
+    it("names the create announcement and its target, missing = off (#306)", () => {
+        const draft = base();
+        draft.categoryAnnounce = { c1: { enabled: true, target: "both" } };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Ankündigung → beide Server"]);
+        const saved = { ...base(), categoryAnnounce: { c1: { enabled: true, target: "event" } } };
+        expect(logic.draftChanges(saved, { ...base(), categoryAnnounce: { c1: { enabled: false, target: "event" } } }, names))
+            .toEqual(["Hyjal & BT · Ankündigung → aus"]);
+        expect(logic.announceMode(undefined)).toBe("");
+        expect(logic.announceMode({ enabled: true, target: "" })).toBe("event");
+    });
+
     it("counts admin roles, the base access, accounts, categories and top items", () => {
         const draft = base();
         draft.adminRoleIds = ["a2"];

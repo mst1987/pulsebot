@@ -5,9 +5,18 @@ const os = require("os");
 const path = require("path");
 
 const mockEvents = new Map();
+const mockLog = jest.fn();
 jest.mock("../../src/web/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
+    setEventState: (id, patch) => {
+        const ev = mockEvents.get(id);
+        if (!ev) return null;
+        const next = { ...ev, ...patch };
+        mockEvents.set(id, next);
+        return next;
+    },
+    appendEventLog: (id, entry) => mockLog(id, entry),
 }));
 const mockSignups = new Map();
 const mockChanged = jest.fn();
@@ -59,6 +68,7 @@ beforeEach(() => {
     mockChanged.mockClear();
     mockConfig = {};
     mockRoleIds = null;
+    mockLog.mockClear();
     discord.memberRoleIds.mockClear();
     mockEvents.set("eh-kara", event());
     profiles.addCharacter(ANNA, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane", "Mage-Fire"] }, { name: "Anna" });
@@ -366,6 +376,92 @@ describe("Raider-Rollen der Kategorie", () => {
         expect(service.categoryRoleAllowed("a", { config, roleIds: ["r2"] })).toBe(false);
         expect(service.categoryVisible("a", { config, roleIds: ["r2"], orga: true })).toBe(true);
         expect(service.categoryVisible("b", { config, roleIds: [] })).toBe(true);
+    });
+});
+
+
+// #306 — die Warteliste: ein voller Raid nimmt keine neue „Dabei“-Anmeldung mehr.
+describe("Warteliste bei vollem Raid (#306)", () => {
+    // Füllt den Raid mit `n` fremden Anmeldungen auf (Rolle egal, es zählt der Platz).
+    const fill = (n, status = "signed") => {
+        for (let i = 0; i < n; i += 1) {
+            mockSignups.set(`eh-kara/filler${i}`, { userId: `filler${i}`, character: `F${i}`, spec: "Mage-Fire", role: "ranged", status, characters: [], canAlso: [], comment: "", at: 1 });
+        }
+    };
+
+    it("macht aus einer neuen „Dabei“ die Bank und sagt es dem Raider sofort", async () => {
+        mockEvents.set("eh-kara", event({ size: 2 }));
+        fill(2);
+        const res = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW });
+        expect(res.error).toBeUndefined();
+        expect(res.waitlisted).toBe(true);
+        expect(res.signup.status).toBe("bench");
+        expect(res.signup.characters.every((c) => c.status === "bench")).toBe(true);
+        expect(res.notice).toContain("Raid ist voll (2/2)");
+        expect(res.notice).toContain("Warteliste");
+    });
+
+    it("lehnt die Anmeldung ab, wenn die Kategorie keine Warteliste will (overflow: off)", async () => {
+        mockEvents.set("eh-kara", event({ size: 2, overflow: "off" }));
+        fill(2);
+        const res = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW });
+        expect(res).toMatchObject({ code: "full" });
+        expect(res.error).toContain("voll (2/2)");
+        expect(service.httpStatusFor("full")).toBe(409);
+        expect(mockSignups.get("eh-kara/" + ANNA)).toBeUndefined();
+    });
+
+    it("lässt wer schon einen Platz hat seinen Platz behalten – auch beim Spec-Wechsel", async () => {
+        mockEvents.set("eh-kara", event({ size: 2 }));
+        fill(1);
+        await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW });
+        fill(2); // der Raid ist jetzt voll, Anna sitzt aber schon drin
+        const again = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Fire", status: "signed" }, { now: NOW });
+        expect(again.waitlisted).toBeFalsy();
+        expect(again.signup).toMatchObject({ spec: "Mage-Fire", status: "signed" });
+    });
+
+    it("bindet die Orga nicht und zählt „Spät“ als belegten Platz", async () => {
+        mockEvents.set("eh-kara", event({ size: 2 }));
+        fill(2, "late");
+        const orga = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW, byOrga: true });
+        expect(orga.waitlisted).toBeFalsy();
+        expect(orga.signup.status).toBe("signed");
+    });
+
+    it("greift nicht, solange noch ein Platz frei ist oder das Event keine Größe hat", async () => {
+        mockEvents.set("eh-kara", event({ size: 3 }));
+        fill(2);
+        expect((await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW })).signup.status).toBe("signed");
+        mockSignups.delete("eh-kara/" + ANNA);
+        mockEvents.set("eh-kara", event({ size: 0 }));
+        expect((await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW })).signup.status).toBe("signed");
+    });
+});
+
+// #306 — lockAtLimit: der volle Raid schließt seine eigene Anmeldung.
+describe("Sperre bei Voll (#306)", () => {
+    it("schließt die Anmeldung, protokolliert das und öffnet sie beim Abmelden nicht wieder", async () => {
+        mockEvents.set("eh-kara", event({ size: 1, lockAtLimit: true }));
+        const res = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW });
+        expect(res.locked).toBe(true);
+        expect(res.notice).toContain("Anmeldung ist jetzt geschlossen");
+        expect(mockEvents.get("eh-kara").signupsClosed).toBe(true);
+        expect(mockLog).toHaveBeenCalledWith("eh-kara", expect.objectContaining({ action: "lock", detail: "Raid voll (1/1)" }));
+
+        // Abmelden macht den Platz frei — die Anmeldung bleibt trotzdem zu.
+        const off = await service.submitSignup("eh-kara", ANNA, { status: "absence" }, { now: NOW });
+        expect(off.error).toBeUndefined();
+        expect(mockEvents.get("eh-kara").signupsClosed).toBe(true);
+        // und die geschlossene Anmeldung nimmt danach nichts Neues mehr an
+        const back = await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW });
+        expect(back).toMatchObject({ code: "closed" });
+    });
+
+    it("schließt ohne den Schalter nichts", async () => {
+        mockEvents.set("eh-kara", event({ size: 1 }));
+        await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "signed" }, { now: NOW });
+        expect(mockEvents.get("eh-kara").signupsClosed).toBeFalsy();
     });
 });
 

@@ -57,6 +57,8 @@ const ACTION_LABELS = {
     cancel: "Abgesagt",
     reopen: "Absage zurückgenommen",
     series: "Von Serie angelegt",
+    lock: "Anmeldung automatisch geschlossen",
+    announce: "Angekündigt",
 };
 
 const STATUS_LABELS = {

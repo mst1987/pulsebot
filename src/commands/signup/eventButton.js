@@ -50,7 +50,10 @@ async function save(interaction, event, input, { update = false } = {}) {
         ...input,
     });
     const emojis = result.error ? {} : await emojisFor(interaction);
-    const text = result.error ? `⚠️ ${result.error}` : savedText(event, result.signup, profiles.getProfile(uid), { emojis });
+    // "Du stehst auf der Warteliste" belongs under the confirmation, not into the roster (#306).
+    const text = result.error
+        ? `⚠️ ${result.error}`
+        : [savedText(event, result.signup, profiles.getProfile(uid), { emojis }), result.notice ? `⏳ ${result.notice}` : ""].filter(Boolean).join("\n");
     return update ? done(interaction, text) : reply(interaction, text);
 }
 

@@ -104,7 +104,7 @@ describe("/event anlegen — step 1", () => {
         expect(i.deferUpdate).toHaveBeenCalled();
         const payload = lastPayload(i.editReply);
         const weiter = payload.components[payload.components.length - 1].components[0];
-        expect(draft.parseCustomId(weiter.custom_id).state).toEqual({ cat: CAT_RH, tpl: RH.id, mode: "n", src: "r", ref: "" });
+        expect(draft.parseCustomId(weiter.custom_id).state).toEqual({ cat: CAT_RH, tpl: RH.id, mode: "n", src: "r", ref: "", ann: "" });
     });
 
     it("switches the channel mode, the source, and cancels", async () => {

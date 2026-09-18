@@ -52,6 +52,37 @@ function withComponent(interaction, component) {
     return interaction;
 }
 
+// #306 — was der Raider erfährt, wenn der Raid schon voll ist.
+describe("Warteliste unter der Event-Nachricht (#306)", () => {
+    const fill = (n) => {
+        for (let i = 0; i < n; i += 1) {
+            mocks.signups.set(`eh-kara/f${i}`, { userId: `f${i}`, character: `F${i}`, spec: "Mage-Fire", role: "ranged", status: "signed", characters: [], canAlso: [], comment: "", at: 1 });
+        }
+    };
+
+    it("speichert die Anmeldung als Bank und sagt es in derselben Antwort", async () => {
+        mocks.events.set("eh-kara", mocks.ownEvent({ size: 2 }));
+        fill(2);
+        profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+        const i = click("join");
+        await command.execute(i);
+        expect(stored().status).toBe("bench");
+        const text = String(replyOf(i).content || "");
+        expect(text).toContain("Warteliste");
+        expect(text).toContain("Raid ist voll (2/2)");
+    });
+
+    it("lehnt die Anmeldung ab, wenn die Warteliste aus ist", async () => {
+        mocks.events.set("eh-kara", mocks.ownEvent({ size: 2, overflow: "off" }));
+        fill(2);
+        profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
+        const i = click("join");
+        await command.execute(i);
+        expect(stored()).toBeUndefined();
+        expect(String(replyOf(i).content || "")).toContain("voll (2/2)");
+    });
+});
+
 describe("commands/signup/eventButton", () => {
     it("is routed by the button prefix and open to every raider", () => {
         expect(command).toMatchObject({ name: "event-btn", group: "signup", defaultAccess: "everyone" });

@@ -175,6 +175,15 @@ function complete(e) {
         wishes: !!e.wishes,
         // "Vorschlag automatisch bei Anmeldeschluss" (#261); read by the setup suggestion (#262).
         autoSuggest: !!e.autoSuggest,
+        // What happens to a new "Dabei" once the raid is full (#306): "bench"
+        // puts it on the waiting list, "off" refuses the signup. Default "bench".
+        overflow: e.overflow === "off" ? "off" : "bench",
+        // Close the signup by itself the moment the raid is full (#306). Signing
+        // off never opens it again — that stays the orga's call.
+        lockAtLimit: !!e.lockAtLimit,
+        // When the "Beim Anlegen ankündigen" ping went out (#306), 0 = never —
+        // it is what keeps the announcement from going a second time.
+        announcedAt: Number(e.announcedAt) || 0,
         // The setup: null, a draft (the editor's, or the automatic proposal at the
         // signup deadline via saveSetupDraft), its approval and the last approved
         // snapshot — one shape, see setupEditor.js (#263).
@@ -262,6 +271,8 @@ function createEvent(input = {}) {
         fairness: input.fairness === true,
         wishes: input.wishes === true,
         autoSuggest: input.autoSuggest === true,
+        overflow: input.overflow === "off" ? "off" : "bench",
+        lockAtLimit: input.lockAtLimit === true,
         raidTemplateId: str(input.raidTemplateId),
         createdBy: str(input.createdBy),
         createdAt: now,
@@ -298,6 +309,8 @@ function updateEvent(id, patch = {}) {
     if (patch.fairness !== undefined) next.fairness = patch.fairness === true;
     if (patch.wishes !== undefined) next.wishes = patch.wishes === true;
     if (patch.autoSuggest !== undefined) next.autoSuggest = patch.autoSuggest === true;
+    if (patch.overflow !== undefined) next.overflow = patch.overflow === "off" ? "off" : "bench";
+    if (patch.lockAtLimit !== undefined) next.lockAtLimit = patch.lockAtLimit === true;
     if (["versionId", "instanceIds", "size", "composition", "compositionMax", "requiredBuffs"].some((k) => patch[k] !== undefined)) {
         const pick = (key) => (patch[key] !== undefined ? patch[key] : current[key]);
         const plan = normalizePlan({
@@ -409,6 +422,22 @@ function appendEventLog(id, entry = {}) {
     return complete(events[idx]);
 }
 
+/**
+ * Note that the "Beim Anlegen ankündigen" ping went out (#306). Written once:
+ * a second call leaves the first moment in place, so no repost, retry or edit
+ * can announce the same event twice. Returns the event or null.
+ */
+function setEventAnnounced(id, at = Date.now()) {
+    const events = readAll();
+    const idx = events.findIndex((e) => e && e.id === str(id));
+    if (idx < 0) return null;
+    if (!Number(events[idx].announcedAt)) {
+        events[idx] = { ...events[idx], announcedAt: Number(at) || Date.now() };
+        writeAll(events);
+    }
+    return complete(events[idx]);
+}
+
 /** Delete an own event. Returns true when one was removed. */
 function deleteEvent(id) {
     const events = readAll();
@@ -465,6 +494,6 @@ function saveSetupDraft(id, proposal, { createdBy = "auto", now = Date.now() } =
 
 module.exports = {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft,
-    setEventState, appendEventLog, MAX_LOG, setEventSetupPost,
+    setEventState, appendEventLog, MAX_LOG, setEventSetupPost, setEventAnnounced,
     normalizePlan, isOwnEventId, EVENTS_FILE, ID_PREFIX, COMPOSITION_ROLES,
 };
