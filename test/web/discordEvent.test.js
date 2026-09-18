@@ -97,6 +97,9 @@ describe("web/discordEvent", () => {
             });
             expect(payload.description).toContain("Treffpunkt Eingang");
             expect(payload.description).toContain(de.SIGNUP_NOTE);
+            // discord.js only sends channel_id when the option is there — without an
+            // explicit null Discord refuses the switch back from a voice event
+            expect(payload.channel).toBeNull();
             // Ende = Start + Dauer
             expect(payload.scheduledStartTime).toBe(new Date(START * 1000).toISOString());
             expect(payload.scheduledEndTime).toBe(new Date((START + 180 * 60) * 1000).toISOString());
@@ -218,6 +221,20 @@ describe("web/discordEvent", () => {
             expect(eventStore.setEventDiscordEvent).toHaveBeenCalledWith(id, null);
             expect(guild.scheduledEvents.create).toHaveBeenCalledTimes(1);
             expect(result.id).toBe("d1");
+        });
+
+        it("switches back from the voice channel to an external event with an explicit channel: null", async () => {
+            const { stored } = fakeGuild();
+            const id = put(event({ voiceChannelId: "v1" }));
+            await de.createForEvent(id);
+            expect(stored.get("d1").data.entityType).toBe(GuildScheduledEventEntityType.Voice);
+            mockEvents.get(id).voiceChannelId = "";
+            await de.syncForEvent(id);
+            expect(stored.get("d1").data).toMatchObject({
+                entityType: GuildScheduledEventEntityType.External,
+                channel: null,
+                entityMetadata: { location: "https://discord.com/channels/g1/c1/m1" },
+            });
         });
 
         it("leaves a Discord event alone that is no longer scheduled", async () => {

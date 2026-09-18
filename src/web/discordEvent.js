@@ -114,6 +114,10 @@ function buildScheduledEvent(event, { voiceChannelId = "" } = {}) {
     return {
         ...payload,
         entityType: GuildScheduledEventEntityType.External,
+        // ⚠️ `channel: null` is not decoration: discord.js only sends `channel_id`
+        // when the option is present, and Discord refuses a switch back from a
+        // voice event to an external one without an explicit null.
+        channel: null,
         entityMetadata: { location: clip(url || (event && event.channelName ? `#${event.channelName}` : "Discord"), LIMITS.location) },
     };
 }
