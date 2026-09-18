@@ -471,7 +471,7 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     if (links.length) tail.push({ name: ZWS, value: links.join("  ·  "), inline: false });
 
     const title = phase === "cancelled" ? `Abgesagt: ${event.title || "Raid"}` : (event.title || "Raid");
-    // An abgesagtes Event keeps the red bar and loses its picture: "Abgesagt"
+    // A cancelled event keeps the red bar and loses its picture: "Abgesagt"
     // should read as off, not as an advert for the raid (#307).
     const embed = {
         title: clip(title, LIMITS.title),
