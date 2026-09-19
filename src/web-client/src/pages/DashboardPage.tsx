@@ -28,11 +28,17 @@ import { longDay, shortDate, dayDate, clock, raidWhen } from "../lib/overviewDat
 import "../styles/uebersicht.css";
 import RaidLoader from "../components/ui/RaidLoader";
 
-/** A link inside the SPA, or a plain anchor for the server-rendered report pages (/r/…). */
+/**
+ * A link inside the SPA, or a plain anchor for the server-rendered report pages
+ * (/r/…) and for an address outside the menu — the deploy task (#314) leads to
+ * the written instructions in the repository, which no route here can render.
+ */
 function RowLink({ href, className, tip, tipSub, children }: {
     href: string; className: string; tip?: string; tipSub?: string; children: ReactNode;
 }) {
     const props = { className, "data-tip": tip, "data-tip-sub": tipSub };
+    const external = /^https?:\/\//.test(href);
+    if (external) return <a href={href} target="_blank" rel="noreferrer" {...props}>{children}</a>;
     return href.startsWith("/r/")
         ? <a href={href} {...props}>{children}</a>
         : <Link to={href} {...props}>{children}</Link>;

@@ -134,6 +134,15 @@ describe("web/apiAccess", () => {
             expect(checkAccess("/api/game-versions", "GET", null)).toMatchObject({ status: 401 });
         });
 
+        // #314: the commit itself is public on /health, but the comparison with
+        // main is an operational detail — and a member's page load should not
+        // trigger a GitHub call.
+        it("keeps the deploy version with the settings readers", () => {
+            expect(checkAccess("/api/version", "GET", limited({ settings: { read: true, write: false } }))).toBeNull();
+            expect(checkAccess("/api/version", "GET", limited({ raids: { read: true, write: true } }))).toMatchObject({ status: 403 });
+            expect(checkAccess("/api/version", "GET", null)).toMatchObject({ status: 401 });
+        });
+
         it("lets any menu user switch the active guild", () => {
             expect(checkAccess("/api/session/guild", "POST", limited({ raids: { read: true, write: false } }))).toBeNull();
             expect(checkAccess("/api/session/guild", "POST", limited({}))).toMatchObject({ status: 403 });
