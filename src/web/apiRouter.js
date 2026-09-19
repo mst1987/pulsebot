@@ -6,6 +6,7 @@ const auth = require("./auth");
 const { checkAccess } = require("./apiAccess");
 const { getSession, postActiveGuild } = require("./apiRoutes/session");
 const { getDashboard, getNextRaidDetails } = require("./apiRoutes/dashboard");
+const { getVersion } = require("./apiRoutes/version");
 const {
     getChannels, createChannel, duplicateChannel,
     patchChannels, archiveChannels, deleteChannels, renamePreview, batchCreate, saveConfig: saveChannelConfig,
@@ -121,6 +122,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/session/guild" && req.method === "POST") {
         await postActiveGuild(req, res);
+        return true;
+    }
+    if (pathname === "/api/version" && req.method === "GET") {
+        await getVersion(req, res, url);
         return true;
     }
     if (pathname === "/api/dashboard" && req.method === "GET") {

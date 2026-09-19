@@ -14,6 +14,7 @@ const { renderEventPage } = require("./eventPublicPage");
 const { buildIcs, icsFileName } = require("./icsFeed");
 const { getEvent } = require("./eventStore");
 const { startSheetCleanup } = require("../utils/sheetCleanup");
+const { versionInfo } = require("./version");
 const discord = require("./discord");
 const auth = require("./auth");
 const apiRouter = require("./apiRouter");
@@ -99,9 +100,20 @@ async function handle(req, res) {
 
     if (req.method !== "GET") return send(res, 405, renderNotFound());
 
+    // Reachable without a login, and deliberately so — a health check runs
+    // before anyone could log in. It therefore carries nothing confidential:
+    // which commit is running, when it was committed, its subject and when the
+    // process came up (#314). No path, no config, no token.
     if (pathname === "/health") {
-        res.writeHead(200, { "Content-Type": "text/plain" });
-        return res.end("ok");
+        const version = versionInfo();
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+        return res.end(JSON.stringify({
+            status: "ok",
+            commit: version.commit,
+            committedAt: version.committedAt,
+            subject: version.subject,
+            startedAt: version.startedAt,
+        }));
     }
     // The public report pages keep their own paths and are matched before the
     // SPA — they are server-rendered and reachable without a login.

@@ -177,6 +177,56 @@ describe("web/dashboardOverview", () => {
     });
 });
 
+// "Server ist n Commits hinter main" (#314): eight merged PRs never reached the
+// server because the deploy failed silently every single time.
+describe("deployTask", () => {
+    const { deployTask, DEPLOY_GUIDE_URL, buildTasks: tasksFor } = require("../../src/web/dashboardOverview");
+    const NOW = Date.parse("2026-09-20T12:00:00Z");
+    const behind = (over) => ({
+        status: "behind", behind: 9, short: "a1b2c3d", committedAt: "2026-09-12T10:00:00Z",
+        behindSince: "2026-09-14T12:00:00Z", latest: { short: "9f8e7d6" }, ...over,
+    });
+
+    it("has no task while the server is current", () => {
+        expect(deployTask({ status: "current", behind: 0, short: "a1b2c3d" }, NOW)).toBeNull();
+    });
+
+    it("has no task when the distance is not checkable — a footnote, never an open item", () => {
+        expect(deployTask({ status: "unknown", reason: "unreachable", behind: 0, short: "a1b2c3d" }, NOW)).toBeNull();
+        expect(deployTask(null, NOW)).toBeNull();
+        expect(deployTask({ status: "behind", behind: 0 }, NOW)).toBeNull();
+    });
+
+    it("names the number of commits, the age and both shas, and links to the guide", () => {
+        const task = deployTask(behind(), NOW);
+        expect(task).toMatchObject({ id: "deploy", tone: "mid", tile: "settings", count: 9, href: DEPLOY_GUIDE_URL });
+        expect(task.title).toBe("Server ist 9 Commits hinter main (seit 6 Tagen)");
+        expect(task.ref.text).toBe("läuft auf a1b2c3d · main auf 9f8e7d6");
+        expect(DEPLOY_GUIDE_URL).toMatch(/^https:\/\/github\.com\//);
+    });
+
+    it("is yellow from the first commit and red once the backlog is a week old", () => {
+        expect(deployTask(behind({ behind: 1, behindSince: "2026-09-20T09:00:00Z" }), NOW)).toMatchObject({ tone: "mid", count: 1 });
+        expect(deployTask(behind({ behindSince: "2026-09-13T11:00:00Z" }), NOW).tone).toBe("bad");
+        // Exactly seven days is already red.
+        expect(deployTask(behind({ behindSince: "2026-09-13T12:00:00Z" }), NOW).tone).toBe("bad");
+        expect(deployTask(behind({ behindSince: "2026-09-13T13:00:00Z" }), NOW).tone).toBe("mid");
+    });
+
+    it("says one Commit in the singular and leaves the age out without a date", () => {
+        expect(deployTask(behind({ behind: 1, behindSince: "" }), NOW).title).toBe("Server ist 1 Commit hinter main");
+    });
+
+    it("leads the task list — everything else may be about code that is not running", () => {
+        const tasks = tasksFor({ deploy: behind(), roleDrift: { total: 1, groups: [{ roleName: "R", guildName: "T", members: [{}] }] } });
+        expect(tasks[0].id).toBe("deploy");
+    });
+
+    it("is absent from the list for a dashboard without deploy data", () => {
+        expect(tasksFor({}).map((t) => t.id)).not.toContain("deploy");
+    });
+});
+
 // Role-sync drift (#264) as a dashboard task.
 describe("roleDriftTask", () => {
     const { roleDriftTask, buildTasks: tasksFor } = require("../../src/web/dashboardOverview");

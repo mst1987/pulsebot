@@ -2,12 +2,24 @@
 set -euo pipefail
 
 APP_NAME="pulsebot"
-APP_DIR="/var/www/pulsebot"
+# Where the checkout lives. The workflow and this script used to disagree about
+# it (/opt/eventhelper vs /var/www/pulsebot, #314), so the path is no longer
+# written down twice: DEPLOY_DIR wins — the same repository variable the
+# workflow passes in — and otherwise the script deploys the checkout it is part
+# of. Both end up at the directory this file was run from.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_DIR="${DEPLOY_DIR:-$SCRIPT_DIR}"
 BRANCH="${1:-main}"
 LOG_TAG="[deploy]"
 
 echo "$LOG_TAG Starting deployment of $APP_NAME from branch $BRANCH"
 echo "$LOG_TAG Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+echo "$LOG_TAG Directory: $APP_DIR"
+
+if [ ! -d "$APP_DIR/.git" ]; then
+    echo "$LOG_TAG ERROR: $APP_DIR is not a git checkout — set DEPLOY_DIR to the directory the bot is checked out in."
+    exit 1
+fi
 
 cd "$APP_DIR"
 
@@ -17,6 +29,10 @@ git fetch origin
 echo "$LOG_TAG Checking out $BRANCH..."
 git checkout "$BRANCH"
 git reset --hard "origin/$BRANCH"
+
+# The commit this deploy puts live — the same one the bot then reports on
+# /health and in the menu's footer (#314).
+echo "$LOG_TAG Now at $(git log -1 --format='%h %cI %s')"
 
 REQUIRED_NODE=$(sed 's/^v//' .nvmrc | cut -d'.' -f1)
 
