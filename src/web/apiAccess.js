@@ -82,6 +82,11 @@ const AREA_BY_PATH = {
     "/api/profile/log-characters": "signup",
     "/api/profile/characters": "signup",
     "/api/profile/raiders": "signup",
+    // Kalender-Abo (#312): the raider mints and revokes their own subscription
+    // link. The store checks the owner, so this can only ever touch the
+    // session's own tokens; the feed itself is no /api path at all
+    // (/r/cal/user/<token>.ics) and authenticates with the token.
+    "/api/profile/calendar": "signup",
     "/api/profile/user": "roster",
     // Anmeldungen (#256): the member's upcoming raids and their *own* signup —
     // the PUT handler only ever writes the session's account. All signups of an

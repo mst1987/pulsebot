@@ -103,6 +103,18 @@
 }
 .pf-hit:hover { background: var(--panel2); border-color: var(--line); }
 
+/* ---- Kalender-Abo (#312): one calm line per link, the secret shown once ---- */
+.pf-cal { display: flex; flex-direction: column; gap: 10px; }
+.pf-cal-fresh { display: grid; gap: 6px; padding: 10px; border: 1px solid var(--medium); background: var(--medium-bg); border-radius: 8px; }
+.pf-cal-link { display: flex; align-items: center; gap: 6px; }
+.pf-cal-link input {
+    flex: 1; min-width: 0; padding: 7px 10px; border-radius: 6px; font-size: 12px;
+    background: var(--bg); color: var(--text); border: 1px solid var(--line);
+}
+.pf-cal-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line-soft); }
+.pf-cal-row:last-of-type { border-bottom: 0; }
+.pf-cal-name { flex: 1; min-width: 0; display: grid; gap: 2px; font: 700 13px/1.2 var(--font-mono); }
+
 .pf-note { display: grid; gap: 4px; }
 .pf-note textarea {
     width: 100%; min-height: 80px; resize: vertical; padding: 10px 12px; border-radius: 8px;

@@ -165,6 +165,22 @@ function lastOwnSignupOf(userId) {
 }
 
 /**
+ * Every signup of one raider, keyed by event id (#312, the calendar feed).
+ * One pass over the file instead of a `getSignup` per event — a raider with a
+ * season of raids behind them would otherwise re-parse it a hundred times.
+ */
+function signupsOfUser(userId) {
+    const uid = String(userId || "");
+    const out = {};
+    if (!uid) return out;
+    for (const [eventId, byUser] of Object.entries(readAll())) {
+        const s = byUser && byUser[uid];
+        if (s && s.userId) out[eventId] = migrateSignup(s);
+    }
+    return out;
+}
+
+/**
  * Create or replace a user's signup. `at` is kept from a previous signup, so
  * changing the spec does not move somebody to the end of the list.
  * @returns {{ signup?: object, error?: string }}
@@ -207,6 +223,6 @@ function deleteEventSignups(eventId) {
 }
 
 module.exports = {
-    listSignups, getSignup, lastSignupOf, saveSignup, removeSignup, deleteEventSignups,
+    listSignups, getSignup, signupsOfUser, lastSignupOf, saveSignup, removeSignup, deleteEventSignups,
     normalizeSignup, migrateSignup, onSignupsChanged, SIGNUPS_FILE, MAX_CHARACTERS,
 };
