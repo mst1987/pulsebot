@@ -31,6 +31,9 @@ jest.mock("../../src/web/staticClient", () => ({ serve: jest.fn(() => true) }));
 // tested here, their content in eventPublicPage.test.js / icsFeed.test.js.
 jest.mock("../../src/web/eventPublicPage", () => ({ renderEventPage: jest.fn(() => null) }));
 jest.mock("../../src/web/icsFeed", () => ({ buildIcs: jest.fn(() => ""), icsFileName: jest.fn((id) => `raid-${id}.ics`) }));
+// The raider's subscription (#312) — again only the routing; the token check
+// and the content live in calendarFeed.test.js.
+jest.mock("../../src/web/calendarFeed", () => ({ feedFor: jest.fn(() => null) }));
 jest.mock("../../src/web/eventStore", () => ({
     ...jest.requireActual("../../src/web/eventStore"),
     getEvent: jest.fn(() => null),
@@ -41,6 +44,7 @@ const store = require("../../src/web/reportStore");
 const render = require("../../src/web/render");
 const eventPublicPage = require("../../src/web/eventPublicPage");
 const icsFeed = require("../../src/web/icsFeed");
+const calendarFeed = require("../../src/web/calendarFeed");
 const eventStore = require("../../src/web/eventStore");
 const auth = require("../../src/web/auth");
 const apiRouter = require("../../src/web/apiRouter");
@@ -327,6 +331,48 @@ describe("web/server", () => {
                 expect(eventPublicPage.renderEventPage).not.toHaveBeenCalled();
                 expect(eventStore.getEvent).not.toHaveBeenCalled();
             }
+        });
+    });
+
+    // #312: the token in the url is the whole authentication, so the route has
+    // to be matched before the SPA and answer a bad token with a plain 404.
+    describe("raider calendar subscription (#312)", () => {
+        it("GET /r/cal/user/<token>.ics answers with a private calendar file", async () => {
+            calendarFeed.feedFor.mockReturnValue({ body: "BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n", cached: false, id: "t1" });
+            const res = await request({ url: "/r/cal/user/ehc_abc123.ics", method: "GET", headers: {} });
+            expect(calendarFeed.feedFor).toHaveBeenCalledWith("ehc_abc123");
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({
+                "Content-Type": "text/calendar; charset=utf-8",
+                // never a shared cache: the file belongs to one raider
+                "Cache-Control": "private, max-age=300",
+            }));
+            expect(res.end).toHaveBeenCalledWith("BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n");
+            expect(staticClient.serve).not.toHaveBeenCalled();
+            // the single-event route must not have seen it
+            expect(eventStore.getEvent).not.toHaveBeenCalled();
+        });
+
+        it("404s for an unknown or revoked token, without saying which", async () => {
+            calendarFeed.feedFor.mockReturnValue(null);
+            const res = await request({ url: "/r/cal/user/ehc_weg.ics", method: "GET", headers: {} });
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+            expect(res.end).not.toHaveBeenCalledWith(expect.stringContaining("Token"));
+            expect(staticClient.serve).not.toHaveBeenCalled();
+        });
+
+        it("never lets a path traverse out of the token", async () => {
+            for (const url of ["/r/cal/user/../../.env.ics", "/r/cal/user/a/b.ics", "/r/cal/user/.ics"]) {
+                calendarFeed.feedFor.mockClear();
+                await request({ url, method: "GET", headers: {} });
+                expect(calendarFeed.feedFor).not.toHaveBeenCalled();
+            }
+        });
+
+        it("is not reachable with anything but GET", async () => {
+            calendarFeed.feedFor.mockClear();
+            const res = await request({ url: "/r/cal/user/ehc_abc123.ics", method: "POST", headers: {} });
+            expect(calendarFeed.feedFor).not.toHaveBeenCalled();
+            expect(res.writeHead).toHaveBeenCalledWith(405, expect.any(Object));
         });
     });
 

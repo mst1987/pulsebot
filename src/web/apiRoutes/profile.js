@@ -12,6 +12,9 @@ const profiles = require("../raiderProfileStore");
 const specHistory = require("../specHistoryStore");
 const { logIndex, logSuggestions } = require("../profileLogs");
 const { profileView, lookupArmory } = require("../profileView");
+const calendarTokens = require("../calendarTokenStore");
+const calendarFeed = require("../calendarFeed");
+const { userIcsUrl } = require("../icsFeed");
 const { rulesFor, DEFAULT_VERSION, VERSIONS } = require("../../config/gameVersions");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
 
@@ -165,7 +168,53 @@ async function getCharacterClaims(req, res) {
     ok(res, { claims: profiles.characterClaims() });
 }
 
+// ---- Kalender-Abo (#312) ----
+//
+// The subscription link is the raider's own business: minted and revoked here,
+// on the session's account, never on another's. The plaintext token exists in
+// exactly one response — the POST that created it — and is never stored, so it
+// can be read back by nobody, not by the raider and not by an admin.
+
+/** The token rows plus whether a link can be built at all. */
+function calendarPayload(userId) {
+    const tokens = calendarTokens.listTokensFor(userId).map((t) => ({
+        id: t.id, name: t.name, hint: t.hint, createdAt: t.createdAt, lastUsedAt: t.lastUsedAt, uses: t.uses,
+    }));
+    return { tokens, max: calendarTokens.MAX_PER_USER, configured: Boolean(userIcsUrl("x")) };
+}
+
+/** GET /api/profile/calendar — the caller's own subscription links, without their secrets. */
+async function getCalendarTokens(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    ok(res, calendarPayload(user.id));
+}
+
+/**
+ * POST /api/profile/calendar — mint a link, or revoke one with `{ revoke: id }`.
+ * The secret comes back exactly once, in `token`/`url`.
+ */
+async function postCalendarToken(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+
+    if (body.revoke !== undefined) {
+        // The store checks the owner, so a foreign id cannot be revoked even if
+        // a caller sends one — it comes back as "not removed", like any other.
+        const revoked = calendarTokens.revokeToken(String(body.revoke || ""), user.id);
+        calendarFeed.clearCache();
+        return ok(res, { revoked, ...calendarPayload(user.id) });
+    }
+
+    const made = calendarTokens.createToken(user.id, String(body.name || ""));
+    if (made.error) return apiError(res, 400, made.code || "invalid", made.error);
+    ok(res, { token: made.token, url: userIcsUrl(made.token), record: made.record, ...calendarPayload(user.id) });
+}
+
 module.exports = {
     getProfile, putProfile, getLogCharacters, postProfileCharacter, getRaiderSearch, getUserProfile, getCharacterClaims,
+    getCalendarTokens, postCalendarToken,
     pageContext,
 };

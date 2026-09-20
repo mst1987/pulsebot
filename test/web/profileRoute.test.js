@@ -230,3 +230,68 @@ describe("GET /api/profile/log-characters", () => {
         expect(list[2].claimedBy).toEqual([{ userId: BERT.id, name: "Bert" }]);
     });
 });
+
+// Kalender-Abo (#312): der Link ist der ganze Zugang zur Feed-Route. Wichtig ist
+// darum, dass er genau einmal herausgeht, nur dem eigenen Konto gehört und
+// sofort widerrufbar ist.
+describe("Kalender-Abo (/api/profile/calendar)", () => {
+    const calStore = require("../../src/web/calendarTokenStore");
+    const calFeed = require("../../src/web/calendarFeed");
+    const { requireCsrf } = require("../../src/web/apiMiddleware");
+
+    beforeEach(() => {
+        calStore.useFile(tempStoreFile("eh-calendar-tokens-route.json"));
+        calFeed.clearCache();
+    });
+    afterAll(() => calStore.useFile(null));
+
+    it("gibt das Geheimnis genau einmal heraus – die Liste danach nie wieder", async () => {
+        const made = body(await call(route.postCalendarToken, ANNA)).data;
+        expect(made.token).toMatch(/^ehc_[a-f0-9]+$/);
+        expect(made.url).toContain(made.token);
+
+        const list = body(await call(route.getCalendarTokens, ANNA)).data;
+        expect(list.tokens).toHaveLength(1);
+        expect(JSON.stringify(list)).not.toContain(made.token);
+        expect(list.tokens[0]).not.toHaveProperty("hash");
+        expect(list.tokens[0].hint).toBe(made.token.slice(-4));
+    });
+
+    it("zeigt nur die eigenen Links", async () => {
+        await call(route.postCalendarToken, ANNA);
+        await call(route.postCalendarToken, BERT);
+        expect(body(await call(route.getCalendarTokens, ANNA)).data.tokens).toHaveLength(1);
+        expect(body(await call(route.getCalendarTokens, BERT)).data.tokens).toHaveLength(1);
+    });
+
+    it("widerruft sofort – und nie den Link eines anderen", async () => {
+        const mine = body(await call(route.postCalendarToken, ANNA)).data;
+        const id = mine.tokens[0].id;
+
+        // Bert versucht es mit Annas Id: nichts passiert, kein Hinweis
+        const foreign = body(await call(route.postCalendarToken, BERT, { json: { revoke: id } })).data;
+        expect(foreign.revoked).toBe(false);
+        expect(calStore.verifyToken(mine.token)).toBeTruthy();
+
+        const own = body(await call(route.postCalendarToken, ANNA, { json: { revoke: id } })).data;
+        expect(own.revoked).toBe(true);
+        expect(own.tokens).toHaveLength(0);
+        expect(calStore.verifyToken(mine.token)).toBeNull();
+    });
+
+    it("begrenzt die Zahl der Links pro Konto", async () => {
+        for (let i = 0; i < calStore.MAX_PER_USER; i += 1) {
+            expect(body(await call(route.postCalendarToken, ANNA)).data.token).toBeTruthy();
+        }
+        const res = await call(route.postCalendarToken, ANNA);
+        expect(status(res)).toBe(400);
+        expect(body(res).error.code).toBe("too_many");
+    });
+
+    it("braucht ein CSRF-Token zum Erzeugen", async () => {
+        requireCsrf.mockReturnValueOnce(false);
+        const res = await call(route.postCalendarToken, ANNA);
+        expect(res.end).not.toHaveBeenCalled();
+        expect(calStore.listTokensFor(ANNA.id)).toEqual([]);
+    });
+});
