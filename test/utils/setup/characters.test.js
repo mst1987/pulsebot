@@ -61,6 +61,84 @@ describe("setup proposal with several characters per raider (#293)", () => {
         for (const s of placed(out)) expect(s.reasons.join(" ")).not.toMatch(/Wahl|statt/);
     });
 
+    // #320: every character of a signup carries its own status since #302 —
+    // "Spät" on the first leaves the second "Dabei". The proposal weighs the
+    // status of the character it would place, not the signup's.
+    describe("a status per character (#320)", () => {
+        /**
+         * Zibbo (1st choice) comes late, Zibbodis is there on time — two priests,
+         * so the two options bring the same buffs and nothing but the status
+         * tells them apart.
+         */
+        const split = (extra = {}) => su("zibbo", "Priest-Holy", {
+            character: "Zibbo",
+            status: "late",
+            characters: [
+                { character: "Zibbo", spec: "Priest-Holy", status: "late" },
+                { character: "Zibbodis", spec: "Priest-Discipline", status: "signed" },
+            ],
+            ...extra,
+        });
+        const others = [su("t1", "Warrior-Protection"), su("t2", "Paladin-Protection"), su("d1", "Mage-Fire")];
+        const oneHealer = event({ composition: { tank: 2, healer: 1 } });
+
+        it("prefers the character who is there on time over the one who comes late", () => {
+            const out = buildSetupProposal({ events: [oneHealer], signups: [split(), ...others] });
+            const z = everyone(out).filter((s) => s.userId === "zibbo");
+            // one person, one seat — still the hard rule
+            expect(z).toHaveLength(1);
+            expect(z[0]).toMatchObject({ character: "Zibbodis", spec: "Priest-Discipline", status: "signed" });
+            // and the reason names the availability, not a full role, and never
+            // claims the placed character comes late
+            expect(z[0].reasons[0]).toBe("Mit Zibbodis als Heiler statt Zibbo (kommt später)");
+            expect(z[0].reasons.join(" ")).not.toContain("Kommt später");
+        });
+
+        it("says „Kommt später“ only when the character that is placed is the late one", () => {
+            // the alternate is a melee, so the late priest is the only healer
+            const signups = [
+                split({ characters: [{ character: "Zibbo", spec: "Priest-Holy", status: "late" }, { character: "Zibbowar", spec: "Warrior-Fury", status: "signed" }] }),
+                ...others,
+            ];
+            const out = buildSetupProposal({ events: [oneHealer], signups });
+            const z = placed(out).find((s) => s.userId === "zibbo");
+            expect(z).toMatchObject({ character: "Zibbo", status: "late" });
+            expect(z.reasons).toContain("Kommt später");
+        });
+
+        it("keeps the preference where the alternate is no more available", () => {
+            const signups = [split({ characters: [{ character: "Zibbo", spec: "Priest-Holy", status: "late" }, { character: "Zibbodis", spec: "Priest-Discipline", status: "late" }] }), ...others];
+            const out = buildSetupProposal({ events: [oneHealer], signups });
+            const z = placed(out).find((s) => s.userId === "zibbo");
+            expect(z).toMatchObject({ character: "Zibbo", status: "late" });
+            expect(z.reasons[0]).toBe("1. Wahl: Zibbo");
+        });
+
+        it("falls back to the signup's status for a character that has none", () => {
+            const signups = [
+                su("zibbo", "Priest-Holy", {
+                    character: "Zibbo",
+                    status: "late",
+                    characters: [{ character: "Zibbo", spec: "Priest-Holy" }, { character: "Zibbodis", spec: "Priest-Discipline" }],
+                }),
+                ...others,
+            ];
+            const out = buildSetupProposal({ events: [oneHealer], signups });
+            const z = placed(out).find((s) => s.userId === "zibbo");
+            expect(z).toMatchObject({ character: "Zibbo", status: "late" });
+            expect(z.reasons).toContain("Kommt später");
+        });
+
+        it("keeps an absence a matter for the whole person, whatever the characters say", () => {
+            const signups = [
+                split({ status: "absence", characters: [{ character: "Zibbo", spec: "Priest-Holy" }, { character: "Zibbodis", spec: "Priest-Discipline" }] }),
+                su("t1", "Warrior-Protection"), su("h1", "Paladin-Holy"),
+            ];
+            const out = buildSetupProposal({ events: [oneHealer], signups });
+            expect(everyone(out).filter((s) => s.userId === "zibbo")).toHaveLength(0);
+        });
+    });
+
     it("lets the orga place the alternate by hand and keeps who plays", () => {
         const signups = [zibbo({ eventId: "ev" }), su("h1", "Paladin-Holy", { eventId: "ev" })];
         const placement = validatePlacement({

@@ -33,6 +33,9 @@ export default function BulkSignupDialog({ rows, profile, classes, csrfToken, on
 
     useEffect(() => {
         if (!open) return;
+        // Several raids at once carry ONE status for all of them, so the picks
+        // deliberately get none of their own (#320) — the status select below
+        // is the only one, and picksToInput() then sends no per-character status.
         setPicks(initialPicks(profile, null));
         setStatus("signed");
         setResults(null);

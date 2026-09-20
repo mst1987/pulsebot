@@ -32,9 +32,12 @@ const UNIVERSAL_FACTOR = 0.5;
  *   requiredBuffs  each buff the template requires, once present
  *   mainSpec       a raider placed on the spec they signed up with
  *   preferredCharacter  what placing a raider on one of their "kann auch mit"
- *                  characters costs against their first choice (#293)
+ *                  characters costs against their first choice (#293) — waived
+ *                  when that character's own status makes it the more available
+ *                  one (#320, moreAvailableThanFirst)
  *   gear           "ready" over "usable" (unknown counts half)
- *   status         "Dabei" over "Kommt später" (½) and "Vielleicht" (0.3)
+ *   status         "Dabei" over "Kommt später" (½) and "Vielleicht" (0.3), per
+ *                  character since #320 — not per signup
  *   fairness       who sat on the bench last time / often (event flag `fairness`)
  *   attendance     attendance in the category, 0–100 %
  *   wishes         a wish pair in the same group (mutual 1, one-sided ½; event flag `wishes`)
@@ -63,6 +66,22 @@ function resolveWeights(given = {}) {
     return out;
 }
 
+/**
+ * Whether an alternate character is *more available* than the raider's first
+ * choice — their own statuses say so (#320): "Zibbo kommt später, Zibbowar ist
+ * dabei". The order of the characters is a preference, a status is a statement
+ * about the evening, so the preference must not outweigh it: the
+ * `preferredCharacter` cost is waived for such an option. It is never waived
+ * the other way round, and a raider who gave their characters the same status
+ * is unaffected.
+ */
+function moreAvailableThanFirst(cand, opt) {
+    if (!(opt.priority > 0) || !cand.preferred) return false;
+    const pref = cand.preferred.get(opt.eventIdx);
+    if (!pref) return false;
+    return (STATUS_FACTOR[opt.status] || 0) > (STATUS_FACTOR[pref.status] || 0);
+}
+
 /** What placing this option is worth on its own, independent of everyone else. */
 function staticParts(model, cand, opt, weights) {
     const event = model.events[opt.eventIdx];
@@ -74,7 +93,7 @@ function staticParts(model, cand, opt, weights) {
         status: weights.status * (STATUS_FACTOR[opt.status] || 0),
         mainSpec: opt.main ? weights.mainSpec : 0,
         // A cost, not a bonus: raiders with a single character score as before.
-        preferredCharacter: opt.priority > 0 ? -weights.preferredCharacter : 0,
+        preferredCharacter: opt.priority > 0 && !moreAvailableThanFirst(cand, opt) ? -weights.preferredCharacter : 0,
         gear: weights.gear * (GEAR_FACTOR[opt.gear] === undefined ? 0.5 : GEAR_FACTOR[opt.gear]),
         fairness: fairOn ? weights.fairness * cand.fairness.priority : 0,
         attendance: weights.attendance * att,
@@ -229,5 +248,5 @@ function makeScorer(model) {
 
 module.exports = {
     DEFAULT_WEIGHTS, MAX_WEIGHT, FILL, ROLE_MIN, BENCH_STATUS,
-    resolveWeights, staticParts, groupBuffValue, makeScorer,
+    resolveWeights, staticParts, moreAvailableThanFirst, groupBuffValue, makeScorer,
 };

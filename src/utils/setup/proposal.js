@@ -305,8 +305,11 @@ function search(model, scorer) {
  *   requiredBuffs, fairness, wishes }` — one event, or several that run in parallel and share the
  *   raiders; `input.event` for a single one. tank/healer are exact targets, melee/ranged a
  *   number (minimum) or `{ min, max }`.
- * @param {object[]} input.signups  `{ eventId, userId, character, spec, status, canAlso, comment, at }`
- *   (signupStore shape; `eventId` may be left out with one event)
+ * @param {object[]} input.signups  `{ eventId, userId, character, spec, status, characters, canAlso, comment, at }`
+ *   (signupStore shape; `eventId` may be left out with one event). `characters` are the raider's
+ *   own characters in priority order (#293), each with its **own status** (#320): a first choice
+ *   on "Spät" beside an alternate on "Dabei" makes the alternate the better option. An absence
+ *   stays a matter for the whole person.
  * @param {object[]|object} [input.profiles]  raiderProfileStore profiles (array or by user id)
  * @param {object} [input.attendance]  `{ [userId]: pct | { pct } }`
  * @param {object[]} [input.history]  earlier nights: `{ eventId, startTime, placed: userId[], bench: userId[] }`

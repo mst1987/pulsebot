@@ -12,7 +12,9 @@ import { formatEventTime } from "../lib/format";
 import {
     CAN_ALSO, ROLE_ORDER, SIGNUP_STATUS, SIGNUP_STATUS_ORDER, defaultCanAlso, roleCountText,
 } from "../lib/signups";
-import { initialPicks, picksToInput, type CharacterPick } from "../lib/signupPicks";
+import {
+    commonStatus, initialPicks, picksToInput, setAllStatuses, signupStatusOf, type CharacterPick,
+} from "../lib/signupPicks";
 
 // The signup dialog (#256): characters and specs from the profile (several since
 // #293: the first is the choice, the others "kann auch mit"), the status,
@@ -20,6 +22,13 @@ import { initialPicks, picksToInput, type CharacterPick } from "../lib/signupPic
 // head's kicker line, the wish partner as one badge, every explanation in a
 // tooltip. The server checks it all again (src/web/signupService.js); the
 // dialog only keeps a member from picking what cannot work.
+//
+// The status belongs to the character since #320 — the same thing Discord has
+// done since #302, where "Spät" moves only the first one. The segment below the
+// characters therefore sets them **all** ("alle auf …"); a single line is
+// changed by its own dot in SignupCharacterPicks. Where the lines differ, no
+// segment option is marked and one small line says so, instead of pretending
+// one status held for everybody.
 
 export default function SignupDialog({ row, profile, classes, csrfToken, onClose, onSaved }: {
     row: OwnSignupRow | null;
@@ -43,12 +52,13 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
     useEffect(() => {
         if (!row) return;
         const allowed = row.allowedStatuses;
-        const start = initialPicks(profile, mine);
+        const wanted = mine?.status || "signed";
+        const open = allowed.includes(wanted) || !allowed.length ? wanted : allowed[0];
+        const start = initialPicks(profile, mine, open);
         const first = profile.characters.find((c) => c.key === start[0]?.characterKey);
         const role = first?.specs.find((s) => s.key === start[0]?.spec)?.role || "";
-        const wanted = mine?.status || "signed";
         setPicks(start);
-        setStatus(allowed.includes(wanted) || !allowed.length ? wanted : allowed[0]);
+        setStatus(open);
         setCanAlso(mine ? mine.canAlso : (first ? defaultCanAlso(profile, first.key, role) : []));
         setComment(mine?.comment || "");
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -65,6 +75,12 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
     const noCharacter = !profile.characters.length;
     const closed = !row.allowedStatuses.length;
     const canSubmit = !busy && !closed && (absent || (!!character && !!spec));
+    // What the segment shows as chosen: the status every character shares, "" when they differ (#320).
+    const shared = absent ? "absence" : commonStatus(picks, status);
+    const pickStatus = (s: SignupStatus) => {
+        setStatus(s);
+        if (s !== "absence") setPicks((list) => setAllStatuses(list, s));
+    };
 
     const changePicks = (next: CharacterPick[]) => {
         const firstChanged = next[0]?.characterKey !== picks[0]?.characterKey;
@@ -81,7 +97,8 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
             const res = await saveSignup(csrfToken, {
                 eventId: row.id,
                 characters: picksToInput(profile, picks),
-                status,
+                // the signup's own status mirrors the first character's (#320)
+                status: signupStatusOf(picks, status),
                 canAlso: absent ? [] : canAlso.filter((r) => r !== ownRole),
                 comment,
             });
@@ -89,7 +106,7 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
             // A full raid turned the "Dabei" into the waiting list (#306) — the
             // raider hears it here, not from the roster.
             if (res.notice) toast(res.notice, res.waitlisted ? "err" : undefined);
-            else toast(absent ? `Von ${row.title} abgemeldet.` : `Für ${row.title} gespeichert: ${SIGNUP_STATUS[status].label}.`);
+            else toast(absent ? `Von ${row.title} abgemeldet.` : `Für ${row.title} gespeichert: ${SIGNUP_STATUS[signupStatusOf(picks, status)].label}.`);
         } catch (e) {
             toast((e as ApiError).message, "err");
         } finally {
@@ -131,22 +148,25 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
                         In deinem Profil steht noch kein Charakter. <Link to="/profile">Charakter anlegen</Link> – abmelden geht auch ohne.
                     </p>
                 ) : (
-                    <SignupCharacterPicks profile={profile} classes={classes} picks={picks} onChange={changePicks} disabled={absent} />
+                    <SignupCharacterPicks
+                        profile={profile} classes={classes} picks={picks} onChange={changePicks} disabled={absent}
+                        statuses allowedStatuses={row.allowedStatuses}
+                    />
                 )}
 
                 <div className="field">
-                    <label>Status</label>
+                    <label>{picks.length > 1 ? "Status für alle" : "Status"}</label>
                     <div className="seg an-status" role="radiogroup" aria-label="Status">
                         {SIGNUP_STATUS_ORDER.map((s) => {
                             const allowed = row.allowedStatuses.includes(s);
                             return (
                                 <button
-                                    key={s} type="button" role="radio" aria-checked={status === s}
-                                    className={`seg-opt${status === s ? " active" : ""}`}
+                                    key={s} type="button" role="radio" aria-checked={shared === s}
+                                    className={`seg-opt${shared === s ? " active" : ""}`}
                                     disabled={!allowed || (noCharacter && s !== "absence")}
                                     data-tip={SIGNUP_STATUS[s].label}
                                     data-tip-sub={allowed ? SIGNUP_STATUS[s].tip : "Nach dem Anmeldeschluss nicht mehr wählbar."}
-                                    onClick={() => setStatus(s)}
+                                    onClick={() => pickStatus(s)}
                                 >
                                     <i className="an-dot" style={{ background: SIGNUP_STATUS[s].color }} />
                                     {SIGNUP_STATUS[s].label}
@@ -154,6 +174,7 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
                             );
                         })}
                     </div>
+                    {!shared && <div className="hint">Deine Charaktere haben verschiedene Status – hier setzt du alle auf einen.</div>}
                 </div>
 
                 {!absent && !noCharacter && (

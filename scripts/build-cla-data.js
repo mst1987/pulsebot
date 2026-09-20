@@ -33,7 +33,7 @@ const RED = idsOnLine(lineIndexBefore("redGemsFound++;"));
 const BLUE = idsOnLine(lineIndexBefore("blueGemsFound++;"));
 
 // uncut gems: condition contains the first uncut id "23112"
-const UNCUT = idsOnLine(lineIndexContaining('gem.id.toString() == "23112"'));
+const UNCUT = idsOnLine(lineIndexContaining("gem.id.toString() == \"23112\""));
 
 // acceptable gems that are NOT flagged at the uncommon (==60) / rare (<100) thresholds.
 // These appear as long "&& gem.id.toString() != \"...\"" chains.
@@ -41,7 +41,7 @@ const ACCEPTABLE_UNCOMMON = idsOnLine(lineIndexContaining("gemsToConsider > 2 &&
 const ACCEPTABLE_RARE = idsOnLine(lineIndexContaining("gemsToConsider > 3 && gem.itemLevel < 100"));
 
 // items that cannot/should not be checked for enchants (shirts, relics, special trinkets...)
-const ITEMS_WITHOUT_ENCHANT = idsOnLine(lineIndexContaining('item.id.toString() != "21471"'));
+const ITEMS_WITHOUT_ENCHANT = idsOnLine(lineIndexContaining("item.id.toString() != \"21471\""));
 
 // --- CSV parsing ----------------------------------------------------------
 function parseCsv(file) {
@@ -51,10 +51,10 @@ function parseCsv(file) {
     for (let i = 0; i < text.length; i++) {
         const c = text[i];
         if (inQ) {
-            if (c === '"' && text[i + 1] === '"') { cur += '"'; i++; }
-            else if (c === '"') inQ = false;
+            if (c === "\"" && text[i + 1] === "\"") { cur += "\""; i++; }
+            else if (c === "\"") inQ = false;
             else cur += c;
-        } else if (c === '"') inQ = true;
+        } else if (c === "\"") inQ = true;
         else if (c === ",") { row.push(cur); cur = ""; }
         else if (c === "\n") { row.push(cur); rows.push(row); row = []; cur = ""; }
         else if (c === "\r") { /* skip */ }

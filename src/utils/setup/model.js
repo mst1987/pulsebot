@@ -92,6 +92,18 @@ function signupCharacters(s) {
     return list.length ? list : [{ character: s.character, spec: s.spec }];
 }
 
+/**
+ * A named character's own status (#320): every character of a signup carries
+ * one since #302 — "Spät" on the first character leaves the others "Dabei" —
+ * and the proposal weighs each option with the status of the character it would
+ * place, not with the signup's. A character without one (or with something the
+ * scorer does not know) falls back to the signup's status.
+ */
+function characterStatus(entry, signupStatus) {
+    const own = str(entry && entry.status);
+    return own && own in STATUS_FACTOR ? own : signupStatus;
+}
+
 /** "ready" | "usable" | "none" as the profile says, "" when it says nothing. */
 function gearOf(profileChar, specKey) {
     const entry = profileChar && Array.isArray(profileChar.specs) ? profileChar.specs.find((s) => s && s.key === specKey) : null;
@@ -242,7 +254,8 @@ function buildModel(input = {}, weights) {
             wishes: profile && Array.isArray(profile.wishes) ? profile.wishes.map(str) : [],
             fixed: null,
             noGear: [],
-            // eventIdx → the first choice of a raider who named alternates (#293)
+            // eventIdx → the first choice of a raider who named alternates
+            // (#293), with its own status (#320)
             preferred: new Map(),
         };
         for (const s of signups) {
@@ -262,8 +275,12 @@ function buildModel(input = {}, weights) {
                 const cls = classInfo.get(main.classId);
                 const pChar = profileCharacter(profile, entry.character, main.classId);
                 const character = str(entry.character) || (pChar && pChar.name) || cand.name || userId;
-                const base = { eventIdx: s.eventIdx, status: s.status, character, comment: str(s.comment), priority };
-                if (priority === 0 && entries.length > 1) cand.preferred.set(s.eventIdx, { character, role: main.role });
+                // This character's own status (#320), not the signup's: a first
+                // character on "Spät" beside a second on "Dabei" makes the second
+                // the better option — and only the option actually placed carries
+                // "Kommt später" into its reason.
+                const base = { eventIdx: s.eventIdx, status: characterStatus(entry, s.status), character, comment: str(s.comment), priority };
+                if (priority === 0 && entries.length > 1) cand.preferred.set(s.eventIdx, { character, role: main.role, status: base.status });
                 const mainGear = gearOf(pChar, main.key);
                 if (mainGear === "none") cand.noGear.push(main.key);
                 else cand.options.push({ ...base, spec: main.key, role: main.role, main: true, gear: mainGear });
@@ -321,7 +338,8 @@ function buildModel(input = {}, weights) {
             if (gear === "none") warnings.push(`${cand.name || cand.userId}: ${info.label} laut Profil ohne brauchbares Gear, aber fixiert.`);
             cand.options.push({
                 eventIdx: event.idx,
-                status: signup ? signup.status : "signed",
+                // the named character's own status (#320), else the signup's
+                status: signup ? characterStatus(entry, signup.status) : "signed",
                 character: str(f.character) || (entry && str(entry.character)) || (signup && str(signup.character)) || (pChar && pChar.name) || cand.name || cand.userId,
                 comment: "",
                 spec: wanted,
@@ -407,4 +425,4 @@ function buildModel(input = {}, weights) {
     };
 }
 
-module.exports = { buildModel, limitFor, fairnessMap, signupCharacters, GROUP_SIZE, HISTORY_WINDOW, STATUS_FACTOR, GEAR_FACTOR, charKey };
+module.exports = { buildModel, limitFor, fairnessMap, signupCharacters, characterStatus, GROUP_SIZE, HISTORY_WINDOW, STATUS_FACTOR, GEAR_FACTOR, charKey };

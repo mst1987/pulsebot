@@ -4,11 +4,19 @@
 // zuletzt dabei"). Plain JSON only, so it can be stored with the event.
 
 const { ROLES, ROLE_LABELS } = require("../../config/gameVersions/classes");
+const { moreAvailableThanFirst } = require("./score");
 
 const STATUS_TEXT = {
     late: "Kommt später",
     tentative: "Nur „Vielleicht“ angemeldet",
     bench: "Als Ersatz angemeldet",
+};
+// The same said *about the other character* of a choice (#320):
+// "Mit Zibbowar als Heiler statt Zibbo (kommt später)".
+const OTHER_STATUS_TEXT = {
+    late: "kommt später",
+    tentative: "nur „Vielleicht“ angemeldet",
+    bench: "als Ersatz angemeldet",
 };
 const MAX_REASONS = 4;
 
@@ -36,7 +44,11 @@ function characterChoiceReason(model, facts, cand, o) {
     const prefIdx = ROLES.indexOf(pref.role);
     const prefMax = event.hardMax[pref.role];
     let why = "passte besser in die Aufstellung";
-    if (pref.role !== o.role && prefIdx >= 0 && ev.roles[prefIdx] >= prefMax) {
+    // The strongest explanation first: the raider said themselves that the first
+    // choice is less available this evening (#320).
+    if (moreAvailableThanFirst(cand, o) && OTHER_STATUS_TEXT[pref.status]) {
+        why = OTHER_STATUS_TEXT[pref.status];
+    } else if (pref.role !== o.role && prefIdx >= 0 && ev.roles[prefIdx] >= prefMax) {
         why = `${ROLE_PLURAL[pref.role]} voll (${ev.roles[prefIdx]}/${prefMax})`;
     } else if (ev.roles[o.roleIdx] <= event.limits[o.role].min && event.limits[o.role].min > 0) {
         why = `${ROLE_PLURAL[o.role]} fehlten`;

@@ -9,6 +9,13 @@ import { formatEventTime } from "./format";
 /** In the order a member thinks about it: coming, maybe, late, bench, not coming. */
 export const SIGNUP_STATUS_ORDER: SignupStatus[] = ["signed", "tentative", "late", "bench", "absence"];
 
+/**
+ * What one single character can be (#320): the same list without the absence —
+ * signing off is for the person, not for one of their characters (the server's
+ * CHARACTER_STATUSES in src/web/signupCharacters.js).
+ */
+export const CHARACTER_STATUS_ORDER: SignupStatus[] = ["signed", "tentative", "late", "bench"];
+
 export const SIGNUP_STATUS: Record<SignupStatus, { label: string; tone?: Tone; color: string; tip: string }> = {
     signed: { label: "Dabei", tone: "ok", color: "var(--sig-signed)", tip: "Du kommst und spielst mit." },
     tentative: { label: "Vielleicht", tone: "mid", color: "var(--sig-tentative)", tip: "Noch nicht sicher – die Orga plant dich nicht fest ein." },

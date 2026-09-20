@@ -3847,8 +3847,13 @@ export type SignupsData = {
 
 export type SignupInput = {
     eventId: string;
-    /** Several own characters in priority order (#293): the first is the choice, the rest "kann auch mit". */
-    characters: { character: string; spec: string }[];
+    /**
+     * Several own characters in priority order (#293): the first is the choice,
+     * the rest "kann auch mit". Each may carry its own `status` (#320) — left
+     * out, it takes the signup's, and the signup's own status mirrors the first
+     * character's.
+     */
+    characters: { character: string; spec: string; status?: SignupStatus }[];
     status: SignupStatus;
     canAlso: GameRole[];
     comment: string;

@@ -45,7 +45,8 @@ function loadPicks() {
         if (/^import type /.test(line) || /^export type .*;\s*$/.test(line)) continue;
         const fn = line.match(/^export function (\w+)\((.*)\)(: .*)? \{$/);
         if (fn) {
-            const params = splitParams(fn[2]).map((p) => p.trim().split(":")[0].trim()).filter(Boolean);
+            // "status?: SignupStatus" is a parameter called `status` — the "?" belongs to TypeScript, not to JS
+            const params = splitParams(fn[2]).map((p) => p.trim().split(":")[0].trim().replace(/\?$/, "")).filter(Boolean);
             out.push(`function ${fn[1]}(${params.join(", ")}) {`);
             continue;
         }
@@ -112,14 +113,14 @@ describe("SignupDialog", () => {
     });
 
     it("picks character and spec from the profile, the spec with its gear level", () => {
-        expect(dialog).toContain("<SignupCharacterPicks profile={profile}");
+        expect(dialog).toMatch(/<SignupCharacterPicks\s+profile=\{profile\}/);
         expect(picksView).toContain("profile.characters.map((c) => <option");
         expect(picksView).toMatch(/\{s\.label\} · \{GEAR_LABEL\[s\.gear\]/);
     });
 
     it("sends every picked character in priority order (#293)", () => {
         expect(dialog).toContain("characters: picksToInput(profile, picks)");
-        expect(dialog).toContain("initialPicks(profile, mine)");
+        expect(dialog).toContain("initialPicks(profile, mine, open)");
         // numbered lines, the first the choice, arrows to reorder, at most three
         expect(picksView).toContain("an-rank-first");
         expect(picksView).toContain("\"1. Wahl\" : \"Kann auch mit\"");
@@ -204,6 +205,95 @@ describe("character picks (lib/signupPicks.ts, #293)", () => {
             { character: "Zibbowar", spec: "Warrior-Protection" },
             { character: "Zibbo", spec: "Priest-Holy" },
         ]);
+    });
+});
+
+// #320: the web sets the status per character, the way Discord has since #302.
+describe("a status per character in the dialog (lib/signupPicks.ts, #320)", () => {
+    const spec = (key, gear = "ready") => ({ key, label: key, icon: "", role: "", gear });
+    const profile = {
+        canOfftank: false, canHeal: false,
+        characters: [
+            { key: "zibbo", name: "Zibbo", className: "Priest", main: true, specs: [spec("Priest-Shadow", "none"), spec("Priest-Holy")] },
+            { key: "zibbowar", name: "Zibbowar", className: "Warrior", main: false, specs: [spec("Warrior-Protection"), spec("Warrior-Fury")] },
+            { key: "alt", name: "Alt", className: "Mage", main: false, specs: [spec("Mage-Frost")] },
+        ],
+    };
+    const picks = () => [
+        { characterKey: "zibbo", spec: "Priest-Holy", status: "signed" },
+        { characterKey: "zibbowar", spec: "Warrior-Protection", status: "signed" },
+    ];
+
+    it("changes only the character whose status was picked", () => {
+        const out = picksLib.setPickStatus(picks(), 0, "late");
+        expect(out.map((p) => p.status)).toEqual(["late", "signed"]);
+        // the others are untouched down to their character and spec
+        expect(out[1]).toEqual({ characterKey: "zibbowar", spec: "Warrior-Protection", status: "signed" });
+    });
+
+    it("sets them all with the big switch", () => {
+        expect(picksLib.setAllStatuses(picksLib.setPickStatus(picks(), 0, "late"), "bench").map((p) => p.status))
+            .toEqual(["bench", "bench"]);
+    });
+
+    it("reports the shared status, and none while they differ", () => {
+        expect(picksLib.commonStatus(picks(), "signed")).toBe("signed");
+        expect(picksLib.commonStatus(picksLib.setPickStatus(picks(), 1, "bench"), "signed")).toBe("");
+        expect(picksLib.commonStatus([], "late")).toBe("late");
+    });
+
+    it("mirrors the signup's own status on the first character, and keeps an absence for the person", () => {
+        expect(picksLib.signupStatusOf(picksLib.setPickStatus(picks(), 0, "late"), "signed")).toBe("late");
+        expect(picksLib.signupStatusOf(picksLib.setPickStatus(picks(), 1, "late"), "signed")).toBe("signed");
+        expect(picksLib.signupStatusOf(picks(), "absence")).toBe("absence");
+        expect(picksLib.signupStatusOf([], "signed")).toBe("signed");
+    });
+
+    it("keeps a character's status through a spec, character or order change, and gives a new one the first's", () => {
+        const mixed = picksLib.setPickStatus(picks(), 1, "late");
+        expect(picksLib.setPickSpec(mixed, 1, "Warrior-Fury")[1].status).toBe("late");
+        expect(picksLib.setPickCharacter(profile, mixed, 1, "alt")[1].status).toBe("late");
+        expect(picksLib.movePick(mixed, 0, 1).map((p) => p.status)).toEqual(["late", "signed"]);
+        expect(picksLib.addPick(profile, mixed)[2].status).toBe("signed");
+    });
+
+    it("opens with the stored status per character, and sends each one along", () => {
+        const mine = {
+            status: "late",
+            characters: [{ character: "Zibbo", spec: "Priest-Holy", status: "late" }, { character: "Zibbowar", spec: "Warrior-Protection", status: "signed" }],
+        };
+        const opened = picksLib.initialPicks(profile, mine, "late");
+        expect(opened).toEqual([
+            { characterKey: "zibbo", spec: "Priest-Holy", status: "late" },
+            { characterKey: "zibbowar", spec: "Warrior-Protection", status: "signed" },
+        ]);
+        expect(picksLib.picksToInput(profile, opened)).toEqual([
+            { character: "Zibbo", spec: "Priest-Holy", status: "late" },
+            { character: "Zibbowar", spec: "Warrior-Protection", status: "signed" },
+        ]);
+        // several raids at once share one status, so no character brings its own
+        expect(picksLib.picksToInput(profile, picksLib.initialPicks(profile, null))).toEqual([{ character: "Zibbo", spec: "Priest-Holy" }]);
+    });
+
+    it("is one quiet dot per line, not a second block of switches", () => {
+        // the line's own status, only where a single signup is edited and there is more than one character
+        expect(picksView).toContain("const showStatus = statuses && !disabled && picks.length > 1;");
+        expect(picksView).toContain("setPickStatus(picks, i, e.target.value as SignupStatus)");
+        expect(picksView).toContain("an-pick-status");
+        expect(picksView).toMatch(/CHARACTER_STATUS_ORDER\.filter\(\(s\) => allowedStatuses\.includes\(s\) \|\| s === p\.status\)/);
+        expect(css).toContain(".an-pick-status");
+        // the absence is not a character's business (the server's CHARACTER_STATUSES)
+        expect(lib).toMatch(/CHARACTER_STATUS_ORDER: SignupStatus\[\] = \["signed", "tentative", "late", "bench"\]/);
+        expect(require("../../src/web/signupCharacters").CHARACTER_STATUSES).toEqual(["signed", "tentative", "late", "bench"]);
+        // the dialog's segment stays the one that sets them all
+        expect(dialog).toContain("statuses allowedStatuses={row.allowedStatuses}");
+        expect(dialog).toContain("if (s !== \"absence\") setPicks((list) => setAllStatuses(list, s));");
+        expect(dialog).toMatch(/const shared = absent \? "absence" : commonStatus\(picks, status\);/);
+        expect(dialog).toContain("aria-checked={shared === s}");
+        expect(dialog).toContain("status: signupStatusOf(picks, status)");
+        expect(dialog).toContain("Status für alle");
+        // and the bulk dialog keeps its one status for every raid
+        expect(bulk).not.toContain("statuses");
     });
 });
 
