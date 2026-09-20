@@ -53,14 +53,50 @@ jobs:
     needs: [lint, test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
+    # Which directory the checkout lives in on the server. A repository variable
+    # (Settings -> Secrets and variables -> Actions -> Variables) wins, so the
+    # path can be corrected without touching this file. The default is the one
+    # deploy.sh has always used.
+    env:
+      DEPLOY_DIR: ${{ vars.DEPLOY_DIR || '/var/www/pulsebot' }}
+
     steps:
+      # Eight merges in a row deployed nothing: the ssh action wrote "missing
+      # server host" and the job went green anyway (#314). A missing secret now
+      # fails the job with a sentence that says what to enter where.
+      - name: Secrets prüfen
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          missing=0
+          for name in SSH_HOST SSH_USER SSH_PRIVATE_KEY; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error title=Deploy-Secret fehlt::${name} fehlt — in Settings → Secrets and variables → Actions → Repository secrets eintragen (siehe docs/deployment.md)."
+              missing=1
+            fi
+          done
+          if [ "$missing" -eq 1 ]; then
+            echo "Ohne diese Secrets kann nicht deployt werden. Der Job bricht ab, damit ein fehlgeschlagenes Deployment nicht als Erfolg durchgeht."
+            exit 1
+          fi
+          echo "Alle Deploy-Secrets sind gesetzt. Zielverzeichnis: $DEPLOY_DIR"
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: ${{ secrets.SSH_PORT }}
+          # Optional — 22 unless the server listens elsewhere.
+          port: ${{ secrets.SSH_PORT || 22 }}
+          envs: DEPLOY_DIR
           script: |
-            cd /opt/eventhelper
+            set -e
+            if [ ! -d "$DEPLOY_DIR" ]; then
+              echo "Verzeichnis $DEPLOY_DIR gibt es auf dem Server nicht — DEPLOY_DIR als Repository-Variable setzen (siehe docs/deployment.md)."
+              exit 1
+            fi
+            cd "$DEPLOY_DIR"
             ./deploy.sh main

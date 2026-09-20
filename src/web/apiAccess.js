@@ -18,6 +18,11 @@ const AREA_BY_PATH = {
     "/api/dashboard": "dashboard",
     // The start page's "Raid-Details" modal, loaded when it opens.
     "/api/dashboard/next-raid": "dashboard",
+    // Which commit the server runs and how far behind main it is (#314). The
+    // commit itself is public (/health hands it to anyone); the comparison is an
+    // operational detail, so it goes to whoever would act on it — and a member's
+    // page load then never triggers a GitHub call.
+    "/api/version": "settings",
 
     "/api/channels": "channels",
     "/api/channels/duplicate": "channels",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
 import GuildSwitcher from "./GuildSwitcher";
@@ -7,7 +7,8 @@ import WowIcon from "./ui/WowIcon";
 import { IconButton } from "./ui/Button";
 import { TipLayer } from "./ui/Tip";
 import { MENU, type MenuEntry } from "../lib/menu";
-import { canAccessAny, type SessionUser, type SessionGuild } from "../api";
+import { canAccess, canAccessAny, getVersion, type SessionUser, type SessionGuild } from "../api";
+import { deployLine, type DeployVersion } from "../lib/deployVersion";
 
 export type ShellContext = { user: SessionUser; csrfToken: string | null };
 
@@ -88,6 +89,33 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
     );
 }
 
+/**
+ * "Server läuft auf a1b2c3d vom 12.09. · main ist 9 Commits weiter" (#314) —
+ * one quiet line above the user block, everything else in its tooltip. Loaded
+ * once per mount and only for settings readers: they are the ones who would act
+ * on it, and it keeps a member's page load from triggering a GitHub lookup.
+ * Any failure leaves the line out entirely rather than showing an error.
+ */
+function DeployLine({ user }: { user: SessionUser }) {
+    const [version, setVersion] = useState<DeployVersion | null>(null);
+    const maySee = canAccess(user, "settings");
+    useEffect(() => {
+        if (!maySee) return;
+        let alive = true;
+        getVersion().then((v) => { if (alive) setVersion(v); }).catch(() => {});
+        return () => { alive = false; };
+    }, [maySee]);
+    if (!version) return null;
+    const line = deployLine(version);
+    if (!line.text) return null;
+    return (
+        <div className={`side-version v-${line.tone}`} data-tip={line.tip} data-tip-sub={line.tipSub}>
+            <span className="v-dot" aria-hidden="true" />
+            <span className="v-text">{line.text}</span>
+        </div>
+    );
+}
+
 export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellContext & {
     guilds: SessionGuild[];
     activeGuildId: string;
@@ -118,6 +146,7 @@ export default function Shell({ user, csrfToken, guilds, activeGuildId }: ShellC
                     </div>
                 </Link>
                 <AdminNav user={user} onNavigate={() => setMenuOpen(false)} />
+                <DeployLine user={user} />
                 <div className="side-foot">
                     <div className="avatar">{initial}</div>
                     <div className="ub-meta">

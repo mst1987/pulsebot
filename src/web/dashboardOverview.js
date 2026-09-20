@@ -234,9 +234,15 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
  * @param {object|null} p.archive    { count, overdue, hintDays } of the channel archive (channelArchiveStore.archiveHint)
  * @param {object|null} p.roleDrift  from roleSync.loadDrift(): { groups, total }
  * @param {object[]} p.seriesFailures from eventSeries.seriesFailures(): { categoryId, categoryName, date, error }
+ * @param {object|null} p.deploy     from deployStatus(): { status, behind, behindSince, short, … }
  */
-function buildTasks({ nextRaids = [], recentEvents = [], report = null, inbox = [], archive = null, roleDrift = null, seriesFailures = [] }) {
+function buildTasks({ nextRaids = [], recentEvents = [], report = null, inbox = [], archive = null, roleDrift = null, seriesFailures = [], deploy = null }) {
     const tasks = [];
+
+    // First in the list: everything else on this page is about a version that
+    // may not even be running (#314).
+    const deployT = deployTask(deploy);
+    if (deployT) tasks.push(deployT);
 
     const seriesTask = eventSeriesTask(seriesFailures);
     if (seriesTask) tasks.push(seriesTask);
@@ -357,8 +363,44 @@ function eventSeriesTask(failures) {
     };
 }
 
+// Where the deploy task leads: the written instructions, which live in the
+// repository and are readable without a checkout. A menu page would be the
+// wrong target — nothing in the menu can deploy.
+const DEPLOY_GUIDE_URL = "https://github.com/mst1987/pulsebot/blob/main/docs/deployment.md";
+// A day behind is worth a yellow line; a week means the deploy is broken, not slow.
+const DEPLOY_RED_DAYS = 7;
+
+/**
+ * "Server ist 9 Commits hinter main (seit 6 Tagen)" (#314) — eight merged PRs
+ * never reached the server because the deploy failed silently every time.
+ *
+ * Yellow from the first commit, red once the oldest missing commit is a week
+ * old. Nothing at all when the server is current *or* when the comparison could
+ * not be made: "nicht prüfbar" is a footnote in the menu, never a task — a task
+ * nobody can close is noise.
+ */
+function deployTask(deploy, now = Date.now()) {
+    if (!deploy || deploy.status !== "behind") return null;
+    const behind = Number(deploy.behind) || 0;
+    if (behind < 1) return null;
+    const since = deploy.behindSince ? new Date(deploy.behindSince).getTime() : 0;
+    const days = since ? Math.floor((now - since) / 86400000) : 0;
+    const age = since ? ` (seit ${plural(days, "Tag", "Tagen")})` : "";
+    const running = deploy.short ? `läuft auf ${deploy.short}` : "Stand unbekannt";
+    return {
+        id: "deploy", tone: days >= DEPLOY_RED_DAYS ? "bad" : "mid", tile: "settings",
+        icon: "inv_misc_gear_02",
+        title: `Server ist ${plural(behind, "Commit", "Commits")} hinter main${age}`,
+        ref: { text: running + (deploy.latest && deploy.latest.short ? ` · main auf ${deploy.latest.short}` : "") },
+        count: behind,
+        href: DEPLOY_GUIDE_URL,
+        tip: `${plural(behind, "Commit ist", "Commits sind")} auf main, aber nicht auf dem Server`,
+        tipSub: "Das automatische Deployment hat den Stand nicht übernommen. Öffnet die Anleitung: welche Secrets es braucht und wie man von Hand deployt.",
+    };
+}
+
 module.exports = {
-    eventSeriesTask,
+    eventSeriesTask, deployTask, DEPLOY_GUIDE_URL, DEPLOY_RED_DAYS,
     ZONE_ICONS, FALLBACK_ZONE_ICON, ROLE_TARGETS, ROLES,
     zoneFor, zoneForEvent, raidSize, roleBucket, roleFill, classCounts, notSignedUp,
     openRecommendations, lastReportArea, newLootSince, buildTasks, roleDriftTask, isAttending,

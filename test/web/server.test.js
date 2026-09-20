@@ -87,10 +87,23 @@ describe("web/server", () => {
     });
 
     describe("routing", () => {
-        it("GET /health responds with plain text ok", async () => {
+        // #314: the health check also says which commit is running — without a
+        // login, and deliberately with nothing confidential in it.
+        it("GET /health answers with the running version as JSON", async () => {
             const res = await request({ url: "/health", method: "GET", headers: {} });
-            expect(res.writeHead).toHaveBeenCalledWith(200, { "Content-Type": "text/plain" });
-            expect(res.end).toHaveBeenCalledWith("ok");
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.objectContaining({ "Content-Type": "application/json; charset=utf-8" }));
+            const body = JSON.parse(res.end.mock.calls[0][0]);
+            expect(body.status).toBe("ok");
+            expect(Object.keys(body).sort()).toEqual(["commit", "committedAt", "startedAt", "status", "subject"]);
+            // Whatever git said, the fields are strings — no git leaves them empty.
+            for (const key of ["commit", "committedAt", "subject", "startedAt"]) expect(typeof body[key]).toBe("string");
+            expect(new Date(body.startedAt).getTime()).toBeLessThanOrEqual(Date.now());
+        });
+
+        it("keeps paths and secrets out of /health", async () => {
+            const res = await request({ url: "/health", method: "GET", headers: {} });
+            const raw = res.end.mock.calls[0][0];
+            expect(raw).not.toMatch(/[A-Za-z]:\\|\/home\/|\/var\/|\/opt\/|token|secret/i);
         });
 
         it("GET / serves the SPA regardless of auth state (client-side gated there)", async () => {

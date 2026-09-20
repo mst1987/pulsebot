@@ -3,6 +3,7 @@
 // migration plan discussed for this project).
 
 import type { SpecCatalogEntry } from "./lib/recruitmentSpecs";
+import type { DeployVersion } from "./lib/deployVersion";
 
 export type ApiError = { code: string; message: string };
 
@@ -404,6 +405,11 @@ export function getSession(): Promise<Session> {
 
 export function switchGuild(csrfToken: string | null, guildId: string): Promise<{ activeGuildId: string }> {
     return send("POST", "/api/session/guild", csrfToken, { guildId });
+}
+
+/** Which commit the server runs and how far behind main it is (#314) — settings readers only. */
+export function getVersion(): Promise<DeployVersion> {
+    return get<DeployVersion>("/api/version");
 }
 
 export function getDashboard(): Promise<DashboardData> {

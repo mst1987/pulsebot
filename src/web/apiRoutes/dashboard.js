@@ -11,6 +11,7 @@ const { userCanAny } = require("../../config/permissions");
 const { buildTasks, zoneFor } = require("../dashboardOverview");
 const { loadDrift } = require("../roleSync");
 const { seriesFailures } = require("../eventSeries");
+const { deployStatus } = require("../deployStatus");
 
 /** The series failures with their category's name; best-effort, never fails the dashboard. */
 function seriesFailuresFor(guildId) {
@@ -50,6 +51,10 @@ async function getDashboard(req, res) {
     // Role-sync drift is a full admin's task: only they can open the section it
     // links to. Nothing configured means no member fetch at all.
     const roleDrift = user.isAdmin ? await loadDrift() : null;
+    // How far the running code is behind main (#314) — for whoever can read the
+    // settings, the same audience the footer line has. Best-effort and cached
+    // for ten minutes in deployStatus.js, so it never slows the page down twice.
+    const deploy = userCanAny(user, ["settings"], "read") ? await deployStatus() : null;
 
     ok(res, {
         kicker: kickerFor(guildId),
@@ -63,6 +68,7 @@ async function getDashboard(req, res) {
             roleDrift,
             // Failed dates of a recurring event (#289), for whoever can open the series page.
             seriesFailures: userCanAny(user, ["raids"], "read") ? seriesFailuresFor(guildId) : [],
+            deploy,
         }),
         areas: {
             lastReport: report,
