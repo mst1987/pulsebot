@@ -13,17 +13,19 @@
 // Names (≤ 32 characters, [a-z0-9_]):
 //   eh_<class>_<spec>    eh_priest_shadow, eh_druid_guardian      (WoW icon)
 //   eh_class_<class>     eh_class_warrior                         (WoW icon)
-//   eh_role_<role>       eh_role_tank, eh_role_healer, …          (WoW icon)
 //   eh_ui_<name>         eh_ui_leader, eh_ui_date, eh_ui_signed, … (flat line icon)
 //                        eh_ui_tank|healer|melee|ranged — the flat role icons (#303)
 //                        eh_ui_voice, eh_ui_end — the raid's voice channel and its end (#305)
 //
 // The `eh_ui_` icons are the message's chrome — leader, count, date, time,
-// deadline, start, the five signup statuses, closed, class — drawn flat and
-// light grey like Raid-Helper's (scripts/render-ui-emojis.js) and checked in
-// as PNGs under assets/emojis/; the sync uploads them from there. They replace
-// the colourful WoW status icons `eh_status_*` of #287, which are no longer
-// used (an application that has them keeps them; nothing deletes an emoji).
+// deadline, start, the five signup statuses, closed, class, the four roles —
+// drawn flat and light grey like Raid-Helper's (scripts/render-ui-emojis.js)
+// and checked in as PNGs under assets/emojis/; the sync uploads them from
+// there. They replaced the colourful WoW status icons `eh_status_*` of #287
+// and, since #320, the WoW role icons `eh_role_*`: the setup message was the
+// last reader and draws `eh_ui_<role>` like the signup message does, so the
+// four are out of the catalogue. An application that has them keeps them —
+// nothing ever deletes an emoji.
 const path = require("path");
 const { buildClasses, ROLES } = require("../config/gameVersions/classes");
 
@@ -33,12 +35,6 @@ const UI_DIR = path.join(__dirname, "..", "..", "assets", "emojis");
 // Retry a failed fetch after this long instead of asking Discord on every render.
 const RETRY_MS = 10 * 60 * 1000;
 
-const ROLE_ICONS = {
-    tank: "ability_warrior_defensivestance",
-    healer: "spell_holy_flashheal",
-    melee: "ability_dualwield",
-    ranged: "ability_hunter_snipershot",
-};
 // The flat UI icons, each a PNG in assets/emojis/eh_ui_<name>.png.
 const UI_ICONS = [
     "leader", "signups", "date", "time", "deadline", "start",
@@ -58,9 +54,8 @@ function specEmojiName(specKey) {
 }
 
 const classEmojiName = (classId) => (classId ? `${PREFIX}class_${slug(classId)}`.slice(0, 32) : "");
-const roleEmojiName = (role) => (role ? `${PREFIX}role_${slug(role)}` : "");
 const uiEmojiName = (name) => (name ? `${PREFIX}ui_${slug(name)}` : "");
-/** A role's flat UI icon (`eh_ui_tank`, …) — the event message draws these instead of the WoW role icons (#303). */
+/** A role's flat UI icon (`eh_ui_tank`, …) — the signup and the setup message draw these; the WoW role icons are gone (#303/#320). */
 const roleUiEmojiName = (role) => (ROLES.includes(role) ? uiEmojiName(role) : "");
 /** A signup status's icon — the flat UI icon of the same name. */
 const statusEmojiName = (status) => uiEmojiName(status);
@@ -70,7 +65,8 @@ const uiIconFile = (name) => path.join(UI_DIR, `${uiEmojiName(name)}.png`);
 /**
  * Every emoji the bot uses, with where its image comes from:
  * `[{ name, icon, url }]` for the WoW icons (specs and classes of the shared
- * rule set, the four roles) and `[{ name, icon, file }]` for the flat UI icons.
+ * rule set) and `[{ name, icon, file }]` for the flat UI icons — which carry
+ * the four roles too since #320.
  */
 function emojiCatalog() {
     const out = [];
@@ -79,7 +75,6 @@ function emojiCatalog() {
         add(classEmojiName(cls.id), cls.icon);
         for (const spec of cls.specs) add(specEmojiName(spec.key), spec.icon);
     }
-    for (const role of ROLES) add(roleEmojiName(role), ROLE_ICONS[role]);
     for (const name of UI_ICONS) out.push({ name: uiEmojiName(name), icon: name, file: uiIconFile(name) });
     return out;
 }
@@ -183,7 +178,7 @@ function resetAppEmojis() {
 }
 
 module.exports = {
-    ICON_BASE, PREFIX, UI_DIR, ROLE_ICONS, UI_ICONS,
-    specEmojiName, classEmojiName, roleEmojiName, uiEmojiName, roleUiEmojiName, statusEmojiName, uiIconFile, emojiCatalog, validEmojiName,
+    ICON_BASE, PREFIX, UI_DIR, UI_ICONS,
+    specEmojiName, classEmojiName, uiEmojiName, roleUiEmojiName, statusEmojiName, uiIconFile, emojiCatalog, validEmojiName,
     emojiText, emojiOption, appEmojiMap, appEmojisLoaded, setAppEmojis, loadAppEmojis, emojiFor, resetAppEmojis,
 };

@@ -86,7 +86,9 @@ describe("buildSetupMessage", () => {
         const embed = msg.embeds[0];
         expect(embed.title).toBe("Setup · Kara Donnerstag");
         expect(embed.description).toContain("<t:2000000000:F>");
-        expect(embed.description).toContain(`<:eh_role_tank:${emojis.eh_role_tank.id}> 1`);
+        // the flat role icons of the signup message, not the WoW ones (#320)
+        expect(embed.description).toContain(`<:eh_ui_tank:${emojis.eh_ui_tank.id}> 1`);
+        expect(embed.description).not.toContain("eh_role_");
         const g1 = embed.fields.find((f) => f.name === "Gruppe 1");
         expect(g1.inline).toBe(true);
         expect(g1.value).toBe(`<:eh_priest_holy:${emojis.eh_priest_holy.id}> **Zibbo**`.replace(/^/, `<:eh_warrior_protection:${emojis.eh_warrior_protection.id}> **Brokk**\n`));

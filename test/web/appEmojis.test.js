@@ -11,8 +11,9 @@ describe("web/appEmojis", () => {
         expect(appEmojis.specEmojiName("Hunter-BeastMastery")).toBe("eh_hunter_beastmastery");
         expect(appEmojis.specEmojiName("Priest")).toBe("");
         expect(appEmojis.classEmojiName("Warrior")).toBe("eh_class_warrior");
-        expect(appEmojis.roleEmojiName("tank")).toBe("eh_role_tank");
-        // the statuses are flat UI icons now, no longer the WoW icons eh_status_*
+        // the roles and the statuses are flat UI icons now, no longer the WoW icons eh_role_*/eh_status_*
+        expect(appEmojis.roleUiEmojiName("tank")).toBe("eh_ui_tank");
+        expect(appEmojis.roleUiEmojiName("nonsense")).toBe("");
         expect(appEmojis.statusEmojiName("absence")).toBe("eh_ui_absence");
         expect(appEmojis.uiEmojiName("leader")).toBe("eh_ui_leader");
     });
@@ -21,16 +22,19 @@ describe("web/appEmojis", () => {
         const catalog = appEmojis.emojiCatalog();
         const classes = buildClasses();
         const specs = classes.reduce((n, c) => n + c.specs.length, 0);
-        expect(catalog).toHaveLength(specs + classes.length + ROLES.length + appEmojis.UI_ICONS.length);
+        expect(catalog).toHaveLength(specs + classes.length + appEmojis.UI_ICONS.length);
         expect(new Set(catalog.map((e) => e.name)).size).toBe(catalog.length);
         for (const e of catalog) {
             expect(appEmojis.validEmojiName(e.name)).toBe(true);
             if (e.file) expect(e.name.startsWith("eh_ui_")).toBe(true);
             else expect(e.url).toBe(`https://wow.zamimg.com/images/wow/icons/medium/${e.icon}.jpg`);
         }
-        // every signup status has its flat icon
+        // every signup status and every role has its flat icon
         for (const status of SIGNUP_STATUSES) expect(appEmojis.UI_ICONS).toContain(status);
+        for (const role of ROLES) expect(appEmojis.UI_ICONS).toContain(role);
         expect(catalog.some((e) => e.name.startsWith("eh_status_"))).toBe(false);
+        // the WoW role icons are gone with #320 — the setup message was their last reader
+        expect(catalog.some((e) => e.name.startsWith("eh_role_"))).toBe(false);
         expect(appEmojis.validEmojiName("Eh-Bad")).toBe(false);
         expect(appEmojis.validEmojiName("x".repeat(33))).toBe(false);
     });
@@ -50,28 +54,28 @@ describe("web/appEmojis", () => {
     });
 
     it("renders an emoji from a map, or the fallback", () => {
-        const map = { eh_role_tank: { id: "9", name: "eh_role_tank" }, eh_anim: { id: "8", name: "eh_anim", animated: true } };
-        expect(appEmojis.emojiText(map, "eh_role_tank", "T")).toBe("<:eh_role_tank:9>");
+        const map = { eh_ui_tank: { id: "9", name: "eh_ui_tank" }, eh_anim: { id: "8", name: "eh_anim", animated: true } };
+        expect(appEmojis.emojiText(map, "eh_ui_tank", "T")).toBe("<:eh_ui_tank:9>");
         expect(appEmojis.emojiText(map, "eh_anim")).toBe("<a:eh_anim:8>");
-        expect(appEmojis.emojiText(map, "eh_role_healer", "💚")).toBe("💚");
-        expect(appEmojis.emojiText(null, "eh_role_tank")).toBe("");
-        expect(appEmojis.emojiOption(map, "eh_role_tank")).toEqual({ id: "9", name: "eh_role_tank", animated: false });
+        expect(appEmojis.emojiText(map, "eh_ui_healer", "💚")).toBe("💚");
+        expect(appEmojis.emojiText(null, "eh_ui_tank")).toBe("");
+        expect(appEmojis.emojiOption(map, "eh_ui_tank")).toEqual({ id: "9", name: "eh_ui_tank", animated: false });
         expect(appEmojis.emojiOption(map, "missing", "✅")).toEqual({ name: "✅" });
         expect(appEmojis.emojiOption(map, "missing")).toBeUndefined();
     });
 
     it("reads the application's emojis once and caches them by name", async () => {
         const fetch = jest.fn(async () => new Map([
-            ["1", { id: "1", name: "eh_role_tank" }],
+            ["1", { id: "1", name: "eh_ui_tank" }],
             ["2", { id: "2", name: "someone_elses" }],
         ]));
         const client = { application: { emojis: { fetch } } };
         await appEmojis.loadAppEmojis(client);
         await appEmojis.loadAppEmojis(client);
         expect(fetch).toHaveBeenCalledTimes(1);
-        expect(appEmojis.appEmojiMap()).toEqual({ eh_role_tank: { id: "1", name: "eh_role_tank", animated: false } });
-        expect(appEmojis.emojiFor("eh_role_tank")).toBe("<:eh_role_tank:1>");
-        expect(appEmojis.emojiFor("eh_role_healer", "H")).toBe("H");
+        expect(appEmojis.appEmojiMap()).toEqual({ eh_ui_tank: { id: "1", name: "eh_ui_tank", animated: false } });
+        expect(appEmojis.emojiFor("eh_ui_tank")).toBe("<:eh_ui_tank:1>");
+        expect(appEmojis.emojiFor("eh_ui_healer", "H")).toBe("H");
         await appEmojis.loadAppEmojis(client, { force: true });
         expect(fetch).toHaveBeenCalledTimes(2);
     });
@@ -81,7 +85,7 @@ describe("web/appEmojis", () => {
         const pending = new Promise((resolve) => { release = resolve; });
         const fetch = jest.fn(async () => {
             await pending;
-            return new Map([["1", { id: "1", name: "eh_role_tank" }]]);
+            return new Map([["1", { id: "1", name: "eh_ui_tank" }]]);
         });
         const inFlight = appEmojis.loadAppEmojis({ application: { emojis: { fetch } } });
         // What a suite's beforeEach does between two tests - or a reconnect in the bot.

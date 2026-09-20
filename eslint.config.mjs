@@ -4,7 +4,7 @@ export default [
     ignores: ["src/web-client/**"],
   },
   {
-    files: ["src/**/*.js", ".claude/hooks/**/*.js"],
+    files: ["src/**/*.js", "scripts/**/*.js", ".claude/hooks/**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "module",
@@ -31,6 +31,16 @@ export default [
       quotes: ["error", "double"],
       semi: ["error", "always"],
     },
+  },
+  {
+    // scripts/render-ui-emojis.js keeps the flat UI icons as SVG fragments, and
+    // SVG attributes are written in double quotes ('<path d="…"/>'). The
+    // project's double-quote rule would mean escaping every attribute of every
+    // drawing — unreadable, and `--fix` would do it silently, which is why the
+    // whole folder stayed out of the lint run until #320. So the quote rule is
+    // off for this one file; every other rule still applies to it.
+    files: ["scripts/render-ui-emojis.js"],
+    rules: { quotes: "off" },
   },
   {
     files: ["test/**/*.js", "jest.config.js"],

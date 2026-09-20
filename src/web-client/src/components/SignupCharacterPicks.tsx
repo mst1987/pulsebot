@@ -1,24 +1,36 @@
-import type { SignupClass, SignupProfile } from "../api";
+import type { SignupClass, SignupProfile, SignupStatus } from "../api";
 import { IconButton, WowIcon } from "./ui";
 import { classColorProps } from "./ClassSpec";
 import { ChevronDownIcon, XIcon } from "./icons";
-import { GEAR_LABEL } from "../lib/signups";
+import { CHARACTER_STATUS_ORDER, GEAR_LABEL, SIGNUP_STATUS } from "../lib/signups";
 import {
-    MAX_CHARACTERS, addPick, canAddPick, movePick, removePick, setPickCharacter, setPickSpec,
+    MAX_CHARACTERS, addPick, canAddPick, movePick, removePick, setPickCharacter, setPickSpec, setPickStatus,
     type CharacterPick,
 } from "../lib/signupPicks";
 
 // The characters of a signup (#293): one line per character · spec, numbered —
 // the first is the choice, the others "kann auch mit" — with arrows to reorder
 // and a way to add up to three. The orga's setup takes exactly one of them.
+//
+// With more than one character every line also carries its own status (#320) —
+// a small coloured dot with a compact select, so "Spät" on the first character
+// leaves the others "Dabei", exactly as the Discord buttons behave since #302.
+// Deliberately not a second block of switches: the dialog's big status segment
+// stays the one that sets them all. `statuses={false}` (the default, and what
+// the bulk dialog wants) leaves the dots out entirely.
 
-export default function SignupCharacterPicks({ profile, classes, picks, onChange, disabled = false }: {
+export default function SignupCharacterPicks({ profile, classes, picks, onChange, disabled = false, statuses = false, allowedStatuses = [] }: {
     profile: SignupProfile;
     classes: SignupClass[];
     picks: CharacterPick[];
     onChange: (picks: CharacterPick[]) => void;
     disabled?: boolean;
+    /** Offer a status per character — only where one single signup is edited (#320). */
+    statuses?: boolean;
+    /** What the event's phase still allows; a character may always keep the status it has. */
+    allowedStatuses?: SignupStatus[];
 }) {
+    const showStatus = statuses && !disabled && picks.length > 1;
     return (
         <div className="field">
             <label>Charaktere</label>
@@ -49,6 +61,23 @@ export default function SignupCharacterPicks({ profile, classes, picks, onChange
                                     {character?.specs.map((s) => <option key={s.key} value={s.key}>{s.label} · {GEAR_LABEL[s.gear] || s.gear}</option>)}
                                 </select>
                             </div>
+                            {showStatus && (
+                                <div
+                                    className="an-pick an-pick-status"
+                                    data-tip="Status dieses Charakters"
+                                    data-tip-sub="Gilt nur für diese Zeile – der Schalter unten setzt alle auf einmal."
+                                >
+                                    <i className="an-dot" style={{ background: SIGNUP_STATUS[p.status || "signed"].color }} />
+                                    <select
+                                        aria-label={`Status ${i + 1}`}
+                                        value={p.status || "signed"}
+                                        onChange={(e) => onChange(setPickStatus(picks, i, e.target.value as SignupStatus))}
+                                    >
+                                        {CHARACTER_STATUS_ORDER.filter((s) => allowedStatuses.includes(s) || s === p.status)
+                                            .map((s) => <option key={s} value={s}>{SIGNUP_STATUS[s].label}</option>)}
+                                    </select>
+                                </div>
+                            )}
                             {picks.length > 1 && (
                                 <span className="an-pick-tools">
                                     <IconButton size="sm" className="an-up" icon={<ChevronDownIcon />} tip="Nach oben" disabled={disabled || i === 0} onClick={() => onChange(movePick(picks, i, -1))} />
@@ -65,7 +94,12 @@ export default function SignupCharacterPicks({ profile, classes, picks, onChange
                     + Kann auch mit … <span className="an-opt">(bis {MAX_CHARACTERS})</span>
                 </button>
             )}
-            {picks.length > 1 && <div className="hint">1 = deine Wahl, die weiteren „kann auch mit“. Die Orga stellt dich mit genau einem auf.</div>}
+            {picks.length > 1 && (
+                <div className="hint">
+                    1 = deine Wahl, die weiteren „kann auch mit“. Die Orga stellt dich mit genau einem auf.
+                    {showStatus ? " Der Status gilt je Charakter." : ""}
+                </div>
+            )}
         </div>
     );
 }

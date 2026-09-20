@@ -31,7 +31,7 @@ describe("web/appEmojiSync ensureAppEmojis", () => {
     });
 
     it("creates every missing catalogue emoji and loads them into the cache", async () => {
-        const client = fakeClient(["eh_role_tank"]);
+        const client = fakeClient(["eh_ui_tank"]);
         const out = await ensureAppEmojis(client, { fetchImpl: okFetch, log: () => {} });
         const total = emojiCatalog().length;
         expect(out.existing).toBe(1);
@@ -47,7 +47,7 @@ describe("web/appEmojiSync ensureAppEmojis", () => {
         expect(out.created).toEqual([]);
         expect(client.rest.post).not.toHaveBeenCalled();
         expect(okFetch).not.toHaveBeenCalled();
-        expect(appEmojiMap().eh_role_tank).toBeTruthy();
+        expect(appEmojiMap().eh_ui_tank).toBeTruthy();
     });
 
     it("never throws when Discord refuses, and keeps the text fallback", async () => {

@@ -3,7 +3,10 @@
 //
 //   events      eventStore (size, composition, fairness/wishes flags) plus the
 //               required buffs of the category's raid template
-//   signups     signupStore
+//   signups     signupStore — read through listSignups(), so every signup
+//               carries its `characters` in priority order, each with its own
+//               status (#320): the proposal weighs the status of the character
+//               it would place, not the signup's
 //   profiles    raiderProfileStore — gear per spec, can offtank/heal, wishes
 //   attendance  rosterAttendance, per raider in the event's category
 //   history     earlier nights of the same categories: from *approved* setups
