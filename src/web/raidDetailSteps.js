@@ -287,3 +287,278 @@ function raidSteps(d) {
 }
 
 module.exports = { raidSteps, roleSummary, firstOpenAnalysis };
+
+// ---------------------------------------------------------------------------
+// Das Raid-Cockpit (#319): dieselbe Frage in fünf Schritten
+// ---------------------------------------------------------------------------
+// Ein Raid wohnt an sieben Stellen im Menü, die Frage der Orga ist aber immer
+// dieselbe: was ist bei diesem Raid als Nächstes zu tun? eventSteps() beantwortet
+// sie für ein *eigenes* Event als Strecke — Angelegt › Anmeldung › Setup ›
+// Freigabe › Nachbereitung —, je Schritt ein Zustand, eine Zahl und höchstens
+// eine Tat.
+//
+// Rein wie alles hier oben: keine Store- und keine Discord-Aufrufe, nur eine
+// Funktion über das Detail-Payload, das die Seite ohnehin bekommt. Deshalb kann
+// die Raid-Liste später dieselbe Antwort benutzen, und deshalb hängen die Regeln
+// in plain Jest statt ungetestet im TSX.
+
+/** Die fünf Zustände eines Schritts; der Client spiegelt sie in lib/raidSteps.ts. */
+const STEP_STATES = ["done", "current", "todo", "skipped", "cancelled"];
+/** Die Strecke, in ihrer Reihenfolge. */
+const STEP_IDS = ["created", "signup", "setup", "approval", "after"];
+/** Innerhalb der letzten Stunde vor dem Start kommt kein Setup mehr. */
+const SKIP_WINDOW_MS = 60 * 60 * 1000;
+/** Einen Platz im Raid belegt, wer „Dabei“ oder „Spät“ ist — wie rosterCounts(). */
+const ATTENDING = ["signed", "late"];
+
+/** "Mi 24.09. · 19:30 Uhr" einer Unix-Sekunde, in der Zeitzone des Menüs. */
+function whenLabel(seconds) {
+    if (!seconds) return "";
+    const d = new Date(seconds * 1000);
+    const day = d.toLocaleDateString("de-DE", { timeZone: "Europe/Berlin", weekday: "short", day: "2-digit", month: "2-digit" });
+    const time = d.toLocaleTimeString("de-DE", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" });
+    return `${day} · ${time} Uhr`;
+}
+
+function plural(n, one, many) {
+    return `${n} ${n === 1 ? one : many}`;
+}
+
+/** Eine Tat: ein Menü-Eintrag, ein Dialog, ein Tab oder eine Auswertung. */
+function deed(id, label, icon, extra) {
+    return { id, label, icon, ...extra };
+}
+
+/** Wie viele Anmeldungen welchen Standes — die eine Zählregel der Leiste. */
+function signupCounts(d) {
+    const rows = d.ownSignups || [];
+    const by = (...st) => rows.filter((s) => st.includes(s.status)).length;
+    return {
+        attending: by(...ATTENDING),
+        bench: by("bench"),
+        tentative: by("tentative"),
+        absence: by("absence"),
+        total: rows.length,
+    };
+}
+
+function createdStep(d) {
+    const ev = d.event || {};
+    const channel = ev.channelName || "";
+    const where = channel ? `in #${channel}` : "in seinem Kanal";
+    const when = ev.startTime ? ` und beginnt am ${whenLabel(ev.startTime)}` : "";
+    return {
+        id: "created", label: "Angelegt", icon: "inv_misc_note_05", state: "done", fill: null,
+        value: channel ? `#${channel}` : "angelegt", unit: "", note: "",
+        hint: `Das Event steht ${where}${when}. „Bearbeiten“ ändert Titel, Termin, Raid, Größe und Anmeldeschluss.`,
+        action: deed("edit", "Bearbeiten", "inv_misc_note_05", { manage: "edit" }),
+    };
+}
+
+function signupStepOwn(d, now) {
+    const ev = d.event || {};
+    const c = signupCounts(d);
+    const size = Number(ev.size) || Number(d.signupTarget) || 0;
+    const deadline = Number(ev.signupDeadline) || 0;
+    const deadlinePassed = deadline > 0 && deadline * 1000 <= now;
+    const missing = ((d.attendance && d.attendance.missing) || []).length;
+    const notes = [];
+    if (c.bench) notes.push(`${c.bench} auf der Warteliste`);
+    if (c.tentative) notes.push(`${c.tentative}× vielleicht`);
+    if (!notes.length && c.absence) notes.push(`${c.absence} abgemeldet`);
+    const step = {
+        id: "signup", label: "Anmeldung", icon: "inv_letter_15",
+        value: String(c.attending), unit: size ? `/ ${size}` : "", note: notes.join(" · "),
+        fill: size ? Math.min(1, c.attending / size) : null,
+    };
+    const closing = deadline ? `Anmeldeschluss ${whenLabel(deadline)}.` : "Kein Anmeldeschluss gesetzt.";
+    // Fertig, wenn niemand mehr von selbst dazukommt: geschlossen oder Schluss vorbei.
+    if (ev.signupsClosed) {
+        return { ...step, state: "done", hint: `Die Anmeldung ist geschlossen — abmelden geht noch, eintragen darf die Orga. ${closing}`, action: null };
+    }
+    if (deadlinePassed || ev.isPast) {
+        return { ...step, state: "done", hint: `${closing} Wer jetzt noch mitsoll, wird über „Verwalten › Raider eintragen“ eingetragen.`, action: null };
+    }
+    // Offen: die eine Tat richtet sich danach, woran es gerade hängt.
+    let action;
+    if (!c.total) action = deed("notify", "Anmelde-Aufruf posten", "inv_letter_15", { modal: "notify" });
+    else if (missing) action = deed("ping", "Fehlende pingen", "spell_holy_borrowedtime", { modal: "ping" });
+    else action = deed("signups", "Anmeldung schließen", "inv_misc_note_02", { manage: "signups" });
+    const waiting = c.bench ? " Wer von der Warteliste nachrückt, entscheidest du im Setup." : "";
+    const hint = missing
+        ? `${plural(missing, "Raider hat", "Raider haben")} mit Raider-Rolle noch nicht reagiert. ${closing}`
+        : `${closing}${waiting}`;
+    return { ...step, state: "open", hint, action };
+}
+
+/**
+ * Ein Raid ohne Setup ist ein normaler Raid, kein kaputter: ein PuG oder ein
+ * spontaner Abend wird im Kanal geplant, nicht im Editor. Innerhalb der letzten
+ * Stunde vor dem Start kommt keiner mehr — es sei denn, „Vorschlag bei
+ * Anmeldeschluss“ ist an und der Raid hat noch nicht begonnen.
+ */
+function setupSkipped(d, now) {
+    const ev = d.event || {};
+    if (d.ownSetup && d.ownSetup.placed) return false;
+    const startMs = (Number(ev.startTime) || 0) * 1000;
+    if (!startMs) return false;
+    if (startMs - now >= SKIP_WINDOW_MS) return false;
+    return !ev.autoSuggest || !!ev.isPast;
+}
+
+function setupStepOwn(d, now) {
+    const s = d.ownSetup || null;
+    const ev = d.event || {};
+    const size = Number(ev.size) || (s && Number(s.size)) || 0;
+    const step = { id: "setup", label: "Setup", icon: "inv_misc_map_01", value: "—", unit: "", note: "", fill: null };
+    const openEditor = deed("setup", "Setup öffnen", "inv_misc_map_01", { tab: "setup" });
+    if (s && s.placed) {
+        const checks = s.ok === false ? ", die Prüfung meldet noch etwas" : "";
+        return {
+            ...step, state: "done",
+            value: String(s.placed), unit: size ? `/ ${size}` : "", note: s.bench ? `${s.bench} auf der Bank` : "verplant",
+            fill: size ? Math.min(1, s.placed / size) : null,
+            hint: `${s.placed}${size ? ` von ${size}` : ""} Plätzen sind eingeteilt${checks}. Klick öffnet den Setup-Editor.`,
+            action: openEditor,
+        };
+    }
+    if (setupSkipped(d, now)) {
+        return {
+            ...step, state: "skipped", note: "ohne Setup",
+            hint: "Dieser Raid läuft ohne Setup — kein Vorschlag, keine Gruppen. Ein gewöhnlicher Fall (PuG, spontaner Abend), kein Fehler. Der Editor steht trotzdem offen.",
+            action: openEditor,
+        };
+    }
+    return {
+        ...step, state: "open", note: ev.autoSuggest ? "Vorschlag bei Anmeldeschluss" : "",
+        hint: ev.autoSuggest
+            ? "Zum Anmeldeschluss legt der Bot von selbst einen Entwurf an. Vorher geht es von Hand: der Editor schlägt Gruppen vor, du verschiebst."
+            : "Noch kein Vorschlag. Der Editor schlägt Gruppen aus den Anmeldungen vor; verschieben und fixieren geht danach.",
+        action: deed("propose", "Setup vorschlagen", "inv_misc_map_01", { tab: "setup" }),
+    };
+}
+
+/** "22 DMs" bzw. "20 DMs · 2 fehlgeschlagen" der geposteten Setup-Nachricht, oder "". */
+function dmNote(post) {
+    const dms = post && post.dms;
+    if (!dms || !dms.total) return "";
+    if (dms.failed) return `${dms.sent || 0} DMs · ${dms.failed} fehlgeschlagen`;
+    return `${dms.sent || dms.total} DMs`;
+}
+
+function approvalStep(d, now) {
+    const s = d.ownSetup || null;
+    const post = d.ownSetupPost || null;
+    const step = { id: "approval", label: "Freigabe", icon: "inv_misc_note_02", value: "—", unit: "", note: "", fill: null };
+    if (!s || !s.placed) {
+        // Ohne Setup gibt es nichts freizugeben — übersprungen, nicht offen.
+        if (setupSkipped(d, now)) {
+            return { ...step, state: "skipped", note: "ohne Setup", hint: "Ohne Setup gibt es nichts freizugeben. Raider sehen ihre Anmeldung, aber keine Gruppen.", action: null };
+        }
+        return { ...step, state: "todo", hint: "Erst ein Entwurf, dann die Freigabe. Bis dahin sehen Raider kein Setup — weder im Web noch in Discord.", action: null };
+    }
+    const approved = s.status === "approved" && !s.changedSinceApproval;
+    const posted = !!(post && post.messageId);
+    const outdated = approved && posted && Number(post.version) < Number(s.version || 0);
+    if (approved) {
+        const notes = [posted ? "gepostet" : "nicht gepostet", dmNote(post)].filter(Boolean);
+        const dms = dmNote(post) ? ` ${dmNote(post)} sind raus.` : "";
+        return {
+            // „Stand 3“ statt „3 Stand“: die Zahl allein sagt hier nichts.
+            ...step, state: "done", value: `Stand ${s.version || 1}`, unit: "", note: notes.join(" · "),
+            hint: outdated
+                ? `Freigegeben als Stand ${s.version}. Die Nachricht im Kanal zeigt noch Stand ${post.version} — „Setup posten“ bringt sie nach.`
+                : `Freigegeben als Stand ${s.version}. Raider sehen die Gruppen im Web, in der Anmelde-Nachricht und im Bot.${dms}`,
+            action: outdated ? deed("post", "Setup posten", "inv_letter_15", { tab: "setup" }) : null,
+        };
+    }
+    if (d.event && d.event.isPast) {
+        // Ein Entwurf, der nie freigegeben wurde, und der Raid ist gelaufen.
+        return {
+            ...step, state: "skipped", value: String(s.placed), unit: "im Entwurf", note: "nie freigegeben",
+            hint: "Der Entwurf wurde nie freigegeben — die Raider haben ihn nie gesehen. Nach dem Raid ändert das nichts mehr.", action: null,
+        };
+    }
+    return {
+        ...step, state: "open", value: String(s.placed), unit: "im Entwurf",
+        note: s.changedSinceApproval ? "geändert seit der Freigabe" : "Entwurf",
+        hint: s.changedSinceApproval
+            ? "Die Raider sehen noch den zuletzt freigegebenen Stand. Erst die Freigabe macht die Änderung sichtbar."
+            : "Der Entwurf steht, freigegeben ist er nicht — Raider sehen noch nichts. Im Editor prüfen und freigeben.",
+        action: deed("approve", "Setup freigeben", "inv_misc_note_02", { tab: "setup" }),
+    };
+}
+
+function afterStep(d) {
+    const logs = d.eventLogs || [];
+    const loot = (d.lootItems || []).length;
+    const open = firstOpenAnalysis(logs);
+    const ev = d.event || {};
+    const step = {
+        id: "after", label: "Nachbereitung", icon: "inv_misc_pocketwatch_01", fill: null,
+        value: logs.length ? String(logs.length) : "—",
+        unit: logs.length ? (logs.length === 1 ? "Log" : "Logs") : "",
+        note: loot ? plural(loot, "Item", "Items") : "kein Loot",
+    };
+    if (logs.length && !open && loot) {
+        return { ...step, state: "done", hint: `Alles da: ${plural(logs.length, "Log", "Logs")} ausgewertet, ${plural(loot, "Item", "Items")} importiert.`, action: null };
+    }
+    if (!ev.isPast) {
+        return { ...step, state: "todo", hint: "Nach dem Raid: das Log zuordnen und auswerten, den Loot-Export importieren.", action: null };
+    }
+    let action;
+    let hint;
+    if (!logs.length) {
+        action = deed("log", "Log zuordnen", "inv_misc_pocketwatch_01", { modal: "log" });
+        hint = "Noch kein Log zugeordnet. Ein erkanntes Log oder einen Warcraft-Logs-Link diesem Raid zuordnen.";
+    } else if (open) {
+        action = deed("evaluate", `${SECTION_LABELS[open.section]} auswerten`, "inv_misc_pocketwatch_01", { evaluate: { logId: open.log.id, section: open.section } });
+        hint = `${SECTION_LABELS[open.section]} fehlt noch. CLA prüft Gear, Consumables und Buffs, RPB Schaden, Tode, Aktivität und Cooldowns.`;
+    } else {
+        action = deed("loot", "Loot importieren", "inv_misc_bag_10", { modal: "loot" });
+        hint = "Die Auswertung liegt vor, der Loot fehlt. Gargul- oder RCLootcouncil-Export importieren.";
+    }
+    return { ...step, state: "open", hint, action };
+}
+
+/**
+ * Die Strecke eines eigenen Events: fünf Schritte, der erste offene ist der
+ * aktuelle und trägt die eine auffällige Tat. Jeder andere Schritt bleibt ruhig
+ * — „später“ oder „übersprungen“, nie ein Fehler.
+ * @param {object} d das Raid-Detail-Payload
+ * @param {{ now?: number }} [opts] Testbarkeit: der Jetzt-Zeitpunkt in ms
+ * @returns {{ steps: object[], current: string, action: object|null, cancelled: boolean, note: string }}
+ */
+function eventSteps(d, opts = {}) {
+    const now = Number(opts.now) || Date.now();
+    const ev = (d && d.event) || {};
+    const steps = [createdStep(d), signupStepOwn(d, now), setupStepOwn(d, now), approvalStep(d, now), afterStep(d)];
+    // Abgesagt: nur „abgesagt“ und der Weg zurück. Kein Schritt ist mehr offen.
+    if (ev.status === "cancelled") {
+        for (const s of steps) {
+            s.state = "cancelled";
+            s.action = null;
+        }
+        return {
+            steps, current: "", cancelled: true,
+            note: ev.cancelReason ? `Abgesagt: ${ev.cancelReason}` : "Abgesagt.",
+            action: deed("reopen", "Absage zurücknehmen", "spell_holy_divineintervention", { manage: "reopen" }),
+        };
+    }
+    // Vergangene Raids fangen bei der Nachbereitung an; vorher ist sie nur „später“.
+    const candidates = ev.isPast ? ["after"] : ["signup", "setup", "approval"];
+    const current = steps.find((s) => s.state === "open" && candidates.includes(s.id)) || null;
+    for (const s of steps) {
+        if (s.state !== "open") continue;
+        s.state = current && s.id === current.id ? "current" : "todo";
+    }
+    return {
+        steps, current: current ? current.id : "", cancelled: false,
+        note: current ? "" : (ev.isPast ? "Nachbereitung erledigt." : "Alles erledigt, was vor dem Raid zu tun war."),
+        action: current ? current.action : null,
+    };
+}
+
+module.exports.eventSteps = eventSteps;
+module.exports.STEP_STATES = STEP_STATES;
+module.exports.STEP_IDS = STEP_IDS;

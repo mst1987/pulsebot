@@ -4,14 +4,22 @@
 // that is a form opens as a dialog.
 // The parts live in pages/raid-detail/; this file loads the data, holds which
 // tab and which dialog is open, and wires the steps to them.
+//
+// An *own* event answers the orga's one question ("was ist als Nächstes zu
+// tun?") as the five-step cockpit instead (#319, StepBar.tsx): the server sends
+// it as `data.steps`, every step names at most one deed, and this file is the
+// one place that turns such a deed into a dialog, a tab, a menu action or an
+// evaluation. A Raid-Helper event has no `steps` and keeps today's view.
 import { useEffect, useState } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import {
     canAccess, getRaidDetail, reopenRaid, setRaidSignupsOpen,
-    type ApiError, type RaidDetailData, type RaidDetailModal, type RaidPrimaryAction, type RaidStep,
+    type ApiError, type RaidDetailData, type RaidDetailModal, type RaidEventSteps,
+    type RaidPrimaryAction, type RaidStep, type RaidStepDeed,
 } from "../api";
 import { useConfirm } from "../components/ui/Modal";
 import type { ManageAction } from "../lib/eventManage";
+import { withoutDeeds } from "../lib/raidSteps";
 import ManageMenu from "./raid-detail/manage/ManageMenu";
 import MoveModal from "./raid-detail/manage/MoveModal";
 import CancelModal from "./raid-detail/manage/CancelModal";
@@ -25,6 +33,7 @@ import type { ShellContext } from "../components/Shell";
 import { useJobs } from "../components/Jobs";
 import WowIcon from "../components/ui/WowIcon";
 import RaidDetailHero from "./raid-detail/RaidDetailHero";
+import StepBar from "./raid-detail/StepBar";
 import RosterTab from "./raid-detail/RosterTab";
 import LootTab from "./raid-detail/LootTab";
 import LogsTab from "./raid-detail/LogsTab";
@@ -152,6 +161,10 @@ export default function RaidDetailPage() {
         else if (action === "cancel") setModal("cancel");
         else if (action === "delete") setModal("delete");
         else if (action === "setup") switchTab("setup");
+        // The three the old progress bar used to be the only way to (#319).
+        else if (action === "notify") setModal("notify");
+        else if (action === "sheet") setModal("sheet");
+        else if (action === "softres") setModal("softres");
         else if (action === "signups") {
             const open = !!ev.signupsClosed;
             const ok = await ask(open
@@ -179,6 +192,21 @@ export default function RaidDetailPage() {
         }
     };
 
+    // A step's one deed, whatever kind it is (#319) — the single place that maps
+    // the server's answer onto this page's dialogs, tabs and menu actions.
+    const runDeed = (deed: RaidStepDeed) => {
+        if (deed.manage) runManage(deed.manage);
+        else if (deed.modal) setModal(deed.modal);
+        else if (deed.tab) switchTab(deed.tab);
+        else if (deed.evaluate) {
+            const log = data.eventLogs.find((l) => l.id === deed.evaluate!.logId);
+            if (log) evaluator.evaluate(log, deed.evaluate.section);
+        }
+    };
+    // Own event: the five-step bar. Without raids write it only informs.
+    const cockpit: RaidEventSteps | null = data.steps ? (canManage ? data.steps : withoutDeeds(data.steps)) : null;
+    const cockpitEval = cockpit?.action?.evaluate;
+
     return (
         <div className="rd-page">
             {data.eventsWarning && <div className="flash flash-err">{data.eventsWarning}</div>}
@@ -186,6 +214,12 @@ export default function RaidDetailPage() {
             <RaidDetailHero
                 data={data} onStep={openStep} onPrimary={runPrimary}
                 primaryRunning={!!primaryEval && evaluator.isRunning(primaryEval.logId, primaryEval.section)}
+                cockpit={cockpit ? (
+                    <StepBar
+                        progress={cockpit} onDeed={runDeed}
+                        running={!!cockpitEval && evaluator.isRunning(cockpitEval.logId, cockpitEval.section)}
+                    />
+                ) : undefined}
                 manage={canManage ? (
                     <ManageMenu
                         state={{ cancelled: data.event.status === "cancelled", signupsClosed: !!data.event.signupsClosed, isPast: !!data.event.isPast, logCount: data.event.logCount || 0 }}
