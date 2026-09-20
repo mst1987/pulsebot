@@ -68,8 +68,9 @@
 .an-rank-first { background: var(--area-signups-soft); border-color: var(--area-signups); color: var(--text); }
 /* #320: the status of this one character — a quiet dot and a narrow select in
    the row, never a second block of switches beside the big one. */
-.an-pickrow:has(.an-pick-status) { grid-template-columns: 26px minmax(0, 1fr) minmax(0, 1fr) 112px auto; }
-.an-pick-status select { flex: 1; font-size: 13px; padding-left: 6px; padding-right: 6px; }
+.an-pickrow:has(.an-pick-status) { grid-template-columns: 26px minmax(0, .95fr) minmax(0, 1.25fr) 100px auto; }
+.an-pick-status { gap: 6px; }
+.an-pick-status select { flex: 1; font-size: 13px; padding-left: 6px; padding-right: 4px; }
 .an-pick-tools { display: inline-flex; gap: 4px; }
 .an-up svg { transform: rotate(180deg); }
 .an-add {
