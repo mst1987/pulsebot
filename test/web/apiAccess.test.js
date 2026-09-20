@@ -94,6 +94,21 @@ describe("web/apiAccess", () => {
                 expect(checkAccess("/api/profile/log-characters", "GET", member)).toBeNull();
                 expect(checkAccess("/api/profile/characters", "POST", member)).toBeNull();
                 expect(checkAccess("/api/profile/raiders", "GET", member)).toBeNull();
+                // Kalender-Abo (#312) — minting and revoking one's own link
+                expect(checkAccess("/api/profile/calendar", "GET", member)).toBeNull();
+                expect(checkAccess("/api/profile/calendar", "POST", member)).toBeNull();
+            });
+
+            it("keeps the calendar link behind the signup area — and the feed is no api path", () => {
+                const nobody = limited({});
+                expect(checkAccess("/api/profile/calendar", "GET", nobody)).toMatchObject({ status: 403 });
+                expect(checkAccess("/api/profile/calendar", "POST", nobody)).toMatchObject({ status: 403 });
+                // The subscription itself authenticates with its token, not a
+                // session, so it is no /api path and never reaches this table —
+                // and it is not in TOKEN_AUTH either, which is only the loot
+                // uploader's bypass of the session gate.
+                expect(Object.keys(AREA_BY_PATH).some((p) => p.includes("/r/cal"))).toBe(false);
+                expect([...TOKEN_AUTH].some((p) => p.includes("cal"))).toBe(false);
             });
 
             it("does not open other profiles or the claims list", () => {

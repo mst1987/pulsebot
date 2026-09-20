@@ -3527,6 +3527,33 @@ export function getCharacterClaims(): Promise<{ claims: CharacterClaim[] }> {
     return get("/api/roster/character-claims");
 }
 
+// ---- Kalender-Abo (#312) ----
+// The subscription link comes back exactly once, in the answer that created it:
+// the server stores only a hash and can never hand it out again.
+
+export type CalendarToken = {
+    id: string;
+    name: string;
+    hint: string;
+    createdAt: number;
+    lastUsedAt: number;
+    uses: number;
+};
+
+export type CalendarTokens = { tokens: CalendarToken[]; max: number; configured: boolean };
+
+export function getCalendarTokens(): Promise<CalendarTokens> {
+    return get("/api/profile/calendar");
+}
+
+export function createCalendarToken(csrfToken: string | null): Promise<CalendarTokens & { token: string; url: string }> {
+    return send("POST", "/api/profile/calendar", csrfToken, {});
+}
+
+export function revokeCalendarToken(csrfToken: string | null, id: string): Promise<CalendarTokens & { revoked: boolean }> {
+    return send("POST", "/api/profile/calendar", csrfToken, { revoke: id });
+}
+
 // ---- Anmeldungen (#256): upcoming raids and the member's own signup ----
 
 export type SignupRoleCount = { n: number; target: number };

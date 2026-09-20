@@ -12,6 +12,7 @@ const { startEventSeries } = require("./eventSeries");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("./render");
 const { renderEventPage } = require("./eventPublicPage");
 const { buildIcs, icsFileName } = require("./icsFeed");
+const calendarFeed = require("./calendarFeed");
 const { getEvent } = require("./eventStore");
 const { startSheetCleanup } = require("../utils/sheetCleanup");
 const { versionInfo } = require("./version");
@@ -120,6 +121,24 @@ async function handle(req, res) {
     // The calendar file of an event (#308): /r/cal/<eventId>.ics. Matched before
     // the report pages, whose id pattern would otherwise not reach it anyway.
     // The id pattern allows nothing but [A-Za-z0-9_-], so no path can traverse.
+    //
+    // The raider's calendar subscription (#312) goes first: /r/cal/user/<token>.ics.
+    // The token is the whole authentication — calendarFeed verifies it before it
+    // reads anything, and an unknown *or* revoked one gets the same plain 404 as
+    // a path that never existed, never a hint that it once was a token.
+    const userCal = pathname.match(/^\/r\/cal\/user\/([a-zA-Z0-9_-]+)\.ics$/);
+    if (userCal) {
+        const feed = calendarFeed.feedFor(userCal[1]);
+        if (!feed) return send(res, 404, renderNotFound());
+        res.writeHead(200, {
+            "Content-Type": "text/calendar; charset=utf-8",
+            // Private: the file belongs to one raider, so no shared cache may
+            // hold it. The five minutes match the server's own cache.
+            "Cache-Control": "private, max-age=300",
+            "Content-Disposition": "inline; filename=\"meine-raids.ics\"",
+        });
+        return res.end(feed.body);
+    }
     const cal = pathname.match(/^\/r\/cal\/([a-zA-Z0-9_-]+)\.ics$/);
     if (cal) {
         const event = getEvent(cal[1]);

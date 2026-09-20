@@ -43,11 +43,37 @@ describe("ProfilePage", () => {
         }
     });
 
-    it("folds availability, raids, wishes and note so only one part is open at a time", () => {
+    it("folds availability, raids, wishes, note and the calendar so only one part is open at a time", () => {
         const folds = [...page.matchAll(/<FoldPart\s+id="(\w+)"/g)].map((m) => m[1]);
-        expect(folds).toEqual(["days", "raids", "wishes", "note"]);
+        expect(folds).toEqual(["days", "raids", "wishes", "note", "calendar"]);
         expect(page).toMatch(/const isOpen = open === id;/);
         expect(page).toMatch(/\{isOpen && <div className="pf-fold-body">/);
+    });
+
+    // Kalender-Abo (#312): one calm folded line, not a second page and not a
+    // block that pushes the rest of the profile down.
+    describe("Kalender-Abo (#312)", () => {
+        it("is one folded line with the link shown once and a way to revoke it", () => {
+            expect(page).toMatch(/<FoldPart\s+id="calendar"[\s\S]*?title="Kalender-Abo"/);
+            expect(page).toContain("<CalendarPart");
+            expect(page).toContain("nur jetzt sichtbar");
+            expect(page).toContain("Link erzeugen");
+            expect(page).toContain("tip=\"Widerrufen\"");
+        });
+
+        it("warns that the link is secret", () => {
+            expect(page).toContain("Der Link ist geheim");
+        });
+
+        // The secret only ever exists in the answer that created it, so the page
+        // may create and revoke, and must never ask for one back.
+        it("creates and revokes through the one profile endpoint", () => {
+            expect(page).toContain("getCalendarTokens()");
+            expect(page).toContain("createCalendarToken(csrfToken)");
+            expect(page).toContain("revokeCalendarToken(csrfToken, t.id)");
+            expect(api).toContain("/api/profile/calendar");
+            expect(api).toMatch(/send\("POST", "\/api\/profile\/calendar"/);
+        });
     });
 
     it("shows the gear level as a segment and the log evidence as a badge with a tooltip", () => {

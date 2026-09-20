@@ -3,14 +3,16 @@ import { useOutletContext, useSearchParams } from "react-router-dom";
 import type { ShellContext } from "../components/Shell";
 import {
     getProfile, saveProfile, removeProfileCharacter, searchRaiders,
-    type ApiError, type GameClass, type GearLevel, type ProfileCharacter, type ProfileData, type ProfilePatch,
+    getCalendarTokens, createCalendarToken, revokeCalendarToken,
+    type ApiError, type CalendarToken, type CalendarTokens, type GameClass, type GearLevel,
+    type ProfileCharacter, type ProfileData, type ProfilePatch,
     type ProfileSpec, type RaiderProfile, type RaiderRef,
 } from "../api";
 import { Badge, Button, Expand, IconButton, PageHead, PartHead, RaidLoader, Segment, WowIcon, useConfirm } from "../components/ui";
 import { classColorProps } from "../components/ClassSpec";
 import { useToast } from "../components/Jobs";
 import AddCharacterDialog, { type AddWay } from "../components/profile/AddCharacterDialog";
-import { ExternalIcon, TrashIcon, XIcon, SearchIcon, EyeOffIcon } from "../components/icons";
+import { ExternalIcon, TrashIcon, XIcon, SearchIcon, EyeOffIcon, CopyIcon, CheckIcon } from "../components/icons";
 import { formatDate } from "../lib/format";
 import { specSuggestion } from "../lib/raidhelperRetirement";
 import "../styles/profil.css";
@@ -21,7 +23,7 @@ import "../styles/profil.css";
 // that shows one line per part until it is opened. Every change saves itself;
 // there is no form to submit.
 
-type Fold = "days" | "raids" | "wishes" | "note" | "";
+type Fold = "days" | "raids" | "wishes" | "note" | "calendar" | "";
 
 const LOG_TIP: Record<ProfileSpec["logs"]["status"], { tone?: "ok" | "mid"; label: string; tip: string }> = {
     seen: { tone: "ok", label: "laut Logs", tip: "In den Auswertungen mit genau diesem Spec belegt." },
@@ -38,9 +40,13 @@ export default function ProfilePage() {
     const [params, setParams] = useSearchParams();
     const [fold, setFold] = useState<Fold>("days");
     const [adding, setAdding] = useState<AddWay | null>(null);
+    // Kalender-Abo (#312) — its own small payload, so the profile request stays
+    // what it was.
+    const [cal, setCal] = useState<CalendarTokens | null>(null);
 
     useEffect(() => {
         getProfile().then(setData).catch(setError);
+        getCalendarTokens().then(setCal).catch(() => setCal(null));
     }, []);
 
     const profile = data?.profile || null;
@@ -176,6 +182,13 @@ export default function ProfilePage() {
                                 summary={profile.note ? profile.note : "keine Notiz"}
                             >
                                 <NoteField value={profile.note} max={data.limits.note} onSave={(note) => patch({ note }, { note })} />
+                            </FoldPart>
+
+                            <FoldPart
+                                id="calendar" open={fold} onOpen={setFold} title="Kalender-Abo"
+                                summary={!cal ? "wird geladen" : cal.tokens.length === 0 ? "kein Link" : cal.tokens.length === 1 ? "1 Link aktiv" : `${cal.tokens.length} Links aktiv`}
+                            >
+                                <CalendarPart data={cal} onChange={setCal} csrfToken={csrfToken} />
                             </FoldPart>
                         </div>
                     </div>
@@ -373,6 +386,107 @@ function FoldPart({ id, open, onOpen, title, summary, badge, children }: {
             </div>
             {isOpen && <div className="pf-fold-body">{children}</div>}
         </section>
+    );
+}
+
+/**
+ * Kalender-Abo (#312): one link the raider pastes into Outlook, Google or Apple
+ * once — every raid they are signed up for turns up in it by itself.
+ *
+ * The secret exists in exactly one answer, the one that created it: the server
+ * keeps only a hash and can never hand it back. So the link is shown here once,
+ * with the warning that it is secret, and whoever loses it revokes that row and
+ * makes a new one. Nothing is looked up, nothing is shown a second time.
+ */
+function CalendarPart({ data, onChange, csrfToken }: {
+    data: CalendarTokens | null;
+    onChange: (next: CalendarTokens) => void;
+    csrfToken: string | null;
+}) {
+    const toast = useToast();
+    const ask = useConfirm();
+    const [fresh, setFresh] = useState<string>("");
+    const [copied, setCopied] = useState(false);
+    const [busy, setBusy] = useState(false);
+
+    if (!data) return <RaidLoader compact text="Kalender-Links werden geladen" />;
+
+    const create = async () => {
+        setBusy(true);
+        try {
+            const res = await createCalendarToken(csrfToken);
+            onChange(res);
+            setFresh(res.url);
+            setCopied(false);
+        } catch (e) {
+            toast((e as ApiError).message, "err");
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const revoke = async (t: CalendarToken) => {
+        if (!(await ask({
+            title: "Kalender-Link widerrufen?",
+            text: "Der Link hört sofort auf zu funktionieren. Kalender, die ihn abonniert haben, bekommen keine Raids mehr.",
+            action: "Widerrufen",
+        }))) return;
+        try {
+            const res = await revokeCalendarToken(csrfToken, t.id);
+            onChange(res);
+            setFresh("");
+            toast("Kalender-Link widerrufen.");
+        } catch (e) {
+            toast((e as ApiError).message, "err");
+        }
+    };
+
+    return (
+        <div className="pf-cal">
+            <p className="pf-muted">
+                Ein Link mit allen Raids, für die du angemeldet bist — einmal im Kalender eintragen, jeder neue Raid kommt von selbst dazu.
+                {" "}<strong>Der Link ist geheim:</strong> wer ihn hat, sieht deine Raids. Nicht weitergeben, nicht posten.
+            </p>
+
+            {fresh && (
+                <div className="pf-cal-fresh">
+                    <Badge tone="mid">nur jetzt sichtbar</Badge>
+                    <div className="pf-cal-link">
+                        <input type="text" readOnly className="mono" value={fresh} onFocus={(e) => e.target.select()} />
+                        <IconButton
+                            icon={copied ? <CheckIcon /> : <CopyIcon />}
+                            tip={copied ? "Kopiert" : "Link kopieren"}
+                            onClick={() => { navigator.clipboard?.writeText(fresh); setCopied(true); }}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {data.tokens.map((t) => (
+                <div className="pf-cal-row" key={t.id}>
+                    <span className="pf-cal-name">
+                        Link …{t.hint}
+                        <span className="kicker">
+                            {`erstellt ${formatDate(t.createdAt)}`}
+                            {t.lastUsedAt ? ` · zuletzt abgerufen ${formatDate(t.lastUsedAt)}` : " · noch nie abgerufen"}
+                        </span>
+                    </span>
+                    <IconButton icon={<TrashIcon />} tip="Widerrufen" onClick={() => revoke(t)} />
+                </div>
+            ))}
+
+            {!data.configured
+                ? <p className="pf-muted pf-err">Es ist keine öffentliche Adresse eingestellt (PUBLIC_BASE_URL) — ohne sie lässt sich kein Abo-Link bauen.</p>
+                : (
+                    <Button
+                        variant="ghost"
+                        onClick={create}
+                        disabled={busy || data.tokens.length >= data.max}
+                    >
+                        {busy ? "Wird erzeugt…" : data.tokens.length ? "Weiteren Link erzeugen" : "Link erzeugen"}
+                    </Button>
+                )}
+        </div>
     );
 }
 
