@@ -11,7 +11,7 @@
 //     role that spec cannot play.
 // What is *not* refused is whatever only makes the setup worse — too few
 // healers, a missing buff: that is the checks' business, and the orga may know
-// better. The same line the proposal draws (see CLAUDE.md, "Setup-Vorschlag").
+// better. The same line the proposal draws (see docs/setup.md, "Setup-Vorschlag").
 
 const { rulesFor, DEFAULT_VERSION, ROLES } = require("../../config/gameVersions");
 const { GROUP_SIZE, signupCharacters } = require("./model");

@@ -157,7 +157,7 @@ async function handle(req, res) {
     // see what is decided in the client and, for real, by /api/* (apiAccess.js);
     // an unknown path lands on the client's own "not found" page.
     if (await staticClient.serve(req, res, pathname)) return;
-    // Only reached when dist/ was never built — see "Web Admin" in CLAUDE.md.
+    // Only reached when dist/ was never built — see docs/web-admin.md.
     return send(res, 404, renderNotFound());
 }
 

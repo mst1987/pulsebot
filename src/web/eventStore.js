@@ -9,7 +9,7 @@ const { rulesFor, instanceById, compositionFor, DEFAULT_VERSION } = require("../
 // imported into this file.
 //
 // Readers never touch this store directly — they go through eventSources.js,
-// which hands out both sources in one shape (see CLAUDE.md, "Eigene Events").
+// which hands out both sources in one shape (see docs/events.md, "Eigene Events").
 //
 // Stored under data/settings/events.json as { events: [...] }.
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
