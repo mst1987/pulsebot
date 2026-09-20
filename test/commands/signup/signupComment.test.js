@@ -1,7 +1,5 @@
 // „Kommentar“ im Anmelde-Dialog (#258): Klick öffnet das Modal, Absenden
 // speichert den Kommentar an der bestehenden Anmeldung.
-const os = require("os");
-const path = require("path");
 
 jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
@@ -13,12 +11,13 @@ const mocks = require("../../helpers/signupMocks");
 const profiles = require("../../../src/web/raiderProfileStore");
 const command = require("../../../src/commands/signup/signupComment");
 const { mockInteraction } = require("../../helpers/mockInteraction");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
 const ANNA = "200000000000000001";
 const ID = "signup-comment:eh-kara:nerathil:Mage-Arcane:";
 const payloadOf = (i) => i.update.mock.calls[0][0];
 
-beforeAll(() => profiles.useFile(path.join(os.tmpdir(), `eh-cmd-signup-comment-${process.pid}.json`)));
+beforeAll(() => profiles.useFile(tempStoreFile("eh-cmd-signup-comment.json")));
 afterAll(() => {
     profiles.reset();
     profiles.useFile(null);

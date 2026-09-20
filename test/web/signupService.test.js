@@ -1,8 +1,6 @@
 // Die Anmelde-Regeln (src/web/signupService.js), die Web und Discord (#258) teilen:
 // Spec passt zum Charakter aus dem Profil, Anmeldeschluss, Statuswechsel,
 // „kann auch“ aus dem Profil, Raid-Helper-Events nicht anmeldbar.
-const os = require("os");
-const path = require("path");
 
 const mockEvents = new Map();
 const mockLog = jest.fn();
@@ -44,6 +42,7 @@ jest.mock("../../src/web/discord", () => ({ memberRoleIds: jest.fn(async () => m
 const profiles = require("../../src/web/raiderProfileStore");
 const discord = require("../../src/web/discord");
 const service = require("../../src/web/signupService");
+const { tempStoreFile } = require("../helpers/tempStore");
 
 const ANNA = "200000000000000001";
 const BERT = "200000000000000002";
@@ -56,7 +55,7 @@ const event = (over = {}) => ({
     size: 10, composition: { tank: 2, healer: 3, melee: 0, ranged: 0 }, wishes: true, ...over,
 });
 
-beforeAll(() => profiles.useFile(path.join(os.tmpdir(), `eh-signup-service-${process.pid}.json`)));
+beforeAll(() => profiles.useFile(tempStoreFile("eh-signup-service.json")));
 afterAll(() => {
     profiles.reset();
     profiles.useFile(null);

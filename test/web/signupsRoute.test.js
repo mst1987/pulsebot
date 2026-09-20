@@ -1,8 +1,6 @@
 // „Anmeldungen“ über die API (src/web/apiRoutes/signups.js, src/web/signupView.js):
 // nur die eigene Anmeldung, Raid-Helper-Events mit Discord-Link statt Anmeldung,
 // Kategorien nach Raider-Rollen, und die Orga-Liste mit Kommentar und „kann auch“.
-const os = require("os");
-const path = require("path");
 
 let mockUser = null;
 jest.mock("../../src/web/apiMiddleware", () => ({
@@ -49,6 +47,7 @@ const { readJsonBody } = require("../../src/web/apiBody");
 const profiles = require("../../src/web/raiderProfileStore");
 const route = require("../../src/web/apiRoutes/signups");
 const { categoryVisible } = require("../../src/web/signupView");
+const { tempStoreFile } = require("../helpers/tempStore");
 
 const ANNA = { id: "200000000000000001", name: "Anna", isAdmin: false, access: { signup: { read: true, write: true } } };
 const BERT = { id: "200000000000000002", name: "Bert", isAdmin: false, access: { signup: { read: true, write: true } } };
@@ -86,7 +85,7 @@ function groups() {
     ];
 }
 
-beforeAll(() => profiles.useFile(path.join(os.tmpdir(), `eh-signups-route-${process.pid}.json`)));
+beforeAll(() => profiles.useFile(tempStoreFile("eh-signups-route.json")));
 afterAll(() => {
     profiles.reset();
     profiles.useFile(null);

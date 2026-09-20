@@ -410,23 +410,59 @@ describe("buildSetupProposal", () => {
         });
     });
 
-    describe("runtime", () => {
-        it("proposes a 25-man from 60 signups in under a second", () => {
+    // The search must not run away on a full evening's signups. That used to be
+    // a wall-clock budget ("under a second"), which measured the machine rather
+    // than the code and fell over whenever something else was running - and a
+    // synchronous function cannot be cut short by Jest's own timeout either.
+    // What is counted instead is the work itself: how often the search asks the
+    // scorer. That number follows from the input alone, so it is the same on
+    // every machine, and it is what a runaway local search would blow up.
+    describe("effort on a full evening", () => {
+        /** `buildSetupProposal` with a counting scorer, in a module registry of its own. */
+        function withScoreCount(input) {
+            let calls = 0;
+            let out;
+            jest.isolateModules(() => {
+                const score = require("../../../src/utils/setup/score");
+                const real = score.makeScorer;
+                score.makeScorer = (model) => {
+                    const scorer = real(model);
+                    return { ...scorer, evaluate: (opt, grp) => { calls++; return scorer.evaluate(opt, grp); } };
+                };
+                out = require("../../../src/utils/setup/proposal").buildSetupProposal(input);
+            });
+            return { calls, out };
+        }
+
+        const bigInput = () => {
             const signups = roster(60);
             const profiles = signups.filter((_, i) => i % 3 === 0).map((s, i) => ({ userId: s.userId, wishes: [signups[(i * 7) % 60].userId] }));
             const history = [{ eventId: "old", startTime: 1, placed: signups.slice(0, 25).map((s) => s.userId), bench: signups.slice(25).map((s) => s.userId) }];
-            const input = { events: [{ id: "e", size: 25, composition: { tank: 3, healer: 6 }, fairness: true, wishes: true, requiredBuffs: ["windfury", "kings"] }], signups, profiles, history };
-            const start = Date.now();
-            const out = buildSetupProposal(input);
-            expect(Date.now() - start).toBeLessThan(1000);
+            return { events: [{ id: "e", size: 25, composition: { tank: 3, healer: 6 }, fairness: true, wishes: true, requiredBuffs: ["windfury", "kings"] }], signups, profiles, history };
+        };
+
+        it("fills a 25-man from 60 signups with a bounded number of scoring runs", () => {
+            const { calls, out } = withScoreCount(bigInput());
             expect(out.checks.size.count).toBe(25);
+            expect(calls).toBeGreaterThan(0);
+            // ~5k today; the bound is wide on purpose - it is there to catch a
+            // search that stops converging, not to freeze a number.
+            expect(calls).toBeLessThan(60000);
         });
 
-        it("proposes a 40-man from 60 signups in under a second", () => {
+        it("fills a 40-man from 60 signups with a bounded number of scoring runs", () => {
             const input = { versionId: "classic", events: [{ id: "e", size: 40, composition: { tank: 4, healer: 10 }, fairness: true, wishes: true }], signups: roster(60) };
-            const start = Date.now();
-            buildSetupProposal(input);
-            expect(Date.now() - start).toBeLessThan(1000);
+            const { calls, out } = withScoreCount(input);
+            expect(out.checks.size.count).toBe(40);
+            expect(calls).toBeLessThan(60000); // ~9k today
+        });
+
+        it("does the same amount of work every time", () => {
+            const input = bigInput();
+            const first = withScoreCount(input);
+            const second = withScoreCount(bigInput());
+            expect(second.calls).toBe(first.calls);
+            expect(second.out).toEqual(first.out);
         });
     });
 });

@@ -2,8 +2,6 @@
 // Charakter-Auswahl, die nur der Raider sieht: Vorauswahl, Direkt-Anmeldung bei genau
 // einer Spec, Abmelden, Weg ohne Profil, Anmeldeschluss, Raider-Rolle, Zugriff.
 const { MessageFlags } = require("discord.js");
-const os = require("os");
-const path = require("path");
 
 jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
@@ -18,6 +16,7 @@ const command = require("../../../src/commands/signup/eventJoin");
 const { parseJoinId, joinId, characterOptions, defaultPick } = require("../../../src/utils/joinPicker");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
 const ANNA = "200000000000000001";
 const NOBODY = "200000000000000009";
@@ -28,7 +27,7 @@ const pick = (status, extra = {}) => mockInteraction({ customId: "event-join:eh-
 const selectOf = (payload) => payload.components[0].components[0];
 const buttonsOf = (payload) => payload.components[payload.components.length - 1].components;
 
-beforeAll(() => profiles.useFile(path.join(os.tmpdir(), `eh-cmd-event-join-${process.pid}.json`)));
+beforeAll(() => profiles.useFile(tempStoreFile("eh-cmd-event-join.json")));
 afterAll(() => {
     profiles.reset();
     profiles.useFile(null);

@@ -1,8 +1,6 @@
 // "Mein Profil" über die API (src/web/apiRoutes/profile.js): nur das eigene
 // Konto, Charaktere aus den Logs / der Armory / von Hand, doppelt beanspruchte
 // Charaktere, und dass die Wünsche anderer nie bei einem Mitglied ankommen.
-const os = require("os");
-const path = require("path");
 
 let mockUser = null;
 jest.mock("../../src/web/apiMiddleware", () => ({
@@ -32,6 +30,7 @@ jest.mock("../../src/classes/blizzard", () => jest.fn().mockImplementation(() =>
 const { readJsonBody } = require("../../src/web/apiBody");
 const store = require("../../src/web/raiderProfileStore");
 const route = require("../../src/web/apiRoutes/profile");
+const { tempStoreFile } = require("../helpers/tempStore");
 
 const ANNA = { id: "200000000000000001", name: "Anna", isAdmin: false };
 const BERT = { id: "200000000000000002", name: "Bert", isAdmin: false };
@@ -54,7 +53,7 @@ async function call(handler, user, { json = {}, query = "" } = {}) {
     return res;
 }
 
-beforeAll(() => store.useFile(path.join(os.tmpdir(), `eh-profiles-route-${process.pid}.json`)));
+beforeAll(() => store.useFile(tempStoreFile("eh-profiles-route.json")));
 afterAll(() => store.useFile(null));
 beforeEach(() => {
     store.reset();
@@ -78,7 +77,7 @@ describe("GET/PUT /api/profile", () => {
 
     it("liefert nur die eigene aus Raid-Helper importierte Spec-Historie (#291)", async () => {
         const history = require("../../src/web/specHistoryStore");
-        history.useFile(path.join(os.tmpdir(), `eh-spec-history-route-${process.pid}.json`));
+        history.useFile(tempStoreFile("spec-history.json"));
         try {
             history.applyImport([
                 { userId: ANNA.id, spec: "Mage-Frost", eventId: "rh-1", at: 1000, character: "Nerathil" },
@@ -88,7 +87,7 @@ describe("GET/PUT /api/profile", () => {
             expect(data.specHistory).toEqual([{ spec: "Mage-Frost", count: 1, lastAt: 1000, lastEventId: "rh-1", character: "Nerathil" }]);
             expect(JSON.stringify(data)).not.toContain("Ysolde");
         } finally {
-            require("fs").rmSync(path.join(os.tmpdir(), `eh-spec-history-route-${process.pid}.json`), { force: true });
+            // The scratch directory goes at the end of the suite (helpers/tempStore).
             history.useFile(null);
         }
     });
