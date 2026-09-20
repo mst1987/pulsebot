@@ -3,7 +3,10 @@
 // cancelled event — plus the line that nothing personal is in the file.
 jest.mock("../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example" }));
 
-const { buildIcs, foldLine, escapeText, icsTime, icsUrlFor, publicEventUrl, icsFileName } = require("../../src/web/icsFeed");
+const {
+    buildIcs, buildUserCalendar, foldLine, escapeText, icsTime,
+    icsUrlFor, publicEventUrl, userIcsUrl, icsFileName,
+} = require("../../src/web/icsFeed");
 
 // 2026-09-24 19:30 UTC
 const START = Math.floor(Date.UTC(2026, 8, 24, 19, 30) / 1000);
@@ -154,6 +157,130 @@ describe("web/icsFeed", () => {
         it("names the downloaded file after the event, without anything odd in it", () => {
             expect(icsFileName("eh-1")).toBe("raid-eh-1.ics");
             expect(icsFileName("../../etc/passwd")).toBe("raid-etcpasswd.ics");
+        });
+
+        it("builds the subscription url from the token", () => {
+            expect(userIcsUrl("ehc_abc")).toBe("https://eh.example/r/cal/user/ehc_abc.ics");
+            expect(userIcsUrl("")).toBe("");
+        });
+    });
+
+    // ---- the raider's subscription (#312) ----
+    //
+    // The route behind this file is reachable with nothing but the token in the
+    // url, so the line it holds is: the raids, their times, and the *reader's
+    // own* status — never a word about anybody else.
+    describe("buildUserCalendar", () => {
+        // Every property name a VEVENT of this feed may carry. A new one has to
+        // be added here on purpose, which is the point.
+        const ALLOWED = new Set([
+            "BEGIN", "END", "VERSION", "PRODID", "CALSCALE", "METHOD", "X-WR-CALNAME", "NAME",
+            "UID", "DTSTAMP", "SEQUENCE", "DTSTART", "DTEND", "SUMMARY", "DESCRIPTION",
+            "LOCATION", "URL", "STATUS", "TRANSP",
+        ]);
+
+        const entries = [
+            { event: event({ id: "eh-1", title: "SSC + TK", startTime: START }), status: "signed", changedAt: CHANGED },
+            { event: event({ id: "eh-2", title: "Hyjal", startTime: START + 7 * 86400 }), status: "bench", changedAt: CHANGED },
+        ];
+
+        it("writes one VCALENDAR with a VEVENT per raid, soonest first as handed in", () => {
+            const ics = buildUserCalendar(entries);
+            expect(ics.startsWith("BEGIN:VCALENDAR\r\n")).toBe(true);
+            expect(ics.endsWith("END:VCALENDAR\r\n")).toBe(true);
+            expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(2);
+            expect(unfold(ics).filter((l) => l.startsWith("UID:"))).toEqual([
+                "UID:eh-1@eventhelper", "UID:eh-2@eventhelper",
+            ]);
+            // the name a calendar client shows for the subscription
+            expect(ics).toContain("X-WR-CALNAME:Meine Raids");
+        });
+
+        it("is a valid, empty calendar for a raider without a single signup", () => {
+            const ics = buildUserCalendar([]);
+            expect(ics).toContain("BEGIN:VCALENDAR");
+            expect(ics).toContain("END:VCALENDAR");
+            expect(ics).not.toContain("BEGIN:VEVENT");
+        });
+
+        it("names the reader's own status and nothing else about the signup", () => {
+            const ics = buildUserCalendar([{ event: event(), status: "late" }]);
+            expect(lineOf(ics, "DESCRIPTION")).toContain("Deine Anmeldung: Spät");
+            expect(lineOf(ics, "STATUS")).toBe("STATUS:CONFIRMED");
+        });
+
+        // Dropping the VEVENT would leave the raid standing in every calendar
+        // that already fetched it; CANCELLED makes the client strike it.
+        it("keeps an own absence as CANCELLED instead of dropping it", () => {
+            const ics = buildUserCalendar([{ event: event(), status: "absence" }]);
+            expect(ics).toContain("BEGIN:VEVENT");
+            expect(lineOf(ics, "STATUS")).toBe("STATUS:CANCELLED");
+            expect(lineOf(ics, "SUMMARY")).toBe("SUMMARY:Abgemeldet: SSC + TK");
+        });
+
+        it("marks a cancelled raid as cancelled whatever the own status is", () => {
+            const ics = buildUserCalendar([{ event: event({ status: "cancelled", cancel: { reason: "Zu wenige Heiler" } }), status: "signed" }]);
+            expect(lineOf(ics, "STATUS")).toBe("STATUS:CANCELLED");
+            expect(lineOf(ics, "DESCRIPTION")).toContain("Abgesagt: Zu wenige Heiler");
+        });
+
+        it("blocks the day only for a raid one is really in", () => {
+            const transp = (status) => lineOf(buildUserCalendar([{ event: event(), status }]), "TRANSP");
+            expect(transp("signed")).toBe("TRANSP:OPAQUE");
+            expect(transp("late")).toBe("TRANSP:OPAQUE");
+            expect(transp("tentative")).toBe("TRANSP:TRANSPARENT");
+            expect(transp("bench")).toBe("TRANSP:TRANSPARENT");
+            expect(transp("absence")).toBe("TRANSP:TRANSPARENT");
+        });
+
+        // A calendar client may ignore an update whose SEQUENCE did not grow.
+        it("lets a later signup change raise DTSTAMP and SEQUENCE", () => {
+            const seq = (changedAt) => Number(lineOf(buildUserCalendar([{ event: event(), status: "signed", changedAt }]), "SEQUENCE").slice("SEQUENCE:".length));
+            expect(seq(CHANGED + 600000)).toBeGreaterThan(seq(0));
+            // an older signup change never lowers it below the event's own
+            expect(seq(1)).toBe(seq(0));
+        });
+
+        it("skips an entry without an event or without a start", () => {
+            const ics = buildUserCalendar([{ event: null }, { event: event({ startTime: 0 }) }, { event: event() }]);
+            expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(1);
+            expect(buildUserCalendar(null)).not.toContain("BEGIN:VEVENT");
+        });
+
+        it("folds and escapes exactly like the single-event file", () => {
+            const ics = buildUserCalendar([{ event: event({ title: "SSC, TK; Ü".repeat(12) }), status: "signed" }]);
+            for (const line of ics.split("\r\n")) expect(Buffer.byteLength(line, "utf8")).toBeLessThanOrEqual(75);
+            expect(unfold(ics).find((l) => l.startsWith("SUMMARY:"))).toContain("SSC\\, TK\\; Ü");
+        });
+
+        // ---- the allowlist ----
+        it("carries no property outside the allowlist", () => {
+            const ics = buildUserCalendar(entries);
+            for (const line of unfold(ics)) {
+                const name = line.split(/[;:]/)[0];
+                expect(ALLOWED.has(name)).toBe(true);
+            }
+            expect(ics).not.toContain("ATTENDEE");
+            expect(ics).not.toContain("ORGANIZER");
+        });
+
+        it("says nothing about another raider — no name, no id, no comment, no setup", () => {
+            // The signup the feed is built from carries all of this; none of it
+            // is an argument of the builder, and none of it may appear anyway.
+            const ics = buildUserCalendar([{
+                event: event({ leaderId: "333333333333333333" }),
+                status: "signed",
+                // fields a caller might carelessly hand along
+                userId: "444444444444444444",
+                character: "Zibbo",
+                comment: "komme 20:30",
+                signup: { comment: "komme 20:30", characters: [{ character: "Zibbo" }] },
+            }]);
+            for (const secret of ["333333333333333333", "444444444444444444", "Zibbo", "komme 20:30"]) {
+                expect(ics).not.toContain(secret);
+            }
+            expect(ics.toLowerCase()).not.toContain("setup");
+            expect(ics.toLowerCase()).not.toContain("leader");
         });
     });
 });

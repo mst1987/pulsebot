@@ -24,6 +24,7 @@ const { getRaiderCharacters, saveRaiderCharacters } = require("./apiRoutes/raide
 const { getRoster, postRosterHide, getRosterChar } = require("./apiRoutes/roster");
 const {
     getProfile, putProfile, getLogCharacters, postProfileCharacter, getRaiderSearch, getUserProfile, getCharacterClaims,
+    getCalendarTokens, postCalendarToken,
 } = require("./apiRoutes/profile");
 const { getSignups, putSignup, postSignupsBulk, getEventSignups } = require("./apiRoutes/signups");
 const {
@@ -283,6 +284,14 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/profile/characters" && req.method === "POST") {
         await postProfileCharacter(req, res);
+        return true;
+    }
+    if (pathname === "/api/profile/calendar" && req.method === "GET") {
+        await getCalendarTokens(req, res);
+        return true;
+    }
+    if (pathname === "/api/profile/calendar" && req.method === "POST") {
+        await postCalendarToken(req, res);
         return true;
     }
     if (pathname === "/api/profile/raiders" && req.method === "GET") {
