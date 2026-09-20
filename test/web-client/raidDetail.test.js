@@ -50,8 +50,9 @@ describe("raid detail layout", () => {
     it("draws the progress bar and the primary action from the payload", () => {
         const hero = read("pages", "raid-detail", "RaidDetailHero.tsx");
         expect(hero).toContain("data.progress.steps.map((s) => <StepCell");
-        // a cancelled own event (#288) pushes no next step
-        expect(hero).toContain("const primary = cancelled ? null : data.progress?.primary || null;");
+        // a cancelled own event (#288) pushes no next step — and an own event's
+        // step bar (#319) carries the one deed itself, so the head keeps quiet
+        expect(hero).toContain("const primary = cancelled || cockpit ? null : data.progress?.primary || null;");
         // a step is a button that opens its dialog or tab
         expect(hero).toContain("onClick={() => onOpen(step)}");
         expect(page).toMatch(/if \(step\.open\.modal\) setModal\(step\.open\.modal\);\s*else if \(step\.open\.tab\) switchTab\(step\.open\.tab\);/);

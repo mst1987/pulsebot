@@ -1034,6 +1034,47 @@ export type RaidPrimaryAction = {
 };
 export type RaidProgress = { steps: RaidStep[]; next: RaidStepKey | ""; primary: RaidPrimaryAction | null };
 
+/**
+ * Das Raid-Cockpit eines eigenen Events (#319) — die fünf Schritte aus
+ * src/web/raidDetailSteps.js' eventSteps(). Ein Raid-Helper-Event hat keines
+ * (`steps: null`) und behält die Leiste von #219.
+ */
+export type RaidEventStepId = "created" | "signup" | "setup" | "approval" | "after";
+export type RaidEventStepState = "done" | "current" | "todo" | "skipped" | "cancelled";
+/** Die eine Tat eines Schritts: ein Menü-Eintrag, ein Dialog, ein Tab oder eine Auswertung. */
+export type RaidStepDeed = {
+    id: string;
+    label: string;
+    icon: string;
+    /** Ein Eintrag von „Event verwalten“ (lib/eventManage.ts' ManageAction). */
+    manage?: "edit" | "signups" | "reopen";
+    modal?: RaidDetailModal;
+    tab?: "roster" | "setup" | "loot" | "logs";
+    evaluate?: { logId: string; section: LogSection };
+};
+export type RaidEventStep = {
+    id: RaidEventStepId;
+    label: string;
+    icon: string;
+    state: RaidEventStepState;
+    /** Die große Zahl, ihre kleine Einheit und eine Randnotiz ("3 auf der Warteliste"). */
+    value: string;
+    unit: string;
+    note: string;
+    fill?: number | null;
+    /** Der eine erklärende Satz — er steht im Tooltip, nicht auf der Fläche. */
+    hint: string;
+    action: RaidStepDeed | null;
+};
+export type RaidEventSteps = {
+    steps: RaidEventStep[];
+    current: RaidEventStepId | "";
+    /** Die Haupt-Tat: die des offenen Schritts, bei einem abgesagten Event der Weg zurück. */
+    action: RaidStepDeed | null;
+    cancelled: boolean;
+    note: string;
+};
+
 /** What the player dialog shows beyond this raid — src/web/raidPlayerSummary.js. */
 export type RaidPlayerSummary = {
     /** Raids of the category in the last 8 weeks the raider was in; null = unknown. */
@@ -1223,6 +1264,8 @@ export type RaidDetailData = {
     ownSignups?: EventSignupEntry[] | null;
     /** An own event's setup state (#263): counts only, the lineup comes from GET /api/raids/setup. */
     ownSetup?: { status: "draft" | "approved"; changedSinceApproval: boolean; version: number; placed: number; size: number; bench: number; ok: boolean; approvedAt: number } | null;
+    /** Wo die freigegebene Setup-Nachricht steht (#290), soweit die Leiste sie nennt. */
+    ownSetupPost?: { channelId: string; messageId: string; version: number; dms: { total: number; sent: number; failed: number } | null } | null;
     attendanceRoleIds: string[];
     membersError: string | null;
     signupTarget: number;
@@ -1232,6 +1275,8 @@ export type RaidDetailData = {
     unlinkedLogs: RaidLogRow[];
     /** The progress bar and the head's primary action. */
     progress: RaidProgress;
+    /** Die Schritt-Leiste eines eigenen Events (#319); null bei Raid-Helper. */
+    steps: RaidEventSteps | null;
     /** Keyed by the lowercased character name. */
     playerSummaries: Record<string, RaidPlayerSummary>;
 };

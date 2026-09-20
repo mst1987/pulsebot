@@ -60,10 +60,23 @@ describe("the manage menu", () => {
 
     it("lists every action once, the dangerous one last and apart", () => {
         const menu = lib.manageMenu(base);
-        expect(ids(menu)).toEqual(["edit", "move", "signups", "raider", "ping", "setup", "|", "history", "|", "cancel", "delete"]);
+        expect(ids(menu)).toEqual(["move", "signups", "raider", "|", "notify", "sheet", "softres", "|", "history", "|", "cancel", "delete"]);
         expect(menu.filter((e) => e !== "sep" && e.danger).map((e) => e.id)).toEqual(["cancel", "delete"]);
         // every entry says what it does
         for (const e of menu.filter((x) => x !== "sep")) expect(e.sub.length).toBeGreaterThan(5);
+    });
+
+    it("holds the rare things only: what belongs to a step moved into the step bar (#319)", () => {
+        // Bearbeiten, Fehlende pingen and Setup öffnen are a step's one deed now
+        for (const state of [base, { ...base, isPast: true }]) {
+            expect(ids(lib.manageMenu(state))).not.toContain("edit");
+            expect(ids(lib.manageMenu(state))).not.toContain("ping");
+            expect(ids(lib.manageMenu(state))).not.toContain("setup");
+        }
+        // …while the three the old progress bar was the only way to live here now
+        expect(ids(lib.manageMenu(base))).toEqual(expect.arrayContaining(["notify", "sheet", "softres"]));
+        // a past raid gets no signup call anymore, but keeps sheet and softres
+        expect(ids(lib.manageMenu({ ...base, isPast: true }))).not.toContain("notify");
     });
 
     it("says open or close depending on the state and counts the log", () => {
@@ -75,7 +88,7 @@ describe("the manage menu", () => {
     it("offers only taking back, the history and deleting for a cancelled event, and nothing time-bound for a past raid", () => {
         expect(ids(lib.manageMenu({ ...base, cancelled: true }))).toEqual(["reopen", "|", "history", "|", "delete"]);
         const past = lib.manageMenu({ ...base, isPast: true });
-        expect(ids(past)).toEqual(["edit", "raider", "setup", "|", "history", "|", "delete"]);
+        expect(ids(past)).toEqual(["raider", "|", "sheet", "softres", "|", "history", "|", "delete"]);
         // a past raid is deleted only with a confirmation, and the entry says what is lost
         expect(past.find((e) => e.id === "delete").sub).toMatch(/Bestätigung.*Anwesenheit/);
     });

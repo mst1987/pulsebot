@@ -28,7 +28,7 @@ const {
 const softres = require("../../utils/softres");
 const wowhead = require("../../utils/wowhead");
 const { listByEvent: listLootByEvent, listAll: listAllLoot } = require("../lootStore");
-const { raidSteps } = require("../raidDetailSteps");
+const { raidSteps, eventSteps } = require("../raidDetailSteps");
 const { summarizePlayers } = require("../raidPlayerSummary");
 const { withClassLook: withLootClassLook } = require("../lootClassLook");
 const { listLogs, listLogsForEvent, evaluatedSections } = require("../logStore");
@@ -57,6 +57,26 @@ function manageState(eventId) {
         cancelReason: (ev.cancel && ev.cancel.reason) || "",
         cancelArchived: !!(ev.cancel && ev.cancel.archived),
         logCount: Array.isArray(ev.log) ? ev.log.length : 0,
+        // The cockpit (#319) needs to tell "no setup yet" from "this raid runs
+        // without one": a proposal is still coming while autoSuggest is on.
+        autoSuggest: !!ev.autoSuggest,
+    };
+}
+
+/**
+ * Where the approved setup was posted (#290), reduced to what the cockpit's
+ * Freigabe step says: is it out, which state does it show, how many DMs went.
+ * Deliberately no `told` map and no failed user ids — the bar names numbers.
+ */
+function setupPostState(eventId) {
+    const post = (getEvent(eventId) || {}).setupPost;
+    if (!post || !post.messageId) return null;
+    const dms = post.dms || null;
+    return {
+        channelId: post.channelId || "",
+        messageId: post.messageId || "",
+        version: Number(post.version) || 0,
+        dms: dms ? { total: Number(dms.total) || 0, sent: Number(dms.sent) || 0, failed: (dms.failed || []).length } : null,
     };
 }
 
@@ -162,7 +182,9 @@ async function getRaidDetail(req, res, url) {
     // comment, character) — the roster tab lists them in place of a raidplan.
     let ownSignups = null;
     let ownSetup = null;
+    let ownSetupPost = null;
     if (found.e.source === "eventhelper") {
+        ownSetupPost = setupPostState(eventId);
         // Counts and state only — the lineup itself comes from GET /api/raids/setup,
         // which hands a draft to nobody but the orga.
         ownSetup = setupSummary(getEvent(eventId));
@@ -212,8 +234,14 @@ async function getRaidDetail(req, res, url) {
             // nothing was snapshotted); the UI must not render it as "0".
             signupsKnown,
             signUpsFromSnapshot: Boolean(found.e.signUpsFromSnapshot),
-            // Event verwalten (#288): cancelled / closed signup, with the reason.
-            ...(found.e.source === "eventhelper" ? manageState(eventId) : {}),
+            // Event verwalten (#288): cancelled / closed signup, with the reason —
+            // plus what only an own event plans with: the cockpit's Anmeldung step
+            // measures against the size and ends at the signup deadline (#319).
+            ...(found.e.source === "eventhelper" ? {
+                ...manageState(eventId),
+                size: Number(found.e.size) || 0,
+                signupDeadline: Number(found.e.signupDeadline) || 0,
+            } : {}),
         },
         setupFromSnapshot,
         categoryName: found.g.categoryName,
@@ -239,6 +267,7 @@ async function getRaidDetail(req, res, url) {
         attendance,
         ownSignups,
         ownSetup,
+        ownSetupPost,
         attendanceRoleIds: categoryRoleIds,
         membersError,
         signupTarget,
@@ -249,6 +278,9 @@ async function getRaidDetail(req, res, url) {
     };
     // The progress bar and the head's primary action, from the same payload.
     payload.progress = raidSteps(payload);
+    // An own event answers the orga's one question as a five-step route instead
+    // (#319). Raid-Helper events keep exactly today's view: steps stays null.
+    payload.steps = found.e.source === "eventhelper" ? eventSteps(payload) : null;
     // What the player dialog shows beyond this raid (raids in the category's
     // last eight weeks, recent loot), for every name the page can open.
     const names = [
