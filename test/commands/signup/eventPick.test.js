@@ -2,8 +2,6 @@
 // öffnet die eigenen Charaktere (Mehrfachauswahl, Klassen darunter), eine Klasse führt zu
 // Spec und Namen. Die Auswahl setzt sich für das Mitglied zurück, die Antwort ist ephemer.
 const { MessageFlags } = require("discord.js");
-const os = require("os");
-const path = require("path");
 
 jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
@@ -16,6 +14,7 @@ const profiles = require("../../../src/web/raiderProfileStore");
 const command = require("../../../src/commands/signup/eventPick");
 const buttons = require("../../../src/commands/signup/eventButton");
 const { mockInteraction } = require("../../helpers/mockInteraction");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
 const ANNA = "200000000000000001";
 const sec = () => Math.floor(Date.now() / 1000);
@@ -32,7 +31,7 @@ function pick(value, eventId = "eh-kara") {
     return i;
 }
 
-beforeAll(() => profiles.useFile(path.join(os.tmpdir(), `eh-cmd-event-pick-${process.pid}.json`)));
+beforeAll(() => profiles.useFile(tempStoreFile("eh-cmd-event-pick.json")));
 afterAll(() => {
     profiles.reset();
     profiles.useFile(null);

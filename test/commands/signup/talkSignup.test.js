@@ -1,8 +1,6 @@
 // Die Raid-Auswahl unter der Übersicht auf dem Talk-Server (#258): eigene Events
 // öffnen den Anmelde-Dialog, Raid-Helper-Events verlinken in ihren Event-Kanal.
 const { MessageFlags } = require("discord.js");
-const os = require("os");
-const path = require("path");
 
 jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
@@ -18,8 +16,9 @@ const profiles = require("../../../src/web/raiderProfileStore");
 const { getStoredEvent } = require("../../../src/web/eventSources");
 const command = require("../../../src/commands/signup/talkSignup");
 const { mockInteraction } = require("../../helpers/mockInteraction");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
-beforeAll(() => profiles.useFile(path.join(os.tmpdir(), `eh-cmd-talk-signup-${process.pid}.json`)));
+beforeAll(() => profiles.useFile(tempStoreFile("eh-cmd-talk-signup.json")));
 afterAll(() => {
     profiles.reset();
     profiles.useFile(null);

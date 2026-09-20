@@ -1,14 +1,13 @@
 // Das eigene Raider-Profil (#255). Schreibt auf Platte – in eine eigene Datei
 // im Temp-Verzeichnis, damit parallel laufende Suites sich nichts teilen.
-const os = require("os");
-const path = require("path");
 const store = require("../../src/web/raiderProfileStore");
+const { tempStoreFile } = require("../helpers/tempStore");
 
 const A = "100000000000000001";
 const B = "100000000000000002";
 const C = "100000000000000003";
 
-beforeAll(() => store.useFile(path.join(os.tmpdir(), `eh-profiles-store-${process.pid}.json`)));
+beforeAll(() => store.useFile(tempStoreFile("eh-profiles-store.json")));
 afterEach(() => store.reset());
 afterAll(() => store.useFile(null));
 

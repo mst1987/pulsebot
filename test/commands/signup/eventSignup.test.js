@@ -1,7 +1,5 @@
 // Der „Anmelden“-Button unter der Event-Nachricht öffnet den Anmelde-Dialog (#258).
 const { MessageFlags } = require("discord.js");
-const os = require("os");
-const path = require("path");
 
 jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
@@ -14,10 +12,11 @@ const mocks = require("../../helpers/signupMocks");
 const profiles = require("../../../src/web/raiderProfileStore");
 const command = require("../../../src/commands/signup/eventSignup");
 const { mockInteraction } = require("../../helpers/mockInteraction");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
 const ANNA = "200000000000000001";
 
-beforeAll(() => profiles.useFile(path.join(os.tmpdir(), `eh-cmd-event-signup-${process.pid}.json`)));
+beforeAll(() => profiles.useFile(tempStoreFile("eh-cmd-event-signup.json")));
 afterAll(() => {
     profiles.reset();
     profiles.useFile(null);

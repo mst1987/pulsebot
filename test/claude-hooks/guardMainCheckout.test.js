@@ -1,35 +1,8 @@
-const fs = require("fs");
-const os = require("os");
 const path = require("path");
 const { execFileSync } = require("child_process");
 
+const { makeRepo, removeRepo } = require("../helpers/tempRepo");
 const { decide, existingDir, targetPath, OVERRIDE_ENV } = require("../../.claude/hooks/guardMainCheckout");
-
-function git(args, cwd) {
-    return execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-}
-
-/**
- * A throwaway repository with one commit, a linked worktree and a git-ignored
- * file - the same shape as eventhelper + ../eventhelper-<name>.
- */
-function makeRepo() {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), "eh-guard-"));
-    const main = path.join(root, "repo");
-    const linked = path.join(root, "repo-feature");
-    fs.mkdirSync(main);
-    // `git init -b` needs git >= 2.28; the branch name is irrelevant here.
-    git(["init", "-q"], main);
-    git(["config", "user.email", "t@example.com"], main);
-    git(["config", "user.name", "t"], main);
-    git(["config", "commit.gpgsign", "false"], main);
-    fs.writeFileSync(path.join(main, ".gitignore"), ".env.dev\n");
-    fs.writeFileSync(path.join(main, "a.js"), "module.exports = 1;\n");
-    git(["add", "."], main);
-    git(["commit", "-q", "-m", "init"], main);
-    git(["worktree", "add", linked, "-b", "feature/x", "HEAD"], main);
-    return { root, main, linked };
-}
 
 describe("guardMainCheckout hook", () => {
     let repo;
@@ -41,8 +14,8 @@ describe("guardMainCheckout hook", () => {
     });
 
     afterAll(() => {
-        fs.rmSync(repo.root, { recursive: true, force: true });
-        fs.rmSync(other.root, { recursive: true, force: true });
+        removeRepo(repo);
+        removeRepo(other);
     });
 
     const edit = (file) => ({ tool_name: "Edit", tool_input: { file_path: file } });

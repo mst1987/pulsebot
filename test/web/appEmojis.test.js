@@ -76,6 +76,22 @@ describe("web/appEmojis", () => {
         expect(fetch).toHaveBeenCalledTimes(2);
     });
 
+    it("lets a read that was in flight when the cache was reset fall on the floor (#315)", async () => {
+        let release;
+        const pending = new Promise((resolve) => { release = resolve; });
+        const fetch = jest.fn(async () => {
+            await pending;
+            return new Map([["1", { id: "1", name: "eh_role_tank" }]]);
+        });
+        const inFlight = appEmojis.loadAppEmojis({ application: { emojis: { fetch } } });
+        // What a suite's beforeEach does between two tests - or a reconnect in the bot.
+        appEmojis.resetAppEmojis();
+        release();
+        await inFlight;
+        expect(appEmojis.appEmojiMap()).toEqual({});
+        expect(appEmojis.appEmojisLoaded()).toBe(false);
+    });
+
     it("keeps working without a client and retries a failed read only after a while", async () => {
         await expect(appEmojis.loadAppEmojis(null)).resolves.toEqual({});
         await expect(appEmojis.loadAppEmojis({ application: null })).resolves.toEqual({});

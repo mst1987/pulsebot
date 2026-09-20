@@ -73,6 +73,44 @@ function targetPath(input) {
 }
 
 /**
+ * The top-level directory of the *main* worktree when `filePath` lies in it and
+ * would dirty it, else null (a linked worktree, another repository, outside git,
+ * or a git-ignored file). Shared with guardMainShell.js.
+ * @param {string} filePath
+ * @param {object} opts { projectDir, gitFn }
+ */
+function primaryCheckoutOf(filePath, opts = {}) {
+    const gitFn = opts.gitFn || git;
+    const projectDir = opts.projectDir || process.env.CLAUDE_PROJECT_DIR || path.resolve(__dirname, "..", "..");
+
+    const dir = existingDir(filePath);
+    if (!dir) return null;
+
+    const target = repoDirs(dir, gitFn);
+    if (!target) return null; // not inside a git repository
+    if (target.gitDir !== target.commonDir) return null; // a linked worktree
+
+    const project = repoDirs(projectDir, gitFn);
+    if (!project || project.commonDir !== target.commonDir) return null; // another repo
+
+    if (isIgnored(filePath, dir, gitFn)) return null;
+    return tryGit(gitFn, ["rev-parse", "--show-toplevel"], dir) || path.dirname(target.commonDir);
+}
+
+/** The refusal shown for a write into the primary checkout (both guards use it). */
+function refusalText(what, filePath, top) {
+    return [
+        `${what} refused: ${path.resolve(filePath)} lies in the primary checkout (${top}).`,
+        "CLAUDE.md: the primary checkout stays on `main` with a clean working tree - every change,",
+        "however small, is made in a feature worktree:",
+        "    git fetch origin && git checkout main && git pull --ff-only origin main",
+        "    git worktree add ../eventhelper-<name> -b feature/<name> main",
+        "then edit the file under ../eventhelper-<name>/ instead.",
+        `(Deliberate override for a one-off: set ${OVERRIDE_ENV}=1.)`,
+    ].join("\n");
+}
+
+/**
  * Decide whether the edit may go ahead.
  * @param {object} input  hook payload from stdin
  * @param {object} opts   { projectDir, env, gitFn } - injectable for tests
@@ -87,31 +125,9 @@ function decide(input, opts = {}) {
     if (!filePath) return { allow: true };
     if (env[OVERRIDE_ENV] === "1") return { allow: true, reason: `${OVERRIDE_ENV}=1` };
 
-    const dir = existingDir(filePath);
-    if (!dir) return { allow: true };
-
-    const target = repoDirs(dir, gitFn);
-    if (!target) return { allow: true }; // not inside a git repository
-    if (target.gitDir !== target.commonDir) return { allow: true }; // a linked worktree
-
-    const project = repoDirs(projectDir, gitFn);
-    if (!project || project.commonDir !== target.commonDir) return { allow: true }; // another repo
-
-    if (isIgnored(filePath, dir, gitFn)) return { allow: true };
-
-    const top = tryGit(gitFn, ["rev-parse", "--show-toplevel"], dir) || path.dirname(target.commonDir);
-    return {
-        allow: false,
-        reason: [
-            `Edit refused: ${path.resolve(filePath)} lies in the primary checkout (${top}).`,
-            "CLAUDE.md: the primary checkout stays on `main` with a clean working tree - every change,",
-            "however small, is made in a feature worktree:",
-            "    git fetch origin && git checkout main && git pull --ff-only origin main",
-            "    git worktree add ../eventhelper-<name> -b feature/<name> main",
-            "then edit the file under ../eventhelper-<name>/ instead.",
-            `(Deliberate override for a one-off: set ${OVERRIDE_ENV}=1.)`,
-        ].join("\n"),
-    };
+    const top = primaryCheckoutOf(filePath, { projectDir, gitFn });
+    if (!top) return { allow: true };
+    return { allow: false, reason: refusalText("Edit", filePath, top) };
 }
 
 function readStdin() {
@@ -133,4 +149,4 @@ if (require.main === module) {
     process.exit(main());
 }
 
-module.exports = { decide, existingDir, repoDirs, targetPath, OVERRIDE_ENV };
+module.exports = { decide, existingDir, repoDirs, targetPath, primaryCheckoutOf, refusalText, OVERRIDE_ENV };

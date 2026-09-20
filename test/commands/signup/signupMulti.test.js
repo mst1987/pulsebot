@@ -4,8 +4,6 @@
 // das Ergebnis je Raid mit Gründen, abgelaufene Auswahl und „Mehrere Charaktere …“
 // an einem einzelnen Event.
 const { MessageFlags } = require("discord.js");
-const os = require("os");
-const path = require("path");
 
 jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
@@ -21,13 +19,14 @@ const all = require("../../../src/commands/signup/talkSignupAll");
 const pickRaids = require("../../../src/commands/signup/talkSignupMulti");
 const step = require("../../../src/commands/signup/signupMulti");
 const { mockInteraction } = require("../../helpers/mockInteraction");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
 const ANNA = "200000000000000001";
 const BERT = "200000000000000002";
 const DAY = 86400;
 const sec = () => Math.floor(Date.now() / 1000);
 
-beforeAll(() => profiles.useFile(path.join(os.tmpdir(), `eh-cmd-signup-multi-${process.pid}.json`)));
+beforeAll(() => profiles.useFile(tempStoreFile("eh-cmd-signup-multi.json")));
 afterAll(() => {
     profiles.reset();
     profiles.useFile(null);

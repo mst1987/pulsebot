@@ -1,8 +1,6 @@
 // Die Status-Buttons im Anmelde-Dialog (#258): speichern über den signupService
 // (echte Regeln auf Test-Stores), Bestätigung in derselben Nachricht, Deadline,
 // Abmelden ohne Charakter und der Weg ohne Profil über das Namens-Modal.
-const os = require("os");
-const path = require("path");
 
 jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
@@ -14,12 +12,13 @@ const mocks = require("../../helpers/signupMocks");
 const profiles = require("../../../src/web/raiderProfileStore");
 const command = require("../../../src/commands/signup/signupStatus");
 const { mockInteraction } = require("../../helpers/mockInteraction");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
 const ANNA = "200000000000000001";
 const NOBODY = "200000000000000009";
 const payloadOf = (i) => i.update.mock.calls[0][0];
 
-beforeAll(() => profiles.useFile(path.join(os.tmpdir(), `eh-cmd-signup-status-${process.pid}.json`)));
+beforeAll(() => profiles.useFile(tempStoreFile("eh-cmd-signup-status.json")));
 afterAll(() => {
     profiles.reset();
     profiles.useFile(null);

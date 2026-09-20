@@ -3,8 +3,6 @@
 // Charakter bzw. Auswahl), Absagen mit Grund, Anmeldeschluss/geschlossen/abgesagt,
 // Raider-Rolle, alte customIds.
 const { MessageFlags } = require("discord.js");
-const os = require("os");
-const path = require("path");
 
 jest.mock("../../../src/web/eventStore", () => require("../../helpers/signupMocks").eventStore());
 jest.mock("../../../src/web/signupStore", () => require("../../helpers/signupMocks").signupStore());
@@ -20,6 +18,7 @@ const {
 } = require("../../../src/utils/signupButtons");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
 const ANNA = "200000000000000001";
 const sec = () => Math.floor(Date.now() / 1000);
@@ -30,7 +29,7 @@ const selectOf = (payload) => payload.components[0].components[0];
 const stored = () => mocks.signups.get(`eh-kara/${ANNA}`);
 const statuses = () => stored().characters.map((c) => [c.character, c.status]);
 
-beforeAll(() => profiles.useFile(path.join(os.tmpdir(), `eh-cmd-event-button-${process.pid}.json`)));
+beforeAll(() => profiles.useFile(tempStoreFile("eh-cmd-event-button.json")));
 afterAll(() => {
     profiles.reset();
     profiles.useFile(null);

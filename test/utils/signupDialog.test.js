@@ -1,7 +1,5 @@
 // Der Anmelde-Dialog in Discord (#258): Aufbau der Nachricht, Zustand in den
 // customIds, Längenbegrenzung.
-const os = require("os");
-const path = require("path");
 
 jest.mock("../../src/web/eventStore", () => require("../helpers/signupMocks").eventStore());
 jest.mock("../../src/web/signupStore", () => require("../helpers/signupMocks").signupStore());
@@ -10,11 +8,12 @@ jest.mock("../../src/config/variables", () => ({ publicBaseUrl: "https://eh.exam
 const mocks = require("../helpers/signupMocks");
 const profiles = require("../../src/web/raiderProfileStore");
 const dialog = require("../../src/utils/signupDialog");
+const { tempStoreFile } = require("../helpers/tempStore");
 
 const ANNA = "200000000000000001";
 const NOBODY = "200000000000000009";
 
-beforeAll(() => profiles.useFile(path.join(os.tmpdir(), `eh-signup-dialog-${process.pid}.json`)));
+beforeAll(() => profiles.useFile(tempStoreFile("eh-signup-dialog.json")));
 afterAll(() => {
     profiles.reset();
     profiles.useFile(null);

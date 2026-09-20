@@ -1,15 +1,14 @@
 // /profil: kurze Zusammenfassung des eigenen Profils, Link ins Web und die
 // Schnell-Schalter "kann Offtank" / "kann heilen".
 const { MessageFlags } = require("discord.js");
-const os = require("os");
-const path = require("path");
 const store = require("../../../src/web/raiderProfileStore");
 const command = require("../../../src/commands/profile/profil");
 const { mockInteraction } = require("../../helpers/mockInteraction");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
 const USER = "300000000000000001";
 
-beforeAll(() => store.useFile(path.join(os.tmpdir(), `eh-profiles-cmd-${process.pid}.json`)));
+beforeAll(() => store.useFile(tempStoreFile("eh-profiles-cmd.json")));
 afterEach(() => store.reset());
 afterAll(() => store.useFile(null));
 

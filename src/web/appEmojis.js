@@ -109,6 +109,11 @@ let cache = {};
 let loadedAt = 0;
 let failedAt = 0;
 let loading = null;
+// Counts how often the cache was thrown away. A fetch that was already on its
+// way when that happened must not write its answer into the new cache
+// afterwards - in a test suite that is one test's Discord client answering into
+// the next test (#315), in the bot a reconnect racing a reset.
+let generation = 0;
 
 /** The cached map (possibly empty). */
 function appEmojiMap() {
@@ -146,15 +151,18 @@ async function loadAppEmojis(client, { force = false, now = Date.now() } = {}) {
     if (loading) return loading;
     const app = client && client.application;
     if (!app || !app.emojis || typeof app.emojis.fetch !== "function") return cache;
+    const mine = generation;
     loading = (async () => {
         try {
-            return setAppEmojis(await app.emojis.fetch());
+            const list = await app.emojis.fetch();
+            if (mine !== generation) return cache; // the cache was reset while this was in flight
+            return setAppEmojis(list);
         } catch (e) {
-            failedAt = now;
+            if (mine === generation) failedAt = now;
             console.warn(`[appEmojis] Emojis nicht lesbar: ${e.message}`);
             return cache;
         } finally {
-            loading = null;
+            if (mine === generation) loading = null;
         }
     })();
     return loading;
@@ -165,12 +173,13 @@ function emojiFor(name, fallback = "") {
     return emojiText(cache, name, fallback);
 }
 
-/** Forget everything (tests). */
+/** Forget everything (tests); a fetch still in flight no longer reaches the cache. */
 function resetAppEmojis() {
     cache = {};
     loadedAt = 0;
     failedAt = 0;
     loading = null;
+    generation++;
 }
 
 module.exports = {
