@@ -1,5 +1,5 @@
 // JSON API layer for the React admin client (src/web-client/), the sole admin
-// UI (see CLAUDE.md's "Web Admin" section). Mounted under /api/* by server.js's
+// UI (see docs/web-admin.md). Mounted under /api/* by server.js's
 // handle(). Route handlers live in apiRoutes/, grouped by domain.
 const { error } = require("./apiResponse");
 const auth = require("./auth");
