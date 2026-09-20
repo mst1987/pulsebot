@@ -1,6 +1,11 @@
 // The page head: date block, kicker + category, title, time and the relative
 // day, two icon buttons (event post, raidplan), the one primary action — and
 // under it the progress bar, where every step is figure, status and entry at once.
+//
+// An own event (#319) hands in its five-step cockpit as `cockpit` instead; it
+// carries the one prominent deed itself, so the head's primary button stays out
+// of the way — the same action twice in one head is exactly the doubling the
+// cockpit exists to end. A Raid-Helper event keeps the bar of #219 unchanged.
 import type { ReactNode } from "react";
 import type { RaidDetailData, RaidPrimaryAction, RaidStep } from "../../api";
 import { eventTimeParts, relativeDayLabel } from "../../lib/format";
@@ -40,21 +45,23 @@ function StepCell({ step, onOpen }: { step: RaidStep; onOpen: (step: RaidStep) =
     );
 }
 
-export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning, manage }: {
+export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning, manage, cockpit }: {
     data: RaidDetailData;
     onStep: (step: RaidStep) => void;
     onPrimary: (action: RaidPrimaryAction) => void;
     primaryRunning: boolean;
     /** only for an own event and write access: the "Verwalten" menu (#288) — editing (#261) is its first entry */
     manage?: ReactNode;
+    /** an own event's step bar (#319); it replaces the progress bar and the primary button */
+    cockpit?: ReactNode;
 }) {
     const ev = data.event;
     const when = eventTimeParts(ev.startTime);
     const relDay = relativeDayLabel(ev.startTime);
     const channel = ev.channelName || ev.channelId;
     const cancelled = ev.status === "cancelled";
-    // A cancelled raid has no next step to push.
-    const primary = cancelled ? null : data.progress?.primary || null;
+    // A cancelled raid has no next step to push, and the cockpit brings its own.
+    const primary = cancelled || cockpit ? null : data.progress?.primary || null;
 
     return (
         <header className="page-hero rd-hero">
@@ -120,11 +127,11 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                         ))}
                 </div>
             </div>
-            {!!data.progress?.steps?.length && (
+            {cockpit || (!!data.progress?.steps?.length && (
                 <div className="rd-steps">
                     {data.progress.steps.map((s) => <StepCell key={s.key} step={s} onOpen={onStep} />)}
                 </div>
-            )}
+            ))}
         </header>
     );
 }

@@ -5,7 +5,8 @@
 // test/web-client/eventManage.test.js runs it for real.
 import type { ManageCandidates, ManageDeletion, ManageRaider, ManageSpec, MovePlan, SignupStatus } from "../api";
 
-export type ManageAction = "edit" | "move" | "signups" | "raider" | "ping" | "setup" | "history" | "cancel" | "reopen" | "delete";
+export type ManageAction = "edit" | "move" | "signups" | "raider" | "ping" | "setup" | "history" | "cancel" | "reopen" | "delete"
+    | "notify" | "sheet" | "softres";
 export type ManageMenuEntry = { id: ManageAction; label: string; icon: string; sub: string; danger: boolean } | "sep";
 export type ManageState = { cancelled: boolean; signupsClosed: boolean; isPast: boolean; logCount: number };
 
@@ -22,6 +23,13 @@ function sep(): ManageMenuEntry {
  * A cancelled event offers nothing but taking it back, its history and deleting;
  * a raid that started can no longer be moved, closed, pinged or cancelled — only
  * deleted, with a confirmation (the dialog says what is lost).
+ *
+ * Since the step bar (#319) the menu holds the *rare* things. What belongs to a
+ * step moved into that step's row — Bearbeiten, Fehlende pingen, Setup öffnen —
+ * and what the old progress bar used to be the only way to (Anmelde-Aufruf,
+ * Raidsheet, Softres) moved in here instead. „Anmeldung öffnen/schließen“
+ * deliberately stays: it is a switch that has to be reachable in both
+ * directions, while the step only offers closing in the moment it is due.
  */
 export function manageMenu(state: ManageState): ManageMenuEntry[] {
     const history = entry("history", "Verlauf", "inv_misc_book_09", state.logCount ? `${state.logCount} Einträge — wer hat wann was geändert` : "Noch nichts geändert", false);
@@ -35,16 +43,19 @@ export function manageMenu(state: ManageState): ManageMenuEntry[] {
             remove,
         ];
     }
-    const out = [entry("edit", "Bearbeiten", "inv_misc_note_05", "Titel, Raid, Größe und Anmeldeschluss", false)];
+    const out = [entry("raider", "Raider eintragen", "inv_misc_groupneedmore", "Jemanden an- oder austragen", false)];
     if (!state.isPast) {
-        out.push(entry("move", "Verschieben", "inv_misc_pocketwatch_02", "Neuer Termin — der Kanal wird mit umbenannt", false));
-        out.push(state.signupsClosed
-            ? entry("signups", "Anmeldung öffnen", "inv_misc_note_02", "Raider können sich wieder anmelden", false)
-            : entry("signups", "Anmeldung schließen", "inv_misc_note_02", "Nur noch Abmelden möglich; die Orga trägt weiter ein", false));
+        out.unshift(
+            entry("move", "Verschieben", "inv_misc_pocketwatch_02", "Neuer Termin — der Kanal wird mit umbenannt", false),
+            state.signupsClosed
+                ? entry("signups", "Anmeldung öffnen", "inv_misc_note_02", "Raider können sich wieder anmelden", false)
+                : entry("signups", "Anmeldung schließen", "inv_misc_note_02", "Nur noch Abmelden möglich; die Orga trägt weiter ein", false),
+        );
     }
-    out.push(entry("raider", "Raider eintragen", "inv_misc_groupneedmore", "Jemanden an- oder austragen", false));
-    if (!state.isPast) out.push(entry("ping", "Fehlende pingen", "spell_holy_borrowedtime", "Raider-Rolle, aber noch keine Reaktion", false));
-    out.push(entry("setup", "Setup öffnen", "inv_misc_map_01", "Gruppen einteilen und freigeben", false));
+    out.push(sep());
+    if (!state.isPast) out.push(entry("notify", "Anmelde-Aufruf", "inv_letter_15", "Vorlage in den Kanal posten und Rollen pingen", false));
+    out.push(entry("sheet", "Raidsheet", "inv_scroll_03", "Kopie der Vorlage füllen und posten", false));
+    out.push(entry("softres", "Softres-Liste", "inv_misc_ticket_tarot_madness", "Liste erstellen oder verlinken", false));
     out.push(sep(), history);
     out.push(sep());
     if (!state.isPast) out.push(entry("cancel", "Absagen", "ability_creature_cursed_02", "Mit Grund — DM an alle Angemeldeten", true));

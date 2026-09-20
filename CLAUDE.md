@@ -140,7 +140,7 @@ Dieses Dokument ist der Einstieg und bleibt kurz: hier steht nur, was *jeder* Ag
 | [docs/web-admin.md](docs/web-admin.md) | Aufbau der React-SPA und der `/api`-Routen, Routing ab Site-Root, Seitenaufbau mit vielen Abschnitten, Sammlungen bearbeiten, welcher Stand läuft |
 | [docs/permissions.md](docs/permissions.md) | Bereiche und Level (`read`/`write`), Basiszugang, Einzelkonten, wo Zugriff erzwungen wird (`apiAccess.js`) |
 | [docs/discord-servers.md](docs/discord-servers.md) | Event- und Talk-Server, Pings, Erinnerungen, Rollen-Abgleich, Raid-Übersicht auf dem Talk-Server |
-| [docs/events.md](docs/events.md) | Eigene Events: Store und Adapter, Anlegen im Web, Event verwalten, Serien, Discord-Event, Kalender-Link und öffentliche Event-Seite |
+| [docs/events.md](docs/events.md) | Eigene Events: Store und Adapter, Anlegen im Web, das Raid-Cockpit der Detailseite, Event verwalten, Serien, Discord-Event, Kalender-Link und öffentliche Event-Seite |
 | [docs/signups.md](docs/signups.md) | Anmeldung im Web und im Bot, mehrere Raids auf einmal, Anmelder-Nachricht, Warteliste und Ankündigung, App-Emojis |
 | [docs/setup.md](docs/setup.md) | Setup-Vorschlag, Setup-Editor und das Setup im Kanal (Nachricht + DMs) |
 | [docs/raid-templates.md](docs/raid-templates.md) | Spielversionen und Instanzen (`src/config/gameVersions/`) sowie Raid-Vorlagen |

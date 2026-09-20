@@ -61,7 +61,7 @@ export default function ManageMenu({ state, onAction }: { state: ManageState; on
                 variant="ghost" icon="inv_misc_note_05" aria-haspopup="menu" aria-expanded={open}
                 className={open ? "em-open" : undefined}
                 data-tip={open ? undefined : "Event verwalten"}
-                data-tip-sub={open ? undefined : "Bearbeiten, verschieben, Anmeldung schließen, Raider eintragen, absagen"}
+                data-tip-sub={open ? undefined : "Verschieben, Anmeldung schließen, Raider eintragen, Anmelde-Aufruf, Raidsheet, Softres, absagen"}
                 onClick={() => setOpen((o) => !o)}
             >
                 Verwalten<span className="em-chev" aria-hidden="true"><ChevronDownIcon /></span>

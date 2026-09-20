@@ -1740,6 +1740,20 @@ describe("web/apiRouter", () => {
             // no setup yet (#263): the way leads into the setup editor, and the payload names no raider
             expect(data.ownSetup).toBeNull();
             expect(data.progress.primary).toMatchObject({ tab: "setup", label: "Setup vorschlagen" });
+            // …and the five-step cockpit (#319) rides along, so /raids can use the same answer later
+            expect(data.steps.steps.map((s) => s.id)).toEqual(["created", "signup", "setup", "approval", "after"]);
+            expect(data.steps.cancelled).toBe(false);
+            expect(data.event).toMatchObject({ size: 10, signupDeadline: 0, autoSuggest: false });
+            expect(data.ownSetupPost).toBeNull();
+        });
+
+        it("sends no step bar for a Raid-Helper event — it keeps today's view (#319)", async () => {
+            setupDefaults();
+            const res = await get("/api/raids/detail", { event: "e1" });
+            const data = body(res).data;
+            expect(data.event.source).toBe("raidhelper");
+            expect(data.steps).toBeNull();
+            expect(data.progress.steps.length).toBe(6);
         });
 
         it("returns the full read-only overview: setup, attendance, sheet/softres links and loot", async () => {
