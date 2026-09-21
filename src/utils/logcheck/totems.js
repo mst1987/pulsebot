@@ -4,12 +4,19 @@
 // markers), how long its party buff was actually up (bands from the buffs
 // table, sourced by that shaman), where it fell off (downtimes), and — for the
 // enhancement shaman — whether Windfury and Grace of Air were twisted and how
-// much Windfury uptime the twisting cost. Nothing here is estimated from
-// rotation theory: the buff bands are what the log saw on the party.
+// much Windfury uptime the twisting cost. Where the log saw the party buff,
+// its bands are used as they are. ⚠️ The Anniversary client logs no totem
+// aura at all (no Windfury, Grace of Air, Strength of Earth … on anybody —
+// verified against a real Hyjal/BT log, Sept 2026), so a buffed totem whose
+// buff never shows up is judged from its drops instead (`derived`): standing
+// from the drop until the next totem in its slot, its duration or the end of
+// judging, and Windfury with its 5-s pulse and 10-s buff (`windfuryBands`).
 const { TOTEMS, SLOTS, totemByCast, totemByBuff } = require("../../config/totems");
 const { clipBands, mergeBands, gapsBetween } = require("./fightTimeline");
 
 const MIN_GAP_MS = 1000;   // a sub-second flicker between refreshes is not a gap
+const WF_PULSE_MS = 5000;  // Windfury Totem re-applies its weapon buff every 5 s …
+const WF_BUFF_MS = 10000;  // … and each application lasts 10 s
 
 function idFilter(ids) {
     return `ability.id in (${ids.join(",")})`;
@@ -39,6 +46,23 @@ function presenceBands(casts, slotCasts, def, judgeEnd) {
     return casts.map((c) => {
         const next = slotCasts.find((t) => t > c);
         const to = Math.min(judgeEnd, c + def.duration * 1000, next === undefined ? Infinity : next);
+        return to > c ? [c, to] : null;
+    }).filter(Boolean);
+}
+
+/**
+ * Windfury on the party, derived from the drops: the totem pulses its weapon
+ * buff at the drop and every 5 s while it stands, each pulse lasting 10 s. A
+ * pulse stops when another air totem replaces it, the totem runs out or
+ * judging ends — the last buff then still runs its 10 s, which is what makes
+ * twisting work.
+ */
+function windfuryBands(wfCasts, airCasts, def, judgeEnd) {
+    return wfCasts.map((c) => {
+        const next = airCasts.find((t) => t > c);
+        const stop = Math.min(judgeEnd, c + def.duration * 1000, next === undefined ? Infinity : next);
+        const lastPulse = c + Math.floor((stop - c) / WF_PULSE_MS) * WF_PULSE_MS;
+        const to = Math.min(judgeEnd, lastPulse + WF_BUFF_MS);
         return to > c ? [c, to] : null;
     }).filter(Boolean);
 }
@@ -116,12 +140,20 @@ function analyzeShamanFight({ name, type, casts, auras, start, end, deathAt }) {
     for (const [key, drops] of dropsByKey) {
         const def = TOTEMS.find((d) => d.key === key);
         const buffed = def.buffIds.length > 0;
-        const band = mergeBands(buffed ? (buffByKey.get(key) || []) : presenceBands(drops, slotCasts[def.slot], def, judgeEnd));
+        const logged = buffByKey.get(key) || [];
+        const derived = buffed && logged.length === 0;
+        let raw = logged;
+        if (!buffed || derived) {
+            raw = key === "windfury"
+                ? windfuryBands(drops, slotCasts[def.slot], def, judgeEnd)
+                : presenceBands(drops, slotCasts[def.slot], def, judgeEnd);
+        }
+        const band = mergeBands(raw);
         const firstAt = drops[0];
         const down = downtimesBetween(band, firstAt, judgeEnd);
         slotPresence[def.slot] = [...(slotPresence[def.slot] || []), ...band];
         rows.push({
-            key, label: def.label, icon: def.icon, slot: def.slot, buffed,
+            key, label: def.label, icon: def.icon, slot: def.slot, buffed, derived,
             markers: drops.map((at) => ({ at, icon: def.icon, label: def.label })),
             band,
             downtimes: buffed ? down.gaps : [],
@@ -154,6 +186,7 @@ function analyzeShamanFight({ name, type, casts, auras, start, end, deathAt }) {
             cycles: cycles.length,
             avgCycleMs: cycles.length ? Math.round(cycles.reduce((n, c) => n + c, 0) / cycles.length) : null,
             wfUptimePct: wfRow ? wfRow.uptimePct : null,
+            derived: wfRow ? wfRow.derived : false,
             gapCount: wfRow ? wfRow.downtimes.length : 0,
             downtimeMs: wfRow ? wfRow.downtimes.reduce((n, [a, z]) => n + (z - a), 0) : 0,
             longestGap: wfRow ? wfRow.longestGap : 0,
@@ -175,13 +208,14 @@ function summarize(fights) {
     for (const f of fights) {
         for (const s of f.totems || []) {
             if (!byName.has(s.name)) {
-                byName.set(s.name, { name: s.name, type: s.type, roles: {}, fights: 0, wfFights: 0, wfUptimeSum: 0, twistingFights: 0, downtimeMs: 0, gapCount: 0, slotDowntimeMs: {} });
+                byName.set(s.name, { name: s.name, type: s.type, roles: {}, fights: 0, wfFights: 0, wfDerivedFights: 0, wfUptimeSum: 0, twistingFights: 0, downtimeMs: 0, gapCount: 0, slotDowntimeMs: {} });
             }
             const r = byName.get(s.name);
             r.fights++;
             if (s.role) r.roles[s.role] = (r.roles[s.role] || 0) + 1;
             if (s.twisting) {
                 r.wfFights++;
+                if (s.twisting.derived) r.wfDerivedFights++;
                 r.wfUptimeSum += s.twisting.wfUptimePct || 0;
                 if (s.twisting.detected) r.twistingFights++;
                 r.downtimeMs += s.twisting.downtimeMs;
@@ -196,6 +230,7 @@ function summarize(fights) {
         fights: r.fights,
         wfFights: r.wfFights,
         wfUptimeAvg: r.wfFights ? Math.round(r.wfUptimeSum / r.wfFights) : null,
+        wfDerived: r.wfDerivedFights > 0,
         twistingFights: r.twistingFights,
         downtimeMs: r.downtimeMs,
         gapCount: r.gapCount,
@@ -243,4 +278,4 @@ async function analyzeTotems(wcl, reportId, fights, players, timeline) {
     return { players: summarize(timeline.fights) };
 }
 
-module.exports = { analyzeTotems, analyzeShamanFight, summarize, twistCycles, presenceBands, downtimesBetween, roleFor };
+module.exports = { analyzeTotems, analyzeShamanFight, summarize, twistCycles, presenceBands, windfuryBands, downtimesBetween, roleFor };

@@ -1,5 +1,5 @@
 const {
-    analyzeTotems, analyzeShamanFight, summarize, twistCycles, presenceBands, downtimesBetween, roleFor,
+    analyzeTotems, analyzeShamanFight, summarize, twistCycles, presenceBands, windfuryBands, downtimesBetween, roleFor,
 } = require("../../../src/utils/logcheck/totems");
 const { TOTEMS, SLOTS, totemByCast, totemByBuff } = require("../../../src/config/totems");
 
@@ -70,6 +70,15 @@ describe("logcheck/totems — helpers", () => {
         expect(downtimesBetween([[0, 10]], 10, 10).gaps).toEqual([]);
     });
 
+    it("lets Windfury linger 10 s after its last 5-s pulse once another air totem replaces it", () => {
+        const wf = def("windfury");
+        // replaced after 4 s: only the drop pulsed → 10 s; after 7 s: pulse at +5 s → 15 s
+        expect(windfuryBands([1000, 20000], [1000, 5000, 20000, 27000], wf, 100000)).toEqual([[1000, 11000], [20000, 35000]]);
+        // standing alone: pulses for its full duration, cut at the end of judging
+        expect(windfuryBands([1000], [1000], wf, 60000)).toEqual([[1000, 60000]]);
+        expect(windfuryBands([1000], [1000], { ...wf, duration: 20 }, 100000)).toEqual([[1000, 31000]]);
+    });
+
     it("reads the role off the totem choice", () => {
         expect(roleFor(new Set(["windfury", "manaSpring"]))).toBe("melee");
         expect(roleFor(new Set(["totemOfWrath"]))).toBe("caster");
@@ -127,6 +136,30 @@ describe("logcheck/totems — analyzeShamanFight", () => {
             start: START, end: END, deathAt: null,
         });
         expect(r.twisting).toEqual(expect.objectContaining({ detected: false, cycles: 0, avgCycleMs: null, wfUptimePct: 100, gapCount: 0 }));
+    });
+
+    it("derives the Windfury uptime from the drops when the log carries no totem buff (Anniversary)", () => {
+        const r = analyzeShamanFight({ name: "Rasheedx", casts: [...twistingCasts(), cast("strengthOfEarth", 500)], auras: [], start: START, end: END, deathAt: null });
+        expect(r.twisting.detected).toBe(true);
+        expect(r.twisting.derived).toBe(true);
+        expect(r.twisting.wfUptimePct).toBe(100);
+        expect(r.twisting.gapCount).toBe(0);
+        const wf = r.rows.find((x) => x.key === "windfury");
+        expect(wf).toEqual(expect.objectContaining({ buffed: true, derived: true, uptimePct: 100 }));
+        // a buffed totem without its buff stands from the drop, not "down the whole fight"
+        expect(r.rows.find((x) => x.key === "strengthOfEarth")).toEqual(expect.objectContaining({ derived: true, uptimePct: 100, downtimes: [] }));
+        expect(r.slots.air.uptimePct).toBe(100);
+
+        const slow = analyzeShamanFight({ name: "Rasheedx", casts: twistingCasts(120000, 13000), auras: [], start: START, end: END, deathAt: null });
+        expect(slow.twisting.gapCount).toBe(9);
+        expect(slow.twisting.downtimeMs).toBe(9 * 3000);
+        expect(slow.rows[0].downtimes[0]).toEqual([11000, 14000]);
+    });
+
+    it("keeps the logged buff where there is one and does not call it derived", () => {
+        const r = analyzeShamanFight({ name: "Dorn", casts: [cast("windfury", 1000)], auras: [aura("windfury", [[1000, 61000]])], start: START, end: END, deathAt: null });
+        expect(r.twisting.derived).toBe(false);
+        expect(r.twisting.wfUptimePct).toBe(50);
     });
 
     it("stops judging at the shaman's death, so the rest of the fight is not a gap", () => {
@@ -188,8 +221,8 @@ describe("logcheck/totems — summarize", () => {
             { totems: null },
         ]);
         expect(rows).toEqual([
-            { name: "Dorn", type: "Shaman", role: "melee", fights: 2, wfFights: 2, wfUptimeAvg: 80, twistingFights: 1, downtimeMs: 25000, gapCount: 6, slotDowntimeMs: { air: 25000, earth: 0 } },
-            { name: "Heal", type: "Shaman", role: "healer", fights: 1, wfFights: 0, wfUptimeAvg: null, twistingFights: 0, downtimeMs: 0, gapCount: 0, slotDowntimeMs: { water: 3000 } },
+            { name: "Dorn", type: "Shaman", role: "melee", fights: 2, wfFights: 2, wfUptimeAvg: 80, wfDerived: false, twistingFights: 1, downtimeMs: 25000, gapCount: 6, slotDowntimeMs: { air: 25000, earth: 0 } },
+            { name: "Heal", type: "Shaman", role: "healer", fights: 1, wfFights: 0, wfUptimeAvg: null, wfDerived: false, twistingFights: 0, downtimeMs: 0, gapCount: 0, slotDowntimeMs: { water: 3000 } },
         ]);
     });
 });
