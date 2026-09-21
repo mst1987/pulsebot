@@ -106,6 +106,18 @@ function normalizeCategoryAnnounce(raw) {
     return out;
 }
 
+// The message with "Vielleicht" / "Absagen" per category: "optional" is kept in
+// the patch (the store merges, then drops it), anything unknown becomes it.
+function normalizeCategorySignupNotesPatch(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [categoryId, mode] of Object.entries(raw)) {
+        const id = String(categoryId).trim();
+        if (id) out[id] = ["required", "none"].includes(mode) ? mode : "optional";
+    }
+    return out;
+}
+
 // A fixed sheet per category: only a http(s) link is stored. Anything else
 // (javascript:, a bare word, an empty field) becomes "", which settingsStore's
 // normalizer then drops — so a category is either unassigned or carries a link
@@ -149,7 +161,7 @@ const ROLE_SYNC_KEYS = ["roleSync"];
 // Everything a non-admin settings user may neither read nor write.
 const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS];
 
-const DISCORD_SERVER_FIELDS = ["eventGuildId", "talkGuildId", "talkOverviewChannelId", "talkPingChannelId"];
+const DISCORD_SERVER_FIELDS = ["eventGuildId", "talkGuildId", "talkOverviewChannelId", "talkPingChannelId", "signupNoteChannelId"];
 
 /** GET /api/settings — config + raidsheets + the active guild's roles/categories. */
 async function getSettings(req, res) {
@@ -383,6 +395,7 @@ async function updateSettings(req, res) {
     if (body.categoryDiscordEvent !== undefined) partial.categoryDiscordEvent = normalizeCategoryDiscordEvent(body.categoryDiscordEvent);
     if (body.categoryVoiceChannel !== undefined) partial.categoryVoiceChannel = normalizeCategoryVoiceChannel(body.categoryVoiceChannel);
     if (body.categoryAnnounce !== undefined) partial.categoryAnnounce = normalizeCategoryAnnounce(body.categoryAnnounce);
+    if (body.categorySignupNotes !== undefined) partial.categorySignupNotes = normalizeCategorySignupNotesPatch(body.categorySignupNotes);
     if (body.categorySheets !== undefined) partial.categorySheets = normalizeCategorySheets(body.categorySheets);
     // Sent whole; an id no template has is dropped, so a category can never
     // point at a template that is not there (the store normalises the rest).

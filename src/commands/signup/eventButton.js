@@ -9,8 +9,9 @@ const { characterOptions } = require("../../utils/joinPicker");
 const { classLabel } = require("../../utils/signupDialog");
 const {
     parseButtonId, refusal, savedText, picksWithStatus, firstCharacterTo, withAddedCharacter, orderedValues,
-    buildCharacterPicker, buildClassPicker, buildSpecPicker, buildNameModal, buildAbsenceModal, STATUS_WORD,
+    buildCharacterPicker, buildClassPicker, buildSpecPicker, buildNameModal, buildNoteModal, STATUS_WORD,
 } = require("../../utils/signupButtons");
+const { noteMode, MIN_NOTE } = require("../../web/signupNotes");
 
 // The signup buttons under an EventHelper event message and every step after
 // them — see utils/signupButtons.js for the flow and the customIds. Every answer
@@ -28,6 +29,34 @@ const done = (interaction, content) => interaction.update({ content, embeds: [],
 async function emojisFor(interaction) {
     if (interaction.client) await loadAppEmojis(interaction.client);
     return appEmojiMap();
+}
+
+// The "Vielleicht" message of a member who still has to pick a character: the
+// modal comes first, the character select after it, and a customId has no room
+// for the text. Kept per event and member for a while, taken by the save.
+const NOTE_TTL_MS = 30 * 60 * 1000;
+const pendingNotes = new Map();
+const noteKey = (eventId, uid) => `${eventId}:${uid}`;
+
+function keepNote(eventId, uid, status, note, now = Date.now()) {
+    for (const [key, entry] of pendingNotes) if (now - entry.at > NOTE_TTL_MS) pendingNotes.delete(key);
+    pendingNotes.set(noteKey(eventId, uid), { status, note, at: now });
+}
+
+/** `{ comment }` for a save with this status, when a fresh message waits for it — else {}. */
+function takeNote(eventId, uid, status, now = Date.now()) {
+    const key = noteKey(eventId, uid);
+    const entry = pendingNotes.get(key);
+    if (!entry) return {};
+    pendingNotes.delete(key);
+    return entry.status === status && now - entry.at <= NOTE_TTL_MS ? { comment: entry.note } : {};
+}
+
+/** The message a modal brought, or `{ error }` when the category requires one and it is too short. */
+function noteFrom(interaction, event) {
+    const note = String(interaction.fields.getTextInputValue("reason") || "").replace(/\s+/g, " ").trim();
+    if (noteMode(event.categoryId) === "required" && note.length < MIN_NOTE) return { error: "Please leave a short message." };
+    return { note };
 }
 
 const displayName = (interaction) => (interaction.member && interaction.member.displayName) || (interaction.user && interaction.user.username) || "";
@@ -83,15 +112,20 @@ async function onClass(interaction, event, classId) {
     return reply(interaction, buildSpecPicker(event, "signed", classId, { emojis }) || "Unbekannte Klasse.");
 }
 
-/** Spät / Vielleicht / Bank:the first character of an existing signup, else ask for one. */
-async function onStatus(interaction, event, status) {
+/**
+ * Spät / Vielleicht / Bank: the first character of an existing signup, else ask for one.
+ * `note` is the message of the "Vielleicht" modal (undefined = none was asked for).
+ */
+async function onStatus(interaction, event, status, { note } = {}) {
     const uid = interaction.user.id;
     const why = await blocked(event, uid, status);
     if (why) return reply(interaction, why);
+    const comment = note === undefined ? {} : { comment: note };
     const moved = firstCharacterTo(getSignup(event.id, uid), status);
     if (moved) {
-        return save(interaction, event, { characters: moved, status });
+        return save(interaction, event, { characters: moved, status, ...comment });
     }
+    if (note !== undefined) keepNote(event.id, uid, status, note);
     const emojis = await emojisFor(interaction);
     const options = characterOptions(profiles.getProfile(uid) || { characters: [] });
     if (!options.length) {
@@ -105,7 +139,8 @@ async function onPick(interaction, event, status) {
     const listed = (interaction.component && interaction.component.options) || [];
     const picks = orderedValues(interaction.values, listed);
     if (!picks.length) return done(interaction, "Kein Charakter gewählt.");
-    return save(interaction, event, { characters: picksWithStatus(picks, status), status }, { update: true });
+    const note = takeNote(event.id, interaction.user.id, status);
+    return save(interaction, event, { characters: picksWithStatus(picks, status), status, ...note }, { update: true });
 }
 
 /** The name modal: add the character (or its spec) to the profile, then add it to the signup. */
@@ -130,22 +165,37 @@ async function onName(interaction, event, status, specKey) {
     if (added.error) return done(interaction, `⚠️ ${added.error}`);
     const next = withAddedCharacter(getSignup(event.id, uid), { character: added.character.name, spec: info.key, status });
     if (next.error) return done(interaction, `⚠️ ${next.error}`);
-    return save(interaction, event, { characters: next.characters, status: next.status }, { update: true });
+    const note = takeNote(event.id, uid, next.status);
+    return save(interaction, event, { characters: next.characters, status: next.status, ...note }, { update: true });
 }
 
-/** The absence modal: sign off with the reason as the comment (the characters stay on record). */
-async function onAbsence(interaction, event) {
-    const uid = interaction.user.id;
-    const reason = String(interaction.fields.getTextInputValue("reason") || "").trim();
-    if (reason.length < 2) return reply(interaction, "Bitte gib kurz einen Grund an.");
-    const mine = getSignup(event.id, uid);
+/**
+ * Sign off with the message as the comment (the characters stay on record).
+ * `note` undefined = the category asks for none: the stored comment stays.
+ */
+async function signOff(interaction, event, note) {
+    const mine = getSignup(event.id, interaction.user.id);
     return save(interaction, event, {
         characters: mine ? (mine.characters || []).map((c) => ({ character: c.character, spec: c.spec })) : [],
         character: mine ? mine.character : "",
         status: "absence",
         canAlso: mine ? mine.canAlso || [] : [],
-        comment: reason,
+        ...(note === undefined ? {} : { comment: note }),
     });
+}
+
+/** The absence modal: its message (required or optional per category), then sign off. */
+async function onAbsence(interaction, event) {
+    const { note, error } = noteFrom(interaction, event);
+    if (error) return reply(interaction, error);
+    return signOff(interaction, event, note);
+}
+
+/** The "Vielleicht" modal: its message, then the same way as the button without one. */
+async function onNote(interaction, event, status) {
+    const { note, error } = noteFrom(interaction, event);
+    if (error) return reply(interaction, error);
+    return onStatus(interaction, event, status, { note });
 }
 
 module.exports = {
@@ -161,7 +211,7 @@ module.exports = {
         const event = getEvent(eventId);
         const isModal = !!(interaction.isModalSubmit && interaction.isModalSubmit());
         // A click on the public message replies; a step in the member's own message updates it.
-        const fromPublic = ["join", "class", "absence", "why", ...STATUS_ACTIONS].includes(action);
+        const fromPublic = ["join", "class", "absence", "why", "note", ...STATUS_ACTIONS].includes(action);
         if (!event) return fromPublic ? reply(interaction, "Dieses Event gibt es nicht mehr.") : done(interaction, "Dieses Event gibt es nicht mehr.");
         const uid = interaction.user.id;
 
@@ -171,17 +221,29 @@ module.exports = {
         case "class":
             return onClass(interaction, event, "");
         case "late":
-        case "tentative":
         case "bench":
             return onStatus(interaction, event, action);
+        case "tentative": {
+            // The message first (unless the category asks for none), refused cases before it.
+            const mode = noteMode(event.categoryId);
+            if (mode === "none") return onStatus(interaction, event, action);
+            const why = await blocked(event, uid, action);
+            if (why) return reply(interaction, why);
+            return interaction.showModal(buildNoteModal(event.id, action, { required: mode === "required" }));
+        }
         case "absence": {
             // Signing off is always allowed until the start — unless the event is cancelled.
             const why = refusal(event, "absence");
             if (why) return reply(interaction, why);
-            return interaction.showModal(buildAbsenceModal(event.id));
+            const mode = noteMode(event.categoryId);
+            if (mode === "none") return signOff(interaction, event);
+            return interaction.showModal(buildNoteModal(event.id, "absence", { required: mode === "required" }));
         }
         case "why":
             return onAbsence(interaction, event);
+        case "note":
+            if (!isModal || !status) return reply(interaction, "Unbekannte Aktion.");
+            return onNote(interaction, event, status);
         case "pick":
             return onPick(interaction, event, status || "signed");
         case "other":

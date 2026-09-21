@@ -74,7 +74,13 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
     const absent = status === "absence";
     const noCharacter = !profile.characters.length;
     const closed = !row.allowedStatuses.length;
-    const canSubmit = !busy && !closed && (absent || (!!character && !!spec));
+    // "Vielleicht" / "Absagen" turn the comment into a message to the raid lead,
+    // which the bot posts in the orga's channel — required, optional or not asked
+    // per category (src/web/signupNotes.js; the server checks "required" again).
+    const noteStatus = absent || signupStatusOf(picks, status) === "tentative";
+    const noteMode = noteStatus ? row.noteMode || "optional" : "none";
+    const noteMissing = noteMode === "required" && comment.trim().length < 2;
+    const canSubmit = !busy && !closed && !noteMissing && (absent || (!!character && !!spec));
     // What the segment shows as chosen: the status every character shares, "" when they differ (#320).
     const shared = absent ? "absence" : commonStatus(picks, status);
     const pickStatus = (s: SignupStatus) => {
@@ -199,8 +205,16 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
                 )}
 
                 <div className="field">
-                    <label htmlFor="an-comment">Kommentar <span className="an-opt">(optional)</span></label>
-                    <input id="an-comment" type="text" maxLength={300} value={comment} placeholder="z. B. komme ca. 10 min später" onChange={(e) => setComment(e.target.value)} />
+                    {noteMode === "none" ? (
+                        <label htmlFor="an-comment">Kommentar <span className="an-opt">(optional)</span></label>
+                    ) : (
+                        <label htmlFor="an-comment" data-tip="Nachricht an die Raidleitung" data-tip-sub="Der Bot postet sie in den Kanal der Raidleitung.">
+                            Nachricht an die Raidleitung {noteMode === "required" ? <span className="an-opt">(Pflicht)</span> : <span className="an-opt">(optional)</span>}
+                        </label>
+                    )}
+                    <input id="an-comment" type="text" maxLength={noteMode === "none" ? 300 : 100} value={comment}
+                        placeholder={noteMode === "none" ? "z. B. komme ca. 10 min später" : absent ? "z. B. Arbeit, Urlaub, krank" : "z. B. noch unsicher, evtl. später"}
+                        aria-required={noteMode === "required"} onChange={(e) => setComment(e.target.value)} />
                 </div>
 
                 {row.wishPartners.length > 0 && !absent && (

@@ -64,7 +64,9 @@ const CONFIG_DEFAULTS = {
     // Discord-Server): the event server (event channels, Raid-Helper) and the
     // talk server (overview, sign-up per bot, pings), plus the talk server's
     // target channels. All empty = today's behaviour with a single server.
-    discordServers: { eventGuildId: "", talkGuildId: "", talkOverviewChannelId: "", talkPingChannelId: "" },
+    // `signupNoteChannelId` is where the messages of "Vielleicht" / "Absagen"
+    // land (src/web/signupNotes.js) — a channel on either server.
+    discordServers: { eventGuildId: "", talkGuildId: "", talkOverviewChannelId: "", talkPingChannelId: "", signupNoteChannelId: "" },
     // Raid-Helper server id (raid-helper.xyz), used for all Raid-Helper API calls.
     // RAIDHELPER_API_KEY stays in .env — it's a real secret, this id isn't.
     raidhelperServerId: raidhelperServerId || "",
@@ -133,6 +135,11 @@ const CONFIG_DEFAULTS = {
     // { [categoryId]: { enabled: true, target: "event" | "talk" | "both" } }.
     // Off by default — only switched-on categories are stored.
     categoryAnnounce: {},
+    // A message with "Vielleicht" / "Absagen" per Discord category:
+    // { [categoryId]: "required" | "none" }. A category without an entry is
+    // "optional" (the modal asks, the raider may leave it empty). The message is
+    // posted to discordServers.signupNoteChannelId — see src/web/signupNotes.js.
+    categorySignupNotes: {},
     // A fixed, guild-owned Google Sheet per Discord category:
     // { [categoryId]: { url, name } }. When one is set, a raid in that category
     // links this sheet instead of needing its own copy. A copy the app actually
@@ -526,6 +533,7 @@ function getConfig() {
         categoryDiscordEvent: normalizeCategoryFlags(stored.categoryDiscordEvent),
         categoryVoiceChannel: normalizeCategoryVoiceChannel(stored.categoryVoiceChannel),
         categoryAnnounce: normalizeCategoryAnnounce(stored.categoryAnnounce),
+        categorySignupNotes: normalizeCategorySignupNotes(stored.categorySignupNotes),
         categorySheets: normalizeCategorySheets(stored.categorySheets),
         categoryRaidTemplate: categoryRaidTemplateOf(stored),
         topItems: normalizeTopItems(stored.topItems),
@@ -626,11 +634,12 @@ function categoryRaidTemplateOf(stored) {
 // A Discord snowflake: digits only. Anything else (a pasted link, a name) is
 // dropped rather than stored as an id no lookup can ever resolve.
 const SNOWFLAKE = /^\d{5,25}$/;
-const DISCORD_SERVER_KEYS = ["eventGuildId", "talkGuildId", "talkOverviewChannelId", "talkPingChannelId"];
+const DISCORD_SERVER_KEYS = ["eventGuildId", "talkGuildId", "talkOverviewChannelId", "talkPingChannelId", "signupNoteChannelId"];
 
 /**
  * Normalise the two-server block to `{ eventGuildId, talkGuildId,
- * talkOverviewChannelId, talkPingChannelId }`, every field a snowflake or "".
+ * talkOverviewChannelId, talkPingChannelId, signupNoteChannelId }`, every field
+ * a snowflake or "". The note channel may sit on either server.
  * A talk server equal to the event server is no second server: it is cleared,
  * so "one server for everything" is stored the same way however it was entered.
  */
@@ -716,6 +725,22 @@ function normalizeCategoryAnnounce(raw) {
         const key = String(catId).trim();
         if (!key || !value || typeof value !== "object" || value.enabled !== true) continue;
         out[key] = { enabled: true, target: ANNOUNCE_TARGETS.includes(value.target) ? value.target : "event" };
+    }
+    return out;
+}
+
+const SIGNUP_NOTE_MODES = ["required", "optional", "none"];
+
+/**
+ * Normalise categorySignupNotes to `{ [categoryId]: "required" | "none" }` —
+ * "optional" is the default and is not stored, anything unknown drops out.
+ */
+function normalizeCategorySignupNotes(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, mode] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        if (key && SIGNUP_NOTE_MODES.includes(mode) && mode !== "optional") out[key] = mode;
     }
     return out;
 }
@@ -887,6 +912,10 @@ function saveConfig(partial) {
     }
     if (partial.categoryAnnounce) {
         next.categoryAnnounce = normalizeCategoryAnnounce({ ...current.categoryAnnounce, ...partial.categoryAnnounce });
+    }
+    // Merged, then normalised: a category set back to "optional" drops out.
+    if (partial.categorySignupNotes) {
+        next.categorySignupNotes = normalizeCategorySignupNotes({ ...current.categorySignupNotes, ...partial.categorySignupNotes });
     }
     // Replaced whole, like the top items: a category left out has no default.
     if (partial.categoryRaidTemplate !== undefined) next.categoryRaidTemplate = normalizeCategoryRaidTemplate(partial.categoryRaidTemplate);

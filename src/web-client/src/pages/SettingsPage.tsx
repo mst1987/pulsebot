@@ -64,6 +64,8 @@ type Draft = {
     categoryVoiceChannel: Record<string, string>;
     /** "Beim Anlegen ankündigen" per category (#306); missing = off. */
     categoryAnnounce: Record<string, { enabled: boolean; target: string }>;
+    /** The message with "Vielleicht" / "Absagen"; missing = "optional". */
+    categorySignupNotes: Record<string, string>;
     categorySheets: Record<string, CategorySheet>;
     categoryRaidTemplate: Record<string, string>;
     topItems: TopItem[];
@@ -92,6 +94,7 @@ function toDraft(config: AdminConfig): Draft {
         categoryDiscordEvent: config.categoryDiscordEvent || {},
         categoryVoiceChannel: config.categoryVoiceChannel || {},
         categoryAnnounce: config.categoryAnnounce || {},
+        categorySignupNotes: config.categorySignupNotes || {},
         categorySheets: config.categorySheets || {},
         categoryRaidTemplate: config.categoryRaidTemplate || {},
         topItems: config.topItems || [],
@@ -403,6 +406,8 @@ export default function SettingsPage() {
                 categoryDiscordEvent: draft.categoryDiscordEvent,
                 categoryVoiceChannel: draft.categoryVoiceChannel,
                 categoryAnnounce: draft.categoryAnnounce,
+                // Merged on the server: "optional" drops the entry again.
+                categorySignupNotes: draft.categorySignupNotes,
                 // Sent whole: a category set back to "keine" is left out.
                 categoryRaidTemplate: Object.fromEntries(Object.entries(draft.categoryRaidTemplate).filter(([, id]) => id)),
                 // Sent whole: the store replaces the map, so clearing a url is
@@ -505,6 +510,8 @@ export default function SettingsPage() {
                     categoryVoiceChannel={draft.categoryVoiceChannel}
                     voiceChannels={data.voiceChannels || []}
                     categoryAnnounce={draft.categoryAnnounce}
+                    categorySignupNotes={draft.categorySignupNotes}
+                    onSignupNotes={(id, mode) => patch({ categorySignupNotes: { ...draft.categorySignupNotes, [id]: mode } })}
                     categorySheets={draft.categorySheets}
                     savedCategoryRoles={data.config.categoryRoles || {}}
                     onToggleCategory={toggleCategory}

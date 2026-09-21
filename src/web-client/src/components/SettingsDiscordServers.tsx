@@ -47,6 +47,23 @@ function channelName(channels: TextChannel[], id: string): string {
     return found ? `#${found.name}` : id;
 }
 
+/**
+ * The channels the messages of "Vielleicht" / "Absagen" may go to: those of the
+ * event and the talk server (every server of the bot while none is picked),
+ * named with their server when there are two.
+ */
+function noteChannels(guilds: DiscordServersData["guilds"], guildIds: string[]): TextChannel[] {
+    const ids = guildIds.filter(Boolean);
+    const picked = ids.length ? guilds.filter((g) => ids.includes(g.id)) : guilds;
+    return picked.flatMap((g) => g.channels.map((c) => ({
+        ...c,
+        category: picked.length > 1 ? [g.name, c.category].filter(Boolean).join(" · ") : c.category,
+    })));
+}
+
+const NOTE_TIP = "Vielleicht- & Absage-Nachrichten";
+const NOTE_TIP_SUB = "Wer in Discord „Vielleicht“ oder „Absagen“ drückt, kann eine kurze Nachricht an die Raidleitung hinterlassen — der Bot postet sie hier. Ob gefragt wird (Pflicht, optional, keine), stellst du je Kategorie unter Kategorien ein.";
+
 export default function DiscordServersSection({ csrfToken, onConfig, icon, crumb }: {
     csrfToken: string | null;
     onConfig: (config: AdminConfig) => void;
@@ -79,12 +96,22 @@ export default function DiscordServersSection({ csrfToken, onConfig, icon, crumb
 
     const talkChannels = data.guilds.find((g) => g.id === data.discordServers.talkGuildId)?.channels || [];
     const overlap = overlapBadge(data.overlap);
+    const allChannels = data.guilds.flatMap((g) => g.channels);
 
     return (
         <>
             {head}
             <div className="conn-grid">
-                <ServerCard card={data.event} role="event" onEdit={() => setEditing(true)} />
+                <ServerCard card={data.event} role="event" onEdit={() => setEditing(true)}>
+                    {data.event && (
+                        <dl className="conn-rows">
+                            <div>
+                                <dt tabIndex={0} data-tip={NOTE_TIP} data-tip-sub={NOTE_TIP_SUB}>Vielleicht/Absage</dt>
+                                <dd>{channelName(allChannels, data.discordServers.signupNoteChannelId)}</dd>
+                            </div>
+                        </dl>
+                    )}
+                </ServerCard>
                 <ServerCard card={data.talk} role="talk" onEdit={() => setEditing(true)}>
                     {data.talk && (
                         <dl className="conn-rows">
@@ -185,6 +212,7 @@ function ServersModal({ data, csrfToken, onClose, onSaved }: {
     const toast = useToast();
     const guilds = data.guilds;
     const talkChannels = guilds.find((g) => g.id === fields.talkGuildId)?.channels || [];
+    const notePicks = noteChannels(guilds, [fields.eventGuildId || (data.event ? data.event.id : ""), fields.talkGuildId]);
 
     const save = async () => {
         setBusy(true);
@@ -268,6 +296,11 @@ function ServersModal({ data, csrfToken, onClose, onSaved }: {
                         </div>
                     </div>
                 )}
+                <div className="dlg-field">
+                    <FieldLabel htmlFor="srv-note" tip={NOTE_TIP} tipSub={NOTE_TIP_SUB}>Vielleicht- &amp; Absage-Nachrichten</FieldLabel>
+                    <ChannelPicker id="srv-note" value={fields.signupNoteChannelId} channels={notePicks} placeholder="— nicht posten —"
+                        onChange={(signupNoteChannelId) => setFields({ ...fields, signupNoteChannelId })} />
+                </div>
             </div>
         </Modal>
     );
