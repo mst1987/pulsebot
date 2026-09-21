@@ -25,11 +25,15 @@ const DEFAULT_SCHEMA = "{tag}-{dd}-{mm}-{raid}";
 /** German weekday abbreviations, index = Date#getUTCDay(). */
 const WEEKDAYS = ["so", "mo", "di", "mi", "do", "fr", "sa"];
 
+/** Month names in three letters, index = Date#getUTCMonth(). English, as the guilds write them ("oct", not "okt"). */
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
 /** The placeholders a schema understands, for the dialog's help text. */
 const PLACEHOLDERS = [
     { key: "tag", hint: "Wochentag, kurz (mi)" },
     { key: "dd", hint: "Tag, zweistellig (24)" },
     { key: "mm", hint: "Monat, zweistellig (09)" },
+    { key: "mon", hint: "Monat, drei Buchstaben (sep)" },
     { key: "yy", hint: "Jahr, zweistellig (26)" },
     { key: "yyyy", hint: "Jahr (2026)" },
     { key: "raid", hint: "Raid-Kürzel (ssc-tk)" },
@@ -91,6 +95,7 @@ function renderChannelName(schema, { date, raid = "", tag = "", name = "", nr = 
         tag: tag || (day ? WEEKDAYS[day.getUTCDay()] : ""),
         dd: day ? pad(day.getUTCDate()) : "",
         mm: day ? pad(day.getUTCMonth() + 1) : "",
+        mon: day ? MONTHS[day.getUTCMonth()] : "",
         yy: day ? String(day.getUTCFullYear()).slice(-2) : "",
         yyyy: day ? String(day.getUTCFullYear()) : "",
         raid: String(raid || ""),
@@ -148,11 +153,16 @@ const WEEKDAY_FORMS = {
     weekday: ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
 };
 
-/** The date spellings recognised, as small schemas; "." never survives Discord, so "17.09" is "1709". */
+/**
+ * The date spellings recognised, as small schemas; "." never survives Discord, so
+ * "17.09" is "1709". A month in letters ("17-sep", "sep17") is unambiguous, so it
+ * is recognised without a separator and with a one-digit day too.
+ */
 const DATE_FORMATS = (() => {
     const out = [];
     for (const sep of ["-", "_", ""]) {
         out.push(`{yyyy}${sep}{mm}${sep}{dd}`, `{dd}${sep}{mm}${sep}{yyyy}`, `{dd}${sep}{mm}${sep}{yy}`, `{dd}${sep}{mm}`);
+        out.push(`{dd}${sep}{mon}${sep}{yyyy}`, `{dd}${sep}{mon}${sep}{yy}`, `{dd}${sep}{mon}`, `{d}${sep}{mon}`, `{mon}${sep}{dd}`, `{mon}${sep}{d}`);
     }
     for (const sep of ["-", "_"]) out.push(`{d}${sep}{m}${sep}{yyyy}`, `{d}${sep}{m}`);
     return out;
@@ -167,7 +177,7 @@ const PART_LABELS = { date: "Datum", weekday: "Wochentag", raid: "Raid" };
 function fillDate(format, day) {
     const values = {
         dd: pad(day.getUTCDate()), mm: pad(day.getUTCMonth() + 1), d: String(day.getUTCDate()), m: String(day.getUTCMonth() + 1),
-        yy: String(day.getUTCFullYear()).slice(-2), yyyy: String(day.getUTCFullYear()),
+        mon: MONTHS[day.getUTCMonth()], yy: String(day.getUTCFullYear()).slice(-2), yyyy: String(day.getUTCFullYear()),
     };
     for (const [key, names] of Object.entries(WEEKDAY_FORMS)) values[key] = names[day.getUTCDay()];
     return String(format).replace(/\{(\w+)\}/g, (_, key) => values[key] ?? "");
@@ -176,6 +186,8 @@ function fillDate(format, day) {
 const notDigit = (ch) => !ch || !/\d/.test(ch);
 const notLetter = (ch) => !ch || !/\p{L}/u.test(ch);
 const notWordChar = (ch) => notDigit(ch) && notLetter(ch);
+/** A date's edge: a digit must not run on into more digits, a month's letters not into more letters ("sept"). */
+const dateEdge = (ch, edge) => (/\d/.test(edge) ? notDigit(ch) : notLetter(ch));
 
 /** A raid given as "ssc-tk" or ["ssc", "tk"], spelled with a joiner. */
 function joinRaid(raid, joiner) {
@@ -202,7 +214,7 @@ function derivePatternFromName(name, { date, raidTags = [] } = {}) {
         let at = text.indexOf(literal);
         while (at !== -1) {
             const end = at + literal.length;
-            if (!overlaps(at, end) && boundary(text[at - 1]) && boundary(text[end])) found.push({ start: at, end, from: literal, ...entry });
+            if (!overlaps(at, end) && boundary(text[at - 1], literal[0]) && boundary(text[end], literal[literal.length - 1])) found.push({ start: at, end, from: literal, ...entry });
             at = text.indexOf(literal, at + 1);
         }
     };
@@ -212,7 +224,7 @@ function derivePatternFromName(name, { date, raidTags = [] } = {}) {
         const seen = new Set();
         const dates = DATE_FORMATS.map((format) => ({ format, literal: fillDate(format, day) }))
             .filter((d) => !seen.has(d.literal) && seen.add(d.literal));
-        for (const d of longestFirst(dates)) scan(d.literal, notDigit, { part: "date", format: d.format });
+        for (const d of longestFirst(dates)) scan(d.literal, dateEdge, { part: "date", format: d.format });
         const weekdays = Object.keys(WEEKDAY_FORMS).map((key) => ({ format: `{${key}}`, literal: fillDate(`{${key}}`, day) }));
         for (const w of longestFirst(weekdays)) scan(w.literal, notLetter, { part: "weekday", format: w.format });
     }
@@ -307,7 +319,7 @@ function placementFor(eventChannels = [], day = "") {
 }
 
 module.exports = {
-    CHANNEL_NAME_MAX, NAME_STRIP_RE, DEFAULT_SCHEMA, WEEKDAYS, WEEKDAY_FORMS, DATE_FORMATS, PART_LABELS, PLACEHOLDERS, MAX_SERIES,
+    CHANNEL_NAME_MAX, NAME_STRIP_RE, DEFAULT_SCHEMA, WEEKDAYS, MONTHS, WEEKDAY_FORMS, DATE_FORMATS, PART_LABELS, PLACEHOLDERS, MAX_SERIES,
     normalizeChannelName, normalizeForType, parseDay, formatDay, renderChannelName, seriesDays, planChannels,
     derivePatternFromName, applyPattern, patternParts, prefixOf, describeReplaced, listParts, placementFor,
 };

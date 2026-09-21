@@ -265,6 +265,7 @@ describe("Event anlegen: plan rules (client)", () => {
             ["{tag}-{dd}-{mm}-{raid}", "2026-09-24", ["ssc", "tk"], ""],
             ["{raid}-{dd}-{mm}", "2026-10-01", [], "t5"],
             ["Raid {yyyy}/{mm}/{dd} {raid}", "2026-02-28", ["kara"], ""],
+            ["🔥・{tag}-{dd}-{mon}-{raid}", "2026-10-07", ["bt"], ""],
             ["{tag}-{yy}-{unknown}-{raid}", "2026-13-40", ["bt"], ""],
             ["", "2026-09-24", [], ""],
         ];

@@ -225,6 +225,23 @@ describe("POST /api/channels/batch", () => {
             ]);
         });
 
+        it("previews an empty schema as derived, past a stored one, for the schema dialog", async () => {
+            archiveStore.getChannelConfig.mockReturnValue({ archiveCategoryId: "arch", schemas: { cat1: { schema: "{raid}-{dd}-{mon}" } }, archiveDeleteHintDays: 14 });
+            try {
+                const stored = mockRes();
+                readJsonBody.mockResolvedValue({ categoryId: "cat1", schema: "", raid: "kara", from: "2026-09-23", dryRun: true });
+                await routes.batchCreate({}, stored);
+                expect(body(stored).data.plan[0].name).toBe("kara-23-sep");
+                const derived = mockRes();
+                readJsonBody.mockResolvedValue({ categoryId: "cat1", schema: "", raid: "", from: "2026-09-23", dryRun: true, ignoreStoredSchema: true });
+                await routes.batchCreate({}, derived);
+                expect(body(derived).data.plan[0].name).toBe("🔥・mi-23-09-kara");
+                expect(body(derived).data.naming).toMatchObject({ source: "previous" });
+            } finally {
+                archiveStore.getChannelConfig.mockReturnValue({ archiveCategoryId: "arch", schemas: {}, archiveDeleteHintDays: 14 });
+            }
+        });
+
         it("names a typed schema as such, and a chosen template channel wins", async () => {
             readJsonBody.mockResolvedValue({ categoryId: "cat1", schema: "{raid}-{dd}{mm}", raid: "kara", from: "2026-09-23", templateChannelId: "c2", dryRun: true });
             const res = mockRes();
@@ -356,6 +373,41 @@ describe("POST /api/channels/rename-preview", () => {
             { id: "c1", from: "mi-17-09-ssc", to: "mi-16-09-ssc", hasDate: true, conflict: false, naming: null },
             { id: "c2", from: "do-18-09-bt", to: "ssc", hasDate: false, conflict: false, naming: null },
         ]);
+    });
+});
+
+describe("POST /api/channels/schema", () => {
+    const save = async (input) => {
+        readJsonBody.mockResolvedValue(input);
+        const res = mockRes();
+        await routes.saveSchema({}, res);
+        return res;
+    };
+
+    it("stores a category's schema on its own", async () => {
+        archiveStore.saveCategorySchema.mockReturnValue({ schema: "🔥・{tag}-{dd}-{mon}-{raid}", raid: "kara", templateChannelId: "c1" });
+        const res = await save({ categoryId: "cat1", schema: " 🔥・{tag}-{dd}-{mon}-{raid} ", raid: "kara", templateChannelId: "c1" });
+        expect(status(res)).toBe(200);
+        expect(archiveStore.saveCategorySchema).toHaveBeenCalledWith("g1", "cat1", { schema: "🔥・{tag}-{dd}-{mon}-{raid}", raid: "kara", templateChannelId: "c1" });
+        expect(body(res).data.schema).toMatchObject({ schema: "🔥・{tag}-{dd}-{mon}-{raid}" });
+    });
+
+    it("takes an empty schema as 'wie der letzte Event-Kanal' again", async () => {
+        const res = await save({ categoryId: "cat1", schema: "", raid: "", templateChannelId: "" });
+        expect(status(res)).toBe(200);
+        expect(archiveStore.saveCategorySchema).toHaveBeenCalledWith("g1", "cat1", { schema: "", raid: "", templateChannelId: "" });
+    });
+
+    it.each([
+        [{ categoryId: "elsewhere", schema: "{dd}" }, "unknown_category"],
+        [{ categoryId: "cat1", schema: "x".repeat(201) }, "schema_too_long"],
+        [{ categoryId: "cat1", schema: "!!!" }, "schema_empty"],
+        [{ categoryId: "cat1", schema: "{dd}", templateChannelId: "nope" }, "unknown_channel"],
+    ])("refuses %j (%s)", async (input, code) => {
+        const res = await save(input);
+        expect(status(res)).toBe(400);
+        expect(body(res).error.code).toBe(code);
+        expect(archiveStore.saveCategorySchema).not.toHaveBeenCalled();
     });
 });
 

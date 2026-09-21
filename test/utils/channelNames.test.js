@@ -37,6 +37,13 @@ describe("utils/channelNames", () => {
             expect(renderChannelName("{tag}-{dd}-{mm}-{raid}", { date: "2026-09-23", raid: "SSC TK" })).toBe("mi-23-09-ssc-tk");
         });
 
+        it("writes the month in three English letters ({mon})", () => {
+            const months = Array.from({ length: 12 }, (_, i) => renderChannelName("{mon}", { date: `2026-${String(i + 1).padStart(2, "0")}-01` }));
+            expect(months).toEqual(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]);
+            expect(renderChannelName("🔥・{tag}-{dd}-{mon}-{raid}", { date: "2026-10-07", raid: "bt" })).toBe("🔥・mi-07-oct-bt");
+            expect(renderChannelName("{dd}-{mon}", {})).toBe("");
+        });
+
         it("knows year, old name and number, and drops unknown placeholders", () => {
             expect(renderChannelName("{name}-{yyyy}-{yy}-{nr}{foo}", { date: "2026-01-02", name: "kara", nr: 3 })).toBe("kara-2026-26-3");
         });
