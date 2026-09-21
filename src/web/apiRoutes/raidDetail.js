@@ -26,6 +26,8 @@ const {
     getEventSoftres, saveEventSoftres, setEventSoftresLink, markEventSoftresPosted,
 } = require("../eventSoftresStore");
 const softres = require("../../utils/softres");
+const { setEventLootSystem, lootSystemOf } = require("../eventLootSystemStore");
+const { normalizeLootSystem } = require("../lootSystem");
 const wowhead = require("../../utils/wowhead");
 const { listByEvent: listLootByEvent, listAll: listAllLoot } = require("../lootStore");
 const { raidSteps, eventSteps } = require("../raidDetailSteps");
@@ -273,6 +275,9 @@ async function getRaidDetail(req, res, url) {
         signupTarget,
         lootItems: withLootClassLook(listLootByEvent(eventId)),
         lootTool: (getConfig().categoryLootTool || {})[found.g.categoryId] || "",
+        // Softres, Loot-Council, … — decides whether the softres step and menu
+        // entry are offered at all (src/web/lootSystem.js).
+        lootSystem: lootSystemOf(eventId, found.g.categoryId),
         eventLogs,
         unlinkedLogs,
     };
@@ -605,6 +610,27 @@ async function postSoftresLink(req, res) {
     ok(res, { message: "Softres-Link aktualisiert." });
 }
 
+/**
+ * POST /api/raids/loot-system — this raid's loot system where it differs from
+ * its category's, plus "Softres zusätzlich". Body: { event, system, softres }
+ * (`system` "" = like the category). Answers the resolved loot system.
+ */
+async function postLootSystem(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const eventId = String(body.event || "").trim();
+    const system = String(body.system || "").trim();
+    if (system && !normalizeLootSystem(system)) return error(res, 400, "invalid_system", "Unbekanntes Lootsystem.");
+    const { groups, error: groupsError } = await loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
+    const found = groups.flatMap((g) => g.events.map((e) => ({ e, g }))).find((x) => x.e.id === eventId);
+    if (!found) return error(res, groupsError ? 400 : 404, groupsError ? "events_unavailable" : "not_found", groupsError || "Event nicht gefunden.");
+    setEventLootSystem(eventId, { system, softres: body.softres === true, by: user.id, byName: user.name });
+    const lootSystem = lootSystemOf(eventId, found.g.categoryId);
+    ok(res, { lootSystem, message: `Lootsystem: ${lootSystem.label}${lootSystem.softresExtra ? " + Softres" : ""}.` });
+}
+
 module.exports = {
     getRaidDetail,
     postNotify,
@@ -615,4 +641,5 @@ module.exports = {
     getItemSearch,
     postSoftresCreate,
     postSoftresLink,
+    postLootSystem,
 };

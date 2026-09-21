@@ -42,6 +42,7 @@ import useEvaluate from "./raid-detail/useEvaluate";
 import NotifyModal from "./raid-detail/modals/NotifyModal";
 import SheetModal from "./raid-detail/modals/SheetModal";
 import SoftresModal from "./raid-detail/modals/SoftresModal";
+import LootSystemModal from "./raid-detail/modals/LootSystemModal";
 import PingModal from "./raid-detail/modals/PingModal";
 import PlayerModal from "./raid-detail/modals/PlayerModal";
 import LootAddModal from "./raid-detail/modals/LootAddModal";
@@ -213,6 +214,7 @@ export default function RaidDetailPage() {
 
             <RaidDetailHero
                 data={data} onStep={openStep} onPrimary={runPrimary}
+                onLootSystem={canAccess(user, "raids", "write") ? () => setModal("lootsystem") : undefined}
                 primaryRunning={!!primaryEval && evaluator.isRunning(primaryEval.logId, primaryEval.section)}
                 cockpit={cockpit ? (
                     <StepBar
@@ -222,7 +224,7 @@ export default function RaidDetailPage() {
                 ) : undefined}
                 manage={canManage ? (
                     <ManageMenu
-                        state={{ cancelled: data.event.status === "cancelled", signupsClosed: !!data.event.signupsClosed, isPast: !!data.event.isPast, logCount: data.event.logCount || 0 }}
+                        state={{ cancelled: data.event.status === "cancelled", signupsClosed: !!data.event.signupsClosed, isPast: !!data.event.isPast, logCount: data.event.logCount || 0, softres: data.lootSystem?.softres }}
                         onAction={runManage}
                     />
                 ) : undefined}
@@ -246,6 +248,7 @@ export default function RaidDetailPage() {
             <NotifyModal ctx={ctx} open={modal === "notify"} onClose={close} />
             <SheetModal ctx={ctx} open={modal === "sheet"} onClose={close} />
             <SoftresModal ctx={ctx} open={modal === "softres"} onClose={close} />
+            <LootSystemModal ctx={ctx} open={modal === "lootsystem"} onClose={close} />
             <PingModal ctx={ctx} open={modal === "ping"} onClose={close} />
             <LootAddModal ctx={ctx} open={modal === "loot"} onClose={close} />
             <LogAssignModal ctx={ctx} open={modal === "log"} onClose={close} />

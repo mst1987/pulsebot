@@ -11,6 +11,7 @@ const {
 const { normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess } = require("../config/permissions");
 const { isLegacy, migrateLegacy, normalizeTemplate, validateTemplate } = require("./raidTemplates");
 const { normalizeBotCommandAccess } = require("../config/botCommands");
+const { normalizeCategoryLootSystem } = require("./lootSystem");
 
 // Editable bot settings live as JSON files under data/settings/.
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
@@ -98,6 +99,11 @@ const CONFIG_DEFAULTS = {
     // Which loot addon a Discord category uses, keyed by category id:
     // "gargul" | "rclc". Steers the loot-import parser and the char-loot history.
     categoryLootTool: {},
+    // Which loot system a category's raids run on, keyed by category id:
+    // "softres" | "lootcouncil" | "gdkp" | "other" (src/web/lootSystem.js). A
+    // category without an entry follows its loot addon (RCLootcouncil =
+    // Loot-Council, else Softres); one raid can still override it.
+    categoryLootSystem: {},
     // Where NEW events of a Discord category are created, keyed by category id:
     // "raidhelper" | "eventhelper". Only the default for new events — a
     // Raid-Helper event stays fully in use in either case (eventSources.js).
@@ -513,6 +519,7 @@ function getConfig() {
         warcraftlogsV2: { ...CONFIG_DEFAULTS.warcraftlogsV2, ...(stored.warcraftlogsV2 || {}) },
         categoryLootTool: (stored.categoryLootTool && typeof stored.categoryLootTool === "object")
             ? stored.categoryLootTool : { ...CONFIG_DEFAULTS.categoryLootTool },
+        categoryLootSystem: normalizeCategoryLootSystem(stored.categoryLootSystem),
         ...signupSourcesOf(stored),
         raidhelperRetirement: normalizeRaidhelperRetirement(stored.raidhelperRetirement),
         categorySetupDms: normalizeCategorySetupDms(stored.categorySetupDms),
@@ -856,6 +863,10 @@ function saveConfig(partial) {
     }
     if (partial.warcraftlogsV2) next.warcraftlogsV2 = { ...current.warcraftlogsV2, ...partial.warcraftlogsV2 };
     if (partial.categoryLootTool) next.categoryLootTool = { ...current.categoryLootTool, ...partial.categoryLootTool };
+    // Merged, then normalised: "" (like the loot addon) drops the category again.
+    if (partial.categoryLootSystem) {
+        next.categoryLootSystem = normalizeCategoryLootSystem({ ...current.categoryLootSystem, ...partial.categoryLootSystem });
+    }
     // Merged, then normalised. `current` already carries the categories pinned
     // for an install from before #291 (signupSourcesOf), so this save writes them down.
     if (partial.raidhelperRetirement !== undefined) next.raidhelperRetirement = normalizeRaidhelperRetirement(partial.raidhelperRetirement);

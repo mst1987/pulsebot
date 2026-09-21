@@ -27,6 +27,21 @@ describe("raidSteps", () => {
         expect(raidSteps(base()).steps.map((s) => s.key)).toEqual(["signup", "setup", "sheet", "softres", "loot", "logs"]);
     });
 
+    it("drops the softres step when the loot system has no softres list", () => {
+        const lc = { system: "lootcouncil", softres: false };
+        expect(raidSteps(base({ lootSystem: lc })).steps.map((s) => s.key)).toEqual(["signup", "setup", "sheet", "loot", "logs"]);
+        expect(raidSteps(base({ lootSystem: { system: "lootcouncil", softres: true } })).steps.map((s) => s.key)).toContain("softres");
+        // with signup, setup and sheet done there is nothing left before the raid — no nudge to "Softres erstellen"
+        const res = raidSteps(base({
+            lootSystem: lc,
+            event: { ...base().event, signupCount: 23 },
+            setup: { total: 25, groups: [], roleCounts: {} },
+            sheetLink: { url: "u", name: "", source: "event" },
+        }));
+        expect(res.next).toBe("");
+        expect(res.primary).toBeNull();
+    });
+
     it("marks the signup step of a cancelled event and of a closed signup (#288)", () => {
         const own = { ...base().event, id: "eh-1", source: "eventhelper", signupCount: 4 };
         const cancelled = step(raidSteps(base({ event: { ...own, status: "cancelled", cancelReason: "Zu wenig Heiler" } })), "signup");

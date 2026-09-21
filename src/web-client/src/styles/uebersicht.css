@@ -27,7 +27,9 @@
 .ov-next-top { display: flex; gap: 14px; align-items: center; }
 .wi.ov-boss56 { width: 56px; height: 56px; border-radius: 9px; border: 1px solid var(--line); }
 .ov-next-text { flex: 1; min-width: 0; }
-.ov-next-title { font-size: 20px; font-weight: 800; letter-spacing: -.01em; line-height: 1.2; }
+.ov-next-title { display: block; font-size: 20px; font-weight: 800; letter-spacing: -.01em; line-height: 1.2; color: var(--text); text-decoration: none; }
+a.ov-next-title:hover { color: var(--accent); }
+.ov-head-actions { display: inline-flex; gap: 6px; }
 .ov-next-when { font-size: 13.5px; color: var(--muted); }
 .ov-next-rel { align-self: flex-start; }
 .ov-roles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }

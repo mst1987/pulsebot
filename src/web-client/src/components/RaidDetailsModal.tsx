@@ -75,8 +75,10 @@ function Details({ raid, guildId }: { raid: NextRaidDetails; guildId: string }) 
                         raid.sheet?.url ? { href: raid.sheet.url, tip: "Raidsheet öffnen" } : undefined)}
                     {check(raid.setupCount > 0, "inv_misc_groupneedmore", "Setup / Comp", raid.setupCount ? `${raid.setupCount} gesetzt` : "offen",
                         raidplanUrl(raid.id) ? { href: raidplanUrl(raid.id), tip: "Raidplan bei Raid-Helper öffnen" } : undefined)}
-                    {check(!!raid.softres, "inv_scroll_11", "Softres", raid.softres ? "erstellt" : "fehlt",
-                        raid.softres ? { href: raid.softres.url, tip: "Softres-Liste öffnen" } : undefined)}
+                    {raid.lootSystem && !raid.lootSystem.softres
+                        ? check(true, "inv_misc_bag_10", "Lootsystem", raid.lootSystem.label)
+                        : check(!!raid.softres, "inv_scroll_11", "Softres", raid.softres ? "erstellt" : "fehlt",
+                            raid.softres ? { href: raid.softres.url, tip: "Softres-Liste öffnen" } : undefined)}
                     {check(!!(guildId && raid.channelId), "inv_letter_15", "Discord-Post", guildId && raid.channelId ? "gepostet" : "unbekannt",
                         guildId && raid.channelId ? { href: eventPostUrl(guildId, raid.channelId, raid.id), tip: "Anmeldung in Discord öffnen" } : undefined)}
                 </div>
@@ -147,11 +149,17 @@ export default function RaidDetailsModal({ eventId, guildId, title, icon, onClos
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>Schließen</Button>
-                    {raid && !raid.sheet && (
-                        <Link className={buttonClass("primary", "md", true)} to={detailHref}>
-                            <WowIcon name="inv_misc_note_02" size={22} />Sheet füllen
-                        </Link>
-                    )}
+                    {raid && !raid.sheet
+                        ? (
+                            <Link className={buttonClass("primary", "md", true)} to={detailHref}>
+                                <WowIcon name="inv_misc_note_02" size={22} />Sheet füllen
+                            </Link>
+                        )
+                        : (
+                            <Link className={buttonClass("primary", "md", true)} to={detailHref}>
+                                <WowIcon name={raid?.icon || icon} size={22} />Raid öffnen
+                            </Link>
+                        )}
                 </>
             )}
         >

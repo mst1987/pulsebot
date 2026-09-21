@@ -97,6 +97,8 @@ export type DraftShape = {
     logChannelIds: string[];
     raidChannelId: string;
     categoryLootTool: Record<string, string>;
+    /** The loot system per category; missing/"" = automatic from the loot addon. */
+    categoryLootSystem?: Record<string, string>;
     categorySignupSource?: Record<string, string>;
     /** The source of a category without an entry (#291); missing = "raidhelper". */
     signupSourceDefault?: string;
@@ -122,6 +124,7 @@ const SIMPLE_FIELDS: [string, string][] = [
 ];
 
 const LOOT_TOOL_LABEL: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil", "": "keins" };
+const LOOT_SYSTEM_LABEL: Record<string, string> = { softres: "Softres", lootcouncil: "Loot-Council", gdkp: "GDKP", other: "Anderes", "": "automatisch" };
 
 /** "Beim Anlegen ankündigen" (#306) as one value: "" = off, else the ping target. */
 export const ANNOUNCE_LABEL: Record<string, string> = { "": "aus", event: "Event-Kanal", talk: "Talk-Server", both: "beide Server" };
@@ -157,6 +160,7 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         ...(saved.categoryIds || []), ...(draft.categoryIds || []),
         ...Object.keys(saved.categoryRoles || {}), ...Object.keys(draft.categoryRoles || {}),
         ...Object.keys(saved.categoryLootTool || {}), ...Object.keys(draft.categoryLootTool || {}),
+        ...Object.keys(saved.categoryLootSystem || {}), ...Object.keys(draft.categoryLootSystem || {}),
         ...Object.keys(saved.categorySignupSource || {}), ...Object.keys(draft.categorySignupSource || {}),
         ...Object.keys(saved.categorySetupDms || {}), ...Object.keys(draft.categorySetupDms || {}),
         ...Object.keys(saved.categoryDiscordEvent || {}), ...Object.keys(draft.categoryDiscordEvent || {}),
@@ -173,6 +177,9 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const toolWas = (saved.categoryLootTool || {})[id] || "";
         const toolIs = (draft.categoryLootTool || {})[id] || "";
         if (toolWas !== toolIs) out.push(`${name} · Loot-Addon → ${LOOT_TOOL_LABEL[toolIs] || toolIs}`);
+        const systemWas = (saved.categoryLootSystem || {})[id] || "";
+        const systemIs = (draft.categoryLootSystem || {})[id] || "";
+        if (systemWas !== systemIs) out.push(`${name} · Lootsystem → ${LOOT_SYSTEM_LABEL[systemIs] || systemIs}`);
         const sourceWas = (saved.categorySignupSource || {})[id] || saved.signupSourceDefault || "raidhelper";
         const sourceIs = (draft.categorySignupSource || {})[id] || draft.signupSourceDefault || saved.signupSourceDefault || "raidhelper";
         if (sourceWas !== sourceIs) out.push(`${name} · Neue Events → ${sourceIs === "eventhelper" ? "EventHelper" : "Raid-Helper"}`);

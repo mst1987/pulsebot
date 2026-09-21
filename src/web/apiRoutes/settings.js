@@ -12,6 +12,7 @@ const discord = require("../discord");
 const guildRoles = require("../guildRoles");
 const roleSync = require("../roleSync");
 const { listKnownCategories } = require("../categoryNames");
+const { normalizeLootSystem } = require("../lootSystem");
 const { lastReminderRun } = require("../reminders");
 const { pingTargetInfo } = require("../pingDelivery");
 const wowhead = require("../../utils/wowhead");
@@ -33,6 +34,19 @@ function normalizeCategoryLootTool(raw) {
         const id = String(categoryId).trim();
         if (!id) continue;
         out[id] = LOOT_TOOLS.includes(String(tool)) ? String(tool) : "";
+    }
+    return out;
+}
+
+// The loot system per category: `{ id: system|"" }` — an empty string (also
+// for an unknown value) survives the merge, so the store drops the category
+// and it follows its loot addon again.
+function normalizeCategoryLootSystemPatch(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [categoryId, system] of Object.entries(raw)) {
+        const id = String(categoryId).trim();
+        if (id) out[id] = normalizeLootSystem(system);
     }
     return out;
 }
@@ -363,6 +377,7 @@ async function updateSettings(req, res) {
         if (body.warcraftlogsV2.clientSecret !== undefined) partial.warcraftlogsV2.clientSecret = String(body.warcraftlogsV2.clientSecret || "").trim();
     }
     if (body.categoryLootTool !== undefined) partial.categoryLootTool = normalizeCategoryLootTool(body.categoryLootTool);
+    if (body.categoryLootSystem !== undefined) partial.categoryLootSystem = normalizeCategoryLootSystemPatch(body.categoryLootSystem);
     if (body.categorySignupSource !== undefined) partial.categorySignupSource = normalizeCategorySignupSource(body.categorySignupSource);
     if (body.categorySetupDms !== undefined) partial.categorySetupDms = normalizeCategorySetupDms(body.categorySetupDms);
     if (body.categoryDiscordEvent !== undefined) partial.categoryDiscordEvent = normalizeCategoryDiscordEvent(body.categoryDiscordEvent);

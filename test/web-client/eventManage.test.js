@@ -79,6 +79,13 @@ describe("the manage menu", () => {
         expect(ids(lib.manageMenu({ ...base, isPast: true }))).not.toContain("notify");
     });
 
+    it("offers the softres list only where the loot system uses one", () => {
+        expect(ids(lib.manageMenu({ ...base, softres: false }))).not.toContain("softres");
+        expect(ids(lib.manageMenu({ ...base, softres: true }))).toContain("softres");
+        // an older payload without a loot system keeps the entry
+        expect(ids(lib.manageMenu(base))).toContain("softres");
+    });
+
     it("says open or close depending on the state and counts the log", () => {
         expect(lib.manageMenu(base).find((e) => e.id === "signups").label).toBe("Anmeldung schließen");
         expect(lib.manageMenu({ ...base, signupsClosed: true }).find((e) => e.id === "signups").label).toBe("Anmeldung öffnen");

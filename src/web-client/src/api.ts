@@ -106,6 +106,21 @@ export type DashboardRole = { key: "tank" | "healer" | "dps"; label: string; ico
 /** A raid's sheet: its own filled copy or the category's fixed sheet; null = missing. */
 export type DashboardSheet = { url: string; playerCount: number; filledAt: string } | null;
 
+/** Which loot system a raid runs on — src/web/lootSystem.js's resolveLootSystem(). */
+export type LootSystemKey = "softres" | "lootcouncil" | "gdkp" | "other";
+export type LootSystem = {
+    system: LootSystemKey;
+    label: string;
+    /** Where it came from: the raid itself, the category setting, the RCLootcouncil addon, or the default. */
+    source: "event" | "category" | "addon" | "default";
+    categorySystem: LootSystemKey;
+    categoryLabel: string;
+    /** A non-softres raid that offers a softres list in addition. */
+    softresExtra: boolean;
+    /** Softres step, badge and menu entry are shown. */
+    softres: boolean;
+};
+
 export type DashboardRaid = {
     id: string;
     title: string;
@@ -121,6 +136,7 @@ export type DashboardRaid = {
     roles: DashboardRole[];
     sheet: DashboardSheet;
     softres: { url: string } | null;
+    lootSystem?: LootSystem;
 };
 
 export type DashboardTaskTone = "ok" | "mid" | "bad" | "accent";
@@ -510,6 +526,9 @@ export type AdminConfig = {
     // keyed by category id — preselects the parser on the loot import and tells
     // the raid-detail loot tab which export to ask for.
     categoryLootTool: Record<string, string>;
+    // Which loot system a category's raids run on, keyed by category id. Missing
+    // = follows the loot addon (RCLootcouncil = Loot-Council, else Softres).
+    categoryLootSystem?: Record<string, string>;
     // Where NEW events of a category are created, keyed by category id. Missing
     // = signupSourceDefault; Raid-Helper events stay in use either way.
     categorySignupSource?: Record<string, EventSource>;
@@ -1008,7 +1027,7 @@ export type EventSetup = { total: number; groups: SetupGroup[]; roleCounts?: Par
 
 /** One step of the Raid-Detail progress bar — built by src/web/raidDetailSteps.js. */
 export type RaidStepKey = "signup" | "setup" | "sheet" | "softres" | "loot" | "logs";
-export type RaidDetailModal = "notify" | "sheet" | "softres" | "loot" | "log" | "ping" | "move" | "cancel" | "raider" | "history" | "delete";
+export type RaidDetailModal = "notify" | "sheet" | "softres" | "lootsystem" | "loot" | "log" | "ping" | "move" | "cancel" | "raider" | "history" | "delete";
 export type RaidStep = {
     key: RaidStepKey;
     label: string;
@@ -1271,6 +1290,8 @@ export type RaidDetailData = {
     signupTarget: number;
     lootItems: LootItem[];
     lootTool: string;
+    /** Softres, Loot-Council, … — whether the softres step and menu entry are offered. */
+    lootSystem?: LootSystem;
     eventLogs: RaidLogRow[];
     unlinkedLogs: RaidLogRow[];
     /** The progress bar and the head's primary action. */
@@ -1368,6 +1389,14 @@ export function linkSoftres(
     input: { event: string; softresUrl: string; softresEditUrl: string },
 ): Promise<{ message: string }> {
     return send("POST", "/api/raids/softres/link", csrfToken, input);
+}
+
+/** This raid's loot system where it differs from its category's (`system` "" = like the category). */
+export function setRaidLootSystem(
+    csrfToken: string | null,
+    input: { event: string; system: LootSystemKey | ""; softres: boolean },
+): Promise<{ message: string; lootSystem: LootSystem }> {
+    return send("POST", "/api/raids/loot-system", csrfToken, input);
 }
 
 // Raid templates (#266, src/web/raidTemplates.js): what an evening looks like.

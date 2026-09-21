@@ -158,6 +158,14 @@ describe("save bar change list", () => {
         ]);
     });
 
+    it("names a changed loot system, and treats a missing one as automatisch", () => {
+        const draft = base();
+        draft.categoryLootSystem = { c1: "lootcouncil", c2: "" };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Lootsystem → Loot-Council"]);
+        const saved = { ...base(), categoryLootSystem: { c1: "gdkp" } };
+        expect(logic.draftChanges(saved, { ...base(), categoryLootSystem: { c1: "" } }, names)).toEqual(["Hyjal & BT · Lootsystem → automatisch"]);
+    });
+
     it("names a switched event source, and treats a missing one as Raid-Helper", () => {
         const draft = base();
         draft.categorySignupSource = { c1: "eventhelper", c2: "raidhelper" };
