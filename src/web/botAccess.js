@@ -125,16 +125,20 @@ async function eventMemberRoles(interaction, guildId) {
     }
 }
 
-/** "Dafür brauchst du @Orga oder @Raidleiter." — the names come from the event guild. */
+/**
+ * "You need @Orga or @Raidleiter for this." — the names come from the event
+ * guild. English: whoever is refused is mostly a raider who clicked an orga
+ * button (e.g. "Call invites" under the setup message).
+ */
 function denyMessage(rule, guildId) {
-    if (rule.mode !== "roles" || !rule.roleIds.length) return "Dieser Befehl ist Admins vorbehalten.";
+    if (rule.mode !== "roles" || !rule.roleIds.length) return "This is reserved for admins.";
     const guild = discord.getGuild(guildId);
     const names = rule.roleIds.map((id) => {
         const role = guild && guild.roles && guild.roles.cache && guild.roles.cache.get(id);
-        return `@${role ? role.name : "unbekannte Rolle"}`;
+        return `@${role ? role.name : "unknown role"}`;
     });
-    const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} oder ${names[names.length - 1]}` : names[0];
-    return `Dafür brauchst du ${list}.`;
+    const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}` : names[0];
+    return `You need ${list} for this.`;
 }
 
 /**

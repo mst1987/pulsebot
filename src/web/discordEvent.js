@@ -39,8 +39,9 @@ const { getConfig } = require("./settingsStore");
 const LIMITS = { name: 100, description: 1000, location: 100 };
 
 // The sentence that keeps the two rosters apart. Nothing about a Discord event
-// tells us a spec, so "Interessiert" can never stand in for a signup.
-const SIGNUP_NOTE = "Anmeldung nur über die Nachricht im Kanal – „Interessiert“ hier zählt nicht.";
+// tells us a spec, so "Interested" can never stand in for a signup. English,
+// like every raider-facing Discord text.
+const SIGNUP_NOTE = "Sign up only through the message in the channel – “Interested” here does not count.";
 
 /** Discord's "this is gone already" for a scheduled event. */
 const isGone = (e) => !!(e && (e.code === 10070 || e.code === 10008 || e.status === 404 || /unknown (guild )?scheduled event/i.test((e && e.message) || "")));
@@ -77,7 +78,7 @@ function describeEvent(event) {
     const cancelled = event && event.status === "cancelled";
     const reason = cancelled ? String((event.cancel && event.cancel.reason) || "").trim() : "";
     const lines = [
-        cancelled ? `❌ Abgesagt${reason ? `: ${clip(reason, 200)}` : ""}` : "",
+        cancelled ? `❌ Cancelled${reason ? `: ${clip(reason, 200)}` : ""}` : "",
         own,
         SIGNUP_NOTE,
         url,

@@ -49,7 +49,7 @@ describe("commands/signup/eventSignup", () => {
         mocks.access.roleIds = ["role-other"];
         let interaction = mockInteraction({ customId: "event-signup:eh-kara", userId: ANNA });
         await command.execute(interaction);
-        expect(interaction.reply).toHaveBeenCalledWith({ content: "Für diesen Raid brauchst du eine Raider-Rolle.", flags: MessageFlags.Ephemeral });
+        expect(interaction.reply).toHaveBeenCalledWith({ content: "You need a raider role for this raid.", flags: MessageFlags.Ephemeral });
         expect(mocks.memberRoleIds).toHaveBeenCalledWith("g-event", ANNA);
 
         // …an own signup from before may still be changed
@@ -62,6 +62,6 @@ describe("commands/signup/eventSignup", () => {
     it("says so when the event is gone", async () => {
         const interaction = mockInteraction({ customId: "event-signup:eh-9" });
         await command.execute(interaction);
-        expect(interaction.reply).toHaveBeenCalledWith({ content: "Dieses Event gibt es nicht mehr.", flags: MessageFlags.Ephemeral });
+        expect(interaction.reply).toHaveBeenCalledWith({ content: "This event no longer exists.", flags: MessageFlags.Ephemeral });
     });
 });

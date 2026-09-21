@@ -27,9 +27,13 @@ function parseInviteId(customId) {
     return { field, eventId: EVENT_ID.test(eventId) ? eventId : "" };
 }
 
-/** The button row under the setup message. */
+/**
+ * The button row under the setup message. The label sits on a message every
+ * raider reads, so it is English; the private preview behind it is the orga's
+ * and stays German, like the other orga texts in the bot.
+ */
 function inviteButtonRow(eventId) {
-    return { type: 1, components: [{ type: 2, style: 2, custom_id: inviteId("p", eventId), label: "Invite callen", emoji: { name: "📣" } }] };
+    return { type: 1, components: [{ type: 2, style: 2, custom_id: inviteId("p", eventId), label: "Call invites", emoji: { name: "📣" } }] };
 }
 
 const notice = (text, tone) => ({ content: "", embeds: [{ description: text, color: tone === "ok" ? COLOR_OK : COLOR_ERR }], components: [] });

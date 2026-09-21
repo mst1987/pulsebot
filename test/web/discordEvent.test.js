@@ -121,7 +121,7 @@ describe("web/discordEvent", () => {
 
         it("names the cancellation and its reason", () => {
             const payload = de.buildScheduledEvent(event({ status: "cancelled", cancel: { reason: "zu wenige Heiler" } }));
-            expect(payload.description).toContain("Abgesagt: zu wenige Heiler");
+            expect(payload.description).toContain("Cancelled: zu wenige Heiler");
         });
 
         it("keeps Discord's limits", () => {

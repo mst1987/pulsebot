@@ -117,8 +117,8 @@ describe("web/icsFeed", () => {
         it("marks a cancelled event and names the reason", () => {
             const ics = buildIcs(event({ status: "cancelled", cancel: { reason: "Zu wenige Heiler" } }));
             expect(lineOf(ics, "STATUS")).toBe("STATUS:CANCELLED");
-            expect(lineOf(ics, "SUMMARY")).toBe("SUMMARY:Abgesagt: SSC + TK");
-            expect(lineOf(ics, "DESCRIPTION")).toContain("Abgesagt: Zu wenige Heiler");
+            expect(lineOf(ics, "SUMMARY")).toBe("SUMMARY:Cancelled: SSC + TK");
+            expect(lineOf(ics, "DESCRIPTION")).toContain("Cancelled: Zu wenige Heiler");
         });
 
         it("escapes the title and the description instead of breaking the file", () => {
@@ -193,7 +193,7 @@ describe("web/icsFeed", () => {
                 "UID:eh-1@eventhelper", "UID:eh-2@eventhelper",
             ]);
             // the name a calendar client shows for the subscription
-            expect(ics).toContain("X-WR-CALNAME:Meine Raids");
+            expect(ics).toContain("X-WR-CALNAME:My raids");
         });
 
         it("is a valid, empty calendar for a raider without a single signup", () => {
@@ -205,7 +205,7 @@ describe("web/icsFeed", () => {
 
         it("names the reader's own status and nothing else about the signup", () => {
             const ics = buildUserCalendar([{ event: event(), status: "late" }]);
-            expect(lineOf(ics, "DESCRIPTION")).toContain("Deine Anmeldung: Spät");
+            expect(lineOf(ics, "DESCRIPTION")).toContain("Your signup: Late");
             expect(lineOf(ics, "STATUS")).toBe("STATUS:CONFIRMED");
         });
 
@@ -215,13 +215,13 @@ describe("web/icsFeed", () => {
             const ics = buildUserCalendar([{ event: event(), status: "absence" }]);
             expect(ics).toContain("BEGIN:VEVENT");
             expect(lineOf(ics, "STATUS")).toBe("STATUS:CANCELLED");
-            expect(lineOf(ics, "SUMMARY")).toBe("SUMMARY:Abgemeldet: SSC + TK");
+            expect(lineOf(ics, "SUMMARY")).toBe("SUMMARY:Signed off: SSC + TK");
         });
 
         it("marks a cancelled raid as cancelled whatever the own status is", () => {
             const ics = buildUserCalendar([{ event: event({ status: "cancelled", cancel: { reason: "Zu wenige Heiler" } }), status: "signed" }]);
             expect(lineOf(ics, "STATUS")).toBe("STATUS:CANCELLED");
-            expect(lineOf(ics, "DESCRIPTION")).toContain("Abgesagt: Zu wenige Heiler");
+            expect(lineOf(ics, "DESCRIPTION")).toContain("Cancelled: Zu wenige Heiler");
         });
 
         it("blocks the day only for a raid one is really in", () => {

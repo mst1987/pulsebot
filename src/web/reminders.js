@@ -82,11 +82,11 @@ function dueReminders(event, rule, sent = {}, now = Date.now()) {
 /** The text of a reminder; the start as a Discord timestamp, so everyone reads it in their own time zone. */
 function reminderText(kind, event) {
     const start = Math.floor(toMs(event.startTime) / 1000);
-    const title = event.title ? `**${event.title}**` : "den Raid";
-    if (kind === "signed") return `Erinnerung: ${title} beginnt <t:${start}:R>. Bis gleich!`;
+    const title = event.title ? `**${event.title}**` : "the raid";
+    if (kind === "signed") return `Reminder: ${title} starts <t:${start}:R>. See you soon!`;
     const deadline = Math.floor(toMs(event.signupDeadline) / 1000);
-    const until = deadline && deadline < start ? `Anmeldeschluss <t:${deadline}:R>` : `Raidbeginn <t:${start}:F>`;
-    return `Erinnerung: Bitte meldet euch für ${title} an oder ab (${until}).`;
+    const until = deadline && deadline < start ? `signup deadline <t:${deadline}:R>` : `raid start <t:${start}:F>`;
+    return `Reminder: please sign up or sign off for ${title} (${until}).`;
 }
 
 /** Who a reminder goes to; `null` = cannot be known right now (try again next sweep). */

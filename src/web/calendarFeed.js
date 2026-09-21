@@ -36,7 +36,7 @@ const MAX_EVENTS = 200;
 const CACHE_MS = 5 * 60 * 1000;
 // A cap so a flood of tokens cannot grow the map without bound.
 const MAX_CACHE = 500;
-const CALENDAR_NAME = "Meine Raids";
+const CALENDAR_NAME = "My raids";
 
 const cache = new Map();
 

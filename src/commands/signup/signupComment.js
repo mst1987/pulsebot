@@ -19,15 +19,15 @@ module.exports = {
         const event = getEvent(eventId);
         const uid = interaction.user.id;
         if (!interaction.isModalSubmit()) {
-            if (!event) return plainUpdate(interaction, "Dieses Event gibt es nicht mehr.");
+            if (!event) return plainUpdate(interaction, "This event no longer exists.");
             const mine = getSignup(event.id, uid);
             return interaction.showModal(buildCommentModal(interaction.customId, mine ? mine.comment : ""));
         }
 
-        if (!event) return plainUpdate(interaction, "Dieses Event gibt es nicht mehr.");
+        if (!event) return plainUpdate(interaction, "This event no longer exists.");
         const mine = getSignup(event.id, uid);
         if (!mine) {
-            return interaction.update(buildSignupDialog(event, uid, { state, notice: "⚠️ Melde dich zuerst an – dann kannst du einen Kommentar hinterlassen." }));
+            return interaction.update(buildSignupDialog(event, uid, { state, notice: "⚠️ Sign up first – then you can leave a comment." }));
         }
         const comment = String(interaction.fields.getTextInputValue("comment") || "").trim();
         const result = await submitSignup(event.id, uid, {
@@ -39,7 +39,7 @@ module.exports = {
         });
         const notice = result.error
             ? `⚠️ ${result.error}`
-            : (comment ? "✅ Kommentar gespeichert." : "✅ Kommentar entfernt.");
+            : (comment ? "✅ Comment saved." : "✅ Comment removed.");
         return interaction.update(buildSignupDialog(event, uid, { state, notice }));
     },
 };

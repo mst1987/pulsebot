@@ -26,6 +26,10 @@ const { instance } = require("../config/gameVersions");
 const { clampDuration, eventEndTime } = require("../utils/eventTime");
 const { wowIconUrl } = require("../config/menu");
 const { layout, esc } = require("./render");
+// The page is for raiders, so it is in English like the bot's Discord texts;
+// times are written out in server time (a web page cannot render a Discord timestamp).
+const { serverDateTime } = require("../utils/discordTime");
+const { ROLE_LABELS_EN } = require("../config/gameVersions/classes");
 
 // Every key the public payload may carry, at every level. The test walks the
 // view against this list — a new personal field cannot slip in unnoticed.
@@ -45,13 +49,13 @@ const VIEW_KEYS = [
 ];
 
 // The statuses below the class blocks, in the order the message uses.
-const OTHER_LINES = [["late", "Spät"], ["tentative", "Vielleicht"], ["bench", "Bank"], ["absence", "Abgemeldet"]];
-const ROLE_LABEL = { tank: "Tank", healer: "Heiler", melee: "Nahkampf", ranged: "Fernkampf" };
+const OTHER_LINES = [["late", "Late"], ["tentative", "Tentative"], ["bench", "Bench"], ["absence", "Absence"]];
+const ROLE_LABEL = ROLE_LABELS_EN;
 const PHASE_BADGE = {
-    cancelled: { label: "Abgesagt", tone: "high" },
-    started: { label: "Raid läuft", tone: "muted" },
-    closed: { label: "Anmeldung geschlossen", tone: "medium" },
-    deadline: { label: "Anmeldeschluss vorbei", tone: "medium" },
+    cancelled: { label: "Cancelled", tone: "high" },
+    started: { label: "Raid in progress", tone: "muted" },
+    closed: { label: "Signups closed", tone: "medium" },
+    deadline: { label: "Signup deadline passed", tone: "medium" },
 };
 
 const str = (v) => String(v === null || v === undefined ? "" : v).trim();
@@ -75,7 +79,7 @@ function member(entry, table) {
     return {
         character: str(entry.character) || "?",
         spec: str(entry.spec),
-        specLabel: (hit && hit.spec.label) || "",
+        specLabel: (hit && (hit.spec.labelEn || hit.spec.label)) || "",
         specIcon: (hit && hit.spec.icon) || "",
         role: str(entry.role),
     };
@@ -101,14 +105,14 @@ function publicEventView(event, signups, { now = Date.now() } = {}) {
     const signed = entries.filter((e) => e.status === "signed").map((e) => member(e, table));
     const classes = classesOf(event).map((cls) => {
         const keys = new Set(cls.specs.map((s) => s.key || `${cls.id}-${s.id}`));
-        const members = signed.filter((m) => keys.has(m.spec)).sort((a, b) => a.character.localeCompare(b.character, "de"));
-        return { id: cls.id, label: cls.label, color: cls.color || "", icon: cls.icon || "", members };
+        const members = signed.filter((m) => keys.has(m.spec)).sort((a, b) => a.character.localeCompare(b.character, "en"));
+        return { id: cls.id, label: cls.labelEn || cls.label, color: cls.color || "", icon: cls.icon || "", members };
     }).filter((c) => c.members.length);
     // A spec the rule set does not know (a version changed under a stored
     // signup) would fall out of every class block — it gets its own.
     const placed = new Set(classes.flatMap((c) => c.members.map((m) => `${m.character}|${m.spec}`)));
     const rest = signed.filter((m) => !placed.has(`${m.character}|${m.spec}`));
-    if (rest.length) classes.push({ id: "", label: "Weitere", color: "", icon: "", members: rest });
+    if (rest.length) classes.push({ id: "", label: "Other", color: "", icon: "", members: rest });
 
     const other = OTHER_LINES.map(([status, label]) => ({
         id: status,
@@ -199,15 +203,15 @@ const PAGE_STYLE = `
   .ev-list li span { color:var(--muted); font-size:12.5px; margin-left:auto; }
   .ev-foot { color:var(--muted); font-size:12.5px; margin:28px 0 0; }`;
 
-const fmtDate = (seconds) => (seconds
-    ? new Intl.DateTimeFormat("de-DE", {
-        weekday: "short", day: "2-digit", month: "2-digit", year: "numeric",
-        hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin",
-    }).format(new Date(seconds * 1000))
-    : "–");
-const fmtTime = (seconds) => (seconds
-    ? new Intl.DateTimeFormat("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" }).format(new Date(seconds * 1000))
-    : "–");
+// "Wed 24 Sep 2026, 19:30" — English, in server time (Europe/Berlin), 24 h.
+const fmtDate = (seconds) => {
+    const dt = serverDateTime(seconds);
+    return dt ? dt.toFormat("ccc d LLL yyyy, HH:mm") : "–";
+};
+const fmtTime = (seconds) => {
+    const dt = serverDateTime(seconds);
+    return dt ? dt.toFormat("HH:mm") : "–";
+};
 
 function icon(name, size = 20) {
     return name ? `<img src="${esc(wowIconUrl(name, size))}" alt="" loading="lazy">` : "";
@@ -232,42 +236,42 @@ function renderPublicEventBody(view) {
     const badges = [
         ...(phase ? [`<span class="ev-badge ${phase.tone === "high" ? "high" : phase.tone === "medium" ? "medium" : ""}">${esc(phase.label)}</span>`] : []),
         ...view.raids.map((r) => `<span class="ev-badge">${icon(r.icon, 18)}${esc(r.label)}</span>`),
-        ...(view.size ? [`<span class="ev-badge">${view.size}er</span>`] : []),
+        ...(view.size ? [`<span class="ev-badge">${view.size}-man</span>`] : []),
     ].join("");
 
     const facts = [
-        { kicker: "Termin", value: fmtDate(view.startTime), sub: view.endTime ? `bis ${fmtTime(view.endTime)} Uhr` : "" },
+        { kicker: "Date · server time", value: fmtDate(view.startTime), sub: view.endTime ? `until ${fmtTime(view.endTime)} server time` : "server time" },
         {
-            kicker: "Angemeldet",
+            kicker: "Signed up",
             value: `${view.counts.attending}${view.size ? ` / ${view.size}` : ""}`,
-            sub: `${view.counts.tank} ${view.counts.tank === 1 ? "Tank" : "Tanks"} · ${view.counts.healer} Heiler · ${view.counts.dps} DPS`,
+            sub: `${view.counts.tank} ${view.counts.tank === 1 ? "Tank" : "Tanks"} · ${view.counts.healer} ${view.counts.healer === 1 ? "Healer" : "Healers"} · ${view.counts.dps} DPS`,
         },
         {
-            kicker: "Anmeldeschluss",
-            value: view.signupDeadline ? fmtDate(view.signupDeadline) : "keiner",
-            sub: view.signupsClosed ? "Anmeldung geschlossen" : "",
+            kicker: "Signup deadline",
+            value: view.signupDeadline ? fmtDate(view.signupDeadline) : "none",
+            sub: view.signupsClosed ? "Signups closed" : (view.signupDeadline ? "server time" : ""),
         },
     ].map((f) => `<div class="ev-fact"><span class="kicker">${esc(f.kicker)}</span><b>${esc(f.value)}</b>${f.sub ? `<span>${esc(f.sub)}</span>` : ""}</div>`).join("");
 
     const cancelled = view.status === "cancelled"
-        ? `<div class="ev-desc" style="border-left-color:var(--high)"><strong>Abgesagt.</strong>${view.cancelReason ? ` ${esc(view.cancelReason)}` : ""}</div>`
+        ? `<div class="ev-desc" style="border-left-color:var(--high)"><strong>Cancelled.</strong>${view.cancelReason ? ` ${esc(view.cancelReason)}` : ""}</div>`
         : "";
     const description = view.description ? `<div class="ev-desc">${esc(view.description)}</div>` : "";
 
     const roster = [...view.classes, ...view.other];
     const rosterHtml = roster.length
         ? `<div class="ev-grid">${roster.map(block).join("")}</div>`
-        : "<div class=\"empty\">Noch niemand angemeldet.</div>";
+        : "<div class=\"empty\">Nobody has signed up yet.</div>";
 
     const setup = view.setup
         ? `<h2 class="ev-sec">Setup</h2><div class="ev-grid">${[
-            ...view.setup.groups.map((g) => block({ id: "", label: `Gruppe ${g.index}`, color: "", icon: "", members: g.members })),
-            ...(view.setup.bench.length ? [block({ id: "", label: "Bank", color: "", icon: "", members: view.setup.bench })] : []),
+            ...view.setup.groups.map((g) => block({ id: "", label: `Group ${g.index}`, color: "", icon: "", members: g.members })),
+            ...(view.setup.bench.length ? [block({ id: "", label: "Bench", color: "", icon: "", members: view.setup.bench })] : []),
         ].join("")}</div>`
         : "";
 
     return `<div class="ev-head">
-      <div class="ev-kicker">Raid der Gilde</div>
+      <div class="ev-kicker">Guild raid</div>
       <h1 class="ev-title">${esc(view.title)}</h1>
       <div class="ev-badges">${badges}</div>
     </div>
@@ -275,13 +279,13 @@ function renderPublicEventBody(view) {
     <div class="ev-facts">${facts}</div>
     ${description}
     <div class="ev-actions">
-      <a class="ev-btn primary" href="${esc(view.icsUrl)}">In Kalender eintragen</a>
-      <a class="ev-btn" href="${esc(view.signupUrl)}">Anmelden im Menü</a>
+      <a class="ev-btn primary" href="${esc(view.icsUrl)}">Add to calendar</a>
+      <a class="ev-btn" href="${esc(view.signupUrl)}">Sign up in the menu</a>
     </div>
-    <h2 class="ev-sec">Anmeldungen</h2>
+    <h2 class="ev-sec">Signups</h2>
     ${rosterHtml}
     ${setup}
-    <p class="ev-foot">Öffentliche Ansicht – ohne Login. Angemeldet wird im Discord oder im Menü.</p>`;
+    <p class="ev-foot">Public view – no login needed. Sign up in Discord or in the menu.</p>`;
 }
 
 /**
@@ -291,9 +295,10 @@ function renderPublicEventBody(view) {
 function renderPublicEventPage(view) {
     const body = `<div class="wrap">
 ${renderPublicEventBody(view)}
-<footer>EventHelper · Öffentliche Event-Ansicht</footer>
+<footer>EventHelper · Public event view</footer>
 </div>`;
-    return layout(`${view.title} · EventHelper`, body, { bare: true, extraStyle: PAGE_STYLE });
+    // layout() is shared with the German report pages; this one page is English.
+    return layout(`${view.title} · EventHelper`, body, { bare: true, extraStyle: PAGE_STYLE }).replace("<html lang=\"de\">", "<html lang=\"en\">");
 }
 
 /**
