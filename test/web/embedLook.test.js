@@ -7,7 +7,26 @@ jest.mock("../../src/config/variables", () => ({ embedAccentColor: 7 }));
 const {
     normalizeColor, colorProblem, colorValue, usableUrl, normalizeImage, imageProblem, normalizeLook,
     leadInstance, ruleSetLook, lookOf, embedColor, embedImageFields, MAX_URL,
+    raidArtUrl, normalizeCategoryMessageLook, messageLookOf,
 } = require("../../src/web/embedLook");
+
+describe("Aussehen der Anmelde-Nachricht je Kategorie", () => {
+    it("hat Raid-Bild an und große Titel als Standard", () => {
+        expect(messageLookOf({}, "c1")).toEqual({ raidArt: true, titleSize: "large" });
+        expect(messageLookOf(undefined, "")).toEqual({ raidArt: true, titleSize: "large" });
+        expect(messageLookOf({ categoryMessageLook: { c1: { raidArt: false, titleSize: "huge" } } }, "c1")).toEqual({ raidArt: false, titleSize: "huge" });
+    });
+
+    it("speichert nur, was vom Standard abweicht", () => {
+        expect(normalizeCategoryMessageLook({
+            c1: { raidArt: true, titleSize: "large" },
+            c2: { raidArt: false, titleSize: "gigantisch" },
+            c3: { titleSize: "normal" },
+            " ": { raidArt: false },
+        })).toEqual({ c2: { raidArt: false }, c3: { titleSize: "normal" } });
+        expect(normalizeCategoryMessageLook(null)).toEqual({});
+    });
+});
 const { instanceById } = require("../../src/config/gameVersions");
 
 describe("web/embedLook", () => {
@@ -91,6 +110,21 @@ describe("web/embedLook", () => {
             expect(look.color).toBe(instanceById("bt").color);
             expect(look.thumbnail).toBe("https://wow.zamimg.com/images/wow/icons/large/achievement_boss_illidan.jpg");
             expect(usableUrl(look.thumbnail)).toBe(true);
+        });
+
+        it("liefert das Raid-Bild (Blizzards Zonenbild) der führenden Instanz", () => {
+            expect(ruleSetLook(["bt"]).art).toBe("https://render.worldofwarcraft.com/eu/zones/black-temple-small.jpg");
+            expect(ruleSetLook(["ssc", "tk"]).art).toContain("serpentshrine-cavern");
+            expect(ruleSetLook([]).art).toBe("");
+            expect(raidArtUrl("")).toBe("");
+            expect(raidArtUrl("../x")).toBe("");
+        });
+
+        it("jede TBC- und Classic-Instanz hat ein Raid-Bild", () => {
+            const { rulesFor } = require("../../src/config/gameVersions");
+            for (const version of ["tbc", "classic"]) {
+                for (const inst of rulesFor(version).instances) expect({ id: inst.id, art: usableUrl(raidArtUrl(inst.art)) }).toEqual({ id: inst.id, art: true });
+            }
         });
 
         it("kodiert einen Apostrophen im Icon-Namen", () => {

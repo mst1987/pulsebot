@@ -2,7 +2,8 @@ import { Fragment, useCallback, useEffect, useState } from "react";
 import { getRaiderCharacters, type Category, type EventSource, type Role } from "../api";
 import { usePersistedState } from "../lib/persistedState";
 import {
-    categoryRows, splitCategoryRows, summarizeRaiderChars, signupNoteMode, noteChannelPick, SIGNUP_NOTE_LABEL, type CategoryRow, type RaiderCharSummary,
+    categoryRows, splitCategoryRows, summarizeRaiderChars, signupNoteMode, noteChannelPick, SIGNUP_NOTE_LABEL, messageLook, TITLE_SIZE_LABEL,
+    type CategoryRow, type RaiderCharSummary,
 } from "../lib/settingsLogic";
 import { Button } from "./ui/Button";
 import Badge from "./ui/Badge";
@@ -31,6 +32,9 @@ export type CategoryRaidTemplates = {
     value: Record<string, string>;
     onChange: (categoryId: string, templateId: string) => void;
 };
+
+// How large the title tiles of the signup message are (src/web/embedLook.js).
+const TITLE_SIZES = ["normal", "large", "huge"].map((value) => ({ value, label: TITLE_SIZE_LABEL[value] }));
 
 const LOOT_TOOLS = [
     { value: "gargul", label: "Gargul" },
@@ -72,6 +76,7 @@ const SIGNUP_SOURCES = [
 export default function CategoryMatrix({
     categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySignupSource = {}, signupSourceDefault = "raidhelper", categorySetupDms = {}, categoryAnnounce = {}, categorySheets, savedCategoryRoles,
     categoryDiscordEvent = {}, categoryVoiceChannel = {}, voiceChannels = [], categoryLootSystem = {}, onLootSystem,
+    categoryMessageLook = {}, onMessageLook,
     categorySignupNotes = {}, onSignupNotes, categorySignupNoteChannel = {}, noteChannels, onSignupNoteChannel,
     onToggleCategory, onToggleRole, onLootTool, onSignupSource, onSetupDms, onAnnounce, onDiscordEvent, onVoiceChannel, onSheet, csrfToken, icon, crumb, raidTemplates,
 }: {
@@ -105,6 +110,9 @@ export default function CategoryMatrix({
     categoryVoiceChannel?: Record<string, string>;
     /** The server's voice channels; empty while the bot is offline. */
     voiceChannels?: { id: string; name: string; category?: string }[];
+    /** The look of the signup message; missing = raid picture on, title "large". */
+    categoryMessageLook?: Record<string, { raidArt?: boolean; titleSize?: string }>;
+    onMessageLook?: (categoryId: string, look: { raidArt: boolean; titleSize: string }) => void;
     /** "Beim Anlegen ankündigen" per category (#306); missing = off. */
     categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;
     categorySheets: Record<string, CategorySheet>;
@@ -353,6 +361,24 @@ export default function CategoryMatrix({
                                     </label>
                                 </div>
                             )}
+                            {onMessageLook && (() => {
+                                const look = messageLook(categoryMessageLook, cat.id);
+                                return (
+                                    <>
+                                        <div className="cat-switch-row">
+                                            <FieldLabel tip="Raid-Bild" tipSub="Unter der Anmelde-Nachricht steht ein Bild des Raids (Blizzards Zonenbild der größten Instanz des Abends). Ein Event mit eigenem Banner behält seins.">Raid-Bild</FieldLabel>
+                                            <label className="switch">
+                                                <input type="checkbox" checked={look.raidArt} onChange={() => onMessageLook(cat.id, { ...look, raidArt: !look.raidArt })} aria-label={`Raid-Bild ${cat.name}`} />
+                                                <span className="switch-track"><span className="switch-thumb" /></span>
+                                            </label>
+                                        </div>
+                                        <div>
+                                            <FieldLabel tip="Titelgröße" tipSub="Wie groß die Buchstaben-Kacheln des Titels in der Anmelde-Nachricht sind. „sehr groß“ bricht einen langen Titel eher in zwei Zeilen um.">Titelgröße</FieldLabel>
+                                            <Segment ariaLabel={`Titelgröße ${cat.name}`} value={look.titleSize} onChange={(v) => onMessageLook(cat.id, { ...look, titleSize: v })} options={TITLE_SIZES} />
+                                        </div>
+                                    </>
+                                );
+                            })()}
                             {onVoiceChannel && (
                                 <div>
                                     <FieldLabel htmlFor={`catvoice-${cat.id}`} tip="Sprachkanal" tipSub="Wo sich die Raids dieser Kategorie treffen. Vorbelegung beim Anlegen eines Events — dort noch änderbar. Steht in der Anmelde-Nachricht und ist der Ort des Discord-Events.">Sprachkanal</FieldLabel>

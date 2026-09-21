@@ -118,7 +118,7 @@ describe("web/eventMessage", () => {
         expect(embed.fields.slice(3, 7).map((f) => [f.name, emojiless(f.value), f.inline])).toEqual([
             [ZWS, "<:eh_ra_tank> Tanks **2**/2\n<:eh_ra_healer> Heiler **1**/3", true],
             [ZWS, "<:eh_ra_ranged> Fernkampf **2**", true],
-            [ZWS, "<:eh_ra_melee> Nahkampf **0**", true],
+            [ZWS, "<:eh_ra_swords> Nahkampf **0**", true],
             [ZWS, ZWS, false],
         ]);
         // the colourful WoW role icons are no longer used in the message
@@ -169,7 +169,8 @@ describe("web/eventMessage", () => {
     it("puts tanks in their own block first, then one block per class in fixed order, with an empty line under each", () => {
         const payload = buildEventMessage(event(), signups, { emojis, now: NOW });
         const blocks = payload.embeds[0].fields.slice(7).filter((f) => f.inline);
-        expect(blocks.map((b) => emojiless(b.name))).toEqual(["<:eh_ra_tank> __Tanks__ (2)", "<:eh_class_priest> __Priester__ (1)", "<:eh_class_mage> __Magier__ (1)"]);
+        // the Tanks block wears the Protection Warrior's icon
+        expect(blocks.map((b) => emojiless(b.name))).toEqual(["<:eh_warrior_protection> __Tanks__ (2)", "<:eh_class_priest> __Priester__ (1)", "<:eh_class_mage> __Magier__ (1)"]);
         expect(blocks[0].value.split("\n")).toEqual([
             expect.stringMatching(/^<:eh_warrior_protection:\d+> `1` \*\*Brokk\*\*$/),
             expect.stringMatching(/^<:eh_druid_guardian:\d+> `7` \*\*Gemli\*\*$/),
@@ -178,7 +179,7 @@ describe("web/eventMessage", () => {
         expect(blocks[1].value).toMatch(/<:eh_priest_shadow:\d+> `6` \*\*Thalia\*\*/);
     });
 
-    it("lists every character of a signup in the block of its own status, under one number — the count stays per person", () => {
+    it("lists every character of a signup in the block of its own status, under one number — only the first one counts", () => {
         const multi = { ...su("9", "Zibbo", "Priest-Holy", "healer", "late"), characters: [
             { character: "Zibbo", spec: "Priest-Holy", role: "healer", status: "late" },
             { character: "Zibbowar", spec: "Warrior-Protection", role: "tank", status: "signed" },
@@ -187,11 +188,16 @@ describe("web/eventMessage", () => {
         const payload = buildEventMessage(event(), [...signups, multi], { emojis, now: NOW });
         const fields = payload.embeds[0].fields;
         const tank = fields.find((f) => f.inline && f.name.includes("__Tanks__"));
-        expect(tank.name).toMatch(/__Tanks__ \(3\)$/);
-        expect(tank.value).toMatch(/`8` \*\*Zibbowar\*\*/);
-        // a character without its own status has the signup's (late)
+        // Zibbowar is a further character: listed, not bold, below the first characters, not counted
+        expect(tank.name).toMatch(/__Tanks__ \(2\)$/);
+        expect(tank.value.split("\n").slice(0, 3)).toEqual([
+            expect.stringMatching(/`1` \*\*Brokk\*\*$/),
+            expect.stringMatching(/`7` \*\*Gemli\*\*$/),
+            expect.stringMatching(/`8` Zibbowar$/),
+        ]);
+        // a character without its own status has the signup's (late); one raider counts once
         const other = fields.find((f) => !f.inline && f.value.includes("Spät"));
-        expect(other.value.split("\n")[0]).toMatch(/Spät \(3\): `2` Ysolde, `8` Zibbo, `8` Zibbomage$/);
+        expect(other.value.split("\n")[0]).toMatch(/Spät \(2\): `2` Ysolde, `8` Zibbo \/ Zibbomage$/);
         expect(JSON.stringify(payload)).not.toContain("+1");
         // one seat per person: Zibbo is late, so 5 + 1 attend, the tank count stays per person
         expect(emojiless(fields[1].value).split("\n")[0]).toBe("<:eh_ui_signups> **6** / 10");
@@ -222,7 +228,11 @@ describe("web/eventMessage", () => {
         // the first character on Bank, the second still signed: both where their own status puts them
         const two = { ...devire, characters: [devire.characters[0], { character: "Devheal", spec: "Priest-Holy", role: "healer", status: "signed" }] };
         const payload = buildEventMessage(event(), [two], { now: NOW });
-        expect(payload.embeds[0].fields.find((f) => f.name.startsWith("__Priester__")).value).toContain("`1` **Devheal**");
+        // Devheal is the second character: shown, but not bold and not counted
+        const priest = payload.embeds[0].fields.find((f) => f.name.startsWith("__Priester__"));
+        expect(priest.value).toContain("`1` Devheal");
+        expect(priest.value).not.toContain("**Devheal**");
+        expect(priest.name).toBe("__Priester__ (0)");
         expect(lines([two]).value).toBe("Bank (1): `1` Devire");
         // an absence is one line per person, whatever its characters stored
         expect(lines([{ ...devire, status: "absence", characters: [{ character: "Devire", spec: "Mage-Arcane" }] }]).value).toBe("Abgemeldet (1): `1` Devire");
@@ -313,6 +323,26 @@ describe("web/eventMessage", () => {
             expect(embed.color).toBe(0xff8800);
             expect(embed.image).toEqual({ url: "https://cdn.example/raid.png" });
             expect(embed.thumbnail).toBeUndefined();
+        });
+
+        it("setzt mit raidArt das Raid-Bild der führenden Instanz unter die Nachricht, neben dem Boss-Icon", () => {
+            const embed = buildEventMessage(event({ instanceIds: ["hyjal", "bt", "gruul"] }), signups, { emojis, now: NOW, raidArt: true }).embeds[0];
+            expect(embed.image).toEqual({ url: "https://render.worldofwarcraft.com/eu/zones/the-battle-for-mount-hyjal-small.jpg" });
+            expect(embed.thumbnail).toEqual({ url: expect.stringContaining("achievement_boss_archimonde-") });
+            // an own banner stays in its place; without raidArt nothing changes
+            const own = buildEventMessage(event({ instanceIds: ["bt"], image: { mode: "banner", url: "https://cdn.example/raid.png" } }), signups, { emojis, now: NOW, raidArt: true }).embeds[0];
+            expect(own.image).toEqual({ url: "https://cdn.example/raid.png" });
+            expect(buildEventMessage(event({ instanceIds: ["bt"] }), signups, { emojis, now: NOW }).embeds[0].image).toBeUndefined();
+            // a cancelled event loses it like every picture
+            expect(buildEventMessage(event({ instanceIds: ["bt"], status: "cancelled" }), signups, { emojis, now: NOW, raidArt: true }).embeds[0].image).toBeUndefined();
+        });
+
+        it("vergrößert die Buchstaben-Kacheln des Titels mit einer Überschrift", () => {
+            const first = (titleSize) => buildEventMessage(event(), signups, { emojis, now: NOW, titleSize }).embeds[0].description.split("\n")[0];
+            expect(first("large")).toMatch(/^## <:eh_ta_k:/);
+            expect(first("huge")).toMatch(/^# <:eh_ta_k:/);
+            expect(first("normal")).toMatch(/^<:eh_ta_k:/);
+            expect(first(undefined)).toMatch(/^<:eh_ta_k:/);
         });
 
         it("ohne Instanz und ohne eigene Farbe bleibt es bei der Akzentfarbe, ohne Bild", () => {

@@ -53,6 +53,9 @@ const ICONS = {
     healer: '<path d="M9 3.5h6V9h5.5v6H15v5.5H9V15H3.5V9H9Z"/>',
     // a sword — melee
     melee: '<path d="M14.5 17.5 3.5 6.5v-3h3l11 11"/><path d="M13 19.5l6.5-6.5M16.2 16.2l4.3 4.3M19 21.5l2.5-2.5"/>',
+    // two crossed swords — melee since the single sword read as "!" (appEmojis ROLE_ICONS)
+    swords: '<path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="M13 19l6-6M16 16l4 4M19 21l2-2"/>'
+        + '<path d="M14.5 6.5 18 3h3v3l-3.5 3.5"/><path d="M5 14l4 4M7 17l-3 3M3 19l2 2"/>',
     // a target — ranged
     ranged: '<circle cx="12" cy="12" r="8.3"/><circle cx="12" cy="12" r="3.3"/><path d="M12 1.8v4.6M12 17.6v4.6M1.8 12h4.6M17.6 12h4.6"/>',
     // a loudspeaker with two waves — the raid's voice channel (#305)

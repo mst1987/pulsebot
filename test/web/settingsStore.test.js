@@ -272,6 +272,14 @@ describe("web/settingsStore", () => {
             expect(getConfig().categoryLootSystem).toEqual({ c3: "gdkp" });
         });
 
+        it("stores the message look per category and drops a category back at the defaults", () => {
+            expect(getConfig().categoryMessageLook).toEqual({});
+            saveConfig({ categoryMessageLook: { c1: { raidArt: false, titleSize: "large" }, c2: { raidArt: true, titleSize: "huge" } } });
+            expect(getConfig().categoryMessageLook).toEqual({ c1: { raidArt: false }, c2: { titleSize: "huge" } });
+            saveConfig({ categoryMessageLook: { c1: { raidArt: true, titleSize: "large" } } });
+            expect(getConfig().categoryMessageLook).toEqual({ c2: { titleSize: "huge" } });
+        });
+
         it("keeps the Discord event off by default and the voice channel only as a snowflake (#305)", () => {
             expect(getConfig().categoryDiscordEvent).toEqual({});
             expect(getConfig().categoryVoiceChannel).toEqual({});

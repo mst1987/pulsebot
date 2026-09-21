@@ -26,6 +26,7 @@ const instances = [
     {
         id: "ony", name: "Onyxias Hort", short: "Ony", sizes: [40], defaultSize: 40,
         icon: "achievement_boss_onyxia",
+        art: "onyxias-lair",
         color: "#8b2f4f",
         bosses: ["Onyxia"],
         finalBoss: "Onyxia", finalBossNames: ["Onyxia"],
@@ -36,6 +37,7 @@ const instances = [
     {
         id: "mc", name: "Geschmolzener Kern", short: "MC", sizes: [40], defaultSize: 40,
         icon: "achievement_boss_ragnaros",
+        art: "molten-core",
         color: "#e05a1f",
         bosses: [
             "Lucifron", "Magmadar", "Gehennas", "Garr", "Shazzrah", "Baron Geddon",
@@ -49,6 +51,7 @@ const instances = [
     {
         id: "bwl", name: "Pechschwingenhort", short: "BWL", sizes: [40], defaultSize: 40,
         icon: "achievement_boss_nefarion",
+        art: "blackwing-lair",
         color: "#a83232",
         bosses: [
             "Razorgore the Untamed", "Vaelastrasz the Corrupt", "Broodlord Lashlayer",
@@ -62,6 +65,7 @@ const instances = [
     {
         id: "zg", name: "Zul'Gurub", short: "ZG", sizes: [20], defaultSize: 20,
         icon: "achievement_boss_hakkar",
+        art: "zulgurub",
         color: "#3f8f6f",
         bosses: [
             "High Priestess Jeklik", "High Priest Venoxis", "High Priestess Mar'li",
@@ -76,6 +80,7 @@ const instances = [
     {
         id: "aq20", name: "Ruinen von Ahn'Qiraj", short: "AQ20", sizes: [20], defaultSize: 20,
         icon: "achievement_boss_ossiriantheunscarred",
+        art: "ruins-of-ahnqiraj",
         color: "#c9a227",
         bosses: [
             "Kurinnaxx", "General Rajaxx", "Moam", "Buru the Gorger", "Ayamiss the Hunter",
@@ -89,6 +94,7 @@ const instances = [
     {
         id: "aq40", name: "Tempel von Ahn'Qiraj", short: "AQ40", sizes: [40], defaultSize: 40,
         icon: "achievement_boss_cthun",
+        art: "temple-of-ahnqiraj",
         color: "#6fa02f",
         bosses: [
             "The Prophet Skeram", "Silithid Royalty", "Battleguard Sartura", "Fankriss the Unyielding",
@@ -102,6 +108,7 @@ const instances = [
     {
         id: "naxx", name: "Naxxramas", short: "Naxx", sizes: [40], defaultSize: 40,
         icon: "achievement_boss_kelthuzad_01",
+        art: "naxxramas",
         color: "#3fa7c4",
         bosses: [
             "Anub'Rekhan", "Grand Widow Faerlina", "Maexxna",

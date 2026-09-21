@@ -30,6 +30,13 @@ describe("web/appEmojis", () => {
         expect(appEmojis.roleEmojiName("healer", "gold")).toBe("eh_rg_healer");
         expect(appEmojis.roleEmojiName("tank", "plain")).toBe("eh_ui_tank");
         expect(appEmojis.roleEmojiName("nonsense")).toBe("");
+        // melee is two crossed swords — under a new name, the old sword stays uploaded
+        expect(appEmojis.roleEmojiName("melee")).toBe("eh_ra_swords");
+        expect(appEmojis.roleEmojiName("melee", "parchment")).toBe("eh_rp_swords");
+        expect(appEmojis.roleEmojiName("melee", "plain")).toBe("eh_ui_swords");
+        expect(appEmojis.roleUiEmojiName("melee")).toBe("eh_ui_swords");
+        const fs = require("fs");
+        for (const e of appEmojis.emojiCatalog().filter((x) => /swords/.test(x.name))) expect(fs.existsSync(e.file)).toBe(true);
         // an unknown style is the default
         expect(appEmojis.emojiStyleOf("neon")).toBe("arcane");
         expect(appEmojis.emojiStyleOf(undefined)).toBe("arcane");

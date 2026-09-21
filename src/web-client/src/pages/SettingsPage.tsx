@@ -62,6 +62,8 @@ type Draft = {
     categorySetupDms: Record<string, boolean>;
     categoryDiscordEvent: Record<string, boolean>;
     categoryVoiceChannel: Record<string, string>;
+    /** The look of the signup message; missing = raid picture on, title "large". */
+    categoryMessageLook: Record<string, { raidArt?: boolean; titleSize?: string }>;
     /** "Beim Anlegen ankündigen" per category (#306); missing = off. */
     categoryAnnounce: Record<string, { enabled: boolean; target: string }>;
     /** The message with "Vielleicht" / "Absagen"; missing = "optional". */
@@ -95,6 +97,7 @@ function toDraft(config: AdminConfig): Draft {
         categorySetupDms: config.categorySetupDms || {},
         categoryDiscordEvent: config.categoryDiscordEvent || {},
         categoryVoiceChannel: config.categoryVoiceChannel || {},
+        categoryMessageLook: config.categoryMessageLook || {},
         categoryAnnounce: config.categoryAnnounce || {},
         categorySignupNotes: config.categorySignupNotes || {},
         categorySignupNoteChannel: config.categorySignupNoteChannel || {},
@@ -408,6 +411,8 @@ export default function SettingsPage() {
                 // sent as false, a cleared voice channel as "".
                 categoryDiscordEvent: draft.categoryDiscordEvent,
                 categoryVoiceChannel: draft.categoryVoiceChannel,
+                // Merged per category on the server; one back at the defaults drops out.
+                categoryMessageLook: draft.categoryMessageLook,
                 categoryAnnounce: draft.categoryAnnounce,
                 // Merged on the server: "optional" drops the entry again.
                 categorySignupNotes: draft.categorySignupNotes,
@@ -514,6 +519,8 @@ export default function SettingsPage() {
                     categoryDiscordEvent={draft.categoryDiscordEvent}
                     categoryVoiceChannel={draft.categoryVoiceChannel}
                     voiceChannels={data.voiceChannels || []}
+                    categoryMessageLook={draft.categoryMessageLook}
+                    onMessageLook={(id, look) => patch({ categoryMessageLook: { ...draft.categoryMessageLook, [id]: look } })}
                     categoryAnnounce={draft.categoryAnnounce}
                     categorySignupNotes={draft.categorySignupNotes}
                     onSignupNotes={(id, mode) => patch({ categorySignupNotes: { ...draft.categorySignupNotes, [id]: mode } })}
