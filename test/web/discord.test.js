@@ -635,3 +635,36 @@ describe("web/discord ping helpers", () => {
         expect(payload.allowedMentions).toEqual({ roles: ["r1"], users: ["u1"] });
     });
 });
+
+describe("channelVisible (#335)", () => {
+    const perms = (ok) => ({ has: (flag) => ok.includes(flag) });
+    const { PermissionsBitField } = require("discord.js");
+    const VIEW = PermissionsBitField.Flags.ViewChannel;
+    const SEND = PermissionsBitField.Flags.SendMessages;
+    function withChannel(channel) {
+        discord.setClient({ channels: { cache: new Map(channel ? [[channel.id, channel]] : []) } });
+    }
+    const text = (over = {}) => ({ id: "c1", isTextBased: () => true, guild: { members: { me: { id: "bot" } } }, permissionsFor: () => perms([VIEW, SEND]), ...over });
+
+    it("is true for a cached text channel the bot may write in", () => {
+        withChannel(text());
+        expect(discord.channelVisible("c1")).toBe(true);
+    });
+
+    it("is false offline, for an unknown or non-text channel and without the rights", () => {
+        expect(discord.channelVisible("c1")).toBe(false);
+        withChannel(null);
+        expect(discord.channelVisible("c1")).toBe(false);
+        withChannel(text({ isTextBased: () => false }));
+        expect(discord.channelVisible("c1")).toBe(false);
+        withChannel(text({ permissionsFor: () => perms([VIEW]) }));
+        expect(discord.channelVisible("c1")).toBe(false);
+        withChannel(text({ permissionsFor: () => null }));
+        expect(discord.channelVisible("c1")).toBe(false);
+    });
+
+    it("trusts the cache when the bot member is unknown", () => {
+        withChannel(text({ guild: null }));
+        expect(discord.channelVisible("c1")).toBe(true);
+    });
+});

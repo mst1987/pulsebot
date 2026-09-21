@@ -206,6 +206,35 @@ describe("save bar change list", () => {
         expect(logic.announceMode({ enabled: true, target: "" })).toBe("event");
     });
 
+    it("names the message mode with Vielleicht/Absage, missing = optional", () => {
+        expect(logic.draftChanges(base(), { ...base(), categorySignupNotes: { c1: "optional" } }, names)).toEqual([]);
+        expect(logic.draftChanges(base(), { ...base(), categorySignupNotes: { c1: "required" } }, names))
+            .toEqual(["Hyjal & BT · Nachricht bei Vielleicht/Absage → Pflicht"]);
+        expect(logic.draftChanges({ ...base(), categorySignupNotes: { c1: "none" } }, { ...base(), categorySignupNotes: { c1: "optional" } }, names))
+            .toEqual(["Hyjal & BT · Nachricht bei Vielleicht/Absage → optional"]);
+        expect(logic.signupNoteMode(undefined, "c1")).toBe("optional");
+        expect(logic.signupNoteMode({ c1: "odd" }, "c1")).toBe("optional");
+    });
+
+    it("names the message channel per category (#335)", () => {
+        expect(logic.draftChanges(base(), { ...base(), categorySignupNoteChannel: { c1: "" } }, names)).toEqual([]);
+        expect(logic.draftChanges(base(), { ...base(), categorySignupNoteChannel: { c1: "123456789012345678" } }, names))
+            .toEqual(["Hyjal & BT · Kanal für Vielleicht/Absage gesetzt"]);
+        expect(logic.draftChanges({ ...base(), categorySignupNoteChannel: { c1: "123456789012345678" } }, { ...base(), categorySignupNoteChannel: { c1: "" } }, names))
+            .toEqual(["Hyjal & BT · Kanal für Vielleicht/Absage → Standard"]);
+    });
+
+    it("labels the default choice and marks an own channel out of reach (#335)", () => {
+        const channels = [{ id: "1", name: "abmeldungen" }, { id: "2", name: "raid-orga" }];
+        expect(logic.noteChannelPick(channels, "1", "")).toEqual({ defaultLabel: "Standard (#abmeldungen)", unreachable: false });
+        expect(logic.noteChannelPick(channels, "1", "2")).toEqual({ defaultLabel: "Standard (#abmeldungen)", unreachable: false });
+        expect(logic.noteChannelPick(channels, "1", "9")).toEqual({ defaultLabel: "Standard (#abmeldungen)", unreachable: true });
+        expect(logic.noteChannelPick(channels, "", "")).toEqual({ defaultLabel: "Standard (nicht gesetzt)", unreachable: false });
+        expect(logic.noteChannelPick(channels, "9", "")).toEqual({ defaultLabel: "Standard (nicht erreichbar)", unreachable: false });
+        // bot offline: no list, nothing is judged
+        expect(logic.noteChannelPick([], "1", "9")).toEqual({ defaultLabel: "Standard", unreachable: false });
+    });
+
     it("counts admin roles, the base access, accounts, categories and top items", () => {
         const draft = base();
         draft.adminRoleIds = ["a2"];
@@ -277,11 +306,11 @@ describe("Discord-Server cards (#251)", () => {
         expect(logic.serverIssues({ event: card({ missing: ["x"] }), talk: card({ connected: false }) })).toBe(2);
     });
 
-    it("clears a talk server equal to the event server, and its channels without one", () => {
-        expect(logic.discordServersPatch({ eventGuildId: " 1 ", talkGuildId: "1", talkOverviewChannelId: "5", talkPingChannelId: "6" }))
-            .toEqual({ discordServers: { eventGuildId: "1", talkGuildId: "", talkOverviewChannelId: "", talkPingChannelId: "" } });
-        expect(logic.discordServersPatch({ eventGuildId: "1", talkGuildId: "2", talkOverviewChannelId: "5", talkPingChannelId: "" }))
-            .toEqual({ discordServers: { eventGuildId: "1", talkGuildId: "2", talkOverviewChannelId: "5", talkPingChannelId: "" } });
+    it("clears a talk server equal to the event server, and its channels without one — never the note channel", () => {
+        expect(logic.discordServersPatch({ eventGuildId: " 1 ", talkGuildId: "1", talkOverviewChannelId: "5", talkPingChannelId: "6", signupNoteChannelId: " 7 " }))
+            .toEqual({ discordServers: { eventGuildId: "1", talkGuildId: "", talkOverviewChannelId: "", talkPingChannelId: "", signupNoteChannelId: "7" } });
+        expect(logic.discordServersPatch({ eventGuildId: "1", talkGuildId: "2", talkOverviewChannelId: "5", talkPingChannelId: "", signupNoteChannelId: "" }))
+            .toEqual({ discordServers: { eventGuildId: "1", talkGuildId: "2", talkOverviewChannelId: "5", talkPingChannelId: "", signupNoteChannelId: "" } });
     });
 
     it("words the member overlap and flags a large gap", () => {

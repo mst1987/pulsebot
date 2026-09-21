@@ -26,6 +26,7 @@ const { ROLES } = require("../config/gameVersions/classes");
 const { toEnglish } = require("./botEnglish");
 const { listSignups, getSignup } = require("../web/signupStore");
 const profiles = require("../web/raiderProfileStore");
+const { allowsLastName, NAME_PART_MIN, NAME_PART_MAX, NAME_MAX } = require("./characterNames");
 const {
     roleCounts, signupWindow, allowedStatuses, defaultCanAlso, wishPartnersSignedUp,
 } = require("../web/signupService");
@@ -277,16 +278,23 @@ function savedNotice(signup, profile) {
     return `✅ Saved: **${STATUS_STATE[signup.status]}**${what ? ` (${what})` : ""}`;
 }
 
-/** Modal asking for the character name — the path without a profile character. */
-function buildCharacterModal(customId, { defaultName = "", classText = "" } = {}) {
+/**
+ * Modal asking for the character name — the path without a profile character.
+ * In a version with last names (WoW Forever) it asks for "Vorname Nachname";
+ * utils/characterNames.js checks the answer either way.
+ */
+function buildCharacterModal(customId, { defaultName = "", classText = "", versionId = DEFAULT_VERSION } = {}) {
+    const lastName = allowsLastName(versionId || DEFAULT_VERSION);
+    const max = lastName ? NAME_MAX : NAME_PART_MAX;
     const input = new TextInputBuilder()
         .setCustomId("character")
         .setLabel(`Your character's name${classText ? ` (${classText})` : ""}`.slice(0, 45))
+        .setPlaceholder(lastName ? `First name Last name – at most ${NAME_PART_MAX} letters each` : `At most ${NAME_PART_MAX} letters`)
         .setStyle(TextInputStyle.Short)
-        .setMinLength(2)
-        .setMaxLength(24)
+        .setMinLength(NAME_PART_MIN)
+        .setMaxLength(max)
         .setRequired(true);
-    if (defaultName) input.setValue(String(defaultName).slice(0, 24));
+    if (defaultName) input.setValue(String(defaultName).slice(0, max));
     return new ModalBuilder()
         .setCustomId(customId)
         .setTitle("Add a character")

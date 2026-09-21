@@ -55,6 +55,20 @@ const RULES = [
     [/^Kein Konto\.$/, "No account."],
     [/^Bitte eine Klasse angeben\.$/, "Please pick a class."],
     [/^Bitte einen Namen angeben\.$/, "Please enter a name."],
+    // utils/characterNames.validateCharacterName (via addCharacter)
+    [/^Höchstens Vor- und Nachname – ein Leerzeichen dazwischen\.$/, "At most a first and a last name – one space between them."],
+    [/^Der Name darf kein Leerzeichen haben – Vor- und Nachname gibt es nur in WoW Forever\.$/,
+        "The name must not contain a space – first and last names exist only in WoW Forever."],
+    [/^Der Name darf nur Buchstaben haben\.$/, "The name may only contain letters."],
+    [/^Der Vorname darf nur Buchstaben haben\.$/, "The first name may only contain letters."],
+    [/^Der Nachname darf nur Buchstaben haben\.$/, "The last name may only contain letters."],
+    [/^Der Name braucht mindestens (\d+) Buchstaben\.$/, "The name needs at least $1 letters."],
+    [/^Der Vorname braucht mindestens (\d+) Buchstaben\.$/, "The first name needs at least $1 letters."],
+    [/^Der Nachname braucht mindestens (\d+) Buchstaben\.$/, "The last name needs at least $1 letters."],
+    [/^Der Name hat (\d+) Buchstaben – höchstens (\d+)\.$/, "The name has $1 letters – at most $2."],
+    [/^Der Vorname hat (\d+) Buchstaben – höchstens (\d+)\.$/, "The first name has $1 letters – at most $2."],
+    [/^Der Nachname hat (\d+) Buchstaben – höchstens (\d+)\.$/, "The last name has $1 letters – at most $2."],
+    [/^Dieser Name ist nicht erlaubt – bitte einen anderen wählen\.$/, "This name is not allowed – please pick another one."],
 ];
 
 /**

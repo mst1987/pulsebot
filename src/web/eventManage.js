@@ -55,6 +55,7 @@ const ACTION_LABELS = {
     add: "Raider eingetragen",
     remove: "Raider ausgetragen",
     ping: "Fehlende gepingt",
+    invite: "Invite gecallt",
     cancel: "Abgesagt",
     reopen: "Absage zurückgenommen",
     series: "Von Serie angelegt",

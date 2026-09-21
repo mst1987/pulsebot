@@ -61,7 +61,7 @@ async function syncAppEmojis({
     const out = { existing: wanted.length - missing.length, missing: missing.map((e) => e.name), created: [], failed: [] };
     log(`${wanted.length} Emojis im Katalog, ${out.existing} vorhanden, ${missing.length} fehlen.`);
     if (dryRun) {
-        for (const e of missing) log(`  fehlt: ${e.name} (${e.icon})`);
+        for (const e of missing) log(`  fehlt: ${e.name} (${e.icon || e.tile})`);
         return out;
     }
     for (const e of missing) {
@@ -84,14 +84,14 @@ async function syncAppEmojis({
  * sync result, or `{ error }` when the sync itself could not run.
  * @param {object} client a ready discord.js Client
  */
-async function ensureAppEmojis(client, { fetchImpl = fetch, log = (m) => console.log(`[appEmojis] ${m.trim()}`) } = {}) {
+async function ensureAppEmojis(client, { fetchImpl = fetch, readFile, log = (m) => console.log(`[appEmojis] ${m.trim()}`) } = {}) {
     const clientId = client && client.application && client.application.id;
     let result;
     if (!clientId || !client.rest) {
         result = { error: "Bot-Anwendung unbekannt" };
     } else {
         try {
-            result = await syncAppEmojis({ rest: client.rest, clientId, fetchImpl, log });
+            result = await syncAppEmojis({ rest: client.rest, clientId, fetchImpl, readFile, log });
         } catch (e) {
             result = { error: e.message };
             console.warn(`[appEmojis] Abgleich fehlgeschlagen: ${e.message}`);

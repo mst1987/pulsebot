@@ -10,8 +10,13 @@
 //   event-btn:<eventId>:class         Klasse wählen: class → spec → name modal (adds to an existing signup; same)
 //   event-btn:<eventId>:late|tentative|bench
 //                                     signed up: the FIRST character gets that status; otherwise the
-//                                     character select (or the class way) with that status
-//   event-btn:<eventId>:absence       Absagen: a modal with the reason (required)
+//                                     character select (or the class way) with that status;
+//                                     "Vielleicht" asks for a message first (below)
+//   event-btn:<eventId>:absence       Absagen: a modal with the message
+//
+// The message of "Absagen" and "Vielleicht" is required, optional or not asked
+// for, per the event's category (web/signupNotes.js' noteMode); the service
+// posts it to the orga's channel.
 //
 // Steps (the status rides along as the dialog's code s/t/l/b):
 //   event-btn:<eventId>:pick:<code>          own characters · specs, up to MAX_CHARACTERS — saves
@@ -20,6 +25,8 @@
 //   event-btn:<eventId>:spec:<code>          spec select → name modal
 //   event-btn:<eventId>:name:<code>:<spec>   the name modal — adds the character to the profile, saves
 //   event-btn:<eventId>:why                  the absence modal — saves
+//   event-btn:<eventId>:note:t               the "Vielleicht" modal — saves, or leads to the character
+//                                            select (the message waits in memory for that step)
 //
 // Nothing is kept in memory; every step reads event, profile and signup again
 // and every save goes through signupService.submitSignup (deadline, closed,
@@ -33,6 +40,7 @@ const { emojiOption, emojiText, specEmojiName, classEmojiName, uiEmojiName, stat
 const { BUTTON_PREFIX } = require("../web/eventMessage");
 const { STATUS_CODES, STATUS_BY_CODE, STATUS_STATE, classesFor, buildCharacterModal } = require("./signupDialog");
 const { characterOptions, defaultPick } = require("./joinPicker");
+const { MIN_NOTE } = require("../web/signupNotes");
 
 const MAX_OPTIONS = 25;
 const MAX_REASON = 100;
@@ -294,27 +302,33 @@ function buildNameModal(event, userId, status, specKey, { displayName = "" } = {
     return buildCharacterModal(btnId(event.id, "name", codeOf(status), specKey), {
         defaultName: known ? known.name : displayName,
         classText: [cls ? en(cls) : info.classId, en(info)].filter(Boolean).join(" · "),
+        versionId: event.versionId,
     });
 }
 
-/** The absence modal: the reason is required and short. */
-function buildAbsenceModal(eventId) {
+/**
+ * The message modal of "Absagen" (`why`) and "Vielleicht" (`note:t`): short,
+ * and required only when the event's category says so (signupNotes.noteMode).
+ * The text goes into the signup's comment and from there to the orga's channel.
+ */
+function buildNoteModal(eventId, status, { required = false } = {}) {
+    const absence = status === "absence";
     const input = new TextInputBuilder()
         .setCustomId("reason")
-        .setLabel("Reason")
-        .setPlaceholder("e.g. work, holiday, sick")
+        .setLabel(required ? "Message to the raid lead" : "Message to the raid lead (optional)")
+        .setPlaceholder(absence ? "e.g. work, holiday, sick" : "e.g. not sure yet, might be late")
         .setStyle(TextInputStyle.Short)
-        .setMinLength(2)
         .setMaxLength(MAX_REASON)
-        .setRequired(true);
+        .setRequired(required);
+    if (required) input.setMinLength(MIN_NOTE);
     return new ModalBuilder()
-        .setCustomId(btnId(eventId, "why"))
-        .setTitle("Absence")
+        .setCustomId(absence ? btnId(eventId, "why") : btnId(eventId, "note", codeOf(status)))
+        .setTitle(absence ? "Sign off" : "Tentative")
         .addComponents(new ActionRowBuilder().addComponents(input));
 }
 
 module.exports = {
     MAX_REASON, STATUS_WORD, btnId, parseButtonId, refusal, characterText, savedText,
     picksWithStatus, firstCharacterTo, withAddedCharacter, orderedValues, pickOptions,
-    buildCharacterPicker, buildClassPicker, buildSpecPicker, buildNameModal, buildAbsenceModal,
+    buildCharacterPicker, buildClassPicker, buildSpecPicker, buildNameModal, buildNoteModal,
 };

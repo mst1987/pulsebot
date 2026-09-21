@@ -119,6 +119,7 @@ const AREA_BY_PATH = {
     "/api/raids/detail": "raids",
     "/api/raids/notify": "raids",
     "/api/raids/ping-missing": "raids",
+    "/api/raids/invite-call": "raids",
     "/api/raids/fill": "raids",
     "/api/raids/post-sheet": "raids",
     "/api/raids/post-softres": "raids",

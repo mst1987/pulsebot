@@ -61,7 +61,7 @@ module.exports = {
                 className: info.classId,
                 specs: [{ key: info.key, gear: "usable" }],
                 source: "manual",
-            }, { name: (interaction.member && interaction.member.displayName) || interaction.user.username || "" });
+            }, { name: (interaction.member && interaction.member.displayName) || interaction.user.username || "", versionId: event.versionId });
             if (added.error) return interaction.update(buildSignupDialog(event, uid, { state: picks, notice: `⚠️ ${added.error}` }));
             return save(interaction, event, status, { ...picks, character: added.character.key }, added.character.key);
         }
@@ -78,7 +78,7 @@ module.exports = {
             const info = profiles.specInfo(picks.spec) || {};
             const defaultName = (interaction.member && interaction.member.displayName) || "";
             const classText = [classLabel(event, info.classId), info.labelEn || info.label].filter(Boolean).join(" · ");
-            return interaction.showModal(buildCharacterModal(interaction.customId, { defaultName, classText }));
+            return interaction.showModal(buildCharacterModal(interaction.customId, { defaultName, classText, versionId: event.versionId }));
         }
         return save(interaction, event, status, picks, picks.character);
     },

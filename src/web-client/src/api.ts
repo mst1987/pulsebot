@@ -556,6 +556,11 @@ export type AdminConfig = {
     // "Beim Anlegen ankündigen" per category (#306): only switched-on ones are
     // listed; `target` is a ping target ("event" | "talk" | "both").
     categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;
+    // The message with "Vielleicht" / "Absagen" per category: "required" |
+    // "none"; a category without an entry is "optional".
+    categorySignupNotes?: Record<string, string>;
+    // Where a category's messages go instead of discordServers.signupNoteChannelId (#335).
+    categorySignupNoteChannel?: Record<string, string>;
     // A fixed Google Sheet per category, keyed by category id. A raid in that
     // category links this sheet unless the app made it a copy of its own.
     categorySheets: Record<string, { url: string; name: string }>;
@@ -658,6 +663,9 @@ export type SettingsData = {
     channels?: TextChannel[];
     // The server's voice channels, for the voice channel per category (#305).
     voiceChannels?: TextChannel[];
+    // The channel of "Vielleicht" / "Absagen" per category (#335): the text
+    // channels of both servers and the default channel's id.
+    noteChannels?: { defaultId: string; channels: TextChannel[] };
     // Status line of the "Discord & Raid-Helper" connection card.
     bot?: { online: boolean; readySince: number; guildName: string };
     // The event and talk server cards; null for a limited settings user.
@@ -670,6 +678,8 @@ export type DiscordServers = {
     talkGuildId: string;
     talkOverviewChannelId: string;
     talkPingChannelId: string;
+    /** Where the messages of "Vielleicht" / "Absagen" are posted — a channel on either server. */
+    signupNoteChannelId: string;
 };
 
 export type BotPermission = { key: string; label: string; ok: boolean };
@@ -1037,7 +1047,7 @@ export type EventSetup = { total: number; groups: SetupGroup[]; roleCounts?: Par
 
 /** One step of the Raid-Detail progress bar — built by src/web/raidDetailSteps.js. */
 export type RaidStepKey = "signup" | "setup" | "sheet" | "softres" | "loot" | "logs";
-export type RaidDetailModal = "notify" | "sheet" | "softres" | "lootsystem" | "loot" | "log" | "ping" | "move" | "cancel" | "raider" | "history" | "delete";
+export type RaidDetailModal = "notify" | "sheet" | "softres" | "lootsystem" | "loot" | "log" | "ping" | "invite" | "move" | "cancel" | "raider" | "history" | "delete";
 export type RaidStep = {
     key: RaidStepKey;
     label: string;
@@ -1350,6 +1360,16 @@ export function pingMissingRaiders(
     return send("POST", "/api/raids/ping-missing", csrfToken, input);
 }
 
+/** "Invite callen": who of groups 1–5 would be pinged, and the line — nothing is posted. */
+export function previewInviteCall(csrfToken: string | null, event: string): Promise<{ count: number; text: string; groups: number[] }> {
+    return send("POST", "/api/raids/invite-call", csrfToken, { event, dryRun: true });
+}
+
+/** "Invite callen": ping groups 1–5 of the approved setup with "/w <Charakter> inv". */
+export function callInvite(csrfToken: string | null, event: string): Promise<{ message: string; count: number; text: string }> {
+    return send("POST", "/api/raids/invite-call", csrfToken, { event });
+}
+
 export function fillRaidsheet(
     csrfToken: string | null,
     input: { event: string; sheetId: string; tank3: string; eventTitle: string; eventStartTime: number },
@@ -1436,11 +1456,15 @@ export type RaidTemplateInput = {
     color?: string;
     /** the picture of the event message (#307); an empty url = the instance's boss icon */
     image?: EmbedImage;
+    /** the letter tiles and role icons of the event message; the event copies it */
+    emojiStyle?: EmojiStyle;
     raidhelperTemplateId: string;
 };
 
 /** Where a picture sits in the bot's event message (#307) and which one it is. */
 export type EmbedImage = { mode: "thumbnail" | "banner"; url: string };
+/** The letter tiles and role icons of the event message: three drawn sets, or the flat icons and a plain title. */
+export type EmojiStyle = "arcane" | "gold" | "parchment" | "plain";
 
 export type RaidTemplate = RaidTemplateInput & {
     id: string;
@@ -1506,6 +1530,8 @@ export type OwnEvent = {
     color?: string;
     /** #307: the event's own picture, an empty url = the instance's boss icon */
     image?: EmbedImage;
+    /** the letter tiles and role icons of the event message */
+    emojiStyle?: EmojiStyle;
     /** when the "Beim Anlegen ankündigen" ping went out, 0 = never */
     announcedAt?: number;
 };
@@ -1578,6 +1604,7 @@ export type EventPlanInput = {
     color: string;
     /** #307: an empty url = the instance's boss icon as the thumbnail */
     image: EmbedImage;
+    emojiStyle: EmojiStyle;
 };
 
 export type CreateRaidInput = Partial<EventPlanInput> & {
@@ -3713,6 +3740,8 @@ export type OwnSignupRow = SignupEventBase & {
     counts: SignupCounts;
     /** Whether the setup considers wishes (the dialog's hint text). */
     wishes: boolean;
+    /** The category's message with "Vielleicht" / "Absagen" (src/web/signupNotes.js); missing = optional. */
+    noteMode?: "required" | "optional" | "none";
     /** The member's own wish partners who already signed up. */
     wishPartners: { userId: string; name: string }[];
     mine: OwnSignup | null;

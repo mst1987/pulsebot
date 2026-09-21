@@ -37,6 +37,23 @@ describe("web/raiderProfileStore", () => {
         expect(store.addCharacter(A, { name: "Foo", className: "Deathknight" }).error).toMatch(/Klasse/);
     });
 
+    it("prüft neu getippte Namen: Buchstaben, je 12, Nachname nur mit Forever, kein Schimpfwort", () => {
+        const C = "300000000000000003";
+        expect(store.addCharacter(C, { name: "Aldric Sturmwind", className: "Mage", source: "manual" }).character)
+            .toMatchObject({ key: "aldric sturmwind", name: "Aldric Sturmwind" });
+        expect(store.addCharacter(C, { name: "Aldric Sturmwind", className: "Mage" }, { versionId: "tbc" }).error).toBeUndefined();
+        expect(store.addCharacter(C, { name: "Brom Eisenfaust", className: "Warrior" }, { versionId: "tbc" }).error).toMatch(/nur in WoW Forever/);
+        expect(store.addCharacter(C, { name: "Brom Eisenfaust", className: "Warrior" }, { versionId: "forever" }).character.name).toBe("Brom Eisenfaust");
+        expect(store.addCharacter(C, { name: "Abcdefghijklm", className: "Warrior" }).error).toMatch(/höchstens 12/);
+        expect(store.addCharacter(C, { name: "Hurensohn", className: "Warrior", source: "armory" }).error).toMatch(/nicht erlaubt/);
+        expect(store.getProfile(C).characters.map((c) => c.name)).toEqual(["Aldric Sturmwind", "Brom Eisenfaust"]);
+    });
+
+    it("lässt Namen aus den Logs ungeprüft – das sind die des Spiels", () => {
+        const D = "300000000000000004";
+        expect(store.addCharacter(D, { name: "Zwölfbuchstabenx", className: "Mage", source: "log" }).character.name).toBe("Zwölfbuchstabenx");
+    });
+
     it("führt denselben Charakter zweimal zusammen statt ihn doppelt anzulegen", () => {
         store.addCharacter(A, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane"] });
         store.addCharacter(A, { name: "nerathil", className: "Mage", specs: ["Mage-Frost"] });

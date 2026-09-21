@@ -118,7 +118,8 @@ export default function AddCharacterDialog({ way, onClose, classes, csrfToken, o
                 <div className="pf-form">
                     <div className="field">
                         <label htmlFor="pf-name">Charaktername</label>
-                        <input id="pf-name" value={name} maxLength={24} onChange={(e) => setName(e.target.value)} autoComplete="off" />
+                        <input id="pf-name" value={name} maxLength={25} onChange={(e) => setName(e.target.value)} autoComplete="off" />
+                        <p className="hint">Nur Buchstaben, höchstens 12 – in WoW Forever Vor- und Nachname (je 12).</p>
                     </div>
                     {tab === "armory" && (
                         <div className="field">

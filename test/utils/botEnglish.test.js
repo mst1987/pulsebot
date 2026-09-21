@@ -40,6 +40,23 @@ describe("utils/botEnglish", () => {
         expect(toEnglish("Höchstens 10 Charaktere.")).toBe("At most 10 characters.");
     });
 
+    it("translates every refusal of the character-name rule", () => {
+        const { validateCharacterName } = require("../../src/utils/characterNames");
+        const cases = [
+            ["", {}], ["A B C", { lastName: true }], ["Aldric Sturmwind", { lastName: false }],
+            ["Ab1", {}], ["Aldric St1", { lastName: true }], ["A1 Sturmwind", { lastName: true }],
+            ["A", {}], ["A Sturmwind", { lastName: true }], ["Aldric S", { lastName: true }],
+            ["Abcdefghijklm", {}], ["Abcdefghijklm Sturm", { lastName: true }], ["Aldric Abcdefghijklm", { lastName: true }],
+            ["Fuckface", {}],
+        ];
+        for (const [name, opts] of cases) {
+            const { error } = validateCharacterName(name, opts);
+            expect(error).toBeTruthy();
+            expect({ error, en: toEnglish(error) }).toEqual({ error, en: expect.not.stringMatching(GERMAN) });
+        }
+        expect(toEnglish("Der Vorname hat 13 Buchstaben – höchstens 12.")).toBe("The first name has 13 letters – at most 12.");
+    });
+
     it("translates the setup's bench reasons", () => {
         expect(toEnglish("Raid voll (10/10)")).toBe("Raid full (10/10)");
         expect(toEnglish("Heiler voll (3/3)")).toBe("Healers full (3/3)");

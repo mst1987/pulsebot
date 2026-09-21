@@ -32,8 +32,11 @@ describe("web/appEmojiSync ensureAppEmojis", () => {
 
     it("creates every missing catalogue emoji and loads them into the cache", async () => {
         const client = fakeClient(["eh_ui_tank"]);
-        const out = await ensureAppEmojis(client, { fetchImpl: okFetch, log: () => {} });
+        // the ~150 checked-in PNGs are not read here: a tiny stand-in keeps the test fast under load
+        const readFile = jest.fn(async () => Buffer.from("89504e470d0a1a0a", "hex"));
+        const out = await ensureAppEmojis(client, { fetchImpl: okFetch, readFile, log: () => {} });
         const total = emojiCatalog().length;
+        expect(readFile).toHaveBeenCalledTimes(emojiCatalog().filter((e) => e.file && e.name !== "eh_ui_tank").length);
         expect(out.existing).toBe(1);
         expect(out.created).toHaveLength(total - 1);
         expect(client.rest.get).toHaveBeenCalledWith("/applications/app/emojis");

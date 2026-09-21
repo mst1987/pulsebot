@@ -37,7 +37,7 @@ jest.mock("../../src/web/signupStore", () => {
 let mockConfig = {};
 jest.mock("../../src/web/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockRoleIds = null;
-jest.mock("../../src/web/discord", () => ({ memberRoleIds: jest.fn(async () => mockRoleIds) }));
+jest.mock("../../src/web/discord", () => ({ memberRoleIds: jest.fn(async () => mockRoleIds), postNotice: jest.fn(async () => ({})) }));
 
 const profiles = require("../../src/web/raiderProfileStore");
 const discord = require("../../src/web/discord");
@@ -109,6 +109,18 @@ describe("submitSignup", () => {
         await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane" }, { now: NOW });
         const res = await service.submitSignup("eh-kara", ANNA, { status: "absence", comment: "krank" }, { now: NOW });
         expect(res.signup).toMatchObject({ status: "absence", spec: "", role: "", comment: "krank" });
+    });
+
+    it("postet die Nachricht zu Vielleicht/Absagen in den Kanal der Orga – einmal, und nicht für die Orga", async () => {
+        discord.postNotice.mockClear();
+        mockConfig = { discordServers: { signupNoteChannelId: "777777" } };
+        await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "tentative", comment: "evtl. Spätschicht" }, { now: NOW });
+        expect(discord.postNotice).toHaveBeenCalledWith("777777", expect.stringContaining("> evtl. Spätschicht"));
+        // the same again (e.g. "kann auch" edited) posts nothing new
+        await service.submitSignup("eh-kara", ANNA, { character: "Nerathil", spec: "Mage-Arcane", status: "tentative", comment: "evtl. Spätschicht", canAlso: [] }, { now: NOW });
+        expect(discord.postNotice).toHaveBeenCalledTimes(1);
+        await service.submitSignup("eh-kara", ANNA, { status: "absence", comment: "krank" }, { now: NOW, byOrga: true });
+        expect(discord.postNotice).toHaveBeenCalledTimes(1);
     });
 
     it("lässt Raid-Helper-Events nicht zu", async () => {

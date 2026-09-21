@@ -7,8 +7,8 @@
 // syntax in bodies), so test/web-client/eventCreateDialog.test.js runs it in
 // plain Node against the server's rules (eventStore.normalizePlan,
 // utils/channelNames.renderChannelName).
-import type { EmbedImage, EventPlanInput, EventSource, GameVersion, OwnEvent, RaidTemplate, RaidTemplateInput, RoleRange } from "../api";
-import { allowedSizes, colorProblem, defaultComposition, imageProblem, instancesOf, proposeComposition } from "./raidTemplates";
+import type { EmbedImage, EmojiStyle, EventPlanInput, EventSource, GameVersion, OwnEvent, RaidTemplate, RaidTemplateInput, RoleRange } from "../api";
+import { allowedSizes, colorProblem, defaultComposition, DEFAULT_EMOJI_STYLE, emojiStyleOf, imageProblem, instancesOf, proposeComposition } from "./raidTemplates";
 
 export type EventPlan = {
     /** the raid template the plan started from, "" for none */
@@ -37,6 +37,8 @@ export type EventPlan = {
     color: string;
     /** the picture of the event message (#307), an empty url = the instance's boss icon */
     image: EmbedImage;
+    /** the letter tiles and role icons of the event message */
+    emojiStyle: EmojiStyle;
 };
 
 export type StepKey = "start" | "termin" | "raid" | "kanal" | "check";
@@ -84,7 +86,7 @@ export function emptyPlan(version: GameVersion | null | undefined): EventPlan {
         melee: null, ranged: null, requiredBuffs: [], durationMinutes: PLAN_DEFAULT_DURATION,
         deadlineHours: 0, fairness: false, wishes: false, autoSuggest: false,
         overflow: "bench", lockAtLimit: false,
-        color: "", image: { mode: "thumbnail", url: "" },
+        color: "", image: { mode: "thumbnail", url: "" }, emojiStyle: DEFAULT_EMOJI_STYLE,
     };
 }
 
@@ -105,7 +107,7 @@ export function planFromTemplate(t: RaidTemplate, version: GameVersion | null | 
         fairness: !!t.fairness, wishes: !!t.wishes, autoSuggest: false,
         overflow: t.overflow === "off" ? "off" : "bench", lockAtLimit: !!t.lockAtLimit,
         // #307: the look travels with the template, as a copy.
-        color: t.color || "", image: lookImage(t.image),
+        color: t.color || "", image: lookImage(t.image), emojiStyle: emojiStyleOf(t.emojiStyle),
     };
 }
 
@@ -122,7 +124,7 @@ export function planFromEvent(ev: OwnEvent): EventPlan {
         deadlineHours: ev.signupDeadline ? Math.max(0, Math.round((ev.startTime - ev.signupDeadline) / 3600)) : 0,
         fairness: !!ev.fairness, wishes: !!ev.wishes, autoSuggest: !!ev.autoSuggest,
         overflow: ev.overflow === "off" ? "off" : "bench", lockAtLimit: !!ev.lockAtLimit,
-        color: ev.color || "", image: lookImage(ev.image),
+        color: ev.color || "", image: lookImage(ev.image), emojiStyle: emojiStyleOf(ev.emojiStyle),
     };
 }
 
@@ -154,8 +156,8 @@ export function withVersion(plan: EventPlan, version: GameVersion | null | undef
         ...emptyPlan(version), raidTemplateId: plan.raidTemplateId, durationMinutes: plan.durationMinutes,
         deadlineHours: plan.deadlineHours, fairness: plan.fairness, wishes: plan.wishes, autoSuggest: plan.autoSuggest,
         overflow: plan.overflow, lockAtLimit: plan.lockAtLimit,
-        // A hand-picked colour or picture is not tied to the instances, so it stays.
-        color: plan.color, image: plan.image,
+        // A hand-picked colour, picture or emoji style is not tied to the instances, so it stays.
+        color: plan.color, image: plan.image, emojiStyle: plan.emojiStyle,
     };
 }
 
@@ -203,7 +205,7 @@ export function planBody(plan: EventPlan): EventPlanInput {
         requiredBuffs: [...plan.requiredBuffs], durationMinutes: plan.durationMinutes, signupDeadlineHours: plan.deadlineHours,
         fairness: plan.fairness, wishes: plan.wishes, autoSuggest: plan.autoSuggest,
         overflow: plan.overflow, lockAtLimit: plan.lockAtLimit,
-        color: plan.color, image: plan.image,
+        color: plan.color, image: plan.image, emojiStyle: plan.emojiStyle,
     };
 }
 
@@ -221,7 +223,7 @@ export function templateFromPlan(plan: EventPlan, base: RaidTemplate | null, nam
         signupDeadline: plan.deadlineHours > 0 ? { hoursBefore: plan.deadlineHours } : null,
         durationMinutes: plan.durationMinutes,
         fairness: plan.fairness, wishes: plan.wishes, overflow: plan.overflow, lockAtLimit: plan.lockAtLimit,
-        color: plan.color, image: plan.image,
+        color: plan.color, image: plan.image, emojiStyle: plan.emojiStyle,
         raidhelperTemplateId: base ? base.raidhelperTemplateId || "" : "",
     };
     return base ? { ...out, id: base.id } : out;

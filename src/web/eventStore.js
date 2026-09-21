@@ -30,6 +30,8 @@ const { MIN_DURATION, MAX_DURATION, DEFAULT_DURATION, clampDuration, eventEndTim
 // Colour and picture of the event message (#307) — a planning field like the
 // duration, inherited from the raid template. The rules live in embedLook.js.
 const { normalizeColor, normalizeImage, normalizeLook } = require("./embedLook");
+// The emoji style of the event message: letter tiles and role icons (arcane unless chosen otherwise).
+const { emojiStyleOf } = require("./appEmojis");
 
 function ensureDir() {
     fs.mkdirSync(SETTINGS_DIR, { recursive: true });
@@ -199,6 +201,8 @@ function complete(e) {
         // "" resp. an empty url = the rule set of the instances decides.
         color: normalizeColor(e.color),
         image: normalizeImage(e.image),
+        // The letter tiles and role icons of the event message; an event from before has the default.
+        emojiStyle: emojiStyleOf(e.emojiStyle),
         // The raid template the event started from ("" = none). The event keeps
         // its own copy of the values; nothing here ever writes to the template.
         raidTemplateId: e.raidTemplateId || "",
@@ -309,6 +313,7 @@ function createEvent(input = {}) {
         autoSuggest: input.autoSuggest === true,
         overflow: input.overflow === "off" ? "off" : "bench",
         lockAtLimit: input.lockAtLimit === true,
+        emojiStyle: emojiStyleOf(input.emojiStyle),
         raidTemplateId: str(input.raidTemplateId),
         createdBy: str(input.createdBy),
         createdAt: now,
@@ -347,6 +352,7 @@ function updateEvent(id, patch = {}) {
     if (patch.autoSuggest !== undefined) next.autoSuggest = patch.autoSuggest === true;
     if (patch.overflow !== undefined) next.overflow = patch.overflow === "off" ? "off" : "bench";
     if (patch.lockAtLimit !== undefined) next.lockAtLimit = patch.lockAtLimit === true;
+    if (patch.emojiStyle !== undefined) next.emojiStyle = emojiStyleOf(patch.emojiStyle);
     if (["versionId", "instanceIds", "size", "composition", "compositionMax", "requiredBuffs", "durationMinutes", "color", "image"].some((k) => patch[k] !== undefined)) {
         const pick = (key) => (patch[key] !== undefined ? patch[key] : current[key]);
         const plan = normalizePlan({

@@ -149,6 +149,16 @@ describe("SignupDialog", () => {
         expect(css).toContain(".an-links");
     });
 
+    it("turns the comment into a message to the raid lead with Vielleicht/Absagen, per category", () => {
+        expect(dialog).toContain("const noteStatus = absent || signupStatusOf(picks, status) === \"tentative\";");
+        expect(dialog).toContain("row.noteMode || \"optional\"");
+        expect(dialog).toContain("Nachricht an die Raidleitung");
+        // "required" blocks the button until a message is there
+        expect(dialog).toMatch(/noteMissing = noteMode === "required" && comment\.trim\(\)\.length < 2/);
+        expect(dialog).toMatch(/canSubmit = [^;]*!noteMissing/);
+        expect(api).toMatch(/noteMode\?: "required" \| "optional" \| "none"/);
+    });
+
     it("talks to the signup endpoint only", () => {
         expect(api).toMatch(/send\("PUT", "\/api\/signups"/);
         expect(api).toContain("\"/api/signups\"");

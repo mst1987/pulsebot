@@ -86,9 +86,12 @@ describe("buildSetupMessage", () => {
         const embed = msg.embeds[0];
         expect(embed.title).toBe("Setup · Kara Donnerstag");
         expect(embed.description).toContain("<t:2000000000:F>");
-        // the flat role icons of the signup message, not the WoW ones (#320)
-        expect(embed.description).toContain(`<:eh_ui_tank:${emojis.eh_ui_tank.id}> 1`);
+        // the role icons of the signup message in the event's emoji style (arcane by default), not the WoW ones (#320)
+        expect(embed.description).toContain(`<:eh_ra_tank:${emojis.eh_ra_tank.id}> 1`);
         expect(embed.description).not.toContain("eh_role_");
+        // "plain" keeps the flat ones
+        const plain = sm.buildSetupMessage({ ...event, emojiStyle: "plain" }, event.setup.approved, { emojis }).embeds[0];
+        expect(plain.description).toContain(`<:eh_ui_tank:${emojis.eh_ui_tank.id}> 1`);
         const g1 = embed.fields.find((f) => f.name === "Group 1");
         expect(g1.inline).toBe(true);
         expect(g1.value).toBe(`<:eh_priest_holy:${emojis.eh_priest_holy.id}> **Zibbo**`.replace(/^/, `<:eh_warrior_protection:${emojis.eh_warrior_protection.id}> **Brokk**\n`));
@@ -100,7 +103,11 @@ describe("buildSetupMessage", () => {
         expect(bench.value).toContain("Thalia");
         expect(embed.fields.at(-1).value).toContain("https://eh.example/signups?event=eh-1");
         expect(embed.footer.text).toContain("version 2");
-        expect(msg.components).toEqual([]);
+        // one button for the orga: "Call invites" (inviteCallBot.js)
+        expect(msg.components).toEqual([{
+            type: 1,
+            components: [{ type: 2, style: 2, custom_id: "invite-call:p:eh-1", label: "Call invites", emoji: { name: "📣" } }],
+        }]);
     });
 
     it("reads the same without app emojis (text fallbacks)", () => {
@@ -163,6 +170,8 @@ describe("buildSetupMessage", () => {
         expect(embed.title).toBe("Cancelled: Setup · Kara Donnerstag");
         expect(embed.description).toContain("Zu wenige Heiler");
         expect(embed.fields).toBeUndefined();
+        // nobody is invited to a cancelled raid: no button
+        expect(sm.buildSetupMessage(event, event.setup.approved, { emojis }).components).toEqual([]);
     });
 });
 

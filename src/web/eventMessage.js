@@ -2,9 +2,11 @@
 // the counterpart of Raid-Helper's widget (#254, rebuilt in #287).
 //
 // One embed laid out like Raid-Helper's (#303): title and description, a head
-// of icon + value only (leader · count · deadline, then date · time ·
-// countdown, then end · voice channel — #305), the role totals as columns (Tanks · Ranged · Melee, Healers
-// below) with flat role icons, then the roster — a "Tanks" block first, one
+// of icon + value only in three columns whose rows sit directly under each
+// other (leader · count · deadline, then date · time · countdown, the voice
+// channel under the date — #305; no end time: a duration nobody set would show
+// the default), the role totals as columns (Tanks · Ranged · Melee, Healers
+// directly below the tanks) with flat role icons, then the roster — a "Tanks" block first, one
 // block per class after it (class icon, underlined name and count; each line
 // spec icon · signup number · name; three inline columns with an empty line
 // between the rows), one line each for Late / Tentative / Bench / Absence —
@@ -20,7 +22,7 @@
 // Icons are the bot's application emojis (appEmojis.js): WoW icons for specs
 // and classes, flat grey line icons (`eh_ui_*`) for the head, the roles, the
 // statuses and the buttons. Without them the icons are left out and the head
-// fields carry their label as the field name instead — no colourful unicode
+// lines carry their label ("Date: …") instead — no colourful unicode
 // stand-ins.
 //
 // Everything a raider reads here is English (the community mostly is): the
@@ -63,7 +65,6 @@ const { publicBaseUrl } = require("../config/variables");
 // its instances, else the accent — and never a picture Discord cannot load.
 const { embedColor, embedImageFields } = require("./embedLook");
 const { getEvent, setEventMessage, listEvents } = require("./eventStore");
-const { eventEndTime } = require("../utils/eventTime");
 const { listSignups, onSignupsChanged } = require("./signupStore");
 const discord = require("./discord");
 // The counting rule lives in the signup service, so the page and the message agree.
@@ -72,7 +73,7 @@ const { buildClasses } = require("../config/gameVersions/classes");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const {
     appEmojiMap, loadAppEmojis, emojiText, emojiOption,
-    specEmojiName, classEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName,
+    specEmojiName, classEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName, tileEmojiName, roleEmojiName, emojiStyleOf,
 } = require("./appEmojis");
 const { migrateSignup } = require("./signupCharacters");
 // The calendar link under the message (#308) — the route that serves it is
@@ -109,8 +110,8 @@ const STATUS_OPTIONS = {
 };
 // The lines below the class blocks, in this order.
 const OTHER_LINES = [["late", "Late"], ["tentative", "Tentative"], ["bench", "Bench"], ["absence", "Absence"]];
-// The role totals as Raid-Helper sets them: three columns, the healers below.
-const ROLE_TOTALS = [["tank", "Tanks"], ["ranged", "Ranged"], ["melee", "Melee"], ["healer", "Healers"]];
+// The role totals as Raid-Helper sets them: three columns, Tanks with Healers directly below.
+const ROLE_TOTALS = [[["tank", "Tanks"], ["healer", "Healers"]], [["ranged", "Ranged"]], [["melee", "Melee"]]];
 
 const CLASSES = buildClasses();
 const SPEC_BY_KEY = new Map(CLASSES.flatMap((c) => c.specs.map((s) => [s.key, s])));
@@ -263,6 +264,33 @@ function embedLength(embed) {
         + (embed.fields || []).reduce((n, f) => n + String(f.name).length + String(f.value).length, 0);
 }
 
+// A title longer than this stays text — the tiles would wrap into a wall.
+const MAX_TILES = 32;
+
+/**
+ * The title as a line of letter tiles, Raid-Helper's look ("Hyjal+BT" →
+ * H Y J A L + B T as emojis). Umlauts become AE/OE/UE, words are set apart by
+ * an em space; `style` is the event's emoji style. null when a character has
+ * no tile, a tile is not uploaded (yet), the title is too long or the style is
+ * "plain" — the embed then keeps its plain title.
+ */
+function titleTiles(title, emojis, style) {
+    const text = String(title || "").trim().toUpperCase()
+        .replace(/Ä/g, "AE").replace(/Ö/g, "OE").replace(/Ü/g, "UE");
+    const words = text.split(/\s+/).filter(Boolean);
+    if (!words.length || words.join("").length > MAX_TILES) return null;
+    const out = [];
+    for (const word of words) {
+        const tiles = [...word].map((c) => emojiText(emojis, tileEmojiName(c, style)));
+        if (tiles.some((t) => !t)) return null;
+        out.push(tiles.join(""));
+    }
+    return out.join("   ");
+}
+
+/** A role's icon in the event's style, else the flat one (a style not uploaded yet), else "". */
+const roleIcon = (emojis, role, style) => emojiText(emojis, roleEmojiName(role, style)) || emojiText(emojis, roleUiEmojiName(role));
+
 /** "<icon> Label" or just "Label" when the emoji is missing. */
 const labelled = (emojis, name, label) => [emojiText(emojis, name), label].filter(Boolean).join(" ");
 
@@ -270,7 +298,7 @@ const labelled = (emojis, name, label) => [emojiText(emojis, name), label].filte
 const spacer = (inline) => ({ name: ZWS, value: ZWS, inline, spacer: true });
 
 /** The roster fields — Tank block, class blocks, the other statuses — with at most `maxLines` per block. */
-function rosterFields(entries, numbers, emojis, maxLines) {
+function rosterFields(entries, numbers, emojis, maxLines, style) {
     const numberOf = (e) => numbers.get(String(e.userId));
     const byNumber = (a, b) => numberOf(a) - numberOf(b) || a.index - b.index;
     const signed = entries.filter((e) => e.status === "signed");
@@ -285,7 +313,7 @@ function rosterFields(entries, numbers, emojis, maxLines) {
         });
     };
     const tanks = signed.filter((e) => e.role === "tank");
-    if (tanks.length) block(emojiText(emojis, roleUiEmojiName("tank")), "Tanks", tanks);
+    if (tanks.length) block(roleIcon(emojis, "tank", style), "Tanks", tanks);
     for (const cls of CLASSES) {
         const members = signed.filter((e) => e.role !== "tank" && (SPEC_BY_KEY.get(e.spec) || {}).classId === cls.id);
         if (members.length) block(emojiText(emojis, classEmojiName(cls.id)), cls.labelEn || cls.label, members);
@@ -404,8 +432,9 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     const numbers = signupNumbers(list);
     const entries = rosterEntries(list);
     const start = Number(event.startTime) || 0;
-    const end = eventEndTime(event);
     const deadline = Number(event.signupDeadline) || 0;
+    // letter tiles and role icons in the style the event picked (arcane unless it says otherwise)
+    const style = emojiStyleOf(event.emojiStyle);
     const head = (icon, label) => labelled(emojis, uiEmojiName(icon), label);
 
     const desc = [];
@@ -426,36 +455,40 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
         desc.push(clip(description, 1500));
     }
 
-    // Icon + value only; the empty name above each value is the air between the rows.
-    // Without the icon the label stands in the name instead.
-    const headField = (icon, label, value) => {
+    // Three columns, their values as lines of one field each — so the rows sit
+    // directly under each other like Raid-Helper's head, not a field (and its
+    // empty name) apart. Icon + value; without the icon "Label: value".
+    const headLine = (icon, label, value) => {
         const e = emojiText(emojis, uiEmojiName(icon));
-        return e ? { name: ZWS, value: `${e} ${value}`, inline: true } : { name: label, value, inline: true };
+        return e ? `${e} ${value}` : `${label}: ${value}`;
     };
+    const column = (lines) => ({ name: ZWS, value: lines.join("\n"), inline: true });
     const headFields = [
-        headField("leader", "Leader", event.leaderId ? `<@${event.leaderId}>` : "–"),
-        headField("signups", "Signed up", `**${c.attending}**${event.size ? ` / ${event.size}` : ""}`),
-        deadline ? headField("deadline", "Deadline", `<t:${deadline}:f>`) : spacer(true),
-        headField("date", "Date", start ? `<t:${start}:D>` : "–"),
-        headField("time", "Time", start ? `<t:${start}:t>` : "–"),
-        headField("start", "Start", start ? `<t:${start}:R>` : "–"),
-        // A third row (#305): when the raid is planned to be over and where it
-        // meets. The spacer keeps the row of three, so nothing else moves.
-        headField("end", "End", end ? `<t:${end}:t>` : "–"),
-        event.voiceChannelId ? headField("voice", "Voice channel", `<#${event.voiceChannelId}>`) : spacer(true),
-        spacer(true),
+        column([
+            headLine("leader", "Leader", event.leaderId ? `<@${event.leaderId}>` : "–"),
+            headLine("date", "Date", start ? `<t:${start}:D>` : "–"),
+            // where the raid meets (#305), only when there is a channel
+            ...(event.voiceChannelId ? [headLine("voice", "Voice channel", `<#${event.voiceChannelId}>`)] : []),
+        ]),
+        column([
+            headLine("signups", "Signed up", `**${c.attending}**${event.size ? ` / ${event.size}` : ""}`),
+            headLine("time", "Time", start ? `<t:${start}:t>` : "–"),
+        ]),
+        // an empty first line without a deadline keeps the countdown beside date and time
+        column([
+            deadline ? headLine("deadline", "Deadline", `<t:${deadline}:f>`) : ZWS,
+            headLine("start", "Start", start ? `<t:${start}:R>` : "–"),
+        ]),
     ];
     // Who takes a seat, per role and per person (rosterCounts folds melee and ranged into dps).
     const seats = { tank: c.tank, healer: c.healer, melee: 0, ranged: 0 };
     for (const s of list) {
         if (["signed", "late"].includes(s.status || "signed") && (s.role === "melee" || s.role === "ranged")) seats[s.role] += 1;
     }
+    // Tanks with the healers directly below, then Fernkampf, then Nahkampf.
+    const total = (role, label) => `${[roleIcon(emojis, role, style), label].filter(Boolean).join(" ")} **${seats[role]}**${targetText(event, role)}`;
     const totals = [
-        ...ROLE_TOTALS.map(([role, label]) => ({
-            name: ZWS,
-            value: `${labelled(emojis, roleUiEmojiName(role), label)} **${seats[role]}**${targetText(event, role)}`,
-            inline: true,
-        })),
+        ...ROLE_TOTALS.map((col) => column(col.map(([role, label]) => total(role, label)))),
         spacer(false),
     ];
 
@@ -476,10 +509,14 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     if (links.length) tail.push({ name: ZWS, value: links.join("  ·  "), inline: false });
 
     const title = phase === "cancelled" ? `Cancelled: ${event.title || "Raid"}` : (event.title || "Raid");
-    // A cancelled event keeps the red bar and loses its picture: "Abgesagt"
+    // The title as letter tiles opens the description — an embed title cannot
+    // show emojis. A cancelled event keeps "Cancelled: …" as plain text.
+    const tiles = phase === "cancelled" ? null : titleTiles(title, emojis, style);
+    if (tiles) desc.unshift(tiles, ...(desc.length ? [""] : []));
+    // A cancelled event keeps the red bar and loses its picture: "Cancelled"
     // should read as off, not as an advert for the raid (#307).
     const embed = {
-        title: clip(title, LIMITS.title),
+        ...(tiles ? {} : { title: clip(title, LIMITS.title) }),
         color: phase === "cancelled" ? CANCELLED_COLOR : embedColor(event),
         ...(phase === "cancelled" ? {} : embedImageFields(event)),
         fields: [],
@@ -488,7 +525,7 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     if (text) embed.description = text;
     // Shorten the blocks until the whole embed fits Discord's 6000 characters.
     for (let maxLines = 40; maxLines >= 1; maxLines -= maxLines > 10 ? 5 : 1) {
-        embed.fields = fitFields([...headFields, ...totals, ...rosterFields(entries, numbers, emojis, maxLines), ...tail]);
+        embed.fields = fitFields([...headFields, ...totals, ...rosterFields(entries, numbers, emojis, maxLines, style), ...tail]);
         if (embedLength(embed) <= LIMITS.total) break;
     }
     return { content: "", embeds: [embed], components: messageComponents(event, { emojis, now, phase }) };
@@ -658,7 +695,7 @@ function startEventMessageSync({ debounceMs = EDIT_DEBOUNCE_MS, sweepMs = SWEEP_
 module.exports = {
     SIGNUP_BUTTON_PREFIX, JOIN_SELECT_PREFIX, BUTTON_PREFIX, BUTTON_ACTIONS, PICK_PREFIX, PICK_MINE, STATUS_OPTIONS, LIMITS,
     signupButtonId, joinSelectId, buttonId, pickSelectId, buttonRows, messageComponents, rosterEntries, classesOf,
-    rosterCounts, messagePhase, signupNumbers, embedLength, blockValue, payloadHash,
+    rosterCounts, messagePhase, signupNumbers, embedLength, blockValue, payloadHash, titleTiles,
     buildEventMessage, approvedSetupText, sweepEventMessages, redrawEventMessage,
     postEventMessage, refreshEventMessage, startEventMessageSync,
 };
