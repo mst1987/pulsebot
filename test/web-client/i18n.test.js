@@ -121,7 +121,7 @@ describe("the language switch", () => {
     const app = read("App.tsx");
 
     it("remembers the choice in the browser and labels the document", () => {
-        expect(index).toContain('const STORAGE_KEY = "eh-lang";');
+        expect(index).toContain("const STORAGE_KEY = \"eh-lang\";");
         expect(index).toMatch(/localStorage\.setItem\(STORAGE_KEY, lang\)/);
         expect(index).toMatch(/localStorage\.getItem\(STORAGE_KEY\)/);
         expect(index).toMatch(/setAttribute\("lang", lang\)/);
@@ -142,12 +142,12 @@ describe("the language switch", () => {
     });
 
     it("redraws the page in the new language", () => {
-        expect(shell).toContain('<div className="content" key={lang}>');
+        expect(shell).toContain("<div className=\"content\" key={lang}>");
     });
 
     it("formats dates with the active locale instead of a fixed de-DE", () => {
         const format = read("lib/format.ts");
-        expect(format).not.toContain('"de-DE"');
+        expect(format).not.toContain("\"de-DE\"");
         expect(format).toContain("locale()");
     });
 });
