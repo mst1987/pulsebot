@@ -6,6 +6,7 @@ import { useCallback, useRef, useState } from "react";
 import { runCouncilSim, type LootCouncilData, type CouncilCandidate, type CouncilRaider, type SimResult, type WornItem } from "../../api";
 import { useJobs } from "../../components/Jobs";
 import type { Dir } from "../../lib/tableSort";
+import { wowheadItemUrl } from "../../lib/wowheadItems";
 
 /** The part of the persisted view both routes read: who is counted, which loot, which BiS list. */
 export type FilterView = {
@@ -25,7 +26,7 @@ export const FILTER_DEFAULT: FilterView = { role: "caster", tiers: [], contents:
 export const ROLE_LABEL: Record<string, string> = { caster: "Caster", healer: "Heiler" };
 export const ROLE_ICON: Record<string, string> = { caster: "spell_holy_magicalsentry", healer: "spell_holy_guardianspirit" };
 
-export const WOWHEAD = (id: number) => `https://www.wowhead.com/tbc/item=${id}`;
+export const WOWHEAD = (id: number) => wowheadItemUrl(id);
 
 /**
  * A raider's details, as a link: the council page opens its dialog from
@@ -45,7 +46,7 @@ export function wornWowheadUrl(item: WornItem): string {
     const params: string[] = [];
     if (item.enchantId) params.push(`ench=${item.enchantId}`);
     if (item.gemIds.length) params.push(`gems=${item.gemIds.join(":")}`);
-    return `https://www.wowhead.com/tbc/item=${item.itemId}${params.length ? `?${params.join("&")}` : ""}`;
+    return wowheadItemUrl(item.itemId, params);
 }
 
 // The roster's columns and the direction each column's first click picks: names

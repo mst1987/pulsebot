@@ -18,6 +18,7 @@ import { fmtMs } from "../lib/format";
 import { itemQualityColor, itemQualityProps, qualityName } from "../lib/itemQuality";
 import { usePersistedSearchParam } from "../lib/persistedState";
 import { refreshWowheadLinks } from "../lib/wowheadTooltips";
+import { wowheadItemUrl } from "../lib/wowheadItems";
 import { classColorProps } from "../components/ClassSpec";
 import { LootTable } from "../components/LootTable";
 import type { ShellContext } from "../components/Shell";
@@ -66,7 +67,7 @@ function gearWowheadUrl(g: GearItem): string {
     if (g.enchantIds.length) params.push(`ench=${g.enchantIds[0]}`);
     const gemIds = g.sockets.map((s) => s.gemId).filter((id): id is number => !!id);
     if (gemIds.length) params.push(`gems=${gemIds.join(":")}`);
-    return `https://www.wowhead.com/tbc/item=${g.itemId}${params.length ? `?${params.join("&")}` : ""}`;
+    return wowheadItemUrl(g.itemId, params);
 }
 
 function averageItemLevel(data: HistoryCharData): number {
