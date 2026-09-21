@@ -106,6 +106,18 @@ function normalizeCategoryAnnounce(raw) {
     return out;
 }
 
+// The message with "Vielleicht" / "Absagen" per category: "optional" is kept in
+// the patch (the store merges, then drops it), anything unknown becomes it.
+function normalizeCategorySignupNotesPatch(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [categoryId, mode] of Object.entries(raw)) {
+        const id = String(categoryId).trim();
+        if (id) out[id] = ["required", "none"].includes(mode) ? mode : "optional";
+    }
+    return out;
+}
+
 // A fixed sheet per category: only a http(s) link is stored. Anything else
 // (javascript:, a bare word, an empty field) becomes "", which settingsStore's
 // normalizer then drops — so a category is either unassigned or carries a link
@@ -149,7 +161,7 @@ const ROLE_SYNC_KEYS = ["roleSync"];
 // Everything a non-admin settings user may neither read nor write.
 const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS];
 
-const DISCORD_SERVER_FIELDS = ["eventGuildId", "talkGuildId", "talkOverviewChannelId", "talkPingChannelId"];
+const DISCORD_SERVER_FIELDS = ["eventGuildId", "talkGuildId", "talkOverviewChannelId", "talkPingChannelId", "signupNoteChannelId"];
 
 /** GET /api/settings — config + raidsheets + the active guild's roles/categories. */
 async function getSettings(req, res) {
@@ -187,12 +199,38 @@ async function getSettings(req, res) {
         channels: typeof discord.listTextChannels === "function" ? discord.listTextChannels(guildId) : [],
         // The voice channel a category's raids meet in (#305); empty = bot offline.
         voiceChannels: typeof discord.listVoiceChannels === "function" ? discord.listVoiceChannels(guildId) : [],
+        // The channel picker of "Nachricht bei Vielleicht/Absage" per category (#335).
+        noteChannels: noteChannels(config),
         bot: botStatus(guildId),
         // The two server cards (cheap: names, member counts, rights). The member
         // overlap needs a full member fetch and loads with the section itself.
         servers: user.isAdmin ? serverCards(config) : null,
         activeGuildId: guildId,
     });
+}
+
+/**
+ * Where the messages of "Vielleicht" / "Absagen" may go (#335): the text
+ * channels of the event and the talk server, named with their server when there
+ * are two (like the Discord-Server dialog), plus the default channel's id — a
+ * limited settings user does not see `discordServers`, the card still names it.
+ * An empty list means the bot is offline (the card then marks nothing).
+ */
+function noteChannels(config) {
+    try {
+        const guildIds = guildRoles.configuredGuildIds(config);
+        const list = typeof discord.listTextChannels === "function" ? discord.listTextChannels : () => [];
+        const names = new Map((typeof discord.listGuilds === "function" ? discord.listGuilds() || [] : []).map((g) => [g.id, g.name]));
+        const channels = guildIds.flatMap((id) => (list(id) || []).map((c) => ({
+            id: c.id,
+            name: c.name,
+            category: guildIds.length > 1 ? [names.get(id) || "", c.category].filter(Boolean).join(" · ") : c.category || "",
+        })));
+        return { defaultId: String(((config && config.discordServers) || {}).signupNoteChannelId || ""), channels };
+    } catch (e) {
+        console.warn("note channels failed:", e.message);
+        return { defaultId: "", channels: [] };
+    }
 }
 
 /** The event and talk server as status cards; a failure reads as "nothing known". */
@@ -383,6 +421,9 @@ async function updateSettings(req, res) {
     if (body.categoryDiscordEvent !== undefined) partial.categoryDiscordEvent = normalizeCategoryDiscordEvent(body.categoryDiscordEvent);
     if (body.categoryVoiceChannel !== undefined) partial.categoryVoiceChannel = normalizeCategoryVoiceChannel(body.categoryVoiceChannel);
     if (body.categoryAnnounce !== undefined) partial.categoryAnnounce = normalizeCategoryAnnounce(body.categoryAnnounce);
+    if (body.categorySignupNotes !== undefined) partial.categorySignupNotes = normalizeCategorySignupNotesPatch(body.categorySignupNotes);
+    // The channel of those messages per category (#335): same contract as the voice channel.
+    if (body.categorySignupNoteChannel !== undefined) partial.categorySignupNoteChannel = normalizeCategoryVoiceChannel(body.categorySignupNoteChannel);
     if (body.categorySheets !== undefined) partial.categorySheets = normalizeCategorySheets(body.categorySheets);
     // Sent whole; an id no template has is dropped, so a category can never
     // point at a template that is not there (the store normalises the rest).

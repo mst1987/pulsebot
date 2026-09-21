@@ -101,9 +101,9 @@ describe("web/settingsStore", () => {
         describe("discordServers", () => {
             const { guildId: defaultGuildId } = require("../../src/config/variables");
 
-            it("defaults to four empty ids (= one server, as before)", () => {
+            it("defaults to empty ids (= one server, as before)", () => {
                 expect(getConfig().discordServers).toEqual({
-                    eventGuildId: "", talkGuildId: "", talkOverviewChannelId: "", talkPingChannelId: "",
+                    eventGuildId: "", talkGuildId: "", talkOverviewChannelId: "", talkPingChannelId: "", signupNoteChannelId: "",
                 });
                 expect(getConfig().guildId).toBe(defaultGuildId);
             });
@@ -113,17 +113,22 @@ describe("web/settingsStore", () => {
                     discordServers: {
                         eventGuildId: " 111111 ", talkGuildId: "222222",
                         talkOverviewChannelId: "https://discord.com/channels/1/2", talkPingChannelId: 333333,
+                        signupNoteChannelId: "444444",
                     },
                 });
                 expect(saved.discordServers).toEqual({
-                    eventGuildId: "111111", talkGuildId: "222222", talkOverviewChannelId: "", talkPingChannelId: "333333",
+                    eventGuildId: "111111", talkGuildId: "222222", talkOverviewChannelId: "", talkPingChannelId: "333333", signupNoteChannelId: "444444",
                 });
+            });
+
+            it("keeps the note channel without a talk server", () => {
+                expect(saveConfig({ discordServers: { signupNoteChannelId: "555555" } }).discordServers.signupNoteChannelId).toBe("555555");
             });
 
             it("clears a talk server that is the event server", () => {
                 expect(normalizeDiscordServers({ eventGuildId: "111111", talkGuildId: "111111" }).talkGuildId).toBe("");
                 expect(normalizeDiscordServers(null)).toEqual({
-                    eventGuildId: "", talkGuildId: "", talkOverviewChannelId: "", talkPingChannelId: "",
+                    eventGuildId: "", talkGuildId: "", talkOverviewChannelId: "", talkPingChannelId: "", signupNoteChannelId: "",
                 });
                 expect(normalizeDiscordServers(["x"]).eventGuildId).toBe("");
             });
@@ -288,6 +293,25 @@ describe("web/settingsStore", () => {
             expect(getConfig().categoryAnnounce).toEqual({ c1: { enabled: true, target: "both" }, c3: { enabled: true, target: "event" } });
             saveConfig({ categoryAnnounce: { c1: { enabled: false } } });
             expect(getConfig().categoryAnnounce).toEqual({ c3: { enabled: true, target: "event" } });
+        });
+
+        it("stores only the non-default message modes per category and merges them", () => {
+            expect(getConfig().categorySignupNotes).toEqual({});
+            saveConfig({ categorySignupNotes: { c1: "required", c2: "none", c3: "optional", c4: "sometimes" } });
+            expect(getConfig().categorySignupNotes).toEqual({ c1: "required", c2: "none" });
+            saveConfig({ categorySignupNotes: { c1: "optional" } });
+            expect(getConfig().categorySignupNotes).toEqual({ c2: "none" });
+        });
+
+        it("stores a message channel per category as a snowflake and merges it, \"\" = back to the default (#335)", () => {
+            expect(getConfig().categorySignupNoteChannel).toEqual({});
+            saveConfig({ categorySignupNoteChannel: { c1: "123456789012345678", c2: "#abmeldungen", c3: "223456789012345678" } });
+            expect(getConfig().categorySignupNoteChannel).toEqual({ c1: "123456789012345678", c3: "223456789012345678" });
+            saveConfig({ categorySignupNoteChannel: { c1: "" } });
+            expect(getConfig().categorySignupNoteChannel).toEqual({ c3: "223456789012345678" });
+            // another save leaves it alone
+            saveConfig({ categorySignupNotes: { c3: "required" } });
+            expect(getConfig().categorySignupNoteChannel).toEqual({ c3: "223456789012345678" });
         });
 
         it("defaults categoryRoles to an empty object and round-trips a map", () => {

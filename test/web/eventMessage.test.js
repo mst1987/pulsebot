@@ -73,27 +73,25 @@ describe("web/eventMessage", () => {
     const emojiless = (text) => String(text).replace(/:\d+>/g, ">");
     const ZWS = "​";
 
-    it("builds the head as icon + value, leader · count · deadline over date · time · countdown", () => {
+    it("builds the head as three columns of icon + value, the rows directly under each other", () => {
         const payload = buildEventMessage(event({ signupDeadline: 1999990000 }), signups, { emojis, now: NOW });
         const embed = payload.embeds[0];
-        expect(embed.title).toBe("Kara Donnerstag");
+        // the title as letter tiles opens the description (an embed title cannot show emojis)
+        expect(embed.title).toBeUndefined();
         expect(embed.color).toBe(7);
-        expect(embed.description).toBe("Treffpunkt Eingang");
-        // no labels: an empty name gives the air above each row, the icon says what it is
-        expect(embed.fields.slice(0, 6).map((f) => [f.name, emojiless(f.value), f.inline])).toEqual([
-            [ZWS, "<:eh_ui_leader> <@7>", true],
-            [ZWS, "<:eh_ui_signups> **5** / 10", true],
-            [ZWS, "<:eh_ui_deadline> <t:1999990000:f>", true],
-            [ZWS, "<:eh_ui_date> <t:2000000000:D>", true],
-            [ZWS, "<:eh_ui_time> <t:2000000000:t>", true],
-            [ZWS, "<:eh_ui_start> <t:2000000000:R>", true],
+        expect(emojiless(embed.description).split("\n")).toEqual([
+            `${"KARA".split("").map((c) => `<:eh_ta_${c.toLowerCase()}>`).join("")}   ${"DONNERSTAG".split("").map((c) => `<:eh_ta_${c.toLowerCase()}>`).join("")}`,
+            "",
+            "Treffpunkt Eingang",
         ]);
-        // #305: the third row — the end (start + duration) and, when there is one, the voice channel
-        expect(embed.fields.slice(6, 9).map((f) => [f.name, emojiless(f.value), f.inline])).toEqual([
-            [ZWS, "<:eh_ui_end> <t:2000010800:t>", true],
-            [ZWS, ZWS, true],
-            [ZWS, ZWS, true],
+        // one field per column, its rows as lines — no empty field name between them
+        expect(embed.fields.slice(0, 3).map((f) => [f.name, emojiless(f.value).split("\n"), f.inline])).toEqual([
+            [ZWS, ["<:eh_ui_leader> <@7>", "<:eh_ui_date> <t:2000000000:D>"], true],
+            [ZWS, ["<:eh_ui_signups> **5** / 10", "<:eh_ui_time> <t:2000000000:t>"], true],
+            [ZWS, ["<:eh_ui_deadline> <t:1999990000:f>", "<:eh_ui_start> <t:2000000000:R>"], true],
         ]);
+        // no end time: a duration nobody set would only show the default
+        expect(JSON.stringify(embed)).not.toMatch(/eh_ui_end|Ende/);
         const links = embed.fields[embed.fields.length - 1].value;
         // #308: the public event page first, the menu beside it, and the event's
         // own calendar file (no icsUrl was passed).
@@ -101,46 +99,77 @@ describe("web/eventMessage", () => {
         expect(links).not.toContain("Setup");
     });
 
-    it("keeps the head's rows without a deadline: an empty column instead", () => {
+    it("keeps the countdown beside date and time without a deadline: an empty first line", () => {
         const embed = buildEventMessage(event(), signups, { emojis, now: NOW }).embeds[0];
-        expect(embed.fields[2]).toEqual({ name: ZWS, value: ZWS, inline: true });
-        expect(emojiless(embed.fields[3].value)).toBe("<:eh_ui_date> <t:2000000000:D>");
+        expect(emojiless(embed.fields[2].value).split("\n")).toEqual([ZWS, "<:eh_ui_start> <t:2000000000:R>"]);
     });
 
-    it("shows the raid's end from its duration and the voice channel as its own head field (#305)", () => {
+    it("puts the voice channel under the date, only when there is one (#305) — and never an end time", () => {
         const embed = buildEventMessage(event({ durationMinutes: 240, voiceChannelId: "v9" }), signups, { emojis, now: NOW }).embeds[0];
-        expect(emojiless(embed.fields[6].value)).toBe("<:eh_ui_end> <t:2000014400:t>");
-        expect(emojiless(embed.fields[7].value)).toBe("<:eh_ui_voice> <#v9>");
-        // without the application emojis the labels stand in the field name
+        expect(emojiless(embed.fields[0].value).split("\n")[2]).toBe("<:eh_ui_voice> <#v9>");
+        expect(JSON.stringify(embed)).not.toContain("2000014400");
+        // without the application emojis the label leads the line
         const plain = buildEventMessage(event({ voiceChannelId: "v9" }), signups, { now: NOW }).embeds[0];
-        expect([plain.fields[6].name, plain.fields[7].name]).toEqual(["Ende", "Sprachkanal"]);
-        expect(plain.fields[7].value).toBe("<#v9>");
+        expect(plain.fields[0].value.split("\n")[2]).toBe("Sprachkanal: <#v9>");
     });
 
-    it("sets the role totals apart as columns with flat role icons, the healers below, then an empty line", () => {
+    it("sets the role totals apart as columns with the style's role icons, the healers directly below the tanks, then an empty line", () => {
         const embed = buildEventMessage(event(), signups, { emojis, now: NOW }).embeds[0];
-        expect(embed.fields.slice(9, 14).map((f) => [f.name, emojiless(f.value), f.inline])).toEqual([
-            [ZWS, "<:eh_ui_tank> Tanks **2**/2", true],
-            [ZWS, "<:eh_ui_ranged> Fernkampf **2**", true],
-            [ZWS, "<:eh_ui_melee> Nahkampf **0**", true],
-            [ZWS, "<:eh_ui_healer> Heiler **1**/3", true],
+        expect(embed.fields.slice(3, 7).map((f) => [f.name, emojiless(f.value), f.inline])).toEqual([
+            [ZWS, "<:eh_ra_tank> Tanks **2**/2\n<:eh_ra_healer> Heiler **1**/3", true],
+            [ZWS, "<:eh_ra_ranged> Fernkampf **2**", true],
+            [ZWS, "<:eh_ra_melee> Nahkampf **0**", true],
             [ZWS, ZWS, false],
         ]);
         // the colourful WoW role icons are no longer used in the message
         expect(JSON.stringify(embed)).not.toContain("eh_role_");
+        // "plain" draws the flat grey ones
+        const plain = buildEventMessage(event({ emojiStyle: "plain" }), signups, { emojis, now: NOW }).embeds[0];
+        expect(emojiless(plain.fields[3].value)).toBe("<:eh_ui_tank> Tanks **2**/2\n<:eh_ui_healer> Heiler **1**/3");
+    });
+
+    it("draws title tiles and role icons in the event's emoji style", () => {
+        const gold = buildEventMessage(event({ title: "Hyjal+BT", emojiStyle: "gold" }), signups, { emojis, now: NOW }).embeds[0];
+        expect(emojiless(gold.description).split("\n")[0])
+            .toBe("<:eh_tg_h><:eh_tg_y><:eh_tg_j><:eh_tg_a><:eh_tg_l><:eh_tg_plus><:eh_tg_b><:eh_tg_t>");
+        expect(emojiless(gold.fields[3].value)).toMatch(/^<:eh_rg_tank> Tanks/);
+        const parchment = buildEventMessage(event({ emojiStyle: "parchment" }), signups, { emojis, now: NOW }).embeds[0];
+        expect(parchment.description).toContain("eh_tp_k");
+        expect(parchment.fields[4].value).toContain("eh_rp_ranged");
+    });
+
+    it("keeps the plain title where the tiles cannot stand in", () => {
+        const title = (over, map = emojis) => {
+            const embed = buildEventMessage(event(over), signups, { emojis: map, now: NOW }).embeds[0];
+            return embed.title || null;
+        };
+        // "plain", a character without a tile, a title longer than 32 characters
+        expect(title({ emojiStyle: "plain" })).toBe("Kara Donnerstag");
+        expect(title({ title: "Kara (10er)" })).toBe("Kara (10er)");
+        expect(title({ title: "A".repeat(33) })).toBe("A".repeat(33));
+        // the tiles not uploaded yet: the plain title, and the flat role icons stand in
+        const flatOnly = Object.fromEntries(Object.entries(emojis).filter(([name]) => !/^eh_[tr][agp]_/.test(name)));
+        expect(title({}, flatOnly)).toBe("Kara Donnerstag");
+        const embed = buildEventMessage(event(), signups, { emojis: flatOnly, now: NOW }).embeds[0];
+        expect(embed.fields[3].value).toContain("eh_ui_tank");
+        // a cancelled event says so in plain text
+        expect(title({ status: "cancelled" })).toBe("Abgesagt: Kara Donnerstag");
+        // umlauts become two tiles, lower case is upper case
+        expect(emojiless(buildEventMessage(event({ title: "Höhle" }), signups, { emojis, now: NOW }).embeds[0].description).split("\n")[0])
+            .toBe("<:eh_ta_h><:eh_ta_o><:eh_ta_e><:eh_ta_h><:eh_ta_l><:eh_ta_e>");
     });
 
     it("shows melee/ranged targets as minimum or range", () => {
         const payload = buildEventMessage(event({ composition: { tank: 2, healer: 3, melee: 2, ranged: 1 }, compositionMax: { melee: 4 } }), [], { now: NOW });
-        const values = payload.embeds[0].fields.slice(9, 13).map((f) => f.value);
+        const values = payload.embeds[0].fields.slice(3, 6).map((f) => f.value);
         expect(values).toContain("Nahkampf **0**/2–4");
         expect(values).toContain("Fernkampf **0**/1+");
     });
 
     it("puts tanks in their own block first, then one block per class in fixed order, with an empty line under each", () => {
         const payload = buildEventMessage(event(), signups, { emojis, now: NOW });
-        const blocks = payload.embeds[0].fields.slice(14).filter((f) => f.inline);
-        expect(blocks.map((b) => emojiless(b.name))).toEqual(["<:eh_ui_tank> __Tanks__ (2)", "<:eh_class_priest> __Priester__ (1)", "<:eh_class_mage> __Magier__ (1)"]);
+        const blocks = payload.embeds[0].fields.slice(7).filter((f) => f.inline);
+        expect(blocks.map((b) => emojiless(b.name))).toEqual(["<:eh_ra_tank> __Tanks__ (2)", "<:eh_class_priest> __Priester__ (1)", "<:eh_class_mage> __Magier__ (1)"]);
         expect(blocks[0].value.split("\n")).toEqual([
             expect.stringMatching(/^<:eh_warrior_protection:\d+> `1` \*\*Brokk\*\*$/),
             expect.stringMatching(/^<:eh_druid_guardian:\d+> `7` \*\*Gemli\*\*$/),
@@ -165,8 +194,8 @@ describe("web/eventMessage", () => {
         expect(other.value.split("\n")[0]).toMatch(/Spät \(3\): `2` Ysolde, `8` Zibbo, `8` Zibbomage$/);
         expect(JSON.stringify(payload)).not.toContain("+1");
         // one seat per person: Zibbo is late, so 5 + 1 attend, the tank count stays per person
-        expect(emojiless(fields[1].value)).toBe("<:eh_ui_signups> **6** / 10");
-        expect(fields[12].value).toMatch(/Heiler \*\*2\*\*\/3/);
+        expect(emojiless(fields[1].value).split("\n")[0]).toBe("<:eh_ui_signups> **6** / 10");
+        expect(fields[3].value).toMatch(/Heiler \*\*2\*\*\/3/);
         expect(rosterEntries([multi]).map((e) => [e.character, e.status, e.index])).toEqual([
             ["Zibbo", "late", 0], ["Zibbowar", "signed", 1], ["Zibbomage", "late", 2],
         ]);
@@ -205,13 +234,13 @@ describe("web/eventMessage", () => {
         expect(json).not.toMatch(/<:eh_/);
         expect(json).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u);
         const embed = payload.embeds[0];
-        expect(embed.fields.slice(0, 6).map((f) => [f.name, f.value])).toEqual([
-            ["Leitung", "<@7>"], ["Angemeldet", "**5** / 10"], ["Anmeldeschluss", "<t:1999990000:f>"],
-            ["Datum", "<t:2000000000:D>"], ["Uhrzeit", "<t:2000000000:t>"], ["Start", "<t:2000000000:R>"],
+        expect(embed.fields.slice(0, 3).map((f) => f.value)).toEqual([
+            "Leitung: <@7>\nDatum: <t:2000000000:D>",
+            "Angemeldet: **5** / 10\nUhrzeit: <t:2000000000:t>",
+            "Anmeldeschluss: <t:1999990000:f>\nStart: <t:2000000000:R>",
         ]);
-        expect(embed.fields[6]).toEqual({ name: "Ende", value: "<t:2000010800:t>", inline: true });
-        expect(embed.fields[9].value).toBe("Tanks **2**/2");
-        const blocks = embed.fields.slice(14).filter((f) => f.inline);
+        expect(embed.fields[3].value).toBe("Tanks **2**/2\nHeiler **1**/3");
+        const blocks = embed.fields.slice(7).filter((f) => f.inline);
         expect(blocks[0]).toMatchObject({ name: "__Tanks__ (2)", value: `\`1\` **Brokk** · Schutz\n\`7\` **Gemli** · Wilder Kampf (Bär)\n${ZWS}` });
         expect(blocks[1].name).toBe("__Priester__ (1)");
         expect(embed.fields.find((f) => !f.inline && f.value.includes("Spät")).value.split("\n")[0]).toBe("Spät (1): `2` Ysolde");

@@ -171,10 +171,13 @@ button.kn-figure:hover .kn-figure-val { color: var(--accent); }
 .kn-input span { color: var(--muted); }
 .kn-input input { flex: 1; min-width: 0; border: 0; background: none; color: var(--text); font: inherit; font-size: 14px; outline: none; }
 .kn-input:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* background-color, never the `background` shorthand: it would reset the global
+   select chevron's no-repeat/position (index.css), and the hover image then tiles. */
 .kn-select {
-    width: 100%; min-height: var(--ctl-h); padding: 8px 12px; background: var(--bg); color: var(--text);
+    width: 100%; min-height: var(--ctl-h); padding: 8px 12px; background-color: var(--bg); color: var(--text);
     border: 1px solid var(--line); border-radius: var(--ctl-radius); font: inherit; font-size: 14px;
 }
+select.kn-select { padding-right: 34px; }
 .kn-type-seg { display: flex; width: 100%; }
 .kn-type-seg .seg-opt { flex: 1; justify-content: center; min-height: 36px; padding: 0 8px; }
 .kn-type-seg .seg-opt svg { width: 15px; height: 15px; }

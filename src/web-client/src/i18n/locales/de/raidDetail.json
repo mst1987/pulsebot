@@ -248,7 +248,9 @@
             "one": "{count} Loot-Eintrag",
             "other": "{count} Loot-Einträge"
         },
-        "eventRemoved": "Event wird entfernt"
+        "eventRemoved": "Event wird entfernt",
+        "invite": "Invite callen",
+        "inviteSub": "Gruppe 1–5 pingen: /w dein Charakter inv"
     },
     "classSource": {
         "export": "Loot-Export",

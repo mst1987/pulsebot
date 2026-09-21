@@ -6,8 +6,19 @@
 // locals), so stripping the signature's annotations leaves valid JavaScript.
 // The server holds the same rules for real (src/web/raidTemplates.js) — this
 // copy only lets the modal say what is wrong before anybody presses Speichern.
-import type { EmbedImage, GameVersion, GameInstance, RaidTemplate, RaidTemplateInput, RoleRange } from "../api";
+import type { EmbedImage, EmojiStyle, GameVersion, GameInstance, RaidTemplate, RaidTemplateInput, RoleRange } from "../api";
 import { t } from "../i18n";
+
+/** The event message's emoji style unless one is picked (src/web/appEmojis.js has the same). */
+export const DEFAULT_EMOJI_STYLE = "arcane";
+
+/** A known emoji style, else the default. */
+export function emojiStyleOf(style: string | undefined): EmojiStyle {
+    switch (style) {
+        case "gold": case "parchment": case "plain": case "arcane": return style;
+        default: return DEFAULT_EMOJI_STYLE;
+    }
+}
 
 export type Proposal = { tank: number; healer: number };
 
@@ -167,7 +178,7 @@ export function newDraft(version: GameVersion | null | undefined): RaidTemplateI
         requiredBuffs: [], signupDeadline: null, durationMinutes: null, fairness: false, wishes: false,
         overflow: "bench", lockAtLimit: false, raidhelperTemplateId: "",
         // #307: nothing of its own — the instance's colour and boss icon.
-        color: "", image: { mode: "thumbnail", url: "" },
+        color: "", image: { mode: "thumbnail", url: "" }, emojiStyle: DEFAULT_EMOJI_STYLE,
     };
 }
 
@@ -185,6 +196,7 @@ export function draftOf(t: RaidTemplate): RaidTemplateInput {
         overflow: t.overflow === "off" ? "off" : "bench", lockAtLimit: !!t.lockAtLimit,
         color: t.color || "",
         image: { mode: (t.image && t.image.mode) === "banner" ? "banner" : "thumbnail", url: (t.image && t.image.url) || "" },
+        emojiStyle: emojiStyleOf(t.emojiStyle),
         raidhelperTemplateId: t.raidhelperTemplateId || "",
     };
 }

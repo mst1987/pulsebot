@@ -19,6 +19,9 @@
 // again on the next run. DMs go out one after the other with a pause between
 // them; the outcome (sent, failed with the reason) is stored for the editor.
 //
+// Under the message sits one button, "Invite callen" (inviteCallBot.js): the
+// orga pings groups 1–5 with "/w <Charakter> inv". A cancelled event has none.
+//
 // The bar carries the **same colour as the signup message** (#307,
 // embedLook.embedColor): the two posts sit in one channel and belong together.
 // The picture stays with the signup message — two copies of the same boss icon
@@ -34,6 +37,7 @@ const discord = require("./discord");
 const { buildClasses } = require("../config/gameVersions/classes");
 const {
     appEmojiMap, loadAppEmojis, emojiText, specEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName,
+    roleEmojiName, emojiStyleOf,
 } = require("./appEmojis");
 
 const LIMITS = { title: 256, description: 4096, fields: 25, fieldValue: 1024, total: 6000 };
@@ -133,9 +137,9 @@ function buildSetupMessage(event, approved, { emojis = {} } = {}) {
     const counts = roleCounts(approved);
     const totals = ROLE_ORDER
         .filter((r) => counts[r])
-        // the flat role icons of the signup message (#303/#320), not the
-        // colourful WoW ones; without them the role's name: "Tank 1"
-        .map((r) => `${emojiText(emojis, roleUiEmojiName(r), ROLE_LABEL[r])} ${counts[r]}`)
+        // the role icons of the signup message in the event's emoji style, else
+        // the flat ones (#303/#320); without them the role's name: "Tank 1"
+        .map((r) => `${emojiText(emojis, roleEmojiName(r, emojiStyleOf(event.emojiStyle))) || emojiText(emojis, roleUiEmojiName(r), ROLE_LABEL[r])} ${counts[r]}`)
         .join("  ·  ");
     const description = [start ? `<t:${start}:F>` : "", totals].filter(Boolean).join("\n");
     const groups = approved.groups.filter((g) => (g.slots || []).length).sort((a, b) => a.index - b.index);
@@ -171,7 +175,9 @@ function buildSetupMessage(event, approved, { emojis = {} } = {}) {
         if (embedLength(embed) <= LIMITS.total) break;
     }
     if (approved.approvedAt) embed.timestamp = new Date(Number(approved.approvedAt)).toISOString();
-    return { content: "", embeds: [embed], components: [] };
+    // "Invite callen" for the orga (inviteCallBot.js) — loaded here, like setupEditor above, to keep the requires acyclic.
+    const { inviteButtonRow } = require("./inviteCallBot");
+    return { content: "", embeds: [embed], components: [inviteButtonRow(event.id)] };
 }
 
 // ---- DMs --------------------------------------------------------------------

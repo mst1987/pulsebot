@@ -55,17 +55,27 @@ describe("setup editor moves (client)", () => {
     it("refuses a full group and a full raid, but swaps onto a raider", () => {
         expect(lib.moveRaider(input, "w", { group: 1 }, people, 25).error).toMatch(/Gruppe 1 ist voll/);
         expect(lib.moveRaider(input, "b", { group: 2 }, people, 6).error).toMatch(/Raid ist voll/);
+        // a swap keeps both positions: the bench raider takes the healer's place 2
         const swap = lib.moveRaider(input, "b", { userId: "h" }, people, 6);
-        expect(swap.input.groups[0].slots.map((x) => x.userId)).toEqual(["t", "m1", "m2", "r", "b"]);
-        expect(swap.input.bench.map((x) => x.userId)).toEqual(["h"]);
+        expect(swap.input.groups[0].slots.map((x) => x.userId)).toEqual(["t", "b", "m1", "m2", "r"]);
+        expect(swap.input.groups[0].slots[1]).toEqual({ userId: "b", character: "b", spec: "Hunter-BeastMastery", role: "ranged", locked: false });
+        expect(swap.input.bench).toEqual([{ userId: "h", locked: false }]);
         const across = lib.moveRaider(input, "w", { userId: "t" }, people, 25);
-        expect(across.input.groups[0].slots.map((x) => x.userId)).toContain("w");
+        expect(across.input.groups[0].slots.map((x) => x.userId)).toEqual(["w", "h", "m1", "m2", "r"]);
         expect(across.input.groups[1].slots).toEqual([{ userId: "t", character: "t", spec: "Warrior-Protection", role: "tank", locked: true }]);
     });
 
+    it("reorders a group: swap inside it, or drop on its free places to go last", () => {
+        const inside = lib.moveRaider(input, "m1", { userId: "t" }, people, 25);
+        expect(inside.input.groups[0].slots.map((x) => x.userId)).toEqual(["m1", "h", "t", "m2", "r"]);
+        const twoGroup = lib.moveRaider(input, "m1", { group: 2 }, people, 25).input;
+        const last = lib.moveRaider(twoGroup, "w", { group: 2 }, people, 25);
+        expect(last.input.groups[1].slots.map((x) => x.userId)).toEqual(["m1", "w"]);
+    });
+
     it("does nothing where nothing would change", () => {
-        expect(lib.moveRaider(input, "m1", { group: 1 }, people, 25)).toEqual({ input: null });
-        expect(lib.moveRaider(input, "m1", { userId: "m2" }, people, 25)).toEqual({ input: null });
+        expect(lib.moveRaider(input, "r", { group: 1 }, people, 25)).toEqual({ input: null });
+        expect(lib.moveRaider(input, "m1", { userId: "m1" }, people, 25)).toEqual({ input: null });
         expect(lib.moveRaider(input, "b", { bench: true }, people, 25)).toEqual({ input: null });
     });
 
@@ -114,6 +124,15 @@ describe("setup editor page", () => {
         expect(editor).toMatch(/e\.key === "Escape"/);
         // no drag-and-drop library
         expect(editor).not.toMatch(/from "(react-dnd|@dnd-kit|react-beautiful-dnd)/);
+    });
+
+    it("shows every group's five places — empty ones as boxes — and the bench under the setup", () => {
+        expect(editor).toContain("Array.from({ length: Math.max(0, GROUP_SIZE - group.slots.length) }");
+        expect(editor).toContain("className=\"se-ph se-ph-take\"");
+        expect(editor).not.toContain(">leer<");
+        // groups and bench share one column; the summary stays beside them
+        expect(editor).toMatch(/<div className="se-main">\s*<div className="se-groups">[\s\S]*?<BenchCard bench=\{setup\.bench\} ui=\{ui\} \/>\s*<\/div>\s*<Summary/);
+        expect(css).toMatch(/\.se-bench::before \{[^}]*border-top/);
     });
 
     it("keeps one line per raider — reasons only in the tooltip", () => {

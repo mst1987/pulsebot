@@ -15,6 +15,10 @@
 //
 // The ids carry a `forever-` prefix: Forever's Hyjal Summit is not TBC's Hyjal
 // ("hyjal") and Forever's Onyxia is not Classic's ("ony").
+//
+// Characters in Forever carry a first and a last name, twelve letters each
+// ("Vorname Nachname"); the other versions know one name. The rule lives in
+// src/utils/characterNames.js, `characterNames.lastName` switches it on.
 
 const classic = require("./classic");
 
@@ -50,6 +54,7 @@ module.exports = {
     id: "forever",
     label: "WoW Forever",
     short: "Forever",
+    characterNames: { lastName: true },
     classes: classic.classes,
     instances,
     partyBuffs: classic.partyBuffs,

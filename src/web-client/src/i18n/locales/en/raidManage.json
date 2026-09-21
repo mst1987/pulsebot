@@ -85,5 +85,23 @@
         "choose": "choose …",
         "spec": "Specialisation",
         "status": "Status"
+    },
+    "invite": {
+        "title": "Call invites",
+        "hint": "Post in the event channel #{channel}",
+        "ping": "Ping",
+        "pingCount": {
+            "one": "Ping {count} raider",
+            "other": "Ping {count} raiders"
+        },
+        "message": "Message",
+        "pinged": "Pinged",
+        "raiders": {
+            "one": "{count} raider",
+            "other": "{count} raiders"
+        },
+        "whoTip": "Who gets pinged",
+        "whoSub": "Every raider in groups 1–5 of the approved setup, except you. Groups 6–8 and the bench wait.",
+        "groups": "Group {groups}"
     }
 }

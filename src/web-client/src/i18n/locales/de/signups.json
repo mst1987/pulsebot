@@ -97,7 +97,12 @@
             "other": "{names} sind auch angemeldet"
         },
         "calendar": "In Kalender eintragen",
-        "publicPage": "Öffentliche Event-Seite"
+        "publicPage": "Öffentliche Event-Seite",
+        "note": "Nachricht an die Raidleitung",
+        "noteTip": "Der Bot postet sie in den Kanal der Raidleitung.",
+        "required": "(Pflicht)",
+        "notePlaceholderAbsent": "z. B. Arbeit, Urlaub, krank",
+        "notePlaceholderTentative": "z. B. noch unsicher, evtl. später"
     },
     "bulk": {
         "toast": "{saved} von {total} Raids gespeichert.",

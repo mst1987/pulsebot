@@ -97,7 +97,12 @@
             "other": "{names} are signed up too"
         },
         "calendar": "Add to calendar",
-        "publicPage": "Public event page"
+        "publicPage": "Public event page",
+        "note": "Message to the raid lead",
+        "noteTip": "The bot posts it in the raid lead's channel.",
+        "required": "(required)",
+        "notePlaceholderAbsent": "e.g. work, holiday, ill",
+        "notePlaceholderTentative": "e.g. not sure yet, maybe later"
     },
     "bulk": {
         "toast": "{saved} of {total} raids saved.",

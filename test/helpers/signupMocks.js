@@ -14,6 +14,8 @@ const access = { config: {}, roleIds: null };
 const memberRoleIds = jest.fn(async () => access.roleIds);
 // What eventStore.appendEventLog was called with (#306: the automatic close).
 const eventLog = jest.fn();
+// The message of "Vielleicht" / "Absagen" posted to the orga's channel (signupNotes.js).
+const postNotice = jest.fn(async () => ({ channelId: "c", messageId: "m", url: "" }));
 
 /** settingsStore stand-in: `access.config` is what getConfig() returns. */
 function settingsStore() {
@@ -22,7 +24,7 @@ function settingsStore() {
 
 /** discord stand-in: `access.roleIds` are the member's roles (null = unreadable). */
 function discord() {
-    return { memberRoleIds };
+    return { memberRoleIds, postNotice };
 }
 
 function eventStore() {
@@ -93,6 +95,7 @@ function reset() {
     access.roleIds = null;
     memberRoleIds.mockClear();
     eventLog.mockClear();
+    postNotice.mockClear();
 }
 
-module.exports = { events, signups, changed, access, memberRoleIds, eventLog, settingsStore, discord, eventStore, signupStore, ownEvent, reset };
+module.exports = { events, signups, changed, access, memberRoleIds, eventLog, postNotice, settingsStore, discord, eventStore, signupStore, ownEvent, reset };

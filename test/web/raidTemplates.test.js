@@ -20,7 +20,7 @@ describe("raidTemplates", () => {
                 requiredBuffs: [], signupDeadline: null, durationMinutes: null, fairness: false, wishes: false, raidhelperTemplateId: "",
                 overflow: "bench", lockAtLimit: false,
                 // #307: no own look — the rule set of the instances decides.
-                color: "", image: { mode: "thumbnail", url: "" },
+                color: "", image: { mode: "thumbnail", url: "" }, emojiStyle: "arcane",
             });
         });
 

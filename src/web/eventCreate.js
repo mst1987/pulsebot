@@ -26,6 +26,7 @@ const { getConfig, getRaidTemplate } = require("./settingsStore");
 const { getChannelConfig } = require("./channelArchiveStore");
 const channelNaming = require("./channelNaming");
 const { instanceById } = require("../config/gameVersions");
+const { emojiStyleOf } = require("./appEmojis");
 const { createRaidhelperClient } = require("../utils/raidhelperClient");
 const { toRaidHelperDate } = require("../utils/date");
 
@@ -121,6 +122,8 @@ function templateDefaults(templateId, startTime) {
         // events that already exist alone. Empty = the rule set decides.
         color: t.color || "",
         image: { mode: (t.image && t.image.mode) || "thumbnail", url: (t.image && t.image.url) || "" },
+        // letter tiles and role icons of the message; a template without one gives the default
+        emojiStyle: emojiStyleOf(t.emojiStyle),
     };
     if (t.size) out.size = t.size;
     else delete out.composition; // a migrated template without size proposes no composition
@@ -185,7 +188,7 @@ function isoDateOf(value) {
 
 const fail = (status, code, message) => ({ error: { status, code, message } });
 const given = (body, key) => body[key] !== undefined && body[key] !== null && body[key] !== "";
-const PLAN_KEYS = ["versionId", "size", "composition", "compositionMax", "requiredBuffs", "durationMinutes", "signupDeadline", "fairness", "wishes", "autoSuggest", "overflow", "lockAtLimit", "color", "image"];
+const PLAN_KEYS = ["versionId", "size", "composition", "compositionMax", "requiredBuffs", "durationMinutes", "signupDeadline", "fairness", "wishes", "autoSuggest", "overflow", "lockAtLimit", "color", "image", "emojiStyle"];
 // Colour and picture (#307) are the two planning fields whose *empty* value
 // means something ("take the rule set's"), so `given()` — which reads "" as
 // absent — must not decide them; planFor() merges them by `!== undefined`.
@@ -243,6 +246,7 @@ function planFor(body, categoryId, title, startTime) {
             autoSuggest: merged.autoSuggest === true,
             overflow: merged.overflow === "off" ? "off" : "bench",
             lockAtLimit: merged.lockAtLimit === true,
+            emojiStyle: emojiStyleOf(merged.emojiStyle),
             raidTemplateId: template.raidTemplateId || "",
         },
     };
@@ -440,7 +444,7 @@ const EDIT_FIELD_LABELS = {
     requiredBuffs: "Pflicht-Buffs", signupDeadline: "Anmeldeschluss", fairness: "Fairness", wishes: "Wünsche",
     durationMinutes: "Dauer", voiceChannelId: "Sprachkanal",
     autoSuggest: "Vorschlag bei Anmeldeschluss", overflow: "Warteliste", lockAtLimit: "Sperre bei Voll",
-    color: "Farbe", image: "Bild",
+    color: "Farbe", image: "Bild", emojiStyle: "Emoji-Stil",
 };
 
 /**

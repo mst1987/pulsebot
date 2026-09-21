@@ -18,6 +18,7 @@ const path = require("path");
 const { characterKey: lootCharacterKey, splitPlayer } = require("../utils/lootImport");
 const { CLASSES, buildClasses } = require("../config/gameVersions/classes");
 const { instanceById } = require("../config/gameVersions");
+const { validateCharacterName, NAME_MAX } = require("../utils/characterNames");
 
 const SETTINGS_DIR = path.join(__dirname, "..", "..", "data", "settings");
 const PROFILES_FILE = path.join(SETTINGS_DIR, "raider-profiles.json");
@@ -39,7 +40,8 @@ const CHARACTER_SOURCES = ["log", "armory", "manual"];
 const MAX_CHARACTERS = 12;
 const MAX_WISHES = 10;
 const MAX_NOTE = 500;
-const MAX_NAME = 24;
+// Forever's "Vorname Nachname": 12 + 1 + 12 (utils/characterNames.js).
+const MAX_NAME = NAME_MAX;
 
 const SPEC_BY_KEY = new Map();
 for (const c of buildClasses(CLASSES)) {
@@ -224,14 +226,26 @@ function saveProfile(userId, patch = {}, { name = "" } = {}) {
 /**
  * Add a character to the raider's own profile (or refresh one already there).
  * `data`: { name, realm, className, specs, source, armory }. Returns
- * `{ profile, character }`, or `{ error }` for a missing name/class or a full list.
+ * `{ profile, character }`, or `{ error }` for a missing name/class, a name the
+ * rule refuses or a full list.
+ *
+ * A *new* typed name (anything but `source: "log"`) must pass
+ * utils/characterNames.js — letters, 2–12 per name, the profanity filter, a
+ * last name only where `versionId` allows one (none given = the web profile,
+ * which is not tied to a version, allows it).
  */
-function addCharacter(userId, data = {}, { name = "" } = {}) {
+function addCharacter(userId, data = {}, { name = "", versionId = "" } = {}) {
     const current = getProfile(userId);
     if (!current) return { error: "Kein Konto." };
-    const clean = normalizeCharacter({ ...data, source: data.source, main: false });
+    let clean = normalizeCharacter({ ...data, source: data.source, main: false });
     if (!clean) return { error: String(data.name || "").trim() ? "Bitte eine Klasse angeben." : "Bitte einen Namen angeben." };
-    const existing = current.characters.find((c) => c.key === clean.key);
+    let existing = current.characters.find((c) => c.key === clean.key);
+    if (!existing && clean.source !== "log") {
+        const checked = validateCharacterName(splitPlayer(data.name || data.character || "").character, { versionId });
+        if (checked.error) return { error: checked.error };
+        clean = { ...clean, name: checked.name, key: characterKey(checked.name) };
+        existing = current.characters.find((c) => c.key === clean.key);
+    }
     let characters;
     if (existing) {
         characters = current.characters.map((c) => (c.key === clean.key ? {

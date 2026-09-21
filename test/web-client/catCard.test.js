@@ -82,4 +82,18 @@ describe("Kategorien list", () => {
         expect(matrix).not.toContain("style={{");
         expect(rule(".cat-detail")).toContain("gap: 22px");
     });
+
+    it("picks the message channel at the message segment, hidden for \"keine\" and while no channels load (#335)", () => {
+        const block = matrix.slice(matrix.indexOf("{onSignupNotes && ("), matrix.indexOf("{onDiscordEvent && ("));
+        expect(block).toContain('options={NOTE_MODES}');
+        expect(block).toContain('signupNoteMode(categorySignupNotes, cat.id) !== "none"');
+        expect(block).toContain("noteChannels.channels.length > 0");
+        expect(block).toContain('<option value="">{pick.defaultLabel}</option>');
+        // an own channel out of reach stays selected and is marked, never silently dropped
+        expect(block).toContain("{pick.unreachable && <option value={own}>");
+        expect(block).toMatch(/\{pick\.unreachable && <Badge tone="bad"[^>]*>nicht erreichbar<\/Badge>\}/);
+        expect(rule(".cat-note-channel")).toContain("display: flex");
+        expect(page).toContain("noteChannels={data.noteChannels}");
+        expect(page).toContain("categorySignupNoteChannel: draft.categorySignupNoteChannel,");
+    });
 });

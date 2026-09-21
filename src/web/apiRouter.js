@@ -35,7 +35,7 @@ const {
 } = require("./apiRoutes/lootCouncil");
 const { getRaids, getPastRaids, getRaidCreateContext, getChannelName, createRaid, updateRaid } = require("./apiRoutes/raids");
 const {
-    getRaidDetail, postNotify, postPingMissing, postFill, postPostSheet, postPostSoftres,
+    getRaidDetail, postNotify, postPingMissing, postInviteCall, postFill, postPostSheet, postPostSoftres,
     getItemSearch, postSoftresCreate, postSoftresLink, postLootSystem,
 } = require("./apiRoutes/raidDetail");
 const {
@@ -433,6 +433,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/raids/ping-missing" && req.method === "POST") {
         await postPingMissing(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/invite-call" && req.method === "POST") {
+        await postInviteCall(req, res);
         return true;
     }
     if (pathname === "/api/raids/fill" && req.method === "POST") {

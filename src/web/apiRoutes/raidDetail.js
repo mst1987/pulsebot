@@ -45,6 +45,7 @@ const { listSignups } = require("../signupStore");
 const { eventSignupList } = require("../signupView");
 const { getEvent } = require("../eventStore");
 const { setupSummary, raidHelperSlots } = require("../setupEditor");
+const { invitePlan, callInvite } = require("../inviteCall");
 const {
     normalizePingTarget, pingTargetInfo, deliverAnnouncement, dmSummary, TARGET_LABELS,
 } = require("../pingDelivery");
@@ -361,6 +362,32 @@ async function postPingMissing(req, res) {
 }
 
 /**
+ * POST /api/raids/invite-call — "Invite callen": ping groups 1–5 of the
+ * approved setup in the event channel with "/w <Charakter> inv", the character
+ * being the caller's own (inviteCall.js). Body: `{ event, dryRun }`; `dryRun`
+ * answers who and what without posting (the dialog's preview).
+ */
+async function postInviteCall(req, res) {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+    const body = await readJsonBody(req);
+    const eventId = String(body.event || "").trim();
+    const guildId = activeGuildFor(req);
+    if (body.dryRun) {
+        const event = getEvent(eventId);
+        const plan = event && (!guildId || event.guildId === guildId)
+            ? invitePlan(event, user.id)
+            : { error: { status: 404, code: "not_found", message: "Event nicht gefunden." } };
+        if (plan.error) return error(res, plan.error.status, plan.error.code, plan.error.message);
+        return ok(res, { count: plan.userIds.length, text: plan.text, groups: plan.groups });
+    }
+    const result = await callInvite({ guildId, eventId, userId: user.id, byName: user.name || "" });
+    if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
+    ok(res, { message: result.message, count: result.count, text: result.text });
+}
+
+/**
  * POST /api/raids/fill — fill a raidsheet from the event's Raid-Helper setup.
  * Each raid gets its OWN copy of the source raidsheet: copy it, share it by
  * link, fill the copy, link it on the event page, and schedule its deletion 3
@@ -635,6 +662,7 @@ module.exports = {
     getRaidDetail,
     postNotify,
     postPingMissing,
+    postInviteCall,
     postFill,
     postPostSheet,
     postPostSoftres,

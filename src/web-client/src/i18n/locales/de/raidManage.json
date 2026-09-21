@@ -85,5 +85,23 @@
         "choose": "wählen …",
         "spec": "Spezialisierung",
         "status": "Status"
+    },
+    "invite": {
+        "title": "Invite callen",
+        "hint": "Post im Event-Kanal #{channel}",
+        "ping": "Pingen",
+        "pingCount": {
+            "one": "{count} Raider pingen",
+            "other": "{count} Raider pingen"
+        },
+        "message": "Nachricht",
+        "pinged": "Gepingt",
+        "raiders": {
+            "one": "{count} Raider",
+            "other": "{count} Raider"
+        },
+        "whoTip": "Wer gepingt wird",
+        "whoSub": "Alle Raider aus Gruppe 1–5 des freigegebenen Setups, du selbst nicht. Gruppe 6–8 und die Bank warten.",
+        "groups": "Gruppe {groups}"
     }
 }

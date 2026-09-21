@@ -76,7 +76,13 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
     const absent = status === "absence";
     const noCharacter = !profile.characters.length;
     const closed = !row.allowedStatuses.length;
-    const canSubmit = !busy && !closed && (absent || (!!character && !!spec));
+    // "Vielleicht" / "Absagen" turn the comment into a message to the raid lead,
+    // which the bot posts in the orga's channel — required, optional or not asked
+    // per category (src/web/signupNotes.js; the server checks "required" again).
+    const noteStatus = absent || signupStatusOf(picks, status) === "tentative";
+    const noteMode = noteStatus ? row.noteMode || "optional" : "none";
+    const noteMissing = noteMode === "required" && comment.trim().length < 2;
+    const canSubmit = !busy && !closed && !noteMissing && (absent || (!!character && !!spec));
     // What the segment shows as chosen: the status every character shares, "" when they differ (#320).
     const shared = absent ? "absence" : commonStatus(picks, status);
     const pickStatus = (s: SignupStatus) => {
@@ -201,8 +207,16 @@ export default function SignupDialog({ row, profile, classes, csrfToken, onClose
                 )}
 
                 <div className="field">
-                    <label htmlFor="an-comment">{t("signups.dialog.comment")} <span className="an-opt">{t("signups.dialog.optional")}</span></label>
-                    <input id="an-comment" type="text" maxLength={300} value={comment} placeholder={t("signups.dialog.commentPlaceholder")} onChange={(e) => setComment(e.target.value)} />
+                    {noteMode === "none" ? (
+                        <label htmlFor="an-comment">{t("signups.dialog.comment")} <span className="an-opt">{t("signups.dialog.optional")}</span></label>
+                    ) : (
+                        <label htmlFor="an-comment" data-tip={t("signups.dialog.note")} data-tip-sub={t("signups.dialog.noteTip")}>
+                            {t("signups.dialog.note")} {noteMode === "required" ? <span className="an-opt">{t("signups.dialog.required")}</span> : <span className="an-opt">{t("signups.dialog.optional")}</span>}
+                        </label>
+                    )}
+                    <input id="an-comment" type="text" maxLength={noteMode === "none" ? 300 : 100} value={comment}
+                        placeholder={noteMode === "none" ? t("signups.dialog.commentPlaceholder") : absent ? t("signups.dialog.notePlaceholderAbsent") : t("signups.dialog.notePlaceholderTentative")}
+                        aria-required={noteMode === "required"} onChange={(e) => setComment(e.target.value)} />
                 </div>
 
                 {row.wishPartners.length > 0 && !absent && (

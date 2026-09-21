@@ -62,11 +62,42 @@ function takeOut(input: SetupPlacementInput, userId: string, people: Map<string,
     }
     const b = input.bench.findIndex((x) => x.userId === userId);
     if (b >= 0) {
-        const entry = input.bench.splice(b, 1)[0];
-        const person = people.get(userId);
-        return { userId, character: person ? person.character : "", spec: person ? person.spec : "", role: person ? person.role : "", locked: entry.locked };
+        return slotFromBench(input.bench.splice(b, 1)[0], people);
     }
     return null;
+}
+
+/** A bench entry as a group slot: the person's own spec and role. */
+function slotFromBench(entry: { userId: string; locked: boolean }, people: Map<string, SetupPerson>) {
+    const person = people.get(entry.userId);
+    return { userId: entry.userId, character: person ? person.character : "", spec: person ? person.spec : "", role: person ? person.role : "", locked: entry.locked };
+}
+
+/** Where a raider stands: their group's slots (null on the bench) and the position there. */
+function placeOf(input: SetupPlacementInput, userId: string) {
+    for (const g of input.groups) {
+        const i = g.slots.findIndex((s) => s.userId === userId);
+        if (i >= 0) return { slots: g.slots, i };
+    }
+    const i = input.bench.findIndex((x) => x.userId === userId);
+    return i >= 0 ? { slots: null, i } : null;
+}
+
+/**
+ * Swap two raiders in place: each takes the other's exact position — so inside
+ * one group this reorders it, across groups both keep the row they land on.
+ */
+function swapInPlace(input: SetupPlacementInput, a: string, b: string, people: Map<string, SetupPerson>) {
+    const pa = placeOf(input, a);
+    const pb = placeOf(input, b);
+    if (!pa || !pb) return false;
+    const ea = pa.slots ? pa.slots[pa.i] : slotFromBench(input.bench[pa.i], people);
+    const eb = pb.slots ? pb.slots[pb.i] : slotFromBench(input.bench[pb.i], people);
+    if (pa.slots) pa.slots[pa.i] = eb;
+    else input.bench[pa.i] = { userId: eb.userId, locked: eb.locked };
+    if (pb.slots) pb.slots[pb.i] = ea;
+    else input.bench[pb.i] = { userId: ea.userId, locked: ea.locked };
+    return true;
 }
 
 function groupFor(input: SetupPlacementInput, index: number) {
@@ -80,9 +111,11 @@ function groupFor(input: SetupPlacementInput, index: number) {
 }
 
 /**
- * Move a raider. A full group refuses a plain drop (swap onto a raider instead);
- * a drop onto somebody swaps the two places. Returns `{ input }` or `{ error }`,
- * and `{ input: null }` when nothing would change.
+ * Move a raider. A drop onto somebody swaps the two places (inside one group
+ * that reorders it); a drop onto a group takes its first free place — in the
+ * raider's own group that is the last one. A full group refuses a plain drop
+ * (swap onto a raider instead). Returns `{ input }` or `{ error }`, and
+ * `{ input: null }` when nothing would change.
  */
 export function moveRaider(current: SetupPlacementInput, userId: string, target: SetupTarget, people: Map<string, SetupPerson>, size: number) {
     const from = positionOf(current, userId);
@@ -94,14 +127,7 @@ export function moveRaider(current: SetupPlacementInput, userId: string, target:
         const to = positionOf(input, target.userId);
         if (!to) return { error: t("setup.moves.targetNotInSetup") };
         if ("bench" in from && "bench" in to) return { input: null };
-        if ("group" in from && "group" in to && from.group === to.group) return { input: null };
-        const a = takeOut(input, userId, people);
-        const b = takeOut(input, target.userId, people);
-        if (!a || !b) return { error: t("setup.moves.notInSetup") };
-        if ("group" in to) groupFor(input, to.group).slots.push(a);
-        else input.bench.push({ userId: a.userId, locked: a.locked });
-        if ("group" in from) groupFor(input, from.group).slots.push(b);
-        else input.bench.push({ userId: b.userId, locked: b.locked });
+        if (!swapInPlace(input, userId, target.userId, people)) return { error: t("setup.moves.notInSetup") };
         return { input };
     }
 
@@ -113,7 +139,13 @@ export function moveRaider(current: SetupPlacementInput, userId: string, target:
         return { input };
     }
 
-    if ("group" in from && from.group === target.group) return { input: null };
+    if ("group" in from && from.group === target.group) {
+        const own = groupFor(input, target.group);
+        if (own.slots[own.slots.length - 1].userId === userId) return { input: null };
+        const moved = takeOut(input, userId, people);
+        if (moved) own.slots.push(moved);
+        return { input };
+    }
     const dest = groupFor(input, target.group);
     if (dest.slots.length >= GROUP_SIZE) return { error: t("setup.moves.groupFull", { group: target.group }) };
     const placed = input.groups.reduce((n, g) => n + g.slots.length, 0);
