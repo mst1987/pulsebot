@@ -19,6 +19,7 @@ import {
     type RaidCtx,
 } from "./meta";
 import SpecTile from "./SpecTile";
+import { t, useT } from "../../i18n";
 
 const norm = (s: string) => s.trim().toLowerCase();
 
