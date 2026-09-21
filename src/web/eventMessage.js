@@ -2,9 +2,11 @@
 // the counterpart of Raid-Helper's widget (#254, rebuilt in #287).
 //
 // One embed laid out like Raid-Helper's (#303): title and description, a head
-// of icon + value only (leader · count · deadline, then date · time ·
-// countdown, then end · voice channel — #305), the role totals as columns (Tanks · Fernkampf · Nahkampf, Heiler
-// below) with flat role icons, then the roster — a "Tanks" block first, one
+// of icon + value only in three columns whose rows sit directly under each
+// other (leader · count · deadline, then date · time · countdown, the voice
+// channel under the date — #305; no end time: a duration nobody set would show
+// the default), the role totals as columns (Tanks · Fernkampf · Nahkampf, Heiler
+// directly below the tanks) with flat role icons, then the roster — a "Tanks" block first, one
 // block per class after it (class icon, underlined name and count; each line
 // spec icon · signup number · name; three inline columns with an empty line
 // between the rows), one line each for Spät / Vielleicht / Bank / Abgemeldet —
@@ -20,7 +22,7 @@
 // Icons are the bot's application emojis (appEmojis.js): WoW icons for specs
 // and classes, flat grey line icons (`eh_ui_*`) for the head, the roles, the
 // statuses and the buttons. Without them the icons are left out and the head
-// fields carry their label as the field name instead — no colourful unicode
+// lines carry their label ("Datum: …") instead — no colourful unicode
 // stand-ins.
 //
 // Below it one row with the public select `event-pick:<eventId>` — "Meine
@@ -58,7 +60,6 @@ const { publicBaseUrl } = require("../config/variables");
 // its instances, else the accent — and never a picture Discord cannot load.
 const { embedColor, embedImageFields } = require("./embedLook");
 const { getEvent, setEventMessage, listEvents } = require("./eventStore");
-const { eventEndTime } = require("../utils/eventTime");
 const { listSignups, onSignupsChanged } = require("./signupStore");
 const discord = require("./discord");
 // The counting rule lives in the signup service, so the page and the message agree.
@@ -104,8 +105,8 @@ const STATUS_OPTIONS = {
 };
 // The lines below the class blocks, in this order.
 const OTHER_LINES = [["late", "Spät"], ["tentative", "Vielleicht"], ["bench", "Bank"], ["absence", "Abgemeldet"]];
-// The role totals as Raid-Helper sets them: three columns, the healers below.
-const ROLE_TOTALS = [["tank", "Tanks"], ["ranged", "Fernkampf"], ["melee", "Nahkampf"], ["healer", "Heiler"]];
+// The role totals as Raid-Helper sets them: three columns, Tanks with Heiler directly below.
+const ROLE_TOTALS = [[["tank", "Tanks"], ["healer", "Heiler"]], [["ranged", "Fernkampf"]], [["melee", "Nahkampf"]]];
 
 const CLASSES = buildClasses();
 const SPEC_BY_KEY = new Map(CLASSES.flatMap((c) => c.specs.map((s) => [s.key, s])));
@@ -399,7 +400,6 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     const numbers = signupNumbers(list);
     const entries = rosterEntries(list);
     const start = Number(event.startTime) || 0;
-    const end = eventEndTime(event);
     const deadline = Number(event.signupDeadline) || 0;
     const head = (icon, label) => labelled(emojis, uiEmojiName(icon), label);
 
@@ -421,36 +421,40 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
         desc.push(clip(description, 1500));
     }
 
-    // Icon + value only; the empty name above each value is the air between the rows.
-    // Without the icon the label stands in the name instead.
-    const headField = (icon, label, value) => {
+    // Three columns, their values as lines of one field each — so the rows sit
+    // directly under each other like Raid-Helper's head, not a field (and its
+    // empty name) apart. Icon + value; without the icon "Label: value".
+    const headLine = (icon, label, value) => {
         const e = emojiText(emojis, uiEmojiName(icon));
-        return e ? { name: ZWS, value: `${e} ${value}`, inline: true } : { name: label, value, inline: true };
+        return e ? `${e} ${value}` : `${label}: ${value}`;
     };
+    const column = (lines) => ({ name: ZWS, value: lines.join("\n"), inline: true });
     const headFields = [
-        headField("leader", "Leitung", event.leaderId ? `<@${event.leaderId}>` : "–"),
-        headField("signups", "Angemeldet", `**${c.attending}**${event.size ? ` / ${event.size}` : ""}`),
-        deadline ? headField("deadline", "Anmeldeschluss", `<t:${deadline}:f>`) : spacer(true),
-        headField("date", "Datum", start ? `<t:${start}:D>` : "–"),
-        headField("time", "Uhrzeit", start ? `<t:${start}:t>` : "–"),
-        headField("start", "Start", start ? `<t:${start}:R>` : "–"),
-        // A third row (#305): when the raid is planned to be over and where it
-        // meets. The spacer keeps the row of three, so nothing else moves.
-        headField("end", "Ende", end ? `<t:${end}:t>` : "–"),
-        event.voiceChannelId ? headField("voice", "Sprachkanal", `<#${event.voiceChannelId}>`) : spacer(true),
-        spacer(true),
+        column([
+            headLine("leader", "Leitung", event.leaderId ? `<@${event.leaderId}>` : "–"),
+            headLine("date", "Datum", start ? `<t:${start}:D>` : "–"),
+            // where the raid meets (#305), only when there is a channel
+            ...(event.voiceChannelId ? [headLine("voice", "Sprachkanal", `<#${event.voiceChannelId}>`)] : []),
+        ]),
+        column([
+            headLine("signups", "Angemeldet", `**${c.attending}**${event.size ? ` / ${event.size}` : ""}`),
+            headLine("time", "Uhrzeit", start ? `<t:${start}:t>` : "–"),
+        ]),
+        // an empty first line without a deadline keeps the countdown beside date and time
+        column([
+            deadline ? headLine("deadline", "Anmeldeschluss", `<t:${deadline}:f>`) : ZWS,
+            headLine("start", "Start", start ? `<t:${start}:R>` : "–"),
+        ]),
     ];
     // Who takes a seat, per role and per person (rosterCounts folds melee and ranged into dps).
     const seats = { tank: c.tank, healer: c.healer, melee: 0, ranged: 0 };
     for (const s of list) {
         if (["signed", "late"].includes(s.status || "signed") && (s.role === "melee" || s.role === "ranged")) seats[s.role] += 1;
     }
+    // Tanks with the healers directly below, then Fernkampf, then Nahkampf.
+    const total = (role, label) => `${labelled(emojis, roleUiEmojiName(role), label)} **${seats[role]}**${targetText(event, role)}`;
     const totals = [
-        ...ROLE_TOTALS.map(([role, label]) => ({
-            name: ZWS,
-            value: `${labelled(emojis, roleUiEmojiName(role), label)} **${seats[role]}**${targetText(event, role)}`,
-            inline: true,
-        })),
+        ...ROLE_TOTALS.map((col) => column(col.map(([role, label]) => total(role, label)))),
         spacer(false),
     ];
 
