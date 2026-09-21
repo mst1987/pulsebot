@@ -194,6 +194,22 @@ describe("PUT /api/signups", () => {
         expect(status(await call(route.putSignup, ANNA, { json: {} }))).toBe(400);
     });
 
+    it("verlangt die Nachricht bei Vielleicht/Absage, wo die Kategorie sie vorschreibt – die Orga nicht", async () => {
+        mockConfig = { categorySignupNotes: { "cat-kara": "required" } };
+        const bare = await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", status: "absence", comment: " " } });
+        expect(status(bare)).toBe(400);
+        expect(body(bare).error.code).toBe("note_required");
+        expect(status(await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", status: "absence", comment: "Urlaub" } }))).toBe(200);
+        expect(status(await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane", status: "signed" } }))).toBe(200);
+        expect(status(await call(route.putSignup, ORGA, { json: { eventId: "eh-kara", status: "absence" } }))).toBe(200);
+    });
+
+    it("sagt dem Dialog, ob die Kategorie eine Nachricht verlangt", async () => {
+        mockConfig = { categorySignupNotes: { "cat-kara": "none" } };
+        const res = await call(route.getSignups, ANNA);
+        expect(body(res).data.events.find((e) => e.id === "eh-kara").noteMode).toBe("none");
+    });
+
     it("nimmt mehrere eigene Charaktere in Reihenfolge an (#293)", async () => {
         profiles.addCharacter(ANNA.id, { name: "Nerasol", className: "Priest", specs: ["Priest-Holy"] }, { name: "Anna" });
         const res = await call(route.putSignup, ANNA, { json: {

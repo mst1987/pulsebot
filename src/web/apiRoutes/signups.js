@@ -20,6 +20,7 @@ const { getEvent, isOwnEventId } = require("../eventStore");
 const { listSignups } = require("../signupStore");
 const { submitSignup, submitSignups, httpStatusFor, roleCounts } = require("../signupService");
 const { memberEventRows, profileForSignup, signupSummary, eventSignupList } = require("../signupView");
+const { noteMode, isNoteStatus, MIN_NOTE } = require("../signupNotes");
 const { userCanAny } = require("../../config/permissions");
 const { rulesFor, DEFAULT_VERSION } = require("../../config/gameVersions");
 
@@ -49,6 +50,15 @@ async function putSignup(req, res) {
     const body = await readJsonBody(req);
     const eventId = String(body.eventId || "").trim();
     if (!eventId) return apiError(res, 400, "bad_request", "Kein Event angegeben.");
+    // Whoever may change raids is the orga: the deadline does not bind them.
+    const byOrga = userCanAny(user, ["raids"], "write");
+    // A category that requires a message with "Vielleicht" / "Absagen" requires
+    // it here too — the dialog says so, this holds a bare request to the rule.
+    const event = isOwnEventId(eventId) ? getEvent(eventId) : null;
+    if (event && !byOrga && isNoteStatus(body.status) && noteMode(event.categoryId) === "required"
+        && String(body.comment || "").trim().length < MIN_NOTE) {
+        return apiError(res, 400, "note_required", "Bitte hinterlasse eine kurze Nachricht an die Raidleitung.");
+    }
     const result = await submitSignup(eventId, user.id, {
         // Several own characters in priority order (#293); a single one still works.
         characters: Array.isArray(body.characters) ? body.characters : undefined,
@@ -57,10 +67,7 @@ async function putSignup(req, res) {
         status: body.status,
         canAlso: body.canAlso,
         comment: body.comment,
-    }, {
-        // Whoever may change raids is the orga: the deadline does not bind them.
-        byOrga: userCanAny(user, ["raids"], "write"),
-    });
+    }, { byOrga });
     if (result.error) return apiError(res, httpStatusFor(result.code), result.code, result.error);
     ok(res, {
         signup: signupSummary(result.signup),

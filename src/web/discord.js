@@ -238,6 +238,19 @@ async function postMissingPing(channelId, userIds = [], text = "") {
 
 const MESSAGE_LIMIT = 2000;
 
+/**
+ * A plain message that pings nobody: a `<@id>` in it shows the name without a
+ * notification (allowedMentions parses nothing). Cut to Discord's 2000.
+ * @returns {Promise<{ channelId, messageId, url }>}
+ */
+async function postNotice(channelId, content) {
+    if (!client) throw new Error("Bot nicht verbunden.");
+    const channel = await client.channels.fetch(String(channelId || ""));
+    if (!channel || !channel.isTextBased()) throw new Error("Channel nicht gefunden oder kein Textkanal.");
+    const posted = await channel.send({ content: String(content || "").slice(0, MESSAGE_LIMIT), allowedMentions: { parse: [] } });
+    return { channelId: channel.id, messageId: posted.id, url: posted.url };
+}
+
 /** Join mentions with spaces into strings of at most `max` characters (at least one mention each). */
 function mentionChunks(mentions, max) {
     const limit = Math.max(Number(max) || 0, 100);
@@ -844,7 +857,7 @@ module.exports = {
     memberRoleIds,
     listCategories, listAllChannels, listVoiceChannels, botCanManageEvents, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,
-    listMembersWithRoles, postMissingPing, mentionChunks, _resetMembersCacheForTests,
+    listMembersWithRoles, postMissingPing, postNotice, mentionChunks, _resetMembersCacheForTests,
     fetchGuildMembersCached, botPermissionsIn, REQUIRED_BOT_PERMISSIONS,
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,
     isRecruitmentMessage, extractTemplate,
