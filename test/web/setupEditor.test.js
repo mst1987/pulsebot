@@ -128,6 +128,18 @@ describe("saveEventSetup", () => {
         expect(editor.saveEventSetup(ID, { version: 1, groups: [{ index: 1, slots: [{ userId: "gone" }] }] }).error).toMatch(/abgemeldet/);
     });
 
+    it("keeps the order the orga gave a group — and a reorder is a change of the lineup", () => {
+        const { setup } = editor.proposeEventSetup(ID);
+        editor.approveEventSetup(ID, { version: setup.version });
+        const p = placementOf(mockEvents.get(ID).setup);
+        const group = p.groups.find((g) => g.slots.length >= 3);
+        const reversed = group.slots.map((s) => s.userId).reverse();
+        group.slots.reverse();
+        const saved = editor.saveEventSetup(ID, p).setup;
+        expect(saved.groups.find((g) => g.index === group.index).slots.map((s) => s.userId)).toEqual(reversed);
+        expect(saved).toMatchObject({ status: "draft", changedSinceApproval: true, version: 2 });
+    });
+
     it("refuses a lineup built on an outdated version", () => {
         editor.proposeEventSetup(ID);
         editor.proposeEventSetup(ID, { weights: { mainSpec: 0, status: 0 } });
