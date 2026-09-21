@@ -38,6 +38,16 @@ const LOOT_TOOLS = [
     { value: "", label: "keins" },
 ];
 
+// Which loot system a category's raids run on (src/web/lootSystem.js). "" =
+// automatic: RCLootcouncil as the addon means Loot-Council, anything else Softres.
+const LOOT_SYSTEMS = [
+    { value: "", label: "automatisch" },
+    { value: "softres", label: "Softres" },
+    { value: "lootcouncil", label: "Loot-Council" },
+    { value: "gdkp", label: "GDKP" },
+    { value: "other", label: "Anderes" },
+];
+
 // "Beim Anlegen ankündigen" (#306) as one control: off, or where the ping goes.
 const ANNOUNCE_MODES = [
     { value: "", label: "aus" },
@@ -54,7 +64,7 @@ const SIGNUP_SOURCES = [
 
 export default function CategoryMatrix({
     categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySignupSource = {}, signupSourceDefault = "raidhelper", categorySetupDms = {}, categoryAnnounce = {}, categorySheets, savedCategoryRoles,
-    categoryDiscordEvent = {}, categoryVoiceChannel = {}, voiceChannels = [],
+    categoryDiscordEvent = {}, categoryVoiceChannel = {}, voiceChannels = [], categoryLootSystem = {}, onLootSystem,
     onToggleCategory, onToggleRole, onLootTool, onSignupSource, onSetupDms, onAnnounce, onDiscordEvent, onVoiceChannel, onSheet, csrfToken, icon, crumb, raidTemplates,
 }: {
     /** The default raid template per category (#266): the choices, the draft map and its setter. */
@@ -64,6 +74,9 @@ export default function CategoryMatrix({
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
     categoryLootTool: Record<string, string>;
+    /** The loot system per category; missing/"" = automatic from the loot addon. */
+    categoryLootSystem?: Record<string, string>;
+    onLootSystem?: (categoryId: string, system: string) => void;
     /** Missing = signupSourceDefault. */
     categorySignupSource?: Record<string, EventSource>;
     /** The source of a category without an entry (#291): EventHelper for a new one. */
@@ -104,6 +117,7 @@ export default function CategoryMatrix({
         ...categoryIds,
         ...Object.keys(categoryRoles),
         ...Object.keys(categoryLootTool),
+        ...Object.keys(categoryLootSystem).filter((id) => categoryLootSystem[id]),
         ...Object.keys(categorySignupSource),
         ...Object.keys(categorySetupDms).filter((id) => categorySetupDms[id]),
         ...Object.keys(categoryDiscordEvent).filter((id) => categoryDiscordEvent[id]),
@@ -311,6 +325,12 @@ export default function CategoryMatrix({
                                 <FieldLabel tip="Loot-Addon" tipSub="Wählt beim Loot-Import den passenden Parser vor und sagt dem Loot-Tab der Raid-Detailseite, welchen Export er erwartet.">Loot-Addon</FieldLabel>
                                 <Segment ariaLabel={`Loot-Addon ${cat.name}`} value={tool} onChange={(v) => onLootTool(cat.id, v)} options={LOOT_TOOLS} />
                             </div>
+                            {onLootSystem && (
+                                <div>
+                                    <FieldLabel tip="Lootsystem" tipSub={`Bestimmt, was ein Raid dieser Kategorie anbietet: nur bei Softres gibt es den Softres-Schritt, „Softres fehlt“ und die Softres-Liste im Menü. „automatisch“ = ${tool === "rclc" ? "Loot-Council (Addon RCLootcouncil)" : "Softres"}. Einzelne Raids lassen sich auf ihrer Seite umstellen oder Softres zuschalten.`}>Lootsystem</FieldLabel>
+                                    <Segment ariaLabel={`Lootsystem ${cat.name}`} value={categoryLootSystem[cat.id] || ""} onChange={(v) => onLootSystem(cat.id, v)} options={LOOT_SYSTEMS} />
+                                </div>
+                            )}
                             {raidTemplates && (
                                 <div>
                                     <FieldLabel htmlFor={`cattpl-${cat.id}`} tip="Standard-Vorlage" tipSub="Die Raid-Vorlage, von der ein neues Event dieser Kategorie ausgeht. Solange sie Standard ist, lässt sie sich nicht löschen. Vorlagen pflegst du unter Raid-Events › Raid-Vorlagen.">Standard-Vorlage</FieldLabel>

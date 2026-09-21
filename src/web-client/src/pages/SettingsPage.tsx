@@ -55,6 +55,7 @@ type Draft = {
     logChannelIds: string[];
     raidChannelId: string;
     categoryLootTool: Record<string, string>;
+    categoryLootSystem: Record<string, string>;
     categorySignupSource: Record<string, EventSource>;
     /** Not saved from here — read so an unset category shows the source it really gets. */
     signupSourceDefault: EventSource;
@@ -84,6 +85,7 @@ function toDraft(config: AdminConfig): Draft {
         logChannelIds: config.logChannelIds || [],
         raidChannelId: config.raidDefaults?.channelId || "",
         categoryLootTool: config.categoryLootTool || {},
+        categoryLootSystem: config.categoryLootSystem || {},
         categorySignupSource: config.categorySignupSource || {},
         signupSourceDefault: config.signupSourceDefault || "raidhelper",
         categorySetupDms: config.categorySetupDms || {},
@@ -391,6 +393,8 @@ export default function SettingsPage() {
                 logChannelIds: draft.logChannelIds,
                 raidDefaults: { channelId: draft.raidChannelId.trim() },
                 categoryLootTool: draft.categoryLootTool,
+                // Merged on the server: "automatisch" is sent as "" and drops the entry.
+                categoryLootSystem: draft.categoryLootSystem,
                 categorySignupSource: draft.categorySignupSource,
                 // Merged on the server: a category switched off is sent as false.
                 categorySetupDms: draft.categorySetupDms,
@@ -492,6 +496,8 @@ export default function SettingsPage() {
                     categoryIds={draft.categoryIds}
                     categoryRoles={draft.categoryRoles}
                     categoryLootTool={draft.categoryLootTool}
+                    categoryLootSystem={draft.categoryLootSystem}
+                    onLootSystem={(id, system) => patch({ categoryLootSystem: { ...draft.categoryLootSystem, [id]: system } })}
                     categorySignupSource={draft.categorySignupSource}
                     signupSourceDefault={draft.signupSourceDefault}
                     categorySetupDms={draft.categorySetupDms}

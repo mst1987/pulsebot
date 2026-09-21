@@ -50,6 +50,26 @@ function SheetBadge({ raid }: { raid: DashboardRaid }) {
         : <Badge tone="bad" icon="inv_misc_note_02" tip="Raidsheet fehlt" tipSub="Wird auf der Seite des Raid-Events aus dem Setup gefüllt.">Sheet fehlt</Badge>;
 }
 
+/**
+ * The softres badge — or, for a raid whose loot system has no softres list
+ * (Loot-Council, GDKP, …), one quiet badge naming that system instead of a
+ * "Softres fehlt" nobody needs to act on.
+ */
+export function LootBadge({ raid }: { raid: DashboardRaid }) {
+    const ls = raid.lootSystem;
+    if (ls && !ls.softres) {
+        return <Badge icon="inv_misc_bag_10" tip={`Lootsystem: ${ls.label}`} tipSub="Keine Softres-Liste nötig. Änderbar in Einstellungen › Kategorien oder auf der Seite des Raids.">{ls.label}</Badge>;
+    }
+    return raid.softres
+        ? <Badge tone="ok" icon="inv_scroll_11" tip="Softres-Liste erstellt">Softres</Badge>
+        : <Badge tone="mid" icon="inv_scroll_11" tip="Softres-Liste fehlt" tipSub="Wird auf der Seite des Raid-Events erstellt.">Softres fehlt</Badge>;
+}
+
+/** The raid's own page in the menu. */
+function raidDetailHref(eventId: string): string {
+    return `/raids/detail?event=${encodeURIComponent(eventId)}`;
+}
+
 function NextRaidCard({ raid, following, error, guildId, onDetails }: {
     raid: DashboardRaid | null;
     following: DashboardRaid | null;
@@ -61,7 +81,12 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
         <section className="dash-card ov-card">
             <PartHead
                 icon={raid?.icon || "inv_misc_head_dragon_01"} title="Nächster Raid" crumb="Raid-Events"
-                action={raid && <Button variant="ghost" size="sm" onClick={onDetails}>Details</Button>}
+                action={raid && (
+                    <span className="ov-head-actions">
+                        <Button variant="ghost" size="sm" onClick={onDetails}>Details</Button>
+                        <Link className={buttonClass("ghost", "sm")} to={raidDetailHref(raid.id)} data-tip="Raid öffnen" data-tip-sub="Die Seite des Raids im EventHelper: Anmeldung, Setup, Softres, Loot, Logs.">Öffnen</Link>
+                    </span>
+                )}
             />
             {!raid
                 ? <div className="ov-empty-text">{error || "Kein anstehender Raid bei Raid-Helper."}</div>
@@ -70,7 +95,7 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
                         <div className="ov-next-top">
                             <WowIcon name={raid.icon} size={56} className="ov-boss56" />
                             <div className="ov-next-text">
-                                <div className="ov-next-title">{raid.title}</div>
+                                <Link className="ov-next-title" to={raidDetailHref(raid.id)}>{raid.title}</Link>
                                 <div className="ov-next-when">{raidWhen(raid.startTime)}{raid.channelName ? ` · #${raid.channelName}` : ""}</div>
                             </div>
                             <Badge tone="accent" className="ov-next-rel">{relativeDayLabel(raid.startTime)}</Badge>
@@ -88,9 +113,7 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
                             {raid.setupCount
                                 ? <Badge tone="ok" icon="inv_misc_groupneedmore" tip="Setup fertig" tipSub={`${raid.setupCount} Spieler im Raidplan gesetzt.`}>Setup fertig</Badge>
                                 : <Badge tone="mid" icon="inv_misc_groupneedmore" tip="Setup offen" tipSub="Bei Raid-Helper ist noch kein Raidplan gebaut.">Setup offen</Badge>}
-                            {raid.softres
-                                ? <Badge tone="ok" icon="inv_scroll_11" tip="Softres-Liste erstellt">Softres</Badge>
-                                : <Badge tone="mid" icon="inv_scroll_11" tip="Softres-Liste fehlt" tipSub="Wird auf der Seite des Raid-Events erstellt.">Softres fehlt</Badge>}
+                            <LootBadge raid={raid} />
                             <span className="ov-links">
                                 {guildId && raid.channelId && <IconLink icon="inv_letter_15" href={eventPostUrl(guildId, raid.channelId, raid.id)} tip="Discord-Post" tipSub="Die Anmeldung in Discord öffnen" />}
                                 {raidplanUrl(raid.id) && <IconLink icon="inv_misc_groupneedmore" href={raidplanUrl(raid.id)} tip="Setup / Comp" tipSub="Raidplan bei Raid-Helper öffnen" />}
@@ -101,7 +124,7 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
                             <div className="ov-following">
                                 <WowIcon name={following.icon} size={20} />
                                 <span>Danach:</span>
-                                <Link className="ov-following-t" to={`/raids/detail?event=${encodeURIComponent(following.id)}`}>
+                                <Link className="ov-following-t" to={raidDetailHref(following.id)}>
                                     {following.title} – {dayDate(following.startTime * 1000)} {clock(following.startTime * 1000)}
                                 </Link>
                                 <span className="ov-push"><SheetBadge raid={following} /></span>

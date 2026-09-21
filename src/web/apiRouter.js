@@ -36,7 +36,7 @@ const {
 const { getRaids, getPastRaids, getRaidCreateContext, getChannelName, createRaid, updateRaid } = require("./apiRoutes/raids");
 const {
     getRaidDetail, postNotify, postPingMissing, postFill, postPostSheet, postPostSoftres,
-    getItemSearch, postSoftresCreate, postSoftresLink,
+    getItemSearch, postSoftresCreate, postSoftresLink, postLootSystem,
 } = require("./apiRoutes/raidDetail");
 const {
     getSetup: getRaidSetup, postPropose: postSetupPropose, putSetup: putRaidSetup,
@@ -449,6 +449,10 @@ async function route(pathname, req, res, url) {
     }
     if (pathname === "/api/raids/softres/link" && req.method === "POST") {
         await postSoftresLink(req, res);
+        return true;
+    }
+    if (pathname === "/api/raids/loot-system" && req.method === "POST") {
+        await postLootSystem(req, res);
         return true;
     }
     if (pathname === "/api/game-versions" && req.method === "GET") {

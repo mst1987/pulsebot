@@ -27,7 +27,11 @@
 .rd-hero-actions a.ibtn { text-decoration: none; }
 
 /* ---- the progress bar: six steps ---- */
-.rd-steps { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-top: 1px solid var(--line-soft); background: var(--panel2); }
+/* Five steps when the loot system has no softres list (--rd-steps from the hero). */
+.rd-steps { display: grid; grid-template-columns: repeat(var(--rd-steps, 6), minmax(0, 1fr)); border-top: 1px solid var(--line-soft); background: var(--panel2); }
+/* The loot-system chip beside the category: a button only with raids write. */
+button.rd-loot-chip { font: inherit; cursor: pointer; }
+button.rd-loot-chip:hover { border-color: var(--accent); color: var(--accent); }
 .rd-step {
     display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 14px 16px; min-width: 0;
     border: 0; border-right: 1px solid var(--line-soft); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer;

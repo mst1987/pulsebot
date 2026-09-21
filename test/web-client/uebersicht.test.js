@@ -58,6 +58,20 @@ describe("Übersicht (DashboardPage)", () => {
         expect(page).toContain('icon="inv_misc_note_02"');
     });
 
+    it("links the next raid straight to its page: the title and an „Öffnen“ beside „Details“", () => {
+        const card = page.slice(page.indexOf("function NextRaidCard"), page.indexOf("const TASK_TILE"));
+        expect(card).toContain('<Link className="ov-next-title" to={raidDetailHref(raid.id)}>');
+        expect(card).toMatch(/to=\{raidDetailHref\(raid\.id\)\}[^>]*>Öffnen<\/Link>/);
+        expect(page).toContain("return `/raids/detail?event=${encodeURIComponent(eventId)}`;");
+    });
+
+    it("names the loot system instead of „Softres fehlt“ when the raid has no softres list", () => {
+        const badge = page.slice(page.indexOf("export function LootBadge"), page.indexOf("function raidDetailHref"));
+        expect(badge).toMatch(/if \(ls && !ls\.softres\)/);
+        expect(badge).toContain("Softres fehlt");
+        expect(page).toContain("<LootBadge raid={raid} />");
+    });
+
     it("keeps its styles in its own file", () => {
         expect(page).toContain('import "../styles/uebersicht.css";');
         const css = read("styles", "uebersicht.css");
@@ -77,9 +91,11 @@ describe("Raid-Details modal", () => {
     });
 
     it("shows signups, preparation and who has not signed up, with a way to the raid", () => {
-        for (const text of ["Anmeldungen", "Vorbereitung", "Noch nicht angemeldet", "Stand Raid-Helper", "Schließen", "Sheet füllen"]) {
+        for (const text of ["Anmeldungen", "Vorbereitung", "Noch nicht angemeldet", "Stand Raid-Helper", "Schließen", "Sheet füllen", "Raid öffnen"]) {
             expect(modal).toContain(text);
         }
+        // the softres row gives way to the loot system where no list is used
+        expect(modal).toMatch(/raid\.lootSystem && !raid\.lootSystem\.softres/);
     });
 });
 

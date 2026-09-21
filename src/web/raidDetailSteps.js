@@ -268,15 +268,24 @@ function primaryFor(step, d) {
 }
 
 /**
- * All six steps plus which one is next and the primary action it implies.
- * Before the raid only the preparation steps can be "next"; once it started,
- * only loot and logs — nobody should be nudged to create a softres list for a
- * raid that is over.
- * @param {object} d the raid-detail payload (event, setup, eventSheet, sheetLink, …)
+ * Whether this raid gets a softres step at all: only when its loot system asks
+ * for one (src/web/lootSystem.js) — a Loot-Council raid is not nudged to
+ * create a list it never uses. A payload without `lootSystem` keeps the step.
+ */
+function wantsSoftres(d) {
+    return !(d && d.lootSystem) || d.lootSystem.softres !== false;
+}
+
+/**
+ * All six steps (five without softres) plus which one is next and the primary
+ * action it implies. Before the raid only the preparation steps can be "next";
+ * once it started, only loot and logs — nobody should be nudged to create a
+ * softres list for a raid that is over.
+ * @param {object} d the raid-detail payload (event, setup, eventSheet, sheetLink, lootSystem, …)
  * @returns {{ steps: object[], next: string, primary: object|null }}
  */
 function raidSteps(d) {
-    const steps = [signupStep(d), setupStep(d), sheetStep(d), softresStep(d), lootStep(d), logsStep(d)];
+    const steps = [signupStep(d), setupStep(d), sheetStep(d), wantsSoftres(d) ? softresStep(d) : null, lootStep(d), logsStep(d)].filter(Boolean);
     const before = ["signup", "setup", "sheet", "softres"];
     const candidates = (d.event && d.event.isPast) ? ["loot", "logs"] : before;
     // A cancelled event (#288) has no next step to push.
@@ -286,7 +295,7 @@ function raidSteps(d) {
     return { steps, next: nextStep ? nextStep.key : "", primary: primaryFor(nextStep, d) };
 }
 
-module.exports = { raidSteps, roleSummary, firstOpenAnalysis };
+module.exports = { raidSteps, roleSummary, firstOpenAnalysis, wantsSoftres };
 
 // ---------------------------------------------------------------------------
 // Das Raid-Cockpit (#319): dieselbe Frage in fünf Schritten

@@ -6,7 +6,7 @@
 // carries the one prominent deed itself, so the head's primary button stays out
 // of the way — the same action twice in one head is exactly the doubling the
 // cockpit exists to end. A Raid-Helper event keeps the bar of #219 unchanged.
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { RaidDetailData, RaidPrimaryAction, RaidStep } from "../../api";
 import { eventTimeParts, relativeDayLabel } from "../../lib/format";
 import { eventPostUrl, raidplanUrl } from "../../lib/discordLinks";
@@ -45,11 +45,28 @@ function StepCell({ step, onOpen }: { step: RaidStep; onOpen: (step: RaidStep) =
     );
 }
 
-export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning, manage, cockpit }: {
+/**
+ * The raid's loot system beside its category — a button that opens the
+ * Lootsystem dialog where the user may change it, else plain text.
+ */
+function LootSystemChip({ data, onOpen }: { data: RaidDetailData; onOpen?: () => void }) {
+    const ls = data.lootSystem;
+    if (!ls) return null;
+    const label = `${ls.label}${ls.softresExtra ? " + Softres" : ""}`;
+    const origin = ls.source === "event" ? "Für diesen Raid festgelegt." : `Wie die Kategorie (${ls.categoryLabel}).`;
+    const sub = `${origin}${onOpen ? " Klick: für diesen Raid ändern oder Softres zuschalten." : ""}`;
+    return onOpen
+        ? <button type="button" className="cat-badge rd-loot-chip" data-tip={`Lootsystem: ${label}`} data-tip-sub={sub} onClick={onOpen}>{label}</button>
+        : <span className="cat-badge rd-loot-chip" data-tip={`Lootsystem: ${label}`} data-tip-sub={sub}>{label}</span>;
+}
+
+export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning, manage, cockpit, onLootSystem }: {
     data: RaidDetailData;
     onStep: (step: RaidStep) => void;
     onPrimary: (action: RaidPrimaryAction) => void;
     primaryRunning: boolean;
+    /** with raids write: opens the Lootsystem dialog */
+    onLootSystem?: () => void;
     /** only for an own event and write access: the "Verwalten" menu (#288) — editing (#261) is its first entry */
     manage?: ReactNode;
     /** an own event's step bar (#319); it replaces the progress bar and the primary button */
@@ -75,6 +92,7 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                     <div className="hero-eyebrow">
                         <span className="kicker">Raid-Event</span>
                         {data.categoryName && <span className="cat-badge">{data.categoryName}</span>}
+                        <LootSystemChip data={data} onOpen={onLootSystem} />
                     </div>
                     <h1 className="hero-title">{ev.title || "(ohne Titel)"}</h1>
                     <div className="hero-when">
@@ -128,7 +146,7 @@ export default function RaidDetailHero({ data, onStep, onPrimary, primaryRunning
                 </div>
             </div>
             {cockpit || (!!data.progress?.steps?.length && (
-                <div className="rd-steps">
+                <div className="rd-steps" style={{ "--rd-steps": data.progress.steps.length } as CSSProperties}>
                     {data.progress.steps.map((s) => <StepCell key={s.key} step={s} onOpen={onStep} />)}
                 </div>
             ))}

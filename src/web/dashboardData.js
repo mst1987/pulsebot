@@ -6,6 +6,7 @@ const { scanRaidEvents } = require("./raidEventScan");
 const { listByEvent: listLootByEvent } = require("./lootStore");
 const { getEventSheet } = require("./eventSheetStore");
 const { getEventSoftres } = require("./eventSoftresStore");
+const { lootSystemOf } = require("./eventLootSystemStore");
 const { listLogs } = require("./logStore");
 const { buildRecentEvents, matchLogsForEvent, pendingLogsForEvent } = require("./recentEvents");
 const { autoLinkLogs } = require("./logAutoLink");
@@ -114,6 +115,7 @@ async function loadNextRaids(guildId, count = 2) {
             roles: roleFill({ setupSlots: slots, signUps: ev.signUps || [], size, composition: own ? ev.composition : null }),
             sheet: sheetFor(ev.id, meta.categoryId || ev.categoryId || ""),
             softres: softresList && softresList.url ? { url: softresList.url } : null,
+            lootSystem: lootSystemOf(ev.id, meta.categoryId || ev.categoryId || ""),
         });
     }
     return { raids, error: raids.length ? null : error };
@@ -172,6 +174,7 @@ async function loadNextRaidDetails(guildId, eventId) {
             setupCount: slots.length,
             sheet: sheetFor(ev.id, g.categoryId),
             softres: softresList && softresList.url ? { url: softresList.url } : null,
+            lootSystem: lootSystemOf(ev.id, g.categoryId),
             notSignedUp: missing,
             rolesConfigured: roleIds.length > 0,
             membersError,

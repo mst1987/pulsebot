@@ -259,6 +259,14 @@ describe("web/settingsStore", () => {
             expect(getConfig().categorySetupDms).toEqual({ c4: true });
         });
 
+        it("stores a loot system per category and drops it again on \"\" (automatisch)", () => {
+            expect(getConfig().categoryLootSystem).toEqual({});
+            saveConfig({ categoryLootSystem: { c1: "lootcouncil", c2: "dkp", c3: "gdkp" } });
+            expect(getConfig().categoryLootSystem).toEqual({ c1: "lootcouncil", c3: "gdkp" });
+            saveConfig({ categoryLootSystem: { c1: "" } });
+            expect(getConfig().categoryLootSystem).toEqual({ c3: "gdkp" });
+        });
+
         it("keeps the Discord event off by default and the voice channel only as a snowflake (#305)", () => {
             expect(getConfig().categoryDiscordEvent).toEqual({});
             expect(getConfig().categoryVoiceChannel).toEqual({});

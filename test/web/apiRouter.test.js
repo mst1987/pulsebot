@@ -262,6 +262,12 @@ jest.mock("../../src/web/eventSoftresStore", () => ({
     setEventSoftresLink: jest.fn(),
     markEventSoftresPosted: jest.fn(),
 }));
+jest.mock("../../src/web/eventLootSystemStore", () => ({
+    setEventLootSystem: jest.fn(),
+    lootSystemOf: jest.fn(() => ({
+        system: "softres", label: "Softres", source: "default", categorySystem: "softres", categoryLabel: "Softres", softresExtra: false, softres: true,
+    })),
+}));
 jest.mock("../../src/utils/softres", () => ({
     parseInstancesFromTitle: jest.fn(() => []),
     targetSizeForInstances: jest.fn(() => 0),
@@ -1756,6 +1762,15 @@ describe("web/apiRouter", () => {
             expect(data.progress.steps.length).toBe(6);
         });
 
+        it("carries the loot system and leaves the softres step out when it has no softres list", async () => {
+            setupDefaults();
+            const eventLootSystemStore = require("../../src/web/eventLootSystemStore");
+            eventLootSystemStore.lootSystemOf.mockReturnValueOnce({ system: "lootcouncil", label: "Loot-Council", source: "category", softres: false });
+            const data = body(await get("/api/raids/detail", { event: "e1" })).data;
+            expect(data.lootSystem).toMatchObject({ system: "lootcouncil", softres: false });
+            expect(data.progress.steps.map((s) => s.key)).not.toContain("softres");
+        });
+
         it("returns the full read-only overview: setup, attendance, sheet/softres links and loot", async () => {
             setupDefaults();
             settingsStore.listRaidsheets.mockReturnValue([{ id: "sheet1", name: "Kara Sheet", keywords: ["kara"] }]);
@@ -2734,6 +2749,48 @@ describe("web/apiRouter", () => {
                 url: "https://softres.it/raid/abc123", editUrl: "https://softres.it/raid/abc123/tok",
             });
             expect(body(res)).toEqual({ data: { message: "Softres-Link aktualisiert." } });
+        });
+    });
+
+    describe("POST /api/raids/loot-system", () => {
+        const eventLootSystemStore = require("../../src/web/eventLootSystemStore");
+        const groups = { groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", title: "SSC" }] }], error: null };
+
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            eventLootSystemStore.setEventLootSystem.mockClear();
+        });
+
+        it("refuses an unknown loot system", async () => {
+            const res = await post("/api/raids/loot-system", { event: "e1", system: "dkp" });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(body(res).error.code).toBe("invalid_system");
+            expect(eventLootSystemStore.setEventLootSystem).not.toHaveBeenCalled();
+        });
+
+        it("refuses an event it cannot find", async () => {
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
+            const res = await post("/api/raids/loot-system", { event: "e9", system: "gdkp" });
+            expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+            expect(eventLootSystemStore.setEventLootSystem).not.toHaveBeenCalled();
+        });
+
+        it("stores the override with who set it and answers the resolved system", async () => {
+            raidEventGroups.loadEventGroups.mockResolvedValue(groups);
+            eventLootSystemStore.lootSystemOf.mockReturnValueOnce({
+                system: "lootcouncil", label: "Loot-Council", source: "event", categorySystem: "softres", categoryLabel: "Softres", softresExtra: true, softres: true,
+            });
+            const res = await post("/api/raids/loot-system", { event: "e1", system: "lootcouncil", softres: true });
+            expect(eventLootSystemStore.setEventLootSystem).toHaveBeenCalledWith("e1", { system: "lootcouncil", softres: true, by: "1", byName: "Admin" });
+            expect(eventLootSystemStore.lootSystemOf).toHaveBeenCalledWith("e1", "cat1");
+            expect(body(res).data).toMatchObject({ message: "Lootsystem: Loot-Council + Softres.", lootSystem: { system: "lootcouncil" } });
+        });
+
+        it("takes \"\" as \"like the category\" and only a literal true as the softres switch", async () => {
+            raidEventGroups.loadEventGroups.mockResolvedValue(groups);
+            await post("/api/raids/loot-system", { event: "e1", system: "", softres: "yes" });
+            expect(eventLootSystemStore.setEventLootSystem).toHaveBeenCalledWith("e1", { system: "", softres: false, by: "1", byName: "Admin" });
         });
     });
 

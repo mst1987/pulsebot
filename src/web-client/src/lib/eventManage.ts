@@ -8,7 +8,8 @@ import type { ManageCandidates, ManageDeletion, ManageRaider, ManageSpec, MovePl
 export type ManageAction = "edit" | "move" | "signups" | "raider" | "ping" | "setup" | "history" | "cancel" | "reopen" | "delete"
     | "notify" | "sheet" | "softres";
 export type ManageMenuEntry = { id: ManageAction; label: string; icon: string; sub: string; danger: boolean } | "sep";
-export type ManageState = { cancelled: boolean; signupsClosed: boolean; isPast: boolean; logCount: number };
+/** `softres` false = the raid's loot system has no softres list (Loot-Council, …): no menu entry for it. */
+export type ManageState = { cancelled: boolean; signupsClosed: boolean; isPast: boolean; logCount: number; softres?: boolean };
 
 function entry(id: ManageAction, label: string, icon: string, sub: string, danger: boolean): ManageMenuEntry {
     return { id, label, icon, sub, danger };
@@ -55,7 +56,8 @@ export function manageMenu(state: ManageState): ManageMenuEntry[] {
     out.push(sep());
     if (!state.isPast) out.push(entry("notify", "Anmelde-Aufruf", "inv_letter_15", "Vorlage in den Kanal posten und Rollen pingen", false));
     out.push(entry("sheet", "Raidsheet", "inv_scroll_03", "Kopie der Vorlage füllen und posten", false));
-    out.push(entry("softres", "Softres-Liste", "inv_misc_ticket_tarot_madness", "Liste erstellen oder verlinken", false));
+    // Only where the loot system uses one; the chip in the head switches it on for this raid.
+    if (state.softres !== false) out.push(entry("softres", "Softres-Liste", "inv_misc_ticket_tarot_madness", "Liste erstellen oder verlinken", false));
     out.push(sep(), history);
     out.push(sep());
     if (!state.isPast) out.push(entry("cancel", "Absagen", "ability_creature_cursed_02", "Mit Grund — DM an alle Angemeldeten", true));
