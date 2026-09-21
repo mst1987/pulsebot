@@ -154,9 +154,9 @@ describe("eventMemberRoles", () => {
 describe("denyMessage", () => {
     it("names the roles of the event guild", () => {
         discord.getGuild.mockReturnValue({ roles: { cache: makeCollection([[ORGA, { name: "Orga" }], [RAIDLEAD, { name: "Raidleiter" }]]) } });
-        expect(denyMessage({ mode: "roles", roleIds: [ORGA, RAIDLEAD] }, GUILD)).toBe("Dafür brauchst du @Orga oder @Raidleiter.");
-        expect(denyMessage({ mode: "roles", roleIds: [ORGA] }, GUILD)).toBe("Dafür brauchst du @Orga.");
-        expect(denyMessage({ mode: "admins", roleIds: [] }, GUILD)).toBe("Dieser Befehl ist Admins vorbehalten.");
+        expect(denyMessage({ mode: "roles", roleIds: [ORGA, RAIDLEAD] }, GUILD)).toBe("You need @Orga or @Raidleiter for this.");
+        expect(denyMessage({ mode: "roles", roleIds: [ORGA] }, GUILD)).toBe("You need @Orga for this.");
+        expect(denyMessage({ mode: "admins", roleIds: [] }, GUILD)).toBe("This is reserved for admins.");
     });
 });
 
@@ -171,7 +171,7 @@ describe("guardInteraction", () => {
     it("refuses with a message only the user sees", async () => {
         const interaction = mockInteraction({ userId: "555" });
         expect(await guardInteraction(interaction, COMMANDS.get("fillsetup"), COMMANDS)).toBe(false);
-        expect(interaction.reply).toHaveBeenCalledWith({ content: "Dieser Befehl ist Admins vorbehalten.", flags: MessageFlags.Ephemeral });
+        expect(interaction.reply).toHaveBeenCalledWith({ content: "This is reserved for admins.", flags: MessageFlags.Ephemeral });
     });
 
     it("lets a member with a granted role run a button of that command", async () => {

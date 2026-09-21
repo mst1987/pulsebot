@@ -18,6 +18,8 @@ module.exports = {
 
 A button, select or modal that belongs to a command declares `accessOf: "<command name>"` instead of `group`/`defaultAccess` and inherits that command's access.
 
+**Language of the bot's texts:** whatever a **raider** reads in Discord is **English** — event and setup messages, every signup step, DMs, reminders, the talk overview, `/profil`, the access refusal (`botAccess.denyMessage`); dates as Discord timestamps. German messages of the shared services go through `utils/botEnglish.js` `toEnglish()` at the bot boundary. **Orga/admin texts stay German for now** (`/event`, event management, auctions, GDKP, logcheck, lookups), and so do the `description` fields above and the slash-command descriptions in `scripts/register-commands.js`. Stored keys never change. Details and the list of surfaces: [signups.md](signups.md) („Sprache im Discord“).
+
 The `name` field is used as the lookup key in `client.commands`. This same mechanism handles both slash commands (`interaction.commandName`) and button interactions (`interaction.customId`). The button custom IDs in `createOverview.js` (`update-events`, `show-signups`, `show-mysetups`, `show-allsetups`) must exactly match the `name` fields of the corresponding command files.
 
 The router (`handleInteraction` in `bot.js`) passes slash commands, buttons, modals and **every select menu kind** (string, user, role, channel, mentionable) to `execute()`, looked up by `name` or by the customId before `:`. **Autocomplete** goes to the command's optional `autocomplete(interaction)` instead; a command without one (or one that throws) answers an empty list — Discord allows no other reply to an autocomplete.
