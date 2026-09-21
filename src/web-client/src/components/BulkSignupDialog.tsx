@@ -10,6 +10,8 @@ import SignupCharacterPicks from "./SignupCharacterPicks";
 import { formatEventTime } from "../lib/format";
 import { SIGNUP_STATUS, SIGNUP_STATUS_ORDER } from "../lib/signups";
 import { initialPicks, picksToInput, type CharacterPick } from "../lib/signupPicks";
+import { specLabel } from "../lib/wowNames";
+import { useT } from "../i18n";
 
 // "Für alle gewählten anmelden" (#293): one choice of characters and status for
 // every raid picked on the page. Each raid is checked on its own by the server
@@ -24,6 +26,7 @@ export default function BulkSignupDialog({ rows, profile, classes, csrfToken, on
     onClose: () => void;
     onDone: (results: BulkSignupResult[]) => void;
 }) {
+    const t = useT();
     const toast = useToast();
     const open = rows.length > 0;
     const [picks, setPicks] = useState<CharacterPick[]>([]);
@@ -55,7 +58,7 @@ export default function BulkSignupDialog({ rows, profile, classes, csrfToken, on
             setResults(res.results);
             onDone(res.results);
             const saved = res.results.filter((r) => r.ok).length;
-            toast(`${saved} von ${res.results.length} Raids gespeichert.`, saved === res.results.length ? undefined : "err");
+            toast(t("signups.bulk.toast", { saved, total: res.results.length }), saved === res.results.length ? undefined : "err");
         } catch (e) {
             toast((e as ApiError).message, "err");
         } finally {
@@ -69,17 +72,17 @@ export default function BulkSignupDialog({ rows, profile, classes, csrfToken, on
             onClose={onClose}
             icon="inv_misc_book_09"
             tone="signups"
-            kicker={rows.length === 1 ? "1 Raid gewählt" : `${rows.length} Raids gewählt`}
-            title="Für alle gewählten anmelden"
+            kicker={t("signups.selectedCount", { count: rows.length })}
+            title={t("signups.bulkTitle")}
             width={720}
-            hint={results ? undefined : "Was in einem Raid nicht passt (Anmeldeschluss, Klasse, Raider-Rolle), wird dort mit Grund übersprungen."}
+            hint={results ? undefined : t("signups.bulk.hint")}
             footer={results ? (
-                <Button onClick={onClose}>Schließen</Button>
+                <Button onClick={onClose}>{t("common.close")}</Button>
             ) : (
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
                     <Button icon={<CheckIcon />} disabled={!canSubmit} running={busy} onClick={submit} variant={absent ? "danger" : "primary"}>
-                        {absent ? `Von ${rows.length} Raids abmelden` : `Für ${rows.length} Raids anmelden`}
+                        {absent ? t("signups.bulk.signOffAll", { count: rows.length }) : t("signups.bulk.signUpAll", { count: rows.length })}
                     </Button>
                 </>
             )}
@@ -96,8 +99,8 @@ export default function BulkSignupDialog({ rows, profile, classes, csrfToken, on
                         </div>
                         <SignupCharacterPicks profile={profile} classes={classes} picks={picks} onChange={setPicks} disabled={absent} />
                         <div className="field">
-                            <label>Status für alle</label>
-                            <div className="seg an-status" role="radiogroup" aria-label="Status für alle">
+                            <label>{t("signups.statusForAll")}</label>
+                            <div className="seg an-status" role="radiogroup" aria-label={t("signups.statusForAll")}>
                                 {SIGNUP_STATUS_ORDER.map((s) => (
                                     <button
                                         key={s} type="button" role="radio" aria-checked={status === s}
@@ -120,17 +123,18 @@ export default function BulkSignupDialog({ rows, profile, classes, csrfToken, on
 
 /** One raid of the answer: saved with its characters, or the reason it was not. */
 function ResultRow({ result }: { result: BulkSignupResult }) {
+    const t = useT();
     const s = result.signup;
-    const chars = s ? s.characters.map((c, i) => `${i ? "+" : ""}${c.character} · ${c.specLabel}`).join(", ") : "";
-    const skipped = result.skipped.map((x) => `${x.character} übersprungen: ${x.reason}`).join(" · ");
+    const chars = s ? s.characters.map((c, i) => `${i ? "+" : ""}${c.character} · ${specLabel(c.spec, c.specLabel)}`).join(", ") : "";
+    const skipped = result.skipped.map((x) => t("signups.bulk.skipped", { character: x.character, reason: x.reason })).join(" · ");
     return (
         <li className="an-result">
             <Badge tone={result.ok ? (result.waitlisted ? "mid" : "ok") : "bad"}>
-                {result.ok ? (result.waitlisted ? "Warteliste" : "gespeichert") : "nicht gespeichert"}
+                {result.ok ? (result.waitlisted ? t("signups.bulk.waitlisted") : t("signups.bulk.saved")) : t("signups.bulk.notSaved")}
             </Badge>
             <span className="an-result-title">{result.title}</span>
             <span className="an-result-text">
-                {result.ok ? (s && s.status === "absence" ? "abgemeldet" : `${chars}${s && s.status !== "signed" ? ` – ${SIGNUP_STATUS[s.status].label}` : ""}`) : result.error}
+                {result.ok ? (s && s.status === "absence" ? t("signups.bulk.absent") : `${chars}${s && s.status !== "signed" ? ` – ${SIGNUP_STATUS[s.status].label}` : ""}`) : result.error}
                 {result.notice && <span className="an-result-skip">{result.notice}</span>}
                 {skipped && <span className="an-result-skip">{skipped}</span>}
             </span>

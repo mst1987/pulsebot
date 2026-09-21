@@ -8,17 +8,18 @@
 // gegen die Server-Regel hält.
 import type { RaidEventStep, RaidEventStepState, RaidEventSteps } from "../api";
 import type { Tone } from "../components/ui/Badge";
+import { t } from "../i18n";
 
 /**
  * Wie ein Zustand heißt. „Übersprungen“ ist bewusst kein Fehlerwort: ein Raid
  * ohne Setup ist ein gewöhnlicher Raid, kein kaputter.
  */
 export function stepStateLabel(state: RaidEventStepState): string {
-    if (state === "done") return "erledigt";
-    if (state === "current") return "jetzt dran";
-    if (state === "skipped") return "übersprungen";
-    if (state === "cancelled") return "abgesagt";
-    return "später";
+    if (state === "done") return t("raidDetail.steps.state.done");
+    if (state === "current") return t("raidDetail.steps.state.current");
+    if (state === "skipped") return t("raidDetail.steps.state.skipped");
+    if (state === "cancelled") return t("raidDetail.steps.state.cancelled");
+    return t("raidDetail.steps.state.later");
 }
 
 /** Der Ton eines Zustands — „übersprungen“ bleibt farblos, nie rot. */
@@ -33,7 +34,7 @@ export function stepStateTone(state: RaidEventStepState): Tone | undefined {
 export function stepPosition(steps: RaidEventStep[], id: string): string {
     const i = steps.findIndex((s) => s.id === id);
     if (i < 0) return "";
-    return `Schritt ${i + 1} von ${steps.length}`;
+    return t("raidDetail.steps.position", { index: i + 1, total: steps.length });
 }
 
 /**
@@ -41,9 +42,9 @@ export function stepPosition(steps: RaidEventStep[], id: string): string {
  * "Schritt 3 von 5 · Setup" — oder, wenn nichts offen ist, warum.
  */
 export function stepSummary(progress: RaidEventSteps): string {
-    if (progress.cancelled) return progress.note || "Abgesagt";
+    if (progress.cancelled) return progress.note || t("raidDetail.steps.cancelled");
     const step = progress.steps.find((s) => s.id === progress.current);
-    if (!step) return progress.note || "Nichts offen";
+    if (!step) return progress.note || t("raidDetail.steps.nothingOpen");
     return `${stepPosition(progress.steps, step.id)} · ${step.label}`;
 }
 
@@ -59,7 +60,7 @@ export function stepFigure(step: RaidEventStep): string {
  */
 export function stepTipSub(step: RaidEventStep, withDeed: boolean): string {
     const parts = [step.note, step.hint];
-    if (withDeed && step.action) parts.push(`Klick: ${step.action.label}`);
+    if (withDeed && step.action) parts.push(t("raidDetail.steps.clickDeed", { action: step.action.label }));
     return parts.filter(Boolean).join(" · ");
 }
 

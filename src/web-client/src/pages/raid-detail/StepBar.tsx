@@ -14,6 +14,7 @@ import { stepStateLabel, stepStateTone, stepSummary, stepTipSub } from "../../li
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import IconTile from "../../components/ui/IconTile";
+import { useT } from "../../i18n";
 
 /** Der Ton der Kachel-Kachel: erledigt grün, offen im Akzent, übersprungen farblos. */
 function tileTone(step: RaidEventStep) {
@@ -28,6 +29,7 @@ function StepCell({ step, running, onDeed }: {
     running: boolean;
     onDeed: (deed: RaidStepDeed) => void;
 }) {
+    const t = useT();
     const tone = stepStateTone(step.state);
     const cell = (
         <>
@@ -73,7 +75,7 @@ function StepCell({ step, running, onDeed }: {
         <button
             type="button" className={`rd-ck state-${step.state}`} data-step={step.id}
             data-tip={step.label} data-tip-sub={stepTipSub(step, true)}
-            aria-label={`${step.label}: ${stepStateLabel(step.state)} — ${step.action.label}`}
+            aria-label={t("raidDetail.stepBar.deedAria", { label: step.label, state: stepStateLabel(step.state), action: step.action.label })}
             onClick={() => onDeed(step.action!)}
         >
             {cell}
@@ -87,6 +89,7 @@ export default function StepBar({ progress, running, onDeed }: {
     running: boolean;
     onDeed: (deed: RaidStepDeed) => void;
 }) {
+    const t = useT();
     // Abgesagt: nur „abgesagt“ und der Weg zurück, keine Strecke.
     if (progress.cancelled) {
         return (
@@ -94,7 +97,7 @@ export default function StepBar({ progress, running, onDeed }: {
                 <div className="rd-ck-off">
                     <IconTile icon="ability_creature_cursed_02" tone="bad" />
                     <span className="rd-ck-off-text">
-                        <span className="kicker">Abgesagt</span>
+                        <span className="kicker">{t("raidDetail.stepBar.cancelled")}</span>
                         <span className="rd-ck-off-why">{progress.note}</span>
                     </span>
                     {progress.action && (

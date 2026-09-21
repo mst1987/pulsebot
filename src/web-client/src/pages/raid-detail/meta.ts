@@ -4,6 +4,8 @@ import type {
     AttendancePerson, LogSection, RaidDetailData, RaidDetailModal, SetupPlayer, SetupRole, SignupStatus,
 } from "../../api";
 import type { Tone } from "../../components/ui/Badge";
+import { locale, t } from "../../i18n";
+import { roleLabel, rolePluralLabel } from "../../lib/wowNames";
 
 /** Everything a tab or dialog of the page needs from the page itself. */
 export type RaidCtx = {
@@ -33,12 +35,16 @@ export type PlayerRef = {
 
 /** Roles in the order a raid lead reads a comp. */
 export const ROLE_ORDER: SetupRole[] = ["tank", "healer", "melee", "ranged", "dps"];
+// The labels are getters, so they are looked up in the active language each time
+// they are read (a table of translated strings at module level would freeze the
+// language the page was loaded in). Tanks and healers read as a group of people,
+// the damage roles as the role itself — "Tanks, Heiler, Nahkampf, Fernkampf".
 export const ROLE_META: Record<SetupRole, { label: string; icon: string }> = {
-    tank: { label: "Tanks", icon: "ability_warrior_defensivestance" },
-    healer: { label: "Heiler", icon: "spell_holy_flashheal" },
-    melee: { label: "Nahkampf", icon: "ability_dualwield" },
-    ranged: { label: "Fernkampf", icon: "inv_weapon_bow_07" },
-    dps: { label: "DPS", icon: "inv_misc_questionmark" },
+    tank: { get label() { return rolePluralLabel("tank"); }, icon: "ability_warrior_defensivestance" },
+    healer: { get label() { return rolePluralLabel("healer"); }, icon: "spell_holy_flashheal" },
+    melee: { get label() { return roleLabel("melee"); }, icon: "ability_dualwield" },
+    ranged: { get label() { return roleLabel("ranged"); }, icon: "inv_weapon_bow_07" },
+    dps: { get label() { return roleLabel("dps"); }, icon: "inv_misc_questionmark" },
 };
 
 // The reactions, from coming to out. `signed` is the fallback for a signup whose
@@ -46,11 +52,11 @@ export const ROLE_META: Record<SetupRole, { label: string; icon: string }> = {
 // in "Angemeldet" and never disappears.
 export const SIGNUP_ORDER: SignupStatus[] = ["signed", "tentative", "late", "bench", "absence"];
 export const SIGNUP_META: Record<SignupStatus, { label: string; tone?: Tone }> = {
-    signed: { label: "Angemeldet", tone: "ok" },
-    tentative: { label: "Unsicher", tone: "mid" },
-    late: { label: "Kommt später", tone: "mid" },
-    bench: { label: "Bank" },
-    absence: { label: "Abgemeldet", tone: "bad" },
+    signed: { get label() { return t("raidDetail.signupStatus.signed"); }, tone: "ok" },
+    tentative: { get label() { return t("raidDetail.signupStatus.tentative"); }, tone: "mid" },
+    late: { get label() { return t("raidDetail.signupStatus.late"); }, tone: "mid" },
+    bench: { get label() { return t("raidDetail.signupStatus.bench"); } },
+    absence: { get label() { return t("raidDetail.signupStatus.absence"); }, tone: "bad" },
 };
 
 /** Rough runtimes for the job toasts' progress bar — same numbers as ClaPage. */
@@ -58,8 +64,8 @@ export const EVAL_SECONDS: Record<LogSection, number> = { cla: 25, rpb: 55 };
 
 /** The two analyses a log can be run through; both write into the same report page. */
 export const LOG_ANALYSES: { key: LogSection; label: string; tip: string }[] = [
-    { key: "cla", label: "CLA", tip: "Gear, Verzauberungen, Sockel, Consumables, Drums, Potions und Shadow-Resi. Dauer etwa 25 Sekunden." },
-    { key: "rpb", label: "RPB", tip: "Vermeidbarer Schaden, Tode, Aktivität, Cooldowns, Interrupts und Log-Prüfung. Dauer etwa eine Minute." },
+    { key: "cla", label: "CLA", get tip() { return t("raidDetail.analysis.claTip"); } },
+    { key: "rpb", label: "RPB", get tip() { return t("raidDetail.analysis.rpbTip"); } },
 ];
 
 /** WoW icons for the softres.it instance codes (config/softresInstances.js). */
@@ -77,7 +83,7 @@ export const INSTANCE_ICONS: Record<string, string> = {
     doomwalker: "spell_shadow_summonfelguard",
 };
 
-export const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil", manual: "Manuell" };
+export const LOOT_TOOL_LABELS: Record<string, string> = { gargul: "Gargul", rclc: "RCLootcouncil", get manual() { return t("raidDetail.lootTool.manual"); } };
 
 /** A raid lead thinks in character names; the Discord name is only the fallback. */
 export function personLabel(p: AttendancePerson): string {
@@ -86,7 +92,7 @@ export function personLabel(p: AttendancePerson): string {
 
 /** Alphabetical by the name actually shown, so a list reads like a roster. */
 export function byLabel(a: AttendancePerson, b: AttendancePerson): number {
-    return personLabel(a).localeCompare(personLabel(b), "de");
+    return personLabel(a).localeCompare(personLabel(b), locale());
 }
 
 /** The player-dialog reference for a raidplan slot. */

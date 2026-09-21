@@ -1,4 +1,5 @@
 import WowIcon from "./ui/WowIcon";
+import { useT } from "../i18n";
 import { knownContents, raidIconName, raidLabel, raidSourceText, RAID_ICON_FALLBACK } from "../lib/raidIcons";
 
 // The raid a row is, as its final boss' achievement icon — two overlapping when
@@ -9,10 +10,11 @@ export default function RaidIcon({ contentIds, sources, size = "md" }: {
     sources?: string[];
     size?: "md" | "sm";
 }) {
+    const t = useT();
     const ids = knownContents(contentIds).slice(0, 2);
     const label = raidLabel(contentIds);
-    const tip = label || "Inhalt nicht erkannt";
-    const sub = label ? raidSourceText(sources) : "Weder Titel noch Kategorie nennen einen bekannten Raid.";
+    const tip = label || t("raids.icon.unknown");
+    const sub = label ? raidSourceText(sources) : t("raids.icon.unknownSub");
     const px = size === "sm" ? 28 : 36;
     return (
         <span

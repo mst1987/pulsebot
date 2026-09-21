@@ -1,0 +1,89 @@
+{
+    "archive": {
+        "noneTip": "No archive category",
+        "noneTipSub": "Set an archive category under Channels → Archive, then the channel can be archived here as well.",
+        "none": "Channel stays — no archive category set",
+        "label": "Archive the channel",
+        "tipCancel": "The channel moves into the archive category and nobody can write in it anymore. Nothing is deleted.",
+        "tipDelete": "The channel moves into the archive category and nobody can write in it anymore. It is never deleted."
+    },
+    "cancel": {
+        "title": "Cancel event",
+        "confirm": "Cancel event",
+        "reason": "Reason",
+        "reasonSub": "goes to everyone signed up",
+        "reasonPlaceholder": "Not enough healers, we are moving to Thursday.",
+        "notifyLabel": "Inform signups via DM",
+        "notifyTip": "Everyone who has not signed off gets the reason as a direct message from the bot.",
+        "recipients": "{count} signed up",
+        "nobody": "Nobody signed up."
+    },
+    "delete": {
+        "title": "Delete event",
+        "confirm": "Delete",
+        "gone": "Will be lost",
+        "staysTip": "Is kept",
+        "staysTipSub": "Logs and loot carry the raid's name themselves and stay under History & Loot. The channel is never deleted.",
+        "stays": "Stays",
+        "theChannel": "the channel",
+        "andChannel": "and the channel",
+        "startedLabel": "The raid has already taken place — delete anyway",
+        "startedTip": "Together with the signups, this raid's attendance disappears from the roster and the loot council.",
+        "notifyLabel": "Inform {count} signups via DM",
+        "notifyTip": "Off: nobody learns about it — right for test and mistaken events. On: everyone who has not signed off gets a short DM."
+    },
+    "history": {
+        "title": "History",
+        "loading": "Loading …",
+        "empty": "Nothing changed yet — creation and signups are not part of the history.",
+        "unknown": "unknown"
+    },
+    "move": {
+        "title": "Move",
+        "confirm": "Move",
+        "date": "New date",
+        "time": "Time",
+        "when": "Date",
+        "insteadOf": "instead of {from}",
+        "channel": "Channel",
+        "derived": "derived",
+        "nameStays": "Name stays",
+        "deadline": "Signup deadline",
+        "deadlineSub": "moves along, same distance to the start",
+        "rename": "Rename channel",
+        "renameTip": "#{current} → #{next}. Only the date and weekday in the name are replaced.",
+        "notifyLabel": "Notify signups ({count})",
+        "notifyTip": "A post in the event channel that mentions everyone signed up. Those who signed off are not mentioned."
+    },
+    "raider": {
+        "title": "Add raider",
+        "removeTitle": "Remove {who}?",
+        "removeText": "The signup is removed. The raider gets no message.",
+        "remove": "Remove",
+        "hintNewChar": "The new character is also added to the raider's profile.",
+        "hintDefault": "Signup deadline and closed signups do not apply to the organisers.",
+        "change": "Change",
+        "add": "Add",
+        "loading": "Loading raiders …",
+        "raider": "Raider",
+        "raiderSub": "Discord name or character",
+        "search": "Search …",
+        "listAria": "Raiders",
+        "characters": {
+            "one": "{count} character",
+            "other": "{count} characters"
+        },
+        "notFound": "Nobody found.",
+        "signedAs": "signed up as {status}",
+        "notSigned": "not signed up yet",
+        "otherRaider": "Other raider",
+        "character": "Character",
+        "main": "Main",
+        "newChar": "New character",
+        "name": "Name",
+        "class": "Class",
+        "choose": "choose …",
+        "spec": "Specialisation",
+        "status": "Status"
+    }
+}

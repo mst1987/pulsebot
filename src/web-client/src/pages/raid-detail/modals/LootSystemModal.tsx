@@ -9,23 +9,28 @@ import { Button } from "../../../components/ui/Button";
 import Segment from "../../../components/ui/Segment";
 import { SwitchRow } from "../../../components/RaidPlanFields";
 import { useToast } from "../../../components/Jobs";
+import { useT, type TFunction } from "../../../i18n";
 import type { RaidCtx } from "../meta";
 
-const SYSTEMS: { value: LootSystemKey | ""; label: string }[] = [
-    { value: "", label: "wie Kategorie" },
-    { value: "softres", label: "Softres" },
-    { value: "lootcouncil", label: "Loot-Council" },
-    { value: "gdkp", label: "GDKP" },
-    { value: "other", label: "Anderes" },
-];
+// Built at render time, so the labels follow the menu language.
+function lootSystems(t: TFunction): { value: LootSystemKey | ""; label: string }[] {
+    return [
+        { value: "", label: t("raidModals.lootSystem.likeCategory") },
+        { value: "softres", label: "Softres" },
+        { value: "lootcouncil", label: "Loot-Council" },
+        { value: "gdkp", label: "GDKP" },
+        { value: "other", label: t("raidModals.lootSystem.other") },
+    ];
+}
 
-const SOURCE_TEXT: Record<string, string> = {
-    category: "in Einstellungen › Kategorien festgelegt",
-    addon: "abgeleitet aus dem Loot-Addon RCLootcouncil",
-    default: "Standard, weil für die Kategorie nichts festgelegt ist",
+const SOURCE_KEYS: Record<string, string> = {
+    category: "raidModals.lootSystem.sourceCategory",
+    addon: "raidModals.lootSystem.sourceAddon",
+    default: "raidModals.lootSystem.sourceDefault",
 };
 
 export default function LootSystemModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
+    const t = useT();
     const { data, eventId, csrfToken, onChanged } = ctx;
     const ls = data.lootSystem;
     const [system, setSystem] = useState<LootSystemKey | "">("");
@@ -41,7 +46,8 @@ export default function LootSystemModal({ ctx, open, onClose }: { ctx: RaidCtx; 
 
     if (!ls) return null;
     const effective = system || ls.categorySystem;
-    const catText = `Kategorie: ${ls.categoryLabel} — ${SOURCE_TEXT[ls.source === "event" ? "category" : ls.source] || ""}`;
+    const sourceKey = SOURCE_KEYS[ls.source === "event" ? "category" : ls.source];
+    const catText = t("raidModals.lootSystem.categoryHint", { category: ls.categoryLabel, source: sourceKey ? t(sourceKey) : "" });
     const hasList = !!data.eventSoftres?.url;
 
     const save = async () => {
@@ -60,30 +66,30 @@ export default function LootSystemModal({ ctx, open, onClose }: { ctx: RaidCtx; 
     return (
         <Modal
             open={open} onClose={onClose} icon="inv_misc_bag_10"
-            kicker={data.event.title} title="Lootsystem" width={560}
+            kicker={data.event.title} title={t("raidModals.lootSystem.title")} width={560}
             hint={catText}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button onClick={save} running={busy}>Speichern</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button onClick={save} running={busy}>{t("common.save")}</Button>
                 </>
             )}
         >
             <div className="rd-form">
                 <div className="field">
-                    <label>Lootsystem dieses Raids</label>
-                    <Segment ariaLabel="Lootsystem dieses Raids" value={system} onChange={(v) => setSystem(v as LootSystemKey | "")} options={SYSTEMS} />
+                    <label>{t("raidModals.lootSystem.label")}</label>
+                    <Segment ariaLabel={t("raidModals.lootSystem.label")} value={system} onChange={(v) => setSystem(v as LootSystemKey | "")} options={lootSystems(t)} />
                 </div>
                 {effective === "softres"
-                    ? <p className="rd-muted">Softres-Raid: Schritt, Badge und Softres-Liste werden angeboten.</p>
+                    ? <p className="rd-muted">{t("raidModals.lootSystem.softresRaid")}</p>
                     : (
                         <SwitchRow
-                            label="Softres zusätzlich anbieten" checked={softres} onChange={setSoftres}
-                            tip="Für diesen Raid trotzdem eine Softres-Liste erstellen und posten, z. B. für BoEs. Ohne den Schalter fallen Softres-Schritt und „Softres fehlt“ weg."
+                            label={t("raidModals.lootSystem.softresExtra")} checked={softres} onChange={setSoftres}
+                            tip={t("raidModals.lootSystem.softresExtraTip")}
                         />
                     )}
                 {hasList && effective !== "softres" && !softres && (
-                    <p className="rd-muted">Es gibt schon eine Softres-Liste — ihr Link bleibt sichtbar.</p>
+                    <p className="rd-muted">{t("raidModals.lootSystem.listStays")}</p>
                 )}
             </div>
         </Modal>

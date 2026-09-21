@@ -2,6 +2,8 @@
 import type { DashboardRole } from "../api";
 import Bar from "./ui/Bar";
 import WowIcon from "./ui/WowIcon";
+import { useT } from "../i18n";
+import { roleLabel } from "../lib/wowNames";
 
 /**
  * How full a role is, as a bar tone: full is ok, one short in a big role is
@@ -16,12 +18,13 @@ export function roleTone(role: Pick<DashboardRole, "filled" | "target">): "ok" |
 
 /** "5/6" on a bar that stretches over its column (the shared Bar has a fixed width for tables). */
 export function RoleBar({ role }: { role: DashboardRole }) {
+    const t = useT();
     return (
         <span className="ov-rolebar">
             <Bar
                 value={role.filled} max={role.target} tone={roleTone(role)}
                 label={`${role.filled}/${role.target}`}
-                tip={`${role.label}: ${role.filled} von ${role.target}`}
+                tip={t("dashboard.roleBar.tip", { label: roleLabel(role.key, role.label), filled: role.filled, target: role.target })}
             />
         </span>
     );

@@ -1,0 +1,89 @@
+{
+    "archive": {
+        "noneTip": "Keine Archiv-Kategorie",
+        "noneTipSub": "Unter Kanäle → Archiv eine Archiv-Kategorie festlegen, dann lässt sich der Kanal hier mit archivieren.",
+        "none": "Kanal bleibt — keine Archiv-Kategorie festgelegt",
+        "label": "Kanal ins Archiv",
+        "tipCancel": "Der Kanal wandert in die Archiv-Kategorie und niemand kann mehr schreiben. Gelöscht wird nichts.",
+        "tipDelete": "Der Kanal wandert in die Archiv-Kategorie und niemand kann mehr schreiben. Gelöscht wird er nie."
+    },
+    "cancel": {
+        "title": "Event absagen",
+        "confirm": "Absagen",
+        "reason": "Grund",
+        "reasonSub": "geht an alle Angemeldeten",
+        "reasonPlaceholder": "Zu wenig Heiler, wir verschieben auf Donnerstag.",
+        "notifyLabel": "Angemeldete per DM informieren",
+        "notifyTip": "Jeder, der nicht abgemeldet ist, bekommt den Grund als Direktnachricht vom Bot.",
+        "recipients": "{count} Angemeldete",
+        "nobody": "Niemand angemeldet."
+    },
+    "delete": {
+        "title": "Event löschen",
+        "confirm": "Löschen",
+        "gone": "Geht verloren",
+        "staysTip": "Bleibt erhalten",
+        "staysTipSub": "Logs und Loot tragen den Namen des Raids selbst und bleiben unter Historie & Loot. Der Kanal wird nie gelöscht.",
+        "stays": "Bleibt",
+        "theChannel": "der Kanal",
+        "andChannel": "und der Kanal",
+        "startedLabel": "Der Raid hat schon stattgefunden — trotzdem löschen",
+        "startedTip": "Mit den Anmeldungen verschwindet die Anwesenheit dieses Raids aus Roster und Loot-Council.",
+        "notifyLabel": "{count} Angemeldete per DM informieren",
+        "notifyTip": "Aus: niemand erfährt davon — richtig für Test- und Fehl-Events. An: jeder, der nicht abgemeldet ist, bekommt eine kurze DM."
+    },
+    "history": {
+        "title": "Verlauf",
+        "loading": "Lädt …",
+        "empty": "Noch nichts geändert — Anlegen und Anmeldungen stehen nicht im Verlauf.",
+        "unknown": "unbekannt"
+    },
+    "move": {
+        "title": "Verschieben",
+        "confirm": "Verschieben",
+        "date": "Neues Datum",
+        "time": "Uhrzeit",
+        "when": "Termin",
+        "insteadOf": "statt {from}",
+        "channel": "Kanal",
+        "derived": "abgeleitet",
+        "nameStays": "Name bleibt",
+        "deadline": "Anmeldeschluss",
+        "deadlineSub": "wandert mit, gleicher Abstand zum Start",
+        "rename": "Kanal umbenennen",
+        "renameTip": "#{current} → #{next}. Nur Datum und Wochentag im Namen werden ersetzt.",
+        "notifyLabel": "Angemeldete benachrichtigen ({count})",
+        "notifyTip": "Ein Post im Event-Kanal, der alle Angemeldeten erwähnt. Abgemeldete werden nicht erwähnt."
+    },
+    "raider": {
+        "title": "Raider eintragen",
+        "removeTitle": "{who} austragen?",
+        "removeText": "Die Anmeldung wird entfernt. Der Raider bekommt keine Nachricht.",
+        "remove": "Austragen",
+        "hintNewChar": "Der neue Charakter wird auch ins Profil des Raiders übernommen.",
+        "hintDefault": "Anmeldeschluss und geschlossene Anmeldung gelten für die Orga nicht.",
+        "change": "Ändern",
+        "add": "Eintragen",
+        "loading": "Raider werden geladen …",
+        "raider": "Raider",
+        "raiderSub": "Discord-Name oder Charakter",
+        "search": "Suchen …",
+        "listAria": "Raider",
+        "characters": {
+            "one": "{count} Charakter",
+            "other": "{count} Charaktere"
+        },
+        "notFound": "Niemand gefunden.",
+        "signedAs": "angemeldet als {status}",
+        "notSigned": "noch nicht angemeldet",
+        "otherRaider": "Anderer Raider",
+        "character": "Charakter",
+        "main": "Main",
+        "newChar": "Neuer Charakter",
+        "name": "Name",
+        "class": "Klasse",
+        "choose": "wählen …",
+        "spec": "Spezialisierung",
+        "status": "Status"
+    }
+}

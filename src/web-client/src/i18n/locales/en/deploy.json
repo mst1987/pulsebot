@@ -1,0 +1,22 @@
+{
+    "day": "{day}/{month}",
+    "unknown": "Server version unknown",
+    "runningOn": "Server runs {commit} from {day}",
+    "runningOnNoDay": "Server runs {commit}",
+    "current": "up to date with main",
+    "ahead": { "one": "main is {count} commit ahead", "other": "main is {count} commits ahead" },
+    "notComparable": "Distance to main cannot be checked",
+    "behindSince": { "one": "for {count} day", "other": "for {count} days" },
+    "mainAt": "main at {commit}",
+    "behind": {
+        "one": "This version is {count} commit behind main{since}{head}. The automatic deployment has not picked it up.",
+        "other": "This version is {count} commits behind main{since}{head}. The automatic deployment has not picked it up."
+    },
+    "upToDate": "The server runs the latest version of main.",
+    "started": "Started {day}",
+    "reason": {
+        "noCommit": "The running process does not know its commit (no Git in the directory and no GIT_COMMIT set).",
+        "notFound": "The running commit is not among the last 100 commits of main — its own branch or a very old version.",
+        "unreachable": "GitHub was unreachable. Retried every 10 minutes."
+    }
+}

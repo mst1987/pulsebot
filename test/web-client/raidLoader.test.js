@@ -36,7 +36,7 @@ describe("RaidLoader", () => {
     it("is the same scene in the overlay of a long operation", () => {
         const overlay = read("components", "PageLoader.tsx");
         expect(overlay).toContain("import RaidLoader from \"./ui/RaidLoader\";");
-        expect(overlay).toContain("<RaidLoader text={text} />");
+        expect(overlay).toContain("<RaidLoader text={text || t(\"jobs.pageLoader.busy\")} />");
         // the old rune is gone from both the component and the stylesheet
         expect(overlay).not.toContain("pl-rune");
         expect(css).not.toContain(".pl-rune");

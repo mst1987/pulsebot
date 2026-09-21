@@ -43,7 +43,7 @@ describe("Log-Auswertung: finding it", () => {
         // first evaluation — to the page that makes one.
         const dashboard = read("pages", "DashboardPage.tsx");
         expect(dashboard).toContain("href=\"/cla\"");
-        expect(dashboard).toContain("<Badge tone=\"accent\">Log auswerten</Badge>");
+        expect(dashboard).toContain("<Badge tone=\"accent\">{t(\"dashboard.areas.evaluate\")}</Badge>");
     });
 });
 

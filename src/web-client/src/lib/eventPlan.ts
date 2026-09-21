@@ -9,6 +9,7 @@
 // utils/channelNames.renderChannelName).
 import type { EmbedImage, EventPlanInput, EventSource, GameVersion, OwnEvent, RaidTemplate, RaidTemplateInput, RoleRange } from "../api";
 import { allowedSizes, colorProblem, defaultComposition, imageProblem, instancesOf, proposeComposition } from "./raidTemplates";
+import { t } from "../i18n";
 
 export type EventPlan = {
     /** the raid template the plan started from, "" for none */
@@ -49,12 +50,15 @@ export const PLAN_MIN_DURATION = 30;
 export const PLAN_MAX_DURATION = 600;
 export const PLAN_DEFAULT_DURATION = 180;
 
-export const STEP_LABELS = { start: "Vorlage", termin: "Termin", raid: "Raid", kanal: "Kanal & Anmeldung", check: "Prüfen" };
+/** A step's name in the stepper and the "Weiter" button, in the menu language. */
+export function stepLabel(key: StepKey): string {
+    return t(`raidPlan.step.${key}`);
+}
 
 /** What the two waiting-list switches say in one line, for the "Prüfen" step (#306). */
 export function overflowLine(plan: EventPlan): string {
-    const full = plan.overflow === "off" ? "voll: keine Anmeldung mehr" : "voll: Warteliste (Bank)";
-    return plan.lockAtLimit ? `${full} · Anmeldung schließt bei Voll` : full;
+    const full = plan.overflow === "off" ? t("raidPlan.overflow.off") : t("raidPlan.overflow.bench");
+    return plan.lockAtLimit ? t("raidPlan.overflow.lock", { full }) : full;
 }
 
 /**
@@ -162,19 +166,19 @@ export function withVersion(plan: EventPlan, version: GameVersion | null | undef
 /** The first problem of a plan as the server words it (eventStore.normalizePlan), "" when it can be sent. */
 export function planProblem(plan: EventPlan): string {
     const size = plan.size;
-    if (!size || size < 1 || Math.floor(size) !== size) return "Die Raidgröße muss eine positive Zahl sein.";
-    if (size > PLAN_MAX_SIZE) return `Mehr als ${PLAN_MAX_SIZE} Spieler passen in keinen Raid.`;
+    if (!size || size < 1 || Math.floor(size) !== size) return t("raidPlan.problem.size");
+    if (size > PLAN_MAX_SIZE) return t("raidPlan.problem.tooBig", { max: PLAN_MAX_SIZE });
     const mins = [plan.tank, plan.healer, plan.melee ? plan.melee.min : 0, plan.ranged ? plan.ranged.min : 0];
-    if (mins.some((n) => !Number.isFinite(n) || n < 0)) return "Die Zusammensetzung braucht Zahlen ab 0.";
+    if (mins.some((n) => !Number.isFinite(n) || n < 0)) return t("raidPlan.problem.compNumbers");
     const planned = mins.reduce((a, b) => a + b, 0);
-    if (planned > size) return `Die Zusammensetzung (${planned}) ist größer als der Raid (${size}).`;
+    if (planned > size) return t("raidPlan.problem.compTooBig", { planned, size });
     // In the server's order (eventStore.normalizePlan): the ranges first, then
     // the duration — so the first problem is worded the same on both sides.
-    const ranges = maxProblem("Nahkampf", plan.melee, size) || maxProblem("Fernkampf", plan.ranged, size);
+    const ranges = maxProblem(t("wow.role.melee"), plan.melee, size) || maxProblem(t("wow.role.ranged"), plan.ranged, size);
     if (ranges) return ranges;
     const d = plan.durationMinutes;
     if (!Number.isFinite(d) || Math.floor(d) !== d || d < PLAN_MIN_DURATION || d > PLAN_MAX_DURATION) {
-        return `Die Dauer muss zwischen ${PLAN_MIN_DURATION} und ${PLAN_MAX_DURATION} Minuten liegen.`;
+        return t("raidPlan.problem.duration", { min: PLAN_MIN_DURATION, max: PLAN_MAX_DURATION });
     }
     const look = colorProblem(plan.color) || imageProblem(plan.image);
     if (look) return look;
@@ -184,9 +188,9 @@ export function planProblem(plan: EventPlan): string {
 /** What is wrong with the maximum of a melee/ranged range, "" when nothing (or no maximum). */
 export function maxProblem(label: string, range: RoleRange | null, size: number): string {
     if (!range || range.max === null || range.max === undefined) return "";
-    if (range.max < 0) return `${label}: keine gültige Anzahl.`;
-    if (range.max < range.min) return `${label}: Minimum ist größer als Maximum.`;
-    if (range.max > size) return `${label}: Maximum ist größer als die Größe ${size}.`;
+    if (range.max < 0) return t("raidPlan.problem.invalidCount", { label });
+    if (range.max < range.min) return t("raidPlan.problem.minOverMax", { label });
+    if (range.max > size) return t("raidPlan.problem.maxOverSize", { label, size });
     return "";
 }
 

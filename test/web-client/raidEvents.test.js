@@ -68,8 +68,8 @@ describe("Raid-Events list", () => {
 
     it("shows logs and loot as badges linking to where they are handled", () => {
         expect(list).toContain("to={detailHref(ev.id, \"logs\")}");
-        expect(list).toContain("{pending.length} offen");
-        expect(list).toContain("ausgewertet</Badge>");
+        expect(list).toContain("{t(\"raids.list.pending\", { count: pending.length })}</Badge>");
+        expect(list).toContain("{t(\"raids.list.analysed\", { count: done.length })}</Badge>");
         expect(list).toContain("to=\"/history?tab=import\"");
         // the log titles live in the tooltips, not as text lines in the cell
         expect(list).not.toContain("↗");
@@ -116,15 +116,15 @@ describe("Neues Event dialog", () => {
     });
 
     it("reports the result as a toast and closes instead of navigating to another page", () => {
-        expect(dialog).toContain("toast(r.announced ? \"Event angelegt und angekündigt.\" : \"Event angelegt.\")");
+        expect(dialog).toContain("toast(r.announced ? t(\"raidCreate.toast.createdAnnounced\") : t(\"raidCreate.toast.created\"))");
         expect(dialog).toContain("onCreated();");
         expect(dialog).not.toContain("useNavigate");
     });
 
     it("hat die Warteliste hinter „Mehr“ und die Ankündigung im Kanal-Schritt (#306)", () => {
-        expect(dialog).toContain("Warteliste bei vollem Raid");
-        expect(dialog).toContain("Anmeldung schließen, wenn voll");
-        expect(dialog).toContain("Beim Anlegen ankündigen");
+        expect(dialog).toContain("label={t(\"raidCreate.raid.overflow\")}");
+        expect(dialog).toContain("label={t(\"raidCreate.raid.lockAtLimit\")}");
+        expect(dialog).toContain("label={t(\"raidCreate.kanal.announce\")}");
         // Die Ankündigung startet bei der Kategorie und reist als `announce` mit.
         expect(dialog).toContain("data.categoryAnnounce");
         expect(dialog).toContain("planBody(plan), announce");
@@ -133,8 +133,8 @@ describe("Neues Event dialog", () => {
     it("offers the raid templates that link a Raid-Helper template, preselecting the category default", () => {
         // the old management dialog is the Raid-Vorlagen page now (#266)
         expect(dialog).not.toContain("RaidTemplatesDialog");
-        expect(dialog).toContain("<Link className=\"re-link\" to=\"/raids/raid-templates\">Raid-Vorlagen</Link>");
-        expect(dialog).toContain("value={t.raidhelperTemplateId}");
+        expect(dialog).toContain("<Link className=\"re-link\" to=\"/raids/raid-templates\">{t(\"raidCreate.templatesLink\")}</Link>");
+        expect(dialog).toContain("value={tpl.raidhelperTemplateId}");
         expect(dialog).toContain("(data.categoryTemplates || {})[ev.categoryId]");
         expect(dialog).toContain("setTemplateId((data.categoryTemplates || {})[catId] || data.defaults.templateId || \"\")");
         expect(templates).toContain("importRaidTemplates(csrfToken)");

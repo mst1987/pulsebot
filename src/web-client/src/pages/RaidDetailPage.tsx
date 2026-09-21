@@ -50,6 +50,7 @@ import LogAssignModal from "./raid-detail/modals/LogAssignModal";
 import type { PlayerRef, RaidCtx } from "./raid-detail/meta";
 import "../styles/raid-detail.css";
 import RaidLoader from "../components/ui/RaidLoader";
+import { useT } from "../i18n";
 
 type Tab = "roster" | "setup" | "loot" | "logs";
 const TABS: Tab[] = ["roster", "setup", "loot", "logs"];
@@ -66,14 +67,16 @@ const LEGACY_TABS: Record<string, { tab: Tab; modal?: RaidDetailModal }> = {
     softres: { tab: "roster", modal: "softres" },
 };
 
-const TAB_META: Record<Tab, { label: string; icon: string }> = {
-    roster: { label: "Roster", icon: "achievement_guildperk_everybodysfriend" },
-    setup: { label: "Setup", icon: "inv_misc_map_01" },
-    loot: { label: "Loot", icon: "inv_misc_bag_10" },
-    logs: { label: "Logs", icon: "inv_misc_pocketwatch_01" },
+// Labels are looked up at render time: raidDetail.page.tab.<tab>.
+const TAB_ICONS: Record<Tab, string> = {
+    roster: "achievement_guildperk_everybodysfriend",
+    setup: "inv_misc_map_01",
+    loot: "inv_misc_bag_10",
+    logs: "inv_misc_pocketwatch_01",
 };
 
 export default function RaidDetailPage() {
+    const t = useT();
     const { csrfToken, user } = useOutletContext<ShellContext>();
     const [editing, setEditing] = useState(false);
     const [searchParams] = useSearchParams();
@@ -119,9 +122,9 @@ export default function RaidDetailPage() {
     };
     const evaluator = useEvaluate({ csrfToken, onChanged: afterChange });
 
-    const backLink = <p className="note"><Link className="mlink" to="/raids">← Zurück zur Event-Übersicht</Link></p>;
-    if (error) return <>{backLink}<div className="empty">Fehler beim Laden: {error.message}</div></>;
-    if (!data || !ctx) return <RaidLoader text="Raid wird geladen" />;
+    const backLink = <p className="note"><Link className="mlink" to="/raids">{t("raidDetail.page.back")}</Link></p>;
+    if (error) return <>{backLink}<div className="empty">{t("raidDetail.page.loadError", { message: error.message })}</div></>;
+    if (!data || !ctx) return <RaidLoader text={t("raidDetail.page.loading")} />;
 
     // Only an own event has a setup editor; a Raid-Helper event's setup is its raidplan in the roster.
     const ownEvent = data.event.source === "eventhelper";
@@ -169,8 +172,8 @@ export default function RaidDetailPage() {
         else if (action === "signups") {
             const open = !!ev.signupsClosed;
             const ok = await ask(open
-                ? { title: "Anmeldung wieder öffnen?", text: "Raider können sich wieder an- und ummelden. Die Event-Nachricht wird aktualisiert.", action: "Öffnen", tone: "primary", icon: "inv_misc_note_02" }
-                : { title: "Anmeldung schließen?", text: "Neue Anmeldungen gehen nicht mehr — abmelden bleibt möglich, und die Orga kann weiter eintragen. Die Event-Nachricht zeigt „Anmeldung geschlossen“.", action: "Schließen", tone: "primary", icon: "inv_misc_note_02" });
+                ? { title: t("raidDetail.page.signups.openTitle"), text: t("raidDetail.page.signups.openText"), action: t("raidDetail.page.signups.openAction"), tone: "primary", icon: "inv_misc_note_02" }
+                : { title: t("raidDetail.page.signups.closeTitle"), text: t("raidDetail.page.signups.closeText"), action: t("raidDetail.page.signups.closeAction"), tone: "primary", icon: "inv_misc_note_02" });
             if (!ok) return;
             try {
                 const r = await setRaidSignupsOpen(csrfToken, { event: ev.id, open });
@@ -180,8 +183,8 @@ export default function RaidDetailPage() {
             }
         } else if (action === "reopen") {
             const ok = await ask({
-                title: "Absage zurücknehmen?", action: "Zurücknehmen", tone: "primary", icon: "spell_holy_divineintervention",
-                text: `Das Event ist wieder offen für Anmeldungen, die Nachricht verliert „ABGESAGT“.${ev.cancelArchived ? " Der Kanal bleibt im Archiv — zurückholen unter Kanäle." : ""} Wer eine Absage-DM bekam, erfährt davon nichts.`,
+                title: t("raidDetail.page.reopen.title"), action: t("raidDetail.page.reopen.action"), tone: "primary", icon: "spell_holy_divineintervention",
+                text: ev.cancelArchived ? t("raidDetail.page.reopen.textArchived") : t("raidDetail.page.reopen.text"),
             });
             if (!ok) return;
             try {
@@ -231,11 +234,11 @@ export default function RaidDetailPage() {
             />
 
             <div className="tabs rd-tabs" role="tablist">
-                {tabs.map((t) => (
-                    <button key={t} type="button" role="tab" aria-selected={shown === t} className={`tab-btn${shown === t ? " active" : ""}`} onClick={() => switchTab(t)}>
-                        <WowIcon name={TAB_META[t].icon} size={16} />
-                        {TAB_META[t].label}
-                        <span className="tab-count">{counts[t]}</span>
+                {tabs.map((id) => (
+                    <button key={id} type="button" role="tab" aria-selected={shown === id} className={`tab-btn${shown === id ? " active" : ""}`} onClick={() => switchTab(id)}>
+                        <WowIcon name={TAB_ICONS[id]} size={16} />
+                        {t(`raidDetail.page.tab.${id}`)}
+                        <span className="tab-count">{counts[id]}</span>
                     </button>
                 ))}
             </div>

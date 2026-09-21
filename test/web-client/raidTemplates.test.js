@@ -9,6 +9,7 @@ const fs = require("fs");
 const path = require("path");
 const { publicVersions } = require("../../src/config/gameVersions");
 const server = require("../../src/web/raidTemplates");
+const { makeT } = require("./i18nHelper");
 
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
@@ -29,12 +30,13 @@ function splitParams(list) {
     return out;
 }
 
-function load() {
+// The lib imports `t` (the menu language); German keeps the server's wording.
+function load(lang = "de") {
     const lines = read("lib", "raidTemplates.ts").split("\n");
     const out = [];
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        if (/^import type /.test(line)) continue;
+        if (/^import /.test(line)) continue;
         if (/^export type /.test(line)) {
             let depth = 0;
             for (; i < lines.length; i++) {
@@ -53,7 +55,7 @@ function load() {
     }
     const js = out.join("\n");
     const names = [...js.matchAll(/^(?:function|const) (\w+)/gm)].map((m) => m[1]);
-    return new Function(`${js}\nreturn { ${names.join(", ")} };`)();
+    return new Function("t", `${js}\nreturn { ${names.join(", ")} };`)(makeT(lang));
 }
 
 const logic = load();
@@ -110,6 +112,7 @@ describe("Raid-Vorlagen rules (client)", () => {
         const t = { versionId: "tbc", defaultFor: ["c1", "c2"] };
         expect(logic.templateLabel(t, "TBC", { c1: "Mittwoch-Raid" })).toBe("TBC · Standard für Mittwoch-Raid, c2");
         expect(logic.templateLabel({ versionId: "classic" }, "Classic", {})).toBe("Classic");
+        expect(load("en").templateLabel(t, "TBC", { c1: "Mittwoch-Raid" })).toBe("TBC · Default for Mittwoch-Raid, c2");
     });
 
     it("filters by version, '' being all", () => {
@@ -186,9 +189,10 @@ describe("Aussehen-Zeile (#307)", () => {
         expect(fields).toContain("<WowIcon name={lead.icon} size={40} />");
         // Farbfeld, Hex-Feld und das Segment Thumbnail/Banner
         expect(fields).toContain("type=\"color\"");
-        expect(fields).toMatch(/\{ value: "thumbnail", label: "Thumbnail"[\s\S]*?\{ value: "banner", label: "Banner"/);
+        expect(fields).toMatch(/\{ value: "thumbnail", label: t\("raidPlan\.fields\.thumbnail"\)[\s\S]*?\{ value: "banner", label: t\("raidPlan\.fields\.banner"\)/);
         // die Regel steht im Tooltip, nicht als Absatz auf der Seite
-        expect(fields).toMatch(/FieldLabel text="Aussehen" tip="[^"]*Boss-Icon/);
+        expect(fields).toContain("<FieldLabel text={t(\"raidPlan.fields.look\")} tip={t(\"raidPlan.fields.lookTip\")} />");
+        expect(makeT("de")("raidPlan.fields.lookTip")).toContain("Boss-Icon");
         expect(fields).not.toMatch(/<p className="note"/);
     });
 
@@ -255,7 +259,9 @@ describe("Raid-Vorlagen page", () => {
     });
 
     it("says what is left for DPS and caps the plus at the size", () => {
-        expect(comp).toContain("Plätze\"} für DPS");
+        expect(comp).toContain("t(\"raidPlan.comp.dpsLine\", { count: dps })");
+        expect(makeT("de")("raidPlan.comp.dpsLine", { count: 3 })).toBe("3 Plätze für DPS · Vorschlag bei Größenwechsel");
+        expect(makeT("de")("raidPlan.comp.dpsLine", { count: 1 })).toBe("1 Platz für DPS · Vorschlag bei Größenwechsel");
         expect(comp).toContain("disabled={disabled || full}");
     });
 

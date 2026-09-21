@@ -7,51 +7,11 @@ const path = require("path");
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
 
-function splitParams(list) {
-    const out = [];
-    let depth = 0;
-    let cur = "";
-    for (let i = 0; i < list.length; i++) {
-        const c = list[i];
-        if (c === "=" && list[i + 1] === ">") { cur += "=>"; i++; continue; }
-        if ("(<{[".includes(c)) depth++;
-        if (")>}]".includes(c)) depth--;
-        if (c === "," && depth === 0) { out.push(cur); cur = ""; continue; }
-        cur += c;
-    }
-    if (cur.trim()) out.push(cur);
-    return out;
-}
+const { loadTs, makeT } = require("./i18nHelper");
 
-/** The lib without its TypeScript: `import type`, `export type` and one-line signatures only. */
-function load() {
-    const lines = read("lib", "setupEditor.ts").split("\n");
-    const out = [];
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (/^import type /.test(line)) continue;
-        if (/^export type /.test(line)) {
-            let depth = 0;
-            for (; i < lines.length; i++) {
-                for (const c of lines[i]) { if ("({[".includes(c)) depth++; if (")}]".includes(c)) depth--; }
-                if (depth === 0 && /;\s*$/.test(lines[i])) break;
-            }
-            continue;
-        }
-        const fn = line.match(/^(export )?function (\w+)\((.*)\)(: .*)? \{$/);
-        if (fn) {
-            const params = splitParams(fn[3]).map((p) => p.trim().split(":")[0].replace("?", "").trim()).filter(Boolean);
-            out.push(`function ${fn[2]}(${params.join(", ")}) {`);
-            continue;
-        }
-        out.push(line.replace(/^export /, ""));
-    }
-    const js = out.join("\n");
-    const names = [...js.matchAll(/^(?:function|const) (\w+)/gm)].map((m) => m[1]);
-    return new Function(`${js}\nreturn { ${names.join(", ")} };`)();
-}
-
-const lib = load();
+// the lib run for real, with the German texts (its messages are asserted in German below)
+const lib = loadTs("lib/setupEditor.ts", { t: makeT("de") });
+const libEn = loadTs("lib/setupEditor.ts", { t: makeT("en") });
 
 const person = (userId, spec, role, extra = {}) => ({ userId, character: userId, spec, role, name: "", classId: "", classColor: "", classLabel: "", specLabel: "", specIcon: "", ...extra });
 
@@ -167,20 +127,29 @@ describe("setup editor page", () => {
 
     it("keeps the side column to roles, buffs, fairness and wishes — weights and the explanation in dialogs", () => {
         const summary = editor.match(/function Summary\([\s\S]*?\n}\n/)[0];
-        for (const label of ["label=\"Tanks\"", "label=\"Heiler\"", "label=\"DD\"", ">Buffs<", ">Fairness<", ">Wünsche<", "Gewichte…"]) {
+        for (const label of ["label={rolePluralLabel(\"tank\")}", "label={rolePluralLabel(\"healer\")}", "label={t(\"setup.summary.dps\")}", "{t(\"setup.summary.buffs\")}<", "{t(\"setup.summary.fairness\")}<", "{t(\"setup.summary.wishes\")}<", "{t(\"setup.summary.weights\")}"]) {
             expect({ label, found: summary.includes(label) }).toEqual({ label, found: true });
         }
+        const de = makeT("de");
+        expect([de("setup.summary.dps"), de("setup.summary.wishes"), de("setup.summary.weights")]).toEqual(["DD", "Wünsche", "Gewichte…"]);
         expect(summary).not.toContain("type=\"range\"");
-        expect(editor).toMatch(/<Modal[\s\S]*?title="Gewichte"/);
-        expect(editor).toMatch(/<Modal[\s\S]*?title="KI-Begründung"/);
+        expect(editor).toMatch(/<Modal[\s\S]*?title=\{t\("setup\.weightsModal\.title"\)\}/);
+        expect(editor).toMatch(/<Modal[\s\S]*?title=\{t\("setup\.explain\.title"\)\}/);
+        expect([de("setup.weightsModal.title"), de("setup.explain.title")]).toEqual(["Gewichte", "KI-Begründung"]);
     });
 
     it("says what state the setup is in and approves only the version it shows", () => {
-        for (const text of ["Freigegeben", "geändert seit Freigabe", "Entwurf", "automatischer Vorschlag"]) expect(editor).toContain(text);
+        const de = makeT("de");
+        const states = { "setup.status.approved": "Freigegeben", "setup.status.changed": "geändert seit Freigabe", "setup.status.draft": "Entwurf", "setup.status.auto": "automatischer Vorschlag" };
+        for (const [key, text] of Object.entries(states)) {
+            expect(editor).toContain(`{t("${key}")}`);
+            expect(de(key)).toBe(text);
+        }
         expect(editor).toContain("if (setup.origin !== \"auto\") return draft;");
         // after the moves still on their way, with the version the server confirmed last
         expect(editor).toMatch(/await chain\.current;\s*const next = await approveRaidSetup\(ctx\.csrfToken, ctx\.eventId, confirmedVersion\.current\);/);
-        expect(editor).toContain("title: \"Trotzdem freigeben?\"");
+        expect(editor).toContain("title: t(\"setup.editor.approveAnywayTitle\")");
+        expect(de("setup.editor.approveAnywayTitle")).toBe("Trotzdem freigeben?");
         // a reader never gets the editor, only the approved lineup
         expect(editor).toContain("if (!data.canWrite) return <ReadOnly data={data} />;");
     });
@@ -240,5 +209,12 @@ describe("what posting the setup will do / did (#290)", () => {
         expect(lib.publishHint(publish({ error: "Bot nicht verbunden.", errorAt: 50 }), true, time)).toMatchObject({ tone: "bad", text: "Setup nicht gepostet: Bot nicht verbunden.", canPost: true });
         expect(lib.publishHint(publish(), true, time)).toMatchObject({ tone: "mid", text: "Noch nicht in #kara-do gepostet" });
         expect(lib.publishHint(publish({ cancelled: true }), true, time)).toMatchObject({ canPost: false, text: "Abgesagt – kein Setup im Kanal" });
+    });
+
+    it("speaks English when the page does", () => {
+        expect(libEn.publishHint(publish(), false, time).text).toBe("On approval: posts the setup in #kara-do · DMs to 25 raiders (off)");
+        const done = publish({ posted: { messageUrl: "u", version: 1, postedAt: 100, editedAt: 0 }, dmsEnabled: true, dms: { status: "done", version: 1, at: 1, total: 1, sent: 1, failed: [], unchanged: 0 } });
+        expect(libEn.publishHint(done, true, time).text).toBe("posted T100 in #kara-do · 1 DM");
+        expect(libEn.moveRaider(lib.toInput(setup()), "w", { group: 1 }, lib.peopleOf(setup()), 25).error).toBe("Group 1 is full — drag onto a raider to swap.");
     });
 });

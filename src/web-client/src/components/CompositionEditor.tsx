@@ -1,6 +1,8 @@
 import WowIcon from "./ui/WowIcon";
 import { IconButton } from "./ui/Button";
 import { dpsSlots } from "../lib/raidTemplates";
+import { rolePluralLabel } from "../lib/wowNames";
+import { useT } from "../i18n";
 import "../styles/raid-templates.css";
 
 // Tanks and healers of a raid, each as a large number with − and +, and one
@@ -19,8 +21,8 @@ function PlusIcon() {
 }
 
 const ROLES = [
-    { key: "tank", label: "Tanks", icon: "ability_warrior_defensivestance" },
-    { key: "healer", label: "Heiler", icon: "spell_holy_flashheal" },
+    { key: "tank", icon: "ability_warrior_defensivestance" },
+    { key: "healer", icon: "spell_holy_flashheal" },
 ] as const;
 
 export default function CompositionEditor({ size, value, onChange, disabled = false }: {
@@ -30,6 +32,7 @@ export default function CompositionEditor({ size, value, onChange, disabled = fa
     onChange: (next: CompositionCounts) => void;
     disabled?: boolean;
 }) {
+    const t = useT();
     const used = value.tank + value.healer;
     const full = size !== null && used >= size;
     const dps = dpsSlots(size, value.tank, value.healer);
@@ -42,19 +45,19 @@ export default function CompositionEditor({ size, value, onChange, disabled = fa
                         <div key={r.key} className="comp-card">
                             <WowIcon name={r.icon} size={32} />
                             <div className="comp-text">
-                                <div className="comp-lbl">{r.label}</div>
+                                <div className="comp-lbl">{rolePluralLabel(r.key)}</div>
                                 <div className="comp-num" aria-live="polite">{n}</div>
                             </div>
-                            <IconButton icon={<MinusIcon />} tip={`Ein ${r.key === "tank" ? "Tank" : "Heiler"} weniger`} disabled={disabled || n <= 0}
+                            <IconButton icon={<MinusIcon />} tip={t(r.key === "tank" ? "raidPlan.comp.tankLess" : "raidPlan.comp.healerLess")} disabled={disabled || n <= 0}
                                 onClick={() => onChange({ ...value, [r.key]: Math.max(0, n - 1) })} />
-                            <IconButton icon={<PlusIcon />} tip={`Ein ${r.key === "tank" ? "Tank" : "Heiler"} mehr`} disabled={disabled || full}
+                            <IconButton icon={<PlusIcon />} tip={t(r.key === "tank" ? "raidPlan.comp.tankMore" : "raidPlan.comp.healerMore")} disabled={disabled || full}
                                 onClick={() => onChange({ ...value, [r.key]: n + 1 })} />
                         </div>
                     );
                 })}
             </div>
             {size !== null && (
-                <div className="comp-hint">{dps} {dps === 1 ? "Platz" : "Plätze"} für DPS · Vorschlag bei Größenwechsel</div>
+                <div className="comp-hint">{t("raidPlan.comp.dpsLine", { count: dps })}</div>
             )}
         </div>
     );

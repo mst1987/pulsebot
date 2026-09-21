@@ -27,6 +27,8 @@ import { relativeDayLabel } from "../lib/format";
 import { longDay, shortDate, dayDate, clock, raidWhen } from "../lib/overviewDates";
 import "../styles/uebersicht.css";
 import RaidLoader from "../components/ui/RaidLoader";
+import { useT } from "../i18n";
+import { roleLabel } from "../lib/wowNames";
 
 /**
  * A link inside the SPA, or a plain anchor for the server-rendered report pages
@@ -45,9 +47,10 @@ function RowLink({ href, className, tip, tipSub, children }: {
 }
 
 function SheetBadge({ raid }: { raid: DashboardRaid }) {
+    const t = useT();
     return raid.sheet
-        ? <Badge tone="ok" icon="inv_misc_note_02" tip="Raidsheet fertig" tipSub={raid.sheet.playerCount ? `${raid.sheet.playerCount} Spieler eingetragen.` : "Das feste Sheet der Kategorie."}>Sheet fertig</Badge>
-        : <Badge tone="bad" icon="inv_misc_note_02" tip="Raidsheet fehlt" tipSub="Wird auf der Seite des Raid-Events aus dem Setup gefüllt.">Sheet fehlt</Badge>;
+        ? <Badge tone="ok" icon="inv_misc_note_02" tip={t("dashboard.sheet.doneTip")} tipSub={raid.sheet.playerCount ? t("dashboard.sheet.doneSubCount", { count: raid.sheet.playerCount }) : t("dashboard.sheet.doneSubFixed")}>{t("dashboard.sheet.done")}</Badge>
+        : <Badge tone="bad" icon="inv_misc_note_02" tip={t("dashboard.sheet.missingTip")} tipSub={t("dashboard.sheet.missingSub")}>{t("dashboard.sheet.missing")}</Badge>;
 }
 
 /**
@@ -56,13 +59,14 @@ function SheetBadge({ raid }: { raid: DashboardRaid }) {
  * "Softres fehlt" nobody needs to act on.
  */
 export function LootBadge({ raid }: { raid: DashboardRaid }) {
+    const t = useT();
     const ls = raid.lootSystem;
     if (ls && !ls.softres) {
-        return <Badge icon="inv_misc_bag_10" tip={`Lootsystem: ${ls.label}`} tipSub="Keine Softres-Liste nötig. Änderbar in Einstellungen › Kategorien oder auf der Seite des Raids.">{ls.label}</Badge>;
+        return <Badge icon="inv_misc_bag_10" tip={t("dashboard.lootBadge.systemTip", { label: ls.label })} tipSub={t("dashboard.lootBadge.systemSub")}>{ls.label}</Badge>;
     }
     return raid.softres
-        ? <Badge tone="ok" icon="inv_scroll_11" tip="Softres-Liste erstellt">Softres</Badge>
-        : <Badge tone="mid" icon="inv_scroll_11" tip="Softres-Liste fehlt" tipSub="Wird auf der Seite des Raid-Events erstellt.">Softres fehlt</Badge>;
+        ? <Badge tone="ok" icon="inv_scroll_11" tip={t("dashboard.lootBadge.softresDoneTip")}>{t("dashboard.lootBadge.softres")}</Badge>
+        : <Badge tone="mid" icon="inv_scroll_11" tip={t("dashboard.lootBadge.softresMissingTip")} tipSub={t("dashboard.lootBadge.softresMissingSub")}>{t("dashboard.lootBadge.softresMissing")}</Badge>;
 }
 
 /** The raid's own page in the menu. */
@@ -77,19 +81,20 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
     guildId: string;
     onDetails: () => void;
 }) {
+    const t = useT();
     return (
         <section className="dash-card ov-card">
             <PartHead
-                icon={raid?.icon || "inv_misc_head_dragon_01"} title="Nächster Raid" crumb="Raid-Events"
+                icon={raid?.icon || "inv_misc_head_dragon_01"} title={t("dashboard.next.title")} crumb={t("dashboard.next.crumb")}
                 action={raid && (
                     <span className="ov-head-actions">
-                        <Button variant="ghost" size="sm" onClick={onDetails}>Details</Button>
-                        <Link className={buttonClass("ghost", "sm")} to={raidDetailHref(raid.id)} data-tip="Raid öffnen" data-tip-sub="Die Seite des Raids im EventHelper: Anmeldung, Setup, Softres, Loot, Logs.">Öffnen</Link>
+                        <Button variant="ghost" size="sm" onClick={onDetails}>{t("dashboard.next.details")}</Button>
+                        <Link className={buttonClass("ghost", "sm")} to={raidDetailHref(raid.id)} data-tip={t("dashboard.next.openTip")} data-tip-sub={t("dashboard.next.openSub")}>{t("dashboard.next.open")}</Link>
                     </span>
                 )}
             />
             {!raid
-                ? <div className="ov-empty-text">{error || "Kein anstehender Raid bei Raid-Helper."}</div>
+                ? <div className="ov-empty-text">{error || t("dashboard.next.empty")}</div>
                 : (
                     <div className="ov-next">
                         <div className="ov-next-top">
@@ -102,7 +107,7 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
                         </div>
                         <div className="ov-roles">
                             {raid.roles.map((r) => (
-                                <div className="ov-role" key={r.key} data-tip={r.label} data-tip-sub={`${r.filled} von ${r.target} besetzt${raid.setupCount ? " laut Setup" : " laut Anmeldungen"}. Soll aus der Raidgröße (${raid.size}).`}>
+                                <div className="ov-role" key={r.key} data-tip={roleLabel(r.key, r.label)} data-tip-sub={t(raid.setupCount ? "dashboard.next.roleSubSetup" : "dashboard.next.roleSubSignups", { filled: r.filled, target: r.target, size: raid.size })}>
                                     <WowIcon name={r.icon} size={22} />
                                     <RoleBar role={r} />
                                 </div>
@@ -111,19 +116,19 @@ function NextRaidCard({ raid, following, error, guildId, onDetails }: {
                         <div className="ov-next-foot">
                             <SheetBadge raid={raid} />
                             {raid.setupCount
-                                ? <Badge tone="ok" icon="inv_misc_groupneedmore" tip="Setup fertig" tipSub={`${raid.setupCount} Spieler im Raidplan gesetzt.`}>Setup fertig</Badge>
-                                : <Badge tone="mid" icon="inv_misc_groupneedmore" tip="Setup offen" tipSub="Bei Raid-Helper ist noch kein Raidplan gebaut.">Setup offen</Badge>}
+                                ? <Badge tone="ok" icon="inv_misc_groupneedmore" tip={t("dashboard.next.setupDoneTip")} tipSub={t("dashboard.next.setupDoneSub", { count: raid.setupCount })}>{t("dashboard.next.setupDone")}</Badge>
+                                : <Badge tone="mid" icon="inv_misc_groupneedmore" tip={t("dashboard.next.setupOpenTip")} tipSub={t("dashboard.next.setupOpenSub")}>{t("dashboard.next.setupOpen")}</Badge>}
                             <LootBadge raid={raid} />
                             <span className="ov-links">
-                                {guildId && raid.channelId && <IconLink icon="inv_letter_15" href={eventPostUrl(guildId, raid.channelId, raid.id)} tip="Discord-Post" tipSub="Die Anmeldung in Discord öffnen" />}
-                                {raidplanUrl(raid.id) && <IconLink icon="inv_misc_groupneedmore" href={raidplanUrl(raid.id)} tip="Setup / Comp" tipSub="Raidplan bei Raid-Helper öffnen" />}
-                                {raid.softres && <IconLink icon="inv_scroll_11" href={raid.softres.url} tip="Softres" tipSub="Softres-Liste öffnen" />}
+                                {guildId && raid.channelId && <IconLink icon="inv_letter_15" href={eventPostUrl(guildId, raid.channelId, raid.id)} tip={t("dashboard.next.discordTip")} tipSub={t("dashboard.next.discordSub")} />}
+                                {raidplanUrl(raid.id) && <IconLink icon="inv_misc_groupneedmore" href={raidplanUrl(raid.id)} tip={t("dashboard.next.setupTip")} tipSub={t("dashboard.next.setupSub")} />}
+                                {raid.softres && <IconLink icon="inv_scroll_11" href={raid.softres.url} tip={t("dashboard.next.softresTip")} tipSub={t("dashboard.next.softresSub")} />}
                             </span>
                         </div>
                         {following && (
                             <div className="ov-following">
                                 <WowIcon name={following.icon} size={20} />
-                                <span>Danach:</span>
+                                <span>{t("dashboard.next.after")}</span>
                                 <Link className="ov-following-t" to={raidDetailHref(following.id)}>
                                     {following.title} – {dayDate(following.startTime * 1000)} {clock(following.startTime * 1000)}
                                 </Link>
@@ -146,23 +151,25 @@ function taskRef(task: DashboardTask): string {
 /** The open tasks: one row per task that exists, each leading straight to where it is done. */
 export function TaskList({ tasks }: { tasks: DashboardTask[] }) {
     // The head says "something is open", not how bad the worst row is — the rows carry their own tone.
+    const t = useT();
     const tone = tasks.length ? "mid" : "ok";
     return (
         <section className="dash-card ov-card">
             <PartHead
-                icon="inv_misc_note_01" tone={tone} title="Offene Aufgaben"
+                icon="inv_misc_note_01" tone={tone} title={t("dashboard.tasks.title")}
                 action={<Badge tone={tone} count>{tasks.length}</Badge>}
             />
             {tasks.length === 0
                 ? (
                     <div className="ov-alldone">
                         <IconTile icon="spell_holy_borrowedtime" tone="ok" size="lg" />
-                        <div className="ov-alldone-t">Alles erledigt</div>
-                        <div className="ov-note">Sheets gefüllt, Logs zugeordnet, Empfehlungen geprüft.</div>
+                        <div className="ov-alldone-t">{t("dashboard.tasks.allDone")}</div>
+                        <div className="ov-note">{t("dashboard.tasks.allDoneNote")}</div>
                     </div>
                 )
                 : (
                     <div className="ov-rows">
+                        {/* `t` here is the task (it shadows the translator; the row shows server texts only) */}
                         {tasks.map((t) => (
                             <RowLink key={t.id} href={t.href} className="ov-row ov-task" tip={t.tip} tipSub={t.tipSub}>
                                 <IconTile icon={t.icon} tone={(t.tile as TileTone) || TASK_TILE[t.tone]} />
@@ -192,54 +199,55 @@ function AreaTile({ area, icon, label, href, tip, tipSub, children }: {
 }
 
 function AreaTiles({ areas }: { areas: DashboardData["areas"] }) {
+    const t = useT();
     const r = areas.lastReport;
     const reportSub = r
         ? [
-            `${r.bosses} ${r.bosses === 1 ? "Boss" : "Bosse"}, ${r.kills} ${r.kills === 1 ? "Kill" : "Kills"}${r.avoidableDeaths !== null ? ` · ${r.avoidableDeaths} vermeidbare Tode` : ""}`,
-            `Gear-Probleme: ${r.gear}`,
-            `Consumables: ${r.consumables}`,
-            `Fehlende Buffs: ${r.buffs}`,
-            "Klick öffnet den Report.",
+            `${t("dashboard.areas.bosses", { count: r.bosses })}, ${t("dashboard.areas.kills", { count: r.kills })}${r.avoidableDeaths !== null ? ` · ${t("dashboard.areas.avoidableDeaths", { count: r.avoidableDeaths })}` : ""}`,
+            t("dashboard.areas.gear", { count: r.gear }),
+            t("dashboard.areas.consumables", { count: r.consumables }),
+            t("dashboard.areas.buffs", { count: r.buffs }),
+            t("dashboard.areas.clickReport"),
         ].join("\n")
         : "";
     return (
         <div className="ov-grid ov-grid-areas">
             {r
                 ? (
-                    <AreaTile area="cla" icon="inv_misc_pocketwatch_01" label="Letzte Auswertung" href={`/r/${encodeURIComponent(r.id)}`} tip={`${r.zone || r.title} · ${dayDate(r.generatedAt)}`} tipSub={reportSub}>
+                    <AreaTile area="cla" icon="inv_misc_pocketwatch_01" label={t("dashboard.areas.lastReport")} href={`/r/${encodeURIComponent(r.id)}`} tip={`${r.zone || r.title} · ${dayDate(r.generatedAt)}`} tipSub={reportSub}>
                         <span className="ov-area-val">{r.zone || r.title}</span>
                         <span className="ov-badges">
                             <Badge>{shortDate(r.generatedAt)}</Badge>
-                            <Badge tone={r.problems ? "bad" : "ok"}>{r.problems ? `${r.problems} Probleme` : "keine Probleme"}</Badge>
+                            <Badge tone={r.problems ? "bad" : "ok"}>{r.problems ? t("dashboard.areas.problems", { count: r.problems }) : t("dashboard.areas.noProblems")}</Badge>
                         </span>
                     </AreaTile>
                 )
                 : (
-                    <AreaTile area="cla" icon="inv_misc_pocketwatch_01" label="Letzte Auswertung" href="/cla" tip="Noch keine Auswertung" tipSub="Klick öffnet die Log-Auswertung.">
-                        <span className="ov-area-val">Keine</span>
-                        <span className="ov-badges"><Badge tone="accent">Log auswerten</Badge></span>
+                    <AreaTile area="cla" icon="inv_misc_pocketwatch_01" label={t("dashboard.areas.lastReport")} href="/cla" tip={t("dashboard.areas.noReportTip")} tipSub={t("dashboard.areas.noReportSub")}>
+                        <span className="ov-area-val">{t("dashboard.areas.none")}</span>
+                        <span className="ov-badges"><Badge tone="accent">{t("dashboard.areas.evaluate")}</Badge></span>
                     </AreaTile>
                 )}
-            <AreaTile area="history" icon="inv_misc_bag_10" label="Neuer Loot" href="/history?tab=awards" tip="Top-Items seit dem letzten Raid" tipSub={areas.newLoot.since ? `Vergeben seit ${dayDate(areas.newLoot.since)}. Klick öffnet Latest Loot.` : "Noch kein vergangener Raid bekannt."}>
+            <AreaTile area="history" icon="inv_misc_bag_10" label={t("dashboard.areas.newLoot")} href="/history?tab=awards" tip={t("dashboard.areas.newLootTip")} tipSub={areas.newLoot.since ? t("dashboard.areas.newLootSub", { date: dayDate(areas.newLoot.since) }) : t("dashboard.areas.newLootNone")}>
                 <span className="ov-area-big">{areas.newLoot.count}</span>
                 <span className="ov-badges">
-                    <Badge tone="accent">Top-Items</Badge>
-                    {areas.newLoot.since > 0 && <Badge>seit {dayDate(areas.newLoot.since).split(" ")[0]}</Badge>}
+                    <Badge tone="accent">{t("dashboard.areas.topItems")}</Badge>
+                    {areas.newLoot.since > 0 && <Badge>{t("dashboard.areas.since", { date: dayDate(areas.newLoot.since).split(" ")[0] })}</Badge>}
                 </span>
             </AreaTile>
-            <AreaTile area="recruitment" icon="inv_misc_grouplooking" label="Recruitment" href="/recruitment" tip="Gepostete Recruitment-Nachrichten" tipSub="Klick öffnet Recruitment.">
+            <AreaTile area="recruitment" icon="inv_misc_grouplooking" label={t("dashboard.areas.recruitment")} href="/recruitment" tip={t("dashboard.areas.recruitmentTip")} tipSub={t("dashboard.areas.recruitmentSub")}>
                 <span className="ov-area-big">{areas.recruitment.posts}</span>
                 <span className="ov-badges">
                     {areas.recruitment.posts
-                        ? <Badge tone="ok">Posts aktiv</Badge>
-                        : <Badge>keine Posts</Badge>}
+                        ? <Badge tone="ok">{t("dashboard.areas.postsActive")}</Badge>
+                        : <Badge>{t("dashboard.areas.noPosts")}</Badge>}
                 </span>
             </AreaTile>
-            <AreaTile area="roster" icon="achievement_guildperk_everybodysfriend" label="Roster" href="/roster" tip="Charaktere im Roster" tipSub={areas.roster ? `${areas.roster.withoutDiscord} nur aus dem Loot bekannt, keinem Discord-Konto zugeordnet. Klick öffnet das Roster.` : "Das Roster konnte nicht geladen werden."}>
+            <AreaTile area="roster" icon="achievement_guildperk_everybodysfriend" label={t("dashboard.areas.roster")} href="/roster" tip={t("dashboard.areas.rosterTip")} tipSub={areas.roster ? t("dashboard.areas.rosterSub", { count: areas.roster.withoutDiscord }) : t("dashboard.areas.rosterError")}>
                 <span className="ov-area-big">{areas.roster ? areas.roster.total : "–"}</span>
                 <span className="ov-badges">
-                    <Badge>Raider</Badge>
-                    {areas.roster && areas.roster.withoutDiscord > 0 && <Badge tone="mid">{areas.roster.withoutDiscord} ohne Discord</Badge>}
+                    <Badge>{t("dashboard.areas.raider")}</Badge>
+                    {areas.roster && areas.roster.withoutDiscord > 0 && <Badge tone="mid">{t("dashboard.areas.withoutDiscord", { count: areas.roster.withoutDiscord })}</Badge>}
                 </span>
             </AreaTile>
         </div>
@@ -247,19 +255,20 @@ function AreaTiles({ areas }: { areas: DashboardData["areas"] }) {
 }
 
 function LootCard({ topLoot }: { topLoot: DashboardData["topLoot"] }) {
+    const t = useT();
     return (
         <section className="dash-card ov-card">
             <PartHead
-                icon="inv_misc_bag_10" tone="history" title="Latest Loot" crumb="Top-Items"
-                action={<Link className={buttonClass("ghost", "sm")} to="/history?tab=awards">Historie &amp; Loot</Link>}
+                icon="inv_misc_bag_10" tone="history" title={t("dashboard.loot.title")} crumb={t("dashboard.loot.crumb")}
+                action={<Link className={buttonClass("ghost", "sm")} to="/history?tab=awards">{t("dashboard.loot.historyLink")}</Link>}
             />
             {topLoot.items.length
                 ? <TopLootList items={topLoot.items} />
                 : (
                     <div className="ov-empty-text">
                         {topLoot.configured
-                            ? `Noch keins der ${topLoot.configured} Top-Items vergeben.`
-                            : <>Noch keine Top-Items festgelegt – <Link to="/settings?section=loot">Einstellungen → Loot</Link>.</>}
+                            ? t("dashboard.loot.noneAwarded", { count: topLoot.configured })
+                            : <>{t("dashboard.loot.noneConfigured")} <Link to="/settings?section=loot">{t("dashboard.loot.settingsLink")}</Link>.</>}
                     </div>
                 )}
         </section>
@@ -267,14 +276,15 @@ function LootCard({ topLoot }: { topLoot: DashboardData["topLoot"] }) {
 }
 
 function RecentRaidList({ recent }: { recent: DashboardData["recentEvents"] }) {
+    const t = useT();
     return (
         <section className="dash-card ov-card">
             <PartHead
-                icon="inv_misc_note_02" title="Letzte Raids"
-                action={<Link className={buttonClass("ghost", "sm")} to="/history?tab=raids">Alle Raids</Link>}
+                icon="inv_misc_note_02" title={t("dashboard.recent.title")}
+                action={<Link className={buttonClass("ghost", "sm")} to="/history?tab=raids">{t("dashboard.recent.all")}</Link>}
             />
             {!recent.events.length
-                ? <div className="ov-empty-text">{recent.error || "Noch keine vergangenen Raids."}</div>
+                ? <div className="ov-empty-text">{recent.error || t("dashboard.recent.empty")}</div>
                 : (
                     <div className="ov-rows">
                         {recent.events.map((ev) => {
@@ -288,13 +298,13 @@ function RecentRaidList({ recent }: { recent: DashboardData["recentEvents"] }) {
                                         <span className="t2">{dayDate(ev.startTime * 1000)}{ev.channelName ? ` · #${ev.channelName}` : ""}</span>
                                     </span>
                                     {pending > 0
-                                        ? <Badge tone="mid" icon="inv_misc_pocketwatch_01" tip="Log-Zuordnung offen" tipSub="Die Logs passen zu mehreren Raids; auf der Seite des Raids zuordnen.">{pending} {pending === 1 ? "Log" : "Logs"} offen</Badge>
+                                        ? <Badge tone="mid" icon="inv_misc_pocketwatch_01" tip={t("dashboard.recent.pendingTip")} tipSub={t("dashboard.recent.pendingSub")}>{t("dashboard.recent.pendingLogs", { count: pending })}</Badge>
                                         : evaluated
-                                            ? <Badge tone="ok" icon="inv_misc_pocketwatch_01">Auswertung</Badge>
-                                            : <Badge icon="inv_misc_pocketwatch_01" tip={ev.logs.length ? "Log zugeordnet, noch nicht ausgewertet" : "Kein Log zugeordnet"}>{ev.logs.length ? "nicht ausgewertet" : "kein Log"}</Badge>}
+                                            ? <Badge tone="ok" icon="inv_misc_pocketwatch_01">{t("dashboard.recent.evaluated")}</Badge>
+                                            : <Badge icon="inv_misc_pocketwatch_01" tip={ev.logs.length ? t("dashboard.recent.notEvaluatedTip") : t("dashboard.recent.noLogTip")}>{ev.logs.length ? t("dashboard.recent.notEvaluated") : t("dashboard.recent.noLog")}</Badge>}
                                     {ev.lootCount
-                                        ? <Badge icon="inv_misc_bag_10" tip={`${ev.lootCount} Items importiert`}>{ev.lootCount}</Badge>
-                                        : <Badge tone="bad" icon="inv_misc_bag_10" tip="Kein Loot importiert">kein Loot</Badge>}
+                                        ? <Badge icon="inv_misc_bag_10" tip={t("dashboard.recent.lootTip", { count: ev.lootCount })}>{ev.lootCount}</Badge>
+                                        : <Badge tone="bad" icon="inv_misc_bag_10" tip={t("dashboard.recent.noLootTip")}>{t("dashboard.recent.noLoot")}</Badge>}
                                 </Link>
                             );
                         })}
@@ -305,6 +315,7 @@ function RecentRaidList({ recent }: { recent: DashboardData["recentEvents"] }) {
 }
 
 export default function DashboardPage() {
+    const t = useT();
     const [data, setData] = useState<DashboardData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
@@ -316,10 +327,10 @@ export default function DashboardPage() {
     }, []);
 
     if (error) {
-        return <div className="empty">Fehler beim Laden der Übersicht: {error.message}</div>;
+        return <div className="empty">{t("dashboard.page.loadError", { message: error.message })}</div>;
     }
     if (!data) {
-        return <RaidLoader text="Übersicht wird geladen" />;
+        return <RaidLoader text={t("dashboard.page.loading")} />;
     }
 
     const kicker = [data.kicker.guild, data.kicker.realm, longDay(Date.now())].filter(Boolean).join(" · ");
@@ -327,8 +338,8 @@ export default function DashboardPage() {
     return (
         <div className="ov-page">
             <PageHead
-                icon="inv_misc_map_01" tone="home" kicker={kicker} title="Übersicht"
-                action={<Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_02" size={22} />Raid-Event anlegen</Link>}
+                icon="inv_misc_map_01" tone="home" kicker={kicker} title={t("dashboard.page.title")}
+                action={<Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_02" size={22} />{t("dashboard.page.newRaid")}</Link>}
             />
 
             <div className="ov-grid ov-grid-top">

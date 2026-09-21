@@ -2,6 +2,7 @@ import type { ClaRaid } from "../api";
 import Badge from "./ui/Badge";
 import { CheckIcon } from "./icons";
 import { raidCount, raidIcon } from "../lib/logRaids";
+import { useT } from "../i18n";
 import "../styles/log-auswertung.css";
 
 // The body of the "Raid noch nicht abgeschlossen" question (lib/confirmIncomplete.ts):
@@ -18,21 +19,19 @@ function MissingIcon() {
 }
 
 export default function IncompleteRaid({ raids, message }: { raids?: ClaRaid[]; message: string }) {
+    const t = useT();
     const list = raids || [];
     const open = list.filter((r) => !r.finalKilled);
     if (!open.length) {
         return <div className="la-incomplete"><p>{message}</p></div>;
     }
-    const finals = open.map((r) => r.finalBoss || r.label).join(" und ");
+    const finals = open.map((r) => r.finalBoss || r.label).join(` ${t("jobs.incomplete.and")} `);
     return (
         <div className="la-incomplete">
-            <p>
-                {finals} {open.length > 1 ? "liegen" : "liegt"} im Log nicht. Wird der Raid noch fortgesetzt, ändern
-                weitere Pulls die Zahlen – auswerten lohnt erst danach.
-            </p>
+            <p>{t("jobs.incomplete.notInLog", { count: open.length, finals })}</p>
             {open.filter((r) => (r.bosses || []).length > 0).map((r) => (
                 <div
-                    key={r.contentId} className="la-bossgrid" role="list" aria-label={`${r.label}: Bosse`}
+                    key={r.contentId} className="la-bossgrid" role="list" aria-label={t("jobs.incomplete.bosses", { raid: r.label })}
                     // a short raid (Hyjal, TK, Gruul) in one row, a long one wraps
                     style={r.bosses.length <= 5 ? { gridTemplateColumns: `repeat(${r.bosses.length}, minmax(0, 1fr))` } : undefined}
                 >

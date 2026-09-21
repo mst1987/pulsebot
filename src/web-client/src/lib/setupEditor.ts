@@ -5,8 +5,10 @@
 // rules only keep the page from sending what it already knows is refused.
 //
 // Written to be strippable like raidTemplates.ts (test/web-client/setupEditor.test.js
-// runs it for real): `import type`, `export type` and one-line signatures only.
+// runs it for real, with `t` injected): imports, `export type` and one-line
+// signatures only.
 import type { SetupEditorGroup, SetupPerson, SetupPlacementInput, SetupPublish, StoredSetup } from "../api";
+import { t } from "../i18n";
 
 export const GROUP_SIZE = 5;
 
@@ -84,18 +86,18 @@ function groupFor(input: SetupPlacementInput, index: number) {
  */
 export function moveRaider(current: SetupPlacementInput, userId: string, target: SetupTarget, people: Map<string, SetupPerson>, size: number) {
     const from = positionOf(current, userId);
-    if (!from) return { error: "Raider nicht im Setup." };
+    if (!from) return { error: t("setup.moves.notInSetup") };
     const input = cloneInput(current);
 
     if ("userId" in target) {
         if (target.userId === userId) return { input: null };
         const to = positionOf(input, target.userId);
-        if (!to) return { error: "Ziel nicht im Setup." };
+        if (!to) return { error: t("setup.moves.targetNotInSetup") };
         if ("bench" in from && "bench" in to) return { input: null };
         if ("group" in from && "group" in to && from.group === to.group) return { input: null };
         const a = takeOut(input, userId, people);
         const b = takeOut(input, target.userId, people);
-        if (!a || !b) return { error: "Raider nicht im Setup." };
+        if (!a || !b) return { error: t("setup.moves.notInSetup") };
         if ("group" in to) groupFor(input, to.group).slots.push(a);
         else input.bench.push({ userId: a.userId, locked: a.locked });
         if ("group" in from) groupFor(input, from.group).slots.push(b);
@@ -106,18 +108,18 @@ export function moveRaider(current: SetupPlacementInput, userId: string, target:
     if ("bench" in target) {
         if ("bench" in from) return { input: null };
         const slot = takeOut(input, userId, people);
-        if (!slot) return { error: "Raider nicht im Setup." };
+        if (!slot) return { error: t("setup.moves.notInSetup") };
         input.bench.push({ userId: slot.userId, locked: slot.locked });
         return { input };
     }
 
     if ("group" in from && from.group === target.group) return { input: null };
     const dest = groupFor(input, target.group);
-    if (dest.slots.length >= GROUP_SIZE) return { error: `Gruppe ${target.group} ist voll – auf einen Raider ziehen, um zu tauschen.` };
+    if (dest.slots.length >= GROUP_SIZE) return { error: t("setup.moves.groupFull", { group: target.group }) };
     const placed = input.groups.reduce((n, g) => n + g.slots.length, 0);
-    if ("bench" in from && size > 0 && placed >= size) return { error: `Der Raid ist voll (${size}) – auf einen Raider ziehen, um zu tauschen.` };
+    if ("bench" in from && size > 0 && placed >= size) return { error: t("setup.moves.raidFull", { size }) };
     const slot = takeOut(input, userId, people);
-    if (!slot) return { error: "Raider nicht im Setup." };
+    if (!slot) return { error: t("setup.moves.notInSetup") };
     groupFor(input, target.group).slots.push(slot);
     return { input };
 }
@@ -179,51 +181,51 @@ export type PublishHint = { tone: "ok" | "mid" | "bad" | ""; text: string; tip: 
  */
 export function publishHint(publish: SetupPublish | undefined, approved: boolean, time: (ms: number) => string): PublishHint | null {
     if (!publish) return null;
-    const channel = publish.channelName ? `#${publish.channelName}` : "den Event-Kanal";
-    const dmsOff = `DMs an ${publish.recipients} Raider (aus)`;
-    const offSub = "DMs schaltest du pro Kategorie ein: Einstellungen › Kategorien › Setup-DMs.";
+    const channel = publish.channelName ? `#${publish.channelName}` : t("setup.publish.eventChannel");
+    const dmsOff = t("setup.publish.dmsOff", { count: publish.recipients });
+    const offSub = t("setup.publish.offSub");
     if (publish.cancelled) {
-        return { tone: "mid", text: "Abgesagt – kein Setup im Kanal", tip: "Event abgesagt", sub: "Ein abgesagtes Event bekommt kein Setup gepostet und keine DMs. Eine schon gepostete Nachricht ist als abgesagt markiert.", running: false, canPost: false };
+        return { tone: "mid", text: t("setup.publish.cancelledText"), tip: t("setup.publish.cancelledTip"), sub: t("setup.publish.cancelledSub"), running: false, canPost: false };
     }
     if (!approved) {
-        const post = publish.posted ? `aktualisiert das Setup in ${channel}` : `postet Setup in ${channel}`;
-        const dms = publish.dmsEnabled ? `DMs an ${publish.pendingDms} Raider` : dmsOff;
+        const post = publish.posted ? t("setup.publish.willUpdate", { channel }) : t("setup.publish.willPost", { channel });
+        const dms = publish.dmsEnabled ? t("setup.publish.dmsTo", { count: publish.pendingDms }) : dmsOff;
         const sub = [
-            "Raider sehen nur Freigegebenes – ein Entwurf wird nie gepostet.",
-            publish.posted ? "Die vorhandene Nachricht wird bearbeitet, nicht neu gepostet." : "",
-            publish.dmsEnabled ? "Eine DM bekommt nur, wessen Platz sich seit der letzten DM geändert hat." : offSub,
+            t("setup.publish.draftNeverPosted"),
+            publish.posted ? t("setup.publish.editsExisting") : "",
+            publish.dmsEnabled ? t("setup.publish.dmOnlyChanged") : offSub,
         ].filter(Boolean).join("\n");
-        return { tone: "", text: `Beim Freigeben: ${post} · ${dms}`, tip: "Was die Freigabe auslöst", sub, running: false, canPost: false };
+        return { tone: "", text: t("setup.publish.onApprove", { post, dms }), tip: t("setup.publish.onApproveTip"), sub, running: false, canPost: false };
     }
     const lastPost = publish.posted ? Math.max(publish.posted.postedAt || 0, publish.posted.editedAt || 0) : 0;
     if (publish.error && publish.errorAt >= lastPost) {
-        return { tone: "bad", text: `Setup nicht gepostet: ${publish.error}`, tip: `Fehler beim Posten in ${channel}`, sub: `${time(publish.errorAt)} – „Setup posten“ versucht es erneut.`, running: false, canPost: true };
+        return { tone: "bad", text: t("setup.publish.errorText", { error: publish.error }), tip: t("setup.publish.errorTip", { channel }), sub: t("setup.publish.errorSub", { time: time(publish.errorAt) }), running: false, canPost: true };
     }
     if (!publish.posted) {
-        return { tone: "mid", text: `Noch nicht in ${channel} gepostet`, tip: "Setup posten", sub: "Postet das freigegebene Setup als eigene Nachricht in den Event-Kanal.", running: false, canPost: true };
+        return { tone: "mid", text: t("setup.publish.notPosted", { channel }), tip: t("setup.publish.post"), sub: t("setup.publish.notPostedSub"), running: false, canPost: true };
     }
     const edited = (publish.posted.editedAt || 0) > (publish.posted.postedAt || 0);
-    const parts = [`${edited ? "aktualisiert" : "gepostet"} ${time(lastPost)} in ${channel}`];
+    const parts = [t(edited ? "setup.publish.updatedAt" : "setup.publish.postedAt", { time: time(lastPost), channel })];
     const lines = [];
     const dms = publish.dms;
     const running = !!dms && dms.status === "running";
     const failed = !running && !!dms && publish.dmsEnabled && dms.failed.length > 0;
     const tone = failed || publish.outdated ? "mid" : "ok";
     if (dms && running) {
-        parts.push(`DMs ${dms.sent + dms.failed.length}/${dms.total} …`);
+        parts.push(t("setup.publish.dmsRunning", { done: dms.sent + dms.failed.length, total: dms.total }));
     } else if (dms && publish.dmsEnabled) {
-        parts.push(`${dms.sent} ${dms.sent === 1 ? "DM" : "DMs"}`);
+        parts.push(t("setup.publish.dmsSent", { count: dms.sent }));
         if (failed) {
-            parts.push(`${dms.failed.length} fehlgeschlagen`);
-            lines.push("Nicht angekommen (DMs geschlossen?):", ...dms.failed.map((f) => `${f.character || f.userId} – ${f.error}`));
+            parts.push(t("setup.publish.failed", { count: dms.failed.length }));
+            lines.push(t("setup.publish.failedHead"), ...dms.failed.map((f) => `${f.character || f.userId} – ${f.error}`));
         }
-        if (dms.unchanged) lines.push(`${dms.unchanged} ohne neue DM – Platz unverändert.`);
+        if (dms.unchanged) lines.push(t("setup.publish.unchanged", { count: dms.unchanged }));
     } else if (!publish.dmsEnabled) {
-        parts.push("DMs aus");
+        parts.push(t("setup.publish.dmsOffShort"));
         lines.push(offSub);
     }
     if (publish.outdated) {
-        lines.unshift(`Die Nachricht zeigt noch Stand ${publish.posted.version} – „Setup posten“ aktualisiert sie.`);
+        lines.unshift(t("setup.publish.outdated", { version: publish.posted.version }));
     }
-    return { tone, text: parts.join(" · "), tip: "Setup im Kanal", sub: lines.join("\n") || "Bei erneuter Freigabe wird die Nachricht bearbeitet, nicht neu gepostet.", running, canPost: true };
+    return { tone, text: parts.join(" · "), tip: t("setup.publish.tip"), sub: lines.join("\n") || t("setup.publish.reapproveSub"), running, canPost: true };
 }

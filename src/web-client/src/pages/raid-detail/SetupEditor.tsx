@@ -19,6 +19,8 @@ import {
     type SetupTarget,
 } from "../../lib/setupEditor";
 import { wowIconUrl } from "../../lib/wowIcon";
+import { roleLabel, rolePluralLabel, specLabel } from "../../lib/wowNames";
+import { locale, t, useT } from "../../i18n";
 import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import { Modal, useConfirm } from "../../components/ui/Modal";
@@ -31,32 +33,44 @@ import SpecTile from "./SpecTile";
 import type { RaidCtx } from "./meta";
 import "../../styles/setup-editor.css";
 
-const ROLE_LABEL: Record<string, string> = { tank: "Tank", healer: "Heiler", melee: "Nahkampf", ranged: "Fernkampf" };
-const STATUS_LABEL: Record<string, string> = { late: "Kommt später", tentative: "Vielleicht", bench: "Als Ersatz angemeldet" };
-const WEIGHT_LABELS: { key: string; label: string; tip: string }[] = [
-    { key: "requiredBuffs", label: "Pflicht-Buffs", tip: "Buffs, die die Raid-Vorlage verlangt." },
-    { key: "mainSpec", label: "Hauptspec", tip: "Raider auf der Spec, mit der sie sich angemeldet haben." },
-    { key: "preferredCharacter", label: "Wunsch-Charakter", tip: "Wer mehrere Charaktere angibt, kommt mit dem ersten mit – ein „kann auch mit“-Charakter kostet so viel." },
-    { key: "fairness", label: "Fairness", tip: "Wer zuletzt oder oft auf der Bank saß, kommt eher mit. Nur wenn Fairness an ist." },
-    { key: "status", label: "Anmeldestatus", tip: "„Dabei“ vor „Kommt später“ vor „Vielleicht“." },
-    { key: "partyBuffs", label: "Gruppen-Buffs", tip: "Totems, Auren, Schreie in der Gruppe, die sie brauchen." },
-    { key: "wishes", label: "Wünsche", tip: "„Gerne zusammen mit“ in einer Gruppe. Nur wenn Wünsche an sind." },
-    { key: "raidBuffs", label: "Raid-Buffs", tip: "Jeder Raid-Buff, den jemand im Raid mitbringt." },
-    { key: "attendance", label: "Anwesenheit", tip: "Anwesenheit in dieser Kategorie." },
-    { key: "gear", label: "Gear", tip: "„Bereit“ vor „brauchbar“ laut Profil." },
-];
+/** The signup states a slot shows a marker for, in the active language. */
+function statusLabel(status: string | undefined): string {
+    if (status === "late") return t("setup.person.status.late");
+    if (status === "tentative") return t("setup.person.status.tentative");
+    if (status === "bench") return t("setup.person.status.bench");
+    return "";
+}
+
+/** A raider's spec in the active language — the server's label as fallback. */
+const specText = (p: SetupPerson) => specLabel(p.spec, p.specLabel || p.spec);
+
+/** The weight sliders of the proposal, labels in the active language. */
+function weightLabels(): { key: string; label: string; tip: string }[] {
+    return [
+        { key: "requiredBuffs", label: t("setup.weights.requiredBuffs.label"), tip: t("setup.weights.requiredBuffs.tip") },
+        { key: "mainSpec", label: t("setup.weights.mainSpec.label"), tip: t("setup.weights.mainSpec.tip") },
+        { key: "preferredCharacter", label: t("setup.weights.preferredCharacter.label"), tip: t("setup.weights.preferredCharacter.tip") },
+        { key: "fairness", label: t("setup.weights.fairness.label"), tip: t("setup.weights.fairness.tip") },
+        { key: "status", label: t("setup.weights.status.label"), tip: t("setup.weights.status.tip") },
+        { key: "partyBuffs", label: t("setup.weights.partyBuffs.label"), tip: t("setup.weights.partyBuffs.tip") },
+        { key: "wishes", label: t("setup.weights.wishes.label"), tip: t("setup.weights.wishes.tip") },
+        { key: "raidBuffs", label: t("setup.weights.raidBuffs.label"), tip: t("setup.weights.raidBuffs.tip") },
+        { key: "attendance", label: t("setup.weights.attendance.label"), tip: t("setup.weights.attendance.tip") },
+        { key: "gear", label: t("setup.weights.gear.label"), tip: t("setup.weights.gear.tip") },
+    ];
+}
 
 const dateTime = (ms: number) => (ms
-    ? new Date(ms).toLocaleString("de-DE", { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
+    ? new Date(ms).toLocaleString(locale(), { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : "");
 
 /** Tooltip body of a raider: spec and role, status, then the reasons — one per line. */
 function personTip(p: SetupPerson): string {
-    const head = [p.specLabel || p.spec, ROLE_LABEL[p.role] || ""].filter(Boolean).join(" · ");
+    const head = [specText(p), p.role ? roleLabel(p.role) : ""].filter(Boolean).join(" · ");
     const lines = [
         head,
-        p.main === false ? "Zweitspec" : "",
-        p.status && STATUS_LABEL[p.status] ? STATUS_LABEL[p.status] : "",
+        p.main === false ? t("setup.person.offSpec") : "",
+        statusLabel(p.status),
         p.name ? `@${p.name}` : "",
         ...(p.reasons || []),
     ].filter(Boolean);
@@ -65,23 +79,31 @@ function personTip(p: SetupPerson): string {
 }
 
 function StatusBadge({ setup }: { setup: StoredSetup }) {
+    const t = useT();
     if (setup.status === "approved") {
-        return <Badge tone="ok" tip="Freigegeben" tipSub={`Raider sehen dieses Setup${setup.approvedAt ? ` · seit ${dateTime(setup.approvedAt)}` : ""}.`}>Freigegeben</Badge>;
-    }
-    if (setup.changedSinceApproval) {
         return (
-            <Badge tone="mid" tip="Geändert seit Freigabe" tipSub={`Raider sehen weiter den freigegebenen Stand${setup.approved ? ` vom ${dateTime(setup.approved.approvedAt)}` : ""}, bis du erneut freigibst.`}>
-                geändert seit Freigabe
+            <Badge
+                tone="ok" tip={t("setup.status.approved")}
+                tipSub={setup.approvedAt ? t("setup.status.approvedSubSince", { time: dateTime(setup.approvedAt) }) : t("setup.status.approvedSub")}
+            >
+                {t("setup.status.approved")}
             </Badge>
         );
     }
-    const draft = <Badge tone="mid" tip="Entwurf" tipSub="Raider sehen noch nichts. Erst nach der Freigabe erscheint das Setup im Web, in der Event-Nachricht und im Bot.">Entwurf</Badge>;
+    if (setup.changedSinceApproval) {
+        return (
+            <Badge tone="mid" tip={t("setup.status.changedTip")} tipSub={setup.approved ? t("setup.status.changedSubSince", { time: dateTime(setup.approved.approvedAt) }) : t("setup.status.changedSub")}>
+                {t("setup.status.changed")}
+            </Badge>
+        );
+    }
+    const draft = <Badge tone="mid" tip={t("setup.status.draft")} tipSub={t("setup.status.draftSub")}>{t("setup.status.draft")}</Badge>;
     if (setup.origin !== "auto") return draft;
     return (
         <>
             {draft}
-            <Badge tone="accent" tip="Automatischer Vorschlag" tipSub={`Zum Anmeldeschluss vom EventHelper erstellt${setup.updatedAt ? ` (${dateTime(setup.updatedAt)})` : ""}. Prüfen, anpassen, freigeben.`}>
-                automatischer Vorschlag
+            <Badge tone="accent" tip={t("setup.status.autoTip")} tipSub={setup.updatedAt ? t("setup.status.autoSubAt", { time: dateTime(setup.updatedAt) }) : t("setup.status.autoSub")}>
+                {t("setup.status.auto")}
             </Badge>
         </>
     );
@@ -98,6 +120,8 @@ type Interaction = {
 };
 
 function Slot({ p, ui }: { p: SetupPerson; ui: Interaction }) {
+    const t = useT();
+    const status = statusLabel(p.status);
     const color = classColorProps(p.classColor);
     const selected = ui.selected === p.userId;
     const keyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -133,19 +157,19 @@ function Slot({ p, ui }: { p: SetupPerson; ui: Interaction }) {
             <span className="se-slot-text">
                 <span className={`se-name ${color.className || ""}`} style={color.style}>{p.character}</span>
                 <span className="se-sub">
-                    {p.specLabel || p.spec}
+                    {specText(p)}
                     {/* an off-spec role is tinted — "Zweitspec" itself is in the tooltip */}
-                    {p.role && <> · <span className={p.main === false ? "se-offrole" : undefined}>{ROLE_LABEL[p.role]}</span></>}
+                    {p.role && <> · <span className={p.main === false ? "se-offrole" : undefined}>{roleLabel(p.role)}</span></>}
                 </span>
             </span>
-            {p.status && STATUS_LABEL[p.status] && <span className={`rd-sig rd-sig-${p.status}`} aria-label={STATUS_LABEL[p.status]} />}
+            {status && <span className={`rd-sig rd-sig-${p.status}`} aria-label={status} />}
             {ui.editable && (
                 <IconButton
                     className={`se-lock${p.locked ? " is-on" : ""}`}
                     size="sm"
                     icon={p.locked ? <LockIcon /> : <UnlockIcon />}
-                    tip={p.locked ? "Fixiert" : "Fixieren"}
-                    tipSub={p.locked ? "Ein neuer Vorschlag lässt diesen Platz, wie er ist. Klick löst die Fixierung." : "Ein neuer Vorschlag soll diesen Platz behalten."}
+                    tip={p.locked ? t("setup.slot.locked") : t("setup.slot.lock")}
+                    tipSub={p.locked ? t("setup.slot.lockedSub") : t("setup.slot.lockSub")}
                     aria-pressed={!!p.locked}
                     onClick={(e) => { e.stopPropagation(); ui.onLock(p.userId); }}
                     onKeyDown={(e) => e.stopPropagation()}
@@ -169,16 +193,17 @@ function useZone(target: SetupTarget, ui: Interaction) {
 }
 
 function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs: { key: string; label: string; icon: string }[]; ui: Interaction }) {
+    const t = useT();
     const zone = useZone({ group: group.index }, ui);
     const full = group.slots.length >= GROUP_SIZE;
     const canTake = ui.editable && !!ui.selected && !group.slots.some((s) => s.userId === ui.selected);
     return (
-        <section className={`se-group${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={`Gruppe ${group.index}`}>
+        <section className={`se-group${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={t("setup.group.title", { index: group.index })}>
             <header className="se-group-head">
-                <span className="se-group-title">Gruppe {group.index}</span>
+                <span className="se-group-title">{t("setup.group.title", { index: group.index })}</span>
                 <span className="se-group-buffs">
                     {buffs.map((b) => (
-                        <span key={b.key} className="se-buff" data-tip={b.label} data-tip-sub="Gruppen-Buff in dieser Gruppe">
+                        <span key={b.key} className="se-buff" data-tip={b.label} data-tip-sub={t("setup.group.buffSub")}>
                             <WowIcon name={b.icon} size={18} />
                         </span>
                     ))}
@@ -188,35 +213,37 @@ function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs: { key
             <div className="se-slots">
                 {group.slots.map((p) => <Slot key={p.userId} p={p} ui={ui} />)}
                 {canTake && !full && (
-                    <button type="button" className="se-here" onClick={() => ui.onDrop({ group: group.index })}>Hierher</button>
+                    <button type="button" className="se-here" onClick={() => ui.onDrop({ group: group.index })}>{t("setup.group.here")}</button>
                 )}
-                {!group.slots.length && !canTake && <span className="se-empty">leer</span>}
+                {!group.slots.length && !canTake && <span className="se-empty">{t("setup.group.empty")}</span>}
             </div>
         </section>
     );
 }
 
 function BenchCard({ bench, ui }: { bench: SetupPerson[]; ui: Interaction }) {
+    const t = useT();
     const zone = useZone({ bench: true }, ui);
     const canTake = ui.editable && !!ui.selected && !bench.some((b) => b.userId === ui.selected);
     return (
-        <section className={`se-bench${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label="Ersatzbank">
+        <section className={`se-bench${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={t("setup.bench.aria")}>
             <header className="se-group-head">
-                <span className="se-group-title">Bank</span>
+                <span className="se-group-title">{t("setup.bench.title")}</span>
                 <span className="se-count">{bench.length}</span>
             </header>
             <div className="se-slots">
                 {bench.map((p) => <Slot key={p.userId} p={p} ui={ui} />)}
-                {canTake && <button type="button" className="se-here" onClick={() => ui.onDrop({ bench: true })}>Auf die Bank</button>}
-                {!bench.length && !canTake && <span className="se-empty">niemand</span>}
+                {canTake && <button type="button" className="se-here" onClick={() => ui.onDrop({ bench: true })}>{t("setup.bench.here")}</button>}
+                {!bench.length && !canTake && <span className="se-empty">{t("setup.bench.empty")}</span>}
             </div>
         </section>
     );
 }
 
 function Stat({ label, value, target, ok, tip }: { label: string; value: number; target: string; ok: boolean; tip: string }) {
+    const t = useT();
     return (
-        <div className={`se-stat${ok ? "" : " se-off"}`} data-tip={`${label}: ${value}${target ? ` von ${target}` : ""}`} data-tip-sub={tip}>
+        <div className={`se-stat${ok ? "" : " se-off"}`} data-tip={target ? t("setup.summary.statTipTarget", { label, value, target }) : t("setup.summary.statTip", { label, value })} data-tip-sub={tip}>
             <span className="se-stat-v">{value}{target && <small>/{target}</small>}</span>
             <span className="kicker">{label}</span>
         </div>
@@ -230,6 +257,7 @@ function Summary({ data, setup, busy, onFairness, onWeights }: {
     onFairness: (on: boolean) => void;
     onWeights: () => void;
 }) {
+    const t = useT();
     const { checks } = setup;
     const roles = checks.roles || {};
     const tank = roles.tank || { count: 0, min: 0, max: 0, ok: true };
@@ -242,41 +270,47 @@ function Summary({ data, setup, busy, onFairness, onWeights }: {
     const fairness = typeof setup.options?.fairness === "boolean" ? setup.options.fairness : data.event.fairness;
     const wishesOn = typeof setup.options?.wishes === "boolean" ? setup.options.wishes : data.event.wishes;
     const buffTip = [
-        checks.buffs.required.length ? `Pflicht: ${checks.buffs.required.map((b) => `${b.present ? "✓" : "–"} ${b.label}`).join(", ")}` : "Keine Pflicht-Buffs in der Raid-Vorlage.",
-        missingRaid.length ? `Bringt niemand mit: ${missingRaid.map((b) => b.label).join(", ")}` : "Alle Raid-Buffs sind da.",
+        checks.buffs.required.length
+            ? t("setup.summary.required", { list: checks.buffs.required.map((b) => `${b.present ? "✓" : "–"} ${b.label}`).join(", ") })
+            : t("setup.summary.noRequired"),
+        missingRaid.length ? t("setup.summary.missingRaid", { list: missingRaid.map((b) => b.label).join(", ") }) : t("setup.summary.allRaid"),
     ].join("\n");
     return (
-        <aside className="se-side" aria-label="Zusammenfassung">
+        <aside className="se-side" aria-label={t("setup.summary.aria")}>
             <div className="se-stats">
-                <Stat label="Tanks" value={tank.count} target={roleTarget(tank)} ok={tank.ok} tip="Soll aus dem Event-Plan." />
-                <Stat label="Heiler" value={healer.count} target={roleTarget(healer)} ok={healer.ok} tip="Soll aus dem Event-Plan." />
+                <Stat label={rolePluralLabel("tank")} value={tank.count} target={roleTarget(tank)} ok={tank.ok} tip={t("setup.summary.planTip")} />
+                <Stat label={rolePluralLabel("healer")} value={healer.count} target={roleTarget(healer)} ok={healer.ok} tip={t("setup.summary.planTip")} />
                 <Stat
-                    label="DD" value={dps.count} target={dpsTarget ? String(dpsTarget) : ""} ok={dps.ok && dps.count >= dpsTarget}
-                    tip={`Nahkampf ${roles.melee?.count || 0} · Fernkampf ${roles.ranged?.count || 0}`}
+                    label={t("setup.summary.dps")} value={dps.count} target={dpsTarget ? String(dpsTarget) : ""} ok={dps.ok && dps.count >= dpsTarget}
+                    tip={t("setup.summary.dpsTip", { melee: roles.melee?.count || 0, ranged: roles.ranged?.count || 0 })}
                 />
             </div>
             <div className="se-side-row">
-                <span className="kicker">Buffs</span>
+                <span className="kicker">{t("setup.summary.buffs")}</span>
                 {missingRequired.length
-                    ? <Badge tone="bad" tip="Pflicht-Buff fehlt" tipSub={buffTip}>{missingRequired.length} Pflicht fehlt</Badge>
-                    : <Badge tone={missingRaid.length ? "mid" : "ok"} tip="Buffs" tipSub={buffTip}>{missingRaid.length ? `${missingRaid.length} Raid-Buff fehlt` : "vollständig"}</Badge>}
+                    ? <Badge tone="bad" tip={t("setup.summary.requiredMissingTip")} tipSub={buffTip}>{t("setup.summary.requiredMissing", { count: missingRequired.length })}</Badge>
+                    : (
+                        <Badge tone={missingRaid.length ? "mid" : "ok"} tip={t("setup.summary.buffs")} tipSub={buffTip}>
+                            {missingRaid.length ? t("setup.summary.raidMissing", { count: missingRaid.length }) : t("setup.summary.complete")}
+                        </Badge>
+                    )}
             </div>
             <div className="se-side-row">
-                <span className="kicker" data-tip="Fairness" data-tip-sub="Wer zuletzt auf der Bank saß, kommt beim nächsten Vorschlag eher mit.">Fairness</span>
+                <span className="kicker" data-tip={t("setup.summary.fairness")} data-tip-sub={t("setup.summary.fairnessSub")}>{t("setup.summary.fairness")}</span>
                 <label className="switch">
-                    <input type="checkbox" checked={fairness} disabled={busy} onChange={() => onFairness(!fairness)} aria-label="Fairness beim Vorschlag berücksichtigen" />
+                    <input type="checkbox" checked={fairness} disabled={busy} onChange={() => onFairness(!fairness)} aria-label={t("setup.summary.fairnessAria")} />
                     <span className="switch-track"><span className="switch-thumb" /></span>
                 </label>
             </div>
             <div className="se-side-row">
-                <span className="kicker">Wünsche</span>
+                <span className="kicker">{t("setup.summary.wishes")}</span>
                 {wishesOn
-                    ? <span className="se-side-v" data-tip="Wünsche erfüllt" data-tip-sub="„Gerne zusammen mit“-Paare in derselben Gruppe. Nur für die Orga sichtbar.">{checks.wishes.met}<small>/{checks.wishes.total}</small></span>
-                    : <span className="se-side-off" data-tip="Wünsche aus" data-tip-sub="Für dieses Event werden Wünsche nicht berücksichtigt.">aus</span>}
+                    ? <span className="se-side-v" data-tip={t("setup.summary.wishesMet")} data-tip-sub={t("setup.summary.wishesMetSub")}>{checks.wishes.met}<small>/{checks.wishes.total}</small></span>
+                    : <span className="se-side-off" data-tip={t("setup.summary.wishesOff")} data-tip-sub={t("setup.summary.wishesOffSub")}>{t("setup.summary.off")}</span>}
             </div>
-            <button type="button" className="se-weights-btn" onClick={onWeights} disabled={busy}>Gewichte…</button>
+            <button type="button" className="se-weights-btn" onClick={onWeights} disabled={busy}>{t("setup.summary.weights")}</button>
             {!!setup.warnings.length && (
-                <Badge tone="mid" tip="Hinweise" tipSub={setup.warnings.join("\n")}>{setup.warnings.length} Hinweis{setup.warnings.length === 1 ? "" : "e"}</Badge>
+                <Badge tone="mid" tip={t("setup.summary.hintsTip")} tipSub={setup.warnings.join("\n")}>{t("setup.summary.hints", { count: setup.warnings.length })}</Badge>
             )}
         </aside>
     );
@@ -289,6 +323,7 @@ function WeightsModal({ open, onClose, data, setup, onApply }: {
     setup: StoredSetup;
     onApply: (weights: Record<string, number>) => void;
 }) {
+    const t = useT();
     const defaults = data.defaults?.weights || {};
     const max = data.defaults?.maxWeight || 500;
     const [values, setValues] = useState<Record<string, number>>({});
@@ -299,17 +334,17 @@ function WeightsModal({ open, onClose, data, setup, onApply }: {
     const changed = Object.fromEntries(Object.entries(values).filter(([k, v]) => defaults[k] !== v));
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_gear_01" tone="raids" kicker="Setup-Vorschlag" title="Gewichte" width={520}
-            hint="Wirkt beim nächsten Vorschlag. Rollen und Raidgröße gehen immer vor."
+            open={open} onClose={onClose} icon="inv_misc_gear_01" tone="raids" kicker={t("setup.weightsModal.kicker")} title={t("setup.weightsModal.title")} width={520}
+            hint={t("setup.weightsModal.hint")}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={() => setValues({ ...defaults })}>Standard</Button>
-                    <Button icon="spell_holy_borrowedtime" onClick={() => onApply(changed)}>Neu vorschlagen</Button>
+                    <Button variant="ghost" onClick={() => setValues({ ...defaults })}>{t("setup.weightsModal.defaults")}</Button>
+                    <Button icon="spell_holy_borrowedtime" onClick={() => onApply(changed)}>{t("setup.weightsModal.repropose")}</Button>
                 </>
             )}
         >
             <div className="se-weights">
-                {WEIGHT_LABELS.map((w) => (
+                {weightLabels().map((w) => (
                     <label key={w.key} className="se-weight">
                         <span className="se-weight-label" data-tip={w.label} data-tip-sub={w.tip}>{w.label}</span>
                         <input
@@ -333,19 +368,20 @@ function ExplainModal({ open, onClose, ctx, data, setup, onDone }: {
     setup: StoredSetup;
     onDone: () => void;
 }) {
+    const t = useT();
     const jobs = useJobs();
     const [running, setRunning] = useState(false);
     const explanation = setup.explanation;
     const outdated = !!explanation && explanation.version !== setup.version;
     const start = async () => {
         setRunning(true);
-        await jobs.run({ label: "KI-Begründung", detail: data.event.title, icon: "inv_scroll_03", expectedSeconds: 30 }, async () => {
+        await jobs.run({ label: t("setup.explain.title"), detail: data.event.title, icon: "inv_scroll_03", expectedSeconds: 30 }, async () => {
             await explainRaidSetup(ctx.csrfToken, ctx.eventId);
             for (;;) {
                 await new Promise((r) => setTimeout(r, 2000));
                 const state = await getRaidSetupExplain(ctx.eventId);
                 if (!state.job || state.job.status === "done") return state;
-                if (state.job.status === "error") throw new Error(state.job.error || "KI-Begründung fehlgeschlagen.");
+                if (state.job.status === "error") throw new Error(state.job.error || t("setup.explain.failed"));
             }
         });
         setRunning(false);
@@ -353,24 +389,24 @@ function ExplainModal({ open, onClose, ctx, data, setup, onDone }: {
     };
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_scroll_03" tone="raids" kicker="Setup · nur für die Orga" title="KI-Begründung" width={640}
-            hint="Erklärt nur – das Setup ändert sich dadurch nie."
+            open={open} onClose={onClose} icon="inv_scroll_03" tone="raids" kicker={t("setup.explain.kicker")} title={t("setup.explain.title")} width={640}
+            hint={t("setup.explain.hint")}
             footer={data.hasApiKey
-                ? <Button variant="run" icon="spell_holy_borrowedtime" running={running} onClick={start}>{explanation ? "Neu erstellen" : "Erstellen"}</Button>
-                : <Link className="btn btn-ghost" to="/settings?section=verbindungen">Schlüssel hinterlegen</Link>}
+                ? <Button variant="run" icon="spell_holy_borrowedtime" running={running} onClick={start}>{explanation ? t("setup.explain.recreate") : t("setup.explain.create")}</Button>
+                : <Link className="btn btn-ghost" to="/settings?section=verbindungen">{t("setup.explain.addKey")}</Link>}
         >
-            {!data.hasApiKey && <p className="se-note">Ohne Anthropic-Schlüssel (Einstellungen › Verbindungen) gibt es keine KI-Begründung.</p>}
+            {!data.hasApiKey && <p className="se-note">{t("setup.explain.noKey")}</p>}
             {explanation
                 ? (
                     <div className="se-explain">
                         <div className="se-explain-meta">
-                            <Badge tone={outdated ? "mid" : "ok"}>{outdated ? `zu Version ${explanation.version} – veraltet` : `Version ${explanation.version}`}</Badge>
+                            <Badge tone={outdated ? "mid" : "ok"}>{outdated ? t("setup.explain.outdated", { version: explanation.version }) : t("setup.explain.version", { version: explanation.version })}</Badge>
                             <span className="kicker">{dateTime(explanation.at)}</span>
                         </div>
                         <div className="se-explain-text">{explanation.text}</div>
                     </div>
                 )
-                : data.hasApiKey && <p className="se-note">Noch keine Begründung für dieses Setup.</p>}
+                : data.hasApiKey && <p className="se-note">{t("setup.explain.none")}</p>}
         </Modal>
     );
 }
@@ -379,7 +415,7 @@ const clock = (ms: number) => {
     if (!ms) return "";
     const d = new Date(ms);
     const sameDay = d.toDateString() === new Date().toDateString();
-    return d.toLocaleString("de-DE", sameDay
+    return d.toLocaleString(locale(), sameDay
         ? { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit" }
         : { timeZone: "Europe/Berlin", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 };
@@ -395,6 +431,7 @@ function PublishLine({ data, setup, busy, posting, onPost }: {
     posting: boolean;
     onPost: () => void;
 }) {
+    const t = useT();
     const hint = publishHint(data.publish, setup.status === "approved", clock);
     if (!hint) return null;
     return (
@@ -402,16 +439,16 @@ function PublishLine({ data, setup, busy, posting, onPost }: {
             <WowIcon name="inv_letter_15" size={18} />
             <span className="se-publish-text" data-tip={hint.tip} data-tip-sub={hint.sub}>{hint.text}</span>
             {!data.publish?.dmsEnabled && !hint.canPost && !data.publish?.cancelled && (
-                <Link className="se-publish-link" to="/settings?section=kategorien">DMs einschalten</Link>
+                <Link className="se-publish-link" to="/settings?section=kategorien">{t("setup.publishLine.enableDms")}</Link>
             )}
             {hint.canPost && (
                 <Button
                     variant="ghost" size="sm" icon="inv_letter_15" running={posting || hint.running} disabled={busy}
-                    data-tip="Setup posten"
-                    data-tip-sub="Postet das freigegebene Setup in den Event-Kanal oder aktualisiert die Nachricht dort und schickt DMs, die noch fehlen. Ein Entwurf wird nie gepostet."
+                    data-tip={t("setup.publishLine.post")}
+                    data-tip-sub={t("setup.publishLine.postSub")}
                     onClick={onPost}
                 >
-                    Setup posten
+                    {t("setup.publishLine.post")}
                 </Button>
             )}
         </div>
@@ -420,9 +457,10 @@ function PublishLine({ data, setup, busy, posting, onPost }: {
 
 /** The approved lineup, read-only — what someone without write access sees. */
 function ReadOnly({ data }: { data: SetupEditorData }) {
+    const t = useT();
     const approved = data.approved;
     const ui: Interaction = { editable: false, selected: null, dragging: null, onPick: () => {}, onDrop: () => {}, onDrag: () => {}, onLock: () => {} };
-    if (!approved) return <p className="rd-empty">Das Setup ist noch nicht freigegeben.</p>;
+    if (!approved) return <p className="rd-empty">{t("setup.readOnly.notApproved")}</p>;
     const groupCount = Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE));
     return (
         <div className="se-layout se-readonly">
@@ -435,6 +473,7 @@ function ReadOnly({ data }: { data: SetupEditorData }) {
 }
 
 export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
+    const t = useT();
     const jobs = useJobs();
     const ask = useConfirm();
     const [data, setData] = useState<SetupEditorData | null>(null);
@@ -514,7 +553,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
                 }
             } catch (e) {
                 saving.current = 0;
-                jobs.notify((e as ApiError).message || "Speichern fehlgeschlagen.", "err");
+                jobs.notify((e as ApiError).message || t("setup.editor.saveFailed"), "err");
                 load();
             }
         });
@@ -542,7 +581,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         setBusy(true);
         setDialog(null);
         await chain.current;
-        const next = await jobs.run({ label: "Setup-Vorschlag", detail: data?.event.title || "", icon: "inv_misc_map_01", quiet: true }, () => (
+        const next = await jobs.run({ label: t("setup.editor.proposalJob"), detail: data?.event.title || "", icon: "inv_misc_map_01", quiet: true }, () => (
             proposeRaidSetup(ctx.csrfToken, ctx.eventId, weights ? { weights } : {})
         ));
         setBusy(false);
@@ -553,9 +592,9 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         if (!setup) return;
         if (!setup.checks.ok) {
             const okay = await ask({
-                title: "Trotzdem freigeben?",
-                text: "Das Setup erfüllt nicht alle Prüfungen (Rollen, Größe oder Pflicht-Buffs). Raider sehen es nach der Freigabe so, wie es ist.",
-                action: "Freigeben",
+                title: t("setup.editor.approveAnywayTitle"),
+                text: t("setup.editor.approveAnywayText"),
+                action: t("setup.editor.approve"),
                 icon: "inv_misc_map_01",
             });
             if (!okay) return;
@@ -567,7 +606,7 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
             const next = await approveRaidSetup(ctx.csrfToken, ctx.eventId, confirmedVersion.current);
             accept(next, next.message);
         } catch (e) {
-            jobs.notify((e as ApiError).message || "Freigabe fehlgeschlagen.", "err");
+            jobs.notify((e as ApiError).message || t("setup.editor.approveFailed"), "err");
             load();
         } finally {
             setBusy(false);
@@ -581,15 +620,15 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
             const next = await publishRaidSetup(ctx.csrfToken, ctx.eventId);
             accept(next, next.message);
         } catch (e) {
-            jobs.notify((e as ApiError).message || "Posten fehlgeschlagen.", "err");
+            jobs.notify((e as ApiError).message || t("setup.editor.postFailed"), "err");
             load();
         } finally {
             setPosting(false);
         }
     };
 
-    if (error) return <div className="empty">Setup nicht geladen: {error.message}</div>;
-    if (!data) return <RaidLoader text="Setup wird geladen" compact />;
+    if (error) return <div className="empty">{t("setup.editor.loadFailed", { message: error.message })}</div>;
+    if (!data) return <RaidLoader text={t("setup.editor.loading")} compact />;
     if (!data.canWrite) return <ReadOnly data={data} />;
 
     if (!setup) {
@@ -597,10 +636,16 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
             <div className="se-start">
                 <WowIcon name="inv_misc_map_01" size={40} />
                 <div>
-                    <div className="se-start-title">Noch kein Setup</div>
-                    <div className="se-start-sub">{data.signupCount || 0} angemeldet{data.absent ? ` · ${data.absent} abgemeldet` : ""} · {data.event.size} Plätze</div>
+                    <div className="se-start-title">{t("setup.editor.noSetup")}</div>
+                    <div className="se-start-sub">
+                        {[
+                            t("setup.editor.signedUp", { count: data.signupCount || 0 }),
+                            data.absent ? t("setup.editor.absent", { count: data.absent }) : "",
+                            t("setup.editor.places", { count: data.event.size }),
+                        ].filter(Boolean).join(" · ")}
+                    </div>
                 </div>
-                <Button icon="spell_holy_borrowedtime" running={busy} disabled={!data.signupCount} onClick={() => propose()}>Vorschlag erstellen</Button>
+                <Button icon="spell_holy_borrowedtime" running={busy} disabled={!data.signupCount} onClick={() => propose()}>{t("setup.editor.createProposal")}</Button>
             </div>
         );
     }
@@ -615,16 +660,25 @@ export default function SetupEditor({ ctx }: { ctx: RaidCtx }) {
         <div className="se-editor">
             <div className="se-bar">
                 <StatusBadge setup={setup} />
-                <Badge tone={size.ok ? undefined : "mid"} tip="Plätze" tipSub={`${size.count} von ${size.size} Plätzen besetzt · ${setup.bench.length} auf der Bank`}>{size.count}/{size.size} Plätze</Badge>
-                {lockedCount > 0 && <Badge tone="accent" icon={<LockIcon />} tip="Fixiert" tipSub="Diese Plätze behält ein neuer Vorschlag.">{lockedCount} fixiert</Badge>}
+                <Badge
+                    tone={size.ok ? undefined : "mid"} tip={t("setup.editor.placesTip")}
+                    tipSub={t("setup.editor.placesSub", { count: size.count, size: size.size, bench: setup.bench.length })}
+                >
+                    {t("setup.editor.placesBadge", { count: size.count, size: size.size })}
+                </Badge>
+                {lockedCount > 0 && (
+                    <Badge tone="accent" icon={<LockIcon />} tip={t("setup.editor.lockedTip")} tipSub={t("setup.editor.lockedSub")}>
+                        {t("setup.editor.locked", { count: lockedCount })}
+                    </Badge>
+                )}
                 <span className="se-bar-hint">
-                    {selected ? "Ziel wählen – Gruppe, Bank oder Raider · Esc" : "Ziehen oder anklicken zum Umstellen"}
+                    {selected ? t("setup.editor.pickTarget") : t("setup.editor.dragHint")}
                 </span>
                 <div className="se-bar-act">
-                    <Button variant="ghost" size="sm" icon="inv_scroll_03" onClick={() => setDialog("explain")}>KI-Begründung</Button>
-                    <Button variant="ghost" size="sm" icon="spell_holy_borrowedtime" disabled={busy} onClick={() => propose()}>Neu vorschlagen</Button>
+                    <Button variant="ghost" size="sm" icon="inv_scroll_03" onClick={() => setDialog("explain")}>{t("setup.editor.explain")}</Button>
+                    <Button variant="ghost" size="sm" icon="spell_holy_borrowedtime" disabled={busy} onClick={() => propose()}>{t("setup.editor.repropose")}</Button>
                     <Button size="sm" icon="achievement_guildperk_everybodysfriend" disabled={busy || setup.status === "approved"} onClick={approve}>
-                        {setup.status === "approved" ? "Freigegeben" : "Freigeben"}
+                        {setup.status === "approved" ? t("setup.editor.approved") : t("setup.editor.approve")}
                     </Button>
                 </div>
             </div>

@@ -19,6 +19,7 @@ import { classColorProps } from "../../components/ClassSpec";
 import { reasonToneClass } from "../../components/LootBadges";
 import { LOOT_TOOL_LABELS, type RaidCtx } from "./meta";
 import SpecTile from "./SpecTile";
+import { locale, t, useT } from "../../i18n";
 
 type GroupBy = "character" | "boss";
 
@@ -27,33 +28,34 @@ type GroupBy = "character" | "boss";
 const ASIDE_REASONS = new Set(["disenchant", "bank"]);
 const COUNTING_REASONS = new Set(["bis", "mainspec", "upgrade", "minor", "other"]);
 
-const itemLabel = (it: LootItem) => it.itemName || `Item ${it.itemId}`;
+const itemLabel = (it: LootItem) => it.itemName || t("raidDetail.loot.itemFallback", { id: it.itemId });
 const reasonText = (it: LootItem) => it.response || it.reasonLabel || (it.offspec ? "Offspec" : "Mainspec");
 
 type Group = { key: string; title: string; aside?: boolean; items: LootItem[]; head?: LootItem };
 
 function buildGroups(items: LootItem[], by: GroupBy): Group[] {
     const map = new Map<string, Group>();
-    const aside: Group = { key: "__aside", title: "Entzaubert & Bank", aside: true, items: [] };
+    const aside: Group = { key: "__aside", title: t("raidDetail.loot.aside"), aside: true, items: [] };
     for (const it of items) {
         if (by === "character" && ASIDE_REASONS.has(it.reason)) { aside.items.push(it); continue; }
         const key = by === "character" ? it.character.toLowerCase() : (it.boss || "");
-        const title = by === "character" ? it.character : (it.boss || "Ohne Boss");
+        const title = by === "character" ? it.character : (it.boss || t("raidDetail.loot.noBoss"));
         if (!map.has(key)) map.set(key, { key, title, items: [], head: it });
         map.get(key)!.items.push(it);
     }
-    const groups = [...map.values()].sort((a, b) => b.items.length - a.items.length || a.title.localeCompare(b.title, "de"));
+    const groups = [...map.values()].sort((a, b) => b.items.length - a.items.length || a.title.localeCompare(b.title, locale()));
     return aside.items.length ? [...groups, aside] : groups;
 }
 
 function ReasonBadge({ it }: { it: LootItem }) {
+    const t = useT();
     const label = reasonText(it);
     const counts = COUNTING_REASONS.has(it.reason);
     return (
         <span
             className={reasonToneClass(it.reasonTone)}
             data-tip={it.reasonLabel && it.reasonLabel !== label ? `${label} · ${it.reasonLabel}` : label}
-            data-tip-sub={counts ? "Zählt im Loot-Council als Loot." : "Zählt im Loot-Council nicht als Loot, weil es dem Main-Set nichts bringt."}
+            data-tip-sub={counts ? t("raidDetail.loot.counts") : t("raidDetail.loot.notCounts")}
         >
             {label}
         </span>
@@ -61,6 +63,7 @@ function ReasonBadge({ it }: { it: LootItem }) {
 }
 
 export default function LootTab({ ctx }: { ctx: RaidCtx }) {
+    const t = useT();
     const { data, csrfToken, onChanged, openModal } = ctx;
     const ask = useConfirm();
     const [groupBy, setGroupBy] = usePersistedState<GroupBy>("raid-detail-loot-group", "character");
@@ -99,11 +102,11 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
     const lastImport = items.reduce((max, it) => Math.max(max, it.awardedAt || 0), 0);
 
     const removeItem = async (it: LootItem) => {
-        if (!(await ask({ title: "Loot-Eintrag löschen?", text: `„${itemLabel(it)}“ von ${it.character} wird aus dem Loot gelöscht.`, action: "Löschen" }))) return;
+        if (!(await ask({ title: t("raidDetail.loot.deleteTitle"), text: t("raidDetail.loot.deleteText", { item: itemLabel(it), character: it.character }), action: t("raidDetail.loot.deleteAction") }))) return;
         setBusyId(it.id);
         try {
             await deleteLootItems(csrfToken, [it.id]);
-            onChanged(`„${itemLabel(it)}“ gelöscht.`);
+            onChanged(t("raidDetail.loot.deleted", { item: itemLabel(it) }));
         } catch (err) {
             onChanged((err as ApiError).message);
         } finally {
@@ -112,11 +115,11 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
     };
 
     const clearAll = async () => {
-        if (!(await ask({ title: "Loot dieses Raids löschen?", text: `Alle ${items.length} Loot-Einträge dieses Raids werden gelöscht. Ein erneuter Import bringt sie zurück, nachgetragene Items nicht.`, action: "Alles löschen" }))) return;
+        if (!(await ask({ title: t("raidDetail.loot.clearTitle"), text: t("raidDetail.loot.clearText", { count: items.length }), action: t("raidDetail.loot.clearAction") }))) return;
         setClearing(true);
         try {
             const r = await clearHistoryEvent(csrfToken, ctx.eventId);
-            onChanged(`${r.removed} Loot-Einträge gelöscht.`);
+            onChanged(t("raidDetail.loot.cleared", { count: r.removed }));
         } catch (err) {
             onChanged((err as ApiError).message);
         } finally {
@@ -125,37 +128,39 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
     };
 
     const crumb = items.length
-        ? `${items.length} Items an ${raiders} Raider${lastImport ? ` · zuletzt vergeben ${fmtMs(lastImport)}` : ""}`
-        : "Noch kein Loot für diesen Raid";
+        ? (lastImport
+            ? t("raidDetail.loot.crumbLast", { items: items.length, raiders, date: fmtMs(lastImport) })
+            : t("raidDetail.loot.crumb", { items: items.length, raiders }))
+        : t("raidDetail.loot.crumbEmpty");
 
     return (
         <section className="panel rd-panel">
             <PartHead
                 icon="inv_misc_bag_10"
                 tone="history"
-                title="Loot"
+                title={t("raidDetail.loot.title")}
                 crumb={crumb}
-                action={<Button size="sm" icon="inv_misc_bag_10" onClick={() => openModal("loot")}>Loot hinzufügen</Button>}
+                action={<Button size="sm" icon="inv_misc_bag_10" onClick={() => openModal("loot")}>{t("raidDetail.loot.add")}</Button>}
             />
 
             {!items.length ? (
-                <p className="rd-empty">Nach dem Raid den Gargul- oder RCLootcouncil-Export importieren oder einzelne Items nachtragen.</p>
+                <p className="rd-empty">{t("raidDetail.loot.empty")}</p>
             ) : (
                 <>
                     <div className="rd-toolbar">
                         <Segment<GroupBy>
-                            ariaLabel="Loot gruppieren"
+                            ariaLabel={t("raidDetail.loot.groupAria")}
                             size="sm"
                             value={groupBy}
                             onChange={(v) => { setGroupBy(v); setOpenKeys(null); }}
                             options={[
-                                { value: "character", label: "Nach Raider", icon: "achievement_guildperk_everybodysfriend" },
-                                { value: "boss", label: "Nach Boss", icon: "achievement_boss_illidan" },
+                                { value: "character", label: t("raidDetail.loot.byRaider"), icon: "achievement_guildperk_everybodysfriend" },
+                                { value: "boss", label: t("raidDetail.loot.byBoss"), icon: "achievement_boss_illidan" },
                             ]}
                         />
                         <label className="rd-search">
                             <SearchIcon />
-                            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Item oder Raider suchen …" aria-label="Item oder Raider suchen" />
+                            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("raidDetail.loot.searchPlaceholder")} aria-label={t("raidDetail.loot.searchAria")} />
                         </label>
                         <span className="rd-reasons">
                             {reasonCounts.map((r) => (
@@ -166,7 +171,7 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
 
                     <div className="rd-glist rd-loot">
                         <div className="rd-loot-row rd-loot-th" aria-hidden="true">
-                            <span>Item</span><span>{groupBy === "character" ? "Boss" : "Raider"}</span><span>Grund</span><span>Zeit</span><span>Quelle</span><span />
+                            <span>{t("raidDetail.loot.colItem")}</span><span>{groupBy === "character" ? t("raidDetail.loot.colBoss") : t("raidDetail.loot.colRaider")}</span><span>{t("raidDetail.loot.colReason")}</span><span>{t("raidDetail.loot.colTime")}</span><span>{t("raidDetail.loot.colSource")}</span><span />
                         </div>
                         {groups.map((g) => {
                             const open = isOpen(g.key);
@@ -201,11 +206,11 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
                                                 {groupBy === "character" ? (it.boss || "—") : <span {...classColorProps(it.classColor)}>{it.character}</span>}
                                             </span>
                                             <span><ReasonBadge it={it} /></span>
-                                            <span className="rd-mono" data-tip={fmtMs(it.awardedAt)}>{it.awardedAt ? new Date(it.awardedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" }) : "—"}</span>
+                                            <span className="rd-mono" data-tip={fmtMs(it.awardedAt)}>{it.awardedAt ? new Date(it.awardedAt).toLocaleTimeString(locale(), { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" }) : "—"}</span>
                                             <span><Badge>{LOOT_TOOL_LABELS[it.source] || it.source || "?"}</Badge></span>
                                             <IconButton
                                                 size="sm" tone="danger" icon={<TrashIcon />}
-                                                tip="Eintrag löschen" tipSub={`„${itemLabel(it)}“ von ${it.character}`}
+                                                tip={t("raidDetail.loot.deleteEntry")} tipSub={t("raidDetail.loot.entrySub", { item: itemLabel(it), character: it.character })}
                                                 disabled={busyId === it.id} onClick={() => removeItem(it)}
                                             />
                                         </div>
@@ -213,12 +218,12 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
                                 </div>
                             );
                         })}
-                        {!groups.length && <p className="rd-empty" style={{ padding: 14 }}>Kein Treffer für „{query}“.</p>}
+                        {!groups.length && <p className="rd-empty" style={{ padding: 14 }}>{t("raidDetail.loot.noHit", { query })}</p>}
                     </div>
 
                     <div className="rd-foot">
-                        <span className="rd-muted">{groups.length} {groupBy === "character" ? "Gruppen" : "Bosse"} · aufklappen mit „Details“</span>
-                        <Button variant="danger" size="sm" icon={<TrashIcon />} running={clearing} onClick={clearAll}>Loot dieses Raids löschen</Button>
+                        <span className="rd-muted">{groupBy === "character" ? t("raidDetail.loot.footGroups", { count: groups.length }) : t("raidDetail.loot.footBosses", { count: groups.length })}</span>
+                        <Button variant="danger" size="sm" icon={<TrashIcon />} running={clearing} onClick={clearAll}>{t("raidDetail.loot.clearButton")}</Button>
                     </div>
                 </>
             )}

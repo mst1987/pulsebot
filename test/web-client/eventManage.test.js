@@ -192,7 +192,8 @@ describe("the raid detail page", () => {
         expect(move).toContain("getMovePreview(eventId, date, time)");
         expect(move).toContain("moveChannelText(plan, rename)");
         expect(move).toContain("disabled={!plan || loading}");
-        expect(move).toContain("label=\"Kanal umbenennen\"");
+        expect(move).toContain("label={t(\"raidManage.move.rename\")}");
+        expect(require("./i18nHelper").makeT("de")("raidManage.move.rename")).toBe("Kanal umbenennen");
     });
 
     it("wants a reason to cancel, says who gets a DM, and offers the archive only when one exists", () => {

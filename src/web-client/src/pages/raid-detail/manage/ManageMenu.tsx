@@ -12,10 +12,12 @@ import { manageMenu, type ManageAction, type ManageState } from "../../../lib/ev
 import { Button } from "../../../components/ui/Button";
 import WowIcon from "../../../components/ui/WowIcon";
 import { ChevronDownIcon } from "../../../components/icons";
+import { useT } from "../../../i18n";
 
 type Place = { top: number; right: number };
 
 export default function ManageMenu({ state, onAction }: { state: ManageState; onAction: (action: ManageAction) => void }) {
+    const t = useT();
     const [open, setOpen] = useState(false);
     const [place, setPlace] = useState<Place | null>(null);
     const anchor = useRef<HTMLDivElement>(null);
@@ -60,11 +62,11 @@ export default function ManageMenu({ state, onAction }: { state: ManageState; on
             <Button
                 variant="ghost" icon="inv_misc_note_05" aria-haspopup="menu" aria-expanded={open}
                 className={open ? "em-open" : undefined}
-                data-tip={open ? undefined : "Event verwalten"}
-                data-tip-sub={open ? undefined : "Verschieben, Anmeldung schließen, Raider eintragen, Anmelde-Aufruf, Raidsheet, Softres, absagen"}
+                data-tip={open ? undefined : t("raidDetail.manage.tip")}
+                data-tip-sub={open ? undefined : t("raidDetail.manage.tipSub")}
                 onClick={() => setOpen((o) => !o)}
             >
-                Verwalten<span className="em-chev" aria-hidden="true"><ChevronDownIcon /></span>
+                {t("raidDetail.manage.button")}<span className="em-chev" aria-hidden="true"><ChevronDownIcon /></span>
             </Button>
             {open && place && createPortal(
                 <div className="em-pop" role="menu" ref={pop} style={{ top: place.top, right: place.right }}>

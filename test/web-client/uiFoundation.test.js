@@ -185,8 +185,8 @@ describe("confirm dialog instead of window.confirm", () => {
     it("turns the unfinished-raid refusal into the dialog", () => {
         const lib = read("lib", "confirmIncomplete.ts");
         expect(lib).toContain("export async function withIncompleteConfirm<T>(ask: ConfirmFn, run: (force: boolean) => Promise<T>)");
-        expect(lib).toContain("title: \"Raid noch nicht abgeschlossen\"");
-        expect(lib).toContain("action: \"Trotzdem auswerten\"");
+        expect(lib).toContain("title: t(\"jobs.incomplete.title\")");
+        expect(lib).toContain("action: t(\"jobs.incomplete.action\")");
         for (const [name, src] of clientSources()) {
             for (const [call] of src.matchAll(/withIncompleteConfirm\([^,)]*/g)) {
                 if (name === "lib/confirmIncomplete.ts") continue;

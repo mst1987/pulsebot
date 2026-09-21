@@ -7,6 +7,9 @@
 const fs = require("fs");
 const path = require("path");
 const { SIGNUP_STATUSES } = require("../../src/utils/attendance");
+const { makeT } = require("./i18nHelper");
+
+const de = makeT("de");
 
 const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8");
@@ -68,7 +71,8 @@ describe("SignupsPage", () => {
     });
 
     it("uses the shared blocks, a loader while waiting and its own stylesheet", () => {
-        expect(page).toMatch(/<PageHead[\s\S]*tone="signups"[\s\S]*title="Anmeldungen"/);
+        expect(page).toMatch(/<PageHead[\s\S]*tone="signups"[\s\S]*title=\{t\("signups\.page\.title"\)\}/);
+        expect(de("signups.page.title")).toBe("Anmeldungen");
         expect(page).toContain("<RaidLoader");
         expect(page).toContain("import \"../styles/anmeldung.css\";");
         for (const sel of css.replace(/\/\*[\s\S]*?\*\//g, "").match(/\.[a-z][\w-]*/g) || []) {
@@ -86,7 +90,8 @@ describe("SignupsPage", () => {
 
     it("links a Raid-Helper event to Discord instead of offering the dialog", () => {
         expect(page).toMatch(/\{own \? <OwnAction row=\{row\} onOpen=\{onOpen\} \/> : \(/);
-        expect(page).toContain("In Discord");
+        expect(page).toContain("t(\"signups.row.inDiscord\")");
+        expect(de("signups.row.inDiscord")).toBe("In Discord");
         expect(page).toContain("href={row.discordUrl}");
         // the dialog only ever opens for an own event
         expect(page).toMatch(/e\.id === openId && e\.source === "eventhelper"/);
@@ -101,21 +106,23 @@ describe("SignupsPage", () => {
 
 describe("SignupDialog", () => {
     it("offers every status the backend knows, in the member's words", () => {
-        for (const status of SIGNUP_STATUSES) expect(lib).toMatch(new RegExp(`\\b${status}: \\{ label: "`));
-        for (const label of ["Dabei", "Vielleicht", "Spät", "Bank", "Abmelden"]) expect(lib).toContain(`label: "${label}"`);
+        for (const status of SIGNUP_STATUSES) expect(lib).toContain(`get label() { return t("signups.status.${status}"); }`);
+        expect(["signed", "tentative", "late", "bench", "absence"].map((s) => de(`signups.status.${s}`)))
+            .toEqual(["Dabei", "Vielleicht", "Spät", "Bank", "Abmelden"]);
         expect(lib).toMatch(/SIGNUP_STATUS_ORDER: SignupStatus\[\] = \["signed", "tentative", "late", "bench", "absence"\]/);
     });
 
     it("disables what the deadline no longer allows", () => {
         expect(dialog).toContain("const allowed = row.allowedStatuses.includes(s);");
         expect(dialog).toMatch(/disabled=\{!allowed/);
-        expect(dialog).toContain("Anmeldeschluss vorbei");
+        expect(dialog).toContain("t(\"signups.dialog.deadlineHint\")");
+        expect(de("signups.dialog.deadlineHint")).toContain("Anmeldeschluss vorbei");
     });
 
     it("picks character and spec from the profile, the spec with its gear level", () => {
         expect(dialog).toMatch(/<SignupCharacterPicks\s+profile=\{profile\}/);
         expect(picksView).toContain("profile.characters.map((c) => <option");
-        expect(picksView).toMatch(/\{s\.label\} · \{GEAR_LABEL\[s\.gear\]/);
+        expect(picksView).toMatch(/\{specLabel\(s\.key, s\.label\)\} · \{GEAR_LABEL\[s\.gear\]/);
     });
 
     it("sends every picked character in priority order (#293)", () => {
@@ -123,15 +130,18 @@ describe("SignupDialog", () => {
         expect(dialog).toContain("initialPicks(profile, mine, open)");
         // numbered lines, the first the choice, arrows to reorder, at most three
         expect(picksView).toContain("an-rank-first");
-        expect(picksView).toContain("\"1. Wahl\" : \"Kann auch mit\"");
+        expect(picksView).toContain("t(\"signups.picks.firstChoice\") : t(\"signups.picks.canAlsoWith\")");
+        expect([de("signups.picks.firstChoice"), de("signups.picks.canAlsoWith")]).toEqual(["1. Wahl", "Kann auch mit"]);
         expect(picksView).toContain("movePick(picks, i, -1)");
         expect(picksView).toContain("movePick(picks, i, 1)");
-        expect(picksView).toContain("Die Orga stellt dich mit genau einem auf.");
+        expect(picksView).toContain("t(\"signups.picks.hint\")");
+        expect(de("signups.picks.hint")).toContain("Die Orga stellt dich mit genau einem auf.");
         expect(picksLib.MAX_CHARACTERS).toBe(require("../../src/web/signupCharacters").MAX_CHARACTERS);
     });
 
     it("prefills \"Ich kann auch\" from the profile and never offers the own role", () => {
-        expect(dialog).toContain("Ich kann auch");
+        expect(dialog).toContain("t(\"signups.dialog.canAlso\")");
+        expect(de("signups.dialog.canAlso")).toBe("Ich kann auch");
         expect(dialog).toContain("defaultCanAlso(profile,");
         expect(dialog).toMatch(/ROLE_ORDER\.filter\(\(r\) => r !== ownRole\)/);
         expect(lib).toMatch(/export function defaultCanAlso[\s\S]*r !== ownRole/);
@@ -139,13 +149,16 @@ describe("SignupDialog", () => {
 
     it("hints at a wish partner who is signed up, with the explanation in the tooltip", () => {
         expect(dialog).toMatch(/row\.wishPartners\.length > 0[\s\S]*<Badge[\s\S]*tipSub=/);
-        expect(dialog).toContain("auch angemeldet");
+        expect(dialog).toContain("t(\"signups.dialog.wishSignedUp\", { count: row.wishPartners.length");
+        expect(de("signups.dialog.wishSignedUp", { count: 1, names: "Zibbo" })).toBe("Zibbo ist auch angemeldet");
+        expect(de("signups.dialog.wishSignedUp", { count: 2, names: "Zibbo, Alt" })).toBe("Zibbo, Alt sind auch angemeldet");
     });
 
     it("offers the calendar file and the public event page (#308)", () => {
         expect(dialog).toContain("/r/cal/${encodeURIComponent(row.id)}.ics");
         expect(dialog).toContain("/e/${encodeURIComponent(row.id)}");
-        expect(dialog).toContain("In Kalender eintragen");
+        expect(dialog).toContain("t(\"signups.dialog.calendar\")");
+        expect(de("signups.dialog.calendar")).toBe("In Kalender eintragen");
         expect(css).toContain(".an-links");
     });
 
@@ -291,7 +304,8 @@ describe("a status per character in the dialog (lib/signupPicks.ts, #320)", () =
         expect(dialog).toMatch(/const shared = absent \? "absence" : commonStatus\(picks, status\);/);
         expect(dialog).toContain("aria-checked={shared === s}");
         expect(dialog).toContain("status: signupStatusOf(picks, status)");
-        expect(dialog).toContain("Status für alle");
+        expect(dialog).toContain("t(\"signups.statusForAll\")");
+        expect(de("signups.statusForAll")).toBe("Status für alle");
         // and the bulk dialog keeps its one status for every raid
         expect(bulk).not.toContain("statuses");
     });
@@ -301,7 +315,8 @@ describe("several raids at once on the page (#293)", () => {
     it("lets own raids that still take a signup be picked, with a compact bar at the bottom", () => {
         expect(page).toMatch(/e\.source === "eventhelper" && e\.allowedStatuses\.length > 0/);
         expect(page).toContain("type=\"checkbox\" checked={selected}");
-        expect(page).toMatch(/className="an-bulk" role="toolbar"[\s\S]*Für alle gewählten anmelden/);
+        expect(page).toMatch(/className="an-bulk" role="toolbar"[\s\S]*t\("signups\.bulkTitle"\)/);
+        expect(de("signups.bulkTitle")).toBe("Für alle gewählten anmelden");
         expect(page).toContain("<BulkSignupDialog");
         // the dialog keeps its own copy of the raids: clearing the selection after saving must not close it
         expect(page).toContain("rows={bulkRows}");
@@ -310,9 +325,10 @@ describe("several raids at once on the page (#293)", () => {
 
     it("asks once for characters and status and lists every raid's result with the reason", () => {
         expect(bulk).toContain("<SignupCharacterPicks");
-        expect(bulk).toContain("Status für alle");
+        expect(bulk).toContain("t(\"signups.statusForAll\")");
         expect(bulk).toMatch(/results\.map\(\(r\) => <ResultRow/);
-        expect(bulk).toContain("übersprungen: ${x.reason}");
+        expect(bulk).toContain("t(\"signups.bulk.skipped\", { character: x.character, reason: x.reason })");
+        expect(de("signups.bulk.skipped", { character: "Zibbo", reason: "zu spät" })).toBe("Zibbo übersprungen: zu spät");
         expect(bulk).toContain("result.error");
     });
 });
@@ -342,7 +358,8 @@ describe("Warteliste im Web (#306)", () => {
 
     it("badget in der Sammelanmeldung die Raids, in denen es nur die Bank wurde", () => {
         expect(bulk).toContain("result.waitlisted");
-        expect(bulk).toMatch(/result\.waitlisted \? "Warteliste" : "gespeichert"/);
+        expect(bulk).toMatch(/result\.waitlisted \? t\("signups\.bulk\.waitlisted"\) : t\("signups\.bulk\.saved"\)/);
+        expect(de("signups.bulk.waitlisted")).toBe("Warteliste");
         expect(bulk).toContain("result.notice");
     });
 });

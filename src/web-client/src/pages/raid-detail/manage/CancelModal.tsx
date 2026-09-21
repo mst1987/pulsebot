@@ -9,9 +9,11 @@ import Badge from "../../../components/ui/Badge";
 import { SwitchRow } from "../../../components/RaidPlanFields";
 import { useToast } from "../../../components/Jobs";
 import { cancelReasonOk, cancelSummary } from "../../../lib/eventManage";
+import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";
 
 export default function CancelModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
+    const t = useT();
     const { data, eventId, csrfToken, onChanged } = ctx;
     const [info, setInfo] = useState<ManageInfo | null>(null);
     const [reason, setReason] = useState("");
@@ -50,41 +52,41 @@ export default function CancelModal({ ctx, open, onClose }: { ctx: RaidCtx; open
     return (
         <Modal
             open={open} onClose={onClose} icon="ability_creature_cursed_02" tone="bad"
-            kicker={data.event.title} title="Event absagen" width={520}
+            kicker={data.event.title} title={t("raidManage.cancel.title")} width={520}
             hint={cancelSummary(recipients, notify, archive)}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button type="submit" form="em-cancel-form" variant="danger" running={busy} disabled={!info || !cancelReasonOk(reason)}>Absagen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button type="submit" form="em-cancel-form" variant="danger" running={busy} disabled={!info || !cancelReasonOk(reason)}>{t("raidManage.cancel.confirm")}</Button>
                 </>
             )}
         >
             <form id="em-cancel-form" className="rd-form" onSubmit={submit}>
                 <div className="field">
-                    <label htmlFor="em-cancel-reason">Grund <span className="rd-muted">geht an alle Angemeldeten</span></label>
+                    <label htmlFor="em-cancel-reason">{t("raidManage.cancel.reason")} <span className="rd-muted">{t("raidManage.cancel.reasonSub")}</span></label>
                     <textarea
                         id="em-cancel-reason" value={reason} maxLength={300} rows={3} required
-                        placeholder="Zu wenig Heiler, wir verschieben auf Donnerstag."
+                        placeholder={t("raidManage.cancel.reasonPlaceholder")}
                         onChange={(e) => setReason(e.target.value)}
                     />
                 </div>
                 <div className="em-switches">
                     <div className="em-switch-line">
                         <SwitchRow
-                            label="Angemeldete per DM informieren" checked={notify} onChange={setNotify}
-                            tip="Jeder, der nicht abgemeldet ist, bekommt den Grund als Direktnachricht vom Bot."
+                            label={t("raidManage.cancel.notifyLabel")} checked={notify} onChange={setNotify}
+                            tip={t("raidManage.cancel.notifyTip")}
                         />
-                        <Badge tone={recipients ? "accent" : undefined} tip={`${recipients} Angemeldete`} tipSub={names || "Niemand angemeldet."}>{recipients}</Badge>
+                        <Badge tone={recipients ? "accent" : undefined} tip={t("raidManage.cancel.recipients", { count: recipients })} tipSub={names || t("raidManage.cancel.nobody")}>{recipients}</Badge>
                     </div>
                     <div className="em-switch-line">
                         {info && !info.archive.configured ? (
-                            <span className="em-sub" data-tip="Keine Archiv-Kategorie" data-tip-sub="Unter Kanäle → Archiv eine Archiv-Kategorie festlegen, dann lässt sich der Kanal hier mit archivieren.">
-                                Kanal bleibt — keine Archiv-Kategorie festgelegt
+                            <span className="em-sub" data-tip={t("raidManage.archive.noneTip")} data-tip-sub={t("raidManage.archive.noneTipSub")}>
+                                {t("raidManage.archive.none")}
                             </span>
                         ) : (
                             <SwitchRow
-                                label="Kanal ins Archiv" checked={archive} onChange={setArchive}
-                                tip="Der Kanal wandert in die Archiv-Kategorie und niemand kann mehr schreiben. Gelöscht wird nichts."
+                                label={t("raidManage.archive.label")} checked={archive} onChange={setArchive}
+                                tip={t("raidManage.archive.tipCancel")}
                             />
                         )}
                     </div>

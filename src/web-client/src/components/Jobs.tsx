@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import WowIcon from "./ui/WowIcon";
 import { IconButton } from "./ui/Button";
 import { AlertIcon, CheckIcon, XIcon } from "./icons";
+import { t as translate, useT } from "../i18n";
 
 // Background jobs + their toasts.
 //
@@ -150,11 +151,11 @@ export function JobsProvider({ children }: { children: ReactNode }) {
                 dismiss(id);
                 return result;
             }
-            const outcome = spec.describe ? spec.describe(result) : { message: `${spec.label} fertig.` };
+            const outcome = spec.describe ? spec.describe(result) : { message: translate("jobs.done", { label: spec.label }) };
             patch(id, { state: "done", message: outcome.message, link: outcome.link });
             return result;
         } catch (err) {
-            const message = (err as { message?: string })?.message || `${spec.label} fehlgeschlagen.`;
+            const message = (err as { message?: string })?.message || translate("jobs.failed", { label: spec.label });
             patch(id, { state: "error", message });
             return null;
         }
@@ -197,6 +198,7 @@ function JobToasts({ jobs, onDismiss }: { jobs: BackgroundJob[]; onDismiss: (id:
 // render would restart the removal timeout on every tick of a *different*
 // running job, and this toast would never actually leave the stack.
 function JobToast({ job, onDismiss }: { job: BackgroundJob; onDismiss: (id: number) => void }) {
+    const tr = useT();
     const [hiding, setHiding] = useState(false);
     const running = job.state === "running";
 
@@ -262,7 +264,7 @@ function JobToast({ job, onDismiss }: { job: BackgroundJob; onDismiss: (id: numb
                         </>
                     )}
             </div>
-            <IconButton className="toast-x" size="sm" icon={<XIcon />} tip="Schließen" onClick={() => setHiding(true)} />
+            <IconButton className="toast-x" size="sm" icon={<XIcon />} tip={tr("common.close")} onClick={() => setHiding(true)} />
         </div>
     );
 }

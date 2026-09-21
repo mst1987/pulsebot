@@ -1,0 +1,24 @@
+{
+    "done": "{label} fertig.",
+    "failed": "{label} fehlgeschlagen.",
+    "pageLoader": {
+        "busy": "Wird verarbeitet"
+    },
+    "pager": {
+        "prev": "Zurück",
+        "next": "Weiter",
+        "info": "Seite {page} / {pages} · {total} gesamt"
+    },
+    "incomplete": {
+        "title": "Raid noch nicht abgeschlossen",
+        "fallback": "Der Raid sieht noch nicht abgeschlossen aus.",
+        "action": "Trotzdem auswerten",
+        "cancelled": "Abgebrochen — der Raid läuft noch.",
+        "and": "und",
+        "notInLog": {
+            "one": "{finals} liegt im Log nicht. Wird der Raid noch fortgesetzt, ändern weitere Pulls die Zahlen – auswerten lohnt erst danach.",
+            "other": "{finals} liegen im Log nicht. Wird der Raid noch fortgesetzt, ändern weitere Pulls die Zahlen – auswerten lohnt erst danach."
+        },
+        "bosses": "{raid}: Bosse"
+    }
+}

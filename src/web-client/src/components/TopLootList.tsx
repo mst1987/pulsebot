@@ -17,6 +17,7 @@ import { itemQualityProps, itemQualityColor } from "../lib/itemQuality";
 import { CharacterLink } from "./ClassSpec";
 import { LootResponseBadge } from "./LootTable";
 import WowIcon from "./ui/WowIcon";
+import { t as translate, useT } from "../i18n";
 import "../styles/uebersicht.css";
 
 export const awardKey = (it: TopLootAward) => `${it.eventId}-${it.itemId}-${it.character}-${it.awardedAt}`;
@@ -26,7 +27,7 @@ export function winnerTip(it: Pick<TopLootAward, "character" | "className" | "sp
     const who = [it.spec, it.className].filter(Boolean).join(" ");
     return {
         head: who ? `${it.character} · ${who}` : it.character,
-        sub: it.response ? `Rückmeldung im Addon: „${it.response}“.` : "Keine Rückmeldung im Addon gespeichert.",
+        sub: it.response ? translate("dashboard.topLoot.responseSub", { response: it.response }) : translate("dashboard.topLoot.noResponse"),
     };
 }
 
@@ -40,6 +41,7 @@ function awardDate(ms: number): string {
 const classIcon =(className: string) => `classicon_${className === "DK" ? "deathknight" : className.toLowerCase()}`;
 
 export default function TopLootList({ items }: { items: TopLootAward[] }) {
+    const t = useT();
     return (
         <ul className="toploot">
             {items.map((it) => {
@@ -50,7 +52,7 @@ export default function TopLootList({ items }: { items: TopLootAward[] }) {
                         <Link
                             className="toploot-hit"
                             to={it.eventId ? `/history/event?event=${encodeURIComponent(it.eventId)}` : "/history"}
-                            aria-label={`Loot von ${it.eventLabel || "diesem Raid"} öffnen`}
+                            aria-label={it.eventLabel ? t("dashboard.topLoot.openLoot", { event: it.eventLabel }) : t("dashboard.topLoot.openLootThis")}
                         />
                         {it.itemIconUrl
                             ? (
@@ -62,8 +64,8 @@ export default function TopLootList({ items }: { items: TopLootAward[] }) {
                             : <span className="toploot-ico toploot-ico-empty" />}
                         <span className="toploot-main">
                             {it.itemLink
-                                ? <a {...itemQualityProps(it.itemQuality, "toploot-name")} href={it.itemLink} target="_blank" rel="noopener noreferrer">{it.itemName || `Item ${it.itemId}`}</a>
-                                : <span {...itemQualityProps(it.itemQuality, "toploot-name")}>{it.itemName || `Item ${it.itemId}`}</span>}
+                                ? <a {...itemQualityProps(it.itemQuality, "toploot-name")} href={it.itemLink} target="_blank" rel="noopener noreferrer">{it.itemName || t("dashboard.topLoot.item", { id: it.itemId })}</a>
+                                : <span {...itemQualityProps(it.itemQuality, "toploot-name")}>{it.itemName || t("dashboard.topLoot.item", { id: it.itemId })}</span>}
                             {meta && <span className="toploot-meta">{meta}</span>}
                         </span>
                         <span className="toploot-who">

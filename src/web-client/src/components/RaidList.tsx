@@ -12,6 +12,7 @@ import Bar from "./ui/Bar";
 import Expand from "./ui/Expand";
 import { IconButton } from "./ui/Button";
 import { ChevronDownIcon, ChevronRightIcon } from "./icons";
+import { useT } from "../i18n";
 
 // The Raid-Events list: one grid list (.glist), grouped by time — coming raids
 // by week, past raids by month — sorted by date, the one column worth ordering.
@@ -35,8 +36,9 @@ function IconLink({ href, icon, tip, tipSub }: { href: string; icon: string; tip
 
 /** The chevron into the detail page — a link, so it opens in a new tab on a middle click too. */
 function DetailLink({ id }: { id: string }) {
+    const t = useT();
     return (
-        <Link className="ibtn sm re-go" to={detailHref(id)} aria-label="Event öffnen" data-tip="Event öffnen" data-tip-sub="Anmeldungen, Raidsheet, Logs und Loot dieses Raids.">
+        <Link className="ibtn sm re-go" to={detailHref(id)} aria-label={t("raids.list.openEvent")} data-tip={t("raids.list.openEvent")} data-tip-sub={t("raids.list.openEventSub")}>
             <ChevronRightIcon />
         </Link>
     );
@@ -52,17 +54,19 @@ function useRowOpen() {
 }
 
 function SortHead({ dir, onSort }: { dir: Dir; onSort: () => void }) {
+    const t = useT();
     return (
-        <button type="button" className={`re-sort${dir === "asc" ? " up" : ""}`} onClick={onSort} aria-label={`Nach Termin sortieren (${dir === "asc" ? "aufsteigend" : "absteigend"})`}>
-            Termin <ChevronDownIcon />
+        <button type="button" className={`re-sort${dir === "asc" ? " up" : ""}`} onClick={onSort} aria-label={t("raids.list.sortByTime", { dir: dir === "asc" ? t("raids.list.asc") : t("raids.list.desc") })}>
+            {t("raids.list.time")} <ChevronDownIcon />
         </button>
     );
 }
 
 function EventTitle({ ev }: { ev: { id: string; title: string; channelName: string; categoryName: string } }) {
+    const t = useT();
     return (
         <div className="re-ev">
-            <Link className="re-title" to={detailHref(ev.id)}>{ev.title || "(ohne Titel)"}</Link>
+            <Link className="re-title" to={detailHref(ev.id)}>{ev.title || t("raids.list.untitled")}</Link>
             <div className="re-sub">
                 {ev.channelName && <span className="re-chan">#{ev.channelName}</span>}
                 {ev.channelName && ev.categoryName && <span aria-hidden="true">·</span>}
@@ -99,19 +103,20 @@ export function UpcomingRaidList({ events, guildId, canWrite, onRepeat, emptyMes
     onRepeat: (id: string) => void;
     emptyMessage: string;
 }) {
+    const t = useT();
     const { dir, onSort, apply } = useTableSort<SortKey>("raid-list-upcoming-sort", SORT_DEFAULTS, "time", "asc");
     const open = useRowOpen();
     if (!events.length) return <div className="glist re-glist"><div className="re-empty">{emptyMessage}</div></div>;
     const bands = weekBands(apply(events, (ev) => ev.startTime || 0));
 
     return (
-        <div className="glist re-glist re-up" role="table" aria-label="Kommende Raids">
+        <div className="glist re-glist re-up" role="table" aria-label={t("raids.list.upcomingAria")}>
             <div className="re-head" role="row">
                 <span />
-                <span>Event</span>
+                <span>{t("raids.list.event")}</span>
                 <SortHead dir={dir} onSort={() => onSort("time")} />
-                <span className="tipped" data-tip="Anmeldungen" data-tip-sub="Zusagen ohne Abmeldungen, gemessen an der Raidgröße des Inhalts: Karazhan und Zul'Aman 10 Plätze, alle anderen Raids 25.">Anmeldungen</span>
-                <span className="re-right">Aktionen</span>
+                <span className="tipped" data-tip={t("raids.list.signups")} data-tip-sub={t("raids.list.signupsSub")}>{t("raids.list.signups")}</span>
+                <span className="re-right">{t("raids.list.actions")}</span>
             </div>
             {bands.map((band) => (
                 <div key={band.key} role="rowgroup">
@@ -125,19 +130,19 @@ export function UpcomingRaidList({ events, guildId, canWrite, onRepeat, emptyMes
                                 <div className="re-when"><b>{day}</b><span>{time} · {relativeDayLabel(ev.startTime)}</span></div>
                                 <span
                                     className="re-bar"
-                                    data-tip={`${ev.signupCount} von ${ev.raidSize} Plätzen`}
-                                    data-tip-sub={ev.raidSizeKnown ? "Raidgröße aus dem erkannten Inhalt." : "Inhalt nicht erkannt – gemessen an der Standardgröße 25."}
+                                    data-tip={t("raids.list.seatsOf", { count: ev.signupCount, size: ev.raidSize })}
+                                    data-tip-sub={ev.raidSizeKnown ? t("raids.list.sizeKnown") : t("raids.list.sizeDefault")}
                                 >
                                     <Bar value={ev.signupCount} max={ev.raidSize} tone={signupTone(ev.signupCount, ev.raidSize)} label={`${ev.signupCount} / ${ev.raidSize}`} />
                                 </span>
                                 <div className="re-acts">
                                     {guildId && ev.channelId && (
-                                        <IconLink href={eventPostUrl(guildId, ev.channelId, ev.id)} icon="inv_letter_15" tip="Discord-Post öffnen" tipSub={`Springt zur Anmelde-Nachricht${ev.channelName ? ` in #${ev.channelName}` : ""}.`} />
+                                        <IconLink href={eventPostUrl(guildId, ev.channelId, ev.id)} icon="inv_letter_15" tip={t("raids.list.discordPost")} tipSub={ev.channelName ? t("raids.list.discordPostSubIn", { channel: ev.channelName }) : t("raids.list.discordPostSub")} />
                                     )}
-                                    {raidplanUrl(ev.id) && <IconLink href={raidplanUrl(ev.id)} icon="inv_misc_groupneedmore" tip="Setup/Comp" tipSub="Die Aufstellung dieses Events im Raid-Helper." />}
-                                    {ev.softres?.url && <IconLink href={ev.softres.url} icon="inv_scroll_11" tip="Softres" tipSub="Die Soft-Reserve-Liste des Raids auf softres.it." />}
+                                    {raidplanUrl(ev.id) && <IconLink href={raidplanUrl(ev.id)} icon="inv_misc_groupneedmore" tip={t("raids.list.setup")} tipSub={t("raids.list.setupSub")} />}
+                                    {ev.softres?.url && <IconLink href={ev.softres.url} icon="inv_scroll_11" tip="Softres" tipSub={t("raids.list.softresSub")} />}
                                     {canWrite && (
-                                        <IconButton icon="spell_holy_borrowedtime" size="sm" tip="Wiederholen" tipSub="Neues Event mit diesem als Vorlage anlegen: Titel, Template und Beschreibung übernommen, Kanal geklont." onClick={() => onRepeat(ev.id)} />
+                                        <IconButton icon="spell_holy_borrowedtime" size="sm" tip={t("raids.list.repeat")} tipSub={t("raids.list.repeatSub")} onClick={() => onRepeat(ev.id)} />
                                     )}
                                     <DetailLink id={ev.id} />
                                 </div>
@@ -153,55 +158,58 @@ export function UpcomingRaidList({ events, guildId, canWrite, onRepeat, emptyMes
 // ---------------------------------------------------------------- past
 
 function LogBadges({ ev }: { ev: PastRaid }) {
+    const t = useT();
     const done = ev.logs.filter((l) => l.status === "done");
     const assigned = ev.logs.filter((l) => l.status !== "done");
     const pending = ev.pendingLogs || [];
-    const names = (logs: { title?: string; reportId?: string }[]) => logs.map((l) => `„${l.title || l.reportId || "Log"}“`).join("\n");
+    const names = (logs: { title?: string; reportId?: string }[]) => logs.map((l) => t("raids.list.logName", { title: l.title || l.reportId || t("raids.list.logFallback") })).join("\n");
     const badges: ReactNode[] = [];
     if (done.length) {
         badges.push(
             <Link key="done" className="re-blink" to={detailHref(ev.id, "logs")}>
-                <Badge tone="ok" icon="inv_misc_pocketwatch_01" tip={`${done.length} ausgewertet`} tipSub={`${names(done)}\nKlick öffnet die Logs des Events mit den Auswertungen.`}>{done.length} ausgewertet</Badge>
+                <Badge tone="ok" icon="inv_misc_pocketwatch_01" tip={t("raids.list.analysed", { count: done.length })} tipSub={`${names(done)}\n${t("raids.list.analysedSub")}`}>{t("raids.list.analysed", { count: done.length })}</Badge>
             </Link>,
         );
     }
     if (assigned.length) {
         badges.push(
             <Link key="assigned" className="re-blink" to={detailHref(ev.id, "logs")}>
-                <Badge icon="inv_misc_pocketwatch_01" tip={`${assigned.length} zugeordnet, nicht ausgewertet`} tipSub={`${names(assigned)}\nKlick öffnet die Logs des Events, dort auswerten.`}>{assigned.length} zugeordnet</Badge>
+                <Badge icon="inv_misc_pocketwatch_01" tip={t("raids.list.assignedTip", { count: assigned.length })} tipSub={`${names(assigned)}\n${t("raids.list.assignedSub")}`}>{t("raids.list.assigned", { count: assigned.length })}</Badge>
             </Link>,
         );
     }
     if (pending.length) {
         const lines = pending.map((l) => (l.alsoFits.length
-            ? `„${l.title || "Log"}“ passt zeitlich auch zu ${l.alsoFits.join(", ")}.`
-            : `„${l.title || "Log"}“ passt zeitlich, ist aber nicht zugeordnet.`));
+            ? t("raids.list.pendingAlsoFits", { title: l.title || t("raids.list.logFallback"), others: l.alsoFits.join(", ") })
+            : t("raids.list.pendingFits", { title: l.title || t("raids.list.logFallback") })));
         badges.push(
             <Link key="pending" className="re-blink" to={detailHref(ev.id, "logs")}>
-                <Badge tone="mid" icon="inv_misc_pocketwatch_01" tip={`${pending.length} Log${pending.length === 1 ? "" : "s"} nicht zugeordnet`} tipSub={`${lines.join("\n")}\nKlick öffnet das Event im Reiter Logs, dort entscheiden.`}>{pending.length} offen</Badge>
+                <Badge tone="mid" icon="inv_misc_pocketwatch_01" tip={t("raids.list.pendingTip", { count: pending.length })} tipSub={`${lines.join("\n")}\n${t("raids.list.pendingSub")}`}>{t("raids.list.pending", { count: pending.length })}</Badge>
             </Link>,
         );
     }
-    if (!badges.length) return <Badge tip="Keine Logs" tipSub="Diesem Raid ist kein Warcraft-Log zugeordnet, und keiner passt zeitlich.">keine Logs</Badge>;
+    if (!badges.length) return <Badge tip={t("raids.list.noLogs")} tipSub={t("raids.list.noLogsSub")}>{t("raids.list.noLogsBadge")}</Badge>;
     return <>{badges}</>;
 }
 
 function LootBadge({ ev }: { ev: PastRaid }) {
+    const t = useT();
     if (ev.lootCount) {
         return (
             <Link className="re-blink" to={`/history/event?event=${encodeURIComponent(ev.id)}`}>
-                <Badge tone="accent" icon="inv_misc_bag_10" tip={`${ev.lootCount} Items vergeben`} tipSub="Klick öffnet den Loot dieses Raids.">{ev.lootCount} Items</Badge>
+                <Badge tone="accent" icon="inv_misc_bag_10" tip={t("raids.list.lootTip", { count: ev.lootCount })} tipSub={t("raids.list.lootSub")}>{t("raids.list.lootBadge", { count: ev.lootCount })}</Badge>
             </Link>
         );
     }
     return (
         <Link className="re-blink" to="/history?tab=import">
-            <Badge tone="mid" icon="inv_misc_bag_10" tip="Kein Loot importiert" tipSub="Klick öffnet den Loot-Import in Historie & Loot.">fehlt</Badge>
+            <Badge tone="mid" icon="inv_misc_bag_10" tip={t("raids.list.noLoot")} tipSub={t("raids.list.noLootSub")}>{t("raids.list.noLootBadge")}</Badge>
         </Link>
     );
 }
 
 export function PastRaidList({ events, emptyMessage }: { events: PastRaid[]; emptyMessage: string }) {
+    const t = useT();
     const { dir, onSort, apply } = useTableSort<SortKey>("raid-list-past-sort", SORT_DEFAULTS, "time", "desc");
     const open = useRowOpen();
     // Which month bands the admin folded open or shut, against the default: the
@@ -212,14 +220,14 @@ export function PastRaidList({ events, emptyMessage }: { events: PastRaid[]; emp
     const newest = bands.reduce((best, b) => (b.key > best ? b.key : best), "");
 
     return (
-        <div className="glist re-glist re-past" role="table" aria-label="Vergangene Raids">
+        <div className="glist re-glist re-past" role="table" aria-label={t("raids.list.pastAria")}>
             <div className="re-head" role="row">
                 <span />
-                <span>Event</span>
+                <span>{t("raids.list.event")}</span>
                 <SortHead dir={dir} onSort={() => onSort("time")} />
-                <span className="tipped" data-tip="Logs" data-tip-sub="Zugeordnete Warcraft-Logs (ausgewertet oder nicht) und offene: Logs, die zeitlich passen, aber noch keinem Raid zugeordnet sind.">Logs</span>
-                <span className="tipped" data-tip="Loot" data-tip-sub="Importierter Loot dieses Raids. „fehlt“: noch nichts importiert.">Loot</span>
-                <span className="re-right">Aktionen</span>
+                <span className="tipped" data-tip={t("raids.list.logs")} data-tip-sub={t("raids.list.logsSub")}>{t("raids.list.logs")}</span>
+                <span className="tipped" data-tip={t("raids.list.loot")} data-tip-sub={t("raids.list.lootColSub")}>{t("raids.list.loot")}</span>
+                <span className="re-right">{t("raids.list.actions")}</span>
             </div>
             {bands.map((band) => {
                 const isOpen = toggled[band.key] ?? band.key === newest;
@@ -227,7 +235,7 @@ export function PastRaidList({ events, emptyMessage }: { events: PastRaid[]; emp
                     <div key={band.key} role="rowgroup">
                         <Band
                             band={band}
-                            extra={<Expand open={isOpen} onToggle={() => setToggled((t) => ({ ...t, [band.key]: !isOpen }))} />}
+                            extra={<Expand open={isOpen} onToggle={() => setToggled((prev) => ({ ...prev, [band.key]: !isOpen }))} />}
                         />
                         {isOpen && band.rows.map((ev) => {
                             const { day, time } = eventDay(ev.startTime);
@@ -239,7 +247,7 @@ export function PastRaidList({ events, emptyMessage }: { events: PastRaid[]; emp
                                     <div className="re-badges"><LogBadges ev={ev} /></div>
                                     <div className="re-badges"><LootBadge ev={ev} /></div>
                                     <div className="re-acts">
-                                        {ev.softres?.url && <IconLink href={ev.softres.url} icon="inv_scroll_11" tip="Softres" tipSub="Die Soft-Reserve-Liste des Raids auf softres.it." />}
+                                        {ev.softres?.url && <IconLink href={ev.softres.url} icon="inv_scroll_11" tip="Softres" tipSub={t("raids.list.softresSub")} />}
                                         <DetailLink id={ev.id} />
                                     </div>
                                 </div>

@@ -16,6 +16,7 @@ import Badge from "../../../components/ui/Badge";
 import Segment from "../../../components/ui/Segment";
 import { SearchIcon } from "../../../components/icons";
 import { useToast } from "../../../components/Jobs";
+import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";
 
 type Mode = "import" | "manual";
@@ -31,6 +32,7 @@ function toLocalInput(ms: number): string {
 }
 
 function ImportForm({ ctx, onDone, setBusy }: { ctx: RaidCtx; onDone: () => void; setBusy: (b: boolean) => void }) {
+    const t = useT();
     const { data, eventId, csrfToken, onChanged } = ctx;
     const toast = useToast();
     // Draft per event: a pasted export belongs to exactly this raid.
@@ -53,7 +55,7 @@ function ImportForm({ ctx, onDone, setBusy }: { ctx: RaidCtx; onDone: () => void
             patch({ text: "" });
             if (fileRef.current) fileRef.current.value = "";
             onDone();
-            onChanged(`${r.added} Item(s) importiert${r.skipped ? `, ${r.skipped} Duplikat(e) übersprungen` : ""}.`);
+            onChanged(r.skipped ? t("raidModals.lootAdd.importedSkipped", { added: r.added, skipped: r.skipped }) : t("raidModals.lootAdd.imported", { added: r.added }));
         } catch (err) {
             toast((err as ApiError).message, "err");
         } finally {
@@ -64,18 +66,18 @@ function ImportForm({ ctx, onDone, setBusy }: { ctx: RaidCtx; onDone: () => void
     return (
         <form id="rd-loot-form" className="rd-form" onSubmit={submit}>
             <div className="field">
-                <label className="tipped" data-tip="Loot-Tool" data-tip-sub="„Auto“ erkennt RCLootcouncil-JSON und Gargul-CSV selbst. Bereits importierter Loot wird übersprungen.">Loot-Tool</label>
+                <label className="tipped" data-tip={t("raidModals.lootAdd.toolTip")} data-tip-sub={t("raidModals.lootAdd.toolTipSub")}>{t("raidModals.lootAdd.toolLabel")}</label>
                 <Segment<Tool>
-                    ariaLabel="Loot-Tool" value={(["auto", "gargul", "rclc"].includes(draft.tool) ? draft.tool : "auto") as Tool} onChange={(v) => patch({ tool: v })}
+                    ariaLabel={t("raidModals.lootAdd.toolLabel")} value={(["auto", "gargul", "rclc"].includes(draft.tool) ? draft.tool : "auto") as Tool} onChange={(v) => patch({ tool: v })}
                     options={[{ value: "auto", label: "Auto" }, { value: "gargul", label: "Gargul" }, { value: "rclc", label: "RCLootcouncil" }]}
                 />
             </div>
             <div className="field">
-                <label htmlFor="rd-loot-text">Export</label>
-                <textarea id="rd-loot-text" value={draft.text} onChange={(e) => patch({ text: e.target.value })} rows={7} placeholder="RCLootcouncil-JSON oder Gargul-CSV hier einfügen …" required />
+                <label htmlFor="rd-loot-text">{t("raidModals.lootAdd.exportLabel")}</label>
+                <textarea id="rd-loot-text" value={draft.text} onChange={(e) => patch({ text: e.target.value })} rows={7} placeholder={t("raidModals.lootAdd.exportPlaceholder")} required />
             </div>
             <div className="field">
-                <label htmlFor="rd-loot-file" className="tipped" data-tip="Datei" data-tip-sub="Wird lokal in das Feld oben geladen, kein separater Upload.">… oder Datei</label>
+                <label htmlFor="rd-loot-file" className="tipped" data-tip={t("raidModals.lootAdd.fileTip")} data-tip-sub={t("raidModals.lootAdd.fileTipSub")}>{t("raidModals.lootAdd.fileLabel")}</label>
                 <input id="rd-loot-file" ref={fileRef} type="file" accept=".json,.csv,.txt,.tsv" onChange={onFile} />
             </div>
         </form>
@@ -83,6 +85,7 @@ function ImportForm({ ctx, onDone, setBusy }: { ctx: RaidCtx; onDone: () => void
 }
 
 function ManualForm({ ctx, setBusy, setHint }: { ctx: RaidCtx; setBusy: (b: boolean) => void; setHint: (h: string) => void }) {
+    const t = useT();
     const { data, eventId, csrfToken, onChanged } = ctx;
     const toast = useToast();
     const [picker, setPicker] = useState<LootPickerData | null>(null);
@@ -107,7 +110,7 @@ function ManualForm({ ctx, setBusy, setHint }: { ctx: RaidCtx; setBusy: (b: bool
             .catch((err: ApiError) => setLoadError(err.message));
     }, [picker, eventId, data.event.title]);
 
-    useEffect(() => { setHint(awardedAt ? `Zeitpunkt: ${fmtMs(new Date(awardedAt).getTime())}` : ""); }, [awardedAt, setHint]);
+    useEffect(() => { setHint(awardedAt ? t("raidModals.lootAdd.timeHint", { time: fmtMs(new Date(awardedAt).getTime()) }) : ""); }, [awardedAt, setHint, t]);
 
     const roster = useMemo(() => [
         ...(data.setup?.groups || []).flatMap((g) => g.players.map((p) => p.name)),
@@ -137,7 +140,7 @@ function ManualForm({ ctx, setBusy, setHint }: { ctx: RaidCtx; setBusy: (b: bool
                 event: eventId, itemId: item.id, character: character.trim(), boss: item.boss, instance: content?.label || "",
                 response, offspec: reason?.id === "offspec", awardedAt: awardedAt ? new Date(awardedAt).getTime() : 0,
             });
-            onChanged(`„${r.item.itemName || item.name}“ für ${character.trim()} nachgetragen.`);
+            onChanged(t("raidModals.lootAdd.added", { item: r.item.itemName || item.name, character: character.trim() }));
             // Raid, boss and time stay: nachtragen comes in batches.
             setItem(null);
             setCharacter("");
@@ -148,33 +151,33 @@ function ManualForm({ ctx, setBusy, setHint }: { ctx: RaidCtx; setBusy: (b: bool
         }
     };
 
-    if (loadError) return <p className="rd-empty">Auswahl konnte nicht geladen werden: {loadError}</p>;
-    if (!picker) return <p className="rd-empty">Lade Auswahl …</p>;
+    if (loadError) return <p className="rd-empty">{t("raidModals.lootAdd.loadError", { error: loadError })}</p>;
+    if (!picker) return <p className="rd-empty">{t("raidModals.lootAdd.loading")}</p>;
 
     return (
         <form id="rd-loot-form" className="rd-form" onSubmit={submit}>
             <div className="rd-grid2">
                 <div className="field">
-                    <label htmlFor="rd-add-raid" className="tipped" data-tip="Raid" data-tip-sub="Zur Wahl stehen nur Items, die in diesem Raid droppen können.">Raid</label>
+                    <label htmlFor="rd-add-raid" className="tipped" data-tip={t("raidModals.lootAdd.raid")} data-tip-sub={t("raidModals.lootAdd.raidTipSub")}>{t("raidModals.lootAdd.raid")}</label>
                     <select id="rd-add-raid" value={contentId} onChange={(e) => { setContentId(e.target.value); setBoss(""); setItem(null); }}>
                         {picker.contents.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
                     </select>
                 </div>
                 <div className="field">
-                    <label htmlFor="rd-add-boss">Boss</label>
+                    <label htmlFor="rd-add-boss">{t("raidModals.lootAdd.boss")}</label>
                     <select id="rd-add-boss" value={boss} onChange={(e) => { setBoss(e.target.value); setItem(null); }}>
-                        <option value="">Alle Bosse</option>
-                        {bosses.map((b) => <option key={b || "none"} value={b}>{b || "ohne Boss (Marken-Items)"}</option>)}
+                        <option value="">{t("raidModals.lootAdd.allBosses")}</option>
+                        {bosses.map((b) => <option key={b || "none"} value={b}>{b || t("raidModals.lootAdd.noBoss")}</option>)}
                     </select>
                 </div>
             </div>
             <div className="field">
-                <label>Item <span className="rd-muted">{items.length} zur Auswahl</span></label>
+                <label>{t("raidModals.lootAdd.item")} <span className="rd-muted">{t("raidModals.lootAdd.itemCount", { count: items.length })}</span></label>
                 <label className="rd-search rd-search-full">
                     <SearchIcon />
-                    <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Item aus diesem Raid suchen …" aria-label="Item suchen" />
+                    <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("raidModals.lootAdd.searchPlaceholder")} aria-label={t("raidModals.lootAdd.searchAria")} />
                 </label>
-                <div className="rd-glist rd-itemlist" role="listbox" aria-label="Items">
+                <div className="rd-glist rd-itemlist" role="listbox" aria-label={t("raidModals.lootAdd.itemsAria")}>
                     {/* The whole drop table, never cut short: scrolling it is how
                         somebody who forgot an item's exact name finds it. */}
                     {items.map((it) => (
@@ -186,27 +189,27 @@ function ManualForm({ ctx, setBusy, setHint }: { ctx: RaidCtx; setBusy: (b: bool
                                 {it.iconUrl ? <img src={it.iconUrl} alt="" loading="lazy" /> : <span className="rd-item-ph" />}
                                 <span {...itemQualityProps(it.quality, "rd-item-name")}>{it.name}</span>
                             </span>
-                            {item?.id === it.id ? <Badge tone="accent">gewählt</Badge> : <span className="rd-muted">{it.boss || "—"}</span>}
+                            {item?.id === it.id ? <Badge tone="accent">{t("raidModals.lootAdd.picked")}</Badge> : <span className="rd-muted">{it.boss || "—"}</span>}
                         </button>
                     ))}
                 </div>
             </div>
             <div className="rd-grid3">
                 <div className="field">
-                    <label htmlFor="rd-add-raider">Raider</label>
-                    <input id="rd-add-raider" type="text" list="rd-add-raiders" value={character} onChange={(e) => setCharacter(e.target.value)} placeholder="Charakter …" autoComplete="off" required />
+                    <label htmlFor="rd-add-raider">{t("raidModals.lootAdd.raider")}</label>
+                    <input id="rd-add-raider" type="text" list="rd-add-raiders" value={character} onChange={(e) => setCharacter(e.target.value)} placeholder={t("raidModals.lootAdd.characterPlaceholder")} autoComplete="off" required />
                     <datalist id="rd-add-raiders">
-                        {names.map((n) => <option key={n} value={n}>{inRaid.has(norm(n)) ? "im Raid" : ""}</option>)}
+                        {names.map((n) => <option key={n} value={n}>{inRaid.has(norm(n)) ? t("raidModals.lootAdd.inRaid") : ""}</option>)}
                     </datalist>
                 </div>
                 <div className="field">
-                    <label htmlFor="rd-add-reason">Grund</label>
+                    <label htmlFor="rd-add-reason">{t("raidModals.lootAdd.reason")}</label>
                     <select id="rd-add-reason" value={response} onChange={(e) => setResponse(e.target.value)}>
                         {picker.reasons.map((r) => <option key={r.id} value={r.label}>{r.label}</option>)}
                     </select>
                 </div>
                 <div className="field">
-                    <label htmlFor="rd-add-time" className="tipped" data-tip="Zeitpunkt" data-tip-sub="Vorbelegt mit dem Raidtermin — bestimmt, unter welchem Abend das Item in der Historie steht.">Zeitpunkt</label>
+                    <label htmlFor="rd-add-time" className="tipped" data-tip={t("raidModals.lootAdd.time")} data-tip-sub={t("raidModals.lootAdd.timeTipSub")}>{t("raidModals.lootAdd.time")}</label>
                     <input id="rd-add-time" type="datetime-local" value={awardedAt} onChange={(e) => setAwardedAt(e.target.value)} />
                 </div>
             </div>
@@ -215,6 +218,7 @@ function ManualForm({ ctx, setBusy, setHint }: { ctx: RaidCtx; setBusy: (b: bool
 }
 
 export default function LootAddModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
+    const t = useT();
     const [mode, setMode] = useState<Mode>("import");
     const [busy, setBusy] = useState(false);
     const [hint, setHint] = useState("");
@@ -222,19 +226,19 @@ export default function LootAddModal({ ctx, open, onClose }: { ctx: RaidCtx; ope
     return (
         <Modal
             open={open} onClose={onClose} icon="inv_misc_bag_10" tone="history"
-            kicker={ctx.data.event.title} title="Loot hinzufügen" width={660}
+            kicker={ctx.data.event.title} title={t("raidModals.lootAdd.title")} width={660}
             hint={mode === "manual" ? hint : undefined}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>{mode === "manual" ? "Schließen" : "Abbrechen"}</Button>
-                    <Button type="submit" form="rd-loot-form" icon="inv_misc_bag_10" running={busy}>{mode === "import" ? "Importieren" : "Item hinzufügen"}</Button>
+                    <Button variant="ghost" onClick={onClose}>{mode === "manual" ? t("common.close") : t("common.cancel")}</Button>
+                    <Button type="submit" form="rd-loot-form" icon="inv_misc_bag_10" running={busy}>{mode === "import" ? t("raidModals.lootAdd.import") : t("raidModals.lootAdd.addItem")}</Button>
                 </>
             )}
         >
             <div className="rd-dlg-stack">
                 <Segment<Mode>
-                    ariaLabel="Art" size="sm" value={mode} onChange={setMode}
-                    options={[{ value: "import", label: "Export importieren" }, { value: "manual", label: "Item nachtragen" }]}
+                    ariaLabel={t("raidModals.lootAdd.modeAria")} size="sm" value={mode} onChange={setMode}
+                    options={[{ value: "import", label: t("raidModals.lootAdd.modeImport") }, { value: "manual", label: t("raidModals.lootAdd.modeManual") }]}
                 />
                 {mode === "import"
                     ? <ImportForm ctx={ctx} onDone={onClose} setBusy={setBusy} />

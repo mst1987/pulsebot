@@ -4,15 +4,16 @@
 // client-side — same rule the app already follows for the recruitment spec
 // catalog, see lib/recruitmentSpecs.ts's header comment).
 import { Link } from "react-router-dom";
+import { t, useT } from "../i18n";
 
 // Where a stored class/spec came from, so a wrong entry can be traced back —
 // mirrors renderAdmin.js's CLASS_SOURCE_LABELS. Shared by the Charaktere table
-// and the character page's hero.
+// and the character page's hero. Getters, so every read is in the active language.
 export const CLASS_SOURCE_LABELS: Record<string, string> = {
-    export: "Loot-Export",
-    report: "Auswertung",
-    wcl: "Warcraft Log",
-    manual: "manuell",
+    get export() { return t("raidDetail.classSource.export"); },
+    get report() { return t("raidDetail.classSource.report"); },
+    get wcl() { return t("raidDetail.classSource.wcl"); },
+    get manual() { return t("raidDetail.classSource.manual"); },
 };
 
 /**
@@ -57,6 +58,7 @@ export function ClassSpecIdentity({ character, className, spec, classColor, icon
     to: string;
     extra?: React.ReactNode;
 }) {
+    const t = useT();
     const colored = classColorProps(classColor);
     return (
         <>
@@ -66,7 +68,7 @@ export function ClassSpecIdentity({ character, className, spec, classColor, icon
                     <Link className={colored.className} style={colored.style} to={to}>{character}</Link>
                     {extra}
                 </span>
-                <span className="spec-ident-spec">{className ? (spec ? `${spec} ${className}` : className) : "Klasse unbekannt"}</span>
+                <span className="spec-ident-spec">{className ? (spec ? `${spec} ${className}` : className) : t("raidDetail.classSpec.unknown")}</span>
             </span>
         </>
     );

@@ -7,9 +7,11 @@ import { Button } from "../../../components/ui/Button";
 import { useToast } from "../../../components/Jobs";
 import TargetField from "./TargetField";
 import { targetHint } from "../../../lib/settingsLogic";
+import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";
 
 export default function PingModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
+    const t = useT();
     const { data, eventId, csrfToken, onChanged } = ctx;
     const missing = data.attendance.missing.length;
     const [text, setText] = useState("");
@@ -36,20 +38,20 @@ export default function PingModal({ ctx, open, onClose }: { ctx: RaidCtx; open: 
     return (
         <Modal
             open={open} onClose={onClose} icon="spell_holy_borrowedtime" tone="bad"
-            kicker={data.event.title} title="Fehlende pingen" width={480}
+            kicker={data.event.title} title={t("raidModals.ping.title")} width={480}
             hint={targetHint(target, channel, data.pingTargets)}
             footer={(
                 <>
-                    <Button variant="ghost" onClick={onClose}>Abbrechen</Button>
-                    <Button type="submit" form="rd-ping-form" icon="inv_letter_15" running={busy} disabled={!missing}>{missing} Raider pingen</Button>
+                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
+                    <Button type="submit" form="rd-ping-form" icon="inv_letter_15" running={busy} disabled={!missing}>{t("raidModals.ping.submit", { count: missing })}</Button>
                 </>
             )}
         >
             <form id="rd-ping-form" className="rd-form" onSubmit={submit}>
                 <TargetField info={data.pingTargets} value={target} onChange={setTarget} />
                 <div className="field">
-                    <label htmlFor="rd-ping-text">Nachricht <span className="rd-muted">optional</span></label>
-                    <input id="rd-ping-text" type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder="Bitte meldet euch für den Raid an oder ab." />
+                    <label htmlFor="rd-ping-text">{t("raidModals.shared.message")} <span className="rd-muted">{t("raidModals.shared.optional")}</span></label>
+                    <input id="rd-ping-text" type="text" value={text} onChange={(e) => setText(e.target.value)} placeholder={t("raidModals.ping.placeholder")} />
                 </div>
             </form>
         </Modal>

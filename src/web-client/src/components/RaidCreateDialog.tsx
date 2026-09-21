@@ -11,8 +11,8 @@ import { eventDay } from "../lib/raidTime";
 import { instancesOf } from "../lib/raidTemplates";
 import {
     PLAN_MAX_DURATION, PLAN_MIN_DURATION,
-    STEP_LABELS, emptyPlan, overflowLine, planBody, planFromEvent, planFromTemplate, planProblem, plannedSeats, raidTag, schemaName,
-    sourceOf, stepsFor, templateFromPlan, withInstance, withSize, withVersion,
+    emptyPlan, overflowLine, planBody, planFromEvent, planFromTemplate, planProblem, plannedSeats, raidTag, schemaName,
+    sourceOf, stepLabel, stepsFor, templateFromPlan, withInstance, withSize, withVersion,
     type EventPlan, type StepKey,
 } from "../lib/eventPlan";
 import { useToast } from "./Jobs";
@@ -27,6 +27,8 @@ import RaidLoader from "./ui/RaidLoader";
 import CompositionEditor from "./CompositionEditor";
 import { AppearanceFields, BuffPicker, InstancePicker, RoleRanges, SizePicker, SwitchRow } from "./RaidPlanFields";
 import { CheckIcon, ChevronRightIcon } from "./icons";
+import { rolePluralLabel } from "../lib/wowNames";
+import { useT } from "../i18n";
 
 // "Neues Event" as a guided dialog, one step at a time instead of a long page:
 //   Vorlage            — repeat the latest event of a category, start from a raid
@@ -62,14 +64,15 @@ function Label({ text, tip, htmlFor }: { text: string; tip?: string; htmlFor?: s
 }
 
 function Stepper({ steps, current }: { steps: StepKey[]; current: StepKey }) {
+    const t = useT();
     const at = steps.indexOf(current);
     return (
-        <ol className="re-steps" aria-label="Fortschritt">
+        <ol className="re-steps" aria-label={t("raidCreate.progress")}>
             {steps.map((s, i) => (
                 <li key={s} className={`re-step${i === at ? " on" : ""}${i < at ? " done" : ""}`} aria-current={i === at ? "step" : undefined}>
                     {i > 0 && <span className="re-step-line" aria-hidden="true" />}
                     <span className="n">{i < at ? <CheckIcon /> : i + 1}</span>
-                    <span className="re-step-lbl">{STEP_LABELS[s]}</span>
+                    <span className="re-step-lbl">{stepLabel(s)}</span>
                 </li>
             ))}
         </ol>
@@ -160,6 +163,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
     onClose: () => void;
     onCreated: () => void;
 }) {
+    const t = useT();
     const toast = useToast();
     const editing = !!editEventId;
     const [ctx, setCtx] = useState<RaidCreateContext | null>(null);
@@ -312,7 +316,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                 if (editing) {
                     const ev = data.editEvent;
                     if (!ev) {
-                        setLoadError("Das Event gibt es nicht (mehr) oder es ist kein EventHelper-Event.");
+                        setLoadError(t("raidCreate.load.missing"));
                         return;
                     }
                     setTitle(ev.title);
@@ -427,8 +431,8 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
         try {
             if (editing) {
                 const r = await updateRaid(csrfToken, { id: editEventId, title, date, time, leaderId, description, ...planBody(plan), voiceChannelId });
-                if (r.messageError) toast(`Gespeichert — ${r.messageError}`, "err");
-                else toast("Event gespeichert.");
+                if (r.messageError) toast(t("raidCreate.toast.savedWithError", { error: r.messageError }), "err");
+                else toast(t("raidCreate.toast.saved"));
             } else {
                 const where = channelMode === "clone" && sourceEvent
                     ? { sourceEventId: sourceEvent.id, channelName }
@@ -437,9 +441,9 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                     title, date, time, templateId, leaderId, description, signupSource: source, ...where,
                     ...(eh ? { ...planBody(plan), announce, voiceChannelId } : { raidTemplateId: plan.raidTemplateId }),
                 });
-                if (r.messageError) toast(`Event angelegt — ${r.messageError}`, "err");
-                else if (r.announceError) toast(`Event angelegt — Ankündigung nicht gepostet: ${r.announceError}`, "err");
-                else toast(r.announced ? "Event angelegt und angekündigt." : "Event angelegt.");
+                if (r.messageError) toast(t("raidCreate.toast.createdWithError", { error: r.messageError }), "err");
+                else if (r.announceError) toast(t("raidCreate.toast.announceError", { error: r.announceError }), "err");
+                else toast(r.announced ? t("raidCreate.toast.createdAnnounced") : t("raidCreate.toast.created"));
             }
             onCreated();
         } catch (err) {
@@ -464,7 +468,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
             setCtx((c) => (c ? { ...c, raidTemplates: [saved, ...(c.raidTemplates || []).filter((t) => t.id !== saved.id)] } : c));
             setPlan((p) => ({ ...p, raidTemplateId: saved.id }));
             setTplOpen(false);
-            toast(base ? `Vorlage „${saved.name}“ aktualisiert.` : `Vorlage „${saved.name}“ angelegt.`);
+            toast(base ? t("raidCreate.toast.templateUpdated", { name: saved.name }) : t("raidCreate.toast.templateCreated", { name: saved.name }));
         } catch (err) {
             toast((err as ApiError).message, "err");
         } finally {
@@ -478,26 +482,30 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
 
     let body: ReactNode;
     if (loadError) {
-        body = <div className="re-empty">Fehler beim Laden: {loadError}</div>;
+        body = <div className="re-empty">{t("raidCreate.load.failed", { error: loadError })}</div>;
     } else if (!ctx) {
-        body = <RaidLoader compact text={editing ? "Event wird geladen" : "Vorlagen werden geladen"} />;
+        body = <RaidLoader compact text={editing ? t("raidCreate.load.event") : t("raidCreate.load.templates")} />;
     } else if (step === "start") {
-        const templateCard = (t: RaidTemplate) => {
-            const v = versions.find((x) => x.id === t.versionId);
-            const insts = instancesOf(v, t.instanceIds);
-            const facts = [v?.short || t.versionId, t.size ? `${t.size} Spieler` : "", t.size ? `${t.composition.tank} Tanks · ${t.composition.healer} Heiler` : ""];
+        const templateCard = (tpl: RaidTemplate) => {
+            const v = versions.find((x) => x.id === tpl.versionId);
+            const insts = instancesOf(v, tpl.instanceIds);
+            const facts = [
+                v?.short || tpl.versionId,
+                tpl.size ? t("raidCreate.start.players", { count: tpl.size }) : "",
+                tpl.size ? t("raidCreate.start.composition", { tank: tpl.composition.tank, healer: tpl.composition.healer }) : "",
+            ];
             return (
                 <OptionCard
-                    key={t.id}
-                    selected={choice?.kind === "template" && choice.id === t.id}
-                    onSelect={() => applyChoice(ctx, { kind: "template", id: t.id })}
+                    key={tpl.id}
+                    selected={choice?.kind === "template" && choice.id === tpl.id}
+                    onSelect={() => applyChoice(ctx, { kind: "template", id: tpl.id })}
                     icon={<IconStack icons={insts.map((i) => i.icon)} />}
-                    title={t.name || "(ohne Name)"}
+                    title={tpl.name || t("raidCreate.noName")}
                     sub={(
                         <>
                             <span>{facts.filter(Boolean).join(" · ")}</span>
-                            {t.incomplete && <Badge tone="mid">Infos fehlen</Badge>}
-                            {t.needsSize && <Badge tone="mid">Größe ergänzen</Badge>}
+                            {tpl.incomplete && <Badge tone="mid">{t("raidCreate.incomplete")}</Badge>}
+                            {tpl.needsSize && <Badge tone="mid">{t("raidCreate.start.needsSize")}</Badge>}
                         </>
                     )}
                 />
@@ -506,11 +514,11 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
         body = (
             <>
                 <div className="re-label-row re-start-head">
-                    <Label text="Wovon ausgehen?" tip="Letztes Event: übernimmt Titel, Beschreibung und Uhrzeit, der Kanal wird fürs neue Datum geklont. Raid-Vorlage: Instanzen, Größe, Tanks und Heiler — für dieses Event weiter änderbar." />
-                    <Segment<StartTab> size="sm" ariaLabel="Ausgangspunkt" value={startTab} onChange={setStartTab}
-                        options={[{ value: "events", label: "Letzte Events" }, { value: "templates", label: "Raid-Vorlagen" }]} />
+                    <Label text={t("raidCreate.start.label")} tip={t("raidCreate.start.tip")} />
+                    <Segment<StartTab> size="sm" ariaLabel={t("raidCreate.start.ariaLabel")} value={startTab} onChange={setStartTab}
+                        options={[{ value: "events", label: t("raidCreate.start.tabEvents") }, { value: "templates", label: t("raidCreate.templatesLink") }]} />
                 </div>
-                <div className="re-opts" role="radiogroup" aria-label="Vorlage">
+                <div className="re-opts" role="radiogroup" aria-label={t("raidCreate.start.group")}>
                     {startTab === "events"
                         ? options.map((ev) => (
                             <OptionCard
@@ -518,76 +526,78 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                                 selected={choice?.kind === "event" && choice.id === ev.id}
                                 onSelect={() => applyChoice(ctx, { kind: "event", id: ev.id })}
                                 icon={<RaidIcon contentIds={ev.contentIds} sources={["title"]} />}
-                                title={ev.title || "(ohne Titel)"}
+                                title={ev.title || t("raidCreate.noTitle")}
                                 sub={<EventSub ev={ev} />}
                             />
                         ))
                         : raidTemplates.map(templateCard)}
-                    {startTab === "events" && !options.length && <div className="re-empty">Noch kein Event zum Wiederholen.</div>}
+                    {startTab === "events" && !options.length && <div className="re-empty">{t("raidCreate.start.noEvents")}</div>}
                     {startTab === "templates" && !raidTemplates.length && (
-                        <div className="re-empty">Noch keine Raid-Vorlage — <Link className="re-link" to="/raids/raid-templates">Raid-Vorlagen</Link></div>
+                        <div className="re-empty">{t("raidCreate.start.noTemplates")} <Link className="re-link" to="/raids/raid-templates">{t("raidCreate.templatesLink")}</Link></div>
                     )}
                     <span className="re-opts-sep" aria-hidden="true" />
                     <OptionCard
                         selected={choice?.kind === "empty"}
                         onSelect={() => applyChoice(ctx, { kind: "empty", id: "" })}
                         icon={<span className="raid-ic"><WowIcon name={EMPTY_ICON} size={36} className="a" /></span>}
-                        title="Leer beginnen"
-                        sub="Kategorie wählen, der Rest kommt aus ihrer Standard-Vorlage"
+                        title={t("raidCreate.start.empty")}
+                        sub={t("raidCreate.start.emptySub")}
                     />
                 </div>
             </>
         );
     } else if (step === "termin") {
-        const leaderText = leaderId === userId ? "Leitung: du" : leaderId ? `Leitung: ${leaderId}` : "Keine Leitung";
-        const descText = description.trim() ? (sourceEvent && description === sourceEvent.description ? "Beschreibung übernommen" : "Beschreibung gesetzt") : "ohne Beschreibung";
-        let startName = "Leer beginnen";
-        if (choice?.kind === "event" && sourceEvent) startName = `${sourceEvent.title || "(ohne Titel)"}${sourceEvent.categoryName ? ` · ${sourceEvent.categoryName}` : ""}`;
-        else if (choice?.kind === "template") startName = baseTemplate?.name || "(ohne Name)";
+        const leaderText = leaderId === userId ? t("raidCreate.termin.leaderYou") : leaderId ? t("raidCreate.termin.leaderId", { id: leaderId }) : t("raidCreate.termin.noLeader");
+        const descText = description.trim()
+            ? (sourceEvent && description === sourceEvent.description ? t("raidCreate.termin.descTaken") : t("raidCreate.termin.descSet"))
+            : t("raidCreate.termin.descNone");
+        let startName = t("raidCreate.start.empty");
+        if (choice?.kind === "event" && sourceEvent) startName = `${sourceEvent.title || t("raidCreate.noTitle")}${sourceEvent.categoryName ? ` · ${sourceEvent.categoryName}` : ""}`;
+        else if (choice?.kind === "template") startName = baseTemplate?.name || t("raidCreate.noName");
         body = (
             <>
                 {!editing && (
                     <div className="re-summary">
                         {choice?.kind === "empty" ? <span className="raid-ic"><WowIcon name={EMPTY_ICON} size={36} className="a" /></span> : summaryIcon}
                         <div className="re-opt-text">
-                            <span className="kicker">{choice?.kind === "template" ? "Raid-Vorlage" : "Vorlage"}</span>
+                            <span className="kicker">{choice?.kind === "template" ? t("raidCreate.termin.kindTemplate") : t("raidCreate.termin.kindStart")}</span>
                             <strong>{startName}</strong>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => setStep("start")}>Ändern</Button>
+                        <Button variant="ghost" size="sm" onClick={() => setStep("start")}>{t("raidCreate.termin.change")}</Button>
                     </div>
                 )}
                 <div className="field">
-                    <Label text="Titel" htmlFor="re-title" />
+                    <Label text={t("raidCreate.termin.title")} htmlFor="re-title" />
                     <input id="re-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Hyjal + Black Temple" required />
                 </div>
                 <div className="re-grid2">
                     <div className="field">
-                        <Label text="Datum" htmlFor="re-date" />
+                        <Label text={t("raidCreate.termin.date")} htmlFor="re-date" />
                         <input id="re-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
                     </div>
                     <div className="field">
-                        <Label text="Uhrzeit" htmlFor="re-time" />
+                        <Label text={t("raidCreate.termin.time")} htmlFor="re-time" />
                         <div className="re-clock">
                             <input id="re-time" type="time" value={time} onChange={(e) => setTime(e.target.value)} required />
                             {eh && (
-                                <label className="re-duration" data-tip="Dauer" data-tip-sub={`Wie lange der Raid dauert, in Minuten (${PLAN_MIN_DURATION}–${PLAN_MAX_DURATION}). Daraus ergibt sich das Ende — es steht in der Anmelde-Nachricht und begrenzt das Discord-Event.`}>
-                                    <input type="number" aria-label="Dauer in Minuten" min={PLAN_MIN_DURATION} max={PLAN_MAX_DURATION} step={15} value={plan.durationMinutes}
+                                <label className="re-duration" data-tip={t("raidCreate.termin.duration")} data-tip-sub={t("raidCreate.termin.durationTip", { min: PLAN_MIN_DURATION, max: PLAN_MAX_DURATION })}>
+                                    <input type="number" aria-label={t("raidCreate.termin.durationAria")} min={PLAN_MIN_DURATION} max={PLAN_MAX_DURATION} step={15} value={plan.durationMinutes}
                                         onChange={(e) => changePlan({ ...plan, durationMinutes: Math.floor(Number(e.target.value) || 0) })} />
-                                    <span className="re-sub">Min.</span>
+                                    <span className="re-sub">{t("raidCreate.termin.minutes")}</span>
                                 </label>
                             )}
                         </div>
-                        {eh && endPreview && <span className="re-sub">Ende {endPreview.time}</span>}
+                        {eh && endPreview && <span className="re-sub">{t("raidCreate.termin.end", { time: endPreview.time })}</span>}
                     </div>
                 </div>
                 {categories.length > 0 && (
                     <div className="field">
-                        <Label text="Kategorie" htmlFor="re-category" tip={editing ? "Das Event bleibt in seinem Kanal und seiner Kategorie." : "Bestimmt die Standard-Vorlage, das Kanal-Schema und ob die Anmeldung über den EventHelper oder Raid-Helper läuft."} />
+                        <Label text={t("raidCreate.termin.category")} htmlFor="re-category" tip={editing ? t("raidCreate.termin.categoryTipEdit") : t("raidCreate.termin.categoryTip")} />
                         <select id="re-category" value={categoryId} disabled={editing} onChange={(e) => {
                             applyCategory(ctx, e.target.value);
                             if (channelMode === "clone" && sourceEvent?.categoryId !== e.target.value) setChannelMode("new");
                         }}>
-                            <option value="">— Kategorie wählen —</option>
+                            <option value="">{t("raidCreate.termin.categoryPick")}</option>
                             {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                     </div>
@@ -596,7 +606,7 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                     <div className="re-more-head">
                         <WowIcon name="inv_misc_book_09" size={22} />
                         <div className="re-opt-text">
-                            <strong>Weitere Angaben</strong>
+                            <strong>{t("raidCreate.termin.more")}</strong>
                             <span className="re-sub">{leaderText} · {descText}</span>
                         </div>
                         <Expand open={moreOpen} onToggle={() => setMoreOpen((o) => !o)} />
@@ -604,12 +614,12 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                     {moreOpen && (
                         <div className="re-more-body">
                             <div className="field">
-                                <Label text="Event-Leiter (Discord-User-ID)" htmlFor="re-leader" tip="Vorbelegt mit deiner ID." />
+                                <Label text={t("raidCreate.termin.leader")} htmlFor="re-leader" tip={t("raidCreate.termin.leaderTip")} />
                                 <input id="re-leader" className="re-mono" type="text" value={leaderId} onChange={(e) => setLeaderId(e.target.value)} required />
                             </div>
                             <div className="field">
-                                <Label text="Beschreibung" htmlFor="re-desc" tip="Optional. Steht in der Event-Nachricht unter dem Titel." />
-                                <textarea id="re-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Weitere Infos zum Raid …" />
+                                <Label text={t("raidCreate.termin.description")} htmlFor="re-desc" tip={t("raidCreate.termin.descriptionTip")} />
+                                <textarea id="re-desc" value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("raidCreate.termin.descriptionPlaceholder")} />
                             </div>
                         </div>
                     )}
@@ -627,26 +637,26 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
         body = (
             <>
                 <div className="re-raid-head">
-                    <Segment size="sm" ariaLabel="Spielversion" value={plan.versionId}
+                    <Segment size="sm" ariaLabel={t("raidCreate.raid.version")} value={plan.versionId}
                         onChange={(id) => { setFreeSize(false); changePlan(withVersion(plan, versions.find((v) => v.id === id))); }}
                         options={versions.map((v) => ({ value: v.id, label: v.short, tip: v.label }))} />
                     <span className="re-raid-tpl">
-                        {baseTemplate && <Badge tip="Raid-Vorlage" tipSub="Die Werte kamen aus dieser Vorlage. Änderungen hier gelten nur für dieses Event.">{baseTemplate.name}</Badge>}
-                        <Button variant="ghost" size="sm" icon="inv_misc_note_05" onClick={openSaveTemplate}>Als Vorlage speichern</Button>
+                        {baseTemplate && <Badge tip={t("raidCreate.raid.templateBadge")} tipSub={t("raidCreate.raid.templateBadgeSub")}>{baseTemplate.name}</Badge>}
+                        <Button variant="ghost" size="sm" icon="inv_misc_note_05" onClick={openSaveTemplate}>{t("raidCreate.raid.saveAsTemplate")}</Button>
                     </span>
                 </div>
                 {tplOpen && (
-                    <div className="re-tpl-save" role="group" aria-label="Als Vorlage speichern">
+                    <div className="re-tpl-save" role="group" aria-label={t("raidCreate.raid.saveAsTemplate")}>
                         {baseTemplate && (
-                            <Segment<TemplateMode> size="sm" ariaLabel="Vorlage" value={tplMode} onChange={setTplMode}
-                                options={[{ value: "update", label: `„${baseTemplate.name}“ aktualisieren` }, { value: "new", label: "Neue Vorlage" }]} />
+                            <Segment<TemplateMode> size="sm" ariaLabel={t("raidCreate.raid.tplMode")} value={tplMode} onChange={setTplMode}
+                                options={[{ value: "update", label: t("raidCreate.raid.tplUpdate", { name: baseTemplate.name }) }, { value: "new", label: t("raidCreate.raid.tplNew") }]} />
                         )}
                         {tplMode === "new" && (
-                            <input type="text" aria-label="Name der Vorlage" value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder="Name, z. B. SSC + TK 25er" />
+                            <input type="text" aria-label={t("raidCreate.raid.tplName")} value={tplName} onChange={(e) => setTplName(e.target.value)} placeholder={t("raidCreate.raid.tplNamePlaceholder")} />
                         )}
                         <span className="re-tpl-acts">
-                            <Button variant="ghost" size="sm" onClick={() => setTplOpen(false)}>Abbrechen</Button>
-                            <Button size="sm" running={tplSaving} disabled={!!problem || (tplMode === "new" && !tplName.trim())} onClick={saveTemplate}>Speichern</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setTplOpen(false)}>{t("common.cancel")}</Button>
+                            <Button size="sm" running={tplSaving} disabled={!!problem || (tplMode === "new" && !tplName.trim())} onClick={saveTemplate}>{t("common.save")}</Button>
                         </span>
                     </div>
                 )}
@@ -658,21 +668,21 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                 <div className="re-fit" role="status">
                     {problem
                         ? <Badge tone="bad">{problem}</Badge>
-                        : <Badge tone="ok" icon={<CheckIcon />} tip="Summe passt zur Größe" tipSub="Tanks, Heiler und die Nah-/Fernkampf-Minima passen in den Raid.">{plannedSeats(plan)} / {plan.size} verplant</Badge>}
+                        : <Badge tone="ok" icon={<CheckIcon />} tip={t("raidCreate.raid.fitTip")} tipSub={t("raidCreate.raid.fitTipSub")}>{t("raidCreate.raid.planned", { planned: plannedSeats(plan), size: plan.size })}</Badge>}
                 </div>
                 <details className="rt-more">
-                    <summary>Mehr: Aussehen, Nah-/Fernkampf, Pflicht-Buffs, Setup, Warteliste{moreCount ? <Badge count>{moreCount}</Badge> : null}</summary>
+                    <summary>{t("raidCreate.raid.more")}{moreCount ? <Badge count>{moreCount}</Badge> : null}</summary>
                     <div className="rt-more-body">
                         <AppearanceFields idPrefix="re" version={version} instanceIds={plan.instanceIds} color={plan.color} image={plan.image}
                             onChange={(look) => changePlan({ ...plan, ...look })} />
                         <RoleRanges idPrefix="re" melee={plan.melee} ranged={plan.ranged} onChange={(r) => changePlan({ ...plan, ...r })} />
                         <BuffPicker version={version} value={plan.requiredBuffs} onToggle={toggleBuff} />
                         <div className="rt-switches">
-                            <SwitchRow label="Fairness" tip="Wer zuletzt auf der Bank saß, wird beim Setup-Vorschlag bevorzugt." checked={plan.fairness} onChange={(v) => changePlan({ ...plan, fairness: v })} />
-                            <SwitchRow label="Wünsche" tip="„Gerne zusammen raiden mit“ aus den Profilen fließt in den Setup-Vorschlag ein." checked={plan.wishes} onChange={(v) => changePlan({ ...plan, wishes: v })} />
-                            <SwitchRow label="Vorschlag bei Anmeldeschluss" tip="Zum Anmeldeschluss entsteht automatisch ein Setup-Vorschlag — ein Entwurf, den jemand freigeben muss." checked={plan.autoSuggest} onChange={(v) => changePlan({ ...plan, autoSuggest: v })} />
-                            <SwitchRow label="Warteliste bei vollem Raid" tip="Ist der Raid voll, wird aus jeder neuen Anmeldung, die einen Platz belegt („Dabei“ und „Spät“), die Bank — der Raider erfährt es sofort. Aus: die Anmeldung wird abgelehnt. Wer schon einen Platz hat, behält ihn." checked={plan.overflow !== "off"} onChange={(v) => changePlan({ ...plan, overflow: v ? "bench" : "off" })} />
-                            <SwitchRow label="Anmeldung schließen, wenn voll" tip="Sobald die Plätze belegt sind, schließt die Anmeldung wie von Hand. Meldet sich jemand ab, öffnet sie nicht von selbst wieder." checked={plan.lockAtLimit} onChange={(v) => changePlan({ ...plan, lockAtLimit: v })} />
+                            <SwitchRow label={t("raidCreate.raid.fairness")} tip={t("raidCreate.raid.fairnessTip")} checked={plan.fairness} onChange={(v) => changePlan({ ...plan, fairness: v })} />
+                            <SwitchRow label={t("raidCreate.raid.wishes")} tip={t("raidCreate.raid.wishesTip")} checked={plan.wishes} onChange={(v) => changePlan({ ...plan, wishes: v })} />
+                            <SwitchRow label={t("raidCreate.raid.autoSuggest")} tip={t("raidCreate.raid.autoSuggestTip")} checked={plan.autoSuggest} onChange={(v) => changePlan({ ...plan, autoSuggest: v })} />
+                            <SwitchRow label={t("raidCreate.raid.overflow")} tip={t("raidCreate.raid.overflowTip")} checked={plan.overflow !== "off"} onChange={(v) => changePlan({ ...plan, overflow: v ? "bench" : "off" })} />
+                            <SwitchRow label={t("raidCreate.raid.lockAtLimit")} tip={t("raidCreate.raid.lockAtLimitTip")} checked={plan.lockAtLimit} onChange={(v) => changePlan({ ...plan, lockAtLimit: v })} />
                         </div>
                     </div>
                 </details>
@@ -681,16 +691,16 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
     } else if (step === "kanal") {
         const deadlineAt = startPreview && plan.deadlineHours > 0 ? eventDay(startPreview - plan.deadlineHours * 3600) : null;
         const modes = [
-            { value: "new" as ChannelMode, label: "Neu nach Schema", disabled: !categoryId },
-            ...(canClone ? [{ value: "clone" as ChannelMode, label: "Klonen" }] : []),
-            { value: "existing" as ChannelMode, label: "Vorhanden" },
+            { value: "new" as ChannelMode, label: t("raidCreate.kanal.modeNew"), disabled: !categoryId },
+            ...(canClone ? [{ value: "clone" as ChannelMode, label: t("raidCreate.kanal.modeClone") }] : []),
+            { value: "existing" as ChannelMode, label: t("raidCreate.kanal.modeExisting") },
         ];
         body = (
             <>
                 {!editing && (
                     <div className="field">
-                        <Label text="Anmeldung über" tip="Vorbelegt aus der Kategorie (Einstellungen → Kategorien). EventHelper: eigene Anmeldung mit Raid-Planung. Raid-Helper: wie bisher, mit Raid-Helper-Template." />
-                        <Segment<EventSource> ariaLabel="Anmeldung über" value={source} onChange={setSource}
+                        <Label text={t("raidCreate.kanal.source")} tip={t("raidCreate.kanal.sourceTip")} />
+                        <Segment<EventSource> ariaLabel={t("raidCreate.kanal.source")} value={source} onChange={setSource}
                             options={[{ value: "eventhelper", label: "EventHelper", icon: "inv_misc_note_05" }, { value: "raidhelper", label: "Raid-Helper", icon: "inv_misc_map_01" }]} />
                     </div>
                 )}
@@ -699,36 +709,37 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                         <div className="re-summary">
                             <WowIcon name="inv_letter_15" size={28} />
                             <div className="re-opt-text">
-                                <span className="kicker">Kanal</span>
+                                <span className="kicker">{t("raidCreate.kanal.channel")}</span>
                                 <strong className="re-mono">#{channelName || channelId}</strong>
                             </div>
-                            <Badge tip="Kanal bleibt" tipSub="Ein Event zieht beim Bearbeiten nicht um — für einen anderen Kanal ein neues Event anlegen.">bleibt</Badge>
+                            <Badge tip={t("raidCreate.kanal.staysTip")} tipSub={t("raidCreate.kanal.staysSub")}>{t("raidCreate.kanal.stays")}</Badge>
                         </div>
                     )
                     : (
                         <div className="field">
                             <div className="re-label-row">
-                                <Label text="Kanal" htmlFor="re-channel" tip={`Neu: ein Kanal in der Kategorie, benannt nach ihrem Schema (Kanäle). Klonen: der Kanal #${sourceEvent?.channelName || "…"} mit Rechten und Thema. Vorhanden: ein bestehender Kanal.`} />
-                                <Segment<ChannelMode> size="sm" ariaLabel="Kanal" value={channelMode} onChange={(m) => { setChannelMode(m); setChannelTouched(false); }} options={modes} />
+                                <Label text={t("raidCreate.kanal.channel")} htmlFor="re-channel" tip={t("raidCreate.kanal.channelTip", { channel: sourceEvent?.channelName || "…" })} />
+                                <Segment<ChannelMode> size="sm" ariaLabel={t("raidCreate.kanal.channel")} value={channelMode} onChange={(m) => { setChannelMode(m); setChannelTouched(false); }} options={modes} />
                             </div>
                             {channelMode === "existing"
                                 ? (ctx.channels.length
                                     ? (
                                         <select id="re-channel" value={channelId} onChange={(e) => setChannelId(e.target.value)} required>
-                                            <option value="">— Kanal wählen —</option>
+                                            <option value="">{t("raidCreate.kanal.channelPick")}</option>
                                             {(categoryChannels.length ? categoryChannels : ctx.channels).map((c) => <option key={c.id} value={c.id}>#{c.name}{c.category ? ` · ${c.category}` : ""}</option>)}
                                         </select>
                                     )
-                                    : <input id="re-channel" type="text" value={channelId} onChange={(e) => setChannelId(e.target.value)} placeholder="Kanal-ID (kein Server gewählt)" required />)
+                                    : <input id="re-channel" type="text" value={channelId} onChange={(e) => setChannelId(e.target.value)} placeholder={t("raidCreate.kanal.channelIdPlaceholder")} required />)
                                 : (
                                     <>
                                         <input id="re-channel" className="re-mono re-chan-name" type="text" value={channelName}
                                             onChange={(e) => { setChannelName(e.target.value); setChannelTouched(true); }} required
-                                            data-tip="Kanalname" data-tip-sub={naming ? `${naming.label}${categoryName ? ` · ${categoryName}` : ""}` : `Schema ${schema?.schema || ctx.defaultSchema || ""}${categoryName ? ` · ${categoryName}` : ""}`} />
+                                            data-tip={t("raidCreate.kanal.channelName")}
+                                            data-tip-sub={`${naming ? naming.label : t("raidCreate.kanal.schema", { schema: schema?.schema || ctx.defaultSchema || "" })}${categoryName ? ` · ${categoryName}` : ""}`} />
                                         {naming && (
                                             <div className="re-naming">
                                                 {channelTouched && naming.name !== normalizeChannelName(channelName)
-                                                    ? <Badge tip="Von Hand benannt" tipSub={`Vorschlag wäre #${naming.name} (${naming.label}). ${naming.design}.`}>von Hand benannt</Badge>
+                                                    ? <Badge tip={t("raidCreate.kanal.manualTip")} tipSub={t("raidCreate.kanal.manualSub", { name: naming.name, label: naming.label, design: naming.design })}>{t("raidCreate.kanal.manual")}</Badge>
                                                     : <NamingBadge naming={naming} />}
                                             </div>
                                         )}
@@ -738,33 +749,33 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                     )}
                 {eh && (
                     <div className="field">
-                        <Label text="Sprachkanal" htmlFor="re-voice" tip="Wo sich der Raid trifft. Steht als eigene Zeile in der Anmelde-Nachricht und ist der Ort des Discord-Events. Vorbelegt aus der Kategorie (Einstellungen → Kategorien)." />
+                        <Label text={t("raidCreate.kanal.voice")} htmlFor="re-voice" tip={t("raidCreate.kanal.voiceTip")} />
                         {(ctx.voiceChannels || []).length
                             ? (
                                 <select id="re-voice" value={voiceChannelId} onChange={(e) => { setVoiceChannelId(e.target.value); setVoiceTouched(true); }}>
-                                    <option value="">— keiner —</option>
+                                    <option value="">{t("raidCreate.kanal.voiceNone")}</option>
                                     {(ctx.voiceChannels || []).map((c) => <option key={c.id} value={c.id}>{c.name}{c.category ? ` · ${c.category}` : ""}</option>)}
                                 </select>
                             )
-                            : <span className="note">Keine Sprachkanäle geladen (Bot offline).</span>}
+                            : <span className="note">{t("raidCreate.kanal.voiceMissing")}</span>}
                     </div>
                 )}
                 {eh && !editing && (
                     <div className="rt-switches">
                         <SwitchRow
-                            label="Beim Anlegen ankündigen"
-                            tip="Postet eine kurze Zeile mit Titel, Termin und Link zur Anmeldung und pingt die Raider-Rolle der Kategorie. Vorbelegt aus Einstellungen → Kategorien; passiert genau einmal je Event."
+                            label={t("raidCreate.kanal.announce")}
+                            tip={t("raidCreate.kanal.announceTip")}
                             checked={announce} onChange={(v) => { setAnnounce(v); setAnnounceTouched(true); }} />
                     </div>
                 )}
                 {eh
                     ? (
                         <div className="field">
-                            <Label text="Anmeldeschluss" htmlFor="re-deadline" tip="Stunden vor dem Raidbeginn; leer = kein Anmeldeschluss." />
+                            <Label text={t("raidCreate.kanal.deadline")} htmlFor="re-deadline" tip={t("raidCreate.kanal.deadlineTip")} />
                             <div className="re-deadline">
-                                <input id="re-deadline" type="number" min={0} max={336} value={plan.deadlineHours || ""} placeholder="keiner"
+                                <input id="re-deadline" type="number" min={0} max={336} value={plan.deadlineHours || ""} placeholder={t("raidCreate.kanal.deadlineNone")}
                                     onChange={(e) => changePlan({ ...plan, deadlineHours: Math.max(0, Math.floor(Number(e.target.value) || 0)) })} />
-                                <span className="re-sub">Std. vorher</span>
+                                <span className="re-sub">{t("raidCreate.kanal.hoursBefore")}</span>
                                 {deadlineAt && <Badge tone="accent">{deadlineAt.day} · {deadlineAt.time}</Badge>}
                             </div>
                         </div>
@@ -772,13 +783,13 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                     : (
                         <div className="field">
                             <div className="re-label-row">
-                                <Label text="Raid-Helper-Template" htmlFor="re-template" tip="Welche Rollen, Klassen und Plätze das Event hat. Angeboten werden die Raid-Vorlagen mit verknüpfter Raid-Helper-Vorlage; vorbelegt ist die Standard-Vorlage der Kategorie." />
-                                <Link className="re-link" to="/raids/raid-templates">Raid-Vorlagen</Link>
+                                <Label text={t("raidCreate.kanal.rhTemplate")} htmlFor="re-template" tip={t("raidCreate.kanal.rhTemplateTip")} />
+                                <Link className="re-link" to="/raids/raid-templates">{t("raidCreate.templatesLink")}</Link>
                             </div>
                             <select id="re-template" value={templateId} onChange={(e) => { setTemplateId(e.target.value); setTemplateTouched(true); }} required>
-                                <option value="">— Template wählen —</option>
-                                {templateId && !rhTemplate && <option value={templateId}>ID {templateId} (nicht in der Liste)</option>}
-                                {rhTemplates.map((t) => <option key={t.id} value={t.raidhelperTemplateId}>{t.name || "(ohne Name)"} · ID {t.raidhelperTemplateId}</option>)}
+                                <option value="">{t("raidCreate.kanal.rhPick")}</option>
+                                {templateId && !rhTemplate && <option value={templateId}>{t("raidCreate.kanal.rhUnknown", { id: templateId })}</option>}
+                                {rhTemplates.map((tpl) => <option key={tpl.id} value={tpl.raidhelperTemplateId}>{tpl.name || t("raidCreate.noName")} · ID {tpl.raidhelperTemplateId}</option>)}
                             </select>
                         </div>
                     )}
@@ -787,8 +798,8 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
     } else {
         const when = eventDay(startPreview);
         let where: ReactNode = <code>#{channel?.name || channelName || channelId}</code>;
-        if (!editing && channelMode === "clone") where = <>neu: <code>#{channelName}</code>, geklont aus <code>#{sourceEvent?.channelName}</code></>;
-        else if (!editing && channelMode === "new") where = <>neu: <code>#{channelName}</code>{categoryName ? ` in ${categoryName}` : ""}</>;
+        if (!editing && channelMode === "clone") where = <>{t("raidCreate.check.new")} <code>#{channelName}</code>, {t("raidCreate.check.clonedFrom")} <code>#{sourceEvent?.channelName}</code></>;
+        else if (!editing && channelMode === "new") where = <>{t("raidCreate.check.new")} <code>#{channelName}</code>{categoryName ? ` ${t("raidCreate.check.inCategory", { name: categoryName })}` : ""}</>;
         body = (
             <>
                 <div className="re-review">
@@ -801,67 +812,67 @@ export default function RaidCreateDialog({ open, sourceId, editEventId = "", csr
                 </div>
                 {eh && (
                     <div className="re-figs">
-                        <Figure label="Größe" value={plan.size} />
-                        <Figure label="Tanks" value={plan.tank} />
-                        <Figure label="Heiler" value={plan.healer} />
-                        <Figure label="DPS" value={Math.max(0, plan.size - plan.tank - plan.healer)} />
+                        <Figure label={t("raidCreate.check.size")} value={plan.size} />
+                        <Figure label={rolePluralLabel("tank")} value={plan.tank} />
+                        <Figure label={rolePluralLabel("healer")} value={plan.healer} />
+                        <Figure label={rolePluralLabel("dps")} value={Math.max(0, plan.size - plan.tank - plan.healer)} />
                     </div>
                 )}
                 <dl className="re-facts">
-                    <dt>Anmeldung</dt>
-                    <dd>{eh ? "EventHelper" : "Raid-Helper"}{!editing && source !== sourceOf(ctx.signupSources, categoryId) && <Badge tone="mid">abweichend von der Kategorie</Badge>}</dd>
+                    <dt>{t("raidCreate.check.signup")}</dt>
+                    <dd>{eh ? "EventHelper" : "Raid-Helper"}{!editing && source !== sourceOf(ctx.signupSources, categoryId) && <Badge tone="mid">{t("raidCreate.check.differs")}</Badge>}</dd>
                     {eh
                         ? (
                             <>
-                                <dt>Raid</dt>
-                                <dd>{chosenInstances.map((i) => i.name).join(" + ") || "—"}{chosenInstances.some((i) => i.status === "incomplete") && <Badge tone="mid">Infos fehlen</Badge>}</dd>
-                                <dt>Dauer</dt>
-                                <dd>{plan.durationMinutes} Min.{endPreview ? ` · Ende ${endPreview.time}` : ""}</dd>
-                                <dt>Sprachkanal</dt>
-                                <dd>{voiceChannelId ? (ctx.voiceChannels || []).find((c) => c.id === voiceChannelId)?.name || voiceChannelId : "keiner"}</dd>
-                                <dt>Anmeldeschluss</dt>
-                                <dd>{plan.deadlineHours > 0 ? `${plan.deadlineHours} Std. vorher` : "keiner"}</dd>
-                                <dt>Wenn voll</dt>
+                                <dt>{t("raidCreate.check.raid")}</dt>
+                                <dd>{chosenInstances.map((i) => i.name).join(" + ") || "—"}{chosenInstances.some((i) => i.status === "incomplete") && <Badge tone="mid">{t("raidCreate.incomplete")}</Badge>}</dd>
+                                <dt>{t("raidCreate.check.duration")}</dt>
+                                <dd>{t("raidCreate.check.durationValue", { minutes: plan.durationMinutes })}{endPreview ? ` · ${t("raidCreate.termin.end", { time: endPreview.time })}` : ""}</dd>
+                                <dt>{t("raidCreate.check.voice")}</dt>
+                                <dd>{voiceChannelId ? (ctx.voiceChannels || []).find((c) => c.id === voiceChannelId)?.name || voiceChannelId : t("raidCreate.check.none")}</dd>
+                                <dt>{t("raidCreate.check.deadline")}</dt>
+                                <dd>{plan.deadlineHours > 0 ? t("raidCreate.check.deadlineValue", { hours: plan.deadlineHours }) : t("raidCreate.check.none")}</dd>
+                                <dt>{t("raidCreate.check.whenFull")}</dt>
                                 <dd>{overflowLine(plan)}</dd>
                                 {!editing && (
                                     <>
-                                        <dt>Ankündigung</dt>
-                                        <dd>{announce ? "Raider-Rolle wird gepingt" : "keine"}</dd>
+                                        <dt>{t("raidCreate.check.announcement")}</dt>
+                                        <dd>{announce ? t("raidCreate.check.announcePing") : t("raidCreate.check.announceNone")}</dd>
                                     </>
                                 )}
                             </>
                         )
                         : (
                             <>
-                                <dt>Template</dt>
-                                <dd>{rhTemplate ? rhTemplate.name || "(ohne Name)" : "eigene ID"} <Badge>ID {templateId}</Badge></dd>
+                                <dt>{t("raidCreate.check.template")}</dt>
+                                <dd>{rhTemplate ? rhTemplate.name || t("raidCreate.noName") : t("raidCreate.check.ownId")} <Badge>{t("raidCreate.check.id", { id: templateId })}</Badge></dd>
                             </>
                         )}
-                    <dt>Kanal</dt>
+                    <dt>{t("raidCreate.check.channel")}</dt>
                     <dd>{where}</dd>
-                    <dt>Leitung</dt>
-                    <dd>{leaderId === userId ? "du" : <code>{leaderId}</code>}</dd>
-                    <dt>Beschreibung</dt>
+                    <dt>{t("raidCreate.check.leader")}</dt>
+                    <dd>{leaderId === userId ? t("raidCreate.check.you") : <code>{leaderId}</code>}</dd>
+                    <dt>{t("raidCreate.check.description")}</dt>
                     <dd className="re-desc-preview">{description.trim() || "—"}</dd>
                 </dl>
             </>
         );
     }
 
-    const cancel = <Button variant="ghost" onClick={onClose}>Abbrechen</Button>;
-    const back = stepAt > 0 ? <Button variant="ghost" onClick={() => setStep(steps[stepAt - 1])}>Zurück</Button> : undefined;
+    const cancel = <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>;
+    const back = stepAt > 0 ? <Button variant="ghost" onClick={() => setStep(steps[stepAt - 1])}>{t("raidCreate.footer.back")}</Button> : undefined;
     const next = steps[stepAt + 1];
     const footer = step === "check" || !next
-        ? <>{cancel}<Button icon="inv_misc_note_05" running={saving} disabled={!ctx || !!problem} onClick={submit}>{editing ? "Speichern" : "Event anlegen"}</Button></>
-        : <>{cancel}<Button disabled={!ctx || !readyAt(step)} onClick={() => setStep(next)}>Weiter: {STEP_LABELS[next]} <ChevronRightIcon /></Button></>;
+        ? <>{cancel}<Button icon="inv_misc_note_05" running={saving} disabled={!ctx || !!problem} onClick={submit}>{editing ? t("common.save") : t("raidCreate.footer.create")}</Button></>
+        : <>{cancel}<Button disabled={!ctx || !readyAt(step)} onClick={() => setStep(next)}>{t("raidCreate.footer.next", { step: stepLabel(next) })} <ChevronRightIcon /></Button></>;
 
     return (
         <Modal
             open={open}
             onClose={onClose}
             icon="inv_misc_note_05"
-            kicker={`Schritt ${stepAt + 1} von ${steps.length}`}
-            title={editing ? "Event bearbeiten" : "Neues Raid-Event"}
+            kicker={t("raidCreate.footer.stepOf", { n: stepAt + 1, total: steps.length })}
+            title={editing ? t("raidCreate.footer.titleEdit") : t("raidCreate.footer.titleNew")}
             width={680}
             hint={back}
             footer={footer}

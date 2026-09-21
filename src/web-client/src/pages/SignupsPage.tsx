@@ -11,6 +11,8 @@ import SignupDialog from "../components/SignupDialog";
 import BulkSignupDialog from "../components/BulkSignupDialog";
 import { ExternalIcon, XIcon } from "../components/icons";
 import { SIGNUP_STATUS, fillTone, roleCountText, rowSubline, statusBadgeLabel } from "../lib/signups";
+import { specLabel } from "../lib/wowNames";
+import { useT } from "../i18n";
 import "../styles/anmeldung.css";
 
 // "Anmeldungen" (#256): the member's coming raids, one calm row each — the raid
@@ -20,6 +22,7 @@ import "../styles/anmeldung.css";
 // Role counts, comments and the rest live in the dialog and in tooltips.
 
 export default function SignupsPage() {
+    const t = useT();
     const { user, csrfToken } = useOutletContext<ShellContext>();
     const [data, setData] = useState<SignupsData | null>(null);
     const [error, setError] = useState<ApiError | null>(null);
@@ -34,8 +37,8 @@ export default function SignupsPage() {
         getSignups().then(setData).catch(setError);
     }, []);
 
-    if (error) return <div className="empty">Anmeldungen konnten nicht geladen werden: {error.message}</div>;
-    if (!data) return <RaidLoader text="Kommende Raids werden geladen" />;
+    if (error) return <div className="empty">{t("signups.page.loadError", { message: error.message })}</div>;
+    if (!data) return <RaidLoader text={t("signups.page.loading")} />;
 
     // The open dialog is in the url, so the Discord button can link straight to it.
     const openId = params.get("event") || "";
@@ -79,19 +82,19 @@ export default function SignupsPage() {
             <PageHead
                 icon="inv_misc_book_09"
                 tone="signups"
-                kicker={`${user.name} · ${count === 1 ? "1 kommender Raid" : `${count} kommende Raids`}`}
-                title="Anmeldungen"
+                kicker={`${user.name} · ${t("signups.page.upcoming", { count })}`}
+                title={t("signups.page.title")}
                 meta={noCharacter && (
-                    <Link className="badge mid" to="/profile" data-tip="Noch kein Charakter" data-tip-sub="Zum Anmelden brauchst du einen Charakter mit Spec in deinem Profil. Klick öffnet Mein Profil.">
-                        Charakter im Profil anlegen
+                    <Link className="badge mid" to="/profile" data-tip={t("signups.page.noCharTip")} data-tip-sub={t("signups.page.noCharTipSub")}>
+                        {t("signups.page.noCharLink")}
                     </Link>
                 )}
             />
 
-            {data.error && <div className="flash flash-err">Raid-Helper nicht erreichbar – es fehlen vielleicht Events: {data.error}</div>}
+            {data.error && <div className="flash flash-err">{t("signups.page.raidHelperError", { error: data.error })}</div>}
 
             {count === 0
-                ? <p className="an-empty">Gerade stehen keine Raids an, die du sehen darfst.</p>
+                ? <p className="an-empty">{t("signups.page.empty")}</p>
                 : (
                     <div className="an-list">
                         {data.events.map((row) => (
@@ -106,13 +109,13 @@ export default function SignupsPage() {
                 )}
 
             {selectedRows.length > 0 && (
-                <div className="an-bulk" role="toolbar" aria-label="Mehrere Raids anmelden">
-                    <span className="an-bulk-count">{selectedRows.length === 1 ? "1 Raid gewählt" : `${selectedRows.length} Raids gewählt`}</span>
+                <div className="an-bulk" role="toolbar" aria-label={t("signups.page.bulkAria")}>
+                    <span className="an-bulk-count">{t("signups.selectedCount", { count: selectedRows.length })}</span>
                     {selectedRows.length < selectable.length && (
-                        <Button size="sm" variant="ghost" onClick={() => setSelected(selectable.map((e) => e.id))}>Alle wählen</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setSelected(selectable.map((e) => e.id))}>{t("signups.page.selectAll")}</Button>
                     )}
-                    <Button size="sm" onClick={() => setBulkRows(selectedRows)}>Für alle gewählten anmelden</Button>
-                    <IconButton size="sm" icon={<XIcon />} tip="Auswahl aufheben" onClick={() => setSelected([])} />
+                    <Button size="sm" onClick={() => setBulkRows(selectedRows)}>{t("signups.bulkTitle")}</Button>
+                    <IconButton size="sm" icon={<XIcon />} tip={t("signups.page.clearSelection")} onClick={() => setSelected([])} />
                 </div>
             )}
 
@@ -144,13 +147,18 @@ function SignupRow({ row, onOpen, selectable, selected, onToggle }: {
     selected: boolean;
     onToggle: () => void;
 }) {
+    const t = useT();
     const own = row.source === "eventhelper";
     const mine = row.mine;
     const size = row.size || 0;
-    const barTip = own ? roleCountText(row.counts) : `${row.attending} angemeldet`;
+    const barTip = own ? roleCountText(row.counts) : t("signups.attending", { count: row.attending });
     const barSub = own
-        ? [row.counts.tentative ? `${row.counts.tentative} vielleicht` : "", row.counts.bench ? `${row.counts.bench} Bank` : "", row.counts.absence ? `${row.counts.absence} abgemeldet` : ""].filter(Boolean).join(" · ") || undefined
-        : "Stand aus Raid-Helper.";
+        ? [
+            row.counts.tentative ? t("signups.row.tentative", { count: row.counts.tentative }) : "",
+            row.counts.bench ? t("signups.row.bench", { count: row.counts.bench }) : "",
+            row.counts.absence ? t("signups.row.absence", { count: row.counts.absence }) : "",
+        ].filter(Boolean).join(" · ") || undefined
+        : t("signups.row.raidHelperState");
 
     return (
         <div className={`an-row${mine && mine.status !== "absence" ? " is-mine" : ""}${selected ? " an-row-selected" : ""}`}>
@@ -158,8 +166,8 @@ function SignupRow({ row, onOpen, selectable, selected, onToggle }: {
                 {selectable && (
                     <input
                         type="checkbox" checked={selected} onChange={onToggle}
-                        aria-label={`${row.title} auswählen`}
-                        data-tip="Auswählen" data-tip-sub="Mehrere Raids wählen und mit „Für alle gewählten anmelden“ auf einmal anmelden."
+                        aria-label={t("signups.row.selectAria", { title: row.title })}
+                        data-tip={t("signups.row.selectTip")} data-tip-sub={t("signups.row.selectTipSub")}
                     />
                 )}
             </span>
@@ -179,8 +187,8 @@ function SignupRow({ row, onOpen, selectable, selected, onToggle }: {
                         {mine && <Badge tone={SIGNUP_STATUS[mine.status].tone}>{statusBadgeLabel(mine.status)}</Badge>}
                         {row.discordUrl && (
                             <a className="btn btn-ghost btn-sm has-icon" href={row.discordUrl} target="_blank" rel="noreferrer"
-                                data-tip="In Discord anmelden" data-tip-sub="Dieses Event läuft über Raid-Helper – die Anmeldung ist das Widget unter dem Event-Post.">
-                                <ExternalIcon /> In Discord
+                                data-tip={t("signups.row.discordTip")} data-tip-sub={t("signups.row.discordTipSub")}>
+                                <ExternalIcon /> {t("signups.row.inDiscord")}
                             </a>
                         )}
                     </>
@@ -191,23 +199,25 @@ function SignupRow({ row, onOpen, selectable, selected, onToggle }: {
 }
 
 function OwnAction({ row, onOpen }: { row: OwnSignupRow; onOpen: () => void }) {
+    const t = useT();
     const mine = row.mine;
     if (mine) {
         const meta = SIGNUP_STATUS[mine.status];
         const alternates = (mine.characters || []).length - 1;
+        const mineSpec = mine.specLabel ? specLabel(mine.spec, mine.specLabel) : "";
         const label = mine.status === "absence"
             ? statusBadgeLabel(mine.status)
-            : `${meta.label}${mine.specLabel ? ` · ${mine.specLabel}` : ""}${alternates > 0 ? ` +${alternates}` : ""}`;
+            : `${meta.label}${mineSpec ? ` · ${mineSpec}` : ""}${alternates > 0 ? ` +${alternates}` : ""}`;
         // every named character, the first as the choice, the rest "kann auch mit" (#293);
         // a character whose own status differs from the signup's says so: "Zibbowar (Schutz, Dabei)"
         const who = (mine.characters || []).length
             ? mine.characters.map((c, i) => {
                 const own = c.status && c.status !== mine.status ? SIGNUP_STATUS[c.status].label : "";
-                const detail = [c.specLabel, own].filter(Boolean).join(", ");
+                const detail = [c.specLabel ? specLabel(c.spec, c.specLabel) : "", own].filter(Boolean).join(", ");
                 return `${i ? "+" : ""}${c.character}${detail ? ` (${detail})` : ""}`;
             }).join(", ")
             : mine.character;
-        const sub = [who, mine.comment ? `„${mine.comment}“` : "", row.started ? "" : "Klick zum Ändern"].filter(Boolean).join(" · ");
+        const sub = [who, mine.comment ? t("signups.quoted", { text: mine.comment }) : "", row.started ? "" : t("signups.row.clickToChange")].filter(Boolean).join(" · ");
         return (
             <button type="button" className={`badge an-status-badge${meta.tone ? ` ${meta.tone}` : ""}`} disabled={row.started} onClick={onOpen} data-tip={label} data-tip-sub={sub || undefined}>
                 <i className="an-dot" style={{ background: meta.color }} />
@@ -215,9 +225,9 @@ function OwnAction({ row, onOpen }: { row: OwnSignupRow; onOpen: () => void }) {
             </button>
         );
     }
-    if (row.started) return <Badge>begonnen</Badge>;
+    if (row.started) return <Badge>{t("signups.row.started")}</Badge>;
     if (row.deadlinePassed) {
-        return <Button variant="ghost" size="sm" onClick={onOpen} data-tip="Anmeldeschluss vorbei" data-tip-sub="Du kannst dich noch abmelden oder „Spät“ angeben.">Abmelden / Spät</Button>;
+        return <Button variant="ghost" size="sm" onClick={onOpen} data-tip={t("signups.deadlinePassed")} data-tip-sub={t("signups.row.latePossible")}>{t("signups.row.offOrLate")}</Button>;
     }
-    return <Button size="sm" onClick={onOpen}>Anmelden</Button>;
+    return <Button size="sm" onClick={onOpen}>{t("signups.signUp")}</Button>;
 }

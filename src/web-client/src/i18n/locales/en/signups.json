@@ -1,0 +1,147 @@
+{
+    "status": {
+        "signed": "Coming",
+        "tentative": "Tentative",
+        "late": "Late",
+        "bench": "Bench",
+        "absence": "Sign off"
+    },
+    "statusTip": {
+        "signed": "You are coming and will play.",
+        "tentative": "Not sure yet – the organisers will not count on you.",
+        "late": "You are coming, but later. Also possible after the signup deadline.",
+        "bench": "You step in when someone is missing.",
+        "absence": "You are not coming. Always possible until the raid starts."
+    },
+    "absentBadge": "Signed off",
+    "canAlso": {
+        "tank": "Off-tank",
+        "healer": "Heal",
+        "melee": "Melee",
+        "ranged": "Ranged"
+    },
+    "gear": {
+        "none": "no gear",
+        "usable": "usable",
+        "ready": "raid-ready"
+    },
+    "viaRaidHelper": "via Raid-Helper",
+    "deadlinePassed": "Signup deadline passed",
+    "deadlineAt": "Signup deadline {time}",
+    "attending": "{count} signed up",
+    "signUp": "Sign up",
+    "quoted": "“{text}”",
+    "selectedCount": {
+        "one": "{count} raid selected",
+        "other": "{count} raids selected"
+    },
+    "bulkTitle": "Sign up for all selected",
+    "statusForAll": "Status for all",
+    "page": {
+        "title": "Signups",
+        "loadError": "Could not load signups: {message}",
+        "loading": "Loading upcoming raids",
+        "upcoming": {
+            "one": "{count} upcoming raid",
+            "other": "{count} upcoming raids"
+        },
+        "noCharTip": "No character yet",
+        "noCharTipSub": "To sign up you need a character with a spec in your profile. Click to open My profile.",
+        "noCharLink": "Add a character to your profile",
+        "raidHelperError": "Raid-Helper unreachable – some events may be missing: {error}",
+        "empty": "There are no upcoming raids you can see right now.",
+        "bulkAria": "Sign up for several raids",
+        "selectAll": "Select all",
+        "clearSelection": "Clear selection"
+    },
+    "row": {
+        "tentative": "{count} tentative",
+        "bench": "{count} bench",
+        "absence": "{count} signed off",
+        "raidHelperState": "As reported by Raid-Helper.",
+        "selectAria": "Select {title}",
+        "selectTip": "Select",
+        "selectTipSub": "Pick several raids and sign up for them at once with “Sign up for all selected”.",
+        "discordTip": "Sign up in Discord",
+        "discordTipSub": "This event runs through Raid-Helper – signing up is the widget below the event post.",
+        "inDiscord": "In Discord",
+        "clickToChange": "Click to change",
+        "started": "started",
+        "latePossible": "You can still sign off or say “Late”.",
+        "offOrLate": "Sign off / Late"
+    },
+    "dialog": {
+        "toastAbsent": "Signed off from {title}.",
+        "toastSaved": "Saved for {title}: {status}.",
+        "size": "{size}-man",
+        "change": "Change signup",
+        "started": "The raid has started.",
+        "deadlineHint": "Signup deadline passed – only Sign off or Late now.",
+        "signOff": "Sign off",
+        "noCharBefore": "Your profile has no character yet.",
+        "noCharLink": "Add a character",
+        "noCharAfter": "– signing off works without one.",
+        "status": "Status",
+        "notAfterDeadline": "No longer available after the signup deadline.",
+        "mixedStatus": "Your characters have different statuses – this sets them all to one.",
+        "canAlso": "I can also",
+        "canAlsoHint": "Prefilled from your profile. The organisers see this in the setup.",
+        "comment": "Comment",
+        "optional": "(optional)",
+        "commentPlaceholder": "e.g. will be about 10 min late",
+        "wishTip": "Wish partner signed up",
+        "wishOn": "Your wish from the profile is taken into account in the setup.",
+        "wishOff": "Wishes are not taken into account in the setup for this event.",
+        "wishSignedUp": {
+            "one": "{names} is signed up too",
+            "other": "{names} are signed up too"
+        },
+        "calendar": "Add to calendar",
+        "publicPage": "Public event page"
+    },
+    "bulk": {
+        "toast": "{saved} of {total} raids saved.",
+        "hint": "Whatever does not fit a raid (deadline, class, raider role) is skipped there, with the reason.",
+        "signOffAll": {
+            "one": "Sign off from {count} raid",
+            "other": "Sign off from {count} raids"
+        },
+        "signUpAll": {
+            "one": "Sign up for {count} raid",
+            "other": "Sign up for {count} raids"
+        },
+        "skipped": "{character} skipped: {reason}",
+        "waitlisted": "Waiting list",
+        "saved": "saved",
+        "notSaved": "not saved",
+        "absent": "signed off"
+    },
+    "picks": {
+        "characters": "Characters",
+        "firstChoice": "1st choice",
+        "canAlsoWith": "Can also come with",
+        "firstChoiceSub": "The character you would most like to bring.",
+        "canAlsoWithSub": "The organisers take it if it suits the raid better.",
+        "characterAria": "Character {n}",
+        "main": " (Main)",
+        "specAria": "Spec {n}",
+        "noSpec": "no spec in profile",
+        "statusTip": "This character's status",
+        "statusTipSub": "Applies to this line only – the switch below sets them all at once.",
+        "statusAria": "Status {n}",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "remove": "Remove",
+        "add": "+ Can also come with …",
+        "upTo": "(up to {max})",
+        "hint": "1 = your choice, the others “can also come with”. The organisers put you in with exactly one.",
+        "hintStatus": " The status applies per character."
+    },
+    "specPicker": {
+        "removeAria": "Remove {name}",
+        "remove": "Remove",
+        "add": "Add spec",
+        "search": "Search …",
+        "noHits": "No matches."
+    }
+}

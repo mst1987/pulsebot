@@ -22,7 +22,7 @@ describe("web client — visible channel naming (#285)", () => {
         expect(dialog).toContain("if (naming?.name) return naming.name;");
         expect(dialog).toContain("<NamingBadge naming={naming} />");
         // a hand-typed name says so instead of claiming a derivation
-        expect(dialog).toContain(">von Hand benannt</Badge>");
+        expect(dialog).toContain(">{t(\"raidCreate.kanal.manual\")}</Badge>");
     });
 
     it("shows it in quick-create above the preview and per row in the bulk rename", () => {

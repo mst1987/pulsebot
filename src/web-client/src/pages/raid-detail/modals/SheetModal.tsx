@@ -13,9 +13,11 @@ import Badge from "../../../components/ui/Badge";
 import IconTile from "../../../components/ui/IconTile";
 import { ExternalIcon } from "../../../components/icons";
 import { useJobs, useToast } from "../../../components/Jobs";
+import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";
 
 export default function SheetModal({ ctx, open, onClose }: { ctx: RaidCtx; open: boolean; onClose: () => void }) {
+    const t = useT();
     const { data, eventId, csrfToken, onChanged } = ctx;
     const { raidsheets, matchedSheetId, tankCandidates, eventSheet, sheetLink, event: ev } = data;
     const jobs = useJobs();
@@ -35,7 +37,7 @@ export default function SheetModal({ ctx, open, onClose }: { ctx: RaidCtx; open:
         e.preventDefault();
         setFilling(true);
         jobs.run({
-            label: "Raidsheet füllen",
+            label: t("raidModals.sheet.fillJob"),
             detail: ev.title,
             icon: "inv_scroll_03",
             expectedSeconds: 20,
@@ -62,63 +64,63 @@ export default function SheetModal({ ctx, open, onClose }: { ctx: RaidCtx; open:
     return (
         <Modal
             open={open} onClose={onClose} icon="inv_scroll_03" tone="raids"
-            kicker={ev.title} title="Raidsheet" width={620}
-            hint={channel ? `in #${channel}` : undefined}
-            footer={<Button variant="ghost" onClick={onClose}>Schließen</Button>}
+            kicker={ev.title} title={t("raidModals.sheet.title")} width={620}
+            hint={channel ? t("raidModals.shared.inChannel", { channel }) : undefined}
+            footer={<Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}
         >
             <div className="rd-dlg-stack">
                 <div className="rd-sheetrow">
                     <IconTile icon="inv_scroll_03" tone={sheetLink ? "ok" : "none"} />
                     <span className="rd-sheetrow-text">
-                        <b>{sheetLink ? (own ? (eventSheet?.eventTitle || "Gefülltes Sheet") : (sheetLink.name || "Festes Sheet der Kategorie")) : "Noch kein Sheet"}</b>
+                        <b>{sheetLink ? (own ? (eventSheet?.eventTitle || t("raidModals.sheet.filled")) : (sheetLink.name || t("raidModals.sheet.categorySheet"))) : t("raidModals.sheet.none")}</b>
                         <span className="rd-muted">
                             {sheetLink
                                 ? own
-                                    ? eventSheet?.deleteAfter ? `Kopie · wird am ${fmtMs(eventSheet.deleteAfter, false)} gelöscht` : "Kopie für diesen Raid"
-                                    : "Festes Sheet der Kategorie"
-                                : "Eine Kopie der Vorlage füllen oder der Kategorie ein festes Sheet zuweisen"}
+                                    ? eventSheet?.deleteAfter ? t("raidModals.sheet.copyDeleted", { date: fmtMs(eventSheet.deleteAfter, false) }) : t("raidModals.sheet.copyForRaid")
+                                    : t("raidModals.sheet.categorySheet")
+                                : t("raidModals.sheet.noneHint")}
                         </span>
                     </span>
-                    {sheetLink && (posted ? <Badge tone="ok">gepostet</Badge> : <Badge tone="mid">nicht gepostet</Badge>)}
+                    {sheetLink && (posted ? <Badge tone="ok">{t("raidModals.shared.posted")}</Badge> : <Badge tone="mid">{t("raidModals.shared.notPosted")}</Badge>)}
                     {sheetLink && (
-                        <a className="ibtn sm" href={sheetLink.url} target="_blank" rel="noopener noreferrer" data-tip="Sheet öffnen" aria-label="Sheet öffnen"><ExternalIcon /></a>
+                        <a className="ibtn sm" href={sheetLink.url} target="_blank" rel="noopener noreferrer" data-tip={t("raidModals.sheet.open")} aria-label={t("raidModals.sheet.open")}><ExternalIcon /></a>
                     )}
                 </div>
 
                 <div className="rd-dlg-sec">
-                    <div className="kicker">Füllen</div>
+                    <div className="kicker">{t("raidModals.sheet.fillKicker")}</div>
                     {!raidsheets.length ? (
-                        <p className="rd-empty">Keine Raidsheet-Vorlagen. Lege sie in den <Link className="mlink" to="/settings">Einstellungen</Link> an.</p>
+                        <p className="rd-empty">{t("raidModals.sheet.noTemplatesBefore")} <Link className="mlink" to="/settings">{t("raidModals.sheet.noTemplatesLink")}</Link>{t("raidModals.sheet.noTemplatesAfter")}</p>
                     ) : (
                         <form className="rd-form rd-grid2" onSubmit={fill}>
                             <div className="field">
                                 <label
-                                    htmlFor="rd-sheet-template" className="tipped" data-tip="Vorlage"
-                                    data-tip-sub={matchedSheetId ? "Anhand des Event-Titels vorausgewählt." : "Keine Vorlage passte zum Titel – bitte wählen."}
+                                    htmlFor="rd-sheet-template" className="tipped" data-tip={t("raidModals.sheet.template")}
+                                    data-tip-sub={matchedSheetId ? t("raidModals.sheet.templateMatched") : t("raidModals.sheet.templateUnmatched")}
                                 >
-                                    Vorlage
+                                    {t("raidModals.sheet.template")}
                                 </label>
                                 <select id="rd-sheet-template" value={sheetId} onChange={(e) => setSheetId(e.target.value)} required>
                                     {raidsheets.map((s) => <option key={s.id} value={s.id}>{s.name || s.id}</option>)}
                                 </select>
                             </div>
                             <div className="field">
-                                <label htmlFor="rd-sheet-tank3" className="tipped" data-tip="Tank 3" data-tip-sub="Wird in die dritte Tank-Zeile eingetragen. Zur Wahl stehen die tank-fähigen Raider im Setup.">Tank 3 <span className="rd-muted">optional</span></label>
+                                <label htmlFor="rd-sheet-tank3" className="tipped" data-tip={t("raidModals.sheet.tank3")} data-tip-sub={t("raidModals.sheet.tank3TipSub")}>{t("raidModals.sheet.tank3")} <span className="rd-muted">{t("raidModals.shared.optional")}</span></label>
                                 {tankCandidates.length
                                     ? (
                                         <select id="rd-sheet-tank3" value={tank3} onChange={(e) => setTank3(e.target.value)}>
-                                            <option value="">— keiner —</option>
+                                            <option value="">{t("raidModals.sheet.noTank")}</option>
                                             {tankCandidates.map((c) => <option key={c.name} value={c.name}>{c.name}{c.specName ? ` — ${c.specName}` : ""}</option>)}
                                         </select>
                                     )
-                                    : <input id="rd-sheet-tank3" type="text" value={tank3} onChange={(e) => setTank3(e.target.value)} placeholder="Name des 3. Tanks" />}
+                                    : <input id="rd-sheet-tank3" type="text" value={tank3} onChange={(e) => setTank3(e.target.value)} placeholder={t("raidModals.sheet.tank3Placeholder")} />}
                             </div>
                             <div className="rd-form-actions">
                                 <Button
                                     type="submit" variant="run" icon="inv_scroll_03" running={filling}
-                                    data-tip={own ? "Neu füllen" : "Sheet füllen"} data-tip-sub="Legt eine eigene Kopie der Vorlage an und überträgt das Raid-Helper-Setup. Die Kopie wird 3 Tage nach dem Raid gelöscht."
+                                    data-tip={own ? t("raidModals.sheet.refill") : t("raidModals.sheet.fillSheet")} data-tip-sub={t("raidModals.sheet.fillTipSub")}
                                 >
-                                    {own ? "Neu füllen" : "Kopie füllen"}
+                                    {own ? t("raidModals.sheet.refill") : t("raidModals.sheet.fillCopy")}
                                 </Button>
                             </div>
                         </form>
@@ -127,17 +129,17 @@ export default function SheetModal({ ctx, open, onClose }: { ctx: RaidCtx; open:
 
                 {sheetLink && (
                     <div className="rd-dlg-sec">
-                        <div className="kicker">In den Channel posten</div>
+                        <div className="kicker">{t("raidModals.sheet.postKicker")}</div>
                         <div className="rd-form rd-inline">
                             <div className="field">
-                                <label htmlFor="rd-sheet-msg">Nachricht <span className="rd-muted">optional</span></label>
-                                <input id="rd-sheet-msg" type="text" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="z. B. Das Raidsheet für heute Abend – bitte eintragen!" />
+                                <label htmlFor="rd-sheet-msg">{t("raidModals.shared.message")} <span className="rd-muted">{t("raidModals.shared.optional")}</span></label>
+                                <input id="rd-sheet-msg" type="text" value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t("raidModals.sheet.messagePlaceholder")} />
                             </div>
-                            <Button icon="inv_letter_15" running={posting} onClick={post}>{posted ? "Nachricht aktualisieren" : "Sheet posten"}</Button>
+                            <Button icon="inv_letter_15" running={posting} onClick={post}>{posted ? t("raidModals.shared.updateMessage") : t("raidModals.sheet.post")}</Button>
                         </div>
                         {posted && eventSheet?.postedChannelId && eventSheet.postedMessageId && (
                             <a className="mlink rd-small" href={messageLink(data.guildId, eventSheet.postedChannelId, eventSheet.postedMessageId)} target="_blank" rel="noopener noreferrer">
-                                Gepostete Nachricht öffnen
+                                {t("raidModals.shared.openPosted")}
                             </a>
                         )}
                     </div>

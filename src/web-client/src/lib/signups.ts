@@ -5,6 +5,7 @@
 import type { GameRole, OwnSignupRow, SignupCounts, SignupProfile, SignupStatus } from "../api";
 import type { Tone } from "../components/ui/Badge";
 import { formatEventTime } from "./format";
+import { t } from "../i18n";
 
 /** In the order a member thinks about it: coming, maybe, late, bench, not coming. */
 export const SIGNUP_STATUS_ORDER: SignupStatus[] = ["signed", "tentative", "late", "bench", "absence"];
@@ -16,28 +17,35 @@ export const SIGNUP_STATUS_ORDER: SignupStatus[] = ["signed", "tentative", "late
  */
 export const CHARACTER_STATUS_ORDER: SignupStatus[] = ["signed", "tentative", "late", "bench"];
 
-export const SIGNUP_STATUS: Record<SignupStatus, { label: string; tone?: Tone; color: string; tip: string }> = {
-    signed: { label: "Dabei", tone: "ok", color: "var(--sig-signed)", tip: "Du kommst und spielst mit." },
-    tentative: { label: "Vielleicht", tone: "mid", color: "var(--sig-tentative)", tip: "Noch nicht sicher – die Orga plant dich nicht fest ein." },
-    late: { label: "Spät", tone: "mid", color: "var(--sig-late)", tip: "Du kommst, aber später. Geht auch nach dem Anmeldeschluss." },
-    bench: { label: "Bank", color: "var(--sig-bench)", tip: "Du springst ein, wenn jemand fehlt." },
-    absence: { label: "Abmelden", tone: "bad", color: "var(--sig-absence)", tip: "Du bist nicht dabei. Geht immer bis zum Raidbeginn." },
+// Labels and tips are getters: they are read at render time in the active
+// language, while tone, colour and icon stay plain constants. Callers keep
+// writing `SIGNUP_STATUS[s].label` / `CAN_ALSO[r].label` / `GEAR_LABEL[g]`.
+export const SIGNUP_STATUS: Record<SignupStatus, { readonly label: string; tone?: Tone; color: string; readonly tip: string }> = {
+    signed: { tone: "ok", color: "var(--sig-signed)", get label() { return t("signups.status.signed"); }, get tip() { return t("signups.statusTip.signed"); } },
+    tentative: { tone: "mid", color: "var(--sig-tentative)", get label() { return t("signups.status.tentative"); }, get tip() { return t("signups.statusTip.tentative"); } },
+    late: { tone: "mid", color: "var(--sig-late)", get label() { return t("signups.status.late"); }, get tip() { return t("signups.statusTip.late"); } },
+    bench: { color: "var(--sig-bench)", get label() { return t("signups.status.bench"); }, get tip() { return t("signups.statusTip.bench"); } },
+    absence: { tone: "bad", color: "var(--sig-absence)", get label() { return t("signups.status.absence"); }, get tip() { return t("signups.statusTip.absence"); } },
 };
 
 /** What a stored absence reads as on a badge ("Abmelden" is the action, "Abgemeldet" the state). */
 export function statusBadgeLabel(status: SignupStatus): string {
-    return status === "absence" ? "Abgemeldet" : SIGNUP_STATUS[status].label;
+    return status === "absence" ? t("signups.absentBadge") : SIGNUP_STATUS[status].label;
 }
 
-export const CAN_ALSO: Record<GameRole, { label: string; icon: string }> = {
-    tank: { label: "Offtank", icon: "ability_warrior_defensivestance" },
-    healer: { label: "Heilen", icon: "spell_holy_flashheal" },
-    melee: { label: "Nahkampf", icon: "ability_dualwield" },
-    ranged: { label: "Fernkampf", icon: "inv_weapon_bow_07" },
+export const CAN_ALSO: Record<GameRole, { readonly label: string; icon: string }> = {
+    tank: { icon: "ability_warrior_defensivestance", get label() { return t("signups.canAlso.tank"); } },
+    healer: { icon: "spell_holy_flashheal", get label() { return t("signups.canAlso.healer"); } },
+    melee: { icon: "ability_dualwield", get label() { return t("signups.canAlso.melee"); } },
+    ranged: { icon: "inv_weapon_bow_07", get label() { return t("signups.canAlso.ranged"); } },
 };
 export const ROLE_ORDER: GameRole[] = ["tank", "healer", "melee", "ranged"];
 
-export const GEAR_LABEL: Record<string, string> = { none: "kein Gear", usable: "brauchbar", ready: "raidbereit" };
+export const GEAR_LABEL: Readonly<Record<string, string>> = {
+    get none() { return t("signups.gear.none"); },
+    get usable() { return t("signups.gear.usable"); },
+    get ready() { return t("signups.gear.ready"); },
+};
 
 /**
  * "Ich kann auch" prefilled from the profile, the same rule as the server's
@@ -56,14 +64,14 @@ export function defaultCanAlso(profile: SignupProfile, characterKey: string, own
 /** "Tank 1/2 · Heiler 1/3 · DPS 4/5" */
 export function roleCountText(counts: SignupCounts): string {
     const part = (label: string, c: { n: number; target: number }) => `${label} ${c.target ? `${c.n}/${c.target}` : c.n}`;
-    return [part("Tank", counts.tank), part("Heiler", counts.healer), part("DPS", counts.dps)].join(" · ");
+    return [part(t("wow.role.tank"), counts.tank), part(t("wow.role.healer"), counts.healer), part(t("wow.role.dps"), counts.dps)].join(" · ");
 }
 
 /** The small line under a row's title: date, then the deadline or where signing up happens. */
 export function rowSubline(row: { source: string; startTime: number } & Partial<Pick<OwnSignupRow, "deadline" | "deadlinePassed">>): string {
     const parts = [formatEventTime(row.startTime)];
-    if (row.source !== "eventhelper") parts.push("über Raid-Helper");
-    else if (row.deadline) parts.push(row.deadlinePassed ? "Anmeldeschluss vorbei" : `Anmeldeschluss ${formatEventTime(row.deadline)}`);
+    if (row.source !== "eventhelper") parts.push(t("signups.viaRaidHelper"));
+    else if (row.deadline) parts.push(row.deadlinePassed ? t("signups.deadlinePassed") : t("signups.deadlineAt", { time: formatEventTime(row.deadline) }));
     return parts.filter(Boolean).join(" · ");
 }
 
