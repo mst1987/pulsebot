@@ -334,6 +334,10 @@ function rosterFields(entries, numbers, emojis, maxLines, style) {
     // Signed without a known spec (the service does not let that happen) is still shown.
     const unknown = signed.filter((e) => e.role !== "tank" && !SPEC_BY_KEY.get(e.spec));
     if (unknown.length) block("", "No spec", unknown);
+    // Discord spreads a last row of fewer than three inline fields over the
+    // whole width, so its blocks would stand out of line with the columns
+    // above. Empty inline fields fill it up to three.
+    for (let i = fields.length % 3; i && i < 3; i++) fields.push(spacer(true));
 
     const other = [];
     for (const [status, label] of OTHER_LINES) {
