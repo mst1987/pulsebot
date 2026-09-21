@@ -18,15 +18,37 @@ describe("web/appEmojis", () => {
         expect(appEmojis.uiEmojiName("leader")).toBe("eh_ui_leader");
     });
 
-    it("has one valid, unique emoji per spec, class, role and UI icon", () => {
+    it("names the letter tiles and role icons per emoji style — plain has none of its own", () => {
+        expect(appEmojis.tileEmojiName("H")).toBe("eh_ta_h");
+        expect(appEmojis.tileEmojiName("+", "gold")).toBe("eh_tg_plus");
+        expect(appEmojis.tileEmojiName("&", "parchment")).toBe("eh_tp_amp");
+        expect(appEmojis.tileEmojiName("7", "arcane")).toBe("eh_ta_7");
+        expect(appEmojis.tileEmojiName("h")).toBe("");
+        expect(appEmojis.tileEmojiName("Ä")).toBe("");
+        expect(appEmojis.tileEmojiName("H", "plain")).toBe("");
+        expect(appEmojis.roleEmojiName("tank")).toBe("eh_ra_tank");
+        expect(appEmojis.roleEmojiName("healer", "gold")).toBe("eh_rg_healer");
+        expect(appEmojis.roleEmojiName("tank", "plain")).toBe("eh_ui_tank");
+        expect(appEmojis.roleEmojiName("nonsense")).toBe("");
+        // an unknown style is the default
+        expect(appEmojis.emojiStyleOf("neon")).toBe("arcane");
+        expect(appEmojis.emojiStyleOf(undefined)).toBe("arcane");
+        expect(appEmojis.emojiStyleOf("parchment")).toBe("parchment");
+        expect(appEmojis.tileEmojiName("H", "neon")).toBe("eh_ta_h");
+    });
+
+    it("has one valid, unique emoji per spec, class, role, UI icon, tile and styled role", () => {
         const catalog = appEmojis.emojiCatalog();
         const classes = buildClasses();
         const specs = classes.reduce((n, c) => n + c.specs.length, 0);
-        expect(catalog).toHaveLength(specs + classes.length + appEmojis.UI_ICONS.length);
+        const styled = Object.values(appEmojis.EMOJI_STYLES).filter(Boolean).length;
+        const perStyle = Object.keys(appEmojis.TITLE_TILES).length + ROLES.length;
+        expect(catalog).toHaveLength(specs + classes.length + appEmojis.UI_ICONS.length + styled * perStyle);
         expect(new Set(catalog.map((e) => e.name)).size).toBe(catalog.length);
         for (const e of catalog) {
             expect(appEmojis.validEmojiName(e.name)).toBe(true);
-            if (e.file) expect(e.name.startsWith("eh_ui_")).toBe(true);
+            if (e.tile) expect(e.name).toMatch(/^eh_[tr][agp]_[a-z0-9]+$/);
+            else if (e.file) expect(e.name.startsWith("eh_ui_")).toBe(true);
             else expect(e.url).toBe(`https://wow.zamimg.com/images/wow/icons/medium/${e.icon}.jpg`);
         }
         // every signup status and every role has its flat icon
@@ -39,12 +61,13 @@ describe("web/appEmojis", () => {
         expect(appEmojis.validEmojiName("x".repeat(33))).toBe(false);
     });
 
-    it("ships every UI icon as a checked-in 128 px PNG within Discord's size limit", () => {
+    it("ships every UI icon, tile and styled role icon as a checked-in 128 px PNG within Discord's size limit", () => {
         const fs = require("fs");
         const { MAX_BYTES } = require("../../src/web/appEmojiSync");
         const { ICONS } = require("../../scripts/render-ui-emojis");
         for (const e of appEmojis.emojiCatalog().filter((x) => x.file)) {
-            expect(Object.keys(ICONS)).toContain(e.icon);
+            // the UI icons are drawn by the script; tiles and styled roles are generated images
+            if (!e.tile) expect(Object.keys(ICONS)).toContain(e.icon);
             const buf = fs.readFileSync(e.file);
             expect(buf.length).toBeLessThanOrEqual(MAX_BYTES);
             // PNG signature, then the IHDR's width and height

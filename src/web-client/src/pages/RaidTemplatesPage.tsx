@@ -7,7 +7,7 @@ import {
 import { useCollectionEditor } from "../lib/collectionEditor";
 import { usePersistedState } from "../lib/persistedState";
 import {
-    allowedSizes, draftOf, filterByVersion, instancesOf, newDraft, proposeComposition, templateLabel, validateDraft,
+    allowedSizes, draftOf, emojiStyleOf, filterByVersion, instancesOf, newDraft, proposeComposition, templateLabel, validateDraft,
 } from "../lib/raidTemplates";
 import { AppearanceFields, BuffPicker, FieldLabel, InstancePicker, NumberInput, RoleRanges, SizePicker, SwitchRow } from "../components/RaidPlanFields";
 import type { ShellContext } from "../components/Shell";
@@ -97,7 +97,7 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
         const v = versions.find((x) => x.id === versionId) || null;
         setFreeSize(false);
         // A hand-picked look is not tied to the version, so it survives the switch (#307).
-        setDraft((d) => ({ ...newDraft(v), id: d.id, name: d.name, raidhelperTemplateId: d.raidhelperTemplateId, fairness: d.fairness, wishes: d.wishes, color: d.color, image: d.image }));
+        setDraft((d) => ({ ...newDraft(v), id: d.id, name: d.name, raidhelperTemplateId: d.raidhelperTemplateId, fairness: d.fairness, wishes: d.wishes, color: d.color, image: d.image, emojiStyle: d.emojiStyle }));
     };
 
     const toggleBuff = (key: string) => patch({
@@ -131,7 +131,7 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
     const moreCount = [draft.composition.melee, draft.composition.ranged, draft.signupDeadline, draft.durationMinutes].filter(Boolean).length
         + draft.requiredBuffs.length + (draft.fairness ? 1 : 0) + (draft.wishes ? 1 : 0)
         + (draft.overflow === "off" ? 1 : 0) + (draft.lockAtLimit ? 1 : 0) + (draft.raidhelperTemplateId ? 1 : 0)
-        + (draft.color ? 1 : 0) + (draft.image && draft.image.url ? 1 : 0);
+        + (draft.color ? 1 : 0) + (draft.image && draft.image.url ? 1 : 0) + (emojiStyleOf(draft.emojiStyle) !== "arcane" ? 1 : 0);
 
     return (
         <Modal
@@ -173,7 +173,7 @@ function RaidTemplateModal({ template, versions, canWrite, csrfToken, onSaved, o
                 <summary>Mehr: Aussehen, Nahkampf/Fernkampf, Pflicht-Buffs, Anmeldeschluss, Dauer, Warteliste, Raid-Helper-Vorlage{moreCount ? <Badge count>{moreCount}</Badge> : null}</summary>
                 <div className="rt-more-body">
                     <AppearanceFields idPrefix="rt" version={version} instanceIds={draft.instanceIds}
-                        color={draft.color || ""} image={draft.image || { mode: "thumbnail", url: "" }}
+                        color={draft.color || ""} image={draft.image || { mode: "thumbnail", url: "" }} emojiStyle={emojiStyleOf(draft.emojiStyle)}
                         onChange={(look) => patch(look)} />
                     <RoleRanges idPrefix="rt" melee={draft.composition.melee} ranged={draft.composition.ranged}
                         onChange={(r) => patch({ composition: { ...draft.composition, ...r } })} />

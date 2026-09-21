@@ -18,6 +18,8 @@ const {
 // Colour and picture of the bot's event message (#307) — one place validates
 // them for the template and for the event that inherits them.
 const { normalizeColor, normalizeImage, colorProblem, imageProblem } = require("./embedLook");
+// The emoji style of the message (letter tiles, role icons), copied to the event like the colour.
+const { emojiStyleOf, DEFAULT_EMOJI_STYLE } = require("./appEmojis");
 
 const MAX_SIZE = 40;
 // A signup deadline further out than two weeks before the raid is a typo.
@@ -56,6 +58,7 @@ function migrateLegacy(entry) {
         lockAtLimit: false,
         color: "",
         image: { mode: "thumbnail", url: "" },
+        emojiStyle: DEFAULT_EMOJI_STYLE,
         raidhelperTemplateId: rhId,
         createdAt: entry.createdAt || Date.now(),
         updatedAt: entry.updatedAt || Date.now(),
@@ -111,6 +114,8 @@ function normalizeTemplate(raw) {
         // its boss icon. The event copies both on creation.
         color: normalizeColor(src.color),
         image: normalizeImage(src.image),
+        // The letter tiles and role icons of the message; the event copies it on creation.
+        emojiStyle: emojiStyleOf(src.emojiStyle),
         raidhelperTemplateId: String(src.raidhelperTemplateId || "").trim(),
     };
 }

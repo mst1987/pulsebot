@@ -68,7 +68,7 @@ const { buildClasses } = require("../config/gameVersions/classes");
 const { rulesFor, DEFAULT_VERSION } = require("../config/gameVersions");
 const {
     appEmojiMap, loadAppEmojis, emojiText, emojiOption,
-    specEmojiName, classEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName,
+    specEmojiName, classEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName, tileEmojiName, roleEmojiName, emojiStyleOf,
 } = require("./appEmojis");
 const { migrateSignup } = require("./signupCharacters");
 // The calendar link under the message (#308) — the route that serves it is
@@ -259,6 +259,33 @@ function embedLength(embed) {
         + (embed.fields || []).reduce((n, f) => n + String(f.name).length + String(f.value).length, 0);
 }
 
+// A title longer than this stays text — the tiles would wrap into a wall.
+const MAX_TILES = 32;
+
+/**
+ * The title as a line of letter tiles, Raid-Helper's look ("Hyjal+BT" →
+ * H Y J A L + B T as emojis). Umlauts become AE/OE/UE, words are set apart by
+ * an em space; `style` is the event's emoji style. null when a character has
+ * no tile, a tile is not uploaded (yet), the title is too long or the style is
+ * "plain" — the embed then keeps its plain title.
+ */
+function titleTiles(title, emojis, style) {
+    const text = String(title || "").trim().toUpperCase()
+        .replace(/Ä/g, "AE").replace(/Ö/g, "OE").replace(/Ü/g, "UE");
+    const words = text.split(/\s+/).filter(Boolean);
+    if (!words.length || words.join("").length > MAX_TILES) return null;
+    const out = [];
+    for (const word of words) {
+        const tiles = [...word].map((c) => emojiText(emojis, tileEmojiName(c, style)));
+        if (tiles.some((t) => !t)) return null;
+        out.push(tiles.join(""));
+    }
+    return out.join("   ");
+}
+
+/** A role's icon in the event's style, else the flat one (a style not uploaded yet), else "". */
+const roleIcon = (emojis, role, style) => emojiText(emojis, roleEmojiName(role, style)) || emojiText(emojis, roleUiEmojiName(role));
+
 /** "<icon> Label" or just "Label" when the emoji is missing. */
 const labelled = (emojis, name, label) => [emojiText(emojis, name), label].filter(Boolean).join(" ");
 
@@ -266,7 +293,7 @@ const labelled = (emojis, name, label) => [emojiText(emojis, name), label].filte
 const spacer = (inline) => ({ name: ZWS, value: ZWS, inline, spacer: true });
 
 /** The roster fields — Tank block, class blocks, the other statuses — with at most `maxLines` per block. */
-function rosterFields(entries, numbers, emojis, maxLines) {
+function rosterFields(entries, numbers, emojis, maxLines, style) {
     const numberOf = (e) => numbers.get(String(e.userId));
     const byNumber = (a, b) => numberOf(a) - numberOf(b) || a.index - b.index;
     const signed = entries.filter((e) => e.status === "signed");
@@ -281,7 +308,7 @@ function rosterFields(entries, numbers, emojis, maxLines) {
         });
     };
     const tanks = signed.filter((e) => e.role === "tank");
-    if (tanks.length) block(emojiText(emojis, roleUiEmojiName("tank")), "Tanks", tanks);
+    if (tanks.length) block(roleIcon(emojis, "tank", style), "Tanks", tanks);
     for (const cls of CLASSES) {
         const members = signed.filter((e) => e.role !== "tank" && (SPEC_BY_KEY.get(e.spec) || {}).classId === cls.id);
         if (members.length) block(emojiText(emojis, classEmojiName(cls.id)), cls.label, members);
@@ -401,6 +428,8 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     const entries = rosterEntries(list);
     const start = Number(event.startTime) || 0;
     const deadline = Number(event.signupDeadline) || 0;
+    // letter tiles and role icons in the style the event picked (arcane unless it says otherwise)
+    const style = emojiStyleOf(event.emojiStyle);
     const head = (icon, label) => labelled(emojis, uiEmojiName(icon), label);
 
     const desc = [];
@@ -452,7 +481,7 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
         if (["signed", "late"].includes(s.status || "signed") && (s.role === "melee" || s.role === "ranged")) seats[s.role] += 1;
     }
     // Tanks with the healers directly below, then Fernkampf, then Nahkampf.
-    const total = (role, label) => `${labelled(emojis, roleUiEmojiName(role), label)} **${seats[role]}**${targetText(event, role)}`;
+    const total = (role, label) => `${[roleIcon(emojis, role, style), label].filter(Boolean).join(" ")} **${seats[role]}**${targetText(event, role)}`;
     const totals = [
         ...ROLE_TOTALS.map((col) => column(col.map(([role, label]) => total(role, label)))),
         spacer(false),
@@ -475,10 +504,14 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     if (links.length) tail.push({ name: ZWS, value: links.join("  ·  "), inline: false });
 
     const title = phase === "cancelled" ? `Abgesagt: ${event.title || "Raid"}` : (event.title || "Raid");
+    // The title as letter tiles opens the description — an embed title cannot
+    // show emojis. A cancelled event keeps "Abgesagt: …" as plain text.
+    const tiles = phase === "cancelled" ? null : titleTiles(title, emojis, style);
+    if (tiles) desc.unshift(tiles, ...(desc.length ? [""] : []));
     // A cancelled event keeps the red bar and loses its picture: "Abgesagt"
     // should read as off, not as an advert for the raid (#307).
     const embed = {
-        title: clip(title, LIMITS.title),
+        ...(tiles ? {} : { title: clip(title, LIMITS.title) }),
         color: phase === "cancelled" ? CANCELLED_COLOR : embedColor(event),
         ...(phase === "cancelled" ? {} : embedImageFields(event)),
         fields: [],
@@ -487,7 +520,7 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     if (text) embed.description = text;
     // Shorten the blocks until the whole embed fits Discord's 6000 characters.
     for (let maxLines = 40; maxLines >= 1; maxLines -= maxLines > 10 ? 5 : 1) {
-        embed.fields = fitFields([...headFields, ...totals, ...rosterFields(entries, numbers, emojis, maxLines), ...tail]);
+        embed.fields = fitFields([...headFields, ...totals, ...rosterFields(entries, numbers, emojis, maxLines, style), ...tail]);
         if (embedLength(embed) <= LIMITS.total) break;
     }
     return { content: "", embeds: [embed], components: messageComponents(event, { emojis, now, phase }) };
@@ -657,7 +690,7 @@ function startEventMessageSync({ debounceMs = EDIT_DEBOUNCE_MS, sweepMs = SWEEP_
 module.exports = {
     SIGNUP_BUTTON_PREFIX, JOIN_SELECT_PREFIX, BUTTON_PREFIX, BUTTON_ACTIONS, PICK_PREFIX, PICK_MINE, STATUS_OPTIONS, LIMITS,
     signupButtonId, joinSelectId, buttonId, pickSelectId, buttonRows, messageComponents, rosterEntries, classesOf,
-    rosterCounts, messagePhase, signupNumbers, embedLength, blockValue, payloadHash,
+    rosterCounts, messagePhase, signupNumbers, embedLength, blockValue, payloadHash, titleTiles,
     buildEventMessage, approvedSetupText, sweepEventMessages, redrawEventMessage,
     postEventMessage, refreshEventMessage, startEventMessageSync,
 };
