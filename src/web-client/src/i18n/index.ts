@@ -1,6 +1,6 @@
 // The web client's translations — the React/browser half around ./core.ts.
 //
-// How to use it (docs/web-admin.md, "Sprachen"):
+// How to use it (docs/web-admin.md, "Sprache (i18n)"):
 //   * in a component: `const t = useT();` then `t("raids.list.title")` or
 //     `t("signups.count", { count: 3 })`. The hook subscribes the component, so
 //     it re-renders when the language flips.
