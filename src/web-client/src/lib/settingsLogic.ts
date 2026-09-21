@@ -110,6 +110,8 @@ export type DraftShape = {
     categoryAnnounce?: Record<string, { enabled: boolean; target: string }>;
     /** The message with "Vielleicht" / "Absagen"; missing = "optional". */
     categorySignupNotes?: Record<string, string>;
+    /** Where those messages go (#335); missing = the default channel. */
+    categorySignupNoteChannel?: Record<string, string>;
     categorySheets: Record<string, { url: string; name: string }>;
     categoryRaidTemplate?: Record<string, string>;
     topItems: { id: number }[];
@@ -141,6 +143,21 @@ export const SIGNUP_NOTE_LABEL: Record<string, string> = { required: "Pflicht", 
 export function signupNoteMode(map: Record<string, string> | undefined, categoryId: string): string {
     const mode = (map || {})[categoryId];
     return mode === "required" || mode === "none" ? mode : "optional";
+}
+
+/**
+ * The channel select of "Nachricht bei Vielleicht/Absage" per category (#335):
+ * the label of the default choice and whether the category's own channel is
+ * out of the bot's reach (the server then posts to the default instead). With
+ * no channel list (bot offline) nothing is judged unreachable.
+ */
+export function noteChannelPick(channels: { id: string; name: string }[], defaultId: string, value: string): { defaultLabel: string; unreachable: boolean } {
+    const standard = defaultId ? channels.find((c) => c.id === defaultId) : undefined;
+    let defaultLabel = "Standard";
+    if (!defaultId) defaultLabel = "Standard (nicht gesetzt)";
+    else if (standard) defaultLabel = `Standard (#${standard.name})`;
+    else if (channels.length) defaultLabel = "Standard (nicht erreichbar)";
+    return { defaultLabel, unreachable: !!value && channels.length > 0 && !channels.some((c) => c.id === value) };
 }
 
 function sameList(a: string[] | undefined, b: string[] | undefined): boolean {
@@ -177,6 +194,7 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         ...Object.keys(saved.categoryVoiceChannel || {}), ...Object.keys(draft.categoryVoiceChannel || {}),
         ...Object.keys(saved.categoryAnnounce || {}), ...Object.keys(draft.categoryAnnounce || {}),
         ...Object.keys(saved.categorySignupNotes || {}), ...Object.keys(draft.categorySignupNotes || {}),
+        ...Object.keys(saved.categorySignupNoteChannel || {}), ...Object.keys(draft.categorySignupNoteChannel || {}),
         ...Object.keys(saved.categorySheets || {}), ...Object.keys(draft.categorySheets || {}),
     ])];
     for (const id of categories) {
@@ -210,6 +228,9 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const noteWas = signupNoteMode(saved.categorySignupNotes, id);
         const noteIs = signupNoteMode(draft.categorySignupNotes, id);
         if (noteWas !== noteIs) out.push(`${name} · Nachricht bei Vielleicht/Absage → ${SIGNUP_NOTE_LABEL[noteIs]}`);
+        const noteChWas = (saved.categorySignupNoteChannel || {})[id] || "";
+        const noteChIs = (draft.categorySignupNoteChannel || {})[id] || "";
+        if (noteChWas !== noteChIs) out.push(`${name} · Kanal für Vielleicht/Absage ${noteChIs ? "gesetzt" : "→ Standard"}`);
         const sheetWas = (saved.categorySheets || {})[id] || { url: "", name: "" };
         const sheetIs = (draft.categorySheets || {})[id] || { url: "", name: "" };
         if ((sheetWas.url || "").trim() !== (sheetIs.url || "").trim() || (sheetWas.name || "").trim() !== (sheetIs.name || "").trim()) {

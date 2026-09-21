@@ -199,12 +199,38 @@ async function getSettings(req, res) {
         channels: typeof discord.listTextChannels === "function" ? discord.listTextChannels(guildId) : [],
         // The voice channel a category's raids meet in (#305); empty = bot offline.
         voiceChannels: typeof discord.listVoiceChannels === "function" ? discord.listVoiceChannels(guildId) : [],
+        // The channel picker of "Nachricht bei Vielleicht/Absage" per category (#335).
+        noteChannels: noteChannels(config),
         bot: botStatus(guildId),
         // The two server cards (cheap: names, member counts, rights). The member
         // overlap needs a full member fetch and loads with the section itself.
         servers: user.isAdmin ? serverCards(config) : null,
         activeGuildId: guildId,
     });
+}
+
+/**
+ * Where the messages of "Vielleicht" / "Absagen" may go (#335): the text
+ * channels of the event and the talk server, named with their server when there
+ * are two (like the Discord-Server dialog), plus the default channel's id — a
+ * limited settings user does not see `discordServers`, the card still names it.
+ * An empty list means the bot is offline (the card then marks nothing).
+ */
+function noteChannels(config) {
+    try {
+        const guildIds = guildRoles.configuredGuildIds(config);
+        const list = typeof discord.listTextChannels === "function" ? discord.listTextChannels : () => [];
+        const names = new Map((typeof discord.listGuilds === "function" ? discord.listGuilds() || [] : []).map((g) => [g.id, g.name]));
+        const channels = guildIds.flatMap((id) => (list(id) || []).map((c) => ({
+            id: c.id,
+            name: c.name,
+            category: guildIds.length > 1 ? [names.get(id) || "", c.category].filter(Boolean).join(" · ") : c.category || "",
+        })));
+        return { defaultId: String(((config && config.discordServers) || {}).signupNoteChannelId || ""), channels };
+    } catch (e) {
+        console.warn("note channels failed:", e.message);
+        return { defaultId: "", channels: [] };
+    }
 }
 
 /** The event and talk server as status cards; a failure reads as "nothing known". */
@@ -396,6 +422,8 @@ async function updateSettings(req, res) {
     if (body.categoryVoiceChannel !== undefined) partial.categoryVoiceChannel = normalizeCategoryVoiceChannel(body.categoryVoiceChannel);
     if (body.categoryAnnounce !== undefined) partial.categoryAnnounce = normalizeCategoryAnnounce(body.categoryAnnounce);
     if (body.categorySignupNotes !== undefined) partial.categorySignupNotes = normalizeCategorySignupNotesPatch(body.categorySignupNotes);
+    // The channel of those messages per category (#335): same contract as the voice channel.
+    if (body.categorySignupNoteChannel !== undefined) partial.categorySignupNoteChannel = normalizeCategoryVoiceChannel(body.categorySignupNoteChannel);
     if (body.categorySheets !== undefined) partial.categorySheets = normalizeCategorySheets(body.categorySheets);
     // Sent whole; an id no template has is dropped, so a category can never
     // point at a template that is not there (the store normalises the rest).

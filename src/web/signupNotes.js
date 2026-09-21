@@ -1,6 +1,9 @@
 // The message with "Vielleicht" / "Absagen": a raider who picks one of the two
 // may leave a short note, and the bot posts it into one channel the orga reads
 // (Einstellungen → Verbindungen → Discord-Server, `discordServers.signupNoteChannelId`).
+// A category may name its own channel instead (`config.categorySignupNoteChannel`,
+// #335, Einstellungen → Kategorien); one the bot cannot reach falls back to the
+// default (noteChannelFor).
 //
 // Per Discord category the orga decides whether that note is asked for
 // (`config.categorySignupNotes`):
@@ -37,6 +40,19 @@ const isNoteStatus = (status) => NOTE_STATUSES.includes(status);
 /** The channel the notes go to, or "". */
 function noteChannelId(config = getConfig()) {
     return String(((config && config.discordServers) || {}).signupNoteChannelId || "").trim();
+}
+
+const SNOWFLAKE = /^\d{5,25}$/;
+
+/**
+ * The channel a category's notes go to: its own channel (#335) when it has one
+ * the bot can reach, else the default, else "" (nothing is posted). `reachable`
+ * is an optional check of a channel id; without it every own channel counts.
+ */
+function noteChannelFor(categoryId, config = getConfig(), { reachable } = {}) {
+    const own = String(((config && config.categorySignupNoteChannel) || {})[String(categoryId || "")] || "").trim();
+    if (SNOWFLAKE.test(own) && (typeof reachable !== "function" || reachable(own))) return own;
+    return noteChannelId(config);
 }
 
 /**
@@ -96,18 +112,27 @@ async function postSignupNote(event, signup, previous, { config = getConfig(), b
     // The orga changing someone's signup is no message from that raider.
     if (byOrga) return { posted: false, skipped: "by_orga" };
     if (noteMode(event && event.categoryId, config) === "none") return { posted: false, skipped: "off" };
-    const channelId = noteChannelId(config);
+    const channelId = noteChannelFor(event && event.categoryId, config, { reachable: discord.channelVisible });
     if (!channelId) return { posted: false, skipped: "no_channel" };
-    try {
-        await discord.postNotice(channelId, buildNotePost(event, signup, { emojis: appEmojiMap() }));
-        return { posted: true };
-    } catch (e) {
-        console.warn(`[signupNotes] Nachricht für ${event && event.id} nicht gepostet: ${(e && e.message) || e}`);
-        return { posted: false, error: (e && e.message) || String(e) };
+    const post = buildNotePost(event, signup, { emojis: appEmojiMap() });
+    // A category's own channel that refuses the post (gone, no rights) falls
+    // back to the default channel, so the message is not lost silently.
+    const fallback = noteChannelId(config);
+    const targets = [...new Set([channelId, fallback].filter(Boolean))];
+    let error = "";
+    for (const target of targets) {
+        try {
+            await discord.postNotice(target, post);
+            return { posted: true, channelId: target };
+        } catch (e) {
+            error = (e && e.message) || String(e);
+            console.warn(`[signupNotes] Nachricht für ${event && event.id} nicht in ${target} gepostet: ${error}`);
+        }
     }
+    return { posted: false, error };
 }
 
 module.exports = {
     NOTE_MODES, NOTE_STATUSES, MIN_NOTE, MAX_NOTE,
-    noteMode, isNoteStatus, noteChannelId, hasNewNote, buildNotePost, postSignupNote,
+    noteMode, isNoteStatus, noteChannelId, noteChannelFor, hasNewNote, buildNotePost, postSignupNote,
 };

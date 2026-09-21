@@ -216,6 +216,25 @@ describe("save bar change list", () => {
         expect(logic.signupNoteMode({ c1: "odd" }, "c1")).toBe("optional");
     });
 
+    it("names the message channel per category (#335)", () => {
+        expect(logic.draftChanges(base(), { ...base(), categorySignupNoteChannel: { c1: "" } }, names)).toEqual([]);
+        expect(logic.draftChanges(base(), { ...base(), categorySignupNoteChannel: { c1: "123456789012345678" } }, names))
+            .toEqual(["Hyjal & BT · Kanal für Vielleicht/Absage gesetzt"]);
+        expect(logic.draftChanges({ ...base(), categorySignupNoteChannel: { c1: "123456789012345678" } }, { ...base(), categorySignupNoteChannel: { c1: "" } }, names))
+            .toEqual(["Hyjal & BT · Kanal für Vielleicht/Absage → Standard"]);
+    });
+
+    it("labels the default choice and marks an own channel out of reach (#335)", () => {
+        const channels = [{ id: "1", name: "abmeldungen" }, { id: "2", name: "raid-orga" }];
+        expect(logic.noteChannelPick(channels, "1", "")).toEqual({ defaultLabel: "Standard (#abmeldungen)", unreachable: false });
+        expect(logic.noteChannelPick(channels, "1", "2")).toEqual({ defaultLabel: "Standard (#abmeldungen)", unreachable: false });
+        expect(logic.noteChannelPick(channels, "1", "9")).toEqual({ defaultLabel: "Standard (#abmeldungen)", unreachable: true });
+        expect(logic.noteChannelPick(channels, "", "")).toEqual({ defaultLabel: "Standard (nicht gesetzt)", unreachable: false });
+        expect(logic.noteChannelPick(channels, "9", "")).toEqual({ defaultLabel: "Standard (nicht erreichbar)", unreachable: false });
+        // bot offline: no list, nothing is judged
+        expect(logic.noteChannelPick([], "1", "9")).toEqual({ defaultLabel: "Standard", unreachable: false });
+    });
+
     it("counts admin roles, the base access, accounts, categories and top items", () => {
         const draft = base();
         draft.adminRoleIds = ["a2"];
