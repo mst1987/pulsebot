@@ -1037,7 +1037,7 @@ export type EventSetup = { total: number; groups: SetupGroup[]; roleCounts?: Par
 
 /** One step of the Raid-Detail progress bar — built by src/web/raidDetailSteps.js. */
 export type RaidStepKey = "signup" | "setup" | "sheet" | "softres" | "loot" | "logs";
-export type RaidDetailModal = "notify" | "sheet" | "softres" | "lootsystem" | "loot" | "log" | "ping" | "move" | "cancel" | "raider" | "history" | "delete";
+export type RaidDetailModal = "notify" | "sheet" | "softres" | "lootsystem" | "loot" | "log" | "ping" | "invite" | "move" | "cancel" | "raider" | "history" | "delete";
 export type RaidStep = {
     key: RaidStepKey;
     label: string;
@@ -1348,6 +1348,16 @@ export function pingMissingRaiders(
     input: { event: string; text: string; target?: PingTarget },
 ): Promise<{ message: string }> {
     return send("POST", "/api/raids/ping-missing", csrfToken, input);
+}
+
+/** "Invite callen": who of groups 1–5 would be pinged, and the line — nothing is posted. */
+export function previewInviteCall(csrfToken: string | null, event: string): Promise<{ count: number; text: string; groups: number[] }> {
+    return send("POST", "/api/raids/invite-call", csrfToken, { event, dryRun: true });
+}
+
+/** "Invite callen": ping groups 1–5 of the approved setup with "/w <Charakter> inv". */
+export function callInvite(csrfToken: string | null, event: string): Promise<{ message: string; count: number; text: string }> {
+    return send("POST", "/api/raids/invite-call", csrfToken, { event });
 }
 
 export function fillRaidsheet(

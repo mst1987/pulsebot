@@ -82,7 +82,8 @@ describe("bot command access declarations", () => {
     });
 
     it("hangs Event verwalten under /event: subcommand, buttons, modals and the message context menu (#288)", () => {
-        for (const name of ["event-manage", "event-manage-form", "Event verwalten"]) {
+        // "invite-call": the Invite-callen button under the setup message — the orga's, like /event
+        for (const name of ["event-manage", "event-manage-form", "Event verwalten", "invite-call"]) {
             expect({ name, accessOf: byName.get(name).accessOf }).toEqual({ name, accessOf: "event" });
         }
         const { commands } = require("../../scripts/register-commands");
