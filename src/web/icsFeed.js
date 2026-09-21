@@ -25,9 +25,10 @@ const { publicBaseUrl } = require("../config/variables");
 const { eventEndTime } = require("../utils/eventTime");
 
 const PRODID = "-//EventHelper//Raid-Kalender//DE";
-// The raider's own status, in the words the rest of the app uses.
+// The raider's own status, in the words the bot uses in Discord (English, like
+// every raider-facing text; the calendar client renders the times itself).
 const STATUS_LABELS = {
-    signed: "Dabei", tentative: "Vielleicht", late: "Spät", bench: "Bank", absence: "Abgemeldet",
+    signed: "Signed up", tentative: "Tentative", late: "Late", bench: "Bench", absence: "Absence",
 };
 // A description longer than this is clipped — a calendar entry is a reminder,
 // not the event page; the URL below it leads to the whole text.
@@ -139,13 +140,13 @@ function vevent(event, { now = Date.now(), status = "", changedAt = 0 } = {}) {
     const text = clip(event.description, MAX_DESCRIPTION);
     if (cancelled) {
         const reason = (event.cancel && event.cancel.reason) || "";
-        description.push(`Abgesagt${reason ? `: ${clip(reason, 200)}` : "."}`);
+        description.push(`Cancelled${reason ? `: ${clip(reason, 200)}` : "."}`);
     }
-    if (status && STATUS_LABELS[status]) description.push(`Deine Anmeldung: ${STATUS_LABELS[status]}`);
+    if (status && STATUS_LABELS[status]) description.push(`Your signup: ${STATUS_LABELS[status]}`);
     if (text) description.push(text);
     if (url) description.push(url);
 
-    const prefix = cancelled ? "Abgesagt: " : (off ? "Abgemeldet: " : "");
+    const prefix = cancelled ? "Cancelled: " : (off ? "Signed off: " : "");
     return [
         "BEGIN:VEVENT",
         `UID:${escapeText(id)}@eventhelper`,
@@ -158,7 +159,7 @@ function vevent(event, { now = Date.now(), status = "", changedAt = 0 } = {}) {
         ...(where ? [`LOCATION:${escapeText(where)}`] : []),
         ...(url ? [`URL:${escapeText(url)}`] : []),
         `STATUS:${cancelled || off ? "CANCELLED" : "CONFIRMED"}`,
-        // A raid one is only "vielleicht" at, benched for or signed off from
+        // A raid one is only "tentative" at, benched for or signed off from
         // should not block the day in anyone's free/busy view.
         `TRANSP:${cancelled || off || status === "tentative" || status === "bench" ? "TRANSPARENT" : "OPAQUE"}`,
         "END:VEVENT",
@@ -200,7 +201,7 @@ function buildIcs(event, { now = Date.now() } = {}) {
  * @param {{ name?: string, now?: number }} [opts]
  * @returns {string} always a valid VCALENDAR, empty of events when there are none
  */
-function buildUserCalendar(entries, { name = "Meine Raids", now = Date.now() } = {}) {
+function buildUserCalendar(entries, { name = "My raids", now = Date.now() } = {}) {
     const lines = [];
     for (const entry of Array.isArray(entries) ? entries : []) {
         if (!entry || !entry.event) continue;

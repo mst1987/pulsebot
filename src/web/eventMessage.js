@@ -5,33 +5,38 @@
 // of icon + value only in three columns whose rows sit directly under each
 // other (leader · count · deadline, then date · time · countdown, the voice
 // channel under the date — #305; no end time: a duration nobody set would show
-// the default), the role totals as columns (Tanks · Fernkampf · Nahkampf, Heiler
+// the default), the role totals as columns (Tanks · Ranged · Melee, Healers
 // directly below the tanks) with flat role icons, then the roster — a "Tanks" block first, one
 // block per class after it (class icon, underlined name and count; each line
 // spec icon · signup number · name; three inline columns with an empty line
-// between the rows), one line each for Spät / Vielleicht / Bank / Abgemeldet —
+// between the rows), one line each for Late / Tentative / Bench / Absence —
 // the approved setup and the links. The air between the parts comes from
 // fields named with a zero-width space and one empty full-width field, all within 25 fields.
 //
 // Every character of a signup is listed where its own status puts it: a raider
 // signed up with a healer and a tank shows up in both blocks, under the same
-// number, and a first character on "Spät" sits in the Spät line while the
+// number, and a first character on "Late" sits in the Late line while the
 // second stays in its class block. The head's count and the role totals are
 // per person (a raider takes one seat — the setup places one character, too).
 //
 // Icons are the bot's application emojis (appEmojis.js): WoW icons for specs
 // and classes, flat grey line icons (`eh_ui_*`) for the head, the roles, the
 // statuses and the buttons. Without them the icons are left out and the head
-// lines carry their label ("Datum: …") instead — no colourful unicode
+// lines carry their label ("Date: …") instead — no colourful unicode
 // stand-ins.
 //
-// Below it one row with the public select `event-pick:<eventId>` — "Meine
-// Charaktere …" plus the classes of the event's game version (a public select
+// Everything a raider reads here is English (the community mostly is): the
+// English class/spec labels (`labelEn`), English statuses and buttons, and
+// every date a Discord timestamp, so each reader sees their own language and
+// time zone. The web admin keeps its German labels.
+//
+// Below it one row with the public select `event-pick:<eventId>` — "My
+// characters …" plus the classes of the event's game version (a public select
 // is the same for everybody, so it cannot list anyone's own characters; the
 // pick opens them ephemerally, commands/signup/eventPick.js) — and one row of
-// buttons `event-btn:<eventId>:<action>` Spät · Vielleicht · Bank · Absagen
-// (commands/signup/eventButton.js). After the deadline only Spät · Absagen, a
-// closed signup only Absagen, nothing once the raid started or for a cancelled
+// buttons `event-btn:<eventId>:<action>` Late · Tentative · Bench · Absence
+// (commands/signup/eventButton.js). After the deadline only Late · Absence, a
+// closed signup only Absence, nothing once the raid started or for a cancelled
 // event. Messages posted earlier carry the buttons Anmelden / Klasse wählen
 // (#302), the select `event-join:<eventId>` (#287) or the button
 // `event-signup:<eventId>` (#254); their handlers keep working until the
@@ -97,16 +102,16 @@ const LIMITS = { title: 256, description: 4096, fields: 25, fieldName: 256, fiel
 
 // The statuses of the old select (#287) — its handler still reads them.
 const STATUS_OPTIONS = {
-    signed: { label: "Dabei", description: "mit Charakter-Auswahl" },
-    tentative: { label: "Vielleicht", description: "noch unsicher" },
-    late: { label: "Spät", description: "komme später" },
-    bench: { label: "Bank", description: "als Ersatz bereit" },
-    absence: { label: "Abmelden", description: "nicht dabei" },
+    signed: { label: "Sign up", description: "pick a character" },
+    tentative: { label: "Tentative", description: "not sure yet" },
+    late: { label: "Late", description: "joining later" },
+    bench: { label: "Bench", description: "ready as a backup" },
+    absence: { label: "Absence", description: "not attending" },
 };
 // The lines below the class blocks, in this order.
-const OTHER_LINES = [["late", "Spät"], ["tentative", "Vielleicht"], ["bench", "Bank"], ["absence", "Abgemeldet"]];
-// The role totals as Raid-Helper sets them: three columns, Tanks with Heiler directly below.
-const ROLE_TOTALS = [[["tank", "Tanks"], ["healer", "Heiler"]], [["ranged", "Fernkampf"]], [["melee", "Nahkampf"]]];
+const OTHER_LINES = [["late", "Late"], ["tentative", "Tentative"], ["bench", "Bench"], ["absence", "Absence"]];
+// The role totals as Raid-Helper sets them: three columns, Tanks with Healers directly below.
+const ROLE_TOTALS = [[["tank", "Tanks"], ["healer", "Healers"]], [["ranged", "Ranged"]], [["melee", "Melee"]]];
 
 const CLASSES = buildClasses();
 const SPEC_BY_KEY = new Map(CLASSES.flatMap((c) => c.specs.map((s) => [s.key, s])));
@@ -217,19 +222,19 @@ function rosterLine(entry, number, emojis) {
     const name = entry.index > 0 ? nameOf(entry) : `**${nameOf(entry)}**`;
     if (icon) return `${icon} ${num} ${name}`;
     const spec = SPEC_BY_KEY.get(entry.spec);
-    return `${num} ${name}${spec ? ` · ${spec.label}` : ""}`;
+    return `${num} ${name}${spec ? ` · ${spec.labelEn || spec.label}` : ""}`;
 }
 
-/** Lines as one field value: at most `maxLines` lines and `max` characters, "+N weitere" for the rest. */
+/** Lines as one field value: at most `maxLines` lines and `max` characters, "+N more" for the rest. */
 function blockValue(lines, maxLines, max = LIMITS.fieldValue) {
     const out = [];
     let length = 0;
     for (let i = 0; i < lines.length; i++) {
         const after = lines.length - i - 1;
-        const reserve = after ? `\n+${after} weitere`.length : 0;
+        const reserve = after ? `\n+${after} more`.length : 0;
         const next = length + (out.length ? 1 : 0) + lines[i].length;
         if (out.length >= maxLines || next + reserve > max) {
-            out.push(`+${lines.length - i} weitere`);
+            out.push(`+${lines.length - i} more`);
             break;
         }
         out.push(lines[i]);
@@ -239,7 +244,7 @@ function blockValue(lines, maxLines, max = LIMITS.fieldValue) {
 }
 
 /**
- * The approved setup as one embed field — "**Gr. 1** Anna, Bert, …" per line,
+ * The approved setup as one embed field — "**Grp 1** Anna, Bert, …" per line,
  * the bench last. Only the approved snapshot (#263): a draft never reaches the
  * channel. "" without an approval.
  */
@@ -251,8 +256,8 @@ function approvedSetupText(event) {
     const names = (list) => list.map((s) => escapeMd(s.character) || "?").join(", ");
     const lines = approved.groups
         .filter((g) => (g.slots || []).length)
-        .map((g) => `**Gr. ${g.index}** ${names(g.slots)}`);
-    if ((approved.bench || []).length) lines.push(`**Bank** ${names(approved.bench)}`);
+        .map((g) => `**Grp ${g.index}** ${names(g.slots)}`);
+    if ((approved.bench || []).length) lines.push(`**Bench** ${names(approved.bench)}`);
     return clip(lines.join("\n"), LIMITS.fieldValue);
 }
 
@@ -311,7 +316,7 @@ function rosterFields(entries, numbers, emojis, maxLines, style) {
         const first = list.filter((e) => !(e.index > 0)).sort(byNumber);
         const further = list.filter((e) => e.index > 0).sort(byNumber);
         const sorted = [...first, ...further];
-        // "<icon> __Priester__ (3)"; the empty last line keeps the rows of blocks apart.
+        // "<icon> __Priest__ (3)"; the empty last line keeps the rows of blocks apart.
         fields.push({
             name: clip(`${icon ? `${icon} ` : ""}__${label}__ (${first.length})`, LIMITS.fieldName),
             value: `${blockValue(sorted.map((e) => rosterLine(e, numberOf(e), emojis)), maxLines, LIMITS.fieldValue - 2)}\n${ZWS}`,
@@ -324,11 +329,11 @@ function rosterFields(entries, numbers, emojis, maxLines, style) {
     if (tanks.length) block(emojiText(emojis, specEmojiName("Warrior-Protection")) || roleIcon(emojis, "tank", style), "Tanks", tanks);
     for (const cls of CLASSES) {
         const members = signed.filter((e) => e.role !== "tank" && (SPEC_BY_KEY.get(e.spec) || {}).classId === cls.id);
-        if (members.length) block(emojiText(emojis, classEmojiName(cls.id)), cls.label, members);
+        if (members.length) block(emojiText(emojis, classEmojiName(cls.id)), cls.labelEn || cls.label, members);
     }
     // Signed without a known spec (the service does not let that happen) is still shown.
     const unknown = signed.filter((e) => e.role !== "tank" && !SPEC_BY_KEY.get(e.spec));
-    if (unknown.length) block("", "Ohne Spec", unknown);
+    if (unknown.length) block("", "No spec", unknown);
 
     const other = [];
     for (const [status, label] of OTHER_LINES) {
@@ -344,7 +349,7 @@ function rosterFields(entries, numbers, emojis, maxLines, style) {
         if (!list.length) continue;
         const shown = list.slice(0, maxLines * 2).map((p) => `\`${numberOf(p.entry)}\` ${p.names.join(" / ")}`);
         const more = list.length - shown.length;
-        other.push(`${labelled(emojis, statusEmojiName(status), label)} (${list.length}): ${shown.join(", ")}${more ? ` +${more} weitere` : ""}`);
+        other.push(`${labelled(emojis, statusEmojiName(status), label)} (${list.length}): ${shown.join(", ")}${more ? ` +${more} more` : ""}`);
     }
     if (other.length) fields.push({ name: ZWS, value: clip(other.join("\n"), LIMITS.fieldValue), inline: false });
     return fields;
@@ -370,16 +375,16 @@ function fitFields(fields) {
 
 const BUTTON_STYLE = { primary: 1, secondary: 2, success: 3, danger: 4 };
 const BUTTONS = {
-    late: { label: "Spät", style: BUTTON_STYLE.secondary, icon: "late" },
-    tentative: { label: "Vielleicht", style: BUTTON_STYLE.secondary, icon: "tentative" },
-    bench: { label: "Bank", style: BUTTON_STYLE.secondary, icon: "bench" },
-    absence: { label: "Absagen", style: BUTTON_STYLE.danger, icon: "absence" },
+    late: { label: "Late", style: BUTTON_STYLE.secondary, icon: "late" },
+    tentative: { label: "Tentative", style: BUTTON_STYLE.secondary, icon: "tentative" },
+    bench: { label: "Bench", style: BUTTON_STYLE.secondary, icon: "bench" },
+    absence: { label: "Absence", style: BUTTON_STYLE.danger, icon: "absence" },
 };
 
 /**
  * Which components a phase offers, as rows: before the deadline the signup
- * select ("pick") and Spät · Vielleicht · Bank · Absagen; after it
- * Spät · Absagen; a closed signup only Absagen; nothing once the raid started
+ * select ("pick") and Late · Tentative · Bench · Absence; after it
+ * Late · Absence; a closed signup only Absence; nothing once the raid started
  * or the event was cancelled.
  */
 function buttonRows(event, phase, now = Date.now()) {
@@ -394,16 +399,16 @@ function buttonRows(event, phase, now = Date.now()) {
 }
 
 /**
- * The public signup select: "Meine Charaktere …" first, then every class of the
+ * The public signup select: "My characters …" first, then every class of the
  * event's game version. The same for everybody — a message component cannot
  * differ per viewer — so the own characters open ephemerally (eventPick.js).
  */
 function pickSelect(event, emojis) {
-    const mine = { label: "Meine Charaktere …", value: PICK_MINE, description: "aus deinem Profil – bis zu 3 auf einmal" };
+    const mine = { label: "My characters …", value: PICK_MINE, description: "from your profile – up to 3 at once" };
     const mineEmoji = emojiOption(emojis, uiEmojiName("signups"));
     if (mineEmoji) mine.emoji = mineEmoji;
     const classes = classesOf(event).map((c) => {
-        const option = { label: c.label, value: c.id };
+        const option = { label: c.labelEn || c.label, value: c.id };
         const emoji = emojiOption(emojis, classEmojiName(c.id));
         if (emoji) option.emoji = emoji;
         return option;
@@ -411,7 +416,7 @@ function pickSelect(event, emojis) {
     return {
         type: 3,
         custom_id: pickSelectId(event.id),
-        placeholder: "Anmelden – Charakter oder Klasse wählen …",
+        placeholder: "Sign up – pick a character or class …",
         min_values: 1,
         max_values: 1,
         options: [mine, ...classes].slice(0, LIMITS.options),
@@ -457,13 +462,13 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     if (phase === "cancelled") {
         // The store keeps the reason in `cancel.reason` (eventManage.cancelEvent).
         const reason = (event.cancel && event.cancel.reason) || event.cancelReason || "";
-        desc.push(`${head("absence", "**Abgesagt**")}${reason ? ` – ${escapeMd(clip(reason, 300))}` : ""}`);
+        desc.push(`${head("absence", "**Cancelled**")}${reason ? ` – ${escapeMd(clip(reason, 300))}` : ""}`);
     } else if (phase === "closed") {
-        desc.push(`${head("closed", "**Anmeldung geschlossen**")}${event.signupsClosed ? " – Abmelden geht weiter." : ""}`);
+        desc.push(`${head("closed", "**Signups closed**")}${event.signupsClosed ? " – you can still sign off." : ""}`);
     } else if (phase === "started") {
-        desc.push("Der Raid hat begonnen – Anmeldungen sind geschlossen.");
+        desc.push("The raid has started – signups are closed.");
     } else if (phase === "deadline") {
-        desc.push("Anmeldeschluss vorbei – nur noch „Spät“ oder Absagen.");
+        desc.push("The signup deadline has passed – only “Late” or Absence now.");
     }
     const description = String(event.description || "").trim();
     if (description) {
@@ -481,18 +486,18 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     const column = (lines) => ({ name: ZWS, value: lines.join("\n"), inline: true });
     const headFields = [
         column([
-            headLine("leader", "Leitung", event.leaderId ? `<@${event.leaderId}>` : "–"),
-            headLine("date", "Datum", start ? `<t:${start}:D>` : "–"),
+            headLine("leader", "Leader", event.leaderId ? `<@${event.leaderId}>` : "–"),
+            headLine("date", "Date", start ? `<t:${start}:D>` : "–"),
             // where the raid meets (#305), only when there is a channel
-            ...(event.voiceChannelId ? [headLine("voice", "Sprachkanal", `<#${event.voiceChannelId}>`)] : []),
+            ...(event.voiceChannelId ? [headLine("voice", "Voice channel", `<#${event.voiceChannelId}>`)] : []),
         ]),
         column([
-            headLine("signups", "Angemeldet", `**${c.attending}**${event.size ? ` / ${event.size}` : ""}`),
-            headLine("time", "Uhrzeit", start ? `<t:${start}:t>` : "–"),
+            headLine("signups", "Signed up", `**${c.attending}**${event.size ? ` / ${event.size}` : ""}`),
+            headLine("time", "Time", start ? `<t:${start}:t>` : "–"),
         ]),
         // an empty first line without a deadline keeps the countdown beside date and time
         column([
-            deadline ? headLine("deadline", "Anmeldeschluss", `<t:${deadline}:f>`) : ZWS,
+            deadline ? headLine("deadline", "Deadline", `<t:${deadline}:f>`) : ZWS,
             headLine("start", "Start", start ? `<t:${start}:R>` : "–"),
         ]),
     ];
@@ -518,20 +523,20 @@ function buildEventMessage(event, signups, { emojis = {}, now = Date.now(), icsU
     // can open, with or without a menu account. The menu link stays beside it —
     // that is where one signs up and where the orga works.
     if (base) links.push(`[Event](${base}/e/${id})`);
-    if (base) links.push(`[Anmeldung](${base}/signups?event=${id})`);
+    if (base) links.push(`[Sign up](${base}/signups?event=${id})`);
     if (base && setupText) links.push(`[Setup](${base}/raids/detail?event=${id}&tab=setup)`);
     const cal = icsUrl || icsUrlFor(event.id);
-    if (cal) links.push(`[Kalender](${cal})`);
+    if (cal) links.push(`[Calendar](${cal})`);
     if (links.length) tail.push({ name: ZWS, value: links.join("  ·  "), inline: false });
 
-    const title = phase === "cancelled" ? `Abgesagt: ${event.title || "Raid"}` : (event.title || "Raid");
+    const title = phase === "cancelled" ? `Cancelled: ${event.title || "Raid"}` : (event.title || "Raid");
     // The title as letter tiles opens the description — an embed title cannot
-    // show emojis. A cancelled event keeps "Abgesagt: …" as plain text.
+    // show emojis. A cancelled event keeps "Cancelled: …" as plain text.
     const tiles = phase === "cancelled" ? null : titleTiles(title, emojis, style);
     // A markdown heading enlarges the tiles — an emoji grows with the line it
     // sits in, and a heading is the only larger line an embed description has.
     if (tiles) desc.unshift(`${TITLE_HEADINGS[titleSize] || ""}${tiles}`, ...(desc.length ? [""] : []));
-    // A cancelled event keeps the red bar and loses its picture: "Abgesagt"
+    // A cancelled event keeps the red bar and loses its picture: "Cancelled"
     // should read as off, not as an advert for the raid (#307).
     const embed = {
         ...(tiles ? {} : { title: clip(title, LIMITS.title) }),

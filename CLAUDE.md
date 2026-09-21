@@ -114,7 +114,7 @@ src/
     legendary.js            # Axios client for pulse-gdkp.de legendary auction data
   config/
     classlist.js            # WoW class/spec lookup map (spec name -> icon/class/spec)
-    messages.js             # All user-facing text strings (German)
+    messages.js             # Shared user-facing text strings
     variables.js            # Constants: Discord IDs, API URLs, auction limits
   utils/
     helper.js               # Core utilities: botReply, botEditReply, formatters
@@ -177,7 +177,7 @@ Note: `bot.js` loads dotenv with `{ path: "../.env" }` (relative to `src/`). Alw
 - **Quotes:** Double quotes (enforced by ESLint).
 - **Semicolons:** Always (enforced by ESLint).
 - **Line endings:** Left to Git (`core.autocrlf`) and your editor — not enforced by ESLint. (The `linebreak-style: windows` rule was removed: git stores LF blobs, so a fixed `windows` rule broke the Linux CI.)
-- **Language:** User-facing strings in German. Variable names, function names, comments in English.
+- **Language:** Bot texts a raider reads in Discord are **English** (dates as Discord timestamps, German service messages through `utils/botEnglish.js`); orga/admin texts in the bot stay German for now; the web gets its language from the client's i18n layer. Variable names, function names, comments in English. Details: [docs/signups.md](docs/signups.md), [docs/bot-commands.md](docs/bot-commands.md).
 - **No TypeScript.** Plain JavaScript / CommonJS only.
 - **Tests:** Jest. Every module has a matching test; every new feature ships with tests (see Testing).
 

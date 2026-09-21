@@ -67,19 +67,19 @@ describe("commands/signup/eventJoin", () => {
         await command.execute(i);
         const payload = replyOf(i);
         expect(payload.flags).toBe(MessageFlags.Ephemeral);
-        expect(payload.embeds[0].description).toContain("Mit welchem Charakter?");
+        expect(payload.embeds[0].description).toContain("Which character?");
         const options = selectOf(payload).options;
         expect(options.map((o) => o.value)).toEqual(["nerathil|Mage-Arcane", "brokk|Warrior-Protection"]);
-        expect(options[0]).toMatchObject({ label: "Nerathil · Arkan", description: "Magier · raidbereit · Main", default: true, emoji: { id: "77", name: "eh_mage_arcane" } });
-        expect(options[1]).toMatchObject({ description: "Krieger · brauchbar · Tank", default: false });
+        expect(options[0]).toMatchObject({ label: "Nerathil · Arcane", description: "Mage · raid ready · Main", default: true, emoji: { id: "77", name: "eh_mage_arcane" } });
+        expect(options[1]).toMatchObject({ description: "Warrior · usable · Tank", default: false });
         expect(options[1].emoji).toBeUndefined();
         expect(selectOf(payload).custom_id).toBe("event-join:eh-kara:s:c:nerathil:Mage-Arcane:t");
         const [ok, also, comment, multi, profile] = buttonsOf(payload);
-        expect(ok).toMatchObject({ label: "Anmelden", custom_id: "signup-status:eh-kara:s:nerathil:Mage-Arcane:t", disabled: false });
-        expect(also).toMatchObject({ label: "Kann auch …", custom_id: "event-join:eh-kara:s:m:nerathil:Mage-Arcane:t" });
-        expect(comment).toMatchObject({ label: "Kommentar", disabled: true });
+        expect(ok).toMatchObject({ label: "Sign up", custom_id: "signup-status:eh-kara:s:nerathil:Mage-Arcane:t", disabled: false });
+        expect(also).toMatchObject({ label: "Can also …", custom_id: "event-join:eh-kara:s:m:nerathil:Mage-Arcane:t" });
+        expect(comment).toMatchObject({ label: "Comment", disabled: true });
         // two characters: first choice + "kann auch mit" in one modal (#293)
-        expect(multi).toMatchObject({ label: "Mehrere Charaktere …", custom_id: "signup-multi:e:eh-kara:s" });
+        expect(multi).toMatchObject({ label: "Several characters …", custom_id: "signup-multi:e:eh-kara:s" });
         expect(profile).toMatchObject({ style: 5, url: "https://eh.example/profile" });
         expect(mocks.signups.size).toBe(0);
     });
@@ -90,7 +90,7 @@ describe("commands/signup/eventJoin", () => {
         const i = pick("tentative");
         await command.execute(i);
         const options = selectOf(replyOf(i)).options;
-        expect(options[1]).toMatchObject({ default: true, description: "Krieger · brauchbar · Tank · zuletzt" });
+        expect(options[1]).toMatchObject({ default: true, description: "Warrior · usable · Tank · last used" });
 
         mocks.signups.set(`eh-kara/${ANNA}`, { userId: ANNA, character: "Nerathil", spec: "Mage-Arcane", status: "signed", at: 1, canAlso: [] });
         expect(defaultPick(characterOptions(profiles.getProfile(ANNA)), {
@@ -118,8 +118,8 @@ describe("commands/signup/eventJoin", () => {
         expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ character: "Brokk", spec: "Warrior-Protection", status: "signed" });
         const payload = replyOf(i);
         expect(payload.flags).toBe(MessageFlags.Ephemeral);
-        expect(payload.embeds[0].description).toContain("✅ Gespeichert: **Dabei** (Brokk · Schutz)");
-        expect(buttonsOf(payload)[2]).toMatchObject({ label: "Kommentar", disabled: false });
+        expect(payload.embeds[0].description).toContain("✅ Saved: **Signed up** (Brokk · Protection)");
+        expect(buttonsOf(payload)[2]).toMatchObject({ label: "Comment", disabled: false });
     });
 
     it("does not sign up at once for another status", async () => {
@@ -127,7 +127,7 @@ describe("commands/signup/eventJoin", () => {
         const i = pick("bench");
         await command.execute(i);
         expect(mocks.signups.size).toBe(0);
-        expect(buttonsOf(replyOf(i))[0]).toMatchObject({ label: "Speichern: Bank", custom_id: "signup-status:eh-kara:b:brokk:Warrior-Protection:" });
+        expect(buttonsOf(replyOf(i))[0]).toMatchObject({ label: "Save: Bench", custom_id: "signup-status:eh-kara:b:brokk:Warrior-Protection:" });
     });
 
     it("signs off at once, keeping character and comment", async () => {
@@ -136,7 +136,7 @@ describe("commands/signup/eventJoin", () => {
         const i = pick("absence");
         await command.execute(i);
         expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ status: "absence", character: "Brokk", comment: "Pizza" });
-        expect(replyOf(i)).toEqual({ content: "✅ Abgemeldet.", flags: MessageFlags.Ephemeral });
+        expect(replyOf(i)).toEqual({ content: "✅ Signed off.", flags: MessageFlags.Ephemeral });
     });
 
     it("opens the dialog of #258 without a profile character", async () => {
@@ -144,7 +144,7 @@ describe("commands/signup/eventJoin", () => {
         await command.execute(i);
         const payload = replyOf(i);
         expect(payload.flags).toBe(MessageFlags.Ephemeral);
-        expect(payload.embeds[0].description).toContain("Wähle Klasse und Spec und klicke dann „Dabei“");
+        expect(payload.embeds[0].description).toContain("Pick class and spec, then click “Sign up”");
         expect(payload.components[0].components[0].custom_id).toMatch(/^signup-pick:eh-kara:k:/);
         expect(mocks.signups.size).toBe(0);
     });
@@ -154,12 +154,12 @@ describe("commands/signup/eventJoin", () => {
         mocks.events.set("eh-kara", mocks.ownEvent({ signupDeadline: sec() - 60 }));
         const refused = pick("signed");
         await command.execute(refused);
-        expect(replyOf(refused).content).toContain("Anmeldeschluss ist vorbei");
+        expect(replyOf(refused).content).toContain("signup deadline has passed");
         expect(replyOf(refused).flags).toBe(MessageFlags.Ephemeral);
 
         const late = pick("late");
         await command.execute(late);
-        expect(replyOf(late).embeds[0].description).toContain("**Spät**");
+        expect(replyOf(late).embeds[0].description).toContain("**Late**");
         expect(selectOf(replyOf(late)).options).toHaveLength(2);
     });
 
@@ -168,7 +168,7 @@ describe("commands/signup/eventJoin", () => {
         mocks.events.set("eh-kara", mocks.ownEvent({ startTime: sec() - 60, signupDeadline: 0 }));
         const i = pick("absence");
         await command.execute(i);
-        expect(replyOf(i).content).toContain("Der Raid hat schon begonnen");
+        expect(replyOf(i).content).toContain("The raid has already started");
         expect(mocks.signups.size).toBe(0);
     });
 
@@ -179,21 +179,21 @@ describe("commands/signup/eventJoin", () => {
         mocks.access.roleIds = ["something-else"];
         const i = pick("signed");
         await command.execute(i);
-        expect(replyOf(i)).toEqual({ content: "Für diesen Raid brauchst du eine Raider-Rolle.", flags: MessageFlags.Ephemeral });
+        expect(replyOf(i)).toEqual({ content: "You need a raider role for this raid.", flags: MessageFlags.Ephemeral });
 
         mocks.access.roleIds = ["role-raider"];
         const ok = pick("signed");
         await command.execute(ok);
-        expect(replyOf(ok).embeds[0].description).toContain("Mit welchem Charakter?");
+        expect(replyOf(ok).embeds[0].description).toContain("Which character?");
     });
 
     it("says so for a gone event or an unknown status", async () => {
         const gone = mockInteraction({ customId: "event-join:eh-gone", userId: ANNA, values: ["signed"] });
         await command.execute(gone);
-        expect(replyOf(gone).content).toBe("Dieses Event gibt es nicht mehr.");
+        expect(replyOf(gone).content).toBe("This event no longer exists.");
         const bogus = pick("maybe");
         await command.execute(bogus);
-        expect(replyOf(bogus).content).toBe("Unbekannter Status.");
+        expect(replyOf(bogus).content).toBe("Unknown status.");
     });
 
     it("redraws the picker with a new pick and the profile's kann auch", async () => {
@@ -223,6 +223,6 @@ describe("commands/signup/eventJoin", () => {
     it("clears the picker when its event is gone", async () => {
         const i = mockInteraction({ customId: "event-join:eh-gone:s:c:::", userId: ANNA, values: ["x|y"] });
         await command.execute(i);
-        expect(updateOf(i)).toEqual({ content: "Dieses Event gibt es nicht mehr.", embeds: [], components: [] });
+        expect(updateOf(i)).toEqual({ content: "This event no longer exists.", embeds: [], components: [] });
     });
 });

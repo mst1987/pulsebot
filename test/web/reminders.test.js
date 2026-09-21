@@ -104,10 +104,10 @@ describe("runReminders", () => {
         await reminders.runReminders({ now: NOW + 10 * 60 * 1000, config });
         expect(deliverUserPing).toHaveBeenCalledTimes(2);
 
-        const missing = deliverUserPing.mock.calls.find((c) => c[0].text.includes("an oder ab"))[0];
+        const missing = deliverUserPing.mock.calls.find((c) => c[0].text.includes("sign up or sign off"))[0];
         // 1 signed up, 2 signed off — only 3 has not reacted.
         expect(missing).toMatchObject({ target: "talk", userIds: ["3"], guildId: "100000" });
-        const signed = deliverUserPing.mock.calls.find((c) => c[0].text.includes("beginnt"))[0];
+        const signed = deliverUserPing.mock.calls.find((c) => c[0].text.includes("starts"))[0];
         expect(signed.userIds).toEqual(["1", "4"]);
         expect(reminderStore.getSent("e1")).toEqual({ missing: NOW, signed: NOW });
     });

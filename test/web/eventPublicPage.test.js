@@ -96,7 +96,7 @@ describe("web/eventPublicPage", () => {
             const view = publicEventView(event(), signups(), { now: NOW });
             expect(view.classes.map((c) => c.id)).toEqual(["Warrior", "Priest"]);
             expect(view.classes[0].members).toEqual([
-                { character: "Brokk", spec: "Warrior-Protection", specLabel: "Schutz", specIcon: "ability_warrior_defensivestance", role: "tank" },
+                { character: "Brokk", spec: "Warrior-Protection", specLabel: "Protection", specIcon: "ability_warrior_defensivestance", role: "tank" },
             ]);
             // the bench is its own block, not a class one
             expect(view.other.map((o) => [o.id, o.members.map((m) => m.character)])).toEqual([["bench", ["Kael"]]]);
@@ -104,7 +104,7 @@ describe("web/eventPublicPage", () => {
 
         it("keeps a spec the rule set no longer knows instead of dropping the raider", () => {
             const view = publicEventView(event(), [su(IDS.brokk, "Brokk", "Warrior-Gladiator", "melee")], { now: NOW });
-            const rest = view.classes.find((c) => c.label === "Weitere");
+            const rest = view.classes.find((c) => c.label === "Other");
             expect(rest.members.map((m) => m.character)).toEqual(["Brokk"]);
         });
 
@@ -118,7 +118,7 @@ describe("web/eventPublicPage", () => {
             expect(withDraft.setup).toBe(null);
 
             const view = publicEventView(event({ setup: { status: "approved", approved } }), signups(), { now: NOW });
-            expect(view.setup.groups).toEqual([{ index: 1, members: [{ character: "Brokk", spec: "Warrior-Protection", specLabel: "Schutz", specIcon: "ability_warrior_defensivestance", role: "tank" }] }]);
+            expect(view.setup.groups).toEqual([{ index: 1, members: [{ character: "Brokk", spec: "Warrior-Protection", specLabel: "Protection", specIcon: "ability_warrior_defensivestance", role: "tank" }] }]);
             expect(view.setup.bench.map((b) => b.character)).toEqual(["Kael"]);
             expect(JSON.stringify(view.setup)).not.toContain("War zuletzt");
             expect(JSON.stringify(view.setup)).not.toContain(IDS.brokk);
@@ -203,7 +203,20 @@ describe("web/eventPublicPage", () => {
             expect(html).toContain("Brokk");
             expect(html).toContain("/r/cal/eh-1.ics");
             expect(html).toContain("/signups?event=eh-1");
-            expect(html).toContain("In Kalender eintragen");
+            expect(html).toContain("Add to calendar");
+        });
+
+        it("is in English with the times written out in server time (no Discord timestamps on the web)", () => {
+            const html = renderPublicEventPage(publicEventView(event(), signups(), { now: NOW }));
+            expect(html).toContain("<html lang=\"en\">");
+            // 17:30 UTC on 24 Sep 2026 is 19:30 in Berlin; the end three hours later
+            expect(html).toContain("Thu 24 Sep 2026, 19:30");
+            expect(html).toContain("until 22:30 server time");
+            expect(html).toContain("Wed 23 Sep 2026, 19:30");
+            expect(html).toContain("25-man");
+            for (const word of ["Signed up", "Signup deadline", "Priest", "Warrior", "Bench", "Signups"]) expect(html).toContain(word);
+            for (const german of ["Angemeldet", "Anmeldeschluss", "Priester", "Krieger", "Bank", " Uhr", "Termin"]) expect(html).not.toContain(german);
+            expect(html).not.toContain("<t:");
         });
 
         it("escapes a character name instead of letting it write HTML", () => {
@@ -213,7 +226,7 @@ describe("web/eventPublicPage", () => {
         });
 
         it("says so when nobody signed up", () => {
-            expect(renderPublicEventPage(publicEventView(event(), [], { now: NOW }))).toContain("Noch niemand angemeldet");
+            expect(renderPublicEventPage(publicEventView(event(), [], { now: NOW }))).toContain("Nobody has signed up yet");
         });
     });
 

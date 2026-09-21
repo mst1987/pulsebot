@@ -8,6 +8,7 @@ const {
     buildRaidPicker, buildCharacterModal, entriesFromModal, buildResults,
 } = require("../../utils/multiSignup");
 const { STATUS_CODES } = require("../../utils/signupDialog");
+const { toEnglish } = require("../../utils/botEnglish");
 
 // Every step of signing up for several raids at once (#293) after the first
 // click — see utils/multiSignup.js for the flow and the customIds:
@@ -16,15 +17,15 @@ const { STATUS_CODES } = require("../../utils/signupDialog");
 //   signup-multi:<token>:go:<page>   opens the modal of a page (never after a defer)
 //   signup-multi:<token>:m:<page>    the submitted modal — saves through submitSignups
 //   signup-multi:e:<eventId>:<code>  "Mehrere Charaktere …" of one event's character select
-const EXPIRED = "Die Auswahl ist abgelaufen – starte die Anmeldung an der Raid-Übersicht neu.";
-const NO_CHARACTER = "In deinem Profil steht noch kein Charakter mit Spec – lege zuerst einen an (Mein Profil).";
+const EXPIRED = "This selection has expired – start the signup again from the raid overview.";
+const NO_CHARACTER = "Your profile has no character with a spec yet – add one first (My profile).";
 
 async function emojisFor(interaction) {
     if (interaction.client) await loadAppEmojis(interaction.client);
     return appEmojiMap();
 }
 
-const ephemeral = (interaction, content) => interaction.reply({ content, flags: MessageFlags.Ephemeral });
+const ephemeral = (interaction, content) => interaction.reply({ content: toEnglish(content), flags: MessageFlags.Ephemeral });
 
 /** Open the modal of one page (a click, so the modal can still be shown). */
 async function openModal(interaction, token, session, page) {
@@ -39,9 +40,9 @@ async function openModal(interaction, token, session, page) {
 async function onOneEvent(interaction, eventId, status) {
     const uid = interaction.user.id;
     const event = getEvent(eventId);
-    if (!event) return ephemeral(interaction, "Dieses Event gibt es nicht mehr.");
+    if (!event) return ephemeral(interaction, "This event no longer exists.");
     if (!allowedStatuses(event).includes(status)) {
-        return ephemeral(interaction, "Der Anmeldeschluss ist vorbei – du kannst dich nur noch abmelden oder „Spät“ angeben.");
+        return ephemeral(interaction, "The signup deadline has passed – you can only sign off or sign up as “Late” now.");
     }
     const access = await checkRaiderRole(event, uid);
     if (access.error) return ephemeral(interaction, access.error);
@@ -92,7 +93,7 @@ module.exports = {
             const picked = String((interaction.values || [])[0] || "");
             if (STATUS_CODES[picked]) session.status = picked;
         } else {
-            return interaction.update({ content: "Unbekannte Aktion.", embeds: [], components: [] });
+            return interaction.update({ content: "Unknown action.", embeds: [], components: [] });
         }
         const events = session.eventIds.map((id) => getEvent(id)).filter(Boolean);
         return interaction.update(buildRaidPicker(token, session, events, { emojis: await emojisFor(interaction) }));

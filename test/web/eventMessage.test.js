@@ -59,6 +59,21 @@ describe("web/eventMessage", () => {
         listSignups.mockReturnValue(signups);
     });
 
+    it("speaks English to the raiders: roles, classes, statuses, buttons, select; dates only as Discord timestamps", () => {
+        const payload = buildEventMessage(event({ signupDeadline: 1999990000 }), signups, { now: NOW });
+        const text = JSON.stringify(payload);
+        for (const word of ["Healers", "Ranged", "Melee", "Priest", "Late", "Tentative", "Absence", "Leader", "Deadline", "Sign up – pick a character or class …", "Warrior", "Druid"]) {
+            expect(text).toContain(word);
+        }
+        for (const german of ["Heiler", "Fernkampf", "Nahkampf", "Priester", "Spät", "Vielleicht", "Abgemeldet", "Absagen", "Leitung", "Anmeldeschluss", "Krieger", "Druide", "Uhr"]) {
+            expect(text).not.toContain(german);
+        }
+        // every date in the embed is a Discord timestamp, never written out
+        const embedText = JSON.stringify(payload.embeds[0]);
+        expect(embedText).toMatch(/<t:2000000000:D>/);
+        expect(embedText).not.toMatch(/\d{1,2}\.\d{1,2}\.(\d{2,4})?/);
+    });
+
     it("counts who comes per role and who said otherwise", () => {
         expect(rosterCounts(signups)).toEqual({ tank: 2, healer: 1, dps: 2, attending: 5, tentative: 1, bench: 0, absence: 1 });
     });
@@ -95,7 +110,7 @@ describe("web/eventMessage", () => {
         const links = embed.fields[embed.fields.length - 1].value;
         // #308: the public event page first, the menu beside it, and the event's
         // own calendar file (no icsUrl was passed).
-        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Anmeldung](https://eh.example/signups?event=eh-1)  ·  [Kalender](https://eh.example/r/cal/eh-1.ics)");
+        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Calendar](https://eh.example/r/cal/eh-1.ics)");
         expect(links).not.toContain("Setup");
     });
 
@@ -110,22 +125,23 @@ describe("web/eventMessage", () => {
         expect(JSON.stringify(embed)).not.toContain("2000014400");
         // without the application emojis the label leads the line
         const plain = buildEventMessage(event({ voiceChannelId: "v9" }), signups, { now: NOW }).embeds[0];
-        expect(plain.fields[0].value.split("\n")[2]).toBe("Sprachkanal: <#v9>");
+        expect(plain.fields[0].value.split("\n")[2]).toBe("Voice channel: <#v9>");
     });
 
     it("sets the role totals apart as columns with the style's role icons, the healers directly below the tanks, then an empty line", () => {
         const embed = buildEventMessage(event(), signups, { emojis, now: NOW }).embeds[0];
         expect(embed.fields.slice(3, 7).map((f) => [f.name, emojiless(f.value), f.inline])).toEqual([
-            [ZWS, "<:eh_ra_tank> Tanks **2**/2\n<:eh_ra_healer> Heiler **1**/3", true],
-            [ZWS, "<:eh_ra_ranged> Fernkampf **2**", true],
-            [ZWS, "<:eh_ra_swords> Nahkampf **0**", true],
+            [ZWS, "<:eh_ra_tank> Tanks **2**/2\n<:eh_ra_healer> Healers **1**/3", true],
+            [ZWS, "<:eh_ra_ranged> Ranged **2**", true],
+            // melee is two crossed swords
+            [ZWS, "<:eh_ra_swords> Melee **0**", true],
             [ZWS, ZWS, false],
         ]);
         // the colourful WoW role icons are no longer used in the message
         expect(JSON.stringify(embed)).not.toContain("eh_role_");
         // "plain" draws the flat grey ones
         const plain = buildEventMessage(event({ emojiStyle: "plain" }), signups, { emojis, now: NOW }).embeds[0];
-        expect(emojiless(plain.fields[3].value)).toBe("<:eh_ui_tank> Tanks **2**/2\n<:eh_ui_healer> Heiler **1**/3");
+        expect(emojiless(plain.fields[3].value)).toBe("<:eh_ui_tank> Tanks **2**/2\n<:eh_ui_healer> Healers **1**/3");
     });
 
     it("draws title tiles and role icons in the event's emoji style", () => {
@@ -153,7 +169,7 @@ describe("web/eventMessage", () => {
         const embed = buildEventMessage(event(), signups, { emojis: flatOnly, now: NOW }).embeds[0];
         expect(embed.fields[3].value).toContain("eh_ui_tank");
         // a cancelled event says so in plain text
-        expect(title({ status: "cancelled" })).toBe("Abgesagt: Kara Donnerstag");
+        expect(title({ status: "cancelled" })).toBe("Cancelled: Kara Donnerstag");
         // umlauts become two tiles, lower case is upper case
         expect(emojiless(buildEventMessage(event({ title: "Höhle" }), signups, { emojis, now: NOW }).embeds[0].description).split("\n")[0])
             .toBe("<:eh_ta_h><:eh_ta_o><:eh_ta_e><:eh_ta_h><:eh_ta_l><:eh_ta_e>");
@@ -162,15 +178,15 @@ describe("web/eventMessage", () => {
     it("shows melee/ranged targets as minimum or range", () => {
         const payload = buildEventMessage(event({ composition: { tank: 2, healer: 3, melee: 2, ranged: 1 }, compositionMax: { melee: 4 } }), [], { now: NOW });
         const values = payload.embeds[0].fields.slice(3, 6).map((f) => f.value);
-        expect(values).toContain("Nahkampf **0**/2–4");
-        expect(values).toContain("Fernkampf **0**/1+");
+        expect(values).toContain("Melee **0**/2–4");
+        expect(values).toContain("Ranged **0**/1+");
     });
 
     it("puts tanks in their own block first, then one block per class in fixed order, with an empty line under each", () => {
         const payload = buildEventMessage(event(), signups, { emojis, now: NOW });
         const blocks = payload.embeds[0].fields.slice(7).filter((f) => f.inline);
         // the Tanks block wears the Protection Warrior's icon
-        expect(blocks.map((b) => emojiless(b.name))).toEqual(["<:eh_warrior_protection> __Tanks__ (2)", "<:eh_class_priest> __Priester__ (1)", "<:eh_class_mage> __Magier__ (1)"]);
+        expect(blocks.map((b) => emojiless(b.name))).toEqual(["<:eh_warrior_protection> __Tanks__ (2)", "<:eh_class_priest> __Priest__ (1)", "<:eh_class_mage> __Mage__ (1)"]);
         expect(blocks[0].value.split("\n")).toEqual([
             expect.stringMatching(/^<:eh_warrior_protection:\d+> `1` \*\*Brokk\*\*$/),
             expect.stringMatching(/^<:eh_druid_guardian:\d+> `7` \*\*Gemli\*\*$/),
@@ -196,12 +212,12 @@ describe("web/eventMessage", () => {
             expect.stringMatching(/`8` Zibbowar$/),
         ]);
         // a character without its own status has the signup's (late); one raider counts once
-        const other = fields.find((f) => !f.inline && f.value.includes("Spät"));
-        expect(other.value.split("\n")[0]).toMatch(/Spät \(2\): `2` Ysolde, `8` Zibbo \/ Zibbomage$/);
+        const other = fields.find((f) => !f.inline && f.value.includes("Late"));
+        expect(other.value.split("\n")[0]).toMatch(/Late \(2\): `2` Ysolde, `8` Zibbo \/ Zibbomage$/);
         expect(JSON.stringify(payload)).not.toContain("+1");
         // one seat per person: Zibbo is late, so 5 + 1 attend, the tank count stays per person
         expect(emojiless(fields[1].value).split("\n")[0]).toBe("<:eh_ui_signups> **6** / 10");
-        expect(fields[3].value).toMatch(/Heiler \*\*2\*\*\/3/);
+        expect(fields[3].value).toMatch(/Healers \*\*2\*\*\/3/);
         expect(rosterEntries([multi]).map((e) => [e.character, e.status, e.index])).toEqual([
             ["Zibbo", "late", 0], ["Zibbowar", "signed", 1], ["Zibbomage", "late", 2],
         ]);
@@ -209,13 +225,13 @@ describe("web/eventMessage", () => {
 
     it("lists late, tentative, bench and absence as lines with icon, count and number boxes", () => {
         const payload = buildEventMessage(event(), [...signups, su("8", "Bänki", "Mage-Frost", "ranged", "bench")], { emojis, now: NOW });
-        const other = payload.embeds[0].fields.find((f) => !f.inline && f.value.includes("Spät"));
+        const other = payload.embeds[0].fields.find((f) => !f.inline && f.value.includes("Late"));
         expect(other.name).toBe(ZWS);
         expect(other.value.split("\n").map(emojiless)).toEqual([
-            "<:eh_ui_late> Spät (1): `2` Ysolde",
-            "<:eh_ui_tentative> Vielleicht (1): `4` Kael",
-            "<:eh_ui_bench> Bank (1): `8` Bänki",
-            "<:eh_ui_absence> Abgemeldet (1): `5` <@5>",
+            "<:eh_ui_late> Late (1): `2` Ysolde",
+            "<:eh_ui_tentative> Tentative (1): `4` Kael",
+            "<:eh_ui_bench> Bench (1): `8` Bänki",
+            "<:eh_ui_absence> Absence (1): `5` <@5>",
         ]);
     });
 
@@ -223,19 +239,19 @@ describe("web/eventMessage", () => {
         // the case of the screenshot in #303: signed off before, then Bank
         const devire = { userId: "11", status: "bench", character: "Devire", spec: "Mage-Arcane", role: "ranged", at: 11, comment: "Arbeit",
             characters: [{ character: "Devire", spec: "Mage-Arcane", role: "ranged", status: "bench" }] };
-        const lines = (list) => buildEventMessage(event(), list, { now: NOW }).embeds[0].fields.find((f) => !f.inline && f.name === ZWS && /Bank|Abgemeldet/.test(f.value));
-        expect(lines([devire]).value).toBe("Bank (1): `1` Devire");
+        const lines = (list) => buildEventMessage(event(), list, { now: NOW }).embeds[0].fields.find((f) => !f.inline && f.name === ZWS && /Bench|Absence/.test(f.value));
+        expect(lines([devire]).value).toBe("Bench (1): `1` Devire");
         // the first character on Bank, the second still signed: both where their own status puts them
         const two = { ...devire, characters: [devire.characters[0], { character: "Devheal", spec: "Priest-Holy", role: "healer", status: "signed" }] };
         const payload = buildEventMessage(event(), [two], { now: NOW });
         // Devheal is the second character: shown, but not bold and not counted
-        const priest = payload.embeds[0].fields.find((f) => f.name.startsWith("__Priester__"));
+        const priest = payload.embeds[0].fields.find((f) => f.name.startsWith("__Priest__"));
         expect(priest.value).toContain("`1` Devheal");
         expect(priest.value).not.toContain("**Devheal**");
-        expect(priest.name).toBe("__Priester__ (0)");
-        expect(lines([two]).value).toBe("Bank (1): `1` Devire");
+        expect(priest.name).toBe("__Priest__ (0)");
+        expect(lines([two]).value).toBe("Bench (1): `1` Devire");
         // an absence is one line per person, whatever its characters stored
-        expect(lines([{ ...devire, status: "absence", characters: [{ character: "Devire", spec: "Mage-Arcane" }] }]).value).toBe("Abgemeldet (1): `1` Devire");
+        expect(lines([{ ...devire, status: "absence", characters: [{ character: "Devire", spec: "Mage-Arcane" }] }]).value).toBe("Absence (1): `1` Devire");
     });
 
     it("reads the same without application emojis — labels in the head, spec names, no colourful unicode", () => {
@@ -245,15 +261,15 @@ describe("web/eventMessage", () => {
         expect(json).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u);
         const embed = payload.embeds[0];
         expect(embed.fields.slice(0, 3).map((f) => f.value)).toEqual([
-            "Leitung: <@7>\nDatum: <t:2000000000:D>",
-            "Angemeldet: **5** / 10\nUhrzeit: <t:2000000000:t>",
-            "Anmeldeschluss: <t:1999990000:f>\nStart: <t:2000000000:R>",
+            "Leader: <@7>\nDate: <t:2000000000:D>",
+            "Signed up: **5** / 10\nTime: <t:2000000000:t>",
+            "Deadline: <t:1999990000:f>\nStart: <t:2000000000:R>",
         ]);
-        expect(embed.fields[3].value).toBe("Tanks **2**/2\nHeiler **1**/3");
+        expect(embed.fields[3].value).toBe("Tanks **2**/2\nHealers **1**/3");
         const blocks = embed.fields.slice(7).filter((f) => f.inline);
-        expect(blocks[0]).toMatchObject({ name: "__Tanks__ (2)", value: `\`1\` **Brokk** · Schutz\n\`7\` **Gemli** · Wilder Kampf (Bär)\n${ZWS}` });
-        expect(blocks[1].name).toBe("__Priester__ (1)");
-        expect(embed.fields.find((f) => !f.inline && f.value.includes("Spät")).value.split("\n")[0]).toBe("Spät (1): `2` Ysolde");
+        expect(blocks[0]).toMatchObject({ name: "__Tanks__ (2)", value: `\`1\` **Brokk** · Protection\n\`7\` **Gemli** · Feral (Bear)\n${ZWS}` });
+        expect(blocks[1].name).toBe("__Priest__ (1)");
+        expect(embed.fields.find((f) => !f.inline && f.value.includes("Late")).value.split("\n")[0]).toBe("Late (1): `2` Ysolde");
         const components = payload.components.flatMap((r) => r.components);
         expect(components.every((b) => b.emoji === undefined)).toBe(true);
         expect(components[0].options.every((o) => o.emoji === undefined)).toBe(true);
@@ -261,7 +277,7 @@ describe("web/eventMessage", () => {
 
     it("escapes markdown and mentions in character names", () => {
         const payload = buildEventMessage(event(), [su("1", "*Bold*_@everyone", "Mage-Arcane", "ranged")], { now: NOW });
-        const block = payload.embeds[0].fields.find((f) => f.name.startsWith("__Magier__"));
+        const block = payload.embeds[0].fields.find((f) => f.name.startsWith("__Mage__"));
         expect(block.value).toContain("\\*Bold\\*\\_@​everyone");
     });
 
@@ -270,17 +286,17 @@ describe("web/eventMessage", () => {
         expect(payload.components).toHaveLength(2);
         const [[select], buttons] = payload.components.map((r) => r.components);
         expect(select).toMatchObject({ type: 3, custom_id: "event-pick:eh-1", min_values: 1, max_values: 1 });
-        expect(select.options[0]).toMatchObject({ label: "Meine Charaktere …", value: "mine", emoji: { name: "eh_ui_signups" } });
+        expect(select.options[0]).toMatchObject({ label: "My characters …", value: "mine", emoji: { name: "eh_ui_signups" } });
         expect(select.options.slice(1).map((o) => o.value)).toEqual(["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"]);
         expect(select.options[1].emoji.name).toBe("eh_class_warrior");
         expect(select.options.length).toBeLessThanOrEqual(25);
         // the public select is the same for everybody: no own characters in it
         expect(select.options.some((o) => o.value.includes("|"))).toBe(false);
         expect(buttons.map((b) => [b.label, b.custom_id, b.style])).toEqual([
-            ["Spät", "event-btn:eh-1:late", 2],
-            ["Vielleicht", "event-btn:eh-1:tentative", 2],
-            ["Bank", "event-btn:eh-1:bench", 2],
-            ["Absagen", "event-btn:eh-1:absence", 4],
+            ["Late", "event-btn:eh-1:late", 2],
+            ["Tentative", "event-btn:eh-1:tentative", 2],
+            ["Bench", "event-btn:eh-1:bench", 2],
+            ["Absence", "event-btn:eh-1:absence", 4],
         ]);
         expect(buttons[2].emoji).toEqual({ id: expect.any(String), name: "eh_ui_bench", animated: false });
         expect(buttonId("x", "late")).toBe("event-btn:x:late");
@@ -301,10 +317,10 @@ describe("web/eventMessage", () => {
         const late = buildEventMessage(event({ signupDeadline: 1998000000 }), signups, { now: NOW });
         expect(late.components).toHaveLength(1);
         expect(late.components[0].components.map((b) => b.custom_id)).toEqual(["event-btn:eh-1:late", "event-btn:eh-1:absence"]);
-        expect(late.embeds[0].description).toContain("Anmeldeschluss vorbei");
+        expect(late.embeds[0].description).toContain("signup deadline has passed");
         const started = buildEventMessage(event({ startTime: 1998000000 }), signups, { now: NOW });
         expect(started.components).toEqual([]);
-        expect(started.embeds[0].description).toContain("Der Raid hat begonnen");
+        expect(started.embeds[0].description).toContain("The raid has started");
     });
 
     describe("Farbe und Bild (#307)", () => {
@@ -381,12 +397,12 @@ describe("web/eventMessage", () => {
 
     it("shows a cancelled or closed event without components (#288)", () => {
         const cancelled = buildEventMessage(event({ status: "cancelled", cancelReason: "zu wenige Heiler" }), signups, { now: NOW });
-        expect(cancelled.embeds[0].title).toBe("Abgesagt: Kara Donnerstag");
-        expect(cancelled.embeds[0].description).toContain("Abgesagt** – zu wenige Heiler");
+        expect(cancelled.embeds[0].title).toBe("Cancelled: Kara Donnerstag");
+        expect(cancelled.embeds[0].description).toContain("Cancelled** – zu wenige Heiler");
         expect(cancelled.embeds[0].color).not.toBe(7);
         expect(cancelled.components).toEqual([]);
         const closed = buildEventMessage(event({ status: "closed" }), signups, { now: NOW });
-        expect(closed.embeds[0].description).toContain("Anmeldung geschlossen");
+        expect(closed.embeds[0].description).toContain("Signups closed");
         expect(closed.components).toEqual([]);
         expect(messagePhase(event({ status: "closed" }), NOW)).toBe("closed");
         expect(messagePhase(event(), NOW)).toBe("open");
@@ -394,24 +410,24 @@ describe("web/eventMessage", () => {
 
     it("reads the store's shape of Event verwalten: the reason in cancel, a closed signup still takes sign-offs (#288)", () => {
         const cancelled = buildEventMessage(event({ status: "cancelled", cancel: { reason: "Zu wenig Heiler" } }), signups, { now: NOW });
-        expect(cancelled.embeds[0].description).toContain("Abgesagt** – Zu wenig Heiler");
+        expect(cancelled.embeds[0].description).toContain("Cancelled** – Zu wenig Heiler");
         expect(cancelled.components).toEqual([]);
         const closed = buildEventMessage(event({ status: "active", signupsClosed: true }), signups, { now: NOW });
         expect(messagePhase(event({ signupsClosed: true }), NOW)).toBe("closed");
-        expect(closed.embeds[0].description).toContain("Anmeldung geschlossen** – Abmelden geht weiter.");
-        expect(closed.components).toEqual([{ type: 1, components: [expect.objectContaining({ label: "Absagen", custom_id: "event-btn:eh-1:absence" })] }]);
+        expect(closed.embeds[0].description).toContain("Signups closed** – you can still sign off.");
+        expect(closed.components).toEqual([{ type: 1, components: [expect.objectContaining({ label: "Absence", custom_id: "event-btn:eh-1:absence" })] }]);
         // a raid that started is "started", closed or not
         expect(messagePhase(event({ signupsClosed: true, startTime: 1998000000 }), NOW)).toBe("started");
     });
 
     it("cuts a long block with +N weitere and keeps every field within Discord's limits", () => {
-        expect(blockValue(["a", "b", "c"], 2)).toBe("a\nb\n+1 weitere");
+        expect(blockValue(["a", "b", "c"], 2)).toBe("a\nb\n+1 more");
         expect(blockValue(["a", "b"], 2)).toBe("a\nb");
         expect(blockValue([], 2)).toBe(ZWS);
         const long = Array.from({ length: 30 }, (_, i) => "x".repeat(60) + i);
         const value = blockValue(long, 40);
         expect(value.length).toBeLessThanOrEqual(1024);
-        expect(value).toMatch(/\+\d+ weitere$/);
+        expect(value).toMatch(/\+\d+ more$/);
 
         // 40 raiders, all warriors with long names, plus 40 absences: must still fit.
         const many = Array.from({ length: 80 }, (_, i) => su(String(100 + i), `Kriegerlangername${i}`, "Warrior-Fury", "melee", i < 40 ? "signed" : "absence", i));
@@ -425,8 +441,8 @@ describe("web/eventMessage", () => {
             expect(f.name.length).toBeGreaterThan(0);
         }
         expect(embedLength(embed)).toBeLessThanOrEqual(LIMITS.total);
-        const warriors = embed.fields.find((f) => f.name.includes("__Krieger__ (40)"));
-        expect(warriors.value).toMatch(/\+\d+ weitere\n​$/);
+        const warriors = embed.fields.find((f) => f.name.includes("__Warrior__ (40)"));
+        expect(warriors.value).toMatch(/\+\d+ more\n​$/);
     });
 
     it("fits 40 signups over every class, a setup and all links into 25 fields — the spacers go first", () => {
@@ -444,13 +460,13 @@ describe("web/eventMessage", () => {
         expect(embedLength(embed)).toBeLessThanOrEqual(LIMITS.total);
         const names = embed.fields.map((f) => emojiless(f.name));
         // every class block, the status lines, the setup and the links are all there
-        for (const cls of ["Krieger", "Paladin", "Jäger", "Schurke", "Priester", "Schamane", "Magier", "Hexenmeister", "Druide"]) {
+        for (const cls of ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"]) {
             expect(names.some((n) => n.includes(`__${cls}__`))).toBe(true);
         }
         expect(names.some((n) => n.includes("__Tanks__"))).toBe(true);
-        expect(embed.fields.some((f) => f.value.includes("Abgemeldet ("))).toBe(true);
+        expect(embed.fields.some((f) => f.value.includes("Absence ("))).toBe(true);
         expect(names.some((n) => n.includes("Setup"))).toBe(true);
-        expect(embed.fields[embed.fields.length - 1].value).toContain("[Kalender]");
+        expect(embed.fields[embed.fields.length - 1].value).toContain("[Calendar]");
         expect(embed.fields.every((f) => Object.keys(f).sort().join() === "inline,name,value")).toBe(true);
     });
 
@@ -458,9 +474,9 @@ describe("web/eventMessage", () => {
         const approved = { groups: [{ index: 1, slots: [{ character: "Brokk" }] }], bench: [{ character: "Kael" }] };
         const payload = buildEventMessage(event({ setup: { status: "approved", approved } }), signups, { now: NOW, icsUrl: "https://eh.example/ics/eh-1.ics" });
         const fields = payload.embeds[0].fields;
-        expect(field(payload, "Setup").value).toBe("**Gr. 1** Brokk\n**Bank** Kael");
+        expect(field(payload, "Setup").value).toBe("**Grp 1** Brokk\n**Bench** Kael");
         const links = fields[fields.length - 1].value;
-        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Anmeldung](https://eh.example/signups?event=eh-1)  ·  [Setup](https://eh.example/raids/detail?event=eh-1&tab=setup)  ·  [Kalender](https://eh.example/ics/eh-1.ics)");
+        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Setup](https://eh.example/raids/detail?event=eh-1&tab=setup)  ·  [Calendar](https://eh.example/ics/eh-1.ics)");
 
         const draft = buildEventMessage(event({ setup: { status: "draft", groups: approved.groups } }), signups, { now: NOW });
         expect(JSON.stringify(draft)).not.toContain("Setup");
@@ -525,7 +541,7 @@ describe("web/eventMessage", () => {
         listSignups.mockReturnValue([...signups, su("8", "Devire", "Mage-Arcane", "ranged", "bench")]);
         await sweepEventMessages();
         expect(message.edit).toHaveBeenCalledTimes(1);
-        expect(message.edit.mock.calls[0][0].embeds[0].fields.some((f) => f.value.includes("Bank (1): `8` Devire"))).toBe(true);
+        expect(message.edit.mock.calls[0][0].embeds[0].fields.some((f) => f.value.includes("Bench (1): `8` Devire"))).toBe(true);
         // the deadline passed: the buttons change
         current.message.hash = payloadHash(message.edit.mock.calls[0][0]);
         await sweepEventMessages();

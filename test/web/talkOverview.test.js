@@ -37,7 +37,7 @@ const opts = { eventGuildId: "111", eventGuildName: "Pulse Events", baseUrl: "ht
 
 describe("web/talkOverview — buildOverviewMessage", () => {
     it("formats the start in Berlin time with a German weekday", () => {
-        expect(formatStart(sec(2026, 9, 17, 17, 30))).toBe("Do 17.09. 19:30");
+        expect(formatStart(sec(2026, 9, 17, 17, 30))).toBe("Thu 17 Sep 19:30");
         expect(formatStart(0)).toBe("");
     });
 
@@ -59,12 +59,12 @@ describe("web/talkOverview — buildOverviewMessage", () => {
         ];
         const payload = buildOverviewMessage(groups, opts);
         const embed = payload.embeds[0];
-        expect(embed.title).toBe("Kommende Raids");
+        expect(embed.title).toBe("Upcoming raids");
         expect(embed.description).toContain("**Pulse Events**");
         expect(embed.fields.map((f) => f.name)).toEqual(["Donnerstag-Raid", "PuG"]);
         expect(embed.fields[0].value.split("\n")).toEqual([
-            "**SSC + TK** · Do 17.09. 19:30 · 👥 9 · [#mi-17-09-ssc-tk](https://discord.com/channels/111/c1) · Raid-Helper",
-            "**Hyjal + BT** · Do 24.09. 19:30 · 👥 15/25 · [#do-hyjal](https://discord.com/channels/111/c2)",
+            "**SSC + TK** · <t:1789666200:F> · 👥 9 · [#mi-17-09-ssc-tk](https://discord.com/channels/111/c1) · Raid-Helper",
+            "**Hyjal + BT** · <t:1790271000:F> · 👥 15/25 · [#do-hyjal](https://discord.com/channels/111/c2)",
         ]);
         expect(embed.fields[1].value).toContain("Karazhan");
         expect(JSON.stringify(payload)).not.toContain("Vorbei");
@@ -78,7 +78,7 @@ describe("web/talkOverview — buildOverviewMessage", () => {
             ],
         }], opts);
         const lines = payload.embeds[0].fields[0].value.split("\n");
-        expect(lines).toContain("~~Hyjal~~ · **ABGESAGT** · Fr 18.09. 19:30");
+        expect(lines).toContain("~~Hyjal~~ · **CANCELLED** · <t:1789752600:F>");
         expect(payload.components[0].components[0].options.map((o) => o.value)).toEqual(["e1"]);
 
         const onlyCancelled = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev({ status: "cancelled" })] }], opts);
@@ -90,12 +90,12 @@ describe("web/talkOverview — buildOverviewMessage", () => {
         const [selectRow, buttonRow] = payload.components;
         const select = selectRow.components[0];
         expect(select.custom_id).toBe("talk-signup");
-        expect(select.placeholder).toBe("Einzelnen Raid wählen …");
-        expect(select.options).toEqual([{ label: "SSC + TK", description: "Do 17.09. 19:30 · Mi", value: "e1" }]);
+        expect(select.placeholder).toBe("Pick a single raid …");
+        expect(select.options).toEqual([{ label: "SSC + TK", description: "Thu 17 Sep 19:30 · Mi", value: "e1" }]);
         expect(buttonRow.components.map((b) => [b.label, b.url, b.style])).toEqual([
-            ["Web-Übersicht", "https://eh.example/raids", 5],
-            ["Meine Anmeldungen", "https://eh.example/signups", 5],
-            ["Mein Profil", "https://eh.example/profile", 5],
+            ["Web overview", "https://eh.example/raids", 5],
+            ["My signups", "https://eh.example/signups", 5],
+            ["My profile", "https://eh.example/profile", 5],
         ]);
         expect(overviewLinks("https://x.y").profile).toBe("https://x.y/profile");
     });
@@ -104,8 +104,8 @@ describe("web/talkOverview — buildOverviewMessage", () => {
         const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev(), ev({ id: "eh-1", source: "eventhelper", title: "Kara" })] }], opts);
         const [signupRow, selectRow, linkRow] = payload.components;
         expect(signupRow.components.map((b) => [b.custom_id, b.label, b.style])).toEqual([
-            ["talk-signup-all", "Für alle Raids anmelden", 1],
-            ["talk-signup-multi", "Mehrere Raids wählen …", 2],
+            ["talk-signup-all", "Sign up for all raids", 1],
+            ["talk-signup-multi", "Pick several raids …", 2],
         ]);
         expect(selectRow.components[0].custom_id).toBe("talk-signup");
         expect(linkRow.components).toHaveLength(3);
@@ -125,7 +125,7 @@ describe("web/talkOverview — buildOverviewMessage", () => {
 
     it("says there is nothing planned and drops the select when no raid is upcoming", () => {
         const payload = buildOverviewMessage([], opts);
-        expect(payload.embeds[0].description).toContain("keine Raids geplant");
+        expect(payload.embeds[0].description).toContain("No raids are planned");
         expect(payload.embeds[0].fields).toBeUndefined();
         expect(payload.components).toHaveLength(1);
         expect(payload.components[0].components).toHaveLength(3);
@@ -147,8 +147,8 @@ describe("web/talkOverview — buildOverviewMessage", () => {
         const total = embed.title.length + embed.description.length + (embed.footer ? embed.footer.text.length : 0)
             + embed.fields.reduce((n, f) => n + f.name.length + f.value.length, 0);
         expect(total).toBeLessThanOrEqual(6000);
-        expect(embed.fields[0].value).toMatch(/\+\d+ weitere$/);
-        expect(embed.footer.text).toMatch(/^\+\d+ weitere Raids in der Web-Übersicht$/);
+        expect(embed.fields[0].value).toMatch(/\+\d+ more$/);
+        expect(embed.footer.text).toMatch(/^\+\d+ more raids in the web overview$/);
         const options = payload.components[0].components[0].options;
         expect(options).toHaveLength(25);
         // the next 25 raids, soonest first

@@ -67,7 +67,7 @@ describe("/event anlegen — access", () => {
         ]) {
             const i = mockInteraction({ commandName: customId ? undefined : "event", customId, modal });
             expect(await guardInteraction(i, command, commands)).toBe(false);
-            expect(i.reply).toHaveBeenCalledWith({ content: "Dieser Befehl ist Admins vorbehalten.", flags: MessageFlags.Ephemeral });
+            expect(i.reply).toHaveBeenCalledWith({ content: "This is reserved for admins.", flags: MessageFlags.Ephemeral });
             expect(i.showModal).not.toHaveBeenCalled();
         }
 

@@ -224,8 +224,8 @@ describe("what raiders see", () => {
         expect(slots[0]).toMatchObject({ id: first.userId, name: first.character, groupNumber: 1, slotNumber: 1 });
         expect(slots.every((s) => s.specName)).toBe(true);
         const field = msg(event);
-        expect(field.value).toMatch(/^\*\*Gr\. 1\*\* /);
-        expect(field.value).toContain("**Bank**");
+        expect(field.value).toMatch(/^\*\*Grp 1\*\* /);
+        expect(field.value).toContain("**Bench**");
         const reader = editor.editorView(event, { canWrite: false });
         expect(reader.approved.groups[0].slots[0]).toMatchObject({ classColor: expect.stringMatching(/^#/), specLabel: expect.any(String) });
     });

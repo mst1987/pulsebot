@@ -14,17 +14,17 @@ const baseUrl = () => String(publicBaseUrl || "").replace(/\/+$/, "");
 /** Without a profile character there is nothing to pick — the reply says where to add one. */
 function noCharacterReply() {
     const payload = {
-        content: "Für die Anmeldung zu mehreren Raids brauchst du Charaktere mit Spec in deinem Profil.",
+        content: "To sign up for several raids you need characters with a spec in your profile.",
         flags: MessageFlags.Ephemeral,
     };
     if (/^https?:\/\//.test(baseUrl())) {
-        payload.components = [{ type: 1, components: [{ type: 2, style: 5, label: "Profil anlegen", url: `${baseUrl()}/profile` }] }];
+        payload.components = [{ type: 1, components: [{ type: 2, style: 5, label: "Create profile", url: `${baseUrl()}/profile` }] }];
     }
     return payload;
 }
 
 function noRaidsReply() {
-    return { content: "Gerade stehen keine Raids mit Anmeldung über den EventHelper an.", flags: MessageFlags.Ephemeral };
+    return { content: "There are no coming raids with an EventHelper signup right now.", flags: MessageFlags.Ephemeral };
 }
 
 module.exports = {

@@ -26,7 +26,7 @@
 //   signup-multi:<token>:m:<page>   the modal (submit)
 //   signup-multi:e:<eventId>:<code> "Mehrere Charaktere …" of one event
 const crypto = require("crypto");
-const { DateTime } = require("luxon");
+const { shortServerTime, shortServerDate, discordTimestamp } = require("./discordTime");
 const { embedAccentColor, publicBaseUrl } = require("../config/variables");
 const eventStore = require("../web/eventStore");
 const { getSignup, lastSignupOf } = require("../web/signupStore");
@@ -38,15 +38,14 @@ const { signupWindow } = require("../web/signupService");
 const { emojiOption, specEmojiName, statusEmojiName } = require("../web/appEmojis");
 const { STATUS_CODES, STATUS_BY_CODE, STATUS_LABELS, STATUS_STATE } = require("./signupDialog");
 const { characterOptions, defaultPick } = require("./joinPicker");
+const { toEnglish } = require("./botEnglish");
 
 const PREFIX = "signup-multi";
 const SESSION_TTL = 30 * 60 * 1000;
 const PER_MODAL = 5;
 const MAX_RAIDS = 25;
 const MAX_OPTIONS = 25;
-const ZONE = "Europe/Berlin";
-const WEEKDAYS = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
-const GEAR_TEXT = { ready: "raidbereit", usable: "brauchbar", none: "kein Gear" };
+const GEAR_TEXT = { ready: "raid ready", usable: "usable", none: "no gear" };
 const STATUS_ORDER = ["signed", "tentative", "late", "bench", "absence"];
 
 const sessions = new Map();
@@ -86,15 +85,10 @@ function parseMultiId(customId) {
 const multiId = (token, action, page) => [PREFIX, token, action, page === undefined ? null : page].filter((x) => x !== null).join(":");
 const oneEventId = (eventId, status) => `${PREFIX}:e:${eventId}:${STATUS_CODES[status] || "s"}`;
 
-/** "Mi 24.09. 19:30" in Berlin time. */
-function formatStart(startTime) {
-    const n = Number(startTime) || 0;
-    if (!n) return "";
-    const dt = DateTime.fromSeconds(n, { zone: ZONE });
-    return `${WEEKDAYS[dt.weekday - 1]} ${dt.toFormat("dd.MM. HH:mm")}`;
-}
-
-const shortDate = (startTime) => formatStart(startTime).slice(0, 9).trim();
+// Select options and modal labels cannot render Discord timestamps, so they
+// carry the date as English text in server time: "Wed 24 Sep 19:30".
+const formatStart = shortServerTime;
+const shortDate = shortServerDate;
 const plain = (text) => String(text || "").replace(/[*_`~|[\]\\]/g, "").replace(/\s+/g, " ").trim();
 
 /**
@@ -140,7 +134,7 @@ function characterSelectOptions(options, picked, emojis) {
     return ordered.slice(0, MAX_OPTIONS).map((o) => {
         const info = profiles.specInfo(o.spec) || {};
         const option = {
-            label: `${o.name} · ${info.label || o.spec}`.slice(0, 100),
+            label: `${o.name} · ${info.labelEn || info.label || o.spec}`.slice(0, 100),
             value: optionValue(o).slice(0, 100),
             description: [o.main ? "Main" : "", GEAR_TEXT[o.gear] || ""].filter(Boolean).join(" · ").slice(0, 100) || undefined,
             default: first.includes(optionValue(o)),
@@ -192,22 +186,22 @@ function buildRaidPicker(token, session, events, { emojis = {}, notice = "" } = 
     const byId = new Map(events.map((e) => [e.id, e]));
     const raids = session.eventIds.map((id) => byId.get(id)).filter(Boolean);
     const lines = [
-        "Schritt 1 von 2 · nur für dich sichtbar",
-        "Alle kommenden Raids sind gewählt – nimm raus, was nicht passt. Danach wählst du je Raid deine Charaktere.",
+        "Step 1 of 2 · only visible to you",
+        "All coming raids are selected – remove what does not suit you. Next you pick your characters per raid.",
     ];
     if (session.selected.length > PER_MODAL) {
-        lines.push(`Je Fenster ${PER_MODAL} Raids – nach dem Absenden geht es mit „Weiter“ zu den nächsten.`);
+        lines.push(`${PER_MODAL} raids per window – after submitting, “Next” takes you to the following ones.`);
     }
     if (notice) lines.push("", notice);
     return {
-        embeds: [{ color: embedAccentColor, title: "Für welche Raids?", description: lines.join("\n") }],
+        embeds: [{ color: embedAccentColor, title: "Which raids?", description: lines.join("\n") }],
         components: [
             {
                 type: 1,
                 components: [{
                     type: 3,
                     custom_id: multiId(token, "r"),
-                    placeholder: "Raids wählen …",
+                    placeholder: "Pick raids …",
                     min_values: 1,
                     max_values: raids.length,
                     options: raids.map((e) => ({
@@ -218,14 +212,14 @@ function buildRaidPicker(token, session, events, { emojis = {}, notice = "" } = 
                     })),
                 }],
             },
-            { type: 1, components: [{ ...statusSelect(multiId(token, "s"), session.status, emojis), placeholder: "Status für alle" }] },
+            { type: 1, components: [{ ...statusSelect(multiId(token, "s"), session.status, emojis), placeholder: "Status for all" }] },
             {
                 type: 1,
                 components: [{
                     type: 2,
                     style: 1,
                     custom_id: multiId(token, "go", 0),
-                    label: session.selected.length > PER_MODAL ? `Weiter: Charaktere (${pageRange(session, 0)})` : "Weiter: Charaktere",
+                    label: session.selected.length > PER_MODAL ? `Next: characters (${pageRange(session, 0)})` : "Next: characters",
                     disabled: !session.selected.length,
                 }],
             },
@@ -250,7 +244,7 @@ function buildCharacterModal(token, session, page, events, profile, { emojis = {
     const options = characterOptions(profile);
     if (!options.length) return null;
     const max = Math.min(MAX_CHARACTERS, options.length);
-    const hint = "Oberster gewählter = 1. Wahl, weitere = „kann auch mit“";
+    const hint = "Topmost pick = 1st choice, the others = “can also come with”";
     // Discord hands the picks back without their click order: remember the listed order.
     session.orders = session.orders || {};
     const select = (field, eventId) => {
@@ -261,13 +255,13 @@ function buildCharacterModal(token, session, page, events, profile, { emojis = {
     if (session.mode === "all") {
         return {
             custom_id: multiId(token, "m", 0),
-            title: `Für alle ${session.selected.length} Raids anmelden`.slice(0, 45),
+            title: `Sign up for all ${session.selected.length} raids`.slice(0, 45),
             components: [
-                labelled("Charaktere · Specs für alle Raids", `${hint}. Was im Raid nicht passt, wird übersprungen.`, {
+                labelled("Characters · specs for all raids", `${hint}. What does not fit a raid is skipped.`, {
                     type: 3, custom_id: "all", min_values: 1, max_values: max, required: true,
                     options: select("all", ""),
                 }),
-                labelled("Status für alle", "", { ...statusSelect("status", session.status, emojis), required: true }),
+                labelled("Status for all", "", { ...statusSelect("status", session.status, emojis), required: true }),
             ],
         };
     }
@@ -276,14 +270,14 @@ function buildCharacterModal(token, session, page, events, profile, { emojis = {
     const pages = pageCount(session);
     const components = ids.map((id, i) => {
         const event = byId.get(id) || { id, title: id };
-        return labelled(`${plain(event.title) || "Raid"} · ${shortDate(event.startTime)}`.trim(), session.mode === "one" ? hint : `${hint} · leer = überspringen`, {
+        return labelled(`${plain(event.title) || "Raid"} · ${shortDate(event.startTime)}`.trim(), session.mode === "one" ? hint : `${hint} · empty = skip`, {
             type: 3, custom_id: `r${i}`, min_values: session.mode === "one" ? 1 : 0, max_values: max, required: session.mode === "one",
             options: select(`r${i}`, id),
         });
     });
     return {
         custom_id: multiId(token, "m", page),
-        title: `Mit welchen Charakteren?${pages > 1 ? ` (${page + 1}/${pages})` : ""}`.slice(0, 45),
+        title: `Which characters?${pages > 1 ? ` (${page + 1}/${pages})` : ""}`.slice(0, 45),
         components,
     };
 }
@@ -328,24 +322,25 @@ function entriesFromModal(interaction, session, page) {
 function characterText(profile, c) {
     const ch = ((profile && profile.characters) || []).find((x) => x.key === profiles.characterKey(c.character));
     const info = profiles.specInfo(c.spec) || {};
-    return [ch ? ch.name : c.character, info.label || ""].filter(Boolean).join(" · ");
+    return [ch ? ch.name : c.character, info.labelEn || info.label || ""].filter(Boolean).join(" · ");
 }
 
-/** One result line: "✅ **SSC + TK** · Mi 24.09.: Zibbo · Holy, +Zibbowar · Prot". */
+/** One result line: "✅ **SSC + TK** · <t:…:D>: Zibbo · Holy, +Zibbowar · Protection". */
 function resultLine(result, profile) {
-    const head = `**${plain(result.title) || "Raid"}**${result.startTime ? ` · ${shortDate(result.startTime)}` : ""}`;
-    const skipped = (result.skipped || []).map((s) => `${characterText(profile, s)} übersprungen: ${s.reason}`);
+    // An embed renders Discord timestamps: every reader sees their own date format.
+    const head = `**${plain(result.title) || "Raid"}**${result.startTime ? ` · ${discordTimestamp(result.startTime, "D")}` : ""}`;
+    const skipped = (result.skipped || []).map((s) => `${characterText(profile, s)} skipped: ${toEnglish(s.reason)}`);
     if (result.ok) {
         const s = result.signup || {};
         const chars = (s.characters || []).map((c, i) => `${i ? "+" : ""}${characterText(profile, c)}`).join(", ");
         // A "Dabei" the full raid turned into a bench seat says so in words (#306).
         const status = result.waitlisted
-            ? " – **Warteliste (Bank)**"
+            ? " – **Waiting list (bench)**"
             : (s.status && s.status !== "signed" ? ` – ${STATUS_STATE[s.status] || s.status}` : "");
-        return `✅ ${head}: ${s.status === "absence" ? "abgemeldet" : chars}${status}${skipped.length ? `\n   ↳ ${skipped.join("; ")}` : ""}`;
+        return `✅ ${head}: ${s.status === "absence" ? "signed off" : chars}${status}${skipped.length ? `\n   ↳ ${skipped.join("; ")}` : ""}`;
     }
-    if (result.code === "no_character" && !skipped.length) return `⏭️ ${head}: übersprungen (kein Charakter gewählt)`;
-    return `⛔ ${head}: ${result.error || "nicht gespeichert"}${skipped.length ? ` (${skipped.join("; ")})` : ""}`;
+    if (result.code === "no_character" && !skipped.length) return `⏭️ ${head}: skipped (no character picked)`;
+    return `⛔ ${head}: ${toEnglish(result.error) || "not saved"}${skipped.length ? ` (${skipped.join("; ")})` : ""}`;
 }
 
 /**
@@ -357,19 +352,19 @@ function buildResults(token, session, { nextPage = null, profile = null } = {}) 
     const saved = results.filter((r) => r.ok).length;
     const lines = results.map((r) => resultLine(r, profile));
     const title = nextPage === null
-        ? `Anmeldung: ${saved} von ${results.length} Raids gespeichert`
-        : `Bisher ${saved} von ${results.length} Raids gespeichert`;
+        ? `Signup: ${saved} of ${results.length} raids saved`
+        : `So far ${saved} of ${results.length} raids saved`;
     let description = lines.join("\n");
     if (description.length > 4000) description = `${description.slice(0, 3990)}…`;
     const components = [];
     const buttons = [];
     if (nextPage !== null) {
-        buttons.push({ type: 2, style: 1, custom_id: multiId(token, "go", nextPage), label: `Weiter: ${pageRange(session, nextPage)}` });
+        buttons.push({ type: 2, style: 1, custom_id: multiId(token, "go", nextPage), label: `Next: ${pageRange(session, nextPage)}` });
     }
-    if (/^https?:\/\//.test(baseUrl())) buttons.push({ type: 2, style: 5, label: "Meine Anmeldungen", url: `${baseUrl()}/signups` });
+    if (/^https?:\/\//.test(baseUrl())) buttons.push({ type: 2, style: 5, label: "My signups", url: `${baseUrl()}/signups` });
     if (buttons.length) components.push({ type: 1, components: buttons });
     return {
-        embeds: [{ color: embedAccentColor, title, description: description || "Nichts gewählt." }],
+        embeds: [{ color: embedAccentColor, title, description: description || "Nothing picked." }],
         components,
     };
 }
